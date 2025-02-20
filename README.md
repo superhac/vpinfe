@@ -9,6 +9,7 @@ Keyboard:
 - SHIFT_LEFT = Table shift left
 - SHIFT_RIGHT = Table shift right
 - ESCAPE = Exit
+
 Joystick
 - Left_Bumper = Table shift left
 - Right_Bumber = Table shift right
@@ -16,10 +17,8 @@ Joystick
 ## Requirements
 Windows
 - None
--- SDL2 - Included in Windows build
+  - SDL2 - Included in Windows build
 Linux
 - Not Sure
 MacOS
 - Not Sure
-SDL2 - Included in Windows build
-
