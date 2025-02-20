@@ -18,7 +18,9 @@ Joystick
 Windows
 - None
   - SDL2 - Included in Windows build
+
 Linux
 - Not Sure
+
 MacOS
 - Not Sure
