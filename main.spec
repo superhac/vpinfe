@@ -4,7 +4,7 @@
 a = Analysis(
     ['main.py'],
     pathex=['vvv/lib/python3.12/site-packages/'],
-    binaries=[],
+    binaries=[('dlls/SDL2.dll','.')],
     datas=[('assets', '.')],
     hiddenimports=['screeninfo', 'tkinter', 'PIL', 'PIL._tkinter_finder', 'pysdl2'],
     hookspath=[],
