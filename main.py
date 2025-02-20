@@ -6,10 +6,8 @@ import os
 import time
 import subprocess
 import argparse
-
-# tracks if this root or another top-level
-firstWindow = True
-rootWindow = None
+import sdl2
+import sdl2.ext
 
 class ScreenNames():
     BG    = None
@@ -79,33 +77,58 @@ class Screen:
     def imageRotate(self,degrees):
         self.image = self.image.rotate(90, expand=True)
 
+# Globals
+firstWindow = True # tracks if this root or another top-level
+rootWindow = None
+screens = []
+ScreenNames = ScreenNames()
+exitGamepad = False
+
 def key_pressed(event):
     global imageSetIndex
+    global exitGamepad
     key = event.char # Get the character representation of the key
     keysym = event.keysym # Get the symbolic name of the key
     keycode = event.keycode # Get the numeric keycode
     print(f"Key pressed: {key}, keysym: {keysym}, keycode: {keycode}")
 
     if keysym == "Shift_R":
-        if imageSetIndex != len(imageSets)-1:
-            imageSetIndex += 1
-            setGameDisplays(imageSets[imageSetIndex])
-        else:
-             imageSetIndex = 0;
-             setGameDisplays(imageSets[imageSetIndex]) 
-
+        screenMoveRight()
+    if keysym == "Shift_L":
+        screenMoveLeft()
     if keysym == "Escape":
-        rootWindow.destroy()
+        exitGamepad = True # exit the gamepad loop
 
     if keysym == "a":
         for s in screens: 
             s.window.withdraw()
-            #s.window.attributes("-fullscreen", False)
         s.window.after(1, test() )
 
     if keysym == "b":
         for s in screens:
             s.window.deiconify()
+
+def screenMoveRight():
+    global imageSetIndex
+    global exitGamepad
+
+    if imageSetIndex != len(imageSets)-1:
+        imageSetIndex += 1
+        setGameDisplays(imageSets[imageSetIndex])
+    else:
+        imageSetIndex = 0;
+        setGameDisplays(imageSets[imageSetIndex])
+
+def screenMoveLeft():
+    global imageSetIndex
+    global exitGamepad
+
+    if imageSetIndex != 0:
+        imageSetIndex -= 1
+        setGameDisplays(imageSets[imageSetIndex])
+    else:
+        imageSetIndex = len(imageSets)-1;
+        setGameDisplays(imageSets[imageSetIndex])
 
 # testing crap for minimizing windows to run vpinball
 def test():
@@ -118,7 +141,6 @@ def test():
     rootWindow.update()
     rootWindow.focus_force()
     print("done")
-
 
 def launchVPX(table):
     null = open(os.devnull, 'w')
@@ -144,9 +166,16 @@ def setGameDisplays(imageSet):
         screens[ScreenNames.TABLE].resizeImageToScreen()
         screens[ScreenNames.TABLE].displayImage()
 
+sdl2.ext.init()
+if sdl2.SDL_InitSubSystem(sdl2.SDL_INIT_JOYSTICK) < 0:
+    print(f"SDL_InitSubSystem Error: {sdl2.SDL_GetError()}")
+    exit(1)
 
-# globals
-ScreenNames = ScreenNames()
+num_joysticks = sdl2.SDL_NumJoysticks()
+print(f"Number of joysticks connected: {num_joysticks}")
+
+for i in range(num_joysticks):
+    sdl2.SDL_JoystickOpen(i)
 
 # load files
 imageSets = []
@@ -191,10 +220,6 @@ else:
 if args.dmdid is not None:
      ScreenNames.DMD = args.dmdid
 
-
-
-screens = []
-
 # Get all available screens
 monitors = get_monitors()
 
@@ -203,7 +228,6 @@ for i in range(len(monitors)):
     #screen = Screen(monitors[i], create_fullscreen_window(monitors[i]))
     screens.append(screen)
     print(i,":"+str(screen.screen))
-
 
 rootWindow.bind("<Any-KeyPress>", key_pressed)
 #root.withdraw()  # Hide the root window
@@ -215,8 +239,30 @@ screens[0].window.update_idletasks()
 imageSetIndex = 0
 setGameDisplays(imageSets[imageSetIndex])
 
-# Schedule shutdown after 5 seconds
-#root.after(5000, root.destroy)
+# gamepad loop
+while not exitGamepad:
+    #time.sleep(0.001)
+    if rootWindow.winfo_exists():
+        rootWindow.update()
+    events = sdl2.ext.get_events()
+    for event in events:
+        if event.type == sdl2.SDL_QUIT:
+            exitGamepad = True
+            break
+        elif event.type == sdl2.SDL_JOYAXISMOTION:
+            axis_id = event.jaxis.axis
+            axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
+            print(f"Axis {axis_id}: {axis_value}")
+        elif event.type == sdl2.SDL_JOYBUTTONDOWN:
+            button_id = event.jbutton.button
+            if button_id == 5:
+                 screenMoveRight()
+            elif button_id == 4:
+                 screenMoveLeft()
+            print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
+        elif event.type == sdl2.SDL_JOYBUTTONUP:
+            button_id = event.jbutton.button
+            print(f"Button {button_id} Up")
 
-# Start main loop
-rootWindow.mainloop()
+sdl2.SDL_Quit()
+rootWindow.destroy()
