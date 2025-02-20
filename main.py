@@ -3,18 +3,18 @@ from screeninfo import get_monitors
 from PIL import Image, ImageTk
 import sys
 import os
-from enum import Enum
 import time
 import subprocess
+import argparse
 
 # tracks if this root or another top-level
 firstWindow = True
 rootWindow = None
 
-class ScreenNames(Enum):
-    BG    = 0
-    DMD   = 1
-    TABLE = 2
+class ScreenNames():
+    BG    = None
+    DMD   = None
+    TABLE = None
 
 class ImageSet:
     bg_file_path    = None
@@ -126,25 +126,31 @@ def launchVPX(table):
 
 def setGameDisplays(imageSet):
     # Load image BG
-    screens[ScreenNames.BG.value].loadImage(imageSet.bg_file_path)
-    screens[ScreenNames.BG.value].resizeImageToScreen()
-    screens[ScreenNames.BG.value].displayImage() 
+    if ScreenNames.BG is not None:
+        screens[ScreenNames.BG].loadImage(imageSet.bg_file_path)
+        screens[ScreenNames.BG].resizeImageToScreen()
+        screens[ScreenNames.BG].displayImage() 
 
     # Load image DMD
-    screens[ScreenNames.DMD.value].loadImage(imageSet.dmd_file_path)
-    screens[ScreenNames.DMD.value].resizeImageToScreen()
-    screens[ScreenNames.DMD.value].displayImage()
+    if ScreenNames.DMD is not None:
+        screens[ScreenNames.DMD].loadImage(imageSet.dmd_file_path)
+        screens[ScreenNames.DMD].resizeImageToScreen()
+        screens[ScreenNames.DMD].displayImage()
 
     # load table image (rotated and we swap width and height around like portrait mode)
-    screens[ScreenNames.TABLE.value].loadImage(imageSet.table_file_path)
-    screens[ScreenNames.TABLE.value].imageRotate(90)
-    screens[ScreenNames.TABLE.value].resizeImageToScreen()
-    screens[ScreenNames.TABLE.value].displayImage()
+    if ScreenNames.TABLE is not None:
+        screens[ScreenNames.TABLE].loadImage(imageSet.table_file_path)
+        screens[ScreenNames.TABLE].imageRotate(90)
+        screens[ScreenNames.TABLE].resizeImageToScreen()
+        screens[ScreenNames.TABLE].displayImage()
+
+
+# globals
+ScreenNames = ScreenNames()
 
 # load files
 imageSets = []
 basepath = sys._MEIPASS+"/bg"
-print(basepath)
 for fname in os.listdir(basepath):
     path = os.path.join(basepath, fname)
     if not os.path.isdir(path):
@@ -156,7 +162,36 @@ for fname in os.listdir(basepath):
         imageSets.append(imageSet)
 
 # Main application
-#root = tk.Tk()
+parser = argparse.ArgumentParser(allow_abbrev=False)
+parser.add_argument("--listres", help="ID and list your screens", action="store_true")
+parser.add_argument("--bgid", help="The monitor id of the BG monitor", type=int)
+parser.add_argument("--dmdid", help="The monitor id of the DMD monitor", type=int)
+parser.add_argument("--tableid", help="The monitor id of the table monitor", type=int)
+args = parser.parse_args()
+
+if args.listres:
+    # Get all available screens
+    monitors = get_monitors()
+    for i in range(len(monitors)):
+        print(i,":"+str(monitors[i]))
+    sys.exit()
+
+if args.bgid is None:
+    print("You must have atleast a bg and table monitor specified.")
+    sys.exit()
+else:
+    ScreenNames.BG = args.bgid
+
+if args.tableid is None:
+    print("You must have atleast a bg and table monitor specified.")
+    sys.exit()
+else:
+    ScreenNames.TABLE = args.tableid
+
+if args.dmdid is not None:
+     ScreenNames.DMD = args.dmdid
+
+
 
 screens = []
 
