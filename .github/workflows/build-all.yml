@@ -14,7 +14,7 @@ jobs:
         os: ['windows-latest', 'ubuntu-latest', 'macos-latest']
 
     env:
-      SPECFILE = 'main.spec'
+      SPECFILE : 'main.spec'
 
     steps:
     - name: Checkout code
