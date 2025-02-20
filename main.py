@@ -84,6 +84,11 @@ screens = []
 ScreenNames = ScreenNames()
 exitGamepad = False
 
+# OS Specific
+if sys.platform.startswith('win'):
+    os.environ['PYSDL2_DLL_PATH'] = sys._MEIPASS+'/SDL2.dll'
+
+
 def key_pressed(event):
     global imageSetIndex
     global exitGamepad
