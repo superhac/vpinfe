@@ -7,7 +7,6 @@ from enum import Enum
 import time
 import subprocess
 
-
 # tracks if this root or another top-level
 firstWindow = True
 rootWindow = None
