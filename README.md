@@ -30,7 +30,7 @@ MacOS
 
 Help:
 ```
-usage: main [-h] [--listres] [--bgid BGID] [--dmdid DMDID] [--tableid TABLEID]
+usage: vpinfe [-h] [--listres] [--bgid BGID] [--dmdid DMDID] [--tableid TABLEID]
 
 options:
   -h, --help         show this help message and exit
@@ -41,7 +41,7 @@ options:
 ```
 #1 - Get your displays (2 minimum for now.  BG and Table)
 
-`./main --listres`
+`./vpinfe --listres`
 Then you'll see:
 ```
 Number of joysticks connected: 1
@@ -51,11 +51,11 @@ Number of joysticks connected: 1
 ```
 #2 Assign your yours displays and run
 
-`./main --bgid 0 --tableid 2 --dmdid 1`
+`./vpinfe --bgid 0 --tableid 2 --dmdid 1`
 
 or this if you only have two screens:
 
-`./main --bgid 0 --tableid 2`
+`./vpinfe --bgid 0 --tableid 2`
 
 
 #3 Enjoy ;)
