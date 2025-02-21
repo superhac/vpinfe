@@ -9,81 +9,18 @@ import argparse
 import sdl2
 import sdl2.ext
 
-class ScreenNames():
-    BG    = None
-    DMD   = None
-    TABLE = None
-
-class ImageSet:
-    bg_file_path    = None
-    dmd_file_path   = None
-    table_file_path = None
-
-class Screen:
-    screen = None
-    window = None
-    canvas = None
-    image  = None
-    photo  = None
-    canvasPhotoID = None
-
-    def __init__(self, screen):
-        self.screen = screen
-        self.createWindow()
-
-    def createWindow(self):
-        """Creates a fullscreen window on a specific screen."""
-
-        global firstWindow
-        global rootWindow
-
-        if firstWindow:
-            self.window = tk.Tk()
-            firstWindow = False
-            rootWindow = self.window
-        else:
-            self.window = tk.Toplevel()
-        self.window.configure(bg="black")
-        #win.overrideredirect(True)
-
-        # Set window size and position
-        self.window.geometry(f"{self.screen.width}x{self.screen.height}+{self.screen.x}+{self.screen.y}")
-        self.window.attributes("-fullscreen", True)
-
-    def loadImage(self, img_path):
-        self.image = Image.open(img_path)
-        self.photo = ImageTk.PhotoImage(self.image)
-
-    def resizeImageToScreen(self):
-        self.image = self.image.resize((self.window.winfo_width(), self.window.winfo_height()), Image.Resampling.LANCZOS)
-        self.photo = ImageTk.PhotoImage(self.image)
-
-    def displayImage(self):
-        #self.canvas.config(highlightthickness=0, borderwidth=0)
-        #self.canvas.pack(fill="both", expand=True)
-        if self.canvas == None:
-            self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
-            self.canvasPhotoID = self.canvas.create_image((0,0), anchor="nw", image=self.photo)
-            self.canvas.config(highlightthickness=0, borderwidth=0)
-        else:
-            print("update img")
-            self.canvas.itemconfig(self.canvasPhotoID, image=self.photo)
-        self.canvas.pack(fill="both", expand=True)
-        #canvas.create_text(200, 150, text="Hello, Tkinter!", font=("Arial", 50), fill="white")
-
-    def imageRotate(self,degrees):
-        self.image = self.image.rotate(90, expand=True)
-
-# Globals
-firstWindow = True # tracks if this root or another top-level
-rootWindow = None
-screens = []
-ScreenNames = ScreenNames()
-exitGamepad = False
+from screennames import ScreenNames
+from imageset import ImageSet
+from screen import Screen
 
 # OS Specific
 if sys.platform.startswith('win'):
     os.environ['PYSDL2_DLL_PATH'] = sys._MEIPASS+'/SDL2.dll' # need to include the sdl2 runtime for windows
+
+# Globals
+screens = []
+ScreenNames = ScreenNames()
+exitGamepad = False
 
 def key_pressed(event):
     global imageSetIndex
@@ -136,8 +73,8 @@ def launchTable(tablefilePath):
         s.window.deiconify()
         #print("loop")
         #s.window.attributes("-fullscreen", True)
-    rootWindow.update()
-    rootWindow.focus_force()
+    Screen.rootWindow.update()
+    Screen.rootWindow.focus_force()
     print("done")
 
 def launchVPX(table):
@@ -164,16 +101,62 @@ def setGameDisplays(imageSet):
         screens[ScreenNames.TABLE].resizeImageToScreen()
         screens[ScreenNames.TABLE].displayImage()
 
+def getScreens():
+    # Get all available screens
+    monitors = get_monitors()
+
+    for i in range(len(monitors)):
+        screen = Screen(monitors[i])
+        #screen = Screen(monitors[i], create_fullscreen_window(monitors[i]))
+        screens.append(screen)
+        print(i,":"+str(screen.screen))
+
+def openJoysticks():
+    if sdl2.SDL_InitSubSystem(sdl2.SDL_INIT_JOYSTICK) < 0:
+        print(f"SDL_InitSubSystem Error: {sdl2.SDL_GetError()}")
+        return
+
+    num_joysticks = sdl2.SDL_NumJoysticks()
+    print(f"Number of joysticks connected: {num_joysticks}")
+
+    for i in range(num_joysticks):
+        sdl2.SDL_JoystickOpen(i)
+
+def parseArgs():
+    parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser.add_argument("--listres", help="ID and list your screens", action="store_true")
+    parser.add_argument("--bgid", help="The monitor id of the BG monitor", type=int)
+    parser.add_argument("--dmdid", help="The monitor id of the DMD monitor", type=int)
+    parser.add_argument("--tableid", help="The monitor id of the table monitor", type=int)
+    args = parser.parse_args()
+
+    if args.listres:
+        # Get all available screens
+        monitors = get_monitors()
+        for i in range(len(monitors)):
+            print(i,":"+str(monitors[i]))
+        sys.exit()
+
+    if args.bgid is None:
+        print("You must have atleast a bg and table monitor specified.")
+        sys.exit()
+    else:
+        ScreenNames.BG = args.bgid
+
+    if args.tableid is None:
+        print("You must have atleast a bg and table monitor specified.")
+        sys.exit()
+    else:
+        ScreenNames.TABLE = args.tableid
+
+    if args.dmdid is not None:
+        ScreenNames.DMD = args.dmdid
+
+
 sdl2.ext.init()
-if sdl2.SDL_InitSubSystem(sdl2.SDL_INIT_JOYSTICK) < 0:
-    print(f"SDL_InitSubSystem Error: {sdl2.SDL_GetError()}")
-    exit(1)
-
-num_joysticks = sdl2.SDL_NumJoysticks()
-print(f"Number of joysticks connected: {num_joysticks}")
-
-for i in range(num_joysticks):
-    sdl2.SDL_JoystickOpen(i)
+openJoysticks()
+parseArgs()
+getScreens()
 
 # load files
 imageSets = []
@@ -189,45 +172,11 @@ for fname in os.listdir(basepath):
         imageSets.append(imageSet)
 
 # Main application
-parser = argparse.ArgumentParser(allow_abbrev=False)
-parser.add_argument("--listres", help="ID and list your screens", action="store_true")
-parser.add_argument("--bgid", help="The monitor id of the BG monitor", type=int)
-parser.add_argument("--dmdid", help="The monitor id of the DMD monitor", type=int)
-parser.add_argument("--tableid", help="The monitor id of the table monitor", type=int)
-args = parser.parse_args()
 
-if args.listres:
-    # Get all available screens
-    monitors = get_monitors()
-    for i in range(len(monitors)):
-        print(i,":"+str(monitors[i]))
-    sys.exit()
 
-if args.bgid is None:
-    print("You must have atleast a bg and table monitor specified.")
-    sys.exit()
-else:
-    ScreenNames.BG = args.bgid
 
-if args.tableid is None:
-    print("You must have atleast a bg and table monitor specified.")
-    sys.exit()
-else:
-    ScreenNames.TABLE = args.tableid
 
-if args.dmdid is not None:
-     ScreenNames.DMD = args.dmdid
-
-# Get all available screens
-monitors = get_monitors()
-
-for i in range(len(monitors)):
-    screen = Screen(monitors[i])
-    #screen = Screen(monitors[i], create_fullscreen_window(monitors[i]))
-    screens.append(screen)
-    print(i,":"+str(screen.screen))
-
-rootWindow.bind("<Any-KeyPress>", key_pressed)
+Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
 #root.withdraw()  # Hide the root window
 
 # Ensure windows have updated dimensions
@@ -240,8 +189,8 @@ setGameDisplays(imageSets[imageSetIndex])
 # gamepad loop
 while not exitGamepad:
     #time.sleep(0.001)
-    if rootWindow.winfo_exists():
-        rootWindow.update()
+    if Screen.rootWindow.winfo_exists():
+        Screen.rootWindow.update()
     events = sdl2.ext.get_events()
     for event in events:
         if event.type == sdl2.SDL_QUIT:
@@ -264,4 +213,4 @@ while not exitGamepad:
 
 # shutdown
 sdl2.SDL_Quit()
-rootWindow.destroy()
+Screen.rootWindow.destroy()
