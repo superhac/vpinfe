@@ -30,8 +30,6 @@ class Screen:
     def __init__(self, screen):
         self.screen = screen
         self.createWindow()
-        #self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
-        #self.canvas.config(highlightthickness=0, borderwidth=0)
 
     def createWindow(self):
         """Creates a fullscreen window on a specific screen."""
@@ -49,7 +47,6 @@ class Screen:
         #win.overrideredirect(True)
 
         # Set window size and position
-        #self.screen.x, self.screen.y, width, height = screen.x, screen.y, screen.width, screen.height
         self.window.geometry(f"{self.screen.width}x{self.screen.height}+{self.screen.x}+{self.screen.y}")
         self.window.attributes("-fullscreen", True)
 
@@ -86,8 +83,7 @@ exitGamepad = False
 
 # OS Specific
 if sys.platform.startswith('win'):
-    os.environ['PYSDL2_DLL_PATH'] = sys._MEIPASS+'/SDL2.dll'
-
+    os.environ['PYSDL2_DLL_PATH'] = sys._MEIPASS+'/SDL2.dll' # need to include the sdl2 runtime for windows
 
 def key_pressed(event):
     global imageSetIndex
@@ -104,14 +100,11 @@ def key_pressed(event):
     if keysym == "Escape":
         exitGamepad = True # exit the gamepad loop
 
+    # testing stuff
     if keysym == "a":
         for s in screens: 
             s.window.withdraw()
         s.window.after(1, test() )
-
-    if keysym == "b":
-        for s in screens:
-            s.window.deiconify()
 
 def screenMoveRight():
     global imageSetIndex
@@ -269,5 +262,6 @@ while not exitGamepad:
             button_id = event.jbutton.button
             print(f"Button {button_id} Up")
 
+# shutdown
 sdl2.SDL_Quit()
 rootWindow.destroy()
