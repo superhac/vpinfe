@@ -3,7 +3,6 @@ from screeninfo import get_monitors
 from PIL import Image, ImageTk
 import sys
 import os
-import time
 import subprocess
 import argparse
 import sdl2
@@ -137,22 +136,16 @@ def parseArgs():
             print(i,":"+str(monitors[i]))
         sys.exit()
 
-    if args.bgid is None:
-        print("You must have atleast a bg and table monitor specified.")
-        sys.exit()
-    else:
+    if args.bgid is not None:
         ScreenNames.BG = args.bgid
 
-    if args.tableid is None:
-        print("You must have atleast a bg and table monitor specified.")
-        sys.exit()
-    else:
+    if args.tableid is not None:
         ScreenNames.TABLE = args.tableid
 
     if args.dmdid is not None:
         ScreenNames.DMD = args.dmdid
 
-
+# Main Application
 sdl2.ext.init()
 openJoysticks()
 parseArgs()
@@ -170,11 +163,6 @@ for fname in os.listdir(basepath):
         imageSet.dmd_file_path = sys._MEIPASS+"/dmd/"+fname
         imageSet.table_file_path = sys._MEIPASS+"/table/"+fname
         imageSets.append(imageSet)
-
-# Main application
-
-
-
 
 Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
 #root.withdraw()  # Hide the root window
