@@ -7,10 +7,12 @@ import subprocess
 import argparse
 import sdl2
 import sdl2.ext
+import time
 
 from screennames import ScreenNames
 from imageset import ImageSet
 from screen import Screen
+from tables import Tables
 
 # OS Specific
 if sys.platform.startswith('win'):
@@ -20,9 +22,12 @@ if sys.platform.startswith('win'):
 screens = []
 ScreenNames = ScreenNames()
 exitGamepad = False
+background = False
+tableRootDir = None
+vpxBinPath = None
 
 def key_pressed(event):
-    global imageSetIndex
+    global tableSetIndex
     global exitGamepad
     key = event.char # Get the character representation of the key
     keysym = event.keysym # Get the symbolic name of the key
@@ -40,63 +45,63 @@ def key_pressed(event):
     if keysym == "a":
         for s in screens: 
             s.window.withdraw()
-        s.window.after(1, launchTable(None) )
+        s.window.after(1, launchTable() )
 
 def screenMoveRight():
-    global imageSetIndex
-    global exitGamepad
+    global tableSetIndex
 
-    if imageSetIndex != len(imageSets)-1:
-        imageSetIndex += 1
-        setGameDisplays(imageSets[imageSetIndex])
+    if tableSetIndex != tables.getTableCount()-1:
+        tableSetIndex += 1
+        setGameDisplays(tables.getTable(tableSetIndex))
     else:
-        imageSetIndex = 0;
-        setGameDisplays(imageSets[imageSetIndex])
+        tableSetIndex = 0;
+        setGameDisplays(tables.getTable(tableSetIndex))
 
 def screenMoveLeft():
-    global imageSetIndex
-    global exitGamepad
+    global tableSetIndex
 
-    if imageSetIndex != 0:
-        imageSetIndex -= 1
-        setGameDisplays(imageSets[imageSetIndex])
+    if tableSetIndex != 0:
+        tableSetIndex -= 1
+        setGameDisplays(tables.getTable(tableSetIndex))
     else:
-        imageSetIndex = len(imageSets)-1;
-        setGameDisplays(imageSets[imageSetIndex])
+        tableSetIndex = tables.getTableCount()-1
+        setGameDisplays(tables.getTable(tableSetIndex))
 
 # testing crap for minimizing windows to run vpinball
-def launchTable(tablefilePath):
-    launchVPX("/home/superhac/ROMs/vpinball/Big Indian (Gottlieb 1974).vpx")
-    #time.sleep(5)
+def launchTable():
+    global background
+    background = True # # Disable SDL gamepad events
+    launchVPX(tables.getTable(tableSetIndex).fullPathVPXfile)
     for s in screens:
         s.window.deiconify()
         #print("loop")
         #s.window.attributes("-fullscreen", True)
     Screen.rootWindow.update()
     Screen.rootWindow.focus_force()
-    print("done")
-
+    Screen.rootWindow.update()
+    
 def launchVPX(table):
+    print("Lanuching: " + table)
     null = open(os.devnull, 'w')
-    subprocess.call(['/home/superhac/working/vpinball/build/VPinballX_BGFX', '-play', table], bufsize=4096, stdout=null, stderr=null)
+    subprocess.call([vpxBinPath, '-play', table], bufsize=4096, stdout=null, stderr=null)
 
-def setGameDisplays(imageSet):
+def setGameDisplays(tableInfo):
     # Load image BG
     if ScreenNames.BG is not None:
-        screens[ScreenNames.BG].loadImage(imageSet.bg_file_path)
+        screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath)
         screens[ScreenNames.BG].resizeImageToScreen()
         screens[ScreenNames.BG].displayImage() 
 
     # Load image DMD
     if ScreenNames.DMD is not None:
-        screens[ScreenNames.DMD].loadImage(imageSet.dmd_file_path)
+        screens[ScreenNames.DMD].loadImage(tableInfo.DMDImagePath)
         screens[ScreenNames.DMD].resizeImageToScreen()
         screens[ScreenNames.DMD].displayImage()
 
     # load table image (rotated and we swap width and height around like portrait mode)
     if ScreenNames.TABLE is not None:
-        screens[ScreenNames.TABLE].loadImage(imageSet.table_file_path)
-        screens[ScreenNames.TABLE].imageRotate(90)
+        screens[ScreenNames.TABLE].loadImage(tableInfo.TableImagePath)
+        #screens[ScreenNames.TABLE].imageRotate(90)
         screens[ScreenNames.TABLE].resizeImageToScreen()
         screens[ScreenNames.TABLE].displayImage()
 
@@ -122,11 +127,17 @@ def openJoysticks():
         sdl2.SDL_JoystickOpen(i)
 
 def parseArgs():
+    global tableRootDir
+    global vpxBinPath
+
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--listres", help="ID and list your screens", action="store_true")
     parser.add_argument("--bgid", help="The monitor id of the BG monitor", type=int)
     parser.add_argument("--dmdid", help="The monitor id of the DMD monitor", type=int)
     parser.add_argument("--tableid", help="The monitor id of the table monitor", type=int)
+    parser.add_argument("--tableroot", help="Root table directory")
+    parser.add_argument("--vpxbin", help="Full Path to your VPX binary")
+
     args = parser.parse_args()
 
     if args.listres:
@@ -144,25 +155,44 @@ def parseArgs():
 
     if args.dmdid is not None:
         ScreenNames.DMD = args.dmdid
+    
+    if args.vpxbin is None:
+        print("--vpxbin is required.  e.g. /home/yourdir/vpinball/build/VPinballX_BGFX")
+        sys.exit()
+    else:
+        if not os.path.exists(args.vpxbin):
+            print("VPX binary not found.  Check your --vpxbin argument has correct path")
+            sys.exit()
+        vpxBinPath = args.vpxbin
+    if args.tableroot is None:
+        print("--tableroot is required.  e.g. /home/yourdir/tables")
+        sys.exit()
+    else:
+        if not os.path.exists(args.tableroot):
+            print("Table root dir not found.  Check your --tableroot argument has correct path")
+            sys.exit()
+        tableRootDir = args.tableroot
 
 # Main Application
 sdl2.ext.init()
+
 openJoysticks()
 parseArgs()
 getScreens()
+tables = Tables(tableRootDir)
 
-# load files
-imageSets = []
-basepath = sys._MEIPASS+"/bg"
-for fname in os.listdir(basepath):
-    path = os.path.join(basepath, fname)
-    if not os.path.isdir(path):
-        # skip directories
-        imageSet = ImageSet()
-        imageSet.bg_file_path = path
-        imageSet.dmd_file_path = sys._MEIPASS+"/dmd/"+fname
-        imageSet.table_file_path = sys._MEIPASS+"/table/"+fname
-        imageSets.append(imageSet)
+# # load files
+# imageSets = []
+# basepath = sys._MEIPASS+"/bg"
+# for fname in os.listdir(basepath):
+#     path = os.path.join(basepath, fname)
+#     if not os.path.isdir(path):
+#         # skip directories
+#         imageSet = ImageSet()
+#         imageSet.bg_file_path = path
+#         imageSet.dmd_file_path = sys._MEIPASS+"/dmd/"+fname
+#         imageSet.table_file_path = sys._MEIPASS+"/table/"+fname
+#         imageSets.append(imageSet)
 
 Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
 #root.withdraw()  # Hide the root window
@@ -171,8 +201,8 @@ Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
 screens[0].window.update_idletasks()
 
 # load first imageset
-imageSetIndex = 0
-setGameDisplays(imageSets[imageSetIndex])
+tableSetIndex = 0
+setGameDisplays(tables.getTable(tableSetIndex))
 
 # gamepad loop
 while not exitGamepad:
@@ -180,25 +210,41 @@ while not exitGamepad:
     if Screen.rootWindow.winfo_exists():
         Screen.rootWindow.update()
     events = sdl2.ext.get_events()
-    for event in events:
-        if event.type == sdl2.SDL_QUIT:
-            exitGamepad = True
-            break
-        elif event.type == sdl2.SDL_JOYAXISMOTION:
-            axis_id = event.jaxis.axis
-            axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
-            print(f"Axis {axis_id}: {axis_value}")
-        elif event.type == sdl2.SDL_JOYBUTTONDOWN:
-            button_id = event.jbutton.button
-            if button_id == 5:
-                 screenMoveRight()
-            elif button_id == 4:
-                 screenMoveLeft()
-            print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
-        elif event.type == sdl2.SDL_JOYBUTTONUP:
-            button_id = event.jbutton.button
-            print(f"Button {button_id} Up")
 
+    # SDL continues to queue events in the background while in vpx.  This loop eats those on return to vpinfe.
+    if background:
+        events = sdl2.ext.get_events()
+        for event in events:
+            pass
+        background = False
+
+    for event in events:
+        if not background: # not coming back from vpx
+            if event.type == sdl2.SDL_QUIT:
+                exitGamepad = True
+                break
+            elif event.type == sdl2.SDL_JOYAXISMOTION:
+                axis_id = event.jaxis.axis
+
+                axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
+                print(f"Axis {axis_id}: {axis_value}")
+            elif event.type == sdl2.SDL_JOYBUTTONDOWN:
+                button_id = event.jbutton.button
+                if button_id == 5:
+                    screenMoveRight()
+                elif button_id == 4:
+                    screenMoveLeft()
+                elif button_id == 1:
+                    for s in screens: 
+                        s.window.withdraw()
+                    #s.window.after(1, launchTable() )
+                    launchTable()
+                    break
+                print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
+            elif event.type == sdl2.SDL_JOYBUTTONUP:
+                button_id = event.jbutton.button
+                print(f"Button {button_id} Up")
+    
 # shutdown
 sdl2.SDL_Quit()
 Screen.rootWindow.destroy()

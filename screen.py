@@ -39,23 +39,28 @@ class Screen:
         self.window.attributes("-fullscreen", True)
 
     def loadImage(self, img_path):
-        self.image = Image.open(img_path)
-        self.photo = ImageTk.PhotoImage(self.image)
+        try:
+            self.image = Image.open(img_path)
+            self.photo = ImageTk.PhotoImage(self.image)
+        except:
+            pass
 
     def resizeImageToScreen(self):
-        self.image = self.image.resize((self.window.winfo_width(), self.window.winfo_height()), Image.Resampling.LANCZOS)
-        self.photo = ImageTk.PhotoImage(self.image)
+        if self.image != None:
+            self.image = self.image.resize((self.window.winfo_width(), self.window.winfo_height()), Image.Resampling.LANCZOS)
+            self.photo = ImageTk.PhotoImage(self.image)
 
     def displayImage(self):
-        if self.canvas == None:
-            self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
-            self.canvasPhotoID = self.canvas.create_image((0,0), anchor="nw", image=self.photo)
-            self.canvas.config(highlightthickness=0, borderwidth=0)
-        else:
-            print("update img")
-            self.canvas.itemconfig(self.canvasPhotoID, image=self.photo)
-        self.canvas.pack(fill="both", expand=True)
-        #canvas.create_text(200, 150, text="Hello, Tkinter!", font=("Arial", 50), fill="white")
+        if self.image != None:
+            if self.canvas == None:
+                self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
+                self.canvasPhotoID = self.canvas.create_image((0,0), anchor="nw", image=self.photo)
+                self.canvas.config(highlightthickness=0, borderwidth=0)
+            else:
+                self.canvas.itemconfig(self.canvasPhotoID, image=self.photo)
+            self.canvas.pack(fill="both", expand=True)
+            #canvas.create_text(200, 150, text="Hello, Tkinter!", font=("Arial", 50), fill="white")
 
     def imageRotate(self,degrees):
-        self.image = self.image.rotate(90, expand=True)
+         if self.image != None:
+            self.image = self.image.rotate(90, expand=True)
