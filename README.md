@@ -1,4 +1,5 @@
-# VpinFE
+# VPinFE
+![VPinFE_logo_main](https://github.com/user-attachments/assets/507c50e3-bc1e-499a-b393-f9d11250b709)
 
 A frontend for vpinball for linux, windows, mac.
 
@@ -8,7 +9,7 @@ YouTube Video
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/qptIbb0wLRY/0.jpg)](https://www.youtube.com/watch?v=qptIbb0wLRY)
 
 ## Note
-This is not ready for consumption as I'm just putting in the plumbing.  You can pull a CI build if you want to see what it looks like.  RIGHT_SHIFT will switch tables (Only 2) and ESCAPE will exit.
+This is not ready for consumption as I'm just putting in the plumbing.  You can pull a CI build if you want to see what it looks like.
 
 ## Controls
 Keyboard: 
