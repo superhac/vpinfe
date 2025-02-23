@@ -21,6 +21,7 @@ class Screen:
     rootWindow = None
 
     def __init__(self, screen):
+        self.text = None
         self.screen = screen
         self.cache = OrderedDict()
         self.index_map = {}  # Maps index numbers to image keys
@@ -44,16 +45,20 @@ class Screen:
         self.window.geometry(f"{self.screen.width}x{self.screen.height}+{self.screen.x}+{self.screen.y}")
         self.window.attributes("-fullscreen", True)
 
-    def loadImage(self, img_path, display=True ): 
+    def loadImage(self, img_path, display=True ):
+        if self.text != None: 
+            self.removeText()
+
         key = img_path
 
         # If already in cache, move to end (most recently used) and return
         if key in self.cache:
             self.cache.move_to_end(key)
             self.displayImage(self.cache[key])
+            return
 
         # Load and process the image
-        img = Image.open(img_path)
+        img = Image.open(img_path).convert("RGBA") # not sure what the performance gain is here.
         img = self.resizeImageToScreen(img)
         img_tk = ImageTk.PhotoImage(img)
 
@@ -81,8 +86,14 @@ class Screen:
             else:
                 self.canvas.itemconfig(self.canvasPhotoID, image=img_tk)
             self.canvas.pack(fill="both", expand=True)
-            #canvas.create_text(200, 150, text="Hello, Tkinter!", font=("Arial", 50), fill="white")
+            #self.canvas.create_text(200, 150, text="Hello, Tkinter!", font=("Arial", 50), fill="white")
 
     def imageRotate(self,degrees):
          if self.image != None:
             self.image = self.image.rotate(90, expand=True)
+
+    def addText(self, Text, pos):
+        self.text = self.canvas.create_text(*pos, text="Hello, Tkinter!", font=("Arial", 50), fill="white")
+    
+    def removeText(self):
+        self.canvas.delete(self.text)

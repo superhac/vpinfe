@@ -18,6 +18,9 @@ from tables import Tables
 if sys.platform.startswith('win'):
     os.environ['PYSDL2_DLL_PATH'] = sys._MEIPASS+'/SDL2.dll' # need to include the sdl2 runtime for windows
 
+# Assets
+logoImage = "./assets/VPinFE_logo_main.png"
+
 # Globals
 screens = []
 ScreenNames = ScreenNames()
@@ -173,9 +176,16 @@ def parseArgs():
             sys.exit()
         tableRootDir = args.tableroot
 
+def loadImageAllScreens(img_path):
+    screens[ScreenNames.BG].loadImage(img_path)
+    screens[ScreenNames.BG].addText("Hello", (200,200))
+    screens[ScreenNames.DMD].loadImage(img_path)
+    screens[ScreenNames.TABLE].loadImage(img_path)
+    Screen.rootWindow.update()
+
 def buildImageCache():
-    maxImagesToCache = 10
-    for i in range(maxImagesToCache):
+    #maxImagesToCache = 10
+    for i in range(Screen.maxImageCacheSize):
         if i == tables.getTableCount(): # breakout if theres less tables then cache max
             break
         screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
@@ -188,13 +198,15 @@ openJoysticks()
 parseArgs()
 tables = Tables(tableRootDir)
 getScreens()
+
+# Ensure windows have updated dimensions
+screens[0].window.update_idletasks()
+
+loadImageAllScreens(logoImage)
 buildImageCache()
 
 Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
 #root.withdraw()  # Hide the root window
-
-# Ensure windows have updated dimensions
-screens[0].window.update_idletasks()
 
 # load first tables images
 setGameDisplays(tables.getTable(tableIndex))
