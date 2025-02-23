@@ -85,7 +85,7 @@ options:
                         Root table directory
   --vpxbin VPXBIN       Full Path to your VPX binary
 ```
-#1 - Get your displays (2 minimum for now.  BG and Table)
+#1 - Get your display(s) (Supports 1 to 3 displays.  BG, DMD, and Table)
 
 `./vpinfe --listres`
 Then you'll see:
@@ -95,7 +95,7 @@ Number of joysticks connected: 1
 1 :Monitor(x=5760, y=0, width=1920, height=1080, width_mm=0, height_mm=0, name='HDMI-1', is_primary=False)
 2 :Monitor(x=0, y=0, width=3840, height=2160, width_mm=600, height_mm=340, name='DP-3', is_primary=True)
 ```
-#2 Assign your yours display
+#2 Assign your display(s)
 
 `./vpinfe --bgid 0 --tableid 2 --dmdid 1`
 
