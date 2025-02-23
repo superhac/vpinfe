@@ -20,8 +20,10 @@ if sys.platform.startswith('win'):
 
 # Assets
 logoImage = "./assets/VPinFE_logo_main.png"
+missingImage = "./assets/VPinFE_logo_main.png"
 
 # Globals
+version = "1.0"
 screens = []
 ScreenNames = ScreenNames()
 exitGamepad = False
@@ -36,7 +38,7 @@ def key_pressed(event):
     key = event.char # Get the character representation of the key
     keysym = event.keysym # Get the symbolic name of the key
     keycode = event.keycode # Get the numeric keycode
-    print(f"Key pressed: {key}, keysym: {keysym}, keycode: {keycode}")
+    #print(f"Key pressed: {key}, keysym: {keysym}, keycode: {keycode}")
 
     if keysym == "Shift_R":
         screenMoveRight()
@@ -110,21 +112,23 @@ def setGameDisplays(tableInfo):
         #screens[ScreenNames.TABLE].displayImage()
 
 def getScreens():
+    print("Enumerating displays")
     # Get all available screens
     monitors = get_monitors()
 
     for i in range(len(monitors)):
-        screen = Screen(monitors[i])
+        screen = Screen(monitors[i], missingImage)
         screens.append(screen)
-        print(i,":"+str(screen.screen))
+        print("    ",i,":"+str(screen.screen))
 
 def openJoysticks():
+    print("Checking for gamepads")
     if sdl2.SDL_InitSubSystem(sdl2.SDL_INIT_JOYSTICK) < 0:
-        print(f"SDL_InitSubSystem Error: {sdl2.SDL_GetError()}")
+        print(f"     SDL_InitSubSystem Error: {sdl2.SDL_GetError()}")
         return
 
     num_joysticks = sdl2.SDL_NumJoysticks()
-    print(f"Number of joysticks connected: {num_joysticks}")
+    print(f"     Found {num_joysticks} gamepads.")
 
     for i in range(num_joysticks):
         sdl2.SDL_JoystickOpen(i)
@@ -178,7 +182,6 @@ def parseArgs():
 
 def loadImageAllScreens(img_path):
     screens[ScreenNames.BG].loadImage(img_path)
-    screens[ScreenNames.BG].addText("Hello", (200,200))
     screens[ScreenNames.DMD].loadImage(img_path)
     screens[ScreenNames.TABLE].loadImage(img_path)
     Screen.rootWindow.update()
@@ -193,17 +196,26 @@ def buildImageCache():
         screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
     
 # Main Application
+print("VPinFE "+version+" by Superhac (superhac007@gmail.com)")
+parseArgs()
 sdl2.ext.init()
 openJoysticks()
-parseArgs()
 tables = Tables(tableRootDir)
 getScreens()
 
 # Ensure windows have updated dimensions
 screens[0].window.update_idletasks()
 
+# load logo
 loadImageAllScreens(logoImage)
+screens[ScreenNames.BG].addText("Caching Images...", (400,200))
+Screen.rootWindow.update()
+
+# build cache
 buildImageCache()
+
+# clear loading msg
+screens[ScreenNames.BG].removeText()
 
 Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
 #root.withdraw()  # Hide the root window
@@ -234,7 +246,7 @@ while not exitGamepad:
                 axis_id = event.jaxis.axis
 
                 axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
-                print(f"Axis {axis_id}: {axis_value}")
+                #print(f"Axis {axis_id}: {axis_value}")
             elif event.type == sdl2.SDL_JOYBUTTONDOWN:
                 button_id = event.jbutton.button
                 if button_id == 5:
@@ -247,10 +259,10 @@ while not exitGamepad:
                     #s.window.after(1, launchTable() )
                     launchTable()
                     break
-                print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
+                #print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
             elif event.type == sdl2.SDL_JOYBUTTONUP:
                 button_id = event.jbutton.button
-                print(f"Button {button_id} Up")
+                #print(f"Button {button_id} Up")
     
 # shutdown
 sdl2.SDL_Quit()

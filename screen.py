@@ -15,12 +15,14 @@ class Screen:
     index_map = None
     current_index = 0
     maxImageCacheSize = 50
+    missingImage = None
    
     #static
     firstWindow = True # tracks if this root or another top-level
     rootWindow = None
 
-    def __init__(self, screen):
+    def __init__(self, screen, missingImage):
+        self.missingImage = missingImage
         self.text = None
         self.screen = screen
         self.cache = OrderedDict()
@@ -45,7 +47,7 @@ class Screen:
         self.window.geometry(f"{self.screen.width}x{self.screen.height}+{self.screen.x}+{self.screen.y}")
         self.window.attributes("-fullscreen", True)
 
-    def loadImage(self, img_path, display=True ):
+    def loadImage(self, img_path, display=True):
         if self.text != None: 
             self.removeText()
 
@@ -58,7 +60,11 @@ class Screen:
             return
 
         # Load and process the image
-        img = Image.open(img_path).convert("RGBA") # not sure what the performance gain is here.
+        try:
+            img = Image.open(img_path).convert("RGBA") # not sure what the performance gain is here.
+        except:
+            img = Image.open(self.missingImage).convert("RGBA") # not sure what the performance gain is here.
+                       
         img = self.resizeImageToScreen(img)
         img_tk = ImageTk.PhotoImage(img)
 
@@ -92,8 +98,11 @@ class Screen:
          if self.image != None:
             self.image = self.image.rotate(90, expand=True)
 
-    def addText(self, Text, pos):
-        self.text = self.canvas.create_text(*pos, text="Hello, Tkinter!", font=("Arial", 50), fill="white")
+    def addText(self, text, pos):
+        self.text = self.canvas.create_text(*pos, text=text, font=("Arial", 50), fill="white")
     
     def removeText(self):
         self.canvas.delete(self.text)
+
+    def update_text(self,text):
+        self.canvas.itemconfig(self.text, text=text)
