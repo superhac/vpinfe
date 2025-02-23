@@ -1,6 +1,7 @@
 import tkinter as tk
 from screeninfo import get_monitors
 from PIL import Image, ImageTk
+from collections import OrderedDict
 
 class Screen:
     screen = None
@@ -10,17 +11,22 @@ class Screen:
     photo  = None
     canvasPhotoID = None
 
+    cache = None
+    index_map = None
+    current_index = 0
+    maxImageCacheSize = 50
+   
     #static
     firstWindow = True # tracks if this root or another top-level
     rootWindow = None
 
-    @staticmethod
-    def a_method():
-        pass
-
     def __init__(self, screen):
         self.screen = screen
+        self.cache = OrderedDict()
+        self.index_map = {}  # Maps index numbers to image keys
+        self.current_index = 0
         self.createWindow()
+        self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
    
     def createWindow(self):
         """Creates a fullscreen window on a specific screen."""
@@ -38,26 +44,42 @@ class Screen:
         self.window.geometry(f"{self.screen.width}x{self.screen.height}+{self.screen.x}+{self.screen.y}")
         self.window.attributes("-fullscreen", True)
 
-    def loadImage(self, img_path):
-        try:
-            self.image = Image.open(img_path)
-            self.photo = ImageTk.PhotoImage(self.image)
-        except:
-            pass
+    def loadImage(self, img_path, display=True ): 
+        key = img_path
 
-    def resizeImageToScreen(self):
-        if self.image != None:
-            self.image = self.image.resize((self.window.winfo_width(), self.window.winfo_height()), Image.Resampling.LANCZOS)
-            self.photo = ImageTk.PhotoImage(self.image)
+        # If already in cache, move to end (most recently used) and return
+        if key in self.cache:
+            self.cache.move_to_end(key)
+            self.displayImage(self.cache[key])
 
-    def displayImage(self):
-        if self.image != None:
-            if self.canvas == None:
-                self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
-                self.canvasPhotoID = self.canvas.create_image((0,0), anchor="nw", image=self.photo)
+        # Load and process the image
+        img = Image.open(img_path)
+        img = self.resizeImageToScreen(img)
+        img_tk = ImageTk.PhotoImage(img)
+
+        # Store in cache
+        self.cache[key] = img_tk
+        self.cache.move_to_end(key)
+
+        # If cache exceeds max size, remove the oldest entry
+        if len(self.cache) > Screen.maxImageCacheSize:
+            self.cache.popitem(last=False)  # Remove the first (oldest) item
+
+        if display:
+            self.displayImage(img_tk)
+
+    def resizeImageToScreen(self, image):
+        if image != None:
+            image = image.resize((self.window.winfo_width(), self.window.winfo_height()), Image.Resampling.LANCZOS)
+            return image
+            #self.photo = ImageTk.PhotoImage(self.image)
+
+    def displayImage(self, img_tk):
+            if  self.canvasPhotoID == None:
+                self.canvasPhotoID = self.canvas.create_image((0,0), anchor="nw", image=img_tk)
                 self.canvas.config(highlightthickness=0, borderwidth=0)
             else:
-                self.canvas.itemconfig(self.canvasPhotoID, image=self.photo)
+                self.canvas.itemconfig(self.canvasPhotoID, image=img_tk)
             self.canvas.pack(fill="both", expand=True)
             #canvas.create_text(200, 150, text="Hello, Tkinter!", font=("Arial", 50), fill="white")
 

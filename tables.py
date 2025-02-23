@@ -11,8 +11,6 @@ class TableInfo:
     TableImagePath = None
 
 class Tables:
-
-
     # static
     tables = []
     tablesRootFilePath = None
@@ -20,16 +18,6 @@ class Tables:
     def __init__(self, tablesRootFilePath):
         Tables.tablesRootFilePath = tablesRootFilePath
         self.loadTables()
-
-    def unifyName(self, table):
-        pattern = r"^(.*?)\s*\(?(.*?)\)?\s*(.*?)?\.vpx$"
-        match = re.match(pattern, table.fileName)
-        if match:
-            table.title, table.makeYear, table.leftOver = match.groups()
-            print(f"Title: {table.title}, Details: {table.makeYear} LeftOver: {table.leftOver}")
-        else:
-            print(f"Title: {table.fileName.rsplit('.', 1)[0]}, Details: N/A")
-            pass
 
     def loadTables(self):
         for fname in os.listdir(Tables.tablesRootFilePath):
@@ -68,3 +56,6 @@ class Tables:
     
     def getTableCount(self):
         return len(Tables.tables)
+    
+    def getAllTables():
+        return Tables.tables

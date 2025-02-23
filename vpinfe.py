@@ -25,9 +25,10 @@ exitGamepad = False
 background = False
 tableRootDir = None
 vpxBinPath = None
+tableIndex = 0
 
 def key_pressed(event):
-    global tableSetIndex
+    global tableIndex
     global exitGamepad
     key = event.char # Get the character representation of the key
     keysym = event.keysym # Get the symbolic name of the key
@@ -48,30 +49,30 @@ def key_pressed(event):
         s.window.after(1, launchTable() )
 
 def screenMoveRight():
-    global tableSetIndex
+    global tableIndex
 
-    if tableSetIndex != tables.getTableCount()-1:
-        tableSetIndex += 1
-        setGameDisplays(tables.getTable(tableSetIndex))
+    if tableIndex != tables.getTableCount()-1:
+        tableIndex += 1
+        setGameDisplays(tables.getTable(tableIndex))
     else:
-        tableSetIndex = 0;
-        setGameDisplays(tables.getTable(tableSetIndex))
+        tableIndex = 0;
+        setGameDisplays(tables.getTable(tableIndex))
 
 def screenMoveLeft():
-    global tableSetIndex
+    global tableIndex
 
-    if tableSetIndex != 0:
-        tableSetIndex -= 1
-        setGameDisplays(tables.getTable(tableSetIndex))
+    if tableIndex != 0:
+        tableIndex -= 1
+        setGameDisplays(tables.getTable(tableIndex))
     else:
-        tableSetIndex = tables.getTableCount()-1
-        setGameDisplays(tables.getTable(tableSetIndex))
+        tableIndex = tables.getTableCount()-1
+        setGameDisplays(tables.getTable(tableIndex))
 
 # testing crap for minimizing windows to run vpinball
 def launchTable():
     global background
     background = True # # Disable SDL gamepad events
-    launchVPX(tables.getTable(tableSetIndex).fullPathVPXfile)
+    launchVPX(tables.getTable(tableIndex).fullPathVPXfile)
     for s in screens:
         s.window.deiconify()
         #print("loop")
@@ -89,21 +90,21 @@ def setGameDisplays(tableInfo):
     # Load image BG
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath)
-        screens[ScreenNames.BG].resizeImageToScreen()
-        screens[ScreenNames.BG].displayImage() 
+        #screens[ScreenNames.BG].resizeImageToScreen()
+        #screens[ScreenNames.BG].displayImage() 
 
     # Load image DMD
     if ScreenNames.DMD is not None:
         screens[ScreenNames.DMD].loadImage(tableInfo.DMDImagePath)
-        screens[ScreenNames.DMD].resizeImageToScreen()
-        screens[ScreenNames.DMD].displayImage()
+        #screens[ScreenNames.DMD].resizeImageToScreen()
+        #screens[ScreenNames.DMD].displayImage()
 
     # load table image (rotated and we swap width and height around like portrait mode)
     if ScreenNames.TABLE is not None:
         screens[ScreenNames.TABLE].loadImage(tableInfo.TableImagePath)
         #screens[ScreenNames.TABLE].imageRotate(90)
-        screens[ScreenNames.TABLE].resizeImageToScreen()
-        screens[ScreenNames.TABLE].displayImage()
+        #screens[ScreenNames.TABLE].resizeImageToScreen()
+        #screens[ScreenNames.TABLE].displayImage()
 
 def getScreens():
     # Get all available screens
@@ -111,7 +112,6 @@ def getScreens():
 
     for i in range(len(monitors)):
         screen = Screen(monitors[i])
-        #screen = Screen(monitors[i], create_fullscreen_window(monitors[i]))
         screens.append(screen)
         print(i,":"+str(screen.screen))
 
@@ -135,8 +135,8 @@ def parseArgs():
     parser.add_argument("--bgid", help="The monitor id of the BG monitor", type=int)
     parser.add_argument("--dmdid", help="The monitor id of the DMD monitor", type=int)
     parser.add_argument("--tableid", help="The monitor id of the table monitor", type=int)
-    parser.add_argument("--tableroot", help="Root table directory")
-    parser.add_argument("--vpxbin", help="Full Path to your VPX binary")
+    parser.add_argument("--tableroot", help="Root table directory (mandatory)")
+    parser.add_argument("--vpxbin", help="Full Path to your VPX binary (mandatory)")
 
     args = parser.parse_args()
 
@@ -173,26 +173,22 @@ def parseArgs():
             sys.exit()
         tableRootDir = args.tableroot
 
+def buildImageCache():
+    maxImagesToCache = 10
+    for i in range(maxImagesToCache):
+        if i == tables.getTableCount(): # breakout if theres less tables then cache max
+            break
+        screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
+        screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
+        screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
+    
 # Main Application
 sdl2.ext.init()
-
 openJoysticks()
 parseArgs()
-getScreens()
 tables = Tables(tableRootDir)
-
-# # load files
-# imageSets = []
-# basepath = sys._MEIPASS+"/bg"
-# for fname in os.listdir(basepath):
-#     path = os.path.join(basepath, fname)
-#     if not os.path.isdir(path):
-#         # skip directories
-#         imageSet = ImageSet()
-#         imageSet.bg_file_path = path
-#         imageSet.dmd_file_path = sys._MEIPASS+"/dmd/"+fname
-#         imageSet.table_file_path = sys._MEIPASS+"/table/"+fname
-#         imageSets.append(imageSet)
+getScreens()
+buildImageCache()
 
 Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
 #root.withdraw()  # Hide the root window
@@ -200,9 +196,8 @@ Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
 # Ensure windows have updated dimensions
 screens[0].window.update_idletasks()
 
-# load first imageset
-tableSetIndex = 0
-setGameDisplays(tables.getTable(tableSetIndex))
+# load first tables images
+setGameDisplays(tables.getTable(tableIndex))
 
 # gamepad loop
 while not exitGamepad:
