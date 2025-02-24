@@ -2,22 +2,10 @@ import tkinter as tk
 from screeninfo import get_monitors
 from PIL import Image, ImageTk
 from collections import OrderedDict
+import time
 
 class Screen:
-    #screen = None
-    #window = None
-    #canvas = None
-    #image  = None
-    #photo  = None
-    #canvasPhotoID = None
-
-    #cache = None
-    #index_map = None
-    #current_index = 0
     maxImageCacheSize = 50
-    #missingImage = None
-   
-    #static
     firstWindow = True # tracks if this root or another top-level
     rootWindow = None
 
@@ -47,18 +35,17 @@ class Screen:
         else:
             self.window = tk.Toplevel()
         self.window.configure(bg="black")
-        #win.overrideredirect(True)
-
+        
         # Set window size and position
         self.window.geometry(f"{self.screen.width}x{self.screen.height}+{self.screen.x}+{self.screen.y}")
         self.window.attributes("-fullscreen", True)
 
     def loadImage(self, img_path, display=True):
-        # if self.text != None: 
-        #     self.removeText()
+        if self.text != None and display: 
+             self.removeText()
 
         key = img_path
-
+        
         # If already in cache, move to end (most recently used) and return
         if key in self.cache:
             self.cache.move_to_end(key)
@@ -67,11 +54,14 @@ class Screen:
 
         # Load and process the image
         try:
-            img = Image.open(img_path).convert("RGBA") # not sure what the performance gain is here.
+            img = Image.open(img_path)#.convert("RGBA") # not sure what the performance gain is here.
         except:
-            img = Image.open(self.missingImage).convert("RGBA") # not sure what the performance gain is here.
-                       
-        img = self.resizeImageToScreen(img)
+            img = Image.open(self.missingImage)#.convert("RGBA") # not sure what the performance gain is here.
+ 
+        width, height = img.size
+        if width != self.window.winfo_width() and height != self.window.winfo_height():
+            img = self.resizeImageToScreen(img)
+        
         img_tk = ImageTk.PhotoImage(img)
 
         # Store in cache
@@ -89,8 +79,7 @@ class Screen:
         if image != None:
             image = image.resize((self.window.winfo_width(), self.window.winfo_height()), Image.Resampling.LANCZOS)
             return image
-            #self.photo = ImageTk.PhotoImage(self.image)
-
+           
     def displayImage(self, img_tk):
             if  self.canvasPhotoID == None:
                 self.canvasPhotoID = self.canvas.create_image((0,0), anchor="nw", image=img_tk)

@@ -77,15 +77,12 @@ def screenMoveLeft():
         tableIndex = tables.getTableCount()-1
         setGameDisplays(tables.getTable(tableIndex))
 
-# testing crap for minimizing windows to run vpinball
 def launchTable():
     global background
     background = True # # Disable SDL gamepad events
     launchVPX(tables.getTable(tableIndex).fullPathVPXfile)
     for s in screens:
         s.window.deiconify()
-        #print("loop")
-        #s.window.attributes("-fullscreen", True)
     Screen.rootWindow.update()
     Screen.rootWindow.focus_force()
     Screen.rootWindow.update()
@@ -99,22 +96,15 @@ def setGameDisplays(tableInfo):
     # Load image BG
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath)
-        #screens[ScreenNames.BG].resizeImageToScreen()
-        #screens[ScreenNames.BG].displayImage() 
 
     # Load image DMD
     if ScreenNames.DMD is not None:
         screens[ScreenNames.DMD].loadImage(tableInfo.DMDImagePath)
-        #screens[ScreenNames.DMD].resizeImageToScreen()
-        #screens[ScreenNames.DMD].displayImage()
 
     # load table image (rotated and we swap width and height around like portrait mode)
     if ScreenNames.TABLE is not None:
         screens[ScreenNames.TABLE].loadImage(tableInfo.TableImagePath)
-        #screens[ScreenNames.TABLE].imageRotate(90)
-        #screens[ScreenNames.TABLE].resizeImageToScreen()
-        #screens[ScreenNames.TABLE].displayImage()
-
+       
 def getScreens():
     print("Enumerating displays")
     # Get all available screens
@@ -268,19 +258,16 @@ screens[0].window.update_idletasks()
 
 # load logo and build cache
 loadImageAllScreens(logoImage)
-#screens[ScreenNames.BG].addText("Caching Images", (20,1000))
-#Screen.rootWindow.update()
-#screens[ScreenNames.BG].textThreeDotAnimate()
-Screen.rootWindow.after(500, buildImageCache )
-#screens[ScreenNames.BG].textThreeDotAnimate(enabled=False)
-#screens[ScreenNames.BG].removeText()
+Screen.rootWindow.after(500, buildImageCache)
 
+# key trapping
 Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
-#Screen.rootWindow.withdraw()  # Hide the root window
 
+# SDL gamepad input loop
 gamepadThread = threading.Thread(target=gameControllerInputThread)
 gamepadThread.start()
 
+# tk blocking loop
 Screen.rootWindow.mainloop()
     
 # shutdown
