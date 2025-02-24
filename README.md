@@ -103,7 +103,35 @@ or this if you only have two screens:
 
 `./vpinfe --bgid 0 --tableid 2`
 
-
 #3 Assign you table root folder and vpxbin path
 
 `./dist/vpinfe --bgid 0 --tableid 1 --dmdid 2 --vpxbin /home/superhac/working/vpinball/build/VPinballX_BGFX --tableroot /home/superhac/tables/`
+
+## Tips
+
+### If you want faster caching performance match the respective images to the resolution of screens on which they will be displayed. This results in an average performance boost of 40 percent.
+
+This is a bash script using `ImageMagick` that you put in your root tables directory and run.  Adjust the vars in the top of the script to match your screens:
+
+```
+#! /bin/bash
+
+bg_res="1920X1080"
+dmd_res="1920X1080"
+table_res="3840x2160"
+
+force="!"
+
+for dir in */; do
+  if [[ -d "$dir" ]]; then
+    echo "Entering directory: $dir"
+    cd "$dir"
+    convert -resize "$bg_res$force" bg.png -set filename:base "%[basename]" "%[filename:base].png"
+    convert -resize "$dmd_res$force" dmd.png -set filename:base "%[basename]" "%[filename:base].png"
+    convert -resize "$table_res$force" table.png -set filename:base "%[basename]" "%[filename:base].png"
+    # Return to the previous directory
+    cd - > /dev/null 2>&1
+  fi
+done
+```
+
