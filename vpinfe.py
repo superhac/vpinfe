@@ -96,6 +96,8 @@ def setGameDisplays(tableInfo):
     # Load image BG
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath)
+        screens[ScreenNames.BG].addText(tableInfo.tableDirName, (20,1000))
+
 
     # Load image DMD
     if ScreenNames.DMD is not None:
@@ -183,7 +185,7 @@ def loadImageAllScreens(img_path):
 def buildImageCache():
     loadImageAllScreens(logoImage)
     screens[ScreenNames.BG].addText("Caching Images", (20,1000))
-    Screen.rootWindow.update()
+    #Screen.rootWindow.update()
     screens[ScreenNames.BG].textThreeDotAnimate()
     thread = threading.Thread(target=buildImageCacheThread)
     thread.start()

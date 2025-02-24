@@ -97,6 +97,7 @@ class Screen:
         self.text = self.canvas.create_text(*pos, anchor="nw", text=text, font=("Arial", 30), fill="white")
         self.originalText = text 
         self.textPos = pos
+        self.canvas.update()
     
     def removeText(self):
         self.canvas.delete(self.text)
