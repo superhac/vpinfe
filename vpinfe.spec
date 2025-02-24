@@ -5,7 +5,7 @@ a = Analysis(
     ['vpinfe.py'],
     pathex=['vvv/lib/python3.12/site-packages/'],
     binaries=[],
-    datas=[('assets', '.'), ('dlls/SDL2.dll','.')],
+    datas=[('assets', './assets'), ('dlls/SDL2.dll','.')],
     hiddenimports=['screeninfo', 'tkinter', 'PIL', 'PIL._tkinter_finder', 'pysdl2'],
     hookspath=[],
     hooksconfig={},

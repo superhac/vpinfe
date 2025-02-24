@@ -13,14 +13,17 @@ from screennames import ScreenNames
 from imageset import ImageSet
 from screen import Screen
 from tables import Tables
+import threading
+from multiprocessing import Process
+
 
 # OS Specific
 if sys.platform.startswith('win'):
     os.environ['PYSDL2_DLL_PATH'] = sys._MEIPASS+'/SDL2.dll' # need to include the sdl2 runtime for windows
 
 # Assets
-logoImage = "./assets/VPinFE_logo_main.png"
-missingImage = "./assets/VPinFE_logo_main.png"
+logoImage = sys._MEIPASS+"/assets/VPinFE_logo_main.png"
+missingImage = sys._MEIPASS+"/assets/VPinFE_logo_main.png"
 
 # Globals
 version = "1.0"
@@ -46,6 +49,7 @@ def key_pressed(event):
         screenMoveLeft()
     if keysym == "Escape":
         exitGamepad = True # exit the gamepad loop
+        Screen.rootWindow.destroy()
 
     # testing stuff
     if keysym == "a":
@@ -187,13 +191,69 @@ def loadImageAllScreens(img_path):
     Screen.rootWindow.update()
 
 def buildImageCache():
-    #maxImagesToCache = 10
+    loadImageAllScreens(logoImage)
+    screens[ScreenNames.BG].addText("Caching Images", (20,1000))
+    Screen.rootWindow.update()
+    screens[ScreenNames.BG].textThreeDotAnimate()
+    thread = threading.Thread(target=buildImageCacheThread)
+    thread.start()
+  
+def buildImageCacheThread():
     for i in range(Screen.maxImageCacheSize):
         if i == tables.getTableCount(): # breakout if theres less tables then cache max
             break
         screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
         screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
         screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
+    
+    buildImageCacheThreadDone()
+
+def buildImageCacheThreadDone():
+    screens[ScreenNames.BG].textThreeDotAnimate(enabled=False)
+    screens[ScreenNames.BG].removeText()
+    setGameDisplays(tables.getTable(tableIndex))
+
+def gameControllerInputThread():
+    global exitGamepad
+    global background
+    # gamepad loop
+    while not exitGamepad:
+        #time.sleep(0.001)
+        events = sdl2.ext.get_events()
+     
+        # SDL continues to queue events in the background while in vpx.  This loop eats those on return to vpinfe.
+        if background:
+            events = sdl2.ext.get_events()
+            for event in events:
+                pass
+            background = False
+
+        for event in events:
+            if not background: # not coming back from vpx
+                if event.type == sdl2.SDL_QUIT:
+                    exitGamepad = True
+                    break
+                elif event.type == sdl2.SDL_JOYAXISMOTION:
+                    axis_id = event.jaxis.axis
+
+                    axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
+                    #print(f"Axis {axis_id}: {axis_value}")
+                elif event.type == sdl2.SDL_JOYBUTTONDOWN:
+                    button_id = event.jbutton.button
+                    if button_id == 5:
+                        screenMoveRight()
+                    elif button_id == 4:
+                        screenMoveLeft()
+                    elif button_id == 1:
+                        for s in screens: 
+                            s.window.withdraw()
+                        #s.window.after(1, launchTable() )
+                        launchTable()
+                        break
+                    #print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
+                elif event.type == sdl2.SDL_JOYBUTTONUP:
+                    button_id = event.jbutton.button
+                    #print(f"Button {button_id} Up")
     
 # Main Application
 print("VPinFE "+version+" by Superhac (superhac007@gmail.com)")
@@ -206,64 +266,23 @@ getScreens()
 # Ensure windows have updated dimensions
 screens[0].window.update_idletasks()
 
-# load logo
+# load logo and build cache
 loadImageAllScreens(logoImage)
-screens[ScreenNames.BG].addText("Caching Images...", (400,200))
-Screen.rootWindow.update()
-
-# build cache
-buildImageCache()
-
-# clear loading msg
-screens[ScreenNames.BG].removeText()
+#screens[ScreenNames.BG].addText("Caching Images", (20,1000))
+#Screen.rootWindow.update()
+#screens[ScreenNames.BG].textThreeDotAnimate()
+Screen.rootWindow.after(500, buildImageCache )
+#screens[ScreenNames.BG].textThreeDotAnimate(enabled=False)
+#screens[ScreenNames.BG].removeText()
 
 Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
-#root.withdraw()  # Hide the root window
+#Screen.rootWindow.withdraw()  # Hide the root window
 
-# load first tables images
-setGameDisplays(tables.getTable(tableIndex))
+gamepadThread = threading.Thread(target=gameControllerInputThread)
+gamepadThread.start()
 
-# gamepad loop
-while not exitGamepad:
-    #time.sleep(0.001)
-    if Screen.rootWindow.winfo_exists():
-        Screen.rootWindow.update()
-    events = sdl2.ext.get_events()
-
-    # SDL continues to queue events in the background while in vpx.  This loop eats those on return to vpinfe.
-    if background:
-        events = sdl2.ext.get_events()
-        for event in events:
-            pass
-        background = False
-
-    for event in events:
-        if not background: # not coming back from vpx
-            if event.type == sdl2.SDL_QUIT:
-                exitGamepad = True
-                break
-            elif event.type == sdl2.SDL_JOYAXISMOTION:
-                axis_id = event.jaxis.axis
-
-                axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
-                #print(f"Axis {axis_id}: {axis_value}")
-            elif event.type == sdl2.SDL_JOYBUTTONDOWN:
-                button_id = event.jbutton.button
-                if button_id == 5:
-                    screenMoveRight()
-                elif button_id == 4:
-                    screenMoveLeft()
-                elif button_id == 1:
-                    for s in screens: 
-                        s.window.withdraw()
-                    #s.window.after(1, launchTable() )
-                    launchTable()
-                    break
-                #print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
-            elif event.type == sdl2.SDL_JOYBUTTONUP:
-                button_id = event.jbutton.button
-                #print(f"Button {button_id} Up")
+Screen.rootWindow.mainloop()
     
 # shutdown
 sdl2.SDL_Quit()
-Screen.rootWindow.destroy()
+#Screen.rootWindow.destroy()

@@ -4,30 +4,36 @@ from PIL import Image, ImageTk
 from collections import OrderedDict
 
 class Screen:
-    screen = None
-    window = None
-    canvas = None
-    image  = None
-    photo  = None
-    canvasPhotoID = None
+    #screen = None
+    #window = None
+    #canvas = None
+    #image  = None
+    #photo  = None
+    #canvasPhotoID = None
 
-    cache = None
-    index_map = None
-    current_index = 0
+    #cache = None
+    #index_map = None
+    #current_index = 0
     maxImageCacheSize = 50
-    missingImage = None
+    #missingImage = None
    
     #static
     firstWindow = True # tracks if this root or another top-level
     rootWindow = None
 
     def __init__(self, screen, missingImage):
+        self.isThreeDotAnimate = False
+        self.threeDotCount = 0
         self.missingImage = missingImage
         self.text = None
         self.screen = screen
         self.cache = OrderedDict()
         self.index_map = {}  # Maps index numbers to image keys
         self.current_index = 0
+        self.canvasPhotoID = None
+        self.textPos = None
+        self.originalText = None
+
         self.createWindow()
         self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
    
@@ -48,8 +54,8 @@ class Screen:
         self.window.attributes("-fullscreen", True)
 
     def loadImage(self, img_path, display=True):
-        if self.text != None: 
-            self.removeText()
+        # if self.text != None: 
+        #     self.removeText()
 
         key = img_path
 
@@ -99,10 +105,37 @@ class Screen:
             self.image = self.image.rotate(90, expand=True)
 
     def addText(self, text, pos):
-        self.text = self.canvas.create_text(*pos, text=text, font=("Arial", 50), fill="white")
+        self.text = self.canvas.create_text(*pos, anchor="nw", text=text, font=("Arial", 30), fill="white")
+        self.originalText = text 
+        self.textPos = pos
     
     def removeText(self):
         self.canvas.delete(self.text)
+        self.originalText = None
 
     def update_text(self,text):
         self.canvas.itemconfig(self.text, text=text)
+        self.originalText = text 
+
+    def getText(self):
+        return self.text
+    
+    def textThreeDotAnimateCall(self):
+        if self.isThreeDotAnimate:
+            if self.threeDotCount < 3:
+                self.threeDotCount = self.threeDotCount + 1
+            else: # reset to zero
+                self.threeDotCount = 0
+            newText = self.originalText+"."*self.threeDotCount
+            self.canvas.itemconfig(self.text, text= newText)
+            self.canvas.update()
+            self.canvas.after(500, self.textThreeDotAnimateCall)
+        else:
+            self.threeDotCount = 0
+    
+    def textThreeDotAnimate(self, enabled=True):
+        self.isThreeDotAnimate = enabled
+        if enabled:
+            self.textThreeDotAnimateCall()  # Only start if enabled
+            
+
