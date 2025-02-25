@@ -14,6 +14,7 @@ class Screen:
         self.threeDotCount = 0
         self.missingImage = missingImage
         self.text = None
+        self.statusText = None
         self.screen = screen
         self.cache = OrderedDict()
         self.index_map = {}  # Maps index numbers to image keys
@@ -21,6 +22,7 @@ class Screen:
         self.canvasPhotoID = None
         self.textPos = None
         self.originalText = None
+        self.originalStatusText = None
 
         self.createWindow()
         self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
@@ -93,8 +95,8 @@ class Screen:
          if self.image != None:
             self.image = self.image.rotate(90, expand=True)
 
-    def addText(self, text, pos):
-        self.text = self.canvas.create_text(*pos, anchor="nw", text=text, font=("Arial", 30), fill="white")
+    def addText(self, text, pos, anchor="nw"):
+        self.text = self.canvas.create_text(*pos, anchor=anchor, text=text, font=("Arial", 30), fill="white")
         self.originalText = text 
         self.textPos = pos
         self.canvas.update()
@@ -110,14 +112,31 @@ class Screen:
     def getText(self):
         return self.text
     
+    def addStatusText(self, text, pos, anchor="nw"):
+        self.statusText = self.canvas.create_text(*pos, anchor=anchor, text=text, font=("Arial", 30), fill="white")
+        self.originalStatusText = text 
+        self.textPos = pos
+        self.canvas.update()
+    
+    def removeStatusText(self):
+        self.canvas.delete(self.statusText)
+        self.originalStatusText = None
+
+    def updateStatusText(self,text):
+        self.canvas.itemconfig(self.statusText, text=text)
+        self.originalStatusText = text 
+
+    def getStatusText(self):
+        return self.statusText
+    
     def textThreeDotAnimateCall(self):
         if self.isThreeDotAnimate:
             if self.threeDotCount < 3:
                 self.threeDotCount = self.threeDotCount + 1
             else: # reset to zero
                 self.threeDotCount = 0
-            newText = self.originalText+"."*self.threeDotCount
-            self.canvas.itemconfig(self.text, text= newText)
+            newText = self.originalStatusText+"."*self.threeDotCount
+            self.canvas.itemconfig(self.statusText, text= newText)
             self.canvas.update()
             self.canvas.after(500, self.textThreeDotAnimateCall)
         else:

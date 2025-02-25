@@ -8,14 +8,28 @@ import argparse
 import sdl2
 import sdl2.ext
 import time
+import threading
+from multiprocessing import Process
+from queue import Queue
+from enum import Enum, auto
+from typing import Callable
 
 from screennames import ScreenNames
 from imageset import ImageSet
 from screen import Screen
 from tables import Tables
-import threading
-from multiprocessing import Process
 
+class TKMsgType(Enum):
+    ENABLE_STATUS_MSG  = auto
+    DISABLE_STATUS_MSG = auto
+    DISABLE_THREE_DOT  = auto
+    CACHE_BUILD_COMPLETED = auto
+
+class TkMsg():
+    def __init__(self, MsgType: TKMsgType, func: Callable, msg: str):
+        self.msgType = MsgType
+        self.call = func
+        self.msg = msg
 
 # OS Specific
 if sys.platform.startswith('win'):
@@ -26,7 +40,7 @@ logoImage = sys._MEIPASS+"/assets/VPinFE_logo_main.png"
 missingImage = sys._MEIPASS+"/assets/VPinFE_logo_main.png"
 
 # Globals
-version = "1.0"
+version = "0.5 beta"
 screens = []
 ScreenNames = ScreenNames()
 exitGamepad = False
@@ -34,6 +48,7 @@ background = False
 tableRootDir = None
 vpxBinPath = None
 tableIndex = 0
+tkMsgQueue = Queue()
 
 def key_pressed(event):
     global tableIndex
@@ -54,9 +69,13 @@ def key_pressed(event):
     # testing stuff
     if keysym == "a":
         for s in screens: 
-            s.window.withdraw()
-        s.window.after(1, launchTable() )
-
+            #s.window.withdraw()
+            s.window.iconify()
+        Screen.rootWindow.update_idletasks()
+        #s.window.after(1, launchTable() )
+        Screen.rootWindow.after(500, launchTable )
+        
+       
 def screenMoveRight():
     global tableIndex
 
@@ -96,7 +115,7 @@ def setGameDisplays(tableInfo):
     # Load image BG
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath)
-        screens[ScreenNames.BG].addText(tableInfo.tableDirName, (20,1000))
+        screens[ScreenNames.BG].addText(tableInfo.tableDirName, (screens[ScreenNames.BG].canvas.winfo_width() /2, 1080), anchor="s")
 
 
     # Load image DMD
@@ -176,6 +195,17 @@ def parseArgs():
             sys.exit()
         tableRootDir = args.tableroot
 
+def processTkMsgEvent(event):
+        msg = tkMsgQueue.get()
+
+        if msg.msgType == TKMsgType.CACHE_BUILD_COMPLETED:
+            msg.call()
+            
+
+def disableStatusMsg():
+    screens[ScreenNames.BG].textThreeDotAnimate(enabled=False)
+    screens[ScreenNames.BG].removeStatusText()
+   
 def loadImageAllScreens(img_path):
     screens[ScreenNames.BG].loadImage(img_path)
     screens[ScreenNames.DMD].loadImage(img_path)
@@ -184,13 +214,15 @@ def loadImageAllScreens(img_path):
 
 def buildImageCache():
     loadImageAllScreens(logoImage)
-    screens[ScreenNames.BG].addText("Caching Images", (20,1000))
-    #Screen.rootWindow.update()
+    screens[ScreenNames.BG].addStatusText("Caching Images", (20,1000))
     screens[ScreenNames.BG].textThreeDotAnimate()
-    thread = threading.Thread(target=buildImageCacheThread)
+    thread = threading.Thread(target=buildImageCacheThread, daemon=True)
     thread.start()
   
 def buildImageCacheThread():
+    tkmsg = TkMsg(MsgType=TKMsgType.CACHE_BUILD_COMPLETED, func= disableStatusMsg, msg = "")
+    tkMsgQueue.put(tkmsg)
+    
     for i in range(Screen.maxImageCacheSize):
         if i == tables.getTableCount(): # breakout if theres less tables then cache max
             break
@@ -198,12 +230,7 @@ def buildImageCacheThread():
         screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
         screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
     
-    buildImageCacheThreadDone()
-
-def buildImageCacheThreadDone():
-    screens[ScreenNames.BG].textThreeDotAnimate(enabled=False)
-    screens[ScreenNames.BG].removeText()
-    setGameDisplays(tables.getTable(tableIndex))
+    Screen.rootWindow.event_generate("<<vpinfe_tk>>")
 
 def gameControllerInputThread():
     global exitGamepad
@@ -259,11 +286,16 @@ getScreens()
 screens[0].window.update_idletasks()
 
 # load logo and build cache
-loadImageAllScreens(logoImage)
 Screen.rootWindow.after(500, buildImageCache)
+
+# load first screen after 5 secs letting the cache build
+Screen.rootWindow.after(5000,setGameDisplays, tables.getTable(tableIndex))
 
 # key trapping
 Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
+
+# our thread update callback on event
+Screen.rootWindow.bind("<<vpinfe_tk>>", processTkMsgEvent)
 
 # SDL gamepad input loop
 gamepadThread = threading.Thread(target=gameControllerInputThread)
