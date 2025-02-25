@@ -37,7 +37,7 @@ if sys.platform.startswith('win'):
 
 # Assets
 logoImage = sys._MEIPASS+"/assets/VPinFE_logo_main.png"
-missingImage = sys._MEIPASS+"/assets/VPinFE_logo_main.png"
+missingImage = sys._MEIPASS+"/assets/file_missing.png"
 
 # Globals
 version = "0.5 beta"
