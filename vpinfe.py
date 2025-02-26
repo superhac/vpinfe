@@ -66,7 +66,7 @@ def key_pressed(event):
         exitGamepad = True # exit the gamepad loop
         Screen.rootWindow.destroy()
 
-    # testing stuff
+    # Lanuch Game
     if keysym == "a":
         for s in screens: 
             #s.window.withdraw()
@@ -75,7 +75,6 @@ def key_pressed(event):
         #s.window.after(1, launchTable() )
         Screen.rootWindow.after(500, launchTable )
         
-       
 def screenMoveRight():
     global tableIndex
 
