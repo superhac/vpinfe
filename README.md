@@ -6,10 +6,10 @@ A frontend for vpinball for linux, windows, mac.
 ## What does it look like?
 YouTube Video
 
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/qptIbb0wLRY/0.jpg)](https://www.youtube.com/watch?v=qptIbb0wLRY)
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/i7bAqSzp_cQ/0.jpg)](https://www.youtube.com/watch?v=i7bAqSzp_cQ)
 
 ## Note
-This is not ready for consumption as I'm just putting in the plumbing.  You can pull a CI build if you want to see what it looks like.
+This is not ready yet for primetime consumption, but if you want to get your feet wet and do some testing nows a good time.  It works but will subject to changes.  Pull a [CI build](https://github.com/superhac/vpinfe/actions) if your interested
 
 ## Controls
 Keyboard: 
