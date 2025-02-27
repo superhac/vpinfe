@@ -51,7 +51,8 @@ class Screen:
         # If already in cache, move to end (most recently used) and return
         if key in self.cache:
             self.cache.move_to_end(key)
-            self.displayImage(self.cache[key])
+            if display:
+                self.displayImage(self.cache[key])
             return
 
         # Load and process the image
