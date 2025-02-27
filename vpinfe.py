@@ -18,6 +18,7 @@ from screennames import ScreenNames
 from imageset import ImageSet
 from screen import Screen
 from tables import Tables
+from config import Config
 
 class TKMsgType(Enum):
     ENABLE_STATUS_MSG  = auto
@@ -47,8 +48,11 @@ exitGamepad = False
 background = False
 tableRootDir = None
 vpxBinPath = None
+configfile = None
 tableIndex = 0
 tkMsgQueue = Queue()
+RED_CONSOLE_TEXT = '\033[31m'
+RESET_CONSOLE_TEXT = '\033[0m'
 
 def key_pressed(event):
     global tableIndex
@@ -102,6 +106,7 @@ def launchTable():
     for s in screens:
         s.window.deiconify()
     Screen.rootWindow.update()
+    
     Screen.rootWindow.focus_force()
     Screen.rootWindow.update()
     
@@ -147,17 +152,63 @@ def openJoysticks():
     for i in range(num_joysticks):
         sdl2.SDL_JoystickOpen(i)
 
-def parseArgs():
+def loadconfig(configfile):
     global tableRootDir
     global vpxBinPath
 
+    if configfile == None:
+        configfile= "vpinfe.ini"
+    try:
+        config = Config(configfile)
+    except Exception as e:
+        print(f"{RED_CONSOLE_TEXT}Fatal: {e}{RESET_CONSOLE_TEXT}")
+        sys.exit(1)
+
+    current_dir = os.getcwd()
+    print(f"Current working directory (using os.getcwd()): {current_dir}")
+
+    # mandatory
+    try:
+        if Config.sections['Displays']["bgscreenid"] != "":
+            ScreenNames.BG = int(Config.sections['Displays']["bgscreenid"])
+        else:
+             ScreenNames.BG = None
+        if Config.sections['Displays']["dmdscreenid"] != "":
+            ScreenNames.DMD = int(Config.sections['Displays']["dmdscreenid"])
+        else:
+            ScreenNames.DMD = None
+        if Config.sections['Displays']["tablescreenid"] != "":
+            ScreenNames.TABLE = int(Config.sections['Displays']["tablescreenid"])
+        else:
+             ScreenNames.TABLE
+        tableRootDir = Config.sections['Settings']["tablerootdir"]
+        vpxBinPath = Config.sections['Settings']["vpxbinpath"]
+    except KeyError as e:
+        print(f"{RED_CONSOLE_TEXT}Fatal: Missing mandatory '{e.args[0]}' entry in vpinfe.{RESET_CONSOLE_TEXT}")
+        sys.exit(1)
+
+    if not os.path.exists(vpxBinPath):
+        print(f"{RED_CONSOLE_TEXT}Fatal: VPX binary not found.  Check your `vpxBinPath` value in vpinfe has correct path.{RESET_CONSOLE_TEXT}")
+        sys.exit()
+    
+    if not os.path.exists(tableRootDir):
+        print(f"{RED_CONSOLE_TEXT}Fatal: Table root dir not found.  Check your 'tableroot' value in vpinfe.ini has correct path.{RESET_CONSOLE_TEXT}")
+        sys.exit()
+
+    if  ScreenNames.BG == None and ScreenNames.DMD == None and ScreenNames.TABLE == None:
+            print(f"{RED_CONSOLE_TEXT}Fatal: You must have at least one display set in your vpinfe.ini.{RESET_CONSOLE_TEXT}")
+            sys.exit(1)
+
+
+def parseArgs():
+    global tableRootDir
+    global vpxBinPath
+    global configfile
+
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--listres", help="ID and list your screens", action="store_true")
-    parser.add_argument("--bgid", help="The monitor id of the BG monitor", type=int)
-    parser.add_argument("--dmdid", help="The monitor id of the DMD monitor", type=int)
-    parser.add_argument("--tableid", help="The monitor id of the table monitor", type=int)
-    parser.add_argument("--tableroot", help="Root table directory (mandatory)")
-    parser.add_argument("--vpxbin", help="Full Path to your VPX binary (mandatory)")
+    parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file.  Default is cwd.")
+
 
     args = parser.parse_args()
 
@@ -168,53 +219,34 @@ def parseArgs():
             print(i,":"+str(monitors[i]))
         sys.exit()
 
-    if args.bgid is not None:
-        ScreenNames.BG = args.bgid
-
-    if args.tableid is not None:
-        ScreenNames.TABLE = args.tableid
-
-    if args.dmdid is not None:
-        ScreenNames.DMD = args.dmdid
+    if args.configfile:
+        configfile = args.configfile
     
-    if args.vpxbin is None:
-        print("--vpxbin is required.  e.g. /home/yourdir/vpinball/build/VPinballX_BGFX")
-        sys.exit()
-    else:
-        if not os.path.exists(args.vpxbin):
-            print("VPX binary not found.  Check your --vpxbin argument has correct path")
-            sys.exit()
-        vpxBinPath = args.vpxbin
-    if args.tableroot is None:
-        print("--tableroot is required.  e.g. /home/yourdir/tables")
-        sys.exit()
-    else:
-        if not os.path.exists(args.tableroot):
-            print("Table root dir not found.  Check your --tableroot argument has correct path")
-            sys.exit()
-        tableRootDir = args.tableroot
-
 def processTkMsgEvent(event):
         msg = tkMsgQueue.get()
 
         if msg.msgType == TKMsgType.CACHE_BUILD_COMPLETED:
             msg.call()
             
-
 def disableStatusMsg():
-    screens[ScreenNames.BG].textThreeDotAnimate(enabled=False)
-    screens[ScreenNames.BG].removeStatusText()
+    if ScreenNames.BG is not None:
+        screens[ScreenNames.BG].textThreeDotAnimate(enabled=False)
+        screens[ScreenNames.BG].removeStatusText()
    
 def loadImageAllScreens(img_path):
-    screens[ScreenNames.BG].loadImage(img_path)
-    screens[ScreenNames.DMD].loadImage(img_path)
-    screens[ScreenNames.TABLE].loadImage(img_path)
+    if ScreenNames.BG is not None:
+        screens[ScreenNames.BG].loadImage(img_path)
+    if ScreenNames.DMD is not None:
+         screens[ScreenNames.DMD].loadImage(img_path)
+    if ScreenNames.TABLE is not None:
+        screens[ScreenNames.TABLE].loadImage(img_path)
     Screen.rootWindow.update()
 
 def buildImageCache():
     loadImageAllScreens(logoImage)
-    screens[ScreenNames.BG].addStatusText("Caching Images", (20,1000))
-    screens[ScreenNames.BG].textThreeDotAnimate()
+    if ScreenNames.BG is not None:
+        screens[ScreenNames.BG].addStatusText("Caching Images", (20,1000))
+        screens[ScreenNames.BG].textThreeDotAnimate()
     thread = threading.Thread(target=buildImageCacheThread, daemon=True)
     thread.start()
   
@@ -225,9 +257,12 @@ def buildImageCacheThread():
     for i in range(Screen.maxImageCacheSize):
         if i == tables.getTableCount(): # breakout if theres less tables then cache max
             break
-        screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
-        screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
-        screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
+        if ScreenNames.BG is not None:
+            screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
+        if ScreenNames.DMD is not None:
+            screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
+        if ScreenNames.TABLE is not None:
+            screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
     
     Screen.rootWindow.event_generate("<<vpinfe_tk>>")
 
@@ -268,7 +303,7 @@ def gameControllerInputThread():
                         #s.window.after(1, launchTable() )
                         launchTable()
                         break
-                    #print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
+                    print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
                 elif event.type == sdl2.SDL_JOYBUTTONUP:
                     button_id = event.jbutton.button
                     #print(f"Button {button_id} Up")
@@ -276,6 +311,7 @@ def gameControllerInputThread():
 # Main Application
 print("VPinFE "+version+" by Superhac (superhac007@gmail.com)")
 parseArgs()
+loadconfig(configfile)
 sdl2.ext.init()
 openJoysticks()
 tables = Tables(tableRootDir)
