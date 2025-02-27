@@ -8,14 +8,17 @@ YouTube Video
 
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/i7bAqSzp_cQ/0.jpg)](https://www.youtube.com/watch?v=i7bAqSzp_cQ)
 
+## Download
+[CI build](https://github.com/superhac/vpinfe/actions)
+
 ## Note
-This is not yet ready for primetime consumption, but if you want to get your feet wet and do some testing nows a good time.  It works but will subject to changes.  Pull a [CI build](https://github.com/superhac/vpinfe/actions) if your interested
+This is not yet ready for primetime consumption, but if you want to get your feet wet and do some testing nows a good time.  It works but will subject to changes.
 
 ## Controls
 Keyboard: 
 - SHIFT_LEFT = Table shift left
 - SHIFT_RIGHT = Table shift right
-- <a> key - Lanuch the table
+- "a" key - Lanuch the table
 - ESCAPE = Exit
 
 Joystick
@@ -73,18 +76,16 @@ total 324708
 
 Help:
 ```
-usage: vpinfe [-h] [--listres] [--bgid BGID] [--dmdid DMDID] [--tableid TABLEID] [--tableroot TABLEROOT] [--vpxbin VPXBIN]
+VPinFE 0.5 beta by Superhac (superhac007@gmail.com)
+usage: vpinfe [-h] [--listres] [--configfile CONFIGFILE]
 
 options:
   -h, --help            show this help message and exit
   --listres             ID and list your screens
-  --bgid BGID           The monitor id of the BG monitor
-  --dmdid DMDID         The monitor id of the DMD monitor
-  --tableid TABLEID     The monitor id of the table monitor
-  --tableroot TABLEROOT
-                        Root table directory
-  --vpxbin VPXBIN       Full Path to your VPX binary
+  --configfile CONFIGFILE
+                        Configure the location of your vpinfe.ini file. Default is cwd.
 ```
+
 #1 - Get your display(s) (Supports 1 to 3 displays.  BG, DMD, and Table)
 
 `./vpinfe --listres`
@@ -95,17 +96,17 @@ Number of joysticks connected: 1
 1 :Monitor(x=5760, y=0, width=1920, height=1080, width_mm=0, height_mm=0, name='HDMI-1', is_primary=False)
 2 :Monitor(x=0, y=0, width=3840, height=2160, width_mm=600, height_mm=340, name='DP-3', is_primary=True)
 ```
-#2 Assign your display(s)
-
-`./vpinfe --bgid 0 --tableid 2 --dmdid 1`
-
-or this if you only have two screens:
-
-`./vpinfe --bgid 0 --tableid 2`
-
-#3 Assign you table root folder and vpxbin path
-
-`./dist/vpinfe --bgid 0 --tableid 1 --dmdid 2 --vpxbin /home/superhac/working/vpinball/build/VPinballX_BGFX --tableroot /home/superhac/tables/`
+#2 Assign your display(s) and Settings in the vpinfe.ini file
+Assign your displays and paths like the example in your **vpinfe.ini**.  Put this is the the same dir as the vpinfe executable unless your using the `--configfile` argument
+```
+[Displays]
+bgscreenid = 0
+dmdscreenid = 1
+tablescreenid = 2
+[Settings]
+vpxbinpath = /home/superhac/working/vpinball/build/VPinballX_BGFX
+tablerootdir = /home/superhac/tables/
+```
 
 ## Tips
 
