@@ -26,16 +26,13 @@ Joystick
 - Right_Bumber = Table shift right
 - A/Green Button = Launch the table (same button as COIN in on VPX)
 
-## Requirements
-Windows (Broken) - Needs to be updated to support the individual table folder structure.
-- None
-  - SDL2 - Included in Windows build
+## Build Status
 
-Linux
-- None
-
-MacOS
-- Not Sure
+| Platform | Status | Dependencies | Notes |
+| -------- |--------|--------------|-------|
+|Linux     |Works   | None         |       |
+|Mac       |Testing | Unknown      | Appears to be looking for SDl2 |
+|Windows   |broken  | None         | VPX needs to be updated to support the individual table folder structure like standalone |
 
 # File Structure
 All tables (and their supporting files) are placed in their own dir under the table root dir:
