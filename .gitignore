@@ -5,3 +5,5 @@
 lib
 /lib64
 /vvv
+*.ini
+*.json

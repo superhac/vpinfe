@@ -19,6 +19,9 @@ from imageset import ImageSet
 from screen import Screen
 from tables import Tables
 from config import Config
+import metaconfig
+from vpsdb import VPSdb
+import vpxparser
 
 class TKMsgType(Enum):
     ENABLE_STATUS_MSG  = auto
@@ -199,7 +202,6 @@ def loadconfig(configfile):
             print(f"{RED_CONSOLE_TEXT}Fatal: You must have at least one display set in your vpinfe.ini.{RESET_CONSOLE_TEXT}")
             sys.exit(1)
 
-
 def parseArgs():
     global tableRootDir
     global vpxBinPath
@@ -208,8 +210,7 @@ def parseArgs():
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--listres", help="ID and list your screens", action="store_true")
     parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file.  Default is cwd.")
-
-
+    parser.add_argument("--buildmeta", help="Builds the meta.ini file in each table dir", action="store_true")
     args = parser.parse_args()
 
     if args.listres:
@@ -217,6 +218,34 @@ def parseArgs():
         monitors = get_monitors()
         for i in range(len(monitors)):
             print(i,":"+str(monitors[i]))
+        sys.exit()
+        
+    if args.buildmeta:
+        loadconfig(configfile)
+        Tables(tableRootDir)
+        vps = VPSdb(Tables.tablesRootFilePath)
+        for table in Tables.tables:
+            finalini = {}
+            meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini") # check if we want it updated!!! TODO
+            
+            # vpsdb
+            vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"])
+            #print(vpsData)
+            
+            # vpx file info
+            print("remove: ", table.fullPathVPXfile)
+            vpxData = vpxparser.singleFileExtract(table.fullPathVPXfile)
+            #vpxparser.printFileValues(vpxData)
+            
+            # make the config.ini
+            finalini['vpsdata'] = vpsData
+            finalini['vpxdata'] = vpxData
+            meta.writeConfig(finalini)
+            
+            print(table.tableDirName)
+            print(table.fullPathTable)
+            print(table.fullPathVPXfile)
         sys.exit()
 
     if args.configfile:
