@@ -35,7 +35,7 @@ Joystick
 |Windows   |broken  | None         | VPX needs to be updated to support the individual table folder structure like standalone |
 
 # File Structure
-All tables (and their supporting files) are placed in their own dir under the table root dir:
+All tables (and their supporting files) are placed in their own directory under the table root dir:
 ```
 superhac@linpin:~/tables$ ls -las
 total 28
@@ -69,18 +69,19 @@ total 324708
  14428 -rw-rw-r-- 1 superhac superhac  14773058 Feb 21 12:50  table.png
 ```
 
-## How to use
+## How to use (vpinfe.ini)
 
 Help:
 ```
 VPinFE 0.5 beta by Superhac (superhac007@gmail.com)
-usage: vpinfe [-h] [--listres] [--configfile CONFIGFILE]
+usage: vpinfe [-h] [--listres] [--configfile CONFIGFILE] [--buildmeta]
 
 options:
   -h, --help            show this help message and exit
   --listres             ID and list your screens
   --configfile CONFIGFILE
                         Configure the location of your vpinfe.ini file. Default is cwd.
+  --buildmeta           Builds the meta.ini file in each table dir
 ```
 
 #1 - Get your display(s) (Supports 1 to 3 displays.  BG, DMD, and Table)
@@ -104,6 +105,42 @@ tablescreenid = 2
 vpxbinpath = /home/superhac/working/vpinball/build/VPinballX_BGFX
 tablerootdir = /home/superhac/tables/
 ```
+
+## Building the metadata using VPS and the VPX parser
+Theres a new cli arugument called `--buildmeta` that you can use to create a `meta.ini` file in each table directory.  When you execute this option the following happens:
+- Virtual Pinball Spreadsheet (VPS)
+  - Will download a copy a copy of the VPSdb to your machine if you neither have it or theres a newer version of avaliable
+  - Using VPSdb, VPinFE will attempt to correlate by "table folder" to a VPSdb ID.  __Note if you follow the standard naming convention of "TABLE_NAME (MANUFACTURER YEAR)" the results will be highly accurate.__ But none the less it uses a similarity ratio where 80 percent match is used.
+  - Once a match is made it will pull in metadata from the VPSdb.  Like type, theme, etc.
+- VPX file parser
+  - Will hash the .vpx, hash the contained .vbs and then pull other note worthly metadata, like the rom name, version, etc.
+
+Once this process has finished you end up one `meta.ini` in each table directory.  The file will look this for example:
+```
+[VPSdb]
+id = uiEUziXx
+name = Andromeda
+type = SS
+manufacturer = Game Plan
+year = 1985
+theme = ['Fantasy', 'Women']
+
+[VPXFile]
+filename = Andromeda (Game Plan 1985).vpx
+filehash = 10e0030d3c5a51558a9c56b37096d0284b7bdc2f9f676c9246f1f6f800d00524
+version = 5.5.0
+author = jpsalas, siggi
+releasedate = 11,12.2024
+blurb =
+savedate = Wed Dec 11 05:01:16 2024
+saverev = 58
+manufacturer =
+year =
+type =
+vbshash = 0a824c84c9a5ee4660a093530130fa5795c6592f929ab1ac80724620140dbb74
+rom = andromed
+```
+More to come on how this will be used!
 
 ## Tips
 
