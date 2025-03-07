@@ -106,6 +106,11 @@ def launchTable():
     global background
     background = True # # Disable SDL gamepad events
     launchVPX(tables.getTable(tableIndex).fullPathVPXfile)
+    
+    # check if we need to do postprocessing.  right now just check if we need to delete pinmame nvram
+    meta = metaconfig.MetaConfig(tables.getTable(tableIndex).fullPathTable + "/" + "meta.ini")
+    meta.actionDeletePinmameNVram()
+    
     for s in screens:
         s.window.deiconify()
     Screen.rootWindow.update()
@@ -202,6 +207,30 @@ def loadconfig(configfile):
             print(f"{RED_CONSOLE_TEXT}Fatal: You must have at least one display set in your vpinfe.ini.{RESET_CONSOLE_TEXT}")
             sys.exit(1)
 
+def buildMetaData():
+        loadconfig(configfile)
+        Tables(tableRootDir)
+        vps = VPSdb(Tables.tablesRootFilePath)
+        for table in Tables.tables:
+            finalini = {}
+            meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini") # check if we want it updated!!! TODO
+            
+            # vpsdb
+            print(f"Checking VPSdb for {table.tableDirName}")
+            vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"])
+            #print(vpsData)
+            
+            # vpx file info
+            print(f"Parsing VPX file for metadata")
+            print(f"  Extracting {table.fullPathVPXfile} for metadata.")
+            vpxData = vpxparser.singleFileExtract(table.fullPathVPXfile)
+            
+            # make the config.ini
+            finalini['vpsdata'] = vpsData
+            finalini['vpxdata'] = vpxData
+            meta.writeConfig(finalini)
+
 def parseArgs():
     global tableRootDir
     global vpxBinPath
@@ -220,36 +249,12 @@ def parseArgs():
             print(i,":"+str(monitors[i]))
         sys.exit()
         
-    if args.buildmeta:
-        loadconfig(configfile)
-        Tables(tableRootDir)
-        vps = VPSdb(Tables.tablesRootFilePath)
-        for table in Tables.tables:
-            finalini = {}
-            meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini") # check if we want it updated!!! TODO
-            
-            # vpsdb
-            vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"])
-            #print(vpsData)
-            
-            # vpx file info
-            print("remove: ", table.fullPathVPXfile)
-            vpxData = vpxparser.singleFileExtract(table.fullPathVPXfile)
-            #vpxparser.printFileValues(vpxData)
-            
-            # make the config.ini
-            finalini['vpsdata'] = vpsData
-            finalini['vpxdata'] = vpxData
-            meta.writeConfig(finalini)
-            
-            print(table.tableDirName)
-            print(table.fullPathTable)
-            print(table.fullPathVPXfile)
-        sys.exit()
-
     if args.configfile:
         configfile = args.configfile
+        
+    if args.buildmeta:
+        buildMetaData()
+        sys.exit()
     
 def processTkMsgEvent(event):
         msg = tkMsgQueue.get()

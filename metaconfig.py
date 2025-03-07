@@ -7,14 +7,18 @@ class MetaConfig:
 
     def __init__(self, configfilepath):
 
-        # check if the file exists
-        if not os.path.exists(configfilepath):
-            pass
-            #raise FileNotFoundError(f"The config file '{configfilepath}' was not found.")
-        self.configFilePath = configfilepath
         self.defaults = {}
         self.config = configparser.ConfigParser(defaults=self.defaults)
-        self.config.read(configfilepath)
+        
+        # check if the file exists
+        if os.path.exists(configfilepath):
+            self.config.read(configfilepath)
+        else: # must be a new file we are going to write
+            pass
+            #raise FileNotFoundError(f"The config file '{configfilepath}' was not found.")
+        
+        self.configFilePath = configfilepath
+     
         
     def writeConfig(self, configdata):
         config = {}
@@ -22,8 +26,8 @@ class MetaConfig:
         config['VPXFile'] = {}
         
         # Remove all sections.. may not need this but if you want to remove keys already in file you have to!
-        for section in list(self.config.sections()):
-            self.config.remove_section(section)
+        #for section in list(self.config.sections()):
+            #self.config.remove_section(section)
         
         #print(configdata)
         
@@ -35,7 +39,7 @@ class MetaConfig:
             config['VPSdb']['manufacturer'] = configdata['vpsdata']['manufacturer']
             config['VPSdb']['year'] = configdata['vpsdata']['year']
             config['VPSdb']['theme'] = configdata['vpsdata']['theme']
-        except TypeError as e: # it did not get a vpsdb entry
+        except TypeError as e: # it did not get a matching vpsdb entry most likely
             pass
         
         # vpx file data
@@ -44,7 +48,7 @@ class MetaConfig:
         config['VPXFile']['version'] = configdata['vpxdata']['tableVersion']
         config['VPXFile']['author'] = configdata['vpxdata']['authorName']
         config['VPXFile']['releaseDate'] = configdata['vpxdata']['releaseDate']
-        config['VPXFile']['blurb'] = configdata['vpxdata']['tableBlurb']
+        config['VPXFile']['blurb'] = self.strip_all_newlines(configdata['vpxdata']['tableBlurb'])
         #config['VPXFile']['rules'] = configdata['vpxdata']['tableRules']
         config['VPXFile']['saveDate'] = configdata['vpxdata']['tableSaveDate']
         config['VPXFile']['saveRev'] = configdata['vpxdata']['tableSaveRev']
@@ -60,3 +64,26 @@ class MetaConfig:
         # Write the configuration to a file
         with open(self.configFilePath, 'w') as configfile:
             self.config.write(configfile)
+
+    def getConfig(self):
+        return self.config
+    
+    def strip_all_newlines(self,text):
+        #Strips all newlines (Unix and MS-DOS) from a string.
+        text = text.replace('\r\n', '')  # Remove MS-DOS newlines
+        text = text.replace('\n', '')    # Remove Unix newlines
+        return text
+    
+    def actionDeletePinmameNVram(self):
+        basepathfolder = os.path.dirname(self.configFilePath)
+        nvramPath = basepathfolder + "/pinmame/nvram/" + self.config['VPXFile']['rom'] + ".nv"
+       
+        try:
+            if self.config['Pinmame']['deleteNVramOnClose'] == "true":
+                if os.path.exists(nvramPath):
+                    os.remove(nvramPath)
+                    print(f"File '{nvramPath}' deleted successfully.")
+                else:
+                    print(f"File '{nvramPath}' does not exist.")
+        except KeyError:  # theres no pinmame setting for this action
+            pass

@@ -8,14 +8,13 @@ import sys
 
 from config import Config
 
-
 class VPSdb:
   
   vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
   vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
   
   def __init__(self, rootTableDir):
-    print("Checking VPSdb")
+    print("Initing VPSdb")
     version = self.downloadLastUpdate()
     if version != None:
       print("  Current VPSdb version: ", version)
@@ -47,21 +46,18 @@ class VPSdb:
         name_similarity_ratio = SequenceMatcher(None, name.lower(),  table["name"].lower()).ratio()
         #print(f'"{name}" "{table["name"]}"')
         if name_similarity_ratio >= .8:
-            print("name matched with threshold:", table["name"], name_similarity_ratio)
+            #print("name matched with threshold:", table["name"], name_similarity_ratio)
             similarity_ratio = SequenceMatcher(None, manufacturer.lower(),  table["manufacturer"].lower()).ratio()
             #print("manufacturer matched with threshold:", table["manufacturer"], similarity_ratio)
             if similarity_ratio >= .8:
               similarity_ratio = SequenceMatcher(None, str(year),  str(table["year"])).ratio()
               if similarity_ratio >= .8:
-                #print("Matched!!:",table['name'], table['id'], similarity_ratio)
-                return table
-        if name_similarity_ratio >= .8: # if the manufactor and year don't like but the name then take that.
-          return table
-                
+                print("  Name, manufacturer, and year matched with threshold:", table["name"])
+                return table        
       except KeyError:
         print("lookupName: no key?")
         pass
-      
+    print("  No match for: ", name)  
     return None
 
   def parseTableNameFromDir(self, directory_name):

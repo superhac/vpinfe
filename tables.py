@@ -17,7 +17,6 @@ class Tables:
     RED_CONSOLE_TEXT = '\033[31m'
     RESET_CONSOLE_TEXT = '\033[0m'
 
-
     def __init__(self, tablesRootFilePath):
         Tables.tablesRootFilePath = tablesRootFilePath
         self.loadTables()
@@ -44,9 +43,7 @@ class Tables:
                 Tables.tables.append(tableInfo)
                 self.loadImagePaths(tableInfo)
     
-        print(f"Found {count} tables (.vpx).")
-        #for table in Tables.tables:
-           # print(f'Table dir Name: "{table.tableDirName}" Table dir path: "{table.fullPathTable}" Full VPX path: "{table.fullPathVPXfile}"')
+        print(f"  Found {count} tables (.vpx).")
 
     def loadImagePaths(self, tableInfo):
         # set bg image

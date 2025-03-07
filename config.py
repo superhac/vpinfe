@@ -30,6 +30,3 @@ class Config:
 		with open(self.configfilepath, 'w') as configfile:
 			self.config.write(configfile)
 	
-
-
-
