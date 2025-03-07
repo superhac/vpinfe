@@ -142,17 +142,30 @@ rom = andromed
 ```
 More to come on how this will be used!
 
+### meta.ini
+
+These you have to manually add: 
+
+[VPinFE]
+
+`update` = # true or false whether to update the VPS entry for this table.  If you create this manually or don't want to use the auto generated VPSdb set this to `false`. Default is `true`. 
+
+[Pinmame]
+
+`deleteNVramOnClose` = # true or false # Some tables leave the game in a state where it was when you quit.  Like [Taito machines](https://github.com/jsm174/vpx-standalone-scripts/issues/89).  Use this to delete the nvram file on close.
+
+
 ## Tips
 
 ### If you want faster caching performance match the respective images to the resolution of screens on which they will be displayed. This results in an average performance boost of 40 percent.
 
-This is a bash script using `ImageMagick` that you put in your root tables directory and run.  Adjust the vars in the top of the script to match your screens:
+This is a bash script using `ImageMagick` that you put in your root tables directory and run.  It will check if the resolution already matches the screen res and skip the conversion if it does.  Adjust the vars in the top of the script to match your screens:
 
 ```
 #! /bin/bash
 
-bg_res="1920X1080"
-dmd_res="1920X1080"
+bg_res="1920x1080"
+dmd_res="1920x1080"
 table_res="3840x2160"
 
 force="!"
@@ -161,9 +174,20 @@ for dir in */; do
   if [[ -d "$dir" ]]; then
     echo "Entering directory: $dir"
     cd "$dir"
-    convert -resize "$bg_res$force" bg.png -set filename:base "%[basename]" "%[filename:base].png"
-    convert -resize "$dmd_res$force" dmd.png -set filename:base "%[basename]" "%[filename:base].png"
-    convert -resize "$table_res$force" table.png -set filename:base "%[basename]" "%[filename:base].png"
+    imgRes=`identify bg.png | cut -d " " -f3`
+    if [ "$imgRes" != "$bg_res" ]; then
+      convert -resize "$bg_res$force" bg.png -set filename:base "%[basename]" "%[filename:base].png"
+    fi
+
+    imgRes=`identify dmd.png | cut -d " " -f3`
+    if [ "$imgRes" != "$dmd_res" ]; then
+      convert -resize "$dmd_res$force" dmd.png -set filename:base "%[basename]" "%[filename:base].png"
+    fi
+
+    imgRes=`identify table.png | cut -d " " -f3`
+    if [ "$imgRes" != "$table_res" ]; then
+      convert -resize "$table_res$force" table.png -set filename:base "%[basename]" "%[filename:base].png"
+    fi
     # Return to the previous directory
     cd - > /dev/null 2>&1
   fi
