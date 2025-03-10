@@ -6,6 +6,9 @@ import os
 import re
 import sys
 
+RED_CONSOLE_TEXT = '\033[31m'
+RESET_CONSOLE_TEXT = '\033[0m'
+
 class VPSdb:
   
   vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
@@ -55,7 +58,7 @@ class VPSdb:
       except KeyError:
         print("lookupName: no key?")
         pass
-    print("  No match for: ", name)  
+    print(f"{RED_CONSOLE_TEXT}  No match for: {name}{RESET_CONSOLE_TEXT} ")  
     return None
 
   def parseTableNameFromDir(self, directory_name):

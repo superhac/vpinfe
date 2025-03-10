@@ -9,7 +9,7 @@ import os
 
 
 class StandaloneScripts:
-    hashsUrl = "https://raw.githubusercontent.com/superhac/vpx-standalone-scripts/refs/heads/master/hashes.json"
+    hashsUrl = "https://raw.githubusercontent.com/jsm174/vpx-standalone-scripts/refs/heads/master/hashes.json"
     
     def __init__(self, tables):
         self.hashes = None
