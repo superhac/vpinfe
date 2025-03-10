@@ -22,9 +22,15 @@ Keyboard:
 - ESCAPE = Exit
 
 Joystick
-- Left_Bumper = Table shift left
-- Right_Bumber = Table shift right
-- A/Green Button = Launch the table (same button as COIN in on VPX)
+These are now controlled via the `vpinfe.ini` file.  These are not set by default.  To figure out your values use `jstest`.
+```
+joyleft = 4
+joyright = 5
+joyselect = 1
+joymenu = 2
+joyback = 1
+joyexit = 8
+```
 
 ## Build Status
 
@@ -74,7 +80,7 @@ total 324708
 Help:
 ```
 VPinFE 0.5 beta by Superhac (superhac007@gmail.com)
-usage: vpinfe [-h] [--listres] [--configfile CONFIGFILE] [--buildmeta]
+usage: vpinfe [-h] [--listres] [--configfile CONFIGFILE] [--buildmeta] [--vpxpatch]
 
 options:
   -h, --help            show this help message and exit
@@ -82,9 +88,12 @@ options:
   --configfile CONFIGFILE
                         Configure the location of your vpinfe.ini file. Default is cwd.
   --buildmeta           Builds the meta.ini file in each table dir
+  --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
 ```
 
-#1 - Get your display(s) (Supports 1 to 3 displays.  BG, DMD, and Table)
+#1 run vpinfe with no arugments the first time: `./vpinfe` and it will create the `vpinfe.ini` file for you. 
+
+#2 - Get your display(s) (Supports 1 to 3 displays.  BG, DMD, and Table)
 
 `./vpinfe --listres`
 Then you'll see:
@@ -94,8 +103,8 @@ Number of joysticks connected: 1
 1 :Monitor(x=5760, y=0, width=1920, height=1080, width_mm=0, height_mm=0, name='HDMI-1', is_primary=False)
 2 :Monitor(x=0, y=0, width=3840, height=2160, width_mm=600, height_mm=340, name='DP-3', is_primary=True)
 ```
-#2 Assign your display(s) and Settings in the vpinfe.ini file
-Assign your displays and paths like the example in your **vpinfe.ini**.  Put this is the the same dir as the vpinfe executable unless your using the `--configfile` argument
+#3 Assign your display(s), paths, and joystick button mapping in the vpinfe.ini file
+Assign your displays and paths like the example in your **vpinfe.ini**.  Put this is the same dir as the vpinfe executable unless your using the `--configfile` argument
 ```
 [Displays]
 bgscreenid = 0
@@ -104,6 +113,12 @@ tablescreenid = 2
 [Settings]
 vpxbinpath = /home/superhac/working/vpinball/build/VPinballX_BGFX
 tablerootdir = /home/superhac/tables/
+joyleft = 4
+joyright = 5
+joyselect = 1
+joymenu = 2
+joyback = 1
+joyexit = 8
 ```
 
 ## Building the metadata using VPS and the VPX parser
@@ -115,7 +130,7 @@ Theres a new cli arugument called `--buildmeta` that you can use to create a `me
 - VPX file parser
   - Will hash the .vpx, hash the contained .vbs and then pull other note worthly metadata, like the rom name, version, etc.
 
-Once this process has finished you end up one `meta.ini` in each table directory.  The file will look this for example:
+Once this process has finished you end up one `meta.ini` in each table directory.  The file will look like this for example:
 ```
 [VPSdb]
 id = uiEUziXx
@@ -154,6 +169,10 @@ These you have to manually add:
 
 `deleteNVramOnClose` = # true or false # Some tables leave the game in a state where it was when you quit.  Like [Taito machines](https://github.com/jsm174/vpx-standalone-scripts/issues/89).  Use this to delete the nvram file on close.
 
+## VPX-Standalone-scripts Auto Patch Downloader
+There is a builtin option now `--vpxpatch` that will attempt using the vbshash captured in the `meta.ini` to match patches from VPX-Standalone-scripts.  If a hash is matched it will automatically download it and place it in your table folder.  Next time you run the table you should be good to go!
+
+__Note__ you must build the metadata first via the `--buildmeta` option mentioned above for this to work.
 
 ## Tips
 
