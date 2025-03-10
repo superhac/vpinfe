@@ -1,20 +1,50 @@
 # VPinFE
 ![VPinFE_logo_main](https://github.com/user-attachments/assets/507c50e3-bc1e-499a-b393-f9d11250b709)
 
-A frontend for vpinball for linux, windows, mac.
+## A frontend for vpinball with the following features:
+#### **Cross-Platform Frontend for Virtual Pinball**  
+- Works on **Linux, Windows, and Mac** (Windows currently needs updates for VPX compatibility).  
+
+#### **Multi-Display Support**  
+- Supports **up to 3 screens** (Backglass, DMD, and Table).  
+- Configurable display assignments via `vpinfe.ini`.  
+
+#### **Customizable Controls**  
+- **Keyboard & Joystick** support.  
+- Joystick mappings configurable in `vpinfe.ini`.  
+
+#### **Table Management & Metadata Handling**  
+- **Per-table folder structure** for organizing tables and assets.  
+- Auto-generated `meta.ini` with table metadata (e.g., manufacturer, theme, ROM info).  
+- **VPSdb Integration**: Matches tables with **Virtual Pinball Spreadsheet** database.  
+- **VPX file parsing** for versioning, authorship, and ROM detection.  
+
+#### **Automated Patching & Metadata Gathering**  
+- `--vpxpatch` downloads and applies **VPX-Standalone-Scripts** patches automatically.  
+- `--buildmeta` generates metadata for tables from VPSdb, improving search & categorization. 
 
 ## What does it look like?
 YouTube Video
 
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/i7bAqSzp_cQ/0.jpg)](https://www.youtube.com/watch?v=i7bAqSzp_cQ)
 
+## ⚠️ Note
+🚧 This is still in development! 🚧
+VPinFE is functional but subject to change. If you want to test it early, now is a great time!
+
+## Build Status
+![Linux](https://img.shields.io/badge/Linux-Works-green)     
+![Mac](https://img.shields.io/badge/Mac-Testing-yellow)        
+![Windows](https://img.shields.io/badge/Windows-Broken-red)  
+
+Mac: Appears to be looking for SDl2
+
+Windows: VPX needs to be updated to support the individual table folder structure like standalone
+
 ## Download
 [CI build](https://github.com/superhac/vpinfe/actions)
 
-## Note
-This is not yet ready for primetime consumption, but if you want to get your feet wet and do some testing nows a good time.  It works but will subject to changes.
-
-## Controls
+## 🎮 Controls
 Keyboard: 
 - SHIFT_LEFT = Table shift left
 - SHIFT_RIGHT = Table shift right
@@ -32,16 +62,10 @@ joyback = 1
 joyexit = 8
 ```
 
-## Build Status
+# 📂 File Structure
+If you stick to the convention of name your folders in this format, `TABLE_NAME (MANUFACTURER YEAR)` you will better organzied and the automatic VPSdb and auto patching will work well. 
 
-| Platform | Status | Dependencies | Notes |
-| -------- |--------|--------------|-------|
-|Linux     |Works   | None         |       |
-|Mac       |Testing | Unknown      | Appears to be looking for SDl2 |
-|Windows   |broken  | None         | VPX needs to be updated to support the individual table folder structure like standalone |
-
-# File Structure
-All tables (and their supporting files) are placed in their own directory under the table root dir:
+Tables (and their supporting files) go in their own directories under the root table folder:
 ```
 superhac@linpin:~/tables$ ls -las
 total 28
@@ -53,8 +77,8 @@ total 28
 4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:49 'Andromeda (Game Plan 1985)'
 4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:51 'Back To The Future - The Pinball (Data East 1990)'
 ```
-
-Then in each table dir. You can place your images with the following names:
+## Images
+Each table directory can contain images with specific names:
 | File Name     | Image Type    |
 | ------------- | ------------- |
 | bg.png        | Backglass Image |
@@ -75,7 +99,7 @@ total 324708
  14428 -rw-rw-r-- 1 superhac superhac  14773058 Feb 21 12:50  table.png
 ```
 
-## How to use (vpinfe.ini)
+## ⚙️ How to use (vpinfe.ini)
 
 Help:
 ```
@@ -122,13 +146,17 @@ joyexit = 8
 ```
 
 ## Building the metadata using VPS and the VPX parser
-Theres a new cli arugument called `--buildmeta` that you can use to create a `meta.ini` file in each table directory.  When you execute this option the following happens:
-- Virtual Pinball Spreadsheet (VPS)
-  - Will download a copy a copy of the VPSdb to your machine if you neither have it or theres a newer version of avaliable
-  - Using VPSdb, VPinFE will attempt to correlate by "table folder" to a VPSdb ID.  __Note if you follow the standard naming convention of "TABLE_NAME (MANUFACTURER YEAR)" the results will be highly accurate.__ But none the less it uses a similarity ratio where 80 percent match is used.
-  - Once a match is made it will pull in metadata from the VPSdb.  Like type, theme, etc.
-- VPX file parser
-  - Will hash the .vpx, hash the contained .vbs and then pull other note worthly metadata, like the rom name, version, etc.
+There's a new CLI argument called --buildmeta that allows you to generate a meta.ini file in each table directory. When you run this option, the following process occurs:
+
+### Virtual Pinball Spreadsheet (VPS) Integration
+
+If you don't already have a copy of the VPSdb or if a newer version is available, it will be downloaded to your machine.
+Using the VPSdb, VPinFE will attempt to match table folders to a VPSdb ID. If you follow the standard naming convention—"TABLE_NAME (MANUFACTURER YEAR)"—the accuracy will be high. However, the system also employs a similarity ratio, requiring an 80% match for association.
+Once a match is found, metadata such as table type, theme, and other relevant details will be retrieved from the VPSdb.
+
+### VPX File Parser
+
+The .vpx file will be hashed, along with any contained .vbs files.  Additional key metadata will be extracted, including the ROM name, version, and other noteworthy details.
 
 Once this process has finished you end up one `meta.ini` in each table directory.  The file will look like this for example:
 ```
@@ -157,22 +185,22 @@ rom = andromed
 ```
 More to come on how this will be used!
 
-### meta.ini
+## meta.ini
 
-These you have to manually add: 
+You must manually add the following settings:
 
 [VPinFE]
 
-`update` = # true or false whether to update the VPS entry for this table.  If you create this manually or don't want to use the auto generated VPSdb set this to `false`. Default is `true`. 
+`update` = true | false – Determines whether to update the VPS entry for this table. If you manually create this entry or prefer not to use the auto-generated VPSdb, set this to false. Default is true.
 
 [Pinmame]
 
-`deleteNVramOnClose` = # true or false # Some tables leave the game in a state where it was when you quit.  Like [Taito machines](https://github.com/jsm174/vpx-standalone-scripts/issues/89).  Use this to delete the nvram file on close.
+`deleteNVramOnClose` = true | false – Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing.
 
 ## VPX-Standalone-scripts Auto Patch Downloader
-There is a builtin option now `--vpxpatch` that will attempt using the vbshash captured in the `meta.ini` to match patches from VPX-Standalone-scripts.  If a hash is matched it will automatically download it and place it in your table folder.  Next time you run the table you should be good to go!
+The new `--vpxpatch` option automatically utilizes the `vbshash` stored in meta.ini to find and apply matching patches from the VPX-Standalone-Scripts repository. If a match is found, the patch is downloaded and placed in your table folder, ensuring the table is ready to run seamlessly on your next launch.
 
-__Note__ you must build the metadata first via the `--buildmeta` option mentioned above for this to work.
+__Important__: Before using this feature, you must generate the necessary metadata with the `--buildmeta` option, as described above.
 
 ## Tips
 
