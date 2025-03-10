@@ -75,10 +75,9 @@ class MetaConfig:
         return text
     
     def actionDeletePinmameNVram(self):
-        basepathfolder = os.path.dirname(self.configFilePath)
-        nvramPath = basepathfolder + "/pinmame/nvram/" + self.config['VPXFile']['rom'] + ".nv"
-       
         try:
+            basepathfolder = os.path.dirname(self.configFilePath)
+            nvramPath = basepathfolder + "/pinmame/nvram/" + self.config['VPXFile']['rom'] + ".nv"
             if self.config['Pinmame']['deleteNVramOnClose'] == "true":
                 if os.path.exists(nvramPath):
                     os.remove(nvramPath)

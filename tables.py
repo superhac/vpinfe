@@ -54,15 +54,15 @@ class Tables:
         if os.path.exists(bg):
             tableInfo.BGImagePath = bg
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT}    Img not found: {bg}{Tables. RESET_CONSOLE_TEXT}")
+            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {bg}{Tables. RESET_CONSOLE_TEXT}")
         if os.path.exists(dmd):
             tableInfo.DMDImagePath = dmd
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT}    Img not found: {dmd}{Tables. RESET_CONSOLE_TEXT}")
+            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {dmd}{Tables. RESET_CONSOLE_TEXT}")
         if os.path.exists(table):
             tableInfo.TableImagePath = table
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT}    Img not found: {table}{Tables. RESET_CONSOLE_TEXT}")
+            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {table}{Tables. RESET_CONSOLE_TEXT}")
 
     def getTable(self, index):
         return self.tables[index]

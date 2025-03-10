@@ -65,29 +65,29 @@ def printFileValues(vpxFileValues):
 
 def loadVBCode(ole, vpxFileValues):
 	file = ole.openstream(vpxPathsBinary['gameData'])
-	foundCode = False
-	while (1):
-		try:
-			size = struct.unpack('i', file.read(4))[0]
-			data = struct.unpack(str(size)+'s', bytearray(file.read(size)) )[0].decode("latin-1")
-			if (foundCode):
-				vpxFileValues['gameData'] = data
-				break
-			if  (data == 'CODE'):
-				foundCode = True
+	data = file.read() 
+             	
+	offset = find_code_offset_after(data)
+	length = int.from_bytes(data[offset:offset + 4], byteorder="little", signed=True) # gets the size of vbscript file
+	vbscript = data[offset+4:offset+4+length] # slice out the vbscript
+	vbscript = vbscript.decode('latin-1')
+	vbscript = ensure_msdos_line_endings(vbscript)
+	vpxFileValues['gameData'] = vbscript
 
-		except UnicodeDecodeError as e:
-			pass # don't care about most values in packed in here.  only "CODE"
-		except struct.error as e:  # EOF
-			break
-	if (not foundCode):
-		print("gameData not found??") 
-		vpxFileValues['gameData'] = ""
+def find_code_offset_after(data: bytes, word: bytes = b"CODE") -> int:
+	index = data.find(word)
+	if index != -1:
+		return index + len(word)
+	return -1  # Return -1 if the word is not found
 
 def calcCodeHash(vpxFileValues):
 	vpxFileValues['codeSha256Hash'] = hashlib.sha256(vpxFileValues['gameData'].encode("utf-8")).hexdigest()
 	
- 
+def ensure_msdos_line_endings(text):
+	if "\r\n" in text and "\n" not in text.replace("\r\n", ""):
+		return text  # Already in MSDOS format, return as is
+	return text.replace("\r\n", "\n").replace("\n", "\r\n")  # Normalize to MSDOS
+    
 def sha256sum(filename):
     with open(filename, 'rb', buffering=0) as f:
         return hashlib.file_digest(f, 'sha256').hexdigest()

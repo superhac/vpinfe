@@ -1,23 +1,44 @@
 import configparser
 import os
+import sys
 
 class Config:
 
 	sections = {}
-	instance = None
- 
+	
 	def __init__(self, configfilepath):
-		Config.instance = self
+     
+		self.defaults = {
+			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': ''},
+			'Settings': {
+				'vpxbinpath': '', 
+				'tablerootdir': '', 
+				'joyleft': '',
+				'joyright': '',
+				'joyselect': '',
+				'joymenu': '',
+				'joyback': '',
+				'joyexit': '',
+				},
+			'VPSdb': {'last': ''},
+		}
+
+		self.config = configparser.ConfigParser()
+		self.configfilepath = configfilepath
+		#self.config.write(sys.stdout)
 		# check if the file exists
 		if not os.path.exists(configfilepath):
-			raise FileNotFoundError(f"The config file '{configfilepath}' was not found.")
-		self.configfilepath = configfilepath
-		self.defaults = {}
-		self.config = configparser.ConfigParser(defaults=self.defaults)
+				print("Generating a default 'vpinfe.ini' in CWD.")
+				self.formatDefaults()
+				self.save()
+				raise FileNotFoundError(f"The config file '{configfilepath}' was not found.")
+
 		self.config.read(configfilepath)
+		#self.config.write(sys.stdout)
 		self.readAllKeys()
 
 	def readAllKeys(self):
+		# this should be removed and changed to self.config.read_dict()
 		for section in self.config.sections():
 			entries = {}
 			#print(f"[{section}]")
@@ -30,3 +51,9 @@ class Config:
 		with open(self.configfilepath, 'w') as configfile:
 			self.config.write(configfile)
 	
+	def formatDefaults(self):
+		for section, defaults in self.defaults.items():
+			self.config.add_section(section)
+			for key, value in defaults.items():
+				if not self.config.has_option(section, key):  # Only set if not present
+					self.config.set(section, key, value)

@@ -22,12 +22,14 @@ from config import Config
 import metaconfig
 from vpsdb import VPSdb
 import vpxparser
+import standaloneScripts
 
 class TKMsgType(Enum):
     ENABLE_STATUS_MSG  = auto
     DISABLE_STATUS_MSG = auto
     DISABLE_THREE_DOT  = auto
     CACHE_BUILD_COMPLETED = auto
+    SHUTDOWN = auto
 
 class TkMsg():
     def __init__(self, MsgType: TKMsgType, func: Callable, msg: str):
@@ -52,6 +54,7 @@ background = False
 tableRootDir = None
 vpxBinPath = None
 configfile = None
+vpinfeIniConfig = None
 tableIndex = 0
 tkMsgQueue = Queue()
 RED_CONSOLE_TEXT = '\033[31m'
@@ -70,8 +73,8 @@ def key_pressed(event):
     if keysym == "Shift_L":
         screenMoveLeft()
     if keysym == "Escape":
-        exitGamepad = True # exit the gamepad loop
-        Screen.rootWindow.destroy()
+        exitGamepad = True # exit the gamepad loop.  This also kills the sdl joy input loop thread.
+        #Screen.rootWindow.destroy()
 
     # Lanuch Game
     if keysym == "a":
@@ -163,11 +166,12 @@ def openJoysticks():
 def loadconfig(configfile):
     global tableRootDir
     global vpxBinPath
+    global vpinfeIniConfig
 
     if configfile == None:
         configfile= "vpinfe.ini"
     try:
-        config = Config(configfile)
+        vpinfeIniConfig = Config(configfile)
     except Exception as e:
         print(f"{RED_CONSOLE_TEXT}Fatal: {e}{RESET_CONSOLE_TEXT}")
         sys.exit(1)
@@ -177,20 +181,20 @@ def loadconfig(configfile):
 
     # mandatory
     try:
-        if Config.sections['Displays']["bgscreenid"] != "":
+        if vpinfeIniConfig.config['Displays']["bgscreenid"] != "":
             ScreenNames.BG = int(Config.sections['Displays']["bgscreenid"])
         else:
              ScreenNames.BG = None
-        if Config.sections['Displays']["dmdscreenid"] != "":
+        if vpinfeIniConfig.config['Displays']["dmdscreenid"] != "":
             ScreenNames.DMD = int(Config.sections['Displays']["dmdscreenid"])
         else:
             ScreenNames.DMD = None
-        if Config.sections['Displays']["tablescreenid"] != "":
+        if vpinfeIniConfig.config['Displays']["tablescreenid"] != "":
             ScreenNames.TABLE = int(Config.sections['Displays']["tablescreenid"])
         else:
              ScreenNames.TABLE
-        tableRootDir = Config.sections['Settings']["tablerootdir"]
-        vpxBinPath = Config.sections['Settings']["vpxbinpath"]
+        tableRootDir = vpinfeIniConfig.config['Settings']["tablerootdir"]
+        vpxBinPath = vpinfeIniConfig.config['Settings']["vpxbinpath"]
     except KeyError as e:
         print(f"{RED_CONSOLE_TEXT}Fatal: Missing mandatory '{e.args[0]}' entry in vpinfe.{RESET_CONSOLE_TEXT}")
         sys.exit(1)
@@ -210,7 +214,7 @@ def loadconfig(configfile):
 def buildMetaData():
         loadconfig(configfile)
         Tables(tableRootDir)
-        vps = VPSdb(Tables.tablesRootFilePath)
+        vps = VPSdb(Tables.tablesRootFilePath, vpinfeIniConfig)
         for table in Tables.tables:
             finalini = {}
             meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini") # check if we want it updated!!! TODO
@@ -231,6 +235,11 @@ def buildMetaData():
             finalini['vpxdata'] = vpxData
             meta.writeConfig(finalini)
 
+def vpxPatches():
+    loadconfig(configfile)
+    Tables(tableRootDir)
+    standaloneScripts.StandaloneScripts(Tables.tables)
+
 def parseArgs():
     global tableRootDir
     global vpxBinPath
@@ -240,6 +249,8 @@ def parseArgs():
     parser.add_argument("--listres", help="ID and list your screens", action="store_true")
     parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file.  Default is cwd.")
     parser.add_argument("--buildmeta", help="Builds the meta.ini file in each table dir", action="store_true")
+    parser.add_argument("--vpxpatch", help="Using vpx-standalone-scripts will attempt to load patches automatically", action="store_true")
+    
     args = parser.parse_args()
 
     if args.listres:
@@ -255,18 +266,27 @@ def parseArgs():
     if args.buildmeta:
         buildMetaData()
         sys.exit()
+        
+    if args.vpxpatch:
+        vpxPatches()
+        sys.exit()
     
 def processTkMsgEvent(event):
         msg = tkMsgQueue.get()
 
         if msg.msgType == TKMsgType.CACHE_BUILD_COMPLETED:
             msg.call()
+        if msg.msgType == TKMsgType.SHUTDOWN:
+            msg.call()
             
 def disableStatusMsg():
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].textThreeDotAnimate(enabled=False)
         screens[ScreenNames.BG].removeStatusText()
-   
+
+def shutDownMsg():
+    Screen.rootWindow.after(500, Screen.rootWindow.destroy)
+    
 def loadImageAllScreens(img_path):
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].loadImage(img_path)
@@ -327,21 +347,33 @@ def gameControllerInputThread():
                     #print(f"Axis {axis_id}: {axis_value}")
                 elif event.type == sdl2.SDL_JOYBUTTONDOWN:
                     button_id = event.jbutton.button
-                    if button_id == 5:
+                    if button_id == int(vpinfeIniConfig.config['Settings']['joyright']):
                         screenMoveRight()
-                    elif button_id == 4:
+                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyleft']):
                         screenMoveLeft()
-                    elif button_id == 1:
+                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyselect']):
                         for s in screens: 
                             s.window.withdraw()
                         #s.window.after(1, launchTable() )
                         launchTable()
                         break
+                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyexit']):
+                        print("exit?")
+                        exitGamepad = True
+                    elif button_id == int(vpinfeIniConfig.config['Settings']['joymenu']):
+                        print("Not implemented yet...")
+                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyback']):
+                        print("Not implemented yet...")
                     print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
                 elif event.type == sdl2.SDL_JOYBUTTONUP:
                     button_id = event.jbutton.button
                     #print(f"Button {button_id} Up")
-    
+                    
+    tkmsg = TkMsg(MsgType=TKMsgType.SHUTDOWN, func= shutDownMsg, msg = "")
+    tkMsgQueue.put(tkmsg)
+    Screen.rootWindow.event_generate("<<vpinfe_tk>>")
+
+        
 # Main Application
 print("VPinFE "+version+" by Superhac (superhac007@gmail.com)")
 parseArgs()

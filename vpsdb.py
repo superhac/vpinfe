@@ -6,28 +6,26 @@ import os
 import re
 import sys
 
-from config import Config
-
 class VPSdb:
   
   vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
   vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
   
-  def __init__(self, rootTableDir):
+  def __init__(self, rootTableDir, vpinfeIniConfig):
     print("Initing VPSdb")
     version = self.downloadLastUpdate()
     if version != None:
       print("  Current VPSdb version: ", version)
       try:
-        if Config.sections['VPSdb']['last'] < version:
+        if vpinfeIniConfig.config['VPSdb']['last'] < version:
           self.downloadDB()
         else:
           print("  VPSdb currently at lastest revision.")
       except KeyError:
         self.downloadDB()
       
-      Config.instance.config['VPSdb']['last'] = version
-      Config.instance.save()
+      vpinfeIniConfig.config['VPSdb']['last'] = version
+      vpinfeIniConfig.save()
       
       self.rootTableDir = rootTableDir
       try:
