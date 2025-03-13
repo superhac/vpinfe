@@ -70,7 +70,7 @@ def loadVBCode(ole, vpxFileValues):
 	offset = find_code_offset_after(data)
 	length = int.from_bytes(data[offset:offset + 4], byteorder="little", signed=True) # gets the size of vbscript file
 	vbscript = data[offset+4:offset+4+length] # slice out the vbscript
-	vbscript = vbscript.decode('latin-1')
+	vbscript = vbscript.decode('utf-8', errors="ignore")
 	vbscript = ensure_msdos_line_endings(vbscript)
 	vpxFileValues['gameData'] = vbscript
 
@@ -82,6 +82,7 @@ def find_code_offset_after(data: bytes, word: bytes = b"CODE") -> int:
 
 def calcCodeHash(vpxFileValues):
 	vpxFileValues['codeSha256Hash'] = hashlib.sha256(vpxFileValues['gameData'].encode("utf-8")).hexdigest()
+	print(vpxFileValues['codeSha256Hash'], vpxFileValues['tableName'])
 	
 def ensure_msdos_line_endings(text):
 	if "\r\n" in text and "\n" not in text.replace("\r\n", ""):
