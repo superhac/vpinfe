@@ -182,15 +182,15 @@ def loadconfig(configfile):
     # mandatory
     try:
         if vpinfeIniConfig.config['Displays']["bgscreenid"] != "":
-            ScreenNames.BG = int(Config.sections['Displays']["bgscreenid"])
+            ScreenNames.BG = int(vpinfeIniConfig.config['Displays']["bgscreenid"])
         else:
              ScreenNames.BG = None
         if vpinfeIniConfig.config['Displays']["dmdscreenid"] != "":
-            ScreenNames.DMD = int(Config.sections['Displays']["dmdscreenid"])
+            ScreenNames.DMD = int(vpinfeIniConfig.config['Displays']["dmdscreenid"])
         else:
             ScreenNames.DMD = None
         if vpinfeIniConfig.config['Displays']["tablescreenid"] != "":
-            ScreenNames.TABLE = int(Config.sections['Displays']["tablescreenid"])
+            ScreenNames.TABLE = int(vpinfeIniConfig.config['Displays']["tablescreenid"])
         else:
              ScreenNames.TABLE
         tableRootDir = vpinfeIniConfig.config['Settings']["tablerootdir"]
