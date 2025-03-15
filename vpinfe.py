@@ -11,8 +11,8 @@ import time
 import threading
 from multiprocessing import Process
 from queue import Queue
-from enum import Enum, auto
-from typing import Callable
+from tkmessages import TKMsgType, TkMsg
+
 
 from screennames import ScreenNames
 from imageset import ImageSet
@@ -23,19 +23,6 @@ import metaconfig
 from vpsdb import VPSdb
 import vpxparser
 import standaloneScripts
-
-class TKMsgType(Enum):
-    ENABLE_STATUS_MSG  = auto
-    DISABLE_STATUS_MSG = auto
-    DISABLE_THREE_DOT  = auto
-    CACHE_BUILD_COMPLETED = auto
-    SHUTDOWN = auto
-
-class TkMsg():
-    def __init__(self, MsgType: TKMsgType, func: Callable, msg: str):
-        self.msgType = MsgType
-        self.call = func
-        self.msg = msg
 
 # OS Specific
 if sys.platform.startswith('win'):
@@ -63,9 +50,9 @@ RESET_CONSOLE_TEXT = '\033[0m'
 def key_pressed(event):
     global tableIndex
     global exitGamepad
-    key = event.char # Get the character representation of the key
+    #key = event.char # Get the character representation of the key
     keysym = event.keysym # Get the symbolic name of the key
-    keycode = event.keycode # Get the numeric keycode
+    #keycode = event.keycode # Get the numeric keycode
     #print(f"Key pressed: {key}, keysym: {keysym}, keycode: {keycode}")
 
     if keysym == "Shift_R":
@@ -82,7 +69,6 @@ def key_pressed(event):
             #s.window.withdraw()
             s.window.iconify()
         Screen.rootWindow.update_idletasks()
-        #s.window.after(1, launchTable() )
         Screen.rootWindow.after(500, launchTable )
         
 def screenMoveRight():
@@ -117,7 +103,6 @@ def launchTable():
     for s in screens:
         s.window.deiconify()
     Screen.rootWindow.update()
-    
     Screen.rootWindow.focus_force()
     Screen.rootWindow.update()
     
@@ -130,8 +115,7 @@ def setGameDisplays(tableInfo):
     # Load image BG
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath)
-        screens[ScreenNames.BG].addText(tableInfo.tableDirName, (screens[ScreenNames.BG].canvas.winfo_width() /2, 1080), anchor="s")
-
+        screens[ScreenNames.BG].addText(tableInfo.vpsConfig.get('VPSdb','name'), (screens[ScreenNames.BG].canvas.winfo_width() /2, 1080), anchor="s")
 
     # Load image DMD
     if ScreenNames.DMD is not None:
@@ -299,7 +283,7 @@ def loadImageAllScreens(img_path):
 def buildImageCache():
     loadImageAllScreens(logoImage)
     if ScreenNames.BG is not None:
-        screens[ScreenNames.BG].addStatusText("Caching Images", (20,1000))
+        screens[ScreenNames.BG].addStatusText("Caching Images", (10,1034))
         screens[ScreenNames.BG].textThreeDotAnimate()
     thread = threading.Thread(target=buildImageCacheThread, daemon=True)
     thread.start()

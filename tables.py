@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import metaconfig
 
 class TableInfo:
     tableDirName = None
@@ -9,6 +10,8 @@ class TableInfo:
     BGImagePath = None
     DMDImagePath = None
     TableImagePath = None
+    
+    vpsConfig = None
     
 class Tables:
     # static
@@ -42,6 +45,7 @@ class Tables:
                     continue  
                 Tables.tables.append(tableInfo)
                 self.loadImagePaths(tableInfo)
+                self.loadMetaData(tableInfo)
     
         print(f"  Found {count} tables (.vpx).")
 
@@ -64,6 +68,10 @@ class Tables:
         else:
             print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {table}{Tables. RESET_CONSOLE_TEXT}")
 
+    def loadMetaData(self, tableInfo):
+        meta = metaconfig.MetaConfig(tableInfo.fullPathTable + "/" + "meta.ini")
+        tableInfo.vpsConfig = meta.config
+   
     def getTable(self, index):
         return self.tables[index]
     

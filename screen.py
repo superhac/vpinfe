@@ -5,20 +5,23 @@ from collections import OrderedDict
 import time
 
 class Screen:
-    maxImageCacheSize = 50
+    maxImageCacheSize = 100
     firstWindow = True # tracks if this root or another top-level
     rootWindow = None
 
     def __init__(self, screen, missingImage):
         self.isThreeDotAnimate = False
         self.threeDotCount = 0
+        
         self.missingImage = missingImage
         self.text = None
         self.statusText = None
         self.screen = screen
+        
         self.cache = OrderedDict()
         self.index_map = {}  # Maps index numbers to image keys
         self.current_index = 0
+        
         self.canvasPhotoID = None
         self.textPos = None
         self.originalText = None

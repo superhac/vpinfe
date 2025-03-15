@@ -82,7 +82,7 @@ def find_code_offset_after(data: bytes, word: bytes = b"CODE") -> int:
 
 def calcCodeHash(vpxFileValues):
 	vpxFileValues['codeSha256Hash'] = hashlib.sha256(vpxFileValues['gameData'].encode("utf-8")).hexdigest()
-	print(vpxFileValues['codeSha256Hash'], vpxFileValues['tableName'])
+	#print(vpxFileValues['codeSha256Hash'], vpxFileValues['tableName'])
 	
 def ensure_msdos_line_endings(text):
 	if "\r\n" in text and "\n" not in text.replace("\r\n", ""):
