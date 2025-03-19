@@ -18,7 +18,7 @@ class VPSdb:
     print("Initing VPSdb")
     version = self.downloadLastUpdate()
     if version != None:
-      print("  Current VPSdb version: ", version)
+      print("  Current VPSdb version @ VPSdb: ", version)
       try:
         if vpinfeIniConfig.config['VPSdb']['last'] < version:
           self.downloadDB()

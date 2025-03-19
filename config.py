@@ -10,7 +10,8 @@ class Config:
 			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': ''},
 			'Settings': {
 				'vpxbinpath': '', 
-				'tablerootdir': '', 
+				'tablerootdir': '',
+				'defaultfilter': '', # abc, favorites, em, ss, pm  
 				'joyleft': '',
 				'joyright': '',
 				'joyselect': '',

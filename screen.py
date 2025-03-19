@@ -4,6 +4,8 @@ from PIL import Image, ImageTk
 from collections import OrderedDict
 import time
 
+from tablemetahudcanvas import tableMetaHUDCanvas
+
 class Screen:
     maxImageCacheSize = 100
     firstWindow = True # tracks if this root or another top-level
@@ -17,6 +19,7 @@ class Screen:
         self.text = None
         self.statusText = None
         self.screen = screen
+        self.window = None
         
         self.cache = OrderedDict()
         self.index_map = {}  # Maps index numbers to image keys
@@ -26,6 +29,8 @@ class Screen:
         self.textPos = None
         self.originalText = None
         self.originalStatusText = None
+        
+        self.hudCanvas = None
 
         self.createWindow()
         self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
@@ -45,7 +50,7 @@ class Screen:
         self.window.geometry(f"{self.screen.width}x{self.screen.height}+{self.screen.x}+{self.screen.y}")
         self.window.attributes("-fullscreen", True)
 
-    def loadImage(self, img_path, display=True):
+    def loadImage(self, img_path, tableInfo=None, display=True):
         if self.text != None and display: 
              self.removeText()
 
@@ -55,6 +60,7 @@ class Screen:
         if key in self.cache:
             self.cache.move_to_end(key)
             if display:
+                self.addHUD(tableInfo)
                 self.displayImage(self.cache[key])
             return
 
@@ -79,6 +85,7 @@ class Screen:
             self.cache.popitem(last=False)  # Remove the first (oldest) item
 
         if display:
+            self.addHUD(tableInfo)
             self.displayImage(img_tk)
 
     def resizeImageToScreen(self, image):
@@ -151,4 +158,11 @@ class Screen:
         if enabled:
             self.textThreeDotAnimateCall()  # Only start if enabled
             
-
+    def addHUD(self, tableInfo):
+        if tableInfo:
+            # hud size.  percent of total window size
+            barLength = .70
+            barHeight = .20
+            self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barLength), int(self.window.winfo_height()*barHeight),tableInfo=tableInfo)
+            self.hudCanvas.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s")  # Adjust placement
+           

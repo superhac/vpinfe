@@ -20,7 +20,7 @@ class MetaConfig:
         self.configFilePath = configfilepath
      
         
-    def writeConfig(self, configdata):
+    def writeConfigMeta(self, configdata):
         config = {}
         config['VPSdb'] = {}
         config['VPXFile'] = {}
@@ -65,6 +65,10 @@ class MetaConfig:
         with open(self.configFilePath, 'w') as configfile:
             self.config.write(configfile)
 
+    def writeConfig(self):
+         with open(self.configFilePath, 'w') as configfile:
+            self.config.write(configfile)
+
     def getConfig(self):
         return self.config
     
@@ -86,3 +90,11 @@ class MetaConfig:
                     print(f"File '{nvramPath}' does not exist.")
         except KeyError:  # theres no pinmame setting for this action
             pass
+        
+    def addFavorite(self):
+        self.config['VPinFE']['favorite'] = 'true'
+        self.writeConfig(self)
+    
+    def removeFavorite(self):
+        self.config['VPinFE']['favorite'] = 'false'
+        self.writeConfig(self)

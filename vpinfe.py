@@ -114,8 +114,9 @@ def launchVPX(table):
 def setGameDisplays(tableInfo):
     # Load image BG
     if ScreenNames.BG is not None:
-        screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath)
-        screens[ScreenNames.BG].addText(tableInfo.vpsConfig.get('VPSdb','name'), (screens[ScreenNames.BG].canvas.winfo_width() /2, 1080), anchor="s")
+        screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath, tableInfo=tableInfo )
+        #screens[ScreenNames.BG].addHUD(tableInfo) 
+        #screens[ScreenNames.BG].addText(tableInfo.metaConfig.get('VPSdb','name'), (screens[ScreenNames.BG].canvas.winfo_width() /2, 1080), anchor="s")
 
     # Load image DMD
     if ScreenNames.DMD is not None:
@@ -217,7 +218,7 @@ def buildMetaData():
             # make the config.ini
             finalini['vpsdata'] = vpsData
             finalini['vpxdata'] = vpxData
-            meta.writeConfig(finalini)
+            meta.writeConfigMeta(finalini)
 
 def vpxPatches():
     loadconfig(configfile)

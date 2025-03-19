@@ -10,8 +10,9 @@ class TableInfo:
     BGImagePath = None
     DMDImagePath = None
     TableImagePath = None
+    WheelImagePath = None
     
-    vpsConfig = None
+    metaConfig = None
     
 class Tables:
     # static
@@ -54,23 +55,29 @@ class Tables:
         bg = tableInfo.fullPathTable + "/bg.png"
         dmd = tableInfo.fullPathTable + "/dmd.png"
         table = tableInfo.fullPathTable + "/table.png"
+        wheel = tableInfo.fullPathTable + "/wheel.png"
 
         if os.path.exists(bg):
             tableInfo.BGImagePath = bg
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {bg}{Tables. RESET_CONSOLE_TEXT}")
+            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {bg}{Tables.RESET_CONSOLE_TEXT}")
         if os.path.exists(dmd):
             tableInfo.DMDImagePath = dmd
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {dmd}{Tables. RESET_CONSOLE_TEXT}")
+            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {dmd}{Tables.RESET_CONSOLE_TEXT}")
         if os.path.exists(table):
             tableInfo.TableImagePath = table
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {table}{Tables. RESET_CONSOLE_TEXT}")
+            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {table}{Tables.RESET_CONSOLE_TEXT}")
+        if os.path.exists(wheel):
+            tableInfo.WheelImagePath = wheel
+        else:
+            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {wheel}{Tables.RESET_CONSOLE_TEXT}")
+            
 
     def loadMetaData(self, tableInfo):
         meta = metaconfig.MetaConfig(tableInfo.fullPathTable + "/" + "meta.ini")
-        tableInfo.vpsConfig = meta.config
+        tableInfo.metaConfig = meta.config
    
     def getTable(self, index):
         return self.tables[index]
@@ -80,3 +87,9 @@ class Tables:
     
     def getAllTables():
         return Tables.tables
+    
+    def isFavorite(self, tableInfo):
+        if tableInfo.metaConfig['VPinFE']['favorite'] == 'true':
+            return True
+        else:
+            return False
