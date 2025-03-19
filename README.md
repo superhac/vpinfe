@@ -28,6 +28,10 @@ YouTube Video
 
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/i7bAqSzp_cQ/0.jpg)](https://www.youtube.com/watch?v=i7bAqSzp_cQ)
 
+Hud
+
+<img src="https://github.com/user-attachments/assets/391535b9-ce02-4501-8103-9d012f545a5b" width="50%">
+
 ## ⚠️ Note
 🚧 This is still in development! 🚧
 VPinFE is functional but subject to change. If you want to test it early, now is a great time!
