@@ -88,6 +88,7 @@ Each table directory can contain images with specific names:
 | bg.png        | Backglass Image |
 | dmd.png       | DMD Image |
 | table.png     | Table Image |
+| wheel.png     | Icon on Hud |
 
 Example:
 ```
