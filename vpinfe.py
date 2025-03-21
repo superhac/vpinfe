@@ -114,17 +114,16 @@ def launchVPX(table):
 def setGameDisplays(tableInfo):
     # Load image BG
     if ScreenNames.BG is not None:
-        screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath, tableInfo=tableInfo )
-        #screens[ScreenNames.BG].addHUD(tableInfo) 
+        screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath, tableInfo=tableInfo if int(vpinfeIniConfig.config['Displays']['hudscreenid']) == ScreenNames.BG else None )
         #screens[ScreenNames.BG].addText(tableInfo.metaConfig.get('VPSdb','name'), (screens[ScreenNames.BG].canvas.winfo_width() /2, 1080), anchor="s")
 
     # Load image DMD
     if ScreenNames.DMD is not None:
-        screens[ScreenNames.DMD].loadImage(tableInfo.DMDImagePath)
+        screens[ScreenNames.DMD].loadImage(tableInfo.DMDImagePath, tableInfo=tableInfo if int(vpinfeIniConfig.config['Displays']['hudscreenid']) == ScreenNames.DMD else None)
 
     # load table image (rotated and we swap width and height around like portrait mode)
     if ScreenNames.TABLE is not None:
-        screens[ScreenNames.TABLE].loadImage(tableInfo.TableImagePath)
+        screens[ScreenNames.TABLE].loadImage(tableInfo.TableImagePath, tableInfo=tableInfo if int(vpinfeIniConfig.config['Displays']['hudscreenid']) == ScreenNames.TABLE else None)
        
 def getScreens():
     print("Enumerating displays")
@@ -132,7 +131,7 @@ def getScreens():
     monitors = get_monitors()
 
     for i in range(len(monitors)):
-        screen = Screen(monitors[i], missingImage)
+        screen = Screen(monitors[i], missingImage, vpinfeIniConfig)
         screens.append(screen)
         print("    ",i,":"+str(screen.screen))
 

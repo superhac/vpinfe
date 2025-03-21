@@ -8,17 +8,40 @@ from tables import Tables, TableInfo
 
 
 class tableMetaHUDCanvas(tk.Canvas):
-    def __init__(self, master=None, width=None, height=None, tableInfo=None, **kwargs):
+    def __init__(self, master=None, width=None, height=None, tableInfo=None, angle=0, **kwargs):
         super().__init__(master, width=width, height=height, highlightthickness=0, **kwargs)
         self.width  = width
         self.height = height
+        self.angle = angle
         self.wheel = None
         self.vpsImage = None
         self.tableInfo = tableInfo
         
-        self.wheelWidth = 215
-        self.wheelHeight = 215
+        if self.angle == 0:
+            scaleFactor =  (1344 * 216)  / (self.width * self.height)
+            
+            if scaleFactor < 1:
+                scaleFactor = scaleFactor+2
+        else:
+            scaleFactor =  (self.width * self.height) / (1344 * 216)
+            
+            if scaleFactor < 1:
+                scaleFactor = scaleFactor+1
+                
+        print("scale factor: ", scaleFactor)
+        print(self.angle)
+        
+        # scale the wheel icon to fit the height of the hud
+        if self.angle !=0:
+            self.wheelWidth = self.width - 20 # 20px gap
+            self.wheelHeight = self.width - 20 # 20px gap
+        else:
+            self.wheelWidth = self.height - 20 # 20px gap
+            self.wheelHeight = self.height - 20 # 20px gap
+            
         vpsTextIndentPer = .20
+        
+        print("metacanvas: ", self.width, self.height)
         
         try:
             self.vpsImagePath = sys._MEIPASS+"/assets/vps.png"
@@ -31,13 +54,19 @@ class tableMetaHUDCanvas(tk.Canvas):
         #self.create_gradient(self.width, self.height)
         master.update_idletasks()
         
-        
         if tableInfo.WheelImagePath:
             print("Found Wheel", self.tableInfo.WheelImagePath)
             img = Image.open(self.tableInfo.WheelImagePath)
             img = img.resize((self.wheelWidth, self.wheelHeight), Image.LANCZOS)  # Resize for display
-            self.wheel = ImageTk.PhotoImage(img)
-            self.create_image(120, self.height / 2, image=self.wheel, anchor=tk.CENTER)
+            if self.angle != 0:
+                img = self.imageRotate(self.angle, img)
+                self.wheel = ImageTk.PhotoImage(img)
+                self.create_image(self.width/2, self.height- ( int(self.wheelHeight/2) +40), image=self.wheel, anchor=tk.CENTER)
+                print("img pos", int(self.width/2), self.height- (int(self.wheelHeight/2)+40))
+            else:
+                self.wheel = ImageTk.PhotoImage(img)
+                self.create_image((self.wheelHeight/2)+40, self.height / 2, image=self.wheel, anchor=tk.CENTER)
+                print( int(self.wheelHeight/2)+40, int(self.height / 2))
             
         # vps image
         #img2 = Image.open(self.vpsImagePath)
@@ -45,26 +74,55 @@ class tableMetaHUDCanvas(tk.Canvas):
         #self.vpsImage = ImageTk.PhotoImage(img2)
         #self.create_image(vpsTextIndentPer*self.width - 50, self.height / 2 +25, image=self.vpsImage, anchor=tk.CENTER)
         
-        #  VPSdb text
-        self.create_text(self.width / 2 + 20, 30, text=tableInfo.metaConfig['VPSdb']['name'], font=("Arial", 28, 'bold'), anchor=tk.CENTER)
-        self.create_text(vpsTextIndentPer*self.width, 100, text="Manufacturer:", font=("Arial", 15, ), anchor=tk.W)
-        self.create_text(vpsTextIndentPer*self.width, 120, text="Year:", font=("Arial", 15), anchor=tk.W)
-        self.create_text(vpsTextIndentPer*self.width, 140, text="Type:", font=("Arial", 15), anchor=tk.W)
-        self.create_text(vpsTextIndentPer*self.width, 160, text="Themes:", font=("Arial", 15), anchor=tk.W)
-
-        self.create_text(vpsTextIndentPer*self.width+150, 100, text=tableInfo.metaConfig['VPSdb']['manufacturer'], font=("Arial", 15), anchor=tk.W)
-        self.create_text(vpsTextIndentPer*self.width+150, 120, text=tableInfo.metaConfig['VPSdb']['year'], font=("Arial", 15), anchor=tk.W)
-        self.create_text(vpsTextIndentPer*self.width+150, 140, text=tableInfo.metaConfig['VPSdb']['type'], font=("Arial", 15), anchor=tk.W)
-        self.create_text(vpsTextIndentPer*self.width+150, 160, text=', '.join(ast.literal_eval(tableInfo.metaConfig['VPSdb']['theme'])), font=("Arial", 15), anchor=tk.W)
+       
+        #print("inside edge: ",  insideEdgeOfimage )
         
         
-        # VPXparser text
-        self.create_text(vpsTextIndentPer*self.width, 180, text="Author(s):", font=("Arial", 15, ), anchor=tk.W)
+        
+        if self.angle != 0:
+            insideEdgeOfimage = self.height - ((self.wheelHeight)+ (40*scaleFactor))
+            self.create_text(25, self.height/2, text=tableInfo.metaConfig['VPSdb']['name'], font=("Arial", int(18 * scaleFactor), 'bold'), angle=self.angle, anchor=tk.CENTER)
+            
+            self.create_text(30 * scaleFactor, insideEdgeOfimage, text=f"Manufacturer:  {tableInfo.metaConfig['VPSdb']['manufacturer']}\n"+
+                            f"Year:  {tableInfo.metaConfig['VPSdb']['year']}\n"+
+                            f"Type:  {tableInfo.metaConfig['VPSdb']['type']}\n"+
+                            ', '.join(ast.literal_eval(tableInfo.metaConfig['VPSdb']['theme']))+'\n'+
+                            f"Author(s):  {tableInfo.metaConfig['VPXFile']['author']}",
+                            font=("Arial", int(11 * scaleFactor)), angle=self.angle, anchor=tk.NW)
+            print("inside edge: ",  insideEdgeOfimage, "width= ", self.wheelHeight )
         
         
-        self.create_text(vpsTextIndentPer*self.width+150, 180, text=tableInfo.metaConfig['VPXFile']['author'], font=("Arial", 15), anchor=tk.W)
         
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        else:
+            insideEdgeOfimage = self.wheelHeight + (50 * scaleFactor)
+            self.create_text(self.width/2, 30* scaleFactor, text=tableInfo.metaConfig['VPSdb']['name'], font=("Arial", int(26 * scaleFactor), 'bold'), angle=self.angle, anchor=tk.CENTER)
+            
+            self.create_text(insideEdgeOfimage, 50 * scaleFactor, text=f"Manufacturer:  {tableInfo.metaConfig['VPSdb']['manufacturer']}\n"+
+                            f"Year:  {tableInfo.metaConfig['VPSdb']['year']}\n"+
+                            f"Type:  {tableInfo.metaConfig['VPSdb']['type']}\n"+
+                            ', '.join(ast.literal_eval(tableInfo.metaConfig['VPSdb']['theme']))+'\n'+
+                            f"Author(s):  {tableInfo.metaConfig['VPXFile']['author']}",
+                            font=("Arial", int(15 * scaleFactor)), angle=self.angle, anchor=tk.NW)
+            print("inside edge: ",  insideEdgeOfimage, "width= ", self.wheelHeight )
         #self.pack()  # You can choose how to pack or grid the canvas
+    
+    def imageRotate(self,degrees,image):
+        print("img angle roatation")
+        if image != None:
+            return image.rotate(degrees, expand=True)
     
     def create_gradient(self, width, height):
         """Creates a radial gradient matching the uploaded VPS logo background."""

@@ -11,11 +11,12 @@ class Screen:
     firstWindow = True # tracks if this root or another top-level
     rootWindow = None
 
-    def __init__(self, screen, missingImage):
+    def __init__(self, screen, missingImage, vpinfeIniConfig):
         self.isThreeDotAnimate = False
         self.threeDotCount = 0
         
         self.missingImage = missingImage
+        self.vpinfeIniConfig = vpinfeIniConfig
         self.text = None
         self.statusText = None
         self.screen = screen
@@ -162,7 +163,11 @@ class Screen:
         if tableInfo:
             # hud size.  percent of total window size
             barLength = .70
-            barHeight = .20
-            self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barLength), int(self.window.winfo_height()*barHeight),tableInfo=tableInfo)
-            self.hudCanvas.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s")  # Adjust placement
-           
+            barHeight = .10
+            if self.vpinfeIniConfig.config['Displays']['hudrotangle'] == '':
+                self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barLength), int(self.window.winfo_height()* (barHeight+.10)),tableInfo=tableInfo)
+                self.hudCanvas.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s")  # Adjust placement
+            else: # swap width and height, add angle of rotation
+                print("hud rotation set")
+                self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barHeight), int(self.window.winfo_height()*barLength),tableInfo=tableInfo, angle=int(self.vpinfeIniConfig.config['Displays']['hudrotangle']))
+                self.hudCanvas.place(x=int(self.window.winfo_width() - 50 ), y=self.window.winfo_height() /2 , anchor="e")  # Adjust placement
