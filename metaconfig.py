@@ -58,7 +58,13 @@ class MetaConfig:
         #config['VPXFile']['description'] = configdata['vpxdata']['tableDescription']
         config['VPXFile']['vbsHash'] = configdata['vpxdata']['codeSha256Hash']
         config['VPXFile']['rom'] = configdata['vpxdata']['rom']
-        
+        config['VPXFile']['detectNfozzy'] = configdata['vpxdata']['detectNfozzy']
+        config['VPXFile']['detectFleep'] = configdata['vpxdata']['detectFleep']
+        config['VPXFile']['detectSSF'] = configdata['vpxdata']['detectSSF']
+        config['VPXFile']['detectLUT'] = configdata['vpxdata']['detectLut']
+        config['VPXFile']['detectScorebit'] = configdata['vpxdata']['detectScorebit']
+        config['VPXFile']['detectFlastflips'] = configdata['vpxdata']['detectFastflips']
+         
         # write it
         self.config.read_dict(config)
         # Write the configuration to a file

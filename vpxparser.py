@@ -31,8 +31,13 @@ derivedPaths = {
 	'rom': '',
 	'filename': '', 
 	'codeSha256Hash': '',
-	'fileHash': ''
-
+	'fileHash': '',
+    'detectFleep': '',
+    'detectNfozzy': '',
+    'detectScorebit': '',
+	'detectSSF': '',
+    'detectFastflips': '',
+    'detectLut': ''
 }
 
 fieldnames = [key for key in vpxPaths] + [key for key in vpxPathsBinary]  + [key for key in derivedPaths]
@@ -107,6 +112,12 @@ def extractFile(file, vpxFileValues):
 	loadVBCode(ole, vpxFileValues)
 	calcCodeHash(vpxFileValues)
 	extractRomName(vpxFileValues)
+	extractDetectNFozzy(vpxFileValues)
+	extractDetectFleep(vpxFileValues)
+	extractDetectSSF(vpxFileValues)
+	extractDetectLut(vpxFileValues)
+	extractDetectScorebit(vpxFileValues)
+	extractDetectFastflips(vpxFileValues)
 	ole.close()
 
 def extractRomName(vpxFileValues):
@@ -117,6 +128,48 @@ def extractRomName(vpxFileValues):
 		vpxFileValues['rom'] = ""
 		print("No rom")
 
+def extractDetectNFozzy(vpxFileValues):
+    if 'Class CoRTracker' in vpxFileValues['gameData']:
+        vpxFileValues['detectNfozzy'] = "true"
+        print("NFozzy detected.")
+    else:
+        vpxFileValues['detectNfozzy'] = "false"
+
+def extractDetectFleep(vpxFileValues):
+    if 'fleep' in vpxFileValues['gameData'].lower():
+        vpxFileValues['detectFleep'] = "true"
+        print("Fleep detected.")
+    else:
+        vpxFileValues['detectFleep'] = "false"
+
+def extractDetectSSF(vpxFileValues):
+    if 'PlaySoundAt'.lower() in vpxFileValues['gameData'].lower():
+        vpxFileValues['detectSSF'] = "true"
+        print("SSF detected.")
+    else:
+        vpxFileValues['detectSSF'] = "false"
+
+def extractDetectLut(vpxFileValues):
+    if 'lut'.lower() in vpxFileValues['gameData'].lower():
+        vpxFileValues['detectLut'] = "true"
+        print("LUT detected.")
+    else:
+        vpxFileValues['detectLut'] = "false"
+
+def extractDetectScorebit(vpxFileValues):
+    if 'Scorebit'.lower() in vpxFileValues['gameData'].lower():
+        vpxFileValues['detectScorebit'] = "true"
+        print("Scorebit detected.")
+    else:
+        vpxFileValues['detectScorebit'] = "false"
+
+def extractDetectFastflips(vpxFileValues):
+    if 'Fastflips'.lower() in vpxFileValues['gameData'].lower():
+        vpxFileValues['detectFastflips'] = "true"
+        print("Fastflips detected.")
+    else:
+        vpxFileValues['detectFastflips'] = "false"
+        
 def singleFileExtract(vpxFile):
 	vpxFileValues = {}
 	if olefile.isOleFile(vpxFile):
