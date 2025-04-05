@@ -26,8 +26,8 @@ class MetaConfig:
         config['VPXFile'] = {}
         
         # Remove all sections.. may not need this but if you want to remove keys already in file you have to!
-        #for section in list(self.config.sections()):
-            #self.config.remove_section(section)
+        for section in list(self.config.sections()):
+            self.config.remove_section(section)
         
         #print(configdata)
         
@@ -63,7 +63,7 @@ class MetaConfig:
         config['VPXFile']['detectSSF'] = configdata['vpxdata']['detectSSF']
         config['VPXFile']['detectLUT'] = configdata['vpxdata']['detectLut']
         config['VPXFile']['detectScorebit'] = configdata['vpxdata']['detectScorebit']
-        config['VPXFile']['detectFlastflips'] = configdata['vpxdata']['detectFastflips']
+        config['VPXFile']['detectFastflips'] = configdata['vpxdata']['detectFastflips']
          
         # write it
         self.config.read_dict(config)
