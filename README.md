@@ -26,11 +26,10 @@
 ## What does it look like?
 YouTube Video
 
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/i7bAqSzp_cQ/0.jpg)](https://www.youtube.com/watch?v=i7bAqSzp_cQ)
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/49oEZKm6TGE/0.jpg)](https://www.youtube.com/watch?v=49oEZKm6TGE)
 
 Hud
-
-<img src="https://github.com/user-attachments/assets/391535b9-ce02-4501-8103-9d012f545a5b" width="50%">
+![sc2](https://github.com/user-attachments/assets/74adc0c8-32e3-4583-9796-8d5d14e55a3e)
 
 ## ⚠️ Note
 🚧 This is still in development! 🚧
