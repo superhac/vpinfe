@@ -138,8 +138,11 @@ Assign your displays and paths like the example in your **vpinfe.ini**.  Put thi
 bgscreenid = 0
 dmdscreenid = 1
 tablescreenid = 2
+hudscreenid = 0
+hudrotangle = 
+
 [Settings]
-vpxbinpath = /home/superhac/working/vpinball/build/VPinballX_BGFX
+vpxbinpath = /home/superhac/working/remove/vpinball/build/VPinballX_BGFX
 tablerootdir = /home/superhac/tables/
 joyleft = 4
 joyright = 5
@@ -147,6 +150,9 @@ joyselect = 1
 joymenu = 2
 joyback = 1
 joyexit = 8
+
+[VPSdb]
+last = 1743949925654
 ```
 
 ## Building the metadata using VPS and the VPX parser
@@ -165,27 +171,33 @@ The .vpx file will be hashed, along with any contained .vbs files.  Additional k
 Once this process has finished you end up one `meta.ini` in each table directory.  The file will look like this for example:
 ```
 [VPSdb]
-id = uiEUziXx
-name = Andromeda
-type = SS
-manufacturer = Game Plan
-year = 1985
-theme = ['Fantasy', 'Women']
+id = vyWVqHn5QF
+name = Tornado Rally
+type = EM
+manufacturer = Original
+year = 2024
+theme = []
 
 [VPXFile]
-filename = Andromeda (Game Plan 1985).vpx
-filehash = 10e0030d3c5a51558a9c56b37096d0284b7bdc2f9f676c9246f1f6f800d00524
-version = 5.5.0
-author = jpsalas, siggi
-releasedate = 11,12.2024
-blurb =
-savedate = Wed Dec 11 05:01:16 2024
-saverev = 58
+filename = Tornado Rally (Original 2024).vpx
+filehash = b390e08764153a0572d9b733958394bf5b543392c3d6e4dbf9857e904b26c2f3
+version = 1.2.1
+author = Flying Rabbit Studios
+releasedate = unreleased
+blurb = Original modern EM table celebrating Oklahoma
+savedate = Sat Dec 21 11:23:32 2024
+saverev = 555
 manufacturer =
 year =
 type =
-vbshash = 0a824c84c9a5ee4660a093530130fa5795c6592f929ab1ac80724620140dbb74
-rom = andromed
+vbshash = 37870dc859cbad179cab7cbdaa37ea7359c5d756060642a65fa4b0169664ce84
+rom = OKIES_TornadoRally
+detectnfozzy = true
+detectfleep = false
+detectssf = true
+detectlut = true
+detectscorebit = false
+detectfastflips = false
 ```
 More to come on how this will be used!
 
