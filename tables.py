@@ -6,6 +6,10 @@ class TableInfo:
     tableDirName = None
     fullPathTable = None
     fullPathVPXfile = None
+    
+    pupPackExists = False
+    altColorExists = False
+    altSoundExists = False
 
     BGImagePath = None
     DMDImagePath = None
@@ -41,6 +45,13 @@ class Tables:
                         if file_extension == ".vpx":
                             tableInfo.fullPathVPXfile = path2
                             count = count + 1
+                            # check for addons
+                            if os.path.isdir(tableInfo.fullPathTable+'/pupvideos'):
+                                tableInfo.pupPackExists = True
+                            if os.path.isdir(tableInfo.fullPathTable+'/pinmame/altcolor'):
+                                tableInfo.altColorExists = True
+                            if os.path.isdir(tableInfo.fullPathTable+'/pinmame/altsound'):
+                                tableInfo.altSoundExists = True
                 if tableInfo.fullPathVPXfile == None:
                     print(f"{Tables.RED_CONSOLE_TEXT}    No .vpx found in {tableInfo.tableDirName} directory.{Tables. RESET_CONSOLE_TEXT}")
                     continue  

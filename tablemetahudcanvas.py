@@ -86,7 +86,7 @@ class tableMetaHUDCanvas(tk.Canvas):
             self.create_text(30 * scaleFactor, insideEdgeOfimage, text=f"Manufacturer:  {tableInfo.metaConfig['VPSdb']['manufacturer']}\n"+
                             f"Year:  {tableInfo.metaConfig['VPSdb']['year']}\n"+
                             f"Type:  {tableInfo.metaConfig['VPSdb']['type']}\n"+
-                            ', '.join(ast.literal_eval(tableInfo.metaConfig['VPSdb']['theme']))+'\n'+
+                            "Theme: "+', '.join(ast.literal_eval(tableInfo.metaConfig['VPSdb']['theme']))+'\n'+
                             f"Author(s):  {tableInfo.metaConfig['VPXFile']['author']}",
                             font=("Arial", int(11 * scaleFactor)), angle=self.angle, anchor=tk.NW)
             print("inside edge: ",  insideEdgeOfimage, "width= ", self.wheelHeight )

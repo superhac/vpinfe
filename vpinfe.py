@@ -206,7 +206,10 @@ def buildMetaData():
             # vpsdb
             print(f"Checking VPSdb for {table.tableDirName}")
             vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"])
+            try:
+                vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"])
+            except TypeError as e:
+                print(f"{RED_CONSOLE_TEXT}ERROR: Not found in VPS{RESET_CONSOLE_TEXT}")
             #print(vpsData)
             
             # vpx file info

@@ -129,14 +129,16 @@ def extractRomName(vpxFileValues):
 		print("No rom")
 
 def extractDetectNFozzy(vpxFileValues):
-    if 'Class CoRTracker' in vpxFileValues['gameData']:
+    if 'Class FlipperPolarity' in vpxFileValues['gameData']:
+    #if 'Class CoRTracker' in vpxFileValues['gameData']:
         vpxFileValues['detectNfozzy'] = "true"
         print("NFozzy detected.")
     else:
         vpxFileValues['detectNfozzy'] = "false"
 
 def extractDetectFleep(vpxFileValues):
-    if 'fleep' in vpxFileValues['gameData'].lower():
+    #if 'fleep' in vpxFileValues['gameData'].lower():
+    if 'RubberStrongSoundFactor' in vpxFileValues['gameData'].lower():
         vpxFileValues['detectFleep'] = "true"
         print("Fleep detected.")
     else:

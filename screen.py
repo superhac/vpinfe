@@ -5,6 +5,7 @@ from collections import OrderedDict
 import time
 
 from tablemetahudcanvas import tableMetaHUDCanvas
+from tablemetahudframe import TableMetaHUDFrame
 
 class Screen:
     maxImageCacheSize = 100
@@ -32,6 +33,7 @@ class Screen:
         self.originalStatusText = None
         
         self.hudCanvas = None
+        self.hudFrame = None
 
         self.createWindow()
         self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
@@ -164,10 +166,21 @@ class Screen:
             # hud size.  percent of total window size
             barLength = .70
             barHeight = .10
+            
+            if self.hudFrame != None:
+                self.hudFrame.destroy()
+            
             if self.vpinfeIniConfig.config['Displays']['hudrotangle'] == '':
-                self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barLength), int(self.window.winfo_height()* (barHeight+.10)),tableInfo=tableInfo)
-                self.hudCanvas.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s")  # Adjust placement
+                self.hudFrame = TableMetaHUDFrame(self.window, int(self.window.winfo_width()*barLength), int(self.window.winfo_height()* (barHeight+.10)),tableInfo=tableInfo)
+                self.hudFrame.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s", width=int(self.window.winfo_width() * barLength),
+                                    height=int(self.window.winfo_height() * (barHeight + 0.10))) 
+                
+                #self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barLength), int(self.window.winfo_height()* (barHeight+.10)),tableInfo=tableInfo)
+                #self.hudCanvas.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s")  # Adjust placement
             else: # swap width and height, add angle of rotation
                 print("hud rotation set")
-                self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barHeight), int(self.window.winfo_height()*barLength),tableInfo=tableInfo, angle=int(self.vpinfeIniConfig.config['Displays']['hudrotangle']))
-                self.hudCanvas.place(x=int(self.window.winfo_width() - 50 ), y=self.window.winfo_height() /2 , anchor="e")  # Adjust placement
+                self.hudFrame = TableMetaHUDFrame(self.window, int(self.window.winfo_width()*barHeight), int(self.window.winfo_height()*barLength),tableInfo=tableInfo, angle=int(self.vpinfeIniConfig.config['Displays']['hudrotangle']))
+                self.hudFrame.place(x=int(self.window.winfo_width() - 50 ), y=self.window.winfo_height() /2 , anchor="e")  # Adjust placement
+                
+                #self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barHeight), int(self.window.winfo_height()*barLength),tableInfo=tableInfo, angle=int(self.vpinfeIniConfig.config['Displays']['hudrotangle']))
+                #self.hudCanvas.place(x=int(self.window.winfo_width() - 50 ), y=self.window.winfo_height() /2 , anchor="e")  # Adjust placement
