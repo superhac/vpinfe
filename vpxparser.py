@@ -37,7 +37,8 @@ derivedPaths = {
     'detectScorebit': '',
 	'detectSSF': '',
     'detectFastflips': '',
-    'detectLut': ''
+    'detectLut': '',
+    'detectFlex': ''
 }
 
 fieldnames = [key for key in vpxPaths] + [key for key in vpxPathsBinary]  + [key for key in derivedPaths]
@@ -118,6 +119,7 @@ def extractFile(file, vpxFileValues):
 	extractDetectLut(vpxFileValues)
 	extractDetectScorebit(vpxFileValues)
 	extractDetectFastflips(vpxFileValues)
+	extractDetectFlex(vpxFileValues)
 	ole.close()
 
 def extractRomName(vpxFileValues):
@@ -138,7 +140,7 @@ def extractDetectNFozzy(vpxFileValues):
 
 def extractDetectFleep(vpxFileValues):
     #if 'fleep' in vpxFileValues['gameData'].lower():
-    if 'RubberStrongSoundFactor' in vpxFileValues['gameData'].lower():
+    if 'RubberStrongSoundFactor'.lower() in vpxFileValues['gameData'].lower():
         vpxFileValues['detectFleep'] = "true"
         print("Fleep detected.")
     else:
@@ -171,6 +173,13 @@ def extractDetectFastflips(vpxFileValues):
         print("Fastflips detected.")
     else:
         vpxFileValues['detectFastflips'] = "false"
+        
+def extractDetectFlex(vpxFileValues):
+    if 'FlexDMD'.lower() in vpxFileValues['gameData'].lower():
+        vpxFileValues['detectFlex'] = "true"
+        print("Flex DMD detected.")
+    else:
+        vpxFileValues['detectFlex'] = "false"
         
 def singleFileExtract(vpxFile):
 	vpxFileValues = {}

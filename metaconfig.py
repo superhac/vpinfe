@@ -26,44 +26,50 @@ class MetaConfig:
         config['VPXFile'] = {}
         
         # Remove all sections.. may not need this but if you want to remove keys already in file you have to!
-        for section in list(self.config.sections()):
-            self.config.remove_section(section)
+        #for section in list(self.config.sections()):
+            #self.config.remove_section(section)
         
         #print(configdata)
         
-        # VPSdb
         try:
-            config['VPSdb']['id'] = configdata['vpsdata']['id']
-            config['VPSdb']['name'] = configdata['vpsdata']['name']
-            config['VPSdb']['type'] = configdata['vpsdata']['type']
-            config['VPSdb']['manufacturer'] = configdata['vpsdata']['manufacturer']
-            config['VPSdb']['year'] = configdata['vpsdata']['year']
-            config['VPSdb']['theme'] = configdata['vpsdata']['theme']
-        except TypeError as e: # it did not get a matching vpsdb entry most likely
-            pass
+            # VPSdb
+            config['VPSdb']['id'] = configdata.get('vpsdata', {}).get('id', '')
+            config['VPSdb']['name'] = configdata.get('vpsdata', {}).get('name', '')
+            config['VPSdb']['type'] = configdata.get('vpsdata', {}).get('type', '')
+            config['VPSdb']['manufacturer'] = configdata.get('vpsdata', {}).get('manufacturer', '')
+            config['VPSdb']['year'] = configdata.get('vpsdata', {}).get('year', '')
+            config['VPSdb']['theme'] = configdata.get('vpsdata', {}).get('theme', '')
+            
+            print( config['VPSdb']['type'])
+            
+            
+            # vpx file data
+            config['VPXFile']['filename'] = configdata['vpxdata']['filename']
+            config['VPXFile']['filehash'] = configdata['vpxdata']['fileHash']
+            config['VPXFile']['version'] = configdata['vpxdata']['tableVersion']
+            config['VPXFile']['author'] = configdata['vpxdata']['authorName']
+            config['VPXFile']['releaseDate'] = configdata['vpxdata']['releaseDate']
+            config['VPXFile']['blurb'] = self.strip_all_newlines(configdata['vpxdata']['tableBlurb'])
+            #config['VPXFile']['rules'] = configdata['vpxdata']['tableRules']
+            config['VPXFile']['saveDate'] = configdata['vpxdata']['tableSaveDate']
+            config['VPXFile']['saveRev'] = configdata['vpxdata']['tableSaveRev']
+            config['VPXFile']['manufacturer'] = configdata['vpxdata']['companyName']
+            config['VPXFile']['year'] = configdata['vpxdata']['companyYear']
+            config['VPXFile']['type'] = configdata['vpxdata']['tableType']
+            #config['VPXFile']['description'] = configdata['vpxdata']['tableDescription']
+            config['VPXFile']['vbsHash'] = configdata['vpxdata']['codeSha256Hash']
+            config['VPXFile']['rom'] = configdata['vpxdata']['rom']
+            config['VPXFile']['detectNfozzy'] = configdata['vpxdata']['detectNfozzy']
+            config['VPXFile']['detectFleep'] = configdata['vpxdata']['detectFleep']
+            config['VPXFile']['detectSSF'] = configdata['vpxdata']['detectSSF']
+            config['VPXFile']['detectLUT'] = configdata['vpxdata']['detectLut']
+            config['VPXFile']['detectScorebit'] = configdata['vpxdata']['detectScorebit']
+            config['VPXFile']['detectFastflips'] = configdata['vpxdata']['detectFastflips']
+            config['VPXFile']['detectFlex'] = configdata['vpxdata']['detectFlex']
+        except AttributeError:
+            print("Attribute error.. in meta")
+            
         
-        # vpx file data
-        config['VPXFile']['filename'] = configdata['vpxdata']['filename']
-        config['VPXFile']['filehash'] = configdata['vpxdata']['fileHash']
-        config['VPXFile']['version'] = configdata['vpxdata']['tableVersion']
-        config['VPXFile']['author'] = configdata['vpxdata']['authorName']
-        config['VPXFile']['releaseDate'] = configdata['vpxdata']['releaseDate']
-        config['VPXFile']['blurb'] = self.strip_all_newlines(configdata['vpxdata']['tableBlurb'])
-        #config['VPXFile']['rules'] = configdata['vpxdata']['tableRules']
-        config['VPXFile']['saveDate'] = configdata['vpxdata']['tableSaveDate']
-        config['VPXFile']['saveRev'] = configdata['vpxdata']['tableSaveRev']
-        config['VPXFile']['manufacturer'] = configdata['vpxdata']['companyName']
-        config['VPXFile']['year'] = configdata['vpxdata']['companyYear']
-        config['VPXFile']['type'] = configdata['vpxdata']['tableType']
-        #config['VPXFile']['description'] = configdata['vpxdata']['tableDescription']
-        config['VPXFile']['vbsHash'] = configdata['vpxdata']['codeSha256Hash']
-        config['VPXFile']['rom'] = configdata['vpxdata']['rom']
-        config['VPXFile']['detectNfozzy'] = configdata['vpxdata']['detectNfozzy']
-        config['VPXFile']['detectFleep'] = configdata['vpxdata']['detectFleep']
-        config['VPXFile']['detectSSF'] = configdata['vpxdata']['detectSSF']
-        config['VPXFile']['detectLUT'] = configdata['vpxdata']['detectLut']
-        config['VPXFile']['detectScorebit'] = configdata['vpxdata']['detectScorebit']
-        config['VPXFile']['detectFastflips'] = configdata['vpxdata']['detectFastflips']
          
         # write it
         self.config.read_dict(config)

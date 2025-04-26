@@ -105,7 +105,11 @@ class TableMetaHUDFrame(tk.Frame):
         
         # set manufacturer year
         self.yearFont = tkfont.Font(family="Arial", size=30)
-        label = Label(wheelFrame, text=tableInfo.metaConfig['VPSdb']['year'], font=self.yearFont, bg=self["bg"], fg="white")
+        try:
+            label = Label(wheelFrame, text=tableInfo.metaConfig['VPSdb']['year'], font=self.yearFont, bg=self["bg"], fg="white")
+        except KeyError as e:
+             label = Label(wheelFrame, text="    ", font=self.yearFont, bg=self["bg"], fg="white")
+             print("ERROR: tablemetahudframe.py - Missing year"+tableInfo.fullPathTable)
         label.grid(row=0, column=0, sticky="nsew")
         #label.bind("<Configure>", self.resize_font)
         
