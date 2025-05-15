@@ -137,9 +137,9 @@ def getScreens():
     monitors = get_monitors()
 
     for i in range(len(monitors)):
-        if int(vpinfeIniConfig.config['Displays']['hudscreenid']) == i:
+        if not vpinfeIniConfig.config['Displays']['hudrotangle'] == "" and int(vpinfeIniConfig.config['Displays']['hudscreenid']) == i:
             angle = int(vpinfeIniConfig.config['Displays']['hudrotangle'])
-        elif int(vpinfeIniConfig.config['Displays']['tablescreenid']) == i:
+        elif not vpinfeIniConfig.config['Displays']['tablerotangle'] == "" and int(vpinfeIniConfig.config['Displays']['tablescreenid']) == i:
             angle = int(vpinfeIniConfig.config['Displays']['tablerotangle'])
         else:
             angle = 0
