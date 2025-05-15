@@ -105,8 +105,7 @@ class TableMetaHUDFrame(tk.Frame):
         print("Found Wheel", self.tableInfo.WheelImagePath)
         img = Image.open(self.tableInfo.WheelImagePath)
         img = img.resize((self.wheelWidth, self.wheelHeight), Image.LANCZOS)
-        if self.angle != 0:
-            img = self.imageRotate(img, self.angle)
+        img = self.imageRotate(img, self.angle)
         self.wheel = ImageTk.PhotoImage(img)
         wheel_label = Label(self, image=self.wheel, bg=self["bg"])         
         wheel_label.grid(row = 0, column=self.WHEEL_COL, padx=5 , sticky=tk.NSEW)
@@ -188,14 +187,12 @@ class TableMetaHUDFrame(tk.Frame):
         if self.tableInfo.metaConfig['VPSdb']['type'] == "SS":
             img = Image.open(self.ssIconPath)
             img = img.resize((100, 100), Image.LANCZOS)
-            if self.angle != 0:
-                img = self.imageRotate(img, self.angle)
+            img = self.imageRotate(img, self.angle)
             self.tableTypeIcon = ImageTk.PhotoImage(img)
         elif self. tableInfo.metaConfig['VPSdb']['type'] == "EM":
             img = Image.open(self.emIconPath)
             img = img.resize((100, 100), Image.LANCZOS)
-            if self.angle != 0:
-                img = self.imageRotate(img, self.angle)
+            img = self.imageRotate(img, self.angle)
             self.tableTypeIcon = ImageTk.PhotoImage(img)
             
     def setWheelSize(self):
