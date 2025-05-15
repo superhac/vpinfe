@@ -125,8 +125,7 @@ class VPSdb:
     url = self.createUrl(baseurl, tableId)
     self.downloadMediaFile(url, defaultFilename)
 
-  def downloadMediaForTable(self, table):
-    id = table.metaConfig['VPSdb']['id']
+  def downloadMediaForTable(self, table, id):
     self.downloadMedia(id, VPSdb.vpsUrlMediaBackground, table.BGImagePath, table.fullPathTable + "/bg.png")
     self.downloadMedia(id, VPSdb.vpsUrlMediaDMD, table.DMDImagePath, table.fullPathTable + "/dmd.png")
     self.downloadMedia(id, VPSdb.vpsUrlMediaWheel, table.WheelImagePath, table.fullPathTable + "/wheel.png")
