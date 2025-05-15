@@ -191,11 +191,12 @@ class Screen:
             if self.hudFrame != None:
                 self.hudFrame.destroy()
             
-            if self.vpinfeIniConfig.config['Displays']['hudrotangle'] == '':
+            if  self.rotationAngle == 0:
                 self.hudFrame = TableMetaHUDFrame(self.window, int(self.window.winfo_width()*barLength), int(self.window.winfo_height()* (barHeight+.10)),tableInfo=tableInfo)
                 self.hudFrame.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s", width=int(self.window.winfo_width() * barLength),
-                                    height=int(self.window.winfo_height() * (barHeight + 0.10))) 
-                
+                         height=int(self.window.winfo_height() * (barHeight + 0.10)))
+
+                print(f"{self.window.winfo_height()}: {self.window.winfo_width()}")
                 #self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barLength), int(self.window.winfo_height()* (barHeight+.10)),tableInfo=tableInfo)
                 #self.hudCanvas.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s")  # Adjust placement
             else: # swap width and height, add angle of rotation
