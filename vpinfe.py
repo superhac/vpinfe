@@ -233,7 +233,8 @@ def buildMetaData():
             finalini['vpsdata'] = vpsData
             finalini['vpxdata'] = vpxData
             meta.writeConfigMeta(finalini)
-            vps.downloadMediaForTable(table, vpsData['id'])
+            if not vpsData is None:
+               vps.downloadMediaForTable(table, vpsData['id'])
 
 def vpxPatches():
     loadconfig(configfile)
