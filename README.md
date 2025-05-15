@@ -17,11 +17,12 @@
 - **Per-table folder structure** for organizing tables and assets.  
 - Auto-generated `meta.ini` with table metadata (e.g., manufacturer, theme, ROM info).  
 - **VPSdb Integration**: Matches tables with **Virtual Pinball Spreadsheet** database.  
-- **VPX file parsing** for versioning, authorship, and ROM detection.  
+- **VPX file parsing** for versioning, authorship, and ROM detection, table feature detection(SSF, fuzzy, etc)
+- **Media Downloader** for retrieving table, bg, dmd, and wheel images from [VPinMediaDB](https://github.com/superhac/vpinmediadb).
 
 #### **Automated Patching & Metadata Gathering**  
 - `--vpxpatch` downloads and applies **VPX-Standalone-Scripts** patches automatically.  
-- `--buildmeta` generates metadata for tables from VPSdb, improving search & categorization. 
+- `--buildmeta` generates metadata for tables from VPSdb, improving search & categorization, retrieve media images. 
 
 ## What does it look like?
 YouTube Video
@@ -139,7 +140,9 @@ bgscreenid = 0
 dmdscreenid = 1
 tablescreenid = 2
 hudscreenid = 0
-hudrotangle = 
+hudrotangle = 0
+tablerotangle = 0
+backgroundcolor = #000000
 
 [Settings]
 vpxbinpath = /home/superhac/working/remove/vpinball/build/VPinballX_BGFX
@@ -152,19 +155,22 @@ joyback = 1
 joyexit = 8
 
 [VPSdb]
-last = 1743949925654
+last = 1747318256399
 ```
 
 ## Building the metadata using VPS and the VPX parser
-There's a new CLI argument called --buildmeta that allows you to generate a meta.ini file in each table directory. When you run this option, the following process occurs:
+There's a CLI argument called --buildmeta that allows you to generate a meta.ini file in each table directory. When you run this option, the following process occurs:
 
-### Virtual Pinball Spreadsheet (VPS) Integration
+* ### Virtual Pinball Spreadsheet (VPS) Integration
 
 If you don't already have a copy of the VPSdb or if a newer version is available, it will be downloaded to your machine.
 Using the VPSdb, VPinFE will attempt to match table folders to a VPSdb ID. If you follow the standard naming convention—"TABLE_NAME (MANUFACTURER YEAR)"—the accuracy will be high. However, the system also employs a similarity ratio, requiring an 80% match for association.
 Once a match is found, metadata such as table type, theme, and other relevant details will be retrieved from the VPSdb.
 
-### VPX File Parser
+* ### Download Media Images from VPinMediaDB
+It will also find table,bg, dmd and wheel images for each table and put them in your table directory from [VPinMediaDB](https://github.com/superhac/vpinmediadb)
+
+* ### VPX File Parser
 
 The .vpx file will be hashed, along with any contained .vbs files.  Additional key metadata will be extracted, including the ROM name, version, and other noteworthy details.
 
@@ -199,7 +205,6 @@ detectlut = true
 detectscorebit = false
 detectfastflips = false
 ```
-More to come on how this will be used!
 
 ## meta.ini
 
