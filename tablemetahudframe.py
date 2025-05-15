@@ -106,7 +106,7 @@ class TableMetaHUDFrame(tk.Frame):
         img = Image.open(self.tableInfo.WheelImagePath)
         img = img.resize((self.wheelWidth, self.wheelHeight), Image.LANCZOS)
         if self.angle != 0:
-            img = self.imageRotate(self.angle, img)
+            img = self.imageRotate(img, self.angle)
         self.wheel = ImageTk.PhotoImage(img)
         wheel_label = Label(self, image=self.wheel, bg=self["bg"])         
         wheel_label.grid(row = 0, column=self.WHEEL_COL, padx=5 , sticky=tk.NSEW)
@@ -168,6 +168,14 @@ class TableMetaHUDFrame(tk.Frame):
         tk.Button(iconGroupFrame, text ="AltColor", highlightthickness = 0,bg= "green" if tableInfo.altColorExists == True else "red").grid(row = 5, column=1, sticky="nsew")
         tk.Button(iconGroupFrame, text ="PupPack", highlightthickness = 0,bg= "green" if tableInfo.pupPackExists == True else "red").grid(row = 6, column=0,sticky="nsew")
 
+    def imageRotate(self, image, degrees):
+        # TODO: this a copy of the function in screen.py Figure out how to clean that up in python.
+        if image is None or degrees == 0:
+            return image
+        print(f"Rotating HUD image by {degrees} degrees...")
+        image = image.rotate(degrees, expand=True)
+        return image
+
     def tableHasMetadata(self):
         if self.tableInfo.metaConfig is None or not 'VPSdb' in self.tableInfo.metaConfig:
             print("WARNING: table doesn't have metadata. Run --buildmeta")
@@ -181,13 +189,13 @@ class TableMetaHUDFrame(tk.Frame):
             img = Image.open(self.ssIconPath)
             img = img.resize((100, 100), Image.LANCZOS)
             if self.angle != 0:
-                img = self.imageRotate(self.angle, img)
+                img = self.imageRotate(img, self.angle)
             self.tableTypeIcon = ImageTk.PhotoImage(img)
         elif self. tableInfo.metaConfig['VPSdb']['type'] == "EM":
             img = Image.open(self.emIconPath)
             img = img.resize((100, 100), Image.LANCZOS)
             if self.angle != 0:
-                img = self.imageRotate(self.angle, img)
+                img = self.imageRotate(img, self.angle)
             self.tableTypeIcon = ImageTk.PhotoImage(img)
             
     def setWheelSize(self):
