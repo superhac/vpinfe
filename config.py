@@ -7,7 +7,7 @@ class Config:
 	def __init__(self, configfilepath):
      
 		self.defaults = {
-			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '', "hudscreenid": '', 'hudrotangle': ''},
+			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '', "hudscreenid": '',  'tablerotangle': '', 'hudrotangle': '', 'backgroundcolor': '#000000'},
 			'Settings': {
 				'vpxbinpath': '', 
 				'tablerootdir': '',
