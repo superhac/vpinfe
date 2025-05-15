@@ -31,9 +31,14 @@ class TableMetaHUDFrame(tk.Frame):
         
         # load any imgs
         try:
-            #self.vpsImagePath = sys._MEIPASS + "/assets/vps.png"
-            self.ssIconPath = sys._MEIPASS + "/assets/solidstate-icon.png"
-            self.emIconPath = sys._MEIPASS + "/assets/electrom-icon.png"
+            if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                #self.vpsImagePath = sys._MEIPASS + "/assets/vps.png"
+                self.ssIconPath = sys._MEIPASS + "/assets/solidstate-icon.png"
+                self.emIconPath = sys._MEIPASS + "/assets/electrom-icon.png"
+            else:
+                #self.vpsImagePath = "assets/vps.png"
+                self.ssIconPath = "assets/solidstate-icon.png"
+                self.emIconPath = "assets/electrom-icon.png"
         except Exception as e:
             print(e)
             #self.vpsImagePath = "/home/superhac/working/vpinfe/assets/vps.png"
@@ -93,7 +98,10 @@ class TableMetaHUDFrame(tk.Frame):
                             
         # Load the wheel image
         if not tableInfo.WheelImagePath:
-            tableInfo.WheelImagePath = sys._MEIPASS + "/assets/wheel-missing.png"
+            if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                tableInfo.WheelImagePath = sys._MEIPASS + "/assets/wheel-missing.png"
+            else:
+                tableInfo.WheelImagePath = "assets/wheel-missing.png"
         print("Found Wheel", self.tableInfo.WheelImagePath)
         img = Image.open(self.tableInfo.WheelImagePath)
         img = img.resize((self.wheelWidth, self.wheelHeight), Image.LANCZOS)
@@ -109,7 +117,7 @@ class TableMetaHUDFrame(tk.Frame):
             label = Label(wheelFrame, text=tableInfo.metaConfig['VPSdb']['year'], font=self.yearFont, bg=self["bg"], fg="white")
         except KeyError as e:
              label = Label(wheelFrame, text="    ", font=self.yearFont, bg=self["bg"], fg="white")
-             print("ERROR: tablemetahudframe.py - Missing year"+tableInfo.fullPathTable)
+             print("ERROR: tablemetahudframe.py - Missing year "+tableInfo.fullPathTable)
         label.grid(row=0, column=0, sticky="nsew")
         #label.bind("<Configure>", self.resize_font)
         
@@ -120,24 +128,23 @@ class TableMetaHUDFrame(tk.Frame):
         
         # set manufacturer 
         self.manufacturerFont = tkfont.Font(family="Arial", size=30)
-        label = Label(wheelFrame, text=tableInfo.metaConfig['VPSdb']['manufacturer'], font=self.manufacturerFont, bg=self["bg"], fg="white")
-        label.grid(row=2, column=0, sticky="nsew")
+        if self.tableHasMetadata():
+            label = Label(wheelFrame, text=tableInfo.metaConfig['VPSdb']['manufacturer'], font=self.manufacturerFont, bg=self["bg"], fg="white")
+            label.grid(row=2, column=0, sticky="nsew")
         
-        
-        
-        # Table Title
-        Label(tableAuthorFrame, text=tableInfo.metaConfig['VPSdb']['name'], font=("Arial", int(26 * scaleFactor), 'bold'),
-              fg="#dce1e3", bg=self["bg"]).grid(row = 0, column=0, sticky="nsew" ) #bg=self["bg"]
+            # Table Title
+            Label(tableAuthorFrame, text=tableInfo.metaConfig['VPSdb']['name'], font=("Arial", int(26 * scaleFactor), 'bold'),
+                fg="#dce1e3", bg=self["bg"]).grid(row = 0, column=0, sticky="nsew" ) #bg=self["bg"]
 
-        # Author(s)
-        Label(tableAuthorFrame, text="By "+tableInfo.metaConfig['VPXFile']['author'], font=("Arial", int(16 * scaleFactor), 'bold'),
-              fg="#dce1e3", bg=self["bg"]).grid(row = 1, column=0, sticky="nsew") #bg=self["bg"]
-        
-        #vps data
-        details_text = (
-            f"Theme: {', '.join(ast.literal_eval(tableInfo.metaConfig['VPSdb']['theme']))}"
-        )
-        Label(tableAuthorFrame, text=details_text, font=("Arial", int(12 * scaleFactor)), fg="white", bg=self["bg"], justify="left").grid(row = 3, column=0, sticky="nsew")
+            # Author(s)
+            Label(tableAuthorFrame, text="By "+tableInfo.metaConfig['VPXFile']['author'], font=("Arial", int(16 * scaleFactor), 'bold'),
+                fg="#dce1e3", bg=self["bg"]).grid(row = 1, column=0, sticky="nsew") #bg=self["bg"]
+
+            #vps data
+            details_text = (
+                f"Theme: {', '.join(ast.literal_eval(tableInfo.metaConfig['VPSdb']['theme']))}"
+            )
+            Label(tableAuthorFrame, text=details_text, font=("Arial", int(12 * scaleFactor)), fg="white", bg=self["bg"], justify="left").grid(row = 3, column=0, sticky="nsew")
         
         # Table features and Addon buttons
          
@@ -146,20 +153,30 @@ class TableMetaHUDFrame(tk.Frame):
         iconGroupFrame.grid(row=0, column=0, padx=20, sticky=tk.NSEW)
         
         Label(iconGroupFrame, text="Table Features", font=("Arial", int(12 * scaleFactor)), fg="white", bg=self["bg"], justify="center").grid(row = 0, column=0, columnspan=2)
-        tk.Button(iconGroupFrame, text ="Fleep", highlightthickness = 0, bg= "green" if tableInfo.metaConfig['VPXFile']['detectFleep'] == 'true' else "red").grid(row = 1, column=0,sticky="nsew")
-        tk.Button(iconGroupFrame, text ="Nfozzy", highlightthickness = 0,bg= "green" if tableInfo.metaConfig['VPXFile']['detectNfozzy'] == 'true' else "red").grid(row = 1, column=1, sticky="nsew")
-        tk.Button(iconGroupFrame, text ="SSF", highlightthickness = 0,bg= "green" if tableInfo.metaConfig['VPXFile']['detectSSF'] == 'true' else "red").grid(row = 2, column=0,sticky="nsew")
-        tk.Button(iconGroupFrame, text ="FastFlips", highlightthickness = 0,bg= "green" if tableInfo.metaConfig['VPXFile']['detectFastflips'] == 'true' else "red").grid(row = 2, column=1,sticky="nsew")
-        tk.Button(iconGroupFrame, text ="LUT", highlightthickness = 0,bg= "green" if tableInfo.metaConfig['VPXFile']['detectLut'] == 'true' else "red").grid(row = 3, column=0,sticky="nsew")
-        tk.Button(iconGroupFrame, text ="Scorebit", highlightthickness = 0,bg= "green" if tableInfo.metaConfig['VPXFile']['detectScorebit'] == 'true' else "red").grid(row = 3, column=1,sticky="nsew")
+
+        if self.tableHasMetadata():
+            tk.Button(iconGroupFrame, text ="Fleep", highlightthickness = 0, bg= "green" if tableInfo.metaConfig['VPXFile']['detectFleep'] == 'true' else "red").grid(row = 1, column=0,sticky="nsew")
+            tk.Button(iconGroupFrame, text ="Nfozzy", highlightthickness = 0,bg= "green" if tableInfo.metaConfig['VPXFile']['detectNfozzy'] == 'true' else "red").grid(row = 1, column=1, sticky="nsew")
+            tk.Button(iconGroupFrame, text ="SSF", highlightthickness = 0,bg= "green" if tableInfo.metaConfig['VPXFile']['detectSSF'] == 'true' else "red").grid(row = 2, column=0,sticky="nsew")
+            tk.Button(iconGroupFrame, text ="FastFlips", highlightthickness = 0,bg= "green" if tableInfo.metaConfig['VPXFile']['detectFastflips'] == 'true' else "red").grid(row = 2, column=1,sticky="nsew")
+            tk.Button(iconGroupFrame, text ="LUT", highlightthickness = 0,bg= "green" if tableInfo.metaConfig['VPXFile']['detectLut'] == 'true' else "red").grid(row = 3, column=0,sticky="nsew")
+            tk.Button(iconGroupFrame, text ="Scorebit", highlightthickness = 0,bg= "green" if tableInfo.metaConfig['VPXFile']['detectScorebit'] == 'true' else "red").grid(row = 3, column=1,sticky="nsew")
         
         # addons
         Label(iconGroupFrame, text="Table Addon's", font=("Arial", int(12 * scaleFactor)), fg="white", bg=self["bg"], justify="center").grid(row = 4, column=0, columnspan=2)
         tk.Button(iconGroupFrame, text ="AltSound", highlightthickness = 0,bg= "green" if tableInfo.altSoundExists == True else "red").grid(row = 5, column=0,sticky="nsew")
         tk.Button(iconGroupFrame, text ="AltColor", highlightthickness = 0,bg= "green" if tableInfo.altColorExists == True else "red").grid(row = 5, column=1, sticky="nsew")
         tk.Button(iconGroupFrame, text ="PupPack", highlightthickness = 0,bg= "green" if tableInfo.pupPackExists == True else "red").grid(row = 6, column=0,sticky="nsew")
-        
+
+    def tableHasMetadata(self):
+        if self.tableInfo.metaConfig is None or not 'VPSdb' in self.tableInfo.metaConfig:
+            print("WARNING: table doesn't have metadata. Run --buildmeta")
+            return False
+        return True
+
     def setTableTypeIcon(self):
+        if not self.tableHasMetadata():
+            return
         if self.tableInfo.metaConfig['VPSdb']['type'] == "SS":
             img = Image.open(self.ssIconPath)
             img = img.resize((100, 100), Image.LANCZOS)

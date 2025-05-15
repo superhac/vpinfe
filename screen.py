@@ -12,7 +12,7 @@ class Screen:
     firstWindow = True # tracks if this root or another top-level
     rootWindow = None
 
-    def __init__(self, screen, missingImage, vpinfeIniConfig):
+    def __init__(self, screen, angle, missingImage, vpinfeIniConfig):
         self.isThreeDotAnimate = False
         self.threeDotCount = 0
         
@@ -35,6 +35,8 @@ class Screen:
         self.hudCanvas = None
         self.hudFrame = None
 
+        self.rotationAngle = angle
+
         self.createWindow()
         self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
    
@@ -47,9 +49,9 @@ class Screen:
             Screen.rootWindow = self.window
         else:
             self.window = tk.Toplevel()
-        self.window.configure(bg="black")
+        self.window.configure(bg=self.vpinfeIniConfig.config['Displays']['backgroundcolor'])
         
-        # Set window size and position
+        # Set window size and position and background color
         self.window.geometry(f"{self.screen.width}x{self.screen.height}+{self.screen.x}+{self.screen.y}")
         self.window.attributes("-fullscreen", True)
 
@@ -58,6 +60,7 @@ class Screen:
              self.removeText()
 
         key = img_path
+        print(f"Loading {img_path}...")
         
         # If already in cache, move to end (most recently used) and return
         if key in self.cache:
@@ -73,6 +76,8 @@ class Screen:
         except:
             img = Image.open(self.missingImage)#.convert("RGBA") # not sure what the performance gain is here.
  
+        img = self.imageRotate(img, self.rotationAngle)
+
         width, height = img.size
         if width != self.window.winfo_width() and height != self.window.winfo_height():
             img = self.resizeImageToScreen(img)
@@ -92,22 +97,38 @@ class Screen:
             self.displayImage(img_tk)
 
     def resizeImageToScreen(self, image):
-        if image != None:
+        if image == None:
+          return
+        if self.rotationAngle == 0:
+          image = image.resize((self.window.winfo_width(), self.window.winfo_height()), Image.Resampling.LANCZOS)
+        else:
+          if self.rotationAngle == 90 or self.rotationAngle == 270:
+            screenWidth = self.window.winfo_width()
+            screenHeight = self.window.winfo_height()
+            if screenWidth > screenHeight:
+              scale = screenHeight / screenWidth
+            else:
+              scale = screenWidth / screenHeight
+            image = image.resize((int(screenHeight * scale), int(screenWidth * scale)), Image.Resampling.LANCZOS)
+          else:
             image = image.resize((self.window.winfo_width(), self.window.winfo_height()), Image.Resampling.LANCZOS)
-            return image
+        return image
            
     def displayImage(self, img_tk):
             if  self.canvasPhotoID == None:
-                self.canvasPhotoID = self.canvas.create_image((0,0), anchor="nw", image=img_tk)
-                self.canvas.config(highlightthickness=0, borderwidth=0)
+                self.canvasPhotoID = self.canvas.create_image((self.window.winfo_width()/2,self.window.winfo_height()/2), anchor="center", image=img_tk)
+                self.canvas.config(highlightthickness=0, borderwidth=0, bg=self.vpinfeIniConfig.config['Displays']['backgroundcolor'])
             else:
                 self.canvas.itemconfig(self.canvasPhotoID, image=img_tk)
             self.canvas.pack(fill="both", expand=True)
             #self.canvas.create_text(200, 150, text="Hello, Tkinter!", font=("Arial", 50), fill="white")
 
-    def imageRotate(self,degrees):
-         if self.image != None:
-            self.image = self.image.rotate(90, expand=True)
+    def imageRotate(self, image, degrees):
+        if image is None or degrees == 0:
+            return image
+        print(f"Rotating image by {degrees} degrees...")
+        image = image.rotate(degrees, expand=True)
+        return image
 
     def addText(self, text, pos, anchor="nw"):
         self.text = self.canvas.create_text(*pos, anchor=anchor, text=text, font=("Arial", 30), fill="white")

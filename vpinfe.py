@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import tkinter as tk
 from screeninfo import get_monitors
 from PIL import Image, ImageTk
@@ -29,8 +31,12 @@ if sys.platform.startswith('win'):
     os.environ['PYSDL2_DLL_PATH'] = sys._MEIPASS+'/SDL2.dll' # need to include the sdl2 runtime for windows
 
 # Assets
-logoImage = sys._MEIPASS+"/assets/VPinFE_logo_main.png"
-missingImage = sys._MEIPASS+"/assets/file_missing.png"
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    logoImage = sys._MEIPASS+"/assets/VPinFE_logo_main.png"
+    missingImage = sys._MEIPASS+"/assets/file_missing.png"
+else:
+    logoImage = "assets/VPinFE_logo_main.png"
+    missingImage = "assets/file_missing.png"
 
 # Globals
 version = "0.5 beta"
@@ -63,7 +69,7 @@ def key_pressed(event):
         exitGamepad = True # exit the gamepad loop.  This also kills the sdl joy input loop thread.
         #Screen.rootWindow.destroy()
 
-    # Lanuch Game
+    # Launch Game
     if keysym == "a":
         for s in screens: 
             #s.window.withdraw()
@@ -107,7 +113,7 @@ def launchTable():
     Screen.rootWindow.update()
     
 def launchVPX(table):
-    print("Lanuching: " + table)
+    print("Launching: " + table)
     null = open(os.devnull, 'w')
     subprocess.call([vpxBinPath, '-play', table], bufsize=4096, stdout=null, stderr=null)
 
@@ -131,7 +137,13 @@ def getScreens():
     monitors = get_monitors()
 
     for i in range(len(monitors)):
-        screen = Screen(monitors[i], missingImage, vpinfeIniConfig)
+        if int(vpinfeIniConfig.config['Displays']['hudscreenid']) == i:
+            angle = int(vpinfeIniConfig.config['Displays']['hudrotangle'])
+        elif int(vpinfeIniConfig.config['Displays']['tablescreenid']) == i:
+            angle = int(vpinfeIniConfig.config['Displays']['tablerotangle'])
+        else:
+            angle = 0
+        screen = Screen(monitors[i], angle, missingImage, vpinfeIniConfig)
         screens.append(screen)
         print("    ",i,":"+str(screen.screen))
 
@@ -221,6 +233,7 @@ def buildMetaData():
             finalini['vpsdata'] = vpsData
             finalini['vpxdata'] = vpxData
             meta.writeConfigMeta(finalini)
+            vps.downloadMediaForTable(table)
 
 def vpxPatches():
     loadconfig(configfile)

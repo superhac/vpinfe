@@ -13,7 +13,11 @@ class VPSdb:
   
   vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
   vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
-  
+  vpsUrlMediaBackground = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/1k/bg.png"
+  vpsUrlMediaDMD = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/1k/dmd.png"
+  vpsUrlMediaWheel = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/wheel.png"
+  vpsUrlMediaTable = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/4k/table.png"
+
   def __init__(self, rootTableDir, vpinfeIniConfig):
     print("Initing VPSdb")
     version = self.downloadLastUpdate()
@@ -84,9 +88,9 @@ class VPSdb:
     if response.status_code == 200:
       with open(file_Path, 'wb') as file:
         file.write(response.content)
-      print('  Successfully downloaded vpsdb.json from VPSdb')
+      print(f"  Successfully downloaded {file_Path} from VPSdb")
     else:
-      print('  Failed to vpsdb.json from VPSdb')
+      print(f"  Failed to download {file_Path} from VPSdb. Status code: {response.status_code}")
       
   def downloadLastUpdate(self):
     response = requests.get(VPSdb.vpsUrlLastUpdate)
@@ -94,8 +98,39 @@ class VPSdb:
       content = response.text  # Use response.content for binary data
       return content
     else:
-        print(f"Failed to retrieve content lastUpdate.json from VPSdb. Status code: {response.status_code}")
-        return None
+      print(f"Failed to retrieve content lastUpdate.json from VPSdb. Status code: {response.status_code}")
+      return None
+
+  def downloadMediaFile(self, url, filename):
+    print(f"  Downloading {filename} from {url}")
+    response = requests.get(url)
+    if response.status_code == 200:
+      with open(filename, 'wb') as file:
+        file.write(response.content)
+      print(f"  Successfully downloaded {filename} from VPinMedia")
+    else:
+      print(f"  Failed to download {filename} from VPinMedia. Status code: {response.status_code}")
+
+  def fileExists(self, path):
+    if path is None:
+      return False
+    return os.path.exists(path)
+
+  def createUrl(self, base, tableId):
+    return base.replace("{tableId}", tableId)
+
+  def downloadMedia(self, tableId, baseurl, filename, defaultFilename):
+    if self.fileExists(filename):
+      return
+    url = self.createUrl(baseurl, tableId)
+    self.downloadMediaFile(url, defaultFilename)
+
+  def downloadMediaForTable(self, table):
+    id = table.metaConfig['VPSdb']['id']
+    self.downloadMedia(id, VPSdb.vpsUrlMediaBackground, table.BGImagePath, table.fullPathTable + "/bg.png")
+    self.downloadMedia(id, VPSdb.vpsUrlMediaDMD, table.DMDImagePath, table.fullPathTable + "/dmd.png")
+    self.downloadMedia(id, VPSdb.vpsUrlMediaWheel, table.WheelImagePath, table.fullPathTable + "/wheel.png")
+    self.downloadMedia(id, VPSdb.vpsUrlMediaTable, table.TableImagePath, table.fullPathTable + "/table.png")
 
 if __name__ == "__main__":
   #searchForType()

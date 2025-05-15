@@ -61,29 +61,35 @@ class Tables:
     
         print(f"  Found {count} tables (.vpx).")
 
+    def findImageEndingWith(self, basePath, ending):
+        files = list(Path(basePath).rglob("*" + ending + ".*"))
+        if not files:
+            return None
+        return files[0]
+
     def loadImagePaths(self, tableInfo):
         # set bg image
-        bg = tableInfo.fullPathTable + "/bg.png"
-        dmd = tableInfo.fullPathTable + "/dmd.png"
-        table = tableInfo.fullPathTable + "/table.png"
-        wheel = tableInfo.fullPathTable + "/wheel.png"
+        bg = self.findImageEndingWith(tableInfo.fullPathTable, "bg")
+        dmd = self.findImageEndingWith(tableInfo.fullPathTable, "dmd")
+        table = self.findImageEndingWith(tableInfo.fullPathTable, "table")
+        wheel = self.findImageEndingWith(tableInfo.fullPathTable, "wheel")
 
-        if os.path.exists(bg):
+        if bg and os.path.exists(bg):
             tableInfo.BGImagePath = bg
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {bg}{Tables.RESET_CONSOLE_TEXT}")
-        if os.path.exists(dmd):
+            print(f"{Tables.RED_CONSOLE_TEXT} bg image not found: {bg}{Tables.RESET_CONSOLE_TEXT}")
+        if dmd and os.path.exists(dmd):
             tableInfo.DMDImagePath = dmd
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {dmd}{Tables.RESET_CONSOLE_TEXT}")
-        if os.path.exists(table):
+            print(f"{Tables.RED_CONSOLE_TEXT} dmd image not found: {dmd}{Tables.RESET_CONSOLE_TEXT}")
+        if table and os.path.exists(table):
             tableInfo.TableImagePath = table
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {table}{Tables.RESET_CONSOLE_TEXT}")
-        if os.path.exists(wheel):
+            print(f"{Tables.RED_CONSOLE_TEXT} table image not found: {table}{Tables.RESET_CONSOLE_TEXT}")
+        if wheel and os.path.exists(wheel):
             tableInfo.WheelImagePath = wheel
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT}  Img not found: {wheel}{Tables.RESET_CONSOLE_TEXT}")
+            print(f"{Tables.RED_CONSOLE_TEXT} wheel image not found: {wheel}{Tables.RESET_CONSOLE_TEXT}")
             
 
     def loadMetaData(self, tableInfo):
