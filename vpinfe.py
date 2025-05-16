@@ -41,6 +41,7 @@ else:
 # Globals
 version = "0.5 beta"
 logger = None
+parservpx = None
 screens = []
 ScreenNames = ScreenNames()
 exitGamepad = False
@@ -77,7 +78,7 @@ def key_pressed(event):
             s.window.iconify()
         Screen.rootWindow.update_idletasks()
         Screen.rootWindow.after(500, launchTable )
-        
+
 def screenMoveRight():
     global tableIndex
 
@@ -233,7 +234,7 @@ def buildMetaData():
             # vpx file info
             logger.info(f"Parsing VPX file for metadata")
             logger.info(f"Extracting {table.fullPathVPXfile} for metadata.")
-            vpxData = vpxparser.singleFileExtract(table.fullPathVPXfile)
+            vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
             
             # make the config.ini
             finalini['vpsdata'] = vpsData
@@ -383,6 +384,7 @@ def gameControllerInputThread():
 if __name__ == "__main__":
     logger = init_logger("VPinFE")
     logger.info(f"VPinFE {version} by Superhac (superhac007@gmail.com)")
+    parservpx = vpxparser.VPXParser()
     parseArgs()
     loadconfig(configfile)
     update_logger_config(vpinfeIniConfig.config['Logger'])

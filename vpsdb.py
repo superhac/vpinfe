@@ -1,6 +1,5 @@
 import requests
 import json
-import pprint
 from difflib import SequenceMatcher
 import os
 import re
@@ -137,15 +136,16 @@ class VPSdb:
     self.downloadMedia(id, VPSdb.vpsUrlMediaTable, table.TableImagePath, table.fullPathTable + "/table.png")
 
 if __name__ == "__main__":
+  logger = init_logger("VPSDB")
   #searchForType()
-  #pprint.pprint(data[655], compact=True)
+  #logger.debug(data[655], compact=True)
   #lookupName("King Kong", "data east", "1990")
   tableDirs = loadTables("/home/superhac/tables")
-  #print(tableDirs)
+  #logger.debug(tableDirs)
   #sys.exit()
   for tableDir in tableDirs:
     parsed = parse_directory(tableDir)
-    print("Checking: "+tableDir)
+    logger.debug("Checking: "+tableDir)
     lookupName(parsed["table_name"], parsed["manufacturer"], parsed["year"])
-    print()
+    logger.debug("Done.")
 

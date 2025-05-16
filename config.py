@@ -2,10 +2,15 @@ import configparser
 import os
 import sys
 
+from logger import get_logger
+
 class Config:
+	logger = None
 
 	def __init__(self, configfilepath):
-     
+		global logger
+		logger = get_logger()
+
 		self.defaults = {
 			'Logger': { 'level': 'info', 'console': '1', 'file': ''},
 			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '', "hudscreenid": '',  'tablerotangle': '0', 'hudrotangle': '0', 'backgroundcolor': '#000000'},
@@ -28,7 +33,7 @@ class Config:
 
 		# check if the file exists
 		if not os.path.exists(configfilepath):
-				print("Generating a default 'vpinfe.ini' in CWD.")
+				logger.info(f"Generating a default ini file {configfilepath}")
 				self.formatDefaults()
 				self.save()
 				raise FileNotFoundError(f"The config file '{configfilepath}' was not found.")
