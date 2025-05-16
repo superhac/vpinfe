@@ -1,11 +1,17 @@
 import configparser
 import os
 
+from logger import get_logger
+
 class MetaConfig:
+
+    logger = None
 
     sections = {}
 
     def __init__(self, configfilepath):
+        global logger
+        logger = get_logger()
 
         self.defaults = {}
         self.config = configparser.ConfigParser(defaults=self.defaults)
@@ -29,8 +35,6 @@ class MetaConfig:
         #for section in list(self.config.sections()):
             #self.config.remove_section(section)
         
-        #print(configdata)
-        
         try:
             # VPSdb
             config['VPSdb']['id'] = configdata.get('vpsdata', {}).get('id', '')
@@ -40,8 +44,7 @@ class MetaConfig:
             config['VPSdb']['year'] = configdata.get('vpsdata', {}).get('year', '')
             config['VPSdb']['theme'] = configdata.get('vpsdata', {}).get('theme', '')
             
-            print( config['VPSdb']['type'])
-            
+            logger.debug(f"Type :{config['VPSdb']['type']}")
             
             # vpx file data
             config['VPXFile']['filename'] = configdata['vpxdata']['filename']
@@ -67,9 +70,7 @@ class MetaConfig:
             config['VPXFile']['detectFastflips'] = configdata['vpxdata']['detectFastflips']
             config['VPXFile']['detectFlex'] = configdata['vpxdata']['detectFlex']
         except AttributeError:
-            print("Attribute error.. in meta")
-            
-        
+            logger.error("Attribute error.. in meta")
          
         # write it
         self.config.read_dict(config)
@@ -97,9 +98,9 @@ class MetaConfig:
             if self.config['Pinmame']['deleteNVramOnClose'] == "true":
                 if os.path.exists(nvramPath):
                     os.remove(nvramPath)
-                    print(f"File '{nvramPath}' deleted successfully.")
+                    logger.info(f"File '{nvramPath}' deleted successfully.")
                 else:
-                    print(f"File '{nvramPath}' does not exist.")
+                    logger.info(f"File '{nvramPath}' does not exist.")
         except KeyError:  # theres no pinmame setting for this action
             pass
         

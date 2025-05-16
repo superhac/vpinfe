@@ -6,13 +6,18 @@ import time
 
 from tablemetahudcanvas import tableMetaHUDCanvas
 from tablemetahudframe import TableMetaHUDFrame
+from logger import get_logger
 
 class Screen:
     maxImageCacheSize = 100
     firstWindow = True # tracks if this root or another top-level
     rootWindow = None
+    logger = None
 
     def __init__(self, screen, angle, missingImage, vpinfeIniConfig):
+        global logger
+        logger = get_logger()
+
         self.isThreeDotAnimate = False
         self.threeDotCount = 0
         
@@ -60,7 +65,7 @@ class Screen:
              self.removeText()
 
         key = img_path
-        print(f"Loading {img_path}...")
+        logger.debug(f"Loading {img_path}...")
         
         # If already in cache, move to end (most recently used) and return
         if key in self.cache:
@@ -126,7 +131,7 @@ class Screen:
     def imageRotate(self, image, degrees):
         if image is None or degrees == 0:
             return image
-        print(f"Rotating image by {degrees} degrees...")
+        logger.debug(f"Rotating image by {degrees} degrees...")
         image = image.rotate(degrees, expand=True)
         return image
 
@@ -196,13 +201,14 @@ class Screen:
                 self.hudFrame.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s", width=int(self.window.winfo_width() * barLength),
                          height=int(self.window.winfo_height() * (barHeight + 0.10)))
 
-                print(f"{self.window.winfo_height()}: {self.window.winfo_width()}")
+                logger.debug(f"HUD window {self.window.winfo_width()}x{self.window.winfo_height()}")
                 #self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barLength), int(self.window.winfo_height()* (barHeight+.10)),tableInfo=tableInfo)
                 #self.hudCanvas.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s")  # Adjust placement
             else: # swap width and height, add angle of rotation
-                print("hud rotation set")
+                logger.debug(f"HUD rotation set to {self.rotationAngle}")
                 self.hudFrame = TableMetaHUDFrame(self.window, int(self.window.winfo_width()*barHeight), int(self.window.winfo_height()*barLength),tableInfo=tableInfo, angle=int(self.vpinfeIniConfig.config['Displays']['hudrotangle']))
                 self.hudFrame.place(x=int(self.window.winfo_width() - 50 ), y=self.window.winfo_height() /2 , anchor="e")  # Adjust placement
-                
+                logger.debug(f"HUD window {self.window.winfo_height()}x{self.window.winfo_width()}")
+
                 #self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barHeight), int(self.window.winfo_height()*barLength),tableInfo=tableInfo, angle=int(self.vpinfeIniConfig.config['Displays']['hudrotangle']))
                 #self.hudCanvas.place(x=int(self.window.winfo_width() - 50 ), y=self.window.winfo_height() /2 , anchor="e")  # Adjust placement

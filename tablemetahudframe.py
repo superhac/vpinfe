@@ -6,10 +6,16 @@ import sys
 import ast
 
 from tables import Tables, TableInfo
+from logger import get_logger
 
 class TableMetaHUDFrame(tk.Frame):
+    logger = None
+
     def __init__(self, master=None, width=None, height=None, tableInfo=None, angle=0, **kwargs):
         super().__init__(master, width=width, height=height, **kwargs)
+        global logger
+        logger = get_logger()
+
         self.width = width
         self.height = height
         self.angle = angle
@@ -26,22 +32,19 @@ class TableMetaHUDFrame(tk.Frame):
         self.manufacturerFont = None
                 
         # debug
-        print(self.angle)
-        print("master frame:", self.width, self.height)
+        logger.debug(f"HUD frame rotation set to {self.angle}")
+        logger.debug(f"HUD master frame: {self.width}x{self.height}")
         
         # load any imgs
         try:
             if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-                #self.vpsImagePath = sys._MEIPASS + "/assets/vps.png"
                 self.ssIconPath = sys._MEIPASS + "/assets/solidstate-icon.png"
                 self.emIconPath = sys._MEIPASS + "/assets/electrom-icon.png"
             else:
-                #self.vpsImagePath = "assets/vps.png"
                 self.ssIconPath = "assets/solidstate-icon.png"
                 self.emIconPath = "assets/electrom-icon.png"
         except Exception as e:
-            print(e)
-            #self.vpsImagePath = "/home/superhac/working/vpinfe/assets/vps.png"
+            Logger.error(e)
         
         # set bg color
         self.configure(bg="#453a3c")
@@ -102,7 +105,7 @@ class TableMetaHUDFrame(tk.Frame):
                 tableInfo.WheelImagePath = sys._MEIPASS + "/assets/wheel-missing.png"
             else:
                 tableInfo.WheelImagePath = "assets/wheel-missing.png"
-        print("Found Wheel", self.tableInfo.WheelImagePath)
+        logger.debug(f"Found Wheel {self.tableInfo.WheelImagePath}")
         img = Image.open(self.tableInfo.WheelImagePath)
         img = img.resize((self.wheelWidth, self.wheelHeight), Image.LANCZOS)
         img = self.imageRotate(img, self.angle)
@@ -116,7 +119,7 @@ class TableMetaHUDFrame(tk.Frame):
             label = Label(wheelFrame, text=tableInfo.metaConfig['VPSdb']['year'], font=self.yearFont, bg=self["bg"], fg="white")
         except KeyError as e:
              label = Label(wheelFrame, text="    ", font=self.yearFont, bg=self["bg"], fg="white")
-             print("ERROR: tablemetahudframe.py - Missing year "+tableInfo.fullPathTable)
+             logger.error(f"Missing year in {tableInfo.fullPathTable}")
         label.grid(row=0, column=0, sticky="nsew")
         #label.bind("<Configure>", self.resize_font)
         
@@ -171,13 +174,13 @@ class TableMetaHUDFrame(tk.Frame):
         # TODO: this a copy of the function in screen.py Figure out how to clean that up in python.
         if image is None or degrees == 0:
             return image
-        print(f"Rotating HUD image by {degrees} degrees...")
+        logger.debug(f"Rotating HUD image by {degrees} degrees...")
         image = image.rotate(degrees, expand=True)
         return image
 
     def tableHasMetadata(self):
         if self.tableInfo.metaConfig is None or not 'VPSdb' in self.tableInfo.metaConfig:
-            print("WARNING: table doesn't have metadata. Run --buildmeta")
+            logger.warning(f"Missing metadata for table {tableInfo.fullPathVPXfile}. Run with --buildmeta")
             return False
         return True
 

@@ -5,11 +5,13 @@ from difflib import SequenceMatcher
 import os
 import re
 import sys
+from logger import get_logger
 
 RED_CONSOLE_TEXT = '\033[31m'
 RESET_CONSOLE_TEXT = '\033[0m'
 
 class VPSdb:
+  logger = None
   
   vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
   vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
@@ -19,15 +21,18 @@ class VPSdb:
   vpsUrlMediaTable = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/4k/table.png"
 
   def __init__(self, rootTableDir, vpinfeIniConfig):
-    print("Initing VPSdb")
+    global logger
+    logger = get_logger()
+
+    logger.info("Initializing VPSdb")
     version = self.downloadLastUpdate()
     if version != None:
-      print("  Current VPSdb version @ VPSdb: ", version)
+      logger.info(f"Current VPSdb version @ VPSdb: {version}")
       try:
         if vpinfeIniConfig.config['VPSdb']['last'] < version:
           self.downloadDB()
         else:
-          print("  VPSdb currently at lastest revision.")
+          logger.info("VPSdb currently at lastest revision.")
       except KeyError:
         self.downloadDB()
       
@@ -38,31 +43,31 @@ class VPSdb:
       try:
         with open('vpsdb.json', 'r') as file:
           self.data = json.load(file)
-          print(f"  Total VPSdb entries: {len(self.data)}")
+          logger.info(f"Total VPSdb entries: {len(self.data)}")
 
       except FileNotFoundError:
-        print("  Error: JSON file not found.")
+        logger.error(f"JSON file vpsdb.json not found.")
       except json.JSONDecodeError:
-        print("  Error: Invalid JSON format.")
+        logger.error(f"Invalid JSON format in vpsdb.json.")
     
   def lookupName(self, name, manufacturer, year):
     for table in self.data:
       try:
         name_similarity_ratio = SequenceMatcher(None, name.lower(),  table["name"].lower()).ratio()
-        #print(f'"{name}" "{table["name"]}"')
+        #logger.debug(f'"{name}" "{table["name"]}"')
         if name_similarity_ratio >= .8:
-            #print("name matched with threshold:", table["name"], name_similarity_ratio)
+            #logger.debug("name matched with threshold:", table["name"], name_similarity_ratio)
             similarity_ratio = SequenceMatcher(None, manufacturer.lower(),  table["manufacturer"].lower()).ratio()
-            #print("manufacturer matched with threshold:", table["manufacturer"], similarity_ratio)
+            #logger.debug(f"Manufacturer matched with threshold: {table["manufacturer"]} with a ratio of {similarity_ratio}")
             if similarity_ratio >= .8:
               similarity_ratio = SequenceMatcher(None, str(year),  str(table["year"])).ratio()
               if similarity_ratio >= .8:
-                print("  Name, manufacturer, and year matched with threshold:", table["name"])
+                logger.info(f"Name, manufacturer, and year matched with threshold: {table["name"]}")
                 return table        
       except KeyError:
-        print("lookupName: no key?")
+        logger.error("lookupName: no key?")
         pass
-    print(f"{RED_CONSOLE_TEXT}  No match for: {name}{RESET_CONSOLE_TEXT} ")  
+    logger.error(f"{RED_CONSOLE_TEXT} No match for: {name}{RESET_CONSOLE_TEXT}")
     return None
 
   def parseTableNameFromDir(self, directory_name):
@@ -88,9 +93,9 @@ class VPSdb:
     if response.status_code == 200:
       with open(file_Path, 'wb') as file:
         file.write(response.content)
-      print(f"  Successfully downloaded {file_Path} from VPSdb")
+      logger.info(f"Successfully downloaded {file_Path} from VPSdb")
     else:
-      print(f"  Failed to download {file_Path} from VPSdb. Status code: {response.status_code}")
+      logger.error(f"Failed to download {file_Path} from VPSdb. Status code: {response.status_code}")
       
   def downloadLastUpdate(self):
     response = requests.get(VPSdb.vpsUrlLastUpdate)
@@ -98,18 +103,18 @@ class VPSdb:
       content = response.text  # Use response.content for binary data
       return content
     else:
-      print(f"Failed to retrieve content lastUpdate.json from VPSdb. Status code: {response.status_code}")
+      logger.error(f"Failed to retrieve content lastUpdate.json from VPSdb. Status code: {response.status_code}")
       return None
 
   def downloadMediaFile(self, url, filename):
-    print(f"  Downloading {filename} from {url}")
+    logger.debug(f"Downloading {filename} from {url}")
     response = requests.get(url)
     if response.status_code == 200:
       with open(filename, 'wb') as file:
         file.write(response.content)
-      print(f"  Successfully downloaded {filename} from VPinMedia")
+      logger.info(f"  Successfully downloaded {filename} from VPinMedia")
     else:
-      print(f"  Failed to download {filename} from VPinMedia. Status code: {response.status_code}")
+      logger.error(f"Failed to download {filename} from VPinMedia. Status code: {response.status_code}")
 
   def fileExists(self, path):
     if path is None:
