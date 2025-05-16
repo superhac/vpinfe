@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import metaconfig
+from logger import get_logger
 
 class TableInfo:
     tableDirName = None
@@ -17,6 +18,7 @@ class TableInfo:
     WheelImagePath = None
     
     metaConfig = None
+    logger = None
     
 class Tables:
     # static
@@ -26,12 +28,14 @@ class Tables:
     RESET_CONSOLE_TEXT = '\033[0m'
 
     def __init__(self, tablesRootFilePath):
+        global logger
+        logger = get_logger()
         Tables.tablesRootFilePath = tablesRootFilePath
         self.loadTables()
 
     def loadTables(self):
         count = 0
-        print("Loading tables and image paths:")
+        logger.info("Loading tables and image paths:")
         for fname in sorted(os.listdir(Tables.tablesRootFilePath)):
             path = os.path.join(Tables.tablesRootFilePath, fname)
             if os.path.isdir(path): # each table has its own dir
@@ -53,13 +57,13 @@ class Tables:
                             if os.path.isdir(tableInfo.fullPathTable+'/pinmame/altsound'):
                                 tableInfo.altSoundExists = True
                 if tableInfo.fullPathVPXfile == None:
-                    print(f"{Tables.RED_CONSOLE_TEXT}    No .vpx found in {tableInfo.tableDirName} directory.{Tables. RESET_CONSOLE_TEXT}")
+                    logger.error(f"{Tables.RED_CONSOLE_TEXT}No .vpx found in {tableInfo.tableDirName} directory.{Tables. RESET_CONSOLE_TEXT}")
                     continue  
                 Tables.tables.append(tableInfo)
                 self.loadImagePaths(tableInfo)
                 self.loadMetaData(tableInfo)
     
-        print(f"  Found {count} tables (.vpx).")
+        logger.info(f"Found {count} tables (.vpx).")
 
     def findImageEndingWith(self, basePath, ending):
         files = list(Path(basePath).rglob("*" + ending + ".*"))
@@ -77,19 +81,19 @@ class Tables:
         if bg and os.path.exists(bg):
             tableInfo.BGImagePath = bg
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT} bg image not found: {bg}{Tables.RESET_CONSOLE_TEXT}")
+            logger.warning(f"{Tables.RED_CONSOLE_TEXT} bg image '{bg}' not found for table {tableInfo.fullPathVPXfile}{Tables.RESET_CONSOLE_TEXT}")
         if dmd and os.path.exists(dmd):
             tableInfo.DMDImagePath = dmd
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT} dmd image not found: {dmd}{Tables.RESET_CONSOLE_TEXT}")
+            logger.warning(f"{Tables.RED_CONSOLE_TEXT} dmd image '{dmd}' not found for table {tableInfo.fullPathVPXfile}{Tables.RESET_CONSOLE_TEXT}")
         if table and os.path.exists(table):
             tableInfo.TableImagePath = table
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT} table image not found: {table}{Tables.RESET_CONSOLE_TEXT}")
+            logger.warning(f"{Tables.RED_CONSOLE_TEXT} table image ''{table}' not found for table {tableInfo.fullPathVPXfile}{Tables.RESET_CONSOLE_TEXT}")
         if wheel and os.path.exists(wheel):
             tableInfo.WheelImagePath = wheel
         else:
-            print(f"{Tables.RED_CONSOLE_TEXT} wheel image not found: {wheel}{Tables.RESET_CONSOLE_TEXT}")
+            logger.warning(f"{Tables.RED_CONSOLE_TEXT} wheel image '{wheel}' not found for table {tableInfo.fullPathVPXfile}{Tables.RESET_CONSOLE_TEXT}")
             
 
     def loadMetaData(self, tableInfo):

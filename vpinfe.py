@@ -15,7 +15,7 @@ from multiprocessing import Process
 from queue import Queue
 from tkmessages import TKMsgType, TkMsg
 
-
+from logger import init_logger,get_logger,update_logger_config
 from screennames import ScreenNames
 from imageset import ImageSet
 from screen import Screen
@@ -40,6 +40,7 @@ else:
 
 # Globals
 version = "0.5 beta"
+logger = None
 screens = []
 ScreenNames = ScreenNames()
 exitGamepad = False
@@ -56,10 +57,10 @@ RESET_CONSOLE_TEXT = '\033[0m'
 def key_pressed(event):
     global tableIndex
     global exitGamepad
-    #key = event.char # Get the character representation of the key
     keysym = event.keysym # Get the symbolic name of the key
+    #key = event.char # Get the character representation of the key
     #keycode = event.keycode # Get the numeric keycode
-    #print(f"Key pressed: {key}, keysym: {keysym}, keycode: {keycode}")
+    #logger.debug(f"Key pressed: {key}, keysym: {keysym}, keycode: {keycode}")
 
     if keysym == "Shift_R":
         screenMoveRight()
@@ -113,7 +114,7 @@ def launchTable():
     Screen.rootWindow.update()
     
 def launchVPX(table):
-    print("Launching: " + table)
+    logger.info(f"Launching: {table}")
     null = open(os.devnull, 'w')
     subprocess.call([vpxBinPath, '-play', table], bufsize=4096, stdout=null, stderr=null)
 
@@ -132,7 +133,7 @@ def setGameDisplays(tableInfo):
         screens[ScreenNames.TABLE].loadImage(tableInfo.TableImagePath, tableInfo=tableInfo if int(vpinfeIniConfig.config['Displays']['hudscreenid']) == ScreenNames.TABLE else None)
        
 def getScreens():
-    print("Enumerating displays")
+    logger.info("Enumerating displays")
     # Get all available screens
     monitors = get_monitors()
 
@@ -145,19 +146,25 @@ def getScreens():
             angle = 0
         screen = Screen(monitors[i], angle, missingImage, vpinfeIniConfig)
         screens.append(screen)
-        print("    ",i,":"+str(screen.screen))
+        logger.info(f"Display {i}:{str(screen.screen)}")
 
 def openJoysticks():
-    print("Checking for gamepads")
+    logger.info("Checking for gamepads")
     if sdl2.SDL_InitSubSystem(sdl2.SDL_INIT_JOYSTICK) < 0:
-        print(f"     SDL_InitSubSystem Error: {sdl2.SDL_GetError()}")
+        logger.error(f"SDL_InitSubSystem Error: {sdl2.SDL_GetError()}")
         return
 
     num_joysticks = sdl2.SDL_NumJoysticks()
-    print(f"     Found {num_joysticks} gamepads.")
+    logger.info(f"Found {num_joysticks} gamepads.")
 
     for i in range(num_joysticks):
-        sdl2.SDL_JoystickOpen(i)
+        joystick = sdl2.SDL_JoystickOpen(i)
+        if joystick:
+            name = sdl2.SDL_JoystickName(joystick)
+            logger.info(f"Joystick {i}: {name.decode('utf-8')}")
+            sdl2.SDL_JoystickClose(joystick)
+        else:
+            logger.error(f"Could not open joystick {i}")
 
 def loadconfig(configfile):
     global tableRootDir
@@ -169,11 +176,11 @@ def loadconfig(configfile):
     try:
         vpinfeIniConfig = Config(configfile)
     except Exception as e:
-        print(f"{RED_CONSOLE_TEXT}Fatal: {e}{RESET_CONSOLE_TEXT}")
+        logger.critical(f"{RED_CONSOLE_TEXT}{e}{RESET_CONSOLE_TEXT}")
         sys.exit(1)
 
     current_dir = os.getcwd()
-    print(f"Current working directory (using os.getcwd()): {current_dir}")
+    logger.debug(f"Current working directory (using os.getcwd()): {current_dir}")
 
     # mandatory
     try:
@@ -192,19 +199,19 @@ def loadconfig(configfile):
         tableRootDir = vpinfeIniConfig.config['Settings']["tablerootdir"]
         vpxBinPath = vpinfeIniConfig.config['Settings']["vpxbinpath"]
     except KeyError as e:
-        print(f"{RED_CONSOLE_TEXT}Fatal: Missing mandatory '{e.args[0]}' entry in vpinfe.{RESET_CONSOLE_TEXT}")
+        logger.critical(f"{RED_CONSOLE_TEXT}Missing mandatory '{e.args[0]}' entry in vpinfe.{RESET_CONSOLE_TEXT}")
         sys.exit(1)
 
     if not os.path.exists(vpxBinPath):
-        print(f"{RED_CONSOLE_TEXT}Fatal: VPX binary not found.  Check your `vpxBinPath` value in vpinfe has correct path.{RESET_CONSOLE_TEXT}")
+        logger.critical(f"{RED_CONSOLE_TEXT}VPX binary not found.  Check your `vpxBinPath` value in vpinfe has correct path.{RESET_CONSOLE_TEXT}")
         sys.exit()
     
     if not os.path.exists(tableRootDir):
-        print(f"{RED_CONSOLE_TEXT}Fatal: Table root dir not found.  Check your 'tableroot' value in vpinfe.ini has correct path.{RESET_CONSOLE_TEXT}")
+        logger.critical(f"{RED_CONSOLE_TEXT}Table root dir not found.  Check your 'tableroot' value in vpinfe.ini has correct path.{RESET_CONSOLE_TEXT}")
         sys.exit()
 
     if  ScreenNames.BG == None and ScreenNames.DMD == None and ScreenNames.TABLE == None:
-            print(f"{RED_CONSOLE_TEXT}Fatal: You must have at least one display set in your vpinfe.ini.{RESET_CONSOLE_TEXT}")
+            logger.critical(f"{RED_CONSOLE_TEXT}You must have at least one display set in your vpinfe.ini.{RESET_CONSOLE_TEXT}")
             sys.exit(1)
 
 def buildMetaData():
@@ -216,17 +223,16 @@ def buildMetaData():
             meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini") # check if we want it updated!!! TODO
             
             # vpsdb
-            print(f"Checking VPSdb for {table.tableDirName}")
+            logger.info(f"Checking VPSdb for {table.tableDirName}")
             vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
             try:
                 vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"])
             except TypeError as e:
-                print(f"{RED_CONSOLE_TEXT}ERROR: Not found in VPS{RESET_CONSOLE_TEXT}")
-            #print(vpsData)
+                logger.error(f"{RED_CONSOLE_TEXT}Not found in VPS{RESET_CONSOLE_TEXT}")
             
             # vpx file info
-            print(f"Parsing VPX file for metadata")
-            print(f"  Extracting {table.fullPathVPXfile} for metadata.")
+            logger.info(f"Parsing VPX file for metadata")
+            logger.info(f"Extracting {table.fullPathVPXfile} for metadata.")
             vpxData = vpxparser.singleFileExtract(table.fullPathVPXfile)
             
             # make the config.ini
@@ -258,7 +264,7 @@ def parseArgs():
         # Get all available screens
         monitors = get_monitors()
         for i in range(len(monitors)):
-            print(i,":"+str(monitors[i]))
+            logger.info(f"{i}:{str(monitors[i])}")
         sys.exit()
         
     if args.configfile:
@@ -345,7 +351,7 @@ def gameControllerInputThread():
                     axis_id = event.jaxis.axis
 
                     axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
-                    #print(f"Axis {axis_id}: {axis_value}")
+                    #logger.debug(f"Axis {axis_id}: {axis_value}")
                 elif event.type == sdl2.SDL_JOYBUTTONDOWN:
                     button_id = event.jbutton.button
                     if button_id == int(vpinfeIniConfig.config['Settings']['joyright']):
@@ -359,53 +365,54 @@ def gameControllerInputThread():
                         launchTable()
                         break
                     elif button_id == int(vpinfeIniConfig.config['Settings']['joyexit']):
-                        print("exit?")
+                        logger.debug("Exit requested")
                         exitGamepad = True
                     elif button_id == int(vpinfeIniConfig.config['Settings']['joymenu']):
-                        print("Not implemented yet...")
+                        logger.debug("Not implemented yet...")
                     elif button_id == int(vpinfeIniConfig.config['Settings']['joyback']):
-                        print("Not implemented yet...")
-                    print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
+                        logger.debug("Not implemented yet...")
+                    logger.debug(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
                 elif event.type == sdl2.SDL_JOYBUTTONUP:
                     button_id = event.jbutton.button
-                    #print(f"Button {button_id} Up")
+                    #logger.debug(f"Button {button_id} Up")
                     
     tkmsg = TkMsg(MsgType=TKMsgType.SHUTDOWN, func= shutDownMsg, msg = "")
     tkMsgQueue.put(tkmsg)
     Screen.rootWindow.event_generate("<<vpinfe_tk>>")
 
-        
-# Main Application
-print("VPinFE "+version+" by Superhac (superhac007@gmail.com)")
-parseArgs()
-loadconfig(configfile)
-sdl2.ext.init()
-openJoysticks()
-tables = Tables(tableRootDir)
-getScreens()
+if __name__ == "__main__":
+    logger = init_logger("VPinFE")
+    logger.info(f"VPinFE {version} by Superhac (superhac007@gmail.com)")
+    parseArgs()
+    loadconfig(configfile)
+    update_logger_config(vpinfeIniConfig.config['Logger'])
+    sdl2.ext.init()
+    openJoysticks()
+    tables = Tables(tableRootDir)
+    getScreens()
 
-# Ensure windows have updated dimensions
-screens[0].window.update_idletasks()
+    # Ensure windows have updated dimensions
+    screens[0].window.update_idletasks()
 
-# load logo and build cache
-Screen.rootWindow.after(500, buildImageCache)
+    # load logo and build cache
+    Screen.rootWindow.after(500, buildImageCache)
 
-# load first screen after 5 secs letting the cache build
-Screen.rootWindow.after(5000,setGameDisplays, tables.getTable(tableIndex))
+    # load first screen after 5 secs letting the cache build
+    Screen.rootWindow.after(5000,setGameDisplays, tables.getTable(tableIndex))
 
-# key trapping
-Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
+    # key trapping
+    Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
 
-# our thread update callback on event
-Screen.rootWindow.bind("<<vpinfe_tk>>", processTkMsgEvent)
+    # our thread update callback on event
+    Screen.rootWindow.bind("<<vpinfe_tk>>", processTkMsgEvent)
 
-# SDL gamepad input loop
-gamepadThread = threading.Thread(target=gameControllerInputThread)
-gamepadThread.start()
+    # SDL gamepad input loop
+    gamepadThread = threading.Thread(target=gameControllerInputThread)
+    gamepadThread.start()
 
-# tk blocking loop
-Screen.rootWindow.mainloop()
-    
-# shutdown
-sdl2.SDL_Quit()
-#Screen.rootWindow.destroy()
+    # tk blocking loop
+    Screen.rootWindow.mainloop()
+
+    # shutdown
+    sdl2.SDL_Quit()
+    #Screen.rootWindow.destroy()

@@ -7,6 +7,7 @@ class Config:
 	def __init__(self, configfilepath):
      
 		self.defaults = {
+			'Logger': { 'level': 'info', 'console': '1', 'file': ''},
 			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '', "hudscreenid": '',  'tablerotangle': '0', 'hudrotangle': '0', 'backgroundcolor': '#000000'},
 			'Settings': {
 				'vpxbinpath': '', 
