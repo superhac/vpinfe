@@ -11,7 +11,7 @@ import csv
 import pathlib
 import sys
 
-from logger import get_logger, init_logger
+from logger import get_logger, init_logger, update_logger_config
 
 class VPXParser:
 
@@ -262,6 +262,14 @@ class VPXParser:
 
 if __name__ == "__main__":
 	logger = init_logger("VPXParser")
+
+	PARSER_CONFIG = {
+		"level": "DEBUG",
+		"file": None,
+		"console": True,
+	}
+	update_logger_config(PARSER_CONFIG)
+
 	parservpx = VPXParser()
 
 	parser = argparse.ArgumentParser(description='Parse a VPX file.')
