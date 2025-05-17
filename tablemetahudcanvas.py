@@ -5,11 +5,17 @@ import sys
 import ast
 
 from tables import Tables, TableInfo
-
+from logger import get_logger
 
 class tableMetaHUDCanvas(tk.Canvas):
+    logger = None
+
     def __init__(self, master=None, width=None, height=None, tableInfo=None, angle=0, **kwargs):
         super().__init__(master, width=width, height=height, highlightthickness=0, **kwargs)
+
+        global logger
+        logger = get_logger()
+
         self.width  = width
         self.height = height
         self.angle = angle
@@ -28,8 +34,8 @@ class tableMetaHUDCanvas(tk.Canvas):
             if scaleFactor < 1:
                 scaleFactor = scaleFactor+1
                 
-        print("scale factor: ", scaleFactor)
-        print(self.angle)
+        logger.debug(f"HUD canvas scale factor: {scaleFactor}")
+        logger.debug(f"HUD canvas rotation: {self.angle}")
         
         # scale the wheel icon to fit the height of the hud
         if self.angle !=0:
@@ -41,13 +47,15 @@ class tableMetaHUDCanvas(tk.Canvas):
             
         vpsTextIndentPer = .20
         
-        print("metacanvas: ", self.width, self.height)
+        logger.debug(f"HUD metacanvas: {self.width}x{self.height}")
         
         try:
-            self.vpsImagePath = sys._MEIPASS+"/assets/vps.png"
+            if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                self.vpsImagePath = sys._MEIPASS+"/assets/vps.png"
+            else:
+                self.vpsImagePath = "assets/vps.png"
         except Exception as e:
-            print(e)
-            self.vpsImagePath = "/home/superhac/working/vpinfe/assets/vps.png"
+            Logger.error(e)
         
         # You must do this before anything.  This will wipe out any imgs on the canvas
         self.create_rusty_gradient(self.width, self.height)
@@ -55,29 +63,26 @@ class tableMetaHUDCanvas(tk.Canvas):
         master.update_idletasks()
         
         if tableInfo.WheelImagePath:
-            print("Found Wheel", self.tableInfo.WheelImagePath)
+            logger.info(f"Found Wheel {self.tableInfo.WheelImagePath}")
             img = Image.open(self.tableInfo.WheelImagePath)
             img = img.resize((self.wheelWidth, self.wheelHeight), Image.LANCZOS)  # Resize for display
             if self.angle != 0:
                 img = self.imageRotate(self.angle, img)
                 self.wheel = ImageTk.PhotoImage(img)
                 self.create_image(self.width/2, self.height- ( int(self.wheelHeight/2) +40), image=self.wheel, anchor=tk.CENTER)
-                print("img pos", int(self.width/2), self.height- (int(self.wheelHeight/2)+40))
+                logger.debug(f"img rotated pos: {int(self.width/2)}, {self.height- (int(self.wheelHeight/2)+40)}")
             else:
                 self.wheel = ImageTk.PhotoImage(img)
                 self.create_image((self.wheelHeight/2)+40, self.height / 2, image=self.wheel, anchor=tk.CENTER)
-                print( int(self.wheelHeight/2)+40, int(self.height / 2))
+                logger.debug(f"img pos: {int(self.wheelHeight/2)+40}, {int(self.height / 2)}")
             
         # vps image
         #img2 = Image.open(self.vpsImagePath)
         #img2 = img2.resize((90, 90), Image.LANCZOS)  # Resize for display
         #self.vpsImage = ImageTk.PhotoImage(img2)
         #self.create_image(vpsTextIndentPer*self.width - 50, self.height / 2 +25, image=self.vpsImage, anchor=tk.CENTER)
-        
        
-        #print("inside edge: ",  insideEdgeOfimage )
-        
-        
+        #logger.debug(f"inside edge: {insideEdgeOfimage}")
         
         if self.angle != 0:
             insideEdgeOfimage = self.height - ((self.wheelHeight)+ (40*scaleFactor))
@@ -89,23 +94,7 @@ class tableMetaHUDCanvas(tk.Canvas):
                             "Theme: "+', '.join(ast.literal_eval(tableInfo.metaConfig['VPSdb']['theme']))+'\n'+
                             f"Author(s):  {tableInfo.metaConfig['VPXFile']['author']}",
                             font=("Arial", int(11 * scaleFactor)), angle=self.angle, anchor=tk.NW)
-            print("inside edge: ",  insideEdgeOfimage, "width= ", self.wheelHeight )
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+            logger.debug(f"inside edge: {insideEdgeOfimage}, width= {self.wheelHeight}")
         else:
             insideEdgeOfimage = self.wheelHeight + (50 * scaleFactor)
             self.create_text(self.width/2, 30* scaleFactor, text=tableInfo.metaConfig['VPSdb']['name'], font=("Arial", int(26 * scaleFactor), 'bold'), angle=self.angle, anchor=tk.CENTER)
@@ -116,13 +105,14 @@ class tableMetaHUDCanvas(tk.Canvas):
                             ', '.join(ast.literal_eval(tableInfo.metaConfig['VPSdb']['theme']))+'\n'+
                             f"Author(s):  {tableInfo.metaConfig['VPXFile']['author']}",
                             font=("Arial", int(15 * scaleFactor)), angle=self.angle, anchor=tk.NW)
-            print("inside edge: ",  insideEdgeOfimage, "width= ", self.wheelHeight )
+            logger.debug(f"inside edge: {insideEdgeOfimage}, width= {self.wheelHeight}")
         #self.pack()  # You can choose how to pack or grid the canvas
     
     def imageRotate(self,degrees,image):
-        print("img angle roatation")
-        if image != None:
-            return image.rotate(degrees, expand=True)
+        if image == None or degrees == 0:
+            return image
+        logger.debug(f"Rotating image by {degrees} degrees")
+        return image.rotate(degrees, expand=True)
     
     def create_gradient(self, width, height):
         """Creates a radial gradient matching the uploaded VPS logo background."""

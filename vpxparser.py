@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+
+import argparse
 import olefile
 import json
 import struct
@@ -54,7 +57,7 @@ class VPXParser:
 		global logger
 		logger = get_logger()
 
-		self.fieldnames = [key for key in self.vpxPaths] + [key for key in self.vpxPathsBinary]  + [key for key in self.derivedPaths]
+		self.fieldnames = [key for key in self.vpxPaths] + [key for key in self.vpxPathsBinary] + [key for key in self.derivedPaths]
 		self.fieldnames.remove("gameData") # we don't want these in CSV
 		self.fieldnames.remove("tableRules")
 		self.fieldnames.remove("tableDescription")
@@ -117,7 +120,8 @@ class VPXParser:
 			files.append(file)
 		return files
 
-	def extractFile(self, file, vpxFileValues):
+	def extractFile(self, file):
+		vpxFileValues = {}
 		vpxFileValues['filename'] = os.path.basename(file)
 		vpxFileValues['fileHash'] = self.sha256sum(file)
 		ole = olefile.OleFileIO(file)
@@ -133,9 +137,10 @@ class VPXParser:
 		self.extractDetectFastflips(vpxFileValues)
 		self.extractDetectFlex(vpxFileValues)
 		ole.close()
+		return vpxFileValues
 
 	def extractRomName(self, vpxFileValues):
-		m = re.search('(?i).*c?gamename\s*=\s*"([^"]+)"', vpxFileValues['gameData'])
+		m = re.search(r'(?i).*c?gamename\s*=\s*"([^"]+)"', vpxFileValues['gameData'])
 		try:
 			vpxFileValues['rom'] = m.group(1)
 		except AttributeError:
@@ -194,12 +199,14 @@ class VPXParser:
 			vpxFileValues['detectFlex'] = "false"
 
 	def singleFileExtract(self, vpxFile):
-		vpxFileValues = {}
-		if olefile.isOleFile(vpxFile):
-			self.extractFile(vpxFile, vpxFileValues)
-			#printFileValues(vpxFileValues)
-		else:
-			sys.exit('Not an OLE file')
+		if not os.path.exists(vpxFile):
+			logger.error(f"File not found: {vpxFile}")
+			return None
+		if not olefile.isOleFile(vpxFile):
+			logger.error(f"Not an OLE file: {vpxFile}")
+			return None
+		vpxFileValues = self.extractFile(vpxFile)
+		#self.printFileValues(vpxFileValues)
 		return vpxFileValues
 
 	def bulkFileExtract(self, vpxFileDir, writer):
@@ -255,26 +262,38 @@ class VPXParser:
 
 if __name__ == "__main__":
 	logger = init_logger("VPXParser")
+	parservpx = VPXParser()
 
-	vpxFile = '/home/superhac/ROMs/vpinball/Evil Fight (Playmatic 1980).vpx'
-	vpxFileDir = '/home/superhac/ROMs/vpinball'
-	#vpxFileDir = '/home/superhac/vhash/myshare/'
+	parser = argparse.ArgumentParser(description='Parse a VPX file.')
+	parser.add_argument('--vpxpath', help='Path to the VPX file', default=None)
+	parser.add_argument('--vpxdir', help='Path to the directory with all the tables', default=None)
+	args = parser.parse_args()
+
+	if args.vpxpath == None:
+		vpxFile = '/home/superhac/ROMs/vpinball/Evil Fight (Playmatic 1980).vpx'
+	else:
+		vpxFile = args.vpxpath
+
+	if args.vpxdir == None:
+		vpxFileDir = '/home/superhac/ROMs/vpinball'
+	else:
+		vpxFileDir = args.vpxdir
+
 	csvOutFile = 'vpxTableDB.csv'
 	csvInFile = 'vpxTableDB.csv'
 
-	#tables = loadCSV(csvInFile)
-	#logger.debug("Total Tables in DB: ", len(tables))
-	#vpxFileValues = singleFileExtract(vpxFile)
-	#table =findFileSHAMatch(tables, vpxFileValues)
-	#table =findCodeSHAMatch(tables, vpxFileValues)
+	#tables = parservpx.loadCSV(csvInFile)
+	#logger.debug(f"Total Tables in DB: {len(tables)}")
+	#vpxFileValues = parservpx.singleFileExtract(vpxFile)
+	#table = parservpx.findFileSHAMatch(tables, vpxFileValues)
+	#table = parservpx.findCodeSHAMatch(tables, vpxFileValues)
 	#logger.debug(table)
 
-
-
 	# Brand new master DB creation
-	#createDBFromDir()
+	#parservpx.createDBFromDir()
 
 	# testing stuff
-	#bulkFileExtract(vpxFileDir)
-	tableVals = singleFileExtract(vpxFile)
-	printFileValues(tableVals)
+	#parservpx.bulkFileExtract(vpxFileDir)
+	tableVals = parservpx.singleFileExtract(vpxFile)
+	if tableVals != None:
+		parservpx.printFileValues(tableVals)
