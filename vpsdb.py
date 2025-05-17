@@ -11,13 +11,16 @@ RESET_CONSOLE_TEXT = '\033[0m'
 
 class VPSdb:
   logger = None
-  
+  rootTableDir = None
+  data = None
+
   vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
   vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
   vpsUrlMediaBackground = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/1k/bg.png"
   vpsUrlMediaDMD = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/1k/dmd.png"
   vpsUrlMediaWheel = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/wheel.png"
   vpsUrlMediaTable = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/4k/table.png"
+
 
   def __init__(self, rootTableDir, vpinfeIniConfig):
     global logger
@@ -39,15 +42,15 @@ class VPSdb:
       vpinfeIniConfig.save()
       
       self.rootTableDir = rootTableDir
-      try:
-        with open('vpsdb.json', 'r') as file:
-          self.data = json.load(file)
-          logger.info(f"Total VPSdb entries: {len(self.data)}")
-
-      except FileNotFoundError:
+      if self.fileExists('vpsdb.json'):
+        try:
+            with open('vpsdb.json', 'r') as file:
+              self.data = json.load(file)
+              logger.info(f"Total VPSdb entries: {len(self.data)}")
+        except json.JSONDecodeError:
+          logger.error(f"Invalid JSON format in vpsdb.json.")
+      else:
         logger.error(f"JSON file vpsdb.json not found.")
-      except json.JSONDecodeError:
-        logger.error(f"Invalid JSON format in vpsdb.json.")
     
   def lookupName(self, name, manufacturer, year):
     for table in self.data:
