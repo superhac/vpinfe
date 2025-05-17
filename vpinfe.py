@@ -44,7 +44,7 @@ logger = None
 parservpx = None
 screens = []
 ScreenNames = ScreenNames()
-exitGamepad = False
+shutdown_event = threading.Event()
 background = False
 tableRootDir = None
 vpxBinPath = None
@@ -55,9 +55,12 @@ tkMsgQueue = Queue()
 RED_CONSOLE_TEXT = '\033[31m'
 RESET_CONSOLE_TEXT = '\033[0m'
 
+def setShutdownEvent():
+    if not shutdown_event.is_set():
+        shutdown_event.set()
+
 def key_pressed(event):
     global tableIndex
-    global exitGamepad
     keysym = event.keysym # Get the symbolic name of the key
     #key = event.char # Get the character representation of the key
     #keycode = event.keycode # Get the numeric keycode
@@ -68,7 +71,7 @@ def key_pressed(event):
     if keysym == "Shift_L":
         screenMoveLeft()
     if keysym == "Escape":
-        exitGamepad = True # exit the gamepad loop.  This also kills the sdl joy input loop thread.
+        setShutdownEvent()
         #Screen.rootWindow.destroy()
 
     # Launch Game
@@ -313,26 +316,33 @@ def buildImageCache():
     thread.start()
   
 def buildImageCacheThread():
-    tkmsg = TkMsg(MsgType=TKMsgType.CACHE_BUILD_COMPLETED, func= disableStatusMsg, msg = "")
+    tkmsg = TkMsg(MsgType=TKMsgType.CACHE_BUILD_COMPLETED, func=disableStatusMsg, msg="")
     tkMsgQueue.put(tkmsg)
-    
+
     for i in range(Screen.maxImageCacheSize):
-        if i == tables.getTableCount(): # breakout if theres less tables then cache max
+        if i == tables.getTableCount():
+            break
+        if shutdown_event.is_set():
             break
         if ScreenNames.BG is not None:
             screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
+        if shutdown_event.is_set():
+            break
         if ScreenNames.DMD is not None:
             screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
+        if shutdown_event.is_set():
+            break
         if ScreenNames.TABLE is not None:
             screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
-    
+
     Screen.rootWindow.event_generate("<<vpinfe_tk>>")
 
+    logger.debug("Exiting buildImageCacheThread")
+
 def gameControllerInputThread():
-    global exitGamepad
     global background
     # gamepad loop
-    while not exitGamepad:
+    while not shutdown_event.is_set():
         #time.sleep(0.001)
         events = sdl2.ext.get_events()
      
@@ -346,7 +356,7 @@ def gameControllerInputThread():
         for event in events:
             if not background: # not coming back from vpx
                 if event.type == sdl2.SDL_QUIT:
-                    exitGamepad = True
+                    setShutdownEvent()
                     break
                 elif event.type == sdl2.SDL_JOYAXISMOTION:
                     axis_id = event.jaxis.axis
@@ -367,7 +377,7 @@ def gameControllerInputThread():
                         break
                     elif button_id == int(vpinfeIniConfig.config['Settings']['joyexit']):
                         logger.debug("Exit requested")
-                        exitGamepad = True
+                        setShutdownEvent()
                     elif button_id == int(vpinfeIniConfig.config['Settings']['joymenu']):
                         logger.debug("Not implemented yet...")
                     elif button_id == int(vpinfeIniConfig.config['Settings']['joyback']):
@@ -376,8 +386,9 @@ def gameControllerInputThread():
                 elif event.type == sdl2.SDL_JOYBUTTONUP:
                     button_id = event.jbutton.button
                     #logger.debug(f"Button {button_id} Up")
-                    
-    tkmsg = TkMsg(MsgType=TKMsgType.SHUTDOWN, func= shutDownMsg, msg = "")
+
+    logger.debug("Exiting gameControllerInputThread and requesting shutdown")
+    tkmsg = TkMsg(MsgType=TKMsgType.SHUTDOWN, func=shutDownMsg, msg = "")
     tkMsgQueue.put(tkmsg)
     Screen.rootWindow.event_generate("<<vpinfe_tk>>")
 

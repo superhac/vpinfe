@@ -84,6 +84,8 @@ class Screen:
         img = self.imageRotate(img, self.rotationAngle)
 
         width, height = img.size
+        if self.window is None:
+            return;
         if width != self.window.winfo_width() and height != self.window.winfo_height():
             img = self.resizeImageToScreen(img)
         
