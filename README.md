@@ -50,10 +50,10 @@ Windows: VPX needs to be updated to support the individual table folder structur
 
 ## 🎮 Controls
 Keyboard: 
-- SHIFT_LEFT = Table shift left
-- SHIFT_RIGHT = Table shift right
-- "a" key - Lanuch the table
-- ESCAPE = Exit
+- SHIFT_LEFT    = Table shift left
+- SHIFT_RIGHT   = Table shift right
+- ENTER or "a"  = Launch the table
+- ESCAPE or "q" = Exit
 
 Joystick
 These are now controlled via the `vpinfe.ini` file.  These are not set by default.  To figure out your values use `jstest`.

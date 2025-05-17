@@ -68,16 +68,13 @@ def key_pressed(event):
 
     if keysym == "Shift_R":
         screenMoveRight()
-    if keysym == "Shift_L":
+    elif keysym == "Shift_L":
         screenMoveLeft()
-    if keysym == "Escape":
+    elif keysym == "q" or keysymn == "Escape":
         setShutdownEvent()
-        #Screen.rootWindow.destroy()
-
-    # Launch Game
-    if keysym == "a":
-        for s in screens: 
-            #s.window.withdraw()
+    elif keysym == "a" or keysym == "Return":
+       # Launch Game
+        for s in screens:
             s.window.iconify()
         Screen.rootWindow.update_idletasks()
         Screen.rootWindow.after(500, launchTable )
