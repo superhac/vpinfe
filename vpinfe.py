@@ -60,7 +60,6 @@ def setShutdownEvent():
         shutdown_event.set()
 
 def key_pressed(event):
-    global tableIndex
     keysym = event.keysym # Get the symbolic name of the key
     #key = event.char # Get the character representation of the key
     #keycode = event.keycode # Get the numeric keycode
@@ -70,7 +69,7 @@ def key_pressed(event):
         screenMoveRight()
     elif keysym == "Shift_L":
         screenMoveLeft()
-    elif keysym == "q" or keysymn == "Escape":
+    elif keysym == "q" or keysym == "Escape":
         setShutdownEvent()
     elif keysym == "a" or keysym == "Return":
        # Launch Game
