@@ -14,6 +14,7 @@ class Config:
 		self.defaults = {
 			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '', "hudscreenid": '',  'tablerotangle': '0', 'hudrotangle': '0', 'backgroundcolor': '#000000'},
 			'Logger': { 'level': 'info', 'console': '1', 'file': ''},
+			'Media': {"tabletype": '', 'tableresolution': '4k'},
 			'Settings': {
 				'vpxbinpath': '', 
 				'tablerootdir': '',

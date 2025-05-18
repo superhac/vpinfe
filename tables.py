@@ -3,6 +3,8 @@ from pathlib import Path
 import metaconfig
 from logger import get_logger
 
+import sys
+
 class TableInfo:
     tableDirName = None
     fullPathTable = None
@@ -26,12 +28,21 @@ class Tables:
     tablesRootFilePath = None
     RED_CONSOLE_TEXT = '\033[31m'
     RESET_CONSOLE_TEXT = '\033[0m'
+    _iniConfig = None
 
-    def __init__(self, tablesRootFilePath):
+    def __init__(self, tablesRootFilePath, iniConfig):
         global logger
         logger = get_logger()
+
+        self._iniConfig = iniConfig
+        logger.debug (f"Creating tables with {self._iniConfig['Media']['tableresolution']} {self._iniConfig['Media']['tabletype']}")
+        self.setTablesType()
         Tables.tablesRootFilePath = tablesRootFilePath
         self.loadTables()
+
+    def setTablesType(self):
+        self.tabletype = self._iniConfig['Media']["tabletype"]
+        self.tablename = "table" if self.tabletype is '' else self.tabletype
 
     def loadTables(self):
         count = 0
@@ -66,6 +77,7 @@ class Tables:
         logger.info(f"Found {count} tables (.vpx).")
 
     def findImageEndingWith(self, basePath, ending):
+        logger.debug(f"Looking for files ending in {ending}.png in {basePath}")
         files = list(Path(basePath).rglob("*" + ending + ".*"))
         if not files:
             return None
@@ -75,7 +87,7 @@ class Tables:
         # set bg image
         bg = self.findImageEndingWith(tableInfo.fullPathTable, "bg")
         dmd = self.findImageEndingWith(tableInfo.fullPathTable, "dmd")
-        table = self.findImageEndingWith(tableInfo.fullPathTable, "table")
+        table = self.findImageEndingWith(tableInfo.fullPathTable, self.tablename)
         wheel = self.findImageEndingWith(tableInfo.fullPathTable, "wheel")
 
         if bg and os.path.exists(bg):
@@ -88,6 +100,7 @@ class Tables:
             logger.warning(f"{Tables.RED_CONSOLE_TEXT} dmd image '{dmd}' not found for table {tableInfo.fullPathVPXfile}{Tables.RESET_CONSOLE_TEXT}")
         if table and os.path.exists(table):
             tableInfo.TableImagePath = table
+            logger.info(f"table image '{table}' found for table {tableInfo.fullPathVPXfile}")
         else:
             logger.warning(f"{Tables.RED_CONSOLE_TEXT} table image ''{table}' not found for table {tableInfo.fullPathVPXfile}{Tables.RESET_CONSOLE_TEXT}")
         if wheel and os.path.exists(wheel):

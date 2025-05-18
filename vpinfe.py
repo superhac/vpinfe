@@ -315,7 +315,7 @@ def loadconfig(configfile):
 
 def buildMetaData():
         loadconfig(configfile)
-        Tables(tableRootDir)
+        Tables(tableRootDir, vpinfeIniConfig.config)
         vps = VPSdb(Tables.tablesRootFilePath, vpinfeIniConfig)
         for table in Tables.tables:
             finalini = {}
@@ -343,7 +343,7 @@ def buildMetaData():
 
 def vpxPatches():
     loadconfig(configfile)
-    Tables(tableRootDir)
+    Tables(tableRootDir, vpinfeIniConfig.config)
     standaloneScripts.StandaloneScripts(Tables.tables)
 
 def parseArgs():
@@ -461,19 +461,16 @@ def buildImageCacheThread():
         if shutdown_event.is_set():
             break
         buildImageCacheWait()
-        buildImageCacheSleep(0.33)
         if ScreenNames.BG is not None:
             screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
         if shutdown_event.is_set():
             break
         buildImageCacheWait()
-        buildImageCacheSleep(0.33)
         if ScreenNames.DMD is not None:
             screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
         if shutdown_event.is_set():
             break
         buildImageCacheWait()
-        buildImageCacheSleep(0.33)
         if ScreenNames.TABLE is not None:
             screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
 
@@ -543,7 +540,8 @@ if __name__ == "__main__":
     update_logger_config(vpinfeIniConfig.config['Logger'])
     sdl2.ext.init()
     openJoysticks()
-    tables = Tables(tableRootDir)
+    logger.info (f"Using {vpinfeIniConfig.config['Media']['tableresolution']} {vpinfeIniConfig.config['Media']['tabletype']}")
+    tables = Tables(tableRootDir, vpinfeIniConfig.config)
     getScreens()
 
     # Ensure windows have updated dimensions

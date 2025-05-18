@@ -136,6 +136,10 @@ Number of joysticks connected: 1
 Assign your displays and paths like the example in your **vpinfe.ini**. Put this is the same dir as the vpinfe executable unless your using the `--configfile` argument.
 
 You can also change the `Logger` settings it might help figuring out a runtime issue. Valid levels are `debug`, `info`, `warning`, `error` and `critical`. You can turn the console logging on `1` or off `0` or if the output is too long or the console isn't your thing redirect the ouytput to a file by setting its path. Attaching a logger file when filling a bug report could also help the developers.
+
+In the `Media` section you can specify the table type you want to use. Leave it empty for CAB style table, or set it to `fss` for desktop or TV setup so the table fills the screen nicely in landscape mode as well.
+You can select a table resolution of either `1k` or `4k` depending on your screen or storage space you want to use.
+
 ```
 [Displays]
 bgscreenid = 0
@@ -150,6 +154,10 @@ backgroundcolor = #000000
 level = info
 console = 1
 file = 
+
+[Media]
+tabletype = 
+tableresolution = 4k
 
 [Settings]
 vpxbinpath = /home/superhac/working/remove/vpinball/build/VPinballX_BGFX

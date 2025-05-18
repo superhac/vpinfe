@@ -13,13 +13,14 @@ class VPSdb:
   logger = None
   rootTableDir = None
   data = None
+  _iniConfig = None
 
   vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
   vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
   vpsUrlMediaBackground = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/1k/bg.png"
   vpsUrlMediaDMD = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/1k/dmd.png"
   vpsUrlMediaWheel = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/wheel.png"
-  vpsUrlMediaTable = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/4k/table.png"
+  vpsUrlMediaTable = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/{tableResolution}/{tableType}.png"
 
 
   def __init__(self, rootTableDir, vpinfeIniConfig):
@@ -27,6 +28,7 @@ class VPSdb:
     logger = get_logger()
 
     logger.info("Initializing VPSdb")
+    self._iniConfig = vpinfeIniConfig.config
     version = self.downloadLastUpdate()
     if version != None:
       logger.info(f"Current VPSdb version @ VPSdb: {version}")
@@ -51,7 +53,23 @@ class VPSdb:
           logger.error(f"Invalid JSON format in vpsdb.json.")
       else:
         logger.error(f"JSON file vpsdb.json not found.")
+      self.setTablesPath()
     
+  def setTablesPath(self):
+    self.tabletype = self._iniConfig['Media']["tabletype"]
+    self.tableresolution = self._iniConfig['Media']["tableresolution"]
+    if self.tableresolution is '':
+      self.pathresolution = "4k"
+    else:
+      self.pathresolution = "4k" if "4k" in self.tableresolution else "1k"
+    self.pathstyle = "" if self.tabletype is '' else self.tabletype
+    if self.tabletype is '' or self.tabletype != "fss":
+      self.nameTableFile = "table"
+    else:
+      self.nameTableFile = "fss"
+      self.pathresolution = f"fss/{self.pathresolution}"
+    logger.debug(f"{self.pathresolution}/{self.nameTableFile}")
+
   def lookupName(self, name, manufacturer, year):
     for table in self.data:
       try:
@@ -108,7 +126,7 @@ class VPSdb:
       logger.error(f"Failed to retrieve content lastUpdate.json from VPSdb. Status code: {response.status_code}")
       return None
 
-  def downloadMediaFile(self, url, filename):
+  def downloadMediaFile(self, tableId, url, filename):
     logger.debug(f"Downloading {filename} from {url}")
     response = requests.get(url)
     if response.status_code == 200:
@@ -116,7 +134,7 @@ class VPSdb:
         file.write(response.content)
       logger.info(f"  Successfully downloaded {filename} from VPinMedia")
     else:
-      logger.error(f"Failed to download {filename} from VPinMedia. Status code: {response.status_code}")
+      logger.error(f"Failed to download {filename} from VPinMedia with id {tableId}. Status code: {response.status_code}")
 
   def fileExists(self, path):
     if path is None:
@@ -124,19 +142,19 @@ class VPSdb:
     return os.path.exists(path)
 
   def createUrl(self, base, tableId):
-    return base.replace("{tableId}", tableId)
+    return base.replace("{tableId}", tableId).replace("{tableResolution}", self.pathresolution).replace("{tableType}", self.nameTableFile)
 
   def downloadMedia(self, tableId, baseurl, filename, defaultFilename):
     if self.fileExists(filename):
       return
     url = self.createUrl(baseurl, tableId)
-    self.downloadMediaFile(url, defaultFilename)
+    self.downloadMediaFile(tableId, url, defaultFilename)
 
   def downloadMediaForTable(self, table, id):
     self.downloadMedia(id, VPSdb.vpsUrlMediaBackground, table.BGImagePath, table.fullPathTable + "/bg.png")
     self.downloadMedia(id, VPSdb.vpsUrlMediaDMD, table.DMDImagePath, table.fullPathTable + "/dmd.png")
     self.downloadMedia(id, VPSdb.vpsUrlMediaWheel, table.WheelImagePath, table.fullPathTable + "/wheel.png")
-    self.downloadMedia(id, VPSdb.vpsUrlMediaTable, table.TableImagePath, table.fullPathTable + "/table.png")
+    self.downloadMedia(id, VPSdb.vpsUrlMediaTable, table.TableImagePath, table.fullPathTable + "/" + self.nameTableFile + ".png")
 
 if __name__ == "__main__":
   logger = init_logger("VPSDB")
