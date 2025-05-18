@@ -12,8 +12,8 @@ class Config:
 		logger = get_logger()
 
 		self.defaults = {
-			'Logger': { 'level': 'info', 'console': '1', 'file': ''},
 			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '', "hudscreenid": '',  'tablerotangle': '0', 'hudrotangle': '0', 'backgroundcolor': '#000000'},
+			'Logger': { 'level': 'info', 'console': '1', 'file': ''},
 			'Settings': {
 				'vpxbinpath': '', 
 				'tablerootdir': '',
