@@ -126,14 +126,9 @@ def launchTable():
     Screen.rootWindow.update_idletasks()
     Screen.rootWindow.after(250, buildImageCacheResume)
 
-#def launchVPX(table):
-#    logger.info(f"Launching: {table}")
-#    null = open(os.devnull, 'w')
-#    subprocess.call([vpxBinPath, '-play', table], bufsize=4096, stdout=null, stderr=null)
 def launchVPX(table):
     logger.info(f"Launching: {table}")
 
-    # Function to iconify all windows
     def iconify_all_windows(reason):
         logger.debug(f"Iconifying windows due to {reason}")
         for s in screens:
@@ -186,7 +181,7 @@ def launchVPX(table):
             logger.error(f"Error monitoring process: {e}")
         finally:
             reason = "process exited"
-            process_exited.set()
+            process_exited.set() # Has to be set first so we don't iconify if we're already exiting
             keyword_or_timeout.set() # In case we exited before the keyword or the timeout happened
             logger.debug(f"Process monitoring complete for {table}")
 
