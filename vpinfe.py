@@ -15,7 +15,7 @@ from multiprocessing import Process
 from queue import Queue
 from tkmessages import TKMsgType, TkMsg
 
-from logger import init_logger,get_logger,update_logger_config
+from logger import init_logger, get_logger, update_logger_config, get_named_logger
 from screennames import ScreenNames
 from imageset import ImageSet
 from screen import Screen
@@ -144,12 +144,16 @@ def launchVPX(table):
     # Thread to read output and look for keyword
     def output_reader():
         global reason
+
+        # Use a different name of the logger while standalone is running
+        vpx_logger = get_named_logger("VPinball")
+
         try:
             for line in iter(proc.stdout.readline, b''):
                 if not line or process_exited.is_set():
                     break
                 decoded = line.decode(errors="ignore").strip()
-                logger.debug(decoded)
+                vpx_logger.debug(decoded)
                 if "Starting render thread" in decoded and not keyword_or_timeout.is_set():
                     reason = "keyword found"
                     keyword_or_timeout.set()

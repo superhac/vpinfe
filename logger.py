@@ -5,6 +5,7 @@ import io
 
 _logger = None
 _logger_name = "AppLogger"
+_named_loggers = {}
 
 def ensure_utf8_stdout():
     if sys.stdout.encoding.lower() != "utf-8":
@@ -74,8 +75,28 @@ def update_logger_config(config):
     _logger = logger
     return _logger
 
-
 def get_logger():
     if _logger is None:
         raise RuntimeError("Logger not initialized. Call init_logger() first.")
     return _logger
+
+def get_named_logger(name):
+    # This allows us to have loggers with different names while reusing everything that was setup but the frontend.
+    if name in _named_loggers:
+        return _named_loggers[name]
+
+    formatter = create_formatter()
+    logger = logging.getLogger(name)
+    logger.setLevel(_logger.level if _logger else logging.INFO)
+    logger.propagate = False
+
+    if _logger:
+        # Copy handler setup from main logger
+        for handler in _logger.handlers:
+            logger.addHandler(handler)
+    else:
+        # Fallback: create a simple console handler
+        logger.addHandler(_create_console_handler(logging.INFO, formatter))
+
+    _named_loggers[name] = logger
+    return logger
