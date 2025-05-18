@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import tkinter as tk
+from tkinter import messagebox
 from screeninfo import get_monitors
 from PIL import Image, ImageTk
 import sys
@@ -270,13 +271,30 @@ def loadconfig(configfile):
     global vpxBinPath
     global vpinfeIniConfig
 
-    if configfile == None:
-        configfile= "vpinfe.ini"
+    def checkAllConfigSections(iniConfig):
+        required_sections = ["Displays", "Logger", "Media", "Settings"]
+        missing_sections = [
+            section for section in required_sections if section not in iniConfig
+        ]
+        if missing_sections:
+            message_start = "The following section is" if len(missing_sections) == 1 else "The following sections are"
+            error_message = (
+                f"{message_start} missing from the INI "
+                f"file '{configfile}': " + ",".join(missing_sections)
+            )
+            logger.critical(f"{RED_CONSOLE_TEXT}{error_message}{RESET_CONSOLE_TEXT}")
+            messagebox.showerror("Configuration Error", error_message)
+            sys.exit(1)
+
+    if configfile is None:
+        configfile = "vpinfe.ini"
     try:
         vpinfeIniConfig = Config(configfile)
     except Exception as e:
         logger.critical(f"{RED_CONSOLE_TEXT}{e}{RESET_CONSOLE_TEXT}")
         sys.exit(1)
+
+    checkAllConfigSections(vpinfeIniConfig.config)
 
     current_dir = os.getcwd()
     logger.debug(f"Current working directory (using os.getcwd()): {current_dir}")
@@ -302,12 +320,12 @@ def loadconfig(configfile):
         sys.exit(1)
 
     if not os.path.exists(vpxBinPath):
-        logger.critical(f"{RED_CONSOLE_TEXT}VPX binary not found.  Check your `vpxBinPath` value in vpinfe has correct path.{RESET_CONSOLE_TEXT}")
-        sys.exit()
+        logger.critical(f"{RED_CONSOLE_TEXT}VPX binary not found. Check your `vpxBinPath` value in vpinfe has correct path.{RESET_CONSOLE_TEXT}")
+        sys.exit(1)
     
     if not os.path.exists(tableRootDir):
-        logger.critical(f"{RED_CONSOLE_TEXT}Table root dir not found.  Check your 'tableroot' value in vpinfe.ini has correct path.{RESET_CONSOLE_TEXT}")
-        sys.exit()
+        logger.critical(f"{RED_CONSOLE_TEXT}Table root dir not found. Check your 'tableroot' value in vpinfe.ini has correct path.{RESET_CONSOLE_TEXT}")
+        sys.exit(1)
 
     if  ScreenNames.BG == None and ScreenNames.DMD == None and ScreenNames.TABLE == None:
             logger.critical(f"{RED_CONSOLE_TEXT}You must have at least one display set in your vpinfe.ini.{RESET_CONSOLE_TEXT}")
@@ -537,10 +555,13 @@ if __name__ == "__main__":
     parservpx = vpxparser.VPXParser()
     parseArgs()
     loadconfig(configfile)
+
+    logger.info(f"Using {vpinfeIniConfig.config['Media']['tableresolution']} {vpinfeIniConfig.config['Media']['tabletype']}")
+
     update_logger_config(vpinfeIniConfig.config['Logger'])
     sdl2.ext.init()
     openJoysticks()
-    logger.info (f"Using {vpinfeIniConfig.config['Media']['tableresolution']} {vpinfeIniConfig.config['Media']['tabletype']}")
+
     tables = Tables(tableRootDir, vpinfeIniConfig.config)
     getScreens()
 
