@@ -25,6 +25,7 @@ import metaconfig
 from vpsdb import VPSdb
 import vpxparser
 import standaloneScripts
+from pauseabletask import PauseableTask
 
 # OS Specific
 if sys.platform.startswith('win'):
@@ -54,9 +55,11 @@ tableIndex = 0
 tkMsgQueue = Queue()
 RED_CONSOLE_TEXT = '\033[31m'
 RESET_CONSOLE_TEXT = '\033[0m'
+task_build_cache = None
 
 def setShutdownEvent():
     if not shutdown_event.is_set():
+        buildImageCacheStop()
         shutdown_event.set()
 
 def key_pressed(event):
@@ -101,6 +104,7 @@ def screenMoveLeft():
 def launchTable():
     global background
     background = True # # Disable SDL gamepad events
+    buildImageCachePause()
     launchVPX(tables.getTable(tableIndex).fullPathVPXfile)
     
     # check if we need to do postprocessing.  right now just check if we need to delete pinmame nvram
@@ -109,10 +113,17 @@ def launchTable():
     
     for s in screens:
         s.window.deiconify()
+        s.window.lift()
+        s.window.focus_force()
     Screen.rootWindow.update()
     Screen.rootWindow.focus_force()
     Screen.rootWindow.update()
-    
+    Screen.rootWindow.lift()
+    Screen.rootWindow.focus_force()
+    Screen.rootWindow.focus_set()
+    Screen.rootWindow.update_idletasks()
+    buildImageCacheResume()
+
 def launchVPX(table):
     logger.info(f"Launching: {table}")
     null = open(os.devnull, 'w')
@@ -304,13 +315,48 @@ def loadImageAllScreens(img_path):
     Screen.rootWindow.update()
 
 def buildImageCache():
+    global task_build_cache
     loadImageAllScreens(logoImage)
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].addStatusText("Caching Images", (10,1034))
         screens[ScreenNames.BG].textThreeDotAnimate()
-    thread = threading.Thread(target=buildImageCacheThread, daemon=True)
+    task_build_cache = PauseableTask(name="buildImageCache", target_func=buildImageCacheThread)
+    if task_build_cache is None:
+        logger.debug("buildImageCache: task_build_cache is None")
+        return
+    thread = threading.Thread(target=task_build_cache.start, daemon=True)
     thread.start()
-  
+
+def buildImageCachePause():
+    if task_build_cache is None:
+        logger.debug("buildImageCachePause: task_build_cache is None")
+        return
+    task_build_cache.pause()
+
+def buildImageCacheResume():
+    if task_build_cache is None:
+        logger.debug("buildImageCacheResume: task_build_cache is None")
+        return
+    task_build_cache.resume()
+
+def buildImageCacheStop():
+    if task_build_cache is None:
+        logger.debug("buildImageCacheStop: task_build_cache is None")
+        return
+    task_build_cache.stop()
+
+def buildImageCacheSleep(duration):
+    if task_build_cache is None:
+        logger.debug("buildImageCacheSleep: task_build_cache is None")
+        return
+    task_build_cache.sleep(duration)
+
+def buildImageCacheisPaused():
+    if task_build_cache is None:
+        logger.debug("buildImageCacheIsPaused: task_build_cache is None")
+        return False
+    return task_build_cache.is_paused()
+
 def buildImageCacheThread():
     tkmsg = TkMsg(MsgType=TKMsgType.CACHE_BUILD_COMPLETED, func=disableStatusMsg, msg="")
     tkMsgQueue.put(tkmsg)
@@ -320,14 +366,23 @@ def buildImageCacheThread():
             break
         if shutdown_event.is_set():
             break
+        if buildImageCacheisPaused():
+            buildImageCacheSleep(0.5)
+            continue
         if ScreenNames.BG is not None:
             screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
         if shutdown_event.is_set():
             break
+        if buildImageCacheisPaused():
+            buildImageCacheSleep(0.5)
+            continue
         if ScreenNames.DMD is not None:
             screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
         if shutdown_event.is_set():
             break
+        if buildImageCacheisPaused():
+            buildImageCacheSleep(0.5)
+            continue
         if ScreenNames.TABLE is not None:
             screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
 
