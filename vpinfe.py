@@ -76,10 +76,11 @@ def key_pressed(event):
         setShutdownEvent()
     elif keysym == "a" or keysym == "Return":
        # Launch Game
-        for s in screens:
-            s.window.iconify()
-        Screen.rootWindow.update_idletasks()
-        Screen.rootWindow.after(500, launchTable )
+       # for s in screens:
+       #     s.window.iconify()
+       # Screen.rootWindow.update_idletasks()
+       # Screen.rootWindow.after(500, launchTable )
+       launchTable()
 
 def screenMoveRight():
     global tableIndex
@@ -106,6 +107,7 @@ def launchTable():
     background = True # # Disable SDL gamepad events
     buildImageCachePause()
     launchVPX(tables.getTable(tableIndex).fullPathVPXfile)
+    logger.debug(f"Returning from playing the table. Resetting focus on us.")
     
     # check if we need to do postprocessing.  right now just check if we need to delete pinmame nvram
     meta = metaconfig.MetaConfig(tables.getTable(tableIndex).fullPathTable + "/" + "meta.ini")
@@ -122,12 +124,99 @@ def launchTable():
     Screen.rootWindow.focus_force()
     Screen.rootWindow.focus_set()
     Screen.rootWindow.update_idletasks()
-    buildImageCacheResume()
+    Screen.rootWindow.after(250, buildImageCacheResume)
 
+#def launchVPX(table):
+#    logger.info(f"Launching: {table}")
+#    null = open(os.devnull, 'w')
+#    subprocess.call([vpxBinPath, '-play', table], bufsize=4096, stdout=null, stderr=null)
 def launchVPX(table):
     logger.info(f"Launching: {table}")
-    null = open(os.devnull, 'w')
-    subprocess.call([vpxBinPath, '-play', table], bufsize=4096, stdout=null, stderr=null)
+
+    # Function to iconify all windows
+    def iconify_all_windows(reason):
+        logger.debug(f"Iconifying windows due to {reason}")
+        for s in screens:
+            s.window.iconify()
+        Screen.rootWindow.update_idletasks()
+
+    keyword_or_timeout = threading.Event()
+    process_exited = threading.Event()
+    timeout_duration = 10.0  # seconds to wait for keyword before iconifying anyway
+    global reason
+    reason = None
+
+    # Thread to read output and look for keyword
+    def output_reader():
+        global reason
+        try:
+            for line in iter(proc.stdout.readline, b''):
+                if not line or process_exited.is_set():
+                    break
+                decoded = line.decode(errors="ignore").strip()
+                logger.debug(decoded)
+                if "Starting render thread" in decoded and not keyword_or_timeout.is_set():
+                    reason = "keyword found"
+                    keyword_or_timeout.set()
+        except Exception as e:
+            logger.error(f"Error reading process output: {e}")
+            proc.stdout.close()
+
+    # Thread for timeout monitoring
+    def timeout_monitor():
+        global reason
+        try:
+            # Wait for either keyword found or timeout elapsed
+            keyword_found_or_timeout = keyword_or_timeout.wait(timeout_duration)
+            if not keyword_found_or_timeout:
+                # Timeout occurred without finding keyword
+                reason = f"{timeout_duration}s timeout reached"
+                keyword_or_timeout.set()
+        except Exception as e:
+            logger.error(f"Error in timeout monitoring: {e}")
+
+    # Thread to monitor process completion
+    def process_monitor():
+        global reason
+        try:
+            # Wait for process to complete
+            proc.wait()
+            logger.debug(f"VPX process exited with code: {proc.returncode}")
+        except Exception as e:
+            logger.error(f"Error monitoring process: {e}")
+        finally:
+            reason = "process exited"
+            process_exited.set()
+            keyword_or_timeout.set() # In case we exited before the keyword or the timeout happened
+            logger.debug(f"Process monitoring complete for {table}")
+
+    # Start the VPX process
+    proc = subprocess.Popen(
+        [vpxBinPath, '-play', table],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT
+    )
+
+    # Start the monitoring threads
+    output_thread = threading.Thread(target=output_reader, daemon=True)
+    output_thread.start()
+
+    timeout_thread = threading.Thread(target=timeout_monitor, daemon=True)
+    timeout_thread.start()
+
+    monitor_thread = threading.Thread(target=process_monitor, daemon=True)
+    monitor_thread.start()
+
+    # Wait for the keyword or timeout to be set to iconify the windows
+    logger.debug(f"Waiting for the table to start rendering or {timeout_duration} seconds.")
+    keyword_or_timeout.wait()
+    if not process_exited.is_set():
+        iconify_all_windows(reason)
+
+    # Wait for the process to exit before continuing
+    logger.debug("Waiting for the table to exit.")
+    process_exited.wait()
+    logger.debug(f"Exited {table}")
 
 def setGameDisplays(tableInfo):
     # Load image BG
@@ -351,6 +440,12 @@ def buildImageCacheSleep(duration):
         return
     task_build_cache.sleep(duration)
 
+def buildImageCacheWait():
+    if task_build_cache is None:
+        logger.debug("buildImageCacheWait: task_build_cache is None")
+        return
+    task_build_cache.wait()
+
 def buildImageCacheisPaused():
     if task_build_cache is None:
         logger.debug("buildImageCacheIsPaused: task_build_cache is None")
@@ -366,23 +461,20 @@ def buildImageCacheThread():
             break
         if shutdown_event.is_set():
             break
-        if buildImageCacheisPaused():
-            buildImageCacheSleep(0.5)
-            continue
+        buildImageCacheWait()
+        buildImageCacheSleep(0.33)
         if ScreenNames.BG is not None:
             screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
         if shutdown_event.is_set():
             break
-        if buildImageCacheisPaused():
-            buildImageCacheSleep(0.5)
-            continue
+        buildImageCacheWait()
+        buildImageCacheSleep(0.33)
         if ScreenNames.DMD is not None:
             screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
         if shutdown_event.is_set():
             break
-        if buildImageCacheisPaused():
-            buildImageCacheSleep(0.5)
-            continue
+        buildImageCacheWait()
+        buildImageCacheSleep(0.33)
         if ScreenNames.TABLE is not None:
             screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
 
