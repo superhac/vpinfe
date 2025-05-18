@@ -238,6 +238,51 @@ The new `--vpxpatch` option automatically utilizes the `vbshash` stored in meta.
 
 __Important__: Before using this feature, you must generate the necessary metadata with the `--buildmeta` option, as described above.
 
+## vpinfe.ini
+
+What each setting does in the vpinfe.ini file broken down by "section".
+
+### [Displays]
+| Key               | Description                                                               |
+| ----------------- | ------------------------------------------------------------------------- |
+| bgscreenid        | Blackglass screen number.  use `--listres` to get your mointor ids.       |
+| dmdscreenid       | dmdscreenid screen number.  use `--listres` to get your mointor ids.      |
+| tablescreenid     | tablescreenid screen number.  use `--listres` to get your mointor ids.    |
+| hudscreenid       | Which screen ID the HUD should be displayed on.                           |
+| hudrotangle       | Angle of rotation for the HUD.  e.g. 90                                   |
+| tablerotangle     | Angle of rotation for the Table.  e.g. 90                                 |
+| backgroundcolor   | Background color                                                          |
+
+### [Settings]
+| Key               | Description |
+| ----------------- | ------------------------------------------------------------------------- |
+| vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
+| tablerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
+| joyleft = 4       | Move left. Button mapping ids generated with jstest.                      |
+| joyright          | Move right. Button mapping ids generated with jstest.                     |
+| joyselect         | Select button / Launch. Button mapping ids generated with jstest.         |
+| joymenu = 2       | Pop Menu. Button mapping ids generated with jstest.                       |     
+| joyback = 1       | Go Back. Button mapping ids generated with jstest.                        |
+| joyexit = 8       | Exit VpinFE. Button mapping ids generated with jstest.                    |
+
+### [VPSdb]
+| Key               | Description |
+| ----------------- | ------------------------------------------------------------------------- |
+| last              | Rev of VPSDB that was last pulled.                                        |
+
+### [Logger]
+| Key               | Description |
+| ----------------- | ------------------------------------------------------------------------- |
+| level             | info, ???                                                                 |
+| console           | ??                                                                        |
+| file              | Save log file to disk path and filename.  /apps/vpinfe.log                |
+
+### [Media]
+| Key               | Description |
+| ----------------- | ------------------------------------------------------------------------- |
+| tabletype         | ??????                                                                    |
+| tableresolution   | ?????                                                                     |
+
 ## Tips
 
 ### If you want faster caching performance match the respective images to the resolution of screens on which they will be displayed. This results in an average performance boost of 40 percent.

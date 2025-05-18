@@ -551,7 +551,7 @@ def gameControllerInputThread():
 
 if __name__ == "__main__":
     logger = init_logger("VPinFE")
-    logger.info(f"VPinFE {version} by Superhac (superhac007@gmail.com)")
+    logger.info(f"VPinFE {version} by Superhac & WildCoder")
     parservpx = vpxparser.VPXParser()
     parseArgs()
     loadconfig(configfile)
