@@ -133,7 +133,8 @@ Number of joysticks connected: 1
 2 :Monitor(x=0, y=0, width=3840, height=2160, width_mm=600, height_mm=340, name='DP-3', is_primary=True)
 ```
 #3 Assign your display(s), paths, and joystick button mapping in the vpinfe.ini file
-Assign your displays and paths like the example in your **vpinfe.ini**. Put this is the same dir as the vpinfe executable unless your using the `--configfile` argument
+Assign your displays and paths like the example in your **vpinfe.ini**. Put this is the same dir as the vpinfe executable unless your using the `--configfile` argument.
+
 You can also change the `Logger` settings it might help figuring out a runtime issue. Valid levels are `debug`, `info`, `warning`, `error` and `critical`. You can turn the console logging on `1` or off `0` or if the output is too long or the console isn't your thing redirect the ouytput to a file by setting its path. Attaching a logger file when filling a bug report could also help the developers.
 ```
 [Displays]
