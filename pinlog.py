@@ -70,7 +70,7 @@ def update_logger_config(config):
             logger.addHandler(_create_file_handler(level, create_formatter(), cfg["file"]))
 
         logger.propagate = False
-        logger.debug(f"Logger config updated with level={level_name}, output={', '.join(filter(None, ['console' if cfg['console'] else '', f\"file={cfg['file']}\" if cfg['file'] else '']))}")
+        logger.debug(f"Logger config updated with level={level_name}, output={', '.join(filter(None, ['console' if cfg['console'] else '', f"file={cfg['file']}" if cfg['file'] else '']))}")
         
         # below causes SyntaxError: f-string: f-string: unmatched '['
         #logger.debug(f"Logger config updated with level={level_name}, output={', '.join(filter(None, ['console' if cfg['console'] else '', f'file={cfg['file']}' if cfg['file'] else '']))}")
