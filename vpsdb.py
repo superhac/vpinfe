@@ -81,7 +81,7 @@ class VPSdb:
             if similarity_ratio >= .8:
               similarity_ratio = SequenceMatcher(None, str(year),  str(table["year"])).ratio()
               if similarity_ratio >= .8:
-                logger.info(f"Name, manufacturer, and year matched with threshold: {table["name"]}")
+                logger.info(f"Name, manufacturer, and year matched with threshold: {table['name']}")
                 return table        
       except KeyError:
         logger.error("lookupName: no key?")
