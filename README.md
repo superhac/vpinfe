@@ -89,6 +89,7 @@ Each table directory can contain images with specific names:
 | dmd.png       | DMD Image |
 | table.png     | Table Image |
 | wheel.png     | Icon on Hud |
+| fss.png       | Full Single Screen Image |
 
 Example:
 ```
