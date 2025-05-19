@@ -323,3 +323,44 @@ for dir in */; do
 done
 ```
 
+## Building locally / PyInstaller
+
+### Setup from scratch
+
+Clone
+```
+git clone https://github.com/superhac/vpinfe.git
+cd vpinfe
+```
+
+Setup virtual Pythin env / install deps
+```
+python3 -m venv vvv
+source vvv/bin/activate
+pip3 install -r requirements.txt
+```
+
+### Build the single executable
+```
+pyinstaller vpinfe.spec
+```
+
+The file built is `dist/vpinfe`.
+
+If you get strange errors rapidly building or otherwise you may need to runb the following to do a clean build:
+```
+pyinstaller --clean vpinfe.spec
+```
+
+### Anytime after you have everything all ready setup
+
+Activate the virtual python env
+```
+source vvv/bin/activate
+```
+
+To deactivate it:
+```
+deactivate
+```
+
