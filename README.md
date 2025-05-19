@@ -274,15 +274,15 @@ What each setting does in the vpinfe.ini file broken down by "section".
 ### [Logger]
 | Key               | Description |
 | ----------------- | ------------------------------------------------------------------------- |
-| level             | info, ???                                                                 |
-| console           | ??                                                                        |
+| level             | Can be one of `debug`, `info`, `warning`, `error` and `critical`. The default is `info`. When reporting a bug report, enabling `debug` level might help diagnose the issue. |
+| console           | Leave it blank or set it to zero to disabled console output. Set it to `1` to enable it |
 | file              | Save log file to disk path and filename.  /apps/vpinfe.log                |
 
 ### [Media]
 | Key               | Description |
 | ----------------- | ------------------------------------------------------------------------- |
-| tabletype         | ??????                                                                    |
-| tableresolution   | ?????                                                                     |
+| tabletype         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait table images. |
+| tableresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
 
 ## Tips
 
