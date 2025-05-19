@@ -1,5 +1,5 @@
 from threading import Thread, Event
-from log import get_logger
+from pinlog import get_logger
 import time
 
 class PauseableTask:

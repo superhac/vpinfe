@@ -11,7 +11,7 @@ import csv
 import pathlib
 import sys
 
-from log import get_logger, init_logger, update_logger_config
+from pinlog import get_logger, init_logger, update_logger_config
 
 class VPXParser:
 

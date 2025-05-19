@@ -7,7 +7,7 @@ import hashlib
 import sys
 import os
 
-from log import get_logger
+from pinlog import get_logger
 
 class StandaloneScripts:
 

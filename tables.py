@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import metaconfig
-from log import get_logger
+from pinlog import get_logger
 
 import sys
 

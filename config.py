@@ -2,7 +2,7 @@ import configparser
 import os
 import sys
 
-from log import get_logger
+from pinlog import get_logger
 
 class Config:
 	logger = None
