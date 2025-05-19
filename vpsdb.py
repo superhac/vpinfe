@@ -56,8 +56,8 @@ class VPSdb:
       self.setTablesPath()
     
   def setTablesPath(self):
-    self.tabletype = self._iniConfig['Media']["tabletype"]
-    self.tableresolution = self._iniConfig['Media']["tableresolution"]
+    self.tabletype = self._iniConfig['Media']["tabletype"].lower()
+    self.tableresolution = self._iniConfig['Media']["tableresolution"].lower()
     if self.tableresolution is '':
       self.pathresolution = "4k"
     else:
@@ -67,8 +67,7 @@ class VPSdb:
       self.nameTableFile = "table"
     else:
       self.nameTableFile = "fss"
-      self.pathresolution = f"fss/{self.pathresolution}"
-    logger.debug(f"{self.pathresolution}/{self.nameTableFile}")
+    logger.debug(f"Using {self.pathresolution}/{self.nameTableFile} tables")
 
   def lookupName(self, name, manufacturer, year):
     for table in self.data:

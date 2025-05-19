@@ -41,7 +41,7 @@ class Tables:
         self.loadTables()
 
     def setTablesType(self):
-        self.tabletype = self._iniConfig['Media']["tabletype"]
+        self.tabletype = self._iniConfig['Media']["tabletype"].lower()
         self.tablename = "table" if self.tabletype is '' else self.tabletype
 
     def loadTables(self):
