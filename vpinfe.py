@@ -346,6 +346,7 @@ def buildMetaData():
                 vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"])
             except TypeError as e:
                 logger.error(f"{RED_CONSOLE_TEXT}Not found in VPS{RESET_CONSOLE_TEXT}")
+                continue
             
             # vpx file info
             logger.info(f"Parsing VPX file for metadata")
