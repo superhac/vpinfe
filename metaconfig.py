@@ -1,7 +1,7 @@
 import configparser
 import os
 
-from logger import get_logger
+from log import get_logger
 
 class MetaConfig:
 

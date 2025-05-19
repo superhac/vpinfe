@@ -6,7 +6,7 @@ import time
 
 from tablemetahudcanvas import tableMetaHUDCanvas
 from tablemetahudframe import TableMetaHUDFrame
-from logger import get_logger
+from log import get_logger
 
 class Screen:
     maxImageCacheSize = 100

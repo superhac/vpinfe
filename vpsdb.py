@@ -4,7 +4,7 @@ from difflib import SequenceMatcher
 import os
 import re
 import sys
-from logger import get_logger
+from log import get_logger
 
 RED_CONSOLE_TEXT = '\033[31m'
 RESET_CONSOLE_TEXT = '\033[0m'

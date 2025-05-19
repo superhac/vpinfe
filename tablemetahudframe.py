@@ -6,7 +6,7 @@ import sys
 import ast
 
 from tables import Tables, TableInfo
-from logger import get_logger
+from log import get_logger
 
 class TableMetaHUDFrame(tk.Frame):
     logger = None

@@ -16,7 +16,7 @@ from multiprocessing import Process
 from queue import Queue
 from tkmessages import TKMsgType, TkMsg
 
-from logger import init_logger, get_logger, update_logger_config, get_named_logger
+from log import init_logger, get_logger, update_logger_config, get_named_logger
 from screennames import ScreenNames
 from imageset import ImageSet
 from screen import Screen
