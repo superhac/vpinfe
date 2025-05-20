@@ -342,13 +342,10 @@ def buildMetaData():
             # vpsdb
             logger.info(f"Checking VPSdb for {table.tableDirName}")
             vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-            try:
-                vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"])
-            except TypeError as e:
+            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
+            if vpsData is None:
                 logger.error(f"{RED_CONSOLE_TEXT}Not found in VPS{RESET_CONSOLE_TEXT}")
-            #    continue
-            #if vpsDaata is None:
-            #    continue
+                continue
             
             # vpx file info
             logger.info(f"Parsing VPX file for metadata")

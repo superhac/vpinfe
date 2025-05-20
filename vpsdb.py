@@ -70,8 +70,9 @@ class VPSdb:
     logger.debug(f"Using {self.pathresolution}/{self.nameTableFile} tables")
 
   def lookupName(self, name, manufacturer, year):
+    if any(param is None for param in (name, manufacturer, year)):
+      return None
     for table in self.data:
-      try:
         name_similarity_ratio = SequenceMatcher(None, name.lower(),  table["name"].lower()).ratio()
         #logger.debug(f'"{name}" "{table["name"]}"')
         if name_similarity_ratio >= .8:
@@ -83,10 +84,7 @@ class VPSdb:
               if similarity_ratio >= .8:
                 logger.info(f"Name, manufacturer, and year matched with threshold: {table['name']}")
                 return table        
-      except KeyError:
-        logger.error("lookupName: no key?")
-        pass
-    logger.error(f"{RED_CONSOLE_TEXT} No match for: {name}{RESET_CONSOLE_TEXT}")
+    logger.error(f"{RED_CONSOLE_TEXT} No match found for: {name}{RESET_CONSOLE_TEXT}")
     return None
 
   def parseTableNameFromDir(self, directory_name):
