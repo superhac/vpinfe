@@ -35,6 +35,8 @@ class PauseableTask:
         self._pause_event.clear()
 
     def resume(self):
+        if not self.is_paused():
+            return
         logger.debug(f"Resuming {self._name} thread.")
         self._pause_event.set()
 
