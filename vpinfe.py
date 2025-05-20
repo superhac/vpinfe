@@ -331,6 +331,7 @@ def loadconfig(configfile):
     if not os.path.exists(vpxBinPath):
         showCriticalErrorAndExit("Path Error", "VPX binary not found. Check your `vpxBinPath` value in vpinfe has correct path.", 1)
     
+    tableRootDir = os.path.expanduser(tableRootDir)
     if not os.path.exists(tableRootDir):
         showCriticalErrorAndExit("Path Error", "Table root dir not found. Check your 'tableroot' value in vpinfe.ini has correct path.", 1)
 
@@ -527,22 +528,22 @@ def gameControllerInputThread():
                     #logger.debug(f"Axis {axis_id}: {axis_value}")
                 elif event.type == sdl2.SDL_JOYBUTTONDOWN:
                     button_id = event.jbutton.button
-                    if button_id == int(vpinfeIniConfig.config['Settings']['joyright']):
+                    if button_id == vpinfeIniConfig.get_int('Settings','joyright',-1):
                         screenMoveRight()
-                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyleft']):
+                    elif button_id == vpinfeIniConfig.get_int('Settings','joyleft',-1):
                         screenMoveLeft()
-                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyselect']):
+                    elif button_id == vpinfeIniConfig.get_int('Settings','joyselect',-1):
                         for s in screens: 
                             s.window.withdraw()
                         #s.window.after(1, launchTable() )
                         launchTable()
                         break
-                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyexit']):
+                    elif button_id == vpinfeIniConfig.get_int('Settings','joyexit',-1):
                         logger.debug("Exit requested")
                         setShutdownEvent()
-                    elif button_id == int(vpinfeIniConfig.config['Settings']['joymenu']):
+                    elif button_id == vpinfeIniConfig.get_int('Settings','joymenu',-1):
                         logger.debug("Not implemented yet...")
-                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyback']):
+                    elif button_id == vpinfeIniConfig.get_int('Settings','joyback',-1):
                         logger.debug("Not implemented yet...")
                     logger.debug(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
                 elif event.type == sdl2.SDL_JOYBUTTONUP:
@@ -561,7 +562,7 @@ if __name__ == "__main__":
     parseArgs()
     loadconfig(configfile)
 
-    logger.info(f"Using {vpinfeIniConfig.config['Media']['tableresolution']} {vpinfeIniConfig.config['Media']['tabletype']}")
+    logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
 
     update_logger_config(vpinfeIniConfig.config['Logger'])
     sdl2.ext.init()

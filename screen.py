@@ -54,7 +54,7 @@ class Screen:
             Screen.rootWindow = self.window
         else:
             self.window = tk.Toplevel()
-        self.window.configure(bg=self.vpinfeIniConfig.config['Displays']['backgroundcolor'])
+        self.window.configure(bg=self.vpinfeIniConfig.get_string('Displays','backgroundcolor', "#000000"))
         
         # Set window size and position and background color
         self.window.geometry(f"{self.screen.width}x{self.screen.height}+{self.screen.x}+{self.screen.y}")
@@ -124,7 +124,7 @@ class Screen:
     def displayImage(self, img_tk):
             if  self.canvasPhotoID == None:
                 self.canvasPhotoID = self.canvas.create_image((self.window.winfo_width()/2,self.window.winfo_height()/2), anchor="center", image=img_tk)
-                self.canvas.config(highlightthickness=0, borderwidth=0, bg=self.vpinfeIniConfig.config['Displays']['backgroundcolor'])
+                self.canvas.config(highlightthickness=0, borderwidth=0, bg=self.vpinfeIniConfig.get_string('Displays','backgroundcolor','#000000'))
             else:
                 self.canvas.itemconfig(self.canvasPhotoID, image=img_tk)
             self.canvas.pack(fill="both", expand=True)
@@ -198,7 +198,8 @@ class Screen:
             if self.hudFrame != None:
                 self.hudFrame.destroy()
             
-            if  self.rotationAngle == 0:
+            hudrotation = self.vpinfeIniConfig.get_int('Displays','hudrotangle', 0)
+            if  hudrotation == 0:
                 self.hudFrame = TableMetaHUDFrame(self.window, int(self.window.winfo_width()*barLength), int(self.window.winfo_height()* (barHeight+.10)),tableInfo=tableInfo)
                 self.hudFrame.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s", width=int(self.window.winfo_width() * barLength),
                          height=int(self.window.winfo_height() * (barHeight + 0.10)))
@@ -207,10 +208,10 @@ class Screen:
                 #self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barLength), int(self.window.winfo_height()* (barHeight+.10)),tableInfo=tableInfo)
                 #self.hudCanvas.place(x=int(self.window.winfo_width()/2), y=self.window.winfo_height() - 50 , anchor="s")  # Adjust placement
             else: # swap width and height, add angle of rotation
-                logger.debug(f"HUD rotation set to {self.rotationAngle}")
-                self.hudFrame = TableMetaHUDFrame(self.window, int(self.window.winfo_width()*barHeight), int(self.window.winfo_height()*barLength),tableInfo=tableInfo, angle=int(self.vpinfeIniConfig.config['Displays']['hudrotangle']))
+                logger.debug(f"HUD rotation set to {hudrotation}")
+                self.hudFrame = TableMetaHUDFrame(self.window, int(self.window.winfo_width()*barHeight), int(self.window.winfo_height()*barLength),tableInfo=tableInfo, angle=hudrotation)
                 self.hudFrame.place(x=int(self.window.winfo_width() - 50 ), y=self.window.winfo_height() /2 , anchor="e")  # Adjust placement
                 logger.debug(f"HUD window {self.window.winfo_height()}x{self.window.winfo_width()}")
 
-                #self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barHeight), int(self.window.winfo_height()*barLength),tableInfo=tableInfo, angle=int(self.vpinfeIniConfig.config['Displays']['hudrotangle']))
+                #self.hudCanvas = tableMetaHUDCanvas(self.window, int(self.window.winfo_width()*barHeight), int(self.window.winfo_height()*barLength),tableInfo=tableInfo, angle=hudrotation)
                 #self.hudCanvas.place(x=int(self.window.winfo_width() - 50 ), y=self.window.winfo_height() /2 , anchor="e")  # Adjust placement
