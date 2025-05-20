@@ -105,27 +105,27 @@ def screenMoveLeft():
 
 def launchTable():
     global background
-    background = True # # Disable SDL gamepad events
+    background = True  # Disable SDL gamepad events
     buildImageCachePause()
     launchVPX(tables.getTable(tableIndex).fullPathVPXfile)
     logger.debug(f"Returning from playing the table. Resetting focus on us.")
-    
+
     # check if we need to do postprocessing.  right now just check if we need to delete pinmame nvram
     meta = metaconfig.MetaConfig(tables.getTable(tableIndex).fullPathTable + "/" + "meta.ini")
     meta.actionDeletePinmameNVram()
-    
+
     for s in screens:
         s.window.deiconify()
+        s.window.update()
         s.window.lift()
         s.window.focus_force()
+        #s.window.update_idletasks()
+
     Screen.rootWindow.update()
     Screen.rootWindow.focus_force()
     Screen.rootWindow.update()
-    Screen.rootWindow.lift()
-    Screen.rootWindow.focus_force()
-    Screen.rootWindow.focus_set()
-    Screen.rootWindow.update_idletasks()
-    Screen.rootWindow.after(250, buildImageCacheResume)
+
+    Screen.rootWindow.after(350, buildImageCacheResume)
 
 def launchVPX(table):
     logger.info(f"Launching: {table}")
@@ -346,7 +346,9 @@ def buildMetaData():
                 vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"])
             except TypeError as e:
                 logger.error(f"{RED_CONSOLE_TEXT}Not found in VPS{RESET_CONSOLE_TEXT}")
-                continue
+            #    continue
+            #if vpsDaata is None:
+            #    continue
             
             # vpx file info
             logger.info(f"Parsing VPX file for metadata")
