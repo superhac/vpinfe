@@ -327,6 +327,7 @@ def loadconfig(configfile):
         )
         showCriticalErrorAndExit("Configuration Error", error_message, 1)
 
+    vpxBinPath = os.path.expanduser(vpxBinPath)
     if not os.path.exists(vpxBinPath):
         showCriticalErrorAndExit("Path Error", "VPX binary not found. Check your `vpxBinPath` value in vpinfe has correct path.", 1)
     
