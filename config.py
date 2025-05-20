@@ -12,7 +12,8 @@ class Config:
 		logger = get_logger()
 
 		self.defaults = {
-			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '0', "hudscreenid": '',  'tablerotangle': '0', 'hudrotangle': '0', 'backgroundcolor': '#000000'},
+			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '0', "hudscreenid": '',  'tablerotangle': '0', 'hudrotangle': '0',
+                'backgroundcolor': '#000000', 'windowmanager': 'gnome'},
 			'Logger': { 'level': 'info', 'console': '1', 'file': ''},
 			'Media': {"tabletype": '', 'tableresolution': '4k'},
 			'Settings': {

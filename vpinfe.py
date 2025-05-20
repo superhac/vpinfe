@@ -76,11 +76,6 @@ def key_pressed(event):
     elif keysym == "q" or keysym == "Escape":
         setShutdownEvent()
     elif keysym == "a" or keysym == "Return":
-       # Launch Game
-       # for s in screens:
-       #     s.window.iconify()
-       # Screen.rootWindow.update_idletasks()
-       # Screen.rootWindow.after(500, launchTable )
        launchTable()
 
 def screenMoveRight():
@@ -115,22 +110,34 @@ def launchTable():
     meta.actionDeletePinmameNVram()
     
     Screen.rootWindow.update_idletasks()
-    for s in screens:
-        s.window.update_idletasks()
-        s.window.withdraw()
-        s.window.deiconify()
-        s.window.update_idletasks()
-        s.window.attributes("-fullscreen", True)
-        s.window.geometry(f"{s.screen.width}x{s.screen.height}+{s.screen.x}+{s.screen.y}")
-        s.window.update()
-        s.window.lift()
-        s.window.focus_force()
-        s.window.update_idletasks()
+    
+    if vpinfeIniConfig.get('Displays','windowmanager', "") == "kde":
+        for s in screens:
+            s.window.update_idletasks()
+            s.window.withdraw()
+            s.window.deiconify()
+            s.window.update_idletasks()
+            s.window.update()
+            s.window.lift()
+            s.window.focus_force()
+            s.window.update_idletasks()
 
-    Screen.rootWindow.update()
-    Screen.rootWindow.focus_force()
-    Screen.rootWindow.update()
-    Screen.rootWindow.update_idletasks()
+            Screen.rootWindow.update()
+            Screen.rootWindow.focus_force()
+            Screen.rootWindow.update()
+            Screen.rootWindow.update_idletasks()
+    else: # gnome, win, mac, etc
+        for s in screens:
+            s.window.update_idletasks()
+            s.window.withdraw()
+            s.window.deiconify()
+            s.window.update_idletasks()
+            s.window.geometry(f"{s.screen.width}x{s.screen.height}+{s.screen.x}+{s.screen.y}")
+            s.window.update()
+          
+        Screen.rootWindow.update()
+        Screen.rootWindow.focus_force()
+        Screen.rootWindow.update()
 
     Screen.rootWindow.after(350, buildImageCacheResume)
 
@@ -262,13 +269,6 @@ def getScreens():
         screen = Screen(monitors[i], angle, missingImage, vpinfeIniConfig)
         screens.append(screen)
         logger.info(f"Display {i}:{str(screen.screen)}")
-
-    #Screen.rootWindow.update()
-    #Screen.rootWindow.lift()
-    #Screen.rootWindow.update()
-    Screen.rootWindow.focus_force()
-    #Screen.rootWindow.update()
-    #Screen.rootWindow.update_idletasks()
 
 def openJoysticks():
     logger.info("Checking for gamepads")

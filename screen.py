@@ -40,9 +40,6 @@ class Screen:
         self.hudCanvas = None
         self.hudFrame = None
         
-        self.x = None
-        self.y = None
-
         self.rotationAngle = angle
 
         self.createWindow()

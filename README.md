@@ -244,15 +244,16 @@ __Important__: Before using this feature, you must generate the necessary metada
 What each setting does in the vpinfe.ini file broken down by "section".
 
 ### [Displays]
-| Key               | Description                                                               |
-| ----------------- | ------------------------------------------------------------------------- |
-| bgscreenid        | Blackglass screen number.  use `--listres` to get your mointor ids.       |
-| dmdscreenid       | dmdscreenid screen number.  use `--listres` to get your mointor ids.      |
-| tablescreenid     | tablescreenid screen number.  use `--listres` to get your mointor ids.    |
+| Key               | Description                                                                                         |
+| ----------------- | -------------------------------------------------------------------------                           |
+| bgscreenid        | Blackglass screen number.  use `--listres` to get your mointor ids. Leave blank if no display       |
+| dmdscreenid       | dmdscreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display      |
+| tablescreenid     | tablescreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display    |
 | hudscreenid       | Which screen ID the HUD should be displayed on.                           |
 | hudrotangle       | Angle of rotation for the HUD.  e.g. 90                                   |
 | tablerotangle     | Angle of rotation for the Table.  e.g. 90                                 |
 | backgroundcolor   | Background color                                                          |
+| windowmanager     | values: kde, gnome, win, mac                                              |
 
 ### [Settings]
 | Key               | Description |
