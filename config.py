@@ -12,7 +12,7 @@ class Config:
 		logger = get_logger()
 
 		self.defaults = {
-			'Displays': {'bgscreenid': '0', 'dmdscreenid': '0', 'tablescreenid': '0', "hudscreenid": '0',  'tablerotangle': '0', 'hudrotangle': '0', 'backgroundcolor': '#000000'},
+			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '0', "hudscreenid": '',  'tablerotangle': '0', 'hudrotangle': '0', 'backgroundcolor': '#000000'},
 			'Logger': { 'level': 'info', 'console': '1', 'file': ''},
 			'Media': {"tabletype": '', 'tableresolution': '4k'},
 			'Settings': {
@@ -51,3 +51,28 @@ class Config:
 			for key, value in defaults.items():
 				if not self.config.has_option(section, key):  # Only set if not present
 					self.config.set(section, key, value)
+
+	def get(self, section, option, default=None, type=str):
+		try:
+			value = self.config.get(section, option)
+			converted_value = type(value)
+			if not isinstance(converted_value, type):
+				# When ini value is left blank and doesn't convert to the type we want
+				return default
+			return type(value)  # Convert to the specified type
+		except (configparser.NoSectionError, configparser.NoOptionError):
+			return default
+		except ValueError:
+			return default
+
+	def get_int(self, section, option, default=None):
+		return self.get(section, option, default, type=int)
+
+	def get_float(self, section, option, default=None):
+		return self.get(section, option, default, type=float)
+
+	def get_bool(self, section, option, default=None):
+		return self.get(section, option, default, type=bool)
+
+	def get_string(self, section, option, default=None):
+		return self.get(section, option, default, type=str)

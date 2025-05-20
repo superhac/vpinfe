@@ -219,29 +219,36 @@ def launchVPX(table):
     logger.debug(f"Exited {table}")
 
 def setGameDisplays(tableInfo):
+    hudscreenid = vpinfeIniConfig.get_int('Displays','hudscreenid', -1)
+
     # Load image BG
     if ScreenNames.BG is not None:
-        screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath, tableInfo=tableInfo if int(vpinfeIniConfig.config['Displays']['hudscreenid']) == ScreenNames.BG else None )
+        screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath, tableInfo=tableInfo if hudscreenid == ScreenNames.BG else None )
         #screens[ScreenNames.BG].addText(tableInfo.metaConfig.get('VPSdb','name'), (screens[ScreenNames.BG].canvas.winfo_width() /2, 1080), anchor="s")
 
     # Load image DMD
     if ScreenNames.DMD is not None:
-        screens[ScreenNames.DMD].loadImage(tableInfo.DMDImagePath, tableInfo=tableInfo if int(vpinfeIniConfig.config['Displays']['hudscreenid']) == ScreenNames.DMD else None)
+        screens[ScreenNames.DMD].loadImage(tableInfo.DMDImagePath, tableInfo=tableInfo if hudscreenid == ScreenNames.DMD else None)
 
-    # load table image (rotated and we swap width and height around like portrait mode)
+    # Load table image (rotated and we swap width and height around like portrait mode)
     if ScreenNames.TABLE is not None:
-        screens[ScreenNames.TABLE].loadImage(tableInfo.TableImagePath, tableInfo=tableInfo if int(vpinfeIniConfig.config['Displays']['hudscreenid']) == ScreenNames.TABLE else None)
+        screens[ScreenNames.TABLE].loadImage(tableInfo.TableImagePath, tableInfo=tableInfo if hudscreenid == ScreenNames.TABLE else None)
        
 def getScreens():
     logger.info("Enumerating displays")
     # Get all available screens
     monitors = get_monitors()
 
+    hudscreenid = vpinfeIniConfig.get_int('Displays','hudscreenid', -1)
+    tablescreenid = vpinfeIniConfig.get_int('Displays','tablescreenid', -1)
+    hudrotangle = vpinfeIniConfig.get_int('Displays','hudrotangle', 0)
+    tablerotangle = vpinfeIniConfig.get_int('Displays','tablerotangle', 0)
+
     for i in range(len(monitors)):
-        if not vpinfeIniConfig.config['Displays']['hudrotangle'] == "" and int(vpinfeIniConfig.config['Displays']['hudscreenid']) == i:
-            angle = int(vpinfeIniConfig.config['Displays']['hudrotangle'])
-        elif not vpinfeIniConfig.config['Displays']['tablerotangle'] == "" and int(vpinfeIniConfig.config['Displays']['tablescreenid']) == i:
-            angle = int(vpinfeIniConfig.config['Displays']['tablerotangle'])
+        if i == hudscreenid:
+            angle = hudrotangle
+        elif i == tablescreenid:
+            angle = tablerotangle
         else:
             angle = 0
         screen = Screen(monitors[i], angle, missingImage, vpinfeIniConfig)
@@ -266,6 +273,11 @@ def openJoysticks():
         else:
             logger.error(f"Could not open joystick {i}")
 
+def showCriticalErrorAndExit(title, message, exitCode):
+    logger.critical(f"{RED_CONSOLE_TEXT}{message}{RESET_CONSOLE_TEXT}")
+    messagebox.showerror(title, message)
+    sys.exit(exitCode)
+
 def loadconfig(configfile):
     global tableRootDir
     global vpxBinPath
@@ -282,17 +294,14 @@ def loadconfig(configfile):
                 f"{message_start} missing from the INI "
                 f"file '{configfile}': " + ",".join(missing_sections)
             )
-            logger.critical(f"{RED_CONSOLE_TEXT}{error_message}{RESET_CONSOLE_TEXT}")
-            messagebox.showerror("Configuration Error", error_message)
-            sys.exit(1)
+            showCriticalErrorAndExit("Configuration Error", error_message, 1)
 
     if configfile is None:
         configfile = "vpinfe.ini"
     try:
         vpinfeIniConfig = Config(configfile)
     except Exception as e:
-        logger.critical(f"{RED_CONSOLE_TEXT}{e}{RESET_CONSOLE_TEXT}")
-        sys.exit(1)
+        showCriticalErrorAndExit("Config Loading Error",f"{e}", 1)
 
     checkAllConfigSections(vpinfeIniConfig.config)
 
@@ -300,36 +309,32 @@ def loadconfig(configfile):
     logger.debug(f"Current working directory (using os.getcwd()): {current_dir}")
 
     # mandatory
-    try:
-        if vpinfeIniConfig.config['Displays']["bgscreenid"] != "":
-            ScreenNames.BG = int(vpinfeIniConfig.config['Displays']["bgscreenid"])
-        else:
-             ScreenNames.BG = None
-        if vpinfeIniConfig.config['Displays']["dmdscreenid"] != "":
-            ScreenNames.DMD = int(vpinfeIniConfig.config['Displays']["dmdscreenid"])
-        else:
-            ScreenNames.DMD = None
-        if vpinfeIniConfig.config['Displays']["tablescreenid"] != "":
-            ScreenNames.TABLE = int(vpinfeIniConfig.config['Displays']["tablescreenid"])
-        else:
-             ScreenNames.TABLE
-        tableRootDir = vpinfeIniConfig.config['Settings']["tablerootdir"]
-        vpxBinPath = vpinfeIniConfig.config['Settings']["vpxbinpath"]
-    except KeyError as e:
-        logger.critical(f"{RED_CONSOLE_TEXT}Missing mandatory '{e.args[0]}' entry in vpinfe.{RESET_CONSOLE_TEXT}")
-        sys.exit(1)
+    ScreenNames.BG = vpinfeIniConfig.get_int('Displays','bgscreenid', None)
+    ScreenNames.DMD = vpinfeIniConfig.get_int('Displays','dmdscreenid', None)
+    ScreenNames.TABLE = vpinfeIniConfig.get_int('Displays','tablescreenid', None)
+    tableRootDir = vpinfeIniConfig.get_string('Settings','tablerootdir', None)
+    vpxBinPath = vpinfeIniConfig.get_string('Settings','vpxbinpath', None)
+    if any(var is None for var in [tableRootDir, vpxBinPath]):
+        missing_keys = []
+        if tableRootDir is None:
+            missing_keys.append("tableRootDir")
+        if vpxBinPath is None:
+            missing_keys.append("vpxBinPath")
+        message_start = "The following key is" if len(missing_keys) == 1 else "The following keys are"
+        error_message = (
+            f"{message_start} missing from the INI "
+            f"file '{configfile}': " + ",".join(missing_keys)
+        )
+        showCriticalErrorAndExit("Configuration Error", error_message, 1)
 
     if not os.path.exists(vpxBinPath):
-        logger.critical(f"{RED_CONSOLE_TEXT}VPX binary not found. Check your `vpxBinPath` value in vpinfe has correct path.{RESET_CONSOLE_TEXT}")
-        sys.exit(1)
+        showCriticalErrorAndExit("Path Error", "VPX binary not found. Check your `vpxBinPath` value in vpinfe has correct path.", 1)
     
     if not os.path.exists(tableRootDir):
-        logger.critical(f"{RED_CONSOLE_TEXT}Table root dir not found. Check your 'tableroot' value in vpinfe.ini has correct path.{RESET_CONSOLE_TEXT}")
-        sys.exit(1)
+        showCriticalErrorAndExit("Path Error", "Table root dir not found. Check your 'tableroot' value in vpinfe.ini has correct path.", 1)
 
-    if  ScreenNames.BG == None and ScreenNames.DMD == None and ScreenNames.TABLE == None:
-            logger.critical(f"{RED_CONSOLE_TEXT}You must have at least one display set in your vpinfe.ini.{RESET_CONSOLE_TEXT}")
-            sys.exit(1)
+    if all(var is None for var in [ScreenNames.BG, ScreenNames.DMD, ScreenNames.TABLE]):
+        showCriticalErrorAndExit("Path Error", "You must have at least one display set in your vpinfe.ini.", 1)
 
 def buildMetaData():
         loadconfig(configfile)
