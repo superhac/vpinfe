@@ -12,7 +12,7 @@ class Config:
 		logger = get_logger()
 
 		self.defaults = {
-			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '', "hudscreenid": '',  'tablerotangle': '0', 'hudrotangle': '0', 'backgroundcolor': '#000000'},
+			'Displays': {'bgscreenid': '0', 'dmdscreenid': '0', 'tablescreenid': '0', "hudscreenid": '0',  'tablerotangle': '0', 'hudrotangle': '0', 'backgroundcolor': '#000000'},
 			'Logger': { 'level': 'info', 'console': '1', 'file': ''},
 			'Media': {"tabletype": '', 'tableresolution': '4k'},
 			'Settings': {
