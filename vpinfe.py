@@ -113,17 +113,23 @@ def launchTable():
     # check if we need to do postprocessing.  right now just check if we need to delete pinmame nvram
     meta = metaconfig.MetaConfig(tables.getTable(tableIndex).fullPathTable + "/" + "meta.ini")
     meta.actionDeletePinmameNVram()
-
+    
+    Screen.rootWindow.update_idletasks()
     for s in screens:
+        s.window.update_idletasks()
+        s.window.withdraw()
         s.window.deiconify()
+        s.window.update_idletasks()
+        s.window.geometry(f"{s.screen.width}x{s.screen.height}+{s.screen.x}+{s.screen.y}")
         s.window.update()
         s.window.lift()
         s.window.focus_force()
-        #s.window.update_idletasks()
+        s.window.update_idletasks()
 
     Screen.rootWindow.update()
     Screen.rootWindow.focus_force()
     Screen.rootWindow.update()
+    Screen.rootWindow.update_idletasks()
 
     Screen.rootWindow.after(350, buildImageCacheResume)
 
@@ -134,6 +140,7 @@ def launchVPX(table):
         logger.debug(f"Iconifying windows due to {reason}")
         for s in screens:
             s.window.iconify()
+        
         Screen.rootWindow.update_idletasks()
 
     keyword_or_timeout = threading.Event()
@@ -254,6 +261,7 @@ def getScreens():
         screen = Screen(monitors[i], angle, missingImage, vpinfeIniConfig)
         screens.append(screen)
         logger.info(f"Display {i}:{str(screen.screen)}")
+    Screen.rootWindow.focus_force()
 
 def openJoysticks():
     logger.info("Checking for gamepads")
