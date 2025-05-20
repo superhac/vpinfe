@@ -120,13 +120,12 @@ def launchTable():
         s.window.withdraw()
         s.window.deiconify()
         s.window.update_idletasks()
-        s.window.geometry(f"{s.screen.width}x{s.screen.height}+{s.screen.x}+{s.screen.y}")
         s.window.attributes("-fullscreen", True)
+        s.window.geometry(f"{s.screen.width}x{s.screen.height}+{s.screen.x}+{s.screen.y}")
         s.window.update()
         s.window.lift()
         s.window.focus_force()
         s.window.update_idletasks()
-
 
     Screen.rootWindow.update()
     Screen.rootWindow.focus_force()
