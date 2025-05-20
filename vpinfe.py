@@ -121,10 +121,12 @@ def launchTable():
         s.window.deiconify()
         s.window.update_idletasks()
         s.window.geometry(f"{s.screen.width}x{s.screen.height}+{s.screen.x}+{s.screen.y}")
+        s.window.attributes("-fullscreen", True)
         s.window.update()
         s.window.lift()
         s.window.focus_force()
         s.window.update_idletasks()
+
 
     Screen.rootWindow.update()
     Screen.rootWindow.focus_force()
@@ -261,7 +263,13 @@ def getScreens():
         screen = Screen(monitors[i], angle, missingImage, vpinfeIniConfig)
         screens.append(screen)
         logger.info(f"Display {i}:{str(screen.screen)}")
+
+    #Screen.rootWindow.update()
+    #Screen.rootWindow.lift()
+    #Screen.rootWindow.update()
     Screen.rootWindow.focus_force()
+    #Screen.rootWindow.update()
+    #Screen.rootWindow.update_idletasks()
 
 def openJoysticks():
     logger.info("Checking for gamepads")
