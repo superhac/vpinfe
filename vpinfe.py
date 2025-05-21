@@ -111,21 +111,15 @@ def launchTable():
     
     Screen.rootWindow.update_idletasks()
     
-    if vpinfeIniConfig.get('Displays','windowmanager', "") == "kde":
+    if vpinfeIniConfig.get_string('Displays','windowmanager', "") == "kde":
         for s in screens:
             s.window.update_idletasks()
-            s.window.withdraw()
             s.window.deiconify()
             s.window.update_idletasks()
             s.window.update()
             s.window.lift()
             s.window.focus_force()
             s.window.update_idletasks()
-
-            Screen.rootWindow.update()
-            Screen.rootWindow.focus_force()
-            Screen.rootWindow.update()
-            Screen.rootWindow.update_idletasks()
     else: # gnome, win, mac, etc
         for s in screens:
             s.window.update_idletasks()
