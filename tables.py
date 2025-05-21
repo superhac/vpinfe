@@ -76,7 +76,7 @@ class Tables:
         return os.path.isdir(dir)
 
     def findImageEndingWith(self, basePath, ending):
-        logger.debug(f"Looking for files ending in {ending}.png in {basePath}")
+        #logger.debug(f"Looking for files ending in {ending}.png in {basePath}")
         files = list(Path(basePath).rglob("*" + ending + ".*"))
         if not files:
             return None
@@ -84,9 +84,9 @@ class Tables:
 
     def imagePath(self, path, tablePath, context):
         if path is None:
-            logger.warning(f"{Tables.RED_CONSOLE_TEXT} {context} image '{path}' not found for table {tablePath}{Tables.RESET_CONSOLE_TEXT}")
             return None
         if not os.path.exists(path):
+            logger.warning(f"{Tables.RED_CONSOLE_TEXT} {context} image '{path}' not found for table {tablePath}{Tables.RESET_CONSOLE_TEXT}")
             return None
         return path
 
