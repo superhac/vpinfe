@@ -349,7 +349,7 @@ def loadconfig(configfile):
 
 def buildMetaData():
         loadconfig(configfile)
-        Tables(tableRootDir, vpinfeIniConfig.config)
+        Tables(tableRootDir, vpinfeIniConfig)
         vps = VPSdb(Tables.tablesRootFilePath, vpinfeIniConfig)
         for table in Tables.tables:
             finalini = {}
@@ -376,7 +376,7 @@ def buildMetaData():
 
 def vpxPatches():
     loadconfig(configfile)
-    Tables(tableRootDir, vpinfeIniConfig.config)
+    Tables(tableRootDir, vpinfeIniConfig)
     standaloneScripts.StandaloneScripts(Tables.tables)
 
 def parseArgs():
@@ -577,7 +577,7 @@ if __name__ == "__main__":
     sdl2.ext.init()
     openJoysticks()
 
-    tables = Tables(tableRootDir, vpinfeIniConfig.config)
+    tables = Tables(tableRootDir, vpinfeIniConfig)
     getScreens()
 
     # Ensure windows have updated dimensions
