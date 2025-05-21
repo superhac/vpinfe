@@ -45,8 +45,6 @@ class Screen:
         self.createWindow()
         self.canvas = tk.Canvas(self.window, width=self.window.winfo_width(), height=self.window.winfo_height())
          
-        print(self.x, ":", self.y, "-", self.screen.x, ":", self.screen.y)
-   
     def createWindow(self):
         """Creates a fullscreen window on a specific screen."""
 
