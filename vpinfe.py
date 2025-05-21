@@ -518,24 +518,11 @@ def buildImageCacheThread():
 
 def gameControllerInputThread():
     global background
-
-    def not_implemented(button):
-        logger.debug("Button {button} Not implemented yet...")
-
-    button_actions = {
-        vpinfeIniConfig.get_int('Settings', 'joyright', -1): screenMoveRight,
-        vpinfeIniConfig.get_int('Settings', 'joyleft', -2): screenMoveLeft,
-        vpinfeIniConfig.get_int('Settings', 'joyselect', -3): launchTable,
-        vpinfeIniConfig.get_int('Settings', 'joyexit', -4): setShutdownEvent,
-        vpinfeIniConfig.get_int('Settings', 'joymenu', -5): lambda: not_implemented("joymenu"),
-        vpinfeIniConfig.get_int('Settings', 'joyback', -6): lambda: not_implemented("joyback")
-    }
-
     # gamepad loop
     while not shutdown_event.is_set():
         #time.sleep(0.001)
         events = sdl2.ext.get_events()
-     
+
         # SDL continues to queue events in the background while in vpx.  This loop eats those on return to vpinfe.
         if background:
             events = sdl2.ext.get_events()
@@ -544,27 +531,36 @@ def gameControllerInputThread():
             background = False
 
         for event in events:
-            if background: # not coming back from vpx
-                continue
-            if event.type == sdl2.SDL_QUIT:
-                setShutdownEvent()
-                break
-            elif event.type == sdl2.SDL_JOYAXISMOTION:
-                axis_id = event.jaxis.axis
-                axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
-                #logger.debug(f"Axis {axis_id}: {axis_value}")
-            elif event.type == sdl2.SDL_JOYBUTTONDOWN:
-                button_id = event.jbutton.button
-                action = button_actions.get(button_id)
-                if action:
-                    action()
-                logger.debug(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
-            elif event.type == sdl2.SDL_JOYBUTTONUP:
-                button_id = event.jbutton.button
-                #logger.debug(f"Button {button_id} Up")
+            if not background: # not coming back from vpx
+                if event.type == sdl2.SDL_QUIT:
+                    setShutdownEvent()
+                    break
+                elif event.type == sdl2.SDL_JOYAXISMOTION:
+                    axis_id = event.jaxis.axis
 
-    logger.debug("Exiting gameControllerInputThread and requesting shutdown")
-    tkmsg = TkMsg(MsgType=TKMsgType.SHUTDOWN, func=shutDownMsg, msg = "")
+                    axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
+                    #print(f"Axis {axis_id}: {axis_value}")
+                elif event.type == sdl2.SDL_JOYBUTTONDOWN:
+                    button_id = event.jbutton.button
+                    if button_id == int(vpinfeIniConfig.config['Settings']['joyright']):
+                        screenMoveRight()
+                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyleft']):
+                        screenMoveLeft()
+                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyselect']):
+                         launchTable()
+                         break
+                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyexit']):
+                        setShutdownEvent()
+                    elif button_id == int(vpinfeIniConfig.config['Settings']['joymenu']):
+                        print("Not implemented yet...")
+                    elif button_id == int(vpinfeIniConfig.config['Settings']['joyback']):
+                        print("Not implemented yet...")
+                    print(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
+                elif event.type == sdl2.SDL_JOYBUTTONUP:
+                    button_id = event.jbutton.button
+                    #print(f"Button {button_id} Up")
+
+    tkmsg = TkMsg(MsgType=TKMsgType.SHUTDOWN, func= shutDownMsg, msg = "")
     tkMsgQueue.put(tkmsg)
     Screen.rootWindow.event_generate("<<vpinfe_tk>>")
 
@@ -607,5 +603,5 @@ if __name__ == "__main__":
     Screen.rootWindow.mainloop()
 
     # shutdown
-    sdl2.SDL_Quit()
+    sdl2.ext.quit()
     #Screen.rootWindow.destroy()
