@@ -6,6 +6,7 @@ from pinlog import get_logger
 import sys
 
 class TableInfo:
+    tableImageFileName = None
     tableDirName = None
     fullPathTable = None
     fullPathVPXfile = None
@@ -34,7 +35,7 @@ class Tables:
         logger = get_logger()
 
         logger.debug (f"Creating tables with {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
-        self.tablename = vpinfeIniConfig.get_string('Media','tabletype','table').lower()
+        self.tableImageFileName = vpinfeIniConfig.get_string('Media','tabletype','table').lower()
         Tables.tablesRootFilePath = tablesRootFilePath
         self.loadTables()
 
@@ -94,7 +95,7 @@ class Tables:
         # set bg image
         bg = self.findImageEndingWith(tableInfo.fullPathTable, "bg")
         dmd = self.findImageEndingWith(tableInfo.fullPathTable, "dmd")
-        table = self.findImageEndingWith(tableInfo.fullPathTable, self.tablename)
+        table = self.findImageEndingWith(tableInfo.fullPathTable, self.tableImageFileName)
         wheel = self.findImageEndingWith(tableInfo.fullPathTable, "wheel")
 
         tableInfo.BGImagePath = self.imagePath(bg, tableInfo.fullPathVPXfile, 'bg')
