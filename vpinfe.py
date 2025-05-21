@@ -59,24 +59,29 @@ RESET_CONSOLE_TEXT = '\033[0m'
 task_build_cache = None
 
 def setShutdownEvent():
-    if not shutdown_event.is_set():
-        buildImageCacheStop()
-        shutdown_event.set()
+    if shutdown_event.is_set():
+        return
+    logger.debug("Exit requested")
+    buildImageCacheStop()
+    shutdown_event.set()
 
 def key_pressed(event):
     keysym = event.keysym # Get the symbolic name of the key
     #key = event.char # Get the character representation of the key
     #keycode = event.keycode # Get the numeric keycode
     #logger.debug(f"Key pressed: {key}, keysym: {keysym}, keycode: {keycode}")
+    key_actions = {
+        "Shift_R": screenMoveRight,
+        "Shift_L": screenMoveLeft,
+        "Escape": setShutdownEvent,
+        "q": setShutdownEvent,
+        "Return": launchTable,
+        "a": launchTable
+    }
 
-    if keysym == "Shift_R":
-        screenMoveRight()
-    elif keysym == "Shift_L":
-        screenMoveLeft()
-    elif keysym == "q" or keysym == "Escape":
-        setShutdownEvent()
-    elif keysym == "a" or keysym == "Return":
-       launchTable()
+    action = key_actions.get(keysym)
+    if action:
+        action()
 
 def screenMoveRight():
     global tableIndex
@@ -513,6 +518,19 @@ def buildImageCacheThread():
 
 def gameControllerInputThread():
     global background
+
+    def not_implemented(button):
+        logger.debug("Button {button} Not implemented yet...")
+
+    button_actions = {
+        vpinfeIniConfig.get_int('Settings', 'joyright', -1): screenMoveRight,
+        vpinfeIniConfig.get_int('Settings', 'joyleft', -2): screenMoveLeft,
+        vpinfeIniConfig.get_int('Settings', 'joyselect', -3): launchTable,
+        vpinfeIniConfig.get_int('Settings', 'joyexit', -4): setShutdownEvent,
+        vpinfeIniConfig.get_int('Settings', 'joymenu', -5): lambda: not_implemented("joymenu"),
+        vpinfeIniConfig.get_int('Settings', 'joyback', -6): lambda: not_implemented("joyback")
+    }
+
     # gamepad loop
     while not shutdown_event.is_set():
         #time.sleep(0.001)
@@ -526,38 +544,24 @@ def gameControllerInputThread():
             background = False
 
         for event in events:
-            if not background: # not coming back from vpx
-                if event.type == sdl2.SDL_QUIT:
-                    setShutdownEvent()
-                    break
-                elif event.type == sdl2.SDL_JOYAXISMOTION:
-                    axis_id = event.jaxis.axis
-
-                    axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
-                    #logger.debug(f"Axis {axis_id}: {axis_value}")
-                elif event.type == sdl2.SDL_JOYBUTTONDOWN:
-                    button_id = event.jbutton.button
-                    if button_id == vpinfeIniConfig.get_int('Settings','joyright',-1):
-                        screenMoveRight()
-                    elif button_id == vpinfeIniConfig.get_int('Settings','joyleft',-1):
-                        screenMoveLeft()
-                    elif button_id == vpinfeIniConfig.get_int('Settings','joyselect',-1):
-                        for s in screens: 
-                            s.window.withdraw()
-                        #s.window.after(1, launchTable() )
-                        launchTable()
-                        break
-                    elif button_id == vpinfeIniConfig.get_int('Settings','joyexit',-1):
-                        logger.debug("Exit requested")
-                        setShutdownEvent()
-                    elif button_id == vpinfeIniConfig.get_int('Settings','joymenu',-1):
-                        logger.debug("Not implemented yet...")
-                    elif button_id == vpinfeIniConfig.get_int('Settings','joyback',-1):
-                        logger.debug("Not implemented yet...")
-                    logger.debug(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
-                elif event.type == sdl2.SDL_JOYBUTTONUP:
-                    button_id = event.jbutton.button
-                    #logger.debug(f"Button {button_id} Up")
+            if background: # not coming back from vpx
+                continue
+            if event.type == sdl2.SDL_QUIT:
+                setShutdownEvent()
+                break
+            elif event.type == sdl2.SDL_JOYAXISMOTION:
+                axis_id = event.jaxis.axis
+                axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
+                #logger.debug(f"Axis {axis_id}: {axis_value}")
+            elif event.type == sdl2.SDL_JOYBUTTONDOWN:
+                button_id = event.jbutton.button
+                action = button_actions.get(button_id)
+                if action:
+                    action()
+                logger.debug(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
+            elif event.type == sdl2.SDL_JOYBUTTONUP:
+                button_id = event.jbutton.button
+                #logger.debug(f"Button {button_id} Up")
 
     logger.debug("Exiting gameControllerInputThread and requesting shutdown")
     tkmsg = TkMsg(MsgType=TKMsgType.SHUTDOWN, func=shutDownMsg, msg = "")
