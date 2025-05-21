@@ -65,10 +65,10 @@ class Screen:
              self.removeText()
 
         key = img_path
-        logger.debug(f"Loading {img_path}...")
         
         # If already in cache, move to end (most recently used) and return
-        if key in self.cache:
+        if key and key in self.cache:
+            logger.debug(f"Using cached {img_path}...")
             self.cache.move_to_end(key)
             if display:
                 self.addHUD(tableInfo)
@@ -76,10 +76,11 @@ class Screen:
             return
 
         # Load and process the image
-        try:
+        if key is None:
+            img = Image.open(self.missingImage)#.convert("RGBA") # not sure what the performance gain
+        else:
+            logger.debug(f"Loading {img_path}...")
             img = Image.open(img_path)#.convert("RGBA") # not sure what the performance gain is here.
-        except:
-            img = Image.open(self.missingImage)#.convert("RGBA") # not sure what the performance gain is here.
  
         img = self.imageRotate(img, self.rotationAngle)
 
