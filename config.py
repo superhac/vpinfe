@@ -76,4 +76,6 @@ class Config:
 		return self.get(section, option, default, type=bool)
 
 	def get_string(self, section, option, default=None):
-		return self.get(section, option, default, type=str)
+		string = self.get(section, option, default, type=str)
+		return string if string != "" else default
+
