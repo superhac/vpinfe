@@ -58,6 +58,7 @@ tkMsgQueue = Queue()
 RED_CONSOLE_TEXT = '\033[31m'
 RESET_CONSOLE_TEXT = '\033[0m'
 tasks_manager = None # Global instance for PauseableTasksManager
+button_actions = {}
 
 def setShutdownEvent():
     if shutdown_event.is_set():
@@ -85,8 +86,18 @@ def key_pressed(event):
         action()
 
 def button_pressed(payload):
+    global button_actions
+
+    action = button_actions.get(payload['button'])
+    if action:
+        action()
+    logger.debug(f"Button {payload['button']} Down on Gamepad: {payload['which']}")
+
+def buttonActionsSetup():
+    global button_actions
+
     def not_implemented(button):
-        logger.debug("Button {button} Not implemented yet...")
+        logger.debug(f"Button {button} Not implemented yet...")
 
     button_actions = {
         vpinfeIniConfig.get_int('Settings', 'joyright', -1): screenMoveRight,
@@ -97,10 +108,8 @@ def button_pressed(payload):
         vpinfeIniConfig.get_int('Settings', 'joyback', -6): lambda: not_implemented("joyback")
     }
 
-    action = button_actions.get(payload['button'])
-    if action:
-        action()
-    logger.debug(f"Button {payload['button']} Down on Gamepad: {payload['which']}")
+    if len(button_actions) != 6:
+        showError("Input Configuration Error", "It appears that you have some identical buttons defined multiple times. Please make sure they are unique or empty in vpinfe.ini.")
 
 def processTkMsgEvent(event):
     while not tkMsgQueue.empty():
@@ -301,6 +310,10 @@ def getScreens():
         screen = Screen(monitors[i], angle, missingImage, vpinfeIniConfig)
         screens.append(screen)
         logger.info(f"Display {i}:{str(screen.screen)}")
+
+def showError(title, message):
+    logger.error(f"{RED_CONSOLE_TEXT}{message}{RESET_CONSOLE_TEXT}")
+    messagebox.showerror(title, message)
 
 def showCriticalErrorAndExit(title, message, exitCode):
     logger.critical(f"{RED_CONSOLE_TEXT}{message}{RESET_CONSOLE_TEXT}")
@@ -506,6 +519,8 @@ if __name__ == "__main__":
     logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
 
     update_logger_config(vpinfeIniConfig.config['Logger'])
+
+    buttonActionsSetup()
 
     sdl2.ext.init()
     logger.debug("SDL2 initialized.")
