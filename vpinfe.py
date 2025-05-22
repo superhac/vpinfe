@@ -8,7 +8,6 @@ import sys
 import os
 import subprocess
 import argparse
-import sdl2
 import sdl2.ext
 import time
 import threading
@@ -27,6 +26,8 @@ from vpsdb import VPSdb
 import vpxparser
 import standaloneScripts
 from pauseabletask import PauseableTask
+from pauseabletasksmanager import PauseableTasksManager
+from joystickhandler import JoystickHandler
 
 # OS Specific
 if sys.platform.startswith('win'):
@@ -56,14 +57,14 @@ tableIndex = 0
 tkMsgQueue = Queue()
 RED_CONSOLE_TEXT = '\033[31m'
 RESET_CONSOLE_TEXT = '\033[0m'
-task_build_cache = None
+tasks_manager = None # Global instance for PauseableTasksManager
 
 def setShutdownEvent():
     if shutdown_event.is_set():
         return
     logger.debug("Exit requested")
-    buildImageCacheStop()
     shutdown_event.set()
+    shutDownMsg()
 
 def key_pressed(event):
     keysym = event.keysym # Get the symbolic name of the key
@@ -82,6 +83,38 @@ def key_pressed(event):
     action = key_actions.get(keysym)
     if action:
         action()
+
+def button_pressed(payload):
+    def not_implemented(button):
+        logger.debug("Button {button} Not implemented yet...")
+
+    button_actions = {
+        vpinfeIniConfig.get_int('Settings', 'joyright', -1): screenMoveRight,
+        vpinfeIniConfig.get_int('Settings', 'joyleft', -2): screenMoveLeft,
+        vpinfeIniConfig.get_int('Settings', 'joyselect', -3): launchTable,
+        vpinfeIniConfig.get_int('Settings', 'joyexit', -4): setShutdownEvent,
+        vpinfeIniConfig.get_int('Settings', 'joymenu', -5): lambda: not_implemented("joymenu"),
+        vpinfeIniConfig.get_int('Settings', 'joyback', -6): lambda: not_implemented("joyback")
+    }
+
+    action = button_actions.get(payload['button'])
+    if action:
+        action()
+    logger.debug(f"Button {payload['button']} Down on Gamepad: {payload['which']}")
+
+def processTkMsgEvent(event):
+    while not tkMsgQueue.empty():
+        msg = tkMsgQueue.get()
+
+        if msg.msgType == TKMsgType.CACHE_BUILD_COMPLETED:
+            disableStatusMsg
+        elif msg.msgType == TKMsgType.SHUTDOWN:
+            setShutdownEvent()
+        elif msg.msgType == TKMsgType.JOY_BUTTON_DOWN:
+            button_pressed(msg.payload)
+        #elif msg.msgType == TKMsgType.JOY_BUTTON_UP:
+            #logger.info(f"Received JOY_BUTTON_UP {msg.payload['button']} from joystick {msg.payload['which']}")
+    pass
 
 def screenMoveRight():
     global tableIndex
@@ -106,16 +139,16 @@ def screenMoveLeft():
 def launchTable():
     global background
     background = True  # Disable SDL gamepad events
-    buildImageCachePause()
+    tasks_manager.pause()
     launchVPX(tables.getTable(tableIndex).fullPathVPXfile)
     logger.debug(f"Returning from playing the table. Resetting focus on us.")
 
     # check if we need to do postprocessing.  right now just check if we need to delete pinmame nvram
     meta = metaconfig.MetaConfig(tables.getTable(tableIndex).fullPathTable + "/" + "meta.ini")
     meta.actionDeletePinmameNVram()
-    
+
     Screen.rootWindow.update_idletasks()
-    
+
     if vpinfeIniConfig.get_string('Displays','windowmanager', "") == "kde":
         for s in screens:
             s.window.update_idletasks()
@@ -133,12 +166,12 @@ def launchTable():
             s.window.update_idletasks()
             s.window.geometry(f"{s.screen.width}x{s.screen.height}+{s.screen.x}+{s.screen.y}")
             s.window.update()
-          
+
         Screen.rootWindow.update()
         Screen.rootWindow.focus_force()
         Screen.rootWindow.update()
 
-    Screen.rootWindow.after(350, buildImageCacheResume)
+    Screen.rootWindow.after(350, tasks_manager.resume)
 
 def launchVPX(table):
     logger.info(f"Launching: {table}")
@@ -147,7 +180,7 @@ def launchVPX(table):
         logger.debug(f"Iconifying windows due to {reason}")
         for s in screens:
             s.window.iconify()
-        
+
         Screen.rootWindow.update_idletasks()
 
     keyword_or_timeout = threading.Event()
@@ -247,7 +280,7 @@ def setGameDisplays(tableInfo):
     # Load table image (rotated and we swap width and height around like portrait mode)
     if ScreenNames.TABLE is not None:
         screens[ScreenNames.TABLE].loadImage(tableInfo.TableImagePath, tableInfo=tableInfo if hudscreenid == ScreenNames.TABLE else None)
-       
+
 def getScreens():
     logger.info("Enumerating displays")
     # Get all available screens
@@ -268,23 +301,6 @@ def getScreens():
         screen = Screen(monitors[i], angle, missingImage, vpinfeIniConfig)
         screens.append(screen)
         logger.info(f"Display {i}:{str(screen.screen)}")
-
-def openJoysticks():
-    logger.info("Checking for gamepads")
-    if sdl2.SDL_InitSubSystem(sdl2.SDL_INIT_JOYSTICK) < 0:
-        logger.error(f"SDL_InitSubSystem Error: {sdl2.SDL_GetError()}")
-        return
-
-    num_joysticks = sdl2.SDL_NumJoysticks()
-    logger.info(f"Found {num_joysticks} gamepads.")
-
-    for i in range(num_joysticks):
-        joystick = sdl2.SDL_JoystickOpen(i)
-        if joystick:
-            name = sdl2.SDL_JoystickName(joystick)
-            logger.info(f"Joystick {i}: {name.decode('utf-8')}")
-        else:
-            logger.error(f"Could not open joystick {i}")
 
 def showCriticalErrorAndExit(title, message, exitCode):
     logger.critical(f"{RED_CONSOLE_TEXT}{message}{RESET_CONSOLE_TEXT}")
@@ -343,7 +359,7 @@ def loadconfig(configfile):
     vpxBinPath = os.path.expanduser(vpxBinPath)
     if not os.path.exists(vpxBinPath):
         showCriticalErrorAndExit("Path Error", "VPX binary not found. Check your `vpxBinPath` value in vpinfe has correct path.", 1)
-    
+
     tableRootDir = os.path.expanduser(tableRootDir)
     if not os.path.exists(tableRootDir):
         showCriticalErrorAndExit("Path Error", "Table root dir not found. Check your 'tableroot' value in vpinfe.ini has correct path.", 1)
@@ -358,7 +374,7 @@ def buildMetaData():
         for table in Tables.tables:
             finalini = {}
             meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini") # check if we want it updated!!! TODO
-            
+
             # vpsdb
             logger.info(f"Checking VPSdb for {table.tableDirName}")
             vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
@@ -366,12 +382,12 @@ def buildMetaData():
             if vpsData is None:
                 logger.error(f"{RED_CONSOLE_TEXT}Not found in VPS{RESET_CONSOLE_TEXT}")
                 continue
-            
+
             # vpx file info
             logger.info(f"Parsing VPX file for metadata")
             logger.info(f"Extracting {table.fullPathVPXfile} for metadata.")
             vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
-            
+
             # make the config.ini
             finalini['vpsdata'] = vpsData
             finalini['vpxdata'] = vpxData
@@ -393,7 +409,7 @@ def parseArgs():
     parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file.  Default is cwd.")
     parser.add_argument("--buildmeta", help="Builds the meta.ini file in each table dir", action="store_true")
     parser.add_argument("--vpxpatch", help="Using vpx-standalone-scripts will attempt to load patches automatically", action="store_true")
-    
+
     args = parser.parse_args()
 
     if args.listres:
@@ -402,26 +418,18 @@ def parseArgs():
         for i in range(len(monitors)):
             logger.info(f"{i}:{str(monitors[i])}")
         sys.exit()
-        
+
     if args.configfile:
         configfile = args.configfile
-        
+
     if args.buildmeta:
         buildMetaData()
         sys.exit()
-        
+
     if args.vpxpatch:
         vpxPatches()
         sys.exit()
-    
-def processTkMsgEvent(event):
-        msg = tkMsgQueue.get()
 
-        if msg.msgType == TKMsgType.CACHE_BUILD_COMPLETED:
-            msg.call()
-        if msg.msgType == TKMsgType.SHUTDOWN:
-            msg.call()
-            
 def disableStatusMsg():
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].textThreeDotAnimate(enabled=False)
@@ -429,7 +437,7 @@ def disableStatusMsg():
 
 def shutDownMsg():
     Screen.rootWindow.after(500, Screen.rootWindow.destroy)
-    
+
 def loadImageAllScreens(img_path):
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].loadImage(img_path)
@@ -440,134 +448,53 @@ def loadImageAllScreens(img_path):
     Screen.rootWindow.update()
 
 def buildImageCache():
-    global task_build_cache
     loadImageAllScreens(logoImage)
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].addStatusText("Caching Images", (10,1034))
         screens[ScreenNames.BG].textThreeDotAnimate()
-    task_build_cache = PauseableTask(name="buildImageCache", target_func=buildImageCacheThread)
-    if task_build_cache is None:
-        logger.debug("buildImageCache: task_build_cache is None")
-        return
-    thread = threading.Thread(target=task_build_cache.start, daemon=True)
-    thread.start()
+    # Add the task to the manager
+    tasks_manager.add(name="buildImageCache", target_func=buildImageCacheThread)
+    tasks_manager.start("buildImageCache") # Start the task via the manager
 
 def buildImageCachePause():
-    if task_build_cache is None:
-        logger.debug("buildImageCachePause: task_build_cache is None")
-        return
-    task_build_cache.pause()
+    tasks_manager.pause("buildImageCache") # Use manager to pause
 
 def buildImageCacheResume():
-    if task_build_cache is None:
-        logger.debug("buildImageCacheResume: task_build_cache is None")
-        return
-    task_build_cache.resume()
+    tasks_manager.resume("buildImageCache") # Use manager to resume
 
 def buildImageCacheStop():
-    if task_build_cache is None:
-        logger.debug("buildImageCacheStop: task_build_cache is None")
-        return
-    task_build_cache.stop()
+    tasks_manager.stop("buildImageCache") # Use manager to stop
 
 def buildImageCacheSleep(duration):
-    if task_build_cache is None:
-        logger.debug("buildImageCacheSleep: task_build_cache is None")
-        return
-    task_build_cache.sleep(duration)
+    tasks_manager.sleep("buildImageCache", duration) # Use manager to sleep
 
 def buildImageCacheWait():
-    if task_build_cache is None:
-        logger.debug("buildImageCacheWait: task_build_cache is None")
-        return
-    task_build_cache.wait()
-
-def buildImageCacheisPaused():
-    if task_build_cache is None:
-        logger.debug("buildImageCacheIsPaused: task_build_cache is None")
-        return False
-    return task_build_cache.is_paused()
+    tasks_manager.wait("buildImageCache") # Use manager to wait
 
 def buildImageCacheThread():
-    tkmsg = TkMsg(MsgType=TKMsgType.CACHE_BUILD_COMPLETED, func=disableStatusMsg, msg="")
-    tkMsgQueue.put(tkmsg)
-
     for i in range(Screen.maxImageCacheSize):
         if i == tables.getTableCount():
+            tkMsgQueue.put(TkMsg(MsgType=TKMsgType.CACHE_BUILD_COMPLETED, func=disableStatusMsg))
             break
         if shutdown_event.is_set():
             break
-        buildImageCacheWait()
+        tasks_manager.wait("buildImageCache") # Use manager to wait
         if ScreenNames.BG is not None:
             screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
         if shutdown_event.is_set():
             break
-        buildImageCacheWait()
+        tasks_manager.wait("buildImageCache") # Use manager to wait
         if ScreenNames.DMD is not None:
             screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
         if shutdown_event.is_set():
             break
-        buildImageCacheWait()
+        tasks_manager.wait("buildImageCache") # Use manager to wait
         if ScreenNames.TABLE is not None:
             screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
 
     Screen.rootWindow.event_generate("<<vpinfe_tk>>")
 
     logger.debug("Exiting buildImageCacheThread")
-
-def gameControllerInputThread():
-    global background
-
-    def not_implemented(button):
-        logger.debug("Button {button} Not implemented yet...")
-
-    button_actions = {
-        vpinfeIniConfig.get_int('Settings', 'joyright', -1): screenMoveRight,
-        vpinfeIniConfig.get_int('Settings', 'joyleft', -2): screenMoveLeft,
-        vpinfeIniConfig.get_int('Settings', 'joyselect', -3): launchTable,
-        vpinfeIniConfig.get_int('Settings', 'joyexit', -4): setShutdownEvent,
-        vpinfeIniConfig.get_int('Settings', 'joymenu', -5): lambda: not_implemented("joymenu"),
-        vpinfeIniConfig.get_int('Settings', 'joyback', -6): lambda: not_implemented("joyback")
-    }
-
-    # gamepad loop
-    while not shutdown_event.is_set():
-        #time.sleep(0.001)
-        events = sdl2.ext.get_events()
-        if len(events) == 0:
-            continue
-
-        # SDL continues to queue events in the background while in vpx.  This loop eats those on return to vpinfe.
-        if background:
-            for event in events:
-                pass
-            background = False
-            continue
-
-        for event in events:
-            if background: # not coming back from vpx
-                continue
-            if event.type == sdl2.SDL_QUIT:
-                setShutdownEvent()
-                break
-            elif event.type == sdl2.SDL_JOYAXISMOTION:
-                axis_id = event.jaxis.axis
-                axis_value = event.jaxis.value / 32767.0  # Normalize to -1.0 to 1.0
-                #logger.debug(f"Axis {axis_id}: {axis_value}")
-            elif event.type == sdl2.SDL_JOYBUTTONDOWN:
-                button_id = event.jbutton.button
-                action = button_actions.get(button_id)
-                if action:
-                    action()
-                logger.debug(f"Button {button_id} Down on Gamepad: {event.jbutton.which}")
-            elif event.type == sdl2.SDL_JOYBUTTONUP:
-                button_id = event.jbutton.button
-                #logger.debug(f"Button {button_id} Up")
-
-    logger.debug("Exiting gameControllerInputThread and requesting shutdown")
-    tkmsg = TkMsg(MsgType=TKMsgType.SHUTDOWN, func=shutDownMsg, msg = "")
-    tkMsgQueue.put(tkmsg)
-    Screen.rootWindow.event_generate("<<vpinfe_tk>>")
 
 if __name__ == "__main__":
     logger = init_logger("VPinFE")
@@ -579,8 +506,9 @@ if __name__ == "__main__":
     logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
 
     update_logger_config(vpinfeIniConfig.config['Logger'])
+
     sdl2.ext.init()
-    openJoysticks()
+    logger.debug("SDL2 initialized.")
 
     tables = Tables(tableRootDir, vpinfeIniConfig)
     getScreens()
@@ -588,7 +516,14 @@ if __name__ == "__main__":
     # Ensure windows have updated dimensions
     screens[0].window.update_idletasks()
 
-    # load logo and build cache
+    tasks_manager = PauseableTasksManager()
+
+    # Add and start the gamepad input task
+    joystick_handler = JoystickHandler(tkMsgQueue, shutdown_event, tasks_manager)
+    tasks_manager.add(name="gameControllerInput", target_func=joystick_handler.input_loop)
+    tasks_manager.start("gameControllerInput")
+
+    # Add and start the buildImageCache task
     Screen.rootWindow.after(500, buildImageCache)
 
     # load first screen after 5 secs letting the cache build
@@ -600,13 +535,14 @@ if __name__ == "__main__":
     # our thread update callback on event
     Screen.rootWindow.bind("<<vpinfe_tk>>", processTkMsgEvent)
 
-    # SDL gamepad input loop
-    gamepadThread = threading.Thread(target=gameControllerInputThread)
-    gamepadThread.start()
-
     # tk blocking loop
     Screen.rootWindow.mainloop()
 
     # shutdown
+    logger.info("Stopping async tasks.")
+    tasks_manager.stop()
+
+    logger.info("SDL2 Quit.")
     sdl2.ext.quit()
-    #Screen.rootWindow.destroy()
+
+    logger.info("VPinFE shutdown complete.")
