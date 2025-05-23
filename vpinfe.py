@@ -478,21 +478,6 @@ def buildImageCache():
     tasks_manager.add(name="buildImageCache", target_func=buildImageCacheThread)
     tasks_manager.start("buildImageCache") # Start the task via the manager
 
-def buildImageCachePause():
-    tasks_manager.pause("buildImageCache") # Use manager to pause
-
-def buildImageCacheResume():
-    tasks_manager.resume("buildImageCache") # Use manager to resume
-
-def buildImageCacheStop():
-    tasks_manager.stop("buildImageCache") # Use manager to stop
-
-def buildImageCacheSleep(duration):
-    tasks_manager.sleep("buildImageCache", duration) # Use manager to sleep
-
-def buildImageCacheWait():
-    tasks_manager.wait("buildImageCache") # Use manager to wait
-
 def buildImageCacheThread():
     for i in range(Screen.maxImageCacheSize):
         if i == tables.getTableCount():
