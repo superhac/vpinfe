@@ -57,3 +57,6 @@ wcwidth==0.2.13
 webencodings==0.5.1
 yarg==0.1.9
 olefile==0.46
+PyQt6==6.9.0
+PyQt6-Qt6
+PyQt6-sip
