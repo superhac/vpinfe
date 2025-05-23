@@ -28,6 +28,7 @@ import standaloneScripts
 from pauseabletask import PauseableTask
 from pauseabletasksmanager import PauseableTasksManager
 from joystickhandler import JoystickHandler
+from autoclosemessagebox import AutocloseMessageBox
 
 # OS Specific
 if sys.platform.startswith('win'):
@@ -145,17 +146,7 @@ def screenMoveLeft():
         tableIndex = tables.getTableCount()-1
         setGameDisplays(tables.getTable(tableIndex))
 
-def launchTable():
-    global background
-    background = True  # Disable SDL gamepad events
-    tasks_manager.pause()
-    launchVPX(tables.getTable(tableIndex).fullPathVPXfile)
-    logger.debug(f"Returning from playing the table. Resetting focus on us.")
-
-    # check if we need to do postprocessing.  right now just check if we need to delete pinmame nvram
-    meta = metaconfig.MetaConfig(tables.getTable(tableIndex).fullPathTable + "/" + "meta.ini")
-    meta.actionDeletePinmameNVram()
-
+def resetFocus():
     Screen.rootWindow.update_idletasks()
 
     if vpinfeIniConfig.get_string('Displays','windowmanager', "") == "kde":
@@ -176,9 +167,22 @@ def launchTable():
             s.window.geometry(f"{s.screen.width}x{s.screen.height}+{s.screen.x}+{s.screen.y}")
             s.window.update()
 
-        Screen.rootWindow.update()
-        Screen.rootWindow.focus_force()
-        Screen.rootWindow.update()
+    Screen.rootWindow.update()
+    Screen.rootWindow.focus_force()
+    Screen.rootWindow.update()
+
+def launchTable():
+    global background
+    background = True  # Disable SDL gamepad events
+    tasks_manager.pause()
+    launchVPX(tables.getTable(tableIndex).fullPathVPXfile)
+    logger.debug(f"Returning from playing the table. Resetting focus on us.")
+
+    # check if we need to do postprocessing.  right now just check if we need to delete pinmame nvram
+    meta = metaconfig.MetaConfig(tables.getTable(tableIndex).fullPathTable + "/" + "meta.ini")
+    meta.actionDeletePinmameNVram()
+
+    resetFocus()
 
     Screen.rootWindow.after(350, tasks_manager.resume)
 
@@ -312,12 +316,17 @@ def getScreens():
         logger.info(f"Display {i}:{str(screen.screen)}")
 
 def showError(title, message):
+    root = screens[vpinfeIniConfig.get_int('Displays','messagesscreenid', 0)].window
     logger.error(f"{RED_CONSOLE_TEXT}{message}{RESET_CONSOLE_TEXT}")
-    messagebox.showerror(title, message)
+    msg_box = AutocloseMessageBox(root, title, message, delay_s=15)
+    msg_box.show()
+    resetFocus()
 
 def showCriticalErrorAndExit(title, message, exitCode):
+    root = screens[vpinfeIniConfig.get_int('Displays','messagesscreenid', 0)].window
     logger.critical(f"{RED_CONSOLE_TEXT}{message}{RESET_CONSOLE_TEXT}")
-    messagebox.showerror(title, message)
+    msg_box = AutocloseMessageBox(Screen.rootWindow, title, message, delay_s=15)
+    msg_box.show()
     sys.exit(exitCode)
 
 def loadconfig(configfile):
@@ -520,8 +529,6 @@ if __name__ == "__main__":
 
     update_logger_config(vpinfeIniConfig.config['Logger'])
 
-    buttonActionsSetup()
-
     sdl2.ext.init()
     logger.debug("SDL2 initialized.")
 
@@ -530,6 +537,8 @@ if __name__ == "__main__":
 
     # Ensure windows have updated dimensions
     screens[0].window.update_idletasks()
+
+    buttonActionsSetup()
 
     tasks_manager = PauseableTasksManager()
 
