@@ -60,6 +60,7 @@ RED_CONSOLE_TEXT = '\033[31m'
 RESET_CONSOLE_TEXT = '\033[0m'
 tasks_manager = None # Global instance for PauseableTasksManager
 button_actions = {}
+activityMessage = None
 
 def setShutdownEvent():
     if shutdown_event.is_set():
@@ -171,20 +172,41 @@ def resetFocus():
     Screen.rootWindow.focus_force()
     Screen.rootWindow.update()
 
+def showActivityMessage(text):
+    if ScreenNames.BG is not None:
+        screens[ScreenNames.BG].addStatusText(text, (10,1034))
+        screens[ScreenNames.BG].textThreeDotAnimate()
+
+def disableActivityMessage():
+    if ScreenNames.BG is not None:
+        screens[ScreenNames.BG].textThreeDotAnimate(enabled=False)
+        screens[ScreenNames.BG].removeStatusText()
+
+def getActivityMessage():
+    if ScreenNames.BG is not None:
+        return screens[ScreenNames.BG].getStatusText()
+    return None
+        
 def launchTable():
-    global background
-    background = True  # Disable SDL gamepad events
+    global activityMessage
+    activityMessage = getActivityMessage()
+    disableActivityMessage()
     tasks_manager.pause()
-    launchVPX(tables.getTable(tableIndex).fullPathVPXfile)
+    table = tables.getTable(tableIndex)
+    showActivityMessage(f"Launching {table.metaConfig['VPSdb']['name']} ({table.metaConfig['VPSdb']['manufacturer']} {table.metaConfig['VPSdb']['year']})")
+
+    launchVPX(table.fullPathVPXfile)
     logger.debug(f"Returning from playing the table. Resetting focus on us.")
 
     # check if we need to do postprocessing.  right now just check if we need to delete pinmame nvram
-    meta = metaconfig.MetaConfig(tables.getTable(tableIndex).fullPathTable + "/" + "meta.ini")
+    meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini")
     meta.actionDeletePinmameNVram()
 
     resetFocus()
 
     Screen.rootWindow.after(350, tasks_manager.resume)
+    if activityMessage:
+        showActivityMessage(activityMessage)
 
 def launchVPX(table):
     logger.info(f"Launching: {table}")
@@ -208,6 +230,8 @@ def launchVPX(table):
 
         # Use a different name of the logger while standalone is running
         vpx_logger = get_named_logger("VPinball")
+        # It depends on the version of standalone we're using.
+        keywords = ["Starting render thread", "Startup done"]
 
         try:
             for line in iter(proc.stdout.readline, b''):
@@ -215,7 +239,7 @@ def launchVPX(table):
                     break
                 decoded = line.decode(errors="ignore").strip()
                 vpx_logger.debug(decoded)
-                if "Starting render thread" in decoded and not keyword_or_timeout.is_set():
+                if any(keyword in decoded for keyword in keywords) and not keyword_or_timeout.is_set():
                     reason = "keyword found"
                     keyword_or_timeout.set()
         except Exception as e:
@@ -270,6 +294,7 @@ def launchVPX(table):
     # Wait for the keyword or timeout to be set to iconify the windows
     logger.debug(f"Waiting for the table to start rendering or {timeout_duration} seconds.")
     keyword_or_timeout.wait()
+    disableActivityMessage()
     if not process_exited.is_set():
         iconify_all_windows(reason)
 
@@ -518,9 +543,8 @@ def buildImageCache():
     if ScreenNames.BG is not None:
         screens[ScreenNames.BG].addStatusText("Caching Images", (10,1034))
         screens[ScreenNames.BG].textThreeDotAnimate()
-    # Add the task to the manager
     tasks_manager.add(name="buildImageCache", target_func=buildImageCacheThread)
-    tasks_manager.start("buildImageCache") # Start the task via the manager
+    tasks_manager.start("buildImageCache")
 
 def buildImageCacheThread():
     for i in range(Screen.maxImageCacheSize):
@@ -529,20 +553,21 @@ def buildImageCacheThread():
             break
         if shutdown_event.is_set():
             break
-        tasks_manager.wait("buildImageCache") # Use manager to wait
+        tasks_manager.wait("buildImageCache")
         if ScreenNames.BG is not None:
             screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
         if shutdown_event.is_set():
             break
-        tasks_manager.wait("buildImageCache") # Use manager to wait
+        tasks_manager.wait("buildImageCache")
         if ScreenNames.DMD is not None:
             screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
         if shutdown_event.is_set():
             break
-        tasks_manager.wait("buildImageCache") # Use manager to wait
+        tasks_manager.wait("buildImageCache")
         if ScreenNames.TABLE is not None:
             screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
 
+    disableActivityMessage()
     Screen.rootWindow.event_generate("<<vpinfe_tk>>")
 
     logger.debug("Exiting buildImageCacheThread")

@@ -158,6 +158,7 @@ class Screen:
     def addStatusText(self, text, pos, anchor="nw"):
         self.statusText = self.canvas.create_text(*pos, anchor=anchor, text=text, font=("Arial", 30), fill="white")
         self.originalStatusText = text 
+        self.threeDotCount = 3
         self.textPos = pos
         self.canvas.update()
     
@@ -170,7 +171,9 @@ class Screen:
         self.originalStatusText = text 
 
     def getStatusText(self):
-        return self.statusText
+        if self.isThreeDotAnimate:
+            return self.originalStatusText
+        return None
     
     def textThreeDotAnimateCall(self):
         if self.isThreeDotAnimate:
