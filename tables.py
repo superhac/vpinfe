@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import metaconfig
 from pinlog import get_logger
+from screennames import ScreenNames
 
 import sys
 
@@ -33,7 +34,7 @@ class Tables:
     def __init__(self, tablesRootFilePath, vpinfeIniConfig):
         global logger
         logger = get_logger()
-
+    
         logger.debug (f"Creating tables with {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
         self.tableImageFileName = vpinfeIniConfig.get_string('Media','tabletype','table').lower()
         Tables.tablesRootFilePath = tablesRootFilePath
@@ -110,6 +111,14 @@ class Tables:
     def getTable(self, index):
         return self.tables[index]
     
+    def getImagePathByScreenname(self, index, screenname: ScreenNames):
+        if screenname == ScreenNames.BG:
+            return str(self.tables[index].BGImagePath)
+        elif screenname == ScreenNames.DMD:
+            return str(self.tables[index].DMDImagePath)
+        elif screenname == ScreenNames.TABLE:
+            return str(self.tables[index].TableImagePath)
+        
     def getTableCount(self):
         return len(Tables.tables)
     

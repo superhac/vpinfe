@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-import tkinter as tk
-from tkinter import messagebox
 from screeninfo import get_monitors
 from PIL import Image, ImageTk
 import sys
@@ -11,14 +9,12 @@ import argparse
 import sdl2.ext
 import time
 import threading
-from multiprocessing import Process
-from queue import Queue
-from tkmessages import TKMsgType, TkMsg
+import multiprocessing
+from queue import Queue 
 
 from pinlog import init_logger, get_logger, update_logger_config, get_named_logger
-from screennames import ScreenNames
+import screennames
 from imageset import ImageSet
-from screen import Screen
 from tables import Tables
 from config import Config
 import metaconfig
@@ -29,6 +25,17 @@ from pauseabletask import PauseableTask
 from pauseabletasksmanager import PauseableTasksManager
 from joystickhandler import JoystickHandler
 from autoclosemessagebox import AutocloseMessageBox
+
+from PyQt6 import uic
+from PyQt6.QtWidgets import (
+    QApplication, QWidget, QGraphicsView, QGraphicsScene, QGraphicsProxyWidget
+)
+from PyQt6.QtGui import QPixmap, QTransform
+from PyQt6.QtCore import Qt, QObject, QTimer, QEvent
+
+from ui.fullscreenimagewindow import FullscreenImageWindow
+from ui.imagecacheworker import ImageCacheWorker
+from ui.imageworkermanager import ImageWorkerManager
 
 # OS Specific
 if sys.platform.startswith('win'):
@@ -46,8 +53,7 @@ else:
 version = "0.5 beta"
 logger = None
 parservpx = None
-screens = []
-ScreenNames = ScreenNames()
+#screens = []
 shutdown_event = threading.Event()
 background = False
 tableRootDir = None
@@ -60,6 +66,44 @@ RED_CONSOLE_TEXT = '\033[31m'
 RESET_CONSOLE_TEXT = '\033[0m'
 tasks_manager = None # Global instance for PauseableTasksManager
 button_actions = {}
+tables = None
+
+# qt
+workers = []
+managers = []
+app = None
+screens = []
+
+class GlobalKeyListener(QObject):
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_Q:
+                QApplication.instance().quit()
+                return True  # event handled
+            if event.key() == Qt.Key.Key_M:
+                FullscreenImageWindow.menuWindow.add_rotated_menu(rotation_degree=-90)
+                return True
+            if event.key() == Qt.Key.Key_Shift and event.nativeScanCode() == 50: # left
+                print("left:", event.nativeScanCode())
+                for manager in managers:
+                    manager.load_previous()
+                #tableIndex -= 1
+                return True
+            if event.key() == Qt.Key.Key_Shift and event.nativeScanCode() == 62: # right
+                print("right:", event.nativeScanCode())
+                for manager in managers:
+                    manager.load_next()
+                #tableIndex += 1
+                return True
+            if event.key() == Qt.Key.Key_Return: # enter
+                print("lanuch", event.nativeScanCode())
+                launchTable()
+                return True
+        return False  # pass the event on
+
+def load_stylesheet(path):
+    with open(path, 'r') as f:
+        return f.read()
 
 def setShutdownEvent():
     if shutdown_event.is_set():
@@ -294,27 +338,6 @@ def setGameDisplays(tableInfo):
     if ScreenNames.TABLE is not None:
         screens[ScreenNames.TABLE].loadImage(tableInfo.TableImagePath, tableInfo=tableInfo if hudscreenid == ScreenNames.TABLE else None)
 
-def getScreens():
-    logger.info("Enumerating displays")
-    # Get all available screens
-    monitors = get_monitors()
-
-    hudscreenid = vpinfeIniConfig.get_int('Displays','hudscreenid', -1)
-    tablescreenid = vpinfeIniConfig.get_int('Displays','tablescreenid', -1)
-    hudrotangle = vpinfeIniConfig.get_int('Displays','hudrotangle', 0)
-    tablerotangle = vpinfeIniConfig.get_int('Displays','tablerotangle', 0)
-
-    for i in range(len(monitors)):
-        if i == hudscreenid:
-            angle = hudrotangle
-        elif i == tablescreenid:
-            angle = tablerotangle
-        else:
-            angle = 0
-        screen = Screen(monitors[i], angle, missingImage, vpinfeIniConfig)
-        screens.append(screen)
-        logger.info(f"Display {i}:{str(screen.screen)}")
-
 def showError(title, message):
     root = screens[vpinfeIniConfig.get_int('Displays','messagesscreenid', 0)].window
     logger.error(f"{RED_CONSOLE_TEXT}{message}{RESET_CONSOLE_TEXT}")
@@ -360,9 +383,9 @@ def loadconfig(configfile):
     logger.debug(f"Current working directory (using os.getcwd()): {current_dir}")
 
     # mandatory
-    ScreenNames.BG = vpinfeIniConfig.get_int('Displays','bgscreenid', None)
-    ScreenNames.DMD = vpinfeIniConfig.get_int('Displays','dmdscreenid', None)
-    ScreenNames.TABLE = vpinfeIniConfig.get_int('Displays','tablescreenid', None)
+    screennames.ScreenNames.BG = vpinfeIniConfig.get_int('Displays','bgscreenid', None)
+    screennames.ScreenNames.DMD = vpinfeIniConfig.get_int('Displays','dmdscreenid', None)
+    screennames.ScreenNames.TABLE = vpinfeIniConfig.get_int('Displays','tablescreenid', None)
     tableRootDir = vpinfeIniConfig.get_string('Settings','tablerootdir', None)
     vpxBinPath = vpinfeIniConfig.get_string('Settings','vpxbinpath', None)
     if any(var is None for var in [tableRootDir, vpxBinPath]):
@@ -386,7 +409,7 @@ def loadconfig(configfile):
     if not os.path.exists(tableRootDir):
         showCriticalErrorAndExit("Path Error", "Table root dir not found. Check your 'tableroot' value in vpinfe.ini has correct path.", 1)
 
-    if all(var is None for var in [ScreenNames.BG, ScreenNames.DMD, ScreenNames.TABLE]):
+    if all(var is None for var in [screennames.ScreenNames.BG, screennames.ScreenNames.DMD, screennames.ScreenNames.TABLE]):
         showCriticalErrorAndExit("Path Error", "You must have at least one display set in your vpinfe.ini.", 1)
 
 def buildMetaData():
@@ -436,9 +459,21 @@ def parseArgs():
 
     if args.listres:
         # Get all available screens
-        monitors = get_monitors()
-        for i in range(len(monitors)):
-            logger.info(f"{i}:{str(monitors[i])}")
+        app = QApplication(sys.argv)
+        screens = app.screens()
+        
+        for i, screen in enumerate(screens):
+            logger.info(
+                f"Screen {i}: Name={screen.name()}, "
+                f"Size={screen.size().width()}x{screen.size().height()}, "
+                f"Geometry={screen.geometry()}, "
+                f"AvailableGeometry={screen.availableGeometry()}, "
+                f"LogicalDPI={screen.logicalDotsPerInch():.2f}, "
+                f"PhysicalDPI={screen.physicalDotsPerInch():.2f}, "
+                f"RefreshRate={screen.refreshRate():.2f}Hz, "
+                f"Depth={screen.depth()} bits, "
+                f"DevicePixelRatio={screen.devicePixelRatio():.2f}"
+            )
         sys.exit()
 
     if args.configfile:
@@ -502,6 +537,34 @@ def buildImageCacheThread():
     Screen.rootWindow.event_generate("<<vpinfe_tk>>")
 
     logger.debug("Exiting buildImageCacheThread")
+    
+def setupScreens():
+    global workers
+    global managers
+    # setup the window on each screen
+    for i, screen in enumerate(screens):
+        if i == screennames.ScreenNames.BG:
+            win = FullscreenImageWindow(screen, screennames.ScreenNames.BG, tables)
+        elif i == screennames.ScreenNames.DMD:
+            win = FullscreenImageWindow(screen, screennames.ScreenNames.DMD, tables)
+        elif i == screennames.ScreenNames.TABLE:
+            win = FullscreenImageWindow(screen, screennames.ScreenNames.TABLE, tables)
+            
+        # Add menu  to first screen
+        if i == 0:
+            win.add_rotated_menu(rotation_degree=-90)
+            FullscreenImageWindow.menuWindow = win
+     
+    # setup the image cache workers and a manager  
+    for win in FullscreenImageWindow.windows:
+        command_queue = multiprocessing.Queue()
+        result_queue = multiprocessing.Queue()
+        worker = ImageCacheWorker(tables, win.screenName, command_queue, result_queue, win.screen.geometry())
+        manager = ImageWorkerManager(win, tables,  command_queue, result_queue)
+        manager.set_image_by_index(0)  # Show first image #############################################################################
+        workers.append((worker, command_queue, result_queue))
+        managers.append(manager) 
+        worker.start()
 
 if __name__ == "__main__":
     logger = init_logger("VPinFE")
@@ -513,45 +576,47 @@ if __name__ == "__main__":
     logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
 
     update_logger_config(vpinfeIniConfig.config['Logger'])
+    
+    app = QApplication(sys.argv)
+    screens = app.screens()
+    listener = GlobalKeyListener()
+    app.installEventFilter(listener)
+    stylesheet = load_stylesheet("default-ui-template/style/dark_theme.qss")
+    app.setStyleSheet(stylesheet)
 
     sdl2.ext.init()
     logger.debug("SDL2 initialized.")
 
     tables = Tables(tableRootDir, vpinfeIniConfig)
-    getScreens()
-
-    # Ensure windows have updated dimensions
-    screens[0].window.update_idletasks()
-
+        
     buttonActionsSetup()
-
     tasks_manager = PauseableTasksManager()
 
     # Add and start the gamepad input task
-    joystick_handler = JoystickHandler(tkMsgQueue, shutdown_event, tasks_manager)
-    tasks_manager.add(name="gameControllerInput", target_func=joystick_handler.input_loop)
-    tasks_manager.start("gameControllerInput")
-
-    # Add and start the buildImageCache task
-    Screen.rootWindow.after(500, buildImageCache)
-
-    # load first screen after 5 secs letting the cache build
-    Screen.rootWindow.after(5000,setGameDisplays, tables.getTable(tableIndex))
-
-    # key trapping
-    Screen.rootWindow.bind("<Any-KeyPress>", key_pressed)
-
-    # our thread update callback on event
-    Screen.rootWindow.bind("<<vpinfe_tk>>", processTkMsgEvent)
-
-    # tk blocking loop
-    Screen.rootWindow.mainloop()
-
-    # shutdown
+    #joystick_handler = JoystickHandler(tkMsgQueue, shutdown_event, tasks_manager)
+    #tasks_manager.add(name="gameControllerInput", target_func=joystick_handler.input_loop)
+    #tasks_manager.start("gameControllerInput")
+    
+    setupScreens()      
+    app.exec()
+    
+    ### shutdown ###
+    
+    # stop tasks
     logger.info("Stopping async tasks.")
-    tasks_manager.stop()
+    #tasks_manager.stop()
 
+    # SDL 
     logger.info("SDL2 Quit.")
     sdl2.ext.quit()
+    
+    #qt image caching
+    for worker, command_queue, _ in workers:
+        command_queue.put('quit')   # Tell worker to clean up and exit
+    for worker, _, _ in workers:
+        worker.join()
 
     logger.info("VPinFE shutdown complete.")
+ 
+
+    
