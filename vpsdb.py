@@ -1,3 +1,6 @@
+import tkinter as tk
+from tkinter import ttk
+from PIL import Image, ImageTk
 import requests
 import json
 from difflib import SequenceMatcher
@@ -13,35 +16,28 @@ class VPSdb:
   logger = None
   rootTableDir = None
   data = None
-  _iniConfig = None
+  _vpinfeIniConfig = None
 
   vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
   vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
-  vpsUrlMediaBackground = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/1k/bg.png"
-  vpsUrlMediaDMD = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/1k/dmd.png"
-  vpsUrlMediaWheel = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/wheel.png"
-  vpsUrlMediaTable = "https://raw.githubusercontent.com/superhac/vpinmediadb/master/{tableId}/{tableResolution}/{tableType}.png"
-
+  vpinmdbUrl = "https://github.com/superhac/vpinmediadb/raw/refs/heads/main/vpinmdb.json"
 
   def __init__(self, rootTableDir, vpinfeIniConfig):
     global logger
     logger = get_logger()
 
     logger.info("Initializing VPSdb")
-    self._iniConfig = vpinfeIniConfig.config
+    self._vpinfeIniConfig = vpinfeIniConfig
     version = self.downloadLastUpdate()
     if version != None:
       logger.info(f"Current VPSdb version @ VPSdb: {version}")
-      try:
-        if vpinfeIniConfig.config['VPSdb']['last'] < version:
-          self.downloadDB()
-        else:
-          logger.info("VPSdb currently at lastest revision.")
-      except KeyError:
+      if self._vpinfeIniConfig.get_string('VPSdb','last','') < version:
         self.downloadDB()
+      else:
+        logger.info("VPSdb currently at lastest revision.")
       
-      vpinfeIniConfig.config['VPSdb']['last'] = version
-      vpinfeIniConfig.save()
+      self._vpinfeIniConfig.config['VPSdb']['last'] = version
+      self._vpinfeIniConfig.save()
       
       self.rootTableDir = rootTableDir
       if self.fileExists('vpsdb.json'):
@@ -53,21 +49,10 @@ class VPSdb:
           logger.error(f"Invalid JSON format in vpsdb.json.")
       else:
         logger.error(f"JSON file vpsdb.json not found.")
-      self.setTablesPath()
-    
-  def setTablesPath(self):
-    self.tabletype = self._iniConfig['Media']["tabletype"].lower()
-    self.tableresolution = self._iniConfig['Media']["tableresolution"].lower()
-    if self.tableresolution is '':
-      self.pathresolution = "4k"
-    else:
-      self.pathresolution = "4k" if "4k" in self.tableresolution else "1k"
-    self.pathstyle = "" if self.tabletype is '' else self.tabletype
-    if self.tabletype is '' or self.tabletype != "fss":
-      self.nameTableFile = "table"
-    else:
-      self.nameTableFile = "fss"
-    logger.debug(f"Using {self.pathresolution}/{self.nameTableFile} tables")
+    self.tabletype = self._vpinfeIniConfig.get_string('Media',"tabletype","table").lower()
+    self.tableresolution = self._vpinfeIniConfig.get_string('Media',"tableresolution","4k").lower()
+    logger.debug(f"Using {self.tableresolution}/{self.tabletype} tables")
+    self.vpinmediadbjson = self.downloadMediaJson()
 
   def lookupName(self, name, manufacturer, year):
     if any(param is None for param in (name, manufacturer, year)):
@@ -75,15 +60,17 @@ class VPSdb:
     for table in self.data:
         name_similarity_ratio = SequenceMatcher(None, name.lower(),  table["name"].lower()).ratio()
         #logger.debug(f'"{name}" "{table["name"]}"')
-        if name_similarity_ratio >= .8:
-            #logger.debug("name matched with threshold:", table["name"], name_similarity_ratio)
-            similarity_ratio = SequenceMatcher(None, manufacturer.lower(),  table["manufacturer"].lower()).ratio()
-            #logger.debug(f"Manufacturer matched with threshold: {table["manufacturer"]} with a ratio of {similarity_ratio}")
-            if similarity_ratio >= .8:
-              similarity_ratio = SequenceMatcher(None, str(year),  str(table["year"])).ratio()
-              if similarity_ratio >= .8:
-                logger.info(f"Name, manufacturer, and year matched with threshold: {table['name']}")
-                return table        
+        if name_similarity_ratio < .8:
+          continue
+        #logger.debug("name matched with threshold:", table["name"], name_similarity_ratio)
+        similarity_ratio = SequenceMatcher(None, manufacturer.lower(),  table["manufacturer"].lower()).ratio()
+        #logger.debug(f"Manufacturer matched with threshold: {table["manufacturer"]} with a ratio of {similarity_ratio}")
+        if similarity_ratio < .8:
+          continue
+        similarity_ratio = SequenceMatcher(None, str(year),  str(table["year"])).ratio()
+        if similarity_ratio >= .8:
+          logger.info(f"Name, manufacturer, and year matched with threshold: {table['name']}")
+          return table        
     logger.error(f"{RED_CONSOLE_TEXT} No match found for: {name}{RESET_CONSOLE_TEXT}")
     return None
 
@@ -102,6 +89,15 @@ class VPSdb:
         }
     else:
         return None
+
+  def downloadMediaJson(self):
+    response = requests.get(self.vpinmdbUrl)
+    if response.status_code == 200:
+      content = response.text
+      return json.loads(content)
+    else:
+      logger.error(f"Failed to retrieve content vpmdb.json from VPinMediaDBStatus code: {response.status_code}")
+      return None
 
   def downloadDB(self):
     response = requests.get(VPSdb.vpsUrldb)
@@ -125,11 +121,15 @@ class VPSdb:
 
   def downloadMediaFile(self, tableId, url, filename):
     logger.debug(f"Downloading {filename} from {url}")
-    response = requests.get(url)
+    try:
+      response = requests.get(url)
+    except:
+        logger.error(f"Failed to download {filename} from VPinMedia with id {tableId}. Excepton raised.")
+        return
     if response.status_code == 200:
       with open(filename, 'wb') as file:
         file.write(response.content)
-      logger.info(f"  Successfully downloaded {filename} from VPinMedia")
+      logger.info(f"Successfully downloaded {filename} from VPinMedia")
     else:
       logger.error(f"Failed to download {filename} from VPinMedia with id {tableId}. Status code: {response.status_code}")
 
@@ -138,20 +138,62 @@ class VPSdb:
       return False
     return os.path.exists(path)
 
-  def createUrl(self, base, tableId):
-    return base.replace("{tableId}", tableId).replace("{tableResolution}", self.pathresolution).replace("{tableType}", self.nameTableFile)
-
-  def downloadMedia(self, tableId, baseurl, filename, defaultFilename):
-    if self.fileExists(filename):
+  def downloadMedia(self, tableId, metadata, key, filename, defaultFilename):
+    if metadata is None or key not in metadata or self.fileExists(filename):
       return
-    url = self.createUrl(baseurl, tableId)
-    self.downloadMediaFile(tableId, url, defaultFilename)
+    self.downloadMediaFile(tableId, metadata[key], defaultFilename)
 
   def downloadMediaForTable(self, table, id):
-    self.downloadMedia(id, VPSdb.vpsUrlMediaBackground, table.BGImagePath, table.fullPathTable + "/bg.png")
-    self.downloadMedia(id, VPSdb.vpsUrlMediaDMD, table.DMDImagePath, table.fullPathTable + "/dmd.png")
-    self.downloadMedia(id, VPSdb.vpsUrlMediaWheel, table.WheelImagePath, table.fullPathTable + "/wheel.png")
-    self.downloadMedia(id, VPSdb.vpsUrlMediaTable, table.TableImagePath, table.fullPathTable + "/" + self.nameTableFile + ".png")
+    tablemediajson = self.vpinmediadbjson[id]
+    self.downloadMedia(id, tablemediajson[self.tableresolution], 'bg', table.BGImagePath, table.fullPathTable + "/bg.png")
+    self.downloadMedia(id, tablemediajson[self.tableresolution], 'dmd', table.DMDImagePath, table.fullPathTable + "/dmd.png")
+    self.downloadMedia(id, tablemediajson, 'wheel', table.WheelImagePath, table.fullPathTable + "/wheel.png")
+    self.downloadMedia(id, tablemediajson[self.tableresolution], self.tabletype, table.TableImagePath, table.fullPathTable + "/" + self.tabletype + ".png")
+
+  def updateProgress(self, current, total):
+      self.progress_bar["value"] = current
+      self.progress_label.config(text=f"Processing {current}/{total} tables")
+      return self.progress_was_canceled
+
+  def cancelProgress(self):
+    logger.info("Canceled buildmeta and media download operation.")
+    self.progress_was_canceled = True
+
+  def setupProgressDialog(self, total):
+    root = tk.Tk()
+    root.title("Media Download Progress")
+    root.geometry("")
+
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        icon_path = sys._MEIPASS+"/assets/download-icon.png"
+    else:
+        icon_path = "assets/download-icon.png"
+
+    if os.path.exists(icon_path):
+        pil_image = Image.open(icon_path)
+        icon_image = ImageTk.PhotoImage(pil_image)
+        root.iconphoto(True, icon_image)
+
+    self.progress_frame = tk.Frame(root, padx=20, pady=20)
+    self.progress_frame.pack(fill="both", expand=True)
+    # Progress Bar
+    self.progress_bar = ttk.Progressbar(self.progress_frame, orient="horizontal", length=300, mode="determinate")
+    self.progress_bar.pack(fill="x", expand=True, pady=(0, 10))
+    self.progress_bar["maximum"] = total
+
+    # Status Label
+    self.progress_label = tk.Label(self.progress_frame, text="Starting download...")
+    self.progress_label.pack(fill="x", expand=True)
+
+    self.progress_cancel = tk.Button(self.progress_frame, text="Cancel", command=self.cancelProgress)
+    self.progress_cancel.pack(pady=(10, 0))
+
+    root.update_idletasks()
+    root.resizable(False, False)
+
+    self.progress_was_canceled = False
+
+    return root
 
 if __name__ == "__main__":
   logger = init_logger("VPSDB")

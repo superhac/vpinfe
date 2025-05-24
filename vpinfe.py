@@ -389,32 +389,76 @@ def loadconfig(configfile):
     if all(var is None for var in [ScreenNames.BG, ScreenNames.DMD, ScreenNames.TABLE]):
         showCriticalErrorAndExit("Path Error", "You must have at least one display set in your vpinfe.ini.", 1)
 
+def processTablesMetadata(vps, root):
+    total = len(Tables.tables)
+    current = 0
+    for table in Tables.tables:
+        current = current + 1
+        if(vps.updateProgress(current, total)):
+            # Progress dialog was canceled
+            break
+
+        finalini = {}
+        meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini") # check if we want it updated!!! TODO
+
+        # vpsdb
+        logger.info(f"Checking VPSdb for {table.tableDirName}")
+        vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+        vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
+        if vpsData is None:
+            logger.error(f"{RED_CONSOLE_TEXT}Not found in VPS{RESET_CONSOLE_TEXT}")
+            continue
+
+        # vpx file info
+        logger.info(f"Parsing VPX file for metadata")
+        logger.info(f"Extracting {table.fullPathVPXfile} for metadata.")
+        vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
+
+        # make the config.ini
+        finalini['vpsdata'] = vpsData
+        finalini['vpxdata'] = vpxData
+        meta.writeConfigMeta(finalini)
+        vps.downloadMediaForTable(table, vpsData['id'])
+
+    root.after(1000, root.destroy)
+
 def buildMetaData():
-        loadconfig(configfile)
-        Tables(tableRootDir, vpinfeIniConfig)
-        vps = VPSdb(Tables.tablesRootFilePath, vpinfeIniConfig)
-        for table in Tables.tables:
-            finalini = {}
-            meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini") # check if we want it updated!!! TODO
+    loadconfig(configfile)
+    Tables(tableRootDir, vpinfeIniConfig)
+    vps = VPSdb(Tables.tablesRootFilePath, vpinfeIniConfig)
+    root = vps.setupProgressDialog(len(Tables.tables))
 
-            # vpsdb
-            logger.info(f"Checking VPSdb for {table.tableDirName}")
-            vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
-            if vpsData is None:
-                logger.error(f"{RED_CONSOLE_TEXT}Not found in VPS{RESET_CONSOLE_TEXT}")
-                continue
+    # kick off the async step processor
+    def next_table(index=0):
+        if index >= len(Tables.tables) or vps.progress_was_canceled:
+            if not vps.progress_was_canceled:
+                logger.info("Completed buildmeta and media download operation.")
+            root.after(1000, root.destroy)
+            return
 
-            # vpx file info
-            logger.info(f"Parsing VPX file for metadata")
-            logger.info(f"Extracting {table.fullPathVPXfile} for metadata.")
+        table = Tables.tables[index]
+        finalini = {}
+
+        meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini")
+
+        vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+        vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
+        if vpsData is None:
+            logger.error(f"{RED_CONSOLE_TEXT}Not found in VPS{RESET_CONSOLE_TEXT}")
+        else:
             vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
-
-            # make the config.ini
             finalini['vpsdata'] = vpsData
             finalini['vpxdata'] = vpxData
             meta.writeConfigMeta(finalini)
             vps.downloadMediaForTable(table, vpsData['id'])
+
+        vps.updateProgress(index + 1, len(Tables.tables))
+
+        # Schedule next table
+        root.after(2, lambda: next_table(index + 1))
+
+    root.after(250, lambda: next_table())
+    root.mainloop()
 
 def vpxPatches():
     loadconfig(configfile)
