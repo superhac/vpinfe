@@ -235,10 +235,7 @@ def launchVPX(table):
 
     def iconify_all_windows(reason):
         logger.debug(f"Iconifying windows due to {reason}")
-        for s in screens:
-            s.window.iconify()
-
-        Screen.rootWindow.update_idletasks()
+        FullscreenImageWindow.iconify_all()
 
     keyword_or_timeout = threading.Event()
     process_exited = threading.Event()

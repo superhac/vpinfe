@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPixmap, QTransform
 from PyQt6.QtCore import Qt, QObject, QTimer
-from screennames import ScreenNames
+import screennames
 from tables import Tables
 import sys
 
@@ -13,8 +13,8 @@ class FullscreenImageWindow(QWidget):
     menuWindow = None # static the window thats going to render the window
     
     @staticmethod
-    def iconify_all(windows):
-        for win in windows:
+    def iconify_all():
+        for win in FullscreenImageWindow.windows:
             if win.isVisible():
                 win.original_geometry = win.geometry()
                 win.original_screen = win.screen()
@@ -23,15 +23,15 @@ class FullscreenImageWindow(QWidget):
                 QTimer.singleShot(100, win.showMinimized)  # Delay avoids GNOME race
 
         # Start restore after delay (avoid nesting inside iconify loop)
-        QTimer.singleShot(5000, lambda: FullscreenImageWindow.deiconify_all(FullscreenImageWindow.windows))
+        QTimer.singleShot(5000, lambda: FullscreenImageWindow.deiconify_all())
 
     @staticmethod
-    def deiconify_all(windows, delay=600):
+    def deiconify_all(delay=600):
         def restore_one(index):
-            if index >= len(windows):
+            if index >= len(FullscreenImageWindow.windows):
                 return
 
-            win = windows[index]
+            win = FullscreenImageWindow.windows[index]
             print(f"Restoring: {win.windowTitle()}")
 
             # Force re-position to original screen
@@ -54,7 +54,7 @@ class FullscreenImageWindow(QWidget):
 
         restore_one(0)
         
-    def __init__(self, screen, screenname: ScreenNames, tables: Tables, stylesheet=None):
+    def __init__(self, screen, screenname: screennames.ScreenNames, tables: Tables, stylesheet=None):
         super().__init__()
         self.setGeometry(screen.geometry())
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
