@@ -144,6 +144,9 @@ class VPSdb:
     self.downloadMediaFile(tableId, metadata[key], defaultFilename)
 
   def downloadMediaForTable(self, table, id):
+    if not id in self.vpinmediadbjson:
+      logger.error(f"{RED_CONSOLE_TEXT}Invalid table ID {id} for {table.fullPathTable}{RESET_CONSOLE_TEXT}")
+      return
     tablemediajson = self.vpinmediadbjson[id]
     self.downloadMedia(id, tablemediajson[self.tableresolution], 'bg', table.BGImagePath, table.fullPathTable + "/bg.png")
     self.downloadMedia(id, tablemediajson[self.tableresolution], 'dmd', table.DMDImagePath, table.fullPathTable + "/dmd.png")
