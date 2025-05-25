@@ -7,6 +7,11 @@ import logging
 import multiprocessing.resource_tracker
 from screennames import ScreenNames
 import traceback
+from assetsutils import AssetsUtils
+
+# Assets
+logoImage = AssetsUtils.get_path("VPinFE_logo_main.png")
+missingImage = AssetsUtils.get_path("file_missing.png")
 
 def fix_resource_tracker():
     import multiprocessing.resource_tracker
@@ -75,24 +80,36 @@ class ImageCacheWorker(Process):
     def is_index_within_cache(self, index):
         return hasattr(self, 'cache_order') and index in self.cache_order
 
+    def getMissingImage(self, path: str) -> QPixmap:
+        pixmap = QPixmap(path)
+        if not pixmap.isNull():
+            return pixmap
+
+        logging.warning(f"Failed to load image at {path}. Using fallback.")
+        fallback_path = missingImage
+        fallback_pixmap = QPixmap(fallback_path)
+        if fallback_pixmap.isNull():
+            logging.error(f"Fallback image '{fallback_path}' is also missing or invalid.")
+        return fallback_pixmap
+
     def load_and_send(self, index):
         try:
             if 0 <= index < self.tables.getTableCount():
                 path = self.tables.getImagePathByScreenname(index, self.screenname)
-                if os.path.exists(path):
-                    pixmap = QPixmap(path)
-                    if not pixmap.isNull():
-                        ba = QByteArray()
-                        buffer = QBuffer(ba)
-                        buffer.open(QIODevice.OpenModeFlag.WriteOnly)
-                        pixmap.save(buffer, "BMP")
-                        data = ba.data()
-                        shm = shared_memory.SharedMemory(create=True, size=len(data))
-                        shm.buf[:len(data)] = data
-                        self.shared_memory_refs[index] = shm
-                        self.cache[index] = shm.name
-                        self.result_queue.put((index, shm.name, len(data)))
-                        logging.info(f"Sent image {index} via shared memory {shm.name}")
+                if not os.path.exists(path):
+                    logging.warning(f"Image path does not exist: {path}. Using fallback.")
+                pixmap = self.getMissingImage(path)
+                ba = QByteArray()
+                buffer = QBuffer(ba)
+                buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+                pixmap.save(buffer, "BMP")
+                data = ba.data()
+                shm = shared_memory.SharedMemory(create=True, size=len(data))
+                shm.buf[:len(data)] = data
+                self.shared_memory_refs[index] = shm
+                self.cache[index] = shm.name
+                self.result_queue.put((index, shm.name, len(data)))
+                logging.info(f"Sent image {index} via shared memory {shm.name}")
         except Exception as e:
             logging.error("Image load failed!")
             raise
@@ -127,19 +144,19 @@ class ImageCacheWorker(Process):
         try:
             if 0 <= index < self.tables.getTableCount():
                 path = self.tables.getImagePathByScreenname(index, self.screenname)
-                if os.path.exists(path):
-                    pixmap = QPixmap(path)
-                    if not pixmap.isNull():
-                        ba = QByteArray()
-                        buffer = QBuffer(ba)
-                        buffer.open(QIODevice.OpenModeFlag.WriteOnly)
-                        pixmap.save(buffer, "BMP")
-                        data = ba.data()
-                        shm = shared_memory.SharedMemory(create=True, size=len(data))
-                        shm.buf[:len(data)] = data
-                        self.shared_memory_refs[index] = shm
-                        self.cache[index] = shm.name
-                        logging.info(f"Cached image {index} to shared memory {shm.name}")
+                if not os.path.exists(path):
+                    logging.warning(f"Image path does not exist: {path}. Using fallback.")
+                pixmap = self.getMissingImage(path)
+                ba = QByteArray()
+                buffer = QBuffer(ba)
+                buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+                pixmap.save(buffer, "BMP")
+                data = ba.data()
+                shm = shared_memory.SharedMemory(create=True, size=len(data))
+                shm.buf[:len(data)] = data
+                self.shared_memory_refs[index] = shm
+                self.cache[index] = shm.name
+                logging.info(f"Cached image {index} to shared memory {shm.name}")
         except Exception as e:
             logging.error("load_to_shared_memory failed!")
             raise
