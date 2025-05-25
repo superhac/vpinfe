@@ -6,6 +6,7 @@ import ast
 
 from tables import Tables, TableInfo
 from pinlog import get_logger
+from assetsutils import AssetsUtils
 
 class tableMetaHUDCanvas(tk.Canvas):
     logger = None
@@ -49,14 +50,8 @@ class tableMetaHUDCanvas(tk.Canvas):
         
         logger.debug(f"HUD metacanvas: {self.width}x{self.height}")
         
-        try:
-            if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-                self.vpsImagePath = sys._MEIPASS+"/assets/vps.png"
-            else:
-                self.vpsImagePath = "assets/vps.png"
-        except Exception as e:
-            Logger.error(e)
-        
+        self.vpsImagePath = AssetsUtils.get_path("vps.png")
+
         # You must do this before anything.  This will wipe out any imgs on the canvas
         self.create_rusty_gradient(self.width, self.height)
         #self.create_gradient(self.width, self.height)

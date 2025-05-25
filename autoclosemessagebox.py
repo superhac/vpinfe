@@ -3,6 +3,7 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import os
 import sys
+from assetsutils import AssetsUtils
 
 class AutocloseMessageBox:
     # A custom message box that automatically closes after a specified delay,
@@ -21,10 +22,7 @@ class AutocloseMessageBox:
         self.top.resizable(False, False)
         self.icon_image = None
 
-        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-            icon_path = sys._MEIPASS+"/assets/tilt-icon.png"
-        else:
-            icon_path = "assets/tilt-icon.png"
+        icon_path = AssetsUtils.get_path("tilt-icon.png")
 
         if os.path.exists(icon_path):
             pil_image = Image.open(icon_path)

@@ -170,7 +170,9 @@ class Screen:
         self.originalStatusText = text 
 
     def getStatusText(self):
-        return self.statusText
+        if self.isThreeDotAnimate:
+            return self.statusText
+        return None
     
     def textThreeDotAnimateCall(self):
         if self.isThreeDotAnimate:

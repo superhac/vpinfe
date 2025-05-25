@@ -7,6 +7,7 @@ import ast
 
 from tables import Tables, TableInfo
 from pinlog import get_logger
+from assetsutils import AssetsUtils
 
 class TableMetaHUDFrame(tk.Frame):
     logger = None
@@ -36,15 +37,8 @@ class TableMetaHUDFrame(tk.Frame):
         logger.debug(f"HUD master frame: {self.width}x{self.height}")
         
         # load any imgs
-        try:
-            if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-                self.ssIconPath = sys._MEIPASS + "/assets/solidstate-icon.png"
-                self.emIconPath = sys._MEIPASS + "/assets/electrom-icon.png"
-            else:
-                self.ssIconPath = "assets/solidstate-icon.png"
-                self.emIconPath = "assets/electrom-icon.png"
-        except Exception as e:
-            Logger.error(e)
+        self.ssIconPath = AssetsUtils.get_path("solidstate-icon.png")
+        self.ssIconPath = AssetsUtils.get_path("electrom-icon.png")
         
         # set bg color
         self.configure(bg="#453a3c")
@@ -101,11 +95,8 @@ class TableMetaHUDFrame(tk.Frame):
                             
         # Load the wheel image
         if not tableInfo.WheelImagePath:
-            if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-                tableInfo.WheelImagePath = sys._MEIPASS + "/assets/wheel-missing.png"
-            else:
-                tableInfo.WheelImagePath = "assets/wheel-missing.png"
-        logger.debug(f"Found Wheel {self.tableInfo.WheelImagePath}")
+            tableInfo.WheelImagePath = AssetsUtils.get_path("wheel-missing.png")
+        logger.debug(f"Using Wheel {self.tableInfo.WheelImagePath}")
         img = Image.open(self.tableInfo.WheelImagePath)
         img = img.resize((self.wheelWidth, self.wheelHeight), Image.LANCZOS)
         img = self.imageRotate(img, self.angle)

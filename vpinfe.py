@@ -25,12 +25,13 @@ from pauseabletask import PauseableTask
 from pauseabletasksmanager import PauseableTasksManager
 from joystickhandler import JoystickHandler
 from autoclosemessagebox import AutocloseMessageBox
+from assetsutils import AssetsUtils
 
 from PyQt6 import uic
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QGraphicsView, QGraphicsScene, QGraphicsProxyWidget
 )
-from PyQt6.QtGui import QPixmap, QTransform
+from PyQt6.QtGui import QPixmap, QTransform, QIcon
 from PyQt6.QtCore import Qt, QObject, QTimer, QEvent
 
 from ui.fullscreenimagewindow import FullscreenImageWindow
@@ -39,15 +40,11 @@ from ui.imageworkermanager import ImageWorkerManager
 
 # OS Specific
 if sys.platform.startswith('win'):
-    os.environ['PYSDL2_DLL_PATH'] = sys._MEIPASS+'/SDL2.dll' # need to include the sdl2 runtime for windows
+    os.environ['PYSDL2_DLL_PATH'] = AssetsUtils.get_path("SDL2.dll") # need to include the sdl2 runtime for windows
 
 # Assets
-if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-    logoImage = sys._MEIPASS+"/assets/VPinFE_logo_main.png"
-    missingImage = sys._MEIPASS+"/assets/file_missing.png"
-else:
-    logoImage = "assets/VPinFE_logo_main.png"
-    missingImage = "assets/file_missing.png"
+logoImage = AssetsUtils.get_path("VPinFE_logo_main.png")
+missingImage = AssetsUtils.get_path("file_missing.png")
 
 # Globals
 version = "0.5 beta"
@@ -577,6 +574,10 @@ if __name__ == "__main__":
     update_logger_config(vpinfeIniConfig.config['Logger'])
     
     app = QApplication(sys.argv)
+    icon_path = AssetsUtils.get_path("VPinFE-icon.png")
+    if icon_path:
+        app.setWindowIcon(QIcon(icon_path))
+        
     screens = app.screens()
     listener = GlobalKeyListener()
     app.installEventFilter(listener)
