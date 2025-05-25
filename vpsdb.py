@@ -153,6 +153,9 @@ class VPSdb:
     self.downloadMedia(id, tablemediajson, 'wheel', table.WheelImagePath, table.fullPathTable + "/wheel.png")
     self.downloadMedia(id, tablemediajson[self.tableresolution], self.tabletype, table.TableImagePath, table.fullPathTable + "/" + self.tabletype + ".png")
 
+  def updateTable(self, name, manufacturer, year):
+      self.progress_table_label.config(text=f"{name}\n({manufacturer} {year})")
+
   def updateProgress(self, current, total):
       self.progress_bar["value"] = current
       self.progress_label.config(text=f"Processing {current}/{total} tables")
@@ -187,6 +190,18 @@ class VPSdb:
     # Status Label
     self.progress_label = tk.Label(self.progress_frame, text="Starting download...")
     self.progress_label.pack(fill="x", expand=True)
+
+    # Table Label
+    self.progress_table_label = tk.Label(
+        self.progress_frame,
+        text="",
+        justify="center",
+        anchor="center",
+        height=2,            # Reserve space for 2 lines
+        width=50,            # Fixed character width to prevent resizing
+        wraplength=380  
+    )
+    self.progress_table_label.pack(fill="x", expand=True, pady=(0, 5))
 
     self.progress_cancel = tk.Button(self.progress_frame, text="Cancel", command=self.cancelProgress)
     self.progress_cancel.pack(pady=(10, 0))

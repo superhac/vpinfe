@@ -469,12 +469,14 @@ def buildMetaData():
         vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
         vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
         if vpsData is None:
+            vps.updateTable(f"{table.tableDirName}", "Not", "Found")
             logger.error(f"{RED_CONSOLE_TEXT}Not found in VPS{RESET_CONSOLE_TEXT}")
         else:
             vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
             finalini['vpsdata'] = vpsData
             finalini['vpxdata'] = vpxData
             meta.writeConfigMeta(finalini)
+            vps.updateTable(vpsData['name'],vpsData['manufacturer'],vpsData['year'])
             vps.downloadMediaForTable(table, vpsData['id'])
 
         vps.updateProgress(index + 1, len(Tables.tables))
