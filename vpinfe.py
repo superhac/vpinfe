@@ -538,6 +538,8 @@ def buildImageCacheThread():
 def setupScreens():
     global workers
     global managers
+    menu_screenid = vpinfeIniConfig.get_int("Menu", "screenid", 0)
+    menu_rotation = vpinfeIniConfig.get_int("Menu", "rotation", 0)
     # setup the window on each screen
     for i, screen in enumerate(screens):
         if i == screennames.ScreenNames.BG:
@@ -548,8 +550,8 @@ def setupScreens():
             win = FullscreenImageWindow(screen, screennames.ScreenNames.TABLE, tables)
             
         # Add menu  to first screen
-        if i == 0:
-            win.add_rotated_menu(rotation_degree=-90)
+        if i == menu_screenid:
+            win.add_rotated_menu(rotation_degree=menu_rotation)
             FullscreenImageWindow.menuWindow = win
      
     # setup the image cache workers and a manager  

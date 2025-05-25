@@ -141,6 +141,8 @@ You can also change the `Logger` settings it might help figuring out a runtime i
 In the `Media` section you can specify the table type you want to use. Leave it empty for CAB style table, or set it to `fss` for desktop or TV setup so the table fills the screen nicely in landscape mode as well.
 You can select a table resolution of either `1k` or `4k` depending on your screen or storage space you want to use.
 
+The `Menu` section lets you specify which screen the menu should appear on and in which rotation.
+
 ```
 [Displays]
 bgscreenid = 0
@@ -159,6 +161,10 @@ file =
 [Media]
 tabletype = 
 tableresolution = 4k
+
+[Menu]
+screenid = 
+rotation = 
 
 [Settings]
 vpxbinpath = /home/superhac/working/remove/vpinball/build/VPinballX_BGFX
@@ -285,6 +291,12 @@ What each setting does in the vpinfe.ini file broken down by "section".
 | ----------------- | ------------------------------------------------------------------------- |
 | tabletype         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait table images. |
 | tableresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
+
+### [Menu]
+| Key               | Description |
+| ----------------- | ------------------------------------------------------------------------- |
+| screenid         | Set to the number representing the screen you want the menu to show on. `0` is the default |
+| rotation   | Specify in degrees the rotation angle of the menu `0` is the default |
 
 ## Tips
 

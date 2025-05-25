@@ -16,6 +16,7 @@ class Config:
                 'backgroundcolor': '#000000', 'windowmanager': 'gnome'},
 			'Logger': { 'level': 'info', 'console': '1', 'file': ''},
 			'Media': {"tabletype": '', 'tableresolution': '4k'},
+			'Menu': {"screenid": '', "rotation": ''},
 			'Settings': {
 				'vpxbinpath': '', 
 				'tablerootdir': '',
