@@ -4,9 +4,13 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPixmap, QTransform
 from PyQt6.QtCore import Qt, QObject, QTimer
+from pinlog import get_logger
 import screennames
 from tables import Tables
+from filesutils import FilesUtils
 import sys
+
+logger = None
 
 class FullscreenImageWindow(QWidget):
     windows = []  # Static array of all the windows of this type.
@@ -56,6 +60,9 @@ class FullscreenImageWindow(QWidget):
         
     def __init__(self, screen, screenname: screennames.ScreenNames, tables: Tables, stylesheet=None):
         super().__init__()
+        global logger
+        logger = get_logger()
+        
         self.setGeometry(screen.geometry())
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setWindowState(Qt.WindowState.WindowFullScreen)
@@ -137,7 +144,19 @@ class FullscreenImageWindow(QWidget):
             buttons['Resume'].clicked.connect(self.remove_menu)
         if buttons['Iconify'] is not None:
             buttons['Iconify'].clicked.connect(lambda: FullscreenImageWindow.iconify_all(FullscreenImageWindow.windows))
+        if buttons['Test'] is not None:
+            buttons['Test'].clicked.connect(self.select_executable)
     
+    def select_executable(self):
+        executable = FilesUtils.select_file(
+            caption="Select an Executable",
+            filters=[FilesUtils.FILTER_EXECUTABLE, FilesUtils.FILTER_ALL]
+        )
+        if executable:
+            logger.info(f"Executable selected: {executable}")
+        else:
+            logger.info("No executable selected.")
+
     def set_pixmap(self, pixmap: QPixmap):
         if not isinstance(pixmap, QPixmap):
             raise TypeError("Expected a QPixmap")

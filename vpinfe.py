@@ -548,7 +548,7 @@ def setupScreens():
             
         # Add menu  to first screen
         if i == menu_screenid:
-            win.add_rotated_menu(rotation_degree=menu_rotation)
+            win.add_menu(rotation_degree=menu_rotation)
             FullscreenImageWindow.menuWindow = win
      
     # setup the image cache workers and a manager  
@@ -577,7 +577,7 @@ if __name__ == "__main__":
     icon_path = AssetsUtils.get_path("VPinFE-icon.png")
     if icon_path:
         app.setWindowIcon(QIcon(icon_path))
-        
+
     screens = app.screens()
     listener = GlobalKeyListener()
     app.installEventFilter(listener)
