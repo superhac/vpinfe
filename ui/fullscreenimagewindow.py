@@ -83,7 +83,7 @@ class FullscreenImageWindow(QWidget):
         self.showFullScreen()
         FullscreenImageWindow.windows.append(self)
 
-    def add_rotated_menu(self, menu_ui_file="default-ui-template/menu_template.ui", rotation_degree=0):
+    def add_menu(self, menu_ui_file="default-ui-template/menu_template.ui", rotation_degree=0):
         if self.menu_view is not None:
             return  # Menu already added
 
