@@ -557,6 +557,7 @@ def setupScreens():
         result_queue = multiprocessing.Queue()
         worker = ImageCacheWorker(tables, win.screenName, command_queue, result_queue, win.screen.geometry())
         manager = ImageWorkerManager(win, tables,  command_queue, result_queue)
+        manager.loadLogo()
         manager.set_image_by_index(0)  # Show first image #############################################################################
         workers.append((worker, command_queue, result_queue))
         managers.append(manager) 

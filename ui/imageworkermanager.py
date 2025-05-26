@@ -16,7 +16,6 @@ class ImageWorkerManager:
         self.timer.start(50)
 
     def set_image_by_index(self, index):
-        print("mgr: set image by idex")
         self.current_index = index
         self.command_queue.put({"action": "load", "index": index})
 
@@ -24,14 +23,12 @@ class ImageWorkerManager:
         if not self.tables:
             return
         self.current_index = (self.current_index + 1) % self.tables.getTableCount()
-        print(f"[Manager] load_next called, loading image {self.current_index}")
         self.command_queue.put({"action": "load", "index": self.current_index})
 
     def load_previous(self):
         if not self.tables:
             return
         self.current_index = (self.current_index - 1 + self.tables.getTableCount()) % self.tables.getTableCount()
-        print(f"[Manager] load_previous called, loading image {self.current_index}")
         self.command_queue.put({"action": "load", "index": self.current_index})
 
     def check_for_image(self):
@@ -56,6 +53,9 @@ class ImageWorkerManager:
                 shm.unlink()
             except Exception as e:
                 print(f"[Manager] Exception in check_for_image: {e}")
+
+    def loadLogo(self):
+        self.command_queue.put({"action": "load_logo"})
 
     def shutdown(self):
         self.command_queue.put({"action": "quit"})

@@ -61,6 +61,8 @@ class ImageCacheWorker(Process):
                             self.load_next(index)
                         elif action == "load_previous" and index >= 0:
                             self.load_previous(index)
+                        elif action == "load_logo":
+                            self.load_logo_image()
 
                 self.background_cache_step()
                 time.sleep(0.01)
@@ -200,3 +202,27 @@ class ImageCacheWorker(Process):
             self.load_and_send(prev_index)
         else:
             logging.info(f"[{self.name}] No previous image to load (index {prev_index} out of range)")
+
+    def load_logo_image(self):
+        try:
+            pixmap = self.getMissingImage(logoImage)
+            ba = QByteArray()
+            buffer = QBuffer(ba)
+            buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+            pixmap.save(buffer, "BMP")
+            data = ba.data()
+            shm = shared_memory.SharedMemory(create=True, size=len(data))
+            shm.buf[:len(data)] = data
+            name = shm.name
+            self.shared_memory_refs["logo"] = shm
+            self.result_queue.put(("logo", name, len(data)))
+            logging.info(f"Sent logo image via shared memory {name}")
+            time.sleep(5)
+            shm.close()
+            shm.unlink()
+            del self.shared_memory_refs["logo"]
+            logging.info("Unlinked logo image after 5 seconds")
+        except Exception as e:
+            logging.error("Failed to load and display logo image")
+            tb = traceback.format_exc()
+            self.result_queue.put({"error": tb})
