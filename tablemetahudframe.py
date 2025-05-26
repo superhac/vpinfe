@@ -7,7 +7,7 @@ import ast
 
 from tables import Tables, TableInfo
 from pinlog import get_logger
-from assetsutils import AssetsUtils
+from filesutils import FilesUtils
 
 class TableMetaHUDFrame(tk.Frame):
     logger = None
@@ -37,8 +37,8 @@ class TableMetaHUDFrame(tk.Frame):
         logger.debug(f"HUD master frame: {self.width}x{self.height}")
         
         # load any imgs
-        self.ssIconPath = AssetsUtils.get_path("solidstate-icon.png")
-        self.ssIconPath = AssetsUtils.get_path("electrom-icon.png")
+        self.ssIconPath = FilesUtils.get_asset_path("solidstate-icon.png")
+        self.ssIconPath = FilesUtils.get_asset_path("electrom-icon.png")
         
         # set bg color
         self.configure(bg="#453a3c")
@@ -95,7 +95,7 @@ class TableMetaHUDFrame(tk.Frame):
                             
         # Load the wheel image
         if not tableInfo.WheelImagePath:
-            tableInfo.WheelImagePath = AssetsUtils.get_path("wheel-missing.png")
+            tableInfo.WheelImagePath = FilesUtils.get_asset_path("wheel-missing.png")
         logger.debug(f"Using Wheel {self.tableInfo.WheelImagePath}")
         img = Image.open(self.tableInfo.WheelImagePath)
         img = img.resize((self.wheelWidth, self.wheelHeight), Image.LANCZOS)

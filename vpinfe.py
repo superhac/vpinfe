@@ -25,7 +25,7 @@ from pauseabletask import PauseableTask
 from pauseabletasksmanager import PauseableTasksManager
 from joystickhandler import JoystickHandler
 from autoclosemessagebox import AutocloseMessageBox
-from assetsutils import AssetsUtils
+from filesutils import FilesUtils
 
 from PyQt6 import uic
 from PyQt6.QtWidgets import (
@@ -40,7 +40,11 @@ from ui.imageworkermanager import ImageWorkerManager
 
 # OS Specific
 if sys.platform.startswith('win'):
-    os.environ['PYSDL2_DLL_PATH'] = AssetsUtils.get_path("SDL2.dll") # need to include the sdl2 runtime for windows
+    os.environ['PYSDL2_DLL_PATH'] = FilesUtils.get_asset_path("SDL2.dll") # need to include the sdl2 runtime for windows
+
+# Assets
+#logoImage = AssetsUtils.get_path("VPinFE_logo_main.png")
+#missingImage = AssetsUtils.get_path("file_missing.png")
 
 # Globals
 version = "0.5 beta"
@@ -520,7 +524,7 @@ if __name__ == "__main__":
     update_logger_config(vpinfeIniConfig.config['Logger'])
     
     app = QApplication(sys.argv)
-    icon_path = AssetsUtils.get_path("VPinFE-icon.png")
+    icon_path = FilesUtils.get_asset_path("VPinFE-icon.png")
     if icon_path:
         app.setWindowIcon(QIcon(icon_path))
 

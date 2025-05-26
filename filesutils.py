@@ -15,6 +15,16 @@ class FilesUtils:
     else:  # Linux and others
         FILTER_EXECUTABLE = "Executables (*)"
 
+    _assets_prefix = (
+        sys._MEIPASS + "/assets"
+        if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+        else "assets"
+    )
+
+    @staticmethod
+    def get_asset_path(name: str) -> str | None:
+        return f"{FilesUtils._assets_prefix}/{name}" if name else None
+
     @staticmethod
     def _file_selector(caption="Select a File", file_types=None, parent=None):
         file_filter = ";;".join(file_types or [FilesUtils.FILTER_ALL])
