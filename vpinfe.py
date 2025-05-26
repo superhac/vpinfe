@@ -32,7 +32,7 @@ from PyQt6.QtWidgets import (
     QApplication, QWidget, QGraphicsView, QGraphicsScene, QGraphicsProxyWidget
 )
 from PyQt6.QtGui import QPixmap, QTransform, QIcon
-from PyQt6.QtCore import Qt, QObject, QTimer, QEvent
+from PyQt6.QtCore import Qt, QObject, QTimer, QEvent, QT_VERSION_STR, PYQT_VERSION_STR
 
 from ui.fullscreenimagewindow import FullscreenImageWindow
 from ui.imagecacheworker import ImageCacheWorker
@@ -570,14 +570,15 @@ if __name__ == "__main__":
     parseArgs()
     loadconfig(configfile)
 
-    logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
-
     update_logger_config(vpinfeIniConfig.config['Logger'])
     
     app = QApplication(sys.argv)
     icon_path = AssetsUtils.get_path("VPinFE-icon.png")
     if icon_path:
         app.setWindowIcon(QIcon(icon_path))
+
+    logger.info(f"Qt version: {QT_VERSION_STR}")
+    logger.info(f"PyQt version: {PYQT_VERSION_STR}")
 
     screens = app.screens()
     listener = GlobalKeyListener()
@@ -587,6 +588,13 @@ if __name__ == "__main__":
 
     sdl2.ext.init()
     logger.debug("SDL2 initialized.")
+    linked = sdl2.SDL_version()
+    sdl2.SDL_GetVersion(linked)
+
+    logger.info(f"Compiled against SDL2 version: {sdl2.SDL_MAJOR_VERSION}.{sdl2.SDL_MINOR_VERSION}.{sdl2.SDL_PATCHLEVEL}")
+    logger.info(f"Linked SDL2 version (runtime): {linked.major}.{linked.minor}.{linked.patch}")
+
+    logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
 
     tables = Tables(tableRootDir, vpinfeIniConfig)
         
