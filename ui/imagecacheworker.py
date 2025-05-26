@@ -41,8 +41,12 @@ class ImageCacheWorker(Process):
     def run(self):
         try:
             while True:
-                while not self.command_queue.empty():
-                    msg = self.command_queue.get()
+                try:
+                    msg = self.command_queue.get_nowait()
+                except:
+                    msg = None
+
+                if msg:
                     logging.info(f"[{self.name}] Received message: {msg}")
                     if msg == 'quit':
                         self.cleanup()
@@ -63,9 +67,12 @@ class ImageCacheWorker(Process):
                             self.load_previous(index)
                         elif action == "load_logo":
                             self.load_logo_image()
+                            self.preload_surrounding(0)  # Start caching around index 0
 
+                # This will run ~100x/second regardless of queue state
                 self.background_cache_step()
                 time.sleep(0.01)
+
         except Exception:
             # Send traceback to result_queue
             tb = traceback.format_exc()
@@ -215,13 +222,9 @@ class ImageCacheWorker(Process):
             shm.buf[:len(data)] = data
             name = shm.name
             self.shared_memory_refs["logo"] = shm
+            self.cache["logo"] = shm.name
             self.result_queue.put(("logo", name, len(data)))
             logging.info(f"Sent logo image via shared memory {name}")
-            time.sleep(5)
-            shm.close()
-            shm.unlink()
-            del self.shared_memory_refs["logo"]
-            logging.info("Unlinked logo image after 5 seconds")
         except Exception as e:
             logging.error("Failed to load and display logo image")
             tb = traceback.format_exc()

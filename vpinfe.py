@@ -558,10 +558,13 @@ def setupScreens():
         worker = ImageCacheWorker(tables, win.screenName, command_queue, result_queue, win.screen.geometry())
         manager = ImageWorkerManager(win, tables,  command_queue, result_queue)
         manager.loadLogo()
-        manager.set_image_by_index(0)  # Show first image #############################################################################
         workers.append((worker, command_queue, result_queue))
         managers.append(manager) 
         worker.start()
+
+def setFirstTableImages():
+    for manager in managers:
+        manager.set_image_by_index(0)
 
 if __name__ == "__main__":
     logger = init_logger("VPinFE")
@@ -606,7 +609,8 @@ if __name__ == "__main__":
     #tasks_manager.add(name="gameControllerInput", target_func=joystick_handler.input_loop)
     #tasks_manager.start("gameControllerInput")
     
-    setupScreens()      
+    setupScreens()
+    QTimer.singleShot(5000, lambda: setFirstTableImages())  # load first image after 5 secs.. logo time      
     app.exec()
     
     ### shutdown ###
