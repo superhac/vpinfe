@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
-from screeninfo import get_monitors
 from PIL import Image, ImageTk
 import sys
 import os
 import subprocess
 import argparse
 import sdl2.ext
-import time
 import threading
 import multiprocessing
 from queue import Queue 
@@ -27,11 +25,10 @@ from joystickhandler import JoystickHandler
 from autoclosemessagebox import AutocloseMessageBox
 from filesutils import FilesUtils
 
-from PyQt6 import uic
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QGraphicsView, QGraphicsScene, QGraphicsProxyWidget
 )
-from PyQt6.QtGui import QPixmap, QTransform, QIcon
+from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt, QObject, QTimer, QEvent, QT_VERSION_STR, PYQT_VERSION_STR
 
 from ui.fullscreenimagewindow import FullscreenImageWindow
@@ -41,10 +38,6 @@ from ui.imageworkermanager import ImageWorkerManager
 # OS Specific
 if sys.platform.startswith('win'):
     os.environ['PYSDL2_DLL_PATH'] = FilesUtils.get_asset_path("SDL2.dll") # need to include the sdl2 runtime for windows
-
-# Assets
-#logoImage = AssetsUtils.get_path("VPinFE_logo_main.png")
-#missingImage = AssetsUtils.get_path("file_missing.png")
 
 # Globals
 version = "0.5 beta"
@@ -145,50 +138,16 @@ def buttonActionsSetup():
         logger.debug(f"Button {button} Not implemented yet...")
 
     button_actions = {
-        vpinfeIniConfig.get_int('Settings', 'joyright', -1): screenMoveRight,
-        vpinfeIniConfig.get_int('Settings', 'joyleft', -2): screenMoveLeft,
+        #vpinfeIniConfig.get_int('Settings', 'joyright', -1): screenMoveRight,
+        #vpinfeIniConfig.get_int('Settings', 'joyleft', -2): screenMoveLeft,
         vpinfeIniConfig.get_int('Settings', 'joyselect', -3): launchTable,
         vpinfeIniConfig.get_int('Settings', 'joyexit', -4): setShutdownEvent,
         vpinfeIniConfig.get_int('Settings', 'joymenu', -5): lambda: not_implemented("joymenu"),
         vpinfeIniConfig.get_int('Settings', 'joyback', -6): lambda: not_implemented("joyback")
     }
 
-    if len(button_actions) != 6:
-        showError("Input Configuration Error", "It appears that you have some identical buttons defined multiple times. Please make sure they are unique or empty in vpinfe.ini.")
-
-def processTkMsgEvent(event):
-    while not tkMsgQueue.empty():
-        msg = tkMsgQueue.get()
-
-        if msg.msgType == TKMsgType.CACHE_BUILD_COMPLETED:
-            disableStatusMsg
-        elif msg.msgType == TKMsgType.SHUTDOWN:
-            setShutdownEvent()
-        elif msg.msgType == TKMsgType.JOY_BUTTON_DOWN:
-            button_pressed(msg.payload)
-        #elif msg.msgType == TKMsgType.JOY_BUTTON_UP:
-            #logger.info(f"Received JOY_BUTTON_UP {msg.payload['button']} from joystick {msg.payload['which']}")
-    pass
-
-def screenMoveRight():
-    global tableIndex
-
-    if tableIndex != tables.getTableCount()-1:
-        tableIndex += 1
-        setGameDisplays(tables.getTable(tableIndex))
-    else:
-        tableIndex = 0;
-        setGameDisplays(tables.getTable(tableIndex))
-
-def screenMoveLeft():
-    global tableIndex
-
-    if tableIndex != 0:
-        tableIndex -= 1
-        setGameDisplays(tables.getTable(tableIndex))
-    else:
-        tableIndex = tables.getTableCount()-1
-        setGameDisplays(tables.getTable(tableIndex))
+    #if len(button_actions) != 6:
+        #showError("Input Configuration Error", "It appears that you have some identical buttons defined multiple times. Please make sure they are unique or empty in vpinfe.ini.")
 
 def launchTable():
     global background
@@ -428,57 +387,6 @@ def parseArgs():
     if args.vpxpatch:
         vpxPatches()
         sys.exit()
-
-def disableStatusMsg():
-    if ScreenNames.BG is not None:
-        screens[ScreenNames.BG].textThreeDotAnimate(enabled=False)
-        screens[ScreenNames.BG].removeStatusText()
-
-def shutDownMsg():
-    Screen.rootWindow.after(500, Screen.rootWindow.destroy)
-
-def loadImageAllScreens(img_path):
-    if ScreenNames.BG is not None:
-        screens[ScreenNames.BG].loadImage(img_path)
-    if ScreenNames.DMD is not None:
-         screens[ScreenNames.DMD].loadImage(img_path)
-    if ScreenNames.TABLE is not None:
-        screens[ScreenNames.TABLE].loadImage(img_path)
-    Screen.rootWindow.update()
-
-def buildImageCache():
-    loadImageAllScreens(logoImage)
-    if ScreenNames.BG is not None:
-        screens[ScreenNames.BG].addStatusText("Caching Images", (10,1034))
-        screens[ScreenNames.BG].textThreeDotAnimate()
-    # Add the task to the manager
-    tasks_manager.add(name="buildImageCache", target_func=buildImageCacheThread)
-    tasks_manager.start("buildImageCache") # Start the task via the manager
-
-def buildImageCacheThread():
-    for i in range(Screen.maxImageCacheSize):
-        if i == tables.getTableCount():
-            tkMsgQueue.put(TkMsg(MsgType=TKMsgType.CACHE_BUILD_COMPLETED, func=disableStatusMsg))
-            break
-        if shutdown_event.is_set():
-            break
-        tasks_manager.wait("buildImageCache") # Use manager to wait
-        if ScreenNames.BG is not None:
-            screens[ScreenNames.BG].loadImage(tables.getTable(i).BGImagePath, display=False)
-        if shutdown_event.is_set():
-            break
-        tasks_manager.wait("buildImageCache") # Use manager to wait
-        if ScreenNames.DMD is not None:
-            screens[ScreenNames.DMD].loadImage(tables.getTable(i).DMDImagePath, display=False)
-        if shutdown_event.is_set():
-            break
-        tasks_manager.wait("buildImageCache") # Use manager to wait
-        if ScreenNames.TABLE is not None:
-            screens[ScreenNames.TABLE].loadImage(tables.getTable(i).TableImagePath, display=False)
-
-    Screen.rootWindow.event_generate("<<vpinfe_tk>>")
-
-    logger.debug("Exiting buildImageCacheThread")
     
 def setupScreens():
     global workers

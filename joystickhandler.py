@@ -1,6 +1,6 @@
 import sdl2
 import sdl2.ext
-from screen import Screen
+#from screen import Screen
 import time
 import threading
 from pinlog import get_logger
