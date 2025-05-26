@@ -7,11 +7,11 @@ import logging
 import multiprocessing.resource_tracker
 from screennames import ScreenNames
 import traceback
-from assetsutils import AssetsUtils
+from filesutils import FilesUtils
 
 # Assets
-logoImage = AssetsUtils.get_path("VPinFE_logo_main.png")
-missingImage = AssetsUtils.get_path("file_missing.png")
+logoImage = FilesUtils.get_asset_path("VPinFE_logo_main.png")
+missingImage = FilesUtils.get_asset_path("file_missing.png")
 
 def fix_resource_tracker():
     import multiprocessing.resource_tracker
