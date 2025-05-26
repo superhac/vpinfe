@@ -631,7 +631,11 @@ if __name__ == "__main__":
         command_queue.put('quit')   # Tell worker to clean up and exit
     for worker, _, _ in workers:
         worker.join()
-
+    
+    # wipe shared memory
+    # Not sure what the deal is but sometimes the shared mem between processes doesn't get cleared. This clears it.
+    subprocess.run("rm /dev/shm/psm*", shell=True)
+    
     logger.info("VPinFE shutdown complete.")
  
 
