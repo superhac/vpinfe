@@ -42,10 +42,6 @@ from ui.imageworkermanager import ImageWorkerManager
 if sys.platform.startswith('win'):
     os.environ['PYSDL2_DLL_PATH'] = AssetsUtils.get_path("SDL2.dll") # need to include the sdl2 runtime for windows
 
-# Assets
-#logoImage = AssetsUtils.get_path("VPinFE_logo_main.png")
-#missingImage = AssetsUtils.get_path("file_missing.png")
-
 # Globals
 version = "0.5 beta"
 logger = None
@@ -190,31 +186,6 @@ def screenMoveLeft():
         tableIndex = tables.getTableCount()-1
         setGameDisplays(tables.getTable(tableIndex))
 
-def resetFocus():
-    Screen.rootWindow.update_idletasks()
-
-    if vpinfeIniConfig.get_string('Displays','windowmanager', "") == "kde":
-        for s in screens:
-            s.window.update_idletasks()
-            s.window.deiconify()
-            s.window.update_idletasks()
-            s.window.update()
-            s.window.lift()
-            s.window.focus_force()
-            s.window.update_idletasks()
-    else: # gnome, win, mac, etc
-        for s in screens:
-            s.window.update_idletasks()
-            s.window.withdraw()
-            s.window.deiconify()
-            s.window.update_idletasks()
-            s.window.geometry(f"{s.screen.width}x{s.screen.height}+{s.screen.x}+{s.screen.y}")
-            s.window.update()
-
-    Screen.rootWindow.update()
-    Screen.rootWindow.focus_force()
-    Screen.rootWindow.update()
-
 def launchTable():
     global background
     background = True  # Disable SDL gamepad events
@@ -318,36 +289,6 @@ def launchVPX(table):
     logger.debug("Waiting for the table to exit.")
     process_exited.wait()
     logger.debug(f"Exited {table}")
-
-def setGameDisplays(tableInfo):
-    hudscreenid = vpinfeIniConfig.get_int('Displays','hudscreenid', -1)
-
-    # Load image BG
-    if ScreenNames.BG is not None:
-        screens[ScreenNames.BG].loadImage(tableInfo.BGImagePath, tableInfo=tableInfo if hudscreenid == ScreenNames.BG else None )
-        #screens[ScreenNames.BG].addText(tableInfo.metaConfig.get('VPSdb','name'), (screens[ScreenNames.BG].canvas.winfo_width() /2, 1080), anchor="s")
-
-    # Load image DMD
-    if ScreenNames.DMD is not None:
-        screens[ScreenNames.DMD].loadImage(tableInfo.DMDImagePath, tableInfo=tableInfo if hudscreenid == ScreenNames.DMD else None)
-
-    # Load table image (rotated and we swap width and height around like portrait mode)
-    if ScreenNames.TABLE is not None:
-        screens[ScreenNames.TABLE].loadImage(tableInfo.TableImagePath, tableInfo=tableInfo if hudscreenid == ScreenNames.TABLE else None)
-
-def showError(title, message):
-    root = screens[vpinfeIniConfig.get_int('Displays','messagesscreenid', 0)].window
-    logger.error(f"{RED_CONSOLE_TEXT}{message}{RESET_CONSOLE_TEXT}")
-    msg_box = AutocloseMessageBox(root, title, message, delay_s=15)
-    msg_box.show()
-    resetFocus()
-
-def showCriticalErrorAndExit(title, message, exitCode):
-    root = screens[vpinfeIniConfig.get_int('Displays','messagesscreenid', 0)].window
-    logger.critical(f"{RED_CONSOLE_TEXT}{message}{RESET_CONSOLE_TEXT}")
-    msg_box = AutocloseMessageBox(Screen.rootWindow, title, message, delay_s=15)
-    msg_box.show()
-    sys.exit(exitCode)
 
 def loadconfig(configfile):
     global tableRootDir

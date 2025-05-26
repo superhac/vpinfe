@@ -197,13 +197,16 @@ class ImageCacheWorker(Process):
                 print(f"Error unlinking shared memory: {e}")
         self.shared_memory_refs.clear()
 
-        # ✅ Clean up logo if it was loaded
+        # Clean up logo if it was loaded
         if hasattr(self, "logo_shm"):
             try:
                 self.logo_shm.close()
                 self.logo_shm.unlink()
                 rt.unregister(self.logo_shm._name, 'shared_memory')
                 logging.info("Unlinked logo shared memory")
+            except FileNotFoundError:
+                # Suppress this error completely — it's safe to ignore
+                pass
             except Exception as e:
                 logging.error(f"Error cleaning up logo shared memory: {e}")
 
