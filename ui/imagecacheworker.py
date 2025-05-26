@@ -185,6 +185,7 @@ class ImageCacheWorker(Process):
 
     def cleanup(self):
         import multiprocessing.resource_tracker as rt
+
         for shm in self.shared_memory_refs.values():
             try:
                 shm.close()
@@ -195,6 +196,16 @@ class ImageCacheWorker(Process):
             except Exception as e:
                 print(f"Error unlinking shared memory: {e}")
         self.shared_memory_refs.clear()
+
+        # ✅ Clean up logo if it was loaded
+        if hasattr(self, "logo_shm"):
+            try:
+                self.logo_shm.close()
+                self.logo_shm.unlink()
+                rt.unregister(self.logo_shm._name, 'shared_memory')
+                logging.info("Unlinked logo shared memory")
+            except Exception as e:
+                logging.error(f"Error cleaning up logo shared memory: {e}")
 
     def load_next(self, index):
         next_index = index + 1
@@ -220,11 +231,13 @@ class ImageCacheWorker(Process):
             data = ba.data()
             shm = shared_memory.SharedMemory(create=True, size=len(data))
             shm.buf[:len(data)] = data
-            name = shm.name
-            self.shared_memory_refs["logo"] = shm
-            self.cache["logo"] = shm.name
-            self.result_queue.put(("logo", name, len(data)))
-            logging.info(f"Sent logo image via shared memory {name}")
+            self.logo_shm = shm  # ✅ keep separate
+            self.result_queue.put(("logo", shm.name, len(data)))
+            logging.info(f"Sent logo image via shared memory {shm.name}")
+
+            # ✅ Trigger caching after logo
+            self.preload_surrounding(0)
+
         except Exception as e:
             logging.error("Failed to load and display logo image")
             tb = traceback.format_exc()
