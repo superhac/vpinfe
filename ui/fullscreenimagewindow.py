@@ -150,7 +150,8 @@ class FullscreenImageWindow(QWidget):
     def select_executable(self):
         executable = FilesUtils.select_file(
             caption="Select an Executable",
-            filters=[FilesUtils.FILTER_EXECUTABLE, FilesUtils.FILTER_ALL]
+            filters=[FilesUtils.FILTER_EXECUTABLE, FilesUtils.FILTER_ALL],
+            parent=self
         )
         if executable:
             logger.info(f"Executable selected: {executable}")
