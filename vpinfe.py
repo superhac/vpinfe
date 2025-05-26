@@ -43,8 +43,8 @@ if sys.platform.startswith('win'):
     os.environ['PYSDL2_DLL_PATH'] = AssetsUtils.get_path("SDL2.dll") # need to include the sdl2 runtime for windows
 
 # Assets
-logoImage = AssetsUtils.get_path("VPinFE_logo_main.png")
-missingImage = AssetsUtils.get_path("file_missing.png")
+#logoImage = AssetsUtils.get_path("VPinFE_logo_main.png")
+#missingImage = AssetsUtils.get_path("file_missing.png")
 
 # Globals
 version = "0.5 beta"
@@ -81,22 +81,25 @@ class GlobalKeyListener(QObject):
                 FullscreenImageWindow.menuWindow.add_rotated_menu(rotation_degree=-90)
                 return True
             if event.key() == Qt.Key.Key_Shift and event.nativeScanCode() == 50: # left
-                print("left:", event.nativeScanCode())
-                for manager in managers:
-                    manager.load_previous()
-                #tableIndex -= 1
+                prevImage()
                 return True
             if event.key() == Qt.Key.Key_Shift and event.nativeScanCode() == 62: # right
                 print("right:", event.nativeScanCode())
-                for manager in managers:
-                    manager.load_next()
-                #tableIndex += 1
+                nextImage()
                 return True
             if event.key() == Qt.Key.Key_Return: # enter
                 print("lanuch", event.nativeScanCode())
                 launchTable()
                 return True
         return False  # pass the event on
+
+def nextImage():
+    for manager in managers:
+        manager.load_next()
+
+def prevImage():
+       for manager in managers:
+            manager.load_previous()
 
 def load_stylesheet(path):
     with open(path, 'r') as f:
