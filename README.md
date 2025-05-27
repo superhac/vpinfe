@@ -267,6 +267,7 @@ What each setting does in the vpinfe.ini file broken down by "section".
 | ----------------- | ------------------------------------------------------------------------- |
 | vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
 | tablerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
+| gamepadid         | The gamepad device ID.  use --listgpads to find the id. default is 0      |
 | joyleft = 4       | Move left. Button mapping ids generated with jstest.                      |
 | joyright          | Move right. Button mapping ids generated with jstest.                     |
 | joyselect         | Select button / Launch. Button mapping ids generated with jstest.         |

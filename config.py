@@ -21,7 +21,8 @@ class Config:
 				'vpxbinpath': '', 
 				'tablerootdir': '',
 				'defaultfilter': '', # abc, favorites, em, ss, pm  
-				'joyleft': '',
+				'gamepadid': '0',
+    			'joyleft': '',
 				'joyright': '',
 				'joyselect': '',
 				'joymenu': '',

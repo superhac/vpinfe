@@ -447,7 +447,7 @@ if __name__ == "__main__":
     loadconfig(configfile)
     update_logger_config(vpinfeIniConfig.config['Logger'])
     startupLogging()
-    
+     
     app = QApplication(sys.argv)
     icon_path = FilesUtils.get_asset_path("VPinFE-icon.png")
     if icon_path:
