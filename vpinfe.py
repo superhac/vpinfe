@@ -10,6 +10,7 @@ import threading
 import multiprocessing
 from queue import Queue 
 from inputs import devices
+import time
 
 from pinlog import init_logger, get_logger, update_logger_config, get_named_logger
 import screennames
@@ -24,6 +25,7 @@ from pauseabletasksmanager import PauseableTasksManager
 from joystickhandler import JoystickHandler
 from autoclosemessagebox import AutocloseMessageBox
 from filesutils import FilesUtils
+from uithread.processmanager import ProcessManager
 
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QGraphicsView, QGraphicsScene, QGraphicsProxyWidget
@@ -431,7 +433,7 @@ def setFirstTableImages():
     for manager in managers:
         manager.set_image_by_index(0)
         
-def startupLogging():
+def startupMessages():
     logger.info(f"VPinFE {version} by Superhac & WildCoder")
     logger.info(f"Qt version: {QT_VERSION_STR}")
     logger.info(f"PyQt version: {PYQT_VERSION_STR}")
@@ -439,6 +441,41 @@ def startupLogging():
     #logger.info(f"Linked SDL2 version (runtime): {linked.major}.{linked.minor}.{linked.patch}")
     logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
     showGamepads()
+    
+def testThreads():
+    print("Starting threaded worker example...")
+   
+    manager = ProcessManager()
+
+    # Start two different types of workers
+    manager.start_worker("echo-1", "uithread.workertypes.EchoWorker")
+    manager.start_worker("reverse-1", "uithread.workertypes.ReverseWorker")
+
+    time.sleep(0.5)  # Allow threads to initialize
+
+    # Send messages
+    manager.send_to_worker("echo-1", "hello world")
+    manager.send_to_worker("reverse-1", "python rocks")
+
+    print("Messages sent. Waiting for responses...")
+
+    # Poll responses for a short period
+    timeout = time.time() + 5  # 5 seconds
+    while time.time() < timeout:
+        responses = manager.get_responses()
+        for worker_id, message in responses:
+            print(f"Response from {worker_id}: {message}")
+        time.sleep(0.2)
+
+    print("Shutting down workers...")
+    manager.shutdown()
+
+    print("Done.")
+
+
+    print("Shutting down workers...")
+    manager.shutdown()
+    print("Done.")
 
 if __name__ == "__main__":
     logger = init_logger("VPinFE")
@@ -446,8 +483,11 @@ if __name__ == "__main__":
     parseArgs()
     loadconfig(configfile)
     update_logger_config(vpinfeIniConfig.config['Logger'])
-    startupLogging()
-     
+    startupMessages()
+    #testThreads()
+    #sys.exit()
+    
+    
     app = QApplication(sys.argv)
     icon_path = FilesUtils.get_asset_path("VPinFE-icon.png")
     if icon_path:

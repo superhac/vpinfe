@@ -1,5 +1,4 @@
-# worker_types.py
-from workerinterface import BaseWorker
+from .workerinterface import BaseWorker
 
 class EchoWorker(BaseWorker):
     def handle(self, message):
@@ -8,3 +7,4 @@ class EchoWorker(BaseWorker):
 class ReverseWorker(BaseWorker):
     def handle(self, message):
         return f"[Reverse {self.worker_id}] {message[::-1]}"
+
