@@ -9,6 +9,7 @@ import sdl2.ext
 import threading
 import multiprocessing
 from queue import Queue 
+from inputs import devices
 
 from pinlog import init_logger, get_logger, update_logger_config, get_named_logger
 import screennames
@@ -33,6 +34,7 @@ from PyQt6.QtCore import Qt, QObject, QTimer, QEvent, QT_VERSION_STR, PYQT_VERSI
 from ui.fullscreenimagewindow import FullscreenImageWindow
 from ui.imagecacheworker import ImageCacheWorker
 from ui.imageworkermanager import ImageWorkerManager
+
 
 # OS Specific
 if sys.platform.startswith('win'):
@@ -351,6 +353,7 @@ def parseArgs():
 
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--listres", help="ID and list your screens", action="store_true")
+    parser.add_argument("--listgpads", help="Gamepads detected and ID.", action="store_true")
     parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file.  Default is cwd.")
     parser.add_argument("--buildmeta", help="Builds the meta.ini file in each table dir", action="store_true")
     parser.add_argument("--vpxpatch", help="Using vpx-standalone-scripts will attempt to load patches automatically", action="store_true")
@@ -375,6 +378,9 @@ def parseArgs():
                 f"DevicePixelRatio={screen.devicePixelRatio():.2f}"
             )
         sys.exit()
+    elif args.listgpads:
+        showGamepads()
+        sys.exit()
 
     if args.configfile:
         configfile = args.configfile
@@ -386,7 +392,11 @@ def parseArgs():
     if args.vpxpatch:
         vpxPatches()
         sys.exit()
-    
+        
+def showGamepads():     
+    for i, device in enumerate(devices.gamepads):
+        logger.info(f"Gamepad Detected: {i}:{device}")
+           
 def setupScreens():
     global workers
     global managers
@@ -420,23 +430,28 @@ def setupScreens():
 def setFirstTableImages():
     for manager in managers:
         manager.set_image_by_index(0)
+        
+def startupLogging():
+    logger.info(f"VPinFE {version} by Superhac & WildCoder")
+    logger.info(f"Qt version: {QT_VERSION_STR}")
+    logger.info(f"PyQt version: {PYQT_VERSION_STR}")
+    #logger.info(f"Compiled against SDL2 version: {sdl2.SDL_MAJOR_VERSION}.{sdl2.SDL_MINOR_VERSION}.{sdl2.SDL_PATCHLEVEL}")
+    #logger.info(f"Linked SDL2 version (runtime): {linked.major}.{linked.minor}.{linked.patch}")
+    logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
+    showGamepads()
 
 if __name__ == "__main__":
     logger = init_logger("VPinFE")
-    logger.info(f"VPinFE {version} by Superhac & WildCoder")
     parservpx = vpxparser.VPXParser()
     parseArgs()
     loadconfig(configfile)
-
     update_logger_config(vpinfeIniConfig.config['Logger'])
+    startupLogging()
     
     app = QApplication(sys.argv)
     icon_path = FilesUtils.get_asset_path("VPinFE-icon.png")
     if icon_path:
         app.setWindowIcon(QIcon(icon_path))
-
-    logger.info(f"Qt version: {QT_VERSION_STR}")
-    logger.info(f"PyQt version: {PYQT_VERSION_STR}")
 
     screens = app.screens()
     listener = GlobalKeyListener()
@@ -446,13 +461,10 @@ if __name__ == "__main__":
 
     sdl2.ext.init()
     logger.debug("SDL2 initialized.")
-    linked = sdl2.SDL_version()
-    sdl2.SDL_GetVersion(linked)
+    #linked = sdl2.SDL_version()
+    #sdl2.SDL_GetVersion(linked)
 
-    logger.info(f"Compiled against SDL2 version: {sdl2.SDL_MAJOR_VERSION}.{sdl2.SDL_MINOR_VERSION}.{sdl2.SDL_PATCHLEVEL}")
-    logger.info(f"Linked SDL2 version (runtime): {linked.major}.{linked.minor}.{linked.patch}")
-
-    logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
+    
 
     tables = Tables(tableRootDir, vpinfeIniConfig)
         
