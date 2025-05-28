@@ -43,6 +43,10 @@ class JoystickHandler:
             while not self._shutdown_event.is_set():
                 event_list = []
 
+                if not devices.gamepads:
+                    sleep(0.5)
+                    continue
+
                 try:
                     event_list = get_gamepad()
                 except Exception as e:
