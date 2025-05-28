@@ -70,6 +70,10 @@ class FullscreenImageWindow(QWidget):
         self.setWindowState(Qt.WindowState.WindowFullScreen)
         self.screenName = screenname
         self.cacheManager = None
+        self.menu_widget = None
+        self.mainMenuButtons = None
+        self.mainMenuButtonsIndex = None
+        self.menu_focus_index = 0
 
         self.screen = screen  # Store for reuse
 
@@ -90,22 +94,25 @@ class FullscreenImageWindow(QWidget):
         if self == FullscreenImageWindow.menuWindow:
             if self.menu_view is not None: # menu up toggle off
                 self.remove_menu()
+                FullscreenImageWindow.isMenuUp = False
                 return  
 
             menu_widget = self.load_ui_widget(menu_ui_file)
             menu_widget.show()  # Ensure visible
-
-            buttons = {
+            
+            self.mainMenuButtons = {
                 'Resume': menu_widget.findChild(QWidget, 'btnResume'),
                 'Test': menu_widget.findChild(QWidget, 'btnTest'),
                 'Quit': menu_widget.findChild(QWidget, 'btnQuit'),
                 'Iconify': menu_widget.findChild(QWidget, 'btnIconify')
             }
+            
+            self.mainMenuButtonsIndex  = [self.mainMenuButtons['Resume'], self.mainMenuButtons['Test'], self.mainMenuButtons['Iconify'], self.mainMenuButtons['Quit']]
 
             scene = QGraphicsScene()
             proxy = QGraphicsProxyWidget()
             proxy.setWidget(menu_widget)
-            menuON = True
+            FullscreenImageWindow.isMenuUp = True
 
             # Calculate center for rotation
             center = menu_widget.rect().center()
@@ -144,14 +151,21 @@ class FullscreenImageWindow(QWidget):
             self.menu_view.show()
 
             # Connect quit button
-            if buttons['Quit'] is not None:
-                buttons['Quit'].clicked.connect(QApplication.instance().quit)
-            if buttons['Resume'] is not None:
-                buttons['Resume'].clicked.connect(self.remove_menu)
-            if buttons['Iconify'] is not None:
-                buttons['Iconify'].clicked.connect(lambda: FullscreenImageWindow.iconify_all(FullscreenImageWindow.windows))
-            if buttons['Test'] is not None:
-                buttons['Test'].clicked.connect(self.select_executable)
+            if self.mainMenuButtons['Quit'] is not None:
+                self.mainMenuButtons['Quit'].clicked.connect(QApplication.instance().quit)
+            if self.mainMenuButtons['Resume'] is not None:
+                self.mainMenuButtons['Resume'].clicked.connect(self.remove_menu)
+            if self.mainMenuButtons['Iconify'] is not None:
+                self.mainMenuButtons['Iconify'].clicked.connect(lambda: FullscreenImageWindow.iconify_all(FullscreenImageWindow.windows))
+            if self.mainMenuButtons['Test'] is not None:
+                self.mainMenuButtons['Test'].clicked.connect(self.select_executable)
+            
+            #self.menu_focus_index = (self.menu_focus_index + 1) % len(self.menu_buttons)
+            #self.menu_buttons[0].setFocus()
+            # Let buttons take focus
+            self.menu_focus_index = 0
+            self.update_button_styles()
+  
     
     def select_executable(self):
         executable = FilesUtils.select_file(
@@ -200,13 +214,49 @@ class FullscreenImageWindow(QWidget):
                 case InputDefs.RIGHT:
                     self.prevImage()
                 case InputDefs.MENU:
-                    print("menu button")
                     if self == FullscreenImageWindow.menuWindow:
                         self.toggle_menu()
                 case _:
                     logger.debug(f"No action for that control send.")
+        else:
+            print("menu control")
+            if self == FullscreenImageWindow.menuWindow: # this is the window with the menu!
+                match control:
+                    case InputDefs.LEFT:
+                        self.menuDown()
+                    case InputDefs.RIGHT:
+                        self.menuUP()
+                    case InputDefs.MENU:
+                        if self == FullscreenImageWindow.menuWindow:
+                            self.toggle_menu()
+                    case _:
+                        logger.debug(f"No action for that control send.")
+    
+    def menuUP(self):
+        self.menu_focus_index = (self.menu_focus_index - 1) % len(self.mainMenuButtonsIndex)
+        self.update_button_styles()
+       
+    def menuDown(self):
+        self.menu_focus_index = (self.menu_focus_index + 1) % len(self.mainMenuButtonsIndex)
+        self.update_button_styles()
+    
+    def update_button_styles(self):
+        for i, btn in enumerate(self.mainMenuButtonsIndex):
+            if i == self.menu_focus_index:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #555555;;
+                    }
+                """)
+            else:
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #333333;
+                        color: white;
+                        border: none;
+                    }
+                """)
                 
-        
     def addCacheManager(self, cachemanager):
         self.cacheManager = cachemanager
         print("cacheManager set")
