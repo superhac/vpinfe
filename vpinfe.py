@@ -32,6 +32,7 @@ from PyQt6.QtCore import Qt, QObject, QTimer, QEvent, QT_VERSION_STR, PYQT_VERSI
 from ui.fullscreenimagewindow import FullscreenImageWindow
 from ui.imagecacheworker import ImageCacheWorker
 from ui.imageworkermanager import ImageWorkerManager
+from inputcontroller import InputController
 
 
 # OS Specific
@@ -57,6 +58,7 @@ tasks_manager = None # Global instance for PauseableTasksManager
 button_actions = {}
 tables = None
 timerForGamepad = QTimer()
+inputController = None
 
 # qt
 workers = []
@@ -86,14 +88,6 @@ class GlobalKeyListener(QObject):
                 launchTable()
                 return True
         return False  # pass the event on
-
-def nextImage():
-    for manager in imageCacheManagers:
-        manager.load_next()
-
-def prevImage():
-       for manager in imageCacheManagers:
-            manager.load_previous()
 
 def load_stylesheet(path):
     with open(path, 'r') as f:
@@ -384,25 +378,23 @@ def startupMessages():
     logger.info(f"VPinFE {version} by Superhac & WildCoder")
     logger.info(f"Qt version: {QT_VERSION_STR}")
     logger.info(f"PyQt version: {PYQT_VERSION_STR}")
-    #logger.info(f"Compiled against SDL2 version: {sdl2.SDL_MAJOR_VERSION}.{sdl2.SDL_MINOR_VERSION}.{sdl2.SDL_PATCHLEVEL}")
-    #logger.info(f"Linked SDL2 version (runtime): {linked.major}.{linked.minor}.{linked.patch}")
     logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
     showGamepads()
 
 def checkForUIThreadEvents():
     responses = uiThreadManager.get_responses()
     if responses:
-        for msg in responses:
-            # GamePad Events
-            if msg[0] == "gamepad-1":
-                logger.debug(f"gamepad-1 msg: {msg}")
-                if msg[1]['code'] == vpinfeIniConfig.get_string('Settings','joyleft','') and msg[1]['state'] == 1 or msg[1]['state'] == -1 : # left move
-                    nextImage()
-                elif msg[1]['code'] == vpinfeIniConfig.get_string('Settings','joyright','') and msg[1]['state'] == 1 or msg[1]['state'] == -1: # left move
-                    prevImage()
+        for resp in responses:
+            match resp[0]: # which worker_id
+                case "gamepad":
+                    inputController.input(resp)
+                case _:
+                    logger.info(f"msg from a worker has no handler.")
         
 def setupMainUIThreads():
-    uiThreadManager.start_worker("gamepad-1", "gamepadworker.GamepadWorker")
+    global inputController
+    uiThreadManager.start_worker("gamepad", "gamepadworker.GamepadWorker")
+    inputController = InputController(imageCacheManagers, vpinfeIniConfig)
     timerForGamepad.timeout.connect(checkForUIThreadEvents)
     timerForGamepad.start(200)
     
