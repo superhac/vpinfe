@@ -74,7 +74,7 @@ class GlobalKeyListener(QObject):
                 QApplication.instance().quit()
                 return True  # event handled
             if event.key() == Qt.Key.Key_M:
-                FullscreenImageWindow.menuWindow.add_rotated_menu(rotation_degree=-90)
+                FullscreenImageWindow.menuWindow.toggle_menu(rotation_degree=-90)
                 return True
             if event.key() == Qt.Key.Key_Shift and event.nativeScanCode() == 50: # left
                 prevImage()
@@ -356,7 +356,7 @@ def setupScreens():
             
         # Add menu  to first screen
         if i == menu_screenid:
-            win.add_menu(rotation_degree=menu_rotation)
+            win.toggle_menu(rotation_degree=menu_rotation)
             FullscreenImageWindow.menuWindow = win
      
     # setup the image cache workers and a manager  
@@ -365,6 +365,7 @@ def setupScreens():
         result_queue = multiprocessing.Queue()
         worker = ImageCacheWorker(tables, win.screenName, command_queue, result_queue, win.screen.geometry())
         manager = ImageWorkerManager(win, tables,  command_queue, result_queue)
+        win.addCacheManager(manager)
         manager.loadLogo()
         workers.append((worker, command_queue, result_queue))
         imageCacheManagers.append(manager) 
