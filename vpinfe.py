@@ -20,10 +20,6 @@ import metaconfig
 from vpsdb import VPSdb
 import vpxparser
 import standaloneScripts
-from pauseabletask import PauseableTask
-from pauseabletasksmanager import PauseableTasksManager
-from joystickhandler import JoystickHandler
-from autoclosemessagebox import AutocloseMessageBox
 from filesutils import FilesUtils
 from uithread.processmanager import ProcessManager
 
@@ -64,7 +60,7 @@ timerForGamepad = QTimer()
 
 # qt
 workers = []
-managers = []
+imageCacheManagers = []
 app = None
 screens = []
 uiThreadManager = ProcessManager()
@@ -92,67 +88,16 @@ class GlobalKeyListener(QObject):
         return False  # pass the event on
 
 def nextImage():
-    for manager in managers:
+    for manager in imageCacheManagers:
         manager.load_next()
 
 def prevImage():
-       for manager in managers:
+       for manager in imageCacheManagers:
             manager.load_previous()
 
 def load_stylesheet(path):
     with open(path, 'r') as f:
         return f.read()
-
-def setShutdownEvent():
-    if shutdown_event.is_set():
-        return
-    logger.debug("Exit requested")
-    shutdown_event.set()
-    shutDownMsg()
-
-def key_pressed(event):
-    keysym = event.keysym # Get the symbolic name of the key
-    #key = event.char # Get the character representation of the key
-    #keycode = event.keycode # Get the numeric keycode
-    #logger.debug(f"Key pressed: {key}, keysym: {keysym}, keycode: {keycode}")
-    key_actions = {
-        "Shift_R": screenMoveRight,
-        "Shift_L": screenMoveLeft,
-        "Escape": setShutdownEvent,
-        "q": setShutdownEvent,
-        "Return": launchTable,
-        "a": launchTable
-    }
-
-    action = key_actions.get(keysym)
-    if action:
-        action()
-
-def button_pressed(payload):
-    global button_actions
-
-    action = button_actions.get(payload['button'])
-    if action:
-        action()
-    logger.debug(f"Button {payload['button']} Down on Gamepad: {payload['which']}")
-
-def buttonActionsSetup():
-    global button_actions
-
-    def not_implemented(button):
-        logger.debug(f"Button {button} Not implemented yet...")
-
-    button_actions = {
-        #vpinfeIniConfig.get_int('Settings', 'joyright', -1): screenMoveRight,
-        #vpinfeIniConfig.get_int('Settings', 'joyleft', -2): screenMoveLeft,
-        vpinfeIniConfig.get_int('Settings', 'joyselect', -3): launchTable,
-        vpinfeIniConfig.get_int('Settings', 'joyexit', -4): setShutdownEvent,
-        vpinfeIniConfig.get_int('Settings', 'joymenu', -5): lambda: not_implemented("joymenu"),
-        vpinfeIniConfig.get_int('Settings', 'joyback', -6): lambda: not_implemented("joyback")
-    }
-
-    #if len(button_actions) != 6:
-        #showError("Input Configuration Error", "It appears that you have some identical buttons defined multiple times. Please make sure they are unique or empty in vpinfe.ini.")
 
 def launchTable():
     global background
@@ -165,9 +110,9 @@ def launchTable():
     meta = metaconfig.MetaConfig(tables.getTable(tableIndex).fullPathTable + "/" + "meta.ini")
     meta.actionDeletePinmameNVram()
 
-    resetFocus()
+    #resetFocus()
 
-    Screen.rootWindow.after(350, tasks_manager.resume)
+    #Screen.rootWindow.after(350, tasks_manager.resume)
 
 def launchVPX(table):
     logger.info(f"Launching: {table}")
@@ -403,7 +348,7 @@ def showGamepads():
            
 def setupScreens():
     global workers
-    global managers
+    global imageCacheManagers
     menu_screenid = vpinfeIniConfig.get_int("Menu", "screenid", 0)
     menu_rotation = vpinfeIniConfig.get_int("Menu", "rotation", 0)
     # setup the window on each screen
@@ -428,11 +373,11 @@ def setupScreens():
         manager = ImageWorkerManager(win, tables,  command_queue, result_queue)
         manager.loadLogo()
         workers.append((worker, command_queue, result_queue))
-        managers.append(manager) 
+        imageCacheManagers.append(manager) 
         worker.start()
 
 def setFirstTableImages():
-    for manager in managers:
+    for manager in imageCacheManagers:
         manager.set_image_by_index(0)
         
 def startupMessages():
@@ -444,12 +389,13 @@ def startupMessages():
     logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
     showGamepads()
 
-def checkForGamepadEventsTimer():
+def checkForUIThreadEvents():
     responses = uiThreadManager.get_responses()
     if responses:
         for msg in responses:
-            logger.debug(f"gamepad-1 msg: {msg}")
+            # GamePad Events
             if msg[0] == "gamepad-1":
+                logger.debug(f"gamepad-1 msg: {msg}")
                 if msg[1]['code'] == vpinfeIniConfig.get_string('Settings','joyleft','') and msg[1]['state'] == 1 or msg[1]['state'] == -1 : # left move
                     nextImage()
                 elif msg[1]['code'] == vpinfeIniConfig.get_string('Settings','joyright','') and msg[1]['state'] == 1 or msg[1]['state'] == -1: # left move
@@ -457,7 +403,7 @@ def checkForGamepadEventsTimer():
         
 def setupMainUIThreads():
     uiThreadManager.start_worker("gamepad-1", "gamepadworker.GamepadWorker")
-    timerForGamepad.timeout.connect(checkForGamepadEventsTimer)
+    timerForGamepad.timeout.connect(checkForUIThreadEvents)
     timerForGamepad.start(200)
     
 if __name__ == "__main__":
