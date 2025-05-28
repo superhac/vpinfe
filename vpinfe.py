@@ -8,7 +8,6 @@ import sys
 import os
 import subprocess
 import argparse
-import sdl2.ext
 import time
 import threading
 from multiprocessing import Process
@@ -29,10 +28,6 @@ from pauseabletask import PauseableTask
 from pauseabletasksmanager import PauseableTasksManager
 from joystickhandler import JoystickHandler
 from autoclosemessagebox import AutocloseMessageBox
-
-# OS Specific
-if sys.platform.startswith('win'):
-    os.environ['PYSDL2_DLL_PATH'] = sys._MEIPASS+'/SDL2.dll' # need to include the sdl2 runtime for windows
 
 # Assets
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
@@ -90,10 +85,12 @@ def key_pressed(event):
 def button_pressed(payload):
     global button_actions
 
-    action = button_actions.get(payload['button'])
+    action = button_actions.get(f"{payload['code']} {payload['state']}")
     if action:
+        logger.debug(f"Button {payload['code']} {payload['state']} Down on Gamepad")
         action()
-    logger.debug(f"Button {payload['button']} Down on Gamepad: {payload['which']}")
+    # else:
+    #     logger.debug(f"Button {payload['code']} {payload['state']} Down on Gamepad")
 
 def buttonActionsSetup():
     global button_actions
@@ -102,12 +99,12 @@ def buttonActionsSetup():
         logger.debug(f"Button {button} Not implemented yet...")
 
     button_actions = {
-        vpinfeIniConfig.get_int('Settings', 'joyright', -1): screenMoveRight,
-        vpinfeIniConfig.get_int('Settings', 'joyleft', -2): screenMoveLeft,
-        vpinfeIniConfig.get_int('Settings', 'joyselect', -3): launchTable,
-        vpinfeIniConfig.get_int('Settings', 'joyexit', -4): setShutdownEvent,
-        vpinfeIniConfig.get_int('Settings', 'joymenu', -5): lambda: not_implemented("joymenu"),
-        vpinfeIniConfig.get_int('Settings', 'joyback', -6): lambda: not_implemented("joyback")
+        vpinfeIniConfig.get_string('Settings', 'joyright', "-1"): screenMoveRight,
+        vpinfeIniConfig.get_string('Settings', 'joyleft', "-2"): screenMoveLeft,
+        vpinfeIniConfig.get_string('Settings', 'joyselect', "-3"): launchTable,
+        vpinfeIniConfig.get_string('Settings', 'joyexit', "-4"): setShutdownEvent,
+        vpinfeIniConfig.get_string('Settings', 'joymenu', "-5"): lambda: not_implemented("joymenu"),
+        vpinfeIniConfig.get_string('Settings', 'joyback', "-6"): lambda: not_implemented("joyback")
     }
 
     if len(button_actions) != 6:
@@ -122,6 +119,8 @@ def processTkMsgEvent(event):
         elif msg.msgType == TKMsgType.SHUTDOWN:
             setShutdownEvent()
         elif msg.msgType == TKMsgType.JOY_BUTTON_DOWN:
+            button_pressed(msg.payload)
+        elif msg.msgType == TKMsgType.JOY_AXIS_MOTION:
             button_pressed(msg.payload)
         #elif msg.msgType == TKMsgType.JOY_BUTTON_UP:
             #logger.info(f"Received JOY_BUTTON_UP {msg.payload['button']} from joystick {msg.payload['which']}")
@@ -585,9 +584,6 @@ if __name__ == "__main__":
 
     update_logger_config(vpinfeIniConfig.config['Logger'])
 
-    sdl2.ext.init()
-    logger.debug("SDL2 initialized.")
-
     tables = Tables(tableRootDir, vpinfeIniConfig)
     getScreens()
 
@@ -621,8 +617,5 @@ if __name__ == "__main__":
     # shutdown
     logger.info("Stopping async tasks.")
     tasks_manager.stop()
-
-    logger.info("SDL2 Quit.")
-    sdl2.ext.quit()
 
     logger.info("VPinFE shutdown complete.")
