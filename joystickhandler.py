@@ -2,7 +2,7 @@
 import threading
 import queue
 import time
-from inputs import get_gamepad, devices
+from thirdparty.inputs import get_gamepad, devices
 from screen import Screen
 from pinlog import get_logger
 from tkmessages import TKMsgType, TkMsg
