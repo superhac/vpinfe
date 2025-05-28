@@ -448,11 +448,11 @@ def checkForGamepadEventsTimer():
     responses = uiThreadManager.get_responses()
     if responses:
         for msg in responses:
-            logger.debug("gamepad-1 msg:",msg)
+            logger.debug(f"gamepad-1 msg: {msg}")
             if msg[0] == "gamepad-1":
-                if msg[1]['code'] == vpinfeIniConfig.get_string('Settings','joyleft','') and msg[1]['state'] == 1: # left move
+                if msg[1]['code'] == vpinfeIniConfig.get_string('Settings','joyleft','') and msg[1]['state'] == 1 or msg[1]['state'] == -1 : # left move
                     nextImage()
-                elif msg[1]['code'] == vpinfeIniConfig.get_string('Settings','joyright','') and msg[1]['state'] == 1: # left move
+                elif msg[1]['code'] == vpinfeIniConfig.get_string('Settings','joyright','') and msg[1]['state'] == 1 or msg[1]['state'] == -1: # left move
                     prevImage()
         
 def setupMainUIThreads():
