@@ -9,16 +9,16 @@ if base_dir not in sys.path:
 
 
 def worker_main(worker_id, input_queue, output_queue, worker_class_path):
-    # Expect full path like "uithread.worker_types.EchoWorker"
+    # Expect full path like "uithread.worker_types.GamepadWorker"
     module_name, class_name = worker_class_path.rsplit('.', 1)
     mod = importlib.import_module(module_name)
     worker_cls = getattr(mod, class_name)
-    worker_instance = worker_cls(worker_id)
 
-    while True:
-        msg = input_queue.get()
-        if msg == "STOP":
-            output_queue.put((worker_id, "Stopped"))
-            break
-        result = worker_instance.handle(msg)
-        output_queue.put((worker_id, result))
+    # Pass queues and worker_id to worker constructor
+    worker_instance = worker_cls(input_queue, output_queue, worker_id)
+
+    # Start worker run loop (blocking)
+    try:
+        worker_instance.run()
+    except Exception as e:
+        output_queue.put((worker_id, f"Exception in worker: {e}"))

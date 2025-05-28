@@ -60,12 +60,14 @@ RESET_CONSOLE_TEXT = '\033[0m'
 tasks_manager = None # Global instance for PauseableTasksManager
 button_actions = {}
 tables = None
+timerForGamepad = QTimer()
 
 # qt
 workers = []
 managers = []
 app = None
 screens = []
+uiThreadManager = ProcessManager()
 
 class GlobalKeyListener(QObject):
     def eventFilter(self, obj, event):
@@ -441,42 +443,23 @@ def startupMessages():
     #logger.info(f"Linked SDL2 version (runtime): {linked.major}.{linked.minor}.{linked.patch}")
     logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
     showGamepads()
+
+def checkForGamepadEventsTimer():
+    responses = uiThreadManager.get_responses()
+    if responses:
+        for msg in responses:
+            logger.debug("gamepad-1 msg:",msg)
+            if msg[0] == "gamepad-1":
+                if msg[1]['code'] == vpinfeIniConfig.get_string('Settings','joyleft','') and msg[1]['state'] == 1: # left move
+                    nextImage()
+                elif msg[1]['code'] == vpinfeIniConfig.get_string('Settings','joyright','') and msg[1]['state'] == 1: # left move
+                    prevImage()
+        
+def setupMainUIThreads():
+    uiThreadManager.start_worker("gamepad-1", "gamepadworker.GamepadWorker")
+    timerForGamepad.timeout.connect(checkForGamepadEventsTimer)
+    timerForGamepad.start(200)
     
-def testThreads():
-    print("Starting threaded worker example...")
-   
-    manager = ProcessManager()
-
-    # Start two different types of workers
-    manager.start_worker("echo-1", "uithread.workertypes.EchoWorker")
-    manager.start_worker("reverse-1", "uithread.workertypes.ReverseWorker")
-
-    time.sleep(0.5)  # Allow threads to initialize
-
-    # Send messages
-    manager.send_to_worker("echo-1", "hello world")
-    manager.send_to_worker("reverse-1", "python rocks")
-
-    print("Messages sent. Waiting for responses...")
-
-    # Poll responses for a short period
-    timeout = time.time() + 5  # 5 seconds
-    while time.time() < timeout:
-        responses = manager.get_responses()
-        for worker_id, message in responses:
-            print(f"Response from {worker_id}: {message}")
-        time.sleep(0.2)
-
-    print("Shutting down workers...")
-    manager.shutdown()
-
-    print("Done.")
-
-
-    print("Shutting down workers...")
-    manager.shutdown()
-    print("Done.")
-
 if __name__ == "__main__":
     logger = init_logger("VPinFE")
     parservpx = vpxparser.VPXParser()
@@ -484,9 +467,6 @@ if __name__ == "__main__":
     loadconfig(configfile)
     update_logger_config(vpinfeIniConfig.config['Logger'])
     startupMessages()
-    #testThreads()
-    #sys.exit()
-    
     
     app = QApplication(sys.argv)
     icon_path = FilesUtils.get_asset_path("VPinFE-icon.png")
@@ -498,38 +478,21 @@ if __name__ == "__main__":
     app.installEventFilter(listener)
     stylesheet = load_stylesheet("default-ui-template/style/dark_theme.qss")
     app.setStyleSheet(stylesheet)
-
-    sdl2.ext.init()
-    logger.debug("SDL2 initialized.")
-    #linked = sdl2.SDL_version()
-    #sdl2.SDL_GetVersion(linked)
-
     
-
     tables = Tables(tableRootDir, vpinfeIniConfig)
-        
-    buttonActionsSetup()
-    tasks_manager = PauseableTasksManager()
-
-    # Add and start the gamepad input task
-    #joystick_handler = JoystickHandler(tkMsgQueue, shutdown_event, tasks_manager)
-    #tasks_manager.add(name="gameControllerInput", target_func=joystick_handler.input_loop)
-    #tasks_manager.start("gameControllerInput")
     
     setupScreens()
     QTimer.singleShot(5000, lambda: setFirstTableImages())  # load first image after 5 secs.. logo time      
+    setupMainUIThreads()
     app.exec()
     
     ### shutdown ###
     
-    # stop tasks
-    logger.info("Stopping async tasks.")
-    #tasks_manager.stop()
-
-    # SDL 
-    logger.info("SDL2 Quit.")
-    sdl2.ext.quit()
-    
+    print("Shutting down UI Thread workers...")
+    uiThreadManager.forcedKill("gamepad-1")
+    time.sleep(1) 
+    uiThreadManager.shutdown()
+     
     #qt image caching
     for worker, command_queue, _ in workers:
         command_queue.put('quit')   # Tell worker to clean up and exit
