@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from PIL import Image, ImageTk
 import sys
 import os
 import subprocess

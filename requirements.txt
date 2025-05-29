@@ -38,7 +38,6 @@ prompt_toolkit==3.0.50
 ptyprocess==0.7.0
 pure_eval==0.2.3
 Pygments==2.19.1
-PySDL2==0.9.17
 python-dateutil==2.9.0.post0
 pyzmq==26.2.1
 referencing==0.36.2
@@ -60,3 +59,4 @@ olefile==0.46
 PyQt6==6.9.0
 PyQt6-Qt6
 PyQt6-sip
+inputs==0.5
