@@ -13,12 +13,10 @@ class InputController():
         self.vpinfeIniConfig = vpinfeIniConfig
         
     def input(self, response):
-        #for msg in responses:
-            # GamePad Events
         match response[0]:
             case "gamepad":
                 msg = response[1]
-                self.logger.debug(f"gamepad-1 msg: {msg}")
+                self.logger.debug(f"gamepad msg: {msg}")
                 if msg['code'] == self.vpinfeIniConfig.get_string('Settings','joyleft','') and msg['state'] == 1 or msg['state'] == -1 : # left move
                     windows = FullscreenImageWindow.windows
                     for win in windows:
@@ -27,9 +25,18 @@ class InputController():
                     windows = FullscreenImageWindow.windows
                     for win in windows:
                         win.processInputControl(InputDefs.RIGHT)
-                elif msg['code'] == self.vpinfeIniConfig.get_string('Settings','joymenu','') and msg['state'] == 1 or msg['state'] == -1: # right move
+                elif msg['code'] == self.vpinfeIniConfig.get_string('Settings','joymenu','') and msg['state'] == 1 or msg['state'] == -1: # menu
                     windows = FullscreenImageWindow.windows
                     for win in windows:
                         win.processInputControl(InputDefs.MENU)
+                elif msg['code'] == self.vpinfeIniConfig.get_string('Settings','joyselect','') and msg['state'] == 1 or msg['state'] == -1: # Select
+                    print("got selected")
+                    windows = FullscreenImageWindow.windows
+                    for win in windows:
+                        selected =  win.processInputControl(InputDefs.SELECT)
+                        if selected:
+                            print(selected)
+                        
+                       
                 
     
