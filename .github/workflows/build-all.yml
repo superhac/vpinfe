@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - master-swap-qt
 
 jobs:
   build:
