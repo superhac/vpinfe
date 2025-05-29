@@ -67,21 +67,21 @@ class FullscreenImageWindow(QWidget):
         global logger
         logger = get_logger()
         
-        self.setGeometry(screen.geometry())
+        self.assignedScreen = screen  # ✅ Avoid shadowing QWidget.screen()
+        self.setGeometry(self.assignedScreen.geometry())
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setWindowState(Qt.WindowState.WindowFullScreen)
         self.screenName = screenname
         self.cacheManager = None
-        self.screen = screen  # Store for reuse
 
         if stylesheet:
             self.setStyleSheet(stylesheet)
 
         self.ui = self.load_ui_widget("default-ui-template/image_window.ui")
         self.ui.setParent(self)
-        self.ui.setGeometry(0, 0, self.screen.geometry().width(), self.screen.geometry().height())
+        self.ui.setGeometry(0, 0, self.assignedScreen.geometry().width(), self.assignedScreen.geometry().height())
 
-        self.ui.imageLabel.setGeometry(0, 0, self.screen.geometry().width(), self.screen.geometry().height())
+        self.ui.imageLabel.setGeometry(0, 0, self.assignedScreen.geometry().width(), self.assignedScreen.geometry().height())
 
         self.showFullScreen()
         FullscreenImageWindow.windows.append(self)
@@ -113,9 +113,9 @@ class FullscreenImageWindow(QWidget):
             raise TypeError("Expected a QPixmap")
 
         # Optional: scale only if needed
-        if pixmap.size() != self.screen.geometry().size():
+        if pixmap.size() != self.assignedScreen.geometry().size():
             pixmap = pixmap.scaled(
-                self.screen.geometry().width(), self.screen.geometry().height(),
+                self.assignedScreen.geometry().width(), self.assignedScreen.geometry().height(),
                 Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation
             )
 
@@ -124,7 +124,7 @@ class FullscreenImageWindow(QWidget):
     def remove_menu(self):
         if self == FullscreenImageWindow.menuWindow:
             FullscreenImageWindow.isMenuUp = False
-            if self.menu_view is not None:
+            if hasattr(self, "menu_view") and self.menu_view is not None:
                 scene = self.menu_view.scene()
                 if scene is not None:
                     scene.clear()  # Removes all items from the scene
@@ -145,11 +145,14 @@ class FullscreenImageWindow(QWidget):
                 case InputDefs.MENU:
                     if self == FullscreenImageWindow.menuWindow:
                         self.toggle_menu()
+                case InputDefs.SELECT:
+                    FullscreenImageWindow.iconify_all()
+                    return "Launch"
                 case _:
                     logger.debug(f"No action for that control send.")
         else:
             print("menu control: ", control)
-            if self == FullscreenImageWindow.menuWindow: # this is the window with the menu!
+            if self == FullscreenImageWindow.menuWindow:  # this is the window with the menu!
                 match control:
                     case InputDefs.LEFT:
                         self.menu.navigate_down()
@@ -158,8 +161,7 @@ class FullscreenImageWindow(QWidget):
                     case InputDefs.SELECT:
                         return self.menu.select()
                     case InputDefs.MENU:
-                        if self == FullscreenImageWindow.menuWindow:
-                            self.toggle_menu()
+                        self.toggle_menu()
                     case _:
                         logger.debug(f"No action for that control send.")
         return None

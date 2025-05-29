@@ -363,7 +363,7 @@ def setupScreens():
     for win in FullscreenImageWindow.windows:
         command_queue = multiprocessing.Queue()
         result_queue = multiprocessing.Queue()
-        worker = ImageCacheWorker(tables, win.screenName, command_queue, result_queue, win.screen.geometry())
+        worker = ImageCacheWorker(tables, win.screenName, command_queue, result_queue, win.assignedScreen.geometry())
         manager = ImageWorkerManager(win, tables,  command_queue, result_queue)
         win.addCacheManager(manager)
         manager.loadLogo()
@@ -391,6 +391,8 @@ def checkForUIThreadEvents():
                     msg = inputController.input(resp)
                     if msg and msg == "Quit":
                         QApplication.instance().quit()
+                    elif msg and msg == "Launch":
+                        print("Launch") # launch
                 case _:
                     logger.info(f"msg from a worker has no handler.")
         
