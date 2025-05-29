@@ -6,7 +6,7 @@ a = Analysis(
     pathex=[os.path.abspath('.'),'vvv/lib/python3.12/site-packages/'],
     binaries=[],
     datas=[('assets', './assets'), ('dlls/SDL2.dll','.'), ('pinlog.py', '.'),  ('vpsdb.py', '.')],
-    hiddenimports=['screeninfo', 'PIL', 'olefile', 'logging', 'inputs', 
+    hiddenimports=['screeninfo', 'PIL', 'olefile', 'logging', 'thirdparty.inputs', 
 	'uithread.workerinterface',
     	'uithread.workerthread',
     	'vpinfe.gamepadworker',],
