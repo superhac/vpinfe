@@ -77,11 +77,12 @@ class GlobalKeyListener(QObject):
                 FullscreenImageWindow.menuWindow.toggle_menu(rotation_degree=-90)
                 return True
             if event.key() == Qt.Key.Key_Shift and event.nativeScanCode() == 50: # left
-                prevImage()
+                for win in FullscreenImageWindow.windows:
+                    win.prevImage()
                 return True
             if event.key() == Qt.Key.Key_Shift and event.nativeScanCode() == 62: # right
-                print("right:", event.nativeScanCode())
-                nextImage()
+                for win in FullscreenImageWindow.windows:
+                    win.nextImage()
                 return True
             if event.key() == Qt.Key.Key_Return: # enter
                 print("lanuch", event.nativeScanCode())

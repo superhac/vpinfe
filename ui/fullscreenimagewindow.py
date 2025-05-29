@@ -146,7 +146,6 @@ class FullscreenImageWindow(QWidget):
                     if self == FullscreenImageWindow.menuWindow:
                         self.toggle_menu()
                 case InputDefs.SELECT:
-                    #FullscreenImageWindow.iconify_all()
                     return "Launch"
                 case _:
                     logger.debug(f"No action for that control send.")
