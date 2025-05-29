@@ -8,7 +8,8 @@ import sdl2.ext
 import threading
 import multiprocessing
 from queue import Queue 
-from inputs import devices
+#from inputs import devices
+from thirdparty.inputs import devices
 import time
 
 from pinlog import init_logger, get_logger, update_logger_config, get_named_logger
@@ -382,7 +383,7 @@ def startupMessages():
 
 def checkForUIThreadEvents():
     responses = uiThreadManager.get_responses()
-    if responses:
+    if responses: # add check for a dict or a list.  if its just a dict its an error.  
         for resp in responses:
             match resp[0]: # which worker_id
                 case "gamepad":
@@ -430,8 +431,8 @@ if __name__ == "__main__":
     ### shutdown ###
     
     print("Shutting down UI Thread workers...")
-    uiThreadManager.forcedKill("gamepad-1")
-    time.sleep(1) 
+    #uiThreadManager.forcedKill("gamepad-1")
+    #time.sleep(1) 
     uiThreadManager.shutdown()
      
     #qt image caching
