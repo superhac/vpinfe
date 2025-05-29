@@ -98,15 +98,13 @@ class MainMenu:
             self.focus_index = 0
 
     def navigate_up(self):
-        print("got up")
         self.focus_index = (self.focus_index - 1) % len(self.button_index)
         self.update_styles()
 
     def navigate_down(self):
-        print("got down")
         self.focus_index = (self.focus_index + 1) % len(self.button_index)
         self.update_styles()
-
+        
     def select(self):
         btn = self.button_index[self.focus_index]
         for name, button in self.buttons.items():

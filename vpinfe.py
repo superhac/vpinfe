@@ -388,7 +388,9 @@ def checkForUIThreadEvents():
         for resp in responses:
             match resp[0]: # which worker_id
                 case "gamepad":
-                    inputController.input(resp)
+                    msg = inputController.input(resp)
+                    if msg and msg == "Quit":
+                        QApplication.instance().quit()
                 case _:
                     logger.info(f"msg from a worker has no handler.")
         

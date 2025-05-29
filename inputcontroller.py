@@ -35,7 +35,8 @@ class InputController():
                     for win in windows:
                         selected =  win.processInputControl(InputDefs.SELECT)
                         if selected:
-                            print(selected)
+                            return selected
+        return None
                         
                        
                 
