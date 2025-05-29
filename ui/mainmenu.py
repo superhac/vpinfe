@@ -40,6 +40,11 @@ class MainMenu:
         center = self.menu_widget.rect().center()
         self.proxy.setTransformOriginPoint(float(center.x()), float(center.y()))
 
+        # Apply rotation if needed
+        transform = QTransform()
+        transform.rotate(rotation_degree)
+        self.proxy.setTransform(transform)
+
         # Get screen size and compute position
         screen_geometry = self.parent.geometry()
         screen_center_x = screen_geometry.width() // 2

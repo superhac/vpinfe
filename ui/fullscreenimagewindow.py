@@ -61,7 +61,7 @@ class FullscreenImageWindow(QWidget):
 
         restore_one(0)
         
-    def __init__(self, screen, screenname: screennames.ScreenNames, tables: Tables, stylesheet=None):
+    def __init__(self, screen, screenname: screennames.ScreenNames, tables: Tables, stylesheet=None, menuRotation=0):
         super().__init__()
         self.menu = MainMenu(self, "default-ui-template/menu_template.ui")
         global logger
@@ -73,6 +73,7 @@ class FullscreenImageWindow(QWidget):
         self.setWindowState(Qt.WindowState.WindowFullScreen)
         self.screenName = screenname
         self.cacheManager = None
+        self.menuRotation = menuRotation
 
         if stylesheet:
             self.setStyleSheet(stylesheet)
@@ -86,7 +87,7 @@ class FullscreenImageWindow(QWidget):
         self.showFullScreen()
         FullscreenImageWindow.windows.append(self)
                     
-    def toggle_menu(self, rotation_degree=0):
+    def toggle_menu(self):
         if self != FullscreenImageWindow.menuWindow:
             return
 
@@ -94,7 +95,7 @@ class FullscreenImageWindow(QWidget):
             self.menu.hide()
             FullscreenImageWindow.isMenuUp = False
         else:
-            self.menu.show(rotation_degree=rotation_degree)
+            self.menu.show(rotation_degree=self.menuRotation)
             FullscreenImageWindow.isMenuUp = True
     
     def select_executable(self):

@@ -346,15 +346,15 @@ def setupScreens():
     # setup the window on each screen
     for i, screen in enumerate(screens):
         if i == screennames.ScreenNames.BG:
-            win = FullscreenImageWindow(screen, screennames.ScreenNames.BG, tables)
+            win = FullscreenImageWindow(screen, screennames.ScreenNames.BG, tables, menuRotation=menu_rotation)
         elif i == screennames.ScreenNames.DMD:
-            win = FullscreenImageWindow(screen, screennames.ScreenNames.DMD, tables)
+            win = FullscreenImageWindow(screen, screennames.ScreenNames.DMD, tables, menuRotation=menu_rotation)
         elif i == screennames.ScreenNames.TABLE:
-            win = FullscreenImageWindow(screen, screennames.ScreenNames.TABLE, tables)
+            win = FullscreenImageWindow(screen, screennames.ScreenNames.TABLE, tables, menuRotation=menu_rotation)
             
         # Add menu  to first screen
         if i == menu_screenid:
-            win.toggle_menu(rotation_degree=menu_rotation)
+            #win.toggle_menu()
             FullscreenImageWindow.menuWindow = win
      
     # setup the image cache workers and a manager  
