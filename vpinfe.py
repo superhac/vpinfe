@@ -94,17 +94,15 @@ def load_stylesheet(path):
         return f.read()
 
 def launchTable():
-    global background
-    background = True  # Disable SDL gamepad events
-    tasks_manager.pause()
-    launchVPX(tables.getTable(tableIndex).fullPathVPXfile)
+    launchVPX(tables.getTable(imageCacheManagers[0].current_index).fullPathVPXfile)
+    
     logger.debug(f"Returning from playing the table. Resetting focus on us.")
 
     # check if we need to do postprocessing.  right now just check if we need to delete pinmame nvram
     meta = metaconfig.MetaConfig(tables.getTable(tableIndex).fullPathTable + "/" + "meta.ini")
     meta.actionDeletePinmameNVram()
 
-    #resetFocus()
+    FullscreenImageWindow.deiconify_all()
 
     #Screen.rootWindow.after(350, tasks_manager.resume)
 
@@ -190,7 +188,7 @@ def launchVPX(table):
     logger.debug(f"Waiting for the table to start rendering or {timeout_duration} seconds.")
     keyword_or_timeout.wait()
     if not process_exited.is_set():
-        iconify_all_windows(reason)
+        FullscreenImageWindow.iconify_all()
 
     # Wait for the process to exit before continuing
     logger.debug("Waiting for the table to exit.")
@@ -392,7 +390,7 @@ def checkForUIThreadEvents():
                     if msg and msg == "Quit":
                         QApplication.instance().quit()
                     elif msg and msg == "Launch":
-                        print("Launch") # launch
+                        launchTable()
                 case _:
                     logger.info(f"msg from a worker has no handler.")
         

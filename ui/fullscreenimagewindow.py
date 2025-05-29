@@ -30,7 +30,7 @@ class FullscreenImageWindow(QWidget):
                 QTimer.singleShot(100, win.showMinimized)  # Delay avoids GNOME race
 
         # Start restore after delay (avoid nesting inside iconify loop)
-        QTimer.singleShot(5000, lambda: FullscreenImageWindow.deiconify_all())
+        #QTimer.singleShot(5000, lambda: FullscreenImageWindow.deiconify_all())
 
     @staticmethod
     def deiconify_all(delay=600):
@@ -146,7 +146,7 @@ class FullscreenImageWindow(QWidget):
                     if self == FullscreenImageWindow.menuWindow:
                         self.toggle_menu()
                 case InputDefs.SELECT:
-                    FullscreenImageWindow.iconify_all()
+                    #FullscreenImageWindow.iconify_all()
                     return "Launch"
                 case _:
                     logger.debug(f"No action for that control send.")
