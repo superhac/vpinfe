@@ -4,7 +4,6 @@ import sys
 import os
 import subprocess
 import argparse
-import sdl2.ext
 import threading
 import multiprocessing
 from queue import Queue 
