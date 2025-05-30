@@ -57,6 +57,7 @@ from operator import itemgetter
 from multiprocessing import Process, Pipe
 import ctypes
 import fcntl
+import selectors
 
 __version__ = "0.5"
 
@@ -2402,6 +2403,10 @@ class InputDevice(object):  # pylint: disable=useless-object-inheritance
 
         self.name = "Unknown Device"
         self._set_name()
+        
+        self.selector = selectors.DefaultSelector()
+        self.selector.register(self._character_device, selectors.EVENT_READ)
+        
 
     def _set_device_path(self):
         """Set the device path, overridden on the MAC and Windows."""
@@ -2411,6 +2416,7 @@ class InputDevice(object):  # pylint: disable=useless-object-inheritance
         """Set whether the device is a real evdev device."""
         if NIX:
             self._evdev = True
+        #remove #print("edev state", self._evdev)
 
     def _set_name(self):
         if NIX:
@@ -2418,12 +2424,14 @@ class InputDevice(object):  # pylint: disable=useless-object-inheritance
                       self.get_char_name()) as name_file:
                 self.name = name_file.read().strip()
             self.leds = []
+            #REMOVE #print(self.get_char_name())
 
     def _get_path_infomation(self):
         """Get useful infomation from the device path."""
         long_identifier = self._device_path.split('/')[4]
         protocol, remainder = long_identifier.split('-', 1)
         identifier, _, device_type = remainder.rsplit('-', 2)
+        #REMOVE #print (protocol, identifier, device_type)
         return (protocol, identifier, device_type)
 
     def get_char_name(self):
@@ -2477,8 +2485,18 @@ class InputDevice(object):  # pylint: disable=useless-object-inheritance
                 yield event
 
     def _get_data(self, read_size):
-        """Get data from the character device."""
-        return self._character_device.read(read_size)
+        # Use zero timeout for non-blocking behavior
+        fd_event_list = self.selector.select(timeout=0) 
+        if not fd_event_list:
+            return None  # no data ready right now
+
+        # If we get here, data is ready; do the read
+        try:
+            return self._character_device.read(read_size)
+        except (BlockingIOError, OSError) as e:
+            if getattr(e, 'errno', None) in (11,):  # EAGAIN
+                return None
+            raise
 
     @staticmethod
     def _get_target_function():
@@ -2499,6 +2517,7 @@ class InputDevice(object):  # pylint: disable=useless-object-inheritance
         data = self._get_data(read_size)
         if not data:
             return None
+        print("after block")
         evdev_objects = iter_unpack(data)
         events = [self._make_event(*event) for event in evdev_objects]
         return events
