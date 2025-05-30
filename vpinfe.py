@@ -8,7 +8,7 @@ import threading
 import multiprocessing
 from queue import Queue 
 #from inputs import devices
-from thirdparty.inputs import devices
+from thirdparty.inputs import devices, get_gamepad
 import time
 
 from pinlog import init_logger, get_logger, update_logger_config, get_named_logger
@@ -298,6 +298,7 @@ def parseArgs():
     parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file.  Default is cwd.")
     parser.add_argument("--buildmeta", help="Builds the meta.ini file in each table dir", action="store_true")
     parser.add_argument("--vpxpatch", help="Using vpx-standalone-scripts will attempt to load patches automatically", action="store_true")
+    parser.add_argument("--gpadtest", help="Find your button map labels", action="store_true")
 
     args = parser.parse_args()
 
@@ -321,6 +322,10 @@ def parseArgs():
         sys.exit()
     elif args.listgpads:
         showGamepads()
+        sys.exit()
+        
+    elif args.gpadtest:
+        gamepadTest()
         sys.exit()
 
     if args.configfile:
@@ -407,7 +412,15 @@ def setupMainUIThreads():
     inputController = InputController(imageCacheManagers, vpinfeIniConfig)
     timerForGamepad.timeout.connect(checkForUIThreadEvents)
     timerForGamepad.start(200)
-    
+
+def gamepadTest():
+    print("Gamepad Test: CRTL-C to EXIT")
+    while 1:
+        events = get_gamepad()
+        for event in events:
+            if event.ev_type == "Key" or event.ev_type == "Absolute":
+                print(event.ev_type, event.code, event.state)
+
 if __name__ == "__main__":
     logger = init_logger("VPinFE")
     parservpx = vpxparser.VPXParser()

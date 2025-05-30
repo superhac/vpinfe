@@ -2517,7 +2517,6 @@ class InputDevice(object):  # pylint: disable=useless-object-inheritance
         data = self._get_data(read_size)
         if not data:
             return None
-        print("after block")
         evdev_objects = iter_unpack(data)
         events = [self._make_event(*event) for event in evdev_objects]
         return events
