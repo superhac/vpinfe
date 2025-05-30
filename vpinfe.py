@@ -383,17 +383,24 @@ def startupMessages():
 
 def checkForUIThreadEvents():
     responses = uiThreadManager.get_responses()
-    if responses: # add check for a dict or a list.  if its just a dict its an error.  
+    if responses:
         for resp in responses:
-            match resp[0]: # which worker_id
-                case "gamepad":
-                    msg = inputController.input(resp)
-                    if msg and msg == "Quit":
-                        QApplication.instance().quit()
-                    elif msg and msg == "Launch":
-                        launchTable()
-                case _:
-                    logger.info(f"msg from a worker has no handler.")
+            if isinstance(resp, dict) and "error" in resp:
+                logger.error(f"Worker error: {resp['error']}")
+                continue
+            # Otherwise expect it to be a list or tuple like [worker_id, ...]
+            if isinstance(resp, (list, tuple)) and len(resp) > 0:
+                match resp[0]:
+                    case "gamepad":
+                        msg = inputController.input(resp)
+                        if msg == "Quit":
+                            QApplication.instance().quit()
+                        elif msg == "Launch":
+                            launchTable()
+                    case _:
+                        logger.info(f"msg from a worker has no handler.")
+            else:
+                logger.warning(f"Unexpected response format: {resp}")
         
 def setupMainUIThreads():
     global inputController
