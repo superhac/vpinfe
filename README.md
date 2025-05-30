@@ -109,16 +109,17 @@ total 324708
 
 Help:
 ```
-VPinFE 0.5 beta by Superhac (superhac007@gmail.com)
-usage: vpinfe [-h] [--listres] [--configfile CONFIGFILE] [--buildmeta] [--vpxpatch]
+usage: vpinfe.py [-h] [--listres] [--listgpads] [--configfile CONFIGFILE] [--buildmeta] [--vpxpatch] [--gpadtest]
 
 options:
   -h, --help            show this help message and exit
   --listres             ID and list your screens
+  --listgpads           Gamepads detected and ID.
   --configfile CONFIGFILE
                         Configure the location of your vpinfe.ini file. Default is cwd.
   --buildmeta           Builds the meta.ini file in each table dir
   --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
+  --gpadtest            Find your button map labels
 ```
 
 #1 run vpinfe with no arugments the first time: `./vpinfe` and it will create the `vpinfe.ini` file for you. 
@@ -169,12 +170,12 @@ rotation =
 [Settings]
 vpxbinpath = /home/superhac/working/remove/vpinball/build/VPinballX_BGFX
 tablerootdir = /home/superhac/tables/
-joyleft = 4
-joyright = 5
-joyselect = 1
-joymenu = 2
-joyback = 1
-joyexit = 8
+joyleft = BTN_PINKIE
+joyright = BTN_TOP2
+joyselect = BTN_THUMB
+joymenu = BTN_TOP
+joyback = 
+joyexit = 
 
 [VPSdb]
 last = 1747318256399
