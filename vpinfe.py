@@ -256,16 +256,25 @@ def loadconfig(configfile):
     if all(var is None for var in [screennames.ScreenNames.BG, screennames.ScreenNames.DMD, screennames.ScreenNames.TABLE]):
         showCriticalErrorAndExit("Path Error", "You must have at least one display set in your vpinfe.ini.", 1)
 
-def buildMetaData():
+def buildMetaData(downloadMedia = True):
         loadconfig(configfile)
+        logger.info(f"Building meta.ini files for tables in {tableRootDir}")
+        if downloadMedia:
+            logger.info("Including media download when available.")
+        else:
+            logger.info("Skipping media download.")
         Tables(tableRootDir, vpinfeIniConfig)
         vps = VPSdb(Tables.tablesRootFilePath, vpinfeIniConfig)
+        total = len(Tables.tables)
+        logger.info(f"Found {total} tables")
+        current = 0
         for table in Tables.tables:
+            current = current + 1
             finalini = {}
             meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini") # check if we want it updated!!! TODO
 
             # vpsdb
-            logger.info(f"Checking VPSdb for {table.tableDirName}")
+            logger.info(f"Checking VPSdb for table {current}/{total}: {table.tableDirName}")
             vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
             vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
             if vpsData is None:
@@ -273,15 +282,16 @@ def buildMetaData():
                 continue
 
             # vpx file info
-            logger.info(f"Parsing VPX file for metadata")
-            logger.info(f"Extracting {table.fullPathVPXfile} for metadata.")
+            logger.debug(f"Parsing VPX file for metadata")
+            logger.debug(f"Extracting {table.fullPathVPXfile} for metadata.")
             vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
 
             # make the config.ini
             finalini['vpsdata'] = vpsData
             finalini['vpxdata'] = vpxData
             meta.writeConfigMeta(finalini)
-            vps.downloadMediaForTable(table, vpsData['id'])
+            if downloadMedia:
+                vps.downloadMediaForTable(table, vpsData['id'])
 
 def vpxPatches():
     loadconfig(configfile)
@@ -298,6 +308,7 @@ def parseArgs():
     parser.add_argument("--listgpads", help="Gamepads detected and ID.", action="store_true")
     parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file.  Default is cwd.")
     parser.add_argument("--buildmeta", help="Builds the meta.ini file in each table dir", action="store_true")
+    parser.add_argument("--no-media", help="When building meta.ini files don't download the images at the same time.", action="store_true")
     parser.add_argument("--vpxpatch", help="Using vpx-standalone-scripts will attempt to load patches automatically", action="store_true")
     parser.add_argument("--gpadtest", help="Find your button map labels", action="store_true")
 
@@ -333,7 +344,7 @@ def parseArgs():
         configfile = args.configfile
 
     if args.buildmeta:
-        buildMetaData()
+        buildMetaData(False if args.no_media else True)
         sys.exit()
 
     if args.vpxpatch:
@@ -423,11 +434,13 @@ def gamepadTest():
                 print(event.ev_type, event.code, event.state)
 
 if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(format=u"(%(processName)s/%(filename)s) [%(funcName)s] %(message)s")
+    logger = logging.getLogger(name="VPinFE")
+    logging.basicConfig(format=u"%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logger.setLevel(logging.INFO)
     parservpx = vpxparser.VPXParser()
     parseArgs()
     loadconfig(configfile)
+    logging.basicConfig(format=u"(%(processName)s/%(filename)s) [%(funcName)s] %(message)s")
     logger.setLevel(vpinfeIniConfig.get_int('Logger','level', "INFO").upper())
     startupMessages()
     
