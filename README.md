@@ -44,8 +44,6 @@ VPinFE is functional but subject to change. If you want to test it early, now is
 ![Mac](https://img.shields.io/badge/Mac-Testing-yellow)        
 ![Windows](https://img.shields.io/badge/Windows-Broken-red)  
 
-Mac: Appears to be looking for SDl2
-
 Windows: VPX needs to be updated to support the individual table folder structure like standalone
 
 ## Download

@@ -35,10 +35,6 @@ from inputcontroller import InputController
 import logging
 
 
-# OS Specific
-if sys.platform.startswith('win'):
-    os.environ['PYSDL2_DLL_PATH'] = FilesUtils.get_asset_path("SDL2.dll") # need to include the sdl2 runtime for windows
-
 # Globals
 version = "0.5 beta"
 logger = None
