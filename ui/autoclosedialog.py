@@ -31,6 +31,7 @@ class AutoCloseDialog(QDialog):
         layout.addLayout(message_layout)
 
         self.label = QLabel(f"Closing in {self.remaining} seconds...")
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.label)
 
         self.ok_button = QPushButton("OK")
