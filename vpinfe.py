@@ -440,7 +440,7 @@ if __name__ == "__main__":
     parservpx = vpxparser.VPXParser()
     parseArgs()
     loadconfig(configfile)
-    logging.basicConfig(format=u"(%(processName)s/%(filename)s) [%(funcName)s] %(message)s")
+    logging.basicConfig(format=u"(%(processName)s/%(filename)s) [%(funcName)s] %(message)s", force=True)
     logger.setLevel(vpinfeIniConfig.get_int('Logger','level', "INFO").upper())
     startupMessages()
     
