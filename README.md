@@ -23,6 +23,9 @@
 #### **Automated Patching & Metadata Gathering**  
 - `--vpxpatch` downloads and applies **VPX-Standalone-Scripts** patches automatically.  
 - `--buildmeta` generates metadata for tables from VPSdb, improving search & categorization, retrieve media images. 
+#### **Collection information**
+- '--listunknown' generate a list of tables in your collection that are not matching tables in VPSdb 
+- '--listmissing' generate a list of tables in VPSdb that were not found in your collection
 
 ## What does it look like?
 YouTube Video

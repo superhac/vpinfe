@@ -54,6 +54,16 @@ class VPSdb:
     logger.debug(f"Using {self.tableresolution}/{self.tabletype} tables")
     self.vpinmediadbjson = self.downloadMediaJson()
 
+
+  def __len__(self):
+    return len(self.data)
+
+  def __contains__(self, item):
+    return item in self.data
+
+  def tables(self):
+    return self.data
+
   def lookupName(self, name, manufacturer, year):
     if any(param is None for param in (name, manufacturer, year)):
       return None

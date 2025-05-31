@@ -263,9 +263,10 @@ def buildMetaData(downloadMedia = True):
         else:
             logger.info("Skipping media download.")
         Tables(tableRootDir, vpinfeIniConfig)
-        vps = VPSdb(Tables.tablesRootFilePath, vpinfeIniConfig)
         total = len(Tables.tables)
-        logger.info(f"Found {total} tables")
+        logger.info(f"Found {total} tables in {tableRootDir}")
+        vps = VPSdb(Tables.tablesRootFilePath, vpinfeIniConfig)
+        logger.info(f"Found {len(vps)} tables in VPSdb")
         current = 0
         for table in Tables.tables:
             current = current + 1
@@ -292,6 +293,45 @@ def buildMetaData(downloadMedia = True):
             if downloadMedia:
                 vps.downloadMediaForTable(table, vpsData['id'])
 
+def listMissingTables():
+        loadconfig(configfile)
+        logger.info(f"Listing tables missing from {tableRootDir}")
+        Tables(tableRootDir, vpinfeIniConfig)
+        total = len(Tables.tables)
+        logger.info(f"Found {total} tables in {tableRootDir}")
+        vps = VPSdb(Tables.tablesRootFilePath, vpinfeIniConfig)
+        logger.info(f"Found {len(vps)} tables in VPSdb")
+        tables_found = []
+        for table in Tables.tables:
+            vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
+            if vpsData is None:
+                continue
+            tables_found.append(vpsData)
+        
+        current = 0
+        for vpsTable in vps.tables():
+            if vpsTable not in tables_found:
+                current = current + 1
+                logger.info(f"Missing table {current}: {vpsTable['name']} ({vpsTable['manufacturer']} {vpsTable['year']})")
+
+def listUnknownTables():
+        loadconfig(configfile)
+        logger.info(f"Listing unknown tables from {tableRootDir}")
+        Tables(tableRootDir, vpinfeIniConfig)
+        total = len(Tables.tables)
+        logger.info(f"Found {total} tables in {tableRootDir}")
+        vps = VPSdb(Tables.tablesRootFilePath, vpinfeIniConfig)
+        logger.info(f"Found {len(vps)} tables in VPSdb")
+        current = 0
+        for table in Tables.tables:
+            vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
+            if vpsData is None:
+                current = current + 1
+                logger.error(f"{RED_CONSOLE_TEXT}Unknown table {current}: {table.tableDirName} Not found in VPSdb{RESET_CONSOLE_TEXT}")
+                continue
+
 def vpxPatches():
     loadconfig(configfile)
     Tables(tableRootDir, vpinfeIniConfig)
@@ -305,6 +345,8 @@ def parseArgs():
     parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--listres", help="ID and list your screens", action="store_true")
     parser.add_argument("--listgpads", help="Gamepads detected and ID.", action="store_true")
+    parser.add_argument("--listmissing", help="List the tables from VPSdb", action="store_true")
+    parser.add_argument("--listunknown", help="List the tables we can't match in VPSdb", action="store_true")
     parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file.  Default is cwd.")
     parser.add_argument("--buildmeta", help="Builds the meta.ini file in each table dir", action="store_true")
     parser.add_argument("--no-media", help="When building meta.ini files don't download the images at the same time.", action="store_true")
@@ -335,6 +377,14 @@ def parseArgs():
         showGamepads()
         sys.exit()
         
+    elif args.listmissing:
+        listMissingTables()
+        sys.exit()
+
+    elif args.listunknown:
+        listUnknownTables()
+        sys.exit()
+
     elif args.gpadtest:
         gamepadTest()
         sys.exit()
