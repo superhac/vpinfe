@@ -24,6 +24,8 @@ class GamepadWorker(BaseWorker):
                             # optionally, add worker id or type info here
                         }
                         self.output_queue.put([self.worker_id, event_data])
+            except IndexError:
+                pass # no gamepad present
             except Exception as e:
                 # Optionally handle exceptions or send error message back
                 self.output_queue.put({'error': str(e)})
