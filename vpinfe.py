@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt, QObject, QTimer, QEvent, QT_VERSION_STR, PYQT_VERSION_STR
 
+from ui.autoclosedialog import AutoCloseDialog
 from ui.fullscreenimagewindow import FullscreenImageWindow
 from ui.imagecacheworker import ImageCacheWorker
 from ui.imageworkermanager import ImageWorkerManager
@@ -92,6 +93,12 @@ class GlobalKeyListener(QObject):
 def load_stylesheet(path):
     with open(path, 'r') as f:
         return f.read()
+
+def showCriticalErrorAndExit(title, message, exit_code):
+    logger.critical(f"{RED_CONSOLE_TEXT}{title} - {message}{RESET_CONSOLE_TEXT}")
+    dlg = AutoCloseDialog(title, message, icon="tilt-icon.png")
+    dlg.exec()
+    sys.exit(exit_code)
 
 def launchTable():
     launchVPX(tables.getTable(imageCacheManagers[0].current_index).fullPathVPXfile)
@@ -486,6 +493,12 @@ if __name__ == "__main__":
     logger = logging.getLogger(name="VPinFE")
     logging.basicConfig(format=u"%(levelname)s - %(message)s")
     logger.setLevel(logging.INFO)
+
+    app = QApplication(sys.argv)
+    icon_path = FilesUtils.get_asset_path("VPinFE-icon.png")
+    if icon_path:
+        app.setWindowIcon(QIcon(icon_path))
+
     parservpx = vpxparser.VPXParser()
     parseArgs()
     loadconfig(configfile)
@@ -493,11 +506,6 @@ if __name__ == "__main__":
     logger.setLevel(vpinfeIniConfig.get_int('Logger','level', "INFO").upper())
     startupMessages()
     
-    app = QApplication(sys.argv)
-    icon_path = FilesUtils.get_asset_path("VPinFE-icon.png")
-    if icon_path:
-        app.setWindowIcon(QIcon(icon_path))
-
     screens = app.screens()
     listener = GlobalKeyListener()
     app.installEventFilter(listener)
