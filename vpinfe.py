@@ -424,7 +424,7 @@ def gamepadTest():
 
 if __name__ == "__main__":
     logger = logging.getLogger()
-    logging.basicConfig(format="(%(processName)s/%(filename)s) [%(funcName)s] %(message)s")
+    logging.basicConfig(format=u"(%(processName)s/%(filename)s) [%(funcName)s] %(message)s")
     parservpx = vpxparser.VPXParser()
     parseArgs()
     loadconfig(configfile)
