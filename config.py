@@ -2,14 +2,14 @@ import configparser
 import os
 import sys
 
-from pinlog import get_logger
+import logging
 
 class Config:
 	logger = None
 
 	def __init__(self, configfilepath):
 		global logger
-		logger = get_logger()
+		logger = logging.getLogger() 
 
 		self.defaults = {
 			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '0', "hudscreenid": '',  'messagesscreenid': '', 'tablerotangle': '0', 'hudrotangle': '0',

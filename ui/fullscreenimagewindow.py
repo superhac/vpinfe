@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPixmap, QTransform
 from PyQt6.QtCore import Qt, QObject, QTimer
-from pinlog import get_logger
+import logging
 from inputdefs import InputDefs
 import screennames
 from tables import Tables
@@ -65,7 +65,7 @@ class FullscreenImageWindow(QWidget):
         super().__init__()
         self.menu = MainMenu(self, "default-ui-template/menu_template.ui")
         global logger
-        logger = get_logger()
+        logger = logging.getLogger()
         
         self.assignedScreen = screen  # ✅ Avoid shadowing QWidget.screen()
         self.setGeometry(self.assignedScreen.geometry())

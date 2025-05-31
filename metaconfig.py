@@ -1,7 +1,7 @@
 import configparser
 import os
 
-from pinlog import get_logger
+import logging
 
 class MetaConfig:
 
@@ -11,7 +11,7 @@ class MetaConfig:
 
     def __init__(self, configfilepath):
         global logger
-        logger = get_logger()
+        logger = logging.getLogger()
 
         self.defaults = {}
         self.config = configparser.ConfigParser(defaults=self.defaults)

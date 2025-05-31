@@ -11,7 +11,7 @@ from queue import Queue
 from thirdparty.inputs import devices, get_gamepad
 import time
 
-from pinlog import init_logger, get_logger, update_logger_config, get_named_logger
+#from pinlog import init_logger, get_logger, update_logger_config, get_named_logger
 import screennames
 from tables import Tables
 from config import Config
@@ -32,6 +32,7 @@ from ui.fullscreenimagewindow import FullscreenImageWindow
 from ui.imagecacheworker import ImageCacheWorker
 from ui.imageworkermanager import ImageWorkerManager
 from inputcontroller import InputController
+import logging
 
 
 # OS Specific
@@ -124,7 +125,7 @@ def launchVPX(table):
         global reason
 
         # Use a different name of the logger while standalone is running
-        vpx_logger = get_named_logger("VPinball")
+        vpx_logger = logging.getLogger()
 
         try:
             for line in iter(proc.stdout.readline, b''):
@@ -422,11 +423,12 @@ def gamepadTest():
                 print(event.ev_type, event.code, event.state)
 
 if __name__ == "__main__":
-    logger = init_logger("VPinFE")
+    logger = logging.getLogger()
+    logging.basicConfig(format="(%(processName)s/%(filename)s) [%(funcName)s] %(message)s")
     parservpx = vpxparser.VPXParser()
     parseArgs()
     loadconfig(configfile)
-    update_logger_config(vpinfeIniConfig.config['Logger'])
+    logger.setLevel(vpinfeIniConfig.get_int('Logger','level', "INFO").upper())
     startupMessages()
     
     app = QApplication(sys.argv)

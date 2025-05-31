@@ -8,6 +8,7 @@ import multiprocessing.resource_tracker
 from screennames import ScreenNames
 import traceback
 from filesutils import FilesUtils
+import logging
 
 # Assets
 logoImage = FilesUtils.get_asset_path("VPinFE_logo_main.png")
@@ -19,14 +20,14 @@ def fix_resource_tracker():
     multiprocessing.resource_tracker.unregister = noop
     multiprocessing.resource_tracker.register = noop
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(processName)s] %(message)s'
-)
+
 
 class ImageCacheWorker(Process):
+    logger = None
+    
     def __init__(self, tables, screenname: ScreenNames, command_queue: Queue, result_queue: Queue, screen_size):
         super().__init__()
+        ImageCacheWorker.logger = logging.getLogger()
         self.tables = tables
         self.screenname = screenname
         self.command_queue = command_queue

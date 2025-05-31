@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 import metaconfig
-from pinlog import get_logger
+import logging
 from screennames import ScreenNames
 
 import sys
@@ -33,7 +33,7 @@ class Tables:
 
     def __init__(self, tablesRootFilePath, vpinfeIniConfig):
         global logger
-        logger = get_logger()
+        logger = logging.getLogger()
     
         logger.debug (f"Creating tables with {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
         self.tableImageFileName = vpinfeIniConfig.get_string('Media','tabletype','table').lower()

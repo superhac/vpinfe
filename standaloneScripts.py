@@ -7,7 +7,7 @@ import hashlib
 import sys
 import os
 
-from pinlog import get_logger
+import logging
 
 class StandaloneScripts:
 
@@ -17,7 +17,7 @@ class StandaloneScripts:
     
     def __init__(self, tables):
         global logger
-        logger = get_logger()
+        logger = logging.getLogger()
 
         self.hashes = None
         self.tables = tables

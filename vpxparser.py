@@ -10,8 +10,9 @@ import re
 import csv
 import pathlib
 import sys
+import logging
 
-from pinlog import get_logger, init_logger, update_logger_config
+#from pinlog import get_logger, init_logger, update_logger_config
 
 class VPXParser:
 
@@ -55,7 +56,7 @@ class VPXParser:
 
 	def __init__(self):
 		global logger
-		logger = get_logger()
+		logger = logging.getLogger()
 
 		self.fieldnames = [key for key in self.vpxPaths] + [key for key in self.vpxPathsBinary] + [key for key in self.derivedPaths]
 		self.fieldnames.remove("gameData") # we don't want these in CSV

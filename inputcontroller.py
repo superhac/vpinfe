@@ -1,4 +1,4 @@
-from pinlog import get_logger
+import logging
 from ui.imageworkermanager import ImageWorkerManager
 from config import Config
 from typing import List
@@ -8,7 +8,7 @@ from ui.fullscreenimagewindow import FullscreenImageWindow
 
 class InputController():
     def __init__(self, icms : List[ImageWorkerManager],vpinfeIniConfig : Config ):
-        self.logger = get_logger()
+        self.logger = logging.getLogger()
         self.icms = icms
         self.vpinfeIniConfig = vpinfeIniConfig
         

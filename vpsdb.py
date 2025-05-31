@@ -4,7 +4,7 @@ from difflib import SequenceMatcher
 import os
 import re
 import sys
-from pinlog import get_logger
+import logging
 
 RED_CONSOLE_TEXT = '\033[31m'
 RESET_CONSOLE_TEXT = '\033[0m'
@@ -25,7 +25,7 @@ class VPSdb:
 
   def __init__(self, rootTableDir, vpinfeIniConfig):
     global logger
-    logger = get_logger()
+    logger = logging.getLogger()
 
     logger.info("Initializing VPSdb")
     self._iniConfig = vpinfeIniConfig.config
