@@ -11,7 +11,6 @@ from queue import Queue
 from thirdparty.inputs import devices, get_gamepad
 import time
 
-#from pinlog import init_logger, get_logger, update_logger_config, get_named_logger
 import screennames
 from tables import Tables
 from config import Config

@@ -12,8 +12,6 @@ import pathlib
 import sys
 import logging
 
-#from pinlog import get_logger, init_logger, update_logger_config
-
 class VPXParser:
 
 	logger = None
