@@ -435,7 +435,7 @@ def gamepadTest():
 
 if __name__ == "__main__":
     logger = logging.getLogger(name="VPinFE")
-    logging.basicConfig(format=u"%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    logging.basicConfig(format=u"%(levelname)s - %(message)s")
     logger.setLevel(logging.INFO)
     parservpx = vpxparser.VPXParser()
     parseArgs()
