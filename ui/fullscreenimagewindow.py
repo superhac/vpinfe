@@ -151,7 +151,6 @@ class FullscreenImageWindow(QWidget):
                 case _:
                     logger.debug(f"No action for that control send.")
         else:
-            print("menu control: ", control)
             if self == FullscreenImageWindow.menuWindow:  # this is the window with the menu!
                 match control:
                     case InputDefs.LEFT:
@@ -168,7 +167,6 @@ class FullscreenImageWindow(QWidget):
                     
     def addCacheManager(self, cachemanager):
         self.cacheManager = cachemanager
-        print("cacheManager set")
     
     def nextImage(self):
         self.cacheManager.load_next()

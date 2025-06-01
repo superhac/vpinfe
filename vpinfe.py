@@ -33,6 +33,7 @@ from ui.imagecacheworker import ImageCacheWorker
 from ui.imageworkermanager import ImageWorkerManager
 from inputcontroller import InputController
 import logging
+from inputdefs import InputDefs
 
 
 # Globals
@@ -70,7 +71,8 @@ class GlobalKeyListener(QObject):
                 QApplication.instance().quit()
                 return True  # event handled
             if event.key() == Qt.Key.Key_M:
-                FullscreenImageWindow.menuWindow.toggle_menu(rotation_degree=-90)
+                for win in FullscreenImageWindow.windows:
+                    win.processInputControl(InputDefs.MENU)
                 return True
             if event.key() == Qt.Key.Key_Shift and event.nativeScanCode() == 50: # left
                 for win in FullscreenImageWindow.windows:
@@ -486,10 +488,8 @@ def gamepadTest():
                 print(event.ev_type, event.code, event.state)
 
 if __name__ == "__main__":
-    logger = logging.getLogger(name="VPinFE")
-    logging.basicConfig(format=u"%(levelname)s - %(message)s")
-    logger.setLevel(logging.INFO)
-
+    logger = logging.getLogger()
+  
     app = QApplication(sys.argv)
     icon_path = FilesUtils.get_asset_path("VPinFE-icon.png")
     if icon_path:
@@ -498,8 +498,8 @@ if __name__ == "__main__":
     parservpx = vpxparser.VPXParser()
     parseArgs()
     loadconfig(configfile)
-    logging.basicConfig(format=u"(%(processName)s/%(filename)s) [%(funcName)s] %(message)s", force=True)
-    logger.setLevel(vpinfeIniConfig.get_int('Logger','level', "INFO").upper())
+    logging.basicConfig(format=u"[%(levelname)s] (%(processName)s/%(filename)s) [%(funcName)s] %(message)s", force=True)
+    logger.setLevel(vpinfeIniConfig.get_string('Logger','level', "INFO").upper())
     startupMessages()
     
     screens = app.screens()

@@ -48,7 +48,7 @@ class ImageCacheWorker(Process):
                     msg = None
 
                 if msg:
-                    logging.info(f"[{self.name}] Received message: {msg}")
+                    logging.debug(f"[{self.name}] Received message: {msg}")
                     if msg == 'quit':
                         self.cleanup()
                         return
@@ -83,7 +83,7 @@ class ImageCacheWorker(Process):
     def handle_request(self, index):
         self.load_and_send(index)
         if not self.is_index_within_cache(index):
-            logging.info(f"Extending cache near index {index}")
+            logging.debug(f"Extending cache near index {index}")
             self.preload_surrounding(index)
         self.last_cached_index = index
 
@@ -95,7 +95,7 @@ class ImageCacheWorker(Process):
         if not pixmap.isNull():
             return pixmap
 
-        logging.warning(f"Failed to load image at {path}. Using fallback.")
+        logging.debug(f"Failed to load image at {path}. Using fallback.")
         fallback_path = missingImage
         fallback_pixmap = QPixmap(fallback_path)
         if fallback_pixmap.isNull():
@@ -107,7 +107,7 @@ class ImageCacheWorker(Process):
             if 0 <= index < self.tables.getTableCount():
                 path = self.tables.getImagePathByScreenname(index, self.screenname)
                 if not os.path.exists(path):
-                    logging.warning(f"Image path does not exist: {path}. Using fallback.")
+                    logging.debug(f"Image path does not exist: {path}. Using fallback.")
                 pixmap = self.getMissingImage(path)
                 ba = QByteArray()
                 buffer = QBuffer(ba)
@@ -119,7 +119,7 @@ class ImageCacheWorker(Process):
                 self.shared_memory_refs[index] = shm
                 self.cache[index] = shm.name
                 self.result_queue.put((index, shm.name, len(data)))
-                logging.info(f"Sent image {index} via shared memory {shm.name}")
+                logging.debug(f"Sent image {index} via shared memory {shm.name}")
         except Exception as e:
             logging.error("Image load failed!")
             raise
@@ -134,7 +134,7 @@ class ImageCacheWorker(Process):
             preload = list(range(start, end))
         self.cache_order = preload
         self.cache_cursor = 0
-        logging.info(f"Preloading images from {preload[0]} to {preload[-1]}")
+        logging.debug(f"Preloading images from {preload[0]} to {preload[-1]}")
 
     def background_cache_step(self):
         try:
@@ -155,7 +155,7 @@ class ImageCacheWorker(Process):
             if 0 <= index < self.tables.getTableCount():
                 path = self.tables.getImagePathByScreenname(index, self.screenname)
                 if not os.path.exists(path):
-                    logging.warning(f"Image path does not exist: {path}. Using fallback.")
+                    logging.debug(f"Image path does not exist: {path}. Using fallback.")
                 pixmap = self.getMissingImage(path)
                 ba = QByteArray()
                 buffer = QBuffer(ba)
@@ -166,7 +166,7 @@ class ImageCacheWorker(Process):
                 shm.buf[:len(data)] = data
                 self.shared_memory_refs[index] = shm
                 self.cache[index] = shm.name
-                logging.info(f"Cached image {index} to shared memory {shm.name}")
+                logging.debug(f"Cached image {index} to shared memory {shm.name}")
         except Exception as e:
             logging.error("load_to_shared_memory failed!")
             raise
@@ -180,7 +180,7 @@ class ImageCacheWorker(Process):
                     shm = self.shared_memory_refs.pop(k)
                     shm.close()
                     shm.unlink()
-                    logging.info(f"Trimmed shared memory {shm_name}")
+                    logging.debug(f"Trimmed shared memory {shm_name}")
                 except FileNotFoundError:
                     pass
 
@@ -204,7 +204,7 @@ class ImageCacheWorker(Process):
                 self.logo_shm.close()
                 self.logo_shm.unlink()
                 rt.unregister(self.logo_shm._name, 'shared_memory')
-                logging.info("Unlinked logo shared memory")
+                logging.debug("Unlinked logo shared memory")
             except FileNotFoundError:
                 # Suppress this error completely — it's safe to ignore
                 pass
@@ -216,14 +216,14 @@ class ImageCacheWorker(Process):
         if next_index < self.tables.getTableCount():
             self.load_and_send(next_index)
         else:
-            logging.info(f"[{self.name}] No next image to load (index {next_index} out of range)")
+            logging.debug(f"[{self.name}] No next image to load (index {next_index} out of range)")
 
     def load_previous(self, index):
         prev_index = index - 1
         if prev_index >= 0:
             self.load_and_send(prev_index)
         else:
-            logging.info(f"[{self.name}] No previous image to load (index {prev_index} out of range)")
+            logging.debug(f"[{self.name}] No previous image to load (index {prev_index} out of range)")
 
     def load_logo_image(self):
         try:
@@ -237,7 +237,7 @@ class ImageCacheWorker(Process):
             shm.buf[:len(data)] = data
             self.logo_shm = shm  # ✅ keep separate
             self.result_queue.put(("logo", shm.name, len(data)))
-            logging.info(f"Sent logo image via shared memory {shm.name}")
+            logging.debug(f"Sent logo image via shared memory {shm.name}")
 
             # ✅ Trigger caching after logo
             self.preload_surrounding(0)
