@@ -79,7 +79,7 @@ class VPSdb:
           continue
         similarity_ratio = SequenceMatcher(None, str(year),  str(table["year"])).ratio()
         if similarity_ratio >= .8:
-          logger.info(f"{name} ({manufacturer} {year}) matched with threshold: {table['name']}")
+          logger.debug(f"{name} ({manufacturer} {year}) matched with threshold: {table['name']}")
           return table        
     logger.error(f"{RED_CONSOLE_TEXT} No match found for: {name}{RESET_CONSOLE_TEXT}")
     return None

@@ -279,7 +279,7 @@ def buildMetaData(downloadMedia = True):
             meta = metaconfig.MetaConfig(table.fullPathTable + "/" + "meta.ini") # check if we want it updated!!! TODO
 
             # vpsdb
-            logger.info(f"Checking VPSdb for table {current}/{total}: {table.tableDirName}")
+            logger.info(f"\rChecking VPSdb for table {current}/{total}: {table.tableDirName}")
             vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
             vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
             if vpsData is None:
@@ -489,6 +489,9 @@ def gamepadTest():
 
 if __name__ == "__main__":
     logger = logging.getLogger()
+    loadconfig(configfile)
+    logging.basicConfig(format=u"[%(levelname)s] (%(processName)s/%(filename)s) [%(funcName)s] %(message)s", force=True)
+    logger.setLevel(vpinfeIniConfig.get_string('Logger','level', "INFO").upper())
   
     app = QApplication(sys.argv)
     icon_path = FilesUtils.get_asset_path("VPinFE-icon.png")
@@ -497,9 +500,6 @@ if __name__ == "__main__":
 
     parservpx = vpxparser.VPXParser()
     parseArgs()
-    loadconfig(configfile)
-    logging.basicConfig(format=u"[%(levelname)s] (%(processName)s/%(filename)s) [%(funcName)s] %(message)s", force=True)
-    logger.setLevel(vpinfeIniConfig.get_string('Logger','level', "INFO").upper())
     startupMessages()
     
     screens = app.screens()
