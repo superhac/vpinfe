@@ -484,7 +484,7 @@ def checkForUIThreadEvents():
 def setupMainUIThreads():
     global inputController
     if sys.platform.startswith('win') or sys.platform.startswith('linux'):
-        uiThreadManager.start_worker("gamepad", "gamepadworker.GamepadWorker")
+        uiThreadManager.start_worker("gamepad", "uithread.gamepadworker.GamepadWorker")
         inputController = InputController(imageCacheManagers, vpinfeIniConfig)
     timerForGamepad.timeout.connect(checkForUIThreadEvents)
     timerForGamepad.start(200)
