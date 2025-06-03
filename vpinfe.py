@@ -8,7 +8,8 @@ import threading
 import multiprocessing
 from queue import Queue 
 #from inputs import devices
-from thirdparty.inputs import devices, get_gamepad
+if sys.platform.startswith('win') or sys.platform.startswith('linux'):
+    from thirdparty.inputs import devices, get_gamepad
 import time
 
 import screennames
@@ -481,8 +482,9 @@ def checkForUIThreadEvents():
         
 def setupMainUIThreads():
     global inputController
-    uiThreadManager.start_worker("gamepad", "gamepadworker.GamepadWorker")
-    inputController = InputController(imageCacheManagers, vpinfeIniConfig)
+    if sys.platform.startswith('win') or sys.platform.startswith('linux'):
+        uiThreadManager.start_worker("gamepad", "gamepadworker.GamepadWorker")
+        inputController = InputController(imageCacheManagers, vpinfeIniConfig)
     timerForGamepad.timeout.connect(checkForUIThreadEvents)
     timerForGamepad.start(200)
 
