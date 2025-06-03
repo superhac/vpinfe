@@ -467,6 +467,13 @@ def checkForUIThreadEvents():
                             QApplication.instance().quit()
                         elif msg == "Launch":
                             launchTable()
+                    case "ui":
+                        msg = resp[1]
+                        print("got ui msg")
+                        if msg["operaton"] == "statusmsg" and msg["enabled"] == True:
+                            print("turn on status messaage")
+                        elif msg["operaton"] == "statusmsg" and msg["enabled"] == True:
+                            print("turn off status messaage")
                     case _:
                         logger.info(f"msg from a worker has no handler.")
             else:
@@ -501,6 +508,7 @@ if __name__ == "__main__":
     parservpx = vpxparser.VPXParser()
     parseArgs()
     startupMessages()
+    setupMainUIThreads()
     
     screens = app.screens()
     listener = GlobalKeyListener()
@@ -512,7 +520,6 @@ if __name__ == "__main__":
     
     setupScreens()
     QTimer.singleShot(5000, lambda: setFirstTableImages())  # load first image after 5 secs.. logo time      
-    setupMainUIThreads()
     app.exec()
     
     ### shutdown ###

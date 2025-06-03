@@ -1,6 +1,6 @@
 from PyQt6 import uic
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QGraphicsView, QGraphicsScene, QGraphicsProxyWidget, QPushButton
+    QApplication, QWidget, QGraphicsView, QGraphicsScene, QGraphicsProxyWidget, QPushButton, QLabel
 )
 from PyQt6.QtGui import QPixmap, QTransform
 from PyQt6.QtCore import Qt, QObject, QTimer
@@ -63,7 +63,9 @@ class FullscreenImageWindow(QWidget):
         
     def __init__(self, screen, screenname: screennames.ScreenNames, tables: Tables, stylesheet=None, menuRotation=0):
         super().__init__()
+        self.ui = self.load_ui_widget("default-ui-template/image_window.ui")
         self.menu = MainMenu(self, "default-ui-template/menu_template.ui")
+        self.status_label = self.ui.findChild(QLabel, "statusLabel")
         global logger
         logger = logging.getLogger()
         
@@ -173,3 +175,13 @@ class FullscreenImageWindow(QWidget):
 
     def prevImage(self):
         self.cacheManager.load_previous()
+
+    def show_status_message(self, message: str, duration_ms: int = 3000):
+        self.status_label.setText(message)
+        self.status_label.setVisible(True)
+        #QTimer.singleShot(duration_ms, lambda: self.status_label.setVisible(False))
+        
+    def hide_status_message(self):
+        if self.status_label:
+            self.status_label.clear()
+            self.status_label.setVisible(False)

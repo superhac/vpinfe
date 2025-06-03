@@ -25,9 +25,13 @@ class ProcessManager:
     def get_responses(self):
         responses = []
         while not self.output_queue.empty():
+            print(responses)
             responses.append(self.output_queue.get())
         return responses
-
+    
+    def get_output_queue(self):
+        return self.output_queue
+        
     def stop_worker(self, worker_id):
         self.send_to_worker(worker_id, "STOP")
 

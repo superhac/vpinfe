@@ -2460,6 +2460,21 @@ class InputDevice(object):  # pylint: disable=useless-object-inheritance
             if WIN:
                 self._character_file = io.BytesIO()
                 return self._character_file
+            if MAC:
+                try:
+                    self._character_file = io.open(
+                        self._character_device_path, 'rb')
+                    return self._character_file
+                except PermissionError:
+                    # Python 3
+                    raise PermissionError(PERMISSIONS_ERROR_TEXT)
+                except IOError as err:
+                    # Python 2
+                    if err.errno == 13:
+                        raise PermissionError(PERMISSIONS_ERROR_TEXT)
+                    else:
+                        raise
+                    
             try:
                 self._character_file = io.open(
                     self._character_device_path, 'rb')
