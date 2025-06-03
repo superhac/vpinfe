@@ -407,8 +407,9 @@ def parseArgs():
         sys.exit()
         
 def showGamepads():     
-    for i, device in enumerate(devices.gamepads):
-        logger.info(f"Gamepad Detected: {i}:{device}")
+    if sys.platform.startswith('win') or sys.platform.startswith('linux'):
+        for i, device in enumerate(devices.gamepads):
+            logger.info(f"Gamepad Detected: {i}:{device}")
            
 def setupScreens():
     global workers
