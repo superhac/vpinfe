@@ -5,7 +5,7 @@ a = Analysis(
     ['vpinfe.py'],
     pathex=[os.path.abspath('.'),'vvv/lib/python3.12/site-packages/'],
     binaries=[],
-    datas=[('assets', './assets'), ('vpsdb.py', '.'), ('./default-ui-template', '.')],
+    datas=[('assets', './assets'), ('vpsdb.py', '.'), ('./default-ui-template', '.'), ('./default-ui-template/style', '.')],
     hiddenimports=['screeninfo', 'PIL', 'olefile', 'logging', 'thirdparty.inputs', 
 	'uithread.workerinterface',
     	'uithread.workerthread',
