@@ -4,40 +4,24 @@ from config import Config
 from typing import List
 from inputdefs import InputDefs
 from ui.fullscreenimagewindow import FullscreenImageWindow
-
+from globalsignals import dispatcher
 
 class InputController():
-    def __init__(self, icms : List[ImageWorkerManager],vpinfeIniConfig : Config ):
+    def __init__(self, vpinfeIniConfig : Config ):
         self.logger = logging.getLogger()
-        self.icms = icms
         self.vpinfeIniConfig = vpinfeIniConfig
         
     def input(self, response):
         match response[0]:
             case "gamepad":
                 msg = response[1]
-                self.logger.debug(f"gamepad msg: {msg}")
+                #self.logger.debug(f"gamepad msg: {msg}")
                 if msg['code'] == self.vpinfeIniConfig.get_string('Settings','joyleft','') and msg['state'] == 1 or msg['state'] == -1 : # left move
-                    windows = FullscreenImageWindow.windows
-                    for win in windows:
-                        win.processInputControl(InputDefs.LEFT)
+                    dispatcher.customEvent.emit("gamepad", {"op": InputDefs.LEFT})
                 elif msg['code'] == self.vpinfeIniConfig.get_string('Settings','joyright','') and msg['state'] == 1 or msg['state'] == -1: # right move
-                    windows = FullscreenImageWindow.windows
-                    for win in windows:
-                        win.processInputControl(InputDefs.RIGHT)
+                    dispatcher.customEvent.emit("gamepad", {"op": InputDefs.RIGHT})
                 elif msg['code'] == self.vpinfeIniConfig.get_string('Settings','joymenu','') and msg['state'] == 1 or msg['state'] == -1: # menu
-                    windows = FullscreenImageWindow.windows
-                    for win in windows:
-                        win.processInputControl(InputDefs.MENU)
+                    dispatcher.customEvent.emit("gamepad", {"op": InputDefs.MENU})
                 elif msg['code'] == self.vpinfeIniConfig.get_string('Settings','joyselect','') and msg['state'] == 1 or msg['state'] == -1: # Select
-                    print("got selected")
-                    windows = FullscreenImageWindow.windows
-                    for win in windows:
-                        selected =  win.processInputControl(InputDefs.SELECT)
-                        if selected:
-                            return selected
+                        dispatcher.customEvent.emit("gamepad", {"op": InputDefs.SELECT})
         return None
-                        
-                       
-                
-    

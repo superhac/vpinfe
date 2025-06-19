@@ -25,7 +25,6 @@ class ProcessManager:
     def get_responses(self):
         responses = []
         while not self.output_queue.empty():
-            print(responses)
             responses.append(self.output_queue.get())
         return responses
     

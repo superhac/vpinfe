@@ -32,9 +32,14 @@ from ui.autoclosedialog import AutoCloseDialog
 from ui.fullscreenimagewindow import FullscreenImageWindow
 from ui.imagecacheworker import ImageCacheWorker
 from ui.imageworkermanager import ImageWorkerManager
+from ui.mainmenu import MainMenu
 from inputcontroller import InputController
 import logging
 from inputdefs import InputDefs
+
+# new for themes
+import importlib
+from globalsignals import dispatcher
 
 
 # Globals
@@ -99,8 +104,8 @@ def showCriticalErrorAndExit(title, message, exit_code):
     dlg.exec()
     sys.exit(exit_code)
 
-def launchTable():
-    launchVPX(tables.getTable(imageCacheManagers[0].current_index).fullPathVPXfile)
+def launchTable(index, windowClass):
+    launchVPX(tables.getTable(index).fullPathVPXfile, windowClass)
     
     logger.debug(f"Returning from playing the table. Resetting focus on us.")
 
@@ -108,16 +113,16 @@ def launchTable():
     meta = metaconfig.MetaConfig(tables.getTable(tableIndex).fullPathTable + "/" + "meta.ini")
     meta.actionDeletePinmameNVram()
 
-    FullscreenImageWindow.deiconify_all()
+    windowClass.deiconify_all()
 
     #Screen.rootWindow.after(350, tasks_manager.resume)
 
-def launchVPX(table):
+def launchVPX(table, windowClass):
     logger.info(f"Launching: {table}")
 
     def iconify_all_windows(reason):
         logger.debug(f"Iconifying windows due to {reason}")
-        FullscreenImageWindow.iconify_all()
+        windowClass.iconify_all()
 
     keyword_or_timeout = threading.Event()
     process_exited = threading.Event()
@@ -159,7 +164,7 @@ def launchVPX(table):
             logger.error(f"Error in timeout monitoring: {e}")
 
     # Thread to monitor process completion
-    def process_monitor():
+    def process_monitor(windowClass):
         global reason
         try:
             # Wait for process to complete
@@ -187,14 +192,14 @@ def launchVPX(table):
     timeout_thread = threading.Thread(target=timeout_monitor, daemon=True)
     timeout_thread.start()
 
-    monitor_thread = threading.Thread(target=process_monitor, daemon=True)
+    monitor_thread = threading.Thread(target=process_monitor, args=(windowClass,), daemon=True)
     monitor_thread.start()
 
     # Wait for the keyword or timeout to be set to iconify the windows
     logger.debug(f"Waiting for the table to start rendering or {timeout_duration} seconds.")
     keyword_or_timeout.wait()
     if not process_exited.is_set():
-        FullscreenImageWindow.iconify_all()
+       windowClass.iconify_all()
 
     # Wait for the process to exit before continuing
     logger.debug("Waiting for the table to exit.")
@@ -485,7 +490,7 @@ def setupMainUIThreads():
     global inputController
     if sys.platform.startswith('win') or sys.platform.startswith('linux'):
         uiThreadManager.start_worker("gamepad", "uithread.gamepadworker.GamepadWorker")
-        inputController = InputController(imageCacheManagers, vpinfeIniConfig)
+        inputController = InputController(vpinfeIniConfig)
     timerForGamepad.timeout.connect(checkForUIThreadEvents)
     timerForGamepad.start(200)
 
@@ -497,6 +502,44 @@ def gamepadTest():
             if event.ev_type == "Key" or event.ev_type == "Absolute":
                 print(event.ev_type, event.code, event.state)
 
+def setupThemeScreens():
+    #global workers
+    #global imageCacheManagers
+    module_path, class_name = "themes.default.fullscreenwindow.FullscreenWindow".rsplit(".", 1)
+    cls = getattr(importlib.import_module(module_path), class_name)
+    
+    menu_screenid = vpinfeIniConfig.get_int("Menu", "screenid", 0)
+    menu_rotation = vpinfeIniConfig.get_int("Menu", "rotation", 0)
+    
+    # setup the window on each screen
+    for i, screen in enumerate(screens):
+        if i == screennames.ScreenNames.BG:
+            win = cls(screen, screennames.ScreenNames.BG, tables, menuRotation=menu_rotation)
+        elif i == screennames.ScreenNames.DMD:
+            win = cls(screen, screennames.ScreenNames.DMD, tables, menuRotation=menu_rotation)
+        elif i == screennames.ScreenNames.TABLE:
+            win = cls(screen, screennames.ScreenNames.TABLE, tables, menuRotation=menu_rotation)
+            
+        # Add menu  to first screen
+        if i == menu_screenid:
+            #win.toggle_menu()
+            MainMenu() = win
+            
+def handle_signals(event_type: str, data: dict):
+     match event_type:
+            case "main":
+                 match data['op']:
+                    case "quit":
+                        QApplication.instance().quit()
+                    case "lanuch":
+                        module_name, class_name = data['windowClass'].rsplit(".", 1)
+                        module = importlib.import_module(module_name)
+                        window_class = getattr(module, class_name)        
+                        launchTable(data['index'], window_class)
+                    case _:
+                        logger.debug(f"No action for 'main' event value{data['value']}")
+    
+     
 if __name__ == "__main__":
     logger = logging.getLogger()
     loadconfig(configfile)
@@ -510,8 +553,8 @@ if __name__ == "__main__":
 
     parservpx = vpxparser.VPXParser()
     parseArgs()
-    startupMessages()
     setupMainUIThreads()
+    startupMessages()
     
     screens = app.screens()
     listener = GlobalKeyListener()
@@ -521,20 +564,24 @@ if __name__ == "__main__":
     
     tables = Tables(tableRootDir, vpinfeIniConfig)
     
-    setupScreens()
-    QTimer.singleShot(5000, lambda: setFirstTableImages())  # load first image after 5 secs.. logo time      
+    #setupScreens()
+    setupThemeScreens()
+    dispatcher.customEvent.connect(handle_signals)
+    #QTimer.singleShot(5000, lambda: setFirstTableImages())  # load first image after 5 secs.. logo time      
     app.exec()
     
     ### shutdown ###
     
     logger.info("Shutting down UI Thread workers...")
     uiThreadManager.shutdown()
-     
+    
+    # tell windows to shutdown
+    dispatcher.customEvent.emit("windows", {"value": "quit"})
     #qt image caching
-    for worker, command_queue, _ in workers:
-        command_queue.put('quit')   # Tell worker to clean up and exit
-    for worker, _, _ in workers:
-        worker.join()
+    # for worker, command_queue, _ in workers:
+    #     command_queue.put('quit')   # Tell worker to clean up and exit
+    # for worker, _, _ in workers:
+    #     worker.join()
     
     logger.info("VPinFE shutdown complete.")
  
