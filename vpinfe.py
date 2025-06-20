@@ -360,7 +360,8 @@ def parseArgs():
     parser.add_argument("--vpxpatch", help="Using vpx-standalone-scripts will attempt to load patches automatically", action="store_true")
     parser.add_argument("--gpadtest", help="Find your button map labels", action="store_true")
 
-    args = parser.parse_args()
+    #args = parser.parse_args()
+    args, unknown = parser.parse_known_args() # fix for mac
 
     if args.listres:
         # Get all available screens
