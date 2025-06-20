@@ -515,8 +515,8 @@ if __name__ == "__main__":
     screens = app.screens()
     listener = GlobalKeyListener()
     app.installEventFilter(listener)
-    stylesheet = load_stylesheet("./default-ui-template/style/dark_theme.qss")
-    app.setStyleSheet(stylesheet)
+    #stylesheet = load_stylesheet("./default-ui-template/style/dark_theme.qss")
+    #app.setStyleSheet(stylesheet)
     
     tables = Tables(tableRootDir, vpinfeIniConfig)
     

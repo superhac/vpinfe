@@ -64,9 +64,16 @@ class FullscreenWindow(QGraphicsView):
         self.backgroundImagePixmap = None
         
         # Fullscreen setup
-        self.setGeometry(self.assignedScreen.geometry())
+        self.setFrameStyle(0)
+        self.setLineWidth(0)
+        self.setMidLineWidth(0)
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setViewportMargins(0, 0, 0, 0)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setWindowState(Qt.WindowState.WindowFullScreen)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setGeometry(self.assignedScreen.geometry())
 
         # Set up scene
         self.scene = QGraphicsScene()
