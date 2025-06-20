@@ -77,16 +77,14 @@ class GlobalKeyListener(QObject):
                 QApplication.instance().quit()
                 return True  # event handled
             if event.key() == Qt.Key.Key_M:
-                for win in FullscreenImageWindow.windows:
-                    win.processInputControl(InputDefs.MENU)
+                dispatcher.customEvent.emit("gamepad", {"op": InputDefs.MENU})
                 return True
             if event.key() == Qt.Key.Key_Shift and event.nativeScanCode() == 50: # left
-                for win in FullscreenImageWindow.windows:
-                    win.prevImage()
+                dispatcher.customEvent.emit("gamepad", {"op": InputDefs.LEFT})
+                print("left shift")
                 return True
             if event.key() == Qt.Key.Key_Shift and event.nativeScanCode() == 62: # right
-                for win in FullscreenImageWindow.windows:
-                    win.nextImage()
+                dispatcher.customEvent.emit("gamepad", {"op": InputDefs.RIGHT})
                 return True
             if event.key() == Qt.Key.Key_Return: # enter
                 print("lanuch", event.nativeScanCode())
@@ -505,8 +503,8 @@ def gamepadTest():
 def setupThemeScreens():
     #global workers
     #global imageCacheManagers
-    module_path, class_name = "themes.default.fullscreenwindow.FullscreenWindow".rsplit(".", 1)
-    cls = getattr(importlib.import_module(module_path), class_name)
+    #module_path, class_name = "themes.default.fullscreenwindow.FullscreenWindow".rsplit(".", 1)
+    #cls = getattr(importlib.import_module(module_path), class_name)
     
     menu_screenid = vpinfeIniConfig.get_int("Menu", "screenid", 0)
     menu_rotation = vpinfeIniConfig.get_int("Menu", "rotation", 0)
@@ -523,7 +521,8 @@ def setupThemeScreens():
         # Add menu  to first screen
         if i == menu_screenid:
             #win.toggle_menu()
-            MainMenu() = win
+            #MainMenu() = win
+            pass
             
 def handle_signals(event_type: str, data: dict):
      match event_type:
@@ -541,6 +540,11 @@ def handle_signals(event_type: str, data: dict):
     
      
 if __name__ == "__main__":
+    
+    # dynamic theme import
+    module_path, class_name = "themes.default.fullscreenwindow.FullscreenWindow".rsplit(".", 1)
+    cls = getattr(importlib.import_module(module_path), class_name)
+    
     logger = logging.getLogger()
     loadconfig(configfile)
     logging.basicConfig(format=u"[%(levelname)s] (%(processName)s/%(filename)s) [%(funcName)s] %(message)s", force=True)
@@ -566,8 +570,7 @@ if __name__ == "__main__":
     
     #setupScreens()
     setupThemeScreens()
-    dispatcher.customEvent.connect(handle_signals)
-    #QTimer.singleShot(5000, lambda: setFirstTableImages())  # load first image after 5 secs.. logo time      
+    dispatcher.customEvent.connect(handle_signals)    
     app.exec()
     
     ### shutdown ###
@@ -576,13 +579,7 @@ if __name__ == "__main__":
     uiThreadManager.shutdown()
     
     # tell windows to shutdown
-    dispatcher.customEvent.emit("windows", {"value": "quit"})
-    #qt image caching
-    # for worker, command_queue, _ in workers:
-    #     command_queue.put('quit')   # Tell worker to clean up and exit
-    # for worker, _, _ in workers:
-    #     worker.join()
-    
+    dispatcher.customEvent.emit("windows", {"value": "quit"})   
     logger.info("VPinFE shutdown complete.")
  
 
