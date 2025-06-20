@@ -46,7 +46,6 @@ from globalsignals import dispatcher
 version = "0.5 beta"
 logger = None
 parservpx = None
-#screens = []
 shutdown_event = threading.Event()
 background = False
 tableRootDir = None
@@ -64,8 +63,6 @@ timerForGamepad = QTimer()
 inputController = None
 
 # qt
-workers = []
-imageCacheManagers = []
 app = None
 screens = []
 uiThreadManager = ProcessManager()
@@ -112,8 +109,6 @@ def launchTable(index, windowClass):
     meta.actionDeletePinmameNVram()
 
     windowClass.deiconify_all()
-
-    #Screen.rootWindow.after(350, tasks_manager.resume)
 
 def launchVPX(table, windowClass):
     logger.info(f"Launching: {table}")
@@ -413,42 +408,7 @@ def showGamepads():
     if sys.platform.startswith('win') or sys.platform.startswith('linux'):
         for i, device in enumerate(devices.gamepads):
             logger.info(f"Gamepad Detected: {i}:{device}")
-           
-def setupScreens():
-    global workers
-    global imageCacheManagers
-    menu_screenid = vpinfeIniConfig.get_int("Menu", "screenid", 0)
-    menu_rotation = vpinfeIniConfig.get_int("Menu", "rotation", 0)
-    # setup the window on each screen
-    for i, screen in enumerate(screens):
-        if i == screennames.ScreenNames.BG:
-            win = FullscreenImageWindow(screen, screennames.ScreenNames.BG, tables, menuRotation=menu_rotation)
-        elif i == screennames.ScreenNames.DMD:
-            win = FullscreenImageWindow(screen, screennames.ScreenNames.DMD, tables, menuRotation=menu_rotation)
-        elif i == screennames.ScreenNames.TABLE:
-            win = FullscreenImageWindow(screen, screennames.ScreenNames.TABLE, tables, menuRotation=menu_rotation)
-            
-        # Add menu  to first screen
-        if i == menu_screenid:
-            #win.toggle_menu()
-            FullscreenImageWindow.menuWindow = win
-     
-    # setup the image cache workers and a manager  
-    for win in FullscreenImageWindow.windows:
-        command_queue = multiprocessing.Queue()
-        result_queue = multiprocessing.Queue()
-        worker = ImageCacheWorker(tables, win.screenName, command_queue, result_queue, win.assignedScreen.geometry())
-        manager = ImageWorkerManager(win, tables,  command_queue, result_queue)
-        win.addCacheManager(manager)
-        manager.loadLogo()
-        workers.append((worker, command_queue, result_queue))
-        imageCacheManagers.append(manager) 
-        worker.start()
-
-def setFirstTableImages():
-    for manager in imageCacheManagers:
-        manager.set_image_by_index(0)
-        
+                  
 def startupMessages():
     logger.info(f"VPinFE {version} by Superhac & WildCoder")
     logger.info(f"Qt version: {QT_VERSION_STR}")
@@ -500,12 +460,7 @@ def gamepadTest():
             if event.ev_type == "Key" or event.ev_type == "Absolute":
                 print(event.ev_type, event.code, event.state)
 
-def setupThemeScreens():
-    #global workers
-    #global imageCacheManagers
-    #module_path, class_name = "themes.default.fullscreenwindow.FullscreenWindow".rsplit(".", 1)
-    #cls = getattr(importlib.import_module(module_path), class_name)
-    
+def setupThemeScreens():   
     menu_screenid = vpinfeIniConfig.get_int("Menu", "screenid", 0)
     menu_rotation = vpinfeIniConfig.get_int("Menu", "rotation", 0)
     
@@ -520,9 +475,7 @@ def setupThemeScreens():
             
         # Add menu  to first screen
         if i == menu_screenid:
-            #win.toggle_menu()
-            #MainMenu() = win
-            pass
+            cls.menuWindow = win
             
 def handle_signals(event_type: str, data: dict):
      match event_type:
@@ -537,7 +490,6 @@ def handle_signals(event_type: str, data: dict):
                         launchTable(data['index'], window_class)
                     case _:
                         logger.debug(f"No action for 'main' event value{data['value']}")
-    
      
 if __name__ == "__main__":
     
@@ -568,7 +520,6 @@ if __name__ == "__main__":
     
     tables = Tables(tableRootDir, vpinfeIniConfig)
     
-    #setupScreens()
     setupThemeScreens()
     dispatcher.customEvent.connect(handle_signals)    
     app.exec()
