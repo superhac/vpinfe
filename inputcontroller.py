@@ -3,7 +3,6 @@ from ui.imageworkermanager import ImageWorkerManager
 from config import Config
 from typing import List
 from inputdefs import InputDefs
-from ui.fullscreenimagewindow import FullscreenImageWindow
 from globalsignals import dispatcher
 
 class InputController():

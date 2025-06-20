@@ -106,7 +106,13 @@ class FullscreenWindow(QGraphicsView):
             case "windows":
                 if data['value'] == 'quit':
                     self.quit()
-                
+    
+    def getCurrentIndex(self):
+        return self.cacheManager.current_index
+    
+    def getClass(self):
+        return f"{self.__class__.__module__}.{self.__class__.__name__}"             
+    
     def addCacheManager(self):
         self.image_command_queue = multiprocessing.Queue()
         self.image_result_queue = multiprocessing.Queue()

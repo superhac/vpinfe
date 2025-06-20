@@ -29,7 +29,6 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import Qt, QObject, QTimer, QEvent, QT_VERSION_STR, PYQT_VERSION_STR
 
 from ui.autoclosedialog import AutoCloseDialog
-from ui.fullscreenimagewindow import FullscreenImageWindow
 from ui.imagecacheworker import ImageCacheWorker
 from ui.imageworkermanager import ImageWorkerManager
 from ui.mainmenu import MainMenu
@@ -84,8 +83,12 @@ class GlobalKeyListener(QObject):
                 dispatcher.customEvent.emit("gamepad", {"op": InputDefs.RIGHT})
                 return True
             if event.key() == Qt.Key.Key_Return: # enter
-                print("lanuch", event.nativeScanCode())
-                launchTable()
+                win = cls.windows[0]
+                index = win.getCurrentIndex()
+                module_name, class_name = win.getClass().rsplit(".", 1)
+                module = importlib.import_module(module_name)
+                winClass = getattr(module, class_name) 
+                launchTable(index, winClass)
                 return True
         return False  # pass the event on
 
@@ -449,8 +452,8 @@ def setupMainUIThreads():
     if sys.platform.startswith('win') or sys.platform.startswith('linux'):
         uiThreadManager.start_worker("gamepad", "uithread.gamepadworker.GamepadWorker")
         inputController = InputController(vpinfeIniConfig)
-    timerForGamepad.timeout.connect(checkForUIThreadEvents)
-    timerForGamepad.start(200)
+    #timerForGamepad.timeout.connect(checkForUIThreadEvents)
+    #timerForGamepad.start(200)
 
 def gamepadTest():
     print("Gamepad Test: CRTL-C to EXIT")
