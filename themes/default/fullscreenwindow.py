@@ -7,6 +7,7 @@ from ui.imageworkermanager import ImageWorkerManager
 from inputdefs import InputDefs
 from globalsignals import dispatcher
 import logging
+import sys
 
 logger = None
 
@@ -114,6 +115,9 @@ class FullscreenWindow(QGraphicsView):
         return f"{self.__class__.__module__}.{self.__class__.__name__}"             
     
     def addCacheManager(self):
+        if sys.platform == "darwin":
+            multiprocessing.set_start_method('spawn', force=True)
+
         self.image_command_queue = multiprocessing.Queue()
         self.image_result_queue = multiprocessing.Queue()
         self.image_cache_worker = ImageCacheWorker(self.tables, self.screenName, self.image_command_queue, self.image_result_queue, self.assignedScreen.geometry())
