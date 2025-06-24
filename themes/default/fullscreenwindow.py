@@ -130,7 +130,7 @@ class FullscreenWindow(QGraphicsView):
                             self.nextImage()
                     case InputDefs.SELECT:
                         if FullscreenWindow.isMenuUp and FullscreenWindow.menuWindow == self:
-                            print("got serlected menu item", self.menuOverlay.get_selected_option())
+                            self.menuOverlay.option_selected()
                         elif FullscreenWindow.menuWindow == self:
                             dispatcher.customEvent.emit("main", {"op": "lanuch","index":  self.cacheManager.current_index, 
                                                                  "windowClass":f"{self.__class__.__module__}.{self.__class__.__name__}"})

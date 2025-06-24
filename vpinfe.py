@@ -493,7 +493,7 @@ def handle_signals(event_type: str, data: dict):
                         window_class = getattr(module, class_name)        
                         launchTable(data['index'], window_class)
                     case _:
-                        logger.debug(f"No action for 'main' event value{data['value']}")
+                        logger.debug(f"No action for 'main' event value: {data['op']}")
      
 if __name__ == "__main__":
     

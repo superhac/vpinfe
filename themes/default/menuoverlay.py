@@ -1,9 +1,11 @@
 from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
 from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QBrush, QColor, QFont
+from globalsignals import dispatcher
 
 class MenuOverlay:
     def __init__(self, scene, rect, options=None):
+        
         if options is None:
             options = ["Test", "Quit"]
         self.scene = scene
@@ -87,5 +89,11 @@ class MenuOverlay:
     def is_visible(self):
         return self.menu_rect_item.scene() is not None
 
-    def get_selected_option(self):
-        return self.options[self.current_index]
+    def option_selected(self):
+        
+        selected = self.options[self.current_index]
+        match selected:
+            case "Test":
+                dispatcher.customEvent.emit("main", {"op": "test"})
+            case "Quit":
+                dispatcher.customEvent.emit("main", {"op": "quit"})
