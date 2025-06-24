@@ -8,6 +8,7 @@ from inputdefs import InputDefs
 from globalsignals import dispatcher
 import logging
 import sys
+from themes.default.menuoverlay import MenuOverlay
 
 logger = None
 
@@ -86,22 +87,55 @@ class FullscreenWindow(QGraphicsView):
         # setup image caching
         self.addCacheManager()
 
+        # menu overlay
+        self.menuOverlay = None
+
+    def show_menu(self):
+        if FullscreenWindow.menuWindow == self:
+            if self.menuOverlay is not None and self.menuOverlay.is_visible():
+                return
+            rect = self.scene.sceneRect()
+            self.menuOverlay = MenuOverlay(self.scene, rect)
+            self.menuOverlay.show()
+            FullscreenWindow.isMenuUp = True
+            FullscreenWindow.menuWindow = self
+
+    def hide_menu(self):
+        if FullscreenWindow.menuWindow == self:
+            if self.menuOverlay and self.menuOverlay.is_visible():
+                self.menuOverlay.hide()
+            FullscreenWindow.isMenuUp = False
+
+    def toggle_menu(self):
+        if FullscreenWindow.menuWindow == self:
+            if self.menuOverlay and self.menuOverlay.is_visible():
+                self.hide_menu()
+            else:
+                self.show_menu()
+
     def handle_event(self, event_type: str, data: dict):
         match event_type:
             case "gamepad":
                 logger.debug(f"Receiver got event: {event_type} with data: {data}")
                 match data['op']:
                     case InputDefs.LEFT:
-                        self.prevImage()
+                        if FullscreenWindow.menuWindow == self and FullscreenWindow.isMenuUp:
+                                self.menuOverlay.move_up
+                        elif not FullscreenWindow.isMenuUp:
+                            self.prevImage()
                     case InputDefs.RIGHT:
-                         self.nextImage()
+                        if FullscreenWindow.menuWindow == self and FullscreenWindow.isMenuUp:
+                                self.menuOverlay.move_down()
+                        elif not FullscreenWindow.isMenuUp:
+                            self.nextImage()
                     case InputDefs.SELECT:
-                        if FullscreenWindow.menuWindow == self:
+                        if FullscreenWindow.isMenuUp:
+                            pass
+                        elif FullscreenWindow.menuWindow == self:
                             dispatcher.customEvent.emit("main", {"op": "lanuch","index":  self.cacheManager.current_index, 
                                                                  "windowClass":f"{self.__class__.__module__}.{self.__class__.__name__}"})
                     case InputDefs.MENU:
-                        pass
-                        #self.toggle_menu()
+                        self.toggle_menu()
                     case _:
                         logger.debug(f"No action for that control send.")
             case "windows":
