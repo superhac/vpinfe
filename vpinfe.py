@@ -453,8 +453,8 @@ def setupMainUIThreads():
     if sys.platform.startswith('win') or sys.platform.startswith('linux'):
         uiThreadManager.start_worker("gamepad", "uithread.gamepadworker.GamepadWorker")
         inputController = InputController(vpinfeIniConfig)
-    #timerForGamepad.timeout.connect(checkForUIThreadEvents)
-    #timerForGamepad.start(200)
+        timerForGamepad.timeout.connect(checkForUIThreadEvents)
+        timerForGamepad.start(200)
 
 def gamepadTest():
     print("Gamepad Test: CRTL-C to EXIT")
