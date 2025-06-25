@@ -415,7 +415,7 @@ def showGamepads():
                   
 def startupMessages():
     logger.info(f"VPinFE {version} by Superhac & WildCoder")
-    logger.info(f"Running with Python {sys.version}")
+    logger.info(f"Python version: {sys.version}")
     logger.info(f"Qt version: {QT_VERSION_STR}")
     logger.info(f"PyQt version: {PYQT_VERSION_STR}")
     logger.info(f"Using {vpinfeIniConfig.get_string('Media','tableresolution','4k')} {vpinfeIniConfig.get_string('Media','tabletype','')}")
