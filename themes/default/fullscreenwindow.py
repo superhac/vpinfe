@@ -1,6 +1,6 @@
-from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPixmapItem
+from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, QGraphicsOpacityEffect
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt, QTimer, QRectF
+from PyQt6.QtCore import Qt, QTimer, QRectF, QPropertyAnimation
 import multiprocessing
 from ui.imagecacheworker import ImageCacheWorker
 from ui.imageworkermanager import ImageWorkerManager
@@ -95,7 +95,7 @@ class FullscreenWindow(QGraphicsView):
             if self.menuOverlay is not None and self.menuOverlay.is_visible():
                 return
             rect = self.scene.sceneRect()
-            self.menuOverlay = MenuOverlay(self.scene, rect)
+            self.menuOverlay = MenuOverlay(self.scene, rect, rotation=self.menuRotation)
             self.menuOverlay.show()
             FullscreenWindow.isMenuUp = True
             FullscreenWindow.menuWindow = self

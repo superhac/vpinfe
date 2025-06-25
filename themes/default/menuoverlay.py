@@ -1,19 +1,20 @@
-from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem
+from PyQt6.QtWidgets import QGraphicsRectItem, QGraphicsTextItem, QGraphicsItemGroup
 from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QBrush, QColor, QFont
 from globalsignals import dispatcher
 
 class MenuOverlay:
-    def __init__(self, scene, rect, options=None):
-        
+    def __init__(self, scene, rect, options=None, rotation=0):
         if options is None:
             options = ["Test", "Quit"]
         self.scene = scene
         self.rect = rect
         self.options = options
+        self.rotation = rotation
         self.text_items = []
         self.current_index = 0
         self.menu_rect_item = None
+        self.menu_group = None
         self._add_menu_text_and_bg()
 
     def _add_menu_text_and_bg(self):
@@ -51,8 +52,17 @@ class MenuOverlay:
             text.setZValue(101)
             text_x = x + (menu_width - br.width()) / 2
             text.setPos(text_x, current_y)
+            # Do NOT rotate each text item, just position them
             self.text_items.append(text)
             current_y += br.height() + 20
+        # Group background and text, then rotate the group
+        self.menu_group = QGraphicsItemGroup()
+        self.menu_group.addToGroup(self.menu_rect_item)
+        for text in self.text_items:
+            self.menu_group.addToGroup(text)
+        if self.rotation:
+            self.menu_group.setTransformOriginPoint(menu_rect.center())
+            self.menu_group.setRotation(self.rotation)
         self._update_highlight()
 
     def _update_highlight(self):
@@ -77,14 +87,10 @@ class MenuOverlay:
         self._update_highlight()
 
     def show(self):
-        self.scene.addItem(self.menu_rect_item)
-        for text in self.text_items:
-            self.scene.addItem(text)
+        self.scene.addItem(self.menu_group)
 
     def hide(self):
-        self.scene.removeItem(self.menu_rect_item)
-        for text in self.text_items:
-            self.scene.removeItem(text)
+        self.scene.removeItem(self.menu_group)
 
     def is_visible(self):
         return self.menu_rect_item.scene() is not None
