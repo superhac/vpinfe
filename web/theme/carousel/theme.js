@@ -11,15 +11,14 @@ vpin.ready.then(async () => {
     // blocks
     await vpin.call("get_my_window_name")
     .then(result => {
-        windowName = result;                      // <- stored here
-
+        windowName = result;
     });
 
     setImage();
     vpin.registerInputHandler(handleInput);
 });
 
-// circular tables index
+// circular table index
 function wrapIndex(index, length) {
     return (index + length) % length;
 }
@@ -75,10 +74,6 @@ async function handleInput(input) {
             vpin.sendMessageToAllWindows({type: "TableLaunching"})
             fadeOut();
             await vpin.launchTable(currentTableIndex);
-            //await fadeOutAndLaunch();
-            vpin.call("console_out", "FADEOUT done");
-            //fadeInScreen()
-            //vpin.launchTable(this.currentTableIndex);
             break;
         case "joymenu":
             message = "You chose an orange.";

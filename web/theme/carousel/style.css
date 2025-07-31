@@ -62,3 +62,7 @@ body, html {
     z-index: 1;
     animation: jiggle 0.4s;
 }
+
+#fadeContainer {
+  transition: opacity 1.0s ease;
+}
