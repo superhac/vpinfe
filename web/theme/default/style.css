@@ -1,0 +1,25 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: black;
+  overflow: hidden;
+}
+
+#fadeContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: black;
+  transition: opacity 4.5s ease-in-out;
+  opacity: 1;
+  z-index: 9999;
+}
+
+img.fullscreen {
+  width: 100vw;
+  height: 100vh;
+  object-fit: fill;
+}

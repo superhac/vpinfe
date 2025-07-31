@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Loading...</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: black;
+      overflow: hidden;
+    }
+
+    img.fullscreen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      transition: opacity 3s ease-out;  /* slower fade */
+      opacity: 1;
+    }
+
+    img.fullscreen.fade-out {
+      opacity: 0;
+    }
+  </style>
+
+  <script src="common/vpinfe-core.js"></script>
+  <script>
+    const vpin = new VPinFECore();
+    vpin.init();
+
+    vpin.ready.then(async () => {
+      console.log("VPinFECore is fully initialized");
+
+      // Fade out image after 2 seconds
+      setTimeout(() => {
+        document.getElementById('splash').classList.add('fade-out');
+      }, 1000);
+
+      // Redirect after 5 seconds
+      setTimeout(async () => {
+        const location = await vpin.call("get_theme_index_page");
+        await vpin.call("load_page", location);
+      }, 3500);
+    });
+  </script>
+</head>
+<body>
+  <img id="splash" src="images/VPinFE_logo_main.png" alt="Fullscreen" class="fullscreen">
+</body>
+</html>
