@@ -126,7 +126,7 @@ class API:
         table = self.tables[index]
         vpx = table.fullPathVPXfile
         vpxbin = self.iniConfig.config['Settings'].get('vpxbinpath', '')
-        cmd = [vpxbin, "-ini", "/home/superhac/.vpinball/VPinballX.ini.OLD-good", "-play", vpx]
+        cmd = [vpxbin, "-play", vpx]
         print("Launching: ", cmd)
         process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
