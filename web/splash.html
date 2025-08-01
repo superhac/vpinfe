@@ -44,7 +44,7 @@
       // Redirect after 5 seconds
       setTimeout(async () => {
         const location = await vpin.call("get_theme_index_page");
-        await vpin.call("load_page", location);
+        window.location = location;
       }, 3500);
     });
   </script>

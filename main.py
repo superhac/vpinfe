@@ -10,7 +10,6 @@ import sys
 import os
 
 html_file = Path(__file__).parent / "web/splash.html"
-#html_file = Path(__file__).parent / "web/splash.html"
 table_root_path = '/home/superhac/tables/'
 webview_windows = [] # [ [window_name, window, api] ]
 iniconfig = IniConfig("./vpinfe.ini")
@@ -108,7 +107,7 @@ http_server.start_file_server()
 #threading.Timer(10.0, webview_windows[2][2].send_event_all_windows).start()
 
 # block and start webview
-webview.start()
+webview.start(http_server=True)
 
 # shutdown 
 http_server.on_closed()

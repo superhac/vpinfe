@@ -187,12 +187,8 @@ async #showmenu() {
     this.menuUP = true;
     overlayRoot.classList.add("active");   // show and fade in
 
-    const contentHtml = await window.pywebview.api.get_html("web/mainmenu/mainmenu.html");
-    const blob = new Blob([contentHtml], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-
     const iframe = document.createElement("iframe"); 
-    iframe.src = url;
+    iframe.src = "../../mainmenu/mainmenu.html";
     iframe.id = "menu-frame";
     overlayRoot.appendChild(iframe);
 

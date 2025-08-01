@@ -1,22 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Carousel Table</title>
-    <link rel="stylesheet" href="../../common/vpinfe-style.css">
-    <link rel="stylesheet" href="style.css">
-    <script src="../../common/vpinfe-core.js"></script>
+  <meta charset="UTF-8" />
+  <title>Gamepad Menu</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #111;
+      color: #fff;
+      font-family: sans-serif;
+      font-size: 2.5vh;
+    }
+
+    ul.menu {
+      list-style: none;
+      padding: 2vh;
+      margin: 0;
+    }
+
+    li.menu-item {
+      padding: 1.5vh 2vw;
+      margin-bottom: 1vh;
+      background-color: #222;
+      border-radius: 1vh;
+      cursor: pointer;
+    }
+
+    li.menu-item.selected {
+      background-color: #444;
+    }
+
+    .dropdown-label {
+      display: inline-block;
+      width: 40vw;
+    }
+
+    .dropdown-value {
+      display: inline-block;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-<div class="popup-inner">
-  <h2>Help Menu</h2>
-  <p>Welcome to the help section! Here you can find useful information about the application.</p>
-  <ul>
-    <li>How to navigate the app</li>
-    <li>How to customize themes</li>
-    <li>Troubleshooting common issues</li>
+  <ul class="menu" id="menu">
+    <li class="menu-item">Start Game</li>
+    <li class="menu-item">Continue</li>
+    <li class="menu-item">Options</li>
+    <li class="menu-item">High Scores</li>
+    <li class="menu-item">Credits</li>
+    <li class="menu-item">Help</li>
+    <li class="menu-item">Extras</li>
+    <li class="menu-item" id="difficulty-item">
+      <span class="dropdown-label">Difficulty:</span>
+      <span class="dropdown-value" id="difficulty-value">Normal</span>
+    </li>
+    <li class="menu-item">Settings</li>
+    <li class="menu-item">Quit</li>
   </ul>
-</div>
+
+  <script>
+    let selectedIndex = 0;
+    let items = [];
+    const difficulties = ['Easy', 'Normal', 'Hard'];
+    let difficultyIndex = 1; // Default is 'Normal'
+
+    function updateMenu() {
+      items.forEach((item, i) => {
+        item.classList.toggle('selected', i === selectedIndex);
+      });
+
+      // Update custom dropdown display
+      document.getElementById('difficulty-value').textContent = difficulties[difficultyIndex];
+    }
+
+    function pollGamepad() {
+      const gamepads = navigator.getGamepads();
+      const gp = gamepads[0];
+      if (!gp) return;
+
+      const now = performance.now();
+      const threshold = 0.5;
+
+      const up = gp.axes[1] < -threshold || gp.buttons[12]?.pressed;
+      const down = gp.axes[1] > threshold || gp.buttons[13]?.pressed;
+      const select = gp.buttons[0]?.pressed; // A button
+
+      if (!pollGamepad.lastTime || now - pollGamepad.lastTime > 200) {
+        if (up) {
+          selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+          pollGamepad.lastTime = now;
+        } else if (down) {
+          selectedIndex = (selectedIndex + 1) % items.length;
+          pollGamepad.lastTime = now;
+        } else if (select) {
+          const selectedItem = items[selectedIndex];
+          if (selectedItem.id === 'difficulty-item') {
+            difficultyIndex = (difficultyIndex + 1) % difficulties.length;
+            pollGamepad.lastTime = now;
+          }
+          // Add any other "A button" behavior here
+        }
+
+        updateMenu();
+      }
+    }
+
+    function gameLoop() {
+      pollGamepad();
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.addEventListener("gamepadconnected", () => {
+      console.log("Gamepad connected!");
+      requestAnimationFrame(gameLoop);
+    });
+
+    window.onload = () => {
+      items = Array.from(document.querySelectorAll('.menu-item'));
+      updateMenu();
+    };
+  </script>
 </body>
 </html>
+
 

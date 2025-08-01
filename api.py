@@ -90,20 +90,12 @@ class API:
     def get_theme_name(self):
         return self.iniConfig.config['Settings'].get('theme', 'default')
     
-    def load_page(self, page_path):
-        full_path = Path(__file__).parent / 'web' / page_path
-        print("Loading:", full_path)
-        self.myWindow[0].load_url(full_path.resolve().as_uri())
-    
     def get_theme_index_page(self):
         theme_name = self.get_theme_name()
-        theme_path = f'theme/{theme_name}'
-        filename = f'index_{self.get_my_window_name()}.html'
-
-        # Just return the relative path
-        relative_path = f"{theme_path}/{filename}"
-        print("Redirect path:", relative_path)
-        return relative_path
+        theme_path = f'theme/{theme_name}/'
+        url = theme_path +f'index_{self.get_my_window_name()}.html'
+        print("url: " + url)
+        return url
         
     def console_out(self, output):
         print("Console Output:", output)

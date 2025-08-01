@@ -4,6 +4,7 @@ tableRunning = false;
 
 const vpin = new VPinFECore();
 vpin.init();
+window.vpin = vpin
 
 vpin.ready.then(async () => {
     console.log("VPinFECore is fully initialized");
