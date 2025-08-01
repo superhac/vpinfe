@@ -10,6 +10,9 @@ class VPinFECore {
     this.joyButtonMap = {}
     this.previousButtonStates = {};
     this.gamepadEnabled = true;
+
+    // menu is up?
+    this.menuUP = false;
   }
 
   // ***********************************
@@ -128,8 +131,14 @@ class VPinFECore {
       if (action === "joyexit" && windowName == "table") {
         window.pywebview.api.close_app();
       }
+      else if (action === "joymenu" && windowName == "table") {
+
+        this.#showmenu();
+      }
       else {
-        this.inputHandlers.forEach(handler => handler(action));
+        if(!this.menuUP) {
+          this.inputHandlers.forEach(handler => handler(action));
+        }
       }
     }
   }
@@ -170,5 +179,32 @@ class VPinFECore {
     const file = parts[parts.length - 1];    // last part = filename
     return `http://127.0.0.1:8000/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
   }
+
+async #showmenu() {
+  const overlayRoot = document.getElementById('overlay-root');
+
+  if (!this.menuUP) {
+    this.menuUP = true;
+    overlayRoot.classList.add("active");   // show and fade in
+
+    const contentHtml = await window.pywebview.api.get_html("web/mainmenu/mainmenu.html");
+    const blob = new Blob([contentHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+
+    const iframe = document.createElement("iframe"); 
+    iframe.src = url;
+    iframe.id = "menu-frame";
+    overlayRoot.appendChild(iframe);
+
+  } else {
+    overlayRoot.classList.remove("active"); // fade out and hide
+    this.menuUP = false;
+    const iframe = document.getElementById("menu-frame");
+    if (iframe) {
+      iframe.remove();
+    }
+  }
+}
+
 
 }

@@ -21,6 +21,7 @@ def loadWindows():
     global api
     monitors = get_monitors()
     tables = TableParser(table_root_path).getAllTables()
+    print(monitors)
     
     if iniconfig.config['Displays']['bgscreenid']:
         api = API()
@@ -36,6 +37,7 @@ def loadWindows():
             y=monitors[screen_id].y,
             width=monitors[screen_id].width,
             height=monitors[screen_id].height,
+            background_color="#000000",
             fullscreen=True  # Set to False since we're manually sizing it
         )
         api.myWindow.append(win)
@@ -58,6 +60,7 @@ def loadWindows():
             y=monitors[screen_id].y,
             width=monitors[screen_id].width,
             height=monitors[screen_id].height,
+            background_color="#000000",
             fullscreen=True  # Set to False since we're manually sizing it
         )
         api.myWindow.append(win)
@@ -80,6 +83,7 @@ def loadWindows():
             y=monitors[screen_id].y,
             width=monitors[screen_id].width,
             height=monitors[screen_id].height,
+            background_color="#000000",
             fullscreen=True  # Set to False since we're manually sizing it
         )
         api.myWindow.append(win)
@@ -94,6 +98,7 @@ loadWindows()
 # Start an the HTTP server to serve the images from the "tables" directory
 MOUNT_POINTS = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
+        '/web/': os.path.join(os.getcwd(), 'web'),
         }
 http_server = HTTPServer(MOUNT_POINTS)
 http_server.start_file_server()

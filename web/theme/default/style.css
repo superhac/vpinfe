@@ -18,8 +18,41 @@ html, body {
   z-index: 9999;
 }
 
+#fullscreen-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: black;
+  background-size: fill; /* match your object-fit: fill behavior */
+  background-repeat: no-repeat;
+  background-position: center;
+  z-index: 9999;
+}
+
 img.fullscreen {
   width: 100vw;
   height: 100vh;
   object-fit: fill;
+  display: block;
+  background-color: black; /* ensures loading gaps stay black */
+}
+
+.bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: black;
+  background-size: fill;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 0.0s ease-in-out;
+  z-index: 9999;
+}
+.bg.visible {
+  opacity: 1;
 }

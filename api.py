@@ -133,3 +133,10 @@ class API:
             stdin=subprocess.DEVNULL)
         process.wait()
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
+
+    def get_html(self, path):
+        with open(path, "r") as f:
+            return f.read()
+        
+    def get_popup(self):
+        return self.get_html()

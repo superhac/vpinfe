@@ -97,5 +97,4 @@ function setImage() {
     image = vpin.getImageURL(currentTableIndex, windowName)
     const img = document.getElementById('fsImage');
     img.src = image;  // Replace with your new image path
-
 }
