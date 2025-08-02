@@ -4,7 +4,8 @@ class VPinFECore {
     this.monitors = [];
     this._resolveReady = null;
     this.ready = new Promise(resolve => this._resolveReady = resolve);
-    this.inputHandlers = []; // gamepad and joystick input handlers
+    this.inputHandlers = []; // gamepad and joystick input handlers for theme
+    this.inputHandlerMenu = []; // gamepad and joystick input handlers for menu
 
     // Gamepad mapping
     this.joyButtonMap = {}
@@ -30,12 +31,20 @@ class VPinFECore {
     });
   }
 
-  // register for events
+  // theme register for Input events
   async registerInputHandler(handler) {
     windowName = await this.call("get_my_window_name");
     if (typeof handler === 'function' && windowName == "table" ) {
        this.call("console_out", "registered gamepad handler");
       this.inputHandlers.push(handler);
+    }
+  }
+
+   // Menu register for Input events
+  async registerInputHandlerMenu(handler) {
+    if (typeof handler === 'function') {
+       this.call("console_out", "registered gamepad handler");
+      this.inputHandlerMenu.push(handler);
     }
   }
 
@@ -128,8 +137,8 @@ class VPinFECore {
   async #onButtonPressed(buttonIndex, gamepadIndex) {
     const action = this.joyButtonMap[buttonIndex.toString()];
     if (action) {
-      if (action === "joyexit" && windowName == "table") {
-        window.pywebview.api.close_app();
+      if (action === "joyexit" && windowName == "table") { //DELETE. Menu handles this now
+        //window.pywebview.api.close_app();
       }
       else if (action === "joymenu" && windowName == "table") {
 
@@ -138,6 +147,9 @@ class VPinFECore {
       else {
         if(!this.menuUP) {
           this.inputHandlers.forEach(handler => handler(action));
+        }
+        else { // Menu is up route to its handler
+          this.inputHandlerMenu.forEach(handler => handler(action));
         }
       }
     }
@@ -199,8 +211,16 @@ async #showmenu() {
     if (iframe) {
       iframe.remove();
     }
+    this.#deregisterAllInputHandlersMenu()
   }
 }
+
+ // Menu deregister for Input Events
+  async #deregisterAllInputHandlersMenu() {
+    this.inputHandlerMenu = [];
+    this.call("console_out", "cleared the menu gamepad handler. aka menu closed");
+  }
+
 
 
 }

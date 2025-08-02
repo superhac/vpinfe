@@ -108,6 +108,8 @@ class API:
         return {
             'joyleft': self.iniConfig.config['Settings'].get('joyleft', '0'),
             'joyright': self.iniConfig.config['Settings'].get('joyright', '0'),
+            'joyup': self.iniConfig.config['Settings'].get('joyup', '0'),
+            'joydown': self.iniConfig.config['Settings'].get('joydown', '0'),
             'joyselect': self.iniConfig.config['Settings'].get('joyselect', '0'),
             'joymenu': self.iniConfig.config['Settings'].get('joymenu', '0'),
             'joyback': self.iniConfig.config['Settings'].get('joyback', '0'),

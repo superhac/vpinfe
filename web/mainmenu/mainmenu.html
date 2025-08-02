@@ -57,7 +57,7 @@
       <span class="dropdown-value" id="difficulty-value">Normal</span>
     </li>
     <li class="menu-item">Settings</li>
-    <li class="menu-item">Quit</li>
+    <li class="menu-item" id="quit-item">Quit</li>
   </ul>
 
   <script>
@@ -65,6 +65,36 @@
     let items = [];
     const difficulties = ['Easy', 'Normal', 'Hard'];
     let difficultyIndex = 1; // Default is 'Normal'
+
+    window.parent.vpin.registerInputHandlerMenu(handleInput);
+
+    function handleInput(input) {
+      console.log("got input: "+input);
+       switch (input) {
+        case "joyleft":
+            break;
+        case "joyright":
+            break;
+        case "joyup":
+            selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+            break;
+        case "joydown":
+            selectedIndex = (selectedIndex + 1) % items.length;
+            break;
+        case "joyback":
+          break;
+        case "joyselect":
+            const selectedItem = items[selectedIndex];
+              if (selectedItem.id === 'difficulty-item') {
+                difficultyIn
+              }
+              else if (selectedItem.id === 'quit-item'){
+                window.parent.vpin.call("close_app");
+              }
+            break;
+        }
+        updateMenu();
+    }
 
     function updateMenu() {
       items.forEach((item, i) => {
@@ -74,48 +104,6 @@
       // Update custom dropdown display
       document.getElementById('difficulty-value').textContent = difficulties[difficultyIndex];
     }
-
-    function pollGamepad() {
-      const gamepads = navigator.getGamepads();
-      const gp = gamepads[0];
-      if (!gp) return;
-
-      const now = performance.now();
-      const threshold = 0.5;
-
-      const up = gp.axes[1] < -threshold || gp.buttons[12]?.pressed;
-      const down = gp.axes[1] > threshold || gp.buttons[13]?.pressed;
-      const select = gp.buttons[0]?.pressed; // A button
-
-      if (!pollGamepad.lastTime || now - pollGamepad.lastTime > 200) {
-        if (up) {
-          selectedIndex = (selectedIndex - 1 + items.length) % items.length;
-          pollGamepad.lastTime = now;
-        } else if (down) {
-          selectedIndex = (selectedIndex + 1) % items.length;
-          pollGamepad.lastTime = now;
-        } else if (select) {
-          const selectedItem = items[selectedIndex];
-          if (selectedItem.id === 'difficulty-item') {
-            difficultyIndex = (difficultyIndex + 1) % difficulties.length;
-            pollGamepad.lastTime = now;
-          }
-          // Add any other "A button" behavior here
-        }
-
-        updateMenu();
-      }
-    }
-
-    function gameLoop() {
-      pollGamepad();
-      requestAnimationFrame(gameLoop);
-    }
-
-    window.addEventListener("gamepadconnected", () => {
-      console.log("Gamepad connected!");
-      requestAnimationFrame(gameLoop);
-    });
 
     window.onload = () => {
       items = Array.from(document.querySelectorAll('.menu-item'));
