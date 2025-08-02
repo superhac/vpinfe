@@ -127,7 +127,7 @@ http_server.start_file_server()
 #threading.Timer(10.0, webview_windows[2][2].send_event_all_windows).start()
 
 # block and start webview
-webview.start(http_server=True, debug=True)
+webview.start(http_server=True)
 
 # shutdown 
 http_server.on_closed()
