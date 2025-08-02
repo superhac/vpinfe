@@ -14,6 +14,25 @@ table_root_path = '/home/superhac/tables/'
 webview_windows = [] # [ [window_name, window, api] ]
 iniconfig = IniConfig("./vpinfe.ini")
 
+def loadGamepadTest():
+    global webview_windows
+    api = API()
+    html = Path(__file__).parent / "web/diag/gamepad.html"
+    api.tables = TableParser(table_root_path).getAllTables()
+    api.iniConfig = iniconfig
+    win = webview.create_window(
+            "BG Screen",
+             url=f"file://{html.resolve()}",
+            js_api=api,
+            background_color="#000000",
+            fullscreen=True  # Set to False since we're manually sizing it
+        )
+    api.myWindow.append(win)
+    webview_windows.append(['table',win, api])
+    api.webview_windows = webview_windows
+    api.iniConfig = iniconfig
+    api.finish_setup()
+
  # The last window created will be the one in focus.  AKA the controller for all the other windows!!!! Always "table"
 def loadWindows():
     global webview_windows
@@ -93,6 +112,7 @@ def loadWindows():
              
 # Initialize webview windows
 loadWindows()
+#loadGamepadTest() # add to launch options
 
 # Start an the HTTP server to serve the images from the "tables" directory
 MOUNT_POINTS = {
@@ -107,7 +127,7 @@ http_server.start_file_server()
 #threading.Timer(10.0, webview_windows[2][2].send_event_all_windows).start()
 
 # block and start webview
-webview.start(http_server=True)
+webview.start(http_server=True, debug=True)
 
 # shutdown 
 http_server.on_closed()

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gamepad Button Index Viewer</title>
+  <script src="../common/vpinfe-core.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #111;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: start;
+      min-height: 100vh;
+      padding: 2vh;
+    }
+
+    h1 {
+      font-size: 4vh;
+    }
+
+    .buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(60px, 1fr));
+      gap: 10px;
+      max-width: 600px;
+      margin-top: 2vh;
+    }
+
+    .button-box {
+      background-color: #333;
+      border: 2px solid #666;
+      border-radius: 8px;
+      padding: 1vh;
+      text-align: center;
+      font-size: 2vh;
+      transition: 0.2s;
+      height: 6vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .button-box.pressed {
+      background-color: limegreen;
+      color: black;
+      border-color: white;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Gamepad Button Indices (ESC to exit)</h1>
+  <div class="buttons-grid" id="buttonsGrid"></div>
+
+  <script>
+    const vpin = new VPinFECore();
+    vpin.init();
+    const buttonsGrid = document.getElementById("buttonsGrid");
+
+    // Create boxes for up to 17 buttons (0–16)
+    const MAX_BUTTONS = 17;
+    for (let i = 0; i < MAX_BUTTONS; i++) {
+      const div = document.createElement("div");
+      div.classList.add("button-box");
+      div.textContent = i;
+      buttonsGrid.appendChild(div);
+    }
+
+    const boxes = [...document.querySelectorAll(".button-box")];
+
+    function updateGamepadStatus() {
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+
+      const gp = gamepads[0];
+      if (!gp) {
+        requestAnimationFrame(updateGamepadStatus);
+        return;
+      }
+
+      gp.buttons.forEach((button, index) => {
+        const box = boxes[index];
+        if (!box) return;
+
+        box.classList.toggle("pressed", button.pressed);
+      });
+
+      requestAnimationFrame(updateGamepadStatus);
+    }
+
+    window.addEventListener("gamepadconnected", () => {
+      console.log("Gamepad connected");
+      updateGamepadStatus();
+    });
+
+    window.addEventListener("gamepaddisconnected", () => {
+      console.log("Gamepad disconnected");
+    });
+  </script>
+</body>
+</html>
