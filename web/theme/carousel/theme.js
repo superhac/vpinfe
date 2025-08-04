@@ -1,7 +1,6 @@
 windowName = ""
 currentTableIndex = 0;
 lastTableIndex = 0;
-tableRunning = false;
 
 const vpin = new VPinFECore();
 vpin.init();
@@ -53,37 +52,35 @@ window.receiveEvent = receiveEvent;  // get events from other windows.
 
 // create an input hanfler function. Only for the "table" window
 async function handleInput(input) {
-    if (!tableRunning) { // need this or when that table is running this is still getting gamepad input!
         switch (input) {
-        case "joyleft":
-            currentTableIndex = wrapIndex(currentTableIndex - 1, vpin.tableData.length);
-            setImage();
-            vpin.sendMessageToAllWindows({
-            type: 'TableIndexUpdate',
-            index: this.currentTableIndex
-            });
-            break;
-        case "joyright":
-            currentTableIndex = wrapIndex(currentTableIndex + 1, vpin.tableData.length);
-            setImage();
-            vpin.sendMessageToAllWindows({
-            type: 'TableIndexUpdate',
-            index: this.currentTableIndex
-            });
-            break;
-        case "joyselect":
-            vpin.sendMessageToAllWindows({type: "TableLaunching"})
-            fadeOut();
-            await vpin.launchTable(currentTableIndex);
-            break;
-        case "joymenu":
-            message = "You chose an orange.";
-            break;
-        case "joyback":
-            message = "You chose an orange.";
-            break;
-        }
-    }
+            case "joyleft":
+                currentTableIndex = wrapIndex(currentTableIndex - 1, vpin.tableData.length);
+                setImage();
+                vpin.sendMessageToAllWindows({
+                type: 'TableIndexUpdate',
+                index: this.currentTableIndex
+                });
+                break;
+            case "joyright":
+                currentTableIndex = wrapIndex(currentTableIndex + 1, vpin.tableData.length);
+                setImage();
+                vpin.sendMessageToAllWindows({
+                type: 'TableIndexUpdate',
+                index: this.currentTableIndex
+                });
+                break;
+            case "joyselect":
+                vpin.sendMessageToAllWindows({type: "TableLaunching"})
+                fadeOut();
+                await vpin.launchTable(currentTableIndex);
+                break;
+            case "joymenu":
+                message = "You chose an orange.";
+                break;
+            case "joyback":
+                message = "You chose an orange.";
+                break;
+            }
 }
 
 function setImage() {

@@ -1,6 +1,5 @@
 windowName = ""
 currentTableIndex = 0;
-tableRunning = false;
 
 const vpin = new VPinFECore();
 vpin.init();
@@ -27,10 +26,6 @@ function wrapIndex(index, length) {
 async function fadeOut() {
     const container = document.getElementById('fadeContainer');
     container.style.opacity = 0;
-
-    //setTimeout(() => {
-        //await vpin.launchTable(currentTableIndex);
-   // }, 5000); // Match the CSS transition
 }
 
 function fadeInScreen() {
@@ -57,7 +52,6 @@ window.receiveEvent = receiveEvent;  // get events from other windows.
 
 // create an input hanfler function. Only for the "table" window
 async function handleInput(input) {
-    if (!tableRunning) { // need this or when that table is running this is still getting gamepad input!
         switch (input) {
         case "joyleft":
             currentTableIndex = wrapIndex(currentTableIndex - 1, vpin.tableData.length);
@@ -91,7 +85,6 @@ async function handleInput(input) {
             message = "You chose an orange.";
             break;
         }
-    }
 }
 
 function setImage() {
