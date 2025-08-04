@@ -6,6 +6,7 @@ tableRunning = false;
 const vpin = new VPinFECore();
 vpin.init();
 window.vpin = vpin
+config = undefined
 
 vpin.ready.then(async () => {
     console.log("VPinFECore is fully initialized");
@@ -14,6 +15,7 @@ vpin.ready.then(async () => {
     .then(result => {
         windowName = result;
     });
+    config = await vpin.call("get_theme_config");
 
     updateImages();
     vpin.registerInputHandler(handleInput);
@@ -22,16 +24,6 @@ vpin.ready.then(async () => {
 // circular table index
 function wrapIndex(index, length) {
     return (index + length) % length;
-}
-
-async function fadeOut() {
-    //const container = document.getElementById('fadeContainer');
-    //container.style.opacity = 0;
-}
-
-function fadeInScreen() {
-    //const container = document.getElementById('fadeContainer');
-    //container.style.opacity = 1;
 }
 
 // Hook for Python events
@@ -88,39 +80,90 @@ async function handleInput(input) {
 
 function updateImages() {
     setCarouselWheels();
+    setMainGfxImage();
     setTableImage();
-    setBGImage();
 }
 
 function setTableImage() {
-   
     const bgUrl = vpin.getImageURL(currentTableIndex, "cab");
     const container = document.getElementById('cab');
-    container.innerHTML = ''; // Clear previous image
+    const oldImg = container.querySelector('img');
 
-    const img = new Image();
-    vpin.call("console_out", "angle out url? "+bgUrl);
-    img.src = bgUrl;
-    img.alt = "Table Image";
-     
+    if (oldImg) {
+        oldImg.style.opacity = 0;
 
-    container.appendChild(img);
+        setTimeout(() => {
+            container.innerHTML = '';
+
+            const newImg = new Image();
+            newImg.src = bgUrl;
+            newImg.alt = "Table Image";
+            newImg.style.opacity = 0;
+
+            newImg.onload = () => {
+                requestAnimationFrame(() => {
+                    newImg.style.opacity = 1;
+                });
+            };
+
+            container.appendChild(newImg);
+        }, 700);
+    } else {
+        const img = new Image();
+        img.src = bgUrl;
+        img.alt = "Table Image";
+        img.style.opacity = 0;
+
+        img.onload = () => {
+            requestAnimationFrame(() => {
+                img.style.opacity = 1;
+            });
+        };
+
+        container.appendChild(img);
+    }
 }
 
-function setBGImage() {
-    const bgUrl = vpin.getImageURL(currentTableIndex, "bg");
+function setMainGfxImage() {
+    let gfx = 'bg';
+    if (config) gfx = config.maingfx;
+
     const container = document.getElementById('bg');
+    const oldImg = container.querySelector('img');
 
-    container.innerHTML = ''; // Clear previous image
+    if (oldImg) {
+        oldImg.style.opacity = 0;
 
-    // Create image
-    const img = new Image();
-    img.src = bgUrl;
-    img.alt = "bgImage";
+        setTimeout(() => {
+            container.innerHTML = '';
 
-    // Append image to wrapper
-    container.appendChild(img);
+            const newImg = new Image();
+            newImg.src = vpin.getImageURL(currentTableIndex, gfx);
+            newImg.alt = "bgImage";
+            newImg.style.opacity = 0;
 
+            newImg.onload = () => {
+                requestAnimationFrame(() => {
+                    newImg.style.opacity = 1;
+                });
+            };
+
+            container.appendChild(newImg);
+        }, 700); // match transition duration
+    } else {
+        const img = new Image();
+        img.src = vpin.getImageURL(currentTableIndex, gfx);
+        img.alt = "bgImage";
+        img.style.opacity = 0;
+
+        img.onload = () => {
+            requestAnimationFrame(() => {
+                img.style.opacity = 1;
+            });
+        };
+
+        container.appendChild(img);
+    }
 }
 
 function  setCarouselWheels() {

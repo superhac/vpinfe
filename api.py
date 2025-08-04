@@ -129,9 +129,16 @@ class API:
         process.wait()
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 
-    def get_html(self, path):
-        with open(path, "r") as f:
-            return f.read()
+    def get_theme_config(self):
+        theme_name = self.get_theme_name()
+        theme_path = f'web/theme/{theme_name}/config.json'
+        print("theme config path: ", theme_path)
+        try:
+            with open(theme_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            return config
+        except Exception as e:
+            return None
         
     def get_popup(self):
         return self.get_html()

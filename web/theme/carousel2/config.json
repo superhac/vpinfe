@@ -1,0 +1,4 @@
+{
+    "maingfx": "bg",
+    "comment": "What the main image should be.  values: bg, fss, table, wheel, cab or dmd"
+}
