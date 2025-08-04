@@ -78,6 +78,7 @@ class API:
                     'DMDImagePath' : table.DMDImagePath,
                     'TableImagePath' : table.TableImagePath,
                     'WheelImagePath' : table.WheelImagePath,
+                    'CabImagePath' : table.CabImagePath,
                     'pupPackExists': table.pupPackExists,
                     'altColorExists': table.altColorExists,
                     'altSoundExists': table.altSoundExists,

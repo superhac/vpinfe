@@ -41,7 +41,7 @@ function receiveEvent(message) {
         this.currentTableIndex = message.index;
         updateImages();
     }
-    else if (message.type == "TableLaunching") {
+    else if (message.type == "TableLaunching") {S
         fadeOut();
     }
     else if (message.type == "TableLaunchComplete") {
@@ -88,6 +88,39 @@ async function handleInput(input) {
 
 function updateImages() {
     setCarouselWheels();
+    setTableImage();
+    setBGImage();
+}
+
+function setTableImage() {
+   
+    const bgUrl = vpin.getImageURL(currentTableIndex, "cab");
+    const container = document.getElementById('cab');
+    container.innerHTML = ''; // Clear previous image
+
+    const img = new Image();
+    vpin.call("console_out", "angle out url? "+bgUrl);
+    img.src = bgUrl;
+    img.alt = "Table Image";
+     
+
+    container.appendChild(img);
+}
+
+function setBGImage() {
+    const bgUrl = vpin.getImageURL(currentTableIndex, "bg");
+    const container = document.getElementById('bg');
+
+    container.innerHTML = ''; // Clear previous image
+
+    // Create image
+    const img = new Image();
+    img.src = bgUrl;
+    img.alt = "bgImage";
+
+    // Append image to wrapper
+    container.appendChild(img);
+
 }
 
 function  setCarouselWheels() {

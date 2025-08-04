@@ -53,6 +53,7 @@ class TableParser:
         dmd = Table.fullPathTable + "/dmd.png"
         table = Table.fullPathTable + "/table.png"
         wheel = Table.fullPathTable + "/wheel.png"
+        cab = Table.fullPathTable + "/cab.png"
 
         if os.path.exists(bg):
             Table.BGImagePath = bg
@@ -70,7 +71,10 @@ class TableParser:
             Table.WheelImagePath = wheel
         else:
             print(f"{TableParser.RED_CONSOLE_TEXT}  Img not found: {wheel}{TableParser.RESET_CONSOLE_TEXT}")
-            
+        if os.path.exists(cab):
+            Table.CabImagePath = cab
+        else:
+            print(f"{TableParser.RED_CONSOLE_TEXT}  Img not found: {cab}{TableParser.RESET_CONSOLE_TEXT}")
 
     def loadMetaData(self, Table):
         meta = metaconfig.MetaConfig(Table.fullPathTable + "/" + "meta.ini")

@@ -87,6 +87,11 @@ class VPinFECore {
       this.call("console_out", this.#convertImagePathToURL(table.WheelImagePath) )
       return this.#convertImagePathToURL(table.WheelImagePath);
     }
+    else if (type == "cab")
+    {
+      this.call("console_out", this.#convertImagePathToURL(table.CabImagePath) )
+      return this.#convertImagePathToURL(table.CabImagePath);
+    }
   }
 
   // send a message to all windows except "self"
