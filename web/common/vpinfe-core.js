@@ -199,26 +199,34 @@ class VPinFECore {
 
 async #showmenu() {
   const overlayRoot = document.getElementById('overlay-root');
+  let iframe = document.getElementById("menu-frame");
 
   if (!this.menuUP) {
     this.menuUP = true;
-    overlayRoot.classList.add("active");   // show and fade in
+    overlayRoot.classList.add("active"); // fade in
 
-    const iframe = document.createElement("iframe"); 
-    iframe.src = "../../mainmenu/mainmenu.html";
-    iframe.id = "menu-frame";
-    overlayRoot.appendChild(iframe);
-
-  } else {
-    overlayRoot.classList.remove("active"); // fade out and hide
-    this.menuUP = false;
-    const iframe = document.getElementById("menu-frame");
-    if (iframe) {
-      iframe.remove();
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.src = "../../mainmenu/mainmenu.html";
+      iframe.id = "menu-frame";
+      iframe.style.display = "none"; // start hidden to prevent flash
+      overlayRoot.appendChild(iframe);
+      await new Promise(resolve => setTimeout(resolve, 10)); // tiny delay to allow DOM update
     }
-    this.#deregisterAllInputHandlersMenu()
+
+    iframe.style.display = "block"; // show iframe
+  } else {
+    this.menuUP = false;
+    overlayRoot.classList.remove("active"); // fade out
+
+    if (iframe) {
+      iframe.style.display = "none"; // just hide, don’t remove
+      iframe.contentWindow.postMessage({ event: "reset state" }, "*");
+    }
+    //this.#deregisterAllInputHandlersMenu();  // only need this when we destory it.
   }
 }
+
 
  // Menu deregister for Input Events
   async #deregisterAllInputHandlersMenu() {

@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <title>Gamepad Menu</title>
+  <title>Gamepad Controlled Menu</title>
   <style>
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       height: 100%;
@@ -26,6 +28,7 @@
       background-color: #222;
       border-radius: 1vh;
       cursor: pointer;
+      position: relative;
     }
 
     li.menu-item.selected {
@@ -41,8 +44,38 @@
       display: inline-block;
       font-weight: bold;
     }
+
+    .popup {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: #333;
+      border: 1px solid #555;
+      z-index: 1000;
+      width: 100%;
+    }
+
+    .popup-option {
+      padding: 1vh 2vw;
+    }
+
+    .popup-option.selected {
+      background: #666;
+    }
+
+    #overlay-root {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    #overlay-root.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
   </style>
 </head>
+
 <body>
   <ul class="menu" id="menu">
     <li class="menu-item">Start Game</li>
@@ -60,40 +93,69 @@
     <li class="menu-item" id="quit-item">Quit</li>
   </ul>
 
+  <!-- Popup for dropdown -->
+  <div id="dropdown-popup" class="popup" style="display: none;"></div>
+
   <script>
     let selectedIndex = 0;
     let items = [];
     const difficulties = ['Easy', 'Normal', 'Hard'];
-    let difficultyIndex = 1; // Default is 'Normal'
+    let difficultyIndex = 1;
+    let dropdownOpen = false;
+    let dropdownSelected = difficultyIndex;
 
     window.parent.vpin.registerInputHandlerMenu(handleInput);
 
+   window.addEventListener("message", (event) => {
+      const message = event.data;
+      if (message.event === "reset state") {
+        selectedIndex = 0;
+        dropdownOpen = false;
+        updateMenu();
+      }
+    });
+
     function handleInput(input) {
-      console.log("got input: "+input);
-       switch (input) {
-        case "joyleft":
+      console.log("got input: " + input);
+
+      if (dropdownOpen) {
+        switch (input) {
+          case "joyup":
+            dropdownSelected = (dropdownSelected - 1 + difficulties.length) % difficulties.length;
+            updateDropdownPopup();
             break;
-        case "joyright":
+          case "joydown":
+            dropdownSelected = (dropdownSelected + 1) % difficulties.length;
+            updateDropdownPopup();
             break;
-        case "joyup":
-            selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+          case "joyselect":
+            difficultyIndex = dropdownSelected;
+            closeDropdown();
             break;
-        case "joydown":
-            selectedIndex = (selectedIndex + 1) % items.length;
-            break;
-        case "joyback":
-          break;
-        case "joyselect":
-            const selectedItem = items[selectedIndex];
-              if (selectedItem.id === 'difficulty-item') {
-                difficultyIn
-              }
-              else if (selectedItem.id === 'quit-item'){
-                window.parent.vpin.call("close_app");
-              }
+          case "joyback":
+            closeDropdown();
             break;
         }
-        updateMenu();
+        return;
+      }
+
+      switch (input) {
+        case "joyup":
+          selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+          break;
+        case "joydown":
+          selectedIndex = (selectedIndex + 1) % items.length;
+          break;
+        case "joyselect":
+          const selectedItem = items[selectedIndex];
+          if (selectedItem.id === 'difficulty-item') {
+            openDropdown(selectedItem);
+          } else if (selectedItem.id === 'quit-item') {
+            window.parent.vpin.call("close_app");
+          }
+          break;
+      }
+      updateMenu();
     }
 
     function updateMenu() {
@@ -101,16 +163,45 @@
         item.classList.toggle('selected', i === selectedIndex);
       });
 
-      // Update custom dropdown display
       document.getElementById('difficulty-value').textContent = difficulties[difficultyIndex];
+    }
+
+    function openDropdown(targetItem) {
+      dropdownOpen = true;
+      dropdownSelected = difficultyIndex;
+      const popup = document.getElementById('dropdown-popup');
+      const rect = targetItem.getBoundingClientRect();
+      popup.style.display = 'block';
+      popup.style.top = (targetItem.offsetTop + targetItem.offsetHeight) + 'px';
+      popup.style.left = targetItem.offsetLeft + 'px';
+      popup.style.width = targetItem.offsetWidth + 'px';
+
+      updateDropdownPopup();
+    }
+
+    function updateDropdownPopup() {
+      const popup = document.getElementById('dropdown-popup');
+      popup.innerHTML = '';
+      difficulties.forEach((diff, i) => {
+        const div = document.createElement('div');
+        div.className = 'popup-option' + (i === dropdownSelected ? ' selected' : '');
+        div.textContent = diff;
+        popup.appendChild(div);
+      });
+    }
+
+    function closeDropdown() {
+      dropdownOpen = false;
+      document.getElementById('dropdown-popup').style.display = 'none';
+      updateMenu();
     }
 
     window.onload = () => {
       items = Array.from(document.querySelectorAll('.menu-item'));
       updateMenu();
     };
+
   </script>
 </body>
+
 </html>
-
-
