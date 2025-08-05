@@ -99,6 +99,11 @@ class VPinFECore {
     this.call("send_event_all_windows", message);
   }
 
+  // send a message to all windows including "self"
+  sendMessageToAllWindowsIncSelf(message) {
+    this.call("send_event_all_windows_incself", message);
+  }
+
   // launch a table
   async launchTable(index) {
     this.gamepadEnabled = false;

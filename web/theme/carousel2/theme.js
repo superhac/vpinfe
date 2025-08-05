@@ -11,9 +11,9 @@ vpin.ready.then(async () => {
     console.log("VPinFECore is fully initialized");
     // blocks
     await vpin.call("get_my_window_name")
-    .then(result => {
-        windowName = result;
-    });
+        .then(result => {
+            windowName = result;
+        });
     config = await vpin.call("get_theme_config");
 
     updateImages();
@@ -25,6 +25,19 @@ function wrapIndex(index, length) {
     return (index + length) % length;
 }
 
+async function fadeOut() {
+    const container = document.getElementById('fadeContainer');
+    container.style.opacity = 0;
+}
+
+function fadeInScreen() {
+    const container = document.getElementById('fadeContainer');
+    container.style.opacity = 1;
+}
+
+
+
+
 // Hook for Python events
 function receiveEvent(message) {
     vpin.call("console_out", message);
@@ -32,11 +45,16 @@ function receiveEvent(message) {
         this.currentTableIndex = message.index;
         updateImages();
     }
-    else if (message.type == "TableLaunching") {S
+    else if (message.type == "TableLaunching") {
         fadeOut();
     }
     else if (message.type == "TableLaunchComplete") {
         fadeInScreen();
+    }
+    else if (message.type == "TableDataChange") {
+        vpin.call("console_out", "table data change");
+        this.currentTableIndex = message.index;
+        updateImages();
     }
 }
 
@@ -44,35 +62,35 @@ window.receiveEvent = receiveEvent;  // get events from other windows.
 
 // create an input hanfler function. Only for the "table" window
 async function handleInput(input) {
-        switch (input) {
-            case "joyleft":
-                currentTableIndex = wrapIndex(currentTableIndex - 1, vpin.tableData.length);
-                updateImages();
-                vpin.sendMessageToAllWindows({
+    switch (input) {
+        case "joyleft":
+            currentTableIndex = wrapIndex(currentTableIndex - 1, vpin.tableData.length);
+            updateImages();
+            vpin.sendMessageToAllWindows({
                 type: 'TableIndexUpdate',
                 index: this.currentTableIndex
-                });
-                break;
-            case "joyright":
-                currentTableIndex = wrapIndex(currentTableIndex + 1, vpin.tableData.length);
-                updateImages();
-                vpin.sendMessageToAllWindows({
+            });
+            break;
+        case "joyright":
+            currentTableIndex = wrapIndex(currentTableIndex + 1, vpin.tableData.length);
+            updateImages();
+            vpin.sendMessageToAllWindows({
                 type: 'TableIndexUpdate',
                 index: this.currentTableIndex
-                });
-                break;
-            case "joyselect":
-                vpin.sendMessageToAllWindows({type: "TableLaunching"})
-                fadeOut();
-                await vpin.launchTable(currentTableIndex);
-                break;
-            case "joymenu":
-                message = "You chose an orange.";
-                break;
-            case "joyback":
-                message = "You chose an orange.";
-                break;
-            }
+            });
+            break;
+        case "joyselect":
+            vpin.sendMessageToAllWindows({ type: "TableLaunching" })
+            fadeOut();
+            await vpin.launchTable(currentTableIndex);
+            break;
+        case "joymenu":
+            message = "You chose an orange.";
+            break;
+        case "joyback":
+            message = "You chose an orange.";
+            break;
+    }
 }
 
 function updateImages() {
@@ -163,7 +181,7 @@ function setMainGfxImage() {
     }
 }
 
-function  setCarouselWheels() {
+function setCarouselWheels() {
     const imagesContainer = document.getElementById('carouselImages');
     imagesContainer.innerHTML = ""; // clear previous images
 

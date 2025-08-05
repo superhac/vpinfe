@@ -2,6 +2,7 @@
     body {
         height: 100%;
         margin: 0;
+        background-color: black;
     }
 
     .container {
@@ -9,7 +10,8 @@
         flex-direction: column;
         height: 100vh;
         background-color: black;
-        /* constrain to viewport height */
+        transition: opacity 4.5s ease-in-out;
+        opacity: 1;
     }
 
     .top-row {
@@ -18,7 +20,7 @@
         padding: 5px;
         margin: 5px;
         gap:5px;
-         background-color: black;
+        background-color: black;
         /* explicitly reserve 60% for top-row */
     }
 
