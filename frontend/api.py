@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 from screeninfo import get_monitors
-from table import Table
+from common.table import Table
 import json
 import time
 import webview

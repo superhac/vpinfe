@@ -117,4 +117,12 @@
         /* or "fill" if you want to ignore aspect ratio completely */
     }
 
+    .favortie.overlay-image {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 100px; /* size of overlay image */
+      height: auto;
+    }
+
   

@@ -1,7 +1,7 @@
-from table import Table
+from common.table import Table
 import os
 from pathlib import Path
-import metaconfig
+from common.metaconfig import MetaConfig
 
 class TableParser:
     # static
@@ -77,7 +77,7 @@ class TableParser:
             print(f"{TableParser.RED_CONSOLE_TEXT}  Img not found: {cab}{TableParser.RESET_CONSOLE_TEXT}")
 
     def loadMetaData(self, Table):
-        meta = metaconfig.MetaConfig(Table.fullPathTable + "/" + "meta.ini")
+        meta = MetaConfig(Table.fullPathTable + "/" + "meta.ini")
         Table.metaConfig = meta.config
    
     def getTable(self, index):

@@ -1,11 +1,11 @@
 import webview
 from pathlib import Path
 from screeninfo import get_monitors
-from httpserver import HTTPServer
-from api import API
+from frontend.httpserver import HTTPServer
+from frontend.api import API
 import threading
-from tableparser import TableParser
-from iniconfig import IniConfig
+from common.tableparser import TableParser
+from common.iniconfig import IniConfig
 import sys
 import os
 

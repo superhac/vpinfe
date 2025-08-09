@@ -131,7 +131,7 @@
           case "joyselect":
             difficultyIndex = dropdownSelected;
             closeDropdown();
-            window.parent.vpin.sendMessageToAllWindowsIncSelf({type: "TableDataChange", index: 0});
+            window.parent.vpin.sendMessageToAllWindowsIncSelf({type: "TableDataChange", index: 0}); // TESTING
             break;
           case "joyback":
             closeDropdown();
