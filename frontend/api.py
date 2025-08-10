@@ -6,19 +6,21 @@ import json
 import time
 import webview
 import subprocess
+from common.tableparser import TableParser
 
 class API:
     
-    def __init__(self):
-        self.tables = None
+    def __init__(self, iniConfig):
         self.webview_windows = None
-        self.iniConfig = None
+        self.iniConfig = iniConfig
+        self.tables = TableParser(self.iniConfig.config['Settings']['tablerootdir']).getAllTables();
         self.myWindow = [] # this holds this instances webview window.  In array because of introspection of the window object
         self.tableDictData = None
-    
+        
+    # testing remove
     def sleep(self):
         print("entering sleep")
-        time.sleep(2)  # Placeholder for sleep function, if needed
+        time.sleep(2)  
         print("exiting sleep")
         return "sleep"
     

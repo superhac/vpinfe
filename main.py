@@ -10,16 +10,13 @@ import sys
 import os
 
 html_file = Path(__file__).parent / "web/splash.html"
-table_root_path = '/home/superhac/tables/'
 webview_windows = [] # [ [window_name, window, api] ]
 iniconfig = IniConfig("./vpinfe.ini")
 
 def loadGamepadTest():
     global webview_windows
-    api = API()
+    api = API(iniconfig)
     html = Path(__file__).parent / "web/diag/gamepad.html"
-    api.tables = TableParser(table_root_path).getAllTables()
-    api.iniConfig = iniconfig
     win = webview.create_window(
             "BG Screen",
              url=f"file://{html.resolve()}",
@@ -38,13 +35,11 @@ def loadWindows():
     global webview_windows
     global api
     monitors = get_monitors()
-    tables = TableParser(table_root_path).getAllTables()
+    #tables = TableParser(table_root_path).getAllTables()
     print(monitors)
     
     if iniconfig.config['Displays']['bgscreenid']:
-        api = API()
-        api.tables = tables
-        api.iniConfig = iniconfig
+        api = API(iniconfig)
         print("found bg screen id: ", iniconfig.config['Displays']['bgscreenid'])
         screen_id = int(iniconfig.config['Displays']['bgscreenid'])
         win = webview.create_window(
@@ -67,9 +62,7 @@ def loadWindows():
     if iniconfig.config['Displays']['dmdscreenid']:
         print("found dmd screen id: ", iniconfig.config['Displays']['dmdscreenid'])
         screen_id = int(iniconfig.config['Displays']['dmdscreenid'])
-        api = API()
-        api.tables = tables
-        api.iniConfig = iniconfig
+        api = API(iniconfig)
         win = webview.create_window(
             "DMD Screen",
             url=f"file://{html_file.resolve()}",
@@ -90,9 +83,7 @@ def loadWindows():
     if iniconfig.config['Displays']['tablescreenid']:  # this always needs to be last to get the focus set.
         print("found table screen id: ", iniconfig.config['Displays']['tablescreenid'])
         screen_id = int(iniconfig.config['Displays']['tablescreenid'])
-        api = API()
-        api.tables = tables
-        api.iniConfig = iniconfig
+        api = API(iniconfig)
         win = webview.create_window(
             "Table Screen",
             url=f"file://{html_file.resolve()}",
@@ -111,8 +102,8 @@ def loadWindows():
         api.finish_setup()
              
 # Initialize webview windows
-loadWindows()
-#loadGamepadTest() # add to launch options
+#loadWindows()
+loadGamepadTest() # add to launch options
 
 # Start an the HTTP server to serve the images from the "tables" directory
 MOUNT_POINTS = {
