@@ -149,7 +149,13 @@ def parseArgs():
     if args.listres:
         # Get all available screens
         monitors = get_monitors()
-        print(monitors)
+        print([{
+            'name': f'Monitor {i}',
+            'x': m.x,
+            'y': m.y,
+            'width': m.width,
+            'height': m.height
+        } for i, m in enumerate(monitors)])
         sys.exit()
            
     elif args.listmissing:

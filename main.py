@@ -9,6 +9,7 @@ from common.iniconfig import IniConfig
 import sys
 import os
 from clioptions import parseArgs
+import managerui.managerui
 
 html_file = Path(__file__).parent / "web/splash.html"
 webview_windows = [] # [ [window_name, window, api] ]
@@ -116,11 +117,15 @@ MOUNT_POINTS = {
 http_server = HTTPServer(MOUNT_POINTS)
 http_server.start_file_server()
 
+# start the manager UI
+managerui.managerui.startServer()
+
 # block and start webview
 webview.start(http_server=True)
 
 # shutdown items
 http_server.on_closed()
+managerui.managerui.stopServer()
 
 ################ debug stuff ################
 #print(webview_windows[2][2].get_theme_index_page())
