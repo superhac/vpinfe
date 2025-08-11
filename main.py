@@ -14,7 +14,7 @@ html_file = Path(__file__).parent / "web/splash.html"
 webview_windows = [] # [ [window_name, window, api] ]
 iniconfig = IniConfig("./vpinfe.ini")
 
-def loadGamepadTest():
+def loadGamepadTestWindow():
     global webview_windows
     api = API(iniconfig)
     html = Path(__file__).parent / "web/diag/gamepad.html"
@@ -106,7 +106,7 @@ if len(sys.argv) > 0:
 
 # Initialize webview windows
 loadWindows()
-#loadGamepadTest() # add to launch options
+#loadGamepadTestWindow() # add to launch options
 
 # Start an the HTTP server to serve the images from the "tables" directory
 MOUNT_POINTS = {

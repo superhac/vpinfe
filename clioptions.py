@@ -1,13 +1,19 @@
 import argparse
+import webview
 from screeninfo import get_monitors
 import sys
-from common.iniconfig import IniConfig
+import os
 import colorama
+
+from common.iniconfig import IniConfig
 from common.tableparser import TableParser
 from common.vpsdb import VPSdb
 from common.metaconfig import MetaConfig
 from common.vpxparser import VPXParser
 from common.standalonescripts import StandaloneScripts
+from frontend.httpserver import HTTPServer
+from frontend.api import API
+from pathlib import Path
 
 colorama.init()
 iniconfig = IniConfig("./vpinfe.ini")
@@ -19,7 +25,7 @@ def buildMetaData(downloadMedia = True):
             print("Including media download when available.")
         else:
             print("Skipping media download.")
-        tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables();
+        tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
         total = len(tables)
         print(f"Found {total} tables in {iniconfig.config['Settings']['tablerootdir']}")
         vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
@@ -90,6 +96,39 @@ def listUnknownTables():
 def vpxPatches():
     tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables();
     StandaloneScripts(tables)
+    
+def loadGamepadTestWindow():
+    webview_windows = [] # [ [window_name, window, api] ]
+    api = API(iniconfig)
+    html = Path(__file__).parent / "web/diag/gamepad.html"
+    win = webview.create_window(
+            "BG Screen",
+             url=f"file://{html.resolve()}",
+            js_api=api,
+            background_color="#000000",
+            fullscreen=True  # Set to False since we're manually sizing it
+        )
+    api.myWindow.append(win)
+    webview_windows.append(['table',win, api])
+    api.webview_windows = webview_windows
+    api.iniConfig = iniconfig
+    api.finish_setup()
+    
+def gamepadtest():
+    loadGamepadTestWindow()
+    # Start an the HTTP server to serve the images from the "tables" directory
+    MOUNT_POINTS = {
+            '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
+            '/web/': os.path.join(os.getcwd(), 'web'),
+            }
+    http_server = HTTPServer(MOUNT_POINTS)
+    http_server.start_file_server()
+
+    # block and start webview
+    webview.start(http_server=True)
+
+    # shutdown items
+    http_server.on_closed()
                         
 def parseArgs():
     parser = argparse.ArgumentParser(allow_abbrev=False)
@@ -98,12 +137,15 @@ def parseArgs():
     parser.add_argument("--listunknown", help="List the tables we can't match in VPSdb", action="store_true")
     parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file.  Default is cwd.")
     parser.add_argument("--buildmeta", help="Builds the meta.ini file in each table dir", action="store_true")
-    parser.add_argument("--no-media", help="When building meta.ini files don't download the images at the same time.", action="store_true")
     parser.add_argument("--vpxpatch", help="Using vpx-standalone-scripts will attempt to load patches automatically", action="store_true")
+    parser.add_argument("--gamepadtest", help="Testing and mapping your gamepad via js api", action="store_true")
+    
+    #second level args
+    parser.add_argument("--no-media", help="When building meta.ini files don't download the images at the same time.", action="store_true")
 
     #args = parser.parse_args()
     args, unknown = parser.parse_known_args() # fix for mac
-
+    
     if args.listres:
         # Get all available screens
         monitors = get_monitors()
@@ -123,6 +165,10 @@ def parseArgs():
 
     if args.buildmeta:
         buildMetaData(False if args.no_media else True)
+        sys.exit()
+        
+    if args.gamepadtest:
+        gamepadtest()
         sys.exit()
 
     if args.vpxpatch:
