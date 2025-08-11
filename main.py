@@ -8,6 +8,7 @@ from common.tableparser import TableParser
 from common.iniconfig import IniConfig
 import sys
 import os
+from clioptions import parseArgs
 
 html_file = Path(__file__).parent / "web/splash.html"
 webview_windows = [] # [ [window_name, window, api] ]
@@ -35,7 +36,6 @@ def loadWindows():
     global webview_windows
     global api
     monitors = get_monitors()
-    #tables = TableParser(table_root_path).getAllTables()
     print(monitors)
     
     if iniconfig.config['Displays']['bgscreenid']:
@@ -100,10 +100,13 @@ def loadWindows():
         api.webview_windows = webview_windows
         api.iniConfig = iniconfig
         api.finish_setup()
-             
+
+if len(sys.argv) > 0:
+    parseArgs()
+
 # Initialize webview windows
-#loadWindows()
-loadGamepadTest() # add to launch options
+loadWindows()
+#loadGamepadTest() # add to launch options
 
 # Start an the HTTP server to serve the images from the "tables" directory
 MOUNT_POINTS = {
@@ -113,17 +116,15 @@ MOUNT_POINTS = {
 http_server = HTTPServer(MOUNT_POINTS)
 http_server.start_file_server()
 
-#debug
-#print(webview_windows[2][2].get_theme_index_page())
-#threading.Timer(10.0, webview_windows[2][2].send_event_all_windows).start()
-
 # block and start webview
 webview.start(http_server=True)
 
-# shutdown 
+# shutdown items
 http_server.on_closed()
 
 ################ debug stuff ################
+#print(webview_windows[2][2].get_theme_index_page())
+#threading.Timer(10.0, webview_windows[2][2].send_event_all_windows).start()
 #print(iniconfig.config['Settings']['tablerootdir'])
 
 #print(webview_windows[2][2].get_tables())
