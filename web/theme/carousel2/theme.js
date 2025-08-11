@@ -35,9 +35,6 @@ function fadeInScreen() {
     container.style.opacity = 1;
 }
 
-
-
-
 // Hook for Python events
 function receiveEvent(message) {
     vpin.call("console_out", message);

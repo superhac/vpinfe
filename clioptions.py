@@ -112,7 +112,7 @@ def loadGamepadTestWindow():
     webview_windows.append(['table',win, api])
     api.webview_windows = webview_windows
     api.iniConfig = iniconfig
-    api.finish_setup()
+    api._finish_setup()
     
 def gamepadtest():
     loadGamepadTestWindow()

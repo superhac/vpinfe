@@ -15,23 +15,6 @@ html_file = Path(__file__).parent / "web/splash.html"
 webview_windows = [] # [ [window_name, window, api] ]
 iniconfig = IniConfig("./vpinfe.ini")
 
-def loadGamepadTestWindow():
-    global webview_windows
-    api = API(iniconfig)
-    html = Path(__file__).parent / "web/diag/gamepad.html"
-    win = webview.create_window(
-            "BG Screen",
-             url=f"file://{html.resolve()}",
-            js_api=api,
-            background_color="#000000",
-            fullscreen=True  # Set to False since we're manually sizing it
-        )
-    api.myWindow.append(win)
-    webview_windows.append(['table',win, api])
-    api.webview_windows = webview_windows
-    api.iniConfig = iniconfig
-    api.finish_setup()
-
  # The last window created will be the one in focus.  AKA the controller for all the other windows!!!! Always "table"
 def loadWindows():
     global webview_windows
@@ -58,7 +41,7 @@ def loadWindows():
         webview_windows.append(['bg',win, api])
         api.webview_windows = webview_windows
         api.iniConfig = iniconfig
-        api.finish_setup()
+        api._finish_setup()
         
     if iniconfig.config['Displays']['dmdscreenid']:
         print("found dmd screen id: ", iniconfig.config['Displays']['dmdscreenid'])
@@ -79,7 +62,7 @@ def loadWindows():
         webview_windows.append(['dmd',win, api])
         api.webview_windows = webview_windows
         api.iniConfig = iniconfig
-        api.finish_setup()
+        api._finish_setup()
         
     if iniconfig.config['Displays']['tablescreenid']:  # this always needs to be last to get the focus set.
         print("found table screen id: ", iniconfig.config['Displays']['tablescreenid'])
@@ -100,7 +83,7 @@ def loadWindows():
         webview_windows.append(['table',win, api])
         api.webview_windows = webview_windows
         api.iniConfig = iniconfig
-        api.finish_setup()
+        api._finish_setup()
 
 if len(sys.argv) > 0:
     parseArgs()

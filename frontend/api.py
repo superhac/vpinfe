@@ -15,14 +15,18 @@ class API:
         self.iniConfig = iniConfig
         self.tables = TableParser(self.iniConfig.config['Settings']['tablerootdir']).getAllTables();
         self.myWindow = [] # this holds this instances webview window.  In array because of introspection of the window object
-        self.tableDictData = None
-        
-    # testing remove
-    def sleep(self):
-        print("entering sleep")
-        time.sleep(2)  
-        print("exiting sleep")
-        return "sleep"
+        self.jsTableDictData = None
+
+    ####################
+    ## Private Functions
+    ####################
+    
+    def _finish_setup(self): # incase we need to do anything after the windows are created and instanc evars are loaded.
+        pass
+    
+    ###################
+    ## Public Functions
+    ###################
     
     def get_my_window_name(self):
         for window_name, window, api in self.webview_windows:
@@ -67,8 +71,8 @@ class API:
                 window.evaluate_js(f'receiveEvent({msg_json})')
 
     def get_tables(self):
-        if self.tableDictData:
-            return self.tableDictData
+        if self.jsTableDictData:
+            return self.jsTableDictData
         tables = []
         if self.tables:
             for table in self.tables:
@@ -87,26 +91,13 @@ class API:
                     'meta': {section: dict(table.metaConfig[section]) for section in table.metaConfig.sections()}
                 }
                 tables.append(table_data)
-            self.tableDictData = json.dumps(tables)
-        return self.tableDictData
-    
-    def get_theme_name(self):
-        return self.iniConfig.config['Settings'].get('theme', 'default')
-    
-    def get_theme_index_page(self):
-        theme_name = self.get_theme_name()
-        theme_path = f'theme/{theme_name}/'
-        url = theme_path +f'index_{self.get_my_window_name()}.html'
-        print("url: " + url)
-        return url
-        
+            self.jsTableDictData = json.dumps(tables)
+        return self.jsTableDictData
+            
     def console_out(self, output):
         print("Console Output:", output)
         return output
-    
-    def finish_setup(self): # incase we need to do anything after the windows are created and instanc evars are loaded.
-            pass
-        
+           
     def get_joymaping(self):
         return {
             'joyleft': self.iniConfig.config['Settings'].get('joyleft', '0'),
@@ -144,3 +135,17 @@ class API:
         
     def get_popup(self):
         return self.get_html()
+    
+    ###################
+    ### For splash page
+    ###################
+    
+    def get_theme_name(self):
+        return self.iniConfig.config['Settings'].get('theme', 'default')
+    
+    def get_theme_index_page(self):
+        theme_name = self.get_theme_name()
+        theme_path = f'theme/{theme_name}/'
+        url = theme_path +f'index_{self.get_my_window_name()}.html'
+        print("url: " + url)
+        return url
