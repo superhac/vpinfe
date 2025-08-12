@@ -1,3 +1,13 @@
+//console methods for overriding
+const originalConsole = {
+  log: console.log,
+  info: console.info,
+  warn: console.warn,
+  error: console.error,
+  debug: console.debug,
+};
+
+
 class VPinFECore {
   constructor() {
     this.tableData = {};
@@ -31,27 +41,41 @@ class VPinFECore {
     });
   }
 
-  // theme register for Input events
+  // theme register for Input events - Only for the table screen!
   async registerInputHandler(handler) {
     windowName = await this.call("get_my_window_name");
-    if (typeof handler === 'function' && windowName == "table" ) {
-       this.call("console_out", "registered gamepad handler");
+    if (typeof handler === 'function' && windowName == "table") {
+      this.call("console_out", "registered gamepad handler");
       this.inputHandlers.push(handler);
     }
   }
 
-   // Menu register for Input events
+  // Menu register for Input events
   async registerInputHandlerMenu(handler) {
     if (typeof handler === 'function') {
-       this.call("console_out", "registered gamepad handler");
+      this.call("console_out", "registered gamepad handler");
       this.inputHandlerMenu.push(handler);
     }
   }
 
   // Keybaord input processing to handlers (TODO)
-  onKeyDown(e) {
-    if (e.key === 'Escape' && window.pywebview) {
-      window.pywebview.api.close_app();
+  async onKeyDown(e) {
+    windowName = await this.call("get_my_window_name");
+    if (windowName == "table") {
+      if (!this.menuUP) {
+        if (e.key == "Escape") window.pywebview.api.close_app();
+        else if (e.key == 'Control' && e.location === 1) this.inputHandlers.forEach(handler => handler("joyleft"));
+        else if (e.key == 'Control' && e.location === 2) this.inputHandlers.forEach(handler => handler("joyright"));
+        else if (e.key == 'Enter') this.inputHandlers.forEach(handler => handler("joyselect"));
+        else if (e.key == 'm') this.#showmenu();
+      }
+      else { // Menu is up route to its handler
+        if (e.key == 'Control' && e.location === 1) this.inputHandlerMenu.forEach(handler => handler("joyup"));
+        else if (e.key == 'Control' && e.location === 2) this.inputHandlerMenu.forEach(handler => handler("joydown"));
+        else if (e.key == 'Enter') this.inputHandlerMenu.forEach(handler => handler("joyselect"));
+        else if (e.key == 'm') this.#showmenu();
+      }
+
     }
   }
 
@@ -69,27 +93,25 @@ class VPinFECore {
   getImageURL(index, type) {
     const table = this.tableData[index];
     if (type == "table") {
-      this.call("console_out", this.#convertImagePathToURL(table.TableImagePath) )
+      this.call("console_out", this.#convertImagePathToURL(table.TableImagePath))
       return this.#convertImagePathToURL(table.TableImagePath);
     }
     else if (type == "bg") {
-      this.call("console_out", this.#convertImagePathToURL(table.BGImagePath) )
+      this.call("console_out", this.#convertImagePathToURL(table.BGImagePath))
       return this.#convertImagePathToURL(table.BGImagePath);
 
-    } 
+    }
     else if (type == "dmd") {
-      this.call("console_out", this.#convertImagePathToURL(table.DMDImagePath) )
+      this.call("console_out", this.#convertImagePathToURL(table.DMDImagePath))
       return this.#convertImagePathToURL(table.DMDImagePath);
 
     }
-    else if (type == "wheel")
-    {
-      this.call("console_out", this.#convertImagePathToURL(table.WheelImagePath) )
+    else if (type == "wheel") {
+      this.call("console_out", this.#convertImagePathToURL(table.WheelImagePath))
       return this.#convertImagePathToURL(table.WheelImagePath);
     }
-    else if (type == "cab")
-    {
-      this.call("console_out", this.#convertImagePathToURL(table.CabImagePath) )
+    else if (type == "cab") {
+      this.call("console_out", this.#convertImagePathToURL(table.CabImagePath))
       return this.#convertImagePathToURL(table.CabImagePath);
     }
   }
@@ -112,17 +134,18 @@ class VPinFECore {
     this.gamepadEnabled = true;
   }
 
-// **********************************************
-// private functions
-// **********************************************
+  // **********************************************
+  // private functions
+  // **********************************************
 
   async #onPyWebviewReady() {
     console.log("pywebview is ready!");
     await this.#loadMonitors();
     await this.#getTableData();
-    
+    this.#overrideConsole();
+
     // only run on the table window.. Its the master controller for all screens/windows
-    if(await vpin.call("get_my_window_name") == "table") {
+    if (await vpin.call("get_my_window_name") == "table") {
       await this.#initGamepadMapping();
       this.#updateGamepads();           // No await needed here — runs loop
     }
@@ -137,7 +160,7 @@ class VPinFECore {
   }
 
   // Gamepad handling
-  async #initGamepadMapping () {
+  async #initGamepadMapping() {
     const joymap = await this.call("get_joymaping");
     this.joyButtonMap = Object.fromEntries(
       Object.entries(joymap).map(([key, val]) => [val, key])
@@ -155,7 +178,7 @@ class VPinFECore {
         this.#showmenu();
       }
       else {
-        if(!this.menuUP) {
+        if (!this.menuUP) {
           this.inputHandlers.forEach(handler => handler(action));
         }
         else { // Menu is up route to its handler
@@ -165,8 +188,8 @@ class VPinFECore {
     }
   }
 
-   #updateGamepads() {
-    if (this.gamepadEnabled){ 
+  #updateGamepads() {
+    if (this.gamepadEnabled) {
       const gamepads = navigator.getGamepads();
       for (let i = 0; i < gamepads.length; i++) {
         const gp = gamepads[i];
@@ -181,14 +204,14 @@ class VPinFECore {
           const isPressed = button.pressed;
 
           if (isPressed && !wasPressed) {
-            this.call("console_out", "Button: "+index);
+            this.call("console_out", "Button: " + index);
             this.#onButtonPressed(index, i); // new press
           }
           this.previousButtonStates[i][index] = isPressed;
         });
       }
     }
-  requestAnimationFrame(() => this.#updateGamepads());
+    requestAnimationFrame(() => this.#updateGamepads());
   }
 
   // convert the hard full local path to the web servers url map
@@ -202,43 +225,52 @@ class VPinFECore {
     return `http://127.0.0.1:8000/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
   }
 
-async #showmenu() {
-  const overlayRoot = document.getElementById('overlay-root');
-  let iframe = document.getElementById("menu-frame");
+  async #showmenu() {
+    const overlayRoot = document.getElementById('overlay-root');
+    let iframe = document.getElementById("menu-frame");
 
-  if (!this.menuUP) {
-    this.menuUP = true;
-    overlayRoot.classList.add("active"); // fade in
+    if (!this.menuUP) {
+      this.menuUP = true;
+      overlayRoot.classList.add("active"); // fade in
 
-    if (!iframe) {
-      iframe = document.createElement("iframe");
-      iframe.src = "../../mainmenu/mainmenu.html";
-      iframe.id = "menu-frame";
-      iframe.style.display = "none"; // start hidden to prevent flash
-      overlayRoot.appendChild(iframe);
-      await new Promise(resolve => setTimeout(resolve, 10)); // tiny delay to allow DOM update
+      if (!iframe) {
+        iframe = document.createElement("iframe");
+        iframe.src = "../../mainmenu/mainmenu.html";
+        iframe.id = "menu-frame";
+        iframe.style.display = "none"; // start hidden to prevent flash
+        overlayRoot.appendChild(iframe);
+        await new Promise(resolve => setTimeout(resolve, 10)); // tiny delay to allow DOM update
+      }
+
+      iframe.style.display = "block"; // show iframe
+    } else {
+      this.menuUP = false;
+      overlayRoot.classList.remove("active"); // fade out
+
+      if (iframe) {
+        iframe.style.display = "none"; // just hide, don’t remove
+        iframe.contentWindow.postMessage({ event: "reset state" }, "*");
+      }
+      //this.#deregisterAllInputHandlersMenu();  // only need this when we destory it.
     }
-
-    iframe.style.display = "block"; // show iframe
-  } else {
-    this.menuUP = false;
-    overlayRoot.classList.remove("active"); // fade out
-
-    if (iframe) {
-      iframe.style.display = "none"; // just hide, don’t remove
-      iframe.contentWindow.postMessage({ event: "reset state" }, "*");
-    }
-    //this.#deregisterAllInputHandlersMenu();  // only need this when we destory it.
   }
-}
 
-
- // Menu deregister for Input Events
+  // Menu deregister for Input Events
   async #deregisterAllInputHandlersMenu() {
     this.inputHandlerMenu = [];
     this.call("console_out", "cleared the menu gamepad handler. aka menu closed");
   }
 
-
+  // override console and send them to the python console instead
+  #overrideConsole() {
+    Object.keys(originalConsole).forEach(method => {
+      console[method] = function (...args) {
+        // Call original method
+        originalConsole[method].apply(console, args);
+        // Append to page
+        vpin.call("console_out", method + ':' + args);
+      };
+    });
+  }
 
 }

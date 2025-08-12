@@ -4,7 +4,6 @@ from screeninfo import get_monitors
 from frontend.httpserver import HTTPServer
 from frontend.api import API
 import threading
-from common.tableparser import TableParser
 from common.iniconfig import IniConfig
 import sys
 import os

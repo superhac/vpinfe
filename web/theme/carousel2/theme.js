@@ -67,6 +67,8 @@ async function handleInput(input) {
                 type: 'TableIndexUpdate',
                 index: this.currentTableIndex
             });
+            vpin.call("console_out", vpin.tableData[currentTableIndex]["tableDirName"])
+
             break;
         case "joyright":
             currentTableIndex = wrapIndex(currentTableIndex + 1, vpin.tableData.length);
@@ -119,7 +121,7 @@ function setTableImage() {
             };
 
             container.appendChild(newImg);
-        }, 700);
+        }, 300);
     } else {
         const img = new Image();
         img.src = bgUrl;
@@ -161,7 +163,7 @@ function setMainGfxImage() {
             };
 
             container.appendChild(newImg);
-        }, 700); // match transition duration
+        }, 300); // match transition duration
     } else {
         const img = new Image();
         img.src = vpin.getImageURL(currentTableIndex, gfx);

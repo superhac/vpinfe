@@ -95,7 +95,7 @@ class API:
         return self.jsTableDictData
             
     def console_out(self, output):
-        print("Console Output:", output)
+        print(f'Win: {self.myWindow[0].uid} - {output}')
         return output
            
     def get_joymaping(self):
@@ -132,9 +132,6 @@ class API:
             return config
         except Exception as e:
             return None
-        
-    def get_popup(self):
-        return self.get_html()
     
     ###################
     ### For splash page

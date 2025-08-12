@@ -5,7 +5,6 @@ import os
 from urllib.parse import unquote
 from functools import partial
 
-
 class HTTPServer:
 
     class MultiDirHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -39,7 +38,7 @@ class HTTPServer:
         socketserver.TCPServer.allow_reuse_address = True
         self.file_server = socketserver.TCPServer(("", port), handler_class)
         threading.Thread(target=self.file_server.serve_forever, daemon=True).start()
-        print(f"[INFO] Serving on http://0.0.0.0:{port}/")
+        print(f"[INFO] Serving on http://127.0.0.1:{port}/")
 
     def stop_file_server(self):
         if self.file_server:
