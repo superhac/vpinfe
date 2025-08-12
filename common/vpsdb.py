@@ -25,10 +25,14 @@ class VPSdb:
     version = self.downloadLastUpdate()
     if version != None:
       print(f"Current VPSdb version @ VPSdb: {version}")
-      if self._vpinfeIniConfig.config['VPSdb']['last'] < version:
+      try:
+        if self._vpinfeIniConfig.config['VPSdb']['last'] < version:
+          self.downloadDB()
+        else:
+          print("VPSdb currently at lastest revision.")
+      except KeyError: # no entry for VPsDB version in vpinfe.ini
         self.downloadDB()
-      else:
-        print("VPSdb currently at lastest revision.")
+        self._vpinfeIniConfig.config.setdefault('VPSdb', {})['last'] = version
       
       self._vpinfeIniConfig.config['VPSdb']['last'] = version
       self._vpinfeIniConfig.save()
