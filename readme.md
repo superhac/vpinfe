@@ -158,13 +158,13 @@ options:
 | vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
 | tablerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
 | gamepadid         | The gamepad device ID.  use --listgpads to find the id. default is 0      |
-| joyleft           | Move left. Button mapping ids generated with jstest.                      |
-| joyright          | Move right. Button mapping ids generated with jstest.                     |
-| joyselect         | Select button / Launch. Button mapping ids generated with jstest.         |
-| joymenu           | Pop Menu. Button mapping ids generated with jstest.                       |     
-| joyback           | Go Back. Button mapping ids generated with jstest.                        |
-| joyexit           | Exit VpinFE. Button mapping ids generated with jstest.                    |
-| joyfav            | Mark a favorate table when in the Theme UI                                |
+| joyleft           | Move left. Button mapping ids from `--gamepadtest`.                      |
+| joyright          | Move right. Button mapping ids from `--gamepadtest`.                     |
+| joyselect         | Select button / Launch. Button mapping ids from `--gamepadtest`.        |
+| joymenu           | Pop Menu. Button mapping ids from `--gamepadtest`.                       |     
+| joyback           | Go Back. Button mapping ids from `--gamepadtest`.                        |
+| joyexit           | Exit VpinFE. Button mapping ids from `--gamepadtest`.                   |
+| joyfav            | Mark a favorate table when in the Theme UI. Button mapping ids from `--gamepadtest`. |                                |
 
 ### [VPSdb]
 | Key               | Description |
