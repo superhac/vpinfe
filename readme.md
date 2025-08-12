@@ -10,10 +10,10 @@
 - Fully customizable UI themeing using HTML, JS and CSS
 
 Cab Mode (Three Screens)
+<img width="1349" height="393" alt="image" src="https://github.com/user-attachments/assets/47a3db0b-6988-4e97-9487-84e394709f92" />
 
 Desktop mode (Single Screen)
-
-Desktop mode (Dual Screen)
+<img width="1919" height="1080" alt="Screenshot From 2025-08-12 16-07-26" src="https://github.com/user-attachments/assets/0e0dfd02-999a-476b-a8f8-bc67d2a5ae10" />
 
 ## Installing
 
@@ -110,9 +110,9 @@ With your tables in this format run `vpinfe.py --buildmeta`.  More details on wh
 
 ## Setup Gamepad
 
-Since we are using the JS gamepad API there is the `--gamepadtest` option that can be run to test and map your controls.   
+Since we are using the JS gamepad API there is the `--gamepadtest` option that can be run to test and map your controls.
 
-(add screenshot)
+<img width="3840" height="2160" alt="Screenshot From 2025-08-12 15-57-31" src="https://github.com/user-attachments/assets/57f4f09d-f289-4286-bbb6-d1aef87308fa" />
 
 Those numbers represent the same numbers you would set in the `vpinfe.ini` file as shown below:
 
