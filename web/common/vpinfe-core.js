@@ -178,12 +178,7 @@ class VPinFECore {
         this.#showmenu();
       }
       else {
-        if (!this.menuUP) {
-          this.inputHandlers.forEach(handler => handler(action));
-        }
-        else { // Menu is up route to its handler
-          this.inputHandlerMenu.forEach(handler => handler(action));
-        }
+        this.triggerInputAction(action);
       }
     }
   }
