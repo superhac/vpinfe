@@ -58,20 +58,20 @@ class VPinFECore {
     }
   }
 
-  // Keybaord input processing to handlers (TODO)
+  // Keybaord input processing to handlers
   async onKeyDown(e) {
     windowName = await this.call("get_my_window_name");
     if (windowName == "table") {
       if (!this.menuUP) {
         if (e.key == "Escape") window.pywebview.api.close_app();
-        else if (e.key == 'Control' && e.location === 1) this.inputHandlers.forEach(handler => handler("joyleft"));
-        else if (e.key == 'Control' && e.location === 2) this.inputHandlers.forEach(handler => handler("joyright"));
+        else if (e.key == 'Shift' && e.location === 1) this.inputHandlers.forEach(handler => handler("joyleft"));
+        else if (e.key == 'Shift' && e.location === 2) this.inputHandlers.forEach(handler => handler("joyright"));
         else if (e.key == 'Enter') this.inputHandlers.forEach(handler => handler("joyselect"));
         else if (e.key == 'm') this.#showmenu();
       }
       else { // Menu is up route to its handler
-        if (e.key == 'Control' && e.location === 1) this.inputHandlerMenu.forEach(handler => handler("joyup"));
-        else if (e.key == 'Control' && e.location === 2) this.inputHandlerMenu.forEach(handler => handler("joydown"));
+        if (e.key == 'Shift' && e.location === 1) this.inputHandlerMenu.forEach(handler => handler("joyup"));
+        else if (e.key == 'Shift' && e.location === 2) this.inputHandlerMenu.forEach(handler => handler("joydown"));
         else if (e.key == 'Enter') this.inputHandlerMenu.forEach(handler => handler("joyselect"));
         else if (e.key == 'm') this.#showmenu();
       }
