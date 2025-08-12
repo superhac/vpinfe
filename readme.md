@@ -96,9 +96,7 @@ total 28
 ...
 ```
 
-More details on what this does and what it creates can be found [Meta.ini](#Meta.ini)
-
-
+With your tables in this format run `vpinfe.py --buildmeta`.  More details on what this does and what it creates can be found [Meta.ini](#Meta.ini).  At this point you should be able to run VPinfe with keyboard controls.  If using a gamepad see that [section](#Setup Gamepad).
 
 ## Default Keyboard Controls
 
@@ -110,5 +108,132 @@ More details on what this does and what it creates can be found [Meta.ini](#Meta
 | Select        | Enter                       |
 
 
+## Setup Gamepad
+
+Since we are using the JS gamepad API there is the `--gamepadtest` option that can be run to test and map your controls.   
+
+(add screenshot)
+
+Those numbers represent the same numbers you would set in the `vpinfe.ini` file as shown below:
+
+```
+[Settings]
+joyleft = 
+joyright = 
+joyup = 
+joydown = 
+joyselect = 
+joymenu = 
+joyback = 
+joyexit = 
+joyfav = 
+```
+
+## VPinfe CLI Options
+```
+options:
+  -h, --help            show this help message and exit
+  --listres             ID and list your screens
+  --listmissing         List the tables from VPSdb
+  --listunknown         List the tables we can't match in VPSdb
+  --configfile CONFIGFILE
+                        Configure the location of your vpinfe.ini file. Default is cwd.
+  --buildmeta           Builds the meta.ini file in each table dir
+  --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
+  --gamepadtest         Testing and mapping your gamepad via js api
+  --no-media            When building meta.ini files don't download the images at the same time.
+```
+
+## Vpinfe.ini
+### [Displays]
+| Key               | Description                                                                                         |
+| ----------------- | -------------------------------------------------------------------------                           |
+| bgscreenid        | Blackglass screen number.  use `--listres` to get your mointor ids. Leave blank if no display       |
+| dmdscreenid       | dmdscreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display      |
+| tablescreenid     | tablescreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display    |
+
+### [Settings]
+| Key               | Description |
+| ----------------- | ------------------------------------------------------------------------- |
+| vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
+| tablerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
+| gamepadid         | The gamepad device ID.  use --listgpads to find the id. default is 0      |
+| joyleft           | Move left. Button mapping ids generated with jstest.                      |
+| joyright          | Move right. Button mapping ids generated with jstest.                     |
+| joyselect         | Select button / Launch. Button mapping ids generated with jstest.         |
+| joymenu           | Pop Menu. Button mapping ids generated with jstest.                       |     
+| joyback           | Go Back. Button mapping ids generated with jstest.                        |
+| joyexit           | Exit VpinFE. Button mapping ids generated with jstest.                    |
+| joyfav            | Mark a favorate table when in the Theme UI                                |
+
+### [VPSdb]
+| Key               | Description |
+| ----------------- | ------------------------------------------------------------------------- |
+| last              | Rev of VPSDB that was last pulled.                                        |
+
+### [Media]
+| Key               | Description |
+| ----------------- | ------------------------------------------------------------------------- |
+| tabletype         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait table images. |
+| tableresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
+
 ## Meta.ini
-ddd
+When you run VPinFE with the `--buildmeta` option it recursively goes through your table directory attempts to match your tables to their VPSDB id.  When matched, it will then parse the VPX for the table for more meta information and produce a `meta.ini` in that tables directory.  Heres an example for the table 2001:
+
+```
+[VPSdb]
+id = sMBqx5fp
+name = 2001
+type = EM
+manufacturer = Gottlieb
+year = 1971
+theme = ['Fantasy']
+
+[VPXFile]
+filename = 2001 (Gottlieb 1971) v0.99a.vpx
+filehash = 61bfb1d1ab39836ac28724af7c5d7ae330c608e2092f527b70bae2f75748e3a6
+version = 1.0
+author =
+releasedate =
+blurb =
+savedate = Sun Apr 23 02:19:21 2023
+saverev = 1466
+manufacturer =
+year =
+type =
+vbshash = 0bdf965426045a5bb2d98e509cd17ae7b9afc4039b8a10f793cf6123fe9962c9
+rom = GTB2001_1971
+detectnfozzy = true
+detectfleep = true
+detectssf = true
+detectlut = true
+detectscorebit = false
+detectfastflips = false
+detectflex = false
+```
+
+After that file is created it then attempts to download the media artwork for that table.   Currently the following images are downloaded and are stored in each of the table's directory:
+
+| File Name     | Image Type    |
+| ------------- | ------------- |
+| bg.png        | Backglass Image |
+| dmd.png       | DMD Image |
+| table.png     | Table Image |
+| wheel.png     | Icon on Hud |
+| fss.png       | Full Single Screen Image |
+| cab.png       | A cabinet image of the pinball machine |
+
+
+You must manually add the following settings:
+
+[VPinFE]
+
+`update` = true | false – Determines whether to update the VPS entry for this table. If you manually create this entry or prefer not to use the auto-generated VPSdb, set this to false. Default is true.
+
+[Pinmame]
+
+`deleteNVramOnClose` = true | false – Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing.
+
+## Making a Theme
+
+TODO
