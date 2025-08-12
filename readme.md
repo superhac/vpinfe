@@ -96,7 +96,7 @@ total 28
 ...
 ```
 
-With your tables in this format run `vpinfe.py --buildmeta`.  More details on what this does and what it creates can be found [Meta.ini](#Meta.ini).  At this point you should be able to run VPinfe with keyboard controls.  If using a gamepad see that [section](#Setup Gamepad).
+With your tables in this format run `vpinfe.py --buildmeta`.  More details on what this does and what it creates can be found [Meta.ini](#metaini).  At this point you should be able to run VPinfe with keyboard controls.  If using a gamepad see that [section](#setup-gamepad).
 
 ## Default Keyboard Controls
 
