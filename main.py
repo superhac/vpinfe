@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import webview
 from pathlib import Path
 from screeninfo import get_monitors
