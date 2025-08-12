@@ -59,6 +59,7 @@
   <script>
     const vpin = new VPinFECore();
     vpin.init();
+    window.addEventListener('keydown', (e) => this.onKeyDown(e));
     const buttonsGrid = document.getElementById("buttonsGrid");
 
     // Create boxes for up to 17 buttons (0–16)
@@ -99,6 +100,12 @@
     window.addEventListener("gamepaddisconnected", () => {
       console.log("Gamepad disconnected");
     });
+
+    function onKeyDown(e) {
+    if (e.key === 'Escape') {
+      window.pywebview.api.close_app();
+    }
+  }
   </script>
 </body>
 </html>

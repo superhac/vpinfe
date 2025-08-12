@@ -31,7 +31,7 @@ class VPinFECore {
   // ***********************************
 
   init() {
-    // Set up other event listeners (TODO) - NOT USED
+    // Set up keyboard listener
     window.addEventListener('keydown', (e) => this.onKeyDown(e));
 
     // Wait for pywebview then run all async init
