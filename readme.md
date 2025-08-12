@@ -2,7 +2,7 @@
 ![VPinFE_logo_main](https://github.com/user-attachments/assets/507c50e3-bc1e-499a-b393-f9d11250b709)
 
 **A frontend for vpinball with the following features:**
-- Works on Linux, Windows, and Mac (Windows currently needs updates for VPX compatibility)
+- Works on Linux, Windows, and Mac (Windows currently needs support for the Standalone dir structure)
 - Multiscreen - Supports up to 3 screens (Backglass, DMD, and Table)
 - Keyboard & Joystick support
 - Table and Media Manager all built in
@@ -67,7 +67,7 @@ tableresolution = 4k
 
 There are three sections above that need to be set mandatorily. `Displays` and three of the settings in `Settings`.
 
-VPinFE supports up two three displays and you need to have atleast the `tablescreenid` one set.  This is typcially `0` so you can leave it if your owning running one screen.  To figure out your display ID's you can run the following command:
+VPinFE supports up to three displays and you need to have atleast the `tablescreenid` one set.  This is typcially `0` so you can leave it if your only running one screen.  To figure out your display ID's you can run the following command:
 
 `python3 main.py --listres`
 
