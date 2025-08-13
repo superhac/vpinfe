@@ -234,6 +234,17 @@ You must manually add the following settings:
 
 `deleteNVramOnClose` = true | false – Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing.
 
+## Server Listeners
+There are three server listeners started on your machine:
+
+| Service | Bound Address/Port | Description                                                           |
+| ------- | ---------------    | --------------------------------------------------------------------- |
+| HTTP    | 127.0.0.1:RANDOM   | PyWebView server.  Frontend UI/Themes                                 |
+| HTTP    | 127.0.0.1:8000     | Python HTTPServer. Serves tables media assets                         |
+| HTTP    | 0.0.0.0:8001       | Python Bottle sever.  Handles the UI for configuration and management | 
+
+The only service that externally accessable from your machine its UI for managing it.  This is setup like this so people with cabinets can administer it remotely.
+
 ## Making a Theme
 
 TODO
