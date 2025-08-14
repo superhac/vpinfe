@@ -16,75 +16,65 @@ html_file = Path(__file__).parent / "web/splash.html"
 webview_windows = [] # [ [window_name, window, api] ]
 iniconfig = IniConfig("./vpinfe.ini")
 
+def is_wayland():
+    return "WAYLAND_DISPLAY" in os.environ
+
  # The last window created will be the one in focus.  AKA the controller for all the other windows!!!! Always "table"
 def loadWindows():
     global webview_windows
     global api
     monitors = get_monitors()
-    print(monitors)
-    
+    wayland_mode = is_wayland()
+    print("Detected Wayland:", wayland_mode)
+    print("Monitors:", monitors)
+
+def loadWindows():
+    global webview_windows
+    monitors = get_monitors()
+    wayland_mode = is_wayland()
+    print("Detected Wayland:", wayland_mode)
+    print("Monitors:", monitors)
+
+    def add_window(name, screen_id):
+        print("found {name} Screen: {screen_id}")
+        api = API(iniconfig)
+        monitor = monitors[screen_id]
+        if wayland_mode:
+            # Wayland: fullscreen, compositor decides placement
+            win = webview.create_window(
+                f"{name} Screen",
+                url=f"file://{html_file.resolve()}",
+                js_api=api,
+                fullscreen=True,
+                background_color="#000000"
+            )
+        else:
+            # X11: manual positioning
+            win = webview.create_window(
+                f"{name} Screen",
+                url=f"file://{html_file.resolve()}",
+                js_api=api,
+                x=monitor.x,
+                y=monitor.y,
+                width=monitor.width,
+                height=monitor.height,
+                fullscreen=False,
+                background_color="#000000"
+            )
+        api.myWindow.append(win)
+        webview_windows.append([name.lower(), win, api])
+        api.webview_windows = webview_windows
+        api.iniConfig = iniconfig
+        api._finish_setup()
+
     if iniconfig.config['Displays']['bgscreenid']:
-        api = API(iniconfig)
-        print("found bg screen id: ", iniconfig.config['Displays']['bgscreenid'])
-        screen_id = int(iniconfig.config['Displays']['bgscreenid'])
-        win = webview.create_window(
-            "BG Screen",
-            url=f"file://{html_file.resolve()}",
-            js_api=api,
-            x=monitors[screen_id].x,
-            y=monitors[screen_id].y,
-            width=monitors[screen_id].width,
-            height=monitors[screen_id].height,
-            background_color="#000000",
-            fullscreen=True  # Set to False since we're manually sizing it
-        )
-        api.myWindow.append(win)
-        webview_windows.append(['bg',win, api])
-        api.webview_windows = webview_windows
-        api.iniConfig = iniconfig
-        api._finish_setup()
-        
+        add_window("BG", int(iniconfig.config['Displays']['bgscreenid']))
+
     if iniconfig.config['Displays']['dmdscreenid']:
-        print("found dmd screen id: ", iniconfig.config['Displays']['dmdscreenid'])
-        screen_id = int(iniconfig.config['Displays']['dmdscreenid'])
-        api = API(iniconfig)
-        win = webview.create_window(
-            "DMD Screen",
-            url=f"file://{html_file.resolve()}",
-            js_api=api,
-            x=monitors[screen_id].x,
-            y=monitors[screen_id].y,
-            width=monitors[screen_id].width,
-            height=monitors[screen_id].height,
-            background_color="#000000",
-            fullscreen=True  # Set to False since we're manually sizing it
-        )
-        api.myWindow.append(win)
-        webview_windows.append(['dmd',win, api])
-        api.webview_windows = webview_windows
-        api.iniConfig = iniconfig
-        api._finish_setup()
-        
-    if iniconfig.config['Displays']['tablescreenid']:  # this always needs to be last to get the focus set.
-        print("found table screen id: ", iniconfig.config['Displays']['tablescreenid'])
-        screen_id = int(iniconfig.config['Displays']['tablescreenid'])
-        api = API(iniconfig)
-        win = webview.create_window(
-            "Table Screen",
-            url=f"file://{html_file.resolve()}",
-            js_api=api,
-            x=monitors[screen_id].x,
-            y=monitors[screen_id].y,
-            width=monitors[screen_id].width,
-            height=monitors[screen_id].height,
-            background_color="#000000",
-            fullscreen=True  # Set to False since we're manually sizing it
-        )
-        api.myWindow.append(win)
-        webview_windows.append(['table',win, api])
-        api.webview_windows = webview_windows
-        api.iniConfig = iniconfig
-        api._finish_setup()
+        add_window("DMD", int(iniconfig.config['Displays']['dmdscreenid']))
+
+    if iniconfig.config['Displays']['tablescreenid']:
+        add_window("Table", int(iniconfig.config['Displays']['tablescreenid']))
 
 if len(sys.argv) > 0:
     parseArgs()
