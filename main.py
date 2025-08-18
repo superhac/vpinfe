@@ -10,7 +10,9 @@ from common.iniconfig import IniConfig
 import sys
 import os
 from clioptions import parseArgs
-import managerui.managerui
+from managerui.managerui import start_manager_ui
+from nicegui import app as nicegui_app
+#import managerui.managerui
 
 html_file = Path(__file__).parent / "web/splash.html"
 webview_windows = [] # [ [window_name, window, api] ]
@@ -101,15 +103,22 @@ MOUNT_POINTS = {
 http_server = HTTPServer(MOUNT_POINTS)
 http_server.start_file_server()
 
+def launch_nicegui():
+    # IMPORTANT: make NiceGUI not try to reload or open a browser
+    # managerui.start_nicegui should call ui.run(..., show=False, reload=False)
+    start_manager_ui()
+webview.start(launch_nicegui)
+
 # start the manager UI
-managerui.managerui.startServer()
+#nagerui.managerui.startServer()
 
 # block and start webview
 webview.start(http_server=True)
 
 # shutdown items
 http_server.on_closed()
-managerui.managerui.stopServer()
+nicegui_app.shutdown()
+#managerui.managerui.stopServer()
 
 ################ debug stuff ################
 #print(webview_windows[2][2].get_theme_index_page())
