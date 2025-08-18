@@ -12,7 +12,6 @@ import os
 from clioptions import parseArgs
 from managerui.managerui import start_manager_ui, stop_manager_ui
 from nicegui import app as nicegui_app
-#import managerui.managerui
 
 nicegui_app.add_static_files('/static', os.path.join(os.getcwd(), 'managerui/static'))
 html_file = Path(__file__).parent / "web/splash.html"
@@ -94,7 +93,6 @@ if len(sys.argv) > 0:
 
 # Initialize webview windows
 loadWindows()
-#loadGamepadTestWindow() # add to launch options
 
 # Start an the HTTP server to serve the images from the "tables" directory
 MOUNT_POINTS = {
@@ -106,9 +104,6 @@ http_server.start_file_server()
 
 # Start the NiceGUI HTTP server
 start_manager_ui()
-
-# start the manager UI
-#nagerui.managerui.startServer()
 
 # block and start webview
 webview.start(http_server=True)
