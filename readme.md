@@ -241,7 +241,7 @@ There are three server listeners started on your machine:
 | ------- | ---------------    | --------------------------------------------------------------------- |
 | HTTP    | 127.0.0.1:RANDOM   | PyWebView server.  Frontend UI/Themes                                 |
 | HTTP    | 127.0.0.1:8000     | Python HTTPServer. Serves tables media assets                         |
-| HTTP    | 0.0.0.0:8001       | Python Bottle sever.  Handles the UI for configuration and management | 
+| HTTP    | 0.0.0.0:8001       | NiceGui sever.  Handles the UI for configuration and management | 
 
 The only service that externally accessable from your machine its UI for managing it.  This is setup like this so people with cabinets can administer it remotely.
 
