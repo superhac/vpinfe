@@ -19,9 +19,13 @@ Desktop mode (Single Screen)
 
 ### Ubuntu 25.10 (GTK):
 ```
-sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-webview python3-screeninfo nicegui
+sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-webview python3-screeninfo
 git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
+python3 -m venv vvv --system-site-packages
+source vvv/bin/activate
+pip install pywebview nicegui
+GDK_BACKEND=x11 python3 main.py
 ```
 
 *** There is a known issue with positioning windows under wayland.  To get around that run VpinFE with the following env var:
