@@ -19,7 +19,7 @@ Desktop mode (Single Screen)
 
 ### Ubuntu 25.10 (GTK):
 ```
-sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-webview python3-screeninfo
+sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-webview python3-screeninfo nicegui
 git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
 ```
