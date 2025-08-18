@@ -1,3 +1,4 @@
+import threading
 from nicegui import ui
 from .pages import audio, nudge, video, buttons, tables, global_options, vr, plugins, cabinet_editor, vpinfe_config
 
@@ -16,8 +17,8 @@ def main_page():
             plugins_tab = ui.tab('Plugins', icon='extension')
             buttons_tab = ui.tab('Buttons', icon='sports_esports')
             tables_tab = ui.tab('Tables', icon='list')
-            dof_tab = ui.tab('DOF',icon='lightbulb')
-            global_options_tab = ui.tab('Global Options',icon='public')
+            dof_tab = ui.tab('DOF', icon='lightbulb')
+            global_options_tab = ui.tab('Global Options', icon='public')
             vr_tab = ui.tab('VR', icon='360')
             backup_tab = ui.tab('Backup', icon='backup')
             dof_editor_tab = ui.tab('DOF Editor', icon='edit')
@@ -48,11 +49,32 @@ def main_page():
 @ui.page('/table_details_ini/{table_name}')
 def table_details_ini_page(table_name: str):
     all_table_data = tables.load_metadata_from_ini()
-    current_table_data_row = next((item for item in all_table_data if item.get('filename') == table_name or item.get('name') == table_name), None)
+    current_table_data_row = next(
+        (item for item in all_table_data if item.get('filename') == table_name or item.get('name') == table_name),
+        None,
+    )
     if current_table_data_row:
         tables.build_table_details_page_content(current_table_data_row)
     else:
         ui.label(f"Table '{table_name}' not found. 😕").classes("text-negative text-xl")
 
-def start_manager_ui():
+
+# keep a reference to the running thread
+_ui_thread = None
+
+def _run_ui():
     ui.run(title='VPinFE Manager UI', port=8001, reload=False, show=False)
+
+def start_manager_ui():
+    global _ui_thread
+    if _ui_thread and _ui_thread.is_alive():
+        print("Manager UI is already running")
+        return _ui_thread
+    _ui_thread = threading.Thread(target=_run_ui, daemon=True)
+    _ui_thread.start()
+    return _ui_thread
+
+def stop_manager_ui():
+    from nicegui import app
+    app.shutdown()   # tells uvicorn to shut down gracefully
+

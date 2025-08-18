@@ -10,7 +10,7 @@ from common.iniconfig import IniConfig
 import sys
 import os
 from clioptions import parseArgs
-from managerui.managerui import start_manager_ui
+from managerui.managerui import start_manager_ui, stop_manager_ui
 from nicegui import app as nicegui_app
 #import managerui.managerui
 
@@ -100,16 +100,12 @@ loadWindows()
 MOUNT_POINTS = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
         '/web/': os.path.join(os.getcwd(), 'web'),
-        '/static/': os.path.join(os.getcwd(), 'managerui/static/')
         }
 http_server = HTTPServer(MOUNT_POINTS)
 http_server.start_file_server()
 
-def launch_nicegui():
-    # IMPORTANT: make NiceGUI not try to reload or open a browser
-    # managerui.start_nicegui should call ui.run(..., show=False, reload=False)
-    start_manager_ui()
-webview.start(launch_nicegui)
+# Start the NiceGUI HTTP server
+start_manager_ui()
 
 # start the manager UI
 #nagerui.managerui.startServer()
@@ -120,7 +116,7 @@ webview.start(http_server=True)
 # shutdown items
 http_server.on_closed()
 nicegui_app.shutdown()
-#managerui.managerui.stopServer()
+stop_manager_ui()
 
 ################ debug stuff ################
 #print(webview_windows[2][2].get_theme_index_page())
