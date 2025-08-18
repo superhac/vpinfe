@@ -14,6 +14,7 @@ from managerui.managerui import start_manager_ui
 from nicegui import app as nicegui_app
 #import managerui.managerui
 
+nicegui_app.add_static_files('/static', os.path.join(os.getcwd(), 'managerui/static'))
 html_file = Path(__file__).parent / "web/splash.html"
 webview_windows = [] # [ [window_name, window, api] ]
 iniconfig = IniConfig("./vpinfe.ini")
@@ -99,6 +100,7 @@ loadWindows()
 MOUNT_POINTS = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
         '/web/': os.path.join(os.getcwd(), 'web'),
+        '/static/': os.path.join(os.getcwd(), 'managerui/static/')
         }
 http_server = HTTPServer(MOUNT_POINTS)
 http_server.start_file_server()
