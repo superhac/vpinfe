@@ -1,6 +1,6 @@
 import threading
 from nicegui import ui
-from .pages import audio, nudge, video, buttons, tables, global_options, vr, plugins, cabinet_editor, vpinfe_config
+from .pages import audio, nudge, video, buttons, tables, global_options, vr, plugins, cabinet_editor, vpinfe_config, remote
 
 @ui.page('/')
 def main_page():
@@ -58,6 +58,9 @@ def table_details_ini_page(table_name: str):
     else:
         ui.label(f"Table '{table_name}' not found. 😕").classes("text-negative text-xl")
 
+@ui.page('/remote')
+def remote_page():
+    remote.build()
 
 # keep a reference to the running thread
 _ui_thread = None
