@@ -160,28 +160,36 @@ class VPinFECore {
   }
 
   // Gamepad handling
-  async #initGamepadMapping() {
-    const joymap = await this.call("get_joymaping");
-    this.joyButtonMap = Object.fromEntries(
-      Object.entries(joymap).map(([key, val]) => [val, key])
-    );
+ async #initGamepadMapping() {
+  const joymap = await this.call("get_joymaping");
+
+  // Collect multiple actions per button. sometimes the same button has two mappings 
+  this.joyButtonMap = {};
+  for (const [action, button] of Object.entries(joymap)) {
+    if (!this.joyButtonMap[button]) {
+      this.joyButtonMap[button] = [];
+    }
+    this.joyButtonMap[button].push(action);
   }
+}
 
-  async #onButtonPressed(buttonIndex, gamepadIndex) {
-    const action = this.joyButtonMap[buttonIndex.toString()];
-    if (action) {
-      if (action === "joyexit" && windowName == "table") { //DELETE. Menu handles this now
-        //window.pywebview.api.close_app();
-      }
-      else if (action === "joymenu" && windowName == "table") {
+async #onButtonPressed(buttonIndex, gamepadIndex) {
+  const actions = this.joyButtonMap[buttonIndex.toString()];
+  if (!actions) return;
 
-        this.#showmenu();
-      }
-      else {
-        this.triggerInputAction(action);
-      }
+  // Handle all actions mapped to this button
+  for (const action of actions) {
+    if (action === "joyexit" && windowName == "table") {
+      // window.pywebview.api.close_app();  // handled elsewhere now
+    }
+    else if (action === "joymenu" && windowName == "table") {
+      this.#showmenu();
+    }
+    else {
+      this.triggerInputAction(action);
     }
   }
+}
 
   #updateGamepads() {
     if (this.gamepadEnabled) {
