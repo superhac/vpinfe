@@ -189,16 +189,28 @@ function setCarouselWheels() {
     const averageImageWidth = 7 * window.innerWidth / 100 + 30; // 6vw + 30px gap
     const total = vpin.tableData.length;
 
+    if (total === 0) return; // no wheels, nothing to do
+
     // Calculate how many images fit, subtract 1 for the center image
     const maxVisible = Math.floor(containerWidth / averageImageWidth);
-    const sideImages = Math.floor((maxVisible - 1) / 2); // images on each side
+    const visibleCount = Math.min(total, maxVisible); // don't show more than we have
+
+    const sideImages = Math.floor((visibleCount - 1) / 2);
 
     for (let i = -sideImages; i <= sideImages; i++) {
-        const idx = wrapIndex(currentTableIndex + i, total);
+        // If we have fewer wheels than visible, just iterate over all
+        const idx = (visibleCount < total)
+            ? wrapIndex(currentTableIndex + i, total)
+            : (currentTableIndex + i + total) % total;
+
         const wheelUrl = vpin.getImageURL(idx, "wheel");
         const img = document.createElement('img');
         img.src = wheelUrl;
-        if (i === 0) img.classList.add('selected');
+
+        if (i === 0 || total <= visibleCount && idx === currentTableIndex) {
+            img.classList.add('selected');
+        }
+
         imagesContainer.appendChild(img);
     }
 }

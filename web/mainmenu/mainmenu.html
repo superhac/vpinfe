@@ -93,14 +93,15 @@
   <script>
     let selectedIndex = 0;
     let items = [];
-    let collectionIndex = 1;
+    let collectionIndex = 0;
     let dropdownOpen = false;
     let dropdownSelected = collectionIndex;
-    let collections = [];
+    let collections = ['All'];
 
     async function init() {
-      collections = await window.parent.vpin.call('get_collections');
-       window.parent.vpin.call("console_out", collections);
+      collections = collections.concat(await window.parent.vpin.call('get_collections'));
+      window.parent.vpin.call("console_out", "collections in menu: "+collections)
+      window.parent.vpin.call("console_out", collections);
     }
 
     window.parent.vpin.registerInputHandlerMenu(handleInput);
@@ -130,8 +131,15 @@
           case "joyselect":
             collectionIndex = dropdownSelected;
             closeDropdown();
-            window.parent.vpin.call("set_tables_by_collection", collections[collectionIndex]);
-            window.parent.vpin.sendMessageToAllWindowsIncSelf({type: "TableDataChange", index: 0}); 
+            if (collections[collectionIndex] == "All") {
+              window.parent.vpin.getTableData(reset=true);
+              window.parent.vpin.sendMessageToAllWindowsIncSelf({type: "TableDataChange", index: 0});
+               window.parent.vpin.call("console_out", "All was set");
+            }
+            else {
+              window.parent.vpin.call("set_tables_by_collection", collections[collectionIndex]);
+              window.parent.vpin.sendMessageToAllWindowsIncSelf({type: "TableDataChange", index: 0}); 
+            }
             break;
           case "joyback":
             closeDropdown();

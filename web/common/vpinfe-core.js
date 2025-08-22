@@ -134,8 +134,8 @@ class VPinFECore {
     this.gamepadEnabled = true;
   }
 
-  async getTableData() {
-    this.tableData = JSON.parse(await window.pywebview.api.get_tables());
+  async getTableData(reset=false) {
+    this.tableData = JSON.parse(await window.pywebview.api.get_tables(reset));
   }
 
 

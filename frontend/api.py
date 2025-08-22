@@ -72,7 +72,9 @@ class API:
         for window_name, window, api in self.webview_windows:
                 window.evaluate_js(f'receiveEvent({msg_json})')
 
-    def get_tables(self):
+    def get_tables(self, reset=False): # reset go back to full table list!
+        if reset:
+            self.filteredTables = self.allTables
         tables = []
         for table in self.filteredTables:
             table_data = {
