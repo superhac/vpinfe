@@ -13,6 +13,11 @@ from clioptions import parseArgs
 from managerui.managerui import start_manager_ui, stop_manager_ui
 from nicegui import app as nicegui_app
 
+#debug
+import sys
+from common.vpxcollections import VPXCollections
+from common.tableparser import TableParser
+
 nicegui_app.add_static_files('/static', os.path.join(os.getcwd(), 'managerui/static'))
 html_file = Path(__file__).parent / "web/splash.html"
 webview_windows = [] # [ [window_name, window, api] ]
@@ -91,6 +96,21 @@ def loadWindows():
 if len(sys.argv) > 0:
     parseArgs()
 
+#DEBUG
+
+""" c = VPXCollections(Path(__file__).parent / "collections.ini")
+tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables();
+
+print("Sections:", c.get_collections_name)
+print("All:", c.get_all())
+print(c.get_vpsids('Favorites'))
+
+mylist = c.filter_tables(tables, 'Favorites')
+print([item.tableDirName for item in mylist])
+
+sys.exit() """
+
+
 # Initialize webview windows
 loadWindows()
 
@@ -106,7 +126,7 @@ http_server.start_file_server()
 start_manager_ui()
 
 # block and start webview
-webview.start(http_server=True)
+webview.start(http_server=True, debug=True)
 
 # shutdown items
 http_server.on_closed()

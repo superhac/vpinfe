@@ -78,18 +78,12 @@
 
 <body>
   <ul class="menu" id="menu">
-    <li class="menu-item">Start Game</li>
-    <li class="menu-item">Continue</li>
-    <li class="menu-item">Options</li>
-    <li class="menu-item">High Scores</li>
-    <li class="menu-item">Credits</li>
-    <li class="menu-item">Help</li>
-    <li class="menu-item">Extras</li>
-    <li class="menu-item" id="difficulty-item">
-      <span class="dropdown-label">Difficulty:</span>
-      <span class="dropdown-value" id="difficulty-value">Normal</span>
+    <li class="menu-item" id="collection-item">
+      <span class="dropdown-label">Collections:</span>
+      <span class="dropdown-value" id="collection-value">Normal</span>
     </li>
     <li class="menu-item">Settings</li>
+    <li class="menu-item">High Scores</li>
     <li class="menu-item" id="quit-item">Quit</li>
   </ul>
 
@@ -99,10 +93,15 @@
   <script>
     let selectedIndex = 0;
     let items = [];
-    const difficulties = ['Easy', 'Normal', 'Hard'];
-    let difficultyIndex = 1;
+    let collectionIndex = 1;
     let dropdownOpen = false;
-    let dropdownSelected = difficultyIndex;
+    let dropdownSelected = collectionIndex;
+    let collections = [];
+
+    async function init() {
+      collections = await window.parent.vpin.call('get_collections');
+       window.parent.vpin.call("console_out", collections);
+    }
 
     window.parent.vpin.registerInputHandlerMenu(handleInput);
 
@@ -121,15 +120,15 @@
       if (dropdownOpen) {
         switch (input) {
           case "joyup":
-            dropdownSelected = (dropdownSelected - 1 + difficulties.length) % difficulties.length;
+            dropdownSelected = (dropdownSelected - 1 + collections.length) % collections.length;
             updateDropdownPopup();
             break;
           case "joydown":
-            dropdownSelected = (dropdownSelected + 1) % difficulties.length;
+            dropdownSelected = (dropdownSelected + 1) % collections.length;
             updateDropdownPopup();
             break;
           case "joyselect":
-            difficultyIndex = dropdownSelected;
+            collectionIndex = dropdownSelected;
             closeDropdown();
             window.parent.vpin.sendMessageToAllWindowsIncSelf({type: "TableDataChange", index: 0}); // TESTING
             break;
@@ -149,7 +148,7 @@
           break;
         case "joyselect":
           const selectedItem = items[selectedIndex];
-          if (selectedItem.id === 'difficulty-item') {
+          if (selectedItem.id === 'collection-item') {
             openDropdown(selectedItem);
           } else if (selectedItem.id === 'quit-item') {
             window.parent.vpin.call("close_app");
@@ -164,12 +163,12 @@
         item.classList.toggle('selected', i === selectedIndex);
       });
 
-      document.getElementById('difficulty-value').textContent = difficulties[difficultyIndex];
+      document.getElementById('collection-value').textContent = collections[collectionIndex];
     }
 
     function openDropdown(targetItem) {
       dropdownOpen = true;
-      dropdownSelected = difficultyIndex;
+      dropdownSelected = collectionIndex;
       const popup = document.getElementById('dropdown-popup');
       const rect = targetItem.getBoundingClientRect();
       popup.style.display = 'block';
@@ -183,7 +182,7 @@
     function updateDropdownPopup() {
       const popup = document.getElementById('dropdown-popup');
       popup.innerHTML = '';
-      difficulties.forEach((diff, i) => {
+      collections.forEach((diff, i) => {
         const div = document.createElement('div');
         div.className = 'popup-option' + (i === dropdownSelected ? ' selected' : '');
         div.textContent = diff;
@@ -197,7 +196,8 @@
       updateMenu();
     }
 
-    window.onload = () => {
+     window.onload = async () => {
+      await init();
       items = Array.from(document.querySelectorAll('.menu-item'));
       updateMenu();
     };

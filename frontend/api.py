@@ -7,6 +7,7 @@ import time
 import webview
 import subprocess
 from common.tableparser import TableParser
+from common.vpxcollections import VPXCollections
 
 class API:
     
@@ -93,7 +94,16 @@ class API:
                 tables.append(table_data)
             self.jsTableDictData = json.dumps(tables)
         return self.jsTableDictData
-            
+    
+    def get_collections(self):
+        c = VPXCollections(Path(__file__).parent.parent / "collections.ini")
+        return c.get_collections_name()
+    
+    def get_tables_by_collection(self, collection):
+        c = VPXCollections(Path(__file__).parent.parent / "collections.ini")
+        filteredTables = c.filter_tables( self.tables, 'Favorites')
+        pass        
+    
     def console_out(self, output):
         print(f'Win: {self.myWindow[0].uid} - {output}')
         return output
