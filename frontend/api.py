@@ -130,6 +130,7 @@ class API:
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL)
         process.wait()
+        self.myWindow[0].show()
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 
     def get_theme_config(self):
