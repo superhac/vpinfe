@@ -126,7 +126,7 @@ http_server.start_file_server()
 start_manager_ui()
 
 # block and start webview
-webview.start(http_server=True, debug=True)
+webview.start(http_server=True)
 
 # shutdown items
 http_server.on_closed()
