@@ -14,7 +14,8 @@ class API:
     def __init__(self, iniConfig):
         self.webview_windows = None
         self.iniConfig = iniConfig
-        self.tables = TableParser(self.iniConfig.config['Settings']['tablerootdir']).getAllTables();
+        self.allTables = TableParser(self.iniConfig.config['Settings']['tablerootdir']).getAllTables();
+        self.filteredTables = self.allTables
         self.myWindow = [] # this holds this instances webview window.  In array because of introspection of the window object
         self.jsTableDictData = None
 
@@ -72,37 +73,33 @@ class API:
                 window.evaluate_js(f'receiveEvent({msg_json})')
 
     def get_tables(self):
-        if self.jsTableDictData:
-            return self.jsTableDictData
         tables = []
-        if self.tables:
-            for table in self.tables:
-                table_data = {
-                    'tableDirName': table.tableDirName,
-                    'fullPathTable': table.fullPathTable,
-                    'fullPathVPXfile': table.fullPathVPXfile,
-                    'BGImagePath' : table.BGImagePath,
-                    'DMDImagePath' : table.DMDImagePath,
-                    'TableImagePath' : table.TableImagePath,
-                    'WheelImagePath' : table.WheelImagePath,
-                    'CabImagePath' : table.CabImagePath,
-                    'pupPackExists': table.pupPackExists,
-                    'altColorExists': table.altColorExists,
-                    'altSoundExists': table.altSoundExists,
-                    'meta': {section: dict(table.metaConfig[section]) for section in table.metaConfig.sections()}
-                }
-                tables.append(table_data)
-            self.jsTableDictData = json.dumps(tables)
+        for table in self.filteredTables:
+            table_data = {
+                'tableDirName': table.tableDirName,
+                'fullPathTable': table.fullPathTable,
+                'fullPathVPXfile': table.fullPathVPXfile,
+                'BGImagePath' : table.BGImagePath,
+                'DMDImagePath' : table.DMDImagePath,
+                'TableImagePath' : table.TableImagePath,
+                'WheelImagePath' : table.WheelImagePath,
+                'CabImagePath' : table.CabImagePath,
+                'pupPackExists': table.pupPackExists,
+                'altColorExists': table.altColorExists,
+                'altSoundExists': table.altSoundExists,
+                'meta': {section: dict(table.metaConfig[section]) for section in table.metaConfig.sections()}
+            }
+            tables.append(table_data)
+        self.jsTableDictData = json.dumps(tables)
         return self.jsTableDictData
     
     def get_collections(self):
         c = VPXCollections(Path(__file__).parent.parent / "collections.ini")
         return c.get_collections_name()
     
-    def get_tables_by_collection(self, collection):
+    def set_tables_by_collection(self, collection):
         c = VPXCollections(Path(__file__).parent.parent / "collections.ini")
-        filteredTables = c.filter_tables( self.tables, 'Favorites')
-        pass        
+        self.filteredTables = c.filter_tables(self.allTables, collection)      
     
     def console_out(self, output):
         print(f'Win: {self.myWindow[0].uid} - {output}')
@@ -121,7 +118,7 @@ class API:
         }
         
     def launch_table(self, index):
-        table = self.tables[index]
+        table = self.filteredTables[index]
         vpx = table.fullPathVPXfile
         vpxbin = self.iniConfig.config['Settings'].get('vpxbinpath', '')
         print("Launching: ", [vpxbin, "-play", vpx])

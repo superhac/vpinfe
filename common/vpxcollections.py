@@ -72,11 +72,11 @@ class VPXCollections:
         for fid in filterIDs:
             print(fid)
             for table in tables:
-                print(table.tableDirName)
-                print("checking:", table.metaConfig.get('VPSdb', 'id', fallback='none'), "Against:", fid)
+                #print(table.tableDirName)
+                #print("checking:", table.metaConfig.get('VPSdb', 'id', fallback='none'), "Against:", fid)
                 if table.metaConfig.get('VPSdb', 'id', fallback='none') == fid:
                     filterList.append(table)
-                    print("found", table.metaConfig.get('VPSdb', fid, fallback='none'))
+                    #print("found", table.metaConfig.get('VPSdb', fid, fallback='none'))
         return filterList
     
 # Debug

@@ -36,7 +36,7 @@ function fadeInScreen() {
 }
 
 // Hook for Python events
-function receiveEvent(message) {
+async function receiveEvent(message) {
     vpin.call("console_out", message);
     if (message.type == "TableIndexUpdate") {
         this.currentTableIndex = message.index;
@@ -50,6 +50,7 @@ function receiveEvent(message) {
     }
     else if (message.type == "TableDataChange") {
         vpin.call("console_out", "table data change");
+        await window.parent.vpin.getTableData();
         this.currentTableIndex = message.index;
         updateImages();
     }

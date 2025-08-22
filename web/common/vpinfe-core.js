@@ -134,6 +134,11 @@ class VPinFECore {
     this.gamepadEnabled = true;
   }
 
+  async getTableData() {
+    this.tableData = JSON.parse(await window.pywebview.api.get_tables());
+  }
+
+
   // **********************************************
   // private functions
   // **********************************************
@@ -141,7 +146,7 @@ class VPinFECore {
   async #onPyWebviewReady() {
     console.log("pywebview is ready!");
     await this.#loadMonitors();
-    await this.#getTableData();
+    await this.getTableData();
     this.#overrideConsole();
 
     // only run on the table window.. Its the master controller for all screens/windows
@@ -149,10 +154,6 @@ class VPinFECore {
       await this.#initGamepadMapping();
       this.#updateGamepads();           // No await needed here — runs loop
     }
-  }
-
-  async #getTableData() {
-    this.tableData = JSON.parse(await window.pywebview.api.get_tables());
   }
 
   async #loadMonitors() {
