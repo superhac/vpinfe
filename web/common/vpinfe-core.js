@@ -180,7 +180,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
   // Handle all actions mapped to this button
   for (const action of actions) {
     if (action === "joyexit" && windowName == "table") {
-      // window.pywebview.api.close_app();  // handled elsewhere now
+      window.pywebview.api.close_app();  
     }
     else if (action === "joymenu" && windowName == "table") {
       this.#showmenu();
