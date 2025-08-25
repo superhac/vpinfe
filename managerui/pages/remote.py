@@ -73,11 +73,17 @@ def handle_button(category: str, button: str):
                     ks.press(KeySimulator.VPX_PAUSE)
                 case 'Add/Remove Ball':
                     ks.press(KeySimulator.VPX_ADD_BALL)
-
         case 'pinmame':
             match button:
                 case 'Open/Close Door':
                     ks.press(KeySimulator.PINMAME_OPEN_COIN_DOOR)
-            pass
+                case 'Cancel':
+                    ks.press(KeySimulator.PINMAME_CANCEL)
+                case 'Down':
+                    ks.press(KeySimulator.PINMAME_DOWN)
+                case 'Up':
+                    ks.press(KeySimulator.PINMAME_UP)
+                case 'Enter':
+                    ks.press(KeySimulator.PINMAME_ENTER)
         case 'other':
             pass

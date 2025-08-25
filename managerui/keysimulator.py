@@ -15,6 +15,10 @@ class KeySimulator:
     
     # Pinmame
     PINMAME_OPEN_COIN_DOOR = Key.end
+    PINMAME_CANCEL = '7'
+    PINMAME_DOWN = '8'
+    PINMAME_UP = '9'
+    PINMAME_ENTER = '0'
     
     def __init__(self):
         self.keyboard = Controller()
