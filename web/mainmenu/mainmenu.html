@@ -6,15 +6,25 @@
   <title>Gamepad Controlled Menu</title>
   <style>
     html,
-    body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      background-color: #111;
-      color: #fff;
-      font-family: sans-serif;
-      font-size: 2.5vh;
-    }
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: #111;
+    color: #fff;
+    font-family: sans-serif;
+    font-size: 2.5vh;
+
+    display: flex;               /* enable flex layout */
+    justify-content: center;     /* center horizontally */
+    align-items: center;         /* center vertically */
+  }
+
+  #menu-container {
+    display: inline-block;       /* shrink to contents */
+    transition: transform 0.3s ease;
+    transform-origin: center center;
+  }
 
     ul.menu {
       list-style: none;
@@ -77,20 +87,23 @@
 </head>
 
 <body>
-  <ul class="menu" id="menu">
-    <li class="menu-item" id="collection-item">
-      <span class="dropdown-label">Collections:</span>
-      <span class="dropdown-value" id="collection-value">Normal</span>
-    </li>
-    <li class="menu-item">Settings</li>
-    <li class="menu-item">High Scores</li>
-    <li class="menu-item" id="quit-item">Quit</li>
-  </ul>
+  <div id="menu-container">
+    <ul class="menu" id="menu">
+      <li class="menu-item" id="collection-item">
+        <span class="dropdown-label">Collections:</span>
+        <span class="dropdown-value" id="collection-value">Normal</span>
+      </li>
+      <li class="menu-item">Settings</li>
+      <li class="menu-item">High Scores</li>
+      <li class="menu-item" id="quit-item">Quit</li>
+    </ul>
 
-  <!-- Popup for dropdown -->
-  <div id="dropdown-popup" class="popup" style="display: none;"></div>
+    <!-- Popup for dropdown -->
+    <div id="dropdown-popup" class="popup" style="display: none;"></div>
+  </div>
 
   <script>
+    let rotationAngle = 0; // starting angle
     let selectedIndex = 0;
     let items = [];
     let collectionIndex = 0;
@@ -100,13 +113,13 @@
 
     async function init() {
       collections = collections.concat(await window.parent.vpin.call('get_collections'));
-      window.parent.vpin.call("console_out", "collections in menu: "+collections)
+      window.parent.vpin.call("console_out", "collections in menu: " + collections)
       window.parent.vpin.call("console_out", collections);
     }
 
     window.parent.vpin.registerInputHandlerMenu(handleInput);
 
-   window.addEventListener("message", (event) => {
+    window.addEventListener("message", (event) => {
       const message = event.data;
       if (message.event === "reset state") {
         selectedIndex = 0;
@@ -114,6 +127,16 @@
         updateMenu();
       }
     });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      rotateMenu(rotationAngle); // apply initial -90°
+    });
+
+    function rotateMenu(degrees) {
+      rotationAngle = (rotationAngle) % 360;
+      document.getElementById('menu-container').style.transform =
+        `rotate(${rotationAngle}deg)`;
+    }
 
     function handleInput(input) {
       console.log("got input: " + input);
@@ -132,13 +155,13 @@
             collectionIndex = dropdownSelected;
             closeDropdown();
             if (collections[collectionIndex] == "All") {
-              window.parent.vpin.getTableData(reset=true);
-              window.parent.vpin.sendMessageToAllWindowsIncSelf({type: "TableDataChange", index: 0});
-               window.parent.vpin.call("console_out", "All was set");
+              window.parent.vpin.getTableData(reset = true);
+              window.parent.vpin.sendMessageToAllWindowsIncSelf({ type: "TableDataChange", index: 0 });
+              window.parent.vpin.call("console_out", "All was set");
             }
             else {
               window.parent.vpin.call("set_tables_by_collection", collections[collectionIndex]);
-              window.parent.vpin.sendMessageToAllWindowsIncSelf({type: "TableDataChange", index: 0}); 
+              window.parent.vpin.sendMessageToAllWindowsIncSelf({ type: "TableDataChange", index: 0 });
             }
             break;
           case "joyback":
@@ -163,6 +186,12 @@
             window.parent.vpin.call("close_app");
           }
           break;
+        case "joyleft":
+          rotateMenu(-10); // rotate left
+          break;
+        case "joyright":
+          rotateMenu(10);  // rotate right
+          break;
       }
       updateMenu();
     }
@@ -179,7 +208,6 @@
       dropdownOpen = true;
       dropdownSelected = collectionIndex;
       const popup = document.getElementById('dropdown-popup');
-      const rect = targetItem.getBoundingClientRect();
       popup.style.display = 'block';
       popup.style.top = (targetItem.offsetTop + targetItem.offsetHeight) + 'px';
       popup.style.left = targetItem.offsetLeft + 'px';
@@ -205,12 +233,11 @@
       updateMenu();
     }
 
-     window.onload = async () => {
+    window.onload = async () => {
       await init();
       items = Array.from(document.querySelectorAll('.menu-item'));
       updateMenu();
     };
-
   </script>
 </body>
 
