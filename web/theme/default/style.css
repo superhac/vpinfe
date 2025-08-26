@@ -7,13 +7,11 @@ html, body {
 }
 
 #fadeContainer {
-  position: fixed;
-  top: 0;
-  left: 0;
+  position: fixed;  left: 0;
   width: 100vw;
   height: 100vh;
   background-color: black;
-  transition: opacity .5s ease-in-out;
+  transition: opacity 4.5s ease-in-out;
   opacity: 1;
   z-index: 9999;
 }

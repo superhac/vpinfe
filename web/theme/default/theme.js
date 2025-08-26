@@ -24,8 +24,15 @@ function wrapIndex(index, length) {
 }
 
 async function fadeOut() {
-    const container = document.getElementById('fadeContainer');
+  const container = document.getElementById('fadeContainer');
+
+  return new Promise(resolve => {
+    container.addEventListener('transitionend', e => {
+      if (e.propertyName === 'opacity') resolve();
+    }, { once: true });
+
     container.style.opacity = 0;
+  });
 }
 
 function fadeInScreen() {
@@ -41,7 +48,7 @@ async function receiveEvent(message) {
         setImage();
     }
     else if (message.type == "TableLaunching") {
-        fadeOut();
+        await fadeOut();
     }
     else if (message.type == "TableLaunchComplete") {
         fadeInScreen();
@@ -77,7 +84,7 @@ async function handleInput(input) {
             break;
         case "joyselect":
             vpin.sendMessageToAllWindows({type: "TableLaunching"})
-            fadeOut();
+            await fadeOut();
             await vpin.launchTable(currentTableIndex);
             //await fadeOutAndLaunch();
             vpin.call("console_out", "FADEOUT done");
