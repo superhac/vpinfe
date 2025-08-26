@@ -125,12 +125,12 @@ class API:
         vpxbin = self.iniConfig.config['Settings'].get('vpxbinpath', '')
         print("Launching: ", [vpxbin, "-play", vpx])
         cmd = [Path(vpxbin).expanduser(), "-play", vpx]
+        self.myWindow[0].toggle_fullscreen()
         process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL)
         process.wait()
-        time.sleep(1.0) # add delay to vpx release video.  especially when it segfaults. prevents the webview from not coming back.
-        #self.myWindow[0].show()
+        self.myWindow[0].toggle_fullscreen()
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 
     def get_theme_config(self):

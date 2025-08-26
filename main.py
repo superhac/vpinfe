@@ -43,7 +43,7 @@ def loadWindows():
             width=monitors[screen_id].width,
             height=monitors[screen_id].height,
             background_color="#000000",
-            fullscreen=True  # Set to False since we're manually sizing it
+            fullscreen=True  
         )
         api.myWindow.append(win)
         webview_windows.append(['bg',win, api])
@@ -64,7 +64,7 @@ def loadWindows():
             width=monitors[screen_id].width,
             height=monitors[screen_id].height,
             background_color="#000000",
-            fullscreen=True  # Set to False since we're manually sizing it
+            fullscreen=True  
         )
         api.myWindow.append(win)
         webview_windows.append(['dmd',win, api])
@@ -85,7 +85,8 @@ def loadWindows():
             width=monitors[screen_id].width,
             height=monitors[screen_id].height,
             background_color="#000000",
-            fullscreen=True  # Set to False since we're manually sizing it
+            fullscreen=True,  
+            frameless=True # need this to restore the UI from VPX taking over fullscreen while its in the background and hanging our context
         )
         api.myWindow.append(win)
         webview_windows.append(['table',win, api])
