@@ -133,6 +133,20 @@ joyexit =
 joyfav = 
 ```
 
+## Collections
+If you have lots of tables you may want to organize them as a collection.  VPinFE will look in the CWD for a file called `collections.ini`.  The format is self explanatory:
+
+```
+[Favorites]
+vpsids = 43ma3WQK, lkSumsrF, 6HmAOp06, F4ma5afn, tTOMTth0p8, 9Paf7-CL,M7FYR1GJ, F6QcJM6t_E,
+        vyWVqHn5QF,garmU1ZC,yxmGmEGyFk, MBZPVX6p, wasB0RRz, 9Uv1Jljw, 3CvHz8Fa,CdZWHtTg
+
+[Competition]
+vpsids = wEOAp90_,W1JOjl6A,F4ma5afn,XQqwrauH,GXsgeoz_,x6df4mgv,-QXdrtsH, 1IlVLynt
+```
+
+The tables for each collection are identified by their VPSID.  You can access your collections in the menu.
+
 ## VPinfe CLI Options
 ```
 options:
