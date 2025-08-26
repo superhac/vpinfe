@@ -18,6 +18,7 @@ import sys
 from common.vpxcollections import VPXCollections
 from common.tableparser import TableParser
 
+os.environ['WEBKIT_DISABLE_COMPOSITING_MODE'] = '1' # fixes animation hange when set to background/unfocused
 nicegui_app.add_static_files('/static', os.path.join(os.getcwd(), 'managerui/static'))
 html_file = Path(__file__).parent / "web/splash.html"
 webview_windows = [] # [ [window_name, window, api] ]
