@@ -24,8 +24,11 @@ git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
 python3 -m venv vvv --system-site-packages
 source vvv/bin/activate
-pip install pywebview nicegui
-GDK_BACKEND=x11 python3 main.py
+pip install pywebview nicegui screeninfo colorama
+deactivate
+
+# then run like this inside the vpinfe dir
+GDK_BACKEND=x11 vvv/bin/python3 main.py
 ```
 
 *** There is a known issue with positioning windows under wayland.  To get around that run VpinFE with the following env var:
