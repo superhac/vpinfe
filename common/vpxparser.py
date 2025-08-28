@@ -12,6 +12,7 @@ import sys
 
 class VPXParser:
 
+	sys.setrecursionlimit(10000) # increase recursion limit for large OLE files. Like Dark Chaos!!!
 	logger = None
 
 	vpxPaths = {
