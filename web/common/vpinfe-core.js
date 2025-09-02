@@ -147,7 +147,7 @@ class VPinFECore {
     console.log("pywebview is ready!");
     await this.#loadMonitors();
     await this.getTableData();
-    this.#overrideConsole();
+   //this.#overrideConsole(); //disabled for now...
 
     // only run on the table window.. Its the master controller for all screens/windows
     if (await vpin.call("get_my_window_name") == "table") {

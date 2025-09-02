@@ -53,11 +53,16 @@ async function receiveEvent(message) {
     else if (message.type == "TableLaunchComplete") {
         fadeInScreen();
     }
-     else if (message.type == "TableDataChange") {
-        vpin.call("console_out", "table data change");
-        await window.parent.vpin.getTableData();
+    else if (message.type == "TableDataChange") {
+        vpin.call("console_out", "TableDataChange");
+        if (message.collection == "All") {
+            vpin.getTableData(reset = true);
+        } else {
+            await vpin.call("set_tables_by_collection", message.collection);
+            await vpin.getTableData();
+        }
         this.currentTableIndex = message.index;
-        updateImages();
+        setImage();
     }
 }
 

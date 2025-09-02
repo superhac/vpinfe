@@ -15,7 +15,10 @@ class TableParser:
         TableParser.tablesRootFilePath = tablesRootFilePath
         self.loadTables()
 
-    def loadTables(self):
+    def loadTables(self, reload=False): # reload if you want to rescan the tables
+        if not reload and len(TableParser.tables) != 0:
+            return
+        TableParser.tables = [] # clear on every load!
         count = 0
         print("Loading tables and image paths:")
         for fname in sorted(os.listdir(TableParser.tablesRootFilePath)):
