@@ -10,6 +10,11 @@
 - Fully customizable UI themeing using HTML, JS and CSS
 
 Cab Mode (Three Screens)
+
+Cab
+<img width="5000" height="1404" alt="wenshot-cab" src="https://github.com/user-attachments/assets/7851b3fc-0b5a-45dc-b8dd-b54093594199" />
+
+Default
 <img width="1349" height="393" alt="image" src="https://github.com/user-attachments/assets/47a3db0b-6988-4e97-9487-84e394709f92" />
 
 Desktop mode (Single Screen)
