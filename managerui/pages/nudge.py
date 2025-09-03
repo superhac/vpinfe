@@ -1,62 +1,115 @@
+# app/tabs/nudge.py
+from __future__ import annotations
+from typing import Tuple, List
 from nicegui import ui
+from ..ini_store import IniStore
+from ..schema import NUDGE_FIELDS
+from ..binders import _bind_indexed_select, _bind_switch, _bind_input
 
-AXIS_OPTIONS = [
-    "(disabled)", "X Axis", "Y Axis", "Z Axis",
-    "rX Axis", "rY Axis", "rZ Axis", "Slider 1", "Slider 2", "OpenPinDevice"
+AXIS_OPTIONS: List[str] = [
+    'disabled', 'X Axis', 'Y Axis', 'Z Axis', 'rX Axis', 'rY Axis', 'rZ Axis', 'Slider 1', 'Slider 2'
 ]
-KEY_OPTIONS = ["(none)", "Key 1", "Key 2"]
-INPUT_API_OPTIONS = ["Direct Input", "XInput"]
-RUMBLE_MODE_OPTIONS = ["Off", "Low", "Medium", "High"]
 
-widgets = {}
+# Common binders are imported from managerui.binders
 
-def build():
-    ui.label("Nudge & DOF Settings").classes("text-2xl font-bold")
+def create_tab():
+    return ui.tab('Nudge', icon='vibration')  
 
-    with ui.row().classes("w-full q-gutter-md"):
-        with ui.card().classes("flex-1"):
-            with ui.card_section():
-                ui.label("Nudge Settings").classes("text-lg font-semibold")
-                with ui.column().classes("gap-2"):
-                    with ui.row().classes("items-center gap-2"):
-                        widgets["LRAxis"] = ui.select(AXIS_OPTIONS, label="X Axis (L/R)", value="(disabled)").style("min-width: 120px")
-                        widgets["LRAxisFlip"] = ui.checkbox("Reverse")
-                    with ui.row().classes("items-center gap-2"):
-                        widgets["UDAxis"] = ui.select(AXIS_OPTIONS, label="Y Axis (U/D)", value="(disabled)").style("min-width: 120px")
-                        widgets["UDAxisFlip"] = ui.checkbox("Reverse")
-                    with ui.row().classes("items-center gap-2"):
-                        widgets["PlungerAxis"] = ui.select(AXIS_OPTIONS, label="Plunger", value="(disabled)").style("min-width: 120px")
-                        widgets["ReversePlungerAxis"] = ui.checkbox("Reverse")
-                    with ui.row().classes("items-center gap-2"):
-                        widgets["PlungerSpeedAxis"] = ui.select(AXIS_OPTIONS, label="Pl. Speed", value="(disabled)").style("min-width: 120px")
-                        widgets["DeadZone"] = ui.number(label="Dead Zone %", value=0).props("dense").style("width: 80px")
-                    widgets["PlungerSpeedScale"] = ui.number(label="Pl. Speed Scale", value=0).props("dense").style("min-width: 120px")
-            with ui.card_section():
-                ui.label("Input & Rumble").classes("text-lg font-semibold")
-                with ui.row().classes("items-center gap-4"):
-                    widgets["InputApi"] = ui.select(INPUT_API_OPTIONS, label="Input API", value="Direct Input").style("min-width: 120px")
-                    widgets["RumbleMode"] = ui.select(RUMBLE_MODE_OPTIONS, label="Ctrl. Rumble Behavior", value="Off").style("min-width: 120px")
+def render_panel(tab, store: IniStore):
+    def row(label_text: str):
+                        r = ui.row().classes('w-full items-center gap-6')
+                        with r:
+                            ui.label(label_text).classes('w-72')
+                            field = ui.input().props('clearable').classes('flex-1')
+                        return field
+    
+    with ui.tab_panel(tab):
+        ui.label('Nudge Settings').classes('text-xl font-semibold')
 
+        with ui.grid(columns=2).classes('w-full gap-0'):
 
-        with ui.card().classes("flex-1"):
-            with ui.card_section():
-                ui.label("Button Mappings").classes("text-lg font-semibold")
-                ui.label("Service Buttons").classes("text-md font-semibold")
-                with ui.row().classes("items-center gap-4"):
-                    widgets["JoyPMCancel"] = ui.select(KEY_OPTIONS, label="Cancel (7)").style("min-width: 120px")
-                    widgets["JoyPMDown"] = ui.select(KEY_OPTIONS, label="Down (8)").style("min-width: 120px")
-                    widgets["JoyPMUp"] = ui.select(KEY_OPTIONS, label="UP (9)").style("min-width: 120px")
-                    widgets["JoyPMEnter"] = ui.select(KEY_OPTIONS, label="Enter (0)").style("min-width: 120px")
-                ui.label("PinMAME Buttons").classes("text-md font-semibold q-mt-md")
-                with ui.row().classes("items-center gap-4"):
-                    widgets["JoyPMBuyIn"] = ui.select(KEY_OPTIONS, label="EB BuyIn (2)").style("min-width: 120px")
-                    widgets["JoyPMCoin3"] = ui.select(KEY_OPTIONS, label="Coin 3 (5)").style("min-width: 120px")
-                    widgets["JoyPMCoin4"] = ui.select(KEY_OPTIONS, label="Coin 4 (6)").style("min-width: 120px")
-                    widgets["JoyPMCoinDoor"] = ui.select(KEY_OPTIONS, label="Door (END)").style("min-width: 120px")
+            with ui.card():#.classes('max-w-5xl w-full'):
+                with ui.column().classes('w-full gap-4'):
+
+                    # --- Nudge ---
+                    ui.label('Nudge').classes('text-base font-medium')
+                    with ui.row().classes('w-full items-center gap-6'):
+                        ui.label('LRAxis').classes('w-48')
+                        LRAxis = ui.select(options=AXIS_OPTIONS, with_input=False).classes('flex-1')
+                        LRAxisFlip           = ui.switch("Reverse LRAxis")
+                        PBWAccelGainX        = ui.input('PBWAccelGainX')
+                        PBWAccelMaxX         = ui.input('PBWAccelMaxX')
+                    with ui.row().classes('w-full items-center gap-6'):
+                        ui.label('UDAxis').classes('w-48')
+                        UDAxis = ui.select(options=AXIS_OPTIONS, with_input=False).classes('flex-1')
+                        UDAxisFlip           = ui.switch("Reverse UDAxis")
+                        PBWAccelGainY        = ui.input('PBWAccelGainY')
+                        PBWAccelMaxY         = ui.input('PBWAccelMaxY')
+                    with ui.row().classes('w-full items-center gap-6'):
+                        ui.label('PlungerAxis').classes('w-48')
+                        PlungerAxis = ui.select(options=AXIS_OPTIONS, with_input=False).classes('flex-1')
+                        ReversePlungerAxis = ui.switch("Reverse PlungerAxis").classes('flex-1')
+                    PBWEnabled           = ui.switch('PBWEnabled')
+                    EnableMouseInPlayer       = ui.switch('EnableMouseInPlayer')
+                    EnableCameraModeFlyAround = ui.switch('EnableCameraModeFlyAround')
+                    PlungerRetract     = ui.switch('PlungerRetract')
+                    DeadZone           = ui.input('DeadZone').classes('w-48')
 
 
-    def save_nudge_dof():
-        ui.notify("Settings saved!", type="positive")
+            with ui.card():#.classes('max-w-5xl w-full'):
+                with ui.column().classes('w-full gap-4'):
+                    #LRAxisFlip           = row('LRAxisFlip')
+                    #UDAxisFlip           = row('LRAxisFlip')
+                    #ReversePlungerAxis = row('ReversePlungerAxis')
+                    PBWNormalMount       = row('PBWNormalMount')
+                    PBWDefaultLayout     = row('PBWDefaultLayout')
+                    PBWRotationCB        = row('PBWRotationCB')
+                    PBWRotationvalue     = row('PBWRotationvalue')
+                    ui.separator()
+                    ui.label('Tilt plumb').classes('text-base font-medium')
+                    TiltSensCB    = ui.switch('TiltSensCB')
+                    TiltSensValue = row('TiltSensValue')
+                    TiltInertia   = row('TiltInertia')
 
-    with ui.row().classes("justify-end q-mt-lg"):
-        ui.button("Save", on_click=save_nudge_dof).props("color=primary")
+        ui.separator()
+        with ui.grid(columns=2).classes('w-full gap-0'):
+
+            with ui.card():#.classes('max-w-5xl w-full'):
+                with ui.column().classes('w-full gap-4'):
+                    
+                    EnableNudgeFilter    = ui.switch('EnableNudgeFilter')
+
+                    # AccelVelocityInput (indexed combobox)
+                    with ui.row().classes('w-full items-center gap-6'):
+                        ui.label('AccelVelocityInput').classes('w-72')
+                        AccelVelocityInput = ui.select(options=AXIS_OPTIONS, with_input=False).classes('flex-1')
+
+            # --- Bindings ---
+            _bind_indexed_select(store, LRAxis,             NUDGE_FIELDS['LRAxis'], AXIS_OPTIONS)
+            _bind_indexed_select(store, UDAxis,             NUDGE_FIELDS['UDAxis'], AXIS_OPTIONS)
+            _bind_indexed_select(store, PlungerAxis,        NUDGE_FIELDS['PlungerAxis'], AXIS_OPTIONS)
+            _bind_indexed_select(store, AccelVelocityInput, NUDGE_FIELDS['AccelVelocityInput'], AXIS_OPTIONS)
+
+            # SWITCHES (only _bind_switch_10 — no _bind_generic)
+            _bind_switch(store, LRAxisFlip,                  NUDGE_FIELDS['LRAxisFlip'])
+            _bind_switch(store, UDAxisFlip,                  NUDGE_FIELDS['UDAxisFlip'])
+            _bind_switch(store, PBWEnabled,                  NUDGE_FIELDS['PBWEnabled'])
+            _bind_switch(store, ReversePlungerAxis,          NUDGE_FIELDS['ReversePlungerAxis'])
+            _bind_switch(store, PlungerRetract,              NUDGE_FIELDS['PlungerRetract'])
+            _bind_switch(store, EnableMouseInPlayer,         NUDGE_FIELDS['EnableMouseInPlayer'])
+            _bind_switch(store, EnableCameraModeFlyAround,   NUDGE_FIELDS['EnableCameraModeFlyAround'])
+            _bind_switch(store, EnableNudgeFilter,  NUDGE_FIELDS['EnableNudgeFilter'])
+            _bind_switch(store, TiltSensCB,       NUDGE_FIELDS['TiltSensCB'])
+
+            # INPUTS
+            _bind_input(store, PBWNormalMount,     NUDGE_FIELDS['PBWNormalMount'])
+            _bind_input(store, PBWDefaultLayout,   NUDGE_FIELDS['PBWDefaultLayout'])
+            _bind_input(store, PBWRotationCB,      NUDGE_FIELDS['PBWRotationCB'])
+            _bind_input(store, PBWRotationvalue,   NUDGE_FIELDS['PBWRotationvalue'])
+            _bind_input(store, PBWAccelGainX,      NUDGE_FIELDS['PBWAccelGainX'])
+            _bind_input(store, PBWAccelGainY,      NUDGE_FIELDS['PBWAccelGainY'])
+            _bind_input(store, PBWAccelMaxX,       NUDGE_FIELDS['PBWAccelMaxX'])
+            _bind_input(store, PBWAccelMaxY,       NUDGE_FIELDS['PBWAccelMaxY'])
+            _bind_input(store, TiltSensValue,      NUDGE_FIELDS['TiltSensValue'])
+            _bind_input(store, TiltInertia,        NUDGE_FIELDS['TiltInertia'])
+            _bind_input(store, DeadZone,           NUDGE_FIELDS['DeadZone'])
