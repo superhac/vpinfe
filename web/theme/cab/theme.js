@@ -28,12 +28,12 @@ function wrapIndex(index, length) {
 }
 
 async function fadeOut() {
-    const container = document.getElementById('fadeContainer');
+    const container = document.getElementById('root');
     container.style.opacity = 0;
 }
 
 function fadeInScreen() {
-    const container = document.getElementById('fadeContainer');
+    const container = document.getElementById('root');
     container.style.opacity = 1;
 }
 

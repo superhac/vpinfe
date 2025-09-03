@@ -21,6 +21,8 @@
       gap: 0;
       margin: 0;
       background: url("assets/full-bg.jpg") center/100% 100% no-repeat;
+      transition: opacity 2.5s ease-in-out;
+      opacity: 1;
 
     }
 
