@@ -2,6 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 from nicegui import ui, app
 from .ini_store import IniStore
+from common.iniconfig import IniConfig
 from .pages import audio as tab_audio
 from .pages import video as tab_video
 from .pages import nudge as tab_nudge
@@ -28,6 +29,10 @@ def header(store: IniStore):
             ui.switch('Dark Mode').bind_value(dark)
             ui.button('Reload', on_click=lambda: (store.reload(), ui.notify('Reloaded', type='info')))
             ui.button('Save', color='primary', on_click=lambda: confirm_and_save(store))
+    # Show config/path issues prominently
+    global _vpx_ini_error
+    if _vpx_ini_error:
+        ui.notify(_vpx_ini_error, type='negative')
 
 def confirm_and_save(store: IniStore):
     diffs = store.diff()
@@ -109,7 +114,17 @@ def build_app(store: IniStore):
 
     footer()
 
-store = IniStore(Path('VPinballX.ini'))
+# Read VPinballX.ini path strictly from vpinfe.ini; notify if missing/invalid
+_cfg = IniConfig('vpinfe.ini')
+_vpx_ini_error: str | None = None
+_vpx_ini_str = _cfg.config.get('Settings', 'vpxinipath').strip()
+if not _vpx_ini_str:
+    _vpx_ini_error = 'vpxinipath is not configured in vpinfe.ini (Settings.vpxinipath)'
+_vpx_ini_path = Path(_vpx_ini_str) if _vpx_ini_str else Path('VPinballX.ini')
+if _vpx_ini_str and not _vpx_ini_path.exists():
+    _vpx_ini_error = f'VPinballX.ini not found at: {_vpx_ini_path}'
+print(f'Using VPinballX.ini at: {_vpx_ini_path}')
+store = IniStore(_vpx_ini_path)
 
 @ui.page('/')
 def index():
@@ -123,7 +138,7 @@ def remote_page():
 _ui_thread = None
 
 def _run_ui():
-    STORAGE_SECRET = "verysecret"
+    STORAGE_SECRET = "verysecret" # The storatage is just to keep the active tab between sessions. Nothing sensitive.
     ui.run(title='VPinFE Manager UI', 
            port=8001, 
            reload=False, 
@@ -140,4 +155,4 @@ def start_manager_ui():
     return _ui_thread
 
 def stop_manager_ui():
-    app.shutdown()   # tells uvicorn to shut down gracefully
+    app.shutdown()
