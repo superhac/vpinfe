@@ -60,9 +60,9 @@ def handle_button(category: str, button: str):
                 case 'Frame Count':
                     ks.press(KeySimulator.VPX_FRAME_COUNT)
                 case 'Volume Up':
-                    ks.press(KeySimulator.VPX_VOLUME_UP)
+                    ks.hold(KeySimulator.VPX_VOLUME_UP, seconds=0.1)  # short hold for volume up
                 case 'Volume Down':
-                    ks.press(KeySimulator.VPX_VOLUME_DOWN)
+                    ks.hold(KeySimulator.VPX_VOLUME_DOWN, seconds=0.1)  # short hold for volume down
                 case 'Menu':
                     ks.press(KeySimulator.VPX_MENU)
                 case 'Reset Table':
@@ -80,9 +80,9 @@ def handle_button(category: str, button: str):
                 case 'Cancel':
                     ks.press(KeySimulator.PINMAME_CANCEL)
                 case 'Down':
-                    ks.press(KeySimulator.PINMAME_DOWN)
+                    ks.hold(KeySimulator.PINMAME_DOWN, seconds=0.1) # short hold for it to work
                 case 'Up':
-                    ks.press(KeySimulator.PINMAME_UP)
+                    ks.hold(KeySimulator.PINMAME_UP, seconds=0.1) # short hold for it to work
                 case 'Enter':
                     ks.press(KeySimulator.PINMAME_ENTER)
         case 'other':
