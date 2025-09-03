@@ -20,6 +20,10 @@ Default
 Desktop mode (Single Screen)
 <img width="1919" height="1080" alt="Screenshot From 2025-08-12 16-07-26" src="https://github.com/user-attachments/assets/0e0dfd02-999a-476b-a8f8-bc67d2a5ae10" />
 
+Remote:
+<img width="2820" height="2215" alt="image" src="https://github.com/user-attachments/assets/6d6f8508-e1ad-4170-825a-cf237ce10cb5" />
+
+
 ## Installing
 
 ### Ubuntu 25.10 (GTK):
@@ -267,9 +271,13 @@ There are three server listeners started on your machine:
 | ------- | ---------------    | --------------------------------------------------------------------- |
 | HTTP    | 127.0.0.1:RANDOM   | PyWebView server.  Frontend UI/Themes                                 |
 | HTTP    | 127.0.0.1:8000     | Python HTTPServer. Serves tables media assets                         |
-| HTTP    | 0.0.0.0:8001       | NiceGui sever.  Handles the UI for configuration and management | 
+| HTTP    | 0.0.0.0:8001       | NiceGui sever.  Handles the UI for configuration and management       | 
 
 The only service that externally accessable from your machine its UI for managing it.  This is setup like this so people with cabinets can administer it remotely.
+
+External Web Endpoints:
+- Table/VPX Configuration and Management: http://{YOUR-IP}:8001
+- Remote Control: http://{YOUR-IP}:8001/remote
 
 ## Making a Theme
 
