@@ -14,47 +14,83 @@ from common.standalonescripts import StandaloneScripts
 from frontend.httpserver import HTTPServer
 from frontend.api import API
 from pathlib import Path
+import uuid
 
 colorama.init()
 iniconfig = IniConfig("./vpinfe.ini")
 
-def buildMetaData(downloadMedia = True):
-        parservpx = VPXParser()
-        print(f'Building meta.ini files for tables in {iniconfig.config["Settings"]["tableRootDir"]}')
+def _norm_path(p: str) -> str:
+    try:
+        return os.path.realpath(os.path.normpath(p)).lower()
+    except Exception:
+        return os.path.normpath(p).lower()
+
+def buildMetaData(downloadMedia: bool = True, progress_cb=None):
+    run_id = uuid.uuid4().hex[:8]
+    
+    #print(f'[# {run_id}] START buildMetaData (download={downloadMedia})')
+    
+    not_found_tables = 0
+    parservpx = VPXParser()
+
+    tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
+    raw_count = len(tables)
+    print(f"Found {raw_count} tables (.vpx).")
+    seen = set()
+    unique_tables = []
+    for t in tables:
+        key = _norm_path(t.fullPathVPXfile)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_tables.append(t)
+    total = len(unique_tables)  
+    vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
+    print(f"Found {len(vps)} tables in VPSdb")
+
+    if progress_cb:
+        progress_cb(0, total, 'Starting')
+
+    current = 0
+    for table in tables:
+        current += 1
+
+        # Verifying Table current/total
+        if progress_cb:
+            progress_cb(current, total, f'Verifying Table {current}/{total}: {table.tableDirName}')
+
+        finalini = {}
+        meta = MetaConfig(table.fullPathTable + "/" + "meta.ini")
+
+        # vpsdb
+        print(f"\rChecking VPSdb for table {current}/{total}: {table.tableDirName}")
+        vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+        vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
+        if vpsData is None:
+            print(f"{colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
+            not_found_tables += 1
+            continue
+
+        # vpx file info
+        print("Parsing VPX file for metadata")
+        print(f"Extracting {table.fullPathVPXfile} for metadata.")
+        vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
+
+        # make the config.ini
+        finalini['vpsdata'] = vpsData
+        finalini['vpxdata'] = vpxData
+        meta.writeConfigMeta(finalini)
+
         if downloadMedia:
-            print("Including media download when available.")
-        else:
-            print("Skipping media download.")
-        tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
-        total = len(tables)
-        print(f"Found {total} tables in {iniconfig.config['Settings']['tablerootdir']}")
-        vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
-        print(f"Found {len(vps)} tables in VPSdb")
-        current = 0
-        for table in tables:
-            current = current + 1
-            finalini = {}
-            meta = MetaConfig(table.fullPathTable + "/" + "meta.ini") # check if we want it updated!!! TODO
+            vps.downloadMediaForTable(table, vpsData['id'])
+        result = {'found': total, 'not_found': not_found_tables}
+        print(f'[# {run_id}] END buildMetaData -> {result}')
 
-            # vpsdb
-            print(f"\rChecking VPSdb for table {current}/{total}: {table.tableDirName}")
-            vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
-            if vpsData is None:
-                print(f"{colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
-                continue
+    return {
+        'found': total,
+        'not_found': not_found_tables,
+    }
 
-            # vpx file info
-            print(f"Parsing VPX file for metadata")
-            print(f"Extracting {table.fullPathVPXfile} for metadata.")
-            vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
-
-            # make the config.ini
-            finalini['vpsdata'] = vpsData
-            finalini['vpxdata'] = vpxData
-            meta.writeConfigMeta(finalini)
-            if downloadMedia:
-                vps.downloadMediaForTable(table, vpsData['id'])
  
 def listMissingTables():
         tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables();

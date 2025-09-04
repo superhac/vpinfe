@@ -1,0 +1,3 @@
+[submodule "managerui/maps"]
+	path = managerui/maps
+	url = https://github.com/tomlogic/pinmame-nvram-maps.git
