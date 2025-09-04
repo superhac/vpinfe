@@ -223,6 +223,9 @@ def create_tab():
 
 def render_panel(tab):
     with ui.tab_panel(tab):
+        # Hide Quasar's built-in numeric overlay inside linear progress bars (prevents 0..1 decimals)
+        ui.add_head_html('<style>.q-linear-progress__info{display:none!important}</style>')
+        # No extra CSS for the progress bar; use status_label for percent text
         # Define columns for the table
         columns = [
             {'name': 'filename', 'label': 'Filename', 'field': 'filename'},
@@ -294,8 +297,8 @@ def render_panel(tab):
 
         # --- Metadata build logic (from media.py) ---
         RUNNING = False
-        # Show percentage inside the progress bar (0–100%)
-        progressbar = ui.linear_progress().props('instant-feedback show-value')
+        # Progress bar: value is 0..1; percent is shown only in status_label
+        progressbar = ui.linear_progress(value=0.0)
         progressbar.visible = False
         status_label = ui.label("").classes("text-sm text-grey")
         status_label.visible = False
@@ -306,9 +309,9 @@ def render_panel(tab):
                 updated = True
                 current, total, message = progress_q.get_nowait()
                 if total and total > 0:
-                    frac = max(0.0, min(1.0, current / total))  # 0..1
-                    progressbar.value = frac
+                    frac = max(0.0, min(1.0, current / total))
                     percent = int(round(frac * 100))
+                    progressbar.value = frac
                     status_label.text = f'{message} — {percent}%'
                 else:
                     progressbar.value = 0
@@ -338,7 +341,7 @@ def render_panel(tab):
                     progress_cb=progress_cb,
                 )
                 status_label.text = "Completed"
-                progressbar.value = 1.0
+                progressbar.value = 100
                 ui.notify(
                     (
                         f'Media & Metadata build complete. '
@@ -383,7 +386,7 @@ def render_panel(tab):
                         progress_timer.active = True
                         await run.io_bound(vpxPatches, progress_cb=progress_cb)
                         status_label.text = "Completed"
-                        progressbar.value = 1.0
+                        progressbar.value = 100
                         ui.notify('VPX patches applied', type='positive')
                         # refresh tables silently to reflect patch_applied flag
                         asyncio.create_task(perform_scan(silent=True))
