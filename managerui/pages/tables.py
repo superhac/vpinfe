@@ -249,20 +249,25 @@ def render_panel(tab):
             else:
                 ui.notify("Error: Unexpected row click event format.", type="negative")
 
-        scanning_note = None
-        async def perform_scan(silent: bool = False):
+        async def perform_scan(*_, silent: bool = False):
             """Scans for tables asynchronously and updates the UI.
             If silent=True, suppress user notifications.
             """
-            nonlocal scanning_note
-            if not silent:
-                scanning_note = ui.notify('Scanning for tables...', spinner=True)
+            print("Scanning tables...")
+            # Keep UX simple: disable the Scan button during work, no pre-notify
+            try:
+                scan_btn.disable()
+            except Exception:
+                pass
             try:
                 # Run blocking I/O in a separate thread to avoid freezing the UI
-                table_rows = await asyncio.to_thread(scan_tables, silent)
-                missing_rows = await asyncio.to_thread(scan_missing_tables)
+                table_rows = await run.io_bound(scan_tables, silent)
+                missing_rows = await run.io_bound(scan_missing_tables)
 
-                # Update UI components
+                # Update UI components (force refresh by reassigning rows)
+                table.rows = []
+                table.update()
+                await asyncio.sleep(0)  # yield to UI loop
                 table.rows = table_rows
                 table.update()
                 title_label.set_content(f"## Installed Tables ({len(table_rows)})")
@@ -276,21 +281,16 @@ def render_panel(tab):
                 ))
 
                 if not silent:
-                    try:
-                        if scanning_note:
-                            scanning_note.close()
-                    finally:
-                        scanning_note = None
                     ui.notify('Scan complete!', type='positive')
             except Exception as e:
                 logger.exception("Failed to scan tables")
                 if not silent:
-                    try:
-                        if scanning_note:
-                            scanning_note.close()
-                    finally:
-                        scanning_note = None
                     ui.notify(f"Error during scan: {e}", type='negative')
+            finally:
+                try:
+                    scan_btn.enable()
+                except Exception:
+                    pass
 
         # --- Metadata build logic (from media.py) ---
         RUNNING = False
@@ -362,7 +362,7 @@ def render_panel(tab):
         # --- UI Layout ---
         title_label = ui.markdown("Installed Tables")
         with ui.row().classes("q-my-md"):
-            ui.button("Scan Tables", on_click=perform_scan).props("color=primary")
+            scan_btn = ui.button("Scan Tables", on_click=perform_scan).props("color=primary")
             missing_button = ui.button("Undetected Tables").props("color=red")
             with ui.row().classes("items-center gap-2"):
                 build_btn = ui.button("Build Metadata", on_click=call_build_metadata).props("icon=build color=primary")
