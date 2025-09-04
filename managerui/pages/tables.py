@@ -21,6 +21,8 @@ _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 #_vpsdb_cache: List[Dict] | None = None
 _vpsdb_cache: Optional[List[Dict]] = None
+# Ensure only one Missing Tables dialog at a time
+_missing_tables_dialog: Optional[ui.dialog] = None
 
 
 def load_vpsdb() -> List[Dict]:
@@ -48,9 +50,7 @@ def search_vpsdb(term: str, limit: int = 50) -> List[Dict]:
     results = []
     for it in items:
         name = _key(it.get('name'))
-        manuf = _key(it.get('manufacturer') or it.get('mfg') or '')
-        year = _key(str(it.get('year') or ''))
-        if term in name or term in manuf or term in year:
+        if term in name:
             results.append(it)
         if len(results) >= limit:
             break
@@ -249,12 +249,14 @@ def render_panel(tab):
             else:
                 ui.notify("Error: Unexpected row click event format.", type="negative")
 
+        scanning_note = None
         async def perform_scan(silent: bool = False):
             """Scans for tables asynchronously and updates the UI.
             If silent=True, suppress user notifications.
             """
+            nonlocal scanning_note
             if not silent:
-                ui.notify('Scanning for tables...', spinner=True)
+                scanning_note = ui.notify('Scanning for tables...', spinner=True)
             try:
                 # Run blocking I/O in a separate thread to avoid freezing the UI
                 table_rows = await asyncio.to_thread(scan_tables, silent)
@@ -268,13 +270,26 @@ def render_panel(tab):
                 
                 # Update the click handler for the missing tables button with the new data
                 missing_button.on('click', None) # Remove old handler
-                missing_button.on('click', lambda: open_missing_tables_dialog(missing_rows))
+                missing_button.on('click', lambda: open_missing_tables_dialog(
+                    missing_rows,
+                    on_close=lambda: asyncio.create_task(perform_scan(silent=True))
+                ))
 
                 if not silent:
+                    try:
+                        if scanning_note:
+                            scanning_note.close()
+                    finally:
+                        scanning_note = None
                     ui.notify('Scan complete!', type='positive')
             except Exception as e:
                 logger.exception("Failed to scan tables")
                 if not silent:
+                    try:
+                        if scanning_note:
+                            scanning_note.close()
+                    finally:
+                        scanning_note = None
                     ui.notify(f"Error during scan: {e}", type='negative')
 
         # --- Metadata build logic (from media.py) ---
@@ -453,33 +468,52 @@ def open_table_dialog(row_data: dict):
             ui.button('Close', on_click=dlg.close)
     dlg.open()
 
-def open_missing_tables_dialog(missing_rows: list[dict]):
-    def _refresh_missing():
-        new_missing = scan_missing_tables()
-        ui.notify('Missing list updated', type='info')
-        open_missing_tables_dialog(new_missing)
-
-    def _refresh_installed():
+def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Callable[[], None]] = None):
+    global _missing_tables_dialog
+    # Close any previous dialog to avoid stacking
+    try:
+        if _missing_tables_dialog:
+            _missing_tables_dialog.close()
+    except Exception:
         pass
-
     dlg = ui.dialog().props('max-width=1000px')
+    _missing_tables_dialog = dlg
     with dlg, ui.card().classes('w-[960px] max-w-[95vw]'):
-        ui.label(f'Missing Tables ({len(missing_rows)})').classes('text-lg font-bold')
+        title = ui.label(f'Missing Tables ({len(missing_rows)})').classes('text-lg font-bold')
         ui.separator()
 
-        if not missing_rows:
-            ui.label('No tables without meta.ini.').classes('q-my-md')
-        else:
-            for r in missing_rows:
-                with ui.row().classes('justify-between items-center w-full q-py-xs border-b'):
+        container = ui.column().classes('w-full')
+
+        def render(items: list[dict]):
+            container.clear()
+            title.set_text(f'Missing Tables ({len(items)})')
+            if not items:
+                with container:
+                    ui.label('No tables without meta.ini.').classes('q-my-md')
+                return
+            for r in items:
+                with container, ui.row().classes('justify-between items-center w-full q-py-xs border-b'):
                     ui.label(r['folder']).classes('font-medium')
                     ui.button(
                         'Match VPS ID',
-                        on_click=lambda rr=r: open_match_vps_dialog(rr, refresh_missing=_refresh_missing, refresh_installed=_refresh_installed)
+                        on_click=lambda rr=r: open_match_vps_dialog(
+                            rr,
+                            refresh_missing=lambda: (ui.notify('Missing list updated', type='info'), render(scan_missing_tables())),
+                            refresh_installed=None,
+                        )
                     ).props('color=primary outline')
 
+        render(missing_rows)
+
         with ui.row().classes('justify-end q-mt-md'):
-            ui.button('Close', on_click=dlg.close)
+            def _close():
+                dlg.close()
+                # clear global ref so a new one can be created next time
+                global _missing_tables_dialog
+                _missing_tables_dialog = None
+                if callable(on_close):
+                    on_close()
+            ui.button('Close', on_click=_close)
     dlg.open()
 
 def open_match_vps_dialog(
@@ -503,7 +537,7 @@ def open_match_vps_dialog(
             results_container.clear()
             if not items:
                 with results_container:
-                    ui.label('No results. Type to search by name/manufacturer/year…').classes('text-sm text-gray-500')
+                    ui.label('Search by Table Name').classes('text-sm text-gray-500')
                 return
 
             for it in items:
