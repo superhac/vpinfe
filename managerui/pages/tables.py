@@ -7,7 +7,7 @@ from pathlib import Path
 import json
 from typing import List, Dict, Optional, Callable
 from common.vpxparser import VPXParser
-from clioptions import buildMetaData
+from clioptions import buildMetaData, vpxPatches
 from queue import Queue
 
 # Resolve project root and important paths explicitly
@@ -263,7 +263,7 @@ def render_panel(tab):
                 # Update UI components
                 table.rows = table_rows
                 table.update()
-                title_label.set_content(f"Installed Tables ({len(table_rows)})")
+                title_label.set_content(f"## Installed Tables ({len(table_rows)})")
                 missing_button.text = f"Unmatched Tables ({len(missing_rows)})"
                 
                 # Update the click handler for the missing tables button with the new data
@@ -352,6 +352,36 @@ def render_panel(tab):
             with ui.row().classes("items-center gap-2"):
                 build_btn = ui.button("Build Metadata", on_click=call_build_metadata).props("icon=build color=primary")
                 download_media = ui.switch("Download Media Automatically", value=False)
+                patch_btn = ui.button("Apply VPX Patches").props("icon=construction color=secondary")
+                async def call_apply_patches():
+                    nonlocal RUNNING
+                    if RUNNING:
+                        return
+                    RUNNING = True
+                    patch_btn.disable()
+                    try:
+                        progressbar.value = 0
+                        progressbar.visible = True
+                        status_label.text = "Preparing…"
+                        status_label.visible = True
+                        await asyncio.sleep(0.05)
+                        progress_timer.active = True
+                        await run.io_bound(vpxPatches, progress_cb=progress_cb)
+                        status_label.text = "Completed"
+                        progressbar.value = 1.0
+                        ui.notify('VPX patches applied', type='positive')
+                        # refresh tables silently to reflect patch_applied flag
+                        asyncio.create_task(perform_scan(silent=True))
+                    except Exception as e:
+                        ui.notify(f'Error: {e}', type='negative')
+                    finally:
+                        await asyncio.sleep(0.2)
+                        progress_timer.active = False
+                        progressbar.visible = False
+                        status_label.visible = False
+                        patch_btn.enable()
+                        RUNNING = False
+                patch_btn.on_click(call_apply_patches)
         progressbar
         status_label
         table = ui.table(columns=columns, rows=[], row_key='filename').on('row-click', on_row_click).classes("w-full cursor-pointer")

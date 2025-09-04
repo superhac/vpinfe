@@ -139,11 +139,20 @@ class VPXParser:
 
 	def extractRomName(self, vpxFileValues):
 		m = re.search(r'(?i).*c?gamename\s*=\s*"([^"]+)"', vpxFileValues['gameData'])
+		m_opt = re.search(r'(?i).*c?OptRom\s*=\s*"([^\s]+)"', vpxFileValues['gameData'])
 		try:
 			vpxFileValues['rom'] = m.group(1)
 		except AttributeError:
 			vpxFileValues['rom'] = ""
 			print("No rom found.")
+		
+		try:
+			if vpxFileValues['rom'] == "":
+				vpxFileValues['rom'] = m_opt.group(1)
+		except AttributeError:
+			if vpxFileValues['rom'] == "":
+				vpxFileValues['rom'] = ""
+				print("No rom found.")
 
 	def extractDetectNFozzy(self, vpxFileValues):
 		if 'Class FlipperPolarity' in vpxFileValues['gameData']:

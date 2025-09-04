@@ -129,9 +129,9 @@ def listUnknownTables():
                 print(f"{colorama.Fore.RED}Unknown table {current}: {table.tableDirName} Not found in VPSdb{colorama.Style.RESET_ALL}")
                 continue
 
-def vpxPatches():
+def vpxPatches(progress_cb=None):
     tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables();
-    StandaloneScripts(tables)
+    StandaloneScripts(tables, progress_cb=progress_cb)
     
 def loadGamepadTestWindow():
     webview_windows = [] # [ [window_name, window, api] ]
