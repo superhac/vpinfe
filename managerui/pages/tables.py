@@ -227,7 +227,12 @@ def render_panel(tab):
     with ui.tab_panel(tab):
         # Hide Quasar's built-in numeric overlay inside linear progress bars (prevents 0..1 decimals)
         ui.add_head_html('<style>.q-linear-progress__info{display:none!important}</style>')
-        # No extra CSS for the progress bar; use status_label for percent text
+        # Preload collections list for quick pull-down per row
+        try:
+            _collections_mgr = VPXCollections(str(COLLECTIONS_INI_PATH))
+            _all_collections = list(_collections_mgr.get_collections_name())
+        except Exception:
+            _all_collections = []
         # Define columns for the table
         columns = [
             {'name': 'filename', 'label': 'Filename', 'field': 'filename', 'sortable': True},
@@ -239,12 +244,13 @@ def render_panel(tab):
             {'name': 'version', 'label': 'Version', 'field': 'version', 'sortable': True},
             {'name': 'detectnfozzy', 'label': 'NFOZZY', 'field': 'detectnfozzy', 'sortable': True},
             {'name': 'detectfleep','label': 'Fleep','field': 'detectfleep', 'sortable': True},
-            {'name': 'detectssf','label': 'Scorebit','field': 'detectssf', 'sortable': True},
+            {'name': 'detectssf','label': 'SSF','field': 'detectssf', 'sortable': True},
             {'name': 'detectlut','label': 'LUT','field': 'detectlut', 'sortable': True},
             {'name': 'detectscorebit','label': 'Scorebit','field': 'detectscorebit', 'sortable': True},
             {'name': 'detectfastflips','label': 'FastFlips','field': 'detectfastflips', 'sortable': True},
             {'name': 'detectflex','label': 'FlexDMD','field': 'detectflex', 'sortable': True},
-            {'name': 'patch_applied', 'label': 'VPX Patch applied?', 'field': 'patch_applied', 'sortable': True}
+            {'name': 'patch_applied', 'label': 'Patch ?', 'field': 'patch_applied', 'sortable': True},
+            {'name': 'collections', 'label': 'Collections', 'field': 'id', 'sortable': False}
         ]
 
         def on_row_click(e: events.GenericEventArguments):
@@ -493,10 +499,58 @@ def render_panel(tab):
         ui.label("Click on the table to see more details and manage")
         table = (
             ui.table(columns=columns, rows=[], row_key='filename', pagination={'rowsPerPage': 25})
-              .props('rows-per-page-options="[25,50,100]"')
+              .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
               .on('row-click', on_row_click)
               .classes("w-full cursor-pointer")
         )
+        # (removed previous dialog-based quick collections handler)
+        # Quick collections menu per row
+        if _all_collections:
+            def _escape_html(s: str) -> str:
+                return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", "&#39;")
+            items_html = ''.join(
+                f"<q-item clickable v-close-popup @click.stop=\"$emit('toggle-collection', {{row: props.row, name: '{_escape_html(n)}'}})\"><q-item-section>{_escape_html(n)}</q-item-section></q-item>"
+                for n in _all_collections
+            )
+            table.add_slot('body-cell-collections', f'''
+              <q-td :props="props" @click.stop>
+                <q-btn size="sm" flat dense icon="playlist_add" round @click.stop>
+                  <q-menu>
+                    <q-list style="min-width: 200px">
+                      {items_html}
+                    </q-list>
+                  </q-menu>
+                </q-btn>
+              </q-td>
+            ''')
+
+            def _toggle_collection(e):
+                payload = e.args if isinstance(e.args, dict) else (e.args[0] if isinstance(e.args, (list, tuple)) and e.args else {})
+                row = payload.get('row') or {}
+                name = (payload.get('name') or '').strip()
+                vps_id = (row.get('id') or '').strip()
+                if not vps_id:
+                    ui.notify('This table has no VPS ID. Associate it first.', type='warning')
+                    return
+                if not name:
+                    ui.notify('Invalid collection name', type='warning')
+                    return
+                try:
+                    c = VPXCollections(str(COLLECTIONS_INI_PATH))
+                    current = set(c.get_vpsids(name))
+                    if vps_id in current:
+                        c.remove_vpsid(name, vps_id)
+                        c.save()
+                        ui.notify(f'Removed from "{name}"', type='positive')
+                    else:
+                        c.add_vpsid(name, vps_id)
+                        c.save()
+                        ui.notify(f'Added to "{name}"', type='positive')
+                except Exception as ex:
+                    ui.notify(f'Failed to update collection: {ex}', type='negative')
+
+            table.on('toggle-collection', _toggle_collection)
+
         # Trigger an initial scan once after render so data shows on first open
         def _trigger_initial_scan():
             try:
@@ -574,7 +628,7 @@ def open_table_dialog(row_data: dict):
                 c = VPXCollections(str(COLLECTIONS_INI_PATH))
                 existing = list(c.get_collections_name())
 
-                d = ui.dialog().props('max-width=640px')
+                d = ui.dialog().props('max-width=1080px')
                 with d, ui.card().classes('w-[580px]'):
                     ui.label('Add to Collection').classes('text-lg font-bold')
                     ui.separator()
@@ -648,8 +702,8 @@ def open_table_dialog(row_data: dict):
                     except Exception:
                         pass
 
-                d = ui.dialog().props('max-width=640px')
-                with d, ui.card().classes('w-[580px]'):
+                d = ui.dialog().props('max-width=1080px')
+                with d, ui.card().classes('w-[800px]'):
                     ui.label('Remove from Collection').classes('text-lg font-bold')
                     ui.separator()
                     if not members:
@@ -702,7 +756,7 @@ def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Call
             _missing_tables_dialog.close()
     except Exception:
         pass
-    dlg = ui.dialog().props('max-width=1000px')
+    dlg = ui.dialog().props('max-width=1080px')
     _missing_tables_dialog = dlg
     with dlg, ui.card().classes('w-[960px] max-w-[95vw]'):
         title = ui.label(f'Missing Tables ({len(missing_rows)})').classes('text-lg font-bold')
@@ -752,7 +806,7 @@ def open_match_vps_dialog(
     refresh_missing: callback to refresh the missing list/count after success
     refresh_installed: callback to refresh the installed tables list after success
     """
-    dlg = ui.dialog().props('max-width=1000px')
+    dlg = ui.dialog().props('max-width=1080px')
     with dlg, ui.card().classes('w-[960px] max-w-[95vw]'):
         ui.label(f"Match VPS ID → {missing_row['folder']}").classes('text-lg font-bold')
         ui.separator()
