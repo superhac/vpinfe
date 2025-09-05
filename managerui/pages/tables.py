@@ -373,6 +373,88 @@ def render_panel(tab):
                 build_btn = ui.button("Build Metadata", on_click=call_build_metadata).props("icon=build color=primary")
                 download_media = ui.switch("Download Media Automatically", value=False)
                 patch_btn = ui.button("Apply VPX Patches").props("icon=construction color=secondary")
+                collections_btn = ui.button("Collections").props("icon=collections_bookmark color=secondary outline")
+
+                def open_manage_collections():
+                    c = VPXCollections(str(COLLECTIONS_INI_PATH))
+
+                    def refresh_list():
+                        names = list(c.get_collections_name())
+                        list_container.clear()
+                        if not names:
+                            with list_container:
+                                ui.label('No collections yet. Create one below.').classes('text-sm text-grey')
+                            return
+                        for name in sorted(names):
+                            with list_container, ui.row().classes('justify-between items-center w-full q-py-xs'):
+                                ui.label(name).classes('font-medium')
+                                with ui.row().classes('gap-2'):
+                                    def do_rename(n=name):
+                                        d2 = ui.dialog().props('max-width=480px')
+                                        with d2, ui.card().classes('w-[420px]'):
+                                            ui.label(f'Rename "{n}"').classes('text-lg font-bold')
+                                            new_input = ui.input('New name').props('dense clearable').classes('w-full')
+                                            with ui.row().classes('justify-end gap-2 q-mt-sm'):
+                                                ui.button('Cancel', on_click=d2.close)
+                                                def confirm_rename():
+                                                    newn = (new_input.value or '').strip()
+                                                    if not newn:
+                                                        ui.notify('Type a new name', type='warning'); return
+                                                    if newn in c.get_collections_name():
+                                                        ui.notify('Collection already exists', type='warning'); return
+                                                    try:
+                                                        ids = c.get_vpsids(n)
+                                                        c.add_collection(newn, ids)
+                                                        c.delete_collection(n)
+                                                        c.save()
+                                                        ui.notify('Renamed', type='positive')
+                                                        d2.close()
+                                                        refresh_list()
+                                                    except Exception as ex:
+                                                        ui.notify(f'Failed: {ex}', type='negative')
+                                                ui.button('Rename', on_click=confirm_rename).props('color=primary')
+                                        d2.open()
+                                    ui.button('Rename', on_click=do_rename).props('outline')
+
+                                    def do_delete(n=name):
+                                        try:
+                                            c.delete_collection(n)
+                                            c.save()
+                                            ui.notify('Deleted', type='positive')
+                                            refresh_list()
+                                        except Exception as ex:
+                                            ui.notify(f'Failed: {ex}', type='negative')
+                                    ui.button('Delete', on_click=do_delete).props('color=negative outline')
+
+                    d = ui.dialog().props('max-width=760px')
+                    with d, ui.card().classes('w-[700px]'):
+                        ui.label('Collections').classes('text-lg font-bold')
+                        ui.separator()
+                        list_container = ui.column().classes('w-full')
+                        refresh_list()
+                        ui.separator().classes('q-my-sm')
+                        with ui.row().classes('items-center gap-2'):
+                            new_name = ui.input('Create new collection').props('dense clearable').classes('flex-1')
+                            def create():
+                                name = (new_name.value or '').strip()
+                                if not name:
+                                    ui.notify('Type a name', type='warning'); return
+                                if name in c.get_collections_name():
+                                    ui.notify('Collection already exists', type='warning'); return
+                                try:
+                                    c.add_collection(name)
+                                    c.save()
+                                    ui.notify('Created', type='positive')
+                                    new_name.value = ''
+                                    refresh_list()
+                                except Exception as ex:
+                                    ui.notify(f'Failed: {ex}', type='negative')
+                            ui.button('Create', on_click=create).props('color=primary')
+                        with ui.row().classes('justify-end q-mt-sm'):
+                            ui.button('Close', on_click=d.close)
+                    d.open()
+
+                collections_btn.on('click', open_manage_collections)
                 async def call_apply_patches():
                     nonlocal RUNNING
                     if RUNNING:
@@ -404,6 +486,7 @@ def render_panel(tab):
                 patch_btn.on_click(call_apply_patches)
         progressbar
         status_label
+        ui.label("Click on the table to see more details and manage")
         table = (
             ui.table(columns=columns, rows=[], row_key='filename', pagination={'rowsPerPage': 25})
               .props('rows-per-page-options="[25,50,100]"')
@@ -492,7 +575,9 @@ def open_table_dialog(row_data: dict):
                     ui.label('Add to Collection').classes('text-lg font-bold')
                     ui.separator()
                     with ui.column().classes('w-full gap-2'):
-                        coll_select = ui.select(existing, label='Select existing collection').props('clearable dense') if existing else None
+                        with ui.row():
+                            ui.label("Collections")
+                            coll_select = ui.select(existing, label='Select existing collection').props('clearable dense') if existing else None
                         new_name = ui.input('Or create new collection').props('clearable dense')
                     with ui.row().classes('justify-end gap-2 q-mt-md'):
                         def do_add():
