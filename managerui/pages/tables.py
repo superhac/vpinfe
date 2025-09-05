@@ -230,21 +230,21 @@ def render_panel(tab):
         # No extra CSS for the progress bar; use status_label for percent text
         # Define columns for the table
         columns = [
-            {'name': 'filename', 'label': 'Filename', 'field': 'filename'},
-            {'name': 'id', 'label': 'VPS ID', 'field': 'id'},
-            {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left'},
-            {'name': 'manufacturer', 'label': 'Manufacturer', 'field': 'manufacturer'},
-            {'name': 'year', 'label': 'Year', 'field': 'year'},
-            {'name': 'rom', 'label': 'ROM', 'field': 'rom'},
-            {'name': 'version', 'label': 'Version', 'field': 'version'},
-            {'name': 'detectnfozzy', 'label': 'NFOZZY', 'field': 'detectnfozzy'},
-            {'name': 'detectfleep','label': 'Fleep','field': 'detectfleep'},
-            {'name': 'detectssf','label': 'Scorebit','field': 'detectssf'},
-            {'name': 'detectlut','label': 'LUT','field': 'detectlut'},
-            {'name': 'detectscorebit','label': 'Scorebit','field': 'detectscorebit'},
-            {'name': 'detectfastflips','label': 'FastFlips','field': 'detectfastflips'},
-            {'name': 'detectflex','label': 'FlexDMD','field': 'detectflex'},
-            {'name': 'patch_applied', 'label': 'VPX Patch applied?', 'field': 'patch_applied'}
+            {'name': 'filename', 'label': 'Filename', 'field': 'filename', 'sortable': True},
+            {'name': 'id', 'label': 'VPS ID', 'field': 'id', 'sortable': True},
+            {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
+            {'name': 'manufacturer', 'label': 'Manufacturer', 'field': 'manufacturer', 'sortable': True},
+            {'name': 'year', 'label': 'Year', 'field': 'year', 'sortable': True},
+            {'name': 'rom', 'label': 'ROM', 'field': 'rom', 'sortable': True},
+            {'name': 'version', 'label': 'Version', 'field': 'version', 'sortable': True},
+            {'name': 'detectnfozzy', 'label': 'NFOZZY', 'field': 'detectnfozzy', 'sortable': True},
+            {'name': 'detectfleep','label': 'Fleep','field': 'detectfleep', 'sortable': True},
+            {'name': 'detectssf','label': 'Scorebit','field': 'detectssf', 'sortable': True},
+            {'name': 'detectlut','label': 'LUT','field': 'detectlut', 'sortable': True},
+            {'name': 'detectscorebit','label': 'Scorebit','field': 'detectscorebit', 'sortable': True},
+            {'name': 'detectfastflips','label': 'FastFlips','field': 'detectfastflips', 'sortable': True},
+            {'name': 'detectflex','label': 'FlexDMD','field': 'detectflex', 'sortable': True},
+            {'name': 'patch_applied', 'label': 'VPX Patch applied?', 'field': 'patch_applied', 'sortable': True}
         ]
 
         def on_row_click(e: events.GenericEventArguments):
@@ -269,7 +269,11 @@ def render_panel(tab):
                 table_rows = await run.io_bound(scan_tables, silent)
                 missing_rows = await run.io_bound(scan_missing_tables)
 
-                # Update UI components (force refresh by reassigning rows)
+                # Update UI components (default sort by Name; force refresh by reassigning rows)
+                try:
+                    table_rows.sort(key=lambda r: (r.get('name') or '').lower())
+                except Exception:
+                    pass
                 table.rows = []
                 table.update()
                 await asyncio.sleep(0)  # yield to UI loop
@@ -577,7 +581,7 @@ def open_table_dialog(row_data: dict):
                     with ui.column().classes('w-full gap-2'):
                         with ui.row():
                             ui.label("Collections")
-                            coll_select = ui.select(existing, label='Select existing collection').props('clearable dense') if existing else None
+                        coll_select = ui.select({name: name for name in existing}, label='Select existing collection').props('clearable dense') if existing else None
                         new_name = ui.input('Or create new collection').props('clearable dense')
                     with ui.row().classes('justify-end gap-2 q-mt-md'):
                         def do_add():
@@ -609,6 +613,55 @@ def open_table_dialog(row_data: dict):
                 d.open()
 
             ui.button('Add to Collection', on_click=open_add_to_collection_dialog).props('icon=playlist_add color=primary')
+
+            def open_remove_from_collection_dialog():
+                vps_id = (row_data.get('id') or '').strip()
+                if not vps_id:
+                    ui.notify('This table has no VPS ID. Associate it first.', type='warning')
+                    return
+
+                c = VPXCollections(str(COLLECTIONS_INI_PATH))
+                # find collections that currently contain this vps_id
+                members: List[str] = []
+                for name in c.get_collections_name():
+                    try:
+                        if vps_id in c.get_vpsids(name):
+                            members.append(name)
+                    except Exception:
+                        pass
+
+                d = ui.dialog().props('max-width=640px')
+                with d, ui.card().classes('w-[580px]'):
+                    ui.label('Remove from Collection').classes('text-lg font-bold')
+                    ui.separator()
+                    if not members:
+                        ui.label('This table is not in any collection.').classes('text-sm text-grey')
+                    else:
+                        sel = ui.select({name: name for name in members}, label='Select collections', value=[] , multiple=True).props('dense')
+                        with ui.row().classes('justify-end gap-2 q-mt-md'):
+                            ui.button('Cancel', on_click=d.close)
+                            def do_remove():
+                                selected = sel.value or []
+                                if isinstance(selected, str):
+                                    selected = [selected]
+                                if not selected:
+                                    ui.notify('Choose at least one collection.', type='warning')
+                                    return
+                                try:
+                                    for name in selected:
+                                        c.remove_vpsid(name, vps_id)
+                                    c.save()
+                                    ui.notify('Removed from selected collections', type='positive')
+                                    d.close()
+                                except Exception as ex:
+                                    ui.notify(f'Failed removing: {ex}', type='negative')
+                            ui.button('Remove', on_click=do_remove).props('color=negative')
+                    if not members:
+                        with ui.row().classes('justify-end q-mt-md'):
+                            ui.button('Close', on_click=d.close)
+                d.open()
+
+            ui.button('Remove from Collection', on_click=open_remove_from_collection_dialog).props('icon=playlist_remove color=negative outline')
 
         with ui.row().classes('justify-end q-mt-md'):
             ui.button('Close', on_click=dlg.close)
