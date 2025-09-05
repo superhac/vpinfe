@@ -581,8 +581,26 @@ def open_table_dialog(row_data: dict):
                     with ui.column().classes('w-full gap-2'):
                         with ui.row():
                             ui.label("Collections")
-                        coll_select = ui.select({name: name for name in existing}, label='Select existing collection').props('clearable dense') if existing else None
-                        new_name = ui.input('Or create new collection').props('clearable dense')
+                        if existing:
+                            coll_select = (
+                                ui.select(
+                                    {name: name for name in existing},
+                                    label='Existing collections',
+                                    value=None,
+                                )
+                                .props('filled clearable dense options-dense use-chips')
+                                .classes('w-full')
+                            )
+                            ui.label('Pick one, or create a new one below.').classes('text-xs text-grey')
+                        else:
+                            coll_select = None
+                            ui.label('No collections yet. Create one below.').classes('text-xs text-grey')
+
+                        new_name = (
+                            ui.input('New collection name')
+                              .props('filled clearable dense')
+                              .classes('w-full')
+                        )
                     with ui.row().classes('justify-end gap-2 q-mt-md'):
                         def do_add():
                             name = ''
@@ -637,7 +655,16 @@ def open_table_dialog(row_data: dict):
                     if not members:
                         ui.label('This table is not in any collection.').classes('text-sm text-grey')
                     else:
-                        sel = ui.select({name: name for name in members}, label='Select collections', value=[] , multiple=True).props('dense')
+                        sel = (
+                            ui.select(
+                                {name: name for name in members},
+                                label='Collections containing this table',
+                                value=[],
+                                multiple=True,
+                            )
+                            .props('filled clearable dense options-dense use-chips')
+                            .classes('w-full')
+                        )
                         with ui.row().classes('justify-end gap-2 q-mt-md'):
                             ui.button('Cancel', on_click=d.close)
                             def do_remove():
