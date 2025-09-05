@@ -9,11 +9,13 @@ from typing import List, Dict, Optional, Callable
 from common.vpxparser import VPXParser
 from clioptions import buildMetaData, vpxPatches
 from queue import Queue
+from common.vpxcollections import VPXCollections
 
 # Resolve project root and important paths explicitly
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 VPSDB_JSON_PATH = PROJECT_ROOT / 'vpsdb.json'
 VPINFE_INI_PATH = PROJECT_ROOT / 'vpinfe.ini'
+COLLECTIONS_INI_PATH = PROJECT_ROOT / 'collections.ini'
 
 # Load vpinfe.ini once to avoid repeated parsing
 from common.iniconfig import IniConfig
@@ -402,7 +404,12 @@ def render_panel(tab):
                 patch_btn.on_click(call_apply_patches)
         progressbar
         status_label
-        table = ui.table(columns=columns, rows=[], row_key='filename').on('row-click', on_row_click).classes("w-full cursor-pointer")
+        table = (
+            ui.table(columns=columns, rows=[], row_key='filename', pagination={'rowsPerPage': 25})
+              .props('rows-per-page-options="[25,50,100]"')
+              .on('row-click', on_row_click)
+              .classes("w-full cursor-pointer")
+        )
         # Trigger an initial scan once after render so data shows on first open
         def _trigger_initial_scan():
             try:
@@ -466,6 +473,57 @@ def open_table_dialog(row_data: dict):
                 save_upload_bytes(dest, e.content)
                 ui.notify(f'AltSound: {e.name} saved on {dest}', type='positive')
             ui.upload(on_upload=on_altsound_upload, multiple=True).props('label=Select files or directory')
+
+        # 4) Collections (add current table to a collection)
+        with ui.row().classes('items-center gap-3 q-mt-sm'):
+            ui.label('Collections')
+
+            def open_add_to_collection_dialog():
+                vps_id = (row_data.get('id') or '').strip()
+                if not vps_id:
+                    ui.notify('This table has no VPS ID. Associate it first.', type='warning')
+                    return
+
+                c = VPXCollections(str(COLLECTIONS_INI_PATH))
+                existing = list(c.get_collections_name())
+
+                d = ui.dialog().props('max-width=640px')
+                with d, ui.card().classes('w-[580px]'):
+                    ui.label('Add to Collection').classes('text-lg font-bold')
+                    ui.separator()
+                    with ui.column().classes('w-full gap-2'):
+                        coll_select = ui.select(existing, label='Select existing collection').props('clearable dense') if existing else None
+                        new_name = ui.input('Or create new collection').props('clearable dense')
+                    with ui.row().classes('justify-end gap-2 q-mt-md'):
+                        def do_add():
+                            name = ''
+                            if new_name.value and str(new_name.value).strip():
+                                name = str(new_name.value).strip()
+                                if name not in c.get_collections_name():
+                                    try:
+                                        c.add_collection(name)
+                                        c.save()
+                                    except Exception as ex:
+                                        ui.notify(f'Failed creating collection: {ex}', type='negative')
+                                        return
+                            elif coll_select and coll_select.value:
+                                name = str(coll_select.value)
+                            else:
+                                ui.notify('Choose a collection or type a new name.', type='warning')
+                                return
+
+                            try:
+                                c.add_vpsid(name, vps_id)
+                                c.save()
+                                ui.notify(f'Added to collection "{name}"', type='positive')
+                                d.close()
+                            except Exception as ex:
+                                ui.notify(f'Failed adding to collection: {ex}', type='negative')
+                        ui.button('Cancel', on_click=d.close)
+                        ui.button('Add', on_click=do_add).props('color=primary')
+                d.open()
+
+            ui.button('Add to Collection', on_click=open_add_to_collection_dialog).props('icon=playlist_add color=primary')
 
         with ui.row().classes('justify-end q-mt-md'):
             ui.button('Close', on_click=dlg.close)
