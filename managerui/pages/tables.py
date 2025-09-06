@@ -242,15 +242,15 @@ def render_panel(tab):
             {'name': 'year', 'label': 'Year', 'field': 'year', 'sortable': True},
             {'name': 'rom', 'label': 'ROM', 'field': 'rom', 'sortable': True},
             {'name': 'version', 'label': 'Version', 'field': 'version', 'sortable': True},
-            {'name': 'detectnfozzy', 'label': 'NFOZZY', 'field': 'detectnfozzy', 'sortable': True},
-            {'name': 'detectfleep','label': 'Fleep','field': 'detectfleep', 'sortable': True},
-            {'name': 'detectssf','label': 'SSF','field': 'detectssf', 'sortable': True},
-            {'name': 'detectlut','label': 'LUT','field': 'detectlut', 'sortable': True},
-            {'name': 'detectscorebit','label': 'Scorebit','field': 'detectscorebit', 'sortable': True},
-            {'name': 'detectfastflips','label': 'FastFlips','field': 'detectfastflips', 'sortable': True},
-            {'name': 'detectflex','label': 'FlexDMD','field': 'detectflex', 'sortable': True},
-            {'name': 'patch_applied', 'label': 'Patch ?', 'field': 'patch_applied', 'sortable': True},
-            {'name': 'collections', 'label': 'Collections', 'field': 'id', 'sortable': False}
+            #{'name': 'detectnfozzy', 'label': 'NFOZZY', 'field': 'detectnfozzy', 'sortable': True},
+            #{'name': 'detectfleep','label': 'Fleep','field': 'detectfleep', 'sortable': True},
+            #{'name': 'detectssf','label': 'SSF','field': 'detectssf', 'sortable': True},
+            #{'name': 'detectlut','label': 'LUT','field': 'detectlut', 'sortable': True},
+            #{'name': 'detectscorebit','label': 'Scorebit','field': 'detectscorebit', 'sortable': True},
+            #{'name': 'detectfastflips','label': 'FastFlips','field': 'detectfastflips', 'sortable': True},
+            #{'name': 'detectflex','label': 'FlexDMD','field': 'detectflex', 'sortable': True},
+            {'name': 'patch_applied', 'label': 'Standalone Patch', 'field': 'patch_applied', 'sortable': True, 'align': 'center'},
+            {'name': 'collections', 'label': 'Collections', 'field': 'id', 'sortable': False, 'align': 'center'}
         ]
 
         def on_row_click(e: events.GenericEventArguments):
@@ -274,6 +274,23 @@ def render_panel(tab):
                 # Run blocking I/O in a separate thread to avoid freezing the UI
                 table_rows = await run.io_bound(scan_tables, silent)
                 missing_rows = await run.io_bound(scan_missing_tables)
+
+                # Attach collections membership to each row (list of collection names)
+                try:
+                    c = VPXCollections(str(COLLECTIONS_INI_PATH))
+                    vmap: dict[str, list[str]] = {}
+                    for name in c.get_collections_name():
+                        try:
+                            for vid in c.get_vpsids(name):
+                                vmap.setdefault(vid.strip(), []).append(name)
+                        except Exception:
+                            continue
+                    for r in table_rows:
+                        vid = (r.get('id') or '').strip()
+                        r['collections'] = vmap.get(vid, [])
+                except Exception:
+                    for r in table_rows:
+                        r['collections'] = []
 
                 # Update UI components (default sort by Name; force refresh by reassigning rows)
                 try:
@@ -514,13 +531,18 @@ def render_panel(tab):
             )
             table.add_slot('body-cell-collections', f'''
               <q-td :props="props" @click.stop>
-                <q-btn size="sm" flat dense icon="playlist_add" round @click.stop>
-                  <q-menu>
-                    <q-list style="min-width: 200px">
-                      {items_html}
-                    </q-list>
-                  </q-menu>
-                </q-btn>
+                <div class="row items-center no-wrap q-gutter-xs">
+                  <q-chip v-for="(cname, idx) in (props.row.collections || []).slice(0,2)"
+                          :key="idx" dense size="sm" color="primary" text-color="white">{{{{ cname }}}}</q-chip>
+                  <q-badge v-if="(props.row.collections || []).length > 2" color="grey-6" text-color="white" align="middle">+{{{{ (props.row.collections || []).length - 2 }}}}</q-badge>
+                  <q-btn size="sm" flat dense round icon="playlist_add" @click.stop>
+                    <q-menu>
+                      <q-list style="min-width: 200px">
+                        {items_html}
+                      </q-list>
+                    </q-menu>
+                  </q-btn>
+                </div>
               </q-td>
             ''')
 
@@ -546,6 +568,8 @@ def render_panel(tab):
                         c.add_vpsid(name, vps_id)
                         c.save()
                         ui.notify(f'Added to "{name}"', type='positive')
+                    # refresh table rows so chips reflect changes
+                    asyncio.create_task(perform_scan(silent=True))
                 except Exception as ex:
                     ui.notify(f'Failed to update collection: {ex}', type='negative')
 
