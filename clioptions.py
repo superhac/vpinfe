@@ -11,7 +11,7 @@ from common.vpsdb import VPSdb
 from common.metaconfig import MetaConfig
 from common.vpxparser import VPXParser
 from common.standalonescripts import StandaloneScripts
-from frontend.httpserver import HTTPServer
+from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
 from pathlib import Path
 import uuid

@@ -3,7 +3,7 @@
 import webview
 from pathlib import Path
 from screeninfo import get_monitors
-from frontend.httpserver import HTTPServer
+from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
 import threading
 from common.iniconfig import IniConfig
@@ -120,7 +120,7 @@ MOUNT_POINTS = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
         '/web/': os.path.join(os.getcwd(), 'web'),
         }
-http_server = HTTPServer(MOUNT_POINTS)
+http_server = CustomHTTPServer(MOUNT_POINTS)
 http_server.start_file_server()
 
 # Start the NiceGUI HTTP server
