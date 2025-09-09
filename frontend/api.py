@@ -153,7 +153,7 @@ class API:
     
     def get_theme_index_page(self):
         theme_name = self.get_theme_name()
-        theme_path = f'theme/{theme_name}/'
+        theme_path = f'http://127.0.0.1:8000/web/theme/{theme_name}/'
         url = theme_path +f'index_{self.get_my_window_name()}.html'
         print("url: " + url)
         return url
