@@ -84,7 +84,7 @@ def buildMetaData(downloadMedia: bool = True, progress_cb=None):
         if downloadMedia:
             vps.downloadMediaForTable(table, vpsData['id'])
         result = {'found': total, 'not_found': not_found_tables}
-        print(f'[# {run_id}] END buildMetaData -> {result}')
+        #print(f'[# {run_id}] END buildMetaData -> {result}')
 
     return {
         'found': total,
