@@ -156,8 +156,8 @@ class VPSdb:
       print(f"{colorama.Fore.RED}No media exists yet for {table.fullPathTable} with ID {id}.{colorama.Style.RESET_ALL}")
       return
     tablemediajson = self.vpinmediadbjson[id]
-    self.downloadMedia(id, tablemediajson[self.tableresolution], 'bg', table.BGImagePath, table.fullPathTable + "/bg.png")
-    self.downloadMedia(id, tablemediajson[self.tableresolution], 'dmd', table.DMDImagePath, table.fullPathTable + "/dmd.png")
+    self.downloadMedia(id, tablemediajson['1k'], 'bg', table.BGImagePath, table.fullPathTable + "/bg.png")
+    self.downloadMedia(id, tablemediajson['1k'], 'dmd', table.DMDImagePath, table.fullPathTable + "/dmd.png")
     self.downloadMedia(id, tablemediajson, 'wheel', table.WheelImagePath, table.fullPathTable + "/wheel.png")
     self.downloadMedia(id, tablemediajson[self.tableresolution], self.tabletype, table.TableImagePath, table.fullPathTable + "/" + self.tabletype + ".png")
 

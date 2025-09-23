@@ -77,7 +77,7 @@ joyexit = 0
 joyfav = 16
 
 [Media]
-tabletype =
+tabletype = table
 tableresolution = 4k
 ```
 

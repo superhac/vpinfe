@@ -48,7 +48,7 @@ class TableParser:
                 self.loadImagePaths(table)
                 self.loadMetaData(table)
     
-        print(f"  Found {count} tables (.vpx).")
+        print(f"  Found {len(TableParser.tables)} tables (.vpx).")
 
     def loadImagePaths(self, Table):
         # set bg image
