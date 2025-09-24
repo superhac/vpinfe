@@ -26,9 +26,18 @@ class API:
     def _finish_setup(self): # incase we need to do anything after the windows are created and instanc evars are loaded.
         pass
     
+        
     ###################
     ## Public Functions
     ###################
+    
+    def playSound(self, sound):
+       self.myWindow[0].evaluate_js(
+            f"""
+            PIXI.sound.play("{sound}");
+            """
+            )
+       
     
     def get_my_window_name(self):
         for window_name, window, api in self.webview_windows:

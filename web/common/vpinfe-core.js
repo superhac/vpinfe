@@ -24,6 +24,7 @@ class VPinFECore {
 
     // menu is up?
     this.menuUP = false;
+
   }
 
   // ***********************************
@@ -33,7 +34,7 @@ class VPinFECore {
   init() {
     // Set up keyboard listener
     window.addEventListener('keydown', (e) => this.onKeyDown(e));
-
+   
     // Wait for pywebview then run all async init
     window.addEventListener('pywebviewready', async () => {
       await this.#onPyWebviewReady();  // Wait until everything is done
@@ -114,6 +115,14 @@ class VPinFECore {
       this.call("console_out", this.#convertImagePathToURL(table.CabImagePath))
       return this.#convertImagePathToURL(table.CabImagePath);
     }
+  }
+
+  getTableMeta(index) {
+    return this.tableData[index];
+  }
+
+  getTableCount() {
+    return this.tableData.length;
   }
 
   // send a message to all windows except "self"
