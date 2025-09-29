@@ -10,11 +10,9 @@ class TableParser:
     
     RED_CONSOLE_TEXT = '\033[31m'
     RESET_CONSOLE_TEXT = '\033[0m'
-    skipExistingMetaIni=True
     
-    def __init__(self, tablesRootFilePath, skipExistingMetaIni=True):
+    def __init__(self, tablesRootFilePath):
         TableParser.tablesRootFilePath = tablesRootFilePath
-        self.skipExistingMetaIni=skipExistingMetaIni
         self.loadTables()
 
     def loadTables(self, reload=False): # reload if you want to rescan the tables
@@ -29,8 +27,6 @@ class TableParser:
                 table = Table()
                 table.tableDirName = fname # set the indidvual table dir
                 table.fullPathTable = path
-                if os.path.exists(table.fullPathTable + "/meta.ini") and self.skipExistingMetaIni:
-                    continue  # skip if meta.ini exists 
                 for fname2 in os.listdir(TableParser.tablesRootFilePath+fname):
                     path2 = os.path.join(TableParser.tablesRootFilePath+fname, fname2)
                     if not os.path.isdir(path2):

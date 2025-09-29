@@ -33,7 +33,7 @@ def buildMetaData(downloadMedia: bool = True, skipExistingMetaIni: bool = True, 
     not_found_tables = 0
     parservpx = VPXParser()
 
-    tables = TableParser(iniconfig.config['Settings']['tablerootdir'], skipExistingMetaIni).getAllTables()
+    tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
     raw_count = len(tables)
     print(f"Found {raw_count} tables (.vpx).")
     seen = set()
@@ -60,6 +60,8 @@ def buildMetaData(downloadMedia: bool = True, skipExistingMetaIni: bool = True, 
             progress_cb(current, total, f'Verifying Table {current}/{total}: {table.tableDirName}')
 
         finalini = {}
+        if os.path.exists(table.fullPathTable + "/meta.ini") and skipExistingMetaIni:
+            continue  # skip if meta.ini exists 
         meta = MetaConfig(table.fullPathTable + "/" + "meta.ini")
 
         # vpsdb
