@@ -172,6 +172,7 @@ options:
   --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
   --gamepadtest         Testing and mapping your gamepad via js api
   --no-media            When building meta.ini files don't download the images at the same time.
+  --update-all          When building meta.ini reparse all tables to recreate the meta.ini file.
 ```
 
 ## Vpinfe.ini

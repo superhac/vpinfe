@@ -97,21 +97,6 @@ def loadWindows():
 if len(sys.argv) > 0:
     parseArgs()
 
-#DEBUG
-
-""" c = VPXCollections(Path(__file__).parent / "collections.ini")
-tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables();
-
-print("Sections:", c.get_collections_name)
-print("All:", c.get_all())
-print(c.get_vpsids('Favorites'))
-
-mylist = c.filter_tables(tables, 'Favorites')
-print([item.tableDirName for item in mylist])
-
-sys.exit() """
-
-
 # Initialize webview windows
 loadWindows()
 
@@ -133,11 +118,3 @@ webview.start(http_server=True)
 http_server.on_closed()
 nicegui_app.shutdown()
 stop_manager_ui()
-
-################ debug stuff ################
-#print(webview_windows[2][2].get_theme_index_page())
-#threading.Timer(10.0, webview_windows[2][2].send_event_all_windows).start()
-#print(iniconfig.config['Settings']['tablerootdir'])
-
-#print(webview_windows[2][2].get_tables())
-#print(webview_windows[2][2].get_tables())
