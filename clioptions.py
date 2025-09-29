@@ -60,31 +60,38 @@ def buildMetaData(downloadMedia: bool = True, skipExistingMetaIni: bool = True, 
             progress_cb(current, total, f'Verifying Table {current}/{total}: {table.tableDirName}')
 
         finalini = {}
-        if os.path.exists(table.fullPathTable + "/meta.ini") and skipExistingMetaIni:
-            continue  # skip if meta.ini exists 
-        meta = MetaConfig(table.fullPathTable + "/" + "meta.ini")
+        if not os.path.exists(table.fullPathTable + "/meta.ini") and skipExistingMetaIni:
+        
+            meta = MetaConfig(table.fullPathTable + "/" + "meta.ini")
 
-        # vpsdb
-        print(f"\rChecking VPSdb for table {current}/{total}: {table.tableDirName}")
-        vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-        vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
-        if vpsData is None:
-            print(f"{colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
-            not_found_tables += 1
-            continue
+            # vpsdb
+            print(f"\rChecking VPSdb for table {current}/{total}: {table.tableDirName}")
+            vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
+            if vpsData is None:
+                print(f"{colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
+                not_found_tables += 1
+                continue
 
-        # vpx file info
-        print("Parsing VPX file for metadata")
-        print(f"Extracting {table.fullPathVPXfile} for metadata.")
-        vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
+            # vpx file info
+            print("Parsing VPX file for metadata")
+            print(f"Extracting {table.fullPathVPXfile} for metadata.")
+            vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
 
-        # make the config.ini
-        finalini['vpsdata'] = vpsData
-        finalini['vpxdata'] = vpxData
-        meta.writeConfigMeta(finalini)
+            # make the config.ini
+            finalini['vpsdata'] = vpsData
+            finalini['vpxdata'] = vpxData
+            meta.writeConfigMeta(finalini)
+            
+            if downloadMedia:
+                vps.downloadMediaForTable(table, vpsData['id'])
+        else:
+            meta = MetaConfig(table.fullPathTable + "/" + "meta.ini")
+            if downloadMedia:
+                vps.downloadMediaForTable(table, meta.getConfig()['VPSdb']['id'])
+            
 
-        if downloadMedia:
-            vps.downloadMediaForTable(table, vpsData['id'])
+        
         result = {'found': total, 'not_found': not_found_tables}
         #print(f'[# {run_id}] END buildMetaData -> {result}')
 
