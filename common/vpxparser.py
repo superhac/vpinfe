@@ -144,7 +144,7 @@ class VPXParser:
 			vpxFileValues['rom'] = m.group(1)
 		except AttributeError:
 			vpxFileValues['rom'] = ""
-			print("No rom found.")
+			#print("No rom found.")
 		
 		try:
 			if vpxFileValues['rom'] == "":
@@ -152,13 +152,12 @@ class VPXParser:
 		except AttributeError:
 			if vpxFileValues['rom'] == "":
 				vpxFileValues['rom'] = ""
-				print("No rom found.")
+				#print("No rom found.")
 
 	def extractDetectNFozzy(self, vpxFileValues):
 		if 'Class FlipperPolarity' in vpxFileValues['gameData']:
 		#if 'Class CoRTracker' in vpxFileValues['gameData']:
 			vpxFileValues['detectNfozzy'] = "true"
-			print("NFozzy detected.")
 		else:
 			vpxFileValues['detectNfozzy'] = "false"
 
@@ -166,42 +165,36 @@ class VPXParser:
 		#if 'fleep' in vpxFileValues['gameData'].lower():
 		if 'RubberStrongSoundFactor'.lower() in vpxFileValues['gameData'].lower():
 			vpxFileValues['detectFleep'] = "true"
-			print("Fleep detected.")
 		else:
 			vpxFileValues['detectFleep'] = "false"
 
 	def extractDetectSSF(self, vpxFileValues):
 		if 'PlaySoundAt'.lower() in vpxFileValues['gameData'].lower():
 			vpxFileValues['detectSSF'] = "true"
-			print("SSF detected.")
 		else:
 			vpxFileValues['detectSSF'] = "false"
 
 	def extractDetectLut(self, vpxFileValues):
 		if 'lut'.lower() in vpxFileValues['gameData'].lower():
 			vpxFileValues['detectLut'] = "true"
-			print("LUT detected.")
 		else:
 			vpxFileValues['detectLut'] = "false"
 
 	def extractDetectScorebit(self, vpxFileValues):
 		if 'Scorebit'.lower() in vpxFileValues['gameData'].lower():
 			vpxFileValues['detectScorebit'] = "true"
-			print("Scorebit detected.")
 		else:
 			vpxFileValues['detectScorebit'] = "false"
 
 	def extractDetectFastflips(self, vpxFileValues):
 		if 'Fastflips'.lower() in vpxFileValues['gameData'].lower():
 			vpxFileValues['detectFastflips'] = "true"
-			print("Fastflips detected.")
 		else:
 			vpxFileValues['detectFastflips'] = "false"
 
 	def extractDetectFlex(self, vpxFileValues):
 		if 'FlexDMD'.lower() in vpxFileValues['gameData'].lower():
 			vpxFileValues['detectFlex'] = "true"
-			print("Flex DMD detected.")
 		else:
 			vpxFileValues['detectFlex'] = "false"
 

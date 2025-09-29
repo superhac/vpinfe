@@ -40,9 +40,6 @@ class MetaConfig:
             config['VPSdb']['year'] = configdata.get('vpsdata', {}).get('year', '')
             config['VPSdb']['theme'] = configdata.get('vpsdata', {}).get('theme', '')
             
-            print( config['VPSdb']['type'])
-            
-            
             # vpx file data
             config['VPXFile']['filename'] = configdata['vpxdata']['filename']
             config['VPXFile']['filehash'] = configdata['vpxdata']['fileHash']

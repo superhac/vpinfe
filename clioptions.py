@@ -25,7 +25,7 @@ def _norm_path(p: str) -> str:
     except Exception:
         return os.path.normpath(p).lower()
 
-def buildMetaData(downloadMedia: bool = True, progress_cb=None):
+def buildMetaData(downloadMedia: bool = True, skipExistingMetaIni: bool = True, progress_cb=None):
     run_id = uuid.uuid4().hex[:8]
     
     #print(f'[# {run_id}] START buildMetaData (download={downloadMedia})')
@@ -33,7 +33,7 @@ def buildMetaData(downloadMedia: bool = True, progress_cb=None):
     not_found_tables = 0
     parservpx = VPXParser()
 
-    tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
+    tables = TableParser(iniconfig.config['Settings']['tablerootdir'], skipExistingMetaIni).getAllTables()
     raw_count = len(tables)
     print(f"Found {raw_count} tables (.vpx).")
     seen = set()
@@ -178,6 +178,7 @@ def parseArgs():
     
     #second level args
     parser.add_argument("--no-media", help="When building meta.ini files don't download the images at the same time.", action="store_true")
+    parser.add_argument("--update-all", help="When building meta.ini reparse all tables to recreate the meta.ini file.", action="store_true")
 
     #args = parser.parse_args()
     args, unknown = parser.parse_known_args() # fix for mac
@@ -206,7 +207,7 @@ def parseArgs():
         configfile = args.configfile
 
     if args.buildmeta:
-        buildMetaData(False if args.no_media else True)
+        buildMetaData(False if args.no_media else True, False if args.update_all else True )
         sys.exit()
         
     if args.gamepadtest:
