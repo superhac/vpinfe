@@ -1,9 +1,12 @@
 import argparse
-import webview
-from screeninfo import get_monitors
 import sys
 import os
+import uuid
+from pathlib import Path
+
 import colorama
+import webview
+from screeninfo import get_monitors
 
 from common.iniconfig import IniConfig
 from common.tableparser import TableParser
@@ -13,38 +16,38 @@ from common.vpxparser import VPXParser
 from common.standalonescripts import StandaloneScripts
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
-from pathlib import Path
-import uuid
 
+# Initialize config
 colorama.init()
 iniconfig = IniConfig("./vpinfe.ini")
 
+
 def _norm_path(p: str) -> str:
+    """Normalize a filesystem path for consistent comparisons."""
     try:
         return os.path.realpath(os.path.normpath(p)).lower()
     except Exception:
         return os.path.normpath(p).lower()
 
+
 def buildMetaData(downloadMedia: bool = True, skipExistingMetaIni: bool = True, progress_cb=None):
-    run_id = uuid.uuid4().hex[:8]
-    
-    #print(f'[# {run_id}] START buildMetaData (download={downloadMedia})')
-    
+    """Build meta.ini files for all VPX tables and sync with VPSdb."""
     not_found_tables = 0
     parservpx = VPXParser()
 
     tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
     raw_count = len(tables)
     print(f"Found {raw_count} tables (.vpx).")
+
     seen = set()
     unique_tables = []
     for t in tables:
         key = _norm_path(t.fullPathVPXfile)
-        if key in seen:
-            continue
-        seen.add(key)
-        unique_tables.append(t)
-    total = len(unique_tables)  
+        if key not in seen:
+            seen.add(key)
+            unique_tables.append(t)
+
+    total = len(unique_tables)
     vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
     print(f"Found {len(vps)} tables in VPSdb")
 
@@ -55,145 +58,166 @@ def buildMetaData(downloadMedia: bool = True, skipExistingMetaIni: bool = True, 
     for table in tables:
         current += 1
 
-        # Verifying Table current/total
         if progress_cb:
             progress_cb(current, total, f'Verifying Table {current}/{total}: {table.tableDirName}')
 
         finalini = {}
-        if not os.path.exists(table.fullPathTable + "/meta.ini") and skipExistingMetaIni:
-        
-            meta = MetaConfig(table.fullPathTable + "/" + "meta.ini")
+        meta_path = os.path.join(table.fullPathTable, "meta.ini")
 
-            # vpsdb
+        if os.path.exists(meta_path) and skipExistingMetaIni:
+            meta = MetaConfig(meta_path)
+
+            # VPSdb lookup
             print(f"\rChecking VPSdb for table {current}/{total}: {table.tableDirName}")
             vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
+            vpsData = (
+                vps.lookupName(
+                    vpsSearchData["name"],
+                    vpsSearchData["manufacturer"],
+                    vpsSearchData["year"]
+                ) if vpsSearchData else None
+            )
             if vpsData is None:
                 print(f"{colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
                 not_found_tables += 1
                 continue
 
-            # vpx file info
+            # Parse VPX file
             print("Parsing VPX file for metadata")
             print(f"Extracting {table.fullPathVPXfile} for metadata.")
             vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
 
-            # make the config.ini
             finalini['vpsdata'] = vpsData
             finalini['vpxdata'] = vpxData
             meta.writeConfigMeta(finalini)
-            
+
             if downloadMedia:
                 vps.downloadMediaForTable(table, vpsData['id'])
+
         else:
-            meta = MetaConfig(table.fullPathTable + "/" + "meta.ini")
+            meta = MetaConfig(meta_path)
             if downloadMedia:
                 vps.downloadMediaForTable(table, meta.getConfig()['VPSdb']['id'])
-            
 
-        
-        result = {'found': total, 'not_found': not_found_tables}
-        #print(f'[# {run_id}] END buildMetaData -> {result}')
+    return {'found': total, 'not_found': not_found_tables}
 
-    return {
-        'found': total,
-        'not_found': not_found_tables,
-    }
 
- 
 def listMissingTables():
-        tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables();
-        print(f"Listing tables missing from {iniconfig.config["Settings"]["tableRootDir"]}")
-        total = len(tables)
-        print(f"Found {total} tables in {iniconfig.config["Settings"]["tableRootDir"]}")
-        vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
-        print(f"Found {len(vps)} tables in VPSdb")
-        tables_found = []
-        for table in tables:
-            vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
-            if vpsData is None:
-                continue
+    """List VPSdb tables that are not present locally."""
+    tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
+    print(f"Listing tables missing from {iniconfig.config['Settings']['tablerootdir']}")
+    total = len(tables)
+    print(f"Found {total} tables in {iniconfig.config['Settings']['tablerootdir']}")
+
+    vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
+    print(f"Found {len(vps)} tables in VPSdb")
+
+    tables_found = []
+    for table in tables:
+        vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+        vpsData = (
+            vps.lookupName(
+                vpsSearchData["name"],
+                vpsSearchData["manufacturer"],
+                vpsSearchData["year"]
+            ) if vpsSearchData else None
+        )
+        if vpsData:
             tables_found.append(vpsData)
-        
-        current = 0
-        for vpsTable in vps.tables():
-            if vpsTable not in tables_found:
-                current = current + 1
-                print(f"Missing table {current}: {vpsTable['name']} ({vpsTable['manufacturer']} {vpsTable['year']})")
+
+    current = 0
+    for vpsTable in vps.tables():
+        if vpsTable not in tables_found:
+            current += 1
+            print(f"Missing table {current}: {vpsTable['name']} ({vpsTable['manufacturer']} {vpsTable['year']})")
+
 
 def listUnknownTables():
-        tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables();
-        print(f"Listing unknown tables from {iniconfig.config["Settings"]["tableRootDir"]}")
-        total = len(tables)
-        print(f"Found {total} tables in {iniconfig.config["Settings"]["tableRootDir"]}")
-        vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
-        print(f"Found {len(vps)} tables in VPSdb")
-        current = 0
-        for table in tables:
-            vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-            vpsData = vps.lookupName(vpsSearchData["name"], vpsSearchData["manufacturer"], vpsSearchData["year"]) if vpsSearchData is not None else None
-            if vpsData is None:
-                current = current + 1
-                print(f"{colorama.Fore.RED}Unknown table {current}: {table.tableDirName} Not found in VPSdb{colorama.Style.RESET_ALL}")
-                continue
+    """List local tables that could not be matched in VPSdb."""
+    tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
+    print(f"Listing unknown tables from {iniconfig.config['Settings']['tablerootdir']}")
+    total = len(tables)
+    print(f"Found {total} tables in {iniconfig.config['Settings']['tablerootdir']}")
+
+    vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
+    print(f"Found {len(vps)} tables in VPSdb")
+
+    current = 0
+    for table in tables:
+        vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+        vpsData = (
+            vps.lookupName(
+                vpsSearchData["name"],
+                vpsSearchData["manufacturer"],
+                vpsSearchData["year"]
+            ) if vpsSearchData else None
+        )
+        if vpsData is None:
+            current += 1
+            print(f"{colorama.Fore.RED}Unknown table {current}: {table.tableDirName} Not found in VPSdb{colorama.Style.RESET_ALL}")
+
 
 def vpxPatches(progress_cb=None):
-    tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables();
+    """Apply VPX standalone script patches."""
+    tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
     StandaloneScripts(tables, progress_cb=progress_cb)
-    
+
+
 def loadGamepadTestWindow():
-    webview_windows = [] # [ [window_name, window, api] ]
+    """Open a test webview window for gamepad diagnostics."""
+    webview_windows = []
     api = API(iniconfig)
     html = Path(__file__).parent / "web/diag/gamepad.html"
+
     win = webview.create_window(
-            "BG Screen",
-             url=f"file://{html.resolve()}",
-            js_api=api,
-            background_color="#000000",
-            fullscreen=True  # Set to False since we're manually sizing it
-        )
+        "BG Screen",
+        url=f"file://{html.resolve()}",
+        js_api=api,
+        background_color="#000000",
+        fullscreen=True
+    )
+
     api.myWindow.append(win)
-    webview_windows.append(['table',win, api])
+    webview_windows.append(['table', win, api])
     api.webview_windows = webview_windows
     api.iniConfig = iniconfig
     api._finish_setup()
-    
+
+
 def gamepadtest():
+    """Run the gamepad test window and serve local files."""
     loadGamepadTestWindow()
-    # Start an the HTTP server to serve the images from the "tables" directory
-    MOUNT_POINTS = {
-            '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
-            '/web/': os.path.join(os.getcwd(), 'web'),
-            }
-    http_server = HTTPServer(MOUNT_POINTS)
+
+    mount_points = {
+        '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
+        '/web/': os.path.join(os.getcwd(), 'web'),
+    }
+    http_server = CustomHTTPServer(mount_points)
     http_server.start_file_server()
 
-    # block and start webview
     webview.start(http_server=True)
 
-    # shutdown items
     http_server.on_closed()
-                        
-def parseArgs():
-    parser = argparse.ArgumentParser(allow_abbrev=False)
-    parser.add_argument("--listres", help="ID and list your screens", action="store_true")
-    parser.add_argument("--listmissing", help="List the tables from VPSdb", action="store_true")
-    parser.add_argument("--listunknown", help="List the tables we can't match in VPSdb", action="store_true")
-    parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file.  Default is cwd.")
-    parser.add_argument("--buildmeta", help="Builds the meta.ini file in each table dir", action="store_true")
-    parser.add_argument("--vpxpatch", help="Using vpx-standalone-scripts will attempt to load patches automatically", action="store_true")
-    parser.add_argument("--gamepadtest", help="Testing and mapping your gamepad via js api", action="store_true")
-    
-    #second level args
-    parser.add_argument("--no-media", help="When building meta.ini files don't download the images at the same time.", action="store_true")
-    parser.add_argument("--update-all", help="When building meta.ini reparse all tables to recreate the meta.ini file.", action="store_true")
 
-    #args = parser.parse_args()
-    args, unknown = parser.parse_known_args() # fix for mac
-    
+
+def parseArgs():
+    """Parse and dispatch command-line arguments."""
+    parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser.add_argument("--listres", action="store_true", help="ID and list your screens")
+    parser.add_argument("--listmissing", action="store_true", help="List the tables from VPSdb")
+    parser.add_argument("--listunknown", action="store_true", help="List the tables we can't match in VPSdb")
+    parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file. Default is cwd.")
+    parser.add_argument("--buildmeta", action="store_true", help="Builds the meta.ini file in each table dir")
+    parser.add_argument("--vpxpatch", action="store_true", help="Attempt to apply patches automatically")
+    parser.add_argument("--gamepadtest", action="store_true", help="Test and map your gamepad via JS API")
+
+    # Secondary args
+    parser.add_argument("--no-media", action="store_true", help="Do not download images when building meta.ini")
+    parser.add_argument("--update-all", action="store_true", help="Reparse all tables when building meta.ini")
+
+    args, _ = parser.parse_known_args()  # macOS-friendly parsing
+
     if args.listres:
-        # Get all available screens
         monitors = get_monitors()
         print([{
             'name': f'Monitor {i}',
@@ -203,22 +227,22 @@ def parseArgs():
             'height': m.height
         } for i, m in enumerate(monitors)])
         sys.exit()
-           
-    elif args.listmissing:
+
+    if args.listmissing:
         listMissingTables()
         sys.exit()
 
-    elif args.listunknown:
+    if args.listunknown:
         listUnknownTables()
         sys.exit()
 
     if args.configfile:
-        configfile = args.configfile
+        configfile = args.configfile  # TODO: wire into IniConfig if needed
 
     if args.buildmeta:
-        buildMetaData(False if args.no_media else True, False if args.update_all else True )
+        buildMetaData(downloadMedia=not args.no_media, skipExistingMetaIni=args.update_all)
         sys.exit()
-        
+
     if args.gamepadtest:
         gamepadtest()
         sys.exit()
@@ -226,3 +250,4 @@ def parseArgs():
     if args.vpxpatch:
         vpxPatches()
         sys.exit()
+
