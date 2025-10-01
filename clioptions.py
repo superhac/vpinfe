@@ -97,7 +97,11 @@ def buildMetaData(downloadMedia: bool = True, skipExistingMetaIni: bool = True, 
         else:
             meta = MetaConfig(meta_path)
             if downloadMedia:
-                vps.downloadMediaForTable(table, meta.getConfig()['VPSdb']['id'])
+                try:
+                    vps.downloadMediaForTable(table, meta.getConfig()['VPSdb']['id'])
+                except  KeyError:
+                    print(f"{colorama.Fore.RED}No Media found{colorama.Style.RESET_ALL}")
+                
 
     return {'found': total, 'not_found': not_found_tables}
 
