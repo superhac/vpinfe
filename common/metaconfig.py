@@ -19,7 +19,6 @@ class MetaConfig:
         
         self.configFilePath = configfilepath
      
-        
     def writeConfigMeta(self, configdata):
         config = {}
         config['VPSdb'] = {}
@@ -66,8 +65,6 @@ class MetaConfig:
         except AttributeError:
             print("Attribute error.. in meta")
             
-        
-         
         # write it
         self.config.read_dict(config)
         # Write the configuration to a file
@@ -103,10 +100,3 @@ class MetaConfig:
         except KeyError:  # theres no pinmame setting for this action
             pass
         
-    def addFavorite(self):
-        self.config['VPinFE']['favorite'] = 'true'
-        self.writeConfig(self)
-    
-    def removeFavorite(self):
-        self.config['VPinFE']['favorite'] = 'false'
-        self.writeConfig(self)

@@ -4,304 +4,232 @@ import olefile
 import json
 import struct
 import hashlib
-import os, glob
+import os
 import re
 import csv
 import pathlib
 import sys
 
+
 class VPXParser:
+    sys.setrecursionlimit(10000)  # increase recursion limit for large OLE files
 
-	sys.setrecursionlimit(10000) # increase recursion limit for large OLE files. Like Dark Chaos!!!
-	logger = None
+    logger = None
 
-	vpxPaths = {
-		'tableName': 'tableinfo/tablename',
-		'tableVersion': 'tableinfo/tableversion',
-		'authorName': 'tableinfo/authorname',
-		'releaseDate': 'tableinfo/releasedate',
-		'tableBlurb': 'tableinfo/tableblurb',
-		'tableRules': 'tableinfo/tablerules',
-		'tableSaveDate': 'tableinfo/tablesavedate',
-		'tableSaveRev': 'tableinfo/tablesaverev',
-		'companyName': 'tableinfo/companyname',
-		'companyYear': 'tableinfo/companyyear',
-		'tableType': 'tableinfo/tabletype',
-		'tableDescription': 'tableinfo/tabledescription'
-		}
+    vpxPaths = {
+        'tableName': 'tableinfo/tablename',
+        'tableVersion': 'tableinfo/tableversion',
+        'authorName': 'tableinfo/authorname',
+        'releaseDate': 'tableinfo/releasedate',
+        'tableBlurb': 'tableinfo/tableblurb',
+        'tableRules': 'tableinfo/tablerules',
+        'tableSaveDate': 'tableinfo/tablesavedate',
+        'tableSaveRev': 'tableinfo/tablesaverev',
+        'companyName': 'tableinfo/companyname',
+        'companyYear': 'tableinfo/companyyear',
+        'tableType': 'tableinfo/tabletype',
+        'tableDescription': 'tableinfo/tabledescription',
+    }
 
-	vpxPathsBinary = {
-		'gameData': 'gamestg/gamedata',
-		#'gameStgVersion': 'gamestg/version' # this is an int32
-		}
+    vpxPathsBinary = {
+        'gameData': 'gamestg/gamedata',
+        # 'gameStgVersion': 'gamestg/version'
+    }
 
-	derivedPaths = {
-		'rom': '',
-		'filename': '',
-		'codeSha256Hash': '',
-		'fileHash': '',
-		'detectFleep': '',
-		'detectNfozzy': '',
-		'detectScorebit': '',
-		'detectSSF': '',
-		'detectFastflips': '',
-		'detectLut': '',
-		'detectFlex': ''
-	}
+    derivedPaths = {
+        'rom': '',
+        'filename': '',
+        'codeSha256Hash': '',
+        'fileHash': '',
+        'detectFleep': '',
+        'detectNfozzy': '',
+        'detectScorebit': '',
+        'detectSSF': '',
+        'detectFastflips': '',
+        'detectLut': '',
+        'detectFlex': '',
+    }
 
-	fieldnames = None
+    def __init__(self):
+        self.fieldnames = [
+            *self.vpxPaths.keys(),
+            *self.vpxPathsBinary.keys(),
+            *self.derivedPaths.keys()
+        ]
+        # remove fields not wanted in CSV
+        for key in ("gameData", "tableRules", "tableDescription"):
+            if key in self.fieldnames:
+                self.fieldnames.remove(key)
 
-	def __init__(self):
-		#global logger
-		#logger = logging.getLogger()
+    # -------------------------------
+    # Helpers
+    # -------------------------------
+    def decodeBytesToString(self, fileio):
+        text = fileio.read().decode("latin-1")
+        return text.replace('\x00', '')
 
-		self.fieldnames = [key for key in self.vpxPaths] + [key for key in self.vpxPathsBinary] + [key for key in self.derivedPaths]
-		self.fieldnames.remove("gameData") # we don't want these in CSV
-		self.fieldnames.remove("tableRules")
-		self.fieldnames.remove("tableDescription")
+    def decodeBytesToInt(self, fileio):
+        # not implemented yet
+        pass
 
-	def decodeBytesToString(self, fileio):
-		str = fileio.read().decode("latin-1")
-		return str.replace('\x00', '')
+    def ensure_msdos_line_endings(self, text):
+        if "\r\n" in text and "\n" not in text.replace("\r\n", ""):
+            return text  # Already correct
+        return text.replace("\r\n", "\n").replace("\n", "\r\n")
 
-	def decodeBytesToInt(self, fileio):
-		pass
+    def sha256sum(self, filename):
+        with open(filename, 'rb', buffering=0) as f:
+            return hashlib.file_digest(f, 'sha256').hexdigest()
 
-	def loadTableValues(self, vpxFileValues, ole):
-		for key,value in self.vpxPaths.items():
-			if ole.exists(value):
-				with ole.openstream(value) as file:
-					vpxFileValues[key] = self.decodeBytesToString(file)
-			else:
-				vpxFileValues[key] = "" # make it empty but there
+    def find_code_offset_after(self, data: bytes, word: bytes = b"CODE") -> int:
+        index = data.find(word)
+        return index + len(word) if index != -1 else -1
 
-	def printFileValues(self, vpxFileValues):
-		for key,value in vpxFileValues.items():
-			if(key != 'gameData' and key != 'tableRules' and key != 'tableDescription' ):
-				print(f"{key}: \"{value}\"")
-			else:
-				print(f"{key}: \"{value:.5}....\"")
+    # -------------------------------
+    # Loading / extracting
+    # -------------------------------
+    def loadTableValues(self, vpxFileValues, ole):
+        for key, path in self.vpxPaths.items():
+            if ole.exists(path):
+                with ole.openstream(path) as file:
+                    vpxFileValues[key] = self.decodeBytesToString(file)
+            else:
+                vpxFileValues[key] = ""
 
-	def loadVBCode(self, ole, vpxFileValues):
-		with ole.openstream(self.vpxPathsBinary['gameData']) as file:
-			data = file.read()
+    def loadVBCode(self, ole, vpxFileValues):
+        with ole.openstream(self.vpxPathsBinary['gameData']) as file:
+            data = file.read()
 
-		offset = self.find_code_offset_after(data)
-		length = int.from_bytes(data[offset:offset + 4], byteorder="little", signed=True) # gets the size of vbscript file
-		vbscript = data[offset+4:offset+4+length] # slice out the vbscript
-		vbscript = vbscript.decode('utf-8', errors="ignore")
-		vbscript = self.ensure_msdos_line_endings(vbscript)
-		vpxFileValues['gameData'] = vbscript
+        offset = self.find_code_offset_after(data)
+        if offset == -1:
+            vpxFileValues['gameData'] = ""
+            return
 
-	def find_code_offset_after(self, data: bytes, word: bytes = b"CODE") -> int:
-		index = data.find(word)
-		if index != -1:
-			return index + len(word)
-		return -1  # Return -1 if the word is not found
+        length = int.from_bytes(data[offset:offset + 4], "little", signed=True)
+        vbscript = data[offset + 4:offset + 4 + length].decode("utf-8", errors="ignore")
+        vpxFileValues['gameData'] = self.ensure_msdos_line_endings(vbscript)
 
-	def calcCodeHash(self, vpxFileValues):
-		vpxFileValues['codeSha256Hash'] = hashlib.sha256(vpxFileValues['gameData'].encode("utf-8")).hexdigest()
-		#print(f"{vpxFileValues['codeSha256Hash']}, {vpxFileValues['tableName']}")
+    def calcCodeHash(self, vpxFileValues):
+        vpxFileValues['codeSha256Hash'] = hashlib.sha256(
+            vpxFileValues['gameData'].encode("utf-8")
+        ).hexdigest()
 
-	def ensure_msdos_line_endings(self, text):
-		if "\r\n" in text and "\n" not in text.replace("\r\n", ""):
-			return text  # Already in MSDOS format, return as is
-		return text.replace("\r\n", "\n").replace("\n", "\r\n")  # Normalize to MSDOS
+    def getAllVpxFilesFromDir(self, directory):
+        return [str(p) for p in pathlib.Path(directory).glob("*.vpx")]
 
-	def sha256sum(self, filename):
-		with open(filename, 'rb', buffering=0) as f:
-			return hashlib.file_digest(f, 'sha256').hexdigest()
+    def extractFile(self, file):
+        vpxFileValues = {
+            'filename': os.path.basename(file),
+            'fileHash': self.sha256sum(file),
+        }
 
-	def getAllVpxFilesFromDir(self, dir):
-		files = []
-		for file in glob.glob(dir + '/' + "*.vpx"):
-			files.append(file)
-		return files
+        with olefile.OleFileIO(file) as ole:
+            self.loadTableValues(vpxFileValues, ole)
+            self.loadVBCode(ole, vpxFileValues)
 
-	def extractFile(self, file):
-		vpxFileValues = {}
-		vpxFileValues['filename'] = os.path.basename(file)
-		vpxFileValues['fileHash'] = self.sha256sum(file)
-		ole = olefile.OleFileIO(file)
-		self.loadTableValues(vpxFileValues, ole)
-		self.loadVBCode(ole, vpxFileValues)
-		self.calcCodeHash(vpxFileValues)
-		self.extractRomName(vpxFileValues)
-		self.extractDetectNFozzy(vpxFileValues)
-		self.extractDetectFleep(vpxFileValues)
-		self.extractDetectSSF(vpxFileValues)
-		self.extractDetectLut(vpxFileValues)
-		self.extractDetectScorebit(vpxFileValues)
-		self.extractDetectFastflips(vpxFileValues)
-		self.extractDetectFlex(vpxFileValues)
-		ole.close()
-		return vpxFileValues
+        self.calcCodeHash(vpxFileValues)
+        self.extractRomName(vpxFileValues)
+        self.runDetectors(vpxFileValues)
 
-	def extractRomName(self, vpxFileValues):
-		m = re.search(r'(?i).*c?gamename\s*=\s*"([^"]+)"', vpxFileValues['gameData'])
-		m_opt = re.search(r'(?i).*c?OptRom\s*=\s*"([^\s]+)"', vpxFileValues['gameData'])
-		try:
-			vpxFileValues['rom'] = m.group(1)
-		except AttributeError:
-			vpxFileValues['rom'] = ""
-			#print("No rom found.")
-		
-		try:
-			if vpxFileValues['rom'] == "":
-				vpxFileValues['rom'] = m_opt.group(1)
-		except AttributeError:
-			if vpxFileValues['rom'] == "":
-				vpxFileValues['rom'] = ""
-				#print("No rom found.")
+        return vpxFileValues
 
-	def extractDetectNFozzy(self, vpxFileValues):
-		if 'Class FlipperPolarity' in vpxFileValues['gameData']:
-		#if 'Class CoRTracker' in vpxFileValues['gameData']:
-			vpxFileValues['detectNfozzy'] = "true"
-		else:
-			vpxFileValues['detectNfozzy'] = "false"
+    # -------------------------------
+    # Printing
+    # -------------------------------
+    def printFileValues(self, vpxFileValues):
+        for key, value in vpxFileValues.items():
+            if key in ('gameData', 'tableRules', 'tableDescription'):
+                preview = (value[:50] + "....") if value else ""
+                print(f"{key}: \"{preview}\"")
+            else:
+                print(f"{key}: \"{value}\"")
 
-	def extractDetectFleep(self, vpxFileValues):
-		#if 'fleep' in vpxFileValues['gameData'].lower():
-		if 'RubberStrongSoundFactor'.lower() in vpxFileValues['gameData'].lower():
-			vpxFileValues['detectFleep'] = "true"
-		else:
-			vpxFileValues['detectFleep'] = "false"
+    # -------------------------------
+    # Extraction helpers
+    # -------------------------------
+    def extractRomName(self, vpxFileValues):
+        game_data = vpxFileValues['gameData']
+        m = re.search(r'(?i)c?gamename\s*=\s*"([^"]+)"', game_data)
+        m_opt = re.search(r'(?i)c?OptRom\s*=\s*"([^\s]+)"', game_data)
 
-	def extractDetectSSF(self, vpxFileValues):
-		if 'PlaySoundAt'.lower() in vpxFileValues['gameData'].lower():
-			vpxFileValues['detectSSF'] = "true"
-		else:
-			vpxFileValues['detectSSF'] = "false"
+        if m:
+            vpxFileValues['rom'] = m.group(1)
+        elif m_opt:
+            vpxFileValues['rom'] = m_opt.group(1)
+        else:
+            vpxFileValues['rom'] = ""
 
-	def extractDetectLut(self, vpxFileValues):
-		if 'lut'.lower() in vpxFileValues['gameData'].lower():
-			vpxFileValues['detectLut'] = "true"
-		else:
-			vpxFileValues['detectLut'] = "false"
+    def runDetectors(self, vpxFileValues):
+        game_data_lower = vpxFileValues['gameData'].lower()
+        detectors = {
+            'detectNfozzy': 'class flipperpolarity',
+            'detectFleep': 'rubberstrongsoundfactor',
+            'detectSSF': 'playsoundat',
+            'detectLut': 'lut',
+            'detectScorebit': 'scorebit',
+            'detectFastflips': 'fastflips',
+            'detectFlex': 'flexdmd',
+        }
+        for key, token in detectors.items():
+            vpxFileValues[key] = "true" if token in game_data_lower else "false"
 
-	def extractDetectScorebit(self, vpxFileValues):
-		if 'Scorebit'.lower() in vpxFileValues['gameData'].lower():
-			vpxFileValues['detectScorebit'] = "true"
-		else:
-			vpxFileValues['detectScorebit'] = "false"
+    # -------------------------------
+    # Bulk ops
+    # -------------------------------
+    def singleFileExtract(self, vpxFile):
+        if not os.path.exists(vpxFile):
+            print(f"File not found: {vpxFile}")
+            return None
+        if not olefile.isOleFile(vpxFile):
+            print(f"Not an OLE file: {vpxFile}")
+            return None
+        return self.extractFile(vpxFile)
 
-	def extractDetectFastflips(self, vpxFileValues):
-		if 'Fastflips'.lower() in vpxFileValues['gameData'].lower():
-			vpxFileValues['detectFastflips'] = "true"
-		else:
-			vpxFileValues['detectFastflips'] = "false"
+    def bulkFileExtract(self, vpxFileDir, writer):
+        files = self.getAllVpxFilesFromDir(vpxFileDir)
+        print(f"Total Files: {len(files)}")
+        for file in files:
+            vpxFileValues = self.extractFile(file)
+            self.printFileValues(vpxFileValues)
+            if writer:
+                self.writeCSV(vpxFileValues, writer)
 
-	def extractDetectFlex(self, vpxFileValues):
-		if 'FlexDMD'.lower() in vpxFileValues['gameData'].lower():
-			vpxFileValues['detectFlex'] = "true"
-		else:
-			vpxFileValues['detectFlex'] = "false"
+    # -------------------------------
+    # CSV / DB ops
+    # -------------------------------
+    def writeCSV(self, vpxFileValues, writer):
+        for key in ("gameData", "tableRules", "tableDescription"):
+            vpxFileValues.pop(key, None)
+        writer.writerow(vpxFileValues)
 
-	def singleFileExtract(self, vpxFile):
-		if not os.path.exists(vpxFile):
-			print(f"File not found: {vpxFile}")
-			return None
-		if not olefile.isOleFile(vpxFile):
-			print(f"Not an OLE file: {vpxFile}")
-			return None
-		vpxFileValues = self.extractFile(vpxFile)
-		#self.printFileValues(vpxFileValues)
-		return vpxFileValues
+    def openCSV(self, csvOutFile):
+        csvFile = open(csvOutFile, 'w', newline='')
+        writer = csv.DictWriter(csvFile, fieldnames=self.fieldnames)
+        writer.writeheader()
+        return csvFile, writer
 
-	def bulkFileExtract(self, vpxFileDir, writer):
-		files = self.getAllVpxFilesFromDir(vpxFileDir)
-		print(f"Total Files: {len(files)}")
-		for file in files:
-			vpxFileValues = {}
-			self.extractFile(file, vpxFileValues)
-			self.printFileValues(vpxFileValues)
-			if writer is not None:
-				self.writeCSV(vpxFileValues, writer)
+    def createDBFromDir(self, vpxFileDir, csvOutFile):
+        csvFile, writer = self.openCSV(csvOutFile)
+        self.bulkFileExtract(vpxFileDir, writer)
+        csvFile.close()
 
-	def writeCSV(self, vpxFileValues, writer):
-		try:
-			vpxFileValues.pop('gameData')
-			vpxFileValues.pop('tableRules')
-			vpxFileValues.pop('tableDescription')
-		except ValueError:
-			pass
-		writer.writerow(vpxFileValues)
+    def loadCSV(self, csvInFile):
+        with open(csvInFile, 'r', newline='') as f:
+            return list(csv.DictReader(f))
 
-	def openCSV(self, csvOutFile):
-		csvFile = open(csvOutFile, 'w', newline='')
-		writer = csv.DictWriter(csvFile, fieldnames=self.fieldnames)
-		writer.writeheader()
-		return csvFile, writer
+    # -------------------------------
+    # Matchers
+    # -------------------------------
+    def findFileSHAMatch(self, tables, vpxFileValues):
+        for table in tables:
+            if vpxFileValues['fileHash'] == table['fileHash']:
+                print("Found FILE hash match.")
+                return table
+        return None
 
-	def createDBFromDir(self):
-		csvFile, writer = self.openCSV(csvOutFile)
-		self.bulkFileExtract(vpxFileDir, writer)
-		csvFile.close()
-
-	def loadCSV(self, csvInFile):
-		tables = {}
-		with open(csvInFile, 'r') as f:
-			dict_reader = csv.DictReader(f)
-			tables = list(dict_reader)
-		return tables
-
-	def findFileSHAMatch(self, tables, vpxFileValues):
-		for table in tables:
-			if (vpxFileValues['fileHash'] == table['fileHash']):
-				print("Found match FILE hash match.")
-				return table
-		return None
-
-	def findCodeSHAMatch(self, tables, vpxFileValues):
-		for table in tables:
-			if (vpxFileValues['codeSha256Hash'] == table['codeSha256Hash']):
-				print("Found match CODE hash match.")
-				return table
-		return None
-
-if __name__ == "__main__":
-	""" logger = init_logger("VPXParser")
-
-	PARSER_CONFIG = {
-		"level": "DEBUG",
-		"file": None,
-		"console": True,
-	}
-	update_logger_config(PARSER_CONFIG)
-
-	parservpx = VPXParser()
-
-	parser = argparse.ArgumentParser(description='Parse a VPX file.')
-	parser.add_argument('--vpxpath', help='Path to the VPX file', default=None)
-	parser.add_argument('--vpxdir', help='Path to the directory with all the tables', default=None)
-	args = parser.parse_args()
-
-	if args.vpxpath == None:
-		vpxFile = '/home/superhac/ROMs/vpinball/Evil Fight (Playmatic 1980).vpx'
-	else:
-		vpxFile = args.vpxpath
-
-	if args.vpxdir == None:
-		vpxFileDir = '/home/superhac/ROMs/vpinball'
-	else:
-		vpxFileDir = args.vpxdir
-
-	csvOutFile = 'vpxTableDB.csv'
-	csvInFile = 'vpxTableDB.csv'
- """
-	#tables = parservpx.loadCSV(csvInFile)
-	#print(f"Total Tables in DB: {len(tables)}")
-	#vpxFileValues = parservpx.singleFileExtract(vpxFile)
-	#table = parservpx.findFileSHAMatch(tables, vpxFileValues)
-	#table = parservpx.findCodeSHAMatch(tables, vpxFileValues)
-	#print(table)
-
-	# Brand new master DB creation
-	#parservpx.createDBFromDir()
-
-	# testing stuff
-	#parservpx.bulkFileExtract(vpxFileDir)
-""" 	tableVals = parservpx.singleFileExtract(vpxFile)
-	if tableVals != None:
-		parservpx.printFileValues(tableVals) """
+    def findCodeSHAMatch(self, tables, vpxFileValues):
+        for table in tables:
+            if vpxFileValues['codeSha256Hash'] == table['codeSha256Hash']:
+                print("Found CODE hash match.")
+                return table
+        return None
