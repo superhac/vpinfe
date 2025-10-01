@@ -30,10 +30,11 @@ def _norm_path(p: str) -> str:
         return os.path.normpath(p).lower()
 
 
-def buildMetaData(downloadMedia: bool = True, skipExistingMetaIni: bool = True, progress_cb=None):
+def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_cb=None):
     """Build meta.ini files for all VPX tables and sync with VPSdb."""
     not_found_tables = 0
     parservpx = VPXParser()
+    print(updateAll)
 
     tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
     raw_count = len(tables)
@@ -64,44 +65,40 @@ def buildMetaData(downloadMedia: bool = True, skipExistingMetaIni: bool = True, 
         finalini = {}
         meta_path = os.path.join(table.fullPathTable, "meta.ini")
 
-        if os.path.exists(meta_path) and skipExistingMetaIni:
-            meta = MetaConfig(meta_path)
+        if os.path.exists(meta_path) and not updateAll:
+            continue
+        
+        meta = MetaConfig(meta_path)
 
-            # VPSdb lookup
-            print(f"\rChecking VPSdb for table {current}/{total}: {table.tableDirName}")
-            vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-            vpsData = (
-                vps.lookupName(
-                    vpsSearchData["name"],
-                    vpsSearchData["manufacturer"],
-                    vpsSearchData["year"]
-                ) if vpsSearchData else None
-            )
-            if vpsData is None:
-                print(f"{colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
-                not_found_tables += 1
-                continue
+        # VPSdb lookup
+        print(f"\rChecking VPSdb for table {current}/{total}: {table.tableDirName}")
+        vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+        vpsData = (
+            vps.lookupName(
+                vpsSearchData["name"],
+                vpsSearchData["manufacturer"],
+                vpsSearchData["year"]
+            ) if vpsSearchData else None
+        )
+        if vpsData is None:
+            print(f"{colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
+            not_found_tables += 1
+            continue
 
-            # Parse VPX file
-            print("Parsing VPX file for metadata")
-            print(f"Extracting {table.fullPathVPXfile} for metadata.")
-            vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
+        # Parse VPX file
+        print("Parsing VPX file for metadata")
+        print(f"Extracting {table.fullPathVPXfile} for metadata.")
+        vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
 
-            finalini['vpsdata'] = vpsData
-            finalini['vpxdata'] = vpxData
-            meta.writeConfigMeta(finalini)
+        finalini['vpsdata'] = vpsData
+        finalini['vpxdata'] = vpxData
+        meta.writeConfigMeta(finalini)
 
-            if downloadMedia:
+        if downloadMedia:
+            try:
                 vps.downloadMediaForTable(table, vpsData['id'])
-
-        else:
-            meta = MetaConfig(meta_path)
-            if downloadMedia:
-                try:
-                    vps.downloadMediaForTable(table, meta.getConfig()['VPSdb']['id'])
-                except  KeyError:
-                    print(f"{colorama.Fore.RED}No Media found{colorama.Style.RESET_ALL}")
-                
+            except KeyError:
+                print(f"{colorama.Fore.RED}No Media found{colorama.Style.RESET_ALL}")
 
     return {'found': total, 'not_found': not_found_tables}
 
@@ -244,7 +241,7 @@ def parseArgs():
         configfile = args.configfile  # TODO: wire into IniConfig if needed
 
     if args.buildmeta:
-        buildMetaData(downloadMedia=not args.no_media, skipExistingMetaIni=args.update_all)
+        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all)
         sys.exit()
 
     if args.gamepadtest:
