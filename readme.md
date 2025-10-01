@@ -5,8 +5,9 @@
 - Works on Linux, Windows, and Mac (Windows currently needs support for the Standalone dir structure)
 - Multiscreen - Supports up to 3 screens (Backglass, DMD, and Table)
 - Keyboard & Joystick support
-- Table and Media Manager all built in
-- Automatic vpx patching for Linux & Mac
+- Table and Media Manager (Auto download art via [VPinMediaDB](https://github.com/superhac/vpinmediadb))
+- High Score Extraction/Tracking
+- Automatic [vpx patching](https://github.com/jsm174/vpx-standalone-scripts) for Linux & Mac
 - Fully customizable UI themeing using HTML, JS and CSS
 
 Cab Mode (Three Screens)
@@ -19,6 +20,10 @@ Default
 
 Desktop mode (Single Screen)
 <img width="1919" height="1080" alt="Screenshot From 2025-08-12 16-07-26" src="https://github.com/user-attachments/assets/0e0dfd02-999a-476b-a8f8-bc67d2a5ae10" />
+
+ManagerUI:
+![mangerui](https://github.com/user-attachments/assets/9cf8e0e5-4f7f-4f29-bd1d-3080310a10c9)
+
 
 Remote:
 <img width="2820" height="2215" alt="image" src="https://github.com/user-attachments/assets/6d6f8508-e1ad-4170-825a-cf237ce10cb5" />
@@ -253,7 +258,8 @@ After that file is created it then attempts to download the media artwork for th
 | wheel.png     | Icon on Hud |
 | fss.png       | Full Single Screen Image |
 | cab.png       | A cabinet image of the pinball machine |
-
+| realdmd.png       | Real DMD for use with ZeDMD |
+| realdmd-color.png       | Real DMD (Colorized) for use with ZeDMD |
 
 You must manually add the following settings:
 
