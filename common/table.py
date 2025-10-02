@@ -12,5 +12,7 @@ class Table:
     TableImagePath = None
     WheelImagePath = None
     CabImagePath = None
+    realDMDImagePath = None
+    realDMDColorImagePath = None
     
     metaConfig = None

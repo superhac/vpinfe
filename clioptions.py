@@ -34,8 +34,7 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
     """Build meta.ini files for all VPX tables and sync with VPSdb."""
     not_found_tables = 0
     parservpx = VPXParser()
-    print(updateAll)
-
+    
     tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
     raw_count = len(tables)
     print(f"Found {raw_count} tables (.vpx).")
@@ -97,6 +96,7 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
         if downloadMedia:
             try:
                 vps.downloadMediaForTable(table, vpsData['id'])
+                print("Downloaded media for table")
             except KeyError:
                 print(f"{colorama.Fore.RED}No Media found{colorama.Style.RESET_ALL}")
 

@@ -160,6 +160,8 @@ class VPSdb:
     self.downloadMedia(id, tablemediajson['1k'], 'dmd', table.DMDImagePath, table.fullPathTable + "/dmd.png")
     self.downloadMedia(id, tablemediajson, 'wheel', table.WheelImagePath, table.fullPathTable + "/wheel.png")
     self.downloadMedia(id, tablemediajson, 'cab', table.CabImagePath, table.fullPathTable + "/cab.png")
+    self.downloadMedia(id, tablemediajson, 'realdmd', table.realDMDImagePath, table.fullPathTable + "/realdmd.png")
+    self.downloadMedia(id, tablemediajson, 'realdmd_color', table.realDMDColorImagePath, table.fullPathTable + "/realdmd-color.png")
     self.downloadMedia(id, tablemediajson[self.tableresolution], self.tabletype, table.TableImagePath, table.fullPathTable + "/" + self.tabletype + ".png")
 
   def updateTable(self, name, manufacturer, year):
