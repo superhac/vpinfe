@@ -72,30 +72,7 @@ class VPXCollections:
         for fid in filterIDs:
             print(fid)
             for table in tables:
-                #print(table.tableDirName)
-                #print("checking:", table.metaConfig.get('VPSdb', 'id', fallback='none'), "Against:", fid)
                 if table.metaConfig.get('VPSdb', 'id', fallback='none') == fid:
                     filterList.append(table)
-                    #print("found", table.metaConfig.get('VPSdb', fid, fallback='none'))
         return filterList
     
-# Debug
-if __name__ == "__main__":
-    c = VPXCollections("collections.ini")
-    #tables = TableParser("vinfe.ini").getAllTables();
-
-    print("Sections:", c.get_collections_name)
-    print("All:", c.get_all())
-    print(c.get_vpsids('Favorites'))
-    
-    #mylist = c.filter_tables(tables, 'Favorites')
-    #print(mylist)
-    # Example changes
-    #c.add_collection("NewCollection", ["abc123", "xyz789"])
-    #c.add_vpsid("Favorites", "NEWID")
-    #c.remove_vpsid("Competition", "XQqwrauH")
-    #c.save()
-
-    # Force reload from disk
-    c.reload()
-    print("After reload:", c.get_all())

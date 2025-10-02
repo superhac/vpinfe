@@ -2,25 +2,17 @@ import requests
 from common.metaconfig import MetaConfig
 import os
 
-import logging
-
 class StandaloneScripts:
-
-    logger = None
 
     hashsUrl = "https://raw.githubusercontent.com/jsm174/vpx-standalone-scripts/refs/heads/master/hashes.json"
     
     def __init__(self, tables, progress_cb=None):
-        #global logger
-        #logger = logging.getLogger()
-
         self.hashes = None
         self.tables = tables
         self.progress_cb = progress_cb
         print("VPX-Standalone-Scripts Patching System initialized.")
         self.downloadHashes()
         self.checkForPatches()
-        #logger.debug(self.hashes)
         
     def downloadHashes(self):
         response = requests.get(StandaloneScripts.hashsUrl)
@@ -30,9 +22,6 @@ class StandaloneScripts:
         else:
             print('Failed to download hash file from VPX-Standalone-Scripts')
             
-        #debug
-        #logger.debug(f"{self.hashes[0]["file"]} {self.hashes[0]["sha256"]} {self.hashes[0]["patched"]["file"]}")
-      
     def checkForPatches(self):
          total = len(self.tables) if self.tables else 0
          current = 0
@@ -68,8 +57,6 @@ class StandaloneScripts:
                                 meta.writeConfig()
                             except Exception:
                                 pass
-                            
-                    #logger.debug(f"{patch["file"]} {patch["sha256"]} {patch["patched"]["file"]}")
              except KeyError:
                  pass
     
@@ -97,8 +84,4 @@ class StandaloneScripts:
                 pass
         else:
             print(f"Failed to download {filename}. Status code: {response.status_code}")
-        
 
-if __name__ == "__main__":
-    
-    pass
