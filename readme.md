@@ -289,4 +289,4 @@ External Web Endpoints:
 
 ## Making a Theme
 
-TODO
+See [Theme.md](https://github.com/superhac/vpinfe/blob/master/theme.md)
