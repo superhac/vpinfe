@@ -5,7 +5,7 @@ VPinfe uses pywebview to render the screens and is basically a webkit browser wi
 - bg
 - dmd
 
-Each window has its own webpage, but shares a single instance of the VPinfe API ([frontend/api.py](https://github.com/superhac/vpinfe/blob/master/frontend/api.py)) and is access via [vpinfe-core.js](#vpinfe-core.js).  A theme is created in the `web/theme` dir and has this basic layout:
+Each window has its own webpage, but shares a single instance of the VPinfe API ([frontend/api.py](https://github.com/superhac/vpinfe/blob/master/frontend/api.py)) and is access via [vpinfe-core.js](#vpinfe-corejs).  A theme is created in the `web/theme` dir and has this basic layout:
 ```
 <THEME NAME>
 ├── index_bg.html
