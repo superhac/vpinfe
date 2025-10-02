@@ -33,7 +33,7 @@ class VPinFECore {
 
   init() {
     // Set up keyboard listener
-    window.addEventListener('keydown', (e) => this.onKeyDown(e));
+    window.addEventListener('keydown', (e) => this.#onKeyDown(e));
    
     // Wait for pywebview then run all async init
     window.addEventListener('pywebviewready', async () => {
@@ -56,27 +56,6 @@ class VPinFECore {
     if (typeof handler === 'function') {
       this.call("console_out", "registered gamepad handler");
       this.inputHandlerMenu.push(handler);
-    }
-  }
-
-  async triggerInputAction(action) {
-    if(!this.menuUP) {
-      this.inputHandlers.forEach(handler => handler(action));
-    }
-    else { // Menu is up route to its handler
-      this.inputHandlerMenu.forEach(handler => handler(action));
-    }
-  }
-
-  // Keybaord input processing to handlers
-  async onKeyDown(e) {
-    windowName = await this.call("get_my_window_name");
-    if (windowName == "table") {
-      if (e.key === "Escape" || e.key === 'q') window.pywebview.api.close_app();
-      else if (e.key === 'ArrowLeft' || e.code === 'ShiftLeft') this.triggerInputAction("joyleft");
-      else if (e.key === 'ArrowRight' || e.code === 'ShiftRight') this.triggerInputAction("joyright");
-      else if (e.key === 'Enter') this.triggerInputAction("joyselect");
-      else if (e.key === 'm') this.#showmenu();
     }
   }
 
@@ -165,6 +144,27 @@ class VPinFECore {
     }
   }
 
+  async #triggerInputAction(action) {
+    if(!this.menuUP) {
+      this.inputHandlers.forEach(handler => handler(action));
+    }
+    else { // Menu is up route to its handler
+      this.inputHandlerMenu.forEach(handler => handler(action));
+    }
+  }
+
+  // Keybaord input processing to handlers
+  async #onKeyDown(e) {
+    windowName = await this.call("get_my_window_name");
+    if (windowName == "table") {
+      if (e.key === "Escape" || e.key === 'q') window.pywebview.api.close_app();
+      else if (e.key === 'ArrowLeft' || e.code === 'ShiftLeft') this.#triggerInputAction("joyleft");
+      else if (e.key === 'ArrowRight' || e.code === 'ShiftRight') this.#triggerInputAction("joyright");
+      else if (e.key === 'Enter') this.#triggerInputAction("joyselect");
+      else if (e.key === 'm') this.#showmenu();
+    }
+  }
+
   async #loadMonitors() {
     this.monitors = await window.pywebview.api.get_monitors();
   }
@@ -196,7 +196,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
       this.#showmenu();
     }
     else {
-      this.triggerInputAction(action);
+      this.#triggerInputAction(action);
     }
   }
 }
