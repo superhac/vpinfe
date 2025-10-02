@@ -57,11 +57,8 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
     current = 0
     for table in tables:
         current += 1
-
-        if progress_cb:
-            progress_cb(current, total, f'Verifying Table {current}/{total}: {table.tableDirName}')
-
         finalini = {}
+        
         meta_path = os.path.join(table.fullPathTable, "meta.ini")
 
         if os.path.exists(meta_path) and not updateAll:
@@ -197,7 +194,6 @@ def gamepadtest():
     http_server.start_file_server()
 
     webview.start(http_server=True)
-
     http_server.on_closed()
 
 
@@ -216,7 +212,10 @@ def parseArgs():
     parser.add_argument("--no-media", action="store_true", help="Do not download images when building meta.ini")
     parser.add_argument("--update-all", action="store_true", help="Reparse all tables when building meta.ini")
 
-    args, _ = parser.parse_known_args()  # macOS-friendly parsing
+    args, unknown = parser.parse_known_args()  # macOS-friendly parsing
+
+    if unknown:
+        parser.error(f"Unknown arguments: {' '.join(unknown)}")
 
     if args.listres:
         monitors = get_monitors()
