@@ -60,6 +60,8 @@ git clone https://github.com/superhac/vpinfe.git
 ### Mac ????: 
 ```
 git clone https://github.com/superhac/vpinfe.git
+cd vpinfe
+pip install -r osx_requirements.txt
 ```
 
 ### Setup your configuration (vpinfe.ini)

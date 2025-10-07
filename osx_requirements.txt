@@ -1,0 +1,7 @@
+requests
+pywebview
+screeninfo
+olefile
+pynput
+nicegui
+pyobjc; sys_platform == "darwin"
