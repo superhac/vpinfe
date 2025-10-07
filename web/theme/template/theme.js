@@ -59,7 +59,7 @@ async function receiveEvent(message) {
     else if (message.type == "TableDataChange") {
         // if collection is "All" then reset to all tables, otherwise set to the selected collection.
         if (message.collection == "All") {
-            vpin.getTableData(reset = true);
+            await vpin.getTableData(reset = true);
         } else {
             vpin.call("console_out", "collection change.");
             await vpin.call("set_tables_by_collection", message.collection);
