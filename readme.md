@@ -130,11 +130,11 @@ With your tables in this format run `vpinfe.py --buildmeta`.  More details on wh
 
 | Action | Key |
 |--------|-----|
-| Left or Up    | LeftArrow or Left Control   |
-| Right or Down | RightArrow or Right Control |
-| Menu          | m                           |
-| Select        | Enter                       |
-
+| Left or Up    | Shift left  |
+| Right or Down | Shift Right |
+| Menu          | m           |
+| Select        | Enter       |
+| Quit          | q or ESCAPE |
 
 ## Setup Gamepad
 
