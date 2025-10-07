@@ -73,7 +73,8 @@ tablescreenid = 0
 
 [Settings]
 vpxbinpath = 
-tablerootdir = 
+tablerootdir =
+vpxinipath =
 theme = carousel2
 joyleft = 14
 joyright = 15
