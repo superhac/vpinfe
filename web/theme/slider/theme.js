@@ -109,8 +109,9 @@ async function handleInput(input) {
             break;
         case "joyselect":
             vpin.sendMessageToAllWindows({ type: "TableLaunching" })
-            // do something like fade out the table window!  
+            await fadeOutScreen(); // fade to black
             await vpin.launchTable(currentTableIndex); // this will notifiy all windows other windows.  You don't need to do it here.
+            await fadeInScreen(); // fade back in
             break;
         case "joyback":
             // do something on joyback if you want
@@ -330,3 +331,11 @@ function updateCardContent(card, meta, tableIndex) {
 function wrapIndex(index, length) {
     return (index + length) % length;
 }
+
+function fadeOutScreen() {
+  document.getElementById("fadeOverlay").classList.add("show");
+}
+function fadeInScreen() {
+  document.getElementById("fadeOverlay").classList.remove("show");
+}
+
