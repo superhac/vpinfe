@@ -104,6 +104,7 @@ This will list your monitors starting at ID 0 to X.
 Next you need set three settings in `Settings`.  
 - vpxbinpath - The path to your vpinball executable 
 - tablerootdir - The root dir where all your tables are located
+- vpxinipath - Where your VPinball.ini is. Normally `~/.vpinball/VPinball.ini`
 - Theme - Which theme you want to use.  Right now theres `default` - Three screens cab mode, `carousel` and `carousel2` both for single screens.
 
 All the other settings can be left as they are in the template above for now.  Configuring the gamepad and other fields are covered below. 
