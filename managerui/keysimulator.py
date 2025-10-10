@@ -4,7 +4,7 @@ import time
 class KeySimulator:
 
     # VPX Keymap
-    VPX_MENU = Key.f12
+    VPX_IN_GAME_UI = Key.f12
     VPX_FRAME_COUNT = Key.f11
     VPX_TABLE_RESET = Key.f3
     VPX_VOLUME_UP = '='

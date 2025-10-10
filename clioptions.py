@@ -77,7 +77,7 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
             ) if vpsSearchData else None
         )
         if vpsData is None:
-            print(f"{colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
+            print(f"  - {colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
             not_found_tables += 1
             continue
 
