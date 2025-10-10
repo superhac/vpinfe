@@ -279,7 +279,7 @@ You must manually add the following settings:
 
 `deleteNVramOnClose` = true | false – Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing.
 
-## VPX Patches
+## VPX Table Patches
 VPinFE can automaticlly pull patches from [vpx-standalone-scripts](https://github.com/jsm174/vpx-standalone-scripts) via the `--vpxpatch` CLI option if a matching patch can be found.  
 
 `python3 main.py --vpxpatch`
