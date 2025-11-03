@@ -92,7 +92,7 @@ async function receiveEvent(message) {
 
         case "TableDataChange":
             if (message.collection === "All") {
-                vpin.getTableData(reset = true);
+                await vpin.getTableData(reset = true);
             } else {
                 await vpin.call("set_tables_by_collection", message.collection);
                 await vpin.getTableData();
