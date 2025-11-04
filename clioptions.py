@@ -219,13 +219,14 @@ def parseArgs():
 
     if args.listres:
         monitors = get_monitors()
-        print([{
-            'name': f'Monitor {i}',
+        [print({
+            'ID': f'Monitor {i}',
+            'output': m.name,
             'x': m.x,
             'y': m.y,
             'width': m.width,
             'height': m.height
-        } for i, m in enumerate(monitors)])
+        }) for i, m in enumerate(monitors)]
         sys.exit()
 
     if args.listmissing:
