@@ -67,12 +67,27 @@ class VPXCollections:
             self.config.write(f)
             
     def filter_tables(self, tables, collection):
-        filterList=[]
+        filterList = []
         filterIDs = self.get_vpsids(collection)
+
         for fid in filterIDs:
-            print(fid)
             for table in tables:
-                if table.metaConfig.get('VPSdb', 'id', fallback='none') == fid:
+                meta = table.metaConfig
+                # handle both MetaConfig and plain ConfigParser
+                cfg = meta.config if hasattr(meta, "config") else meta
+                if cfg.get("VPSdb", "id", fallback="none") == fid:
                     filterList.append(table)
+
+        # Sort alphabetically by VPSdb.name, handling both types
+        filterList.sort(
+            key=lambda t: (
+                (t.metaConfig.config if hasattr(t.metaConfig, "config") else t.metaConfig)
+                .get("VPSdb", "name", fallback="")
+                .lower()
+            )
+        )
+
         return filterList
+
+
     
