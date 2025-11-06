@@ -36,6 +36,27 @@ carousel2 (Single Screen)
 ## Installing
 
 ### Ubuntu 25.10 (GTK):
+Beware if you upgrade to 25.10 as they [removed gamepad support from webkitgtk](https://launchpad.net/ubuntu/+source/webkit2gtk/2.48.5-1ubuntu1):
+```
+    * Disable gamepad feature on Ubuntu since libmanette is in universe there. 
+
+libmanette is a library that provides a GObject-based API for interacting with gamepads. The change log indicates that the developers of the webkit2gtk package chose to disable the built-in gamepad support in this specific Ubuntu package version because the necessary dependency (libmanette) is located in the "universe" repository (which contains community-maintained software) rather than the main "main" repository. This decision was likely made to avoid dependency issues or to ensure the stability of the core webkit2gtk package within Ubuntu's main archives. 
+Therefore, this package version likely has gamepad support explicitly disabled in Ubuntu.
+```
+This breaks the gamepad functionally in VPinfe.  There is currently no work around for this.
+
+### Debian 13
+```
+sudo apt install python3.13-venv python3-evdev
+python3 -m venv vvv --system-site-packages
+pip install nicegui screeninfo colorama olefile pynput nicegui==2.* pywebview==6.1
+deactivate
+
+# then run like this inside the vpinfe dir
+GDK_BACKEND=x11 vvv/bin/python3 main.py
+```
+
+### Ubuntu 25.04 (GTK):
 ```
 sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-webview python3-screeninfo
 git clone https://github.com/superhac/vpinfe.git
