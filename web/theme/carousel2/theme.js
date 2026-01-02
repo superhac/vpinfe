@@ -110,13 +110,17 @@ function updateImages() {
 function setTableImage() {
     const bgUrl = vpin.getImageURL(currentTableIndex, "cab");
     const container = document.getElementById('cab');
+    const label = document.getElementById('cab-missing-label');
     const oldImg = container.querySelector('img');
+    const isMissing = bgUrl.includes('file_missing.png');
 
     if (oldImg) {
         oldImg.style.opacity = 0;
 
         setTimeout(() => {
-            container.innerHTML = '';
+            // Remove old image but keep the label
+            const imgs = container.querySelectorAll('img');
+            imgs.forEach(img => img.remove());
 
             const newImg = new Image();
             newImg.src = bgUrl;
@@ -130,6 +134,20 @@ function setTableImage() {
             };
 
             container.appendChild(newImg);
+
+            // Show table name if image is missing
+            if (isMissing && vpin.tableData[currentTableIndex]) {
+                const table = vpin.tableData[currentTableIndex];
+                const tableName = table.meta?.VPSdb?.name ||
+                                  table.meta?.VPXFile?.filename ||
+                                  table.tableDirName ||
+                                  'Unknown Table';
+                vpin.call("console_out", "CAB Missing image detected, showing: " + tableName);
+                label.textContent = tableName;
+                label.style.display = 'block';
+            } else {
+                label.style.display = 'none';
+            }
         }, 300);
     } else {
         const img = new Image();
@@ -144,6 +162,20 @@ function setTableImage() {
         };
 
         container.appendChild(img);
+
+        // Show table name if image is missing
+        if (isMissing && vpin.tableData[currentTableIndex]) {
+            const table = vpin.tableData[currentTableIndex];
+            const tableName = table.meta?.VPSdb?.name ||
+                              table.meta?.VPXFile?.filename ||
+                              table.tableDirName ||
+                              'Unknown Table';
+            vpin.call("console_out", "CAB Missing image detected (no old img), showing: " + tableName);
+            label.textContent = tableName;
+            label.style.display = 'block';
+        } else {
+            label.style.display = 'none';
+        }
     }
 }
 
@@ -152,16 +184,21 @@ function setMainGfxImage() {
     if (config) gfx = config.maingfx;
 
     const container = document.getElementById('bg');
+    const label = document.getElementById('bg-missing-label');
     const oldImg = container.querySelector('img');
+    const imageUrl = vpin.getImageURL(currentTableIndex, gfx);
+    const isMissing = imageUrl.includes('file_missing.png');
 
     if (oldImg) {
         oldImg.style.opacity = 0;
 
         setTimeout(() => {
-            container.innerHTML = '';
+            // Remove old image but keep the label
+            const imgs = container.querySelectorAll('img');
+            imgs.forEach(img => img.remove());
 
             const newImg = new Image();
-            newImg.src = vpin.getImageURL(currentTableIndex, gfx);
+            newImg.src = imageUrl;
             newImg.alt = "bgImage";
             newImg.style.opacity = 0;
 
@@ -172,10 +209,24 @@ function setMainGfxImage() {
             };
 
             container.appendChild(newImg);
+
+            // Show table name if image is missing
+            if (isMissing && vpin.tableData[currentTableIndex]) {
+                const table = vpin.tableData[currentTableIndex];
+                const tableName = table.meta?.VPSdb?.name ||
+                                  table.meta?.VPXFile?.filename ||
+                                  table.tableDirName ||
+                                  'Unknown Table';
+                vpin.call("console_out", "BG Missing image detected, showing: " + tableName);
+                label.textContent = tableName;
+                label.style.display = 'block';
+            } else {
+                label.style.display = 'none';
+            }
         }, 300); // match transition duration
     } else {
         const img = new Image();
-        img.src = vpin.getImageURL(currentTableIndex, gfx);
+        img.src = imageUrl;
         img.alt = "bgImage";
         img.style.opacity = 0;
 
@@ -186,6 +237,20 @@ function setMainGfxImage() {
         };
 
         container.appendChild(img);
+
+        // Show table name if image is missing
+        if (isMissing && vpin.tableData[currentTableIndex]) {
+            const table = vpin.tableData[currentTableIndex];
+            const tableName = table.meta?.VPSdb?.name ||
+                              table.meta?.VPXFile?.filename ||
+                              table.tableDirName ||
+                              'Unknown Table';
+            vpin.call("console_out", "BG Missing image detected (no old img), showing: " + tableName);
+            label.textContent = tableName;
+            label.style.display = 'block';
+        } else {
+            label.style.display = 'none';
+        }
     }
 }
 
