@@ -7,6 +7,7 @@ windowName = ""
 currentTableIndex = 0;
 lastTableIndex = 0;
 config = undefined;
+isAnimating = false;
 
 // init the core interface to VPinFE
 const vpin = new VPinFECore();
@@ -74,10 +75,13 @@ async function receiveEvent(message) {
     joyfav
 */
 async function handleInput(input) {
+    if (isAnimating) return; // Prevent rapid inputs during animation
+
     switch (input) {
         case "joyleft":
+            isAnimating = true;
             currentTableIndex = wrapIndex(currentTableIndex - 1, vpin.tableData.length);
-            updateScreen();
+            updateScreen('left');
 
             // tell other windows the table index changed
             vpin.sendMessageToAllWindows({
@@ -86,8 +90,9 @@ async function handleInput(input) {
             });
             break;
         case "joyright":
+            isAnimating = true;
             currentTableIndex = wrapIndex(currentTableIndex + 1, vpin.tableData.length);
-            updateScreen();
+            updateScreen('right');
 
             // tell other windows the table index changed
             vpin.sendMessageToAllWindows({
@@ -233,9 +238,8 @@ function updateTableInfo() {
 }
 
 // Build the carousel with wheel images
-function buildCarousel() {
+function buildCarousel(direction = null) {
     const track = document.getElementById('carouselTrack');
-    track.innerHTML = '';
 
     if (!vpin.tableData || vpin.tableData.length === 0) return;
 
@@ -243,41 +247,163 @@ function buildCarousel() {
     const visibleItems = Math.min(9, totalTables); // Show up to 9 items
     const sideItems = Math.floor(visibleItems / 2);
 
-    for (let i = -sideItems; i <= sideItems; i++) {
-        const idx = wrapIndex(currentTableIndex + i, totalTables);
+    // Get existing items
+    const existingItems = Array.from(track.children);
+
+    // If first build, create all items
+    if (existingItems.length === 0) {
+        for (let i = -sideItems; i <= sideItems; i++) {
+            const idx = wrapIndex(currentTableIndex + i, totalTables);
+            createCarouselItem(idx, i === 0, track);
+        }
+        isAnimating = false;
+    } else if (direction !== null) {
+        // Animate sliding
+        animateCarouselSlide(direction, sideItems, totalTables);
+    } else {
+        // Just update in place (for collection changes, etc.)
+        updateCarouselItems(existingItems, sideItems, totalTables);
+    }
+
+    // Update the SVG border after carousel is built
+    setTimeout(updateCarouselBorder, 100);
+}
+
+// Update carousel items in place without animation
+function updateCarouselItems(existingItems, sideItems, totalTables) {
+    existingItems.forEach((item, index) => {
+        const offset = index - sideItems;
+        const idx = wrapIndex(currentTableIndex + offset, totalTables);
         const wheelUrl = vpin.getImageURL(idx, "wheel");
 
-        const item = document.createElement('div');
-        item.className = 'carousel-item';
-        if (i === 0) {
+        // Update selected class
+        if (offset === 0) {
             item.classList.add('selected');
+        } else {
+            item.classList.remove('selected');
         }
 
-        const img = document.createElement('img');
-        img.src = wheelUrl;
-        img.alt = 'Table ' + idx;
+        // Update image
+        const img = item.querySelector('img');
+        if (img && img.src !== wheelUrl) {
+            img.src = wheelUrl;
+            img.alt = 'Table ' + idx;
+        }
+    });
+}
 
-        // Handle missing images
-        img.onerror = () => {
-            const placeholder = document.createElement('div');
-            placeholder.className = 'missing-placeholder';
-            placeholder.textContent = 'No Image';
-            item.innerHTML = '';
-            item.appendChild(placeholder);
-        };
+// Animate carousel sliding
+function animateCarouselSlide(direction, sideItems, totalTables) {
+    const existingItems = Array.from(document.getElementById('carouselTrack').children);
 
-        item.appendChild(img);
-        track.appendChild(item);
+    // Just update all items in place with new images
+    existingItems.forEach((item, index) => {
+        const offset = index - sideItems;
+        const idx = wrapIndex(currentTableIndex + offset, totalTables);
+        const wheelUrl = vpin.getImageURL(idx, "wheel");
+
+        // Update selected class - center is always at sideItems
+        if (offset === 0) {
+            item.classList.add('selected');
+        } else {
+            item.classList.remove('selected');
+        }
+
+        // Update image
+        const img = item.querySelector('img');
+        if (img && img.src !== wheelUrl) {
+            img.src = wheelUrl;
+            img.alt = 'Table ' + idx;
+        }
+    });
+
+    // Animation completes after CSS transition
+    setTimeout(() => {
+        isAnimating = false;
+    }, 600);
+}
+
+// Helper function to create a carousel item
+function createCarouselItem(idx, isSelected, track) {
+    const wheelUrl = vpin.getImageURL(idx, "wheel");
+
+    const item = document.createElement('div');
+    item.className = 'carousel-item';
+    if (isSelected) {
+        item.classList.add('selected');
     }
+
+    const img = document.createElement('img');
+    img.src = wheelUrl;
+    img.alt = 'Table ' + idx;
+
+    // Handle missing images
+    img.onerror = () => {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'missing-placeholder';
+        placeholder.textContent = 'No Image';
+        item.innerHTML = '';
+        item.appendChild(placeholder);
+    };
+
+    item.appendChild(img);
+    track.appendChild(item);
+}
+
+// Update the SVG border path to wrap around carousel and selected wheel
+function updateCarouselBorder() {
+    const container = document.querySelector('.carousel-container');
+    const svg = document.getElementById('carouselBorderSvg');
+    const path = document.getElementById('borderPath');
+    const selectedWheel = document.querySelector('.carousel-item.selected');
+
+    if (!container || !svg || !path || !selectedWheel) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const wheelRect = selectedWheel.getBoundingClientRect();
+
+    // Calculate positions relative to container
+    const wheelCenterX = wheelRect.left - containerRect.left + wheelRect.width / 2;
+    const wheelCenterY = wheelRect.top - containerRect.top + wheelRect.height / 2;
+    const wheelWidth = wheelRect.width * 2.45; // Curve width around selected wheel - reduced by 30%
+    const wheelHeight = wheelRect.height * 1.694; // Curve height around selected wheel (1.54 * 1.1)
+
+    const padding = 30; // Increased padding from 20 to 30
+    const containerWidth = containerRect.width;
+    const containerHeight = containerRect.height;
+
+    // Define the path that goes around carousel and bulges around selected wheel
+    // Using cubic Bezier curves for smoother transitions
+    const topHeight = -wheelHeight/2 - padding;
+    const leftX = wheelCenterX - wheelWidth/2 - padding;
+    const rightX = wheelCenterX + wheelWidth/2 + padding;
+
+    const pathData = `
+        M 0,0
+        L ${leftX},0
+        C ${leftX},${topHeight * 0.05} ${leftX + (wheelCenterX - leftX) * 0.5},${topHeight} ${wheelCenterX},${topHeight}
+        C ${wheelCenterX + (rightX - wheelCenterX) * 0.5},${topHeight} ${rightX},${topHeight * 0.05} ${rightX},0
+        L ${containerWidth},0
+        L ${containerWidth},${containerHeight}
+        L 0,${containerHeight}
+        Z
+    `;
+
+    path.setAttribute('d', pathData);
+
+    // Update SVG viewBox to accommodate the extended border
+    svg.setAttribute('viewBox', `0 ${-wheelHeight/2 - padding - 20} ${containerWidth} ${containerHeight + wheelHeight/2 + padding + 40}`);
+    svg.style.height = `${containerHeight + wheelHeight/2 + padding + 40}px`;
+    svg.style.top = `${-wheelHeight/2 - padding - 20}px`;
 }
 
 // Main update function
-function updateScreen() {
+function updateScreen(direction = null) {
     // Update based on window type
     if (windowName === "table") {
         updateBGImage();
         updateTableInfo();
-        buildCarousel();
+        buildCarousel(direction);
     } else if (windowName === "bg") {
         updateBGImage();
     } else if (windowName === "dmd") {

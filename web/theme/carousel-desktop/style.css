@@ -1,14 +1,14 @@
 /* Font imports */
 @font-face {
-  font-family: 'Roboto';
-  src: url('fonts/Roboto-Regular.ttf') format('truetype');
+  font-family: 'RocketCommand';
+  src: url('fonts/RocketCommandExpanded-DYA5m.otf') format('opentype');
   font-weight: 400;
   font-style: normal;
 }
 
 @font-face {
-  font-family: 'Roboto';
-  src: url('fonts/Roboto-Bold.ttf') format('truetype');
+  font-family: 'RocketCommandGradient';
+  src: url('fonts/RocketCommandGradient-q2Jnl.otf') format('opentype');
   font-weight: 700;
   font-style: normal;
 }
@@ -23,7 +23,7 @@ body {
   color: white;
   overflow-x: hidden;
   overflow-y: hidden;
-  font-family: 'Roboto', sans-serif;
+  font-family: 'RocketCommand', sans-serif;
 }
 
 /* UI Container - wraps all UI elements */
@@ -39,11 +39,6 @@ body {
   z-index: 10;
   transition: opacity 4.5s ease-in-out;
   opacity: 1;
-  pointer-events: none;
-}
-
-.ui-container > * {
-  pointer-events: auto;
 }
 
 /* BG Image container - now covers full screen */
@@ -75,6 +70,8 @@ body {
   position: relative;
   flex-wrap: nowrap;
   box-sizing: border-box;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.6) 100%);
+  z-index: 1;
 }
 
 /* Table info overlay */
@@ -86,7 +83,8 @@ body {
 
 .table-name {
   font-size: 4vw;
-  font-weight: 700;
+  font-weight: 400;
+  font-family: 'RocketCommand', sans-serif;
   margin: 0 0 1vh 0;
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
   letter-spacing: -0.02em;
@@ -99,6 +97,7 @@ body {
 .table-meta {
   font-size: 1.8vw;
   font-weight: 400;
+  font-family: 'RocketCommandGradient', sans-serif;
   margin: 0;
   opacity: 0.9;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
@@ -118,6 +117,7 @@ body {
 .authors-label {
   font-size: 1.4vw;
   font-weight: 400;
+  font-family: 'RocketCommand', sans-serif;
   margin: 0 0 0.5vh 0;
   opacity: 0.7;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
@@ -127,7 +127,8 @@ body {
 
 .authors-text {
   font-size: 2vw;
-  font-weight: 700;
+  font-weight: 400;
+  font-family: 'RocketCommandGradient', sans-serif;
   margin: 0;
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
   letter-spacing: -0.02em;
@@ -144,11 +145,25 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: visible;
+  overflow-x: clip;
+  overflow-y: visible;
   position: relative;
-  border: 5px solid red;
   box-sizing: border-box;
   padding: 1vh 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.6) 100%);
+  z-index: 2;
+}
+
+/* SVG Border Overlay */
+.carousel-border-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1000;
+  overflow: visible;
 }
 
 /* Carousel track */
@@ -156,9 +171,10 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2vw;
-  padding: 0 4vw;
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 1vw;
+  padding: 0 2vw;
+  overflow-x: visible;
+  overflow-y: visible;
 }
 
 /* Carousel item */
@@ -168,10 +184,10 @@ body {
   width: 10vw;
   height: 15vh;
   overflow: visible;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  opacity: 0.4;
-  transform: scale(0.8);
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  opacity: 0.6;
   cursor: pointer;
+  will-change: transform, opacity;
 }
 
 .carousel-item img {
@@ -185,8 +201,13 @@ body {
 /* Selected carousel item */
 .carousel-item.selected {
   opacity: 1;
-  transform: scale(2.4) translateY(-45%);
+  transform: scale(1.56) translateY(-45%);
   z-index: 500;
+}
+
+/* Non-selected items scale down */
+.carousel-item:not(.selected) {
+  transform: scale(0.8);
 }
 
 .carousel-item.selected img {
