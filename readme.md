@@ -18,6 +18,10 @@ Cab
 Default
 <img width="1349" height="393" alt="image" src="https://github.com/user-attachments/assets/47a3db0b-6988-4e97-9487-84e394709f92" />
 
+carousel-desktop
+
+![carousel-desktop-Trim-clean-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/6f2d2b6d-652a-47c6-8e8e-a84b6aa461ee)
+
 slider (Single Screen)
 <img width="1917" height="1080" alt="Screenshot From 2025-10-07 08-00-59" src="https://github.com/user-attachments/assets/df0d8227-67b5-4ab4-8808-26b00bcb16f8" />
 
