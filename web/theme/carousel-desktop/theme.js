@@ -5,8 +5,6 @@ Testing theme with carousel layout
 // Globals
 windowName = ""
 currentTableIndex = 0;
-lastTableIndex = 0;
-config = undefined;
 isAnimating = false;
 
 // init the core interface to VPinFE
@@ -16,8 +14,6 @@ window.vpin = vpin // main menu needs this to call back in.
 
 // wait for VPinFECore to be ready
 vpin.ready.then(async () => {
-    console.log("VPinFECore is fully initialized");
-
     await vpin.call("get_my_window_name")
         .then(result => {
             windowName = result;
@@ -26,16 +22,12 @@ vpin.ready.then(async () => {
     vpin.registerInputHandler(handleInput);
     window.receiveEvent = receiveEvent;
 
-    config = await vpin.call("get_theme_config");
-
     // Initialize the display
     updateScreen();
 });
 
 // listener for windows events.  VPinFECore uses this to send events to all windows.
 async function receiveEvent(message) {
-    vpin.call("console_out", message); // this is just example debug. you can send text to the CLI console that launched VPinFE
-
     // another window changed the table index.  Typcially the "table" window changes this when user selects a table.  So only BG/DMD window gets this event.
     if (message.type == "TableIndexUpdate") {
         this.currentTableIndex = message.index;
@@ -55,7 +47,6 @@ async function receiveEvent(message) {
         if (message.collection == "All") {
             await vpin.getTableData(reset = true);
         } else {
-            vpin.call("console_out", "collection change.");
             await vpin.call("set_tables_by_collection", message.collection);
             await vpin.getTableData();
         }
@@ -258,19 +249,17 @@ function buildCarousel(direction = null) {
         }
         isAnimating = false;
     } else if (direction !== null) {
-        // Animate sliding
-        animateCarouselSlide(direction, sideItems, totalTables);
+        // Update with animation
+        updateCarouselItems(existingItems, sideItems, totalTables, true);
     } else {
         // Just update in place (for collection changes, etc.)
-        updateCarouselItems(existingItems, sideItems, totalTables);
+        updateCarouselItems(existingItems, sideItems, totalTables, false);
     }
 
-    // Update the SVG border after carousel is built
-    setTimeout(updateCarouselBorder, 100);
 }
 
-// Update carousel items in place without animation
-function updateCarouselItems(existingItems, sideItems, totalTables) {
+// Update carousel items in place
+function updateCarouselItems(existingItems, sideItems, totalTables, animated = false) {
     existingItems.forEach((item, index) => {
         const offset = index - sideItems;
         const idx = wrapIndex(currentTableIndex + offset, totalTables);
@@ -279,8 +268,27 @@ function updateCarouselItems(existingItems, sideItems, totalTables) {
         // Update selected class
         if (offset === 0) {
             item.classList.add('selected');
+
+            // Add jiggle animation when animated
+            if (animated) {
+                // Remove jiggle first in case it's already there
+                item.classList.remove('jiggle');
+
+                // Use requestAnimationFrame to ensure the removal is processed
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        item.classList.add('jiggle');
+
+                        // Remove jiggle class after animation completes
+                        setTimeout(() => {
+                            item.classList.remove('jiggle');
+                        }, 500);
+                    });
+                });
+            }
         } else {
             item.classList.remove('selected');
+            item.classList.remove('jiggle');
         }
 
         // Update image
@@ -290,37 +298,13 @@ function updateCarouselItems(existingItems, sideItems, totalTables) {
             img.alt = 'Table ' + idx;
         }
     });
-}
 
-// Animate carousel sliding
-function animateCarouselSlide(direction, sideItems, totalTables) {
-    const existingItems = Array.from(document.getElementById('carouselTrack').children);
-
-    // Just update all items in place with new images
-    existingItems.forEach((item, index) => {
-        const offset = index - sideItems;
-        const idx = wrapIndex(currentTableIndex + offset, totalTables);
-        const wheelUrl = vpin.getImageURL(idx, "wheel");
-
-        // Update selected class - center is always at sideItems
-        if (offset === 0) {
-            item.classList.add('selected');
-        } else {
-            item.classList.remove('selected');
-        }
-
-        // Update image
-        const img = item.querySelector('img');
-        if (img && img.src !== wheelUrl) {
-            img.src = wheelUrl;
-            img.alt = 'Table ' + idx;
-        }
-    });
-
-    // Animation completes after CSS transition
-    setTimeout(() => {
-        isAnimating = false;
-    }, 600);
+    // If animated, wait for CSS transition to complete
+    if (animated) {
+        setTimeout(() => {
+            isAnimating = false;
+        }, 600);
+    }
 }
 
 // Helper function to create a carousel item
@@ -350,53 +334,6 @@ function createCarouselItem(idx, isSelected, track) {
     track.appendChild(item);
 }
 
-// Update the SVG border path to wrap around carousel and selected wheel
-function updateCarouselBorder() {
-    const container = document.querySelector('.carousel-container');
-    const svg = document.getElementById('carouselBorderSvg');
-    const path = document.getElementById('borderPath');
-    const selectedWheel = document.querySelector('.carousel-item.selected');
-
-    if (!container || !svg || !path || !selectedWheel) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const wheelRect = selectedWheel.getBoundingClientRect();
-
-    // Calculate positions relative to container
-    const wheelCenterX = wheelRect.left - containerRect.left + wheelRect.width / 2;
-    const wheelCenterY = wheelRect.top - containerRect.top + wheelRect.height / 2;
-    const wheelWidth = wheelRect.width * 2.45; // Curve width around selected wheel - reduced by 30%
-    const wheelHeight = wheelRect.height * 1.694; // Curve height around selected wheel (1.54 * 1.1)
-
-    const padding = 30; // Increased padding from 20 to 30
-    const containerWidth = containerRect.width;
-    const containerHeight = containerRect.height;
-
-    // Define the path that goes around carousel and bulges around selected wheel
-    // Using cubic Bezier curves for smoother transitions
-    const topHeight = -wheelHeight/2 - padding;
-    const leftX = wheelCenterX - wheelWidth/2 - padding;
-    const rightX = wheelCenterX + wheelWidth/2 + padding;
-
-    const pathData = `
-        M 0,0
-        L ${leftX},0
-        C ${leftX},${topHeight * 0.05} ${leftX + (wheelCenterX - leftX) * 0.5},${topHeight} ${wheelCenterX},${topHeight}
-        C ${wheelCenterX + (rightX - wheelCenterX) * 0.5},${topHeight} ${rightX},${topHeight * 0.05} ${rightX},0
-        L ${containerWidth},0
-        L ${containerWidth},${containerHeight}
-        L 0,${containerHeight}
-        Z
-    `;
-
-    path.setAttribute('d', pathData);
-
-    // Update SVG viewBox to accommodate the extended border
-    svg.setAttribute('viewBox', `0 ${-wheelHeight/2 - padding - 20} ${containerWidth} ${containerHeight + wheelHeight/2 + padding + 40}`);
-    svg.style.height = `${containerHeight + wheelHeight/2 + padding + 40}px`;
-    svg.style.top = `${-wheelHeight/2 - padding - 20}px`;
-}
-
 // Main update function
 function updateScreen(direction = null) {
     // Update based on window type
@@ -414,17 +351,13 @@ function updateScreen(direction = null) {
 // Smooth fade transition
 async function fadeOut() {
     const fadeContainer = document.getElementById('fadeContainer');
-    const bottomSection = document.querySelector('.bottom-section');
     fadeContainer.style.opacity = '0';
-    if (bottomSection) bottomSection.style.opacity = '0';
     await new Promise(resolve => setTimeout(resolve, 300));
 }
 
 function fadeIn() {
     const fadeContainer = document.getElementById('fadeContainer');
-    const bottomSection = document.querySelector('.bottom-section');
     fadeContainer.style.opacity = '1';
-    if (bottomSection) bottomSection.style.opacity = '1';
 }
 
 //
