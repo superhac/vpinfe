@@ -1,0 +1,261 @@
+/* Font imports */
+@font-face {
+  font-family: 'Roboto';
+  src: url('fonts/Roboto-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Roboto';
+  src: url('fonts/Roboto-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* Reset and base styles */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: #0a0a0a;
+  color: white;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  font-family: 'Roboto', sans-serif;
+}
+
+/* UI Container - wraps all UI elements */
+.ui-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  z-index: 10;
+  transition: opacity 4.5s ease-in-out;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.ui-container > * {
+  pointer-events: auto;
+}
+
+/* BG Image container - now covers full screen */
+.bg-image-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.bg-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  transition: opacity 0.5s ease-in-out, transform 0.3s ease-in-out;
+}
+
+/* Info row - contains table info and authors */
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  width: 100%;
+  padding: 0 0.5vw 1vh 1vw;
+  position: relative;
+  flex-wrap: nowrap;
+  box-sizing: border-box;
+}
+
+/* Table info overlay */
+.table-info {
+  max-width: 40%;
+  flex-shrink: 0;
+  padding-left: 0;
+}
+
+.table-name {
+  font-size: 4vw;
+  font-weight: 700;
+  margin: 0 0 1vh 0;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+.table-meta {
+  font-size: 1.8vw;
+  font-weight: 400;
+  margin: 0;
+  opacity: 0.9;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.05em;
+}
+
+/* Table authors overlay - right side */
+.table-authors {
+  max-width: 45%;
+  text-align: right;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-right: 0;
+  overflow: visible;
+}
+
+.authors-label {
+  font-size: 1.4vw;
+  font-weight: 400;
+  margin: 0 0 0.5vh 0;
+  opacity: 0.7;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.authors-text {
+  font-size: 2vw;
+  font-weight: 700;
+  margin: 0;
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Carousel container */
+.carousel-container {
+  height: auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  position: relative;
+  border: 5px solid red;
+  box-sizing: border-box;
+  padding: 1vh 0;
+}
+
+/* Carousel track */
+.carousel-track {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2vw;
+  padding: 0 4vw;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Carousel item */
+.carousel-item {
+  position: relative;
+  flex-shrink: 0;
+  width: 10vw;
+  height: 15vh;
+  overflow: visible;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0.4;
+  transform: scale(0.8);
+  cursor: pointer;
+}
+
+.carousel-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+}
+
+/* Selected carousel item */
+.carousel-item.selected {
+  opacity: 1;
+  transform: scale(2.4) translateY(-45%);
+  z-index: 500;
+}
+
+.carousel-item.selected img {
+  filter: drop-shadow(0 12px 32px rgba(0, 0, 0, 0.9))
+          drop-shadow(0 0 40px rgba(255, 255, 255, 0.2));
+}
+
+/* Hover effect (for testing) */
+.carousel-item:hover {
+  opacity: 0.8;
+}
+
+/* Missing image placeholder */
+.carousel-item .missing-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8vw;
+  color: rgba(255, 255, 255, 0.3);
+  text-align: center;
+  padding: 1vh;
+}
+
+/* Fade transition container */
+#fadeContainer {
+  transition: opacity 4.5s ease-in-out;
+}
+
+/* Animation for carousel items appearing */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 0.5;
+    transform: translateY(0);
+  }
+}
+
+.carousel-item {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Secondary windows (BG and DMD) */
+.secondary-window {
+  width: 100vw;
+  height: 100vh;
+  background-color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 4.5s ease-in-out;
+  opacity: 1;
+}
+
+.fullscreen-image-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.fullscreen-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.5s ease-in-out;
+}
