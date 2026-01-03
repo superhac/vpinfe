@@ -25,6 +25,9 @@ class VPinFECore {
     // menu is up?
     this.menuUP = false;
 
+    // Event handling
+    this.eventHandlers = {}; // Custom event handlers registered by themes
+
   }
 
   // ***********************************
@@ -124,6 +127,52 @@ class VPinFECore {
 
   async getTableData(reset=false) {
     this.tableData = JSON.parse(await window.pywebview.api.get_tables(reset));
+  }
+
+  // Register an event handler for a specific event type
+  // eventType: string (e.g., "TableIndexUpdate", "TableDataChange", etc.)
+  // handler: function to call when event is received
+  registerEventHandler(eventType, handler) {
+    if (typeof handler === 'function') {
+      if (!this.eventHandlers[eventType]) {
+        this.eventHandlers[eventType] = [];
+      }
+      this.eventHandlers[eventType].push(handler);
+      this.call("console_out", `Registered event handler for ${eventType}`);
+    }
+  }
+
+  // Handle incoming events from window.receiveEvent
+  // This should be called from the theme's receiveEvent function
+  async handleEvent(message) {
+    // Default handling for TableDataChange
+    if (message.type === "TableDataChange") {
+      await this.#handleTableDataChange(message);
+    }
+
+    // Call any custom handlers registered by the theme
+    if (this.eventHandlers[message.type]) {
+      for (const handler of this.eventHandlers[message.type]) {
+        await handler(message);
+      }
+    }
+  }
+
+  // Default handler for TableDataChange events
+  async #handleTableDataChange(message) {
+    // Check if a collection filter was applied
+    if (message.collection) {
+      // if collection is "All" then reset to all tables, otherwise set to the selected collection.
+      if (message.collection === "All") {
+        await this.getTableData(true);
+      } else {
+        await this.call("set_tables_by_collection", message.collection);
+        await this.getTableData();
+      }
+    } else {
+      // VPSdb filters (letter, theme, type) - just refresh table data
+      await this.getTableData();
+    }
   }
 
 

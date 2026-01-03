@@ -63,6 +63,9 @@
       border: 1px solid #555;
       z-index: 1000;
       width: 100%;
+      max-height: 60vh;
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .popup-option {
@@ -91,7 +94,19 @@
     <ul class="menu" id="menu">
       <li class="menu-item" id="collection-item">
         <span class="dropdown-label">Collections:</span>
-        <span class="dropdown-value" id="collection-value">Normal</span>
+        <span class="dropdown-value" id="collection-value">All</span>
+      </li>
+      <li class="menu-item" id="letter-item">
+        <span class="dropdown-label">Starting Letter:</span>
+        <span class="dropdown-value" id="letter-value">All</span>
+      </li>
+      <li class="menu-item" id="theme-item">
+        <span class="dropdown-label">Theme:</span>
+        <span class="dropdown-value" id="theme-value">All</span>
+      </li>
+      <li class="menu-item" id="type-item">
+        <span class="dropdown-label">Type:</span>
+        <span class="dropdown-value" id="type-value">All</span>
       </li>
       <li class="menu-item">Settings</li>
       <li class="menu-item">High Scores</li>
@@ -106,15 +121,33 @@
     let rotationAngle = 0; // starting angle
     let selectedIndex = 0;
     let items = [];
-    let collectionIndex = 0;
     let dropdownOpen = false;
-    let dropdownSelected = collectionIndex;
+    let dropdownSelected = 0;
+    let currentDropdownType = null; // 'collection', 'letter', 'theme', or 'type'
+
+    // Filter data
     let collections = ['All'];
+    let letters = ['All'];
+    let themes = ['All'];
+    let types = ['All'];
+
+    // Current selections
+    let collectionIndex = 0;
+    let letterIndex = 0;
+    let themeIndex = 0;
+    let typeIndex = 0;
 
     async function init() {
       collections = collections.concat(await window.parent.vpin.call('get_collections'));
-      window.parent.vpin.call("console_out", "collections in menu: " + collections)
-      window.parent.vpin.call("console_out", collections);
+      letters = letters.concat(await window.parent.vpin.call('get_filter_letters'));
+      themes = themes.concat(await window.parent.vpin.call('get_filter_themes'));
+      types = types.concat(await window.parent.vpin.call('get_filter_types'));
+
+      window.parent.vpin.call("console_out", "Filters loaded");
+      window.parent.vpin.call("console_out", "Collections: " + collections.length);
+      window.parent.vpin.call("console_out", "Letters: " + letters.length);
+      window.parent.vpin.call("console_out", "Themes: " + themes.length);
+      window.parent.vpin.call("console_out", "Types: " + types.length);
     }
 
     window.parent.vpin.registerInputHandlerMenu(handleInput);
@@ -142,25 +175,19 @@
       console.log("got input: " + input);
 
       if (dropdownOpen) {
+        const currentOptions = getCurrentDropdownOptions();
         switch (input) {
           case "joyup":
-            dropdownSelected = (dropdownSelected - 1 + collections.length) % collections.length;
+            dropdownSelected = (dropdownSelected - 1 + currentOptions.length) % currentOptions.length;
             updateDropdownPopup();
             break;
           case "joydown":
-            dropdownSelected = (dropdownSelected + 1) % collections.length;
+            dropdownSelected = (dropdownSelected + 1) % currentOptions.length;
             updateDropdownPopup();
             break;
           case "joyselect":
-            collectionIndex = dropdownSelected;
+            applyDropdownSelection();
             closeDropdown();
-            if (collections[collectionIndex] == "All") {
-              window.parent.vpin.sendMessageToAllWindowsIncSelf({ type: "TableDataChange", index: 0, collection: "All" });
-              window.parent.vpin.call("console_out", "All was set");
-            }
-            else {
-              window.parent.vpin.sendMessageToAllWindowsIncSelf({ type: "TableDataChange", index: 0, collection: collections[collectionIndex] });
-            }
             break;
           case "joyback":
             closeDropdown();
@@ -179,7 +206,13 @@
         case "joyselect":
           const selectedItem = items[selectedIndex];
           if (selectedItem.id === 'collection-item') {
-            openDropdown(selectedItem);
+            openDropdown(selectedItem, 'collection');
+          } else if (selectedItem.id === 'letter-item') {
+            openDropdown(selectedItem, 'letter');
+          } else if (selectedItem.id === 'theme-item') {
+            openDropdown(selectedItem, 'theme');
+          } else if (selectedItem.id === 'type-item') {
+            openDropdown(selectedItem, 'type');
           } else if (selectedItem.id === 'quit-item') {
             window.parent.vpin.call("close_app");
           }
@@ -200,11 +233,36 @@
       });
 
       document.getElementById('collection-value').textContent = collections[collectionIndex];
+      document.getElementById('letter-value').textContent = letters[letterIndex];
+      document.getElementById('theme-value').textContent = themes[themeIndex];
+      document.getElementById('type-value').textContent = types[typeIndex];
     }
 
-    function openDropdown(targetItem) {
+    function getCurrentDropdownOptions() {
+      switch (currentDropdownType) {
+        case 'collection': return collections;
+        case 'letter': return letters;
+        case 'theme': return themes;
+        case 'type': return types;
+        default: return [];
+      }
+    }
+
+    function getCurrentIndex() {
+      switch (currentDropdownType) {
+        case 'collection': return collectionIndex;
+        case 'letter': return letterIndex;
+        case 'theme': return themeIndex;
+        case 'type': return typeIndex;
+        default: return 0;
+      }
+    }
+
+    function openDropdown(targetItem, dropdownType) {
       dropdownOpen = true;
-      dropdownSelected = collectionIndex;
+      currentDropdownType = dropdownType;
+      dropdownSelected = getCurrentIndex();
+
       const popup = document.getElementById('dropdown-popup');
       popup.style.display = 'block';
       popup.style.top = (targetItem.offsetTop + targetItem.offsetHeight) + 'px';
@@ -217,12 +275,99 @@
     function updateDropdownPopup() {
       const popup = document.getElementById('dropdown-popup');
       popup.innerHTML = '';
-      collections.forEach((diff, i) => {
+      const options = getCurrentDropdownOptions();
+      options.forEach((option, i) => {
         const div = document.createElement('div');
         div.className = 'popup-option' + (i === dropdownSelected ? ' selected' : '');
-        div.textContent = diff;
+        div.textContent = option;
         popup.appendChild(div);
       });
+
+      // Scroll selected item into view
+      const selectedElement = popup.querySelector('.popup-option.selected');
+      if (selectedElement) {
+        selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+
+    async function applyDropdownSelection() {
+      const options = getCurrentDropdownOptions();
+      const selectedValue = options[dropdownSelected];
+
+      switch (currentDropdownType) {
+        case 'collection':
+          collectionIndex = dropdownSelected;
+          if (selectedValue == "All") {
+            await window.parent.vpin.call("get_tables", true);
+            window.parent.vpin.sendMessageToAllWindowsIncSelf({
+              type: "TableDataChange",
+              index: 0,
+              collection: "All"
+            });
+          } else {
+            await window.parent.vpin.call("set_tables_by_collection", selectedValue);
+            window.parent.vpin.sendMessageToAllWindowsIncSelf({
+              type: "TableDataChange",
+              index: 0,
+              collection: selectedValue
+            });
+          }
+          break;
+
+        case 'letter':
+          letterIndex = dropdownSelected;
+          if (selectedValue == "All") {
+            await window.parent.vpin.call("reset_filters");
+          } else {
+            await window.parent.vpin.call("apply_filters", selectedValue, null, null);
+          }
+          window.parent.vpin.sendMessageToAllWindowsIncSelf({
+            type: "TableDataChange",
+            index: 0
+          });
+          break;
+
+        case 'theme':
+          themeIndex = dropdownSelected;
+          if (selectedValue == "All") {
+            await window.parent.vpin.call("reset_filters");
+          } else {
+            await window.parent.vpin.call("apply_filters", null, selectedValue, null);
+          }
+          window.parent.vpin.sendMessageToAllWindowsIncSelf({
+            type: "TableDataChange",
+            index: 0
+          });
+          break;
+
+        case 'type':
+          typeIndex = dropdownSelected;
+          if (selectedValue == "All") {
+            await window.parent.vpin.call("reset_filters");
+          } else {
+            await window.parent.vpin.call("apply_filters", null, null, selectedValue);
+          }
+          window.parent.vpin.sendMessageToAllWindowsIncSelf({
+            type: "TableDataChange",
+            index: 0
+          });
+          break;
+      }
+
+      window.parent.vpin.call("console_out", `Filter applied: ${currentDropdownType} = ${selectedValue}`);
+    }
+
+    async function refreshFilterOptions() {
+      letters = ['All'].concat(await window.parent.vpin.call('get_filter_letters'));
+      themes = ['All'].concat(await window.parent.vpin.call('get_filter_themes'));
+      types = ['All'].concat(await window.parent.vpin.call('get_filter_types'));
+
+      // Reset filter indices if current selection no longer exists
+      if (letterIndex >= letters.length) letterIndex = 0;
+      if (themeIndex >= themes.length) themeIndex = 0;
+      if (typeIndex >= types.length) typeIndex = 0;
+
+      updateMenu();
     }
 
     function closeDropdown() {

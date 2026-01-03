@@ -8,6 +8,7 @@ import webview
 import subprocess
 from common.tableparser import TableParser
 from common.vpxcollections import VPXCollections
+from common.tablelistfilters import TableListFilters
 
 class API:
     
@@ -18,6 +19,12 @@ class API:
         self.filteredTables = self.allTables
         self.myWindow = [] # this holds this instances webview window.  In array because of introspection of the window object
         self.jsTableDictData = None
+        # Track current filter state
+        self.current_filters = {
+            'letter': None,
+            'theme': None,
+            'type': None
+        }
 
     ####################
     ## Private Functions
@@ -109,9 +116,59 @@ class API:
         return c.get_collections_name()
     
     def set_tables_by_collection(self, collection):
+        """Set filtered tables based on collection from collections.ini."""
         c = VPXCollections(Path(__file__).parent.parent / "collections.ini")
-        self.filteredTables = c.filter_tables(self.allTables, collection)      
-    
+        self.filteredTables = c.filter_tables(self.allTables, collection)
+
+    def get_filter_letters(self):
+        """Get available starting letters from ALL tables."""
+        filters = TableListFilters(self.allTables)
+        return filters.get_available_letters()
+
+    def get_filter_themes(self):
+        """Get available themes from ALL tables."""
+        filters = TableListFilters(self.allTables)
+        return filters.get_available_themes()
+
+    def get_filter_types(self):
+        """Get available table types from ALL tables."""
+        filters = TableListFilters(self.allTables)
+        return filters.get_available_types()
+
+    def apply_filters(self, letter=None, theme=None, table_type=None):
+        """
+        Apply VPSdb filters to the full table list.
+        These filters work independently of collections.
+        """
+        # Update filter state
+        if letter is not None:
+            self.current_filters['letter'] = letter
+        if theme is not None:
+            self.current_filters['theme'] = theme
+        if table_type is not None:
+            self.current_filters['type'] = table_type
+
+        print(f"Applying filters: letter={self.current_filters['letter']}, theme={self.current_filters['theme']}, type={self.current_filters['type']}")
+
+        # Always start from the full table list
+        filters = TableListFilters(self.allTables)
+        self.filteredTables = filters.apply_filters(
+            letter=self.current_filters['letter'],
+            theme=self.current_filters['theme'],
+            table_type=self.current_filters['type']
+        )
+
+        print(f"Filtered tables count: {len(self.filteredTables)}")
+
+    def reset_filters(self):
+        """Reset all VPSdb filters back to full table list."""
+        self.filteredTables = self.allTables
+        self.current_filters = {
+            'letter': None,
+            'theme': None,
+            'type': None
+        }
+
     def console_out(self, output):
         print(f'Win: {self.myWindow[0].uid} - {output}')
         return output

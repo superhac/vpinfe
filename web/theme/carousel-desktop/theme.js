@@ -28,30 +28,22 @@ vpin.ready.then(async () => {
 
 // listener for windows events.  VPinFECore uses this to send events to all windows.
 async function receiveEvent(message) {
-    // another window changed the table index.  Typcially the "table" window changes this when user selects a table.  So only BG/DMD window gets this event.
+    // Let VPinFECore handle the data refresh logic
+    await vpin.handleEvent(message);
+
+    // Handle UI updates based on event type
     if (message.type == "TableIndexUpdate") {
         this.currentTableIndex = message.index;
         updateScreen();
     }
-    // the table is launching.
     else if (message.type == "TableLaunching") {
         await fadeOut();
     }
-    // the table was exited and we are back to theme
     else if (message.type == "TableLaunchComplete") {
         fadeIn();
     }
-    // the collection was changed.  All windows get (table,bg,dmd) this event.  The table window changes this when user selects a new collection in the main menu. we need a new table list.
     else if (message.type == "TableDataChange") {
-        // if collection is "All" then reset to all tables, otherwise set to the selected collection.
-        if (message.collection == "All") {
-            await vpin.getTableData(reset = true);
-        } else {
-            await vpin.call("set_tables_by_collection", message.collection);
-            await vpin.getTableData();
-        }
         this.currentTableIndex = message.index;
-        // NOW do something with the new table data. like update the images.
         updateScreen();
     }
 }

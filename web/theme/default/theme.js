@@ -43,6 +43,11 @@ function fadeInScreen() {
 // Hook for Python events
 async function receiveEvent(message) {
     vpin.call("console_out", message);  // no 'this' here
+
+    // Let VPinFECore handle the data refresh logic
+    await vpin.handleEvent(message);
+
+    // Handle UI updates based on event type
     if (message.type == "TableIndexUpdate") {
         this.currentTableIndex = message.index;
         setImage();
@@ -54,13 +59,6 @@ async function receiveEvent(message) {
         fadeInScreen();
     }
     else if (message.type == "TableDataChange") {
-        vpin.call("console_out", "TableDataChange");
-        if (message.collection == "All") {
-            vpin.getTableData(reset = true);
-        } else {
-            await vpin.call("set_tables_by_collection", message.collection);
-            await vpin.getTableData();
-        }
         this.currentTableIndex = message.index;
         setImage();
     }

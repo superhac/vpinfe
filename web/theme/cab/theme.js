@@ -76,6 +76,10 @@ function textToImageURL(text, options = {}) {
 async function receiveEvent(message) {
     vpin.call("console_out", message);
 
+    // Let VPinFECore handle the data refresh logic
+    await vpin.handleEvent(message);
+
+    // Handle UI updates based on event type
     switch (message.type) {
         case "TableIndexUpdate":
             currentTableIndex = message.index;
@@ -91,14 +95,6 @@ async function receiveEvent(message) {
             break;
 
         case "TableDataChange":
-            if (message.collection === "All") {
-                await vpin.getTableData(reset = true);
-            } else {
-                await vpin.call("set_tables_by_collection", message.collection);
-                await vpin.getTableData();
-            }
-            vpin.call("console_out", "got new table data, length: " + vpin.tableData.length);
-
             currentTableIndex = message.index;
             updateImages();
             break;
