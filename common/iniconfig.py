@@ -8,16 +8,29 @@ class IniConfig:
 		self.defaults = {
 			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '', "hudscreenid": '', 'hudrotangle': ''},
 			'Settings': {
-				'vpxbinpath': '', 
+				'vpxbinpath': '',
 				'tablerootdir': '',
+				'vpxinipath': '',
 				'theme': '',
-				'defaultfilter': '', # abc, favorites, em, ss, pm  
+				'defaultfilter': '', # abc, favorites, em, ss, pm
 				'joyleft': '',
 				'joyright': '',
+				'joyup': '',
+				'joydown': '',
 				'joyselect': '',
 				'joymenu': '',
 				'joyback': '',
 				'joyexit': '',
+				'joycollectionmenu': '',
+				},
+			'Logger': {
+				'level': 'info',
+				'console': '1',
+				'file': '',
+				},
+			'Media': {
+				'tabletype': 'table',
+				'tableresolution': '4k',
 				},
 			'VPSdb': {'last': ''},
 		}

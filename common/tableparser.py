@@ -32,6 +32,9 @@ class TableParser:
             for f in table_dir.iterdir():
                 if f.is_file() and f.suffix.lower() == ".vpx":
                     table.fullPathVPXfile = str(f)
+                    # Get creation time (cross-platform)
+                    stat = f.stat()
+                    table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
 
             if not getattr(table, "fullPathVPXfile", None):
                 print(f"{self.RED_CONSOLE_TEXT}    No .vpx found in {table.tableDirName} directory.{self.RESET_CONSOLE_TEXT}")

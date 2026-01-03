@@ -2,7 +2,8 @@ class Table:
     tableDirName = None
     fullPathTable = None
     fullPathVPXfile = None
-    
+    creation_time = None
+
     pupPackExists = False
     altColorExists = False
     altSoundExists = False
@@ -14,5 +15,5 @@ class Table:
     CabImagePath = None
     realDMDImagePath = None
     realDMDColorImagePath = None
-    
+
     metaConfig = None
