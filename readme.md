@@ -184,18 +184,59 @@ joyfav =
 ```
 
 ## Collections
-If you have lots of tables you may want to organize them as a collection.  VPinFE will look in the CWD for a file called `collections.ini`.  The format is self explanatory:
+VPinFE supports two types of collections for organizing your tables. Collections are stored in `collections.ini` in your VPinFE directory.
+
+### VPS ID-Based Collections
+Create handpicked collections by specifying individual table VPS IDs. Perfect for curated favorites or competition playlists:
 
 ```
 [Favorites]
+type = vpsid
 vpsids = 43ma3WQK, lkSumsrF, 6HmAOp06, F4ma5afn, tTOMTth0p8, 9Paf7-CL,M7FYR1GJ, F6QcJM6t_E,
         vyWVqHn5QF,garmU1ZC,yxmGmEGyFk, MBZPVX6p, wasB0RRz, 9Uv1Jljw, 3CvHz8Fa,CdZWHtTg
 
 [Competition]
+type = vpsid
 vpsids = wEOAp90_,W1JOjl6A,F4ma5afn,XQqwrauH,GXsgeoz_,x6df4mgv,-QXdrtsH, 1IlVLynt
 ```
 
-The tables for each collection are identified by their VPSID.  You can access your collections in the menu.
+### Filter-Based Collections
+Create dynamic collections based on VPSdb metadata filters. These collections automatically include all tables matching your filter criteria:
+
+```
+[Williams SS Tables]
+type = filter
+letter = All
+theme = All
+table_type = SS
+manufacturer = Williams
+year = All
+
+[1980s EM Tables]
+type = filter
+letter = All
+theme = All
+table_type = EM
+manufacturer = All
+year = 1980
+```
+
+**Available Filter Options:**
+- `letter` - Filter by starting letter (A-Z) or "All"
+- `theme` - Filter by table theme or "All"
+- `table_type` - Filter by type (EM, SS) or "All"
+- `manufacturer` - Filter by manufacturer (Williams, Bally, Gottlieb, etc.) or "All"
+- `year` - Filter by year or "All"
+
+### Saving Filter Collections from the Menu
+You can create filter-based collections directly from the Settings menu in the UI:
+1. Open the menu (default: `m` key or button 9 on gamepad)
+2. Set your desired filters (Letter, Theme, Type, Manufacturer, Year)
+3. Select "Save Filter..." from the menu
+4. Enter a name for your collection
+5. Your filter combination is saved and appears in the Collections list
+
+Both collection types appear together in the Collections dropdown menu and can be switched between seamlessly.
 
 ## VPinfe CLI Options
 ```
