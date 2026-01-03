@@ -17,7 +17,8 @@
 
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
+    padding-top: 2vh;
   }
 
   #menu-container {
@@ -26,23 +27,37 @@
     transform-origin: center center;
   }
 
+    .menu-title {
+      font-size: 3.75vh;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 1vh;
+      padding: 1vh;
+      color: #fff;
+    }
+
     ul.menu {
       list-style: none;
-      padding: 2vh;
+      padding: 1vh;
       margin: 0;
     }
 
     li.menu-item {
-      padding: 1.5vh 2vw;
-      margin-bottom: 1vh;
+      padding: 0.75vh 1vw;
+      margin-bottom: 0.5vh;
       background-color: #222;
-      border-radius: 1vh;
+      border-radius: 0.5vh;
       cursor: pointer;
       position: relative;
+      font-size: 2.34vh;
     }
 
     li.menu-item.selected {
       background-color: #444;
+    }
+
+    li.menu-item.filter-separator {
+      margin-top: 2vh;
     }
 
     .dropdown-label {
@@ -67,10 +82,11 @@
       max-height: 60vh;
       overflow-y: auto;
       overflow-x: hidden;
+      font-size: 2.34vh;
     }
 
     .popup-option {
-      padding: 1vh 2vw;
+      padding: 0.5vh 1vw;
     }
 
     .popup-option.selected {
@@ -92,12 +108,13 @@
 
 <body>
   <div id="menu-container">
+    <div class="menu-title">Collection / Filter</div>
     <ul class="menu" id="menu">
       <li class="menu-item" id="collection-item">
         <span class="dropdown-label">Collections:</span>
         <span class="dropdown-value" id="collection-value">All</span>
       </li>
-      <li class="menu-item" id="letter-item">
+      <li class="menu-item filter-separator" id="letter-item">
         <span class="dropdown-label">Starting Letter:</span>
         <span class="dropdown-value" id="letter-value">All</span>
       </li>
@@ -125,14 +142,14 @@
     <div id="dropdown-popup" class="popup" style="display: none;"></div>
 
     <!-- Dialog for saving filters -->
-    <div id="save-filter-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; border: 2px solid #555; padding: 3vh 4vw; z-index: 2000; border-radius: 1vh;">
-      <div style="font-size: 3vh; margin-bottom: 2vh;">Save Current Filter</div>
-      <input type="text" id="filter-name-input" placeholder="Enter filter name..." style="width: 100%; padding: 1vh; font-size: 2.5vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.5vh; margin-bottom: 2vh;">
-      <div style="display: flex; gap: 2vw;">
-        <button id="save-filter-btn" style="flex: 1; padding: 1vh; font-size: 2.5vh; background: #444; color: #fff; border: 1px solid #666; border-radius: 0.5vh; cursor: pointer;">Save</button>
-        <button id="cancel-save-btn" style="flex: 1; padding: 1vh; font-size: 2.5vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.5vh; cursor: pointer;">Cancel</button>
+    <div id="save-filter-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; border: 2px solid #555; padding: 1.5vh 2vw; z-index: 2000; border-radius: 0.5vh;">
+      <div style="font-size: 2.82vh; margin-bottom: 1vh;">Save Current Filter</div>
+      <input type="text" id="filter-name-input" placeholder="Enter filter name..." style="width: 100%; padding: 0.5vh; font-size: 2.34vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.25vh; margin-bottom: 1vh;">
+      <div style="display: flex; gap: 1vw;">
+        <button id="save-filter-btn" style="flex: 1; padding: 0.5vh; font-size: 2.34vh; background: #444; color: #fff; border: 1px solid #666; border-radius: 0.25vh; cursor: pointer;">Save</button>
+        <button id="cancel-save-btn" style="flex: 1; padding: 0.5vh; font-size: 2.34vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.25vh; cursor: pointer;">Cancel</button>
       </div>
-      <div id="save-message" style="margin-top: 1.5vh; font-size: 2vh; text-align: center;"></div>
+      <div id="save-message" style="margin-top: 0.75vh; font-size: 1.88vh; text-align: center;"></div>
     </div>
   </div>
 

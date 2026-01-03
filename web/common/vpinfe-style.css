@@ -12,16 +12,16 @@
 }
 
 #menu-frame {
-  width: 80vw;
-  height: 80vh;
+  width: 20vw;
+  height: 40vh;
   border: none;
   box-shadow: none;
   background: rgb(106, 161, 245); /* Or set this to transparent if your iframe has its own background */
 }
 
 #collection-menu-frame {
-  width: 80vw;
-  height: 80vh;
+  width: 20vw;
+  height: 40vh;
   border: none;
   box-shadow: none;
   background: rgb(106, 161, 245); /* Or set this to transparent if your iframe has its own background */

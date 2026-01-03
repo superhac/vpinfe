@@ -17,7 +17,8 @@
 
     display: flex;               /* enable flex layout */
     justify-content: center;     /* center horizontally */
-    align-items: center;         /* center vertically */
+    align-items: flex-start;     /* align to top */
+    padding-top: 2vh;
   }
 
   #menu-container {
@@ -26,19 +27,29 @@
     transform-origin: center center;
   }
 
+    .menu-title {
+      font-size: 3.75vh;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 1vh;
+      padding: 1vh;
+      color: #fff;
+    }
+
     ul.menu {
       list-style: none;
-      padding: 2vh;
+      padding: 1vh;
       margin: 0;
     }
 
     li.menu-item {
-      padding: 1.5vh 2vw;
-      margin-bottom: 1vh;
+      padding: 0.75vh 1vw;
+      margin-bottom: 0.5vh;
       background-color: #222;
-      border-radius: 1vh;
+      border-radius: 0.5vh;
       cursor: pointer;
       position: relative;
+      font-size: 2.34vh;
     }
 
     li.menu-item.selected {
@@ -60,6 +71,7 @@
 
 <body>
   <div id="menu-container">
+    <div class="menu-title">Settings</div>
     <ul class="menu" id="menu">
       <li class="menu-item">Settings</li>
       <li class="menu-item">High Scores</li>
