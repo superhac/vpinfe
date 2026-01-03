@@ -116,6 +116,7 @@
         <span class="dropdown-label">Year:</span>
         <span class="dropdown-value" id="year-value">All</span>
       </li>
+      <li class="menu-item" id="save-filter-item">Save Filter...</li>
       <li class="menu-item">Settings</li>
       <li class="menu-item">High Scores</li>
       <li class="menu-item" id="quit-item">Quit</li>
@@ -123,6 +124,17 @@
 
     <!-- Popup for dropdown -->
     <div id="dropdown-popup" class="popup" style="display: none;"></div>
+
+    <!-- Dialog for saving filters -->
+    <div id="save-filter-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; border: 2px solid #555; padding: 3vh 4vw; z-index: 2000; border-radius: 1vh;">
+      <div style="font-size: 3vh; margin-bottom: 2vh;">Save Current Filter</div>
+      <input type="text" id="filter-name-input" placeholder="Enter filter name..." style="width: 100%; padding: 1vh; font-size: 2.5vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.5vh; margin-bottom: 2vh;">
+      <div style="display: flex; gap: 2vw;">
+        <button id="save-filter-btn" style="flex: 1; padding: 1vh; font-size: 2.5vh; background: #444; color: #fff; border: 1px solid #666; border-radius: 0.5vh; cursor: pointer;">Save</button>
+        <button id="cancel-save-btn" style="flex: 1; padding: 1vh; font-size: 2.5vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.5vh; cursor: pointer;">Cancel</button>
+      </div>
+      <div id="save-message" style="margin-top: 1.5vh; font-size: 2vh; text-align: center;"></div>
+    </div>
   </div>
 
   <script>
@@ -233,6 +245,8 @@
             openDropdown(selectedItem, 'manufacturer');
           } else if (selectedItem.id === 'year-item') {
             openDropdown(selectedItem, 'year');
+          } else if (selectedItem.id === 'save-filter-item') {
+            openSaveFilterDialog();
           } else if (selectedItem.id === 'quit-item') {
             window.parent.vpin.call("close_app");
           }
@@ -323,14 +337,15 @@
       switch (currentDropdownType) {
         case 'collection':
           collectionIndex = dropdownSelected;
-          // Reset all VPSdb filters when collection is selected
-          letterIndex = 0;
-          themeIndex = 0;
-          typeIndex = 0;
-          manufacturerIndex = 0;
-          yearIndex = 0;
 
           if (selectedValue == "All") {
+            // Reset all filters when "All" is selected
+            letterIndex = 0;
+            themeIndex = 0;
+            typeIndex = 0;
+            manufacturerIndex = 0;
+            yearIndex = 0;
+
             await window.parent.vpin.call("get_tables", true);
             window.parent.vpin.sendMessageToAllWindowsIncSelf({
               type: "TableDataChange",
@@ -338,14 +353,49 @@
               collection: "All"
             });
           } else {
+            // Load the collection (could be VPS ID-based or filter-based)
             await window.parent.vpin.call("set_tables_by_collection", selectedValue);
-            window.parent.vpin.sendMessageToAllWindowsIncSelf({
-              type: "TableDataChange",
-              index: 0,
-              collection: selectedValue
-            });
+
+            // Get current filter state from API to update UI
+            // (set_tables_by_collection updates current_filters in API)
+            const filterState = await window.parent.vpin.call("get_current_filter_state");
+
+            if (filterState && filterState.letter !== null) {
+              // Filter-based collection - update UI to show active filters
+              letterIndex = letters.indexOf(filterState.letter);
+              themeIndex = themes.indexOf(filterState.theme);
+              typeIndex = types.indexOf(filterState.type);
+              manufacturerIndex = manufacturers.indexOf(filterState.manufacturer);
+              yearIndex = years.indexOf(filterState.year);
+
+              // Send as filter message
+              window.parent.vpin.sendMessageToAllWindowsIncSelf({
+                type: "TableDataChange",
+                index: 0,
+                filters: {
+                  letter: filterState.letter,
+                  theme: filterState.theme,
+                  type: filterState.type,
+                  manufacturer: filterState.manufacturer,
+                  year: filterState.year
+                }
+              });
+            } else {
+              // VPS ID-based collection - reset filter UI
+              letterIndex = 0;
+              themeIndex = 0;
+              typeIndex = 0;
+              manufacturerIndex = 0;
+              yearIndex = 0;
+
+              window.parent.vpin.sendMessageToAllWindowsIncSelf({
+                type: "TableDataChange",
+                index: 0,
+                collection: selectedValue
+              });
+            }
           }
-          updateMenu(); // Update UI to show filters reset to "All"
+          updateMenu(); // Update UI
           break;
 
         case 'letter':
@@ -506,10 +556,89 @@
       updateMenu();
     }
 
+    function openSaveFilterDialog() {
+      const dialog = document.getElementById('save-filter-dialog');
+      const input = document.getElementById('filter-name-input');
+      const message = document.getElementById('save-message');
+
+      input.value = '';
+      message.textContent = '';
+      dialog.style.display = 'block';
+      input.focus();
+    }
+
+    function closeSaveFilterDialog() {
+      const dialog = document.getElementById('save-filter-dialog');
+      dialog.style.display = 'none';
+    }
+
+    async function saveCurrentFilter() {
+      const input = document.getElementById('filter-name-input');
+      const message = document.getElementById('save-message');
+      const filterName = input.value.trim();
+
+      if (!filterName) {
+        message.textContent = 'Please enter a filter name';
+        message.style.color = '#f88';
+        return;
+      }
+
+      // Check if any filters are actually set (not all "All")
+      const hasActiveFilters =
+        (letters[letterIndex] !== "All") ||
+        (themes[themeIndex] !== "All") ||
+        (types[typeIndex] !== "All") ||
+        (manufacturers[manufacturerIndex] !== "All") ||
+        (years[yearIndex] !== "All");
+
+      if (!hasActiveFilters) {
+        message.textContent = 'No filters are active. Set at least one filter before saving.';
+        message.style.color = '#f88';
+        return;
+      }
+
+      // Save the filter
+      const result = await window.parent.vpin.call("save_filter_collection",
+        filterName,
+        letters[letterIndex] === "All" ? "All" : letters[letterIndex],
+        themes[themeIndex] === "All" ? "All" : themes[themeIndex],
+        types[typeIndex] === "All" ? "All" : types[typeIndex],
+        manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
+        years[yearIndex] === "All" ? "All" : years[yearIndex]
+      );
+
+      if (result.success) {
+        message.textContent = result.message;
+        message.style.color = '#8f8';
+
+        // Reload collections list
+        collections = ['All'].concat(await window.parent.vpin.call('get_collections'));
+
+        // Close dialog after 2 seconds
+        setTimeout(() => {
+          closeSaveFilterDialog();
+        }, 2000);
+      } else {
+        message.textContent = result.message;
+        message.style.color = '#f88';
+      }
+    }
+
     window.onload = async () => {
       await init();
       items = Array.from(document.querySelectorAll('.menu-item'));
       updateMenu();
+
+      // Set up save filter dialog buttons
+      document.getElementById('save-filter-btn').addEventListener('click', saveCurrentFilter);
+      document.getElementById('cancel-save-btn').addEventListener('click', closeSaveFilterDialog);
+
+      // Allow Enter key to save
+      document.getElementById('filter-name-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          saveCurrentFilter();
+        }
+      });
     };
   </script>
 </body>

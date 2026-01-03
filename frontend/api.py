@@ -120,7 +120,52 @@ class API:
     def set_tables_by_collection(self, collection):
         """Set filtered tables based on collection from collections.ini."""
         c = VPXCollections(Path(__file__).parent.parent / "collections.ini")
-        self.filteredTables = c.filter_tables(self.allTables, collection)
+
+        # Check if this is a filter-based collection
+        if c.is_filter_based(collection):
+            # Get the filter parameters and apply them
+            filters = c.get_filters(collection)
+            table_filters = TableListFilters(self.allTables)
+            self.filteredTables = table_filters.apply_filters(
+                letter=filters['letter'],
+                theme=filters['theme'],
+                table_type=filters['table_type'],
+                manufacturer=filters['manufacturer'],
+                year=filters['year']
+            )
+            # Update current filter state to match the collection
+            self.current_filters = {
+                'letter': filters['letter'],
+                'theme': filters['theme'],
+                'type': filters['table_type'],
+                'manufacturer': filters['manufacturer'],
+                'year': filters['year']
+            }
+        else:
+            # VPS ID-based collection
+            self.filteredTables = c.filter_tables(self.allTables, collection)
+            # Reset filter state since we're using VPS IDs
+            self.current_filters = {
+                'letter': None,
+                'theme': None,
+                'type': None,
+                'manufacturer': None,
+                'year': None
+            }
+
+    def save_filter_collection(self, name, letter="All", theme="All", table_type="All", manufacturer="All", year="All"):
+        """Save current filter settings as a named collection."""
+        c = VPXCollections(Path(__file__).parent.parent / "collections.ini")
+        try:
+            c.add_filter_collection(name, letter, theme, table_type, manufacturer, year)
+            c.save()
+            return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
+        except ValueError as e:
+            return {"success": False, "message": str(e)}
+
+    def get_current_filter_state(self):
+        """Return current filter state for UI synchronization."""
+        return self.current_filters
 
     def get_filter_letters(self):
         """Get available starting letters from ALL tables."""

@@ -21,6 +21,29 @@ class VPXCollections:
         """Return a list of section names."""
         return self.config.sections()
 
+    def is_filter_based(self, section: str):
+        """Check if a collection is filter-based (vs VPS ID-based)."""
+        if section not in self.config:
+            return False
+        return self.config[section].get("type", "vpsid") == "filter"
+
+    def get_filters(self, section: str):
+        """
+        Get filter parameters for a filter-based collection.
+        Returns dict with keys: letter, theme, table_type, manufacturer, year
+        Returns None if not a filter-based collection.
+        """
+        if not self.is_filter_based(section):
+            return None
+
+        return {
+            'letter': self.config[section].get("letter", "All"),
+            'theme': self.config[section].get("theme", "All"),
+            'table_type': self.config[section].get("table_type", "All"),
+            'manufacturer': self.config[section].get("manufacturer", "All"),
+            'year': self.config[section].get("year", "All")
+        }
+
     def get_vpsids(self, section: str):
         """Return list of vpsids for a given section."""
         if section not in self.config:
@@ -33,14 +56,27 @@ class VPXCollections:
         return {s: self.get_vpsids(s) for s in self.get_collections_name()}
 
     def add_collection(self, section: str, vpsids=None):
-        """Add a new collection (section)."""
+        """Add a new VPS ID-based collection (section)."""
         if self.config.has_section(section):
             raise ValueError(f"Section '{section}' already exists")
         self.config.add_section(section)
+        self.config[section]["type"] = "vpsid"
         if vpsids:
             self.config[section]["vpsids"] = ",".join(vpsids)
         else:
             self.config[section]["vpsids"] = ""
+
+    def add_filter_collection(self, section: str, letter="All", theme="All", table_type="All", manufacturer="All", year="All"):
+        """Add a new filter-based collection."""
+        if self.config.has_section(section):
+            raise ValueError(f"Section '{section}' already exists")
+        self.config.add_section(section)
+        self.config[section]["type"] = "filter"
+        self.config[section]["letter"] = letter
+        self.config[section]["theme"] = theme
+        self.config[section]["table_type"] = table_type
+        self.config[section]["manufacturer"] = manufacturer
+        self.config[section]["year"] = year
 
     def delete_collection(self, section: str):
         """Delete a collection (section)."""
