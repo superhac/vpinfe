@@ -40,7 +40,7 @@ def render_panel(tab):
                     joymenu = ui.input('Joy Menu', value=config.config.get('Settings', 'joymenu', fallback=''))
                     joyback = ui.input('Joy Back', value=config.config.get('Settings', 'joyback', fallback=''))
                     joyexit = ui.input('Joy Exit', value=config.config.get('Settings', 'joyexit', fallback=''))
-                    joyfav = ui.input('Joy Favorite', value=config.config.get('Settings', 'joyfav', fallback=''))
+                    joycollectionmenu = ui.input('Joy Collection Menu', value=config.config.get('Settings', 'joycollectionmenu', fallback=''))
 
             with ui.card():
                 ui.label('Logger').classes('text-lg font-semibold mb-2')
@@ -79,7 +79,7 @@ def render_panel(tab):
             config.config.set('Settings', 'joymenu', joymenu.value)
             config.config.set('Settings', 'joyback', joyback.value)
             config.config.set('Settings', 'joyexit', joyexit.value)
-            config.config.set('Settings', 'joyfav', joyfav.value)
+            config.config.set('Settings', 'joycollectionmenu', joycollectionmenu.value)
             config.config.set('Logger', 'level', logger_level.value)
             config.config.set('Logger', 'console', logger_console.value)
             config.config.set('Logger', 'file', logger_file.value)

@@ -19,6 +19,14 @@
   background: rgb(106, 161, 245); /* Or set this to transparent if your iframe has its own background */
 }
 
+#collection-menu-frame {
+  width: 80vw;
+  height: 80vh;
+  border: none;
+  box-shadow: none;
+  background: rgb(106, 161, 245); /* Or set this to transparent if your iframe has its own background */
+}
+
 #overlay-root {
   display: none;
   opacity: 0;

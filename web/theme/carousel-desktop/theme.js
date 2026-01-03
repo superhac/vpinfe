@@ -55,7 +55,7 @@ async function receiveEvent(message) {
     joydown
     joyselect
     joymenu
-    joyfav
+    joycollectionmenu
 */
 async function handleInput(input) {
     if (isAnimating) return; // Prevent rapid inputs during animation

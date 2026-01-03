@@ -111,7 +111,7 @@ joyselect = 1
 joymenu = 9
 joyback = 0
 joyexit = 0
-joyfav = 16
+joycollectionmenu = 16
 
 [Media]
 tabletype = table
@@ -154,13 +154,14 @@ With your tables in this format run `vpinfe.py --buildmeta`.  More details on wh
 
 ## Default Keyboard Controls
 
-| Action | Key |
-|--------|-----|
-| Left or Up    | Shift left  |
-| Right or Down | Shift Right |
-| Menu          | m           |
-| Select        | Enter       |
-| Quit          | q or ESCAPE |
+| Action            | Key         |
+|-------------------|-------------|
+| Left or Up        | Shift left  |
+| Right or Down     | Shift Right |
+| Menu              | m           |
+| Collections Menu  | c           |
+| Select            | Enter       |
+| Quit              | q or ESCAPE |
 
 ## Setup Gamepad
 
@@ -172,15 +173,15 @@ Those numbers represent the same numbers you would set in the `vpinfe.ini` file 
 
 ```
 [Settings]
-joyleft = 
-joyright = 
-joyup = 
-joydown = 
-joyselect = 
-joymenu = 
-joyback = 
-joyexit = 
-joyfav = 
+joyleft =
+joyright =
+joyup =
+joydown =
+joyselect =
+joymenu =
+joyback =
+joyexit =
+joycollectionmenu =
 ```
 
 ## Collections
@@ -225,18 +226,25 @@ year = 1980
 - `letter` - Filter by starting letter (A-Z) or "All"
 - `theme` - Filter by table theme or "All"
 - `table_type` - Filter by type (EM, SS) or "All"
-- `manufacturer` - Filter by manufacturer (Williams, Bally, Gottlieb, etc.) or "All"
+- `manufacturer` - Filter by manufacturer (Williams, Bally, GottiaC_sSXnlieb, etc.) or "All"
 - `year` - Filter by year or "All"
 
-### Saving Filter Collections from the Menu
-You can create filter-based collections directly from the Settings menu in the UI:
-1. Open the menu (default: `m` key or button 9 on gamepad)
+### Accessing Collections and Filters
+VPinFE provides a dedicated Collection Menu for managing all your collections and filters:
+- **Open Collection Menu**: Press `c` key (or joycollectionmenu button on gamepad)
+- **Navigate**: Use up/down arrows or joyup/joydown to select menu items
+- **Select/Apply**: Press Enter or joyselect to open dropdowns or apply selections
+- **Close Menu**: Press `c` again, joyback, or select "Close" from the menu
+
+### Saving Filter Collections from the Collection Menu
+You can create filter-based collections directly from the Collection Menu:
+1. Open the Collection Menu (default: `c` key or joycollectionmenu button on gamepad)
 2. Set your desired filters (Letter, Theme, Type, Manufacturer, Year)
 3. Select "Save Filter..." from the menu
 4. Enter a name for your collection
-5. Your filter combination is saved and appears in the Collections list
+5. Your filter combination is saved and appears in the Collections dropdown
 
-Both collection types appear together in the Collections dropdown menu and can be switched between seamlessly.
+Both collection types appear together in the Collections dropdown menu and can be switched between seamlessly. The Collection Menu also supports rotation via joyleft/joyright controls for visual customization.
 
 ## VPinfe CLI Options
 ```
@@ -271,10 +279,10 @@ options:
 | joyleft           | Move left. Button mapping ids from `--gamepadtest`.                      |
 | joyright          | Move right. Button mapping ids from `--gamepadtest`.                     |
 | joyselect         | Select button / Launch. Button mapping ids from `--gamepadtest`.        |
-| joymenu           | Pop Menu. Button mapping ids from `--gamepadtest`.                       |     
+| joymenu           | Pop Menu. Button mapping ids from `--gamepadtest`.                       |
 | joyback           | Go Back. Button mapping ids from `--gamepadtest`.                        |
 | joyexit           | Exit VpinFE. Button mapping ids from `--gamepadtest`.                   |
-| joyfav            | Mark a favorate table when in the Theme UI. Button mapping ids from `--gamepadtest`. |                                |
+| joycollectionmenu | Open collection menu in the Theme UI. Button mapping ids from `--gamepadtest`. |
 
 ### [VPSdb]
 | Key               | Description |

@@ -247,7 +247,8 @@ class API:
             'joyselect': self.iniConfig.config['Settings'].get('joyselect', '0'),
             'joymenu': self.iniConfig.config['Settings'].get('joymenu', '0'),
             'joyback': self.iniConfig.config['Settings'].get('joyback', '0'),
-            'joyexit': self.iniConfig.config['Settings'].get('joyexit', '0')
+            'joyexit': self.iniConfig.config['Settings'].get('joyexit', '0'),
+            'joycollectionmenu': self.iniConfig.config['Settings'].get('joycollectionmenu', '0')
         }
         
     def launch_table(self, index):

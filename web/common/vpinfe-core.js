@@ -16,6 +16,7 @@ class VPinFECore {
     this.ready = new Promise(resolve => this._resolveReady = resolve);
     this.inputHandlers = []; // gamepad and joystick input handlers for theme
     this.inputHandlerMenu = []; // gamepad and joystick input handlers for menu
+    this.inputHandlerCollectionMenu = []; // gamepad and joystick input handlers for collection menu
 
     // Gamepad mapping
     this.joyButtonMap = {}
@@ -24,6 +25,7 @@ class VPinFECore {
 
     // menu is up?
     this.menuUP = false;
+    this.collectionMenuUP = false;
 
     // Event handling
     this.eventHandlers = {}; // Custom event handlers registered by themes
@@ -59,6 +61,14 @@ class VPinFECore {
     if (typeof handler === 'function') {
       this.call("console_out", "registered gamepad handler");
       this.inputHandlerMenu.push(handler);
+    }
+  }
+
+  // Collection Menu register for Input events
+  async registerInputHandlerCollectionMenu(handler) {
+    if (typeof handler === 'function') {
+      this.call("console_out", "registered collection menu gamepad handler");
+      this.inputHandlerCollectionMenu.push(handler);
     }
   }
 
@@ -115,6 +125,11 @@ class VPinFECore {
   // send a message to all windows including "self"
   sendMessageToAllWindowsIncSelf(message) {
     this.call("send_event_all_windows_incself", message);
+  }
+
+  // Toggle collection menu (public method callable from collection menu)
+  toggleCollectionMenu() {
+    this.#showcollectionmenu();
   }
 
   // launch a table
@@ -204,11 +219,17 @@ class VPinFECore {
   }
 
   async #triggerInputAction(action) {
-    if(!this.menuUP) {
-      this.inputHandlers.forEach(handler => handler(action));
+    if(this.collectionMenuUP) {
+      // Collection menu is up, route to its handler
+      this.inputHandlerCollectionMenu.forEach(handler => handler(action));
     }
-    else { // Menu is up route to its handler
+    else if(this.menuUP) {
+      // Menu is up route to its handler
       this.inputHandlerMenu.forEach(handler => handler(action));
+    }
+    else {
+      // No menu is up, route to theme handler
+      this.inputHandlers.forEach(handler => handler(action));
     }
   }
 
@@ -221,6 +242,7 @@ class VPinFECore {
       else if (e.key === 'ArrowRight' || e.code === 'ShiftRight') this.#triggerInputAction("joyright");
       else if (e.key === 'Enter') this.#triggerInputAction("joyselect");
       else if (e.key === 'm') this.#showmenu();
+      else if (e.key === 'c') this.#showcollectionmenu();
     }
   }
 
@@ -232,7 +254,7 @@ class VPinFECore {
  async #initGamepadMapping() {
   const joymap = await this.call("get_joymaping");
 
-  // Collect multiple actions per button. sometimes the same button has two mappings 
+  // Collect multiple actions per button. sometimes the same button has two mappings
   this.joyButtonMap = {};
   for (const [action, button] of Object.entries(joymap)) {
     if (!this.joyButtonMap[button]) {
@@ -240,6 +262,8 @@ class VPinFECore {
     }
     this.joyButtonMap[button].push(action);
   }
+
+  this.call("console_out", "Gamepad mapping loaded: " + JSON.stringify(this.joyButtonMap));
 }
 
 async #onButtonPressed(buttonIndex, gamepadIndex) {
@@ -248,11 +272,16 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
 
   // Handle all actions mapped to this button
   for (const action of actions) {
+    this.call("console_out", `Button action: ${action}, windowName: ${windowName}`);
     if (action === "joyexit" && windowName == "table") {
-      window.pywebview.api.close_app();  
+      window.pywebview.api.close_app();
     }
     else if (action === "joymenu" && windowName == "table") {
       this.#showmenu();
+    }
+    else if (action === "joycollectionmenu" && windowName == "table") {
+      this.call("console_out", "Triggering collection menu");
+      this.#showcollectionmenu();
     }
     else {
       this.#triggerInputAction(action);
@@ -301,6 +330,11 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     const overlayRoot = document.getElementById('overlay-root');
     let iframe = document.getElementById("menu-frame");
 
+    // Close collection menu if it's open
+    if (this.collectionMenuUP) {
+      await this.#showcollectionmenu();
+    }
+
     if (!this.menuUP) {
       this.menuUP = true;
       overlayRoot.classList.add("active"); // fade in
@@ -320,10 +354,44 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
       overlayRoot.classList.remove("active"); // fade out
 
       if (iframe) {
-        iframe.style.display = "none"; // just hide, don’t remove
+        iframe.style.display = "none"; // just hide, don't remove
         iframe.contentWindow.postMessage({ event: "reset state" }, "*");
       }
       //this.#deregisterAllInputHandlersMenu();  // only need this when we destory it.
+    }
+  }
+
+  async #showcollectionmenu() {
+    const overlayRoot = document.getElementById('overlay-root');
+    let iframe = document.getElementById("collection-menu-frame");
+
+    // Close main menu if it's open
+    if (this.menuUP) {
+      await this.#showmenu();
+    }
+
+    if (!this.collectionMenuUP) {
+      this.collectionMenuUP = true;
+      overlayRoot.classList.add("active"); // fade in
+
+      if (!iframe) {
+        iframe = document.createElement("iframe");
+        iframe.src = "../../collectionmenu/collectionmenu.html";
+        iframe.id = "collection-menu-frame";
+        iframe.style.display = "none"; // start hidden to prevent flash
+        overlayRoot.appendChild(iframe);
+        await new Promise(resolve => setTimeout(resolve, 10)); // tiny delay to allow DOM update
+      }
+
+      iframe.style.display = "block"; // show iframe
+    } else {
+      this.collectionMenuUP = false;
+      overlayRoot.classList.remove("active"); // fade out
+
+      if (iframe) {
+        iframe.style.display = "none"; // just hide, don't remove
+        iframe.contentWindow.postMessage({ event: "reset state" }, "*");
+      }
     }
   }
 

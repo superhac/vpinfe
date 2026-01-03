@@ -45,37 +45,6 @@
       background-color: #444;
     }
 
-    .dropdown-label {
-      display: inline-block;
-      width: 40vw;
-    }
-
-    .dropdown-value {
-      display: inline-block;
-      font-weight: bold;
-    }
-
-    .popup {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      background: #333;
-      border: 1px solid #555;
-      z-index: 1000;
-      width: 100%;
-      max-height: 60vh;
-      overflow-y: auto;
-      overflow-x: hidden;
-    }
-
-    .popup-option {
-      padding: 1vh 2vw;
-    }
-
-    .popup-option.selected {
-      background: #666;
-    }
-
     #overlay-root {
       opacity: 0;
       transition: opacity 0.3s ease;
@@ -92,91 +61,16 @@
 <body>
   <div id="menu-container">
     <ul class="menu" id="menu">
-      <li class="menu-item" id="collection-item">
-        <span class="dropdown-label">Collections:</span>
-        <span class="dropdown-value" id="collection-value">All</span>
-      </li>
-      <li class="menu-item" id="letter-item">
-        <span class="dropdown-label">Starting Letter:</span>
-        <span class="dropdown-value" id="letter-value">All</span>
-      </li>
-      <li class="menu-item" id="theme-item">
-        <span class="dropdown-label">Theme:</span>
-        <span class="dropdown-value" id="theme-value">All</span>
-      </li>
-      <li class="menu-item" id="type-item">
-        <span class="dropdown-label">Type:</span>
-        <span class="dropdown-value" id="type-value">All</span>
-      </li>
-      <li class="menu-item" id="manufacturer-item">
-        <span class="dropdown-label">Manufacturer:</span>
-        <span class="dropdown-value" id="manufacturer-value">All</span>
-      </li>
-      <li class="menu-item" id="year-item">
-        <span class="dropdown-label">Year:</span>
-        <span class="dropdown-value" id="year-value">All</span>
-      </li>
-      <li class="menu-item" id="save-filter-item">Save Filter...</li>
       <li class="menu-item">Settings</li>
       <li class="menu-item">High Scores</li>
       <li class="menu-item" id="quit-item">Quit</li>
     </ul>
-
-    <!-- Popup for dropdown -->
-    <div id="dropdown-popup" class="popup" style="display: none;"></div>
-
-    <!-- Dialog for saving filters -->
-    <div id="save-filter-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; border: 2px solid #555; padding: 3vh 4vw; z-index: 2000; border-radius: 1vh;">
-      <div style="font-size: 3vh; margin-bottom: 2vh;">Save Current Filter</div>
-      <input type="text" id="filter-name-input" placeholder="Enter filter name..." style="width: 100%; padding: 1vh; font-size: 2.5vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.5vh; margin-bottom: 2vh;">
-      <div style="display: flex; gap: 2vw;">
-        <button id="save-filter-btn" style="flex: 1; padding: 1vh; font-size: 2.5vh; background: #444; color: #fff; border: 1px solid #666; border-radius: 0.5vh; cursor: pointer;">Save</button>
-        <button id="cancel-save-btn" style="flex: 1; padding: 1vh; font-size: 2.5vh; background: #333; color: #fff; border: 1px solid #555; border-radius: 0.5vh; cursor: pointer;">Cancel</button>
-      </div>
-      <div id="save-message" style="margin-top: 1.5vh; font-size: 2vh; text-align: center;"></div>
-    </div>
   </div>
 
   <script>
     let rotationAngle = 0; // starting angle
     let selectedIndex = 0;
     let items = [];
-    let dropdownOpen = false;
-    let dropdownSelected = 0;
-    let currentDropdownType = null; // 'collection', 'letter', 'theme', 'type', or 'manufacturer'
-
-    // Filter data
-    let collections = ['All'];
-    let letters = ['All'];
-    let themes = ['All'];
-    let types = ['All'];
-    let manufacturers = ['All'];
-    let years = ['All'];
-
-    // Current selections
-    let collectionIndex = 0;
-    let letterIndex = 0;
-    let themeIndex = 0;
-    let typeIndex = 0;
-    let manufacturerIndex = 0;
-    let yearIndex = 0;
-
-    async function init() {
-      collections = collections.concat(await window.parent.vpin.call('get_collections'));
-      letters = letters.concat(await window.parent.vpin.call('get_filter_letters'));
-      themes = themes.concat(await window.parent.vpin.call('get_filter_themes'));
-      types = types.concat(await window.parent.vpin.call('get_filter_types'));
-      manufacturers = manufacturers.concat(await window.parent.vpin.call('get_filter_manufacturers'));
-      years = years.concat(await window.parent.vpin.call('get_filter_years'));
-
-      window.parent.vpin.call("console_out", "Filters loaded");
-      window.parent.vpin.call("console_out", "Collections: " + collections.length);
-      window.parent.vpin.call("console_out", "Letters: " + letters.length);
-      window.parent.vpin.call("console_out", "Themes: " + themes.length);
-      window.parent.vpin.call("console_out", "Types: " + types.length);
-      window.parent.vpin.call("console_out", "Manufacturers: " + manufacturers.length);
-      window.parent.vpin.call("console_out", "Years: " + years.length);
-    }
 
     window.parent.vpin.registerInputHandlerMenu(handleInput);
 
@@ -184,13 +78,12 @@
       const message = event.data;
       if (message.event === "reset state") {
         selectedIndex = 0;
-        dropdownOpen = false;
         updateMenu();
       }
     });
 
     window.addEventListener("DOMContentLoaded", () => {
-      rotateMenu(rotationAngle); // apply initial -90°
+      rotateMenu(rotationAngle); // apply initial rotation
     });
 
     function rotateMenu(degrees) {
@@ -202,28 +95,6 @@
     function handleInput(input) {
       console.log("got input: " + input);
 
-      if (dropdownOpen) {
-        const currentOptions = getCurrentDropdownOptions();
-        switch (input) {
-          case "joyup":
-            dropdownSelected = (dropdownSelected - 1 + currentOptions.length) % currentOptions.length;
-            updateDropdownPopup();
-            break;
-          case "joydown":
-            dropdownSelected = (dropdownSelected + 1) % currentOptions.length;
-            updateDropdownPopup();
-            break;
-          case "joyselect":
-            applyDropdownSelection();
-            closeDropdown();
-            break;
-          case "joyback":
-            closeDropdown();
-            break;
-        }
-        return;
-      }
-
       switch (input) {
         case "joyup":
           selectedIndex = (selectedIndex - 1 + items.length) % items.length;
@@ -233,21 +104,7 @@
           break;
         case "joyselect":
           const selectedItem = items[selectedIndex];
-          if (selectedItem.id === 'collection-item') {
-            openDropdown(selectedItem, 'collection');
-          } else if (selectedItem.id === 'letter-item') {
-            openDropdown(selectedItem, 'letter');
-          } else if (selectedItem.id === 'theme-item') {
-            openDropdown(selectedItem, 'theme');
-          } else if (selectedItem.id === 'type-item') {
-            openDropdown(selectedItem, 'type');
-          } else if (selectedItem.id === 'manufacturer-item') {
-            openDropdown(selectedItem, 'manufacturer');
-          } else if (selectedItem.id === 'year-item') {
-            openDropdown(selectedItem, 'year');
-          } else if (selectedItem.id === 'save-filter-item') {
-            openSaveFilterDialog();
-          } else if (selectedItem.id === 'quit-item') {
+          if (selectedItem.id === 'quit-item') {
             window.parent.vpin.call("close_app");
           }
           break;
@@ -265,380 +122,11 @@
       items.forEach((item, i) => {
         item.classList.toggle('selected', i === selectedIndex);
       });
-
-      document.getElementById('collection-value').textContent = collections[collectionIndex];
-      document.getElementById('letter-value').textContent = letters[letterIndex];
-      document.getElementById('theme-value').textContent = themes[themeIndex];
-      document.getElementById('type-value').textContent = types[typeIndex];
-      document.getElementById('manufacturer-value').textContent = manufacturers[manufacturerIndex];
-      document.getElementById('year-value').textContent = years[yearIndex];
-    }
-
-    function getCurrentDropdownOptions() {
-      switch (currentDropdownType) {
-        case 'collection': return collections;
-        case 'letter': return letters;
-        case 'theme': return themes;
-        case 'type': return types;
-        case 'manufacturer': return manufacturers;
-        case 'year': return years;
-        default: return [];
-      }
-    }
-
-    function getCurrentIndex() {
-      switch (currentDropdownType) {
-        case 'collection': return collectionIndex;
-        case 'letter': return letterIndex;
-        case 'theme': return themeIndex;
-        case 'type': return typeIndex;
-        case 'manufacturer': return manufacturerIndex;
-        case 'year': return yearIndex;
-        default: return 0;
-      }
-    }
-
-    function openDropdown(targetItem, dropdownType) {
-      dropdownOpen = true;
-      currentDropdownType = dropdownType;
-      dropdownSelected = getCurrentIndex();
-
-      const popup = document.getElementById('dropdown-popup');
-      popup.style.display = 'block';
-      popup.style.top = (targetItem.offsetTop + targetItem.offsetHeight) + 'px';
-      popup.style.left = targetItem.offsetLeft + 'px';
-      popup.style.width = targetItem.offsetWidth + 'px';
-
-      updateDropdownPopup();
-    }
-
-    function updateDropdownPopup() {
-      const popup = document.getElementById('dropdown-popup');
-      popup.innerHTML = '';
-      const options = getCurrentDropdownOptions();
-      options.forEach((option, i) => {
-        const div = document.createElement('div');
-        div.className = 'popup-option' + (i === dropdownSelected ? ' selected' : '');
-        div.textContent = option;
-        popup.appendChild(div);
-      });
-
-      // Scroll selected item into view
-      const selectedElement = popup.querySelector('.popup-option.selected');
-      if (selectedElement) {
-        selectedElement.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    }
-
-    async function applyDropdownSelection() {
-      const options = getCurrentDropdownOptions();
-      const selectedValue = options[dropdownSelected];
-
-      switch (currentDropdownType) {
-        case 'collection':
-          collectionIndex = dropdownSelected;
-
-          if (selectedValue == "All") {
-            // Reset all filters when "All" is selected
-            letterIndex = 0;
-            themeIndex = 0;
-            typeIndex = 0;
-            manufacturerIndex = 0;
-            yearIndex = 0;
-
-            await window.parent.vpin.call("get_tables", true);
-            window.parent.vpin.sendMessageToAllWindowsIncSelf({
-              type: "TableDataChange",
-              index: 0,
-              collection: "All"
-            });
-          } else {
-            // Load the collection (could be VPS ID-based or filter-based)
-            await window.parent.vpin.call("set_tables_by_collection", selectedValue);
-
-            // Get current filter state from API to update UI
-            // (set_tables_by_collection updates current_filters in API)
-            const filterState = await window.parent.vpin.call("get_current_filter_state");
-
-            if (filterState && filterState.letter !== null) {
-              // Filter-based collection - update UI to show active filters
-              letterIndex = letters.indexOf(filterState.letter);
-              themeIndex = themes.indexOf(filterState.theme);
-              typeIndex = types.indexOf(filterState.type);
-              manufacturerIndex = manufacturers.indexOf(filterState.manufacturer);
-              yearIndex = years.indexOf(filterState.year);
-
-              // Send as filter message
-              window.parent.vpin.sendMessageToAllWindowsIncSelf({
-                type: "TableDataChange",
-                index: 0,
-                filters: {
-                  letter: filterState.letter,
-                  theme: filterState.theme,
-                  type: filterState.type,
-                  manufacturer: filterState.manufacturer,
-                  year: filterState.year
-                }
-              });
-            } else {
-              // VPS ID-based collection - reset filter UI
-              letterIndex = 0;
-              themeIndex = 0;
-              typeIndex = 0;
-              manufacturerIndex = 0;
-              yearIndex = 0;
-
-              window.parent.vpin.sendMessageToAllWindowsIncSelf({
-                type: "TableDataChange",
-                index: 0,
-                collection: selectedValue
-              });
-            }
-          }
-          updateMenu(); // Update UI
-          break;
-
-        case 'letter':
-          letterIndex = dropdownSelected;
-          // Reset collection when VPSdb filter is applied
-          collectionIndex = 0;
-
-          // Apply filters with current values for all five filters
-          await window.parent.vpin.call("apply_filters",
-            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-            types[typeIndex] === "All" ? "All" : types[typeIndex],
-            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-            years[yearIndex] === "All" ? "All" : years[yearIndex]
-          );
-          window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
-            index: 0,
-            filters: {
-              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
-              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-              year: years[yearIndex] === "All" ? "All" : years[yearIndex]
-            }
-          });
-          updateMenu(); // Update UI to show collection reset to "All"
-          break;
-
-        case 'theme':
-          themeIndex = dropdownSelected;
-          // Reset collection when VPSdb filter is applied
-          collectionIndex = 0;
-
-          // Apply filters with current values for all five filters
-          await window.parent.vpin.call("apply_filters",
-            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-            types[typeIndex] === "All" ? "All" : types[typeIndex],
-            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-            years[yearIndex] === "All" ? "All" : years[yearIndex]
-          );
-          window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
-            index: 0,
-            filters: {
-              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
-              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-              year: years[yearIndex] === "All" ? "All" : years[yearIndex]
-            }
-          });
-          updateMenu(); // Update UI to show collection reset to "All"
-          break;
-
-        case 'type':
-          typeIndex = dropdownSelected;
-          // Reset collection when VPSdb filter is applied
-          collectionIndex = 0;
-
-          // Apply filters with current values for all five filters
-          await window.parent.vpin.call("apply_filters",
-            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-            types[typeIndex] === "All" ? "All" : types[typeIndex],
-            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-            years[yearIndex] === "All" ? "All" : years[yearIndex]
-          );
-          window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
-            index: 0,
-            filters: {
-              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
-              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-              year: years[yearIndex] === "All" ? "All" : years[yearIndex]
-            }
-          });
-          updateMenu(); // Update UI to show collection reset to "All"
-          break;
-
-        case 'manufacturer':
-          manufacturerIndex = dropdownSelected;
-          // Reset collection when VPSdb filter is applied
-          collectionIndex = 0;
-
-          // Apply filters with current values for all five filters
-          await window.parent.vpin.call("apply_filters",
-            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-            types[typeIndex] === "All" ? "All" : types[typeIndex],
-            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-            years[yearIndex] === "All" ? "All" : years[yearIndex]
-          );
-          window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
-            index: 0,
-            filters: {
-              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
-              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-              year: years[yearIndex] === "All" ? "All" : years[yearIndex]
-            }
-          });
-          updateMenu(); // Update UI to show collection reset to "All"
-          break;
-
-        case 'year':
-          yearIndex = dropdownSelected;
-          // Reset collection when VPSdb filter is applied
-          collectionIndex = 0;
-
-          // Apply filters with current values for all five filters
-          await window.parent.vpin.call("apply_filters",
-            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-            types[typeIndex] === "All" ? "All" : types[typeIndex],
-            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-            years[yearIndex] === "All" ? "All" : years[yearIndex]
-          );
-          window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
-            index: 0,
-            filters: {
-              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
-              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-              year: years[yearIndex] === "All" ? "All" : years[yearIndex]
-            }
-          });
-          updateMenu(); // Update UI to show collection reset to "All"
-          break;
-      }
-
-      window.parent.vpin.call("console_out", `Filter applied: ${currentDropdownType} = ${selectedValue}`);
-    }
-
-    async function refreshFilterOptions() {
-      letters = ['All'].concat(await window.parent.vpin.call('get_filter_letters'));
-      themes = ['All'].concat(await window.parent.vpin.call('get_filter_themes'));
-      types = ['All'].concat(await window.parent.vpin.call('get_filter_types'));
-
-      // Reset filter indices if current selection no longer exists
-      if (letterIndex >= letters.length) letterIndex = 0;
-      if (themeIndex >= themes.length) themeIndex = 0;
-      if (typeIndex >= types.length) typeIndex = 0;
-
-      updateMenu();
-    }
-
-    function closeDropdown() {
-      dropdownOpen = false;
-      document.getElementById('dropdown-popup').style.display = 'none';
-      updateMenu();
-    }
-
-    function openSaveFilterDialog() {
-      const dialog = document.getElementById('save-filter-dialog');
-      const input = document.getElementById('filter-name-input');
-      const message = document.getElementById('save-message');
-
-      input.value = '';
-      message.textContent = '';
-      dialog.style.display = 'block';
-      input.focus();
-    }
-
-    function closeSaveFilterDialog() {
-      const dialog = document.getElementById('save-filter-dialog');
-      dialog.style.display = 'none';
-    }
-
-    async function saveCurrentFilter() {
-      const input = document.getElementById('filter-name-input');
-      const message = document.getElementById('save-message');
-      const filterName = input.value.trim();
-
-      if (!filterName) {
-        message.textContent = 'Please enter a filter name';
-        message.style.color = '#f88';
-        return;
-      }
-
-      // Check if any filters are actually set (not all "All")
-      const hasActiveFilters =
-        (letters[letterIndex] !== "All") ||
-        (themes[themeIndex] !== "All") ||
-        (types[typeIndex] !== "All") ||
-        (manufacturers[manufacturerIndex] !== "All") ||
-        (years[yearIndex] !== "All");
-
-      if (!hasActiveFilters) {
-        message.textContent = 'No filters are active. Set at least one filter before saving.';
-        message.style.color = '#f88';
-        return;
-      }
-
-      // Save the filter
-      const result = await window.parent.vpin.call("save_filter_collection",
-        filterName,
-        letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-        themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-        types[typeIndex] === "All" ? "All" : types[typeIndex],
-        manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-        years[yearIndex] === "All" ? "All" : years[yearIndex]
-      );
-
-      if (result.success) {
-        message.textContent = result.message;
-        message.style.color = '#8f8';
-
-        // Reload collections list
-        collections = ['All'].concat(await window.parent.vpin.call('get_collections'));
-
-        // Close dialog after 2 seconds
-        setTimeout(() => {
-          closeSaveFilterDialog();
-        }, 2000);
-      } else {
-        message.textContent = result.message;
-        message.style.color = '#f88';
-      }
     }
 
     window.onload = async () => {
-      await init();
       items = Array.from(document.querySelectorAll('.menu-item'));
       updateMenu();
-
-      // Set up save filter dialog buttons
-      document.getElementById('save-filter-btn').addEventListener('click', saveCurrentFilter);
-      document.getElementById('cancel-save-btn').addEventListener('click', closeSaveFilterDialog);
-
-      // Allow Enter key to save
-      document.getElementById('filter-name-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          saveCurrentFilter();
-        }
-      });
     };
   </script>
 </body>

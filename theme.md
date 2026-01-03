@@ -147,11 +147,11 @@ async function receiveEvent(message) {
 // create an input handler function. ***** Only for the "table" window *****
 /*  joyleft 
     joyright 
-    joyup 
+    joyup
     joydown
     joyselect
-    joymenu 
-    joyfav
+    joymenu
+    joycollectionmenu
 */
 async function handleInput(input) {
     switch (input) {
