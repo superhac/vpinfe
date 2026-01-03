@@ -175,7 +175,8 @@ class VPinFECore {
         message.filters.letter,
         message.filters.theme,
         message.filters.type,
-        message.filters.manufacturer
+        message.filters.manufacturer,
+        message.filters.year
       );
       await this.getTableData();
     } else {

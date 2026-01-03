@@ -61,6 +61,15 @@ class TableListFilters:
                 manufacturers.add(manufacturer)
         return sorted(manufacturers)
 
+    def get_available_years(self):
+        """Return sorted list of unique years."""
+        years = set()
+        for table in self.tables:
+            year = self._get_meta_value(table, "VPSdb", "year", fallback="")
+            if year:
+                years.add(year)
+        return sorted(years)
+
     def filter_by_letter(self, tables, letter):
         """Filter tables by starting letter of name."""
         if not letter or letter == "All":
@@ -118,7 +127,19 @@ class TableListFilters:
                 filtered.append(table)
         return filtered
 
-    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None):
+    def filter_by_year(self, tables, year):
+        """Filter tables by year."""
+        if not year or year == "All":
+            return tables
+
+        filtered = []
+        for table in tables:
+            current_year = self._get_meta_value(table, "VPSdb", "year", fallback="")
+            if current_year == year:
+                filtered.append(table)
+        return filtered
+
+    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None):
         """
         Apply multiple filters in combination.
         Returns filtered and sorted list of tables.
@@ -137,6 +158,9 @@ class TableListFilters:
 
         if manufacturer and manufacturer != "All":
             result = self.filter_by_manufacturer(result, manufacturer)
+
+        if year and year != "All":
+            result = self.filter_by_year(result, year)
 
         # Sort alphabetically by name
         result.sort(

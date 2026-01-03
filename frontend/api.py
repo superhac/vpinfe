@@ -24,7 +24,8 @@ class API:
             'letter': None,
             'theme': None,
             'type': None,
-            'manufacturer': None
+            'manufacturer': None,
+            'year': None
         }
 
     ####################
@@ -141,7 +142,12 @@ class API:
         filters = TableListFilters(self.allTables)
         return filters.get_available_manufacturers()
 
-    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None):
+    def get_filter_years(self):
+        """Get available years from ALL tables."""
+        filters = TableListFilters(self.allTables)
+        return filters.get_available_years()
+
+    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None):
         """
         Apply VPSdb filters to the full table list.
         These filters work independently of collections.
@@ -155,8 +161,10 @@ class API:
             self.current_filters['type'] = table_type
         if manufacturer is not None:
             self.current_filters['manufacturer'] = manufacturer
+        if year is not None:
+            self.current_filters['year'] = year
 
-        print(f"Applying filters: letter={self.current_filters['letter']}, theme={self.current_filters['theme']}, type={self.current_filters['type']}, manufacturer={self.current_filters['manufacturer']}")
+        print(f"Applying filters: letter={self.current_filters['letter']}, theme={self.current_filters['theme']}, type={self.current_filters['type']}, manufacturer={self.current_filters['manufacturer']}, year={self.current_filters['year']}")
 
         # Always start from the full table list
         filters = TableListFilters(self.allTables)
@@ -164,7 +172,8 @@ class API:
             letter=self.current_filters['letter'],
             theme=self.current_filters['theme'],
             table_type=self.current_filters['type'],
-            manufacturer=self.current_filters['manufacturer']
+            manufacturer=self.current_filters['manufacturer'],
+            year=self.current_filters['year']
         )
 
         print(f"Filtered tables count: {len(self.filteredTables)}")
@@ -176,7 +185,8 @@ class API:
             'letter': None,
             'theme': None,
             'manufacturer': None,
-            'type': None
+            'type': None,
+            'year': None
         }
 
     def console_out(self, output):
