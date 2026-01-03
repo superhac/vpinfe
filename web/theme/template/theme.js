@@ -47,7 +47,7 @@ async function receiveEvent(message) {
 
     // Handle UI updates based on event type
     if (message.type == "TableIndexUpdate") {
-        this.currentTableIndex = message.index;
+        currentTableIndex = message.index;
         updateScreen();
     }
     else if (message.type == "TableLaunching") {
@@ -57,7 +57,7 @@ async function receiveEvent(message) {
         //do something, like fade in
     }
     else if (message.type == "TableDataChange") {
-        this.currentTableIndex = message.index;
+        currentTableIndex = message.index;
         updateScreen();
     }
 }

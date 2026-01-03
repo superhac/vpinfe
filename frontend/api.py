@@ -23,7 +23,8 @@ class API:
         self.current_filters = {
             'letter': None,
             'theme': None,
-            'type': None
+            'type': None,
+            'manufacturer': None
         }
 
     ####################
@@ -135,7 +136,12 @@ class API:
         filters = TableListFilters(self.allTables)
         return filters.get_available_types()
 
-    def apply_filters(self, letter=None, theme=None, table_type=None):
+    def get_filter_manufacturers(self):
+        """Get available manufacturers from ALL tables."""
+        filters = TableListFilters(self.allTables)
+        return filters.get_available_manufacturers()
+
+    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None):
         """
         Apply VPSdb filters to the full table list.
         These filters work independently of collections.
@@ -147,15 +153,18 @@ class API:
             self.current_filters['theme'] = theme
         if table_type is not None:
             self.current_filters['type'] = table_type
+        if manufacturer is not None:
+            self.current_filters['manufacturer'] = manufacturer
 
-        print(f"Applying filters: letter={self.current_filters['letter']}, theme={self.current_filters['theme']}, type={self.current_filters['type']}")
+        print(f"Applying filters: letter={self.current_filters['letter']}, theme={self.current_filters['theme']}, type={self.current_filters['type']}, manufacturer={self.current_filters['manufacturer']}")
 
         # Always start from the full table list
         filters = TableListFilters(self.allTables)
         self.filteredTables = filters.apply_filters(
             letter=self.current_filters['letter'],
             theme=self.current_filters['theme'],
-            table_type=self.current_filters['type']
+            table_type=self.current_filters['type'],
+            manufacturer=self.current_filters['manufacturer']
         )
 
         print(f"Filtered tables count: {len(self.filteredTables)}")
@@ -166,6 +175,7 @@ class API:
         self.current_filters = {
             'letter': None,
             'theme': None,
+            'manufacturer': None,
             'type': None
         }
 

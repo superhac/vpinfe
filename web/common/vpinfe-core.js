@@ -169,8 +169,17 @@ class VPinFECore {
         await this.call("set_tables_by_collection", message.collection);
         await this.getTableData();
       }
+    } else if (message.filters) {
+      // VPSdb filters - apply them to this window's API instance
+      await this.call("apply_filters",
+        message.filters.letter,
+        message.filters.theme,
+        message.filters.type,
+        message.filters.manufacturer
+      );
+      await this.getTableData();
     } else {
-      // VPSdb filters (letter, theme, type) - just refresh table data
+      // No filters specified - just refresh table data
       await this.getTableData();
     }
   }

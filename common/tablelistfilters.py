@@ -52,6 +52,15 @@ class TableListFilters:
                 types.add(table_type)
         return sorted(types)
 
+    def get_available_manufacturers(self):
+        """Return sorted list of unique manufacturers."""
+        manufacturers = set()
+        for table in self.tables:
+            manufacturer = self._get_meta_value(table, "VPSdb", "manufacturer", fallback="")
+            if manufacturer:
+                manufacturers.add(manufacturer)
+        return sorted(manufacturers)
+
     def filter_by_letter(self, tables, letter):
         """Filter tables by starting letter of name."""
         if not letter or letter == "All":
@@ -97,7 +106,19 @@ class TableListFilters:
                 filtered.append(table)
         return filtered
 
-    def apply_filters(self, letter=None, theme=None, table_type=None):
+    def filter_by_manufacturer(self, tables, manufacturer):
+        """Filter tables by manufacturer."""
+        if not manufacturer or manufacturer == "All":
+            return tables
+
+        filtered = []
+        for table in tables:
+            current_manufacturer = self._get_meta_value(table, "VPSdb", "manufacturer", fallback="")
+            if current_manufacturer == manufacturer:
+                filtered.append(table)
+        return filtered
+
+    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None):
         """
         Apply multiple filters in combination.
         Returns filtered and sorted list of tables.
@@ -113,6 +134,9 @@ class TableListFilters:
 
         if table_type and table_type != "All":
             result = self.filter_by_type(result, table_type)
+
+        if manufacturer and manufacturer != "All":
+            result = self.filter_by_manufacturer(result, manufacturer)
 
         # Sort alphabetically by name
         result.sort(

@@ -33,7 +33,7 @@ async function receiveEvent(message) {
 
     // Handle UI updates based on event type
     if (message.type == "TableIndexUpdate") {
-        this.currentTableIndex = message.index;
+        currentTableIndex = message.index;
         updateScreen();
     }
     else if (message.type == "TableLaunching") {
@@ -43,7 +43,7 @@ async function receiveEvent(message) {
         fadeIn();
     }
     else if (message.type == "TableDataChange") {
-        this.currentTableIndex = message.index;
+        currentTableIndex = message.index;
         updateScreen();
     }
 }
@@ -233,8 +233,9 @@ function buildCarousel(direction = null) {
     // Get existing items
     const existingItems = Array.from(track.children);
 
-    // If first build, create all items
-    if (existingItems.length === 0) {
+    // If first build or number of items changed, rebuild completely
+    if (existingItems.length === 0 || existingItems.length !== visibleItems) {
+        track.innerHTML = ''; // Clear all existing items
         for (let i = -sideItems; i <= sideItems; i++) {
             const idx = wrapIndex(currentTableIndex + i, totalTables);
             createCarouselItem(idx, i === 0, track);

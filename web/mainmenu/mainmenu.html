@@ -108,6 +108,10 @@
         <span class="dropdown-label">Type:</span>
         <span class="dropdown-value" id="type-value">All</span>
       </li>
+      <li class="menu-item" id="manufacturer-item">
+        <span class="dropdown-label">Manufacturer:</span>
+        <span class="dropdown-value" id="manufacturer-value">All</span>
+      </li>
       <li class="menu-item">Settings</li>
       <li class="menu-item">High Scores</li>
       <li class="menu-item" id="quit-item">Quit</li>
@@ -123,31 +127,35 @@
     let items = [];
     let dropdownOpen = false;
     let dropdownSelected = 0;
-    let currentDropdownType = null; // 'collection', 'letter', 'theme', or 'type'
+    let currentDropdownType = null; // 'collection', 'letter', 'theme', 'type', or 'manufacturer'
 
     // Filter data
     let collections = ['All'];
     let letters = ['All'];
     let themes = ['All'];
     let types = ['All'];
+    let manufacturers = ['All'];
 
     // Current selections
     let collectionIndex = 0;
     let letterIndex = 0;
     let themeIndex = 0;
     let typeIndex = 0;
+    let manufacturerIndex = 0;
 
     async function init() {
       collections = collections.concat(await window.parent.vpin.call('get_collections'));
       letters = letters.concat(await window.parent.vpin.call('get_filter_letters'));
       themes = themes.concat(await window.parent.vpin.call('get_filter_themes'));
       types = types.concat(await window.parent.vpin.call('get_filter_types'));
+      manufacturers = manufacturers.concat(await window.parent.vpin.call('get_filter_manufacturers'));
 
       window.parent.vpin.call("console_out", "Filters loaded");
       window.parent.vpin.call("console_out", "Collections: " + collections.length);
       window.parent.vpin.call("console_out", "Letters: " + letters.length);
       window.parent.vpin.call("console_out", "Themes: " + themes.length);
       window.parent.vpin.call("console_out", "Types: " + types.length);
+      window.parent.vpin.call("console_out", "Manufacturers: " + manufacturers.length);
     }
 
     window.parent.vpin.registerInputHandlerMenu(handleInput);
@@ -213,6 +221,8 @@
             openDropdown(selectedItem, 'theme');
           } else if (selectedItem.id === 'type-item') {
             openDropdown(selectedItem, 'type');
+          } else if (selectedItem.id === 'manufacturer-item') {
+            openDropdown(selectedItem, 'manufacturer');
           } else if (selectedItem.id === 'quit-item') {
             window.parent.vpin.call("close_app");
           }
@@ -236,6 +246,7 @@
       document.getElementById('letter-value').textContent = letters[letterIndex];
       document.getElementById('theme-value').textContent = themes[themeIndex];
       document.getElementById('type-value').textContent = types[typeIndex];
+      document.getElementById('manufacturer-value').textContent = manufacturers[manufacturerIndex];
     }
 
     function getCurrentDropdownOptions() {
@@ -244,6 +255,7 @@
         case 'letter': return letters;
         case 'theme': return themes;
         case 'type': return types;
+        case 'manufacturer': return manufacturers;
         default: return [];
       }
     }
@@ -254,6 +266,7 @@
         case 'letter': return letterIndex;
         case 'theme': return themeIndex;
         case 'type': return typeIndex;
+        case 'manufacturer': return manufacturerIndex;
         default: return 0;
       }
     }
@@ -297,6 +310,12 @@
       switch (currentDropdownType) {
         case 'collection':
           collectionIndex = dropdownSelected;
+          // Reset all VPSdb filters when collection is selected
+          letterIndex = 0;
+          themeIndex = 0;
+          typeIndex = 0;
+          manufacturerIndex = 0;
+
           if (selectedValue == "All") {
             await window.parent.vpin.call("get_tables", true);
             window.parent.vpin.sendMessageToAllWindowsIncSelf({
@@ -312,45 +331,107 @@
               collection: selectedValue
             });
           }
+          updateMenu(); // Update UI to show filters reset to "All"
           break;
 
         case 'letter':
           letterIndex = dropdownSelected;
-          if (selectedValue == "All") {
-            await window.parent.vpin.call("reset_filters");
-          } else {
-            await window.parent.vpin.call("apply_filters", selectedValue, null, null);
-          }
+          // Reset collection when VPSdb filter is applied
+          collectionIndex = 0;
+
+          // Apply filters with current values for all four filters
+          await window.parent.vpin.call("apply_filters",
+            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
+            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
+            types[typeIndex] === "All" ? "All" : types[typeIndex],
+            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex]
+          );
           window.parent.vpin.sendMessageToAllWindowsIncSelf({
             type: "TableDataChange",
-            index: 0
+            index: 0,
+            filters: {
+              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
+              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
+              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
+              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex]
+            }
           });
+          updateMenu(); // Update UI to show collection reset to "All"
           break;
 
         case 'theme':
           themeIndex = dropdownSelected;
-          if (selectedValue == "All") {
-            await window.parent.vpin.call("reset_filters");
-          } else {
-            await window.parent.vpin.call("apply_filters", null, selectedValue, null);
-          }
+          // Reset collection when VPSdb filter is applied
+          collectionIndex = 0;
+
+          // Apply filters with current values for all four filters
+          await window.parent.vpin.call("apply_filters",
+            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
+            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
+            types[typeIndex] === "All" ? "All" : types[typeIndex],
+            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex]
+          );
           window.parent.vpin.sendMessageToAllWindowsIncSelf({
             type: "TableDataChange",
-            index: 0
+            index: 0,
+            filters: {
+              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
+              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
+              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
+              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex]
+            }
           });
+          updateMenu(); // Update UI to show collection reset to "All"
           break;
 
         case 'type':
           typeIndex = dropdownSelected;
-          if (selectedValue == "All") {
-            await window.parent.vpin.call("reset_filters");
-          } else {
-            await window.parent.vpin.call("apply_filters", null, null, selectedValue);
-          }
+          // Reset collection when VPSdb filter is applied
+          collectionIndex = 0;
+
+          // Apply filters with current values for all four filters
+          await window.parent.vpin.call("apply_filters",
+            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
+            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
+            types[typeIndex] === "All" ? "All" : types[typeIndex],
+            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex]
+          );
           window.parent.vpin.sendMessageToAllWindowsIncSelf({
             type: "TableDataChange",
-            index: 0
+            index: 0,
+            filters: {
+              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
+              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
+              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
+              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex]
+            }
           });
+          updateMenu(); // Update UI to show collection reset to "All"
+          break;
+
+        case 'manufacturer':
+          manufacturerIndex = dropdownSelected;
+          // Reset collection when VPSdb filter is applied
+          collectionIndex = 0;
+
+          // Apply filters with current values for all four filters
+          await window.parent.vpin.call("apply_filters",
+            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
+            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
+            types[typeIndex] === "All" ? "All" : types[typeIndex],
+            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex]
+          );
+          window.parent.vpin.sendMessageToAllWindowsIncSelf({
+            type: "TableDataChange",
+            index: 0,
+            filters: {
+              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
+              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
+              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
+              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex]
+            }
+          });
+          updateMenu(); // Update UI to show collection reset to "All"
           break;
       }
 
