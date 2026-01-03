@@ -6,13 +6,12 @@ class IniConfig:
 	def __init__(self, configfilepath):
 		
 		self.defaults = {
-			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '', "hudscreenid": '', 'hudrotangle': ''},
+			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '0' },
 			'Settings': {
 				'vpxbinpath': '',
 				'tablerootdir': '',
 				'vpxinipath': '',
-				'theme': '',
-				'defaultfilter': '', # abc, favorites, em, ss, pm
+				'theme': 'carousel-desktop',
 				'joyleft': '',
 				'joyright': '',
 				'joyup': '',
@@ -40,10 +39,11 @@ class IniConfig:
 
 		# check if the file exists
 		if not os.path.exists(configfilepath):
-				print("Generating a default 'vpinfe.ini' in CWD.")
+				print(f"Generating a default 'vpinfe.ini' at: {configfilepath}")
 				self.formatDefaults()
 				self.save()
-				raise FileNotFoundError(f"The config file '{configfilepath}' was not found.")
+				print(f"Please edit the config file and restart the application.")
+				raise FileNotFoundError(f"Config file created at '{configfilepath}'. Please configure it and restart.")
 
 		self.config.read(configfilepath)
 

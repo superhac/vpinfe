@@ -91,48 +91,45 @@ pip install -r osx_requirements.txt
 
 ### Setup your configuration (vpinfe.ini)
 
-Create a file named `vpinfe.ini` in you vpinfe dir.  Template:
-```
-[Displays]
-bgscreenid =
-dmdscreenid =
-tablescreenid = 0
+VPinFE uses a platform-specific configuration directory to store its settings. On first run, VPinFE will automatically create a default `vpinfe.ini` file in the following location:
 
-[Settings]
-vpxbinpath = 
-tablerootdir =
-vpxinipath =
-theme = carousel2
-joyleft = 14
-joyright = 15
-joyup = 12
-joydown = 13
-joyselect = 1
-joymenu = 9
-joyback = 0
-joyexit = 0
-joycollectionmenu = 16
+- **Linux**: `~/.config/vpinfe/vpinfe.ini`
+- **macOS**: `~/Library/Application Support/vpinfe/vpinfe.ini`
+- **Windows**: `C:\Users\<username>\AppData\Local\vpinfe\vpinfe\vpinfe.ini`
 
-[Media]
-tabletype = table
-tableresolution = 4k
-```
+When you first run VPinFE, it will create the default configuration file and exit with a message showing the file location. You must then edit this file with your settings before running VPinFE again.
 
-There are three sections above that need to be set mandatorily. `Displays` and three of the settings in `Settings`.
+**Required Settings (Minimum):**
 
-VPinFE supports up to three displays and you need to have atleast the `tablescreenid` one set.  This is typcially `0` so you can leave it if your only running one screen.  To figure out your display ID's you can run the following command:
+Before VPinFE can run, you must configure these three essential settings in the `[Settings]` section:
+
+1. **vpxbinpath** - Full path to your VPinball executable (e.g., `/home/user/vpinball/build/VPinballX_BGFX`)
+2. **tablerootdir** - Root directory where all your tables are located (e.g., `/home/user/tables/`)
+3. **vpxinipath** - Path to your VPinballX.ini file (e.g., `~/.vpinball/VPinballX.ini`)
+
+**Display Configuration:**
+
+VPinFE supports up to three displays. You need to have at least the `tablescreenid` set. This is typically `0` if you're only running one screen. To figure out your display IDs, run:
 
 `python3 main.py --listres`
 
-This will list your monitors starting at ID 0 to X.
+This will list your monitors starting at ID 0 to X. Set the appropriate screen IDs in the `[Displays]` section:
+- **bgscreenid** - Backglass screen (leave empty if not used)
+- **dmdscreenid** - DMD screen (leave empty if not used)
+- **tablescreenid** - Main table screen (required, typically `0`)
 
-Next you need set three settings in `Settings`.  
-- vpxbinpath - The path to your vpinball executable 
-- tablerootdir - The root dir where all your tables are located
-- vpxinipath - Where your VPinball.ini is. Normally `~/.vpinball/VPinball.ini`
-- Theme - Which theme you want to use.  Right now theres `default` - Three screens cab mode, `carousel` and `carousel2` both for single screens.
+**Theme Selection:**
 
-All the other settings can be left as they are in the template above for now.  Configuring the gamepad and other fields are covered below. 
+Set your preferred theme in the `[Settings]` section:
+- **theme** - Choose from: `carousel-desktop`, `carousel2`, `slider`, `cab`, or `default`
+
+**Gamepad/Joystick Controls (Optional):**
+
+All gamepad button mappings are optional. If you want to use a gamepad, configure these in the `[Settings]` section after running `--gamepadtest` (see [Setup Gamepad](#setup-gamepad) section):
+- joyleft, joyright, joyup, joydown
+- joyselect, joymenu, joyback, joyexit, joycollectionmenu
+
+All the other settings have sensible defaults and can be left as-is initially. Configuring the gamepad and other advanced fields are covered below. 
 
 Now that your `vpinfe.ini` file has the basics you need build the metadata.  Your names should be in a format like this with the table folders named as they appear in [VPSDB](https://virtualpinballspreadsheet.github.io/tables):
 

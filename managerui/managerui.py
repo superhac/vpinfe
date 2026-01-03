@@ -13,6 +13,7 @@ from .pages import plugins as tab_plugins
 from .pages import remote
 from .pages import highscores as tab_highscores
 import threading
+from platformdirs import user_config_dir
 
 def init_store(path: Path) -> IniStore:
     if not path.exists():
@@ -114,8 +115,9 @@ def build_app(store: IniStore):
 
     footer()
 
-# Read VPinballX.ini path strictly from vpinfe.ini; notify if missing/invalid
-_cfg = IniConfig('vpinfe.ini')
+# Read VPinballX.ini path from vpinfe.ini
+config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+_cfg = IniConfig(str(config_dir / "vpinfe.ini"))
 _vpx_ini_error: str | None = None
 _vpx_ini_str = _cfg.config.get('Settings', 'vpxinipath').strip()
 if not _vpx_ini_str:

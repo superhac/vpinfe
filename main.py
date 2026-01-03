@@ -12,6 +12,7 @@ import os
 from clioptions import parseArgs
 from managerui.managerui import start_manager_ui, stop_manager_ui
 from nicegui import app as nicegui_app
+from platformdirs import user_config_dir
 
 #debug
 import sys
@@ -21,7 +22,12 @@ from common.tableparser import TableParser
 nicegui_app.add_static_files('/static', os.path.join(os.getcwd(), 'managerui/static'))
 html_file = Path(__file__).parent / "web/splash.html"
 webview_windows = [] # [ [window_name, window, api] ]
-iniconfig = IniConfig("./vpinfe.ini")
+
+# Use platform-specific config directory
+config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+config_dir.mkdir(parents=True, exist_ok=True)
+config_path = config_dir / "vpinfe.ini"
+iniconfig = IniConfig(str(config_path))
 
  # The last window created will be the one in focus.  AKA the controller for all the other windows!!!! Always "table"
 def loadWindows():
