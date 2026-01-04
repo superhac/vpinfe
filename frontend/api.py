@@ -200,6 +200,7 @@ class API:
         """
         Apply VPSdb filters to the full table list.
         These filters work independently of collections.
+        Returns the count of filtered tables.
         """
         # Update filter state
         if letter is not None:
@@ -225,7 +226,9 @@ class API:
             year=self.current_filters['year']
         )
 
-        print(f"Filtered tables count: {len(self.filteredTables)}")
+        count = len(self.filteredTables)
+        print(f"Filtered tables count: {count}")
+        return count
 
     def reset_filters(self):
         """Reset all VPSdb filters back to full table list."""

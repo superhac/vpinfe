@@ -107,6 +107,14 @@
       opacity: 1;
       pointer-events: auto;
     }
+
+    .table-count {
+      text-align: center;
+      font-size: 2.34vh;
+      padding: 1vh;
+      margin-top: 1vh;
+      color: #aaa;
+    }
   </style>
 </head>
 
@@ -141,6 +149,8 @@
       <li class="menu-item action-separator" id="save-filter-item">Save Filter...</li>
       <li class="menu-item" id="close-item">Close</li>
     </ul>
+
+    <div class="table-count" id="table-count">Table Count: 0</div>
 
     <!-- Popup for dropdown -->
     <div id="dropdown-popup" class="popup" style="display: none;"></div>
@@ -272,6 +282,11 @@
       updateMenu();
     }
 
+    function updateTableCount() {
+      const tableCount = window.parent.vpin.tableData ? window.parent.vpin.tableData.length : 0;
+      document.getElementById('table-count').textContent = `Table Count: ${tableCount}`;
+    }
+
     function updateMenu() {
       items.forEach((item, i) => {
         item.classList.toggle('selected', i === selectedIndex);
@@ -283,6 +298,8 @@
       document.getElementById('type-value').textContent = types[typeIndex];
       document.getElementById('manufacturer-value').textContent = manufacturers[manufacturerIndex];
       document.getElementById('year-value').textContent = years[yearIndex];
+
+      updateTableCount();
     }
 
     function getCurrentDropdownOptions() {
@@ -415,7 +432,7 @@
           letterIndex = dropdownSelected;
           collectionIndex = 0;
 
-          await window.parent.vpin.call("apply_filters",
+          const letterCount = await window.parent.vpin.call("apply_filters",
             letters[letterIndex] === "All" ? "All" : letters[letterIndex],
             themes[themeIndex] === "All" ? "All" : themes[themeIndex],
             types[typeIndex] === "All" ? "All" : types[typeIndex],
@@ -433,14 +450,14 @@
               year: years[yearIndex] === "All" ? "All" : years[yearIndex]
             }
           });
-          updateMenu();
+          document.getElementById('table-count').textContent = `Table Count: ${letterCount}`;
           break;
 
         case 'theme':
           themeIndex = dropdownSelected;
           collectionIndex = 0;
 
-          await window.parent.vpin.call("apply_filters",
+          const themeCount = await window.parent.vpin.call("apply_filters",
             letters[letterIndex] === "All" ? "All" : letters[letterIndex],
             themes[themeIndex] === "All" ? "All" : themes[themeIndex],
             types[typeIndex] === "All" ? "All" : types[typeIndex],
@@ -458,14 +475,14 @@
               year: years[yearIndex] === "All" ? "All" : years[yearIndex]
             }
           });
-          updateMenu();
+          document.getElementById('table-count').textContent = `Table Count: ${themeCount}`;
           break;
 
         case 'type':
           typeIndex = dropdownSelected;
           collectionIndex = 0;
 
-          await window.parent.vpin.call("apply_filters",
+          const typeCount = await window.parent.vpin.call("apply_filters",
             letters[letterIndex] === "All" ? "All" : letters[letterIndex],
             themes[themeIndex] === "All" ? "All" : themes[themeIndex],
             types[typeIndex] === "All" ? "All" : types[typeIndex],
@@ -483,14 +500,14 @@
               year: years[yearIndex] === "All" ? "All" : years[yearIndex]
             }
           });
-          updateMenu();
+          document.getElementById('table-count').textContent = `Table Count: ${typeCount}`;
           break;
 
         case 'manufacturer':
           manufacturerIndex = dropdownSelected;
           collectionIndex = 0;
 
-          await window.parent.vpin.call("apply_filters",
+          const manufacturerCount = await window.parent.vpin.call("apply_filters",
             letters[letterIndex] === "All" ? "All" : letters[letterIndex],
             themes[themeIndex] === "All" ? "All" : themes[themeIndex],
             types[typeIndex] === "All" ? "All" : types[typeIndex],
@@ -508,14 +525,14 @@
               year: years[yearIndex] === "All" ? "All" : years[yearIndex]
             }
           });
-          updateMenu();
+          document.getElementById('table-count').textContent = `Table Count: ${manufacturerCount}`;
           break;
 
         case 'year':
           yearIndex = dropdownSelected;
           collectionIndex = 0;
 
-          await window.parent.vpin.call("apply_filters",
+          const yearCount = await window.parent.vpin.call("apply_filters",
             letters[letterIndex] === "All" ? "All" : letters[letterIndex],
             themes[themeIndex] === "All" ? "All" : themes[themeIndex],
             types[typeIndex] === "All" ? "All" : types[typeIndex],
@@ -533,7 +550,7 @@
               year: years[yearIndex] === "All" ? "All" : years[yearIndex]
             }
           });
-          updateMenu();
+          document.getElementById('table-count').textContent = `Table Count: ${yearCount}`;
           break;
       }
 
