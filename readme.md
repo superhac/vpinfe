@@ -185,7 +185,9 @@ The gamepad configuration interface provides:
 
 Press ESC to exit the gamepad configuration tool when you're done mapping your buttons.
 
-## Collections
+## Collections / Filters
+<img width="435" height="592" alt="filter-menu" src="https://github.com/user-attachments/assets/d9733591-4487-488b-9c27-9b3473fb08f1" />
+
 VPinFE supports two types of collections for organizing your tables. Collections are stored in `collections.ini` in the platform-specific configuration directory alongside `vpinfe.ini`:
 
 - **Linux**: `~/.config/vpinfe/collections.ini`
@@ -249,7 +251,7 @@ You can create filter-based collections directly from the Collection Menu:
 4. Enter a name for your collection
 5. Your filter combination is saved and appears in the Collections dropdown
 
-Both collection types appear together in the Collections dropdown menu and can be switched between seamlessly. The Collection Menu also supports rotation via joyleft/joyright controls for visual customization.
+Both collection types appear together in the Collections dropdown menu and can be switched between seamlessly. **Also note if you want to setup a collection to be activated on startup use the `vpinfe.ini` option "startup_collection".**
 
 ## VPinfe CLI Options
 ```
