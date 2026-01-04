@@ -69,8 +69,8 @@ class TableParser:
             fpath = table_dir / fname
             if fpath.exists():
                 setattr(Table, attr, str(fpath))
-            else:
-                print(f"{self.RED_CONSOLE_TEXT}  Img not found: {fpath}{self.RESET_CONSOLE_TEXT}")
+            #else:
+                #print(f"{self.RED_CONSOLE_TEXT}  Img not found: {fpath}{self.RESET_CONSOLE_TEXT}")
 
     def loadMetaData(self, Table):
         meta_path = Path(Table.fullPathTable) / "meta.ini"
