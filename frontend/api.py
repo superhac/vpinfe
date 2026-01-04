@@ -30,6 +30,8 @@ class API:
         }
         # Track current sort state
         self.current_sort = 'Alpha'
+        # Track current collection
+        self.current_collection = None
         # Check for startup collection
         startup_collection = self.iniConfig.config['Settings'].get('startup_collection', '').strip()
         if startup_collection:
@@ -130,6 +132,7 @@ class API:
 
     def set_tables_by_collection(self, collection):
         """Set filtered tables based on collection from collections.ini."""
+        self.current_collection = collection
         config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
         c = VPXCollections(config_dir / "collections.ini")
 
@@ -187,6 +190,10 @@ class API:
         """Return current sort state for UI synchronization."""
         return self.current_sort
 
+    def get_current_collection(self):
+        """Return current collection name for UI synchronization."""
+        return self.current_collection or 'None'
+
     def get_filter_letters(self):
         """Get available starting letters from ALL tables."""
         filters = TableListFilters(self.allTables)
@@ -218,6 +225,7 @@ class API:
         These filters work independently of collections.
         Returns the count of filtered tables.
         """
+        self.current_collection = None
         # Update filter state
         if letter is not None:
             self.current_filters['letter'] = letter

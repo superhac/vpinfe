@@ -205,6 +205,29 @@
       manufacturers = manufacturers.concat(await window.parent.vpin.call('get_filter_manufacturers'));
       years = years.concat(await window.parent.vpin.call('get_filter_years'));
 
+      // Get current collection and set index
+      const currentCollection = await window.parent.vpin.call('get_current_collection');
+      collectionIndex = collections.indexOf(currentCollection);
+      if (collectionIndex === -1) collectionIndex = 0; // fallback to None
+
+      // Get current filter state and set indices
+      const currentFilters = await window.parent.vpin.call('get_current_filter_state');
+      letterIndex = letters.indexOf(currentFilters.letter || 'All');
+      if (letterIndex === -1) letterIndex = 0;
+      themeIndex = themes.indexOf(currentFilters.theme || 'All');
+      if (themeIndex === -1) themeIndex = 0;
+      typeIndex = types.indexOf(currentFilters.type || 'All');
+      if (typeIndex === -1) typeIndex = 0;
+      manufacturerIndex = manufacturers.indexOf(currentFilters.manufacturer || 'All');
+      if (manufacturerIndex === -1) manufacturerIndex = 0;
+      yearIndex = years.indexOf(currentFilters.year || 'All');
+      if (yearIndex === -1) yearIndex = 0;
+
+      // Get current sort state
+      const currentSort = await window.parent.vpin.call('get_current_sort_state');
+      sortByIndex = sortOptions.indexOf(currentSort);
+      if (sortByIndex === -1) sortByIndex = 0;
+
       window.parent.vpin.call("console_out", "Collection menu filters loaded");
     }
 
