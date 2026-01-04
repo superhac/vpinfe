@@ -30,6 +30,13 @@ class API:
         }
         # Track current sort state
         self.current_sort = 'Alpha'
+        # Check for startup collection
+        startup_collection = self.iniConfig.config['Settings'].get('startup_collection', '').strip()
+        if startup_collection:
+            try:
+                self.set_tables_by_collection(startup_collection)
+            except Exception as e:
+                print(f"Warning: Could not load startup collection '{startup_collection}': {e}")
 
     ####################
     ## Private Functions

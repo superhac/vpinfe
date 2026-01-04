@@ -21,6 +21,7 @@ class IniConfig:
 				'joyback': '',
 				'joyexit': '',
 				'joycollectionmenu': '',
+				'startup_collection': '',
 				},
 			'Logger': {
 				'level': 'info',
@@ -46,6 +47,18 @@ class IniConfig:
 				raise FileNotFoundError(f"Config file created at '{configfilepath}'. Please configure it and restart.")
 
 		self.config.read(configfilepath)
+		# Add any missing default options
+		changed = False
+		for section, defaults in self.defaults.items():
+			if not self.config.has_section(section):
+				self.config.add_section(section)
+				changed = True
+			for key, value in defaults.items():
+				if not self.config.has_option(section, key):
+					self.config.set(section, key, value)
+					changed = True
+		if changed:
+			self.save()
 
 	def save(self):
 		with open(self.configfilepath, 'w') as configfile:

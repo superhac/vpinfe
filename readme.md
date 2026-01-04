@@ -288,6 +288,7 @@ options:
 | joyback           | Go Back. Button mapping ids from `--gamepadtest`.                        |
 | joyexit           | Exit VpinFE. Button mapping ids from `--gamepadtest`.                   |
 | joycollectionmenu | Open collection menu in the Theme UI. Button mapping ids from `--gamepadtest`. |
+| startup_collection| Set the collection VPinFE starts up with.  Case sensitive, match collection name. |
 
 ### [VPSdb]
 | Key               | Description |
