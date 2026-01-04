@@ -162,24 +162,25 @@ With your tables in this format run `vpinfe.py --buildmeta`.  More details on wh
 
 ## Setup Gamepad
 
-Since we are using the JS gamepad API there is the `--gamepadtest` option that can be run to test and map your controls.
+VPinFE includes an interactive gamepad configuration tool that makes mapping your controller buttons easy. Run the gamepad test with:
 
-<img width="3840" height="2160" alt="Screenshot From 2025-08-12 15-57-31" src="https://github.com/user-attachments/assets/57f4f09d-f289-4286-bbb6-d1aef87308fa" />
-
-Those numbers represent the same numbers you would set in the `vpinfe.ini` file as shown below:
-
+```bash
+GDK_BACKEND=x11 vvv/bin/python3 main.py --gamepadtest
 ```
-[Settings]
-joyleft =
-joyright =
-joyup =
-joydown =
-joyselect =
-joymenu =
-joyback =
-joyexit =
-joycollectionmenu =
-```
+
+The gamepad configuration interface provides:
+
+**Button Tester** - Real-time visual feedback showing which buttons are being pressed on your gamepad (numbered 0-16)
+
+**Interactive Button Mapping** - Click on any mapping card (Left, Right, Up, Down, Select, Menu, Back, Exit, Collection Menu), then press the corresponding gamepad button to assign it. The mapping is automatically saved to your `vpinfe.ini` file.
+
+**Visual Workflow:**
+1. Click a mapping card (e.g., "Left") - it will highlight with an orange pulsing glow
+2. Press the desired button on your gamepad
+3. A green success message confirms the mapping
+4. The button number is saved to `vpinfe.ini` immediately
+
+Press ESC to exit the gamepad configuration tool when you're done mapping your buttons.
 
 ## Collections
 VPinFE supports two types of collections for organizing your tables. Collections are stored in `collections.ini` in the platform-specific configuration directory alongside `vpinfe.ini`:

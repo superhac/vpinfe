@@ -257,6 +257,25 @@ class API:
             'joyexit': self.iniConfig.config['Settings'].get('joyexit', '0'),
             'joycollectionmenu': self.iniConfig.config['Settings'].get('joycollectionmenu', '0')
         }
+
+    def set_button_mapping(self, button_name, button_index):
+        """Set a gamepad button mapping and save to config."""
+        valid_buttons = [
+            'joyleft', 'joyright', 'joyup', 'joydown',
+            'joyselect', 'joymenu', 'joyback', 'joyexit', 'joycollectionmenu'
+        ]
+
+        if button_name not in valid_buttons:
+            return {"success": False, "message": f"Invalid button name: {button_name}"}
+
+        try:
+            # Set the value in the config
+            self.iniConfig.config.set('Settings', button_name, str(button_index))
+            # Save to file
+            self.iniConfig.save()
+            return {"success": True, "message": f"Mapped {button_name} to button {button_index}"}
+        except Exception as e:
+            return {"success": False, "message": f"Error saving mapping: {str(e)}"}
         
     def launch_table(self, index):
         table = self.filteredTables[index]
