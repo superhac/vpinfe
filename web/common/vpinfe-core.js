@@ -177,8 +177,8 @@ class VPinFECore {
   async #handleTableDataChange(message) {
     // Check if a collection filter was applied
     if (message.collection) {
-      // if collection is "All" then reset to all tables, otherwise set to the selected collection.
-      if (message.collection === "All") {
+      // if collection is "None" then reset to all tables, otherwise set to the selected collection.
+      if (message.collection === "None") {
         await this.getTableData(true);
       } else {
         await this.call("set_tables_by_collection", message.collection);
@@ -193,6 +193,14 @@ class VPinFECore {
         message.filters.manufacturer,
         message.filters.year
       );
+      // If a sort order is also specified, apply it after filters
+      if (message.sort) {
+        await this.call("apply_sort", message.sort);
+      }
+      await this.getTableData();
+    } else if (message.sort) {
+      // Sort order change - apply it to this window's API instance
+      await this.call("apply_sort", message.sort);
       await this.getTableData();
     } else {
       // No filters specified - just refresh table data

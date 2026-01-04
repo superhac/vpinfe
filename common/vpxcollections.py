@@ -30,7 +30,7 @@ class VPXCollections:
     def get_filters(self, section: str):
         """
         Get filter parameters for a filter-based collection.
-        Returns dict with keys: letter, theme, table_type, manufacturer, year
+        Returns dict with keys: letter, theme, table_type, manufacturer, year, sort_by
         Returns None if not a filter-based collection.
         """
         if not self.is_filter_based(section):
@@ -41,7 +41,8 @@ class VPXCollections:
             'theme': self.config[section].get("theme", "All"),
             'table_type': self.config[section].get("table_type", "All"),
             'manufacturer': self.config[section].get("manufacturer", "All"),
-            'year': self.config[section].get("year", "All")
+            'year': self.config[section].get("year", "All"),
+            'sort_by': self.config[section].get("sort_by", "Alpha")
         }
 
     def get_vpsids(self, section: str):
@@ -66,7 +67,7 @@ class VPXCollections:
         else:
             self.config[section]["vpsids"] = ""
 
-    def add_filter_collection(self, section: str, letter="All", theme="All", table_type="All", manufacturer="All", year="All"):
+    def add_filter_collection(self, section: str, letter="All", theme="All", table_type="All", manufacturer="All", year="All", sort_by="Alpha"):
         """Add a new filter-based collection."""
         if self.config.has_section(section):
             raise ValueError(f"Section '{section}' already exists")
@@ -77,6 +78,7 @@ class VPXCollections:
         self.config[section]["table_type"] = table_type
         self.config[section]["manufacturer"] = manufacturer
         self.config[section]["year"] = year
+        self.config[section]["sort_by"] = sort_by
 
     def delete_collection(self, section: str):
         """Delete a collection (section)."""

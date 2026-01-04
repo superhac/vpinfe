@@ -28,6 +28,8 @@ class API:
             'manufacturer': None,
             'year': None
         }
+        # Track current sort state
+        self.current_sort = 'Alpha'
 
     ####################
     ## Private Functions
@@ -144,6 +146,9 @@ class API:
                 'manufacturer': filters['manufacturer'],
                 'year': filters['year']
             }
+            # Apply the sort order
+            self.current_sort = filters['sort_by']
+            self.apply_sort(filters['sort_by'])
         else:
             # VPS ID-based collection
             self.filteredTables = c.filter_tables(self.allTables, collection)
@@ -156,12 +161,12 @@ class API:
                 'year': None
             }
 
-    def save_filter_collection(self, name, letter="All", theme="All", table_type="All", manufacturer="All", year="All"):
+    def save_filter_collection(self, name, letter="All", theme="All", table_type="All", manufacturer="All", year="All", sort_by="Alpha"):
         """Save current filter settings as a named collection."""
         config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
         c = VPXCollections(config_dir / "collections.ini")
         try:
-            c.add_filter_collection(name, letter, theme, table_type, manufacturer, year)
+            c.add_filter_collection(name, letter, theme, table_type, manufacturer, year, sort_by)
             c.save()
             return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
         except ValueError as e:
@@ -170,6 +175,10 @@ class API:
     def get_current_filter_state(self):
         """Return current filter state for UI synchronization."""
         return self.current_filters
+
+    def get_current_sort_state(self):
+        """Return current sort state for UI synchronization."""
+        return self.current_sort
 
     def get_filter_letters(self):
         """Get available starting letters from ALL tables."""
@@ -241,6 +250,35 @@ class API:
             'year': None
         }
 
+    def apply_sort(self, sort_type):
+        """
+        Sort the current filtered tables.
+        sort_type: 'Alpha' or 'Newest'
+        Returns the count of sorted tables.
+        """
+        self.current_sort = sort_type
+        print(f"Applying sort: {sort_type}")
+
+        if sort_type == 'Alpha':
+            # Sort alphabetically by VPSdb.name
+            self.filteredTables.sort(
+                key=lambda t: (
+                    (t.metaConfig.config if hasattr(t.metaConfig, "config") else t.metaConfig)
+                    .get("VPSdb", "name", fallback="")
+                    .lower()
+                )
+            )
+        elif sort_type == 'Newest':
+            # Sort by creation_time (newest first)
+            self.filteredTables.sort(
+                key=lambda t: t.creation_time if t.creation_time is not None else 0,
+                reverse=True
+            )
+
+        count = len(self.filteredTables)
+        print(f"Sorted {count} tables by {sort_type}")
+        return count
+
     def console_out(self, output):
         print(f'Win: {self.myWindow[0].uid} - {output}')
         return output
@@ -282,6 +320,10 @@ class API:
         vpx = table.fullPathVPXfile
         vpxbin = self.iniConfig.config['Settings'].get('vpxbinpath', '')
         print("Launching: ", [vpxbin, "-play", vpx])
+
+        # Track the table play
+        self._track_table_play(table)
+
         cmd = [Path(vpxbin).expanduser(), "-play", vpx]
         self.myWindow[0].toggle_fullscreen()
         process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
@@ -290,6 +332,44 @@ class API:
         process.wait()
         self.myWindow[0].toggle_fullscreen()
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
+
+    def _track_table_play(self, table):
+        """Track a table play by adding it to the Last Played collection."""
+        # Get the VPS ID from the table
+        meta = table.metaConfig
+        cfg = meta.config if hasattr(meta, "config") else meta
+        vpsid = cfg.get("VPSdb", "id", fallback=None)
+
+        if not vpsid:
+            print("Table has no VPS ID, cannot track play")
+            return
+
+        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        c = VPXCollections(config_dir / "collections.ini")
+
+        # Create Last Played collection if it doesn't exist
+        if "Last Played" not in c.get_collections_name():
+            print("Creating 'Last Played' collection")
+            c.add_collection("Last Played", vpsids=[])
+
+        # Get current Last Played list
+        last_played_ids = c.get_vpsids("Last Played")
+
+        # Remove the VPS ID if it's already in the list (we'll add it to the front)
+        if vpsid in last_played_ids:
+            last_played_ids.remove(vpsid)
+
+        # Add the VPS ID to the front of the list
+        last_played_ids.insert(0, vpsid)
+
+        # Limit to 30 entries
+        last_played_ids = last_played_ids[:30]
+
+        # Update the collection
+        c.config["Last Played"]["vpsids"] = ",".join(last_played_ids)
+        c.save()
+
+        print(f"Tracked table play: {vpsid} (now {len(last_played_ids)} in Last Played)")
 
     def get_theme_config(self):
         theme_name = self.get_theme_name()

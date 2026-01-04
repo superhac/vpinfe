@@ -255,8 +255,8 @@ function buildCarousel(direction = null) {
     // Get existing items
     const existingItems = Array.from(track.children);
 
-    // If first build or number of items changed, rebuild completely
-    if (existingItems.length === 0 || existingItems.length !== visibleItems) {
+    // If first build, number of items changed, or no direction (collection/filter change), rebuild completely
+    if (existingItems.length === 0 || existingItems.length !== visibleItems || direction === null) {
         track.innerHTML = ''; // Clear all existing items
         for (let i = -sideItems; i <= sideItems; i++) {
             const idx = wrapIndex(currentTableIndex + i, totalTables);
@@ -264,11 +264,8 @@ function buildCarousel(direction = null) {
         }
         isAnimating = false;
     } else if (direction !== null) {
-        // Update with animation
+        // Update with animation (only for left/right navigation)
         updateCarouselItems(existingItems, sideItems, totalTables, true);
-    } else {
-        // Just update in place (for collection changes, etc.)
-        updateCarouselItems(existingItems, sideItems, totalTables, false);
     }
 
 }

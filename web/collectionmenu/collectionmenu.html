@@ -124,7 +124,7 @@
     <ul class="menu" id="menu">
       <li class="menu-item" id="collection-item">
         <span class="dropdown-label">Collections:</span>
-        <span class="dropdown-value" id="collection-value">All</span>
+        <span class="dropdown-value" id="collection-value">None</span>
       </li>
       <li class="menu-item filter-separator" id="letter-item">
         <span class="dropdown-label">Starting Letter:</span>
@@ -145,6 +145,10 @@
       <li class="menu-item" id="year-item">
         <span class="dropdown-label">Year:</span>
         <span class="dropdown-value" id="year-value">All</span>
+      </li>
+      <li class="menu-item" id="sortby-item">
+        <span class="dropdown-label">Sort By:</span>
+        <span class="dropdown-value" id="sortby-value">Alpha</span>
       </li>
       <li class="menu-item action-separator" id="save-filter-item">Save Filter...</li>
       <li class="menu-item" id="close-item">Close</li>
@@ -176,12 +180,13 @@
     let currentDropdownType = null;
 
     // Filter data
-    let collections = ['All'];
+    let collections = ['None'];
     let letters = ['All'];
     let themes = ['All'];
     let types = ['All'];
     let manufacturers = ['All'];
     let years = ['All'];
+    let sortOptions = ['Alpha', 'Newest'];
 
     // Current selections
     let collectionIndex = 0;
@@ -190,6 +195,7 @@
     let typeIndex = 0;
     let manufacturerIndex = 0;
     let yearIndex = 0;
+    let sortByIndex = 0;
 
     async function init() {
       collections = collections.concat(await window.parent.vpin.call('get_collections'));
@@ -267,6 +273,8 @@
             openDropdown(selectedItem, 'manufacturer');
           } else if (selectedItem.id === 'year-item') {
             openDropdown(selectedItem, 'year');
+          } else if (selectedItem.id === 'sortby-item') {
+            openDropdown(selectedItem, 'sortby');
           } else if (selectedItem.id === 'save-filter-item') {
             openSaveFilterDialog();
           } else if (selectedItem.id === 'close-item') {
@@ -298,6 +306,7 @@
       document.getElementById('type-value').textContent = types[typeIndex];
       document.getElementById('manufacturer-value').textContent = manufacturers[manufacturerIndex];
       document.getElementById('year-value').textContent = years[yearIndex];
+      document.getElementById('sortby-value').textContent = sortOptions[sortByIndex];
 
       updateTableCount();
     }
@@ -310,6 +319,7 @@
         case 'type': return types;
         case 'manufacturer': return manufacturers;
         case 'year': return years;
+        case 'sortby': return sortOptions;
         default: return [];
       }
     }
@@ -322,6 +332,7 @@
         case 'type': return typeIndex;
         case 'manufacturer': return manufacturerIndex;
         case 'year': return yearIndex;
+        case 'sortby': return sortByIndex;
         default: return 0;
       }
     }
@@ -366,8 +377,8 @@
         case 'collection':
           collectionIndex = dropdownSelected;
 
-          if (selectedValue == "All") {
-            // Reset all filters when "All" is selected
+          if (selectedValue == "None") {
+            // Reset all filters when "None" is selected
             letterIndex = 0;
             themeIndex = 0;
             typeIndex = 0;
@@ -378,11 +389,14 @@
             window.parent.vpin.sendMessageToAllWindowsIncSelf({
               type: "TableDataChange",
               index: 0,
-              collection: "All"
+              collection: "None"
             });
           } else {
             // Load the collection (could be VPS ID-based or filter-based)
             await window.parent.vpin.call("set_tables_by_collection", selectedValue);
+
+            // Get the updated table data after collection is loaded
+            await window.parent.vpin.call("get_tables");
 
             // Get current filter state from API to update UI
             const filterState = await window.parent.vpin.call("get_current_filter_state");
@@ -395,7 +409,16 @@
               manufacturerIndex = manufacturers.indexOf(filterState.manufacturer);
               yearIndex = years.indexOf(filterState.year);
 
-              // Send as filter message
+              // Get and set the sort order if available
+              const sortState = await window.parent.vpin.call("get_current_sort_state");
+              if (sortState) {
+                const sortIdx = sortOptions.indexOf(sortState);
+                if (sortIdx !== -1) {
+                  sortByIndex = sortIdx;
+                }
+              }
+
+              // Send as filter message with sort information
               window.parent.vpin.sendMessageToAllWindowsIncSelf({
                 type: "TableDataChange",
                 index: 0,
@@ -405,7 +428,8 @@
                   type: filterState.type,
                   manufacturer: filterState.manufacturer,
                   year: filterState.year
-                }
+                },
+                sort: sortState || 'Alpha'
               });
             } else {
               // VPS ID-based collection - reset filter UI
@@ -552,6 +576,18 @@
           });
           document.getElementById('table-count').textContent = `Table Count: ${yearCount}`;
           break;
+
+        case 'sortby':
+          sortByIndex = dropdownSelected;
+
+          const sortCount = await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex]);
+          window.parent.vpin.sendMessageToAllWindowsIncSelf({
+            type: "TableDataChange",
+            index: 0,
+            sort: sortOptions[sortByIndex]
+          });
+          document.getElementById('table-count').textContent = `Table Count: ${sortCount}`;
+          break;
       }
 
       window.parent.vpin.call("console_out", `Filter applied: ${currentDropdownType} = ${selectedValue}`);
@@ -590,16 +626,17 @@
         return;
       }
 
-      // Check if any filters are actually set (not all "All")
+      // Check if any filters or sort are set (not all defaults)
       const hasActiveFilters =
         (letters[letterIndex] !== "All") ||
         (themes[themeIndex] !== "All") ||
         (types[typeIndex] !== "All") ||
         (manufacturers[manufacturerIndex] !== "All") ||
-        (years[yearIndex] !== "All");
+        (years[yearIndex] !== "All") ||
+        (sortOptions[sortByIndex] !== "Alpha");
 
       if (!hasActiveFilters) {
-        message.textContent = 'No filters are active. Set at least one filter before saving.';
+        message.textContent = 'No filters or sort order active. Set at least one before saving.';
         message.style.color = '#f88';
         return;
       }
@@ -611,7 +648,8 @@
         themes[themeIndex] === "All" ? "All" : themes[themeIndex],
         types[typeIndex] === "All" ? "All" : types[typeIndex],
         manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-        years[yearIndex] === "All" ? "All" : years[yearIndex]
+        years[yearIndex] === "All" ? "All" : years[yearIndex],
+        sortOptions[sortByIndex]
       );
 
       if (result.success) {
@@ -619,7 +657,7 @@
         message.style.color = '#8f8';
 
         // Reload collections list
-        collections = ['All'].concat(await window.parent.vpin.call('get_collections'));
+        collections = ['None'].concat(await window.parent.vpin.call('get_collections'));
 
         // Close dialog after 2 seconds
         setTimeout(() => {
