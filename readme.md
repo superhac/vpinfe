@@ -168,6 +168,9 @@ VPinFE includes an interactive gamepad configuration tool that makes mapping you
 GDK_BACKEND=x11 vvv/bin/python3 main.py --gamepadtest
 ```
 
+<img width="735" height="547" alt="image" src="https://github.com/user-attachments/assets/4291e8dc-7ed5-4dfc-89c8-404a8eb28a1c" />
+
+
 The gamepad configuration interface provides:
 
 **Button Tester** - Real-time visual feedback showing which buttons are being pressed on your gamepad (numbered 0-16)
