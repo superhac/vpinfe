@@ -60,7 +60,15 @@ async function receiveEvent(message) {
         //do something, like fade in
     }
     else if (message.type == "TableDataChange") {
-        currentTableIndex = message.index;
+        // Log table count for debugging
+        vpin.call("console_out", `TableDataChange: vpin.tableData.length = ${vpin.tableData ? vpin.tableData.length : 'null'}`);
+
+        // Reset index to 0 or clamp to valid range
+        if (vpin.tableData && vpin.tableData.length > 0) {
+            currentTableIndex = Math.min(message.index, vpin.tableData.length - 1);
+        } else {
+            currentTableIndex = 0;
+        }
         updateScreen();
     }
 }
@@ -119,6 +127,34 @@ function preloadBg(tableIndex) {
 
 async function updateScreen() {
     const container = document.getElementById('rootContainer');
+
+    // If no tables, show "No tables found" message
+    if (!vpin.tableData || vpin.tableData.length === 0) {
+        vpin.call("console_out", "updateScreen: No tables found, clearing display");
+        container.innerHTML = '';
+        currentBgDiv = null;
+
+        // Create message element
+        const messageDiv = document.createElement('div');
+        Object.assign(messageDiv.style, {
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: '#fff',
+            fontSize: '4vh',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            padding: '2vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            borderRadius: '1vh',
+            border: '2px solid #555'
+        });
+        messageDiv.textContent = 'No tables found';
+        container.appendChild(messageDiv);
+        return;
+    }
+    vpin.call("console_out", `updateScreen: Rendering table ${currentTableIndex} of ${vpin.tableData.length}`);
     const bgUrl = vpin.getImageURL(currentTableIndex, "bg");
 
     // Cancel pending fade removal

@@ -133,6 +133,12 @@ async function handleInput(input) {
 // Image & Metadata Updates
 // =============================
 function updateImages() {
+    // Check for empty table data
+    if (!vpin.tableData || vpin.tableData.length === 0) {
+        clearAllDisplays();
+        return;
+    }
+
     if (windowName === "table") {
         setCarouselWheels();
         setTableImage();
@@ -140,6 +146,38 @@ function updateImages() {
         setCabImage();
     } else {
         setSingleFSImage();
+    }
+}
+
+function clearAllDisplays() {
+    if (windowName === "table") {
+        // Clear carousel
+        const imagesContainer = document.getElementById("carouselImages");
+        if (imagesContainer) imagesContainer.innerHTML = '';
+
+        // Clear table and cab images
+        const tableContainer = document.getElementById("table");
+        const cabContainer = document.getElementById("cab");
+        if (tableContainer) tableContainer.innerHTML = '';
+        if (cabContainer) cabContainer.innerHTML = '';
+
+        // Clear metadata
+        const titleEl = document.getElementById("title");
+        if (titleEl) titleEl.innerHTML = 'No tables found';
+        const authorsEl = document.getElementById("authors");
+        if (authorsEl) authorsEl.innerHTML = '';
+        const yearEl = document.getElementById("year");
+        if (yearEl) yearEl.innerHTML = '';
+        const typeEl = document.getElementById("table-type");
+        if (typeEl) typeEl.innerHTML = '';
+        const themeEl = document.getElementById("theme");
+        if (themeEl) themeEl.innerHTML = '';
+        const manufImg = document.getElementById("manufacturer-img");
+        if (manufImg) manufImg.src = '';
+    } else {
+        // Clear fullscreen image
+        const fsImg = document.getElementById("fsImage");
+        if (fsImg) fsImg.src = '';
     }
 }
 

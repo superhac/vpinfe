@@ -70,3 +70,14 @@ img.fullscreen {
   transform: rotate(270deg);
   transform-origin: center center;
 }
+
+#collection-menu-frame {
+  width: 50vh;   /* swapped so it looks right after rotation */
+  height: 50vw;
+  border: none;
+  border-radius: 1rem;
+  box-shadow: 0 0 20px rgba(0,0,0,0.7);
+
+  transform: rotate(270deg);
+  transform-origin: center center;
+}

@@ -97,9 +97,32 @@ async function handleInput(input) {
 }
 
 function updateImages() {
+    // Check for empty table data
+    if (!vpin.tableData || vpin.tableData.length === 0) {
+        clearAllDisplays();
+        return;
+    }
+
     setCarouselWheels();
     setMainGfxImage();
     setTableImage();
+}
+
+function clearAllDisplays() {
+    // Clear carousel
+    const carouselContainer = document.getElementById('carouselImages');
+    if (carouselContainer) carouselContainer.innerHTML = '';
+
+    // Clear main graphics
+    const maingfxContainer = document.getElementById('maingfx');
+    if (maingfxContainer) maingfxContainer.innerHTML = '';
+
+    // Clear cab image
+    const cabContainer = document.getElementById('cab');
+    if (cabContainer) {
+        const imgs = cabContainer.querySelectorAll('img');
+        imgs.forEach(img => img.remove());
+    }
 }
 
 function setTableImage() {

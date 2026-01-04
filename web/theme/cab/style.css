@@ -359,3 +359,13 @@
     border-radius: 1rem;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
   }
+
+  #collection-menu-frame {
+    width: 50vw;
+    height: 50vh;
+    border: none;
+    border-radius: 1rem;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+    transform: rotate(var(--rotation));
+    transform-origin: center center;
+  }

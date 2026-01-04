@@ -111,6 +111,12 @@ function updateScreen() {
     // clear out old content
     container.innerHTML = '';
 
+    // Check for empty table data
+    if (!vpin.tableData || vpin.tableData.length === 0) {
+        container.innerHTML = '<div style="color: white; font-size: 2em; text-align: center; margin-top: 20%;">No tables found</div>';
+        return;
+    }
+
     container.innerHTML += 'Window name: ' + windowName + '<br>';
     container.innerHTML += 'Current table index: ' + currentTableIndex + '<br>';
     container.innerHTML += 'Total tables: ' + vpin.getTableCount() + '<br><br>';

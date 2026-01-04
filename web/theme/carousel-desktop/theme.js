@@ -101,7 +101,11 @@ function updateBGImage() {
 
     const oldImg = container.querySelector('img');
 
-    if (!vpin.tableData || vpin.tableData.length === 0) return;
+    if (!vpin.tableData || vpin.tableData.length === 0) {
+        // Clear background image when no tables
+        container.innerHTML = '';
+        return;
+    }
 
     const bgUrl = vpin.getImageURL(currentTableIndex, "bg");
 
@@ -131,7 +135,11 @@ function updateDMDImage() {
 
     const oldImg = container.querySelector('img');
 
-    if (!vpin.tableData || vpin.tableData.length === 0) return;
+    if (!vpin.tableData || vpin.tableData.length === 0) {
+        // Clear DMD image when no tables
+        container.innerHTML = '';
+        return;
+    }
 
     const dmdUrl = vpin.getImageURL(currentTableIndex, "dmd");
 
@@ -156,7 +164,16 @@ function updateDMDImage() {
 
 // Update table information text
 function updateTableInfo() {
-    if (!vpin.tableData || vpin.tableData.length === 0) return;
+    if (!vpin.tableData || vpin.tableData.length === 0) {
+        // Clear table info when no tables
+        const nameEl = document.getElementById('tableName');
+        const metaEl = document.getElementById('tableMeta');
+        const authorsEl = document.getElementById('authorsText');
+        if (nameEl) nameEl.textContent = 'No tables found';
+        if (metaEl) metaEl.textContent = '';
+        if (authorsEl) authorsEl.textContent = '';
+        return;
+    }
 
     const table = vpin.getTableMeta(currentTableIndex);
     const nameEl = document.getElementById('tableName');
@@ -224,7 +241,12 @@ function updateTableInfo() {
 function buildCarousel(direction = null) {
     const track = document.getElementById('carouselTrack');
 
-    if (!vpin.tableData || vpin.tableData.length === 0) return;
+    if (!vpin.tableData || vpin.tableData.length === 0) {
+        // Clear carousel when no tables
+        track.innerHTML = '';
+        isAnimating = false;
+        return;
+    }
 
     const totalTables = vpin.tableData.length;
     const visibleItems = Math.min(9, totalTables); // Show up to 9 items

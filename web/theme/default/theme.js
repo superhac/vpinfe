@@ -104,6 +104,13 @@ async function handleInput(input) {
 }
 
 function setImage() {
+    // Check for empty table data
+    if (!vpin.tableData || vpin.tableData.length === 0) {
+        const img = document.getElementById('fsImage');
+        if (img) img.src = '';
+        return;
+    }
+
     image = vpin.getImageURL(currentTableIndex, windowName)
     const img = document.getElementById('fsImage');
     img.src = image;  // Replace with your new image path

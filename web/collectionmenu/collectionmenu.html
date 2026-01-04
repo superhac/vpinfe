@@ -208,7 +208,7 @@
     });
 
     function rotateMenu(degrees) {
-      rotationAngle = (rotationAngle) % 360;
+      rotationAngle = degrees;
       document.getElementById('menu-container').style.transform =
         `rotate(${rotationAngle}deg)`;
     }
@@ -262,12 +262,6 @@
           } else if (selectedItem.id === 'close-item') {
             window.parent.vpin.toggleCollectionMenu();
           }
-          break;
-        case "joyleft":
-          rotateMenu(-10); // rotate left
-          break;
-        case "joyright":
-          rotateMenu(10);  // rotate right
           break;
         case "joyback":
         case "joymenu":
