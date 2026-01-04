@@ -7,6 +7,7 @@ from pathlib import Path
 import colorama
 import webview
 from screeninfo import get_monitors
+from platformdirs import user_config_dir
 
 from common.iniconfig import IniConfig
 from common.tableparser import TableParser
@@ -19,7 +20,10 @@ from frontend.api import API
 
 # Initialize config
 colorama.init()
-iniconfig = IniConfig("./vpinfe.ini")
+config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+config_dir.mkdir(parents=True, exist_ok=True)
+config_path = config_dir / "vpinfe.ini"
+iniconfig = IniConfig(str(config_path))
 
 
 def _norm_path(p: str) -> str:

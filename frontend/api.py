@@ -9,6 +9,7 @@ import subprocess
 from common.tableparser import TableParser
 from common.vpxcollections import VPXCollections
 from common.tablelistfilters import TableListFilters
+from platformdirs import user_config_dir
 
 class API:
     
@@ -114,12 +115,14 @@ class API:
         return self.jsTableDictData
     
     def get_collections(self):
-        c = VPXCollections(Path(__file__).parent.parent / "collections.ini")
+        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        c = VPXCollections(config_dir / "collections.ini")
         return c.get_collections_name()
-    
+
     def set_tables_by_collection(self, collection):
         """Set filtered tables based on collection from collections.ini."""
-        c = VPXCollections(Path(__file__).parent.parent / "collections.ini")
+        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        c = VPXCollections(config_dir / "collections.ini")
 
         # Check if this is a filter-based collection
         if c.is_filter_based(collection):
@@ -155,7 +158,8 @@ class API:
 
     def save_filter_collection(self, name, letter="All", theme="All", table_type="All", manufacturer="All", year="All"):
         """Save current filter settings as a named collection."""
-        c = VPXCollections(Path(__file__).parent.parent / "collections.ini")
+        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        c = VPXCollections(config_dir / "collections.ini")
         try:
             c.add_filter_collection(name, letter, theme, table_type, manufacturer, year)
             c.save()

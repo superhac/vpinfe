@@ -182,7 +182,11 @@ joycollectionmenu =
 ```
 
 ## Collections
-VPinFE supports two types of collections for organizing your tables. Collections are stored in `collections.ini` in your VPinFE directory.
+VPinFE supports two types of collections for organizing your tables. Collections are stored in `collections.ini` in the platform-specific configuration directory alongside `vpinfe.ini`:
+
+- **Linux**: `~/.config/vpinfe/collections.ini`
+- **macOS**: `~/Library/Application Support/vpinfe/collections.ini`
+- **Windows**: `C:\Users\<username>\AppData\Local\vpinfe\vpinfe\collections.ini`
 
 ### VPS ID-Based Collections
 Create handpicked collections by specifying individual table VPS IDs. Perfect for curated favorites or competition playlists:

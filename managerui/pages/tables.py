@@ -10,12 +10,14 @@ from common.vpxparser import VPXParser
 from clioptions import buildMetaData, vpxPatches
 from queue import Queue
 from common.vpxcollections import VPXCollections
+from platformdirs import user_config_dir
 
 # Resolve project root and important paths explicitly
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 VPSDB_JSON_PATH = PROJECT_ROOT / 'vpsdb.json'
-VPINFE_INI_PATH = PROJECT_ROOT / 'vpinfe.ini'
-COLLECTIONS_INI_PATH = PROJECT_ROOT / 'collections.ini'
+CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
+VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
+COLLECTIONS_INI_PATH = CONFIG_DIR / 'collections.ini'
 
 # Load vpinfe.ini once to avoid repeated parsing
 from common.iniconfig import IniConfig
