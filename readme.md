@@ -56,7 +56,7 @@ git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
 python3 -m venv vvv --system-site-packages
 source vvv/bin/activate
-pip install nicegui screeninfo colorama olefile pynput nicegui==2.* pywebview
+pip install nicegui screeninfo colorama olefile pynput nicegui==2.* pywebview platformdirs
 deactivate
 
 # then run like this inside the vpinfe dir
@@ -65,7 +65,7 @@ GDK_BACKEND=x11 vvv/bin/python3 main.py
 
 ### Ubuntu 25.04 (GTK):
 ```
-sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-webview python3-screeninfo
+sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-webview python3-screeninfo platformdirs
 git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
 python3 -m venv vvv --system-site-packages
