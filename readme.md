@@ -52,8 +52,11 @@ This breaks the gamepad functionally in VPinfe.  There is currently no work arou
 ### Debian 13
 ```
 sudo apt install python3.13-venv python3-evdev
+git clone https://github.com/superhac/vpinfe.git
+cd vpinfe
 python3 -m venv vvv --system-site-packages
-pip install nicegui screeninfo colorama olefile pynput nicegui==2.* pywebview==6.1
+source vvv/bin/activate
+pip install nicegui screeninfo colorama olefile pynput nicegui==2.* pywebview
 deactivate
 
 # then run like this inside the vpinfe dir
