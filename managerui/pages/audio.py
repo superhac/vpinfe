@@ -8,6 +8,8 @@ from ..ini_store import IniStore
 from ..schema import AUDIO_FIELDS
 from common.iniconfig import IniConfig
 from ..binders import _bind_indexed_select, _bind_select, _bind_switch
+from pathlib import Path
+from platformdirs import user_config_dir
 
 
 SOUND3D_OPTIONS = [
@@ -21,7 +23,9 @@ SOUND3D_OPTIONS = [
 
 def get_audio_devices():
 
-    config = IniConfig("./vpinfe.ini")
+    CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    config = IniConfig(str(CONFIG_DIR / 'vpinfe.ini'))
     vpxbinpath = config.config.get('Settings', 'vpxbinpath', fallback='').strip()
     if not vpxbinpath:
         ui.notify("VPX Binary not found on vpinfe.ini.", type="warning")

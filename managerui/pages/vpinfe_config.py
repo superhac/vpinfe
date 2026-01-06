@@ -1,9 +1,13 @@
 from screeninfo import get_monitors, Enumerator
 from nicegui import ui
 from common.iniconfig import IniConfig
+from pathlib import Path
+from platformdirs import user_config_dir
 
-INI_PATH = './vpinfe.ini'
-config = IniConfig(INI_PATH)
+CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+INI_PATH = CONFIG_DIR / 'vpinfe.ini'
+config = IniConfig(str(INI_PATH))
 
 m_mons = get_monitors()
 monitors = []
