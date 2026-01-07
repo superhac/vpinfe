@@ -10,7 +10,7 @@ import posixpath
 class CustomHTTPServer:
     class MultiDirHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Set debug True to print verbose logs
-        debug = True
+        debug = False
 
         def __init__(self, *args, mount_points=None, **kwargs):
             # normalize mount_points: ensure prefixes start+end with '/'

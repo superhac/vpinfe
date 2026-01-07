@@ -38,7 +38,7 @@ def loadWindows():
     
     if iniconfig.config['Displays']['bgscreenid']:
         api = API(iniconfig)
-        print("found bg screen id: ", iniconfig.config['Displays']['bgscreenid'])
+        #print("found bg screen id: ", iniconfig.config['Displays']['bgscreenid'])
         screen_id = int(iniconfig.config['Displays']['bgscreenid'])
         win = webview.create_window(
             "BG Screen",
@@ -58,7 +58,7 @@ def loadWindows():
         api._finish_setup()
         
     if iniconfig.config['Displays']['dmdscreenid']:
-        print("found dmd screen id: ", iniconfig.config['Displays']['dmdscreenid'])
+        #print("found dmd screen id: ", iniconfig.config['Displays']['dmdscreenid'])
         screen_id = int(iniconfig.config['Displays']['dmdscreenid'])
         api = API(iniconfig)
         win = webview.create_window(
@@ -79,7 +79,7 @@ def loadWindows():
         api._finish_setup()
         
     if iniconfig.config['Displays']['tablescreenid']:  # this always needs to be last to get the focus set.
-        print("found table screen id: ", iniconfig.config['Displays']['tablescreenid'])
+        #print("found table screen id: ", iniconfig.config['Displays']['tablescreenid'])
         screen_id = int(iniconfig.config['Displays']['tablescreenid'])
         api = API(iniconfig)
         win = webview.create_window(

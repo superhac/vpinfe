@@ -86,25 +86,25 @@ class VPinFECore {
   getImageURL(index, type) {
     const table = this.tableData[index];
     if (type == "table") {
-      this.call("console_out", this.#convertImagePathToURL(table.TableImagePath))
+      //this.call("console_out", this.#convertImagePathToURL(table.TableImagePath))
       return this.#convertImagePathToURL(table.TableImagePath);
     }
     else if (type == "bg") {
-      this.call("console_out", this.#convertImagePathToURL(table.BGImagePath))
+      //this.call("console_out", this.#convertImagePathToURL(table.BGImagePath))
       return this.#convertImagePathToURL(table.BGImagePath);
 
     }
     else if (type == "dmd") {
-      this.call("console_out", this.#convertImagePathToURL(table.DMDImagePath))
+      //this.call("console_out", this.#convertImagePathToURL(table.DMDImagePath))
       return this.#convertImagePathToURL(table.DMDImagePath);
 
     }
     else if (type == "wheel") {
-      this.call("console_out", this.#convertImagePathToURL(table.WheelImagePath))
+      //this.call("console_out", this.#convertImagePathToURL(table.WheelImagePath))
       return this.#convertImagePathToURL(table.WheelImagePath);
     }
     else if (type == "cab") {
-      this.call("console_out", this.#convertImagePathToURL(table.CabImagePath))
+      //this.call("console_out", this.#convertImagePathToURL(table.CabImagePath))
       return this.#convertImagePathToURL(table.CabImagePath);
     }
   }
@@ -271,7 +271,7 @@ class VPinFECore {
     this.joyButtonMap[button].push(action);
   }
 
-  this.call("console_out", "Gamepad mapping loaded: " + JSON.stringify(this.joyButtonMap));
+  //this.call("console_out", "Gamepad mapping loaded: " + JSON.stringify(this.joyButtonMap));
 }
 
 async #onButtonPressed(buttonIndex, gamepadIndex) {
@@ -280,7 +280,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
 
   // Handle all actions mapped to this button
   for (const action of actions) {
-    this.call("console_out", `Button action: ${action}, windowName: ${windowName}`);
+    //this.call("console_out", `Button action: ${action}, windowName: ${windowName}`);
     if (action === "joyexit" && windowName == "table") {
       window.pywebview.api.close_app();
     }
@@ -313,7 +313,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
           const isPressed = button.pressed;
 
           if (isPressed && !wasPressed) {
-            this.call("console_out", "Button: " + index);
+            //this.call("console_out", "Button: " + index);
             this.#onButtonPressed(index, i); // new press
           }
           this.previousButtonStates[i][index] = isPressed;

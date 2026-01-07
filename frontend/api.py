@@ -67,14 +67,13 @@ class API:
         return "No window name found for this API instance"
 
     def close_app(self):
-        print("Called by", self.myWindow[0].uid)
+        #print("Called by", self.myWindow[0].uid)
         for window_name, window, api in self.webview_windows:
             print("name: ", window.uid)
             window.destroy()
         sys.exit(0)
     
     def get_monitors(self):
-        print("get_monitors called")
         monitors = get_monitors()
         # Return a list of dicts with relevant info
         return [{
@@ -408,5 +407,5 @@ class API:
         theme_name = self.get_theme_name()
         theme_path = f'http://127.0.0.1:8000/web/theme/{theme_name}/'
         url = theme_path +f'index_{self.get_my_window_name()}.html'
-        print("url: " + url)
+        #print("url: " + url)
         return url
