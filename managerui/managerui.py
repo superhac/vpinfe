@@ -135,7 +135,7 @@ def index():
 @ui.page('/remote')
 def remote_page():
     remote.build()
-
+    
 # keep a reference to the running thread
 _ui_thread = None
 

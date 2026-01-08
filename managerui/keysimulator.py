@@ -117,6 +117,12 @@ class KeySimulator:
         if key is not None:
             self.press(key)
 
+    def hold_mapping(self, name, seconds=0.1):
+        """Hold a mapped key for the specified duration"""
+        key = self.pynput_mappings.get(name)
+        if key is not None:
+            self.hold(key, seconds)
+
     def press(self, key):
         self.keyboard.press(key)
         self.keyboard.release(key)
