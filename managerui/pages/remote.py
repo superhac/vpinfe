@@ -1,13 +1,15 @@
 from nicegui import ui
 from managerui.keysimulator import KeySimulator
 
-ks = KeySimulator()
+ks = None
 content_area = None
 category_select = None
 
 
 def build(parent=None):
-    global content_area, category_select
+    global content_area, category_select, ks
+    if ks is None:
+        ks = KeySimulator()
 
     target = parent or ui
 
@@ -95,7 +97,7 @@ def show_buttons(category: str):
     if category == "vpx":
         buttons = [
             "Pause", "Quit", "Volume Up", "Volume Down",
-            "Frame Count", "Menu", "Table Reset", "Add/Remove Ball"
+            "Frame Count", "Menu", "Table Reset", "Extra Ball"
         ]
     elif category == "pinmame":
         buttons = ["O/C Door", "Cancel", "Down", "Up", "Enter"]
@@ -116,14 +118,14 @@ def handle_button(category: str, button: str):
     match category:
         case 'vpx':
             match button:
-                case 'Frame Count': ks.press(KeySimulator.VPX_FRAME_COUNT)
-                case 'Volume Up': ks.hold(KeySimulator.VPX_VOLUME_UP, seconds=0.1)
-                case 'Volume Down': ks.hold(KeySimulator.VPX_VOLUME_DOWN, seconds=0.1)
-                case 'Menu': ks.press(KeySimulator.VPX_IN_GAME_UI)
-                case 'Table Reset': ks.press(KeySimulator.VPX_TABLE_RESET)
-                case 'Quit': ks.press(KeySimulator.VPX_QUIT)
-                case 'Pause': ks.press(KeySimulator.VPX_PAUSE)
-                case 'Add/Remove Ball': ks.press(KeySimulator.VPX_ADD_BALL)
+                case 'Frame Count': ks.press_mapping("PerfOverlay")
+                case 'Volume Up': ks.press_mapping("VolumeUp", seconds=0.1)
+                case 'Volume Down': ks.press_mapping("VolumeDown", seconds=0.1)
+                case 'Menu': ks.press_mapping("InGameUI")
+                case 'Table Reset': ks.press_mapping("Reset")
+                case 'Quit': ks.press_mapping("ExitGame")
+                case 'Pause': ks.press_mapping("Pause")
+                case 'Extra Ball': ks.press_mapping("ExtraBall")
         case 'pinmame':
             match button:
                 case 'Open/Close Door': ks.press(KeySimulator.PINMAME_OPEN_COIN_DOOR)
