@@ -35,7 +35,8 @@ carousel2 (Single Screen)
 
 
 ## Remote:
-<img width="2820" height="2215" alt="image" src="https://github.com/user-attachments/assets/6d6f8508-e1ad-4170-825a-cf237ce10cb5" />
+![remote](https://github.com/user-attachments/assets/088346a4-db6c-4b6f-8e01-bd653d267b79)
+
 
 ## Installing
 
