@@ -99,7 +99,15 @@ class API:
     def send_event_all_windows_incself(self, message):
         msg_json = json.dumps(message)  # safely convert Python dict to JS object literal
         for window_name, window, api in self.webview_windows:
-                window.evaluate_js(f'receiveEvent({msg_json})')
+                # Send to main window
+                window.evaluate_js(f'if (typeof receiveEvent === "function") receiveEvent({msg_json})')
+                # Also send to mainmenu iframe if it exists
+                window.evaluate_js(f'''
+                    const menuFrame = document.getElementById("menu-frame");
+                    if (menuFrame && menuFrame.contentWindow && typeof menuFrame.contentWindow.receiveEvent === "function") {{
+                        menuFrame.contentWindow.receiveEvent({msg_json});
+                    }}
+                ''')
 
     def get_tables(self, reset=False): # reset go back to full table list!
         if reset:
@@ -384,6 +392,106 @@ class API:
         c.save()
 
         print(f"Tracked table play: {vpsid} (now {len(last_played_ids)} in Last Played)")
+
+    def build_metadata(self, download_media=True, update_all=False):
+        """
+        Trigger buildMetaData from the frontend.
+        This runs in a background thread and returns progress/log updates via window events.
+
+        Args:
+            download_media: Whether to download media files
+            update_all: Whether to update all tables (even if meta.ini exists)
+
+        Returns:
+            dict with success status and message
+        """
+        from clioptions import buildMetaData
+        import threading
+        from queue import Queue
+
+        # Use a queue to safely pass events from background thread
+        event_queue = Queue()
+
+        def progress_callback(current, total, message):
+            """Queue progress updates."""
+            print(f"[buildmeta] Progress: {current}/{total} - {message}")
+            event_queue.put({
+                'type': 'buildmeta_progress',
+                'current': current,
+                'total': total,
+                'message': message
+            })
+
+        def log_callback(message):
+            """Queue log messages."""
+            print(f"[buildmeta] Log: {message}")
+            event_queue.put({
+                'type': 'buildmeta_log',
+                'message': message
+            })
+
+        def run_build():
+            """Run buildMetaData in background thread."""
+            try:
+                result = buildMetaData(
+                    downloadMedia=download_media,
+                    updateAll=update_all,
+                    progress_cb=progress_callback,
+                    log_cb=log_callback
+                )
+                # Queue completion event
+                event_queue.put({
+                    'type': 'buildmeta_complete',
+                    'result': result
+                })
+                # Refresh table list after completion
+                self.allTables = TableParser(self.iniConfig.config['Settings']['tablerootdir']).getAllTables()
+                self.filteredTables = self.allTables
+            except Exception as e:
+                # Queue error event
+                event_queue.put({
+                    'type': 'buildmeta_error',
+                    'error': str(e)
+                })
+                import traceback
+                traceback.print_exc()
+            finally:
+                # Signal completion
+                event_queue.put({'type': 'buildmeta_done'})
+
+        def process_events():
+            """Process queued events and send to windows."""
+            try:
+                print("[buildmeta] Event processor started")
+                while True:
+                    # Block until we get an event
+                    event = event_queue.get(timeout=30)
+                    print(f"[buildmeta] Processing event: {event['type']}")
+                    if event['type'] == 'buildmeta_done':
+                        print("[buildmeta] Build complete, stopping event processor")
+                        break
+                    # Send event to all windows
+                    try:
+                        self.send_event_all_windows_incself(event)
+                        print(f"[buildmeta] Sent event to windows: {event['type']}")
+                    except Exception as e:
+                        print(f"Error sending event to windows: {e}")
+                        import traceback
+                        traceback.print_exc()
+            except Exception as e:
+                print(f"Error processing buildmeta events: {e}")
+                import traceback
+                traceback.print_exc()
+
+        # Start build in background thread
+        build_thread = threading.Thread(target=run_build, daemon=True)
+        build_thread.start()
+
+        # Start event processor in another background thread
+        event_thread = threading.Thread(target=process_events, daemon=True)
+        event_thread.start()
+
+        return {'success': True, 'message': 'Build metadata started'}
 
     def get_theme_config(self):
         theme_name = self.get_theme_name()

@@ -34,14 +34,27 @@ def _norm_path(p: str) -> str:
         return os.path.normpath(p).lower()
 
 
-def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_cb=None):
-    """Build meta.ini files for all VPX tables and sync with VPSdb."""
+def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_cb=None, log_cb=None):
+    """Build meta.ini files for all VPX tables and sync with VPSdb.
+
+    Args:
+        downloadMedia: Whether to download media files
+        updateAll: Whether to update all tables (even if meta.ini exists)
+        progress_cb: Callback(current: int, total: int, message: str) for progress updates
+        log_cb: Callback(message: str) for console log messages
+    """
+    def log(msg):
+        """Helper to print and optionally send to log callback."""
+        print(msg)
+        if log_cb:
+            log_cb(msg)
+
     not_found_tables = 0
     parservpx = VPXParser()
-    
+
     tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
     raw_count = len(tables)
-    print(f"Found {raw_count} tables (.vpx).")
+    log(f"Found {raw_count} tables (.vpx).")
 
     seen = set()
     unique_tables = []
@@ -53,7 +66,7 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
 
     total = len(unique_tables)
     vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
-    print(f"Found {len(vps)} tables in VPSdb")
+    log(f"Found {len(vps)} tables in VPSdb")
 
     if progress_cb:
         progress_cb(0, total, 'Starting')
@@ -62,16 +75,22 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
     for table in tables:
         current += 1
         finalini = {}
-        
+
         meta_path = os.path.join(table.fullPathTable, "meta.ini")
 
         if os.path.exists(meta_path) and not updateAll:
+            if progress_cb:
+                progress_cb(current, total, f'Skipping {table.tableDirName} (meta.ini exists)')
             continue
-        
+
         meta = MetaConfig(meta_path)
 
         # VPSdb lookup
-        print(f"\rChecking VPSdb for table {current}/{total}: {table.tableDirName}")
+        msg = f"Checking VPSdb for table {current}/{total}: {table.tableDirName}"
+        log(msg)
+        if progress_cb:
+            progress_cb(current, total, f'Processing {table.tableDirName}')
+
         vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
         vpsData = (
             vps.lookupName(
@@ -81,25 +100,28 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
             ) if vpsSearchData else None
         )
         if vpsData is None:
-            print(f"  - {colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
+            log(f"  - {colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
             not_found_tables += 1
             continue
 
         # Parse VPX file
-        print("Parsing VPX file for metadata")
-        print(f"Extracting {table.fullPathVPXfile} for metadata.")
+        log(f"Parsing VPX file for metadata: {table.fullPathVPXfile}")
         vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
 
         finalini['vpsdata'] = vpsData
         finalini['vpxdata'] = vpxData
         meta.writeConfigMeta(finalini)
+        log(f"Created meta.ini for {table.tableDirName}")
 
         if downloadMedia:
             try:
                 vps.downloadMediaForTable(table, vpsData['id'])
-                print("Downloaded media for table")
+                log(f"Downloaded media for {table.tableDirName}")
             except KeyError:
-                print(f"{colorama.Fore.RED}No Media found{colorama.Style.RESET_ALL}")
+                log(f"{colorama.Fore.RED}No Media found{colorama.Style.RESET_ALL}")
+
+    if progress_cb:
+        progress_cb(total, total, 'Complete')
 
     return {'found': total, 'not_found': not_found_tables}
 

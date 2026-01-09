@@ -333,7 +333,15 @@ def render_panel(tab):
         progressbar.visible = False
         status_label = ui.label("").classes("text-sm text-grey")
         status_label.visible = False
+
+        # Console log output
+        log_container = ui.column().classes("w-full bg-gray-900 rounded p-3 overflow-auto").style("max-height: 300px; font-family: monospace; font-size: 12px;")
+        log_container.visible = False
+        log_messages = []
+
         progress_q: Queue[tuple[int, int, str]] = Queue()
+        log_q: Queue[str] = Queue()
+
         def pump_progress():
             updated = False
             while not progress_q.empty():
@@ -347,51 +355,114 @@ def render_panel(tab):
                 else:
                     progressbar.value = 0
                     status_label.text = message or ''
+
+            # Update log messages
+            while not log_q.empty():
+                log_msg = log_q.get_nowait()
+                log_messages.append(log_msg)
+                # Keep only last 100 messages to avoid memory issues
+                if len(log_messages) > 100:
+                    log_messages.pop(0)
+                updated = True
+
+            if updated:
+                # Update log display
+                log_container.clear()
+                with log_container:
+                    for msg in log_messages:
+                        ui.label(msg).classes("text-white text-xs whitespace-pre-wrap")
+                # Auto-scroll to bottom by using JavaScript
+                try:
+                    log_container.run_method('scrollTop', log_container.run_method('scrollHeight'))
+                except:
+                    pass
+
             if updated and progressbar.value >= 1.0:
                 progress_timer.active = False
+
         progress_timer = ui.timer(0.1, pump_progress, active=False)
+
         def progress_cb(current: int, total: int, message: str):
             progress_q.put((current, total, message))
-        async def call_build_metadata():
-            nonlocal RUNNING
+
+        def log_cb(message: str):
+            """Callback for console log messages."""
+            log_q.put(message)
+        async def call_build_metadata(download_media_opt: bool = False, update_all_opt: bool = False):
+            nonlocal RUNNING, log_messages
             if RUNNING:
                 return
             RUNNING = True
             build_btn.disable()
             try:
+                # Clear previous logs
+                log_messages.clear()
+                log_container.clear()
+
                 progressbar.value = 0
                 progressbar.visible = True
                 status_label.text = "Preparing…"
                 status_label.visible = True
+                log_container.visible = True
                 await asyncio.sleep(0.05)
                 progress_timer.active = True
-                do_download = bool(download_media.value)
                 result = await run.io_bound(
                     buildMetaData,
-                    downloadMedia=do_download,
+                    downloadMedia=download_media_opt,
+                    updateAll=update_all_opt,
                     progress_cb=progress_cb,
+                    log_cb=log_cb,
                 )
                 status_label.text = "Completed"
-                progressbar.value = 100
+                progressbar.value = 1.0
                 ui.notify(
                     (
                         f'Media & Metadata build complete. '
                         f'{result["found"]} scanned, {result.get("not_found", 0)} not found in VPSdb'
-                    ) if do_download else (
+                    ) if download_media_opt else (
                         f'Metadata build complete. '
                         f'{result["found"]} scanned, {result.get("not_found", 0)} not found in VPSdb'
                     ),
                     type='positive'
                 )
+                # Refresh table list after completion
+                await perform_scan(silent=True)
             except Exception as e:
+                logger.exception('buildMetaData failed')
                 ui.notify(f'Error: {e}', type='negative')
             finally:
                 await asyncio.sleep(0.2)
                 progress_timer.active = False
                 progressbar.visible = False
                 status_label.visible = False
+                # Keep log visible so user can review
                 build_btn.enable()
                 RUNNING = False
+
+        def open_build_metadata_dialog():
+            """Show dialog with buildmeta options before executing."""
+            dlg = ui.dialog().props('max-width=600px')
+            with dlg, ui.card().classes('w-[550px]'):
+                ui.label('Build Metadata Options').classes('text-lg font-bold')
+                ui.separator()
+
+                with ui.column().classes('gap-4 q-my-md'):
+                    update_all_switch = ui.switch('Update All Tables', value=False).classes('text-sm')
+                    ui.label('Reparse all tables, even if meta.ini already exists').classes('text-xs text-grey q-ml-lg')
+
+                    download_media_switch = ui.switch('Download Media', value=True).classes('text-sm')
+                    ui.label('Automatically download table images and media from VPSdb').classes('text-xs text-grey q-ml-lg')
+
+                with ui.row().classes('justify-end gap-2 q-mt-md'):
+                    ui.button('Cancel', on_click=dlg.close)
+                    def do_build():
+                        dlg.close()
+                        asyncio.create_task(call_build_metadata(
+                            download_media_opt=bool(download_media_switch.value),
+                            update_all_opt=bool(update_all_switch.value)
+                        ))
+                    ui.button('Start Build', on_click=do_build).props('color=primary icon=build')
+            dlg.open()
 
         # --- UI Layout ---
         title_label = ui.markdown("Installed Tables")
@@ -399,8 +470,7 @@ def render_panel(tab):
             scan_btn = ui.button("Scan Tables", on_click=perform_scan).props("color=primary")
             missing_button = ui.button("Undetected Tables").props("color=red")
             with ui.row().classes("items-center gap-2"):
-                build_btn = ui.button("Build Metadata", on_click=call_build_metadata).props("icon=build color=primary")
-                download_media = ui.switch("Download Media Automatically", value=False)
+                build_btn = ui.button("Build Metadata", on_click=open_build_metadata_dialog).props("icon=build color=primary")
                 patch_btn = ui.button("Apply VPX Patches").props("icon=construction color=secondary")
                 collections_btn = ui.button("Collections").props("icon=collections_bookmark color=secondary outline")
 
@@ -515,6 +585,7 @@ def render_panel(tab):
                 patch_btn.on_click(call_apply_patches)
         progressbar
         status_label
+        log_container
         ui.label("Click on the table to see more details and manage")
         table = (
             ui.table(columns=columns, rows=[], row_key='filename', pagination={'rowsPerPage': 25})
