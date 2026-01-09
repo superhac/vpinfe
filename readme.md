@@ -79,7 +79,7 @@ GDK_BACKEND=x11 vvv/bin/python3 main.py
 ```
 
 *** There is a known issue with positioning windows under wayland.  To get around that run VpinFE with the following env var:
-`GDK_BACKEND=x11 python3 vpinfe.py`.
+`GDK_BACKEND=x11 python3 main.py`.
 
 ### Fedora ???? (KDE):
 ```
@@ -151,7 +151,7 @@ total 28
 ...
 ```
 
-With your tables in this format run `vpinfe.py --buildmeta`.  More details on what this does and what it creates can be found [Meta.ini](#metaini).  At this point you should be able to run VPinfe with keyboard controls.  If using a gamepad see that [section](#setup-gamepad).
+With your tables in this format run `python3 main.py --buildmeta`.  More details on what this does and what it creates can be found [Meta.ini](#metaini).  At this point you should be able to run VPinfe with keyboard controls.  If using a gamepad see that [section](#setup-gamepad).
 
 ## Default Keyboard Controls
 
@@ -237,7 +237,7 @@ year = 1980
 - `letter` - Filter by starting letter (A-Z) or "All"
 - `theme` - Filter by table theme or "All"
 - `table_type` - Filter by type (EM, SS) or "All"
-- `manufacturer` - Filter by manufacturer (Williams, Bally, GottiaC_sSXnlieb, etc.) or "All"
+- `manufacturer` - Filter by manufacturer (Williams, Bally, Gottlieb, etc.) or "All"
 - `year` - Filter by year or "All"
 
 ### Accessing Collections and Filters
@@ -286,7 +286,6 @@ options:
 | ----------------- | ------------------------------------------------------------------------- |
 | vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
 | tablerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
-| gamepadid         | The gamepad device ID.  use --listgpads to find the id. default is 0      |
 | joyleft           | Move left. Button mapping ids from `--gamepadtest`.                      |
 | joyright          | Move right. Button mapping ids from `--gamepadtest`.                     |
 | joyselect         | Select button / Launch. Button mapping ids from `--gamepadtest`.        |
