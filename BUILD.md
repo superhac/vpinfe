@@ -71,6 +71,12 @@ chmod +x vpinfe
 - The binary is dynamically linked to system GTK libraries
 - Data files (web assets) are embedded in the executable
 - Tested on Ubuntu 22.04+ and Debian 13
+- **X11 Required**: For GUI operation, you need X11 display exports:
+  ```bash
+  export DISPLAY=:0
+  export XAUTHORITY=/run/user/$(id -u)/.mutter-Xwaylandauth.*
+  ./vpinfe
+  ```
 
 ### Windows
 
