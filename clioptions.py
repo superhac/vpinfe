@@ -4,7 +4,6 @@ import os
 import uuid
 from pathlib import Path
 
-import colorama
 import webview
 from screeninfo import get_monitors
 from platformdirs import user_config_dir
@@ -19,7 +18,6 @@ from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
 
 # Initialize config
-colorama.init()
 config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
 config_dir.mkdir(parents=True, exist_ok=True)
 config_path = config_dir / "vpinfe.ini"
@@ -100,7 +98,7 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
             ) if vpsSearchData else None
         )
         if vpsData is None:
-            log(f"  - {colorama.Fore.RED}Not found in VPS{colorama.Style.RESET_ALL}")
+            log(f"  - Not found in VPS")
             not_found_tables += 1
             continue
 
@@ -118,7 +116,7 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
                 vps.downloadMediaForTable(table, vpsData['id'])
                 log(f"Downloaded media for {table.tableDirName}")
             except KeyError:
-                log(f"{colorama.Fore.RED}No Media found{colorama.Style.RESET_ALL}")
+                log(f"No Media found")
 
     if progress_cb:
         progress_cb(total, total, 'Complete')
@@ -178,7 +176,7 @@ def listUnknownTables():
         )
         if vpsData is None:
             current += 1
-            print(f"{colorama.Fore.RED}Unknown table {current}: {table.tableDirName} Not found in VPSdb{colorama.Style.RESET_ALL}")
+            print(f"Unknown table {current}: {table.tableDirName} Not found in VPSdb")
 
 
 def vpxPatches(progress_cb=None):

@@ -6,7 +6,6 @@ olefile
 pynput
 nicegui==2.*
 platformdirs
-colorama
 
 # Platform-specific dependencies (installed conditionally)
 # pyobjc; sys_platform == "darwin"

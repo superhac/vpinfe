@@ -3,7 +3,6 @@ import json
 from difflib import SequenceMatcher
 import os
 import re
-import colorama
 
 
 class VPSdb:
@@ -21,7 +20,6 @@ class VPSdb:
     vpinmdbUrl = "https://github.com/superhac/vpinmediadb/raw/refs/heads/main/vpinmdb.json"
 
     def __init__(self, rootTableDir, vpinfeIniConfig):
-        colorama.init()
         print("Initializing VPSdb")
 
         self._vpinfeIniConfig = vpinfeIniConfig
@@ -95,7 +93,7 @@ class VPSdb:
             if SequenceMatcher(None, str(year), str(table["year"])).ratio() >= 0.8:
                 return table
 
-        print(f"{colorama.Fore.RED}No match found for: {name}{colorama.Style.RESET_ALL}")
+        print(f"No match found for: {name}")
         return None
 
     def parseTableNameFromDir(self, directory_name):
@@ -179,7 +177,7 @@ class VPSdb:
     def downloadMediaForTable(self, table, id):
         """Download all associated media for a given table."""
         if id not in self.vpinmediadbjson:
-            print(f"{colorama.Fore.RED}No media exists for {table.fullPathTable} (ID {id}).{colorama.Style.RESET_ALL}")
+            print(f"No media exists for {table.fullPathTable} (ID {id}).")
             return
 
         tablemediajson = self.vpinmediadbjson[id]
