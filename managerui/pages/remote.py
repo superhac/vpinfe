@@ -181,25 +181,25 @@ def build(parent=None):
             "remote-body text-white w-full md:w-[95vw] md:max-w-[420px] rounded-none md:rounded-3xl p-4 md:p-6 flex flex-col items-center gap-3 md:gap-5"
         ):
             # Header with mode selector
-            ui.label("VPin Remote").classes("text-xl md:text-2xl font-bold text-gray-100 tracking-wide")
+            ui.label("VPinFE Remote").classes("text-xl md:text-2xl font-bold text-gray-100 tracking-wide")
 
             with ui.row().classes("items-center justify-center w-full gap-2 mb-1 md:mb-2"):
                 ui.label("Mode:").classes("text-xs md:text-sm text-gray-400 font-medium")
                 category_select = ui.select(
-                    ["VPX", "PinMAME", "Other"],
-                    value="VPX",
+                    ["VPX Maintenance", "VPX Game", "PinMAME", "VPinFE"],
+                    value="VPX Maintenance",
                     on_change=lambda e: show_buttons(e.value.lower()),
                 ).props(
                     "dense outlined options-dense dropdown-icon='expand_more' behavior='menu'"
                 ).classes(
-                    "text-white text-xs md:text-sm w-[90px] md:w-[120px]"
-                ).style("min-width: 90px;")
+                    "text-white text-xs md:text-sm w-[150px] md:w-[180px]"
+                ).style("min-width: 150px;")
 
             # Main content area
             with ui.column().classes("w-full items-center justify-center gap-1 mt-1") as content_area:
                 pass
 
-    show_buttons("vpx")
+    show_buttons("vpx maintenance")
 
 
 def show_buttons(category: str):
@@ -207,8 +207,10 @@ def show_buttons(category: str):
     content_area.clear()
 
     with content_area:
-        if category == "vpx":
+        if category == "vpx maintenance":
             show_vpx_controls()
+        elif category == "vpx game":
+            show_vpx_game_controls()
         elif category == "pinmame":
             show_pinmame_controls()
         else:
@@ -222,14 +224,6 @@ def show_vpx_controls():
     with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
         ui.label("Main").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
         with ui.row().classes("items-center justify-center gap-3 md:gap-4 w-full"):
-            # Pause
-            with ui.column().classes("items-center gap-1"):
-                with ui.button(
-                    on_click=lambda: handle_button("vpx", "Pause")
-                ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                    ui.icon("pause", size="sm").classes("text-blue-400")
-                ui.label("Pause").classes("text-[10px] md:text-xs text-gray-400")
-
             # Reset
             with ui.column().classes("items-center gap-1"):
                 with ui.button(
@@ -349,11 +343,69 @@ def show_vpx_controls():
                 ui.label("Perf Overlay").classes("text-[10px] md:text-xs text-gray-400")
 
 
+def show_vpx_game_controls():
+    """VPX Game control layout"""
+
+    # Main Section
+    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
+        ui.label("Main").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+        with ui.column().classes("items-center gap-2 w-full"):
+            # Icon buttons row: Start and Pause
+            with ui.row().classes("items-center justify-center gap-3 md:gap-4 w-full"):
+                # Start
+                with ui.column().classes("items-center gap-1"):
+                    with ui.button(
+                        on_click=lambda: handle_button("vpx game", "Start")
+                    ).props("flat round").classes("icon-button").style("font-size: 18px;"):
+                        ui.icon("play_arrow", size="sm").classes("text-green-400")
+                    ui.label("Start").classes("text-[10px] md:text-xs text-gray-400")
+
+                # Pause
+                with ui.column().classes("items-center gap-1"):
+                    with ui.button(
+                        on_click=lambda: handle_button("vpx game", "Pause")
+                    ).props("flat round").classes("icon-button").style("font-size: 18px;"):
+                        ui.icon("pause", size="sm").classes("text-blue-400")
+                    ui.label("Pause").classes("text-[10px] md:text-xs text-gray-400")
+
+            # Row with ShowRules, ExtraBall, Lockbar
+            with ui.row().classes("items-center justify-center gap-2 w-full"):
+                with ui.button(
+                    on_click=lambda: handle_button("vpx game", "ShowRules")
+                ).classes("remote-button text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1"):
+                    ui.icon("description", size="xs").classes("text-cyan-400")
+                    ui.label("Show Rules").classes("text-[10px] md:text-xs")
+
+                with ui.button(
+                    on_click=lambda: handle_button("vpx game", "ExtraBall")
+                ).classes("remote-button text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1"):
+                    ui.icon("sports_baseball", size="xs").classes("text-yellow-400")
+                    ui.label("Extra Ball").classes("text-[10px] md:text-xs")
+
+                with ui.button(
+                    on_click=lambda: handle_button("vpx game", "Lockbar")
+                ).classes("remote-button text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1"):
+                    ui.icon("lock", size="xs").classes("text-orange-400")
+                    ui.label("Lockbar").classes("text-[10px] md:text-xs")
+
+    # Coins Section
+    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
+        ui.label("Coins").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+
+        with ui.grid(columns=2).classes("gap-2 w-full justify-items-center"):
+            for i in range(1, 5):
+                with ui.button(
+                    on_click=lambda num=i: handle_button("vpx game", f"Credit{num}")
+                ).classes("remote-button text-white px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center gap-1"):
+                    ui.icon("paid", size="xs").classes("text-yellow-400")
+                    ui.label(f"Credit {i}").classes("text-xs md:text-sm")
+
+
 def show_pinmame_controls():
     """PinMAME remote control layout"""
 
-    with ui.card().classes("bg-gray-900/50 w-full p-6 rounded-xl border border-gray-700"):
-        ui.label("Service Menu Navigation").classes("text-center text-sm font-semibold text-gray-300 mb-4")
+    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
+        ui.label("Service Menu Navigation").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
 
         # Three column layout: Coin Door | Up/Down | Enter/Cancel
         with ui.row().classes("items-center justify-center gap-4 w-full flex-nowrap"):
@@ -362,7 +414,7 @@ def show_pinmame_controls():
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Coin Door")
                 ).props("flat").classes("dpad-button"):
-                    ui.icon("meeting_room", size="md").classes("text-blue-400")
+                    ui.icon("meeting_room", size="sm").classes("text-blue-400")
 
             # Middle column: Up/Down
             with ui.column().classes("items-center justify-center gap-2 flex-shrink-0"):
@@ -370,13 +422,13 @@ def show_pinmame_controls():
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Up")
                 ).props("flat").classes("dpad-button rounded-t-xl"):
-                    ui.icon("keyboard_arrow_up", size="lg").classes("text-green-400")
+                    ui.icon("keyboard_arrow_up", size="sm").classes("text-green-400")
 
                 # Down
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Down")
                 ).props("flat").classes("dpad-button rounded-b-xl"):
-                    ui.icon("keyboard_arrow_down", size="lg").classes("text-green-400")
+                    ui.icon("keyboard_arrow_down", size="sm").classes("text-green-400")
 
             # Right column: Enter/Cancel (side by side)
             with ui.column().classes("items-center justify-center gap-2 flex-shrink-0"):
@@ -385,13 +437,24 @@ def show_pinmame_controls():
                     ui.button(
                         "Enter",
                         on_click=lambda: handle_button("pinmame", "Enter")
-                    ).classes("dpad-button text-white font-bold text-xs px-3").style("background: linear-gradient(145deg, #10b981, #059669) !important;")
+                    ).classes("dpad-button text-white font-bold text-[10px] md:text-xs px-3").style("background: linear-gradient(145deg, #10b981, #059669) !important;")
 
                     # Cancel
                     with ui.button(
                         on_click=lambda: handle_button("pinmame", "Cancel")
                     ).props("flat").classes("dpad-button"):
-                        ui.icon("close", size="md").classes("text-red-400")
+                        ui.icon("close", size="sm").classes("text-red-400")
+
+    # Services Section
+    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
+        ui.label("Service Buttons").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+
+        with ui.grid(columns=4).classes("gap-2 w-full justify-items-center"):
+            for i in range(1, 9):
+                ui.button(
+                    f"S{i}",
+                    on_click=lambda num=i: handle_button("pinmame", f"Service {num}")
+                ).classes("remote-button text-white px-3 py-2 rounded-lg text-[10px] md:text-xs font-medium")
 
 
 def show_other_controls():
@@ -485,7 +548,7 @@ def send_keyboard_key(key, dialog):
 def handle_button(category: str, button: str):
     print(f"[{category}] Button pressed: {button}")
     match category:
-        case 'vpx':
+        case 'vpx maintenance':
             match button:
                 case 'Performance Overlay': ks.press_mapping("PerfOverlay")
                 case 'Volume Up': ks.press_mapping("VolumeUp", seconds=0.1)
@@ -503,6 +566,17 @@ def handle_button(category: str, button: str):
                 case 'Navigate Left': ks.hold_mapping("LeftFlipper", seconds=0.1)
                 case 'Navigate Right': ks.hold_mapping("RightFlipper", seconds=0.1)
                 case 'Enter': ks.hold(Key.enter, seconds=0.1)
+        case 'vpx game':
+            match button:
+                case 'Start': ks.press_mapping("Start")
+                case 'Pause': ks.press_mapping("Pause")
+                case 'ShowRules': ks.press_mapping("ShowRules")
+                case 'ExtraBall': ks.press_mapping("ExtraBall")
+                case 'Lockbar': ks.press_mapping("Lockbar")
+                case 'Credit1': ks.press_mapping("Credit1")
+                case 'Credit2': ks.press_mapping("Credit2")
+                case 'Credit3': ks.press_mapping("Credit3")
+                case 'Credit4': ks.press_mapping("Credit4")
         case 'pinmame':
             match button:
                 case 'Coin Door': ks.press(KeySimulator.PINMAME_OPEN_COIN_DOOR)
@@ -510,5 +584,13 @@ def handle_button(category: str, button: str):
                 case 'Down': ks.hold(KeySimulator.PINMAME_DOWN, seconds=0.1)
                 case 'Up': ks.hold(KeySimulator.PINMAME_UP, seconds=0.1)
                 case 'Enter': ks.press(KeySimulator.PINMAME_ENTER)
+                case 'Service 1': ks.press_mapping("Service1")
+                case 'Service 2': ks.press_mapping("Service2")
+                case 'Service 3': ks.press_mapping("Service3")
+                case 'Service 4': ks.press_mapping("Service4")
+                case 'Service 5': ks.press_mapping("Service5")
+                case 'Service 6': ks.press_mapping("Service6")
+                case 'Service 7': ks.press_mapping("Service7")
+                case 'Service 8': ks.press_mapping("Service8")
         case 'other':
             print(f"Other category pressed: {button}")
