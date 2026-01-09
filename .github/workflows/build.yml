@@ -45,6 +45,10 @@ jobs:
         run: |
           pyinstaller vpinfe.spec
 
+      - name: Set executable permissions
+        run: |
+          chmod +x dist/vpinfe
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -104,10 +108,11 @@ jobs:
         run: |
           pyinstaller vpinfe.spec
 
-      - name: Rename executable
+      - name: Rename executable and set permissions
         run: |
           cd dist
           mv vpinfe vpinfe-macos-x86_64
+          chmod +x vpinfe-macos-x86_64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
