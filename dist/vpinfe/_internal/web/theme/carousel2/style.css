@@ -1,0 +1,146 @@
+    html,
+    body {
+        height: 100%;
+        margin: 0;
+        background-color: black;
+    }
+
+    .container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        background-color: black;
+        transition: opacity 4.5s ease-in-out;
+        opacity: 1;
+    }
+
+    .top-row {
+        display: flex;
+        height: 80%;
+        padding: 5px;
+        margin: 5px;
+        gap: 5px;
+        background-color: black;
+        /* explicitly reserve 60% for top-row */
+    }
+
+    .left-col {
+        width: 30%;
+        background-color: black;
+    }
+
+    .right-col {
+        width: 70%;
+        background-color: black;
+    }
+
+    .bottom-row {
+        height: 20%;
+        background-color: black;
+    }
+
+    .carousel-container {
+        background: rgba(0, 0, 0, 0.5);
+        /* padding: 2vh 2vw; */
+        /* border-radius: 25px; */
+        text-align: center;
+        margin-bottom: 1vh;
+        height: 100%;
+    }
+
+    .carousel-images {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 2vw;
+        overflow: hidden;
+        height: 100%;
+    }
+
+    .carousel-images img {
+        width: 7vw;
+        height: auto;
+        opacity: .7;
+        /* transition: transform 0.2s, opacity 0.2s; */
+        border-radius: 10px;
+    }
+
+    @keyframes jiggle {
+        0% {
+            transform: scale(1.2) translateX(0);
+        }
+
+        20% {
+            transform: scale(1.2) translateX(-8px);
+        }
+
+        40% {
+            transform: scale(1.2) translateX(8px);
+        }
+
+        60% {
+            transform: scale(1.2) translateX(-8px);
+        }
+
+        80% {
+            transform: scale(1.2) translateX(8px);
+        }
+
+        100% {
+            transform: scale(1.2) translateX(0);
+        }
+    }
+
+    .carousel-images img.selected {
+        width: 8vw;
+        opacity: 1;
+        transform: scale(1.2);
+        z-index: 1;
+        animation: jiggle 0.4s;
+        /* margin: 0 25px; */
+    }
+
+    .gfx {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .gfx img {
+        width: 100%;
+        height: 100%;
+        object-fit: fill;
+        transition: opacity 0.3s ease-in-out;
+        /* or "fill" if you want to ignore aspect ratio completely */
+    }
+
+    .favortie.overlay-image {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 100px;
+        /* size of overlay image */
+        height: auto;
+    }
+
+    .missing-label {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        color: white;
+        font-size: 2vw;
+        font-weight: bold;
+        text-align: center;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 10px 20px;
+        border-radius: 8px 8px 0 0;
+        display: none;
+        z-index: 10;
+        max-width: 80%;
+        word-wrap: break-word;
+    }

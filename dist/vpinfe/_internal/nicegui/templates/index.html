@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{{ title }}</title>
+    <meta name="viewport" content="{{ viewport }}" />
+    <link href="{{ favicon_url }}" rel="shortcut icon" />
+    <link href="{{ prefix | safe }}/_nicegui/{{version}}/static/nicegui.css" rel="stylesheet" type="text/css" />
+    <link href="{{ prefix | safe }}/_nicegui/{{version}}/static/fonts.css" rel="stylesheet" type="text/css" />
+    {% if prod_js %}
+    <link href="{{ prefix | safe }}/_nicegui/{{version}}/static/quasar.prod.css" rel="stylesheet" type="text/css" />
+    {% else %}
+    <link href="{{ prefix | safe }}/_nicegui/{{version}}/static/quasar.css" rel="stylesheet" type="text/css" />
+    {% endif %}
+    <!-- prevent Prettier from removing this line -->
+    {{ head_html | safe }}
+    <script type="importmap">
+      {"imports": {{ imports | safe }}}
+    </script>
+    {% for url in js_imports_urls %}
+    <link rel="modulepreload" href="{{ url }}" />
+    {% endfor %}
+  </head>
+  <body>
+    <script async src="{{ prefix | safe }}/_nicegui/{{version}}/static/es-module-shims.js"></script>
+    <script defer src="{{ prefix | safe }}/_nicegui/{{version}}/static/socket.io.min.js"></script>
+    {% if tailwind %}
+    <script defer src="{{ prefix | safe }}/_nicegui/{{version}}/static/tailwindcss.min.js"></script>
+    {% endif %}
+    <!-- prevent Prettier from removing this line -->
+    {% if prod_js %}
+    <script defer src="{{ prefix | safe }}/_nicegui/{{version}}/static/vue.global.prod.js"></script>
+    <script defer src="{{ prefix | safe }}/_nicegui/{{version}}/static/quasar.umd.prod.js"></script>
+    {% else %}
+    <script defer src="{{ prefix | safe }}/_nicegui/{{version}}/static/vue.global.js"></script>
+    <script defer src="{{ prefix | safe }}/_nicegui/{{version}}/static/quasar.umd.js"></script>
+    {% endif %}
+    <script defer src="{{ prefix | safe }}/_nicegui/{{version}}/static/nicegui.js"></script>
+
+    <script defer src="{{ prefix | safe }}/_nicegui/{{version}}/static/lang/{{ language }}.umd.prod.js"></script>
+    {{ body_html | safe }}
+
+    <div id="app"></div>
+    <div id="popup" aria-hidden="true">
+      <span>{{ translations.connection_lost }}</span>
+      <span>{{ translations.trying_to_reconnect }}</span>
+    </div>
+    <script type="module">
+      const app = createApp(parseElements(String.raw`{{ elements | safe }}`), {
+        version: "{{ version }}",
+        prefix: "{{ prefix | safe }}",
+        query: {{ socket_io_js_query_params | safe }},
+        extraHeaders: {{ socket_io_js_extra_headers | safe }},
+        transports: {{ socket_io_js_transports | safe }},
+      });
+      const dark = {{ dark }};
+      const language = "{{ language }}";
+      const vue_config = {{ vue_config | safe }};
+      {{ vue_config_script | safe }}
+
+      {{ js_imports | safe }}
+      {{ vue_scripts | safe }}
+
+      {% if tailwind %}
+      tailwind.config.darkMode = ["class", "body.body--dark"];
+      {% endif %}
+
+      app.mount("#app");
+    </script>
+  </body>
+</html>

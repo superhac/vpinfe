@@ -79,6 +79,8 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=['pyi_rth_gi_system.py'],
     excludes=[
+        'gi',
+        'gi.repository',
         'tkinter',
         'matplotlib',
         'numpy',

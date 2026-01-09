@@ -1,0 +1,40 @@
+#overlay-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  /* background-color: rgba(0, 0, 0, 0.6); */
+  display: none; /* ✅ hide by default */
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+#menu-frame {
+  width: 20vw;
+  height: 40vh;
+  border: none;
+  box-shadow: none;
+  background: rgb(106, 161, 245); /* Or set this to transparent if your iframe has its own background */
+}
+
+#collection-menu-frame {
+  width: 20vw;
+  height: 40vh;
+  border: none;
+  box-shadow: none;
+  background: rgb(106, 161, 245); /* Or set this to transparent if your iframe has its own background */
+}
+
+#overlay-root {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#overlay-root.active {
+  display: flex;
+  opacity: 1;
+}
+

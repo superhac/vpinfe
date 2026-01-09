@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Gamepad Controlled Menu</title>
+  <style>
+    html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: #111;
+    color: #fff;
+    font-family: sans-serif;
+    font-size: 2.5vh;
+
+    display: flex;               /* enable flex layout */
+    justify-content: center;     /* center horizontally */
+    align-items: flex-start;     /* align to top */
+    padding-top: 2vh;
+  }
+
+  #menu-container {
+    display: inline-block;       /* shrink to contents */
+    transition: transform 0.3s ease;
+    transform-origin: center center;
+  }
+
+    .menu-title {
+      font-size: 3.75vh;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 1vh;
+      padding: 1vh;
+      color: #fff;
+    }
+
+    ul.menu {
+      list-style: none;
+      padding: 1vh;
+      margin: 0;
+    }
+
+    li.menu-item {
+      padding: 0.75vh 1vw;
+      margin-bottom: 0.5vh;
+      background-color: #222;
+      border-radius: 0.5vh;
+      cursor: pointer;
+      position: relative;
+      font-size: 2.34vh;
+    }
+
+    li.menu-item.selected {
+      background-color: #444;
+    }
+
+    #overlay-root {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    #overlay-root.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="menu-container">
+    <div class="menu-title">Settings</div>
+    <ul class="menu" id="menu">
+      <li class="menu-item" id="buildmeta-item">Build Metadata</li>
+      <li class="menu-item" id="quit-item">Quit</li>
+    </ul>
+  </div>
+
+  <!-- Build Metadata Overlay -->
+  <div id="buildmeta-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000;">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; padding: 3vh; border-radius: 1vh; min-width: 40vw;">
+      <div id="buildmeta-options" style="display: block;">
+        <h2 style="margin: 0 0 2vh 0; font-size: 3vh;">Build Metadata Options</h2>
+        <div style="margin-bottom: 2vh;">
+          <label style="display: flex; align-items: center; margin-bottom: 1.5vh; cursor: pointer;">
+            <input type="checkbox" id="update-all-check" style="margin-right: 1vh; width: 2vh; height: 2vh;">
+            <div>
+              <div style="font-size: 2.2vh; font-weight: bold;">Update All Tables</div>
+              <div style="font-size: 1.6vh; color: #999;">Reparse all tables, even if meta.ini already exists</div>
+            </div>
+          </label>
+          <label style="display: flex; align-items: center; cursor: pointer;">
+            <input type="checkbox" id="download-media-check" checked style="margin-right: 1vh; width: 2vh; height: 2vh;">
+            <div>
+              <div style="font-size: 2.2vh; font-weight: bold;">Download Media</div>
+              <div style="font-size: 1.6vh; color: #999;">Automatically download table images from VPSdb</div>
+            </div>
+          </label>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 1vh; margin-top: 3vh;">
+          <button id="buildmeta-cancel" style="padding: 1vh 2vh; background: #444; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh;">Cancel</button>
+          <button id="buildmeta-start" style="padding: 1vh 2vh; background: #2196F3; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh;">Start Build</button>
+        </div>
+      </div>
+      <div id="buildmeta-progress" style="display: none;">
+        <h2 style="margin: 0 0 2vh 0; font-size: 3vh;">Building Metadata</h2>
+        <div style="background: #333; border-radius: 0.5vh; height: 2vh; margin-bottom: 1vh; overflow: hidden;">
+          <div id="progress-bar" style="background: #2196F3; height: 100%; width: 0%; transition: width 0.3s;"></div>
+        </div>
+        <div id="progress-text" style="font-size: 1.8vh; color: #ccc; margin-bottom: 2vh;">Starting...</div>
+        <div id="log-container" style="background: #111; border-radius: 0.5vh; padding: 1vh; max-height: 30vh; overflow-y: auto; font-family: monospace; font-size: 1.4vh; color: #0f0;">
+        </div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 2vh;">
+          <button id="buildmeta-close" style="padding: 1vh 2vh; background: #444; border: none; color: #fff; border-radius: 0.5vh; cursor: pointer; font-size: 2vh; display: none;">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let rotationAngle = 0; // starting angle
+    let selectedIndex = 0;
+    let items = [];
+    let dialogState = null; // 'options' or 'progress' or null
+    let dialogSelectedIndex = 0; // for navigating dialog options
+    let dialogItems = []; // checkboxes and buttons in dialog
+
+    window.parent.vpin.registerInputHandlerMenu(handleInput);
+
+    window.addEventListener("message", (event) => {
+      const message = event.data;
+      if (message.event === "reset state") {
+        selectedIndex = 0;
+        updateMenu();
+      }
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      rotateMenu(rotationAngle); // apply initial rotation
+    });
+
+    function rotateMenu(degrees) {
+      rotationAngle = degrees;
+      document.getElementById('menu-container').style.transform =
+        `rotate(${rotationAngle}deg)`;
+    }
+
+    function handleInput(input) {
+      console.log("got input: " + input);
+
+      // Handle dialog navigation separately
+      if (dialogState === 'options') {
+        handleDialogInput(input);
+        return;
+      } else if (dialogState === 'progress') {
+        // In progress state, only allow closing if done
+        if (input === "joyback" || input === "joyselect") {
+          const closeBtn = document.getElementById('buildmeta-close');
+          if (closeBtn.style.display !== 'none') {
+            hideBuildMetaDialog();
+          }
+        }
+        return;
+      }
+
+      // Normal menu navigation
+      switch (input) {
+        case "joyup":
+          selectedIndex = (selectedIndex - 1 + items.length) % items.length;
+          break;
+        case "joydown":
+          selectedIndex = (selectedIndex + 1) % items.length;
+          break;
+        case "joyselect":
+          const selectedItem = items[selectedIndex];
+          if (selectedItem.id === 'quit-item') {
+            window.parent.vpin.call("close_app");
+          } else if (selectedItem.id === 'buildmeta-item') {
+            showBuildMetaDialog();
+          }
+          break;
+      }
+      updateMenu();
+    }
+
+    function handleDialogInput(input) {
+      switch (input) {
+        case "joyup":
+          dialogSelectedIndex = (dialogSelectedIndex - 1 + dialogItems.length) % dialogItems.length;
+          updateDialogSelection();
+          break;
+        case "joydown":
+          dialogSelectedIndex = (dialogSelectedIndex + 1) % dialogItems.length;
+          updateDialogSelection();
+          break;
+        case "joyselect":
+          const selectedElement = dialogItems[dialogSelectedIndex];
+          if (selectedElement.type === 'checkbox') {
+            selectedElement.checked = !selectedElement.checked;
+          } else if (selectedElement.tagName === 'BUTTON') {
+            selectedElement.click();
+          }
+          break;
+        case "joyback":
+          hideBuildMetaDialog();
+          break;
+      }
+    }
+
+    function updateDialogSelection() {
+      dialogItems.forEach((item, i) => {
+        if (item.tagName === 'BUTTON') {
+          if (i === dialogSelectedIndex) {
+            item.style.outline = '3px solid #2196F3';
+            item.style.outlineOffset = '2px';
+          } else {
+            item.style.outline = 'none';
+          }
+        } else if (item.parentElement && item.parentElement.tagName === 'LABEL') {
+          if (i === dialogSelectedIndex) {
+            item.parentElement.style.outline = '3px solid #2196F3';
+            item.parentElement.style.outlineOffset = '2px';
+          } else {
+            item.parentElement.style.outline = 'none';
+          }
+        }
+      });
+    }
+
+    function showBuildMetaDialog() {
+      document.getElementById('buildmeta-overlay').style.display = 'block';
+      document.getElementById('buildmeta-options').style.display = 'block';
+      document.getElementById('buildmeta-progress').style.display = 'none';
+
+      // Set up dialog state
+      dialogState = 'options';
+      dialogSelectedIndex = 0;
+      dialogItems = [
+        document.getElementById('update-all-check'),
+        document.getElementById('download-media-check'),
+        document.getElementById('buildmeta-cancel'),
+        document.getElementById('buildmeta-start')
+      ];
+      updateDialogSelection();
+    }
+
+    function hideBuildMetaDialog() {
+      document.getElementById('buildmeta-overlay').style.display = 'none';
+      dialogState = null;
+      dialogItems = [];
+      dialogSelectedIndex = 0;
+    }
+
+    function startBuildMeta() {
+      const updateAll = document.getElementById('update-all-check').checked;
+      const downloadMedia = document.getElementById('download-media-check').checked;
+
+      // Switch to progress view
+      document.getElementById('buildmeta-options').style.display = 'none';
+      document.getElementById('buildmeta-progress').style.display = 'block';
+      document.getElementById('log-container').innerHTML = '';
+      document.getElementById('progress-bar').style.width = '0%';
+      document.getElementById('progress-text').textContent = 'Starting...';
+      document.getElementById('buildmeta-close').style.display = 'none';
+
+      // Update dialog state
+      dialogState = 'progress';
+      dialogItems = [];
+      dialogSelectedIndex = 0;
+
+      // Call API to start build
+      window.parent.vpin.call("build_metadata", downloadMedia, updateAll);
+    }
+
+    // Handle buildmeta events from API
+    window.receiveEvent = function(event) {
+      console.log('[mainmenu] Received event:', event.type, event);
+
+      if (event.type === 'buildmeta_progress') {
+        const percent = event.total > 0 ? Math.round((event.current / event.total) * 100) : 0;
+        document.getElementById('progress-bar').style.width = percent + '%';
+        document.getElementById('progress-text').textContent = event.message + ' — ' + percent + '%';
+        console.log('[mainmenu] Updated progress:', percent + '%');
+      } else if (event.type === 'buildmeta_log') {
+        const logContainer = document.getElementById('log-container');
+        const logLine = document.createElement('div');
+        logLine.textContent = event.message;
+        logLine.style.marginBottom = '0.3vh';
+        logContainer.appendChild(logLine);
+        logContainer.scrollTop = logContainer.scrollHeight;
+        console.log('[mainmenu] Added log:', event.message);
+      } else if (event.type === 'buildmeta_complete') {
+        document.getElementById('progress-bar').style.width = '100%';
+        document.getElementById('progress-text').textContent =
+          `Complete! ${event.result.found} tables scanned, ${event.result.not_found} not found in VPSdb`;
+        document.getElementById('buildmeta-close').style.display = 'block';
+        console.log('[mainmenu] Build complete');
+      } else if (event.type === 'buildmeta_error') {
+        document.getElementById('progress-text').textContent = 'Error: ' + event.error;
+        document.getElementById('progress-text').style.color = '#f44336';
+        document.getElementById('buildmeta-close').style.display = 'block';
+        console.log('[mainmenu] Build error:', event.error);
+      }
+    };
+
+    console.log('[mainmenu] receiveEvent handler registered');
+
+    function updateMenu() {
+      items.forEach((item, i) => {
+        item.classList.toggle('selected', i === selectedIndex);
+      });
+    }
+
+    window.onload = async () => {
+      items = Array.from(document.querySelectorAll('.menu-item'));
+      updateMenu();
+
+      // Setup buildmeta dialog button handlers
+      document.getElementById('buildmeta-cancel').addEventListener('click', hideBuildMetaDialog);
+      document.getElementById('buildmeta-start').addEventListener('click', startBuildMeta);
+      document.getElementById('buildmeta-close').addEventListener('click', hideBuildMetaDialog);
+    };
+  </script>
+</body>
+
+</html>

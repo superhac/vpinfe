@@ -2,3 +2,7 @@
 /vvv
 *.ini
 *.json
+
+# PyInstaller build directories
+build/
+dist/
