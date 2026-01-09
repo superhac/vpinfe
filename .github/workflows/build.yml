@@ -55,13 +55,13 @@ jobs:
         run: |
           chmod +x dist/vpinfe/vpinfe
           cd dist
-          tar -czf vpinfe-linux-x86_64.tar.gz vpinfe/
+          tar -cf vpinfe-linux-x86_64.tar vpinfe/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-linux
-          path: dist/vpinfe-linux-x86_64.tar.gz
+          path: dist/vpinfe-linux-x86_64.tar
           retention-days: 30
 
   build-windows:
@@ -145,7 +145,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/vpinfe-linux/vpinfe-linux-x86_64.tar.gz
+            artifacts/vpinfe-linux/vpinfe-linux-x86_64.tar
             artifacts/vpinfe-windows/vpinfe-windows-x86_64.zip
             artifacts/vpinfe-macos/vpinfe-macos-x86_64.tar.gz
           draft: false
