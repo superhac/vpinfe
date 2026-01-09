@@ -79,9 +79,12 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=['pyi_rth_gi_system.py'],
     excludes=[
-        # Don't exclude gi - let it be imported but not bundled
-        # 'gi',
-        # 'gi.repository',
+        'gi',
+        'gi._gi',
+        'gi._constants',
+        'gi._error',
+        'gi._gi_cairo',
+        'gi.repository',
         'tkinter',
         'matplotlib',
         'numpy',
