@@ -77,7 +77,7 @@ a = Analysis(
     ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['pyi_rth_gi_system.py'],
     excludes=[
         'tkinter',
         'matplotlib',
