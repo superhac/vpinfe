@@ -13,9 +13,11 @@ Builds VPinFE for Linux, Windows, and macOS using PyInstaller.
 - Manual workflow dispatch
 
 ### Build Outputs
-- **Linux**: `vpinfe-linux-x86_64.tar.gz`
-- **Windows**: `vpinfe-windows-x86_64.zip`
-- **macOS**: `vpinfe-macos-x86_64.tar.gz` (contains `.app` bundle)
+
+Single-file executables ready to run:
+- **Linux**: `vpinfe` (single executable file)
+- **Windows**: `vpinfe-windows-x86_64.exe` (single executable file)
+- **macOS**: `vpinfe-macos-x86_64` (single executable file)
 
 ### Creating a Release
 
@@ -51,13 +53,17 @@ pip install pyinstaller
 # Build
 pyinstaller vpinfe.spec
 
-# Output will be in dist/vpinfe/
+# Single executable output will be in dist/
+# Linux/macOS: dist/vpinfe
+# Windows: dist/vpinfe.exe
 ```
 
 ### Notes
 
 - Artifacts are retained for 30 days on non-release builds
 - Release builds are permanent and attached to the GitHub release
-- The macOS build creates an `.app` bundle compatible with macOS application standards
-- Windows builds include all necessary DLLs
-- Linux builds may require GTK/WebKit2GTK on the target system
+- All builds create single-file executables for easy distribution
+- Windows builds include all necessary DLLs embedded in the executable
+- Linux builds may require GTK/WebKit2GTK on the target system (not bundled)
+- macOS builds use native WebView framework
+- Single-file executables extract to a temporary directory at runtime

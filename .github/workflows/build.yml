@@ -45,16 +45,11 @@ jobs:
         run: |
           pyinstaller vpinfe.spec
 
-      - name: Create tarball
-        run: |
-          cd dist
-          tar -czf vpinfe-linux-x86_64.tar.gz vpinfe/
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-linux
-          path: dist/vpinfe-linux-x86_64.tar.gz
+          path: dist/vpinfe
           retention-days: 30
 
   build-windows:
@@ -77,16 +72,16 @@ jobs:
         run: |
           pyinstaller vpinfe.spec
 
-      - name: Create zip archive
+      - name: Rename executable
         run: |
           cd dist
-          Compress-Archive -Path vpinfe -DestinationPath vpinfe-windows-x86_64.zip
+          Move-Item vpinfe.exe vpinfe-windows-x86_64.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-windows
-          path: dist/vpinfe-windows-x86_64.zip
+          path: dist/vpinfe-windows-x86_64.exe
           retention-days: 30
 
   build-macos:
@@ -109,16 +104,16 @@ jobs:
         run: |
           pyinstaller vpinfe.spec
 
-      - name: Create DMG (optional) or tar.gz
+      - name: Rename executable
         run: |
           cd dist
-          tar -czf vpinfe-macos-x86_64.tar.gz VPinFE.app/
+          mv vpinfe vpinfe-macos-x86_64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-macos
-          path: dist/vpinfe-macos-x86_64.tar.gz
+          path: dist/vpinfe-macos-x86_64
           retention-days: 30
 
   create-release:
@@ -137,9 +132,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/vpinfe-linux/vpinfe-linux-x86_64.tar.gz
-            artifacts/vpinfe-windows/vpinfe-windows-x86_64.zip
-            artifacts/vpinfe-macos/vpinfe-macos-x86_64.tar.gz
+            artifacts/vpinfe-linux/vpinfe
+            artifacts/vpinfe-windows/vpinfe-windows-x86_64.exe
+            artifacts/vpinfe-macos/vpinfe-macos-x86_64
           draft: false
           prerelease: false
         env:

@@ -56,18 +56,20 @@ pyinstaller vpinfe.spec
 ```
 
 #### Output
-- Directory: `dist/vpinfe/`
-- Run: `./dist/vpinfe/vpinfe`
+- Single executable: `dist/vpinfe`
+- Run: `./dist/vpinfe`
 
 #### Distribution
+The executable is ready to distribute as-is. No archiving needed. Users just download and run:
 ```bash
-cd dist
-tar -czf vpinfe-linux-x86_64.tar.gz vpinfe/
+chmod +x vpinfe
+./vpinfe --help
 ```
 
 #### Notes
-- End users will need GTK3 and WebKit2GTK installed
+- End users will need GTK3 and WebKit2GTK installed on their system
 - The binary is dynamically linked to system GTK libraries
+- Data files (web assets) are embedded in the executable
 - Tested on Ubuntu 22.04+ and Debian 13
 
 ### Windows
@@ -80,15 +82,16 @@ pyinstaller vpinfe.spec
 ```
 
 #### Output
-- Directory: `dist\vpinfe\`
-- Run: `dist\vpinfe\vpinfe.exe`
+- Single executable: `dist\vpinfe.exe`
+- Run: `dist\vpinfe.exe`
 
 #### Distribution
-Package the entire `dist\vpinfe\` directory as a ZIP file.
+The executable is ready to distribute as-is. Users just download and run `vpinfe.exe`.
 
 #### Notes
 - Uses Edge WebView2 (built into Windows 10/11)
-- All dependencies are bundled
+- All dependencies are bundled in the single executable
+- Data files (web assets) are embedded in the executable
 - No additional runtime requirements on modern Windows
 
 ### macOS
@@ -101,32 +104,22 @@ pyinstaller vpinfe.spec
 ```
 
 #### Output
-- Application Bundle: `dist/VPinFE.app`
-- Run: Double-click `VPinFE.app` or run `open dist/VPinFE.app`
+- Single executable: `dist/vpinfe`
+- Run: `./dist/vpinfe` or `./vpinfe --help`
 
 #### Distribution
+The executable is ready to distribute as-is. Users just download and run:
 ```bash
-cd dist
-tar -czf vpinfe-macos-x86_64.tar.gz VPinFE.app/
-```
-
-Or create a DMG (requires additional tools):
-```bash
-# Using create-dmg (install via: brew install create-dmg)
-create-dmg \
-  --volname "VPinFE" \
-  --window-pos 200 120 \
-  --window-size 800 400 \
-  --icon-size 100 \
-  --app-drop-link 600 185 \
-  vpinfe-installer.dmg \
-  dist/VPinFE.app
+chmod +x vpinfe
+./vpinfe --help
 ```
 
 #### Notes
 - Uses native macOS WebView (WKWebView)
+- All dependencies and data files are bundled in the single executable
 - Requires macOS 10.15 (Catalina) or later
 - Universal binary (Intel + Apple Silicon) requires additional configuration
+- Single-file executables on macOS extract to a temporary directory on first run
 
 ## Automated Builds (GitHub Actions)
 
@@ -294,9 +287,9 @@ After building, test the executable:
 
 ## Size Expectations
 
-Typical build sizes:
-- **Linux**: ~80-120 MB (compressed: ~40-50 MB)
-- **Windows**: ~60-80 MB (compressed: ~30-40 MB)
-- **macOS**: ~100-150 MB (compressed: ~50-70 MB)
+Typical single-file executable sizes:
+- **Linux**: ~80-120 MB
+- **Windows**: ~60-80 MB
+- **macOS**: ~100-150 MB
 
-These sizes can vary based on Python version and included dependencies.
+These sizes can vary based on Python version and included dependencies. Single-file executables are larger than folder-based distributions because all dependencies and data files are embedded, but they're much more convenient for end users.
