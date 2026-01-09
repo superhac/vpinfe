@@ -19,8 +19,16 @@ import sys
 from common.vpxcollections import VPXCollections
 from common.tableparser import TableParser
 
-nicegui_app.add_static_files('/static', os.path.join(os.getcwd(), 'managerui/static'))
-html_file = Path(__file__).parent / "web/splash.html"
+# Get the base path - works for both dev and PyInstaller
+if getattr(sys, 'frozen', False):
+    # Running in PyInstaller bundle
+    base_path = sys._MEIPASS
+else:
+    # Running in normal Python environment
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
+nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
+html_file = Path(base_path) / "web/splash.html"
 webview_windows = [] # [ [window_name, window, api] ]
 
 # Use platform-specific config directory
@@ -109,7 +117,7 @@ loadWindows()
 # Start an the HTTP server to serve the images from the "tables" directory
 MOUNT_POINTS = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
-        '/web/': os.path.join(os.getcwd(), 'web'),
+        '/web/': os.path.join(base_path, 'web'),
         }
 http_server = CustomHTTPServer(MOUNT_POINTS)
 http_server.start_file_server()
