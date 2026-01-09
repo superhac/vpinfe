@@ -34,6 +34,14 @@ a = Analysis(
         'starlette',
         'httpx',
         'httpcore',
+        # GTK/GObject bindings
+        'gi',
+        'gi.repository',
+        'gi.repository.Gtk',
+        'gi.repository.Gdk',
+        'gi.repository.GLib',
+        'gi.repository.GObject',
+        'gi.repository.WebKit2',
         # NiceGUI dependencies
         'uvicorn.logging',
         'uvicorn.loops',
