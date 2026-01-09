@@ -56,20 +56,28 @@ pyinstaller vpinfe.spec
 ```
 
 #### Output
-- Single executable: `dist/vpinfe`
-- Run: `./dist/vpinfe`
+- Directory: `dist/vpinfe/`
+- Executable: `dist/vpinfe/vpinfe`
+- Run: `./dist/vpinfe/vpinfe`
 
 #### Distribution
-The executable is ready to distribute as-is. No archiving needed. Users just download and run:
+Create a tarball for distribution:
 ```bash
-chmod +x vpinfe
+cd dist
+tar -czf vpinfe-linux-x86_64.tar.gz vpinfe/
+```
+
+Users extract and run:
+```bash
+tar -xzf vpinfe-linux-x86_64.tar.gz
+cd vpinfe
 ./vpinfe --help
 ```
 
 #### Notes
-- End users will need GTK3 and WebKit2GTK installed on their system
-- The binary is dynamically linked to system GTK libraries
-- Data files (web assets) are embedded in the executable
+- End users will need GTK3 and WebKit2GTK installed on their system (`python3-gi gir1.2-webkit2-4.1`)
+- The binary uses system GTK libraries (not bundled)
+- Data files (web assets) are included in the `_internal` directory
 - Tested on Ubuntu 22.04+ and Debian 13
 - **X11 Required**: For GUI operation, you need X11 display exports:
   ```bash
@@ -88,16 +96,23 @@ pyinstaller vpinfe.spec
 ```
 
 #### Output
-- Single executable: `dist\vpinfe.exe`
-- Run: `dist\vpinfe.exe`
+- Directory: `dist\vpinfe\`
+- Executable: `dist\vpinfe\vpinfe.exe`
+- Run: `dist\vpinfe\vpinfe.exe`
 
 #### Distribution
-The executable is ready to distribute as-is. Users just download and run `vpinfe.exe`.
+Create a ZIP archive for distribution:
+```bash
+cd dist
+Compress-Archive -Path vpinfe -DestinationPath vpinfe-windows-x86_64.zip
+```
+
+Users extract and run `vpinfe\vpinfe.exe`.
 
 #### Notes
 - Uses Edge WebView2 (built into Windows 10/11)
-- All dependencies are bundled in the single executable
-- Data files (web assets) are embedded in the executable
+- All dependencies are bundled in the `_internal` directory
+- Data files (web assets) are included in the distribution
 - No additional runtime requirements on modern Windows
 
 ### macOS
@@ -110,22 +125,29 @@ pyinstaller vpinfe.spec
 ```
 
 #### Output
-- Single executable: `dist/vpinfe`
-- Run: `./dist/vpinfe` or `./vpinfe --help`
+- Directory: `dist/vpinfe/`
+- Executable: `dist/vpinfe/vpinfe`
+- Run: `./dist/vpinfe/vpinfe`
 
 #### Distribution
-The executable is ready to distribute as-is. Users just download and run:
+Create a tarball for distribution:
 ```bash
-chmod +x vpinfe
+cd dist
+tar -czf vpinfe-macos-x86_64.tar.gz vpinfe/
+```
+
+Users extract and run:
+```bash
+tar -xzf vpinfe-macos-x86_64.tar.gz
+cd vpinfe
 ./vpinfe --help
 ```
 
 #### Notes
 - Uses native macOS WebView (WKWebView)
-- All dependencies and data files are bundled in the single executable
+- All dependencies and data files are bundled in the `_internal` directory
 - Requires macOS 10.15 (Catalina) or later
 - Universal binary (Intel + Apple Silicon) requires additional configuration
-- Single-file executables on macOS extract to a temporary directory on first run
 
 ## Automated Builds (GitHub Actions)
 
@@ -293,9 +315,14 @@ After building, test the executable:
 
 ## Size Expectations
 
-Typical single-file executable sizes:
+Typical distribution sizes (compressed):
+- **Linux**: ~40-50 MB (tar.gz)
+- **Windows**: ~30-40 MB (zip)
+- **macOS**: ~50-70 MB (tar.gz)
+
+Uncompressed folder sizes:
 - **Linux**: ~80-120 MB
 - **Windows**: ~60-80 MB
 - **macOS**: ~100-150 MB
 
-These sizes can vary based on Python version and included dependencies. Single-file executables are larger than folder-based distributions because all dependencies and data files are embedded, but they're much more convenient for end users.
+These sizes can vary based on Python version and included dependencies.

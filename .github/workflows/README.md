@@ -14,10 +14,12 @@ Builds VPinFE for Linux, Windows, and macOS using PyInstaller.
 
 ### Build Outputs
 
-Single-file executables ready to run:
-- **Linux**: `vpinfe` (single executable file)
-- **Windows**: `vpinfe-windows-x86_64.exe` (single executable file)
-- **macOS**: `vpinfe-macos-x86_64` (single executable file)
+Distribution archives:
+- **Linux**: `vpinfe-linux-x86_64.tar.gz`
+- **Windows**: `vpinfe-windows-x86_64.zip`
+- **macOS**: `vpinfe-macos-x86_64.tar.gz`
+
+Each archive contains a `vpinfe/` folder with the executable and required libraries.
 
 ### Creating a Release
 
@@ -53,17 +55,17 @@ pip install pyinstaller
 # Build
 pyinstaller vpinfe.spec
 
-# Single executable output will be in dist/
-# Linux/macOS: dist/vpinfe
-# Windows: dist/vpinfe.exe
+# Output will be in dist/vpinfe/ folder
+# Run: ./dist/vpinfe/vpinfe (Linux/macOS)
+# Run: dist\vpinfe\vpinfe.exe (Windows)
 ```
 
 ### Notes
 
 - Artifacts are retained for 30 days on non-release builds
 - Release builds are permanent and attached to the GitHub release
-- All builds create single-file executables for easy distribution
-- Windows builds include all necessary DLLs embedded in the executable
-- Linux builds may require GTK/WebKit2GTK on the target system (not bundled)
+- All builds create folder-based distributions with executable + libraries
+- Windows builds include all necessary DLLs in the `_internal` directory
+- Linux builds require GTK/WebKit2GTK on the target system (system libraries, not bundled)
 - macOS builds use native WebView framework
-- Single-file executables extract to a temporary directory at runtime
+- Archives are compressed for easier distribution

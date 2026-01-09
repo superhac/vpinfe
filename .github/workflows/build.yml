@@ -45,15 +45,17 @@ jobs:
         run: |
           pyinstaller vpinfe.spec
 
-      - name: Set executable permissions
+      - name: Set executable permissions and create tarball
         run: |
-          chmod +x dist/vpinfe
+          chmod +x dist/vpinfe/vpinfe
+          cd dist
+          tar -czf vpinfe-linux-x86_64.tar.gz vpinfe/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-linux
-          path: dist/vpinfe
+          path: dist/vpinfe-linux-x86_64.tar.gz
           retention-days: 30
 
   build-windows:
@@ -76,16 +78,16 @@ jobs:
         run: |
           pyinstaller vpinfe.spec
 
-      - name: Rename executable
+      - name: Create zip archive
         run: |
           cd dist
-          Move-Item vpinfe.exe vpinfe-windows-x86_64.exe
+          Compress-Archive -Path vpinfe -DestinationPath vpinfe-windows-x86_64.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-windows
-          path: dist/vpinfe-windows-x86_64.exe
+          path: dist/vpinfe-windows-x86_64.zip
           retention-days: 30
 
   build-macos:
@@ -108,17 +110,17 @@ jobs:
         run: |
           pyinstaller vpinfe.spec
 
-      - name: Rename executable and set permissions
+      - name: Set permissions and create tarball
         run: |
+          chmod +x dist/vpinfe/vpinfe
           cd dist
-          mv vpinfe vpinfe-macos-x86_64
-          chmod +x vpinfe-macos-x86_64
+          tar -czf vpinfe-macos-x86_64.tar.gz vpinfe/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-macos
-          path: dist/vpinfe-macos-x86_64
+          path: dist/vpinfe-macos-x86_64.tar.gz
           retention-days: 30
 
   create-release:
@@ -137,9 +139,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/vpinfe-linux/vpinfe
-            artifacts/vpinfe-windows/vpinfe-windows-x86_64.exe
-            artifacts/vpinfe-macos/vpinfe-macos-x86_64
+            artifacts/vpinfe-linux/vpinfe-linux-x86_64.tar.gz
+            artifacts/vpinfe-windows/vpinfe-windows-x86_64.zip
+            artifacts/vpinfe-macos/vpinfe-macos-x86_64.tar.gz
           draft: false
           prerelease: false
         env:
