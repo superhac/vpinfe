@@ -1,0 +1,146 @@
+name: Build VPinFE
+
+on:
+  push:
+    branches: [ master, main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-gi \
+            python3-gi-cairo \
+            gir1.2-gtk-3.0 \
+            gir1.2-webkit2-4.1 \
+            libgirepository1.0-dev \
+            gcc \
+            libcairo2-dev \
+            pkg-config \
+            python3-dev \
+            gir1.2-gtk-3.0
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r osx_requirements.txt
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller vpinfe.spec
+
+      - name: Create tarball
+        run: |
+          cd dist
+          tar -czf vpinfe-linux-x86_64.tar.gz vpinfe/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpinfe-linux
+          path: dist/vpinfe-linux-x86_64.tar.gz
+          retention-days: 30
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install pywebview nicegui screeninfo olefile pynput platformdirs colorama requests
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller vpinfe.spec
+
+      - name: Create zip archive
+        run: |
+          cd dist
+          Compress-Archive -Path vpinfe -DestinationPath vpinfe-windows-x86_64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpinfe-windows
+          path: dist/vpinfe-windows-x86_64.zip
+          retention-days: 30
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r osx_requirements.txt
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller vpinfe.spec
+
+      - name: Create DMG (optional) or tar.gz
+        run: |
+          cd dist
+          tar -czf vpinfe-macos-x86_64.tar.gz VPinFE.app/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpinfe-macos
+          path: dist/vpinfe-macos-x86_64.tar.gz
+          retention-days: 30
+
+  create-release:
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/vpinfe-linux/vpinfe-linux-x86_64.tar.gz
+            artifacts/vpinfe-windows/vpinfe-windows-x86_64.zip
+            artifacts/vpinfe-macos/vpinfe-macos-x86_64.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
