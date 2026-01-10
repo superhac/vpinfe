@@ -19,13 +19,8 @@ import sys
 from common.vpxcollections import VPXCollections
 from common.tableparser import TableParser
 
-# Get the base path - works for both dev and PyInstaller
-if getattr(sys, 'frozen', False):
-    # Running in PyInstaller bundle
-    base_path = sys._MEIPASS
-else:
-    # Running in normal Python environment
-    base_path = os.path.dirname(os.path.abspath(__file__))
+# Get the base path
+base_path = os.path.dirname(os.path.abspath(__file__))
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
 html_file = Path(base_path) / "web/splash.html"
