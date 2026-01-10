@@ -16,7 +16,7 @@
   height: 40vh;
   border: none;
   box-shadow: none;
-  background: rgb(106, 161, 245); /* Or set this to transparent if your iframe has its own background */
+  background: transparent;
 }
 
 #collection-menu-frame {
@@ -24,7 +24,7 @@
   height: 40vh;
   border: none;
   box-shadow: none;
-  background: rgb(106, 161, 245); /* Or set this to transparent if your iframe has its own background */
+  background: transparent;
 }
 
 #overlay-root {

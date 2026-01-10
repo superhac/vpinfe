@@ -336,6 +336,7 @@
     border: none;
     border-radius: 1rem;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+    background: transparent;
     transform: rotate(var(--rotation));
     transform-origin: center center;
   }
@@ -358,6 +359,7 @@
     border: none;
     border-radius: 1rem;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+    background: transparent;
   }
 
   #collection-menu-frame {
@@ -366,6 +368,7 @@
     border: none;
     border-radius: 1rem;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+    background: transparent;
     transform: rotate(var(--rotation));
     transform-origin: center center;
   }

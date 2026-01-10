@@ -10,50 +10,125 @@
     margin: 0;
     padding: 0;
     height: 100%;
-    background-color: #111;
+    background: rgba(0, 0, 0, 0);
     color: #fff;
-    font-family: sans-serif;
+    font-family: 'Arial Black', 'Arial Bold', sans-serif;
     font-size: 2.5vh;
-
-    display: flex;               /* enable flex layout */
-    justify-content: center;     /* center horizontally */
-    align-items: flex-start;     /* align to top */
-    padding-top: 2vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
   #menu-container {
-    display: inline-block;       /* shrink to contents */
+    display: inline-block;
     transition: transform 0.3s ease;
     transform-origin: center center;
+    background: linear-gradient(180deg, #3a4050 0%, #2a2e3a 50%, #1a1e2a 100%);
+    border-radius: 2vh;
+    padding: 3vh 2vh;
+    box-shadow:
+      0 1vh 2vh rgba(0,0,0,0.8),
+      inset 0 0.2vh 0.5vh rgba(255,255,255,0.1),
+      inset 0 -0.2vh 0.5vh rgba(0,0,0,0.5);
+    border: 0.3vh solid #1a1e2a;
+    position: relative;
+  }
+
+  #menu-container::before {
+    content: '';
+    position: absolute;
+    top: -1vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 2vh;
+    background: linear-gradient(180deg, #4a5060 0%, #3a4050 100%);
+    border-radius: 1vh 1vh 0 0;
+    box-shadow:
+      0 0.2vh 0.5vh rgba(0,0,0,0.5),
+      inset 0 0.1vh 0.3vh rgba(255,255,255,0.2);
   }
 
     .menu-title {
-      font-size: 3.75vh;
+      font-size: 3.5vh;
       font-weight: bold;
       text-align: center;
-      margin-bottom: 1vh;
-      padding: 1vh;
-      color: #fff;
+      margin-bottom: 2.5vh;
+      padding: 1.5vh 2vh;
+      color: #9a9eb0;
+      text-transform: uppercase;
+      letter-spacing: 0.4vh;
+      background: transparent;
+      text-shadow:
+        0 0.15vh 0.2vh rgba(255,255,255,0.3),
+        0 -0.1vh 0.2vh rgba(0,0,0,0.8);
     }
 
     ul.menu {
       list-style: none;
-      padding: 1vh;
+      padding: 0;
       margin: 0;
     }
 
     li.menu-item {
-      padding: 0.75vh 1vw;
-      margin-bottom: 0.5vh;
-      background-color: #222;
-      border-radius: 0.5vh;
+      padding: 2vh 3vh;
+      margin-bottom: 1.5vh;
+      background: linear-gradient(180deg, #6a7a90 0%, #5a6a80 30%, #4a5a70 70%, #3a4a60 100%);
+      border-radius: 1vh;
       cursor: pointer;
       position: relative;
-      font-size: 2.34vh;
+      font-size: 2.8vh;
+      font-weight: bold;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.2vh;
+      color: #e8ecf4;
+      text-shadow: 0 0.2vh 0.4vh rgba(0,0,0,0.8);
+      box-shadow:
+        0 0.6vh 1.2vh rgba(0,0,0,0.7),
+        inset 0 0.3vh 0.5vh rgba(255,255,255,0.25),
+        inset 0 -0.3vh 0.5vh rgba(0,0,0,0.4);
+      border: 0.2vh solid #2a3a4a;
+      border-bottom: 0.4vh solid #1a2a3a;
+      transition: all 0.15s ease;
+    }
+
+    li.menu-item::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 1vh;
+      transform: translateY(-50%);
+      width: 1vh;
+      height: 1vh;
+      background: radial-gradient(circle, #8af 0%, #569 100%);
+      border-radius: 50%;
+      box-shadow: 0 0 0.5vh rgba(136,170,255,0.6);
+      opacity: 0;
+      transition: opacity 0.15s ease;
     }
 
     li.menu-item.selected {
-      background-color: #444;
+      background: linear-gradient(180deg, #7a9ac0 0%, #6a8ab0 30%, #5a7aa0 70%, #4a6a90 100%);
+      box-shadow:
+        0 0.8vh 1.6vh rgba(0,0,0,0.9),
+        inset 0 0.4vh 0.8vh rgba(255,255,255,0.3),
+        inset 0 -0.4vh 0.8vh rgba(0,0,0,0.5),
+        0 0 2vh rgba(136,170,255,0.4);
+      transform: translateY(-0.2vh);
+      border-color: #4a6a8a;
+    }
+
+    li.menu-item.selected::before {
+      opacity: 1;
+    }
+
+    li.menu-item:active {
+      transform: translateY(0.3vh);
+      box-shadow:
+        0 0.3vh 0.6vh rgba(0,0,0,0.8),
+        inset 0 0.2vh 0.4vh rgba(255,255,255,0.2),
+        inset 0 -0.2vh 0.4vh rgba(0,0,0,0.5);
     }
 
     #overlay-root {
@@ -180,6 +255,10 @@
           } else if (selectedItem.id === 'buildmeta-item') {
             showBuildMetaDialog();
           }
+          break;
+        case "joyback":
+          // Close the menu by calling the parent's menu toggle
+          window.parent.vpin.toggleMenu();
           break;
       }
       updateMenu();

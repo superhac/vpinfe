@@ -132,6 +132,11 @@ class VPinFECore {
     this.#showcollectionmenu();
   }
 
+  // Toggle main menu (public method callable from main menu)
+  toggleMenu() {
+    this.#showmenu();
+  }
+
   // launch a table
   async launchTable(index) {
     this.gamepadEnabled = false;
@@ -351,6 +356,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
         iframe = document.createElement("iframe");
         iframe.src = "../../mainmenu/mainmenu.html";
         iframe.id = "menu-frame";
+        iframe.setAttribute("allowTransparency", "true");
         iframe.style.display = "none"; // start hidden to prevent flash
         overlayRoot.appendChild(iframe);
         await new Promise(resolve => setTimeout(resolve, 10)); // tiny delay to allow DOM update
@@ -386,6 +392,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
         iframe = document.createElement("iframe");
         iframe.src = "../../collectionmenu/collectionmenu.html";
         iframe.id = "collection-menu-frame";
+        iframe.setAttribute("allowTransparency", "true");
         iframe.style.display = "none"; // start hidden to prevent flash
         overlayRoot.appendChild(iframe);
         await new Promise(resolve => setTimeout(resolve, 10)); // tiny delay to allow DOM update
