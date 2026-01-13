@@ -8,9 +8,11 @@ class TableParser:
     RED_CONSOLE_TEXT = '\033[31m'
     RESET_CONSOLE_TEXT = '\033[0m'
 
+    # Shared class variable - single instance across all TableParser instances
+    tables: list[Table] = []
+
     def __init__(self, tablesRootFilePath):
         self.tablesRootFilePath = Path(tablesRootFilePath)
-        self.tables: list[Table] = []
         self.loadTables()
 
     def loadTables(self, reload=False):  # reload if you want to rescan the tables
