@@ -9,7 +9,6 @@ from typing import List, Dict, Optional, Callable
 from common.vpxparser import VPXParser
 from clioptions import buildMetaData, vpxPatches
 from queue import Queue
-from common.vpxcollections import VPXCollections
 from platformdirs import user_config_dir
 
 # Resolve project root and important paths explicitly
@@ -17,7 +16,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 VPSDB_JSON_PATH = PROJECT_ROOT / 'vpsdb.json'
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
-COLLECTIONS_INI_PATH = CONFIG_DIR / 'collections.ini'
 
 # Load vpinfe.ini once to avoid repeated parsing
 from common.iniconfig import IniConfig
@@ -27,6 +25,9 @@ _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 _vpsdb_cache: Optional[List[Dict]] = None
 # Ensure only one Missing Tables dialog at a time
 _missing_tables_dialog: Optional[ui.dialog] = None
+# Cache for scanned tables data (persists across page visits)
+_tables_cache: Optional[List[Dict]] = None
+_missing_cache: Optional[List[Dict]] = None
 
 
 def load_vpsdb() -> List[Dict]:
@@ -196,8 +197,8 @@ def scan_tables(silent: bool = False):
 def scan_missing_tables():
     """
     A 'missing table' here = any directory under ~/tables that does NOT contain meta.ini.
-    Optionally, we can filter to only those containing at least one .vpx file. I’ll do that,
-    since it’s usually what you want.
+    Optionally, we can filter to only those containing at least one .vpx file. I'll do that,
+    since it's usually what you want.
     """
     base = Path(get_tables_path())
     missing = []
@@ -221,20 +222,10 @@ def scan_missing_tables():
 def load_metadata_from_ini():
     return scan_tables()
 
-def create_tab():
-    """Tab Tables (ui.tab)."""
-    return ui.tab('Tables',icon='list').props('icon-color=primary')
-
-def render_panel(tab):
-    with ui.tab_panel(tab):
+def render_panel(tab=None):
+    with ui.column().classes('w-full'):
         # Hide Quasar's built-in numeric overlay inside linear progress bars (prevents 0..1 decimals)
         ui.add_head_html('<style>.q-linear-progress__info{display:none!important}</style>')
-        # Preload collections list for quick pull-down per row
-        try:
-            _collections_mgr = VPXCollections(str(COLLECTIONS_INI_PATH))
-            _all_collections = list(_collections_mgr.get_collections_name())
-        except Exception:
-            _all_collections = []
         # Define columns for the table
         columns = [
             {'name': 'filename', 'label': 'Filename', 'field': 'filename', 'sortable': True},
@@ -244,15 +235,7 @@ def render_panel(tab):
             {'name': 'year', 'label': 'Year', 'field': 'year', 'sortable': True},
             {'name': 'rom', 'label': 'ROM', 'field': 'rom', 'sortable': True},
             {'name': 'version', 'label': 'Version', 'field': 'version', 'sortable': True},
-            #{'name': 'detectnfozzy', 'label': 'NFOZZY', 'field': 'detectnfozzy', 'sortable': True},
-            #{'name': 'detectfleep','label': 'Fleep','field': 'detectfleep', 'sortable': True},
-            #{'name': 'detectssf','label': 'SSF','field': 'detectssf', 'sortable': True},
-            #{'name': 'detectlut','label': 'LUT','field': 'detectlut', 'sortable': True},
-            #{'name': 'detectscorebit','label': 'Scorebit','field': 'detectscorebit', 'sortable': True},
-            #{'name': 'detectfastflips','label': 'FastFlips','field': 'detectfastflips', 'sortable': True},
-            #{'name': 'detectflex','label': 'FlexDMD','field': 'detectflex', 'sortable': True},
             {'name': 'patch_applied', 'label': 'Standalone Patch', 'field': 'patch_applied', 'sortable': True, 'align': 'center'},
-            {'name': 'collections', 'label': 'Collections', 'field': 'id', 'sortable': False, 'align': 'center'}
         ]
 
         def on_row_click(e: events.GenericEventArguments):
@@ -266,6 +249,7 @@ def render_panel(tab):
             """Scans for tables asynchronously and updates the UI.
             If silent=True, suppress user notifications.
             """
+            global _tables_cache, _missing_cache
             print("Scanning tables...")
             # Keep UX simple: disable the Scan button during work, no pre-notify
             try:
@@ -277,36 +261,26 @@ def render_panel(tab):
                 table_rows = await run.io_bound(scan_tables, silent)
                 missing_rows = await run.io_bound(scan_missing_tables)
 
-                # Attach collections membership to each row (list of collection names)
-                try:
-                    c = VPXCollections(str(COLLECTIONS_INI_PATH))
-                    vmap: dict[str, list[str]] = {}
-                    for name in c.get_collections_name():
-                        try:
-                            for vid in c.get_vpsids(name):
-                                vmap.setdefault(vid.strip(), []).append(name)
-                        except Exception:
-                            continue
-                    for r in table_rows:
-                        vid = (r.get('id') or '').strip()
-                        r['collections'] = vmap.get(vid, [])
-                except Exception:
-                    for r in table_rows:
-                        r['collections'] = []
-
                 # Update UI components (default sort by Name; force refresh by reassigning rows)
                 try:
                     table_rows.sort(key=lambda r: (r.get('name') or '').lower())
                 except Exception:
                     pass
-                table.rows = []
+
+                # Cache the results
+                _tables_cache = table_rows
+                _missing_cache = missing_rows
+
+                table._props['rows'] = table_rows
                 table.update()
-                await asyncio.sleep(0)  # yield to UI loop
-                table.rows = table_rows
-                table.update()
+                
+                # Force browser layout recalculation to ensure table rows display properly
+                await asyncio.sleep(0.01)
+                table.run_method('resetScroll')
+                
                 title_label.set_content(f"## Installed Tables ({len(table_rows)})")
                 missing_button.text = f"Unmatched Tables ({len(missing_rows)})"
-                
+
                 # Update the click handler for the missing tables button with the new data
                 missing_button.on('click', None) # Remove old handler
                 missing_button.on('click', lambda: open_missing_tables_dialog(
@@ -472,88 +446,7 @@ def render_panel(tab):
             with ui.row().classes("items-center gap-2"):
                 build_btn = ui.button("Build Metadata", on_click=open_build_metadata_dialog).props("icon=build color=primary")
                 patch_btn = ui.button("Apply VPX Patches").props("icon=construction color=secondary")
-                collections_btn = ui.button("Collections").props("icon=collections_bookmark color=secondary outline")
 
-                def open_manage_collections():
-                    c = VPXCollections(str(COLLECTIONS_INI_PATH))
-
-                    def refresh_list():
-                        names = list(c.get_collections_name())
-                        list_container.clear()
-                        if not names:
-                            with list_container:
-                                ui.label('No collections yet. Create one below.').classes('text-sm text-grey')
-                            return
-                        for name in sorted(names):
-                            with list_container, ui.row().classes('justify-between items-center w-full q-py-xs'):
-                                ui.label(name).classes('font-medium')
-                                with ui.row().classes('gap-2'):
-                                    def do_rename(n=name):
-                                        d2 = ui.dialog().props('max-width=480px')
-                                        with d2, ui.card().classes('w-[420px]'):
-                                            ui.label(f'Rename "{n}"').classes('text-lg font-bold')
-                                            new_input = ui.input('New name').props('dense clearable').classes('w-full')
-                                            with ui.row().classes('justify-end gap-2 q-mt-sm'):
-                                                ui.button('Cancel', on_click=d2.close)
-                                                def confirm_rename():
-                                                    newn = (new_input.value or '').strip()
-                                                    if not newn:
-                                                        ui.notify('Type a new name', type='warning'); return
-                                                    if newn in c.get_collections_name():
-                                                        ui.notify('Collection already exists', type='warning'); return
-                                                    try:
-                                                        ids = c.get_vpsids(n)
-                                                        c.add_collection(newn, ids)
-                                                        c.delete_collection(n)
-                                                        c.save()
-                                                        ui.notify('Renamed', type='positive')
-                                                        d2.close()
-                                                        refresh_list()
-                                                    except Exception as ex:
-                                                        ui.notify(f'Failed: {ex}', type='negative')
-                                                ui.button('Rename', on_click=confirm_rename).props('color=primary')
-                                        d2.open()
-                                    ui.button('Rename', on_click=do_rename).props('outline')
-
-                                    def do_delete(n=name):
-                                        try:
-                                            c.delete_collection(n)
-                                            c.save()
-                                            ui.notify('Deleted', type='positive')
-                                            refresh_list()
-                                        except Exception as ex:
-                                            ui.notify(f'Failed: {ex}', type='negative')
-                                    ui.button('Delete', on_click=do_delete).props('color=negative outline')
-
-                    d = ui.dialog().props('max-width=760px')
-                    with d, ui.card().classes('w-[700px]'):
-                        ui.label('Collections').classes('text-lg font-bold')
-                        ui.separator()
-                        list_container = ui.column().classes('w-full')
-                        refresh_list()
-                        ui.separator().classes('q-my-sm')
-                        with ui.row().classes('items-center gap-2'):
-                            new_name = ui.input('Create new collection').props('dense clearable').classes('flex-1')
-                            def create():
-                                name = (new_name.value or '').strip()
-                                if not name:
-                                    ui.notify('Type a name', type='warning'); return
-                                if name in c.get_collections_name():
-                                    ui.notify('Collection already exists', type='warning'); return
-                                try:
-                                    c.add_collection(name)
-                                    c.save()
-                                    ui.notify('Created', type='positive')
-                                    new_name.value = ''
-                                    refresh_list()
-                                except Exception as ex:
-                                    ui.notify(f'Failed: {ex}', type='negative')
-                            ui.button('Create', on_click=create).props('color=primary')
-                        with ui.row().classes('justify-end q-mt-sm'):
-                            ui.button('Close', on_click=d.close)
-                    d.open()
-
-                collections_btn.on('click', open_manage_collections)
                 async def call_apply_patches():
                     nonlocal RUNNING
                     if RUNNING:
@@ -587,74 +480,35 @@ def render_panel(tab):
         status_label
         log_container
         ui.label("Click on the table to see more details and manage")
-        table = (
-            ui.table(columns=columns, rows=[], row_key='filename', pagination={'rowsPerPage': 25})
-              .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
-              .on('row-click', on_row_click)
-              .classes("w-full cursor-pointer")
-        )
-        # (removed previous dialog-based quick collections handler)
-        # Quick collections menu per row
-        if _all_collections:
-            def _escape_html(s: str) -> str:
-                return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;').replace("'", "&#39;")
-            items_html = ''.join(
-                f"<q-item clickable v-close-popup @click.stop=\"$emit('toggle-collection', {{row: props.row, name: '{_escape_html(n)}'}})\"><q-item-section>{_escape_html(n)}</q-item-section></q-item>"
-                for n in _all_collections
+        # Use cached data if available, otherwise start with empty
+        initial_rows = _tables_cache if _tables_cache is not None else []
+        initial_missing = _missing_cache if _missing_cache is not None else []
+
+        # Create a scrollable container for the table with proper height constraint
+        table_container = ui.column().classes("w-full").style("flex: 1; overflow: hidden; display: flex;")
+        
+        with table_container:
+            table = (
+                ui.table(columns=columns, rows=initial_rows, row_key='filename', pagination={'rowsPerPage': 25})
+                  .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
+                  .on('row-click', on_row_click)
+                  .classes("w-full cursor-pointer")
+                  .style("flex: 1; overflow: auto;")
             )
-            table.add_slot('body-cell-collections', f'''
-              <q-td :props="props" @click.stop>
-                <div class="row items-center no-wrap q-gutter-xs">
-                  <q-chip v-for="(cname, idx) in (props.row.collections || []).slice(0,2)"
-                          :key="idx" dense size="sm" color="primary" text-color="white">{{{{ cname }}}}</q-chip>
-                  <q-badge v-if="(props.row.collections || []).length > 2" color="grey-6" text-color="white" align="middle">+{{{{ (props.row.collections || []).length - 2 }}}}</q-badge>
-                  <q-btn size="sm" flat dense round icon="playlist_add" @click.stop>
-                    <q-menu>
-                      <q-list style="min-width: 200px">
-                        {items_html}
-                      </q-list>
-                    </q-menu>
-                  </q-btn>
-                </div>
-              </q-td>
-            ''')
 
-            def _toggle_collection(e):
-                payload = e.args if isinstance(e.args, dict) else (e.args[0] if isinstance(e.args, (list, tuple)) and e.args else {})
-                row = payload.get('row') or {}
-                name = (payload.get('name') or '').strip()
-                vps_id = (row.get('id') or '').strip()
-                if not vps_id:
-                    ui.notify('This table has no VPS ID. Associate it first.', type='warning')
-                    return
-                if not name:
-                    ui.notify('Invalid collection name', type='warning')
-                    return
-                try:
-                    c = VPXCollections(str(COLLECTIONS_INI_PATH))
-                    current = set(c.get_vpsids(name))
-                    if vps_id in current:
-                        c.remove_vpsid(name, vps_id)
-                        c.save()
-                        ui.notify(f'Removed from "{name}"', type='positive')
-                    else:
-                        c.add_vpsid(name, vps_id)
-                        c.save()
-                        ui.notify(f'Added to "{name}"', type='positive')
-                    # refresh table rows so chips reflect changes
-                    asyncio.create_task(perform_scan(silent=True))
-                except Exception as ex:
-                    ui.notify(f'Failed to update collection: {ex}', type='negative')
+        # Update title and missing button if we have cached data
+        if _tables_cache is not None:
+            title_label.set_content(f"## Installed Tables ({len(_tables_cache)})")
+        if _missing_cache is not None:
+            missing_button.text = f"Unmatched Tables ({len(_missing_cache)})"
+            missing_button.on('click', lambda: open_missing_tables_dialog(
+                _missing_cache,
+                on_close=lambda: asyncio.create_task(perform_scan(silent=True))
+            ))
 
-            table.on('toggle-collection', _toggle_collection)
-
-        # Trigger an initial scan once after render so data shows on first open
-        def _trigger_initial_scan():
-            try:
-                asyncio.create_task(perform_scan(silent=True))
-            finally:
-                initial_timer.active = False  
-        initial_timer = ui.timer(0.2, _trigger_initial_scan)
+        # Trigger initial scan only if we don't have cached data
+        if _tables_cache is None:
+            asyncio.create_task(perform_scan(silent=True))
 
 def open_table_dialog(row_data: dict):
     dlg = ui.dialog().props('max-width=1080px')
@@ -711,135 +565,6 @@ def open_table_dialog(row_data: dict):
                 save_upload_bytes(dest, e.content)
                 ui.notify(f'AltSound: {e.name} saved on {dest}', type='positive')
             ui.upload(on_upload=on_altsound_upload, multiple=True).props('label=Select files or directory')
-
-        # 4) Collections (add current table to a collection)
-        with ui.row().classes('items-center gap-3 q-mt-sm'):
-            ui.label('Collections')
-
-            def open_add_to_collection_dialog():
-                vps_id = (row_data.get('id') or '').strip()
-                if not vps_id:
-                    ui.notify('This table has no VPS ID. Associate it first.', type='warning')
-                    return
-
-                c = VPXCollections(str(COLLECTIONS_INI_PATH))
-                existing = list(c.get_collections_name())
-
-                d = ui.dialog().props('max-width=1080px')
-                with d, ui.card().classes('w-[580px]'):
-                    ui.label('Add to Collection').classes('text-lg font-bold')
-                    ui.separator()
-                    with ui.column().classes('w-full gap-2'):
-                        with ui.row():
-                            ui.label("Collections")
-                        if existing:
-                            coll_select = (
-                                ui.select(
-                                    {name: name for name in existing},
-                                    label='Existing collections',
-                                    value=None,
-                                )
-                                .props('filled clearable dense options-dense use-chips')
-                                .classes('w-full')
-                            )
-                            ui.label('Pick one, or create a new one below.').classes('text-xs text-grey')
-                        else:
-                            coll_select = None
-                            ui.label('No collections yet. Create one below.').classes('text-xs text-grey')
-
-                        new_name = (
-                            ui.input('New collection name')
-                              .props('filled clearable dense')
-                              .classes('w-full')
-                        )
-                    with ui.row().classes('justify-end gap-2 q-mt-md'):
-                        def do_add():
-                            name = ''
-                            if new_name.value and str(new_name.value).strip():
-                                name = str(new_name.value).strip()
-                                if name not in c.get_collections_name():
-                                    try:
-                                        c.add_collection(name)
-                                        c.save()
-                                    except Exception as ex:
-                                        ui.notify(f'Failed creating collection: {ex}', type='negative')
-                                        return
-                            elif coll_select and coll_select.value:
-                                name = str(coll_select.value)
-                            else:
-                                ui.notify('Choose a collection or type a new name.', type='warning')
-                                return
-
-                            try:
-                                c.add_vpsid(name, vps_id)
-                                c.save()
-                                ui.notify(f'Added to collection "{name}"', type='positive')
-                                d.close()
-                            except Exception as ex:
-                                ui.notify(f'Failed adding to collection: {ex}', type='negative')
-                        ui.button('Cancel', on_click=d.close)
-                        ui.button('Add', on_click=do_add).props('color=primary')
-                d.open()
-
-            ui.button('Add to Collection', on_click=open_add_to_collection_dialog).props('icon=playlist_add color=primary')
-
-            def open_remove_from_collection_dialog():
-                vps_id = (row_data.get('id') or '').strip()
-                if not vps_id:
-                    ui.notify('This table has no VPS ID. Associate it first.', type='warning')
-                    return
-
-                c = VPXCollections(str(COLLECTIONS_INI_PATH))
-                # find collections that currently contain this vps_id
-                members: List[str] = []
-                for name in c.get_collections_name():
-                    try:
-                        if vps_id in c.get_vpsids(name):
-                            members.append(name)
-                    except Exception:
-                        pass
-
-                d = ui.dialog().props('max-width=1080px')
-                with d, ui.card().classes('w-[800px]'):
-                    ui.label('Remove from Collection').classes('text-lg font-bold')
-                    ui.separator()
-                    if not members:
-                        ui.label('This table is not in any collection.').classes('text-sm text-grey')
-                    else:
-                        sel = (
-                            ui.select(
-                                {name: name for name in members},
-                                label='Collections containing this table',
-                                value=[],
-                                multiple=True,
-                            )
-                            .props('filled clearable dense options-dense use-chips')
-                            .classes('w-full')
-                        )
-                        with ui.row().classes('justify-end gap-2 q-mt-md'):
-                            ui.button('Cancel', on_click=d.close)
-                            def do_remove():
-                                selected = sel.value or []
-                                if isinstance(selected, str):
-                                    selected = [selected]
-                                if not selected:
-                                    ui.notify('Choose at least one collection.', type='warning')
-                                    return
-                                try:
-                                    for name in selected:
-                                        c.remove_vpsid(name, vps_id)
-                                    c.save()
-                                    ui.notify('Removed from selected collections', type='positive')
-                                    d.close()
-                                except Exception as ex:
-                                    ui.notify(f'Failed removing: {ex}', type='negative')
-                            ui.button('Remove', on_click=do_remove).props('color=negative')
-                    if not members:
-                        with ui.row().classes('justify-end q-mt-md'):
-                            ui.button('Close', on_click=d.close)
-                d.open()
-
-            ui.button('Remove from Collection', on_click=open_remove_from_collection_dialog).props('icon=playlist_remove color=negative outline')
 
         with ui.row().classes('justify-end q-mt-md'):
             ui.button('Close', on_click=dlg.close)

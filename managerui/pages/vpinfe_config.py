@@ -12,12 +12,8 @@ config = IniConfig(str(INI_PATH))
 m_mons = get_monitors()
 monitors = []
 
-def create_tab():
-    return ui.tab('VPinFE Config',icon='settings').props('icon-color=primary')
-
-def render_panel(tab):
-    with ui.tab_panel(tab):
-    
+def render_panel(tab=None):
+    with ui.column().classes('w-full'):
         ui.label('VPINFE Config').classes('text-2xl font-bold mb-4')
 
         with ui.grid(columns=3).classes('w-full gap-0'):
