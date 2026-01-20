@@ -226,15 +226,40 @@ def render_panel(tab=None):
     with ui.column().classes('w-full'):
         # Hide Quasar's built-in numeric overlay inside linear progress bars (prevents 0..1 decimals)
         ui.add_head_html('<style>.q-linear-progress__info{display:none!important}</style>')
+        # Style table header and alternate row colors
+        ui.add_head_html('''
+        <style>
+            .q-table thead tr {
+                background-color: #3d5a80 !important;
+            }
+            .q-table thead tr th {
+                background-color: #3d5a80 !important;
+                color: #fff !important;
+                font-weight: 600 !important;
+            }
+            .q-table tbody tr:nth-child(odd) {
+                background-color: #34495e !important;
+            }
+            .q-table tbody tr:nth-child(even) {
+                background-color: #2c3e50 !important;
+            }
+            .q-table tbody tr td {
+                color: #ecf0f1 !important;
+            }
+            .q-table tbody tr:hover {
+                background-color: #1a252f !important;
+            }
+        </style>
+        ''')
         # Define columns for the table
         columns = [
-            {'name': 'filename', 'label': 'Filename', 'field': 'filename', 'sortable': True},
-            {'name': 'id', 'label': 'VPS ID', 'field': 'id', 'sortable': True},
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
-            {'name': 'manufacturer', 'label': 'Manufacturer', 'field': 'manufacturer', 'sortable': True},
-            {'name': 'year', 'label': 'Year', 'field': 'year', 'sortable': True},
-            {'name': 'rom', 'label': 'ROM', 'field': 'rom', 'sortable': True},
-            {'name': 'version', 'label': 'Version', 'field': 'version', 'sortable': True},
+            {'name': 'filename', 'label': 'Filename', 'field': 'filename', 'align': 'left', 'sortable': True},
+            {'name': 'manufacturer', 'label': 'Manufacturer', 'field': 'manufacturer', 'align': 'left', 'sortable': True},
+            {'name': 'year', 'label': 'Year', 'field': 'year', 'align': 'left', 'sortable': True},
+            {'name': 'id', 'label': 'VPS ID', 'field': 'id', 'align': 'left', 'sortable': True},
+            {'name': 'rom', 'label': 'ROM', 'field': 'rom', 'align': 'left', 'sortable': True},
+            {'name': 'version', 'label': 'Version', 'field': 'version', 'align': 'left', 'sortable': True},
             {'name': 'patch_applied', 'label': 'Standalone Patch', 'field': 'patch_applied', 'sortable': True, 'align': 'center'},
         ]
 

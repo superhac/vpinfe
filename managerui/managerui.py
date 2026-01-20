@@ -6,13 +6,24 @@ from .pages import vpinfe_config as tab_vpinfe
 from .pages import remote
 import threading
 
+# reference to the left drawer element so header controls can toggle it
+drawer_elem = None
+
+def toggle_drawer():
+    global drawer_elem
+    try:
+        if drawer_elem is not None:
+            drawer_elem.toggle()
+    except Exception:
+        pass
+
 def header():
     with ui.header().style('background-color: #000').classes('items-center justify-between'):
+        with ui.row().classes('gap-2 items-center'):
+            ui.button(icon='menu', on_click=toggle_drawer).props('flat round').classes('text-white')
         dark = ui.dark_mode()
-        with ui.avatar():
-                ui.image('static/img/vpinball.png')
         ui.label('VPINFE Manager UI').classes('text-lg font-semibold')
-        with ui.row().classes('gap-2'):
+        with ui.row().classes('gap-2 items-center'):
             ui.switch('Dark Mode').bind_value(dark)
 
 def build_app():
@@ -20,7 +31,9 @@ def build_app():
 
     # Left drawer for navigation
     with ui.left_drawer(value=True).classes('bg-gray-800') as drawer:
-        ui.label('Navigation').classes('text-white text-lg font-semibold p-4')
+        global drawer_elem
+        drawer_elem = drawer
+        ui.label('Menu').classes('text-white text-lg font-semibold p-4')
         ui.separator()
 
         # Navigation menu items
