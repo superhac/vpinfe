@@ -105,7 +105,7 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
         'vpxdata': vpxdata,
     }
 
-    meta_path = table_folder / 'meta.ini'
+    meta_path = table_folder / f"{table_folder}.info"
     meta = MetaConfig(str(meta_path))
     meta.writeConfigMeta(finalini)
 
@@ -135,45 +135,64 @@ def get_tables_path() -> str:
         logger.debug(f'Could not read tablerootdir from vpinfe.ini: {e}')
     return os.path.expanduser('~/tables')
 
-def parse_meta_ini(meta_path):
+def parse_table_info(info_path):
     import os
-    import configparser
+    import json
 
-    config = configparser.ConfigParser()
-    config.optionxform = str  # preserve case
     try:
-        config.read(meta_path, encoding="utf-8")
-        vpsdb = config["VPSdb"] if "VPSdb" in config else {}
-        vpxfile = config["VPXFile"] if "VPXFile" in config else {}
+        with open(info_path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
 
-        def get_field(field):
-            value = vpxfile.get(field, "")
-            if not value:
-                value = vpsdb.get(field, "")
-            return value
+        table_dir = os.path.dirname(info_path)
+        table_name = os.path.basename(table_dir)
+
+        info = raw.get("Info", {})
+        vpx = raw.get("VPXFile", {})
+        user = raw.get("User", {})
+
+        def get(*paths, default=""):
+            """
+            paths = [("VPXFile","rom"), ("Info","Rom"), ...]
+            """
+            for section, key in paths:
+                src = {"Info": info, "VPXFile": vpx, "User": user, "root": raw}.get(section)
+                if src and key in src and src[key] not in ("", None):
+                    return src[key]
+            return default
 
         data = {
-            "filename": get_field("filename"),
-            "id": get_field("id"),
-            "name": get_field("name"),
-            "manufacturer": get_field("manufacturer"),
-            "year": get_field("year"),
-            "type": get_field("type"),
-            "rom": get_field("rom"),
-            "version": get_field("version"),
-            "detectnfozzy": get_field("detectnfozzy"),
-            "detectfleep": get_field("detectfleep"),
-            "detectssf": get_field("detectssf"),
-            "detectlut": get_field("detectlut"),
-            "detectscorebit": get_field("detectscorebit"),
-            "detectfastflips": get_field("detectfastflips"),
-            "detectflex": get_field("detectflex"),
-            "patch_applied": get_field("patch_applied")
+            # Display / identity
+            "name": get(("Info", "Title"), ("root", "name"), default=table_name),
+            "filename": get(("VPXFile", "filename"), default=f"{table_name}.vpx"),
+            "id": get(("Info", "VPSId"), ("root", "id")),
+
+            # Metadata
+            "manufacturer": get(("Info", "Manufacturer"), ("VPXFile", "manufacturer")),
+            "year": get(("Info", "Year"), ("VPXFile", "year")),
+            "type": get(("Info", "Type"), ("VPXFile", "type")),
+            "rom": get(("VPXFile", "rom"), ("Info", "Rom")),
+            "version": get(("VPXFile", "version")),
+
+            # Detection flags
+            "detectnfozzy": get(("VPXFile", "detectNfozzy")),
+            "detectfleep": get(("VPXFile", "detectFleep")),
+            "detectssf": get(("VPXFile", "detectSSF")),
+            "detectlut": get(("VPXFile", "detectLUT")),
+            "detectscorebit": get(("VPXFile", "detectScorebit")),
+            "detectfastflips": get(("VPXFile", "detectFastflips")),
+            "detectflex": get(("VPXFile", "detectFlex")),
+
+            # Patching
+            "patch_applied": get(("VPXFile", "patch_applied"), default=False),
+
+            # Internal
+            "table_path": table_dir,
         }
-        data["table_path"] = os.path.dirname(meta_path)
+
         return data
+
     except Exception as e:
-        logger.error(f"Error reading {meta_path}: {e}")
+        logger.error(f"Error reading {info_path}: {e}")
         return {}
 
 def scan_tables(silent: bool = False):
@@ -186,19 +205,22 @@ def scan_tables(silent: bool = False):
         return []
 
     for root, _, files in os.walk(tables_path):
-        if "meta.ini" in files:
-            meta_path = os.path.join(root, "meta.ini")
-            data = parse_meta_ini(meta_path)
+        current_dir = os.path.basename(root)
+        info_file = f"{current_dir}.info"
+
+        if info_file in files:
+            meta_path = os.path.join(root, info_file)
+            data = parse_table_info(meta_path)
             if data:
                 data["table_path"] = root
                 rows.append(data)
+
     return rows
 
 def scan_missing_tables():
     """
-    A 'missing table' here = any directory under ~/tables that does NOT contain meta.ini.
-    Optionally, we can filter to only those containing at least one .vpx file. I'll do that,
-    since it's usually what you want.
+    A 'missing table' = any directory under ~/tables that does NOT contain <current_dir>.info.
+    Only directories with at least one .vpx file are considered.
     """
     base = Path(get_tables_path())
     missing = []
@@ -208,14 +230,20 @@ def scan_missing_tables():
 
     for root, dirs, files in os.walk(base):
         files_set = set(files)
-        if 'meta.ini' in files_set:
+        current_dir = os.path.basename(root)
+        info_filename = f"{current_dir}.info"
+
+        # Skip directories that already have <current_dir>.info
+        if info_filename in files_set:
             continue
-        # consider this a table dir if there is at least one .vpx file
+
+        # Only consider directories with at least one .vpx file
         if any(f.lower().endswith('.vpx') for f in files):
             missing.append({
-                'folder': os.path.basename(root),
+                'folder': current_dir,
                 'path': root,
             })
+
     return missing
 
 

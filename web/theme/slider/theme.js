@@ -259,12 +259,13 @@ async function updateScreen() {
     });
 }
 
-
-
-
 function updateCardContent(card, meta, tableIndex) {
     // Clear card
     card.innerHTML = '';
+
+    const tableData = meta.meta;
+    const info = tableData.Info || {};
+    const vpx = tableData.VPXFile || {};
 
     // --- Left side: Rotated playfield image ---
     const preview = document.createElement('img');
@@ -279,25 +280,32 @@ function updateCardContent(card, meta, tableIndex) {
 
     // Title
     const title = document.createElement('h2');
-    title.textContent = meta['meta']['VPSdb']['name'] || 'Unknown Table';
+    title.textContent = info.Title || vpx.filename || 'Unknown Table';
     title.style.lineHeight = '1';
     textContainer.appendChild(title);
 
     // Metadata container
     const metaDiv = document.createElement('div');
     metaDiv.className = 'table-meta';
-    
-    // Each line as a block-level div to ensure vertical stacking
-    metaDiv.innerHTML = `
-        <div style="font-size: 2.2vh; color: rgba(94, 113, 114, 1);">${meta['meta']['VPXFile']['author'] || "Unknown"}</div>
-        <div style="font-size: 1.8vh; color: rgba(126, 182, 182, 1)">${meta['meta']['VPSdb']['year'] + " / " +
-             meta['meta']['VPSdb']['manufacturer'] + " / " + meta['meta']['VPSdb']['type']}</div>
-        
-    `;
 
+    // Authors (Info.Authors is an array)
+    let authors = "Unknown";
+    if (Array.isArray(info.Authors) && info.Authors.length > 0) {
+        authors = info.Authors.join(", ");
+    }
+
+    // Type, Manufacturer, Year
+    const typeMap = { EM: "Electro Mechanical", SS: "Solid State", PM: "Pure Mechanical" };
+    const tableType = typeMap[info.Type] || vpx.type || "Unknown";
+    const manufacturer = info.Manufacturer || vpx.manufacturer || "Unknown";
+    const year = info.Year || vpx.year || "";
+
+    metaDiv.innerHTML = `
+        <div style="font-size: 2.2vh; color: rgba(94, 113, 114, 1);">${authors}</div>
+        <div style="font-size: 1.8vh; color: rgba(126, 182, 182, 1)">${year} / ${manufacturer} / ${tableType}</div>
+    `;
     textContainer.appendChild(metaDiv);
 
-    
     // ---- Table Features Section ----
     const tablefeatDiv = document.createElement("div");
     tablefeatDiv.className = "tablefeat";
@@ -305,7 +313,6 @@ function updateCardContent(card, meta, tableIndex) {
     const featContainer = document.createElement("div");
     featContainer.className = "tablefeat-container";
 
-    // You can have a single section for now; more later if you want to group features.
     const section = document.createElement("div");
     section.className = "tablefeat-section";
 
@@ -322,27 +329,37 @@ function updateCardContent(card, meta, tableIndex) {
     textContainer.appendChild(tablefeatDiv);
 
     // Build features list dynamically
-    const data = meta["meta"];
     const features = [
-        ["nFozzy", data["VPXFile"]["detectnfozzy"]],
-        ["Fleep", data["VPXFile"]["detectfleep"]],
-        ["SSF", data["VPXFile"]["detectSSF"]],
-        ["FastFlips", data["VPXFile"]["detectfastflips"]],
-        ["LUT", data["VPXFile"]["detectlut"]],
-        ["ScoreBit", data["VPXFile"]["detectscorebit"]],
-        ["FlexDMD", data["VPXFile"]["detectflex"]],
-        ["AltSound", vpin.tableData[currentTableIndex]["altSoundExists"]],
-        ["AltColor", vpin.tableData[currentTableIndex]["altColorExists"]],
-        ["PuP-Pack", vpin.tableData[currentTableIndex]["pupPackExists"]],
+        ["detectnfozzy", vpx.detectnfozzy, "Nfozzy"],
+        ["detectfleep", vpx.detectfleep, "Fleep"],
+        ["detectssf", vpx.detectssf, "SSF"],
+        ["detectfastflips", vpx.detectfastflips, "FastFlips"],
+        ["detectlut", vpx.detectlut, "LUT"],
+        ["detectscorebit", vpx.detectscorebit, "ScoreBit"],
+        ["detectflex", vpx.detectflex, "FlexDMD"],
+        ["altsound", vpx.altSoundExists, "AltSound"],
+        ["altcolor", vpx.altColorExists, "AltColor"],
+        ["pupack", vpx.pupPackExists, "PuP-Pack"],
     ];
 
+
+
     // Create feature lights
-    features.forEach(([label, condition]) => {
+    // Create feature lights
+    features.forEach(([id, condition, label]) => {
         const light = document.createElement("div");
         light.classList.add("tablefeat-light");
-        const isOn = condition === "true" || condition === true;
+        light.id = id; // IMPORTANT: real DOM identity
+
+        // Normalize to boolean (handles true, "true", 1)
+        const isOn =
+            condition === true ||
+            condition === "true" ||
+            condition === 1;
+
         light.classList.add(isOn ? "tablefeat-green" : "tablefeat-red");
         light.textContent = label;
+
         featGrid.appendChild(light);
     });
 

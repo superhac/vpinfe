@@ -109,28 +109,51 @@ class API:
                     }}
                 ''')
 
-    def get_tables(self, reset=False): # reset go back to full table list!
+    def get_tables(self, reset=False):
         if reset:
             self.filteredTables = self.allTables
+
         tables = []
         for table in self.filteredTables:
+            # Normalize metaConfig
+            meta = {}
+            if table.metaConfig:
+                if isinstance(table.metaConfig, dict):
+                    meta = table.metaConfig
+                elif hasattr(table.metaConfig, "getConfig"):
+                    meta = table.metaConfig.getConfig()
+
+            # Ensure detection flags are booleans
+            vpx = meta.get("VPXFile", {})
+            for key in [
+                "detectNfozzy", "detectFleep", "detectSSF",
+                "detectLUT", "detectScorebit", "detectFastflips", "detectFlex"
+            ]:
+                if key in vpx:
+                    val = vpx[key]
+                    # Convert strings "true"/"false" to booleans
+                    if isinstance(val, str):
+                        vpx[key] = val.lower() == "true"
+
             table_data = {
-                'tableDirName': table.tableDirName,
-                'fullPathTable': table.fullPathTable,
-                'fullPathVPXfile': table.fullPathVPXfile,
-                'BGImagePath' : table.BGImagePath,
-                'DMDImagePath' : table.DMDImagePath,
-                'TableImagePath' : table.TableImagePath,
-                'WheelImagePath' : table.WheelImagePath,
-                'CabImagePath' : table.CabImagePath,
-                'pupPackExists': table.pupPackExists,
-                'altColorExists': table.altColorExists,
-                'altSoundExists': table.altSoundExists,
-                'meta': {section: dict(table.metaConfig[section]) for section in table.metaConfig.sections()}
+                "tableDirName": table.tableDirName,
+                "fullPathTable": table.fullPathTable,
+                "fullPathVPXfile": table.fullPathVPXfile,
+                "BGImagePath": table.BGImagePath,
+                "DMDImagePath": table.DMDImagePath,
+                "TableImagePath": table.TableImagePath,
+                "WheelImagePath": table.WheelImagePath,
+                "CabImagePath": table.CabImagePath,
+                "pupPackExists": table.pupPackExists,
+                "altColorExists": table.altColorExists,
+                "altSoundExists": table.altSoundExists,
+                "meta": meta
             }
             tables.append(table_data)
+
         self.jsTableDictData = json.dumps(tables)
         return self.jsTableDictData
+
     
     def get_collections(self):
         config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
@@ -357,13 +380,13 @@ class API:
 
     def _track_table_play(self, table):
         """Track a table play by adding it to the Last Played collection."""
-        # Get the VPS ID from the table
-        meta = table.metaConfig
-        cfg = meta.config if hasattr(meta, "config") else meta
-        vpsid = cfg.get("VPSdb", "id", fallback=None)
+
+        meta = table.metaConfig or {}
+        info = meta.get("Info", {})
+        vpsid = info.get("VPSId")
 
         if not vpsid:
-            print("Table has no VPS ID, cannot track play")
+            print("Table has no VPSId, cannot track play")
             return
 
         config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
@@ -374,24 +397,19 @@ class API:
             print("Creating 'Last Played' collection")
             c.add_collection("Last Played", vpsids=[])
 
-        # Get current Last Played list
         last_played_ids = c.get_vpsids("Last Played")
 
-        # Remove the VPS ID if it's already in the list (we'll add it to the front)
         if vpsid in last_played_ids:
             last_played_ids.remove(vpsid)
 
-        # Add the VPS ID to the front of the list
         last_played_ids.insert(0, vpsid)
-
-        # Limit to 30 entries
         last_played_ids = last_played_ids[:30]
 
-        # Update the collection
         c.config["Last Played"]["vpsids"] = ",".join(last_played_ids)
         c.save()
 
         print(f"Tracked table play: {vpsid} (now {len(last_played_ids)} in Last Played)")
+
 
     def build_metadata(self, download_media=True, update_all=False):
         """

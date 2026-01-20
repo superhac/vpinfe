@@ -1,4 +1,3 @@
-# tablelistfilters.py
 import ast
 from typing import List
 
@@ -13,7 +12,17 @@ class TableListFilters:
         """Helper to safely extract metadata values."""
         meta = table.metaConfig
         cfg = meta.config if hasattr(meta, "config") else meta
-        return cfg.get(section, key, fallback=fallback)
+
+        # Handle both dicts and objects that might mimic configparser
+        if isinstance(cfg, dict):
+            section_dict = cfg.get(section, {})
+            return section_dict.get(key, fallback)
+        else:
+            # fallback for objects that behave like configparser
+            try:
+                return cfg.get(section, key)
+            except Exception:
+                return fallback
 
     def get_available_letters(self):
         """Return sorted list of unique starting letters from table names."""

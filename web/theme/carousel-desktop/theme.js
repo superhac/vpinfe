@@ -163,6 +163,7 @@ function updateDMDImage() {
 }
 
 // Update table information text
+// Update table information text
 function updateTableInfo() {
     if (!vpin.tableData || vpin.tableData.length === 0) {
         // Clear table info when no tables
@@ -180,25 +181,24 @@ function updateTableInfo() {
     const metaEl = document.getElementById('tableMeta');
     const authorsEl = document.getElementById('authorsText');
 
-    // Get table name from metadata
-    const tableName = table?.meta?.VPSdb?.name ||
-                     table?.meta?.VPXFile?.filename ||
-                     table?.tableDirName ||
-                     'Unknown Table';
+    const info = table?.meta?.Info || {};
+    const vpx = table?.meta?.VPXFile || {};
 
-    // Get manufacturer and year
-    const manufacturer = table?.meta?.VPSdb?.manufacturer ||
-                        table?.meta?.VPXFile?.manufacturer ||
-                        'Unknown';
-    const year = table?.meta?.VPSdb?.year ||
-                table?.meta?.VPXFile?.year ||
-                '';
+    // Get table name from Info.Title first, fallback to filename
+    const tableName = info.Title || vpx.filename || table?.tableDirName || 'Unknown Table';
+
+    // Get manufacturer and year from Info first, fallback to VPXFile
+    const manufacturer = info.Manufacturer || vpx.manufacturer || 'Unknown';
+    const year = info.Year || vpx.year || '';
 
     nameEl.textContent = tableName;
     metaEl.textContent = manufacturer + (year ? ' • ' + year : '');
 
-    // Get authors
-    const authors = table?.meta?.VPXFile?.author || 'Unknown';
+    // Get authors from Info.Authors (array) or fallback
+    let authors = 'Unknown';
+    if (Array.isArray(info.Authors) && info.Authors.length > 0) {
+        authors = info.Authors.join(', ');
+    }
 
     if (authorsEl) {
         authorsEl.textContent = authors;
@@ -220,7 +220,7 @@ function updateTableInfo() {
         authorsEl.style.fontSize = authorsFontSize;
     }
 
-    // Dynamically adjust font size based on text length
+    // Dynamically adjust font size for table name
     const textLength = tableName.length;
     let fontSize;
     if (textLength <= 20) {
@@ -236,6 +236,7 @@ function updateTableInfo() {
     }
     nameEl.style.fontSize = fontSize;
 }
+
 
 // Build the carousel with wheel images
 function buildCarousel(direction = null) {

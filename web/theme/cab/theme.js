@@ -226,17 +226,36 @@ function setCarouselWheels() {
 }
 
 function setMetadata() {
-    const data = vpin.tableData[currentTableIndex]["meta"];
+    const table = vpin.tableData[currentTableIndex];
+    if (!table) return;
 
-    document.getElementById("title").innerHTML = data["VPSdb"]["name"];
-    document.getElementById("authors").innerHTML = data["VPXFile"]["author"];
-    document.getElementById("year").innerHTML = data["VPSdb"]["year"];
+    const data = table.meta || {};
+    const info = data.Info || {};
+    const vpx = data.VPXFile || {};
+
+    function strToBool(val) {
+        if (typeof val === "boolean") return val;
+        if (typeof val === "string") return val.toLowerCase() === "true";
+        return false;
+    }
+
+    // Title
+    document.getElementById("title").innerHTML = info.Title || vpx.filename || "Unknown";
+
+    // Authors
+    const authors = Array.isArray(info.Authors) && info.Authors.length > 0
+        ? info.Authors.join(", ")
+        : "Unknown";
+    document.getElementById("authors").innerHTML = authors;
+
+    // Year
+    document.getElementById("year").innerHTML = info.Year || vpx.year || "";
 
     // Table Type
     const typeMap = { EM: "Electro Mechanical", SS: "Solid State", PM: "Pure Mechanical" };
-    document.getElementById("table-type").innerHTML = typeMap[data["VPSdb"]["type"]] || "Unknown";
+    document.getElementById("table-type").innerHTML = typeMap[info.Type] || vpx.type || "Unknown";
 
-    // Manufacturer Image
+    // Manufacturer
     const manufMap = {
         Sega: "Sega.png",
         Gottlieb: "Gottlieb.png",
@@ -254,31 +273,39 @@ function setMetadata() {
         Maresa: "Maresa.png",
     };
 
+    const manufacturer = info.Manufacturer || vpx.manufacturer || "Unknown";
     const manufimg = document.getElementById("manufacturer-img");
-    manufimg.src = manufMap[data["VPSdb"]["manufacturer"]]
-        ? "assets/manufacturer/" + manufMap[data["VPSdb"]["manufacturer"]]
-        : textToImageURL(data["VPSdb"]["manufacturer"]);
+    manufimg.src = manufMap[manufacturer]
+        ? "assets/manufacturer/" + manufMap[manufacturer]
+        : textToImageURL(manufacturer);
 
-    // Theme
-    document.getElementById("theme").innerHTML = data["VPSdb"]["theme"].replace(/[\[\]']/g, "");
+    // Themes
+    const themes = Array.isArray(info.Themes) ? info.Themes : [];
+    document.getElementById("theme").innerHTML = themes.join(", ");
 
     // Features
     const features = [
-        ["detectnfozzy", data["VPXFile"]["detectnfozzy"]],
-        ["detectfleep", data["VPXFile"]["detectfleep"]],
-        ["detectSSF", data["VPXFile"]["detectSSF"]],
-        ["detectfastflips", data["VPXFile"]["detectfastflips"]],
-        ["detectlut", data["VPXFile"]["detectlut"]],
-        ["detectscorebit", data["VPXFile"]["detectscorebit"]],
-        ["detectflex", data["VPXFile"]["detectflex"]],
-        ["altsound", vpin.tableData[currentTableIndex]["altSoundExists"]],
-        ["altcolor", vpin.tableData[currentTableIndex]["altColorExists"]],
-        ["pupack", vpin.tableData[currentTableIndex]["pupPackExists"]],
+        ["detectnfozzy", strToBool(vpx.detectnfozzy)],
+        ["detectfleep", strToBool(vpx.detectfleep)],
+        ["detectssf", strToBool(vpx.detectssf)],
+        ["detectfastflips", strToBool(vpx.detectfastflips)],
+        ["detectlut", strToBool(vpx.detectlut)],
+        ["detectscorebit", strToBool(vpx.detectscorebit)],
+        ["altsound", !!table.altSoundExists],
+        ["altcolor", !!table.altColorExists],
+        ["pupack", !!table.pupPackExists],
     ];
 
-    features.forEach(([id, condition]) =>
-        condition === "true" || condition === true ? tablefeatTurnOn(id) : tablefeatTurnOff(id)
-    );
+    features.forEach(([id, isOn]) => {
+        isOn ? tablefeatTurnOn(id) : tablefeatTurnOff(id);
+    });
+}
+
+
+    function strToBool(val) {
+        if (typeof val === "boolean") return val;
+        if (typeof val === "string") return val.toLowerCase() === "true";
+        return false;
 }
 
 // =============================

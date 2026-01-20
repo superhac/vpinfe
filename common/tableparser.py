@@ -75,9 +75,9 @@ class TableParser:
                 #print(f"{self.RED_CONSOLE_TEXT}  Img not found: {fpath}{self.RESET_CONSOLE_TEXT}")
 
     def loadMetaData(self, Table):
-        meta_path = Path(Table.fullPathTable) / "meta.ini"
+        meta_path = Path(Table.fullPathTable) / f"{Table.tableDirName}.info"
         meta = MetaConfig(str(meta_path))
-        Table.metaConfig = meta.config
+        Table.metaConfig = meta.data
 
     def getTable(self, index):
         return self.tables[index]

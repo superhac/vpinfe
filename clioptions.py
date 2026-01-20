@@ -33,16 +33,8 @@ def _norm_path(p: str) -> str:
 
 
 def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_cb=None, log_cb=None):
-    """Build meta.ini files for all VPX tables and sync with VPSdb.
 
-    Args:
-        downloadMedia: Whether to download media files
-        updateAll: Whether to update all tables (even if meta.ini exists)
-        progress_cb: Callback(current: int, total: int, message: str) for progress updates
-        log_cb: Callback(message: str) for console log messages
-    """
     def log(msg):
-        """Helper to print and optionally send to log callback."""
         print(msg)
         if log_cb:
             log_cb(msg)
@@ -51,43 +43,33 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
     parservpx = VPXParser()
 
     tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
-    raw_count = len(tables)
-    log(f"Found {raw_count} tables (.vpx).")
+    total = len(tables)
 
-    seen = set()
-    unique_tables = []
-    for t in tables:
-        key = _norm_path(t.fullPathVPXfile)
-        if key not in seen:
-            seen.add(key)
-            unique_tables.append(t)
-
-    total = len(unique_tables)
     vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
     log(f"Found {len(vps)} tables in VPSdb")
 
     if progress_cb:
-        progress_cb(0, total, 'Starting')
+        progress_cb(0, total, "Starting")
 
     current = 0
     for table in tables:
         current += 1
-        finalini = {}
 
-        meta_path = os.path.join(table.fullPathTable, "meta.ini")
+        info_path = os.path.join(
+            table.fullPathTable,
+            f"{table.tableDirName}.info"
+        )
 
-        if os.path.exists(meta_path) and not updateAll:
+        if os.path.exists(info_path) and not updateAll:
             if progress_cb:
-                progress_cb(current, total, f'Skipping {table.tableDirName} (meta.ini exists)')
+                progress_cb(current, total, f"Skipping {table.tableDirName}")
             continue
 
-        meta = MetaConfig(meta_path)
+        meta = MetaConfig(info_path)
 
-        # VPSdb lookup
-        msg = f"Checking VPSdb for table {current}/{total}: {table.tableDirName}"
-        log(msg)
+        log(f"Checking VPSdb for {table.tableDirName}")
         if progress_cb:
-            progress_cb(current, total, f'Processing {table.tableDirName}')
+            progress_cb(current, total, f"Processing {table.tableDirName}")
 
         vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
         vpsData = (
@@ -97,31 +79,37 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
                 vpsSearchData["year"]
             ) if vpsSearchData else None
         )
-        if vpsData is None:
-            log(f"  - Not found in VPS")
+
+        if not vpsData:
+            log("  - Not found in VPS")
             not_found_tables += 1
             continue
 
-        # Parse VPX file
-        log(f"Parsing VPX file for metadata: {table.fullPathVPXfile}")
+        log(f"Parsing VPX file: {table.fullPathVPXfile}")
         vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
 
-        finalini['vpsdata'] = vpsData
-        finalini['vpxdata'] = vpxData
-        meta.writeConfigMeta(finalini)
-        log(f"Created meta.ini for {table.tableDirName}")
+        meta.writeConfigMeta({
+            "vpsdata": vpsData,
+            "vpxdata": vpxData
+        })
+
+        log(f"Created {table.tableDirName}.info")
 
         if downloadMedia:
             try:
-                vps.downloadMediaForTable(table, vpsData['id'])
-                log(f"Downloaded media for {table.tableDirName}")
+                vps.downloadMediaForTable(table, vpsData["id"])
+                log("Downloaded media")
             except KeyError:
-                log(f"No Media found")
+                log("No media found")
 
     if progress_cb:
-        progress_cb(total, total, 'Complete')
+        progress_cb(total, total, "Complete")
 
-    return {'found': total, 'not_found': not_found_tables}
+    return {
+        "found": total,
+        "not_found": not_found_tables
+    }
+
 
 
 def listMissingTables():

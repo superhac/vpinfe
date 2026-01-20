@@ -132,6 +132,12 @@ function setTableImage() {
     const oldImg = container.querySelector('img');
     const isMissing = bgUrl.includes('file_missing.png');
 
+    function getTableName(table) {
+        const info = table.meta?.Info || {};
+        const vpx = table.meta?.VPXFile || {};
+        return info.Title || vpx.filename || table.tableDirName || 'Unknown Table';
+    }
+
     if (oldImg) {
         oldImg.style.opacity = 0;
 
@@ -156,10 +162,7 @@ function setTableImage() {
             // Show table name if image is missing
             if (isMissing && vpin.tableData[currentTableIndex]) {
                 const table = vpin.tableData[currentTableIndex];
-                const tableName = table.meta?.VPSdb?.name ||
-                                  table.meta?.VPXFile?.filename ||
-                                  table.tableDirName ||
-                                  'Unknown Table';
+                const tableName = getTableName(table);
                 vpin.call("console_out", "CAB Missing image detected, showing: " + tableName);
                 label.textContent = tableName;
                 label.style.display = 'block';
@@ -184,10 +187,7 @@ function setTableImage() {
         // Show table name if image is missing
         if (isMissing && vpin.tableData[currentTableIndex]) {
             const table = vpin.tableData[currentTableIndex];
-            const tableName = table.meta?.VPSdb?.name ||
-                              table.meta?.VPXFile?.filename ||
-                              table.tableDirName ||
-                              'Unknown Table';
+            const tableName = getTableName(table);
             vpin.call("console_out", "CAB Missing image detected (no old img), showing: " + tableName);
             label.textContent = tableName;
             label.style.display = 'block';
