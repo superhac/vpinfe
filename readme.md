@@ -306,40 +306,88 @@ options:
 | tabletype         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait table images. |
 | tableresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
 
-## Meta.ini
-When you run VPinFE with the `--buildmeta` option it recursively goes through your table directory attempts to match your tables to their VPSDB id.  When matched, it will then parse the VPX for the table for more meta information and produce a `meta.ini` in that tables directory.  Heres an example for the table 2001:
+## Table Metadata File (based on the Zero install table format)
+When you run VPinFE with the `--buildmeta` option it recursively goes through your table directory attempts to match your tables to their VPSDB id.  When matched, it will then parse the VPX for the table for more meta information and produce a `TABLE FOLDER NAME(manufactuer year).info` in that tables directory.  Heres an example for the table 2001:
 
 ```
-[VPSdb]
-id = sMBqx5fp
-name = 2001
-type = EM
-manufacturer = Gottlieb
-year = 1971
-theme = ['Fantasy']
-
-[VPXFile]
-filename = 2001 (Gottlieb 1971) v0.99a.vpx
-filehash = 61bfb1d1ab39836ac28724af7c5d7ae330c608e2092f527b70bae2f75748e3a6
-version = 1.0
-author =
-releasedate =
-blurb =
-savedate = Sun Apr 23 02:19:21 2023
-saverev = 1466
-manufacturer =
-year =
-type =
-vbshash = 0bdf965426045a5bb2d98e509cd17ae7b9afc4039b8a10f793cf6123fe9962c9
-rom = GTB2001_1971
-detectnfozzy = true
-detectfleep = true
-detectssf = true
-detectlut = true
-detectscorebit = false
-detectfastflips = false
-detectflex = false
+{
+    "Info": {
+        "IPDBId": "",
+        "Title": "High Hand",
+        "Manufacturer": "Gottlieb",
+        "Year": 1973,
+        "VPSId": "H_yLZGHB",
+        "Type": "EM",
+        "Themes": [
+            "Cards",
+            "Gambling"
+        ],
+        "Authors": [
+            "Loserman76",
+            "GNance"
+        ],
+        "Rom": "HighHand_1973"
+    },
+    "User": {
+        "Rating": 0,
+        "Favorite": 0,
+        "LastRun": null,
+        "StartCount": 0,
+        "RunTime": 0,
+        "Tags": []
+    },
+    "VPXFile": {
+        "filename": "VR Room High Hand (Gottlieb 1973) 1.0.0.vpx",
+        "filehash": "307dbf008d17adba1984c2833ce2f5c60e16613afa3d6ea0a88d2e98ec2fc976",
+        "version": "1.0",
+        "releasedate": "",
+        "blurb": "",
+        "savedate": "Wed Dec 28 11:51:31 2022",
+        "saverev": "13",
+        "manufacturer": "",
+        "year": "",
+        "type": "",
+        "vbshash": "0c6008917dd9d919cbca312466828c1e533ff6b8dd8f21bbd95293e8df0ad4f3",
+        "detectnfozzy": "false",
+        "detectfleep": "false",
+        "detectssf": "true",
+        "detectlut": "true",
+        "detectscorebit": "false",
+        "detectfastflips": "false",
+        "detectflex": "false"
+    }
+}
 ```
+### Sections Explained
+
+- Info
+
+  Contains the core table metadata:
+  - IPDBId: Pinball Database ID (if available)
+  - Title: Table name
+  - Manufacturer, Year, Type (EM, SS, etc.)
+  - VPSId: Internal VPS database ID
+  - Themes: Array of themes
+  - Authors: Table authors
+  - Rom: Name of the ROM file
+- User
+  
+  Stores per-user data for the table:
+  - Rating: User rating (0–10)
+  - Favorite: Favorite flag (0/1)
+  - LastRun: Timestamp of last play
+  - StartCount: How many times played
+  - RunTime: Total playtime in seconds
+  - Tags: Array of custom tags
+- VPXFile
+
+  Contains metadata extracted from the VPX file:
+  - filename, filehash, version
+  - releasedate, blurb
+  - savedate, saverev (VPX save info)
+  - vbshash: Hash of table’s VBS script
+  - detect* flags: Booleans indicating which detection features were applied (detectssf, detectlut, etc.)
+
 
 After that file is created it then attempts to download the media artwork for that table.   Currently the following images are downloaded and are stored in each of the table's directory:
 
