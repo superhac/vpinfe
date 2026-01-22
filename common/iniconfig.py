@@ -12,6 +12,9 @@ class IniConfig:
 				'tablerootdir': '',
 				'vpxinipath': '',
 				'theme': 'carousel-desktop',
+				'startup_collection': '',
+				},
+			'Input': {
 				'joyleft': '',
 				'joyright': '',
 				'joyup': '',
@@ -21,7 +24,6 @@ class IniConfig:
 				'joyback': '',
 				'joyexit': '',
 				'joycollectionmenu': '',
-				'startup_collection': '',
 				},
 			'Logger': {
 				'level': 'info',

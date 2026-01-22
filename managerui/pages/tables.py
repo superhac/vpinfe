@@ -2,7 +2,7 @@ import os
 import configparser
 import logging
 import asyncio
-from nicegui import ui, events, run
+from nicegui import ui, events, run, context
 from pathlib import Path
 import json
 from typing import List, Dict, Optional, Callable
@@ -174,13 +174,13 @@ def parse_table_info(info_path):
             "version": get(("VPXFile", "version")),
 
             # Detection flags
-            "detectnfozzy": get(("VPXFile", "detectNfozzy")),
-            "detectfleep": get(("VPXFile", "detectFleep")),
-            "detectssf": get(("VPXFile", "detectSSF")),
-            "detectlut": get(("VPXFile", "detectLUT")),
-            "detectscorebit": get(("VPXFile", "detectScorebit")),
-            "detectfastflips": get(("VPXFile", "detectFastflips")),
-            "detectflex": get(("VPXFile", "detectFlex")),
+            "detectnfozzy": get(("VPXFile", "detectnfozzy")),
+            "detectfleep": get(("VPXFile", "detectfleep")),
+            "detectssf": get(("VPXFile", "detectssf")),
+            "detectlut": get(("VPXFile", "detectlut")),
+            "detectscorebit": get(("VPXFile", "detectscorebit")),
+            "detectfastflips": get(("VPXFile", "detectfastflips")),
+            "detectflex": get(("VPXFile", "detectflex")),
 
             # Patching
             "patch_applied": get(("VPXFile", "patch_applied"), default=False),
@@ -254,28 +254,48 @@ def render_panel(tab=None):
     with ui.column().classes('w-full'):
         # Hide Quasar's built-in numeric overlay inside linear progress bars (prevents 0..1 decimals)
         ui.add_head_html('<style>.q-linear-progress__info{display:none!important}</style>')
-        # Style table header and alternate row colors
+        # Style table header and alternate row colors - modern look
         ui.add_head_html('''
         <style>
+            .q-table {
+                border-radius: 8px !important;
+                overflow: hidden !important;
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+            }
             .q-table thead tr {
-                background-color: #3d5a80 !important;
+                background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%) !important;
             }
             .q-table thead tr th {
-                background-color: #3d5a80 !important;
+                background: transparent !important;
                 color: #fff !important;
                 font-weight: 600 !important;
+                text-transform: uppercase !important;
+                font-size: 0.75rem !important;
+                letter-spacing: 0.05em !important;
+                padding: 16px 12px !important;
             }
             .q-table tbody tr:nth-child(odd) {
-                background-color: #34495e !important;
+                background-color: #1e293b !important;
             }
             .q-table tbody tr:nth-child(even) {
-                background-color: #2c3e50 !important;
+                background-color: #0f172a !important;
             }
             .q-table tbody tr td {
-                color: #ecf0f1 !important;
+                color: #e2e8f0 !important;
+                padding: 12px !important;
+                border-bottom: 1px solid #334155 !important;
             }
             .q-table tbody tr:hover {
-                background-color: #1a252f !important;
+                background-color: #334155 !important;
+                transition: background-color 0.2s ease !important;
+            }
+            .q-table tbody tr:hover td {
+                color: #fff !important;
+            }
+            .q-table__bottom {
+                background-color: #1e293b !important;
+                color: #94a3b8 !important;
+                border-top: 1px solid #334155 !important;
             }
         </style>
         ''')
@@ -326,12 +346,16 @@ def render_panel(tab=None):
 
                 table._props['rows'] = table_rows
                 table.update()
-                
+
                 # Force browser layout recalculation to ensure table rows display properly
-                await asyncio.sleep(0.01)
-                table.run_method('resetScroll')
+                await asyncio.sleep(0.05)
+                # Trigger a window resize event to force the table to recalculate its layout
+                try:
+                    ui.run_javascript('window.dispatchEvent(new Event("resize"));')
+                except RuntimeError:
+                    pass  # Ignore if not in a valid UI context
                 
-                title_label.set_content(f"## Installed Tables ({len(table_rows)})")
+                title_label.set_text(f"Installed Tables ({len(table_rows)})")
                 missing_button.text = f"Unmatched Tables ({len(missing_rows)})"
 
                 # Update the click handler for the missing tables button with the new data
@@ -492,54 +516,66 @@ def render_panel(tab=None):
             dlg.open()
 
         # --- UI Layout ---
-        title_label = ui.markdown("Installed Tables")
-        with ui.row().classes("q-my-md"):
-            scan_btn = ui.button("Scan Tables", on_click=perform_scan).props("color=primary")
-            missing_button = ui.button("Undetected Tables").props("color=red")
-            with ui.row().classes("items-center gap-2"):
-                build_btn = ui.button("Build Metadata", on_click=open_build_metadata_dialog).props("icon=build color=primary")
-                patch_btn = ui.button("Apply VPX Patches").props("icon=construction color=secondary")
+        # Header section with page title and action buttons
+        with ui.card().classes('w-full mb-4').style('background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); border-radius: 12px;'):
+            with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
+                ui.label('Tables Management').classes('text-2xl font-bold text-white').style('flex-shrink: 0;')
+                with ui.row().classes('gap-3 items-center'):
+                    scan_btn = ui.button("Scan Tables", icon="refresh", on_click=perform_scan).props("color=white text-color=primary rounded")
+                    missing_button = ui.button("Unmatched", icon="warning").props("color=negative rounded")
 
-                async def call_apply_patches():
-                    nonlocal RUNNING
-                    if RUNNING:
-                        return
-                    RUNNING = True
-                    patch_btn.disable()
-                    try:
-                        progressbar.value = 0
-                        progressbar.visible = True
-                        status_label.text = "Preparing…"
-                        status_label.visible = True
-                        await asyncio.sleep(0.05)
-                        progress_timer.active = True
-                        await run.io_bound(vpxPatches, progress_cb=progress_cb)
-                        status_label.text = "Completed"
-                        progressbar.value = 100
-                        ui.notify('VPX patches applied', type='positive')
-                        # refresh tables silently to reflect patch_applied flag
-                        asyncio.create_task(perform_scan(silent=True))
-                    except Exception as e:
-                        ui.notify(f'Error: {e}', type='negative')
-                    finally:
-                        await asyncio.sleep(0.2)
-                        progress_timer.active = False
-                        progressbar.visible = False
-                        status_label.visible = False
-                        patch_btn.enable()
-                        RUNNING = False
-                patch_btn.on_click(call_apply_patches)
+        # Tools card section
+        with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155;'):
+            with ui.expansion('Tools', icon='build', value=False).classes('w-full'):
+                with ui.row().classes('gap-4 p-2 items-center flex-wrap'):
+                    build_btn = ui.button("Build Metadata", on_click=open_build_metadata_dialog, icon="build").props("color=primary outline rounded")
+                    patch_btn = ui.button("Apply VPX Patches", icon="construction").props("color=secondary outline rounded")
+
+                    async def call_apply_patches():
+                        nonlocal RUNNING
+                        if RUNNING:
+                            return
+                        RUNNING = True
+                        patch_btn.disable()
+                        try:
+                            progressbar.value = 0
+                            progressbar.visible = True
+                            status_label.text = "Preparing…"
+                            status_label.visible = True
+                            await asyncio.sleep(0.05)
+                            progress_timer.active = True
+                            await run.io_bound(vpxPatches, progress_cb=progress_cb)
+                            status_label.text = "Completed"
+                            progressbar.value = 100
+                            ui.notify('VPX patches applied', type='positive')
+                            # refresh tables silently to reflect patch_applied flag
+                            asyncio.create_task(perform_scan(silent=True))
+                        except Exception as e:
+                            ui.notify(f'Error: {e}', type='negative')
+                        finally:
+                            await asyncio.sleep(0.2)
+                            progress_timer.active = False
+                            progressbar.visible = False
+                            status_label.visible = False
+                            patch_btn.enable()
+                            RUNNING = False
+                    patch_btn.on_click(call_apply_patches)
+
+        # Progress indicators
         progressbar
         status_label
         log_container
-        ui.label("Click on the table to see more details and manage")
+
         # Use cached data if available, otherwise start with empty
         initial_rows = _tables_cache if _tables_cache is not None else []
         initial_missing = _missing_cache if _missing_cache is not None else []
 
+        # Table title - centered above the table
+        title_label = ui.label("Installed Tables").classes('text-xl font-semibold text-center w-full py-2')
+
         # Create a scrollable container for the table with proper height constraint
         table_container = ui.column().classes("w-full").style("flex: 1; overflow: hidden; display: flex;")
-        
+
         with table_container:
             table = (
                 ui.table(columns=columns, rows=initial_rows, row_key='filename', pagination={'rowsPerPage': 25})
@@ -551,7 +587,7 @@ def render_panel(tab=None):
 
         # Update title and missing button if we have cached data
         if _tables_cache is not None:
-            title_label.set_content(f"## Installed Tables ({len(_tables_cache)})")
+            title_label.set_text(f"Installed Tables ({len(_tables_cache)})")
         if _missing_cache is not None:
             missing_button.text = f"Unmatched Tables ({len(_missing_cache)})"
             missing_button.on('click', lambda: open_missing_tables_dialog(
@@ -559,68 +595,206 @@ def render_panel(tab=None):
                 on_close=lambda: asyncio.create_task(perform_scan(silent=True))
             ))
 
-        # Trigger initial scan only if we don't have cached data
-        if _tables_cache is None:
-            asyncio.create_task(perform_scan(silent=True))
+        # Function to refresh the table display after client is connected
+        async def refresh_table_on_connect():
+            await asyncio.sleep(0.2)  # Small delay to ensure client is ready
+            with table_container:
+                if _tables_cache is not None:
+                    # Force refresh with cached data
+                    table._props['rows'] = _tables_cache
+                    table.update()
+                else:
+                    # No cache, run the scan
+                    await perform_scan(silent=True)
+                # Trigger resize to ensure proper rendering
+                try:
+                    ui.run_javascript('window.dispatchEvent(new Event("resize"));')
+                except RuntimeError:
+                    pass
+
+        # Use client.on_connect to defer table refresh until client is connected
+        try:
+            context.client.on_connect(lambda: asyncio.create_task(refresh_table_on_connect()))
+        except Exception:
+            # Fallback: trigger scan if we don't have cached data
+            if _tables_cache is None:
+                asyncio.create_task(perform_scan(silent=True))
 
 def open_table_dialog(row_data: dict):
-    dlg = ui.dialog().props('max-width=1080px')
-    with dlg, ui.card().classes('w-[860px] max-w-[90vw]'):
-        title = row_data.get('filename') or row_data.get('name') or 'Table'
-        ui.label(f'Table Info: {title}').classes('text-lg font-bold')
+    # Add dialog styles
+    ui.add_head_html('''
+    <style>
+        .table-dialog-card {
+            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%) !important;
+            border: 1px solid #334155 !important;
+        }
+        .table-dialog-header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            margin: -16px -16px 0 -16px;
+            padding: 16px 20px;
+            border-radius: 4px 4px 0 0;
+        }
+        .detail-row {
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: rgba(30, 41, 59, 0.5);
+        }
+        .detail-row:hover {
+            background: rgba(51, 65, 85, 0.5);
+        }
+        .detail-label {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            min-width: 120px;
+        }
+        .detail-value {
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+        .addon-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+    </style>
+    ''')
 
-        # Details grid
-        with ui.expansion('Table Details', value=True).classes('q-mt-md'):
-            with ui.column().classes('gap-1'):
-                for k, v in row_data.items():
-                    ui.label(f'{k}: {v}')
+    dlg = ui.dialog().props('max-width=900px')
+    with dlg, ui.card().classes('w-[850px] max-w-[95vw] table-dialog-card'):
+        table_name = row_data.get('name') or row_data.get('filename') or 'Table'
 
-        ui.separator().classes('q-my-md')
-        ui.label('Addons').classes('text-base font-medium')
+        # Header
+        with ui.row().classes('table-dialog-header w-full items-center gap-3'):
+            ui.icon('casino', size='32px').classes('text-white')
+            with ui.column().classes('gap-0'):
+                ui.label(table_name).classes('text-xl font-bold text-white')
+                manufacturer = row_data.get('manufacturer', '')
+                year = row_data.get('year', '')
+                if manufacturer or year:
+                    ui.label(f'{manufacturer} {year}'.strip()).classes('text-sm text-blue-200')
 
-        table_path = Path(row_data.get('table_path', ''))
-        rom_name = (row_data.get('rom') or '').strip()
+        # Main info section
+        with ui.column().classes('w-full gap-4 p-4'):
+            # Key details in a grid
+            with ui.card().classes('w-full p-4').style('background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px;'):
+                ui.label('Table Information').classes('text-lg font-semibold text-white mb-3')
 
-        # 1) Pupvideos uploader (multiple files allowed)
-        with ui.row().classes('items-center gap-3 q-mt-sm'):
-            ui.label('Install Pupvideos')
-            def on_pup_upload(e):
-                # e contains: e.name, e.content (bytes)
-                dest = table_path / 'pupvideos' / e.name
-                save_upload_bytes(dest, e.content)
-                ui.notify(f'Pupvideos: {e.name} saved on {dest}', type='positive')
-            ui.upload(on_upload=on_pup_upload, multiple=True).props('label=Select files')
+                # Define which fields to show and their display names
+                display_fields = [
+                    ('filename', 'Filename', 'description'),
+                    ('id', 'VPS ID', 'fingerprint'),
+                    ('rom', 'ROM', 'memory'),
+                    ('version', 'Version', 'tag'),
+                    ('type', 'Type', 'category'),
+                    ('table_path', 'Path', 'folder'),
+                ]
 
-        # 2) Altcolor uploader (only .cRZ; requires ROM)
-        with ui.row().classes('items-center gap-3 q-mt-sm'):
-            ui.label('Install Altcolor')
-            def on_altcolor_upload(e):
-                if not rom_name:
-                    ui.notify('ROM not found or undefined. Please, update meta.ini before trying to install Altcolor.', type='warning')
-                    return
-                ext = Path(e.name).suffix
-                if ext not in ACCEPT_CRZ:
-                    ui.notify('Only .cRZ file extension accepted for Altcolor.', type='negative')
-                    return
-                dest = table_path / 'pinmame' / 'altcolor' / rom_name / e.name
-                save_upload_bytes(dest, e.content)
-                ui.notify(f'Altcolor: {e.name} saved on {dest}', type='positive')
-            ui.upload(on_upload=on_altcolor_upload, multiple=False).props('label=Select .cRZ')
+                with ui.grid(columns=2).classes('w-full gap-3'):
+                    for key, label, icon in display_fields:
+                        value = row_data.get(key, '')
+                        if value:  # Only show non-empty fields
+                            with ui.row().classes('detail-row items-center gap-2 w-full'):
+                                ui.icon(icon, size='18px').classes('text-blue-400')
+                                ui.label(label).classes('detail-label')
+                                ui.label(str(value)).classes('detail-value')
 
-        # 3) AltSound uploader (any files under rom folder; requires ROM)
-        with ui.row().classes('items-center gap-3 q-mt-sm'):
-            ui.label('Install AltSound')
-            def on_altsound_upload(e):
-                if not rom_name:
-                    ui.notify('ROM not found or undefined. Please, update meta.ini before trying to install AltSound.', type='warning')
-                    return
-                dest = table_path / 'pinmame' / 'altsound' / rom_name / e.name
-                save_upload_bytes(dest, e.content)
-                ui.notify(f'AltSound: {e.name} saved on {dest}', type='positive')
-            ui.upload(on_upload=on_altsound_upload, multiple=True).props('label=Select files or directory')
+            # Detection flags section - show all detection flags with their status
+            detect_fields = [
+                ('detectnfozzy', 'nFozzy'),
+                ('detectfleep', 'Fleep'),
+                ('detectssf', 'SSF'),
+                ('detectlut', 'LUT'),
+                ('detectscorebit', 'Scorebit'),
+                ('detectfastflips', 'FastFlips'),
+                ('detectflex', 'Flex'),
+            ]
 
-        with ui.row().classes('justify-end q-mt-md'):
-            ui.button('Close', on_click=dlg.close)
+            # Check if any detection fields have values (not empty string)
+            has_detections = any(row_data.get(k, '') != '' for k, _ in detect_fields)
+
+            if has_detections:
+                with ui.card().classes('w-full p-4').style('background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px;'):
+                    ui.label('Detected Features').classes('text-lg font-semibold text-white mb-3')
+                    with ui.row().classes('gap-2 flex-wrap'):
+                        for key, label in detect_fields:
+                            value = row_data.get(key, '')
+                            if value != '':  # Show if value exists
+                                # Handle string "true"/"false" values
+                                is_detected = str(value).lower() == 'true'
+                                if is_detected:
+                                    ui.badge(label, color='positive').props('rounded')
+                                else:
+                                    ui.badge(label, color='grey').props('rounded outline')
+
+            # Patch status
+            patch_applied = row_data.get('patch_applied', False)
+            with ui.row().classes('items-center gap-2'):
+                ui.icon('build' if patch_applied else 'build_circle', size='20px').classes('text-green-400' if patch_applied else 'text-gray-500')
+                ui.label('Standalone Patch:').classes('text-gray-400')
+                if patch_applied:
+                    ui.badge('Applied', color='positive').props('rounded')
+                else:
+                    ui.badge('Not Applied', color='grey').props('rounded outline')
+
+            # Addons section
+            with ui.expansion('Install Addons', icon='extension').classes('w-full').style('background: rgba(15, 23, 42, 0.4); border-radius: 8px;'):
+                table_path = Path(row_data.get('table_path', ''))
+                rom_name = (row_data.get('rom') or '').strip()
+
+                with ui.column().classes('gap-4 p-2'):
+                    # Pupvideos uploader
+                    with ui.row().classes('addon-card w-full items-center justify-between'):
+                        with ui.row().classes('items-center gap-3'):
+                            ui.icon('video_library', size='24px').classes('text-purple-400')
+                            with ui.column().classes('gap-0'):
+                                ui.label('PupVideos').classes('font-medium text-white')
+                                ui.label('Upload video files for PuP pack').classes('text-xs text-gray-400')
+                        def on_pup_upload(e):
+                            dest = table_path / 'pupvideos' / e.name
+                            save_upload_bytes(dest, e.content)
+                            ui.notify(f'Saved: {e.name}', type='positive')
+                        ui.upload(on_upload=on_pup_upload, multiple=True).props('flat color=primary label="Upload"')
+
+                    # Altcolor uploader
+                    with ui.row().classes('addon-card w-full items-center justify-between'):
+                        with ui.row().classes('items-center gap-3'):
+                            ui.icon('palette', size='24px').classes('text-orange-400')
+                            with ui.column().classes('gap-0'):
+                                ui.label('AltColor').classes('font-medium text-white')
+                                ui.label('Upload .cRZ color files (requires ROM)').classes('text-xs text-gray-400')
+                        def on_altcolor_upload(e):
+                            if not rom_name:
+                                ui.notify('ROM not found. Update metadata first.', type='warning')
+                                return
+                            ext = Path(e.name).suffix
+                            if ext not in ACCEPT_CRZ:
+                                ui.notify('Only .cRZ files accepted', type='negative')
+                                return
+                            dest = table_path / 'pinmame' / 'altcolor' / rom_name / e.name
+                            save_upload_bytes(dest, e.content)
+                            ui.notify(f'Saved: {e.name}', type='positive')
+                        ui.upload(on_upload=on_altcolor_upload, multiple=False).props('flat color=primary label="Upload .cRZ"')
+
+                    # AltSound uploader
+                    with ui.row().classes('addon-card w-full items-center justify-between'):
+                        with ui.row().classes('items-center gap-3'):
+                            ui.icon('music_note', size='24px').classes('text-green-400')
+                            with ui.column().classes('gap-0'):
+                                ui.label('AltSound').classes('font-medium text-white')
+                                ui.label('Upload sound pack files (requires ROM)').classes('text-xs text-gray-400')
+                        def on_altsound_upload(e):
+                            if not rom_name:
+                                ui.notify('ROM not found. Update metadata first.', type='warning')
+                                return
+                            dest = table_path / 'pinmame' / 'altsound' / rom_name / e.name
+                            save_upload_bytes(dest, e.content)
+                            ui.notify(f'Saved: {e.name}', type='positive')
+                        ui.upload(on_upload=on_altsound_upload, multiple=True).props('flat color=primary label="Upload"')
+
+        # Footer with close button
+        with ui.row().classes('w-full justify-end p-4 pt-0'):
+            ui.button('Close', icon='close', on_click=dlg.close).props('flat color=grey')
     dlg.open()
 
 def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Callable[[], None]] = None):

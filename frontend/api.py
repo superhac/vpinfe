@@ -330,15 +330,15 @@ class API:
            
     def get_joymaping(self):
         return {
-            'joyleft': self.iniConfig.config['Settings'].get('joyleft', '0'),
-            'joyright': self.iniConfig.config['Settings'].get('joyright', '0'),
-            'joyup': self.iniConfig.config['Settings'].get('joyup', '0'),
-            'joydown': self.iniConfig.config['Settings'].get('joydown', '0'),
-            'joyselect': self.iniConfig.config['Settings'].get('joyselect', '0'),
-            'joymenu': self.iniConfig.config['Settings'].get('joymenu', '0'),
-            'joyback': self.iniConfig.config['Settings'].get('joyback', '0'),
-            'joyexit': self.iniConfig.config['Settings'].get('joyexit', '0'),
-            'joycollectionmenu': self.iniConfig.config['Settings'].get('joycollectionmenu', '0')
+            'joyleft': self.iniConfig.config['Input'].get('joyleft', '0'),
+            'joyright': self.iniConfig.config['Input'].get('joyright', '0'),
+            'joyup': self.iniConfig.config['Input'].get('joyup', '0'),
+            'joydown': self.iniConfig.config['Input'].get('joydown', '0'),
+            'joyselect': self.iniConfig.config['Input'].get('joyselect', '0'),
+            'joymenu': self.iniConfig.config['Input'].get('joymenu', '0'),
+            'joyback': self.iniConfig.config['Input'].get('joyback', '0'),
+            'joyexit': self.iniConfig.config['Input'].get('joyexit', '0'),
+            'joycollectionmenu': self.iniConfig.config['Input'].get('joycollectionmenu', '0')
         }
 
     def set_button_mapping(self, button_name, button_index):
@@ -353,7 +353,7 @@ class API:
 
         try:
             # Set the value in the config
-            self.iniConfig.config.set('Settings', button_name, str(button_index))
+            self.iniConfig.config.set('Input', button_name, str(button_index))
             # Save to file
             self.iniConfig.save()
             return {"success": True, "message": f"Mapped {button_name} to button {button_index}"}
