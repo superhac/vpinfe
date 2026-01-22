@@ -1,5 +1,6 @@
 import json
 import os
+from urllib.parse import urlparse, parse_qs
 
 class MetaConfig:
 
@@ -19,7 +20,7 @@ class MetaConfig:
         """
 
         info = {
-            "IPDBId": "",
+            "IPDBId": parse_qs(urlparse(configdata.get("vpsdata", {}).get("ipdbUrl", "")).query).get("id", [""])[0],
             "Title": configdata.get("vpsdata", {}).get("name", ""),
             "Manufacturer": configdata.get("vpsdata", {}).get("manufacturer", ""),
             "Year": configdata.get("vpsdata", {}).get("year", ""),
