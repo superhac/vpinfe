@@ -129,7 +129,7 @@ Set your preferred theme in the `[Settings]` section:
 
 **Gamepad/Joystick Controls (Optional):**
 
-All gamepad button mappings are optional. If you want to use a gamepad, configure these in the `[Settings]` section after running `--gamepadtest` (see [Setup Gamepad](#setup-gamepad) section):
+All gamepad button mappings are optional. If you want to use a gamepad, configure these in the `[Input]` section after running `--gamepadtest` (see [Setup Gamepad](#setup-gamepad) section):
 - joyleft, joyright, joyup, joydown
 - joyselect, joymenu, joyback, joyexit, joycollectionmenu
 
@@ -286,14 +286,20 @@ options:
 | ----------------- | ------------------------------------------------------------------------- |
 | vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
 | tablerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
+| startup_collection| Set the collection VPinFE starts up with.  Case sensitive, match collection name. |
+
+### [Input]
+| Key               | Description |
+| ----------------- | ------------------------------------------------------------------------- |
 | joyleft           | Move left. Button mapping ids from `--gamepadtest`.                      |
 | joyright          | Move right. Button mapping ids from `--gamepadtest`.                     |
+| joyup             | Move up. Button mapping ids from `--gamepadtest`.                        |
+| joydown           | Move down. Button mapping ids from `--gamepadtest`.                      |
 | joyselect         | Select button / Launch. Button mapping ids from `--gamepadtest`.        |
 | joymenu           | Pop Menu. Button mapping ids from `--gamepadtest`.                       |
 | joyback           | Go Back. Button mapping ids from `--gamepadtest`.                        |
 | joyexit           | Exit VpinFE. Button mapping ids from `--gamepadtest`.                   |
 | joycollectionmenu | Open collection menu in the Theme UI. Button mapping ids from `--gamepadtest`. |
-| startup_collection| Set the collection VPinFE starts up with.  Case sensitive, match collection name. |
 
 ### [VPSdb]
 | Key               | Description |
