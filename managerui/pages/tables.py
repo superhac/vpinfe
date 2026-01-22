@@ -174,14 +174,14 @@ def parse_table_info(info_path):
             "rom": get(("VPXFile", "rom"), ("Info", "Rom")),
             "version": get(("VPXFile", "version")),
 
-            # Detection flags
-            "detectnfozzy": get(("VPXFile", "detectnfozzy")),
-            "detectfleep": get(("VPXFile", "detectfleep")),
-            "detectssf": get(("VPXFile", "detectssf")),
-            "detectlut": get(("VPXFile", "detectlut")),
-            "detectscorebit": get(("VPXFile", "detectscorebit")),
-            "detectfastflips": get(("VPXFile", "detectfastflips")),
-            "detectflex": get(("VPXFile", "detectflex")),
+            # Detection flags (keys match JSON: detectNfozzy, detectFleep, detectSSF, etc.)
+            "detectnfozzy": get(("VPXFile", "detectNfozzy")),
+            "detectfleep": get(("VPXFile", "detectFleep")),
+            "detectssf": get(("VPXFile", "detectSSF")),
+            "detectlut": get(("VPXFile", "detectLUT")),
+            "detectscorebit": get(("VPXFile", "detectScorebit")),
+            "detectfastflips": get(("VPXFile", "detectFastflips")),
+            "detectflex": get(("VPXFile", "detectFlex")),
 
             # Patching
             "patch_applied": get(("VPXFile", "patch_applied"), default=False),
@@ -378,142 +378,148 @@ def render_panel(tab=None):
                 except Exception:
                     pass
 
-        # --- Metadata build logic (from media.py) ---
+        # --- Metadata build logic ---
         RUNNING = False
-        # Progress bar: value is 0..1; percent is shown only in status_label
-        progressbar = ui.linear_progress(value=0.0)
-        progressbar.visible = False
-        status_label = ui.label("").classes("text-sm text-grey")
-        status_label.visible = False
-
-        # Console log output
-        log_container = ui.column().classes("w-full bg-gray-900 rounded p-3 overflow-auto").style("max-height: 300px; font-family: monospace; font-size: 12px;")
-        log_container.visible = False
-        log_messages = []
-
-        progress_q: Queue[tuple[int, int, str]] = Queue()
-        log_q: Queue[str] = Queue()
-
-        def pump_progress():
-            updated = False
-            while not progress_q.empty():
-                updated = True
-                current, total, message = progress_q.get_nowait()
-                if total and total > 0:
-                    frac = max(0.0, min(1.0, current / total))
-                    percent = int(round(frac * 100))
-                    progressbar.value = frac
-                    status_label.text = f'{message} — {percent}%'
-                else:
-                    progressbar.value = 0
-                    status_label.text = message or ''
-
-            # Update log messages
-            while not log_q.empty():
-                log_msg = log_q.get_nowait()
-                log_messages.append(log_msg)
-                # Keep only last 100 messages to avoid memory issues
-                if len(log_messages) > 100:
-                    log_messages.pop(0)
-                updated = True
-
-            if updated:
-                # Update log display
-                log_container.clear()
-                with log_container:
-                    for msg in log_messages:
-                        ui.label(msg).classes("text-white text-xs whitespace-pre-wrap")
-                # Auto-scroll to bottom by using JavaScript
-                try:
-                    log_container.run_method('scrollTop', log_container.run_method('scrollHeight'))
-                except:
-                    pass
-
-            if updated and progressbar.value >= 1.0:
-                progress_timer.active = False
-
-        progress_timer = ui.timer(0.1, pump_progress, active=False)
-
-        def progress_cb(current: int, total: int, message: str):
-            progress_q.put((current, total, message))
-
-        def log_cb(message: str):
-            """Callback for console log messages."""
-            log_q.put(message)
-        async def call_build_metadata(download_media_opt: bool = False, update_all_opt: bool = False):
-            nonlocal RUNNING, log_messages
-            if RUNNING:
-                return
-            RUNNING = True
-            build_btn.disable()
-            try:
-                # Clear previous logs
-                log_messages.clear()
-                log_container.clear()
-
-                progressbar.value = 0
-                progressbar.visible = True
-                status_label.text = "Preparing…"
-                status_label.visible = True
-                log_container.visible = True
-                await asyncio.sleep(0.05)
-                progress_timer.active = True
-                result = await run.io_bound(
-                    buildMetaData,
-                    downloadMedia=download_media_opt,
-                    updateAll=update_all_opt,
-                    progress_cb=progress_cb,
-                    log_cb=log_cb,
-                )
-                status_label.text = "Completed"
-                progressbar.value = 1.0
-                ui.notify(
-                    (
-                        f'Media & Metadata build complete. '
-                        f'{result["found"]} scanned, {result.get("not_found", 0)} not found in VPSdb'
-                    ) if download_media_opt else (
-                        f'Metadata build complete. '
-                        f'{result["found"]} scanned, {result.get("not_found", 0)} not found in VPSdb'
-                    ),
-                    type='positive'
-                )
-                # Refresh table list after completion
-                await perform_scan(silent=True)
-            except Exception as e:
-                logger.exception('buildMetaData failed')
-                ui.notify(f'Error: {e}', type='negative')
-            finally:
-                await asyncio.sleep(0.2)
-                progress_timer.active = False
-                progressbar.visible = False
-                status_label.visible = False
-                # Keep log visible so user can review
-                build_btn.enable()
-                RUNNING = False
 
         def open_build_metadata_dialog():
-            """Show dialog with buildmeta options before executing."""
-            dlg = ui.dialog().props('max-width=600px')
-            with dlg, ui.card().classes('w-[550px]'):
-                ui.label('Build Metadata Options').classes('text-lg font-bold')
+            """Show dialog with buildmeta options and progress display."""
+            nonlocal RUNNING
+            if RUNNING:
+                return
+
+            dlg = ui.dialog().props('persistent max-width=700px')
+
+            # State for this dialog instance
+            dialog_state = {
+                'running': False,
+                'log_messages': [],
+                'progress_q': Queue(),
+                'log_q': Queue(),
+            }
+
+            with dlg, ui.card().classes('w-[650px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
+                ui.label('Build Metadata').classes('text-xl font-bold text-white')
                 ui.separator()
 
-                with ui.column().classes('gap-4 q-my-md'):
+                # Options section (hidden during build)
+                options_container = ui.column().classes('gap-4 q-my-md w-full')
+                with options_container:
                     update_all_switch = ui.switch('Update All Tables', value=False).classes('text-sm')
-                    ui.label('Reparse all tables, even if meta.ini already exists').classes('text-xs text-grey q-ml-lg')
+                    ui.label('Reparse all tables, even if .info already exists').classes('text-xs text-grey q-ml-lg')
 
                     download_media_switch = ui.switch('Download Media', value=True).classes('text-sm')
                     ui.label('Automatically download table images and media from VPSdb').classes('text-xs text-grey q-ml-lg')
 
-                with ui.row().classes('justify-end gap-2 q-mt-md'):
-                    ui.button('Cancel', on_click=dlg.close)
-                    def do_build():
-                        dlg.close()
-                        asyncio.create_task(call_build_metadata(
-                            download_media_opt=bool(download_media_switch.value),
-                            update_all_opt=bool(update_all_switch.value)
-                        ))
-                    ui.button('Start Build', on_click=do_build).props('color=primary icon=build')
+                # Progress section (shown during build)
+                progress_container = ui.column().classes('w-full gap-2')
+                progress_container.visible = False
+
+                with progress_container:
+                    progressbar = ui.linear_progress(value=0.0, show_value=False).classes('w-full')
+                    status_label = ui.label("Preparing...").classes("text-sm text-white")
+
+                    # Log output
+                    log_container = ui.column().classes("w-full bg-gray-900 rounded p-3 overflow-auto").style("max-height: 250px; font-family: monospace; font-size: 11px;")
+
+                # Buttons
+                buttons_container = ui.row().classes('justify-end gap-2 q-mt-md w-full')
+                with buttons_container:
+                    cancel_btn = ui.button('Cancel', on_click=dlg.close)
+                    start_btn = ui.button('Start Build', icon='build').props('color=primary')
+                    close_btn = ui.button('Close', on_click=dlg.close).props('color=primary')
+                    close_btn.visible = False
+
+                def pump_progress():
+                    updated = False
+                    while not dialog_state['progress_q'].empty():
+                        updated = True
+                        current, total, message = dialog_state['progress_q'].get_nowait()
+                        if total and total > 0:
+                            frac = max(0.0, min(1.0, current / total))
+                            percent = int(round(frac * 100))
+                            progressbar.value = frac
+                            status_label.text = f'{message} — {percent}%'
+                        else:
+                            progressbar.value = 0
+                            status_label.text = message or ''
+
+                    while not dialog_state['log_q'].empty():
+                        log_msg = dialog_state['log_q'].get_nowait()
+                        dialog_state['log_messages'].append(log_msg)
+                        if len(dialog_state['log_messages']) > 100:
+                            dialog_state['log_messages'].pop(0)
+                        updated = True
+
+                    if updated:
+                        log_container.clear()
+                        with log_container:
+                            for msg in dialog_state['log_messages']:
+                                ui.label(msg).classes("text-white text-xs whitespace-pre-wrap")
+
+                progress_timer = ui.timer(0.1, pump_progress, active=False)
+
+                def progress_cb(current: int, total: int, message: str):
+                    dialog_state['progress_q'].put((current, total, message))
+
+                def log_cb(message: str):
+                    dialog_state['log_q'].put(message)
+
+                async def do_build():
+                    nonlocal RUNNING
+                    if dialog_state['running']:
+                        return
+                    dialog_state['running'] = True
+                    RUNNING = True
+
+                    # Switch UI to progress mode
+                    options_container.visible = False
+                    progress_container.visible = True
+                    start_btn.visible = False
+                    cancel_btn.visible = False
+
+                    dialog_state['log_messages'].clear()
+                    log_container.clear()
+                    progressbar.value = 0
+                    status_label.text = "Preparing..."
+                    progress_timer.active = True
+
+                    try:
+                        result = await run.io_bound(
+                            buildMetaData,
+                            downloadMedia=bool(download_media_switch.value),
+                            updateAll=bool(update_all_switch.value),
+                            progress_cb=progress_cb,
+                            log_cb=log_cb,
+                        )
+                        status_label.text = "Completed!"
+                        progressbar.value = 1.0
+
+                        # Show completion message in log
+                        msg = f'Build complete. {result["found"]} scanned, {result.get("not_found", 0)} not found in VPSdb'
+                        dialog_state['log_messages'].append(f"✓ {msg}")
+                        log_container.clear()
+                        with log_container:
+                            for m in dialog_state['log_messages']:
+                                ui.label(m).classes("text-white text-xs whitespace-pre-wrap")
+
+                        # Refresh table list after completion
+                        await perform_scan(silent=True)
+                    except Exception as e:
+                        logger.exception('buildMetaData failed')
+                        status_label.text = f"Error: {e}"
+                        dialog_state['log_messages'].append(f"✗ Error: {e}")
+                        log_container.clear()
+                        with log_container:
+                            for m in dialog_state['log_messages']:
+                                ui.label(m).classes("text-white text-xs whitespace-pre-wrap")
+                    finally:
+                        progress_timer.active = False
+                        close_btn.visible = True
+                        dialog_state['running'] = False
+                        RUNNING = False
+
+                start_btn.on_click(lambda: asyncio.create_task(do_build()))
+
             dlg.open()
 
         # --- UI Layout ---
@@ -522,7 +528,7 @@ def render_panel(tab=None):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
                 ui.label('Tables Management').classes('text-2xl font-bold text-white').style('flex-shrink: 0;')
                 with ui.row().classes('gap-3 items-center'):
-                    scan_btn = ui.button("Scan Tables", icon="refresh", on_click=perform_scan).props("color=white text-color=primary rounded")
+                    scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).props("color=white text-color=primary rounded")
                     missing_button = ui.button("Unmatched", icon="warning").props("color=negative rounded")
 
         # Tools card section
@@ -532,40 +538,101 @@ def render_panel(tab=None):
                     build_btn = ui.button("Build Metadata", on_click=open_build_metadata_dialog, icon="build").props("color=primary outline rounded")
                     patch_btn = ui.button("Apply VPX Patches", icon="construction").props("color=secondary outline rounded")
 
-                    async def call_apply_patches():
+                    def open_patch_dialog():
+                        """Show dialog for applying VPX patches with progress display."""
                         nonlocal RUNNING
                         if RUNNING:
                             return
-                        RUNNING = True
-                        patch_btn.disable()
-                        try:
-                            progressbar.value = 0
-                            progressbar.visible = True
-                            status_label.text = "Preparing…"
-                            status_label.visible = True
-                            await asyncio.sleep(0.05)
-                            progress_timer.active = True
-                            await run.io_bound(vpxPatches, progress_cb=progress_cb)
-                            status_label.text = "Completed"
-                            progressbar.value = 100
-                            ui.notify('VPX patches applied', type='positive')
-                            # refresh tables silently to reflect patch_applied flag
-                            asyncio.create_task(perform_scan(silent=True))
-                        except Exception as e:
-                            ui.notify(f'Error: {e}', type='negative')
-                        finally:
-                            await asyncio.sleep(0.2)
-                            progress_timer.active = False
-                            progressbar.visible = False
-                            status_label.visible = False
-                            patch_btn.enable()
-                            RUNNING = False
-                    patch_btn.on_click(call_apply_patches)
 
-        # Progress indicators
-        progressbar
-        status_label
-        log_container
+                        dlg = ui.dialog().props('persistent max-width=600px')
+
+                        dialog_state = {
+                            'running': False,
+                            'progress_q': Queue(),
+                        }
+
+                        with dlg, ui.card().classes('w-[550px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
+                            ui.label('Apply VPX Patches').classes('text-xl font-bold text-white')
+                            ui.separator()
+
+                            # Info section
+                            info_container = ui.column().classes('gap-2 q-my-md w-full')
+                            with info_container:
+                                ui.label('This will apply standalone patches to all tables that support them.').classes('text-sm text-grey')
+
+                            # Progress section (shown during patching)
+                            progress_container = ui.column().classes('w-full gap-2')
+                            progress_container.visible = False
+
+                            with progress_container:
+                                patch_progressbar = ui.linear_progress(value=0.0, show_value=False).classes('w-full')
+                                patch_status_label = ui.label("Preparing...").classes("text-sm text-white")
+
+                            # Buttons
+                            buttons_container = ui.row().classes('justify-end gap-2 q-mt-md w-full')
+                            with buttons_container:
+                                cancel_btn = ui.button('Cancel', on_click=dlg.close)
+                                start_btn = ui.button('Start Patching', icon='construction').props('color=primary')
+                                close_btn = ui.button('Close', on_click=dlg.close).props('color=primary')
+                                close_btn.visible = False
+
+                            def pump_patch_progress():
+                                while not dialog_state['progress_q'].empty():
+                                    current, total, message = dialog_state['progress_q'].get_nowait()
+                                    if total and total > 0:
+                                        frac = max(0.0, min(1.0, current / total))
+                                        percent = int(round(frac * 100))
+                                        patch_progressbar.value = frac
+                                        patch_status_label.text = f'{message} — {percent}%'
+                                    else:
+                                        patch_progressbar.value = 0
+                                        patch_status_label.text = message or ''
+
+                            patch_progress_timer = ui.timer(0.1, pump_patch_progress, active=False)
+
+                            def patch_progress_cb(current: int, total: int, message: str):
+                                dialog_state['progress_q'].put((current, total, message))
+
+                            async def do_patch():
+                                nonlocal RUNNING
+                                if dialog_state['running']:
+                                    return
+                                dialog_state['running'] = True
+                                RUNNING = True
+
+                                # Switch UI to progress mode
+                                info_container.visible = False
+                                progress_container.visible = True
+                                start_btn.visible = False
+                                cancel_btn.visible = False
+
+                                patch_progressbar.value = 0
+                                patch_status_label.text = "Preparing..."
+                                patch_progress_timer.active = True
+
+                                try:
+                                    await run.io_bound(vpxPatches, progress_cb=patch_progress_cb)
+                                    patch_status_label.text = "Completed!"
+                                    patch_progressbar.value = 1.0
+                                    ui.notify('VPX patches applied', type='positive')
+
+                                    # Refresh tables silently to reflect patch_applied flag
+                                    await perform_scan(silent=True)
+                                except Exception as e:
+                                    logger.exception('vpxPatches failed')
+                                    patch_status_label.text = f"Error: {e}"
+                                    ui.notify(f'Error: {e}', type='negative')
+                                finally:
+                                    patch_progress_timer.active = False
+                                    close_btn.visible = True
+                                    dialog_state['running'] = False
+                                    RUNNING = False
+
+                            start_btn.on_click(lambda: asyncio.create_task(do_patch()))
+
+                        dlg.open()
+
+                    patch_btn.on_click(open_patch_dialog)
 
         # Use cached data if available, otherwise start with empty
         initial_rows = _tables_cache if _tables_cache is not None else []
