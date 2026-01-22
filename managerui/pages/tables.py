@@ -161,10 +161,11 @@ def parse_table_info(info_path):
             return default
 
         data = {
-            # Display / identity
-            "name": get(("Info", "Title"), ("root", "name"), default=table_name),
+            # Display / identity (strip whitespace from name)
+            "name": (get(("Info", "Title"), ("root", "name"), default=table_name) or "").strip(),
             "filename": get(("VPXFile", "filename"), default=f"{table_name}.vpx"),
             "id": get(("Info", "VPSId"), ("root", "id")),
+            "ipdb_id": get(("Info", "IPDBId")),
 
             # Metadata
             "manufacturer": get(("Info", "Manufacturer"), ("VPXFile", "manufacturer")),
@@ -584,6 +585,21 @@ def render_panel(tab=None):
                   .classes("w-full cursor-pointer")
                   .style("flex: 1; overflow: auto;")
             )
+            # Add custom slot for name column to include IPDB link
+            table.add_slot('body-cell-name', '''
+                <q-td :props="props">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span>{{ props.value }}</span>
+                        <a v-if="props.row.ipdb_id"
+                           :href="'https://www.ipdb.org/machine.cgi?id=' + props.row.ipdb_id"
+                           target="_blank"
+                           @click.stop
+                           style="text-decoration: none;">
+                            <q-badge color="yellow-8" text-color="black" label="IPDB" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
+                        </a>
+                    </div>
+                </q-td>
+            ''')
 
         # Update title and missing button if we have cached data
         if _tables_cache is not None:
