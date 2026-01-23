@@ -3,6 +3,7 @@ from pathlib import Path
 from nicegui import ui, app
 from .pages import tables as tab_tables
 from .pages import vpinfe_config as tab_vpinfe
+from .pages import collections as tab_collections
 from .pages import remote
 import threading
 
@@ -95,6 +96,12 @@ def build_app():
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
+            collections_btn = (
+                ui.button('Collections', icon='collections_bookmark', on_click=lambda: show_page('collections'))
+                .classes('w-full text-white nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px;')
+                .props('flat align=left')
+            )
             config_btn = (
                 ui.button('Configuration', icon='tune', on_click=lambda: show_page('vpinfe'))
                 .classes('w-full text-white nav-btn')
@@ -107,12 +114,17 @@ def build_app():
     def show_page(page_key: str):
         app.storage.user['active_page'] = page_key
 
-        # Update button styles
+        # Update button styles - reset all first
+        tables_btn.classes(remove='nav-btn-active')
+        collections_btn.classes(remove='nav-btn-active')
+        config_btn.classes(remove='nav-btn-active')
+
+        # Set active button
         if page_key == 'tables':
             tables_btn.classes(add='nav-btn-active')
-            config_btn.classes(remove='nav-btn-active')
-        else:
-            tables_btn.classes(remove='nav-btn-active')
+        elif page_key == 'collections':
+            collections_btn.classes(add='nav-btn-active')
+        elif page_key == 'vpinfe':
             config_btn.classes(add='nav-btn-active')
 
         # Only re-render if page changed
@@ -125,6 +137,8 @@ def build_app():
         with content_container:
             if page_key == 'tables':
                 tab_tables.render_panel()
+            elif page_key == 'collections':
+                tab_collections.render_panel()
             elif page_key == 'vpinfe':
                 tab_vpinfe.render_panel()
 

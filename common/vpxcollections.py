@@ -94,6 +94,23 @@ class VPXCollections:
         if not self.config.remove_section(section):
             raise KeyError(f"Section '{section}' not found")
 
+    def rename_collection(self, old_name: str, new_name: str):
+        """Rename a collection."""
+        if old_name not in self.config:
+            raise KeyError(f"Section '{old_name}' not found")
+        if new_name in self.config:
+            raise ValueError(f"Section '{new_name}' already exists")
+        if not new_name.strip():
+            raise ValueError("New name cannot be empty")
+
+        # Copy all items from old section to new section
+        self.config.add_section(new_name)
+        for key, value in self.config.items(old_name):
+            self.config.set(new_name, key, value)
+
+        # Remove old section
+        self.config.remove_section(old_name)
+
     def add_vpsid(self, section: str, vpsid: str):
         """Add a VPSId to a collection."""
         vpsids = set(self.get_vpsids(section))

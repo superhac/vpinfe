@@ -171,6 +171,7 @@ def parse_table_info(info_path):
             "manufacturer": get(("Info", "Manufacturer"), ("VPXFile", "manufacturer")),
             "year": get(("Info", "Year"), ("VPXFile", "year")),
             "type": get(("Info", "Type"), ("VPXFile", "type")),
+            "themes": get(("Info", "Themes"), default=[]),
             "rom": get(("VPXFile", "rom"), ("Info", "Rom")),
             "version": get(("VPXFile", "version")),
 
