@@ -189,6 +189,11 @@ def parse_table_info(info_path):
 
             # Internal
             "table_path": table_dir,
+
+            # Addon detection (check for directories)
+            "pup_pack_exists": (Path(table_dir) / "pupvideos").is_dir(),
+            "alt_color_exists": (Path(table_dir) / "pinmame" / "altcolor").is_dir(),
+            "alt_sound_exists": (Path(table_dir) / "pinmame" / "altsound").is_dir(),
         }
 
         return data
@@ -310,7 +315,6 @@ def render_panel(tab=None):
             {'name': 'id', 'label': 'VPS ID', 'field': 'id', 'align': 'left', 'sortable': True},
             {'name': 'rom', 'label': 'ROM', 'field': 'rom', 'align': 'left', 'sortable': True},
             {'name': 'version', 'label': 'Version', 'field': 'version', 'align': 'left', 'sortable': True},
-            {'name': 'patch_applied', 'label': 'Standalone Patch', 'field': 'patch_applied', 'sortable': True, 'align': 'center'},
         ]
 
         def on_row_click(e: events.GenericEventArguments):
@@ -346,8 +350,15 @@ def render_panel(tab=None):
                 _tables_cache = table_rows
                 _missing_cache = missing_rows
 
-                table._props['rows'] = table_rows
-                table.update()
+                # Refresh filter options and apply current filters
+                try:
+                    refresh_filter_options()
+                    update_table_display()
+                except NameError:
+                    # Filters not yet created, just show all rows
+                    table._props['rows'] = table_rows
+                    table.update()
+                    title_label.set_text(f"Installed Tables ({len(table_rows)})")
 
                 # Force browser layout recalculation to ensure table rows display properly
                 await asyncio.sleep(0.05)
@@ -356,8 +367,6 @@ def render_panel(tab=None):
                     ui.run_javascript('window.dispatchEvent(new Event("resize"));')
                 except RuntimeError:
                     pass  # Ignore if not in a valid UI context
-                
-                title_label.set_text(f"Installed Tables ({len(table_rows)})")
                 missing_button.text = f"Unmatched Tables ({len(missing_rows)})"
 
                 # Update the click handler for the missing tables button with the new data
@@ -639,6 +648,160 @@ def render_panel(tab=None):
         initial_rows = _tables_cache if _tables_cache is not None else []
         initial_missing = _missing_cache if _missing_cache is not None else []
 
+        # --- Filter state and functions ---
+        filter_state = {
+            'search': '',
+            'manufacturer': 'All',
+            'year': 'All',
+            'theme': 'All',
+        }
+
+        def get_filter_options_from_cache():
+            """Extract unique filter values from cached tables."""
+            tables = _tables_cache or []
+            manufacturers = set()
+            years = set()
+            themes = set()
+
+            for t in tables:
+                mfr = t.get('manufacturer', '')
+                if mfr:
+                    manufacturers.add(mfr)
+
+                year = t.get('year', '')
+                if year:
+                    years.add(str(year))
+
+                table_themes = t.get('themes', [])
+                if isinstance(table_themes, list):
+                    themes.update(table_themes)
+                elif table_themes:
+                    themes.add(table_themes)
+
+            return {
+                'manufacturers': ['All'] + sorted(manufacturers),
+                'years': ['All'] + sorted(years),
+                'themes': ['All'] + sorted(themes),
+            }
+
+        def apply_filters():
+            """Filter the cached tables based on current filter state."""
+            tables = _tables_cache or []
+            result = tables
+
+            # Search filter (name or filename)
+            search_term = filter_state['search'].lower().strip()
+            if search_term:
+                result = [
+                    t for t in result
+                    if search_term in (t.get('name') or '').lower()
+                    or search_term in (t.get('filename') or '').lower()
+                ]
+
+            # Manufacturer filter
+            if filter_state['manufacturer'] != 'All':
+                result = [t for t in result if t.get('manufacturer') == filter_state['manufacturer']]
+
+            # Year filter
+            if filter_state['year'] != 'All':
+                result = [t for t in result if str(t.get('year', '')) == filter_state['year']]
+
+            # Theme filter
+            if filter_state['theme'] != 'All':
+                result = [
+                    t for t in result
+                    if filter_state['theme'] in (t.get('themes') or [])
+                    or t.get('themes') == filter_state['theme']
+                ]
+
+            # Sort by name
+            result.sort(key=lambda r: (r.get('name') or '').lower())
+            return result
+
+        def update_table_display():
+            """Update the table with filtered results."""
+            filtered = apply_filters()
+            table._props['rows'] = filtered
+            table.update()
+            # Update title with filtered count
+            total = len(_tables_cache or [])
+            shown = len(filtered)
+            if shown == total:
+                title_label.set_text(f"Installed Tables ({total})")
+            else:
+                title_label.set_text(f"Installed Tables ({shown} of {total})")
+
+        def on_search_change(e: events.ValueChangeEventArguments):
+            filter_state['search'] = e.value or ''
+            update_table_display()
+
+        def on_manufacturer_change(e: events.ValueChangeEventArguments):
+            filter_state['manufacturer'] = e.value or 'All'
+            update_table_display()
+
+        def on_year_change(e: events.ValueChangeEventArguments):
+            filter_state['year'] = e.value or 'All'
+            update_table_display()
+
+        def on_theme_change(e: events.ValueChangeEventArguments):
+            filter_state['theme'] = e.value or 'All'
+            update_table_display()
+
+        def clear_filters():
+            filter_state['search'] = ''
+            filter_state['manufacturer'] = 'All'
+            filter_state['year'] = 'All'
+            filter_state['theme'] = 'All'
+            search_input.value = ''
+            manufacturer_select.value = 'All'
+            year_select.value = 'All'
+            theme_select.value = 'All'
+            update_table_display()
+
+        def refresh_filter_options():
+            """Update filter dropdowns with current cache values."""
+            opts = get_filter_options_from_cache()
+            manufacturer_select.options = opts['manufacturers']
+            year_select.options = opts['years']
+            theme_select.options = opts['themes']
+            manufacturer_select.update()
+            year_select.update()
+            theme_select.update()
+
+        # --- Search and Filter UI ---
+        with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155;'):
+            with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
+                # Search input
+                search_input = ui.input(placeholder='Search tables...').props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
+                search_input.on_value_change(on_search_change)
+
+                # Filter dropdowns
+                filter_opts = get_filter_options_from_cache()
+
+                manufacturer_select = ui.select(
+                    label='Manufacturer',
+                    options=filter_opts['manufacturers'],
+                    value='All'
+                ).props('outlined dense').classes('w-40')
+                manufacturer_select.on_value_change(on_manufacturer_change)
+
+                year_select = ui.select(
+                    label='Year',
+                    options=filter_opts['years'],
+                    value='All'
+                ).props('outlined dense').classes('w-32')
+                year_select.on_value_change(on_year_change)
+
+                theme_select = ui.select(
+                    label='Theme',
+                    options=filter_opts['themes'],
+                    value='All'
+                ).props('outlined dense').classes('w-40')
+                theme_select.on_value_change(on_theme_change)
+
+                # Clear filters button
+                ui.button(icon='clear_all', on_click=clear_filters).props('flat round').tooltip('Clear all filters')
+
         # Table title - centered above the table
         title_label = ui.label("Installed Tables").classes('text-xl font-semibold text-center w-full py-2')
 
@@ -668,10 +831,21 @@ def render_panel(tab=None):
                     </div>
                 </q-td>
             ''')
+            # Add custom slot for VPS ID column to make it a clickable link
+            table.add_slot('body-cell-id', '''
+                <q-td :props="props">
+                    <a v-if="props.value"
+                       :href="'https://virtualpinballspreadsheet.github.io/?game=' + props.value"
+                       target="_blank"
+                       @click.stop
+                       style="color: #60a5fa; text-decoration: none;">
+                        {{ props.value }}
+                    </a>
+                    <span v-else>-</span>
+                </q-td>
+            ''')
 
-        # Update title and missing button if we have cached data
-        if _tables_cache is not None:
-            title_label.set_text(f"Installed Tables ({len(_tables_cache)})")
+        # Update missing button if we have cached data
         if _missing_cache is not None:
             missing_button.text = f"Unmatched Tables ({len(_missing_cache)})"
             missing_button.on('click', lambda: open_missing_tables_dialog(
@@ -679,30 +853,27 @@ def render_panel(tab=None):
                 on_close=lambda: asyncio.create_task(perform_scan(silent=True))
             ))
 
-        # Function to refresh the table display after client is connected
-        async def refresh_table_on_connect():
-            await asyncio.sleep(0.2)  # Small delay to ensure client is ready
-            with table_container:
-                if _tables_cache is not None:
-                    # Force refresh with cached data
-                    table._props['rows'] = _tables_cache
-                    table.update()
-                else:
-                    # No cache, run the scan
-                    await perform_scan(silent=True)
-                # Trigger resize to ensure proper rendering
-                try:
-                    ui.run_javascript('window.dispatchEvent(new Event("resize"));')
-                except RuntimeError:
-                    pass
+        # Function to refresh the table display
+        async def refresh_table_on_startup():
+            if _tables_cache is not None:
+                # Refresh filter options and apply filters from cache
+                refresh_filter_options()
+                update_table_display()
+            else:
+                # No cache, run the scan
+                await perform_scan(silent=True)
+            # Trigger resize to ensure proper rendering
+            try:
+                ui.run_javascript('window.dispatchEvent(new Event("resize"));')
+            except RuntimeError:
+                pass
 
-        # Use client.on_connect to defer table refresh until client is connected
-        try:
-            context.client.on_connect(lambda: asyncio.create_task(refresh_table_on_connect()))
-        except Exception:
-            # Fallback: trigger scan if we don't have cached data
-            if _tables_cache is None:
-                asyncio.create_task(perform_scan(silent=True))
+        # Use a one-shot timer to ensure table loads after UI is ready
+        async def startup_refresh():
+            await asyncio.sleep(0.2)  # Wait for UI to be ready
+            await refresh_table_on_startup()
+
+        ui.timer(0.1, lambda: asyncio.create_task(startup_refresh()), once=True)
 
 def open_table_dialog(row_data: dict):
     # Add dialog styles
@@ -811,15 +982,24 @@ def open_table_dialog(row_data: dict):
                                 else:
                                     ui.badge(label, color='grey').props('rounded outline')
 
-            # Patch status
-            patch_applied = row_data.get('patch_applied', False)
-            with ui.row().classes('items-center gap-2'):
-                ui.icon('build' if patch_applied else 'build_circle', size='20px').classes('text-green-400' if patch_applied else 'text-gray-500')
-                ui.label('Standalone Patch:').classes('text-gray-400')
-                if patch_applied:
-                    ui.badge('Applied', color='positive').props('rounded')
-                else:
-                    ui.badge('Not Applied', color='grey').props('rounded outline')
+            # Detected Addons section
+            addon_fields = [
+                ('pup_pack_exists', 'PUP Pack', 'video_library', 'purple'),
+                ('alt_color_exists', 'Alt Color', 'palette', 'orange'),
+                ('alt_sound_exists', 'Alt Sound', 'music_note', 'green'),
+            ]
+
+            with ui.card().classes('w-full p-4').style('background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px;'):
+                ui.label('Detected Addons').classes('text-lg font-semibold text-white mb-3')
+                with ui.row().classes('gap-2 flex-wrap'):
+                    for key, label, icon, color in addon_fields:
+                        exists = row_data.get(key, False)
+                        if exists:
+                            with ui.row().classes('items-center gap-1'):
+                                ui.icon(icon, size='16px').classes(f'text-{color}-400')
+                                ui.badge(label, color='positive').props('rounded')
+                        else:
+                            ui.badge(label, color='grey').props('rounded outline')
 
             # Addons section
             with ui.expansion('Install Addons', icon='extension').classes('w-full').style('background: rgba(15, 23, 42, 0.4); border-radius: 8px;'):
