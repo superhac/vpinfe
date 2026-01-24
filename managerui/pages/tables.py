@@ -312,7 +312,6 @@ def render_panel(tab=None):
             {'name': 'filename', 'label': 'Filename', 'field': 'filename', 'align': 'left', 'sortable': True},
             {'name': 'manufacturer', 'label': 'Manufacturer', 'field': 'manufacturer', 'align': 'left', 'sortable': True},
             {'name': 'year', 'label': 'Year', 'field': 'year', 'align': 'left', 'sortable': True},
-            {'name': 'id', 'label': 'VPS ID', 'field': 'id', 'align': 'left', 'sortable': True},
             {'name': 'rom', 'label': 'ROM', 'field': 'rom', 'align': 'left', 'sortable': True},
             {'name': 'version', 'label': 'Version', 'field': 'version', 'align': 'left', 'sortable': True},
         ]
@@ -654,6 +653,8 @@ def render_panel(tab=None):
             'manufacturer': 'All',
             'year': 'All',
             'theme': 'All',
+            'table_type': 'All',
+            'has_pup_pack': False,
         }
 
         def get_filter_options_from_cache():
@@ -662,6 +663,7 @@ def render_panel(tab=None):
             manufacturers = set()
             years = set()
             themes = set()
+            table_types = set()
 
             for t in tables:
                 mfr = t.get('manufacturer', '')
@@ -678,10 +680,15 @@ def render_panel(tab=None):
                 elif table_themes:
                     themes.add(table_themes)
 
+                ttype = t.get('type', '')
+                if ttype:
+                    table_types.add(ttype)
+
             return {
                 'manufacturers': ['All'] + sorted(manufacturers),
                 'years': ['All'] + sorted(years),
                 'themes': ['All'] + sorted(themes),
+                'table_types': ['All'] + sorted(table_types),
             }
 
         def apply_filters():
@@ -713,6 +720,14 @@ def render_panel(tab=None):
                     if filter_state['theme'] in (t.get('themes') or [])
                     or t.get('themes') == filter_state['theme']
                 ]
+
+            # Table type filter
+            if filter_state['table_type'] != 'All':
+                result = [t for t in result if t.get('type') == filter_state['table_type']]
+
+            # PUP Pack filter
+            if filter_state['has_pup_pack']:
+                result = [t for t in result if t.get('pup_pack_exists', False)]
 
             # Sort by name
             result.sort(key=lambda r: (r.get('name') or '').lower())
@@ -747,15 +762,27 @@ def render_panel(tab=None):
             filter_state['theme'] = e.value or 'All'
             update_table_display()
 
+        def on_table_type_change(e: events.ValueChangeEventArguments):
+            filter_state['table_type'] = e.value or 'All'
+            update_table_display()
+
+        def on_pup_pack_change(e: events.ValueChangeEventArguments):
+            filter_state['has_pup_pack'] = e.value or False
+            update_table_display()
+
         def clear_filters():
             filter_state['search'] = ''
             filter_state['manufacturer'] = 'All'
             filter_state['year'] = 'All'
             filter_state['theme'] = 'All'
+            filter_state['table_type'] = 'All'
+            filter_state['has_pup_pack'] = False
             search_input.value = ''
             manufacturer_select.value = 'All'
             year_select.value = 'All'
             theme_select.value = 'All'
+            table_type_select.value = 'All'
+            pup_pack_checkbox.value = False
             update_table_display()
 
         def refresh_filter_options():
@@ -764,9 +791,11 @@ def render_panel(tab=None):
             manufacturer_select.options = opts['manufacturers']
             year_select.options = opts['years']
             theme_select.options = opts['themes']
+            table_type_select.options = opts['table_types']
             manufacturer_select.update()
             year_select.update()
             theme_select.update()
+            table_type_select.update()
 
         # --- Search and Filter UI ---
         with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155;'):
@@ -799,6 +828,17 @@ def render_panel(tab=None):
                 ).props('outlined dense').classes('w-40')
                 theme_select.on_value_change(on_theme_change)
 
+                table_type_select = ui.select(
+                    label='Type',
+                    options=filter_opts['table_types'],
+                    value='All'
+                ).props('outlined dense').classes('w-28')
+                table_type_select.on_value_change(on_table_type_change)
+
+                # PUP Pack checkbox
+                pup_pack_checkbox = ui.checkbox('PUP Pack', value=False).classes('text-white')
+                pup_pack_checkbox.on_value_change(on_pup_pack_change)
+
                 # Clear filters button
                 ui.button(icon='clear_all', on_click=clear_filters).props('flat round').tooltip('Clear all filters')
 
@@ -816,7 +856,7 @@ def render_panel(tab=None):
                   .classes("w-full cursor-pointer")
                   .style("flex: 1; overflow: auto;")
             )
-            # Add custom slot for name column to include IPDB link
+            # Add custom slot for name column to include IPDB and VPS links
             table.add_slot('body-cell-name', '''
                 <q-td :props="props">
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -828,20 +868,14 @@ def render_panel(tab=None):
                            style="text-decoration: none;">
                             <q-badge color="yellow-8" text-color="black" label="IPDB" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
                         </a>
+                        <a v-if="props.row.id"
+                           :href="'https://virtualpinballspreadsheet.github.io/?game=' + props.row.id"
+                           target="_blank"
+                           @click.stop
+                           style="text-decoration: none;">
+                            <q-badge color="blue-8" text-color="white" label="VPS" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
+                        </a>
                     </div>
-                </q-td>
-            ''')
-            # Add custom slot for VPS ID column to make it a clickable link
-            table.add_slot('body-cell-id', '''
-                <q-td :props="props">
-                    <a v-if="props.value"
-                       :href="'https://virtualpinballspreadsheet.github.io/?game=' + props.value"
-                       target="_blank"
-                       @click.stop
-                       style="color: #60a5fa; text-decoration: none;">
-                        {{ props.value }}
-                    </a>
-                    <span v-else>-</span>
                 </q-td>
             ''')
 
