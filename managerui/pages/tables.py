@@ -367,6 +367,10 @@ def render_panel(tab=None):
                 except RuntimeError:
                     pass  # Ignore if not in a valid UI context
                 missing_button.text = f"Unmatched Tables ({len(missing_rows)})"
+                # Update button color: green if 0, red if > 0
+                btn_color = "positive" if len(missing_rows) == 0 else "negative"
+                missing_button._props['color'] = btn_color
+                missing_button.update()
 
                 # Update the click handler for the missing tables button with the new data
                 missing_button.on('click', None) # Remove old handler
@@ -536,16 +540,13 @@ def render_panel(tab=None):
         with ui.card().classes('w-full mb-4').style('background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); border-radius: 12px;'):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
                 ui.label('Tables Management').classes('text-2xl font-bold text-white').style('flex-shrink: 0;')
-                with ui.row().classes('gap-3 items-center'):
+                with ui.row().classes('gap-3 items-center flex-wrap'):
                     scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).props("color=white text-color=primary rounded")
-                    missing_button = ui.button("Unmatched", icon="warning").props("color=negative rounded")
-
-        # Tools card section
-        with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155;'):
-            with ui.expansion('Tools', icon='build', value=False).classes('w-full'):
-                with ui.row().classes('gap-4 p-2 items-center flex-wrap'):
-                    build_btn = ui.button("Build Metadata", on_click=open_build_metadata_dialog, icon="build").props("color=primary outline rounded")
-                    patch_btn = ui.button("Apply VPX Patches", icon="construction").props("color=secondary outline rounded")
+                    patch_btn = ui.button("Apply Patches", icon="construction").props("color=secondary rounded")
+                    # Start with green if no cached missing, will update after scan
+                    initial_missing_count = len(_missing_cache) if _missing_cache else 0
+                    initial_color = "positive" if initial_missing_count == 0 else "negative"
+                    missing_button = ui.button("Unmatched", icon="warning").props(f"color={initial_color} rounded")
 
                     def open_patch_dialog():
                         """Show dialog for applying VPX patches with progress display."""
@@ -797,6 +798,9 @@ def render_panel(tab=None):
             theme_select.update()
             table_type_select.update()
 
+        # Table title - centered above the filters
+        title_label = ui.label("Installed Tables").classes('text-xl font-semibold text-center w-full py-2')
+
         # --- Search and Filter UI ---
         with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155;'):
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
@@ -842,9 +846,6 @@ def render_panel(tab=None):
                 # Clear filters button
                 ui.button(icon='clear_all', on_click=clear_filters).props('flat round').tooltip('Clear all filters')
 
-        # Table title - centered above the table
-        title_label = ui.label("Installed Tables").classes('text-xl font-semibold text-center w-full py-2')
-
         # Create a scrollable container for the table with proper height constraint
         table_container = ui.column().classes("w-full").style("flex: 1; overflow: hidden; display: flex;")
 
@@ -882,6 +883,9 @@ def render_panel(tab=None):
         # Update missing button if we have cached data
         if _missing_cache is not None:
             missing_button.text = f"Unmatched Tables ({len(_missing_cache)})"
+            # Update button color: green if 0, red if > 0
+            btn_color = "positive" if len(_missing_cache) == 0 else "negative"
+            missing_button._props['color'] = btn_color
             missing_button.on('click', lambda: open_missing_tables_dialog(
                 _missing_cache,
                 on_close=lambda: asyncio.create_task(perform_scan(silent=True))
