@@ -34,8 +34,8 @@ class StandaloneScripts:
                      pass
              basepath = table.fullPathTable
              try:
-                meta = MetaConfig(basepath+"/"+"meta.ini")
-                vpxFileVBSHash = meta.config['VPXFile']['vbsHash']
+                meta = MetaConfig(basepath+"/"+table.tableDirName+".info")
+                vpxFileVBSHash = meta.data['VPXFile']['vbsHash']
                 print(f"Checking {table.tableDirName}")
                 for patch in self.hashes:
                     if patch["sha256"] == vpxFileVBSHash:
@@ -44,8 +44,8 @@ class StandaloneScripts:
                             print(f"A .vbs sidecar file already exists for that table. Assuming it is a patch.")
                             try:
                                 table_dir = os.path.dirname(table.fullPathVPXfile)
-                                meta = MetaConfig(os.path.join(table_dir, 'meta.ini'))
-                                meta.config['VPXFile']['patch_applied'] = 'true'
+                                meta = MetaConfig(os.path.join(table_dir, table.tableDirName + '.info'))
+                                meta.data['VPXFile']['patch_applied'] = 'true'
                                 meta.writeConfig()
                             except Exception:
                                 pass
@@ -53,7 +53,7 @@ class StandaloneScripts:
                             self.downloadPatch(os.path.splitext(table.fullPathVPXfile)[0] + ".vbs", patch["patched"]["url"])
                             # mark meta.ini with patch_applied = true
                             try:
-                                meta.config['VPXFile']['patch_applied'] = 'true'
+                                meta.data['VPXFile']['patch_applied'] = 'true'
                                 meta.writeConfig()
                             except Exception:
                                 pass
@@ -74,11 +74,12 @@ class StandaloneScripts:
                 for chunk in response.iter_content(chunk_size=1024):
                     file.write(chunk)
             print(f"File downloaded successfully: {filename}")
-            # also set patch_applied in meta.ini if possible (derive from filename)
+            # also set patch_applied in .info if possible (derive from filename)
             try:
                 table_dir = os.path.dirname(filename)
-                meta = MetaConfig(os.path.join(table_dir, 'meta.ini'))
-                meta.config['VPXFile']['patch_applied'] = 'true'
+                info_filename = os.path.basename(table_dir) + '.info'
+                meta = MetaConfig(os.path.join(table_dir, info_filename))
+                meta.data['VPXFile']['patch_applied'] = 'true'
                 meta.writeConfig()
             except Exception:
                 pass
