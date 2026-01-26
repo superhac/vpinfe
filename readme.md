@@ -31,8 +31,7 @@ carousel2 (Single Screen)
 [Videos](https://www.youtube.com/@Superhac007)
 
 ## ManagerUI:
-![mangerui](https://github.com/user-attachments/assets/9cf8e0e5-4f7f-4f29-bd1d-3080310a10c9)
-
+![merged](https://github.com/user-attachments/assets/855b979a-995e-4924-84ac-e8798e06e867)
 
 ## Remote:
 ![remote](https://github.com/user-attachments/assets/088346a4-db6c-4b6f-8e01-bd653d267b79)
