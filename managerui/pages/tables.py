@@ -1262,10 +1262,8 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                                     return
                                 if add_table_to_collection(vpsid, selected):
                                     ui.notify(f'Added to {selected}', type='positive')
-                                    # Update the current collections list and UI
-                                    current_collections.append(selected)
-                                    row_data['collections'] = current_collections
-                                    # Remove from dropdown options
+                                    # add_table_to_collection already updates the cache,
+                                    # just update the dropdown options
                                     new_options = [c for c in collection_select.options if c != selected]
                                     collection_select.options = new_options
                                     collection_select.value = None
