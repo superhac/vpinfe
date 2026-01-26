@@ -108,6 +108,46 @@ def sync_collections_to_cache():
         row['collections'] = vpsid_collections_map.get(vpsid, [])
 
 
+def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
+    """Update a VPinFE setting in the table's .info file.
+
+    Args:
+        table_path: Path to the table directory
+        key: The setting key (e.g., 'deletedNVRamOnClose')
+        value: The value to set
+
+    Returns:
+        True on success, False on failure
+    """
+    try:
+        table_dir = Path(table_path)
+        info_file = table_dir / f"{table_dir.name}.info"
+
+        if not info_file.exists():
+            logger.error(f"Info file not found: {info_file}")
+            return False
+
+        # Read current data
+        with open(info_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        # Ensure VPinFE section exists
+        if 'VPinFE' not in data:
+            data['VPinFE'] = {}
+
+        # Update the setting
+        data['VPinFE'][key] = value
+
+        # Write back
+        with open(info_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+
+        return True
+    except Exception as e:
+        logger.error(f"Failed to update VPinFE setting: {e}")
+        return False
+
+
 def load_vpsdb() -> List[Dict]:
     global _vpsdb_cache
     if _vpsdb_cache is not None:
@@ -227,13 +267,14 @@ def parse_table_info(info_path):
         info = raw.get("Info", {})
         vpx = raw.get("VPXFile", {})
         user = raw.get("User", {})
+        vpinfe = raw.get("VPinFE", {})
 
         def get(*paths, default=""):
             """
             paths = [("VPXFile","rom"), ("Info","Rom"), ...]
             """
             for section, key in paths:
-                src = {"Info": info, "VPXFile": vpx, "User": user, "root": raw}.get(section)
+                src = {"Info": info, "VPXFile": vpx, "User": user, "VPinFE": vpinfe, "root": raw}.get(section)
                 if src and key in src and src[key] not in ("", None):
                     return src[key]
             return default
@@ -275,6 +316,9 @@ def parse_table_info(info_path):
             "pup_pack_exists": (Path(table_dir) / "pupvideos").is_dir(),
             "alt_color_exists": (Path(table_dir) / "pinmame" / "altcolor").is_dir(),
             "alt_sound_exists": (Path(table_dir) / "pinmame" / "altsound").is_dir(),
+
+            # VPinFE settings
+            "delete_nvram_on_close": vpinfe.get("deletedNVRamOnClose", False),
         }
 
         return data
@@ -411,7 +455,16 @@ def render_panel(tab=None):
 
         def on_row_click(e: events.GenericEventArguments):
             if len(e.args) > 1:
-                row_data = e.args[1]
+                clicked_row = e.args[1]
+                # Look up the actual row from the cache to get the latest data
+                # (the clicked row from Quasar is a copy that may be stale)
+                table_path = clicked_row.get('table_path', '')
+                row_data = clicked_row
+                if _tables_cache is not None and table_path:
+                    for cached_row in _tables_cache:
+                        if cached_row.get('table_path') == table_path:
+                            row_data = cached_row
+                            break
                 # Pass update_table_display as callback to refresh table when dialog closes
                 open_table_dialog(row_data, on_close=lambda: update_table_display())
             else:
@@ -1221,6 +1274,34 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             ui.button('Add', icon='add', on_click=on_add_to_collection).props('color=primary')
                     else:
                         ui.label('Table is in all available collections').classes('text-sm text-gray-400')
+
+            # VPinFE Settings section
+            with ui.card().classes('w-full p-4').style('background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px;'):
+                ui.label('VPinFE Settings').classes('text-lg font-semibold text-white mb-3')
+
+                table_path_str = row_data.get('table_path', '')
+                delete_nvram_value = row_data.get('delete_nvram_on_close', False)
+
+                with ui.row().classes('items-center gap-3'):
+                    def on_delete_nvram_change(e):
+                        new_value = e.value
+                        if update_vpinfe_setting(table_path_str, 'deletedNVRamOnClose', new_value):
+                            row_data['delete_nvram_on_close'] = new_value
+                            # Also update the cache so the value persists across dialog opens
+                            if _tables_cache is not None:
+                                for cached_row in _tables_cache:
+                                    if cached_row.get('table_path') == table_path_str:
+                                        cached_row['delete_nvram_on_close'] = new_value
+                                        break
+                            ui.notify('Setting saved', type='positive')
+                        else:
+                            ui.notify('Failed to save setting', type='negative')
+                            # Revert checkbox
+                            e.sender.value = not new_value
+
+                    nvram_checkbox = ui.checkbox('Delete NVRAM on close', value=delete_nvram_value)
+                    nvram_checkbox.on_value_change(on_delete_nvram_change)
+                    ui.label('Remove NVRAM file when table exits').classes('text-xs text-gray-400')
 
             # Addons section
             with ui.expansion('Install Addons', icon='extension').classes('w-full').style('background: rgba(15, 23, 42, 0.4); border-radius: 8px;'):
