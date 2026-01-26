@@ -7,6 +7,7 @@ from pathlib import Path
 import json
 from typing import List, Dict, Optional, Callable
 from common.vpxparser import VPXParser
+from common.vpxcollections import VPXCollections
 from clioptions import buildMetaData, vpxPatches
 from queue import Queue
 from platformdirs import user_config_dir
@@ -16,6 +17,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 VPSDB_JSON_PATH = PROJECT_ROOT / 'vpsdb.json'
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
+COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 
 # Load vpinfe.ini once to avoid repeated parsing
 from common.iniconfig import IniConfig
@@ -28,6 +30,82 @@ _missing_tables_dialog: Optional[ui.dialog] = None
 # Cache for scanned tables data (persists across page visits)
 _tables_cache: Optional[List[Dict]] = None
 _missing_cache: Optional[List[Dict]] = None
+
+
+def get_vpsid_collections_map() -> Dict[str, List[str]]:
+    """Build a map of VPS ID -> list of collection names (only vpsid type collections)."""
+    vpsid_to_collections: Dict[str, List[str]] = {}
+    try:
+        collections = VPXCollections(str(COLLECTIONS_PATH))
+        for collection_name in collections.get_collections_name():
+            # Only consider vpsid type collections
+            if collections.is_filter_based(collection_name):
+                continue
+            try:
+                vpsids = collections.get_vpsids(collection_name)
+                for vpsid in vpsids:
+                    if vpsid not in vpsid_to_collections:
+                        vpsid_to_collections[vpsid] = []
+                    vpsid_to_collections[vpsid].append(collection_name)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return vpsid_to_collections
+
+
+def get_vpsid_collections() -> List[str]:
+    """Get list of all vpsid-type collection names."""
+    result = []
+    try:
+        collections = VPXCollections(str(COLLECTIONS_PATH))
+        for collection_name in collections.get_collections_name():
+            if not collections.is_filter_based(collection_name):
+                result.append(collection_name)
+    except Exception:
+        pass
+    return result
+
+
+def add_table_to_collection(vpsid: str, collection_name: str) -> bool:
+    """Add a table (by VPS ID) to a collection. Returns True on success."""
+    global _tables_cache
+    try:
+        collections = VPXCollections(str(COLLECTIONS_PATH))
+        collections.add_vpsid(collection_name, vpsid)
+        collections.save()
+        # Update the cache so the table list reflects the change
+        if _tables_cache is not None:
+            for row in _tables_cache:
+                if row.get('id') == vpsid:
+                    if 'collections' not in row:
+                        row['collections'] = []
+                    if collection_name not in row['collections']:
+                        row['collections'].append(collection_name)
+                    break
+        return True
+    except Exception as e:
+        logger.error(f"Failed to add table to collection: {e}")
+        return False
+
+
+def sync_collections_to_cache():
+    """Sync the tables cache with current collection memberships from disk.
+
+    Call this after modifying collections outside of add_table_to_collection(),
+    such as when removing tables from collections or deleting/renaming collections.
+    """
+    global _tables_cache
+    if _tables_cache is None:
+        return
+
+    # Rebuild the VPS ID to collections map from disk
+    vpsid_collections_map = get_vpsid_collections_map()
+
+    # Update each cached row with current collection memberships
+    for row in _tables_cache:
+        vpsid = row.get('id', '')
+        row['collections'] = vpsid_collections_map.get(vpsid, [])
 
 
 def load_vpsdb() -> List[Dict]:
@@ -214,6 +292,9 @@ def scan_tables(silent: bool = False):
             ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
         return []
 
+    # Build VPS ID to collections map
+    vpsid_collections_map = get_vpsid_collections_map()
+
     for root, _, files in os.walk(tables_path):
         current_dir = os.path.basename(root)
         info_file = f"{current_dir}.info"
@@ -229,6 +310,9 @@ def scan_tables(silent: bool = False):
             data = parse_table_info(meta_path)
             if data:
                 data["table_path"] = root
+                # Add collections membership
+                vpsid = data.get("id", "")
+                data["collections"] = vpsid_collections_map.get(vpsid, [])
                 rows.append(data)
 
     return rows
@@ -328,7 +412,8 @@ def render_panel(tab=None):
         def on_row_click(e: events.GenericEventArguments):
             if len(e.args) > 1:
                 row_data = e.args[1]
-                open_table_dialog(row_data)
+                # Pass update_table_display as callback to refresh table when dialog closes
+                open_table_dialog(row_data, on_close=lambda: update_table_display())
             else:
                 ui.notify("Error: Unexpected row click event format.", type="negative")
 
@@ -866,25 +951,34 @@ def render_panel(tab=None):
                   .classes("w-full cursor-pointer")
                   .style("flex: 1; overflow: auto;")
             )
-            # Add custom slot for name column to include IPDB and VPS links
+            # Add custom slot for name column to include IPDB, VPS links, and collections
+            # Define colors for collections - will cycle through these
+            collection_colors = ['purple-8', 'teal-8', 'pink-8', 'cyan-8', 'amber-8', 'lime-8', 'indigo-8', 'orange-8']
             table.add_slot('body-cell-name', '''
                 <q-td :props="props">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span>{{ props.value }}</span>
-                        <a v-if="props.row.ipdb_id"
-                           :href="'https://www.ipdb.org/machine.cgi?id=' + props.row.ipdb_id"
-                           target="_blank"
-                           @click.stop
-                           style="text-decoration: none;">
-                            <q-badge color="yellow-8" text-color="black" label="IPDB" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
-                        </a>
-                        <a v-if="props.row.id"
-                           :href="'https://virtualpinballspreadsheet.github.io/?game=' + props.row.id"
-                           target="_blank"
-                           @click.stop
-                           style="text-decoration: none;">
-                            <q-badge color="blue-8" text-color="white" label="VPS" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
-                        </a>
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span>{{ props.value }}</span>
+                            <a v-if="props.row.ipdb_id"
+                               :href="'https://www.ipdb.org/machine.cgi?id=' + props.row.ipdb_id"
+                               target="_blank"
+                               @click.stop
+                               style="text-decoration: none;">
+                                <q-badge color="yellow-8" text-color="black" label="IPDB" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
+                            </a>
+                            <a v-if="props.row.id"
+                               :href="'https://virtualpinballspreadsheet.github.io/?game=' + props.row.id"
+                               target="_blank"
+                               @click.stop
+                               style="text-decoration: none;">
+                                <q-badge color="blue-8" text-color="white" label="VPS" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
+                            </a>
+                        </div>
+                        <div v-if="props.row.collections && props.row.collections.length > 0" style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            <q-badge v-for="(col, index) in props.row.collections" :key="col"
+                                     :color="['purple-8', 'teal-8', 'pink-8', 'cyan-8', 'amber-8', 'lime-8', 'indigo-8', 'orange-8'][index % 8]"
+                                     text-color="white" :label="col" style="font-size: 9px; padding: 2px 6px;" />
+                        </div>
                     </div>
                 </q-td>
             ''')
@@ -922,7 +1016,7 @@ def render_panel(tab=None):
 
         ui.timer(0.1, lambda: asyncio.create_task(startup_refresh()), once=True)
 
-def open_table_dialog(row_data: dict):
+def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = None):
     # Add dialog styles
     ui.add_head_html('''
     <style>
@@ -1078,6 +1172,56 @@ def open_table_dialog(row_data: dict):
                         else:
                             ui.badge(label, color='grey').props('rounded outline')
 
+            # Collections section - add table to collection
+            vpsid = row_data.get('id', '')
+            current_collections = row_data.get('collections', [])
+            available_collections = get_vpsid_collections()
+
+            if vpsid and available_collections:
+                with ui.card().classes('w-full p-4').style('background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px;'):
+                    ui.label('Collections').classes('text-lg font-semibold text-white mb-3')
+
+                    # Show current collections
+                    if current_collections:
+                        with ui.row().classes('gap-2 flex-wrap mb-3'):
+                            ui.label('Member of:').classes('text-sm text-gray-400')
+                            for col_name in current_collections:
+                                ui.badge(col_name, color='purple').props('rounded')
+
+                    # Dropdown to add to collection
+                    # Filter out collections the table is already in
+                    collections_to_add = [c for c in available_collections if c not in current_collections]
+
+                    if collections_to_add:
+                        with ui.row().classes('items-center gap-3 w-full'):
+                            collection_select = ui.select(
+                                label='Add to Collection',
+                                options=collections_to_add,
+                                value=None
+                            ).props('outlined dense').classes('flex-grow')
+
+                            def on_add_to_collection():
+                                selected = collection_select.value
+                                if not selected:
+                                    ui.notify('Please select a collection', type='warning')
+                                    return
+                                if add_table_to_collection(vpsid, selected):
+                                    ui.notify(f'Added to {selected}', type='positive')
+                                    # Update the current collections list and UI
+                                    current_collections.append(selected)
+                                    row_data['collections'] = current_collections
+                                    # Remove from dropdown options
+                                    new_options = [c for c in collection_select.options if c != selected]
+                                    collection_select.options = new_options
+                                    collection_select.value = None
+                                    collection_select.update()
+                                else:
+                                    ui.notify('Failed to add to collection', type='negative')
+
+                            ui.button('Add', icon='add', on_click=on_add_to_collection).props('color=primary')
+                    else:
+                        ui.label('Table is in all available collections').classes('text-sm text-gray-400')
+
             # Addons section
             with ui.expansion('Install Addons', icon='extension').classes('w-full').style('background: rgba(15, 23, 42, 0.4); border-radius: 8px;'):
                 table_path = Path(row_data.get('table_path', ''))
@@ -1135,7 +1279,11 @@ def open_table_dialog(row_data: dict):
 
         # Footer with close button
         with ui.row().classes('w-full justify-end p-4 pt-0'):
-            ui.button('Close', icon='close', on_click=dlg.close).props('flat color=grey')
+            def close_dialog():
+                dlg.close()
+                if on_close:
+                    on_close()
+            ui.button('Close', icon='close', on_click=close_dialog).props('flat color=grey')
     dlg.open()
 
 def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Callable[[], None]] = None):

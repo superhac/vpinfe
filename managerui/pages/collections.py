@@ -256,6 +256,8 @@ def render_panel(tab=None):
                             manager = get_collections_manager()
                             manager.delete_collection(name)
                             manager.save()
+                            # Sync the tables cache with updated collection memberships
+                            tables_module.sync_collections_to_cache()
                             ui.notify(f'Collection "{name}" deleted', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -288,6 +290,8 @@ def render_panel(tab=None):
                             manager = get_collections_manager()
                             manager.rename_collection(name, new_name)
                             manager.save()
+                            # Sync the tables cache with updated collection memberships
+                            tables_module.sync_collections_to_cache()
                             ui.notify(f'Renamed to "{new_name}"', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -385,6 +389,8 @@ def render_panel(tab=None):
                             vpsids = [t['id'] for t in selected_tables['items']]
                             manager.add_collection(name, vpsids)
                             manager.save()
+                            # Sync the tables cache with updated collection memberships
+                            tables_module.sync_collections_to_cache()
                             ui.notify(f'Collection "{name}" created', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -610,6 +616,8 @@ def render_panel(tab=None):
                             vpsids = [t['id'] for t in selected_tables['items']]
                             m.config[name]['vpsids'] = ','.join(vpsids)
                             m.save()
+                            # Sync the tables cache with updated collection memberships
+                            tables_module.sync_collections_to_cache()
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
                             refresh_collections()
