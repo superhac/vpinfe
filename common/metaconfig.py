@@ -66,10 +66,15 @@ class MetaConfig:
             "Tags": []
         })
 
+        vpinfe = self.data.get("VPinFE", {
+            "deletedNVRamOnClose": False
+        })
+
         self.data = {
             "Info": info,
             "User": user,
-            "VPXFile": vpxfile
+            "VPXFile": vpxfile,
+            "VPinFE": vpinfe
         }
 
         self.writeConfig()
