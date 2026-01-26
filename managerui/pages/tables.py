@@ -309,11 +309,11 @@ def render_panel(tab=None):
         # Define columns for the table
         columns = [
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
-            {'name': 'filename', 'label': 'Filename', 'field': 'filename', 'align': 'left', 'sortable': True},
             {'name': 'manufacturer', 'label': 'Manufacturer', 'field': 'manufacturer', 'align': 'left', 'sortable': True},
             {'name': 'year', 'label': 'Year', 'field': 'year', 'align': 'left', 'sortable': True},
             {'name': 'rom', 'label': 'ROM', 'field': 'rom', 'align': 'left', 'sortable': True},
             {'name': 'version', 'label': 'Version', 'field': 'version', 'align': 'left', 'sortable': True},
+            {'name': 'filename', 'label': 'Filename', 'field': 'filename', 'align': 'left', 'sortable': True},
         ]
 
         def on_row_click(e: events.GenericEventArguments):
