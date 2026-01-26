@@ -88,6 +88,11 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
         log(f"Parsing VPX file: {table.fullPathVPXfile}")
         vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
 
+        if not vpxData:
+            log(f"  - VPX file not found or failed to parse: {table.fullPathVPXfile}")
+            not_found_tables += 1
+            continue
+
         meta.writeConfigMeta({
             "vpsdata": vpsData,
             "vpxdata": vpxData

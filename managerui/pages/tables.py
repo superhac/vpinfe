@@ -172,8 +172,11 @@ def parse_table_info(info_path):
             "year": get(("Info", "Year"), ("VPXFile", "year")),
             "type": get(("Info", "Type"), ("VPXFile", "type")),
             "themes": get(("Info", "Themes"), default=[]),
+            "authors": get(("Info", "Authors"), default=[]),
             "rom": get(("VPXFile", "rom"), ("Info", "Rom")),
             "version": get(("VPXFile", "version")),
+            "filehash": get(("VPXFile", "filehash")),
+            "vbshash": get(("VPXFile", "vbsHash")),
 
             # Detection flags (keys match JSON: detectNfozzy, detectFleep, detectSSF, etc.)
             "detectnfozzy": get(("VPXFile", "detectNfozzy")),
@@ -216,6 +219,12 @@ def scan_tables(silent: bool = False):
         info_file = f"{current_dir}.info"
 
         if info_file in files:
+            # Verify at least one .vpx file exists in the directory
+            has_vpx = any(f.lower().endswith('.vpx') for f in files)
+            if not has_vpx:
+                # .info exists but no .vpx file - skip this entry
+                continue
+
             meta_path = os.path.join(root, info_file)
             data = parse_table_info(meta_path)
             if data:
@@ -953,8 +962,8 @@ def open_table_dialog(row_data: dict):
     </style>
     ''')
 
-    dlg = ui.dialog().props('max-width=900px')
-    with dlg, ui.card().classes('w-[850px] max-w-[95vw] table-dialog-card'):
+    dlg = ui.dialog().props('full-width')
+    with dlg, ui.card().classes('table-dialog-card').style('width: 1200px; max-width: 95vw;'):
         table_name = row_data.get('name') or row_data.get('filename') or 'Table'
 
         # Header
@@ -982,6 +991,16 @@ def open_table_dialog(row_data: dict):
                     ('type', 'Type', 'category'),
                     ('table_path', 'Path', 'folder'),
                 ]
+                # List fields that need special handling (join with comma)
+                list_fields = [
+                    ('authors', 'Authors', 'person'),
+                    ('themes', 'Themes', 'style'),
+                ]
+                # Fields with long values that need full width
+                long_fields = [
+                    ('filehash', 'File Hash', 'tag'),
+                    ('vbshash', 'VBS Hash', 'code'),
+                ]
 
                 with ui.grid(columns=2).classes('w-full gap-3'):
                     for key, label, icon in display_fields:
@@ -991,6 +1010,26 @@ def open_table_dialog(row_data: dict):
                                 ui.icon(icon, size='18px').classes('text-blue-400')
                                 ui.label(label).classes('detail-label')
                                 ui.label(str(value)).classes('detail-value')
+
+                    # Render list fields (authors, themes) - join lists with comma
+                    for key, label, icon in list_fields:
+                        value = row_data.get(key, [])
+                        if value:
+                            display_value = ', '.join(value) if isinstance(value, list) else str(value)
+                            with ui.row().classes('detail-row items-center gap-2 w-full'):
+                                ui.icon(icon, size='18px').classes('text-blue-400')
+                                ui.label(label).classes('detail-label')
+                                ui.label(display_value).classes('detail-value')
+
+                # Render hash fields side by side
+                with ui.row().classes('w-full gap-3'):
+                    for key, label, icon in long_fields:
+                        value = row_data.get(key, '')
+                        if value:
+                            with ui.row().classes('detail-row items-center gap-2').style('flex: 1; flex-wrap: nowrap;'):
+                                ui.icon(icon, size='18px').classes('text-blue-400').style('flex-shrink: 0;')
+                                ui.label(label).style('color: #94a3b8; font-size: 0.85rem; flex-shrink: 0;')
+                                ui.label(str(value)).classes('detail-value').style('font-family: monospace; font-size: 0.7rem;')
 
             # Detection flags section - show all detection flags with their status
             detect_fields = [
