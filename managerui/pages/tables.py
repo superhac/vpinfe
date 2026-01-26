@@ -1178,52 +1178,54 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                                 ui.label(label).style('color: #94a3b8; font-size: 0.85rem; flex-shrink: 0;')
                                 ui.label(str(value)).classes('detail-value').style('font-family: monospace; font-size: 0.7rem;')
 
-            # Detection flags section - show all detection flags with their status
-            detect_fields = [
-                ('detectnfozzy', 'nFozzy'),
-                ('detectfleep', 'Fleep'),
-                ('detectssf', 'SSF'),
-                ('detectlut', 'LUT'),
-                ('detectscorebit', 'Scorebit'),
-                ('detectfastflips', 'FastFlips'),
-                ('detectflex', 'Flex'),
-            ]
+                # Detection flags row - show all detection flags with their status
+                detect_fields = [
+                    ('detectnfozzy', 'nFozzy'),
+                    ('detectfleep', 'Fleep'),
+                    ('detectssf', 'SSF'),
+                    ('detectlut', 'LUT'),
+                    ('detectscorebit', 'Scorebit'),
+                    ('detectfastflips', 'FastFlips'),
+                    ('detectflex', 'Flex'),
+                ]
 
-            # Check if any detection fields have values (not empty string)
-            has_detections = any(row_data.get(k, '') != '' for k, _ in detect_fields)
+                # Check if any detection fields have values (not empty string)
+                has_detections = any(row_data.get(k, '') != '' for k, _ in detect_fields)
 
-            if has_detections:
-                with ui.card().classes('w-full p-4').style('background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px;'):
-                    ui.label('Detected Features').classes('text-lg font-semibold text-white mb-3')
+                if has_detections:
+                    with ui.row().classes('detail-row items-center gap-2 w-full mt-2'):
+                        ui.icon('settings_suggest', size='18px').classes('text-blue-400')
+                        ui.label('Features').classes('detail-label')
+                        with ui.row().classes('gap-2 flex-wrap'):
+                            for key, label in detect_fields:
+                                value = row_data.get(key, '')
+                                if value != '':  # Show if value exists
+                                    # Handle string "true"/"false" values
+                                    is_detected = str(value).lower() == 'true'
+                                    if is_detected:
+                                        ui.badge(label, color='positive').props('rounded')
+                                    else:
+                                        ui.badge(label, color='grey').props('rounded outline')
+
+                # Detected Addons row
+                addon_fields = [
+                    ('pup_pack_exists', 'PUP Pack', 'video_library', 'purple'),
+                    ('alt_color_exists', 'Alt Color', 'palette', 'orange'),
+                    ('alt_sound_exists', 'Alt Sound', 'music_note', 'green'),
+                ]
+
+                with ui.row().classes('detail-row items-center gap-2 w-full mt-2'):
+                    ui.icon('extension', size='18px').classes('text-blue-400')
+                    ui.label('Addons').classes('detail-label')
                     with ui.row().classes('gap-2 flex-wrap'):
-                        for key, label in detect_fields:
-                            value = row_data.get(key, '')
-                            if value != '':  # Show if value exists
-                                # Handle string "true"/"false" values
-                                is_detected = str(value).lower() == 'true'
-                                if is_detected:
+                        for key, label, icon, color in addon_fields:
+                            exists = row_data.get(key, False)
+                            if exists:
+                                with ui.row().classes('items-center gap-1'):
+                                    ui.icon(icon, size='16px').classes(f'text-{color}-400')
                                     ui.badge(label, color='positive').props('rounded')
-                                else:
-                                    ui.badge(label, color='grey').props('rounded outline')
-
-            # Detected Addons section
-            addon_fields = [
-                ('pup_pack_exists', 'PUP Pack', 'video_library', 'purple'),
-                ('alt_color_exists', 'Alt Color', 'palette', 'orange'),
-                ('alt_sound_exists', 'Alt Sound', 'music_note', 'green'),
-            ]
-
-            with ui.card().classes('w-full p-4').style('background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px;'):
-                ui.label('Detected Addons').classes('text-lg font-semibold text-white mb-3')
-                with ui.row().classes('gap-2 flex-wrap'):
-                    for key, label, icon, color in addon_fields:
-                        exists = row_data.get(key, False)
-                        if exists:
-                            with ui.row().classes('items-center gap-1'):
-                                ui.icon(icon, size='16px').classes(f'text-{color}-400')
-                                ui.badge(label, color='positive').props('rounded')
-                        else:
-                            ui.badge(label, color='grey').props('rounded outline')
+                            else:
+                                ui.badge(label, color='grey').props('rounded outline')
 
             # Collections section - add table to collection
             vpsid = row_data.get('id', '')
