@@ -1109,8 +1109,8 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
     </style>
     ''')
 
-    dlg = ui.dialog().props('full-width')
-    with dlg, ui.card().classes('table-dialog-card').style('width: 1200px; max-width: 95vw;'):
+    dlg = ui.dialog()
+    with dlg, ui.card().classes('table-dialog-card').style('width: 1000px; max-width: 85vw;'):
         table_name = row_data.get('name') or row_data.get('filename') or 'Table'
 
         # Header
