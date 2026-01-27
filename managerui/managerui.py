@@ -4,6 +4,7 @@ from nicegui import ui, app
 from .pages import tables as tab_tables
 from .pages import vpinfe_config as tab_vpinfe
 from .pages import collections as tab_collections
+from .pages import media as tab_media
 from .pages import remote
 import threading
 
@@ -102,6 +103,12 @@ def build_app():
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
+            media_btn = (
+                ui.button('Media', icon='image', on_click=lambda: show_page('media'))
+                .classes('w-full text-white nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px;')
+                .props('flat align=left')
+            )
             config_btn = (
                 ui.button('Configuration', icon='tune', on_click=lambda: show_page('vpinfe'))
                 .classes('w-full text-white nav-btn')
@@ -117,6 +124,7 @@ def build_app():
         # Update button styles - reset all first
         tables_btn.classes(remove='nav-btn-active')
         collections_btn.classes(remove='nav-btn-active')
+        media_btn.classes(remove='nav-btn-active')
         config_btn.classes(remove='nav-btn-active')
 
         # Set active button
@@ -124,6 +132,8 @@ def build_app():
             tables_btn.classes(add='nav-btn-active')
         elif page_key == 'collections':
             collections_btn.classes(add='nav-btn-active')
+        elif page_key == 'media':
+            media_btn.classes(add='nav-btn-active')
         elif page_key == 'vpinfe':
             config_btn.classes(add='nav-btn-active')
 
@@ -139,6 +149,8 @@ def build_app():
                 tab_tables.render_panel()
             elif page_key == 'collections':
                 tab_collections.render_panel()
+            elif page_key == 'media':
+                tab_media.render_panel()
             elif page_key == 'vpinfe':
                 tab_vpinfe.render_panel()
 

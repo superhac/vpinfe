@@ -931,6 +931,7 @@ def render_panel(tab=None):
             theme_select.value = 'All'
             table_type_select.value = 'All'
             pup_pack_checkbox.value = False
+            table._props['pagination']['page'] = 1
             update_table_display()
 
         def refresh_filter_options():
