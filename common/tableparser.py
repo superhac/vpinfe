@@ -11,8 +11,11 @@ class TableParser:
     # Shared class variable - single instance across all TableParser instances
     tables: list[Table] = []
 
-    def __init__(self, tablesRootFilePath):
+    def __init__(self, tablesRootFilePath, iniConfig=None):
         self.tablesRootFilePath = Path(tablesRootFilePath)
+        self.tabletype = "table"
+        if iniConfig:
+            self.tabletype = iniConfig.config['Media'].get('tabletype', 'table').lower()
         self.loadTables()
 
     def loadTables(self, reload=False):  # reload if you want to rescan the tables
@@ -60,7 +63,7 @@ class TableParser:
         images = {
             "BGImagePath": "bg.png",
             "DMDImagePath": "dmd.png",
-            "TableImagePath": "table.png",
+            "TableImagePath": f"{self.tabletype}.png",
             "WheelImagePath": "wheel.png",
             "CabImagePath": "cab.png",
             "realDMDImagePath":"realdmd.png",

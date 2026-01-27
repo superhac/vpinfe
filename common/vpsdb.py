@@ -161,20 +161,41 @@ class VPSdb:
     def fileExists(self, path):
         return bool(path and os.path.exists(path))
 
-    def downloadMedia(self, tableId, metadata, key, filename, defaultFilename):
+    def downloadMedia(self, tableId, metadata, key, filename, defaultFilename, metaConfig=None, mediaType=None):
         """
-        Download a media file if not already present.
+        Download a media file if not already present, or re-download if the
+        remote MD5 hash differs from the locally stored hash.
         :param tableId: VPS table ID
         :param metadata: dict containing media info
         :param key: which asset to download
         :param filename: local path to check
         :param defaultFilename: local path to save to
+        :param metaConfig: MetaConfig instance for MD5 comparison
+        :param mediaType: media type key used in the Medias section
+        :returns: (downloaded_path, md5hash) if downloaded or already exists, else None
         """
-        if not metadata or key not in metadata or self.fileExists(filename):
-            return
-        self.downloadMediaFile(tableId, metadata[key], defaultFilename)
+        if not metadata or key not in metadata:
+            return None
 
-    def downloadMediaForTable(self, table, id):
+        remoteMd5 = metadata.get(f"{key}_md5", "")
+
+        if self.fileExists(filename):
+            # Check if the remote hash changed compared to what we stored
+            if metaConfig and mediaType and remoteMd5:
+                existing = metaConfig.getMedia(mediaType)
+                if existing and existing.get("Source") == "vpinmediadb":
+                    storedMd5 = existing.get("MD5Hash", "")
+                    if storedMd5 and storedMd5 != remoteMd5:
+                        print(f"MD5 changed for {mediaType} ({storedMd5} -> {remoteMd5}), re-downloading")
+                        self.downloadMediaFile(tableId, metadata[key], filename)
+            return (filename, remoteMd5)
+
+        self.downloadMediaFile(tableId, metadata[key], defaultFilename)
+        if self.fileExists(defaultFilename):
+            return (defaultFilename, remoteMd5)
+        return None
+
+    def downloadMediaForTable(self, table, id, metaConfig=None):
         """Download all associated media for a given table."""
         if id not in self.vpinmediadbjson:
             print(f"No media exists for {table.fullPathTable} (ID {id}).")
@@ -182,22 +203,38 @@ class VPSdb:
 
         tablemediajson = self.vpinmediadbjson[id]
 
+        def _isUserMedia(mediaType):
+            """Check if the existing media entry is user-provided."""
+            if not metaConfig:
+                return False
+            existing = metaConfig.getMedia(mediaType)
+            return existing is not None and existing.get("Source") != "vpinmediadb"
+
+        def _record(mediaType, result):
+            if result and metaConfig:
+                path, md5hash = result
+                metaConfig.addMedia(mediaType, "vpinmediadb", path, md5hash)
+
+        def _process(mediaType, metadata, key, filename, defaultFilename):
+            """Skip download and record if the media is user-provided."""
+            if _isUserMedia(mediaType):
+                print(f"Skipping {mediaType}: user-provided media")
+                return
+            result = self.downloadMedia(id, metadata, key, filename, defaultFilename, metaConfig, mediaType)
+            _record(mediaType, result)
+
         # Background & DMD (within '1k' key)
-        self.downloadMedia(id, tablemediajson.get('1k'), 'bg', table.BGImagePath, f"{table.fullPathTable}/bg.png")
-        self.downloadMedia(id, tablemediajson.get('1k'), 'dmd', table.DMDImagePath, f"{table.fullPathTable}/dmd.png")
+        _process('bg', tablemediajson.get('1k'), 'bg', table.BGImagePath, f"{table.fullPathTable}/bg.png")
+        _process('dmd', tablemediajson.get('1k'), 'dmd', table.DMDImagePath, f"{table.fullPathTable}/dmd.png")
 
         # Other assets
-        self.downloadMedia(id, tablemediajson, 'wheel', table.WheelImagePath, f"{table.fullPathTable}/wheel.png")
-        self.downloadMedia(id, tablemediajson, 'cab', table.CabImagePath, f"{table.fullPathTable}/cab.png")
-        self.downloadMedia(id, tablemediajson, 'realdmd', table.realDMDImagePath, f"{table.fullPathTable}/realdmd.png")
-        self.downloadMedia(id, tablemediajson, 'realdmd_color', table.realDMDColorImagePath, f"{table.fullPathTable}/realdmd-color.png")
+        _process('wheel', tablemediajson, 'wheel', table.WheelImagePath, f"{table.fullPathTable}/wheel.png")
+        _process('cab', tablemediajson, 'cab', table.CabImagePath, f"{table.fullPathTable}/cab.png")
+        _process('realdmd', tablemediajson, 'realdmd', table.realDMDImagePath, f"{table.fullPathTable}/realdmd.png")
+        _process('realdmd_color', tablemediajson, 'realdmd_color', table.realDMDColorImagePath, f"{table.fullPathTable}/realdmd-color.png")
 
         # Table image depends on resolution/type
-        self.downloadMedia(
-            id, tablemediajson.get(self.tableresolution),
-            self.tabletype, table.TableImagePath,
-            f"{table.fullPathTable}/{self.tabletype}.png"
-        )
+        _process(self.tabletype, tablemediajson.get(self.tableresolution), self.tabletype, table.TableImagePath, f"{table.fullPathTable}/{self.tabletype}.png")
 
     # ----------------------------------------------------------------------
     def updateTable(self, name, manufacturer, year):

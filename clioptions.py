@@ -42,7 +42,7 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
     not_found_tables = 0
     parservpx = VPXParser()
 
-    tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
+    tables = TableParser(iniconfig.config['Settings']['tablerootdir'], iniconfig).getAllTables()
     total = len(tables)
 
     vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
@@ -102,7 +102,7 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
 
         if downloadMedia:
             try:
-                vps.downloadMediaForTable(table, vpsData["id"])
+                vps.downloadMediaForTable(table, vpsData["id"], metaConfig=meta)
                 log("Downloaded media")
             except KeyError:
                 log("No media found")
@@ -119,7 +119,7 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
 
 def listMissingTables():
     """List VPSdb tables that are not present locally."""
-    tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
+    tables = TableParser(iniconfig.config['Settings']['tablerootdir'], iniconfig).getAllTables()
     print(f"Listing tables missing from {iniconfig.config['Settings']['tablerootdir']}")
     total = len(tables)
     print(f"Found {total} tables in {iniconfig.config['Settings']['tablerootdir']}")
@@ -149,7 +149,7 @@ def listMissingTables():
 
 def listUnknownTables():
     """List local tables that could not be matched in VPSdb."""
-    tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
+    tables = TableParser(iniconfig.config['Settings']['tablerootdir'], iniconfig).getAllTables()
     print(f"Listing unknown tables from {iniconfig.config['Settings']['tablerootdir']}")
     total = len(tables)
     print(f"Found {total} tables in {iniconfig.config['Settings']['tablerootdir']}")
@@ -174,7 +174,7 @@ def listUnknownTables():
 
 def vpxPatches(progress_cb=None):
     """Apply VPX standalone script patches."""
-    tables = TableParser(iniconfig.config['Settings']['tablerootdir']).getAllTables()
+    tables = TableParser(iniconfig.config['Settings']['tablerootdir'], iniconfig).getAllTables()
     StandaloneScripts(tables, progress_cb=progress_cb)
 
 

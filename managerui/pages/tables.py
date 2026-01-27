@@ -238,7 +238,7 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
                 self.fullPathTable = str(folder)
                 self.fullPathVPXfile = str(vpx)
         pseudo_table = _LightTable(table_folder, vpx_file)
-        vps.downloadMediaForTable(pseudo_table, vps_entry.get('id'))
+        vps.downloadMediaForTable(pseudo_table, vps_entry.get('id'), metaConfig=meta)
 
 
 logger = logging.getLogger("tables")

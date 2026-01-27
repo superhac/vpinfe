@@ -70,11 +70,14 @@ class MetaConfig:
             "deletedNVRamOnClose": False
         })
 
+        medias = self.data.get("Medias", {})
+
         self.data = {
             "Info": info,
             "User": user,
             "VPXFile": vpxfile,
-            "VPinFE": vpinfe
+            "VPinFE": vpinfe,
+            "Medias": medias
         }
 
         self.writeConfig()
@@ -89,6 +92,19 @@ class MetaConfig:
 
     def strip_all_newlines(self, text):
         return text.replace("\r\n", "").replace("\n", "")
+
+    def addMedia(self, mediaType, source, path, md5hash):
+        """Record a downloaded media entry in the Medias section."""
+        self.data.setdefault("Medias", {})[mediaType] = {
+            "Source": source,
+            "Path": path,
+            "MD5Hash": md5hash
+        }
+        self.writeConfig()
+
+    def getMedia(self, mediaType):
+        """Return the Medias entry for a given type, or None."""
+        return self.data.get("Medias", {}).get(mediaType)
 
     def _parse_authors(self, value):
         if not value:

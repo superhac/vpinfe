@@ -312,26 +312,28 @@ options:
 | tableresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
 
 ## Table Metadata File (based on the Zero install table format)
-When you run VPinFE with the `--buildmeta` option it recursively goes through your table directory attempts to match your tables to their VPSDB id.  When matched, it will then parse the VPX for the table for more meta information and produce a `TABLE FOLDER NAME(manufactuer year).info` in that tables directory.  Heres an example for the table 2001:
+When you run VPinFE with the `--buildmeta` option it recursively goes through your table directory attempts to match your tables to their VPSDB id.  When matched, it will then parse the VPX for the table for more meta information and produce a `TABLE FOLDER NAME(manufactuer year).info` in that tables directory.  Heres an example for the table 1-2-3:
 
 ```
 {
     "Info": {
-        "IPDBId": "",
-        "Title": "High Hand",
-        "Manufacturer": "Gottlieb",
+        "IPDBId": "5247",
+        "Title": "1-2-3",
+        "Manufacturer": "Automaticos",
         "Year": 1973,
-        "VPSId": "H_yLZGHB",
         "Type": "EM",
         "Themes": [
-            "Cards",
-            "Gambling"
+            "TV Show",
+            "Game Show"
         ],
+        "VPSId": "HhMnyw53",
         "Authors": [
-            "Loserman76",
-            "GNance"
+            "jpsalas",
+            "akiles50000",
+            "Loserman76"
         ],
-        "Rom": "HighHand_1973"
+        "Rom": "TlD_123",
+        "Description": ""
     },
     "User": {
         "Rating": 0,
@@ -342,24 +344,49 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
         "Tags": []
     },
     "VPXFile": {
-        "filename": "VR Room High Hand (Gottlieb 1973) 1.0.0.vpx",
-        "filehash": "307dbf008d17adba1984c2833ce2f5c60e16613afa3d6ea0a88d2e98ec2fc976",
-        "version": "1.0",
-        "releasedate": "",
-        "blurb": "",
-        "savedate": "Wed Dec 28 11:51:31 2022",
-        "saverev": "13",
+        "filename": "123(Talleres de Llobregat 1973) v601.vpx",
+        "filehash": "d685ce54d659fadcafd90a296473fb126754aa23b1145f457c6626aa5baa75d9",
+        "version": "6.0.1",
+        "releaseDate": "25.01.2026",
+        "saveDate": "Sun Jan 25 22:24:36 2026",
+        "saveRev": "91",
         "manufacturer": "",
         "year": "",
         "type": "",
-        "vbshash": "0c6008917dd9d919cbca312466828c1e533ff6b8dd8f21bbd95293e8df0ad4f3",
-        "detectnfozzy": "false",
-        "detectfleep": "false",
-        "detectssf": "true",
-        "detectlut": "true",
-        "detectscorebit": "false",
-        "detectfastflips": "false",
-        "detectflex": "false"
+        "vbsHash": "bd6dcb7e0c618e4553d230095e73c7ca8e17f31def4595c38a8439b279977b45",
+        "rom": "TlD_123",
+        "detectNfozzy": "false",
+        "detectFleep": "false",
+        "detectSSF": "true",
+        "detectLUT": "true",
+        "detectScorebit": "false",
+        "detectFastflips": "false",
+        "detectFlex": "false"
+    },
+    "VPinFE": {
+        "deletedNVRamOnClose": false
+    },
+    "Medias": {
+        "bg": {
+            "Source": "vpinmediadb",
+            "Path": "/home/superhac/mediatest/1-2-3 (Automaticos 1973)/bg.png",
+            "MD5Hash": "d80f67a370ebce2edd19febdc3fd7636"
+        },
+        "wheel": {
+            "Source": "vpinmediadb",
+            "Path": "/home/superhac/mediatest/1-2-3 (Automaticos 1973)/wheel.png",
+            "MD5Hash": "a88bcaf2ade6b9614417fc18a8782f78"
+        },
+        "cab": {
+            "Source": "vpinmediadb",
+            "Path": "/home/superhac/mediatest/1-2-3 (Automaticos 1973)/cab.png",
+            "MD5Hash": "2df700d28fbfd88bb9a08c50da0c00ae"
+        },
+        "table": {
+            "Source": "vpinmediadb",
+            "Path": "/home/superhac/mediatest/1-2-3 (Automaticos 1973)/table.png",
+            "MD5Hash": "ee863e38e38d8dd5552e511a15583d23"
+        }
     }
 }
 ```
@@ -367,34 +394,49 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 
 - Info
 
-  Contains the core table metadata:
-  - IPDBId: Pinball Database ID (if available)
+  Contains the core table metadata sourced from VPSdb and the VPX file:
+  - IPDBId: Internet Pinball Database ID (if available)
   - Title: Table name
   - Manufacturer, Year, Type (EM, SS, etc.)
-  - VPSId: Internal VPS database ID
   - Themes: Array of themes
+  - VPSId: Internal VPS database ID
   - Authors: Table authors
   - Rom: Name of the ROM file
+  - Description: Table description/blurb
+
 - User
-  
-  Stores per-user data for the table:
+
+  Stores per-user data for the table. Preserved across `--buildmeta --update-all`:
   - Rating: User rating (0–10)
   - Favorite: Favorite flag (0/1)
   - LastRun: Timestamp of last play
   - StartCount: How many times played
   - RunTime: Total playtime in seconds
   - Tags: Array of custom tags
+
 - VPXFile
 
   Contains metadata extracted from the VPX file:
   - filename, filehash, version
-  - releasedate, blurb
-  - savedate, saverev (VPX save info)
-  - vbshash: Hash of table’s VBS script
-  - detect* flags: Booleans indicating which detection features were applied (detectssf, detectlut, etc.)
+  - releaseDate, saveDate, saveRev (VPX save info)
+  - manufacturer, year, type
+  - vbsHash: SHA-256 hash of table's VBS script
+  - rom: ROM name from the VPX
+  - detect* flags: Booleans indicating which features were detected (detectNfozzy, detectFleep, detectSSF, detectLUT, detectScorebit, detectFastflips, detectFlex)
 
+- VPinFE
 
-After that file is created it then attempts to download the media artwork for that table.   Currently the following images are downloaded and are stored in each of the table's directory:
+  VPinFE-specific settings for the table. Preserved across `--buildmeta --update-all`:
+  - deletedNVRamOnClose: (true/false) Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing. Default is false.
+
+- Medias
+
+  Tracks downloaded media files per table. Preserved across `--buildmeta --update-all`. Each entry is keyed by media type (bg, dmd, table, fss, wheel, cab, realdmd, realdmd_color):
+  - Source: Where the media was downloaded from (e.g. "vpinmediadb")
+  - Path: Full local path to the media file
+  - MD5Hash: MD5 hash of the media from the source. On `--buildmeta`, if the remote MD5 differs from the stored hash, the image is re-downloaded automatically.
+
+After that file is created it then attempts to download the media artwork for that table from [VPinMediaDB](https://github.com/superhac/vpinmediadb).  Currently the following images are downloaded and are stored in each of the table's directory:
 
 | File Name     | Image Type    |
 | ------------- | ------------- |
@@ -406,16 +448,6 @@ After that file is created it then attempts to download the media artwork for th
 | cab.png       | A cabinet image of the pinball machine |
 | realdmd.png       | Real DMD for use with ZeDMD |
 | realdmd-color.png       | Real DMD (Colorized) for use with ZeDMD |
-
-You must manually add the following settings:
-
-[VPinFE]
-
-`update` = true | false – Determines whether to update the VPS entry for this table. If you manually create this entry or prefer not to use the auto-generated VPSdb, set this to false. Default is true.
-
-[Pinmame]
-
-`deleteNVramOnClose` = true | false – Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing.
 
 ## VPX Table Patches
 VPinFE can automaticlly pull patches from [vpx-standalone-scripts](https://github.com/jsm174/vpx-standalone-scripts) via the `--vpxpatch` CLI option if a matching patch can be found.  

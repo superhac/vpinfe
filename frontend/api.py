@@ -16,7 +16,7 @@ class API:
     def __init__(self, iniConfig):
         self.webview_windows = None
         self.iniConfig = iniConfig
-        self.allTables = TableParser(self.iniConfig.config['Settings']['tablerootdir']).getAllTables()
+        self.allTables = TableParser(self.iniConfig.config['Settings']['tablerootdir'], self.iniConfig).getAllTables()
         self.filteredTables = self.allTables
         self.myWindow = [] # this holds this instances webview window.  In array because of introspection of the window object
         self.jsTableDictData = None
@@ -463,7 +463,7 @@ class API:
                     'result': result
                 })
                 # Refresh table list after completion
-                self.allTables = TableParser(self.iniConfig.config['Settings']['tablerootdir']).getAllTables()
+                self.allTables = TableParser(self.iniConfig.config['Settings']['tablerootdir'], self.iniConfig).getAllTables()
                 self.filteredTables = self.allTables
             except Exception as e:
                 # Queue error event
