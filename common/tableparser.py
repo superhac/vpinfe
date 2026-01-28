@@ -60,22 +60,25 @@ class TableParser:
 
     def loadImagePaths(self, Table):
         table_dir = Path(Table.fullPathTable)
+        medias_dir = table_dir / "medias"
         images = {
             "BGImagePath": "bg.png",
             "DMDImagePath": "dmd.png",
             "TableImagePath": f"{self.tabletype}.png",
             "WheelImagePath": "wheel.png",
             "CabImagePath": "cab.png",
-            "realDMDImagePath":"realdmd.png",
-            "realDMDColorImagePath" :"realdmd-color.png",
+            "realDMDImagePath": "realdmd.png",
+            "realDMDColorImagePath": "realdmd-color.png",
         }
 
         for attr, fname in images.items():
-            fpath = table_dir / fname
-            if fpath.exists():
-                setattr(Table, attr, str(fpath))
-            #else:
-                #print(f"{self.RED_CONSOLE_TEXT}  Img not found: {fpath}{self.RESET_CONSOLE_TEXT}")
+            # Check medias/ subfolder first, then fall back to root folder
+            fpath_medias = medias_dir / fname
+            fpath_root = table_dir / fname
+            if fpath_medias.exists():
+                setattr(Table, attr, str(fpath_medias))
+            elif fpath_root.exists():
+                setattr(Table, attr, str(fpath_root))
 
     def loadMetaData(self, Table):
         meta_path = Path(Table.fullPathTable) / f"{Table.tableDirName}.info"

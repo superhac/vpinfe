@@ -334,8 +334,16 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
       return "../../images/file_missing.png";  // fallback default
     }
     const parts = localPath.split('/');
-    const dir = parts[parts.length - 2];     // second-to-last part = folder
     const file = parts[parts.length - 1];    // last part = filename
+
+    // Check if the path includes a medias/ subfolder
+    if (parts.length >= 3 && parts[parts.length - 2] === 'medias') {
+      const tableDir = parts[parts.length - 3];  // table folder is 3rd from end
+      return `http://127.0.0.1:8000/tables/${encodeURIComponent(tableDir)}/medias/${encodeURIComponent(file)}`;
+    }
+
+    // Fallback: image is directly in table folder
+    const dir = parts[parts.length - 2];     // second-to-last part = folder
     return `http://127.0.0.1:8000/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
   }
 

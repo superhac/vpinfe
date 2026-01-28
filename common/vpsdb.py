@@ -203,6 +203,10 @@ class VPSdb:
 
         tablemediajson = self.vpinmediadbjson[id]
 
+        # Ensure medias directory exists
+        medias_dir = os.path.join(table.fullPathTable, "medias")
+        os.makedirs(medias_dir, exist_ok=True)
+
         def _isUserMedia(mediaType):
             """Check if the existing media entry is user-provided."""
             if not metaConfig:
@@ -224,17 +228,17 @@ class VPSdb:
             _record(mediaType, result)
 
         # Background & DMD (within '1k' key)
-        _process('bg', tablemediajson.get('1k'), 'bg', table.BGImagePath, f"{table.fullPathTable}/bg.png")
-        _process('dmd', tablemediajson.get('1k'), 'dmd', table.DMDImagePath, f"{table.fullPathTable}/dmd.png")
+        _process('bg', tablemediajson.get('1k'), 'bg', table.BGImagePath, f"{table.fullPathTable}/medias/bg.png")
+        _process('dmd', tablemediajson.get('1k'), 'dmd', table.DMDImagePath, f"{table.fullPathTable}/medias/dmd.png")
 
         # Other assets
-        _process('wheel', tablemediajson, 'wheel', table.WheelImagePath, f"{table.fullPathTable}/wheel.png")
-        _process('cab', tablemediajson, 'cab', table.CabImagePath, f"{table.fullPathTable}/cab.png")
-        _process('realdmd', tablemediajson, 'realdmd', table.realDMDImagePath, f"{table.fullPathTable}/realdmd.png")
-        _process('realdmd_color', tablemediajson, 'realdmd_color', table.realDMDColorImagePath, f"{table.fullPathTable}/realdmd-color.png")
+        _process('wheel', tablemediajson, 'wheel', table.WheelImagePath, f"{table.fullPathTable}/medias/wheel.png")
+        _process('cab', tablemediajson, 'cab', table.CabImagePath, f"{table.fullPathTable}/medias/cab.png")
+        _process('realdmd', tablemediajson, 'realdmd', table.realDMDImagePath, f"{table.fullPathTable}/medias/realdmd.png")
+        _process('realdmd_color', tablemediajson, 'realdmd_color', table.realDMDColorImagePath, f"{table.fullPathTable}/medias/realdmd-color.png")
 
         # Table image depends on resolution/type
-        _process(self.tabletype, tablemediajson.get(self.tableresolution), self.tabletype, table.TableImagePath, f"{table.fullPathTable}/{self.tabletype}.png")
+        _process(self.tabletype, tablemediajson.get(self.tableresolution), self.tabletype, table.TableImagePath, f"{table.fullPathTable}/medias/{self.tabletype}.png")
 
     # ----------------------------------------------------------------------
     def updateTable(self, name, manufacturer, year):

@@ -82,10 +82,15 @@ def scan_media_tables(silent: bool = False):
 
                 # Build media availability dict
                 media_info = {}
+                medias_dir = os.path.join(root, "medias")
                 for media_key, _, media_filename in MEDIA_TYPES:
-                    img_path = os.path.join(root, media_filename)
-                    if os.path.exists(img_path):
+                    # Check medias/ subfolder first, then fall back to root folder
+                    img_path_medias = os.path.join(medias_dir, media_filename)
+                    img_path_root = os.path.join(root, media_filename)
+                    if os.path.exists(img_path_medias):
                         # URL path relative to the served tables directory
+                        media_info[media_key] = f"/media_tables/{current_dir}/medias/{media_filename}"
+                    elif os.path.exists(img_path_root):
                         media_info[media_key] = f"/media_tables/{current_dir}/{media_filename}"
                     else:
                         media_info[media_key] = None
@@ -403,9 +408,11 @@ def render_panel():
         MEDIA_KEY_TO_FILENAME = {key: fname for key, _, fname in MEDIA_TYPES}
 
         def replace_media_file(table_path: str, table_dir: str, media_key: str, uploaded_path: str):
-            """Copy uploaded file to table dir with standard name, update .info."""
+            """Copy uploaded file to medias/ subfolder with standard name, update .info."""
             target_filename = MEDIA_KEY_TO_FILENAME[media_key]
-            target_path = os.path.join(table_path, target_filename)
+            medias_dir = os.path.join(table_path, "medias")
+            os.makedirs(medias_dir, exist_ok=True)
+            target_path = os.path.join(medias_dir, target_filename)
 
             # Copy the uploaded file (overwrite if exists)
             shutil.copy2(uploaded_path, target_path)
@@ -482,8 +489,8 @@ def render_panel():
                             src = upload_state['path']
                             await run.io_bound(replace_media_file, table_path, table_dir, media_key, src)
 
-                            # Build the URL for the new image
-                            new_url = f"/media_tables/{table_dir}/{target_filename}"
+                            # Build the URL for the new image (now in medias/ subfolder)
+                            new_url = f"/media_tables/{table_dir}/medias/{target_filename}"
                             update_cache_entry(table_dir, media_key, new_url)
                             update_table_display()
 
