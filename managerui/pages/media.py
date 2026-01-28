@@ -1,6 +1,7 @@
 import os
 import logging
 import asyncio
+import shutil
 from nicegui import ui, events, run, app
 from pathlib import Path
 import json
@@ -13,6 +14,7 @@ CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 
 from common.iniconfig import IniConfig
+from common.metaconfig import MetaConfig
 _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 logger = logging.getLogger("media")
@@ -168,8 +170,12 @@ def render_panel():
                 border-top: 1px solid #334155 !important;
             }
             .media-thumb-wrapper {
-                position: relative;
-                display: inline-block;
+                width: 50px;
+                height: 50px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto;
             }
             .media-thumb {
                 width: 48px;
@@ -178,10 +184,11 @@ def render_panel():
                 border-radius: 4px;
                 border: 1px solid #334155;
                 cursor: pointer;
+                display: block;
             }
             .media-missing {
-                width: 48px;
-                height: 48px;
+                width: 50px;
+                height: 50px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -189,6 +196,8 @@ def render_panel():
                 border: 1px dashed #475569;
                 color: #475569;
                 font-size: 10px;
+                margin: 0 auto;
+                cursor: pointer;
             }
         </style>
         ''')
@@ -389,6 +398,111 @@ def render_panel():
                 except Exception:
                     pass
 
+        # --- Media replacement logic ---
+        # Lookup: media_key -> standard filename
+        MEDIA_KEY_TO_FILENAME = {key: fname for key, _, fname in MEDIA_TYPES}
+
+        def replace_media_file(table_path: str, table_dir: str, media_key: str, uploaded_path: str):
+            """Copy uploaded file to table dir with standard name, update .info."""
+            target_filename = MEDIA_KEY_TO_FILENAME[media_key]
+            target_path = os.path.join(table_path, target_filename)
+
+            # Copy the uploaded file (overwrite if exists)
+            shutil.copy2(uploaded_path, target_path)
+
+            # Update the .info file
+            info_file = os.path.join(table_path, f"{table_dir}.info")
+            if os.path.exists(info_file):
+                mc = MetaConfig(info_file)
+                mc.addMedia(media_key, "user", target_path, "")
+
+            return target_path
+
+        def update_cache_entry(table_dir: str, media_key: str, url_path: str):
+            """Update the in-memory cache for the replaced media."""
+            if _media_cache is None:
+                return
+            for row in _media_cache:
+                if row['table_dir'] == table_dir:
+                    row['media'][media_key] = url_path
+                    row[f'has_{media_key}'] = url_path is not None
+                    break
+
+        def open_replace_dialog(table_dir: str, table_path: str, table_name: str, media_key: str, media_label: str):
+            """Open a dialog to replace a media image for a table."""
+            target_filename = MEDIA_KEY_TO_FILENAME[media_key]
+            current_url = None
+            # Find current image URL from cache
+            if _media_cache:
+                for row in _media_cache:
+                    if row['table_dir'] == table_dir:
+                        current_url = row['media'].get(media_key)
+                        break
+
+            with ui.dialog() as dlg, ui.card().style('min-width: 500px; background: #1e293b; border: 1px solid #334155;'):
+                ui.label(f'Replace {media_label} Image').classes('text-xl font-bold text-white mb-2')
+                ui.label(f'Table: {table_name}').classes('text-slate-400 mb-1')
+                ui.label(f'Target: {target_filename}').classes('text-slate-500 text-sm mb-4')
+
+                # Show current image if exists
+                if current_url:
+                    ui.label('Current:').classes('text-slate-400 text-sm')
+                    ui.image(current_url).style('max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid #334155;').classes('mb-4')
+                else:
+                    ui.label('No current image').classes('text-slate-500 italic mb-4')
+
+                # File upload
+                ui.label('Select new image:').classes('text-slate-400 text-sm mb-1')
+                upload_state = {'path': None}
+
+                async def handle_upload(e: events.UploadEventArguments):
+                    # Save to a temp location first
+                    tmp_dir = os.path.join(table_path, '.tmp_upload')
+                    os.makedirs(tmp_dir, exist_ok=True)
+                    tmp_path = os.path.join(tmp_dir, e.name)
+                    with open(tmp_path, 'wb') as f:
+                        f.write(e.content.read())
+                    upload_state['path'] = tmp_path
+                    confirm_btn.enable()
+                    ui.notify(f'File ready: {e.name}', type='info')
+
+                ui.upload(
+                    on_upload=handle_upload,
+                    auto_upload=True,
+                    max_files=1,
+                ).props('accept="image/*" flat bordered').classes('w-full mb-4').style('background: #0f172a; border: 1px dashed #475569;')
+
+                with ui.row().classes('w-full justify-end gap-3 mt-2'):
+                    ui.button('Cancel', on_click=dlg.close).props('flat').classes('text-slate-400')
+
+                    async def do_replace():
+                        if not upload_state['path']:
+                            return
+                        try:
+                            src = upload_state['path']
+                            await run.io_bound(replace_media_file, table_path, table_dir, media_key, src)
+
+                            # Build the URL for the new image
+                            new_url = f"/media_tables/{table_dir}/{target_filename}"
+                            update_cache_entry(table_dir, media_key, new_url)
+                            update_table_display()
+
+                            # Cleanup temp
+                            tmp_dir = os.path.join(table_path, '.tmp_upload')
+                            if os.path.exists(tmp_dir):
+                                shutil.rmtree(tmp_dir, ignore_errors=True)
+
+                            ui.notify(f'{media_label} image replaced!', type='positive')
+                            dlg.close()
+                        except Exception as ex:
+                            logger.exception("Failed to replace media")
+                            ui.notify(f'Error: {ex}', type='negative')
+
+                    confirm_btn = ui.button('Replace', icon='save', on_click=do_replace).props('color=primary')
+                    confirm_btn.disable()
+
+            dlg.open()
+
         # --- UI Layout ---
         # Header section
         with ui.card().classes('w-full mb-4').style('background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); border-radius: 12px;'):
@@ -468,14 +582,20 @@ def render_panel():
                   .style("flex: 1; overflow: auto;")
             )
 
+            # Lookup for media_key -> label
+            MEDIA_KEY_TO_LABEL = {key: label for key, label, _ in MEDIA_TYPES}
+
             # Custom slot for each media type column to show thumbnail or missing indicator
             for media_key, media_label, _ in MEDIA_TYPES:
                 col_name = media_key
                 if media_key == 'table':
                     col_name = 'table_img'
+                emit_expr = "$parent.$emit('media_click', [props.row.table_dir, props.row.table_path, props.row.name, '" + media_key + "'])"
                 media_table.add_slot(f'body-cell-{col_name}', '''
                     <q-td :props="props">
-                        <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper">
+                        <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
+                             @click.stop="''' + emit_expr + '''"
+                             style="cursor: pointer;">
                             <img :src="props.row.media.''' + media_key + '''"
                                  class="media-thumb"
                                  loading="lazy" />
@@ -485,9 +605,28 @@ def render_panel():
                                      style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 2px solid #3b82f6;" />
                             </q-tooltip>
                         </div>
-                        <div v-else class="media-missing">--</div>
+                        <div v-else class="media-missing"
+                             @click.stop="''' + emit_expr + '''"
+                             style="cursor: pointer;">--</div>
                     </q-td>
                 ''')
+
+            # Handle media click events from slot templates
+            def on_media_click(e):
+                args = e.args
+                table_dir = args[0]
+                table_path = args[1]
+                table_name = args[2]
+                media_key = args[3]
+                media_label = MEDIA_KEY_TO_LABEL.get(media_key, media_key)
+                open_replace_dialog(
+                    table_dir=table_dir,
+                    table_path=table_path,
+                    table_name=table_name,
+                    media_key=media_key,
+                    media_label=media_label,
+                )
+            media_table.on('media_click', on_media_click)
 
         # Startup scan
         async def refresh_on_startup():
