@@ -308,8 +308,9 @@ class API:
             # Sort alphabetically by VPSdb.name
             self.filteredTables.sort(
                 key=lambda t: (
-                    (t.metaConfig.config if hasattr(t.metaConfig, "config") else t.metaConfig)
-                    .get("VPSdb", "name", fallback="")
+                    (t.metaConfig or {})
+                    .get("VPSdb", {})
+                    .get("name", "")
                     .lower()
                 )
             )
