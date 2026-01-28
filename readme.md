@@ -437,7 +437,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   - Path: Full local path to the media file
   - MD5Hash: MD5 hash of the media from the source. On `--buildmeta`, if the remote MD5 differs from the stored hash, the image is re-downloaded automatically.
 
-After that file is created it then attempts to download the media artwork for that table from [VPinMediaDB](https://github.com/superhac/vpinmediadb).  Currently the following images are downloaded and are stored in each of the table's directory:
+After that file is created it then attempts to download the media artwork for that table from [VPinMediaDB](https://github.com/superhac/vpinmediadb).  Currently the following images are downloaded and are stored in each of the table's "medias" directory:
 
 | File Name     | Image Type    |
 | ------------- | ------------- |
