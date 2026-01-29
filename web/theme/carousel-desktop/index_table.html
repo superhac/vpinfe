@@ -9,14 +9,16 @@
   <script src="theme.js"></script>
 </head>
 <body>
-  <!-- BG image covers entire screen -->
-  <div class="bg-image-container" id="bgImageContainer">
-    <!-- BG image will be inserted here -->
-  </div>
+  <!-- Fade container wraps everything that should fade -->
+  <div id="fadeContainer">
+    <!-- BG image covers entire screen -->
+    <div class="bg-image-container" id="bgImageContainer">
+      <!-- BG image will be inserted here -->
+    </div>
 
-  <!-- Single container for all UI elements -->
-  <div class="ui-container" id="fadeContainer">
-    <div class="info-row">
+    <!-- Single container for all UI elements -->
+    <div class="ui-container">
+      <div class="info-row">
       <div class="table-info">
         <h1 class="table-name" id="tableName">Table Name</h1>
         <p class="table-meta" id="tableMeta">Manufacturer • Year</p>
@@ -31,6 +33,7 @@
         <!-- Carousel items will be inserted here -->
       </div>
     </div>
+  </div>
   </div>
   <div id="overlay-root">
     <!-- Independent popup or menu overlay -->

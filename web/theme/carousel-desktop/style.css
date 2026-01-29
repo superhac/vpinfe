@@ -37,8 +37,6 @@ body {
   flex-direction: column;
   justify-content: flex-end;
   z-index: 10;
-  transition: opacity 4.5s ease-in-out;
-  opacity: 1;
 }
 
 /* BG Image container - now covers full screen */
@@ -251,9 +249,15 @@ body {
   animation: jiggle 0.5s ease-in-out !important;
 }
 
-/* Fade transition container */
+/* Fade transition container - wraps entire screen content */
 #fadeContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   transition: opacity 4.5s ease-in-out;
+  opacity: 1;
 }
 
 /* Secondary windows (BG and DMD) */

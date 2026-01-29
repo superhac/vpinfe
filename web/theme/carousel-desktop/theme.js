@@ -12,6 +12,9 @@ const vpin = new VPinFECore();
 vpin.init();
 window.vpin = vpin // main menu needs this to call back in.
 
+// Register receiveEvent globally BEFORE vpin.ready to avoid timing issues
+window.receiveEvent = receiveEvent;
+
 // wait for VPinFECore to be ready
 vpin.ready.then(async () => {
     await vpin.call("get_my_window_name")
@@ -20,7 +23,6 @@ vpin.ready.then(async () => {
         });
 
     vpin.registerInputHandler(handleInput);
-    window.receiveEvent = receiveEvent;
 
     // Initialize the display
     updateScreen();
@@ -361,11 +363,17 @@ function updateScreen(direction = null) {
     }
 }
 
-// Smooth fade transition
+// Smooth fade transition - wait for CSS transition to complete
 async function fadeOut() {
     const fadeContainer = document.getElementById('fadeContainer');
-    fadeContainer.style.opacity = '0';
-    await new Promise(resolve => setTimeout(resolve, 300));
+
+    return new Promise(resolve => {
+        fadeContainer.addEventListener('transitionend', e => {
+            if (e.propertyName === 'opacity') resolve();
+        }, { once: true });
+
+        fadeContainer.style.opacity = '0';
+    });
 }
 
 function fadeIn() {
