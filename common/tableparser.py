@@ -69,6 +69,7 @@ class TableParser:
             "CabImagePath": "cab.png",
             "realDMDImagePath": "realdmd.png",
             "realDMDColorImagePath": "realdmd-color.png",
+            "FlyerImagePath": "flyer.png",
         }
 
         for attr, fname in images.items():

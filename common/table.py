@@ -15,5 +15,6 @@ class Table:
     CabImagePath = None
     realDMDImagePath = None
     realDMDColorImagePath = None
+    FlyerImagePath = None
 
     metaConfig = None

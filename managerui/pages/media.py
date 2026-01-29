@@ -34,6 +34,7 @@ MEDIA_TYPES = [
     ('cab', 'Cab', 'cab.png'),
     ('realdmd', 'Real DMD', 'realdmd.png'),
     ('realdmd_color', 'Real DMD Color', 'realdmd-color.png'),
+    ('flyer', 'Flyer', 'flyer.png'),
 ]
 
 
@@ -113,6 +114,7 @@ def scan_media_tables(silent: bool = False):
                     'has_cab': media_info.get('cab') is not None,
                     'has_realdmd': media_info.get('realdmd') is not None,
                     'has_realdmd_color': media_info.get('realdmd_color') is not None,
+                    'has_flyer': media_info.get('flyer') is not None,
                 })
             except Exception as e:
                 logger.error(f"Error reading {meta_path}: {e}")
@@ -215,6 +217,7 @@ def render_panel():
             {'name': 'fss', 'label': 'FSS', 'field': 'has_fss', 'align': 'center', 'sortable': True},
             {'name': 'wheel', 'label': 'Wheel', 'field': 'has_wheel', 'align': 'center', 'sortable': True},
             {'name': 'cab', 'label': 'Cab', 'field': 'has_cab', 'align': 'center', 'sortable': True},
+            {'name': 'flyer', 'label': 'Flyer', 'field': 'has_flyer', 'align': 'center', 'sortable': True},
             {'name': 'realdmd', 'label': 'Real DMD', 'field': 'has_realdmd', 'align': 'center', 'sortable': True},
             {'name': 'realdmd_color', 'label': 'Real DMD Color', 'field': 'has_realdmd_color', 'align': 'center', 'sortable': True},
         ]

@@ -6,10 +6,10 @@
 - Multiscreen - Supports up to 3 screens (Backglass, DMD, and Table)
 - Keyboard & Joystick support
 - Table and Media Manager (Auto download art via [VPinMediaDB](https://github.com/superhac/vpinmediadb))
-- High Score Extraction/Tracking
-- Build custom table collections
+- Build custom table collections (VPS ID-based and filter-based)
 - Automatic [vpx patching](https://github.com/jsm174/vpx-standalone-scripts) for Linux & Mac
-- Fully customizable UI themeing using HTML, JS and CSS
+- Fully customizable UI theming using HTML, JS and CSS
+- JSON-based table metadata with VPX file parsing and feature detection
 
 ## Themes
 Cab
@@ -370,22 +370,22 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
     "Medias": {
         "bg": {
             "Source": "vpinmediadb",
-            "Path": "/home/superhac/mediatest/1-2-3 (Automaticos 1973)/bg.png",
+            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/bg.png",
             "MD5Hash": "d80f67a370ebce2edd19febdc3fd7636"
         },
         "wheel": {
             "Source": "vpinmediadb",
-            "Path": "/home/superhac/mediatest/1-2-3 (Automaticos 1973)/wheel.png",
+            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/wheel.png",
             "MD5Hash": "a88bcaf2ade6b9614417fc18a8782f78"
         },
         "cab": {
             "Source": "vpinmediadb",
-            "Path": "/home/superhac/mediatest/1-2-3 (Automaticos 1973)/cab.png",
+            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/cab.png",
             "MD5Hash": "2df700d28fbfd88bb9a08c50da0c00ae"
         },
         "table": {
             "Source": "vpinmediadb",
-            "Path": "/home/superhac/mediatest/1-2-3 (Automaticos 1973)/table.png",
+            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/table.png",
             "MD5Hash": "ee863e38e38d8dd5552e511a15583d23"
         }
     }
@@ -433,22 +433,38 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 - Medias
 
   Tracks downloaded media files per table. Preserved across `--buildmeta --update-all`. Each entry is keyed by media type (bg, dmd, table, fss, wheel, cab, realdmd, realdmd_color):
-  - Source: Where the media was downloaded from (e.g. "vpinmediadb")
+  - Source: Where the media was downloaded from (e.g. "vpinmediadb" or "user" for manually uploaded)
   - Path: Full local path to the media file
   - MD5Hash: MD5 hash of the media from the source. On `--buildmeta`, if the remote MD5 differs from the stored hash, the image is re-downloaded automatically.
 
-After that file is created it then attempts to download the media artwork for that table from [VPinMediaDB](https://github.com/superhac/vpinmediadb).  Currently the following images are downloaded and are stored in each of the table's "medias" directory:
+After that file is created it then attempts to download the media artwork for that table from [VPinMediaDB](https://github.com/superhac/vpinmediadb). All media images are stored in a `medias/` subfolder within each table's directory:
 
-| File Name     | Image Type    |
-| ------------- | ------------- |
-| bg.png        | Backglass Image |
-| dmd.png       | DMD Image |
-| table.png     | Table Image |
-| wheel.png     | Icon on Hud |
-| fss.png       | Full Single Screen Image |
-| cab.png       | A cabinet image of the pinball machine |
-| realdmd.png       | Real DMD for use with ZeDMD |
-| realdmd-color.png       | Real DMD (Colorized) for use with ZeDMD |
+```
+Table Folder Name (Manufacturer Year)/
+├── TableName.vpx
+├── TableName.info
+└── medias/
+    ├── bg.png
+    ├── dmd.png
+    ├── table.png (or fss.png)
+    ├── wheel.png
+    ├── cab.png
+    ├── flyer.png
+    ├── realdmd.png
+    └── realdmd-color.png
+```
+
+| File Name         | Image Type                              |
+| ----------------- | --------------------------------------- |
+| bg.png            | Backglass Image                         |
+| dmd.png           | DMD Image                               |
+| table.png         | Table Image (portrait)                  |
+| fss.png           | Full Single Screen Image                |
+| wheel.png         | Icon on Hud                             |
+| cab.png           | A cabinet image of the pinball machine  |
+| flyer.png         | Promotional flyer image                 |
+| realdmd.png       | Real DMD for use with ZeDMD            |
+| realdmd-color.png | Real DMD (Colorized) for use with ZeDMD |
 
 ## VPX Table Patches
 VPinFE can automaticlly pull patches from [vpx-standalone-scripts](https://github.com/jsm174/vpx-standalone-scripts) via the `--vpxpatch` CLI option if a matching patch can be found.  

@@ -236,6 +236,7 @@ class VPSdb:
         _process('cab', tablemediajson, 'cab', table.CabImagePath, f"{table.fullPathTable}/medias/cab.png")
         _process('realdmd', tablemediajson, 'realdmd', table.realDMDImagePath, f"{table.fullPathTable}/medias/realdmd.png")
         _process('realdmd_color', tablemediajson, 'realdmd_color', table.realDMDColorImagePath, f"{table.fullPathTable}/medias/realdmd-color.png")
+        _process('flyer', tablemediajson, 'flyer', table.FlyerImagePath, f"{table.fullPathTable}/medias/flyer.png")
 
         # Table image depends on resolution/type
         _process(self.tabletype, tablemediajson.get(self.tableresolution), self.tabletype, table.TableImagePath, f"{table.fullPathTable}/medias/{self.tabletype}.png")
