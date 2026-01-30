@@ -227,7 +227,42 @@ class VPinFECore {
     // only run on the table window.. Its the master controller for all screens/windows
     if (await vpin.call("get_my_window_name") == "table") {
       await this.#initGamepadMapping();
+      this.#setupGamepadListeners();
       this.#updateGamepads();           // No await needed here — runs loop
+    }
+  }
+
+  #setupGamepadListeners() {
+    // Listen for gamepad connection events
+    window.addEventListener("gamepadconnected", (e) => {
+      this.call("console_out", `Gamepad connected: ${e.gamepad.id} (index ${e.gamepad.index})`);
+      // Reset button states for this gamepad
+      this.previousButtonStates[e.gamepad.index] = new Array(e.gamepad.buttons.length).fill(false);
+    });
+
+    window.addEventListener("gamepaddisconnected", (e) => {
+      this.call("console_out", `Gamepad disconnected: ${e.gamepad.id} (index ${e.gamepad.index})`);
+      delete this.previousButtonStates[e.gamepad.index];
+    });
+
+    // Check if gamepad is already connected (may have been connected before page load)
+    this.#waitForGamepad();
+  }
+
+  #waitForGamepad(attempts = 0, maxAttempts = 30) {
+    const gamepads = navigator.getGamepads();
+    const hasGamepad = Array.from(gamepads).some(gp => gp !== null);
+
+    if (hasGamepad) {
+      this.call("console_out", "Gamepad detected and ready");
+      return;
+    }
+
+    if (attempts < maxAttempts) {
+      // Retry every 500ms for up to 15 seconds
+      setTimeout(() => this.#waitForGamepad(attempts + 1, maxAttempts), 500);
+    } else {
+      this.call("console_out", "No gamepad detected after waiting. Will detect when connected.");
     }
   }
 
