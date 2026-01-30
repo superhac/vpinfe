@@ -2,7 +2,7 @@
 ![VPinFE_logo_main](https://github.com/user-attachments/assets/507c50e3-bc1e-499a-b393-f9d11250b709)
 
 **A frontend for vpinball with the following features:**
-- Works on Linux, Windows, and Mac (Windows currently needs support for the Standalone dir structure)
+- Works on Linux, Windows, and Mac (Windows must use Standalone dir structure)
 - Multiscreen - Supports up to 3 screens (Backglass, DMD, and Table)
 - Keyboard & Joystick support
 - Table and Media Manager (Auto download art via [VPinMediaDB](https://github.com/superhac/vpinmediadb))
