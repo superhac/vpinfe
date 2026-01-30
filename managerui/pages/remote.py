@@ -10,7 +10,7 @@ category_select = None
 def build(parent=None):
     global content_area, category_select, ks
     if ks is None:
-        ks = KeySimulator()
+        ks = KeySimulator(debug=True)
 
     target = parent or ui
 
@@ -548,7 +548,7 @@ def send_keyboard_key(key, dialog):
 def handle_button(category: str, button: str):
     print(f"[{category}] Button pressed: {button}")
     match category:
-        case 'vpx maintenance':
+        case 'vpx maintenance' | 'vpx':
             match button:
                 case 'Performance Overlay': ks.press_mapping("PerfOverlay")
                 case 'Volume Up': ks.press_mapping("VolumeUp", seconds=0.1)

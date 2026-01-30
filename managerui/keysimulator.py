@@ -90,20 +90,33 @@ class KeySimulator:
     # Init
     # ------------------------------------------------------------------
 
-    def __init__(self):
+    def __init__(self, debug=False):
+        self.debug = debug
+
         config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
         config_path = config_dir / "vpinfe.ini"
+
+        if self.debug:
+            print(f"[KeySimulator] Looking for vpinfe.ini at: {config_path}")
+            print(f"[KeySimulator] File exists: {config_path.exists()}")
 
         iniconfig = IniConfig(str(config_path))
         vpinball_ini_path = iniconfig.config["Settings"]["vpxinipath"]
 
-        #print("Parsing:", vpinball_ini_path)
+        if self.debug:
+            print(f"[KeySimulator] VPinballX.ini path from config: {vpinball_ini_path}")
+            print(f"[KeySimulator] VPinballX.ini exists: {Path(vpinball_ini_path).exists()}")
 
         self.raw_mappings = self.parse_vpinball_key_mappings(vpinball_ini_path)
         self.pynput_mappings = self.convert_to_pynput_keys(self.raw_mappings)
 
-        #print("SDL mappings:", self.raw_mappings)
-        #print("pynput mappings:", self.pynput_mappings)
+        if self.debug:
+            print(f"[KeySimulator] Raw SDL mappings found: {len(self.raw_mappings)}")
+            for name, scancode in self.raw_mappings.items():
+                print(f"  {name}: SDL scancode {scancode}")
+            print(f"[KeySimulator] Converted pynput mappings: {len(self.pynput_mappings)}")
+            for name, key in self.pynput_mappings.items():
+                print(f"  {name}: {key}")
 
         self.keyboard = Controller()
 
@@ -113,15 +126,23 @@ class KeySimulator:
 
     def press_mapping(self, name, seconds=0):
         key = self.pynput_mappings.get(name)
+        if self.debug:
+            print(f"[KeySimulator] press_mapping('{name}'): key={key}, found={key is not None}")
         time.sleep(seconds)
         if key is not None:
             self.press(key)
+        elif self.debug:
+            print(f"[KeySimulator] WARNING: No mapping found for '{name}'")
 
     def hold_mapping(self, name, seconds=0.1):
         """Hold a mapped key for the specified duration"""
         key = self.pynput_mappings.get(name)
+        if self.debug:
+            print(f"[KeySimulator] hold_mapping('{name}'): key={key}, found={key is not None}")
         if key is not None:
             self.hold(key, seconds)
+        elif self.debug:
+            print(f"[KeySimulator] WARNING: No mapping found for '{name}'")
 
     def press(self, key):
         self.keyboard.press(key)
@@ -147,6 +168,9 @@ class KeySimulator:
         mappings = {}
         in_input_section = False
 
+        if self.debug:
+            print(f"[KeySimulator] Parsing VPinballX.ini: {ini_path}")
+
         with open(ini_path, "r", encoding="utf-8-sig") as f:
             for raw_line in f:
                 line = raw_line.strip()
@@ -156,6 +180,8 @@ class KeySimulator:
 
                 if line.startswith("[") and line.endswith("]"):
                     in_input_section = (line == "[Input]")
+                    if self.debug and in_input_section:
+                        print(f"[KeySimulator] Found [Input] section")
                     continue
 
                 if not in_input_section:
@@ -170,6 +196,16 @@ class KeySimulator:
 
                 match = KEY_REGEX.search(value)
                 mappings[name] = int(match.group(1)) if match else None
+
+                if self.debug:
+                    scancode = mappings[name]
+                    print(f"[KeySimulator]   Parsed: {name} = {value} -> scancode {scancode}")
+
+        if self.debug:
+            if not mappings:
+                print(f"[KeySimulator] WARNING: No mappings found! Check if [Input] section exists with Mapping.* entries")
+            else:
+                print(f"[KeySimulator] Total mappings parsed: {len(mappings)}")
 
         return mappings
 
