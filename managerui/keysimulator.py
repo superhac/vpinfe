@@ -4,6 +4,7 @@ import re
 from platformdirs import user_config_dir
 from pathlib import Path
 from common.iniconfig import IniConfig
+import sys
 
 
 class KeySimulator:
@@ -54,10 +55,7 @@ class KeySimulator:
         68: Key.f11,
         69: Key.f12,
 
-        # Navigation
-        70: Key.print_screen,
-        72: Key.pause,
-        73: Key.insert,
+        # Navigation        
         74: Key.home,
         75: Key.page_up,
         76: Key.delete,
@@ -78,6 +76,14 @@ class KeySimulator:
         230: Key.alt_r,
         231: Key.cmd,
     }
+    
+    # navigation: not on mac,  but other platforms get these keys
+    if sys.platform != "darwin":  # macOS
+            SDL_TO_PYNPUT.update({
+                70: Key.print_screen,
+                72: Key.pause,
+                73: Key.insert,
+        })
     
     # Pinmame 
     PINMAME_OPEN_COIN_DOOR = Key.end
