@@ -223,7 +223,7 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
         'vpxdata': vpxdata,
     }
 
-    meta_path = table_folder / f"{table_folder}.info"
+    meta_path = table_folder / f"{table_folder.name}.info"
     meta = MetaConfig(str(meta_path))
     meta.writeConfigMeta(finalini)
 
