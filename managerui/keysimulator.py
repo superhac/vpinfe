@@ -56,11 +56,9 @@ class KeySimulator:
         69: Key.f12,
 
         # Navigation        
-        74: Key.home,
-        75: Key.page_up,
+       
         76: Key.delete,
         77: Key.end,
-        78: Key.page_down,
         79: Key.right,
         80: Key.left,
         81: Key.down,
@@ -83,6 +81,9 @@ class KeySimulator:
                 70: Key.print_screen,
                 72: Key.pause,
                 73: Key.insert,
+                74: Key.home,
+                75: Key.page_up,
+                78: Key.page_down,
         })
     
     # Pinmame 
