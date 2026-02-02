@@ -7,6 +7,95 @@ from .pages import collections as tab_collections
 from .pages import media as tab_media
 from .pages import remote
 import threading
+import subprocess
+import urllib.request
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+import os
+
+# Cache for update check result (check once per session)
+_update_check_cache = {'checked': False, 'update_available': False, 'error': None}
+
+def _get_project_root() -> Path:
+    """Get the project root directory (where .git should be)."""
+    return Path(__file__).resolve().parents[1]
+
+def _has_git_repo() -> bool:
+    """Check if the project has a .git directory."""
+    git_dir = _get_project_root() / '.git'
+    return git_dir.exists() and git_dir.is_dir()
+
+def _get_local_commit_date() -> datetime | None:
+    """Get the commit date of the local HEAD."""
+    try:
+        result = subprocess.run(
+            ['git', 'log', '-1', '--format=%cI'],
+            capture_output=True,
+            text=True,
+            cwd=str(_get_project_root()),
+            timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            # Parse ISO 8601 date
+            date_str = result.stdout.strip()
+            return datetime.fromisoformat(date_str)
+    except Exception as e:
+        print(f"[UpdateCheck] Failed to get local commit date: {e}")
+    return None
+
+def _get_remote_last_modified() -> datetime | None:
+    """Get the last-modified date from GitHub API."""
+    try:
+        url = 'https://api.github.com/repos/superhac/vpinfe/commits'
+        req = urllib.request.Request(url, method='HEAD')
+        req.add_header('User-Agent', 'VPinFE-UpdateChecker')
+        with urllib.request.urlopen(req, timeout=10) as response:
+            last_modified = response.headers.get('Last-Modified')
+            if last_modified:
+                return parsedate_to_datetime(last_modified)
+    except Exception as e:
+        print(f"[UpdateCheck] Failed to check remote: {e}")
+    return None
+
+def check_for_updates() -> dict:
+    """
+    Check if updates are available by comparing local commit date with remote.
+    Returns dict with 'update_available' (bool) and 'error' (str or None).
+    """
+    global _update_check_cache
+
+    # Return cached result if already checked
+    if _update_check_cache['checked']:
+        return _update_check_cache
+
+    _update_check_cache['checked'] = True
+
+    if not _has_git_repo():
+        _update_check_cache['error'] = 'no_git'
+        return _update_check_cache
+
+    local_date = _get_local_commit_date()
+    if not local_date:
+        _update_check_cache['error'] = 'local_date_failed'
+        return _update_check_cache
+
+    remote_date = _get_remote_last_modified()
+    if not remote_date:
+        _update_check_cache['error'] = 'remote_check_failed'
+        return _update_check_cache
+
+    # Ensure both dates are timezone-aware for comparison
+    if local_date.tzinfo is None:
+        local_date = local_date.replace(tzinfo=timezone.utc)
+    if remote_date.tzinfo is None:
+        remote_date = remote_date.replace(tzinfo=timezone.utc)
+
+    # Update available if remote is newer than local
+    _update_check_cache['update_available'] = remote_date > local_date
+    _update_check_cache['local_date'] = local_date
+    _update_check_cache['remote_date'] = remote_date
+
+    return _update_check_cache
 
 def header():
     # Enable dark mode by default
@@ -18,6 +107,26 @@ def header():
         with ui.row().classes('gap-3 items-center'):
             ui.icon('sports_esports', size='28px').classes('text-blue-400')
             ui.label('VPinFE Manager').classes('text-xl font-bold text-white')
+
+        # Update notification (right side of header)
+        update_container = ui.row().classes('gap-2 items-center')
+        with update_container:
+            # Check for updates asynchronously to not block UI
+            async def check_updates_async():
+                from nicegui import run
+                result = await run.io_bound(check_for_updates)
+                if result.get('update_available'):
+                    with update_container:
+                        ui.icon('system_update', size='20px').classes('text-yellow-400')
+                        ui.link(
+                            'Update Available',
+                            'https://github.com/superhac/vpinfe',
+                            new_tab=True
+                        ).classes('text-yellow-400 text-sm font-medium hover:text-yellow-300').style('text-decoration: none;')
+
+            # Only check if git repo exists
+            if _has_git_repo():
+                ui.timer(0.5, check_updates_async, once=True)
 
 def build_app():
     # Add global styles for modern look
