@@ -706,6 +706,7 @@ def render_panel(tab=None):
                         dialog_state = {
                             'running': False,
                             'progress_q': Queue(),
+                            'client': context.client,  # Capture client while in UI context
                         }
 
                         with dlg, ui.card().classes('w-[550px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
@@ -757,31 +758,38 @@ def render_panel(tab=None):
                                 dialog_state['running'] = True
                                 RUNNING = True
 
-                                # Switch UI to progress mode
-                                info_container.visible = False
-                                progress_container.visible = True
-                                start_btn.visible = False
-                                cancel_btn.visible = False
+                                # Use client captured when dialog was created
+                                client = dialog_state['client']
 
-                                patch_progressbar.value = 0
-                                patch_status_label.text = "Preparing..."
-                                patch_progress_timer.active = True
+                                # Switch UI to progress mode
+                                with client:
+                                    info_container.visible = False
+                                    progress_container.visible = True
+                                    start_btn.visible = False
+                                    cancel_btn.visible = False
+
+                                    patch_progressbar.value = 0
+                                    patch_status_label.text = "Preparing..."
+                                    patch_progress_timer.active = True
 
                                 try:
                                     await run.io_bound(vpxPatches, progress_cb=patch_progress_cb)
-                                    patch_status_label.text = "Completed!"
-                                    patch_progressbar.value = 1.0
-                                    ui.notify('VPX patches applied', type='positive')
+                                    with client:
+                                        patch_status_label.text = "Completed!"
+                                        patch_progressbar.value = 1.0
+                                        ui.notify('VPX patches applied', type='positive')
 
                                     # Refresh tables silently to reflect patch_applied flag
                                     await perform_scan(silent=True)
                                 except Exception as e:
                                     logger.exception('vpxPatches failed')
-                                    patch_status_label.text = f"Error: {e}"
-                                    ui.notify(f'Error: {e}', type='negative')
+                                    with client:
+                                        patch_status_label.text = f"Error: {e}"
+                                        ui.notify(f'Error: {e}', type='negative')
                                 finally:
-                                    patch_progress_timer.active = False
-                                    close_btn.visible = True
+                                    with client:
+                                        patch_progress_timer.active = False
+                                        close_btn.visible = True
                                     dialog_state['running'] = False
                                     RUNNING = False
 
