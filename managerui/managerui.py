@@ -61,11 +61,13 @@ def build_app():
         'z-index: 100; '
         'transition: width 0.3s ease; '
         'width: 220px; '
-        'overflow: hidden;'
+        'overflow: hidden; '
+        'display: flex; '
+        'flex-direction: column;'
     )
 
     # Track expanded/collapsed state and UI element references
-    nav_state = {'expanded': True, 'nav_content': None, 'nav_label': None}
+    nav_state = {'expanded': True, 'nav_content': None, 'nav_label': None, 'remote_container': None}
 
     def toggle_nav():
         nav_state['expanded'] = not nav_state['expanded']
@@ -73,11 +75,13 @@ def build_app():
             nav_panel.style(add='width: 220px;', remove='width: 56px;')
             nav_state['nav_content'].set_visibility(True)
             nav_state['nav_label'].set_visibility(True)
+            nav_state['remote_container'].set_visibility(True)
             content_container.style(add='margin-left: 220px; width: calc(100vw - 220px); max-width: calc(100vw - 220px);', remove='margin-left: 56px; width: calc(100vw - 56px); max-width: calc(100vw - 56px);')
         else:
             nav_panel.style(add='width: 56px;', remove='width: 220px;')
             nav_state['nav_content'].set_visibility(False)
             nav_state['nav_label'].set_visibility(False)
+            nav_state['remote_container'].set_visibility(False)
             content_container.style(add='margin-left: 56px; width: calc(100vw - 56px); max-width: calc(100vw - 56px);', remove='margin-left: 220px; width: calc(100vw - 220px); max-width: calc(100vw - 220px);')
 
     with nav_panel:
@@ -111,6 +115,17 @@ def build_app():
             )
             config_btn = (
                 ui.button('Configuration', icon='tune', on_click=lambda: show_page('vpinfe'))
+                .classes('w-full text-white nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px;')
+                .props('flat align=left')
+            )
+
+        # Remote control button anchored to bottom
+        nav_state['remote_container'] = ui.column().classes('w-full gap-1 mt-auto').style('margin-top: auto; padding-bottom: 16px;')
+        with nav_state['remote_container']:
+            ui.separator().classes('bg-slate-600')
+            (
+                ui.button('Remote Control', icon='settings_remote', on_click=lambda: ui.navigate.to('/remote', new_tab=True))
                 .classes('w-full text-white nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
