@@ -30,6 +30,9 @@ class VPinFECore {
     // Event handling
     this.eventHandlers = {}; // Custom event handlers registered by themes
 
+    // Network config
+    this.themeAssetsPort = 8000; // default, will be updated from config
+
   }
 
   // ***********************************
@@ -220,6 +223,8 @@ class VPinFECore {
 
   async #onPyWebviewReady() {
     console.log("pywebview is ready!");
+    // Load network config
+    this.themeAssetsPort = await this.call("get_theme_assets_port");
     await this.#loadMonitors();
     await this.getTableData();
    //this.#overrideConsole(); //disabled for now...
@@ -370,16 +375,17 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     }
     const parts = localPath.split('/');
     const file = parts[parts.length - 1];    // last part = filename
+    const port = this.themeAssetsPort;
 
     // Check if the path includes a medias/ subfolder
     if (parts.length >= 3 && parts[parts.length - 2] === 'medias') {
       const tableDir = parts[parts.length - 3];  // table folder is 3rd from end
-      return `http://127.0.0.1:8000/tables/${encodeURIComponent(tableDir)}/medias/${encodeURIComponent(file)}`;
+      return `http://127.0.0.1:${port}/tables/${encodeURIComponent(tableDir)}/medias/${encodeURIComponent(file)}`;
     }
 
     // Fallback: image is directly in table folder
     const dir = parts[parts.length - 2];     // second-to-last part = folder
-    return `http://127.0.0.1:8000/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
+    return `http://127.0.0.1:${port}/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
   }
 
   async #showmenu() {

@@ -312,6 +312,12 @@ options:
 | tabletype         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait table images. |
 | tableresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
 
+### [Network]
+| Key               | Description |
+| ----------------- | ------------------------------------------------------------------------- |
+| themeassetsport   | Port for the theme assets HTTP server. Default is `8000`.                 |
+| manageruiport     | Port for the Manager UI (NiceGUI) server. Default is `8001`.              |
+
 ## Table Metadata File (based on the Zero install table format)
 When you run VPinFE with the `--buildmeta` option it recursively goes through your table directory attempts to match your tables to their VPSDB id.  When matched, it will then parse the VPX for the table for more meta information and produce a `TABLE FOLDER NAME(manufactuer year).info` in that tables directory.  Heres an example for the table 1-2-3:
 
@@ -477,10 +483,18 @@ There are three server listeners started on your machine:
 | Service | Bound Address/Port | Description                                                           |
 | ------- | ---------------    | --------------------------------------------------------------------- |
 | HTTP    | 127.0.0.1:RANDOM   | PyWebView server.  Frontend UI/Themes                                 |
-| HTTP    | 127.0.0.1:8000     | Python HTTPServer. Serves tables media assets                         |
-| HTTP    | 0.0.0.0:8001       | NiceGui sever.  Handles the UI for configuration and management       | 
+| HTTP    | 127.0.0.1:8000     | Python HTTPServer. Serves tables media assets (configurable)          |
+| HTTP    | 0.0.0.0:8001       | NiceGui sever.  Handles the UI for configuration and management (configurable) |
 
 The only service that externally accessable from your machine its UI for managing it.  This is setup like this so people with cabinets can administer it remotely.
+
+The ports for the theme assets server and manager UI can be configured in your `vpinfe.ini` file under the `[Network]` section:
+
+```ini
+[Network]
+themeassetsport = 8000
+manageruiport = 8001
+```
 
 External Web Endpoints:
 - Table/VPX Configuration and Management: http://{YOUR-IP}:8001

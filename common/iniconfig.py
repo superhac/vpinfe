@@ -36,6 +36,10 @@ class IniConfig:
 				'defaultmissingmediaimg': '',
 				},
 			'VPSdb': {'last': ''},
+			'Network': {
+				'themeassetsport': '8000',
+				'manageruiport': '8001',
+				},
 		}
 
 		self.config = configparser.ConfigParser()

@@ -184,16 +184,19 @@ def remote_page():
 # keep a reference to the running thread
 _ui_thread = None
 
+_ui_port = 8001
+
 def _run_ui():
     STORAGE_SECRET = "verysecret" # The storatage is just to keep the active tab between sessions. Nothing sensitive.
     ui.run(title='VPinFE Manager UI',
-           port=8001,
+           port=_ui_port,
            reload=False,
            show=False,
            storage_secret=STORAGE_SECRET)
 
-def start_manager_ui():
-    global _ui_thread
+def start_manager_ui(port=8001):
+    global _ui_thread, _ui_port
+    _ui_port = port
     if _ui_thread and _ui_thread.is_alive():
         print("Manager UI is already running")
         return _ui_thread

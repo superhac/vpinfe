@@ -115,10 +115,12 @@ MOUNT_POINTS = {
         '/web/': os.path.join(base_path, 'web'),
         }
 http_server = CustomHTTPServer(MOUNT_POINTS)
-http_server.start_file_server()
+theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
+http_server.start_file_server(port=theme_assets_port)
 
 # Start the NiceGUI HTTP server
-start_manager_ui()
+manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
+start_manager_ui(port=manager_ui_port)
 
 # block and start webview
 webview.start(http_server=True)

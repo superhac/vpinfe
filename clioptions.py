@@ -209,7 +209,8 @@ def gamepadtest():
         '/web/': os.path.join(os.getcwd(), 'web'),
     }
     http_server = CustomHTTPServer(mount_points)
-    http_server.start_file_server()
+    theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
+    http_server.start_file_server(port=theme_assets_port)
 
     webview.start(http_server=True)
     http_server.on_closed()
