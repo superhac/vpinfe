@@ -120,7 +120,7 @@ def header():
                         ui.icon('system_update', size='20px').classes('text-yellow-400')
                         ui.link(
                             'Update Available',
-                            'https://github.com/superhac/vpinfe',
+                            'https://github.com/superhac/vpinfe/commits/master/',
                             new_tab=True
                         ).classes('text-yellow-400 text-sm font-medium hover:text-yellow-300').style('text-decoration: none;')
                     elif result.get('error') is None:
