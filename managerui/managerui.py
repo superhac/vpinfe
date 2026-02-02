@@ -115,14 +115,17 @@ def header():
             async def check_updates_async():
                 from nicegui import run
                 result = await run.io_bound(check_for_updates)
-                if result.get('update_available'):
-                    with update_container:
+                with update_container:
+                    if result.get('update_available'):
                         ui.icon('system_update', size='20px').classes('text-yellow-400')
                         ui.link(
                             'Update Available',
                             'https://github.com/superhac/vpinfe',
                             new_tab=True
                         ).classes('text-yellow-400 text-sm font-medium hover:text-yellow-300').style('text-decoration: none;')
+                    elif result.get('error') is None:
+                        ui.icon('check_circle', size='20px').classes('text-green-400')
+                        ui.label('Up to date').classes('text-green-400 text-sm font-medium')
 
             # Only check if git repo exists
             if _has_git_repo():
