@@ -1454,12 +1454,41 @@ def open_match_vps_dialog(
                 year = it.get('year') or ''
                 vid = it.get('id') or ''
                 with results_container:
-                    with ui.row().classes('justify-between items-center w-full q-py-xs border-b'):
-                        ui.label(f"{name}  —  {manuf}  —  {year}  (ID: {vid})").classes('text-sm')
+                    with ui.row().classes('items-center w-full q-py-xs border-b gap-2').style('flex-wrap: nowrap;'):
+                        ui.label(f"{name} — {manuf} — {year} (ID: {vid})").classes('text-sm').style('flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;')
                         def _on_assoc(it=it):
                             try:
-                                associate_vps_to_folder(Path(missing_row['path']), it, download_media=False)
-                                ui.notify(f"meta.ini created for '{missing_row['folder']}'", type='positive')
+                                old_path = Path(missing_row['path'])
+                                # Build new folder name: TABLE_NAME (MANUFACTURER YEAR)
+                                new_name = it.get('name', '')
+                                new_manuf = it.get('manufacturer') or it.get('mfg') or ''
+                                new_year = it.get('year') or ''
+                                if new_manuf and new_year:
+                                    new_folder_name = f"{new_name} ({new_manuf} {new_year})"
+                                elif new_manuf:
+                                    new_folder_name = f"{new_name} ({new_manuf})"
+                                elif new_year:
+                                    new_folder_name = f"{new_name} ({new_year})"
+                                else:
+                                    new_folder_name = new_name
+                                # Sanitize folder name (remove invalid characters)
+                                new_folder_name = "".join(c for c in new_folder_name if c not in '<>:"/\\|?*')
+                                new_path = old_path.parent / new_folder_name
+
+                                # Rename folder if the name is different
+                                if old_path != new_path:
+                                    if new_path.exists():
+                                        ui.notify(f"Cannot rename: folder '{new_folder_name}' already exists", type='negative')
+                                        return
+                                    old_path.rename(new_path)
+                                    ui.notify(f"Renamed folder to '{new_folder_name}'", type='info')
+                                    # Update missing_row path for associate_vps_to_folder
+                                    folder_path = new_path
+                                else:
+                                    folder_path = old_path
+
+                                associate_vps_to_folder(folder_path, it, download_media=False)
+                                ui.notify(f"Associated with VPS ID '{vid}'", type='positive')
                                 dlg.close()
                                 if callable(refresh_missing):
                                     refresh_missing()
@@ -1467,8 +1496,8 @@ def open_match_vps_dialog(
                                     refresh_installed()
                             except Exception as ex:
                                 logger.exception('Association failed')
-                                ui.notify(f'Failed creating meta.ini: {ex}', type='negative')
-                        ui.button('Associate', on_click=_on_assoc).props('color=primary')
+                                ui.notify(f'Failed: {ex}', type='negative')
+                        ui.button('Associate', on_click=_on_assoc).props('color=primary').style('flex-shrink: 0;')
 
         # Pre-fill the search with folder name for convenience
         initial_term = missing_row['folder']
