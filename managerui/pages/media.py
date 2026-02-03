@@ -2,7 +2,7 @@ import os
 import logging
 import asyncio
 import shutil
-from nicegui import ui, events, run, app
+from nicegui import ui, events, run, app, context
 from pathlib import Path
 import json
 from typing import List, Dict, Optional
@@ -368,6 +368,11 @@ def render_panel():
         async def perform_scan(*_, silent: bool = False):
             global _media_cache
             print("Scanning media...")
+            # Capture client context before any io_bound calls (may not exist if called from timer)
+            try:
+                client = context.client
+            except RuntimeError:
+                client = None
             try:
                 scan_btn.disable()
             except Exception:
@@ -394,12 +399,14 @@ def render_panel():
                 except RuntimeError:
                     pass
 
-                if not silent:
-                    ui.notify('Media scan complete!', type='positive')
+                if not silent and client:
+                    with client:
+                        ui.notify('Media scan complete!', type='positive')
             except Exception as e:
                 logger.exception("Failed to scan media")
-                if not silent:
-                    ui.notify(f"Error during scan: {e}", type='negative')
+                if not silent and client:
+                    with client:
+                        ui.notify(f"Error during scan: {e}", type='negative')
             finally:
                 try:
                     scan_btn.enable()

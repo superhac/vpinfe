@@ -248,13 +248,21 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
     if download_media:
         from common.vpsdb import VPSdb      # your VPSdb wrapper that has downloadMediaForTable
         vps = VPSdb(_INI_CFG.config['Settings']['tablerootdir'], _INI_CFG)
-        # Build a lightweight Table-like object for the API you expect:
-        # If your TableParser.Table has fields: tableDirName, fullPathTable, fullPathVPXfile
+        # Build a lightweight Table-like object with all attributes needed by downloadMediaForTable
         class _LightTable:
             def __init__(self, folder: Path, vpx: Path):
                 self.tableDirName = folder.name
                 self.fullPathTable = str(folder)
                 self.fullPathVPXfile = str(vpx)
+                # Media paths - set to None so downloadMediaForTable uses defaults
+                self.BGImagePath = None
+                self.DMDImagePath = None
+                self.TableImagePath = None
+                self.WheelImagePath = None
+                self.CabImagePath = None
+                self.realDMDImagePath = None
+                self.realDMDColorImagePath = None
+                self.FlyerImagePath = None
         pseudo_table = _LightTable(table_folder, vpx_file)
         vps.downloadMediaForTable(pseudo_table, vps_entry.get('id'), metaConfig=meta)
 
@@ -1458,12 +1466,22 @@ def open_match_vps_dialog(
     refresh_missing: callback to refresh the missing list/count after success
     refresh_installed: callback to refresh the installed tables list after success
     """
-    dlg = ui.dialog().props('max-width=1080px')
-    with dlg, ui.card().classes('w-[960px] max-w-[95vw]'):
+    dlg = ui.dialog().props('max-width=1080px persistent')
+    dialog_state = {'busy': False}
+
+    with dlg, ui.card().classes('w-[960px] max-w-[95vw]').style('position: relative;'):
         ui.label(f"Match VPS ID → {missing_row['folder']}").classes('text-lg font-bold')
         ui.separator()
 
         results_container = ui.column().classes('gap-1 w-full').style('max-height: 55vh; overflow:auto;')
+
+        # Loading overlay (hidden by default)
+        loading_overlay = ui.column().classes('absolute inset-0 items-center justify-center').style(
+            'background: rgba(15, 23, 42, 0.9); z-index: 100; display: none;'
+        )
+        with loading_overlay:
+            ui.spinner('dots', size='xl', color='blue')
+            loading_label = ui.label('Downloading media...').classes('text-white text-lg mt-4')
 
         def render_results(items: List[Dict]):
             results_container.clear()
@@ -1480,7 +1498,16 @@ def open_match_vps_dialog(
                 with results_container:
                     with ui.row().classes('items-center w-full q-py-xs border-b gap-2').style('flex-wrap: nowrap;'):
                         ui.label(f"{name} — {manuf} — {year} (ID: {vid})").classes('text-sm').style('flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;')
-                        def _on_assoc(it=it):
+
+                        async def _on_assoc(it=it, vid=vid):
+                            if dialog_state['busy']:
+                                return
+                            dialog_state['busy'] = True
+
+                            # Show loading overlay
+                            loading_overlay.style(replace='display: flex;')
+                            loading_label.set_text('Renaming folder...')
+
                             try:
                                 old_path = Path(missing_row['path'])
                                 # Build new folder name: TABLE_NAME (MANUFACTURER YEAR)
@@ -1503,16 +1530,19 @@ def open_match_vps_dialog(
                                 if old_path != new_path:
                                     if new_path.exists():
                                         ui.notify(f"Cannot rename: folder '{new_folder_name}' already exists", type='negative')
+                                        loading_overlay.style(replace='display: none;')
+                                        dialog_state['busy'] = False
                                         return
                                     old_path.rename(new_path)
-                                    ui.notify(f"Renamed folder to '{new_folder_name}'", type='info')
-                                    # Update missing_row path for associate_vps_to_folder
                                     folder_path = new_path
                                 else:
                                     folder_path = old_path
 
-                                associate_vps_to_folder(folder_path, it, download_media=False)
-                                ui.notify(f"Associated with VPS ID '{vid}'", type='positive')
+                                # Update loading message and run download in background
+                                loading_label.set_text('Creating metadata and downloading media...')
+                                await run.io_bound(associate_vps_to_folder, folder_path, it, True)
+
+                                ui.notify(f"Associated with VPS ID '{vid}' and downloaded media", type='positive')
                                 dlg.close()
                                 if callable(refresh_missing):
                                     refresh_missing()
@@ -1521,6 +1551,9 @@ def open_match_vps_dialog(
                             except Exception as ex:
                                 logger.exception('Association failed')
                                 ui.notify(f'Failed: {ex}', type='negative')
+                                loading_overlay.style(replace='display: none;')
+                                dialog_state['busy'] = False
+
                         ui.button('Associate', on_click=_on_assoc).props('color=primary').style('flex-shrink: 0;')
 
         # Pre-fill the search with folder name for convenience
