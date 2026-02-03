@@ -33,16 +33,30 @@ config_path = config_dir / "vpinfe.ini"
 iniconfig = IniConfig(str(config_path))
 
  # The last window created will be the one in focus.  AKA the controller for all the other windows!!!! Always "table"
+import sys
+import webview
+
 def loadWindows():
     global webview_windows
     global api
+
     monitors = get_monitors()
     print(monitors)
-    
+
+    is_mac = sys.platform == "darwin"
+
+    # macOS-safe window flags
+    window_flags = {
+        "fullscreen": not is_mac,
+        "frameless": is_mac,
+        "resizable": False if is_mac else True,
+    }
+
+    # --- BG SCREEN ---
     if iniconfig.config['Displays']['bgscreenid']:
-        api = API(iniconfig)
-        #print("found bg screen id: ", iniconfig.config['Displays']['bgscreenid'])
         screen_id = int(iniconfig.config['Displays']['bgscreenid'])
+        api = API(iniconfig)
+
         win = webview.create_window(
             "BG Screen",
             url=f"file://{html_file.resolve()}",
@@ -52,18 +66,22 @@ def loadWindows():
             width=monitors[screen_id].width,
             height=monitors[screen_id].height,
             background_color="#000000",
-            fullscreen=True  
+            fullscreen=window_flags["fullscreen"],
+            frameless=window_flags["frameless"],
+            resizable=window_flags["resizable"],
         )
+
         api.myWindow.append(win)
-        webview_windows.append(['bg',win, api])
+        webview_windows.append(['bg', win, api])
         api.webview_windows = webview_windows
         api.iniConfig = iniconfig
         api._finish_setup()
-        
+
+    # --- DMD SCREEN ---
     if iniconfig.config['Displays']['dmdscreenid']:
-        #print("found dmd screen id: ", iniconfig.config['Displays']['dmdscreenid'])
         screen_id = int(iniconfig.config['Displays']['dmdscreenid'])
         api = API(iniconfig)
+
         win = webview.create_window(
             "DMD Screen",
             url=f"file://{html_file.resolve()}",
@@ -73,18 +91,22 @@ def loadWindows():
             width=monitors[screen_id].width,
             height=monitors[screen_id].height,
             background_color="#000000",
-            fullscreen=True  
+            fullscreen=window_flags["fullscreen"],
+            frameless=window_flags["frameless"],
+            resizable=window_flags["resizable"],
         )
+
         api.myWindow.append(win)
-        webview_windows.append(['dmd',win, api])
+        webview_windows.append(['dmd', win, api])
         api.webview_windows = webview_windows
         api.iniConfig = iniconfig
         api._finish_setup()
-        
-    if iniconfig.config['Displays']['tablescreenid']:  # this always needs to be last to get the focus set.
-        #print("found table screen id: ", iniconfig.config['Displays']['tablescreenid'])
+
+    # --- TABLE SCREEN (ALWAYS LAST) ---
+    if iniconfig.config['Displays']['tablescreenid']:
         screen_id = int(iniconfig.config['Displays']['tablescreenid'])
         api = API(iniconfig)
+
         win = webview.create_window(
             "Table Screen",
             url=f"file://{html_file.resolve()}",
@@ -94,14 +116,17 @@ def loadWindows():
             width=monitors[screen_id].width,
             height=monitors[screen_id].height,
             background_color="#000000",
-            fullscreen=True,  
-            frameless=True # need this to restore the UI from VPX taking over fullscreen while its in the background and hanging our context
+            fullscreen=window_flags["fullscreen"],
+            frameless=True if is_mac else False,  # force frameless for table on mac
+            resizable=window_flags["resizable"],
         )
+
         api.myWindow.append(win)
-        webview_windows.append(['table',win, api])
+        webview_windows.append(['table', win, api])
         api.webview_windows = webview_windows
         api.iniConfig = iniconfig
         api._finish_setup()
+
 
 if len(sys.argv) > 0:
     parseArgs()
@@ -123,7 +148,10 @@ manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
 start_manager_ui(port=manager_ui_port)
 
 # block and start webview
-webview.start(http_server=True)
+if sys.platform == "darwin":
+    webview.start(gui="cocoa")
+else:
+    webview.start()
 
 # shutdown items
 http_server.on_closed()
