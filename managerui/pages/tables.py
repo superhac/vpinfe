@@ -25,6 +25,24 @@ _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 #_vpsdb_cache: List[Dict] | None = None
 _vpsdb_cache: Optional[List[Dict]] = None
+
+def ensure_vpsdb_downloaded() -> bool:
+    """
+    Ensures vpsdb.json exists and is up-to-date.
+    Downloads it if missing or outdated.
+    Returns True if vpsdb is available, False otherwise.
+    """
+    global _vpsdb_cache
+    from common.vpsdb import VPSdb
+    try:
+        # This will automatically download if missing or outdated
+        vps = VPSdb(_INI_CFG.config['Settings']['tablerootdir'], _INI_CFG)
+        # Clear cache so it reloads fresh data
+        _vpsdb_cache = None
+        return VPSDB_JSON_PATH.exists()
+    except Exception as e:
+        logger.error(f'Failed to ensure vpsdb: {e}')
+        return VPSDB_JSON_PATH.exists()
 # Ensure only one Missing Tables dialog at a time
 _missing_tables_dialog: Optional[ui.dialog] = None
 # Cache for scanned tables data (persists across page visits)
@@ -482,6 +500,12 @@ def render_panel(tab=None):
             except Exception:
                 pass
             try:
+                # Ensure vpsdb.json is downloaded and up-to-date
+                if not VPSDB_JSON_PATH.exists():
+                    if not silent:
+                        ui.notify('Downloading VPSdb...', type='info')
+                    await run.io_bound(ensure_vpsdb_downloaded)
+
                 # Run blocking I/O in a separate thread to avoid freezing the UI
                 table_rows = await run.io_bound(scan_tables, silent)
                 missing_rows = await run.io_bound(scan_missing_tables)
