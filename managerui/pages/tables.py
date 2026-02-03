@@ -1469,19 +1469,30 @@ def open_match_vps_dialog(
     dlg = ui.dialog().props('max-width=1080px persistent')
     dialog_state = {'busy': False}
 
-    with dlg, ui.card().classes('w-[960px] max-w-[95vw]').style('position: relative;'):
+    with dlg, ui.card().classes('w-[960px] max-w-[95vw]').style('position: relative; overflow: hidden;'):
         ui.label(f"Match VPS ID → {missing_row['folder']}").classes('text-lg font-bold')
         ui.separator()
 
-        results_container = ui.column().classes('gap-1 w-full').style('max-height: 55vh; overflow:auto;')
+        # Disclaimer about what Associate button does
+        with ui.row().classes('w-full items-start gap-2 q-pa-sm').style('background: rgba(59, 130, 246, 0.15); border-radius: 6px; border-left: 3px solid #3b82f6;'):
+            ui.icon('info', size='sm').classes('text-blue-400')
+            ui.label(
+                'Clicking "Associate" will: rename the folder to "TABLE NAME (MANUFACTURER YEAR)" format, '
+                'create a metadata file (.info), and download media images from VPSdb.'
+            ).classes('text-sm text-gray-300')
 
-        # Loading overlay (hidden by default)
-        loading_overlay = ui.column().classes('absolute inset-0 items-center justify-center').style(
-            'background: rgba(15, 23, 42, 0.9); z-index: 100; display: none;'
+        results_container = ui.column().classes('gap-1 w-full q-mt-sm').style('max-height: 55vh; overflow:auto;')
+
+        # Loading overlay (hidden by default) - positioned over the entire card
+        loading_overlay = ui.element('div').style(
+            'position: absolute; top: 0; left: 0; right: 0; bottom: 0; '
+            'background: rgba(15, 23, 42, 0.95); z-index: 1000; '
+            'display: none; flex-direction: column; align-items: center; justify-content: center;'
         )
         with loading_overlay:
-            ui.spinner('dots', size='xl', color='blue')
-            loading_label = ui.label('Downloading media...').classes('text-white text-lg mt-4')
+            with ui.column().classes('items-center justify-center gap-4 w-full'):
+                ui.spinner('dots', size='xl', color='blue')
+                loading_label = ui.label('Downloading media...').classes('text-white text-lg text-center')
 
         def render_results(items: List[Dict]):
             results_container.clear()
@@ -1505,7 +1516,7 @@ def open_match_vps_dialog(
                             dialog_state['busy'] = True
 
                             # Show loading overlay
-                            loading_overlay.style(replace='display: flex;')
+                            loading_overlay.style(add='display: flex;', remove='display: none;')
                             loading_label.set_text('Renaming folder...')
 
                             try:
@@ -1530,7 +1541,7 @@ def open_match_vps_dialog(
                                 if old_path != new_path:
                                     if new_path.exists():
                                         ui.notify(f"Cannot rename: folder '{new_folder_name}' already exists", type='negative')
-                                        loading_overlay.style(replace='display: none;')
+                                        loading_overlay.style(add='display: none;', remove='display: flex;')
                                         dialog_state['busy'] = False
                                         return
                                     old_path.rename(new_path)
@@ -1551,7 +1562,7 @@ def open_match_vps_dialog(
                             except Exception as ex:
                                 logger.exception('Association failed')
                                 ui.notify(f'Failed: {ex}', type='negative')
-                                loading_overlay.style(replace='display: none;')
+                                loading_overlay.style(add='display: none;', remove='display: flex;')
                                 dialog_state['busy'] = False
 
                         ui.button('Associate', on_click=_on_assoc).props('color=primary').style('flex-shrink: 0;')
