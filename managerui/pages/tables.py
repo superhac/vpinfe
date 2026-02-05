@@ -341,7 +341,8 @@ def parse_table_info(info_path):
 
             # Addon detection (check for directories)
             "pup_pack_exists": (Path(table_dir) / "pupvideos").is_dir(),
-            "alt_color_exists": (Path(table_dir) / "pinmame" / "altcolor").is_dir(),
+            "serum_exists": (Path(table_dir) / "serum").is_dir(),
+            "vni_exists": (Path(table_dir) / "vni").is_dir(),
             "alt_sound_exists": (Path(table_dir) / "pinmame" / "altsound").is_dir(),
 
             # VPinFE settings
@@ -1252,7 +1253,8 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                 # Detected Addons row
                 addon_fields = [
                     ('pup_pack_exists', 'PUP Pack', 'video_library', 'purple'),
-                    ('alt_color_exists', 'Alt Color', 'palette', 'orange'),
+                    ('serum_exists', 'Serum', 'palette', 'orange'),
+                    ('vni_exists', 'VNI', 'palette', 'cyan'),
                     ('alt_sound_exists', 'Alt Sound', 'music_note', 'green'),
                 ]
 
@@ -1366,12 +1368,12 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             ui.notify(f'Saved: {e.name}', type='positive')
                         ui.upload(on_upload=on_pup_upload, multiple=True).props('flat color=primary label="Upload"')
 
-                    # Altcolor uploader
+                    # Serum uploader
                     with ui.row().classes('addon-card w-full items-center justify-between'):
                         with ui.row().classes('items-center gap-3'):
                             ui.icon('palette', size='24px').classes('text-orange-400')
                             with ui.column().classes('gap-0'):
-                                ui.label('AltColor').classes('font-medium text-white')
+                                ui.label('Serum').classes('font-medium text-white')
                                 ui.label('Upload .cRZ color files (requires ROM)').classes('text-xs text-gray-400')
                         def on_altcolor_upload(e):
                             if not rom_name:

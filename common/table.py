@@ -7,6 +7,7 @@ class Table:
     pupPackExists = False
     altColorExists = False
     altSoundExists = False
+    vniExists = False
 
     BGImagePath = None
     DMDImagePath = None

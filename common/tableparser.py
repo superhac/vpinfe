@@ -48,8 +48,10 @@ class TableParser:
             # check for addons
             if (table_dir / "pupvideos").is_dir():
                 table.pupPackExists = True
-            if (table_dir / "pinmame" / "altcolor").is_dir():
+            if (table_dir / "serum").is_dir():
                 table.altColorExists = True
+            if (table_dir / "vni").is_dir():
+                table.vniExists = True
             if (table_dir / "pinmame" / "altsound").is_dir():
                 table.altSoundExists = True
 
