@@ -2,6 +2,8 @@ import os
 import configparser
 import logging
 import asyncio
+import zipfile
+import io
 from nicegui import ui, events, run, context
 from pathlib import Path
 import json
@@ -1353,20 +1355,31 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                 rom_name = (row_data.get('rom') or '').strip()
 
                 with ui.column().classes('gap-4 p-2'):
-                    # Pupvideos uploader
+                    # Pupvideos uploader (zip file)
                     with ui.row().classes('addon-card w-full items-center justify-between'):
                         with ui.row().classes('items-center gap-3'):
                             ui.icon('video_library', size='24px').classes('text-purple-400')
                             with ui.column().classes('gap-0'):
                                 ui.label('PupVideos').classes('font-medium text-white')
-                                ui.label('Upload video files for PuP pack').classes('text-xs text-gray-400')
+                                ui.label('Upload .zip file to extract to pupvideos folder').classes('text-xs text-gray-400')
                         def on_pup_upload(e):
-                            dest = table_path / 'pupvideos' / e.name
+                            ext = Path(e.name).suffix.lower()
+                            if ext != '.zip':
+                                ui.notify('Only .zip files accepted', type='negative')
+                                return
                             # Read content from SpooledTemporaryFile if needed
                             content = e.content.read() if hasattr(e.content, 'read') else e.content
-                            save_upload_bytes(dest, content)
-                            ui.notify(f'Saved: {e.name}', type='positive')
-                        ui.upload(on_upload=on_pup_upload, multiple=True).props('flat color=primary label="Upload"')
+                            try:
+                                dest_dir = table_path / 'pupvideos'
+                                ensure_dir(dest_dir)
+                                with zipfile.ZipFile(io.BytesIO(content), 'r') as zf:
+                                    zf.extractall(dest_dir)
+                                ui.notify(f'Extracted {e.name} to pupvideos/', type='positive')
+                            except zipfile.BadZipFile:
+                                ui.notify('Invalid zip file', type='negative')
+                            except Exception as ex:
+                                ui.notify(f'Extract failed: {ex}', type='negative')
+                        ui.upload(on_upload=on_pup_upload, multiple=False).props('flat color=primary label="Upload .zip"')
 
                     # Serum uploader
                     with ui.row().classes('addon-card w-full items-center justify-between'):
@@ -1417,7 +1430,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         with ui.row().classes('items-center gap-3'):
                             ui.icon('music_note', size='24px').classes('text-green-400')
                             with ui.column().classes('gap-0'):
-                                ui.label('AltSound').classes('font-medium text-white')
+                                ui.label('Serum (AltSound)').classes('font-medium text-white')
                                 ui.label('Upload sound pack files (requires ROM)').classes('text-xs text-gray-400')
                         def on_altsound_upload(e):
                             if not rom_name:
