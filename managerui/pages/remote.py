@@ -580,10 +580,10 @@ def handle_button(category: str, button: str):
         case 'pinmame':
             match button:
                 case 'Coin Door': ks.press(KeySimulator.PINMAME_OPEN_COIN_DOOR)
-                case 'Cancel': ks.press(KeySimulator.PINMAME_CANCEL)
+                case 'Cancel': ks.hold(KeySimulator.PINMAME_CANCEL)
                 case 'Down': ks.hold(KeySimulator.PINMAME_DOWN, seconds=0.1)
                 case 'Up': ks.hold(KeySimulator.PINMAME_UP, seconds=0.1)
-                case 'Enter': ks.press(KeySimulator.PINMAME_ENTER)
+                case 'Enter': ks.hold(KeySimulator.PINMAME_ENTER)
                 case 'Service 1': ks.press_mapping("Service1")
                 case 'Service 2': ks.press_mapping("Service2")
                 case 'Service 3': ks.press_mapping("Service3")
