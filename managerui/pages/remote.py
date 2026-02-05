@@ -583,7 +583,7 @@ def handle_button(category: str, button: str):
                 case 'Cancel': ks.hold(KeySimulator.PINMAME_CANCEL)
                 case 'Down': ks.hold(KeySimulator.PINMAME_DOWN, seconds=0.1)
                 case 'Up': ks.hold(KeySimulator.PINMAME_UP, seconds=0.1)
-                case 'Enter': ks.hold(KeySimulator.PINMAME_ENTER)
+                case 'Enter': ks.hold(KeySimulator.PINMAME_ENTER, seconds=0.1)
                 case 'Service 1': ks.press_mapping("Service1")
                 case 'Service 2': ks.press_mapping("Service2")
                 case 'Service 3': ks.press_mapping("Service3")
