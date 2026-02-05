@@ -1478,7 +1478,7 @@ def open_match_vps_dialog(
             ui.icon('info', size='sm').classes('text-blue-400')
             ui.label(
                 'Clicking "Associate" will: rename the folder to "TABLE NAME (MANUFACTURER YEAR)" format, '
-                'create a metadata file (.info), and download media images from VPSdb.'
+                'create a metadata file (.info), and download media images from vpinmediadb.'
             ).classes('text-sm text-gray-300')
 
         results_container = ui.column().classes('gap-1 w-full q-mt-sm').style('max-height: 55vh; overflow:auto;')

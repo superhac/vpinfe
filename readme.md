@@ -93,6 +93,46 @@ cd vpinfe
 pip install -r osx_requirements.txt
 ```
 
+### Windows 11
+ 
+**Requirements**
+
+* Python 3.13.12
+
+>[!CAUTION] 
+>If you use the top Button, you might download a wrong Version not working with the following Steps
+
+![image](https://github.com/user-attachments/assets/201ead7f-297f-4b2a-9bf2-f085c14feba8)
+
+![image](https://github.com/user-attachments/assets/d6815cc6-7016-4c31-9103-e4cde8956f48)
+* add Path to Enviromentvars (Win11 -> System -> Enviroment)
+* enable Script Execution in PowerShell
+![image](https://github.com/user-attachments/assets/0c09970e-0b81-422e-ab7e-c07e18d57a0c)
+
+>[!IMPORTANT]
+>Due to the Fact Script Execution is needed later on for launching VPINFE, do not disable Script Execution.
+
+* open PowerShell as Admin
+```
+git clone https://github.com/superhac/vpinfe.git
+cd vpinfe
+python -m pip install —-upgrade pip
+python -m venv venv-vpinfe --system-site-packages
+.\venv-vpinfe\scripts\Activate.ps1
+pip install pywebview screeninfo colorama requests olefile nicegui pynput
+python main.py -h
+```
+* add Shortcut to this Script on the Desktop
+```
+cd c:\vpinfe
+.\venv-vpinfe\scripts\Activate.ps1
+Python Main.py
+```
+
+>[!TIP]
+>You might have to change the "Open With" from Editor to PowerShell
+
+
 ### Setup your configuration (vpinfe.ini)
 
 VPinFE uses a platform-specific configuration directory to store its settings. On first run, VPinFE will automatically create a default `vpinfe.ini` file in the following location:
