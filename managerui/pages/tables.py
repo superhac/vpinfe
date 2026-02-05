@@ -198,6 +198,7 @@ def search_vpsdb(term: str, limit: int = 50) -> List[Dict]:
     return results
 
 ACCEPT_CRZ = ['.crz', '.cRZ', '.CRZ']  # altcolor accepted extensions (case-insensitive)
+ACCEPT_VNI = ['.vni', '.VNI', '.pal', '.PAL']  # vni accepted extensions (case-insensitive)
 
 def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
@@ -1359,7 +1360,9 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                                 ui.label('Upload video files for PuP pack').classes('text-xs text-gray-400')
                         def on_pup_upload(e):
                             dest = table_path / 'pupvideos' / e.name
-                            save_upload_bytes(dest, e.content)
+                            # Read content from SpooledTemporaryFile if needed
+                            content = e.content.read() if hasattr(e.content, 'read') else e.content
+                            save_upload_bytes(dest, content)
                             ui.notify(f'Saved: {e.name}', type='positive')
                         ui.upload(on_upload=on_pup_upload, multiple=True).props('flat color=primary label="Upload"')
 
@@ -1378,10 +1381,34 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             if ext not in ACCEPT_CRZ:
                                 ui.notify('Only .cRZ files accepted', type='negative')
                                 return
-                            dest = table_path / 'pinmame' / 'altcolor' / rom_name / e.name
-                            save_upload_bytes(dest, e.content)
+                            dest = table_path / 'serum' / rom_name / e.name
+                            # Read content from SpooledTemporaryFile if needed
+                            content = e.content.read() if hasattr(e.content, 'read') else e.content
+                            save_upload_bytes(dest, content)
                             ui.notify(f'Saved: {e.name}', type='positive')
                         ui.upload(on_upload=on_altcolor_upload, multiple=False).props('flat color=primary label="Upload .cRZ"')
+
+                    # VNI uploader
+                    with ui.row().classes('addon-card w-full items-center justify-between'):
+                        with ui.row().classes('items-center gap-3'):
+                            ui.icon('palette', size='24px').classes('text-cyan-400')
+                            with ui.column().classes('gap-0'):
+                                ui.label('VNI').classes('font-medium text-white')
+                                ui.label('Upload .vni and .pal files (requires ROM)').classes('text-xs text-gray-400')
+                        def on_vni_upload(e):
+                            if not rom_name:
+                                ui.notify('ROM not found. Update metadata first.', type='warning')
+                                return
+                            ext = Path(e.name).suffix
+                            if ext not in ACCEPT_VNI:
+                                ui.notify('Only .vni and .pal files accepted', type='negative')
+                                return
+                            dest = table_path / 'vni' / rom_name / e.name
+                            # Read content from SpooledTemporaryFile when multiple=True
+                            content = e.content.read() if hasattr(e.content, 'read') else e.content
+                            save_upload_bytes(dest, content)
+                            ui.notify(f'Saved: {e.name}', type='positive')
+                        ui.upload(on_upload=on_vni_upload, multiple=True).props('flat color=primary label="Upload .vni/.pal"')
 
                     # AltSound uploader
                     with ui.row().classes('addon-card w-full items-center justify-between'):
@@ -1395,7 +1422,9 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                                 ui.notify('ROM not found. Update metadata first.', type='warning')
                                 return
                             dest = table_path / 'pinmame' / 'altsound' / rom_name / e.name
-                            save_upload_bytes(dest, e.content)
+                            # Read content from SpooledTemporaryFile if needed
+                            content = e.content.read() if hasattr(e.content, 'read') else e.content
+                            save_upload_bytes(dest, content)
                             ui.notify(f'Saved: {e.name}', type='positive')
                         ui.upload(on_upload=on_altsound_upload, multiple=True).props('flat color=primary label="Upload"')
 
