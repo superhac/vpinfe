@@ -568,7 +568,7 @@ def handle_button(category: str, button: str):
                 case 'Enter': ks.hold(Key.enter, seconds=0.1)
         case 'vpx game':
             match button:
-                case 'Start': ks.press_mapping("Start")
+                case 'Start': ks.hold_mapping("Start")
                 case 'Pause': ks.press_mapping("Pause")
                 case 'ShowRules': ks.press_mapping("ShowRules")
                 case 'ExtraBall': ks.press_mapping("ExtraBall")
