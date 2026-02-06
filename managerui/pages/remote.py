@@ -12,10 +12,90 @@ category_select = None
 # Config for launching tables
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
+COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 
 # Import config
 from common.iniconfig import IniConfig
+from common.vpxcollections import VPXCollections
 _INI_CFG = None
+
+
+def _get_collections():
+    """Get list of collection names."""
+    try:
+        collections = VPXCollections(str(COLLECTIONS_PATH))
+        names = collections.get_collections_name()
+        print(f"[Remote] Loaded collections: {names}")
+        return names
+    except Exception as e:
+        print(f"[Remote] Error loading collections: {e}")
+        return []
+
+
+def _get_collection_vpsids(collection_name):
+    """Get VPSIds for a specific collection (vpsid-based only)."""
+    try:
+        collections = VPXCollections(str(COLLECTIONS_PATH))
+        return set(collections.get_vpsids(collection_name))
+    except Exception:
+        return set()
+
+
+def _is_filter_collection(collection_name):
+    """Check if a collection is filter-based."""
+    try:
+        collections = VPXCollections(str(COLLECTIONS_PATH))
+        return collections.is_filter_based(collection_name)
+    except Exception:
+        return False
+
+
+def _get_collection_filters(collection_name):
+    """Get filters for a filter-based collection."""
+    try:
+        collections = VPXCollections(str(COLLECTIONS_PATH))
+        return collections.get_filters(collection_name)
+    except Exception:
+        return None
+
+
+def _table_matches_filters(table, filters):
+    """Check if a table matches the given filter criteria."""
+    if not filters:
+        return False
+
+    # Check letter filter
+    letter = filters.get('letter', 'All')
+    if letter != 'All':
+        table_name = table.get('name', '')
+        if table_name and table_name[0].upper() != letter.upper():
+            return False
+
+    # Check manufacturer filter
+    manufacturer = filters.get('manufacturer', 'All')
+    if manufacturer != 'All':
+        if table.get('manufacturer', '') != manufacturer:
+            return False
+
+    # Check year filter
+    year = filters.get('year', 'All')
+    if year != 'All':
+        if str(table.get('year', '')) != str(year):
+            return False
+
+    # Check type filter
+    table_type = filters.get('table_type', 'All')
+    if table_type != 'All':
+        if table.get('type', '') != table_type:
+            return False
+
+    # Check theme filter
+    theme = filters.get('theme', 'All')
+    if theme != 'All':
+        if table.get('theme', '') != theme:
+            return False
+
+    return True
 
 
 def _get_ini_config():
@@ -84,6 +164,11 @@ def _scan_tables_for_launch():
                     'display_name': display_name,
                     'vpx_path': os.path.join(root, vpx_files[0]),
                     'table_path': root,
+                    'vpsid': info.get('VPSId', ''),
+                    'manufacturer': manufacturer,
+                    'year': str(year) if year else '',
+                    'type': info.get('Type', ''),
+                    'theme': info.get('Theme', ''),
                 })
             except Exception:
                 pass
@@ -545,8 +630,9 @@ def show_vpx_game_controls():
     with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
         ui.label("Launch Table").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
 
-        # State for the selection
-        launch_state = {'tables': [], 'all_options': {}}
+        # State for the selection - also store UI element references
+        launch_state = {'tables': [], 'all_options': {}, 'filtered_options': {}, 'collection': 'All', 'last_term': ''}
+        ui_refs = {}
 
         # Dropdown and launch button row (first)
         with ui.row().classes("w-full items-center gap-2 mb-2"):
@@ -559,10 +645,11 @@ def show_vpx_game_controls():
             ).classes("flex-grow").style(
                 "min-width: 0; background: #1f2937; border-radius: 8px;"
             )
+            ui_refs['table_select'] = table_select
 
             # Launch button
             def do_launch():
-                selected = table_select.value
+                selected = ui_refs['table_select'].value
                 if selected:
                     # Find the table by vpx_path (which is the value)
                     table = next((t for t in launch_state['tables'] if t['vpx_path'] == selected), None)
@@ -578,32 +665,85 @@ def show_vpx_game_controls():
             ):
                 ui.icon("play_arrow", size="sm").classes("text-green-400")
 
-        # Search/filter input (below dropdown)
+        def apply_collection_filter():
+            """Apply collection filter to get base options."""
+            collection = launch_state.get('collection', 'All')
+            if collection == 'All':
+                # Use all tables
+                launch_state['filtered_options'] = {
+                    t['vpx_path']: t['display_name'] for t in launch_state['tables']
+                }
+            elif _is_filter_collection(collection):
+                # Filter-based collection
+                filters = _get_collection_filters(collection)
+                launch_state['filtered_options'] = {
+                    t['vpx_path']: t['display_name']
+                    for t in launch_state['tables']
+                    if _table_matches_filters(t, filters)
+                }
+            else:
+                # VPSId-based collection
+                vpsids = _get_collection_vpsids(collection)
+                launch_state['filtered_options'] = {
+                    t['vpx_path']: t['display_name']
+                    for t in launch_state['tables']
+                    if t.get('vpsid') in vpsids
+                }
+
+        def on_collection_change(e):
+            launch_state['collection'] = e.value
+            apply_collection_filter()
+            # Clear search and update table list
+            ui_refs['filter_input'].value = ''
+            launch_state['last_term'] = ''
+            ui_refs['table_select'].options = launch_state['filtered_options']
+            if launch_state['filtered_options']:
+                first_key = next(iter(launch_state['filtered_options']))
+                ui_refs['table_select'].value = first_key
+            else:
+                ui_refs['table_select'].value = None
+            ui_refs['table_select'].update()
+
+        # Collections dropdown (with label above)
+        ui.label("Collection").classes("text-xs text-gray-400 mb-1")
+        collection_select = ui.select(
+            options=['All'],
+            value='All',
+            on_change=on_collection_change
+        ).props(
+            "outlined dense options-dense dark behavior='menu'"
+        ).classes("w-full mb-2").style(
+            "background: #1f2937; border-radius: 8px;"
+        )
+        ui_refs['collection_select'] = collection_select
+
+        # Search/filter input (below collections dropdown)
         filter_input = ui.input(
             placeholder="Search/Filter..."
         ).props("outlined dense clearable dark").classes("w-full").style(
             "background: #1f2937; border-radius: 8px;"
         )
-
-        # Track last search term to detect if we're adding or removing characters
-        launch_state['last_term'] = ''
+        ui_refs['filter_input'] = filter_input
 
         async def on_filter(e):
             term = (e.value or '').lower().strip()
             last_term = launch_state.get('last_term', '')
             launch_state['last_term'] = term
 
+            # Use filtered_options (collection-filtered) as base
+            base_options = launch_state.get('filtered_options', launch_state['all_options'])
+
             if not term:
-                # Show all options and select first
-                table_select.options = launch_state['all_options']
-                if launch_state['all_options']:
-                    first_key = next(iter(launch_state['all_options']))
+                # Show all options from collection and select first
+                table_select.options = base_options
+                if base_options:
+                    first_key = next(iter(base_options))
                     table_select.value = first_key
                 else:
                     table_select.value = None
             else:
                 # Filter options by search term - limit to first 10 matches
-                filtered = {k: v for k, v in launch_state['all_options'].items()
+                filtered = {k: v for k, v in base_options.items()
                            if term in v.lower()}
                 filtered_limited = dict(list(filtered.items())[:10])
                 table_select.options = filtered_limited
@@ -634,13 +774,22 @@ def show_vpx_game_controls():
 
         filter_input.on('keydown.enter', on_enter)
 
-        # Load tables on first render
+        # Load tables and collections on first render
         async def load_tables():
+            # Load collections
+            collections = await run.io_bound(_get_collections)
+            collection_options = ['All'] + list(collections)
+            print(f"[Remote] Setting collection options: {collection_options}")
+            collection_select.options = collection_options
+            collection_select.update()
+
+            # Load tables
             tables = await run.io_bound(_scan_tables_for_launch)
             launch_state['tables'] = tables
             # Build options as dict: {vpx_path: display_name}
             options = {t['vpx_path']: t['display_name'] for t in tables}
             launch_state['all_options'] = options
+            launch_state['filtered_options'] = options
             table_select.options = options
             # Select first table by default
             if options:
