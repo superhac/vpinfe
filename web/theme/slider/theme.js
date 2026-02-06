@@ -381,3 +381,20 @@ function fadeInScreen() {
   document.getElementById("fadeOverlay").classList.remove("show");
 }
 
+// Remote launch overlay functions
+function showRemoteLaunchOverlay(tableName) {
+    const overlay = document.getElementById('remote-launch-overlay');
+    const nameEl = document.getElementById('remote-launch-table-name');
+    if (overlay && nameEl) {
+        nameEl.textContent = tableName || 'Unknown Table';
+        overlay.style.display = 'flex';
+    }
+}
+
+function hideRemoteLaunchOverlay() {
+    const overlay = document.getElementById('remote-launch-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
+}
+

@@ -44,6 +44,16 @@ async function receiveEvent(message) {
     else if (message.type == "TableLaunchComplete") {
         fadeIn();
     }
+    else if (message.type == "RemoteLaunching") {
+        // Remote launch from manager UI
+        showRemoteLaunchOverlay(message.table_name);
+        await fadeOut();
+    }
+    else if (message.type == "RemoteLaunchComplete") {
+        // Remote launch completed
+        hideRemoteLaunchOverlay();
+        fadeIn();
+    }
     else if (message.type == "TableDataChange") {
         currentTableIndex = message.index;
         updateScreen();
@@ -379,6 +389,23 @@ async function fadeOut() {
 function fadeIn() {
     const fadeContainer = document.getElementById('fadeContainer');
     fadeContainer.style.opacity = '1';
+}
+
+// Remote launch overlay functions
+function showRemoteLaunchOverlay(tableName) {
+    const overlay = document.getElementById('remote-launch-overlay');
+    const nameEl = document.getElementById('remote-launch-table-name');
+    if (overlay && nameEl) {
+        nameEl.textContent = tableName || 'Unknown Table';
+        overlay.style.display = 'flex';
+    }
+}
+
+function hideRemoteLaunchOverlay() {
+    const overlay = document.getElementById('remote-launch-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
 }
 
 //

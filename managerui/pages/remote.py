@@ -1,10 +1,143 @@
-from nicegui import ui
+import subprocess
+from pathlib import Path
+from nicegui import ui, run
 from managerui.keysimulator import KeySimulator
 from pynput.keyboard import Key
+from platformdirs import user_config_dir
 
 ks = None
 content_area = None
 category_select = None
+
+# Config for launching tables
+CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
+VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
+
+# Import config
+from common.iniconfig import IniConfig
+_INI_CFG = None
+
+
+def _get_ini_config():
+    """Lazy load the INI config."""
+    global _INI_CFG
+    if _INI_CFG is None:
+        _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
+    return _INI_CFG
+
+
+def _get_tables_path() -> str:
+    """Get the tables root directory from config."""
+    try:
+        cfg = _get_ini_config()
+        tableroot = cfg.config.get('Settings', 'tablerootdir', fallback='').strip()
+        if tableroot:
+            import os
+            return os.path.expanduser(tableroot)
+    except Exception:
+        pass
+    import os
+    return os.path.expanduser('~/tables')
+
+
+def _scan_tables_for_launch():
+    """Scan for tables that can be launched (have .info and .vpx files)."""
+    import os
+    import json
+    tables_path = _get_tables_path()
+    tables = []
+
+    if not os.path.exists(tables_path):
+        return tables
+
+    for root, _, files in os.walk(tables_path):
+        current_dir = os.path.basename(root)
+        info_file = f"{current_dir}.info"
+
+        if info_file in files:
+            # Find the .vpx file
+            vpx_files = [f for f in files if f.lower().endswith('.vpx')]
+            if not vpx_files:
+                continue
+
+            meta_path = os.path.join(root, info_file)
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    raw = json.load(f)
+
+                info = raw.get("Info", {})
+                name = (info.get("Title") or current_dir).strip()
+                manufacturer = info.get("Manufacturer", "")
+                year = info.get("Year", "")
+
+                # Build display name
+                display_name = name
+                if manufacturer and year:
+                    display_name = f"{name} ({manufacturer} {year})"
+                elif manufacturer:
+                    display_name = f"{name} ({manufacturer})"
+                elif year:
+                    display_name = f"{name} ({year})"
+
+                tables.append({
+                    'name': name,
+                    'display_name': display_name,
+                    'vpx_path': os.path.join(root, vpx_files[0]),
+                    'table_path': root,
+                })
+            except Exception:
+                pass
+
+    # Sort by name
+    tables.sort(key=lambda t: t['name'].lower())
+    return tables
+
+
+def _launch_table(vpx_path: str, table_name: str):
+    """Launch a table using the VPX binary."""
+    import threading
+    from managerui.managerui import set_remote_launch_state
+
+    try:
+        cfg = _get_ini_config()
+        vpxbin = cfg.config['Settings'].get('vpxbinpath', '')
+        if not vpxbin:
+            ui.notify('VPX binary path not configured', type='negative')
+            return False
+
+        vpxbin_path = Path(vpxbin).expanduser()
+        if not vpxbin_path.exists():
+            ui.notify(f'VPX binary not found: {vpxbin}', type='negative')
+            return False
+
+        print(f"Launching table: {vpx_path}")
+        ui.notify(f'Launching {table_name}...', type='info')
+
+        # Signal to frontend that we're launching
+        set_remote_launch_state(True, table_name)
+
+        # Run the launch in a background thread so UI stays responsive
+        cmd = [str(vpxbin_path), "-play", vpx_path]
+
+        def run_and_wait():
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL
+            )
+            process.wait()
+            # Clear the launch state when done
+            set_remote_launch_state(False, None)
+
+        # Run in background thread
+        thread = threading.Thread(target=run_and_wait, daemon=True)
+        thread.start()
+        return True
+    except Exception as e:
+        set_remote_launch_state(False, None)
+        ui.notify(f'Failed to launch: {e}', type='negative')
+        return False
 
 
 def build(parent=None):
@@ -350,7 +483,7 @@ def show_vpx_game_controls():
     with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
         ui.label("Main").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
         with ui.column().classes("items-center gap-2 w-full"):
-            # Icon buttons row: Start and Pause
+            # Icon buttons row: Start, Pause, and Quit
             with ui.row().classes("items-center justify-center gap-3 md:gap-4 w-full"):
                 # Start
                 with ui.column().classes("items-center gap-1"):
@@ -367,6 +500,14 @@ def show_vpx_game_controls():
                     ).props("flat round").classes("icon-button").style("font-size: 18px;"):
                         ui.icon("pause", size="sm").classes("text-blue-400")
                     ui.label("Pause").classes("text-[10px] md:text-xs text-gray-400")
+
+                # Quit
+                with ui.column().classes("items-center gap-1"):
+                    with ui.button(
+                        on_click=lambda: handle_button("vpx game", "Quit")
+                    ).props("flat round").classes("icon-button").style("font-size: 18px;"):
+                        ui.icon("power_settings_new", size="sm").classes("text-red-400")
+                    ui.label("Quit").classes("text-[10px] md:text-xs text-gray-400")
 
             # Row with ShowRules, ExtraBall, Lockbar
             with ui.row().classes("items-center justify-center gap-2 w-full"):
@@ -399,6 +540,61 @@ def show_vpx_game_controls():
                 ).classes("remote-button text-white px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center gap-1"):
                     ui.icon("paid", size="xs").classes("text-yellow-400")
                     ui.label(f"Credit {i}").classes("text-xs md:text-sm")
+
+    # Launch Table Section
+    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
+        ui.label("Launch Table").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+
+        # State for the search and selection
+        launch_state = {'tables': [], 'filtered': [], 'selected': None}
+
+        # Load tables on first render
+        async def load_tables():
+            launch_state['tables'] = await run.io_bound(_scan_tables_for_launch)
+            launch_state['filtered'] = launch_state['tables']
+            update_results()
+
+        results_container = ui.column().classes("w-full gap-1 max-h-48 overflow-y-auto")
+
+        def update_results():
+            results_container.clear()
+            with results_container:
+                if not launch_state['filtered']:
+                    ui.label("No tables found").classes("text-xs text-gray-500 text-center w-full py-2")
+                else:
+                    for table in launch_state['filtered'][:20]:  # Limit to 20 results
+                        vpx = table['vpx_path']
+                        name = table['name']
+                        with ui.row().classes(
+                            "w-full items-center justify-between gap-2 p-2 rounded-lg hover:bg-gray-800 cursor-pointer"
+                        ).style("border: 1px solid #374151;"):
+                            ui.label(table['display_name']).classes("text-xs text-white flex-grow truncate")
+                            ui.button(
+                                icon="play_arrow",
+                                on_click=lambda e, v=vpx, n=name: _launch_table(v, n)
+                            ).props("flat round dense color=green").classes("text-green-400")
+
+        def on_search(e):
+            term = (e.value or '').lower().strip()
+            if not term:
+                launch_state['filtered'] = launch_state['tables']
+            else:
+                launch_state['filtered'] = [
+                    t for t in launch_state['tables']
+                    if term in t['name'].lower() or term in t['display_name'].lower()
+                ]
+            update_results()
+
+        # Search input
+        search_input = ui.input(
+            placeholder="Search tables..."
+        ).props("outlined dense clearable dark").classes("w-full").style(
+            "background: #1f2937; border-radius: 8px;"
+        )
+        search_input.on_value_change(on_search)
+
+        # Trigger initial load
+        ui.timer(0.1, load_tables, once=True)
 
 
 def show_pinmame_controls():
@@ -570,6 +766,7 @@ def handle_button(category: str, button: str):
             match button:
                 case 'Start': ks.hold_mapping("Start")
                 case 'Pause': ks.press_mapping("Pause")
+                case 'Quit': ks.press_mapping("ExitGame")
                 case 'ShowRules': ks.press_mapping("ShowRules")
                 case 'ExtraBall': ks.press_mapping("ExtraBall")
                 case 'Lockbar': ks.press_mapping("Lockbar")

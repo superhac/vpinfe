@@ -32,6 +32,10 @@ class VPinFECore {
 
     // Network config
     this.themeAssetsPort = 8000; // default, will be updated from config
+    this.managerUiPort = 8001; // default manager UI port
+
+    // Remote launch state tracking
+    this.remoteLaunchActive = false;
 
   }
 
@@ -234,6 +238,7 @@ class VPinFECore {
       await this.#initGamepadMapping();
       this.#setupGamepadListeners();
       this.#updateGamepads();           // No await needed here — runs loop
+      this.#pollRemoteLaunch();         // Poll for remote launch events
     }
   }
 
@@ -463,6 +468,55 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
   async #deregisterAllInputHandlersMenu() {
     this.inputHandlerMenu = [];
     this.call("console_out", "cleared the menu gamepad handler. aka menu closed");
+  }
+
+  // Poll the manager UI for remote launch events
+  #pollRemoteLaunch() {
+    const pollInterval = 1000; // Poll every 1 second
+    const managerUrl = `http://127.0.0.1:${this.managerUiPort}/api/remote-launch`;
+
+    console.log("[RemoteLaunch] Starting poll to:", managerUrl);
+
+    const poll = async () => {
+      try {
+        const response = await fetch(managerUrl);
+        if (response.ok) {
+          const data = await response.json();
+
+          // Check if launch state changed
+          if (data.launching && !this.remoteLaunchActive) {
+            // Remote launch started
+            this.remoteLaunchActive = true;
+            console.log("[RemoteLaunch] Launch detected:", data.table_name);
+            this.call("console_out", `Remote launching: ${data.table_name}`);
+            // Send TableLaunching event to all windows with the table name
+            this.sendMessageToAllWindowsIncSelf({
+              type: "RemoteLaunching",
+              table_name: data.table_name
+            });
+          } else if (!data.launching && this.remoteLaunchActive) {
+            // Remote launch completed
+            this.remoteLaunchActive = false;
+            console.log("[RemoteLaunch] Launch completed");
+            this.call("console_out", "Remote launch completed");
+            // Send completion event
+            this.sendMessageToAllWindowsIncSelf({
+              type: "RemoteLaunchComplete"
+            });
+          }
+        }
+      } catch (e) {
+        // Manager UI might not be running, that's OK - silently ignore
+        // But log first few failures for debugging
+        console.log("[RemoteLaunch] Poll error (manager UI may not be running):", e.message);
+      }
+
+      // Continue polling
+      setTimeout(poll, pollInterval);
+    };
+
+    // Start polling
+    poll();
   }
 
   // override console and send them to the python console instead
