@@ -20,7 +20,7 @@ if sys.platform == "darwin":
         Key.home: 115, Key.page_up: 116, Key.delete: 117, Key.end: 119, Key.page_down: 121,
         Key.right: 124, Key.left: 123, Key.down: 125, Key.up: 126,
         Key.ctrl_l: 59, Key.shift_l: 56, Key.alt_l: 58, Key.cmd: 55,
-        Key.ctrl_r: 59, Key.shift_r: 56, Key.alt_r: 58,
+        Key.ctrl_r: 62, Key.shift_r: 56, Key.alt_r: 58,
         'a': 0, 'b': 11, 'c': 8, 'd': 2, 'e': 14, 'f': 3, 'g': 5, 'h': 4,
         'i': 34, 'j': 38, 'k': 40, 'l': 37, 'm': 46, 'n': 45, 'o': 31, 'p': 35,
         'q': 12, 'r': 15, 's': 1, 't': 17, 'u': 32, 'v': 9, 'w': 13, 'x': 7,
