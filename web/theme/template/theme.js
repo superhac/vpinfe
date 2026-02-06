@@ -56,6 +56,14 @@ async function receiveEvent(message) {
     else if (message.type == "TableLaunchComplete") {
         //do something, like fade in
     }
+    else if (message.type == "RemoteLaunching") {
+        // Remote launch from manager UI
+        showRemoteLaunchOverlay(message.table_name);
+    }
+    else if (message.type == "RemoteLaunchComplete") {
+        // Remote launch completed
+        hideRemoteLaunchOverlay();
+    }
     else if (message.type == "TableDataChange") {
         currentTableIndex = message.index;
         updateScreen();
@@ -143,4 +151,21 @@ function updateScreen() {
 // circular table index
 function wrapIndex(index, length) {
     return (index + length) % length;
+}
+
+// Remote launch overlay functions
+function showRemoteLaunchOverlay(tableName) {
+    const overlay = document.getElementById('remote-launch-overlay');
+    const nameEl = document.getElementById('remote-launch-table-name');
+    if (overlay && nameEl) {
+        nameEl.textContent = tableName || 'Unknown Table';
+        overlay.style.display = 'flex';
+    }
+}
+
+function hideRemoteLaunchOverlay() {
+    const overlay = document.getElementById('remote-launch-overlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
 }

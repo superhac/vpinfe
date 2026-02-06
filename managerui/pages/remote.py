@@ -110,8 +110,8 @@ def _launch_table(vpx_path: str, table_name: str):
             ui.notify(f'VPX binary not found: {vpxbin}', type='negative')
             return False
 
-        print(f"Launching table: {vpx_path}")
-        ui.notify(f'Launching {table_name}...', type='info')
+        print(f"Remote Launching table: {vpx_path}")
+        ui.notify(f'Remote Launching {table_name}...', type='info')
 
         # Signal to frontend that we're launching
         set_remote_launch_state(True, table_name)
@@ -526,8 +526,8 @@ def show_vpx_game_controls():
                 with ui.button(
                     on_click=lambda: handle_button("vpx game", "Lockbar")
                 ).classes("remote-button text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1"):
-                    ui.icon("lock", size="xs").classes("text-orange-400")
-                    ui.label("Lockbar").classes("text-[10px] md:text-xs")
+                     ui.icon("fiber_manual_record", size="xs").classes("text-red-600")
+                     ui.label("Fire!").classes("text-[10px] md:text-xs")
 
     # Coins Section
     with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
@@ -545,53 +545,108 @@ def show_vpx_game_controls():
     with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
         ui.label("Launch Table").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
 
-        # State for the search and selection
-        launch_state = {'tables': [], 'filtered': [], 'selected': None}
+        # State for the selection
+        launch_state = {'tables': [], 'all_options': {}}
 
-        # Load tables on first render
-        async def load_tables():
-            launch_state['tables'] = await run.io_bound(_scan_tables_for_launch)
-            launch_state['filtered'] = launch_state['tables']
-            update_results()
+        # Dropdown and launch button row (first)
+        with ui.row().classes("w-full items-center gap-2 mb-2"):
+            # Dropdown select for tables
+            table_select = ui.select(
+                options=[],
+                on_change=lambda e: None
+            ).props(
+                "outlined dense options-dense dark behavior='menu' menu-anchor='top left' menu-self='bottom left'"
+            ).classes("flex-grow").style(
+                "min-width: 0; background: #1f2937; border-radius: 8px;"
+            )
 
-        results_container = ui.column().classes("w-full gap-1 max-h-48 overflow-y-auto")
-
-        def update_results():
-            results_container.clear()
-            with results_container:
-                if not launch_state['filtered']:
-                    ui.label("No tables found").classes("text-xs text-gray-500 text-center w-full py-2")
+            # Launch button
+            def do_launch():
+                selected = table_select.value
+                if selected:
+                    # Find the table by vpx_path (which is the value)
+                    table = next((t for t in launch_state['tables'] if t['vpx_path'] == selected), None)
+                    if table:
+                        _launch_table(table['vpx_path'], table['name'])
+                    else:
+                        ui.notify('Please select a table first', type='warning')
                 else:
-                    for table in launch_state['filtered'][:20]:  # Limit to 20 results
-                        vpx = table['vpx_path']
-                        name = table['name']
-                        with ui.row().classes(
-                            "w-full items-center justify-between gap-2 p-2 rounded-lg hover:bg-gray-800 cursor-pointer"
-                        ).style("border: 1px solid #374151;"):
-                            ui.label(table['display_name']).classes("text-xs text-white flex-grow truncate")
-                            ui.button(
-                                icon="play_arrow",
-                                on_click=lambda e, v=vpx, n=name: _launch_table(v, n)
-                            ).props("flat round dense color=green").classes("text-green-400")
+                    ui.notify('Please select a table first', type='warning')
 
-        def on_search(e):
-            term = (e.value or '').lower().strip()
-            if not term:
-                launch_state['filtered'] = launch_state['tables']
-            else:
-                launch_state['filtered'] = [
-                    t for t in launch_state['tables']
-                    if term in t['name'].lower() or term in t['display_name'].lower()
-                ]
-            update_results()
+            with ui.button(on_click=do_launch).props("flat round dense").classes("icon-button").style(
+                "width: 40px !important; height: 40px !important;"
+            ):
+                ui.icon("play_arrow", size="sm").classes("text-green-400")
 
-        # Search input
-        search_input = ui.input(
-            placeholder="Search tables..."
+        # Search/filter input (below dropdown)
+        filter_input = ui.input(
+            placeholder="Search/Filter..."
         ).props("outlined dense clearable dark").classes("w-full").style(
             "background: #1f2937; border-radius: 8px;"
         )
-        search_input.on_value_change(on_search)
+
+        # Track last search term to detect if we're adding or removing characters
+        launch_state['last_term'] = ''
+
+        async def on_filter(e):
+            term = (e.value or '').lower().strip()
+            last_term = launch_state.get('last_term', '')
+            launch_state['last_term'] = term
+
+            if not term:
+                # Show all options and select first
+                table_select.options = launch_state['all_options']
+                if launch_state['all_options']:
+                    first_key = next(iter(launch_state['all_options']))
+                    table_select.value = first_key
+                else:
+                    table_select.value = None
+            else:
+                # Filter options by search term - limit to first 10 matches
+                filtered = {k: v for k, v in launch_state['all_options'].items()
+                           if term in v.lower()}
+                filtered_limited = dict(list(filtered.items())[:10])
+                table_select.options = filtered_limited
+                # Auto-select first match
+                if filtered_limited:
+                    first_key = next(iter(filtered_limited))
+                    table_select.value = first_key
+                    # Only open dropdown when adding characters (not deleting)
+                    if len(term) > len(last_term):
+                        table_select.run_method('showPopup')
+                        await ui.run_javascript('''
+                            setTimeout(() => {
+                                document.querySelector('[placeholder="Search/Filter..."]').focus();
+                            }, 100);
+                        ''')
+                else:
+                    table_select.value = None
+            table_select.update()
+
+        filter_input.on_value_change(on_filter)
+
+        # Launch on Enter key
+        def on_enter():
+            if table_select.value:
+                table = next((t for t in launch_state['tables'] if t['vpx_path'] == table_select.value), None)
+                if table:
+                    _launch_table(table['vpx_path'], table['name'])
+
+        filter_input.on('keydown.enter', on_enter)
+
+        # Load tables on first render
+        async def load_tables():
+            tables = await run.io_bound(_scan_tables_for_launch)
+            launch_state['tables'] = tables
+            # Build options as dict: {vpx_path: display_name}
+            options = {t['vpx_path']: t['display_name'] for t in tables}
+            launch_state['all_options'] = options
+            table_select.options = options
+            # Select first table by default
+            if options:
+                first_key = next(iter(options))
+                table_select.value = first_key
+            table_select.update()
 
         # Trigger initial load
         ui.timer(0.1, load_tables, once=True)

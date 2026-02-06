@@ -59,6 +59,16 @@ async function receiveEvent(message) {
     else if (message.type == "TableLaunchComplete") {
         //do something, like fade in
     }
+    else if (message.type == "RemoteLaunching") {
+        // Remote launch from manager UI
+        showRemoteLaunchOverlay(message.table_name);
+        fadeOutScreen();
+    }
+    else if (message.type == "RemoteLaunchComplete") {
+        // Remote launch completed
+        hideRemoteLaunchOverlay();
+        fadeInScreen();
+    }
     else if (message.type == "TableDataChange") {
         // Log table count for debugging
         vpin.call("console_out", `TableDataChange: vpin.tableData.length = ${vpin.tableData ? vpin.tableData.length : 'null'}`);
