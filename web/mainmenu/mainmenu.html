@@ -204,6 +204,24 @@
 
     window.parent.vpin.registerInputHandlerMenu(handleInput);
 
+    // Keyboard input handler for main menu (mirrors vpinfe-core.js mappings)
+    // ShiftLeft = up/left, ShiftRight = down/right, Enter = select
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'ShiftLeft' || e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        handleInput("joyleft");
+        e.preventDefault();
+      } else if (e.code === 'ShiftRight' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        handleInput("joyright");
+        e.preventDefault();
+      } else if (e.key === 'Enter') {
+        handleInput("joyselect");
+        e.preventDefault();
+      } else if (e.key === 'Escape') {
+        handleInput("joyback");
+        e.preventDefault();
+      }
+    });
+
     window.addEventListener("message", (event) => {
       const message = event.data;
       if (message.event === "reset state") {
@@ -243,9 +261,11 @@
       // Normal menu navigation
       switch (input) {
         case "joyup":
+        case "joyleft":
           selectedIndex = (selectedIndex - 1 + items.length) % items.length;
           break;
         case "joydown":
+        case "joyright":
           selectedIndex = (selectedIndex + 1) % items.length;
           break;
         case "joyselect":
@@ -267,10 +287,12 @@
     function handleDialogInput(input) {
       switch (input) {
         case "joyup":
+        case "joyleft":
           dialogSelectedIndex = (dialogSelectedIndex - 1 + dialogItems.length) % dialogItems.length;
           updateDialogSelection();
           break;
         case "joydown":
+        case "joyright":
           dialogSelectedIndex = (dialogSelectedIndex + 1) % dialogItems.length;
           updateDialogSelection();
           break;
