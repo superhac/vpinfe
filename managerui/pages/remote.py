@@ -265,20 +265,26 @@ def _shutdown_system():
 
     ui.notify('Shutting down system...', type='warning')
 
-    # Close VPinFE first
-    for window in webview.windows:
-        window.destroy()
-
-    # Issue shutdown command based on platform
+    # Issue shutdown command based on platform (before closing windows)
     if sys.platform == 'win32':
-        # Windows: shutdown /s /t 0 (immediate shutdown)
-        subprocess.Popen(['shutdown', '/s', '/t', '0'], shell=True)
+        # Windows: shutdown /s /t 1 (1 second delay to allow cleanup)
+        subprocess.Popen(['shutdown', '/s', '/t', '1'], shell=True)
     elif sys.platform == 'darwin':
         # macOS: use osascript to trigger shutdown
         subprocess.Popen(['osascript', '-e', 'tell app "System Events" to shut down'])
     else:
-        # Linux: use shutdown now
-        subprocess.Popen(['sudo', 'shutdown', '-h', 'now'])
+        # Linux: try systemctl first (works on systemd systems without sudo)
+        # Fall back to pkexec for graphical password prompt if needed
+        try:
+            # Try systemctl poweroff (works if user has polkit permissions)
+            subprocess.Popen(['systemctl', 'poweroff'])
+        except Exception:
+            # Fall back to pkexec which shows a graphical password dialog
+            subprocess.Popen(['pkexec', 'shutdown', '-h', 'now'])
+
+    # Close VPinFE windows after issuing shutdown
+    for window in webview.windows:
+        window.destroy()
 
 
 def _show_shutdown_confirmation():
