@@ -274,7 +274,7 @@ def _shutdown_system():
         subprocess.Popen(['osascript', '-e', 'tell app "System Events" to shut down'])
     else:
         # Linux: use systemctl with -i flag to ignore inhibitors (like GNOME session)
-        subprocess.Popen(['systemctl', 'poweroff', '-i'])
+        subprocess.Popen(['sudo', 'shutdown', '-h', 'now'])
 
     # Close VPinFE windows after issuing shutdown
     for window in webview.windows:
