@@ -1,4 +1,6 @@
 import subprocess
+import sys
+import os
 from pathlib import Path
 from nicegui import ui, run
 from managerui.keysimulator import KeySimulator
@@ -223,6 +225,79 @@ def _launch_table(vpx_path: str, table_name: str):
         set_remote_launch_state(False, None)
         ui.notify(f'Failed to launch: {e}', type='negative')
         return False
+
+
+def _restart_app():
+    """Restart the VPinFE application (cross-platform)."""
+    import webview
+
+    ui.notify('Restarting VPinFE...', type='info')
+
+    # Get the path to the main script
+    main_script = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'main.py')
+
+    # Build the command to relaunch
+    python_exe = sys.executable
+
+    if sys.platform == 'win32':
+        # Windows: use subprocess with CREATE_NEW_PROCESS_GROUP
+        subprocess.Popen(
+            [python_exe, main_script],
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
+            close_fds=True
+        )
+    else:
+        # Linux/macOS: use subprocess with start_new_session
+        subprocess.Popen(
+            [python_exe, main_script],
+            start_new_session=True,
+            close_fds=True
+        )
+
+    # Close all webview windows to trigger shutdown
+    for window in webview.windows:
+        window.destroy()
+
+
+def _shutdown_system():
+    """Shutdown the system (cross-platform)."""
+    import webview
+
+    ui.notify('Shutting down system...', type='warning')
+
+    # Close VPinFE first
+    for window in webview.windows:
+        window.destroy()
+
+    # Issue shutdown command based on platform
+    if sys.platform == 'win32':
+        # Windows: shutdown /s /t 0 (immediate shutdown)
+        subprocess.Popen(['shutdown', '/s', '/t', '0'], shell=True)
+    elif sys.platform == 'darwin':
+        # macOS: use osascript to trigger shutdown
+        subprocess.Popen(['osascript', '-e', 'tell app "System Events" to shut down'])
+    else:
+        # Linux: use shutdown now
+        subprocess.Popen(['sudo', 'shutdown', '-h', 'now'])
+
+
+def _show_shutdown_confirmation():
+    """Show a confirmation dialog before shutting down."""
+    with ui.dialog() as dialog, ui.card().classes('bg-gray-800 p-6'):
+        with ui.column().classes('items-center gap-4'):
+            ui.icon('warning', size='48px').classes('text-red-400')
+            ui.label('Shutdown System?').classes('text-xl font-bold text-white')
+            ui.label('This will shutdown the entire system.').classes('text-gray-400')
+
+            with ui.row().classes('gap-4 mt-4'):
+                ui.button('Cancel', on_click=dialog.close).props('flat').classes(
+                    'bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-500'
+                )
+                ui.button('Shutdown', on_click=lambda: (dialog.close(), _shutdown_system())).props('flat').classes(
+                    'bg-red-600 text-white px-6 py-2 rounded hover:bg-red-500'
+                )
+
+    dialog.open()
 
 
 def build(parent=None):
@@ -864,22 +939,27 @@ def show_other_controls():
         ui.label("System Controls").classes("text-center text-sm font-semibold text-gray-300 mb-4")
 
         with ui.grid(columns=3).classes("gap-4 w-full justify-items-center"):
+            # (label, icon, color, enabled)
             controls = [
-                ("Power", "power_settings_new", "text-green-400"),
-                ("Settings", "settings", "text-blue-400"),
-                ("Help", "help", "text-purple-400"),
-                ("Update", "system_update", "text-yellow-400"),
-                ("Shutdown", "power_off", "text-red-400"),
-                ("Info", "info", "text-cyan-400"),
+                ("Restart", "restart_alt", "text-green-400", True),
+                ("Shutdown", "power_off", "text-red-400", True),
+                ("Help", "help", "text-purple-400", False),
+                ("Update", "system_update", "text-yellow-400", False),
+                ("Settings", "settings", "text-blue-400", False),
+                ("Info", "info", "text-cyan-400", False),
             ]
 
-            for label, icon, color in controls:
+            for label, icon, color, enabled in controls:
                 with ui.column().classes("items-center gap-2"):
-                    with ui.button(
-                        on_click=lambda l=label: handle_button("other", l)
-                    ).props("flat round").classes("icon-button"):
-                        ui.icon(icon, size="md").classes(color)
-                    ui.label(label).classes("text-xs text-gray-400 font-medium")
+                    btn = ui.button(
+                        on_click=lambda l=label, e=enabled: handle_button("other", l) if e else None
+                    ).props("flat round").classes("icon-button")
+                    if not enabled:
+                        btn.props("disable")
+                        btn.style("opacity: 0.4; cursor: not-allowed;")
+                    with btn:
+                        ui.icon(icon, size="md").classes(color if enabled else "text-gray-600")
+                    ui.label(label).classes(f"text-xs font-medium {'text-gray-400' if enabled else 'text-gray-600'}")
 
 
 def show_virtual_keyboard():
@@ -994,4 +1074,7 @@ def handle_button(category: str, button: str):
                 case 'Service 7': ks.press_mapping("Service7")
                 case 'Service 8': ks.press_mapping("Service8")
         case 'other':
-            print(f"Other category pressed: {button}")
+            match button:
+                case 'Restart': _restart_app()
+                case 'Shutdown': _show_shutdown_confirmation()
+                case _: print(f"Other category pressed: {button}")
