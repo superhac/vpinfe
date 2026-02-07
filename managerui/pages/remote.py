@@ -281,6 +281,47 @@ def _shutdown_system():
         window.destroy()
 
 
+def _reboot_system():
+    """Reboot the system (cross-platform)."""
+    import webview
+
+    ui.notify('Rebooting system...', type='warning')
+
+    # Issue reboot command based on platform (before closing windows)
+    if sys.platform == 'win32':
+        # Windows: shutdown /r /t 1 (reboot with 1 second delay)
+        subprocess.Popen(['shutdown', '/r', '/t', '1'], shell=True)
+    elif sys.platform == 'darwin':
+        # macOS: use osascript to trigger restart
+        subprocess.Popen(['osascript', '-e', 'tell app "System Events" to restart'])
+    else:
+        # Linux: use systemctl reboot
+        subprocess.Popen(['systemctl', 'reboot'])
+
+    # Close VPinFE windows after issuing reboot
+    for window in webview.windows:
+        window.destroy()
+
+
+def _show_reboot_confirmation():
+    """Show a confirmation dialog before rebooting."""
+    with ui.dialog() as dialog, ui.card().classes('bg-gray-800 p-6'):
+        with ui.column().classes('items-center gap-4'):
+            ui.icon('warning', size='48px').classes('text-orange-400')
+            ui.label('Reboot System?').classes('text-xl font-bold text-white')
+            ui.label('This will reboot the entire system.').classes('text-gray-400')
+
+            with ui.row().classes('gap-4 mt-4'):
+                ui.button('Cancel', on_click=dialog.close).props('flat').classes(
+                    'bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-500'
+                )
+                ui.button('Reboot', on_click=lambda: (dialog.close(), _reboot_system())).props('flat').classes(
+                    'bg-orange-600 text-white px-6 py-2 rounded hover:bg-orange-500'
+                )
+
+    dialog.open()
+
+
 def _show_shutdown_confirmation():
     """Show a confirmation dialog before shutting down."""
     with ui.dialog() as dialog, ui.card().classes('bg-gray-800 p-6'):
@@ -941,7 +982,8 @@ def show_other_controls():
         with ui.grid(columns=3).classes("gap-4 w-full justify-items-center"):
             # (label, icon, color, enabled)
             controls = [
-                ("Restart", "restart_alt", "text-green-400", True),
+                ("Restart VPinFE", "restart_alt", "text-green-400", True),
+                ("Reboot", "replay", "text-orange-400", True),
                 ("Shutdown", "power_off", "text-red-400", True),
                 ("Help", "help", "text-purple-400", False),
                 ("Update", "system_update", "text-yellow-400", False),
@@ -1075,6 +1117,7 @@ def handle_button(category: str, button: str):
                 case 'Service 8': ks.press_mapping("Service8")
         case 'other':
             match button:
-                case 'Restart': _restart_app()
+                case 'Restart VPinFE': _restart_app()
+                case 'Reboot': _show_reboot_confirmation()
                 case 'Shutdown': _show_shutdown_confirmation()
                 case _: print(f"Other category pressed: {button}")
