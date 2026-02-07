@@ -540,6 +540,26 @@ External Web Endpoints:
 - Table/VPX Configuration and Management: http://{YOUR-IP}:8001
 - Remote Control: http://{YOUR-IP}:8001/remote
 
+# Enabling the Shutdown Feature
+If you plan on using the Shutdown/Reboot option in the frontend or in the remote you need to have the right permissions on some systems:
+
+## Linux
+`sudo nano /etc/polkit-1/rules.d/49-allow-poweroff.rules`
+
+```
+polkit.addRule(function(action, subject) {
+    if (
+        (action.id == "org.freedesktop.login1.power-off" ||
+         action.id == "org.freedesktop.login1.power-off-ignore-inhibit") &&
+        subject.user == "superhac"
+    ) {
+        return polkit.Result.YES;
+    }
+});
+```
+
+`sudo systemctl restart polkit`
+
 ## Making a Theme
 
 See [Theme.md](https://github.com/superhac/vpinfe/blob/master/theme.md)
