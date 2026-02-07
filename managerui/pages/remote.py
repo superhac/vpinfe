@@ -273,14 +273,8 @@ def _shutdown_system():
         # macOS: use osascript to trigger shutdown
         subprocess.Popen(['osascript', '-e', 'tell app "System Events" to shut down'])
     else:
-        # Linux: try systemctl first (works on systemd systems without sudo)
-        # Fall back to pkexec for graphical password prompt if needed
-        try:
-            # Try systemctl poweroff (works if user has polkit permissions)
-            subprocess.Popen(['systemctl', 'poweroff'])
-        except Exception:
-            # Fall back to pkexec which shows a graphical password dialog
-            subprocess.Popen(['pkexec', 'shutdown', '-h', 'now'])
+        # Linux: use systemctl with -i flag to ignore inhibitors (like GNOME session)
+        subprocess.Popen(['systemctl', 'poweroff', '-i'])
 
     # Close VPinFE windows after issuing shutdown
     for window in webview.windows:
