@@ -1,12 +1,23 @@
 from nicegui import ui
 from common.iniconfig import IniConfig
+from common.vpxcollections import VPXCollections
 from pathlib import Path
 from platformdirs import user_config_dir
 
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 INI_PATH = CONFIG_DIR / 'vpinfe.ini'
+COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 config = IniConfig(str(INI_PATH))
+
+
+def _get_collection_names():
+    """Get list of collection names for the dropdown."""
+    try:
+        collections = VPXCollections(str(COLLECTIONS_PATH))
+        return [''] + collections.get_collections_name()  # Empty option + all collections
+    except Exception:
+        return ['']
 
 # Sections to ignore
 IGNORED_SECTIONS = {'VPSdb'}
@@ -99,11 +110,24 @@ def render_panel(tab=None):
                         with ui.column().classes('gap-3'):
                             for key in options:
                                 value = config.config.get(section, key, fallback='')
-                                # Calculate width: 10% bigger than content, minimum 100px
-                                char_width = max(len(value), len(key), 5)  # at least 5 chars
-                                width_px = int(char_width * 10 * 1.1)  # ~10px per char, +10%
-                                width_px = max(width_px, 100)  # minimum 100px
-                                inp = ui.input(key, value=value).classes('config-input').style(f'width: {width_px}px;')
+
+                                # Special handling for startup_collection in Settings
+                                if section == 'Settings' and key == 'startup_collection':
+                                    collection_options = _get_collection_names()
+                                    # Ensure current value is in options
+                                    if value and value not in collection_options:
+                                        collection_options.append(value)
+                                    inp = ui.select(
+                                        label=key,
+                                        options=collection_options,
+                                        value=value
+                                    ).classes('config-input').style('min-width: 200px;')
+                                else:
+                                    # Calculate width: 10% bigger than content, minimum 100px
+                                    char_width = max(len(value), len(key), 5)  # at least 5 chars
+                                    width_px = int(char_width * 10 * 1.1)  # ~10px per char, +10%
+                                    width_px = max(width_px, 100)  # minimum 100px
+                                    inp = ui.input(key, value=value).classes('config-input').style(f'width: {width_px}px;')
                                 inputs[section][key] = inp
 
         # Save button
