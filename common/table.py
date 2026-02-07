@@ -18,4 +18,8 @@ class Table:
     realDMDColorImagePath = None
     FlyerImagePath = None
 
+    TableVideoPath = None
+    BGVideoPath = None
+    DMDVideoPath = None
+
     metaConfig = None

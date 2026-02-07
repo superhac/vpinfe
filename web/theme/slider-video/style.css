@@ -1,0 +1,232 @@
+@font-face {
+  font-family: 'PressStart2P';
+  src: url('PressStart2P-Regular.ttf') format('truetype');
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Orbitron', sans-serif;
+  color: #fff;
+  background-color: black; /* Prevent white flash during transitions */
+}
+
+#rootContainer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: black; /* fallback */
+  overflow: hidden;
+}
+
+/* Two background layers for crossfade */
+#rootContainer::before,
+#rootContainer::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: opacity 0.5s ease-in-out;
+  z-index: 0;
+}
+
+#rootContainer::before { opacity: 1; }
+#rootContainer::after { opacity: 0; }
+
+/* Dim overlay to keep text readable */
+#rootContainer .dimOverlay {
+  position: absolute;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.6);
+  z-index:1;
+}
+
+/* Card wrapper sliding animation */
+#cardWrapper {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+
+  transform: translateY(100%);
+  opacity: 0;
+
+  transition: transform 0.5s ease, opacity 0.5s ease;
+}
+
+/* Active state: slide into view */
+#cardWrapper.active {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* Fading state for smooth crossfade */
+#cardWrapper.fade {
+  opacity: 0;
+}
+
+.table-card {
+  position: relative;
+  z-index: 1;
+  width: 60vw;
+  height: 60vh;
+  background: rgba(20, 20, 20, 0.85);
+  border: 0.4vw solid #0ff;
+  border-radius: 2vw;
+  box-shadow: 0 0 3vw #0ff, inset 0 0 1.5vw #0ff;
+  display: flex;
+  flex-direction: row; /* image left, text right */
+  align-items: center; /* vertical alignment */
+  justify-content: flex-start; /* align everything to left */
+  padding: 1vh 1vw 1vh 1vw;
+  overflow: hidden;
+  box-sizing: border-box;
+  gap: 1vw;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.table-card.active {
+  transform: scale(1.05);
+  box-shadow: 0 0 5vw #ff0, inset 0 0 2vw #ff0;
+}
+
+/* Playfield preview (image or video), rotated vertically but scaled to fit */
+.table-card .preview {
+  max-height: 90%;      /* never exceed card height */
+  max-width: 40%;       /* limit horizontal size */
+  transform: rotate(90deg);
+  border-radius: 1vw;
+  flex-shrink: 0;
+  object-fit: contain;  /* show whole table */
+  box-shadow: 0 0 1vw #0ff;
+  display: block;
+}
+
+.table-card .text-container {
+  display: flex;
+  flex-direction: column;   /* stack title + meta */
+  justify-content: flex-start; /* align text to top */
+  align-items: flex-start;   /* left-align text */
+  gap: 1.0vh;
+
+  height: 100%;             /* make it fill the card height */
+}
+
+
+.table-card .text-container .table-meta {
+  display: flex;
+  flex-direction: column;   /* stack metadata spans */
+  gap: 0.8vh;
+}
+
+.table-card .text-container h2 {
+  font-size: 3vw;
+  color: #0ff; /* cyan glow color */
+  text-shadow: 0 0 1vw #0ff, 0 0 2vw #0ff; /* glow effect */
+  line-height: 1.2;
+  margin: 0;
+  padding: 0;
+}
+
+/* ----- Table Features Panel (below metadata) ----- */
+
+.tablefeat {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Align to left */
+  justify-content: flex-start;
+  margin-top: 2vh;
+}
+
+.tablefeat-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20vh, 1fr));
+  gap: 3vh;
+  align-items: start;
+  width: 100%; /* full width of text column */
+  justify-items: start; /* left-align grid items */
+}
+
+.tablefeat-section {
+  text-align: left; /* not center */
+}
+
+
+.tablefeat-section-title {
+  font-size: 2vh;
+  margin-bottom: 2vh;
+  text-shadow: 0 0 1vw rgb(86, 208, 212);
+  color: rgb(154, 220, 231);
+}
+
+.tablefeat-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 7vh);
+  grid-auto-rows: 3vh;
+  gap: 1vh;
+  justify-content: center;
+}
+
+.tablefeat-light {
+  width: 7vh;
+  height: 3vh;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.5vw;
+  font-weight: bold;
+  cursor: default;
+  text-transform: uppercase;
+  color: #111;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  transition: all 0.2s ease;
+
+  display: flex;              /* enable flex layout */
+  align-items: center;        /* vertical centering */
+  justify-content: center;    /* horizontal centering */
+}
+
+
+/* Light ON (green) */
+.tablefeat-green {
+  background: radial-gradient(circle at center, #6eff6e 0%, #1a661a 100%);
+  box-shadow: 0 0 10px #6eff6e, 0 0 20px #3cff3c inset;
+  color: black;
+}
+
+/* Light OFF (red) */
+.tablefeat-red {
+  background: radial-gradient(circle at center, #aa2222 0%, #550000 100%);
+  box-shadow: inset 0 0 6px #000, 0 0 3px #550000;
+  color: #eee;
+}
+
+#fadeOverlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  background: black;
+  opacity: 0;
+  transition: opacity 0.8s ease-in-out;
+  pointer-events: none;
+  z-index: 9999;
+}
+#fadeOverlay.show {
+  opacity: 1;
+}
+
+
+

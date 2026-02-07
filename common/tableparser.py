@@ -74,7 +74,13 @@ class TableParser:
             "FlyerImagePath": "flyer.png",
         }
 
-        for attr, fname in images.items():
+        videos = {
+            "TableVideoPath": f"{self.tabletype}.mp4",
+            "BGVideoPath": "bg.mp4",
+            "DMDVideoPath": "dmd.mp4",
+        }
+
+        for attr, fname in {**images, **videos}.items():
             # Check medias/ subfolder first, then fall back to root folder
             fpath_medias = medias_dir / fname
             fpath_root = table_dir / fname

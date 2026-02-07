@@ -3,6 +3,7 @@ import http.server
 from socketserver import ThreadingTCPServer
 import threading
 import os
+import mimetypes
 from urllib.parse import unquote
 from functools import partial
 import posixpath
@@ -102,6 +103,61 @@ class CustomHTTPServer:
             # Expose some headers so XHR/fetch can see content-length/range when needed
             self.send_header("Access-Control-Expose-Headers", "Content-Length, Content-Range")
             super().end_headers()
+
+        def do_GET(self):
+            """Override to handle Range requests for video streaming."""
+            range_header = self.headers.get('Range')
+            if not range_header:
+                # No Range header — use default behavior
+                super().do_GET()
+                return
+
+            # Resolve the file path
+            path = self.translate_path(self.path)
+            if not os.path.isfile(path):
+                self.send_error(404, "File not found")
+                return
+
+            file_size = os.path.getsize(path)
+
+            # Parse "bytes=START-END" or "bytes=START-"
+            try:
+                range_spec = range_header.replace('bytes=', '')
+                parts = range_spec.split('-', 1)
+                start = int(parts[0]) if parts[0] else 0
+                end = int(parts[1]) if parts[1] else file_size - 1
+            except (ValueError, IndexError):
+                self.send_error(416, "Requested Range Not Satisfiable")
+                return
+
+            if start >= file_size or start > end:
+                self.send_error(416, "Requested Range Not Satisfiable")
+                return
+
+            # Clamp end to file boundary
+            end = min(end, file_size - 1)
+            content_length = end - start + 1
+            ctype = mimetypes.guess_type(path)[0] or 'application/octet-stream'
+
+            self.send_response(206)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(content_length))
+            self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
+            self.send_header("Accept-Ranges", "bytes")
+            self.end_headers()
+
+            try:
+                with open(path, 'rb') as f:
+                    f.seek(start)
+                    remaining = content_length
+                    while remaining > 0:
+                        chunk = f.read(min(65536, remaining))
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                        remaining -= len(chunk)
+            except (ConnectionResetError, BrokenPipeError):
+                pass  # Client closed connection, that's fine
 
         def do_OPTIONS(self):
             self.send_response(200, "OK")

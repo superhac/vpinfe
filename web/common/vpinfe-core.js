@@ -116,6 +116,20 @@ class VPinFECore {
     }
   }
 
+  // get table video url paths
+  getVideoURL(index, type) {
+    const table = this.tableData[index];
+    if (type == "table") {
+      return this.#convertImagePathToURL(table.TableVideoPath);
+    }
+    else if (type == "bg") {
+      return this.#convertImagePathToURL(table.BGVideoPath);
+    }
+    else if (type == "dmd") {
+      return this.#convertImagePathToURL(table.DMDVideoPath);
+    }
+  }
+
   getTableMeta(index) {
     return this.tableData[index];
   }
