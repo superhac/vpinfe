@@ -267,11 +267,21 @@ This is the Javascrip interface to the VPinFE API.  Must be loaded into your the
 
 #### getImageURL(index, type)
 
-- Returns a web server URL for a table’s image.
+- Returns a web server URL for a table's image.
 
 - type can be "table", "bg", "dmd", "wheel", "cab".
 
 - Falls back to "../../images/file_missing.png" if missing.
+
+#### getVideoURL(index, type)
+
+- Returns a web server URL for a table's video.
+
+- type can be "table", "bg", or "dmd".
+
+- Falls back to "../../images/file_missing.png" if no video exists.
+
+- See [Video Support](#video-support) for usage details.
 
 #### getTableMeta(index)
 
@@ -300,4 +310,60 @@ This is the Javascrip interface to the VPinFE API.  Must be loaded into your the
 #### getTableData(reset=false)
 
 - Loads table metadata from backend into tableData.
+
+## Video Support
+
+Themes can display looping videos for table, backglass, and DMD screens in addition to (or instead of) static images.
+
+### Video Files
+
+Videos are stored in the same `medias/` folder as images, using the `.mp4` extension:
+
+| File | Description |
+|------|-------------|
+| `table.mp4` (or `fss.mp4`) | Table playfield video |
+| `bg.mp4` | Backglass video |
+| `dmd.mp4` | DMD video |
+
+The same lookup order applies as images: `medias/` subfolder first, then the table root folder.
+
+### Using Videos in a Theme
+
+Use `vpin.getVideoURL(index, type)` to get the video URL, where type is `"table"`, `"bg"`, or `"dmd"`. The method returns `"../../images/file_missing.png"` if no video file exists for that table, so you should check for this before creating a `<video>` element.
+
+Example with image fallback:
+```javascript
+const videoUrl = vpin.getVideoURL(currentTableIndex, 'table');
+const imageUrl = vpin.getImageURL(currentTableIndex, 'table');
+
+if (videoUrl && !videoUrl.includes('file_missing')) {
+    const preview = document.createElement('video');
+    preview.className = 'preview';
+    preview.poster = imageUrl;  // stable dimensions while video loads
+    preview.src = videoUrl;
+    preview.autoplay = true;
+    preview.loop = true;
+    preview.muted = true;
+    preview.playsInline = true;
+    // Fall back to image if video fails to load
+    preview.onerror = () => {
+        const fallback = document.createElement('img');
+        fallback.className = 'preview';
+        fallback.src = imageUrl;
+        preview.replaceWith(fallback);
+    };
+    container.appendChild(preview);
+} else {
+    const preview = document.createElement('img');
+    preview.className = 'preview';
+    preview.src = imageUrl;
+    container.appendChild(preview);
+}
+```
+
+Key points:
+- Set `muted = true` — browsers require this for autoplay to work.
+- Set `poster = imageUrl` — this gives the video element proper dimensions before its metadata loads, preventing layout shifts.
+- The `onerror` handler provides a graceful fallback to the static image if the video can't be played.
+- The `slider-video` theme is a full working example of video integration.
 

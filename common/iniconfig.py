@@ -33,6 +33,7 @@ class IniConfig:
 			'Media': {
 				'tabletype': 'table',
 				'tableresolution': '4k',
+				'tablevideoresolution': '1k',
 				'defaultmissingmediaimg': '',
 				},
 			'VPSdb': {'last': ''},

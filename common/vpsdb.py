@@ -57,7 +57,8 @@ class VPSdb:
         # Setup preferences
         self.tabletype = self._vpinfeIniConfig.config['Media']["tabletype"].lower()
         self.tableresolution = self._vpinfeIniConfig.config['Media']["tableresolution"].lower()
-        print(f"Using {self.tableresolution}/{self.tabletype} tables")
+        self.tablevideoresolution = self._vpinfeIniConfig.config['Media']["tablevideoresolution"].lower()
+        print(f"Using {self.tableresolution}/{self.tabletype} tables (video: {self.tablevideoresolution})")
 
         # Load additional media DB
         self.vpinmediadbjson = self.downloadMediaJson()
@@ -240,6 +241,11 @@ class VPSdb:
 
         # Table image depends on resolution/type
         _process(self.tabletype, tablemediajson.get(self.tableresolution), self.tabletype, table.TableImagePath, f"{table.fullPathTable}/medias/{self.tabletype}.png")
+
+        # Video assets
+        _process('bg_video', tablemediajson.get(self.tablevideoresolution), 'bg_video', table.BGVideoPath, f"{table.fullPathTable}/medias/bg.mp4")
+        _process('dmd_video', tablemediajson.get(self.tablevideoresolution), 'dmd_video', table.DMDVideoPath, f"{table.fullPathTable}/medias/dmd.mp4")
+        _process(f'{self.tabletype}_video', tablemediajson.get(self.tablevideoresolution), f'{self.tabletype}_video', table.TableVideoPath, f"{table.fullPathTable}/medias/{self.tabletype}.mp4")
 
     # ----------------------------------------------------------------------
     def updateTable(self, name, manufacturer, year):

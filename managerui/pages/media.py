@@ -35,6 +35,9 @@ MEDIA_TYPES = [
     ('realdmd', 'Real DMD', 'realdmd.png'),
     ('realdmd_color', 'Real DMD Color', 'realdmd-color.png'),
     ('flyer', 'Flyer', 'flyer.png'),
+    ('table_video', 'Table Video', 'table.mp4'),
+    ('bg_video', 'BG Video', 'bg.mp4'),
+    ('dmd_video', 'DMD Video', 'dmd.mp4'),
 ]
 
 
@@ -220,6 +223,9 @@ def render_panel():
             {'name': 'flyer', 'label': 'Flyer', 'field': 'has_flyer', 'align': 'center', 'sortable': True},
             {'name': 'realdmd', 'label': 'Real DMD', 'field': 'has_realdmd', 'align': 'center', 'sortable': True},
             {'name': 'realdmd_color', 'label': 'Real DMD Color', 'field': 'has_realdmd_color', 'align': 'center', 'sortable': True},
+            {'name': 'table_video', 'label': 'Table Video', 'field': 'has_table_video', 'align': 'center', 'sortable': True},
+            {'name': 'bg_video', 'label': 'BG Video', 'field': 'has_bg_video', 'align': 'center', 'sortable': True},
+            {'name': 'dmd_video', 'label': 'DMD Video', 'field': 'has_dmd_video', 'align': 'center', 'sortable': True},
         ]
 
         # --- Filter state and functions ---
@@ -446,10 +452,13 @@ def render_panel():
                     break
 
         def open_replace_dialog(table_dir: str, table_path: str, table_name: str, media_key: str, media_label: str):
-            """Open a dialog to replace a media image for a table."""
+            """Open a dialog to replace a media file for a table."""
             target_filename = MEDIA_KEY_TO_FILENAME[media_key]
+            is_video = target_filename.endswith('.mp4')
+            media_type_label = 'Video' if is_video else 'Image'
+            accept_type = '.mp4' if is_video else 'image/*'
             current_url = None
-            # Find current image URL from cache
+            # Find current media URL from cache
             if _media_cache:
                 for row in _media_cache:
                     if row['table_dir'] == table_dir:
@@ -457,19 +466,22 @@ def render_panel():
                         break
 
             with ui.dialog() as dlg, ui.card().style('min-width: 500px; background: #1e293b; border: 1px solid #334155;'):
-                ui.label(f'Replace {media_label} Image').classes('text-xl font-bold text-white mb-2')
+                ui.label(f'Replace {media_label}').classes('text-xl font-bold text-white mb-2')
                 ui.label(f'Table: {table_name}').classes('text-slate-400 mb-1')
                 ui.label(f'Target: {target_filename}').classes('text-slate-500 text-sm mb-4')
 
-                # Show current image if exists
+                # Show current media if exists
                 if current_url:
                     ui.label('Current:').classes('text-slate-400 text-sm')
-                    ui.image(current_url).style('max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid #334155;').classes('mb-4')
+                    if is_video:
+                        ui.html(f'<video src="{current_url}" style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid #334155;" autoplay loop muted></video>').classes('mb-4')
+                    else:
+                        ui.image(current_url).style('max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid #334155;').classes('mb-4')
                 else:
-                    ui.label('No current image').classes('text-slate-500 italic mb-4')
+                    ui.label(f'No current {media_type_label.lower()}').classes('text-slate-500 italic mb-4')
 
                 # File upload
-                ui.label('Select new image:').classes('text-slate-400 text-sm mb-1')
+                ui.label(f'Select new {media_type_label.lower()}:').classes('text-slate-400 text-sm mb-1')
                 upload_state = {'path': None}
 
                 async def handle_upload(e: events.UploadEventArguments):
@@ -487,7 +499,7 @@ def render_panel():
                     on_upload=handle_upload,
                     auto_upload=True,
                     max_files=1,
-                ).props('accept="image/*" flat bordered').classes('w-full mb-4').style('background: #0f172a; border: 1px dashed #475569;')
+                ).props(f'accept="{accept_type}" flat bordered').classes('w-full mb-4').style('background: #0f172a; border: 1px dashed #475569;')
 
                 with ui.row().classes('w-full justify-end gap-3 mt-2'):
                     ui.button('Cancel', on_click=dlg.close).props('flat').classes('text-slate-400')
@@ -499,7 +511,7 @@ def render_panel():
                             src = upload_state['path']
                             await run.io_bound(replace_media_file, table_path, table_dir, media_key, src)
 
-                            # Build the URL for the new image (now in medias/ subfolder)
+                            # Build the URL for the new media (now in medias/ subfolder)
                             new_url = f"/media_tables/{table_dir}/medias/{target_filename}"
                             update_cache_entry(table_dir, media_key, new_url)
                             update_table_display()
@@ -509,7 +521,7 @@ def render_panel():
                             if os.path.exists(tmp_dir):
                                 shutil.rmtree(tmp_dir, ignore_errors=True)
 
-                            ui.notify(f'{media_label} image replaced!', type='positive')
+                            ui.notify(f'{media_label} replaced!', type='positive')
                             dlg.close()
                         except Exception as ex:
                             logger.exception("Failed to replace media")
@@ -603,30 +615,55 @@ def render_panel():
             MEDIA_KEY_TO_LABEL = {key: label for key, label, _ in MEDIA_TYPES}
 
             # Custom slot for each media type column to show thumbnail or missing indicator
-            for media_key, media_label, _ in MEDIA_TYPES:
+            for media_key, media_label, media_filename in MEDIA_TYPES:
                 col_name = media_key
                 if media_key == 'table':
                     col_name = 'table_img'
                 emit_expr = "$parent.$emit('media_click', [props.row.table_dir, props.row.table_path, props.row.name, '" + media_key + "'])"
-                media_table.add_slot(f'body-cell-{col_name}', '''
-                    <q-td :props="props">
-                        <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
-                             @click.stop="''' + emit_expr + '''"
-                             style="cursor: pointer;">
-                            <img :src="props.row.media.''' + media_key + '''"
-                                 class="media-thumb"
-                                 loading="lazy" />
-                            <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
-                                       class="bg-dark" style="padding: 4px;">
+                is_video = media_filename.endswith('.mp4')
+
+                if is_video:
+                    media_table.add_slot(f'body-cell-{col_name}', '''
+                        <q-td :props="props">
+                            <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
+                                 @click.stop="''' + emit_expr + '''"
+                                 style="cursor: pointer;">
+                                <video :src="props.row.media.''' + media_key + '''"
+                                       class="media-thumb"
+                                       preload="metadata"
+                                       muted />
+                                <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+                                           class="bg-dark" style="padding: 4px;">
+                                    <video :src="props.row.media.''' + media_key + '''"
+                                           style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 2px solid #3b82f6;"
+                                           autoplay loop muted />
+                                </q-tooltip>
+                            </div>
+                            <div v-else class="media-missing"
+                                 @click.stop="''' + emit_expr + '''"
+                                 style="cursor: pointer;">--</div>
+                        </q-td>
+                    ''')
+                else:
+                    media_table.add_slot(f'body-cell-{col_name}', '''
+                        <q-td :props="props">
+                            <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
+                                 @click.stop="''' + emit_expr + '''"
+                                 style="cursor: pointer;">
                                 <img :src="props.row.media.''' + media_key + '''"
-                                     style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 2px solid #3b82f6;" />
-                            </q-tooltip>
-                        </div>
-                        <div v-else class="media-missing"
-                             @click.stop="''' + emit_expr + '''"
-                             style="cursor: pointer;">--</div>
-                    </q-td>
-                ''')
+                                     class="media-thumb"
+                                     loading="lazy" />
+                                <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
+                                           class="bg-dark" style="padding: 4px;">
+                                    <img :src="props.row.media.''' + media_key + '''"
+                                         style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 2px solid #3b82f6;" />
+                                </q-tooltip>
+                            </div>
+                            <div v-else class="media-missing"
+                                 @click.stop="''' + emit_expr + '''"
+                                 style="cursor: pointer;">--</div>
+                        </q-td>
+                    ''')
 
             # Handle media click events from slot templates
             def on_media_click(e):
