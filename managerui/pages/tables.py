@@ -1038,12 +1038,38 @@ def render_panel(tab=None):
                 # Clear filters button
                 ui.button(icon='clear_all', on_click=clear_filters).props('flat round').tooltip('Clear all filters')
 
+        # Batch action bar for adding multiple tables to a collection at once
+        batch_bar = ui.card().classes('w-full mb-2').style(
+            'border-radius: 8px; background: linear-gradient(145deg, #1e3a5f 0%, #2d5a87 100%); '
+            'border: 1px solid #3b82f6;'
+        )
+        batch_bar.visible = False
+        with batch_bar:
+            with ui.row().classes('w-full items-center gap-4 p-3'):
+                batch_label = ui.label('0 tables selected').classes('text-white font-medium')
+                batch_collection_select = ui.select(
+                    label='Add to Collection',
+                    options=get_vpsid_collections(),
+                    value=None
+                ).props('outlined dense dark').classes('w-48')
+                batch_add_btn = ui.button('Add to Collection', icon='playlist_add').props('color=white text-color=primary')
+
+        def on_selection_change(e):
+            selected = e.selection
+            if selected:
+                batch_bar.visible = True
+                count = len(selected)
+                batch_label.set_text(f'{count} table{"s" if count != 1 else ""} selected')
+            else:
+                batch_bar.visible = False
+
         # Create a scrollable container for the table with proper height constraint
         table_container = ui.column().classes("w-full").style("flex: 1; overflow: hidden; display: flex;")
 
         with table_container:
             table = (
-                ui.table(columns=columns, rows=initial_rows, row_key='filename', pagination={'rowsPerPage': 25})
+                ui.table(columns=columns, rows=initial_rows, row_key='filename', selection='multiple',
+                         on_select=on_selection_change, pagination={'rowsPerPage': 25})
                   .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
                   .on('row-click', on_row_click)
                   .classes("w-full cursor-pointer")
@@ -1080,6 +1106,40 @@ def render_panel(tab=None):
                     </div>
                 </q-td>
             ''')
+
+        # Wire up batch add-to-collection button
+        def on_batch_add():
+            collection = batch_collection_select.value
+            if not collection:
+                ui.notify('Please select a collection', type='warning')
+                return
+            selected = table.selected
+            if not selected:
+                ui.notify('No tables selected', type='warning')
+                return
+            added = 0
+            skipped = 0
+            for row in selected:
+                vpsid = row.get('id', '')
+                if vpsid:
+                    if add_table_to_collection(vpsid, collection):
+                        added += 1
+                else:
+                    skipped += 1
+            if added > 0:
+                msg = f'Added {added} table{"s" if added != 1 else ""} to {collection}'
+                if skipped > 0:
+                    msg += f' ({skipped} skipped - no VPS ID)'
+                ui.notify(msg, type='positive')
+                table.selected.clear()
+                table.update()
+                batch_bar.visible = False
+                batch_collection_select.value = None
+                update_table_display()
+            else:
+                ui.notify('No tables could be added (missing VPS IDs)', type='warning')
+
+        batch_add_btn.on_click(on_batch_add)
 
         # Update missing button if we have cached data
         if _missing_cache is not None:
