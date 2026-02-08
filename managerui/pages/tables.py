@@ -466,10 +466,15 @@ def render_panel(tab=None):
             .q-table tbody tr:hover td {
                 color: #fff !important;
             }
+            .q-table__top {
+                padding: 0 !important;
+                background-color: #1e293b !important;
+            }
             .q-table__bottom {
                 background-color: #1e293b !important;
                 color: #94a3b8 !important;
                 border-top: 1px solid #334155 !important;
+                padding: 0 !important;
             }
         </style>
         ''')
@@ -1106,6 +1111,65 @@ def render_panel(tab=None):
                     </div>
                 </q-td>
             ''')
+            # Add top pagination controls (styled to match bottom)
+            table.add_slot('top', '''
+                <div class="row full-width items-center justify-end q-pa-sm"
+                     style="background-color: #1e293b; color: #94a3b8; border-bottom: 1px solid #334155;">
+                    <q-btn flat round dense icon="first_page" :disable="props.isFirstPage" @click="props.firstPage" size="sm" color="grey-5" />
+                    <q-btn flat round dense icon="chevron_left" :disable="props.isFirstPage" @click="props.prevPage" size="sm" color="grey-5" />
+                    <span class="q-mx-sm" style="font-size: 0.85rem; color: #94a3b8;">
+                        Page {{ props.pagination.page }} of {{ props.pagesNumber }}
+                    </span>
+                    <q-btn flat round dense icon="chevron_right" :disable="props.isLastPage" @click="props.nextPage" size="sm" color="grey-5" />
+                    <q-btn flat round dense icon="last_page" :disable="props.isLastPage" @click="props.lastPage" size="sm" color="grey-5" />
+                </div>
+            ''')
+            # Add bottom with Select All checkbox alongside pagination
+            table.add_slot('bottom', '''
+                <div class="row full-width items-center q-pa-sm"
+                     style="background-color: #1e293b; color: #94a3b8; border-top: 1px solid #334155;">
+                    <q-checkbox
+                        :model-value="(() => {
+                            const sel = $parent.selected || [];
+                            const rows = $parent.rows || [];
+                            const p = props.pagination;
+                            const start = (p.page - 1) * p.rowsPerPage;
+                            const pageRows = rows.slice(start, start + p.rowsPerPage);
+                            if (!pageRows.length) return false;
+                            const selKeys = new Set(sel.map(r => r.filename));
+                            return pageRows.every(r => selKeys.has(r.filename));
+                        })()"
+                        @update:model-value="() => $parent.$emit('toggle_select_all')"
+                        label="Select Page"
+                        dark
+                        dense
+                        color="primary"
+                        style="color: #e2e8f0;"
+                    />
+                    <q-space />
+                    <span class="q-mr-sm" style="font-size: 0.85rem;">Rows per page:</span>
+                    <q-select
+                        :model-value="props.pagination.rowsPerPage"
+                        :options="[25, 50, 100]"
+                        @update:model-value="val => $parent.$emit('update:pagination', Object.assign({}, props.pagination, {rowsPerPage: val, page: 1}))"
+                        dense
+                        borderless
+                        dark
+                        emit-value
+                        map-options
+                        options-dense
+                        style="min-width: 50px; color: #e2e8f0;"
+                    />
+                    <q-space />
+                    <q-btn flat round dense icon="first_page" :disable="props.isFirstPage" @click="props.firstPage" size="sm" color="grey-5" />
+                    <q-btn flat round dense icon="chevron_left" :disable="props.isFirstPage" @click="props.prevPage" size="sm" color="grey-5" />
+                    <span class="q-mx-sm" style="font-size: 0.85rem;">
+                        Page {{ props.pagination.page }} of {{ props.pagesNumber }}
+                    </span>
+                    <q-btn flat round dense icon="chevron_right" :disable="props.isLastPage" @click="props.nextPage" size="sm" color="grey-5" />
+                    <q-btn flat round dense icon="last_page" :disable="props.isLastPage" @click="props.lastPage" size="sm" color="grey-5" />
+                </div>
+            ''')
 
         # Wire up batch add-to-collection button
         def on_batch_add():
@@ -1140,6 +1204,40 @@ def render_panel(tab=None):
                 ui.notify('No tables could be added (missing VPS IDs)', type='warning')
 
         batch_add_btn.on_click(on_batch_add)
+
+        # Handle Select All toggle from the bottom slot checkbox (current page only)
+        def on_toggle_select_all(e):
+            rows = table._props.get('rows', [])
+            pagination = table._props.get('pagination', {})
+            page = pagination.get('page', 1)
+            per_page = pagination.get('rowsPerPage', 25)
+            start = (page - 1) * per_page
+            end = start + per_page
+            page_rows = rows[start:end]
+
+            # If all current page rows are already selected, deselect them; otherwise select them
+            selected_keys = {r.get('filename') for r in table.selected}
+            page_keys = {r.get('filename') for r in page_rows}
+            all_page_selected = page_keys.issubset(selected_keys) and len(page_keys) > 0
+
+            if all_page_selected:
+                # Deselect current page rows (keep others)
+                table.selected = [r for r in table.selected if r.get('filename') not in page_keys]
+            else:
+                # Add current page rows to selection (avoid duplicates)
+                for r in page_rows:
+                    if r.get('filename') not in selected_keys:
+                        table.selected.append(r)
+            table.update()
+            # Update batch bar
+            if table.selected:
+                batch_bar.visible = True
+                count = len(table.selected)
+                batch_label.set_text(f'{count} table{"s" if count != 1 else ""} selected')
+            else:
+                batch_bar.visible = False
+
+        table.on('toggle_select_all', on_toggle_select_all)
 
         # Update missing button if we have cached data
         if _missing_cache is not None:
