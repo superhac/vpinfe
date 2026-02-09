@@ -9,7 +9,6 @@ CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
-config = IniConfig(str(INI_PATH))
 
 
 def _get_collection_names():
@@ -44,6 +43,9 @@ SECTION_ICONS = {
 }
 
 def render_panel(tab=None):
+    # Re-read config from disk each time the page is opened
+    config = IniConfig(str(INI_PATH))
+
     # Add custom styles for config page
     ui.add_head_html('''
     <style>
