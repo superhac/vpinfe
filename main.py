@@ -172,3 +172,12 @@ else:
 http_server.on_closed()
 nicegui_app.shutdown()
 stop_manager_ui()
+
+# Check for restart sentinel
+restart_flag = config_dir / '.restart'
+if restart_flag.exists():
+    restart_flag.unlink()
+    print("[VPinFE] Restart requested, re-launching...")
+    python_exe = sys.executable
+    main_script = os.path.abspath(__file__)
+    os.execvp(python_exe, [python_exe, main_script])

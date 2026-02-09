@@ -228,33 +228,17 @@ def _launch_table(vpx_path: str, table_name: str):
 
 
 def _restart_app():
-    """Restart the VPinFE application (cross-platform)."""
+    """Restart the VPinFE application by signaling main.py to re-exec itself."""
     import webview
 
     ui.notify('Restarting VPinFE...', type='info')
 
-    # Get the path to the main script
-    main_script = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'main.py')
+    # Write a restart sentinel file that main.py checks after cleanup
+    restart_flag = CONFIG_DIR / '.restart'
+    restart_flag.touch()
 
-    # Build the command to relaunch
-    python_exe = sys.executable
-
-    if sys.platform == 'win32':
-        # Windows: use subprocess with CREATE_NEW_PROCESS_GROUP
-        subprocess.Popen(
-            [python_exe, main_script],
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
-            close_fds=True
-        )
-    else:
-        # Linux/macOS: use subprocess with start_new_session
-        subprocess.Popen(
-            [python_exe, main_script],
-            start_new_session=True,
-            close_fds=True
-        )
-
-    # Close all webview windows to trigger shutdown
+    # Close all webview windows to trigger clean shutdown
+    # main.py will detect the sentinel and os.execvp itself
     for window in webview.windows:
         window.destroy()
 
