@@ -390,7 +390,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
   // convert the hard full local path to the web servers url map
   #convertImagePathToURL(localPath) {
     if (!localPath || typeof localPath !== 'string') {
-      return "../../images/file_missing.png";  // fallback default
+      return "/web/images/file_missing.png";  // fallback default
     }
     const parts = localPath.split('/');
     const file = parts[parts.length - 1];    // last part = filename
@@ -422,7 +422,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
 
       if (!iframe) {
         iframe = document.createElement("iframe");
-        iframe.src = "../../mainmenu/mainmenu.html";
+        iframe.src = "/web/mainmenu/mainmenu.html";
         iframe.id = "menu-frame";
         iframe.setAttribute("allowTransparency", "true");
         iframe.style.display = "none"; // start hidden to prevent flash
@@ -458,7 +458,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
 
       if (!iframe) {
         iframe = document.createElement("iframe");
-        iframe.src = "../../collectionmenu/collectionmenu.html";
+        iframe.src = "/web/collectionmenu/collectionmenu.html";
         iframe.id = "collection-menu-frame";
         iframe.setAttribute("allowTransparency", "true");
         iframe.style.display = "none"; // start hidden to prevent flash

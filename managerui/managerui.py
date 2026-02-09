@@ -7,6 +7,7 @@ from .pages import tables as tab_tables
 from .pages import vpinfe_config as tab_vpinfe
 from .pages import collections as tab_collections
 from .pages import media as tab_media
+from .pages import themes as tab_themes
 from .pages import remote
 import threading
 import subprocess
@@ -234,6 +235,12 @@ def build_app():
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
+            themes_btn = (
+                ui.button('Themes', icon='palette', on_click=lambda: show_page('themes'))
+                .classes('w-full text-white nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px;')
+                .props('flat align=left')
+            )
             config_btn = (
                 ui.button('Configuration', icon='tune', on_click=lambda: show_page('vpinfe'))
                 .classes('w-full text-white nav-btn')
@@ -261,6 +268,7 @@ def build_app():
         tables_btn.classes(remove='nav-btn-active')
         collections_btn.classes(remove='nav-btn-active')
         media_btn.classes(remove='nav-btn-active')
+        themes_btn.classes(remove='nav-btn-active')
         config_btn.classes(remove='nav-btn-active')
 
         # Set active button
@@ -270,6 +278,8 @@ def build_app():
             collections_btn.classes(add='nav-btn-active')
         elif page_key == 'media':
             media_btn.classes(add='nav-btn-active')
+        elif page_key == 'themes':
+            themes_btn.classes(add='nav-btn-active')
         elif page_key == 'vpinfe':
             config_btn.classes(add='nav-btn-active')
 
@@ -287,6 +297,8 @@ def build_app():
                 tab_collections.render_panel()
             elif page_key == 'media':
                 tab_media.render_panel()
+            elif page_key == 'themes':
+                tab_themes.render_panel()
             elif page_key == 'vpinfe':
                 tab_vpinfe.render_panel()
 

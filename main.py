@@ -13,6 +13,7 @@ from clioptions import parseArgs
 from managerui.managerui import start_manager_ui, stop_manager_ui
 from nicegui import app as nicegui_app
 from platformdirs import user_config_dir
+from common.themes import ThemeRegistry
 
 #debug
 import sys
@@ -131,13 +132,27 @@ def loadWindows():
 if len(sys.argv) > 0:
     parseArgs()
 
+# Initialize theme registry and auto-install default themes
+try:
+    theme_registry = ThemeRegistry()
+    theme_registry.load_registry()
+    theme_registry.load_theme_manifests()
+    theme_registry.auto_install_defaults()
+except Exception as e:
+    print(f"[WARN] Theme registry initialization failed: {e}")
+
 # Initialize webview windows
 loadWindows()
 
 # Start an the HTTP server to serve the images from the "tables" directory
+themes_dir = str(config_dir / "themes")
+os.makedirs(themes_dir, exist_ok=True)
+nicegui_app.add_static_files('/themes', themes_dir)
+
 MOUNT_POINTS = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
         '/web/': os.path.join(base_path, 'web'),
+        '/themes/': themes_dir,
         }
 http_server = CustomHTTPServer(MOUNT_POINTS)
 theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))

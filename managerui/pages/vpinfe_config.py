@@ -1,3 +1,4 @@
+import os
 from nicegui import ui
 from common.iniconfig import IniConfig
 from common.vpxcollections import VPXCollections
@@ -18,6 +19,17 @@ def _get_collection_names():
         return [''] + collections.get_collections_name()  # Empty option + all collections
     except Exception:
         return ['']
+
+
+def _get_installed_theme_names():
+    """Get list of installed theme names."""
+    themes = []
+    themes_dir = CONFIG_DIR / 'themes'
+    if themes_dir.is_dir():
+        for entry in os.scandir(themes_dir):
+            if entry.is_dir():
+                themes.append(entry.name)
+    return sorted(themes)
 
 # Sections to ignore
 IGNORED_SECTIONS = {'VPSdb'}
@@ -120,6 +132,16 @@ def render_panel(tab=None):
                                     inp = ui.select(
                                         label=key,
                                         options=collection_options,
+                                        value=value
+                                    ).classes('config-input').style('min-width: 200px;')
+                                # Special handling for theme in Settings
+                                elif section == 'Settings' and key == 'theme':
+                                    theme_options = _get_installed_theme_names()
+                                    if value and value not in theme_options:
+                                        theme_options.append(value)
+                                    inp = ui.select(
+                                        label=key,
+                                        options=theme_options,
                                         value=value
                                     ).classes('config-input').style('min-width: 200px;')
                                 else:

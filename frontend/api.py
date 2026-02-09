@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 from screeninfo import get_monitors
 from common.table import Table
@@ -515,9 +516,21 @@ class API:
 
         return {'success': True, 'message': 'Build metadata started'}
 
+    def _resolve_theme_dir(self, theme_name):
+        """Returns the filesystem path to the theme directory."""
+        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        theme_dir = config_dir / "themes" / theme_name
+        if theme_dir.is_dir():
+            return theme_dir
+        return None
+
     def get_theme_config(self):
         theme_name = self.get_theme_name()
-        theme_path = f'web/theme/{theme_name}/config.json'
+        theme_dir = self._resolve_theme_dir(theme_name)
+        if not theme_dir:
+            return None
+
+        theme_path = theme_dir / "config.json"
         print("theme config path: ", theme_path)
         try:
             with open(theme_path, 'r', encoding='utf-8') as f:
@@ -539,7 +552,6 @@ class API:
     def get_theme_index_page(self):
         theme_name = self.get_theme_name()
         port = self.get_theme_assets_port()
-        theme_path = f'http://127.0.0.1:{port}/web/theme/{theme_name}/'
-        url = theme_path +f'index_{self.get_my_window_name()}.html'
-        #print("url: " + url)
+        window_name = self.get_my_window_name()
+        url = f'http://127.0.0.1:{port}/themes/{theme_name}/index_{window_name}.html'
         return url
