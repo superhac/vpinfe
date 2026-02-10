@@ -75,26 +75,28 @@ jobs:
       - name: Build app with PyInstaller
         run: |
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            pyinstaller --onedir --noconfirm \
+            pyinstaller --onedir --noconfirm --name vpinfe \
               --add-data "web:web" \
               --add-data "managerui/static:managerui/static" \
               --add-data "chromium/linux/chrome:chromium/linux" \
+              --hidden-import pynput.keyboard._xorg \
+              --hidden-import pynput.mouse._xorg \
               main.py
           elif [[ "$RUNNER_OS" == "Windows" ]]; then
-            pyinstaller --onedir --noconfirm \
+            pyinstaller --onedir --noconfirm --name vpinfe \
               --add-data "web;web" \
               --add-data "managerui/static;managerui/static" \
               --add-data "chromium/windows;chromium/windows" \
               main.py
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            pyinstaller --onedir --noconfirm \
+            pyinstaller --onedir --noconfirm --name vpinfe \
               --add-data "web:web" \
               --add-data "managerui/static:managerui/static" \
               main.py
             # Preserve Chromium.app bundle structure (PyInstaller breaks symlinks)
-            mkdir -p dist/main/_internal/chromium
-            cp -R chromium/Chromium.app dist/main/_internal/chromium/Chromium.app
-            chmod +x dist/main/_internal/chromium/Chromium.app/Contents/MacOS/Chromium
+            mkdir -p dist/vpinfe/_internal/chromium
+            cp -R chromium/Chromium.app dist/vpinfe/_internal/chromium/Chromium.app
+            chmod +x dist/vpinfe/_internal/chromium/Chromium.app/Contents/MacOS/Chromium
           fi
         shell: bash
 
