@@ -40,6 +40,7 @@ class IniConfig:
 			'Network': {
 				'themeassetsport': '8000',
 				'manageruiport': '8001',
+				'wsport': '8002',
 				},
 		}
 

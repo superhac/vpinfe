@@ -4,7 +4,6 @@ import os
 import uuid
 from pathlib import Path
 
-import webview
 from screeninfo import get_monitors
 from platformdirs import user_config_dir
 
@@ -16,6 +15,8 @@ from common.vpxparser import VPXParser
 from common.standalonescripts import StandaloneScripts
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
+from frontend.ws_bridge import WebSocketBridge
+from frontend.chromium_manager import ChromiumManager
 
 # Initialize config
 config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
@@ -187,31 +188,9 @@ def vpxPatches(progress_cb=None):
     StandaloneScripts(tables, progress_cb=progress_cb)
 
 
-def loadGamepadTestWindow():
-    """Open a test webview window for gamepad diagnostics."""
-    webview_windows = []
-    api = API(iniconfig)
-    html = Path(__file__).parent / "web/diag/gamepad.html"
-
-    win = webview.create_window(
-        "BG Screen",
-        url=f"file://{html.resolve()}",
-        js_api=api,
-        background_color="#000000",
-        fullscreen=True
-    )
-
-    api.myWindow.append(win)
-    webview_windows.append(['table', win, api])
-    api.webview_windows = webview_windows
-    api.iniConfig = iniconfig
-    api._finish_setup()
-
-
 def gamepadtest():
-    """Run the gamepad test window and serve local files."""
-    loadGamepadTestWindow()
-
+    """Run the gamepad test window using embedded Chromium."""
+    # Start HTTP server
     mount_points = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
         '/web/': os.path.join(os.getcwd(), 'web'),
@@ -220,7 +199,32 @@ def gamepadtest():
     theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
     http_server.start_file_server(port=theme_assets_port)
 
-    webview.start(http_server=True)
+    # Create API and WebSocket bridge
+    ws_bridge = WebSocketBridge(
+        port=int(iniconfig.config['Network'].get('wsport', '8002'))
+    )
+    chromium_mgr = ChromiumManager()
+
+    api = API(
+        iniConfig=iniconfig,
+        window_name='table',
+        ws_bridge=ws_bridge,
+        chromium_manager=chromium_mgr,
+    )
+    api._finish_setup()
+    ws_bridge.register_api('table', api)
+    ws_bridge.start()
+
+    # Launch Chromium with gamepad test page
+    monitors = get_monitors()
+    url = f"http://127.0.0.1:{theme_assets_port}/web/diag/gamepad.html?window=table"
+    chromium_mgr.launch_window('table', url, monitors[0], 0)
+
+    # Block until window closes
+    chromium_mgr.wait_for_exit()
+
+    # Cleanup
+    ws_bridge.stop()
     http_server.on_closed()
 
 

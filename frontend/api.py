@@ -5,7 +5,6 @@ from screeninfo import get_monitors
 from common.table import Table
 import json
 import time
-import webview
 import subprocess
 from common.tableparser import TableParser
 from common.vpxcollections import VPXCollections
@@ -13,13 +12,14 @@ from common.tablelistfilters import TableListFilters
 from platformdirs import user_config_dir
 
 class API:
-    
-    def __init__(self, iniConfig):
-        self.webview_windows = None
+
+    def __init__(self, iniConfig, window_name=None, ws_bridge=None, chromium_manager=None):
         self.iniConfig = iniConfig
+        self.window_name = window_name          # 'bg', 'dmd', or 'table'
+        self.ws_bridge = ws_bridge              # WebSocketBridge instance
+        self.chromium_manager = chromium_manager  # ChromiumManager instance
         self.allTables = TableParser(self.iniConfig.config['Settings']['tablerootdir'], self.iniConfig).getAllTables()
         self.filteredTables = self.allTables
-        self.myWindow = [] # this holds this instances webview window.  In array because of introspection of the window object
         self.jsTableDictData = None
         # Track current filter state
         self.current_filters = {
@@ -44,36 +44,28 @@ class API:
     ####################
     ## Private Functions
     ####################
-    
-    def _finish_setup(self): # incase we need to do anything after the windows are created and instanc evars are loaded.
+
+    def _finish_setup(self):
         pass
-    
-        
+
+
     ###################
     ## Public Functions
     ###################
-    
+
     def playSound(self, sound):
-       self.myWindow[0].evaluate_js(
-            f"""
-            PIXI.sound.play("{sound}");
-            """
-            )
-       
-    
+        if self.ws_bridge:
+            self.ws_bridge.send_event(self.window_name, {"type": "playSound", "sound": sound})
+
     def get_my_window_name(self):
-        for window_name, window, api in self.webview_windows:
-            if self.myWindow[0].uid == window.uid:
-                return f'{window_name}'
-        return "No window name found for this API instance"
+        return self.window_name or "unknown"
 
     def close_app(self):
-        #print("Called by", self.myWindow[0].uid)
-        for window_name, window, api in self.webview_windows:
-            print("name: ", window.uid)
-            window.destroy()
+        print(f"[API] close_app called from window '{self.window_name}'")
+        if self.chromium_manager:
+            self.chromium_manager.terminate_all()
         sys.exit(0)
-    
+
     def get_monitors(self):
         monitors = get_monitors()
         # Return a list of dicts with relevant info
@@ -84,31 +76,18 @@ class API:
             'width': m.width,
             'height': m.height
         } for i, m in enumerate(monitors)]
-        
+
     def send_event_all_windows(self, message):
-        msg_json = json.dumps(message)  # safely convert Python dict to JS object literal
-        for window_name, window, api in self.webview_windows:
-            if self.myWindow[0].uid != window.uid:
-                window.evaluate_js(f'receiveEvent({msg_json})')
-    
+        if self.ws_bridge:
+            self.ws_bridge.send_event_all(message, exclude=self.window_name)
+
     def send_event(self, window_name, message):
-        msg_json = json.dumps(message)  # safely convert Python dict to JS object literal
-        for win_name, window, api in self.webview_windows:
-            if window_name == win_name:
-                 window.evaluate_js(f'receiveEvent({msg_json})')
-                 
+        if self.ws_bridge:
+            self.ws_bridge.send_event(window_name, message)
+
     def send_event_all_windows_incself(self, message):
-        msg_json = json.dumps(message)  # safely convert Python dict to JS object literal
-        for window_name, window, api in self.webview_windows:
-                # Send to main window
-                window.evaluate_js(f'if (typeof receiveEvent === "function") receiveEvent({msg_json})')
-                # Also send to mainmenu iframe if it exists
-                window.evaluate_js(f'''
-                    const menuFrame = document.getElementById("menu-frame");
-                    if (menuFrame && menuFrame.contentWindow && typeof menuFrame.contentWindow.receiveEvent === "function") {{
-                        menuFrame.contentWindow.receiveEvent({msg_json});
-                    }}
-                ''')
+        if self.ws_bridge:
+            self.ws_bridge.send_event_all_with_iframe(message)
 
     def get_tables(self, reset=False):
         if reset:
@@ -158,7 +137,7 @@ class API:
         self.jsTableDictData = json.dumps(tables)
         return self.jsTableDictData
 
-    
+
     def get_collections(self):
         config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
         c = VPXCollections(config_dir / "collections.ini")
@@ -330,9 +309,9 @@ class API:
         return count
 
     def console_out(self, output):
-        print(f'Win: {self.myWindow[0].uid} - {output}')
+        print(f'Win: {self.window_name} - {output}')
         return output
-           
+
     def get_joymaping(self):
         return {
             'joyleft': self.iniConfig.config['Input'].get('joyleft', '0'),
@@ -364,7 +343,7 @@ class API:
             return {"success": True, "message": f"Mapped {button_name} to button {button_index}"}
         except Exception as e:
             return {"success": False, "message": f"Error saving mapping: {str(e)}"}
-        
+
     def launch_table(self, index):
         table = self.filteredTables[index]
         vpx = table.fullPathVPXfile
@@ -375,12 +354,11 @@ class API:
         self._track_table_play(table)
 
         cmd = [Path(vpxbin).expanduser(), "-play", vpx]
-        self.myWindow[0].toggle_fullscreen()
+        # VPX takes focus naturally - no fullscreen toggle needed with Chromium
         process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL)
         process.wait()
-        self.myWindow[0].toggle_fullscreen()
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 
     def _track_table_play(self, table):
@@ -538,11 +516,11 @@ class API:
             return config
         except Exception as e:
             return None
-    
+
     ###################
     ### For splash page
     ###################
-    
+
     def get_theme_name(self):
         return self.iniConfig.config['Settings'].get('theme', 'default')
 
@@ -553,5 +531,5 @@ class API:
         theme_name = self.get_theme_name()
         port = self.get_theme_assets_port()
         window_name = self.get_my_window_name()
-        url = f'http://127.0.0.1:{port}/themes/{theme_name}/index_{window_name}.html'
+        url = f'http://127.0.0.1:{port}/themes/{theme_name}/index_{window_name}.html?window={window_name}'
         return url

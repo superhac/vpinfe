@@ -1,6 +1,6 @@
 # Core dependencies for VPinFE
 requests
-pywebview
+websockets
 screeninfo
 olefile
 pynput

@@ -1,0 +1,106 @@
+name: Build VPinFE (Cross-Platform)
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # 1. Checkout repo
+      - uses: actions/checkout@v3
+
+      # 2. Set up Python 3.14
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.14'
+
+      # 3. Install dependencies
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # 4a. Create Chromium directories (Linux/macOS)
+      - name: Create Chromium directories (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p chromium/linux chromium/windows chromium/mac
+        shell: bash
+
+      # 4b. Create Chromium directories (Windows)
+      - name: Create Chromium directories (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          New-Item -ItemType Directory -Force -Path chromium\linux,chromium\windows,chromium\mac
+
+      # 5. Download Linux Chromium
+      - name: Download Linux Chromium
+        if: runner.os == 'Linux'
+        run: |
+          wget -O chromium/linux/chrome.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F1582450%2Fchrome-linux.zip?alt=media"
+          unzip -q chromium/linux/chrome.zip -d chromium/linux
+          mv chromium/linux/chrome-linux chromium/linux/chrome
+          chmod +x chromium/linux/chrome/chrome
+
+      # 6. Download Windows Chromium
+      - name: Download Windows Chromium
+        if: runner.os == 'Windows'
+        run: |
+          pwsh -Command "Invoke-WebRequest -Uri 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win_x64%2F1582426%2Fchrome-win.zip?alt=media' -OutFile 'chromium/windows/chrome.zip' -UseBasicParsing"
+          pwsh -Command "Expand-Archive -Path 'chromium/windows/chrome.zip' -DestinationPath 'chromium/windows'"
+          pwsh -Command "Remove-Item 'chromium/windows/chrome.zip'"
+
+      # 7. Download Mac Chromium
+      - name: Download Mac Chromium
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p chromium
+          curl -L -o chrome-mac.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F1582441%2Fchrome-mac.zip?alt=media"
+          unzip -q chrome-mac.zip
+          mv chrome-mac/Chromium.app chromium/Chromium.app
+          rm -rf chrome-mac chrome-mac.zip
+
+      # 8. Build with PyInstaller
+      - name: Build app with PyInstaller
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            pyinstaller --onedir --noconfirm \
+              --add-data "web:web" \
+              --add-data "managerui/static:managerui/static" \
+              --add-data "chromium/linux/chrome:chromium/linux" \
+              main.py
+          elif [[ "$RUNNER_OS" == "Windows" ]]; then
+            pyinstaller --onedir --noconfirm \
+              --add-data "web;web" \
+              --add-data "managerui/static;managerui/static" \
+              --add-data "chromium/windows;chromium/windows" \
+              main.py
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            pyinstaller --onedir --noconfirm \
+              --add-data "web:web" \
+              --add-data "managerui/static:managerui/static" \
+              main.py
+            # Preserve Chromium.app bundle structure (PyInstaller breaks symlinks)
+            mkdir -p dist/main/_internal/chromium
+            cp -R chromium/Chromium.app dist/main/_internal/chromium/Chromium.app
+            chmod +x dist/main/_internal/chromium/Chromium.app/Contents/MacOS/Chromium
+          fi
+        shell: bash
+
+      # 9. Upload artifact per OS
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpinfe-${{ runner.os }}
+          path: dist/

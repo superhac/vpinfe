@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 
-import webview
 from pathlib import Path
-from screeninfo import get_monitors
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
-import threading
+from frontend.ws_bridge import WebSocketBridge
+from frontend.chromium_manager import ChromiumManager
 from common.iniconfig import IniConfig
 import sys
 import os
@@ -15,17 +14,10 @@ from nicegui import app as nicegui_app
 from platformdirs import user_config_dir
 from common.themes import ThemeRegistry
 
-#debug
-import sys
-from common.vpxcollections import VPXCollections
-from common.tableparser import TableParser
-
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
-html_file = Path(base_path) / "web/splash.html"
-webview_windows = [] # [ [window_name, window, api] ]
 
 # Use platform-specific config directory
 config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
@@ -33,100 +25,41 @@ config_dir.mkdir(parents=True, exist_ok=True)
 config_path = config_dir / "vpinfe.ini"
 iniconfig = IniConfig(str(config_path))
 
- # The last window created will be the one in focus.  AKA the controller for all the other windows!!!! Always "table"
-import sys
-import webview
+# Shared instances accessible from other modules (e.g. remote.py)
+ws_bridge = None
+chromium_manager = None
 
-def loadWindows():
-    global webview_windows
-    global api
 
-    monitors = get_monitors()
-    print(monitors)
+def create_api_instances():
+    """Create API instances for each configured display window."""
+    global ws_bridge, chromium_manager
 
-    is_mac = sys.platform == "darwin"
+    ws_bridge = WebSocketBridge(
+        port=int(iniconfig.config['Network'].get('wsport', '8002'))
+    )
+    chromium_manager = ChromiumManager()
 
-    # macOS-safe window flags
-    window_flags = {
-        "fullscreen": not is_mac,
-        "frameless": is_mac,
-        "resizable": False if is_mac else True,
-    }
+    # Window configs: (window_name, config_key)
+    window_configs = [
+        ('bg', 'bgscreenid'),
+        ('dmd', 'dmdscreenid'),
+        ('table', 'tablescreenid'),
+    ]
 
-    # --- BG SCREEN ---
-    if iniconfig.config['Displays']['bgscreenid']:
-        screen_id = int(iniconfig.config['Displays']['bgscreenid'])
-        api = API(iniconfig)
+    for window_name, config_key in window_configs:
+        screen_id_str = iniconfig.config['Displays'].get(config_key, '').strip()
+        if not screen_id_str:
+            continue
 
-        win = webview.create_window(
-            "BG Screen",
-            url=f"file://{html_file.resolve()}",
-            js_api=api,
-            x=monitors[screen_id].x,
-            y=monitors[screen_id].y,
-            width=monitors[screen_id].width,
-            height=monitors[screen_id].height,
-            background_color="#000000",
-            fullscreen=window_flags["fullscreen"],
-            frameless=window_flags["frameless"],
-            resizable=window_flags["resizable"],
+        api = API(
+            iniConfig=iniconfig,
+            window_name=window_name,
+            ws_bridge=ws_bridge,
+            chromium_manager=chromium_manager,
         )
-
-        api.myWindow.append(win)
-        webview_windows.append(['bg', win, api])
-        api.webview_windows = webview_windows
-        api.iniConfig = iniconfig
         api._finish_setup()
-
-    # --- DMD SCREEN ---
-    if iniconfig.config['Displays']['dmdscreenid']:
-        screen_id = int(iniconfig.config['Displays']['dmdscreenid'])
-        api = API(iniconfig)
-
-        win = webview.create_window(
-            "DMD Screen",
-            url=f"file://{html_file.resolve()}",
-            js_api=api,
-            x=monitors[screen_id].x,
-            y=monitors[screen_id].y,
-            width=monitors[screen_id].width,
-            height=monitors[screen_id].height,
-            background_color="#000000",
-            fullscreen=window_flags["fullscreen"],
-            frameless=window_flags["frameless"],
-            resizable=window_flags["resizable"],
-        )
-
-        api.myWindow.append(win)
-        webview_windows.append(['dmd', win, api])
-        api.webview_windows = webview_windows
-        api.iniConfig = iniconfig
-        api._finish_setup()
-
-    # --- TABLE SCREEN (ALWAYS LAST) ---
-    if iniconfig.config['Displays']['tablescreenid']:
-        screen_id = int(iniconfig.config['Displays']['tablescreenid'])
-        api = API(iniconfig)
-
-        win = webview.create_window(
-            "Table Screen",
-            url=f"file://{html_file.resolve()}",
-            js_api=api,
-            x=monitors[screen_id].x,
-            y=monitors[screen_id].y,
-            width=monitors[screen_id].width,
-            height=monitors[screen_id].height,
-            background_color="#000000",
-            fullscreen=window_flags["fullscreen"],
-            frameless=True if is_mac else False,  # force frameless for table on mac
-            resizable=window_flags["resizable"],
-        )
-
-        api.myWindow.append(win)
-        webview_windows.append(['table', win, api])
-        api.webview_windows = webview_windows
-        api.iniConfig = iniconfig
-        api._finish_setup()
+        ws_bridge.register_api(window_name, api)
+        print(f"[Main] Registered API for window '{window_name}'")
 
 
 if len(sys.argv) > 0:
@@ -141,10 +74,10 @@ try:
 except Exception as e:
     print(f"[WARN] Theme registry initialization failed: {e}")
 
-# Initialize webview windows
-loadWindows()
+# Create API instances and register with WebSocket bridge
+create_api_instances()
 
-# Start an the HTTP server to serve the images from the "tables" directory
+# Start the HTTP server to serve images from the "tables" directory
 themes_dir = str(config_dir / "themes")
 os.makedirs(themes_dir, exist_ok=True)
 nicegui_app.add_static_files('/themes', themes_dir)
@@ -162,13 +95,17 @@ http_server.start_file_server(port=theme_assets_port)
 manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
 start_manager_ui(port=manager_ui_port)
 
-# block and start webview
-if sys.platform == "darwin":
-    webview.start(gui="cocoa")
-else:
-    webview.start()
+# Start the WebSocket bridge
+ws_bridge.start()
 
-# shutdown items
+# Launch Chromium windows on configured monitors
+chromium_manager.launch_all_windows(iniconfig)
+
+# Block until Chromium windows exit (replaces webview.start())
+chromium_manager.wait_for_exit()
+
+# Shutdown items
+ws_bridge.stop()
 http_server.on_closed()
 nicegui_app.shutdown()
 stop_manager_ui()

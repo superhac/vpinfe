@@ -229,24 +229,21 @@ def _launch_table(vpx_path: str, table_name: str):
 
 def _restart_app():
     """Restart the VPinFE application by signaling main.py to re-exec itself."""
-    import webview
-
     ui.notify('Restarting VPinFE...', type='info')
 
     # Write a restart sentinel file that main.py checks after cleanup
     restart_flag = CONFIG_DIR / '.restart'
     restart_flag.touch()
 
-    # Close all webview windows to trigger clean shutdown
+    # Terminate all Chromium windows to trigger clean shutdown
     # main.py will detect the sentinel and os.execvp itself
-    for window in webview.windows:
-        window.destroy()
+    import main
+    if main.chromium_manager:
+        main.chromium_manager.terminate_all()
 
 
 def _shutdown_system():
     """Shutdown the system (cross-platform)."""
-    import webview
-
     ui.notify('Shutting down system...', type='warning')
 
     # Issue shutdown command based on platform (before closing windows)
@@ -259,16 +256,15 @@ def _shutdown_system():
     else:
         # Linux: use systemctl with -i flag to ignore inhibitors (like GNOME session)
         subprocess.Popen(["systemctl", "poweroff", "-i"])
-       
-    # Close VPinFE windows after issuing shutdown
-    for window in webview.windows:
-        window.destroy()
+
+    # Terminate Chromium windows after issuing shutdown
+    import main
+    if main.chromium_manager:
+        main.chromium_manager.terminate_all()
 
 
 def _reboot_system():
     """Reboot the system (cross-platform)."""
-    import webview
-
     ui.notify('Rebooting system...', type='warning')
 
     # Issue reboot command based on platform (before closing windows)
@@ -282,9 +278,10 @@ def _reboot_system():
         # Linux: use systemctl reboot
         subprocess.Popen(['systemctl', 'reboot'])
 
-    # Close VPinFE windows after issuing reboot
-    for window in webview.windows:
-        window.destroy()
+    # Terminate Chromium windows after issuing reboot
+    import main
+    if main.chromium_manager:
+        main.chromium_manager.terminate_all()
 
 
 def _show_reboot_confirmation():

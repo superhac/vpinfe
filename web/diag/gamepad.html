@@ -309,7 +309,7 @@
     // Create mapping items
     async function initializeMappings() {
       try {
-        currentMappings = await window.pywebview.api.get_joymaping();
+        currentMappings = await vpin.call("get_joymaping");
         renderMappings();
       } catch (error) {
         console.error("Failed to load mappings:", error);
@@ -367,7 +367,7 @@
       const label = buttonMappings.find(m => m.key === activeMappingKey).label;
 
       try {
-        const result = await window.pywebview.api.set_button_mapping(activeMappingKey, buttonIndex);
+        const result = await vpin.call("set_button_mapping", activeMappingKey, buttonIndex);
 
         if (result.success) {
           currentMappings[activeMappingKey] = buttonIndex.toString();
@@ -432,13 +432,13 @@
 
     function onKeyDown(e) {
       if (e.key === 'Escape') {
-        window.pywebview.api.close_app();
+        vpin.call("close_app");
       }
     }
 
-    // Initialize - wait for pywebview to be ready
-    window.addEventListener('pywebviewready', () => {
-      console.log("pywebview ready, loading mappings");
+    // Initialize - wait for WebSocket connection to be ready
+    vpin.ready.then(() => {
+      console.log("WebSocket bridge ready, loading mappings");
       initializeMappings();
     });
   </script>

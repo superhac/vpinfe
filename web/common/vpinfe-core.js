@@ -33,10 +33,15 @@ class VPinFECore {
     // Network config
     this.themeAssetsPort = 8000; // default, will be updated from config
     this.managerUiPort = 8001; // default manager UI port
+    this.wsPort = 8002; // WebSocket bridge port
 
     // Remote launch state tracking
     this.remoteLaunchActive = false;
 
+    // WebSocket state
+    this.ws = null;
+    this.pendingCalls = {}; // {id: {resolve, reject, timeout}}
+    this.windowName = 'table'; // default, will be set from URL params
   }
 
   // ***********************************
@@ -44,14 +49,15 @@ class VPinFECore {
   // ***********************************
 
   init() {
+    // Get window name from URL params
+    const params = new URLSearchParams(window.location.search);
+    this.windowName = params.get('window') || 'table';
+
     // Set up keyboard listener
     window.addEventListener('keydown', (e) => this.#onKeyDown(e));
-   
-    // Wait for pywebview then run all async init
-    window.addEventListener('pywebviewready', async () => {
-      await this.#onPyWebviewReady();  // Wait until everything is done
-      this._resolveReady();           // Now we're truly ready
-    });
+
+    // Connect WebSocket to Python backend
+    this.#connectWebSocket();
   }
 
   // theme register for Input events - Only for the table screen!
@@ -80,38 +86,41 @@ class VPinFECore {
   }
 
   async call(method, ...args) {
-    if (window.pywebview && window.pywebview.api && typeof window.pywebview.api[method] === 'function') {
-      return await window.pywebview.api[method](...args);
-    } else {
-      const errMsg = `Method ${method} does not exist on window.pywebview.api`;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      const errMsg = `WebSocket not connected, cannot call ${method}`;
       console.error(errMsg);
       throw new Error(errMsg);
     }
+
+    return new Promise((resolve, reject) => {
+      const id = crypto.randomUUID();
+      // Timeout after 30 seconds
+      const timeout = setTimeout(() => {
+        delete this.pendingCalls[id];
+        reject(new Error(`API call '${method}' timed out after 30s`));
+      }, 30000);
+
+      this.pendingCalls[id] = { resolve, reject, timeout };
+      this.ws.send(JSON.stringify({ type: 'api_call', id, method, args }));
+    });
   }
 
   // get table image url paths
   getImageURL(index, type) {
     const table = this.tableData[index];
     if (type == "table") {
-      //this.call("console_out", this.#convertImagePathToURL(table.TableImagePath))
       return this.#convertImagePathToURL(table.TableImagePath);
     }
     else if (type == "bg") {
-      //this.call("console_out", this.#convertImagePathToURL(table.BGImagePath))
       return this.#convertImagePathToURL(table.BGImagePath);
-
     }
     else if (type == "dmd") {
-      //this.call("console_out", this.#convertImagePathToURL(table.DMDImagePath))
       return this.#convertImagePathToURL(table.DMDImagePath);
-
     }
     else if (type == "wheel") {
-      //this.call("console_out", this.#convertImagePathToURL(table.WheelImagePath))
       return this.#convertImagePathToURL(table.WheelImagePath);
     }
     else if (type == "cab") {
-      //this.call("console_out", this.#convertImagePathToURL(table.CabImagePath))
       return this.#convertImagePathToURL(table.CabImagePath);
     }
   }
@@ -167,7 +176,7 @@ class VPinFECore {
   }
 
   async getTableData(reset=false) {
-    this.tableData = JSON.parse(await window.pywebview.api.get_tables(reset));
+    this.tableData = JSON.parse(await this.call("get_tables", reset));
   }
 
   // Register an event handler for a specific event type
@@ -183,7 +192,7 @@ class VPinFECore {
     }
   }
 
-  // Handle incoming events from window.receiveEvent
+  // Handle incoming events from WebSocket
   // This should be called from the theme's receiveEvent function
   async handleEvent(message) {
     // Default handling for TableDataChange
@@ -239,21 +248,94 @@ class VPinFECore {
   // private functions
   // **********************************************
 
-  async #onPyWebviewReady() {
-    console.log("pywebview is ready!");
+  #connectWebSocket() {
+    const wsUrl = `ws://127.0.0.1:${this.wsPort}?window=${this.windowName}`;
+    console.log(`Connecting WebSocket to ${wsUrl}`);
+
+    this.ws = new WebSocket(wsUrl);
+
+    this.ws.onopen = () => {
+      console.log("WebSocket connected!");
+      this.#onReady();
+    };
+
+    this.ws.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        this.#onMessage(data);
+      } catch (err) {
+        console.error("Error parsing WebSocket message:", err);
+      }
+    };
+
+    this.ws.onclose = () => {
+      console.log("WebSocket disconnected. Reconnecting in 2s...");
+      setTimeout(() => this.#connectWebSocket(), 2000);
+    };
+
+    this.ws.onerror = (err) => {
+      console.error("WebSocket error:", err);
+    };
+  }
+
+  #onMessage(data) {
+    if (data.type === 'api_response') {
+      const pending = this.pendingCalls[data.id];
+      if (pending) {
+        clearTimeout(pending.timeout);
+        if (data.error) {
+          pending.reject(new Error(data.error));
+        } else {
+          pending.resolve(data.result);
+        }
+        delete this.pendingCalls[data.id];
+      }
+    } else if (data.type === 'event') {
+      const message = data.message;
+
+      // Handle playSound events directly
+      if (message && message.type === 'playSound' && message.sound) {
+        if (typeof PIXI !== 'undefined' && PIXI.sound) {
+          PIXI.sound.play(message.sound);
+        }
+        return;
+      }
+
+      // Forward to window.receiveEvent
+      if (typeof window.receiveEvent === 'function') {
+        window.receiveEvent(message);
+      }
+
+      // Forward to iframes if flagged
+      if (data.forward_iframe) {
+        const menuFrame = document.getElementById("menu-frame");
+        if (menuFrame && menuFrame.contentWindow && typeof menuFrame.contentWindow.receiveEvent === "function") {
+          menuFrame.contentWindow.receiveEvent(message);
+        }
+        const collectionMenuFrame = document.getElementById("collection-menu-frame");
+        if (collectionMenuFrame && collectionMenuFrame.contentWindow && typeof collectionMenuFrame.contentWindow.receiveEvent === "function") {
+          collectionMenuFrame.contentWindow.receiveEvent(message);
+        }
+      }
+    }
+  }
+
+  async #onReady() {
+    console.log("WebSocket bridge is ready!");
     // Load network config
     this.themeAssetsPort = await this.call("get_theme_assets_port");
     await this.#loadMonitors();
     await this.getTableData();
-   //this.#overrideConsole(); //disabled for now...
 
     // only run on the table window.. Its the master controller for all screens/windows
-    if (await vpin.call("get_my_window_name") == "table") {
+    if (this.windowName === "table") {
       await this.#initGamepadMapping();
       this.#setupGamepadListeners();
       this.#updateGamepads();           // No await needed here — runs loop
       this.#pollRemoteLaunch();         // Poll for remote launch events
     }
+
+    this._resolveReady();  // Now we're truly ready
   }
 
   #setupGamepadListeners() {
@@ -305,11 +387,10 @@ class VPinFECore {
     }
   }
 
-  // Keybaord input processing to handlers
+  // Keyboard input processing to handlers
   async #onKeyDown(e) {
-    windowName = await this.call("get_my_window_name");
-    if (windowName == "table") {
-      if (e.key === "Escape" || e.key === 'q') window.pywebview.api.close_app();
+    if (this.windowName === "table") {
+      if (e.key === "Escape" || e.key === 'q') this.call("close_app");
       else if (e.key === 'ArrowLeft' || e.code === 'ShiftLeft') this.#triggerInputAction("joyleft");
       else if (e.key === 'ArrowRight' || e.code === 'ShiftRight') this.#triggerInputAction("joyright");
       else if (e.key === 'Enter') this.#triggerInputAction("joyselect");
@@ -319,7 +400,7 @@ class VPinFECore {
   }
 
   async #loadMonitors() {
-    this.monitors = await window.pywebview.api.get_monitors();
+    this.monitors = await this.call("get_monitors");
   }
 
   // Gamepad handling
@@ -334,8 +415,6 @@ class VPinFECore {
     }
     this.joyButtonMap[button].push(action);
   }
-
-  //this.call("console_out", "Gamepad mapping loaded: " + JSON.stringify(this.joyButtonMap));
 }
 
 async #onButtonPressed(buttonIndex, gamepadIndex) {
@@ -344,14 +423,13 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
 
   // Handle all actions mapped to this button
   for (const action of actions) {
-    //this.call("console_out", `Button action: ${action}, windowName: ${windowName}`);
-    if (action === "joyexit" && windowName == "table") {
-      window.pywebview.api.close_app();
+    if (action === "joyexit" && this.windowName === "table") {
+      this.call("close_app");
     }
-    else if (action === "joymenu" && windowName == "table") {
+    else if (action === "joymenu" && this.windowName === "table") {
       this.#showmenu();
     }
-    else if (action === "joycollectionmenu" && windowName == "table") {
+    else if (action === "joycollectionmenu" && this.windowName === "table") {
       this.call("console_out", "Triggering collection menu");
       this.#showcollectionmenu();
     }
@@ -377,7 +455,6 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
           const isPressed = button.pressed;
 
           if (isPressed && !wasPressed) {
-            //this.call("console_out", "Button: " + index);
             this.#onButtonPressed(index, i); // new press
           }
           this.previousButtonStates[i][index] = isPressed;
@@ -439,7 +516,6 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
         iframe.style.display = "none"; // just hide, don't remove
         iframe.contentWindow.postMessage({ event: "reset state" }, "*");
       }
-      //this.#deregisterAllInputHandlersMenu();  // only need this when we destory it.
     }
   }
 

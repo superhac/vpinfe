@@ -1,5 +1,5 @@
 requests
-pywebview
+websockets
 screeninfo
 olefile
 pynput
