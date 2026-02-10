@@ -4,7 +4,7 @@ pywebview
 screeninfo
 olefile
 pynput
-nicegui==2.*
+nicegui
 platformdirs
 
 # Platform-specific dependencies (installed conditionally)
