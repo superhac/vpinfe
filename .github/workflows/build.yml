@@ -61,12 +61,12 @@ jobs:
           pwsh -Command "Expand-Archive -Path 'chromium/windows/chrome.zip' -DestinationPath 'chromium/windows'"
           pwsh -Command "Remove-Item 'chromium/windows/chrome.zip'"
 
-      # 7. Download Mac Chromium
+      # 7. Download Mac Chromium (ARM)
       - name: Download Mac Chromium
         if: runner.os == 'macOS'
         run: |
           mkdir -p chromium
-          curl -L -o chrome-mac.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac%2F1582441%2Fchrome-mac.zip?alt=media"
+          curl -L -o chrome-mac.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Mac_Arm%2F1582847%2Fchrome-mac.zip?generation=1770766943434586&alt=media"
           unzip -q chrome-mac.zip
           mv chrome-mac/Chromium.app chromium/Chromium.app
           rm -rf chrome-mac chrome-mac.zip
