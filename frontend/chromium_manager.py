@@ -62,6 +62,12 @@ class ChromiumManager:
 
         user_data_dir = tempfile.mkdtemp(prefix=f"vpinfe_chromium_{window_name}_{index}_")
 
+        # Suppress "Google API keys missing" banner
+        env = os.environ.copy()
+        env["GOOGLE_API_KEY"] = "no"
+        env["GOOGLE_DEFAULT_CLIENT_ID"] = "no"
+        env["GOOGLE_DEFAULT_CLIENT_SECRET"] = "no"
+
         args = [
             chrome_path,
             f"--app={url}",
@@ -78,7 +84,7 @@ class ChromiumManager:
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
               f"({monitor.width}x{monitor.height} at {monitor.x},{monitor.y})")
 
-        proc = subprocess.Popen(args)
+        proc = subprocess.Popen(args, env=env)
         self._processes.append((window_name, proc, user_data_dir))
         return proc
 
