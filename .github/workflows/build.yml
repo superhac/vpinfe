@@ -78,7 +78,7 @@ jobs:
             pyinstaller --onedir --noconfirm --name vpinfe \
               --add-data "web:web" \
               --add-data "managerui/static:managerui/static" \
-              --add-data "chromium/linux/chrome:chromium/linux" \
+              --add-data "chromium/linux/chrome:chromium/linux/chrome" \
               --hidden-import pynput.keyboard._xorg \
               --hidden-import pynput.mouse._xorg \
               main.py
