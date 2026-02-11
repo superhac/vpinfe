@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 import signal
 import threading
+import time
 
 
 def resource_path(relative_path):
@@ -134,6 +135,10 @@ class ChromiumManager:
 
         print(f"[Chromium] Launched {len(self._processes)} browser windows")
 
+        # Ensure the 'table' window gets focus for keyboard input (remote control)
+        if self.get_process('table'):
+            self._schedule_focus('table')
+
     @staticmethod
     def _get_descendant_pids(pid):
         """Recursively find all descendant PIDs via /proc on Linux."""
@@ -223,6 +228,108 @@ class ChromiumManager:
 
         # Block the main thread until exit is signaled
         self._exit_event.wait()
+
+    def focus_window(self, window_name):
+        """Focus a specific Chromium window by name (platform-specific)."""
+        proc = self.get_process(window_name)
+        if not proc or proc.poll() is not None:
+            print(f"[Chromium] Cannot focus '{window_name}': process not running")
+            return False
+
+        system = platform.system()
+        if system == "Linux":
+            return self._focus_window_linux(proc, window_name)
+        elif system == "Windows":
+            return self._focus_window_windows(proc, window_name)
+        elif system == "Darwin":
+            return self._focus_window_macos(proc, window_name)
+        return False
+
+    def _focus_window_linux(self, proc, window_name):
+        """Focus window on Linux using xdotool."""
+        try:
+            # Search for windows owned by this PID
+            result = subprocess.run(
+                ['xdotool', 'search', '--pid', str(proc.pid)],
+                capture_output=True, text=True, timeout=5
+            )
+            window_ids = [wid for wid in result.stdout.strip().split('\n') if wid]
+            if window_ids:
+                # Activate the last window (usually the main app window)
+                wid = window_ids[-1]
+                subprocess.run(
+                    ['xdotool', 'windowactivate', '--sync', wid],
+                    capture_output=True, timeout=5
+                )
+                print(f"[Chromium] Focused '{window_name}' (xdotool window ID: {wid})")
+                return True
+            else:
+                print(f"[Chromium] No X window found for '{window_name}' (PID: {proc.pid})")
+        except FileNotFoundError:
+            print("[Chromium] xdotool not found - install it for window focus management")
+        except Exception as e:
+            print(f"[Chromium] Focus failed for '{window_name}': {e}")
+        return False
+
+    def _focus_window_windows(self, proc, window_name):
+        """Focus window on Windows using ctypes."""
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            user32 = ctypes.windll.user32
+            target_hwnd = None
+
+            # Callback to find a visible window owned by the Chromium process
+            def enum_callback(hwnd, _lparam):
+                nonlocal target_hwnd
+                pid = ctypes.c_ulong()
+                user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                if pid.value == proc.pid and user32.IsWindowVisible(hwnd):
+                    target_hwnd = hwnd
+                    return False  # Stop enumeration
+                return True
+
+            WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+            user32.EnumWindows(WNDENUMPROC(enum_callback), 0)
+
+            if target_hwnd:
+                user32.SetForegroundWindow(target_hwnd)
+                print(f"[Chromium] Focused '{window_name}' (HWND: {target_hwnd})")
+                return True
+            else:
+                print(f"[Chromium] No window found for '{window_name}' (PID: {proc.pid})")
+        except Exception as e:
+            print(f"[Chromium] Focus failed for '{window_name}': {e}")
+        return False
+
+    def _focus_window_macos(self, proc, window_name):
+        """Focus window on macOS using AppleScript."""
+        try:
+            subprocess.run(
+                ['osascript', '-e',
+                 f'tell application "System Events" to set frontmost of '
+                 f'(first process whose unix id is {proc.pid}) to true'],
+                capture_output=True, timeout=5
+            )
+            print(f"[Chromium] Focused '{window_name}' (PID: {proc.pid})")
+            return True
+        except Exception as e:
+            print(f"[Chromium] Focus failed for '{window_name}': {e}")
+        return False
+
+    def _schedule_focus(self, window_name, delay=3):
+        """Schedule focusing a window after a delay (background thread)."""
+        def _do_focus():
+            time.sleep(delay)
+            # Retry a few times in case the window hasn't appeared yet
+            for attempt in range(3):
+                if self.focus_window(window_name):
+                    return
+                time.sleep(1)
+            print(f"[Chromium] Failed to focus '{window_name}' after retries")
+
+        threading.Thread(target=_do_focus, daemon=True).start()
 
     def get_process(self, window_name):
         """Get the process for a specific window."""
