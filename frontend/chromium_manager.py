@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 import signal
 import threading
+import time
 
 
 def resource_path(relative_path):
@@ -109,6 +110,7 @@ class ChromiumManager:
             ('table', 'tablescreenid'),
         ]
 
+        launched = 0
         for window_name, config_key in window_configs:
             screen_id_str = iniconfig.config['Displays'].get(config_key, '').strip()
             if not screen_id_str:
@@ -119,9 +121,14 @@ class ChromiumManager:
                 print(f"[Chromium] Warning: {config_key}={screen_id} but only {len(monitors)} monitors found")
                 continue
 
+            # Stagger launches to avoid Chromium allocator race condition
+            if launched > 0:
+                time.sleep(0.3)
+
             monitor = monitors[screen_id]
             url = f"{base_url}:{theme_assets_port}/web/splash.html?window={window_name}"
             self.launch_window(window_name, url, monitor, screen_id)
+            launched += 1
 
         print(f"[Chromium] Launched {len(self._processes)} browser windows")
 
