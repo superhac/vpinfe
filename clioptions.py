@@ -190,10 +190,11 @@ def vpxPatches(progress_cb=None):
 
 def gamepadtest():
     """Run the gamepad test window using embedded Chromium."""
+    base_path = os.path.dirname(os.path.abspath(__file__))
     # Start HTTP server
     mount_points = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
-        '/web/': os.path.join(os.getcwd(), 'web'),
+        '/web/': os.path.join(base_path, 'web'),
     }
     http_server = CustomHTTPServer(mount_points)
     theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
