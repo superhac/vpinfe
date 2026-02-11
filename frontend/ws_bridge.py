@@ -10,6 +10,7 @@ Python→JS: Event push messages for inter-window communication
 
 import asyncio
 import json
+import socket
 import threading
 import traceback
 from urllib.parse import urlparse, parse_qs
@@ -88,10 +89,16 @@ class WebSocketBridge:
 
     async def _serve(self):
         """Start the WebSocket server and run until stopped."""
+        # Allow immediate rebind after restart (avoids TIME_WAIT blocking)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("127.0.0.1", self.port))
+        sock.listen()
+        sock.setblocking(False)
+
         self._server = await websockets.serve(
             self._handle_connection,
-            "127.0.0.1",
-            self.port,
+            sock=sock,
             max_size=10 * 1024 * 1024,  # 10MB max message size for large table data
         )
         # Wait until stop is signaled
