@@ -179,14 +179,19 @@ class WebSocketBridge:
                 'id': call_id,
                 'result': result
             }))
+        except websockets.exceptions.ConnectionClosed:
+            pass  # Client disconnected before response (e.g. close_app)
         except Exception as e:
             print(f"[WS] API call error: {method}({args}) -> {e}")
             traceback.print_exc()
-            await websocket.send(json.dumps({
-                'type': 'api_response',
-                'id': call_id,
-                'error': str(e)
-            }))
+            try:
+                await websocket.send(json.dumps({
+                    'type': 'api_response',
+                    'id': call_id,
+                    'error': str(e)
+                }))
+            except websockets.exceptions.ConnectionClosed:
+                pass
 
     # -----------------------------------------------------------
     # Python-callable methods for pushing events to browsers

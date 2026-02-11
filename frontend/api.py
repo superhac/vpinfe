@@ -64,7 +64,6 @@ class API:
         print(f"[API] close_app called from window '{self.window_name}'")
         if self.chromium_manager:
             self.chromium_manager.terminate_all()
-        sys.exit(0)
 
     def get_monitors(self):
         monitors = get_monitors()
