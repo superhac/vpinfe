@@ -121,11 +121,25 @@ chromium_manager.launch_all_windows(iniconfig)
 # Block until Chromium windows exit (replaces webview.start())
 chromium_manager.wait_for_exit()
 
-# Shutdown items
-ws_bridge.stop()
-http_server.on_closed()
-nicegui_app.shutdown()
-stop_manager_ui()
+# Shutdown items - wrap each in try/except so restart check always runs
+print("[Main] Shutting down services...")
+try:
+    ws_bridge.stop()
+except Exception as e:
+    print(f"[Main] ws_bridge.stop() error: {e}")
+try:
+    http_server.on_closed()
+except Exception as e:
+    print(f"[Main] http_server.on_closed() error: {e}")
+try:
+    nicegui_app.shutdown()
+except Exception as e:
+    print(f"[Main] nicegui_app.shutdown() error: {e}")
+try:
+    stop_manager_ui()
+except Exception as e:
+    print(f"[Main] stop_manager_ui() error: {e}")
+print("[Main] All services stopped.")
 
 # Check for restart sentinel
 restart_flag = config_dir / '.restart'
@@ -141,3 +155,5 @@ if restart_flag.exists():
         # Dev mode: re-exec with Python + script
         main_script = os.path.abspath(__file__)
         os.execvp(sys.executable, [sys.executable, main_script])
+else:
+    print("[Main] No restart requested, exiting.")
