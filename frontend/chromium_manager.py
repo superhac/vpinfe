@@ -72,7 +72,7 @@ class ChromiumManager:
         # Use --kiosk on Windows to avoid dual-window issue with --start-fullscreen
         #fullscreen_flag = "--kiosk" if platform.system() == "Windows" else "--start-fullscreen"
 
-        fullscreen_flag = "--kiosk"
+        fullscreen_flag = "--kiosk" # this seems to work the best acrooss all platforms 
 
         args = [
             chrome_path,
