@@ -84,8 +84,8 @@ class ChromiumManager:
             "--disable-session-crashed-bubble",
             "--disable-restore-session-state",
             "--log-level=3",
-            "--disable-crash-reporter",
-            "--disable-breakpad",
+            "--disable-crashpad",
+            "--disable-features=Crashpad",
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
