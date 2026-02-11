@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 
+import sys
+import os
+
+# Windows --noconsole: stdout/stderr are None, redirect to devnull so print() doesn't crash
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, 'w')
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, 'w')
+
 import multiprocessing
 multiprocessing.freeze_support()
 
@@ -9,8 +18,6 @@ from frontend.api import API
 from frontend.ws_bridge import WebSocketBridge
 from frontend.chromium_manager import ChromiumManager
 from common.iniconfig import IniConfig
-import sys
-import os
 from clioptions import parseArgs
 from managerui.managerui import start_manager_ui, stop_manager_ui
 from nicegui import app as nicegui_app
