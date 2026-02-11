@@ -70,7 +70,9 @@ class ChromiumManager:
         env["GOOGLE_DEFAULT_CLIENT_SECRET"] = "no"
 
         # Use --kiosk on Windows to avoid dual-window issue with --start-fullscreen
-        fullscreen_flag = "--kiosk" if platform.system() == "Windows" else "--start-fullscreen"
+        #fullscreen_flag = "--kiosk" if platform.system() == "Windows" else "--start-fullscreen"
+
+        fullscreen_flag = "--kiosk"
 
         args = [
             chrome_path,
@@ -86,7 +88,7 @@ class ChromiumManager:
             "--log-level=3",
             
             # Tuned settings for running a front end
-            "--disable-gpu-compositing",
+           
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
