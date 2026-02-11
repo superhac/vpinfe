@@ -86,16 +86,7 @@ class ChromiumManager:
             "--log-level=3",
             
             # Tuned settings for running a front end
-            "--disable-backgrounding-occluded-windows",
-            "--disable-renderer-backgrounding",
-            "--disable-background-timer-throttling",
-            "--disable-features=TranslateUI,Crashpad,MediaRouter",
-            "--noerrdialogs",
-            "--disable-session-crashed-bubble",
-            # video related.  May not be needed. 
-            "--disable-gpu-vsync",
-            "--disable-frame-rate-limit",
-            "--disable-gpu-watchdog",
+            "--disable-gpu-compositing",
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
