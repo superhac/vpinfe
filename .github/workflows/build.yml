@@ -58,7 +58,8 @@ jobs:
       - name: Download Windows Chromium
         if: runner.os == 'Windows'
         run: |
-          pwsh -Command "Invoke-WebRequest -Uri 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win_x64%2F1582426%2Fchrome-win.zip?alt=media' -OutFile 'chromium/windows/chrome.zip' -UseBasicParsing"
+          pwsh -Command "Invoke-WebRequest -Uri 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win_x64%2F1568195%2Fchrome-win.zip?generation=1768274160162696&alt=media' -OutFile 'chromium/windows/chrome.zip' -UseBasicParsing"
+          #pwsh -Command "Invoke-WebRequest -Uri 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win_x64%2F1582426%2Fchrome-win.zip?alt=media' -OutFile 'chromium/windows/chrome.zip' -UseBasicParsing"
           pwsh -Command "Expand-Archive -Path 'chromium/windows/chrome.zip' -DestinationPath 'chromium/windows'"
           pwsh -Command "Remove-Item 'chromium/windows/chrome.zip'"
 
