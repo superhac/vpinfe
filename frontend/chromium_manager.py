@@ -68,10 +68,13 @@ class ChromiumManager:
         env["GOOGLE_DEFAULT_CLIENT_ID"] = "no"
         env["GOOGLE_DEFAULT_CLIENT_SECRET"] = "no"
 
+        # Use --kiosk on Windows to avoid dual-window issue with --start-fullscreen
+        fullscreen_flag = "--kiosk" if platform.system() == "Windows" else "--start-fullscreen"
+
         args = [
             chrome_path,
             f"--app={url}",
-            "--start-fullscreen",
+            fullscreen_flag,
             f"--window-position={monitor.x},{monitor.y}",
             f"--window-size={monitor.width},{monitor.height}",
             f"--user-data-dir={user_data_dir}",
