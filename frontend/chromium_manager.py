@@ -88,7 +88,13 @@ class ChromiumManager:
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
               f"({monitor.width}x{monitor.height} at {monitor.x},{monitor.y})")
 
-        proc = subprocess.Popen(args, env=env)
+        # Launch in its own process group so we can kill the entire tree on shutdown
+        # (Chromium spawns renderers, GPU, zygote children that must all be killed)
+        popen_kwargs = dict(env=env)
+        if platform.system() != "Windows":
+            popen_kwargs['start_new_session'] = True
+
+        proc = subprocess.Popen(args, **popen_kwargs)
         self._processes.append((window_name, proc, user_data_dir))
         return proc
 
@@ -128,16 +134,33 @@ class ChromiumManager:
 
         print(f"[Chromium] Launched {len(self._processes)} browser windows")
 
+    def _kill_process_tree(self, proc, window_name, force=False):
+        """Kill a Chromium process and all its children (renderers, GPU, zygote)."""
+        if platform.system() == "Windows":
+            # taskkill /T kills the entire process tree, /F forces it
+            try:
+                subprocess.call(
+                    ['taskkill', '/F', '/T', '/PID', str(proc.pid)],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+            except Exception as e:
+                print(f"[Chromium] taskkill failed for '{window_name}': {e}")
+        else:
+            sig = signal.SIGKILL if force else signal.SIGTERM
+            try:
+                os.killpg(proc.pid, sig)
+            except ProcessLookupError:
+                pass
+            except Exception as e:
+                print(f"[Chromium] killpg failed for '{window_name}': {e}")
+
     def terminate_all(self):
         """Terminate all Chromium processes gracefully."""
         print("[Chromium] Terminating all browser windows...")
         for window_name, proc, temp_dir in self._processes:
             try:
                 if proc.poll() is None:  # still running
-                    if platform.system() == "Windows":
-                        proc.terminate()
-                    else:
-                        proc.send_signal(signal.SIGTERM)
+                    self._kill_process_tree(proc, window_name)
             except Exception as e:
                 print(f"[Chromium] Error terminating '{window_name}': {e}")
 
@@ -147,7 +170,7 @@ class ChromiumManager:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 print(f"[Chromium] Force killing '{window_name}'")
-                proc.kill()
+                self._kill_process_tree(proc, window_name, force=True)
 
         self._processes.clear()
         self._exit_event.set()
