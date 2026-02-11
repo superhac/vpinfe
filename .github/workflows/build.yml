@@ -100,7 +100,13 @@ jobs:
           fi
         shell: bash
 
-      # 9. Upload artifact per OS
+      # 9. Copy Windows launcher bat file
+      - name: Copy Windows launcher
+        if: runner.os == 'Windows'
+        run: cp vpinfe.bat dist/vpinfe/
+        shell: bash
+
+      # 10. Upload artifact per OS
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:

@@ -6,20 +6,18 @@ import platform
 import multiprocessing
 multiprocessing.freeze_support()
 
-# On Windows, give vpinfe its own app identity (separate from Explorer)
-# and hide the console window when launched via icon.
-if platform.system() == "Windows":
+# On Windows, hide the console window when launched via icon (not from terminal).
+# When double-clicked, the process is the sole owner of its console.
+# When run from cmd/powershell, multiple processes share the console - don't hide it.
+if platform.system() == "Windows" and getattr(sys, 'frozen', False):
     import ctypes
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('vpinfe.vpinfe.1')
-
-    if getattr(sys, 'frozen', False):
-        kernel32 = ctypes.windll.kernel32
-        hwnd = kernel32.GetConsoleWindow()
-        if hwnd:
-            pid = ctypes.c_ulong()
-            ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-            if pid.value == os.getpid():
-                ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
+    kernel32 = ctypes.windll.kernel32
+    hwnd = kernel32.GetConsoleWindow()
+    if hwnd:
+        pid = ctypes.c_ulong()
+        ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if pid.value == os.getpid():
+            ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
 
 from pathlib import Path
 from frontend.customhttpserver import CustomHTTPServer
