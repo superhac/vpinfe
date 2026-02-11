@@ -2,16 +2,6 @@
 
 import sys
 import os
-
-# Windows --noconsole: stdout/stderr are None, redirect to a log file
-if sys.stdout is None:
-    from platformdirs import user_config_dir
-    _log_dir = os.path.join(user_config_dir("vpinfe", "vpinfe"))
-    os.makedirs(_log_dir, exist_ok=True)
-    _log_file = open(os.path.join(_log_dir, 'vpinfe.log'), 'w')
-    sys.stdout = _log_file
-    sys.stderr = _log_file
-
 import multiprocessing
 multiprocessing.freeze_support()
 
