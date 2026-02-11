@@ -237,9 +237,12 @@ def _restart_app():
 
     # Terminate all Chromium windows to trigger clean shutdown
     # main.py will detect the sentinel and os.execvp itself
-    import main
-    if main.chromium_manager:
-        main.chromium_manager.terminate_all()
+    # NOTE: Use sys.modules['__main__'] because main.py runs as __main__,
+    # and "import main" would re-execute the entire module (rebinding ports, etc.)
+    main_module = sys.modules['__main__']
+    chromium_mgr = getattr(main_module, 'chromium_manager', None)
+    if chromium_mgr:
+        chromium_mgr.terminate_all()
 
 
 def _shutdown_system():
@@ -258,9 +261,10 @@ def _shutdown_system():
         subprocess.Popen(["systemctl", "poweroff", "-i"])
 
     # Terminate Chromium windows after issuing shutdown
-    import main
-    if main.chromium_manager:
-        main.chromium_manager.terminate_all()
+    main_module = sys.modules['__main__']
+    chromium_mgr = getattr(main_module, 'chromium_manager', None)
+    if chromium_mgr:
+        chromium_mgr.terminate_all()
 
 
 def _reboot_system():
@@ -279,9 +283,10 @@ def _reboot_system():
         subprocess.Popen(['systemctl', 'reboot'])
 
     # Terminate Chromium windows after issuing reboot
-    import main
-    if main.chromium_manager:
-        main.chromium_manager.terminate_all()
+    main_module = sys.modules['__main__']
+    chromium_mgr = getattr(main_module, 'chromium_manager', None)
+    if chromium_mgr:
+        chromium_mgr.terminate_all()
 
 
 def _show_reboot_confirmation():
