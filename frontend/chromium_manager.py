@@ -134,8 +134,24 @@ class ChromiumManager:
 
         print(f"[Chromium] Launched {len(self._processes)} browser windows")
 
+    @staticmethod
+    def _get_descendant_pids(pid):
+        """Recursively find all descendant PIDs via /proc on Linux."""
+        descendants = []
+        try:
+            with open(f'/proc/{pid}/task/{pid}/children') as f:
+                for child_str in f.read().split():
+                    child_pid = int(child_str)
+                    descendants.append(child_pid)
+                    descendants.extend(ChromiumManager._get_descendant_pids(child_pid))
+        except (FileNotFoundError, ValueError, ProcessLookupError, PermissionError):
+            pass
+        return descendants
+
     def _kill_process_tree(self, proc, window_name, force=False):
         """Kill a Chromium process and all its children (renderers, GPU, zygote)."""
+        sig = signal.SIGKILL if force else signal.SIGTERM
+
         if platform.system() == "Windows":
             # taskkill /T kills the entire process tree, /F forces it
             try:
@@ -146,31 +162,36 @@ class ChromiumManager:
             except Exception as e:
                 print(f"[Chromium] taskkill failed for '{window_name}': {e}")
         else:
-            sig = signal.SIGKILL if force else signal.SIGTERM
-            try:
-                os.killpg(proc.pid, sig)
-            except ProcessLookupError:
-                pass
-            except Exception as e:
-                print(f"[Chromium] killpg failed for '{window_name}': {e}")
+            # Walk /proc to find ALL descendants (regardless of process group)
+            # then kill children first, parent last
+            all_pids = self._get_descendant_pids(proc.pid)
+            all_pids.append(proc.pid)
+            print(f"[Chromium] Killing '{window_name}' tree: {all_pids} with signal {sig}")
+            for pid in all_pids:
+                try:
+                    os.kill(pid, sig)
+                except ProcessLookupError:
+                    pass
+                except Exception as e:
+                    print(f"[Chromium] kill {pid} failed: {e}")
 
     def terminate_all(self):
-        """Terminate all Chromium processes gracefully."""
+        """Terminate all Chromium processes immediately."""
         print("[Chromium] Terminating all browser windows...")
         for window_name, proc, temp_dir in self._processes:
             try:
                 if proc.poll() is None:  # still running
-                    self._kill_process_tree(proc, window_name)
+                    # Use force=True (SIGKILL) directly - no need for graceful shutdown
+                    self._kill_process_tree(proc, window_name, force=True)
             except Exception as e:
                 print(f"[Chromium] Error terminating '{window_name}': {e}")
 
-        # Wait for all processes to exit
+        # Wait for parent processes to be reaped
         for window_name, proc, temp_dir in self._processes:
             try:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                print(f"[Chromium] Force killing '{window_name}'")
-                self._kill_process_tree(proc, window_name, force=True)
+                print(f"[Chromium] Warning: '{window_name}' still not reaped")
 
         self._processes.clear()
         self._exit_event.set()
