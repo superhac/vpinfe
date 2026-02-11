@@ -353,11 +353,16 @@ class API:
         self._track_table_play(table)
 
         cmd = [Path(vpxbin).expanduser(), "-play", vpx]
-        # VPX takes focus naturally - no fullscreen toggle needed with Chromium
+        # Minimize Chromium windows so VPX gets focus cleanly
+        if self.chromium_manager:
+            self.chromium_manager.minimize_all()
         process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL)
         process.wait()
+        # Restore Chromium windows after VPX exits
+        if self.chromium_manager:
+            self.chromium_manager.restore_all()
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 
     def _track_table_play(self, table):

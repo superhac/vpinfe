@@ -157,6 +157,71 @@ class ChromiumManager:
         self._exit_event.set()
         print("[Chromium] All browser windows closed.")
 
+    def minimize_all(self):
+        """Minimize all Chromium windows (used before VPX table launch)."""
+        system = platform.system()
+        for window_name, proc, temp_dir in self._processes:
+            if proc.poll() is not None:
+                continue
+            try:
+                if system == "Windows":
+                    import ctypes
+                    import ctypes.wintypes
+
+                    def _enum_callback(hwnd, pid):
+                        """Find windows belonging to the given PID."""
+                        tid_pid = ctypes.wintypes.DWORD()
+                        ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(tid_pid))
+                        if tid_pid.value == pid:
+                            ctypes.windll.user32.ShowWindow(hwnd, 6)  # SW_MINIMIZE
+                        return True
+
+                    WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
+                    ctypes.windll.user32.EnumWindows(WNDENUMPROC(_enum_callback), proc.pid)
+                elif system == "Linux":
+                    subprocess.run(["xdotool", "search", "--pid", str(proc.pid), "--name", ".",
+                                    "windowminimize"], capture_output=True, timeout=5)
+                elif system == "Darwin":
+                    subprocess.run(["osascript", "-e",
+                                    f'tell application "System Events" to set visible of (first process whose unix id is {proc.pid}) to false'],
+                                   capture_output=True, timeout=5)
+            except Exception as e:
+                print(f"[Chromium] Error minimizing '{window_name}': {e}")
+        print("[Chromium] All windows minimized")
+
+    def restore_all(self):
+        """Restore all Chromium windows to fullscreen (used after VPX table exit)."""
+        system = platform.system()
+        for window_name, proc, temp_dir in self._processes:
+            if proc.poll() is not None:
+                continue
+            try:
+                if system == "Windows":
+                    import ctypes
+                    import ctypes.wintypes
+
+                    def _enum_callback(hwnd, pid):
+                        tid_pid = ctypes.wintypes.DWORD()
+                        ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(tid_pid))
+                        if tid_pid.value == pid:
+                            ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                            ctypes.windll.user32.SetForegroundWindow(hwnd)
+                        return True
+
+                    WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
+                    ctypes.windll.user32.EnumWindows(WNDENUMPROC(_enum_callback), proc.pid)
+                elif system == "Linux":
+                    subprocess.run(["xdotool", "search", "--pid", str(proc.pid), "--name", ".",
+                                    "windowactivate", "--sync", "windowfocus"],
+                                   capture_output=True, timeout=5)
+                elif system == "Darwin":
+                    subprocess.run(["osascript", "-e",
+                                    f'tell application "System Events" to set visible of (first process whose unix id is {proc.pid}) to true'],
+                                   capture_output=True, timeout=5)
+            except Exception as e:
+                print(f"[Chromium] Error restoring '{window_name}': {e}")
+        print("[Chromium] All windows restored")
+
     def wait_for_exit(self):
         """Block until all Chromium processes have exited.
 
