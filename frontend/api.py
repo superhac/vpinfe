@@ -1,5 +1,6 @@
 import sys
 import os
+import platform
 from pathlib import Path
 from screeninfo import get_monitors
 from common.table import Table
@@ -356,7 +357,31 @@ class API:
         process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL)
+
+        # On Windows, grant VPX foreground rights so DirectX renders properly
+        if platform.system() == "Windows":
+            import ctypes
+            ctypes.windll.user32.AllowSetForegroundWindow(process.pid)
+
         process.wait()
+
+        # On Windows, restore Chromium windows to foreground after VPX exits
+        if platform.system() == "Windows" and self.chromium_manager:
+            import ctypes
+            import ctypes.wintypes
+            for _, proc, _ in self.chromium_manager._processes:
+                if proc.poll() is not None:
+                    continue
+                def _bring_to_front(hwnd, target_pid):
+                    tid_pid = ctypes.wintypes.DWORD()
+                    ctypes.windll.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(tid_pid))
+                    if tid_pid.value == target_pid:
+                        ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                        ctypes.windll.user32.SetForegroundWindow(hwnd)
+                    return True
+                WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.wintypes.HWND, ctypes.wintypes.LPARAM)
+                ctypes.windll.user32.EnumWindows(WNDENUMPROC(_bring_to_front), proc.pid)
+
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 
     def _track_table_play(self, table):
