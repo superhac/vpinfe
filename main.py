@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+import multiprocessing
+multiprocessing.freeze_support()
+
 from pathlib import Path
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
