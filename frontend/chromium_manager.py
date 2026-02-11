@@ -79,6 +79,7 @@ class ChromiumManager:
             "--disable-infobars",
             "--disable-session-crashed-bubble",
             "--disable-restore-session-state",
+            "--log-level=3",
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
