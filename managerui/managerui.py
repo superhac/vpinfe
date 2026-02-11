@@ -346,7 +346,8 @@ def _run_ui():
            port=_ui_port,
            reload=False,
            show=False,
-           storage_secret=STORAGE_SECRET)
+           storage_secret=STORAGE_SECRET,
+           reconnect_timeout=30.0)
 
 def start_manager_ui(port=8001):
     global _ui_thread, _ui_port
