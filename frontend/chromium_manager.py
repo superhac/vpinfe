@@ -72,7 +72,7 @@ class ChromiumManager:
         args = [
             chrome_path,
             f"--app={url}",
-            "--kiosk",
+            "--start-fullscreen",
             f"--window-position={monitor.x},{monitor.y}",
             f"--window-size={monitor.width},{monitor.height}",
             f"--user-data-dir={user_data_dir}",
