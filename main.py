@@ -118,6 +118,12 @@ restart_flag = config_dir / '.restart'
 if restart_flag.exists():
     restart_flag.unlink()
     print("[VPinFE] Restart requested, re-launching...")
-    python_exe = sys.executable
-    main_script = os.path.abspath(__file__)
-    os.execvp(python_exe, [python_exe, main_script])
+    import time
+    time.sleep(1)  # Allow OS to release sockets before rebinding
+    if getattr(sys, 'frozen', False):
+        # PyInstaller bundle: just re-exec the bundled executable
+        os.execvp(sys.executable, [sys.executable])
+    else:
+        # Dev mode: re-exec with Python + script
+        main_script = os.path.abspath(__file__)
+        os.execvp(sys.executable, [sys.executable, main_script])
