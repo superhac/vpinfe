@@ -177,8 +177,6 @@ class ChromiumManager:
 
     def _kill_process_tree(self, proc, window_name, force=False):
         """Kill a Chromium process and all its children (renderers, GPU, zygote)."""
-        sig = signal.SIGKILL if force else signal.SIGTERM
-
         if platform.system() == "Windows":
             # taskkill /T kills the entire process tree, /F forces it
             try:
@@ -191,6 +189,7 @@ class ChromiumManager:
         else:
             # Walk /proc to find ALL descendants (regardless of process group)
             # then kill children first, parent last
+            sig = signal.SIGKILL if force else signal.SIGTERM
             all_pids = self._get_descendant_pids(proc.pid)
             all_pids.append(proc.pid)
             print(f"[Chromium] Killing '{window_name}' tree: {all_pids} with signal {sig}")
