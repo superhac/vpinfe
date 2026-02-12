@@ -93,6 +93,8 @@ class ChromiumManager:
             "--disable-background-timer-throttling",
             "--disable-backgrounding-occluded-windows",
             "--disable-renderer-backgrounding",
+            "--disable-features=CalculateNativeWindowOcclusion",
+            "--disable-hang-monitor",
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
