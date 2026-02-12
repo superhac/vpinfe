@@ -45,7 +45,7 @@ class ChromiumManager:
     """Manages Chromium subprocess lifecycle for multi-monitor display."""
 
     def __init__(self):
-        self._processes = []   # [(window_name, process, temp_dir)]
+        self._processes = []   # [(window_name, process, temp_dir, monitor)]
         self._exit_event = threading.Event()
 
     def launch_window(self, window_name, url, monitor, index):
@@ -77,6 +77,7 @@ class ChromiumManager:
         args = [
             chrome_path,
             f"--app={url}",
+            f"--window-name=vpinfe-{window_name}",
             fullscreen_flag,
             f"--window-position={monitor.x},{monitor.y}",
             f"--window-size={monitor.width},{monitor.height}",
@@ -104,7 +105,7 @@ class ChromiumManager:
             popen_kwargs['start_new_session'] = True
 
         proc = subprocess.Popen(args, **popen_kwargs)
-        self._processes.append((window_name, proc, user_data_dir))
+        self._processes.append((window_name, proc, user_data_dir, monitor))
         return proc
 
     def launch_all_windows(self, iniconfig, base_url="http://127.0.0.1"):
@@ -191,7 +192,7 @@ class ChromiumManager:
     def terminate_all(self):
         """Terminate all Chromium processes immediately."""
         print("[Chromium] Terminating all browser windows...")
-        for window_name, proc, temp_dir in self._processes:
+        for window_name, proc, temp_dir, _ in self._processes:
             try:
                 if proc.poll() is None:  # still running
                     # Use force=True (SIGKILL) directly - no need for graceful shutdown
@@ -200,7 +201,7 @@ class ChromiumManager:
                 print(f"[Chromium] Error terminating '{window_name}': {e}")
 
         # Wait for parent processes to be reaped
-        for window_name, proc, temp_dir in self._processes:
+        for window_name, proc, temp_dir, _ in self._processes:
             try:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
@@ -223,7 +224,7 @@ class ChromiumManager:
         def _monitor():
             """Watch for any process to exit, then terminate all."""
             while self._processes and not self._exit_event.is_set():
-                for window_name, proc, temp_dir in list(self._processes):
+                for window_name, proc, temp_dir, _ in list(self._processes):
                     if proc.poll() is not None:
                         print(f"[Chromium] Window '{window_name}' exited (code {proc.returncode})")
                         # One window exited - shut everything down
@@ -260,14 +261,20 @@ class ChromiumManager:
         """Focus window on Linux using xdotool."""
         try:
             # Search for windows owned by this PID
+            # Search for a window with a specific name/title owned by this PID.
+            # This is more reliable than just PID, which might find other chrome windows.
+            search_name = f"vpinfe-{window_name}"
             result = subprocess.run(
                 ['xdotool', 'search', '--pid', str(proc.pid)],
+                ['xdotool', 'search', '--onlyvisible', '--pid', str(proc.pid), '--name', search_name],
                 capture_output=True, text=True, timeout=5
             )
             window_ids = [wid for wid in result.stdout.strip().split('\n') if wid]
             if window_ids:
                 # Activate the last window (usually the main app window)
                 wid = window_ids[-1]
+                # Activate the first window found, as the name should be unique.
+                wid = window_ids[0]
                 subprocess.run(
                     ['xdotool', 'windowactivate', '--sync', wid],
                     capture_output=True, timeout=5
@@ -276,6 +283,7 @@ class ChromiumManager:
                 return True
             else:
                 print(f"[Chromium] No X window found for '{window_name}' (PID: {proc.pid})")
+                print(f"[Chromium] No X window found for '{window_name}' (PID: {proc.pid}, Name: {search_name})")
         except FileNotFoundError:
             print("[Chromium] xdotool not found - install it for window focus management")
         except Exception as e:
@@ -344,7 +352,7 @@ class ChromiumManager:
 
     def get_process(self, window_name):
         """Get the process for a specific window."""
-        for name, proc, temp_dir in self._processes:
+        for name, proc, temp_dir, _ in self._processes:
             if name == window_name:
                 return proc
         return None
@@ -352,4 +360,4 @@ class ChromiumManager:
     @property
     def is_running(self):
         """Check if any Chromium processes are still running."""
-        return any(proc.poll() is None for _, proc, _ in self._processes)
+        return any(proc.poll() is None for _, proc, _, _ in self._processes)
