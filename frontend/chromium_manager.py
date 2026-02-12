@@ -258,34 +258,38 @@ class ChromiumManager:
         return False
 
     def _focus_window_linux(self, proc, window_name):
-        """Focus window on Linux using xdotool."""
+        """Focus window on Linux by clicking on it (simulated input)."""
+        # Find the monitor for this window to get coordinates
+        monitor = None
+        for name, _, _, mon in self._processes:
+            if name == window_name:
+                monitor = mon
+                break
+
+        if not monitor:
+            print(f"[Chromium] Could not determine monitor for '{window_name}' to focus.")
+            return False
+
         try:
-            # Search for windows owned by this PID
-            # Search for a window with a specific name/title owned by this PID.
-            # This is more reliable than just PID, which might find other chrome windows.
-            search_name = f"vpinfe-{window_name}"
-            result = subprocess.run(
-                ['xdotool', 'search', '--pid', str(proc.pid)],
-                ['xdotool', 'search', '--onlyvisible', '--pid', str(proc.pid), '--name', search_name],
-                capture_output=True, text=True, timeout=5
-            )
-            window_ids = [wid for wid in result.stdout.strip().split('\n') if wid]
-            if window_ids:
-                # Activate the last window (usually the main app window)
-                wid = window_ids[-1]
-                # Activate the first window found, as the name should be unique.
-                wid = window_ids[0]
-                subprocess.run(
-                    ['xdotool', 'windowactivate', '--sync', wid],
-                    capture_output=True, timeout=5
-                )
-                print(f"[Chromium] Focused '{window_name}' (xdotool window ID: {wid})")
-                return True
-            else:
-                print(f"[Chromium] No X window found for '{window_name}' (PID: {proc.pid})")
-                print(f"[Chromium] No X window found for '{window_name}' (PID: {proc.pid}, Name: {search_name})")
-        except FileNotFoundError:
-            print("[Chromium] xdotool not found - install it for window focus management")
+            from pynput.mouse import Button, Controller
+            mouse = Controller()
+            
+            # Calculate center of the monitor
+            center_x = monitor.x + (monitor.width // 2)
+            center_y = monitor.y + (monitor.height // 2)
+            
+            # Move to center and click to grab focus
+            mouse.position = (center_x, center_y)
+            time.sleep(0.05) 
+            mouse.click(Button.left, 1)
+            
+            # Move cursor out of the way (bottom right corner) to "hide" it
+            mouse.position = (monitor.x + monitor.width, monitor.y + monitor.height)
+            
+            print(f"[Chromium] Focused '{window_name}' via mouse click at {center_x},{center_y}")
+            return True
+        except ImportError:
+            print("[Chromium] pynput not found - cannot focus window without xdotool or pynput")
         except Exception as e:
             print(f"[Chromium] Focus failed for '{window_name}': {e}")
         return False
