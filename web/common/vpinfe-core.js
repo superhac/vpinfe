@@ -170,9 +170,14 @@ class VPinFECore {
   // launch a table
   async launchTable(index) {
     this.gamepadEnabled = false;
-    await this.call("launch_table", index);
-    this.call("console_out", "vpinfe-core returning")
-    this.gamepadEnabled = true;
+    try {
+      await this.call("launch_table", index);
+    } catch (e) {
+      // The call will timeout after 30s while VPX is still running - that's expected
+      this.call("console_out", `launch_table call ended: ${e.message}`);
+    } finally {
+      this.gamepadEnabled = true;
+    }
   }
 
   async getTableData(reset=false) {
@@ -349,22 +354,6 @@ class VPinFECore {
     window.addEventListener("gamepaddisconnected", (e) => {
       this.call("console_out", `Gamepad disconnected: ${e.gamepad.id} (index ${e.gamepad.index})`);
       delete this.previousButtonStates[e.gamepad.index];
-    });
-
-    // Re-detect gamepads when page becomes visible again (e.g. after VPX game exits).
-    // The Gamepad API loses device connections when another app takes over.
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        this.call("console_out", "Page visible again - re-detecting gamepads...");
-        this.previousButtonStates = {};
-        this.#waitForGamepad();
-      }
-    });
-
-    window.addEventListener("focus", () => {
-      this.call("console_out", "Window regained focus - re-detecting gamepads...");
-      this.previousButtonStates = {};
-      this.#waitForGamepad();
     });
 
     // Check if gamepad is already connected (may have been connected before page load)

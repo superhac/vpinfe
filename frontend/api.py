@@ -359,12 +359,6 @@ class API:
             stdin=subprocess.DEVNULL)
         process.wait()
 
-        # After the game exits, schedule a refocus of the main 'table' window.
-        # This helps ensure the frontend is responsive again, especially on Linux
-        # where focus might not be returned automatically.
-        if self.chromium_manager:
-            self.chromium_manager._schedule_focus('table', delay=1)
-
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 
     def _track_table_play(self, table):
