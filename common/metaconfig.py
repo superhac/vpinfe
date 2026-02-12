@@ -97,7 +97,7 @@ class MetaConfig:
         """Record a downloaded media entry in the Medias section."""
         self.data.setdefault("Medias", {})[mediaType] = {
             "Source": source,
-            "Path": path,
+            "Path": os.path.join("medias", os.path.basename(path)),
             "MD5Hash": md5hash
         }
         self.writeConfig()
