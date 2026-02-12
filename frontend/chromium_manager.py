@@ -86,9 +86,12 @@ class ChromiumManager:
             "--disable-session-crashed-bubble",
             "--disable-restore-session-state",
             "--log-level=3",
-            
-            # Tuned settings for running a front end
-           
+            # Prevent throttling/freezing when window is not focused. This is
+            # important for Linux when an external game takes focus and occludes
+            # the frontend window.
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
