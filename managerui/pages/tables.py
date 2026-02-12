@@ -1342,7 +1342,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                     ('rom', 'ROM', 'memory'),
                     ('version', 'Version', 'tag'),
                     ('type', 'Type', 'category'),
-                    ('table_path', 'Path', 'folder'),
+                    ('table_path', 'Folder', 'folder'),
                 ]
                 # List fields that need special handling (join with comma)
                 list_fields = [
@@ -1359,10 +1359,11 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                     for key, label, icon in display_fields:
                         value = row_data.get(key, '')
                         if value:  # Only show non-empty fields
+                            display_value = os.path.basename(value) if key == 'table_path' else str(value)
                             with ui.row().classes('detail-row items-center gap-2 w-full'):
                                 ui.icon(icon, size='18px').classes('text-blue-400')
                                 ui.label(label).classes('detail-label')
-                                ui.label(str(value)).classes('detail-value')
+                                ui.label(display_value).classes('detail-value')
 
                     # Render list fields (authors, themes) - join lists with comma
                     for key, label, icon in list_fields:
