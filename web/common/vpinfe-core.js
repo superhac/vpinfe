@@ -351,6 +351,22 @@ class VPinFECore {
       delete this.previousButtonStates[e.gamepad.index];
     });
 
+    // Re-detect gamepads when page becomes visible again (e.g. after VPX game exits).
+    // The Gamepad API loses device connections when another app takes over.
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        this.call("console_out", "Page visible again - re-detecting gamepads...");
+        this.previousButtonStates = {};
+        this.#waitForGamepad();
+      }
+    });
+
+    window.addEventListener("focus", () => {
+      this.call("console_out", "Window regained focus - re-detecting gamepads...");
+      this.previousButtonStates = {};
+      this.#waitForGamepad();
+    });
+
     // Check if gamepad is already connected (may have been connected before page load)
     this.#waitForGamepad();
   }
