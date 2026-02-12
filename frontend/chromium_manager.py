@@ -152,10 +152,10 @@ class ChromiumManager:
             monitor = monitors[screen_id]
             url = f"{base_url}:{theme_assets_port}/web/splash.html?window={window_name}"
 
-            # Delay before launching the table window to ensure bg/dmd are
-            # fully initialized first, so table gets focus as the last window
+            # Brief delay before launching the table window to ensure bg/dmd
+            # are initialized first, so table gets focus as the last window
             if window_name == 'table':
-                time.sleep(2)
+                time.sleep(0.5)
 
             self.launch_window(window_name, url, monitor, screen_id)
 
