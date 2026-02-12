@@ -239,6 +239,9 @@ class ChromiumManager:
 
     def focus_window(self, window_name):
         """Focus a specific Chromium window by name (platform-specific)."""
+        if window_name != 'table':
+            return False
+
         proc = self.get_process(window_name)
         if not proc or proc.poll() is not None:
             print(f"[Chromium] Cannot focus '{window_name}': process not running")
