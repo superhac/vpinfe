@@ -99,6 +99,11 @@ class ChromiumManager:
             "--disable-ipc-flooding-protection",
             "--disable-gpu-process-crash-limit",
             "--use-gl=desktop",
+            # Fix for Gamepad API losing connection after focus switch on Linux.
+            # Allows re-accessing /dev/input devices and bypasses gesture requirements.
+            "--no-sandbox",
+            "--disable-gpu-sandbox",
+            "--autoplay-policy=no-user-gesture-required",
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
