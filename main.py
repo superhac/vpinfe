@@ -104,6 +104,8 @@ def loadWindows():
         api._finish_setup()
 
     # --- TABLE SCREEN (ALWAYS LAST) ---
+    import time
+    time.sleep(0.5)  # slight delay to ensure Table window is created last and gets focus
     if iniconfig.config['Displays']['tablescreenid']:
         screen_id = int(iniconfig.config['Displays']['tablescreenid'])
         api = API(iniconfig)
