@@ -491,6 +491,10 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
 
   // Poll the manager UI for remote launch events
   #pollRemoteLaunch() {
+    // Don't poll from file:// origin - CORS blocks it on Chromium/QWebEngine.
+    // Polling will start correctly once the theme page loads over http://.
+    if (window.location.protocol === 'file:') return;
+
     const pollInterval = 1000; // Poll every 1 second
     const managerUrl = `http://127.0.0.1:${this.managerUiPort}/api/remote-launch`;
 
