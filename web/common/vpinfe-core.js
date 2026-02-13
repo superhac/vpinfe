@@ -161,9 +161,14 @@ class VPinFECore {
   // launch a table
   async launchTable(index) {
     this.gamepadEnabled = false;
-    await this.call("launch_table", index);
-    this.call("console_out", "vpinfe-core returning")
-    this.gamepadEnabled = true;
+    try {
+      await this.call("launch_table", index);
+    } catch (e) {
+      // The call will timeout after 30s while VPX is still running - that's expected
+      this.call("console_out", `launch_table call ended: ${e.message}`);
+    } finally {
+      this.gamepadEnabled = true;
+    }
   }
 
   async getTableData(reset=false) {
