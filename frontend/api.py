@@ -15,11 +15,11 @@ from platformdirs import user_config_dir
 class API:
 
     def __init__(self, iniConfig, window_name=None, ws_bridge=None, chromium_manager=None):
-        self.iniConfig = iniConfig
+        self._iniConfig = iniConfig
         self.window_name = window_name          # 'bg', 'dmd', or 'table'
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
         self.chromium_manager = chromium_manager  # ChromiumManager instance
-        self.allTables = TableParser(self.iniConfig.config['Settings']['tablerootdir'], self.iniConfig).getAllTables()
+        self.allTables = TableParser(self._iniConfig.config['Settings']['tablerootdir'], self._iniConfig).getAllTables()
         self.filteredTables = self.allTables
         self.jsTableDictData = None
         # Track current filter state
@@ -35,7 +35,7 @@ class API:
         # Track current collection
         self.current_collection = None
         # Check for startup collection
-        startup_collection = self.iniConfig.config['Settings'].get('startup_collection', '').strip()
+        startup_collection = self._iniConfig.config['Settings'].get('startup_collection', '').strip()
         if startup_collection:
             try:
                 self.set_tables_by_collection(startup_collection)
@@ -314,15 +314,15 @@ class API:
 
     def get_joymaping(self):
         return {
-            'joyleft': self.iniConfig.config['Input'].get('joyleft', '0'),
-            'joyright': self.iniConfig.config['Input'].get('joyright', '0'),
-            'joyup': self.iniConfig.config['Input'].get('joyup', '0'),
-            'joydown': self.iniConfig.config['Input'].get('joydown', '0'),
-            'joyselect': self.iniConfig.config['Input'].get('joyselect', '0'),
-            'joymenu': self.iniConfig.config['Input'].get('joymenu', '0'),
-            'joyback': self.iniConfig.config['Input'].get('joyback', '0'),
-            'joyexit': self.iniConfig.config['Input'].get('joyexit', '0'),
-            'joycollectionmenu': self.iniConfig.config['Input'].get('joycollectionmenu', '0')
+            'joyleft': self._iniConfig.config['Input'].get('joyleft', '0'),
+            'joyright': self._iniConfig.config['Input'].get('joyright', '0'),
+            'joyup': self._iniConfig.config['Input'].get('joyup', '0'),
+            'joydown': self._iniConfig.config['Input'].get('joydown', '0'),
+            'joyselect': self._iniConfig.config['Input'].get('joyselect', '0'),
+            'joymenu': self._iniConfig.config['Input'].get('joymenu', '0'),
+            'joyback': self._iniConfig.config['Input'].get('joyback', '0'),
+            'joyexit': self._iniConfig.config['Input'].get('joyexit', '0'),
+            'joycollectionmenu': self._iniConfig.config['Input'].get('joycollectionmenu', '0')
         }
 
     def set_button_mapping(self, button_name, button_index):
@@ -337,9 +337,9 @@ class API:
 
         try:
             # Set the value in the config
-            self.iniConfig.config.set('Input', button_name, str(button_index))
+            self._iniConfig.config.set('Input', button_name, str(button_index))
             # Save to file
-            self.iniConfig.save()
+            self._iniConfig.save()
             return {"success": True, "message": f"Mapped {button_name} to button {button_index}"}
         except Exception as e:
             return {"success": False, "message": f"Error saving mapping: {str(e)}"}
@@ -347,7 +347,7 @@ class API:
     def launch_table(self, index):
         table = self.filteredTables[index]
         vpx = table.fullPathVPXfile
-        vpxbin = self.iniConfig.config['Settings'].get('vpxbinpath', '')
+        vpxbin = self._iniConfig.config['Settings'].get('vpxbinpath', '')
         print("Launching: ", [vpxbin, "-play", vpx])
 
         # Track the table play
@@ -446,7 +446,7 @@ class API:
                     'result': result
                 })
                 # Refresh table list after completion
-                self.allTables = TableParser(self.iniConfig.config['Settings']['tablerootdir'], self.iniConfig).getAllTables()
+                self.allTables = TableParser(self._iniConfig.config['Settings']['tablerootdir'], self._iniConfig).getAllTables()
                 self.filteredTables = self.allTables
             except Exception as e:
                 # Queue error event
@@ -522,10 +522,10 @@ class API:
     ###################
 
     def get_theme_name(self):
-        return self.iniConfig.config['Settings'].get('theme', 'default')
+        return self._iniConfig.config['Settings'].get('theme', 'default')
 
     def get_theme_assets_port(self):
-        return int(self.iniConfig.config['Network'].get('themeassetsport', '8000'))
+        return int(self._iniConfig.config['Network'].get('themeassetsport', '8000'))
 
     def get_theme_index_page(self):
         theme_name = self.get_theme_name()
