@@ -75,7 +75,7 @@ def loadWindows():
         api.myWindow.append(win)
         webview_windows.append(['bg', win, api])
         api.webview_windows = webview_windows
-        api.iniConfig = iniconfig
+        api._iniConfig = iniconfig
         api._finish_setup()
 
     # --- DMD SCREEN ---
@@ -100,7 +100,7 @@ def loadWindows():
         api.myWindow.append(win)
         webview_windows.append(['dmd', win, api])
         api.webview_windows = webview_windows
-        api.iniConfig = iniconfig
+        api._iniConfig = iniconfig
         api._finish_setup()
 
     # --- TABLE SCREEN (ALWAYS LAST) ---
@@ -127,7 +127,7 @@ def loadWindows():
         api.myWindow.append(win)
         webview_windows.append(['table', win, api])
         api.webview_windows = webview_windows
-        api.iniConfig = iniconfig
+        api._iniConfig = iniconfig
         api._finish_setup()
 
 
