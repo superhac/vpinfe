@@ -1342,7 +1342,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                     ('rom', 'ROM', 'memory'),
                     ('version', 'Version', 'tag'),
                     ('type', 'Type', 'category'),
-                    ('table_path', 'Path', 'folder'),
+                    ('table_path', 'Folder', 'folder'),
                 ]
                 # List fields that need special handling (join with comma)
                 list_fields = [
@@ -1358,6 +1358,8 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                 with ui.grid(columns=2).classes('w-full gap-3'):
                     for key, label, icon in display_fields:
                         value = row_data.get(key, '')
+                        if key == 'table_path' and value:
+                            value = Path(value).name
                         if value:  # Only show non-empty fields
                             with ui.row().classes('detail-row items-center gap-2 w-full'):
                                 ui.icon(icon, size='18px').classes('text-blue-400')
