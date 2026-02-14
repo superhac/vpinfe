@@ -95,18 +95,29 @@ def _http_request(url, data=b'', method='POST', timeout=300, retries=3):
     import http.client
     for attempt in range(retries):
         try:
+            print(f"[WebSend] {method} {url} (data={len(data)} bytes, attempt {attempt+1}/{retries})")
             req = urllib.request.Request(url, data=data, method=method)
             req.add_header('Connection', 'close')
             resp = urllib.request.urlopen(req, timeout=timeout)
-            resp.read()
+            body = resp.read()
+            print(f"[WebSend] Response: {resp.status} {resp.reason}, body={body[:200]}")
             resp.close()
             return resp
-        except urllib.error.HTTPError:
+        except urllib.error.HTTPError as e:
+            error_body = ''
+            try:
+                error_body = e.read().decode('utf-8', errors='replace')[:500]
+            except Exception:
+                pass
+            print(f"[WebSend] HTTPError {e.code} {e.reason} for {url}")
+            print(f"[WebSend] Response headers: {dict(e.headers)}")
+            print(f"[WebSend] Error body: {error_body}")
             raise
         except (urllib.error.URLError, ConnectionError, OSError, http.client.RemoteDisconnected) as e:
+            print(f"[WebSend] Connection error: {type(e).__name__}: {e}")
             if attempt < retries - 1:
                 wait = 2 * (attempt + 1)
-                print(f"[WebSend] Request failed ({e}), retrying in {wait}s... (attempt {attempt+2}/{retries})")
+                print(f"[WebSend] Retrying in {wait}s... (attempt {attempt+2}/{retries})")
                 time.sleep(wait)
             else:
                 raise
@@ -167,21 +178,26 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None):
         encoded_dir = urllib.parse.quote(rel_dir, safe='')
         encoded_file = urllib.parse.quote(fname, safe='')
 
+        print(f"[WebSend] Uploading ({i+1}/{total_files}): {rel_dir}/{fname} ({file_size} bytes)")
         if file_size == 0:
             url = f'{base_url}/upload?offset=0&q={encoded_dir}&file={encoded_file}&length=0'
             _http_request(url, data=b'', timeout=30)
         else:
             with open(full_path, 'rb') as f:
                 offset = 0
+                chunk_num = 0
+                total_chunks = (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
                 while offset < file_size:
                     chunk = f.read(CHUNK_SIZE)
                     if not chunk:
                         break
+                    chunk_num += 1
+                    print(f"[WebSend]   Chunk {chunk_num}/{total_chunks}: offset={offset}, chunk_size={len(chunk)}, file_size={file_size}")
                     url = f'{base_url}/upload?offset={offset}&q={encoded_dir}&file={encoded_file}&length={file_size}'
                     _http_request(url, data=chunk)
                     offset += len(chunk)
 
-        print(f"[WebSend] Uploaded ({i+1}/{total_files}): {rel_dir}/{fname} ({file_size} bytes)")
+        print(f"[WebSend] Done ({i+1}/{total_files}): {rel_dir}/{fname}")
 
     if progress_cb:
         progress_cb(total_files, total_files, 'Complete')
