@@ -359,6 +359,9 @@ class API:
             stdin=subprocess.DEVNULL)
         process.wait()
 
+        # Delete NVRAM file if configured for this table
+        self._delete_nvram_if_configured(table)        
+        
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 
     def _track_table_play(self, table):
@@ -393,6 +396,31 @@ class API:
 
         print(f"Tracked table play: {vpsid} (now {len(last_played_ids)} in Last Played)")
 
+    def _delete_nvram_if_configured(self, table):
+        """Delete the NVRAM .nv file if deletedNVRamOnClose is enabled for this table."""
+        meta = table.metaConfig or {}
+        if isinstance(meta, dict):
+            config = meta
+        elif hasattr(meta, "getConfig"):
+            config = meta.getConfig()
+        else:
+            return
+
+        vpinfe = config.get("VPinFE", {})
+        if not vpinfe.get("deletedNVRamOnClose", False):
+            return
+
+        rom = config.get("Info", {}).get("Rom", "")
+        if not rom:
+            print(f"[NVRAM] No ROM name found for table, skipping NVRAM deletion")
+            return
+
+        nvram_path = Path(table.fullPathTable) / "pinmame" / "nvram" / f"{rom}.nv"
+        if nvram_path.exists():
+            nvram_path.unlink()
+            print(f"[NVRAM] Deleted NVRAM file: {nvram_path}")
+        else:
+            print(f"[NVRAM] NVRAM file not found (nothing to delete): {nvram_path}")
 
     def build_metadata(self, download_media=True, update_all=False):
         """
