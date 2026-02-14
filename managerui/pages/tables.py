@@ -1592,7 +1592,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         with ui.row().classes('items-center gap-3'):
                             ui.icon('music_note', size='24px').classes('text-green-400')
                             with ui.column().classes('gap-0'):
-                                ui.label('Serum (AltSound)').classes('font-medium text-white')
+                                ui.label('AltSound').classes('font-medium text-white')
                                 ui.label('Upload sound pack files (requires ROM)').classes('text-xs text-gray-400')
                         def on_altsound_upload(e):
                             if not rom_name:
