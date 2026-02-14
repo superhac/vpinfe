@@ -79,8 +79,8 @@ def create_api_instances():
         print(f"[Main] Registered API for window '{window_name}'")
 
 
-if len(sys.argv) > 0:
-    parseArgs()
+cli_args = parseArgs() if len(sys.argv) > 0 else None
+headless = cli_args and cli_args.headless
 
 # Initialize theme registry and auto-install default themes
 try:
@@ -115,11 +115,21 @@ start_manager_ui(port=manager_ui_port)
 # Start the WebSocket bridge
 ws_bridge.start()
 
-# Launch Chromium windows on configured monitors
-chromium_manager.launch_all_windows(iniconfig)
+if headless:
+    import signal
+    import threading
+    print("[Main] Headless mode: servers running without Chromium frontend")
+    print("[Main] Press Ctrl+C to stop...")
+    stop_event = threading.Event()
+    signal.signal(signal.SIGINT, lambda s, f: stop_event.set())
+    signal.signal(signal.SIGTERM, lambda s, f: stop_event.set())
+    stop_event.wait()
+else:
+    # Launch Chromium windows on configured monitors
+    chromium_manager.launch_all_windows(iniconfig)
 
-# Block until Chromium windows exit (replaces webview.start())
-chromium_manager.wait_for_exit()
+    # Block until Chromium windows exit (replaces webview.start())
+    chromium_manager.wait_for_exit()
 
 # Shutdown items - wrap each in try/except so restart check always runs
 print("[Main] Shutting down services...")
