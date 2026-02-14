@@ -9,6 +9,7 @@ from .pages import collections as tab_collections
 from .pages import media as tab_media
 from .pages import themes as tab_themes
 from .pages import remote
+from .pages import mobile as tab_mobile
 import threading
 import subprocess
 import urllib.request
@@ -314,6 +315,10 @@ def index():
 def remote_page():
     remote.build()
 
+@ui.page('/mobile')
+def mobile_page():
+    tab_mobile.build()
+
 
 # API endpoint for remote launch state (polled by frontend themes)
 @app.get('/api/remote-launch')
@@ -326,6 +331,47 @@ def get_remote_launch_state():
             "Access-Control-Allow-Methods": "GET",
             "Access-Control-Allow-Headers": "*",
         }
+    )
+
+
+@app.get('/api/download-table-vpxz')
+def download_table_vpxz(name: str):
+    """Zip a table folder and serve it as a .vpxz download, then clean up."""
+    import tempfile
+    import shutil
+    from starlette.responses import FileResponse
+    from starlette.background import BackgroundTask
+
+    tables_path = tab_mobile._get_tables_path()
+    table_dir = os.path.join(tables_path, name)
+
+    # Validate the path exists and is under tables root
+    real_table = os.path.realpath(table_dir)
+    real_root = os.path.realpath(tables_path)
+    if not real_table.startswith(real_root + os.sep):
+        return JSONResponse(content={"error": "Invalid table path"}, status_code=400)
+    if not os.path.isdir(table_dir):
+        return JSONResponse(content={"error": "Table not found"}, status_code=404)
+
+    # Create zip in a temp directory
+    tmp_dir = tempfile.mkdtemp()
+    zip_base = os.path.join(tmp_dir, name)
+    zip_path = shutil.make_archive(zip_base, 'zip', root_dir=tables_path, base_dir=name)
+    # Rename .zip to .vpxz
+    vpxz_path = zip_base + '.vpxz'
+    os.rename(zip_path, vpxz_path)
+
+    print(f"[Mobile] Created download archive: {vpxz_path}")
+
+    def cleanup():
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        print(f"[Mobile] Cleaned up temp archive: {tmp_dir}")
+
+    return FileResponse(
+        vpxz_path,
+        media_type='application/octet-stream',
+        filename=f"{name}.vpxz",
+        background=BackgroundTask(cleanup),
     )
 
 
