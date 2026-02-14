@@ -41,6 +41,10 @@ class IniConfig:
 				'themeassetsport': '8000',
 				'manageruiport': '8001',
 				},
+			'Mobile': {
+				'deviceip': '',
+				'deviceport': '2112',
+				},
 		}
 
 		self.config = configparser.ConfigParser()
