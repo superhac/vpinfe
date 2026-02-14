@@ -131,11 +131,8 @@ def loadWindows():
         api._finish_setup()
 
 
-headless = False
 if len(sys.argv) > 0:
-    cli_args = parseArgs()
-    if cli_args and cli_args.headless:
-        headless = True
+    parseArgs()
 
 # Initialize theme registry and auto-install default themes
 try:
@@ -147,8 +144,7 @@ except Exception as e:
     print(f"[WARN] Theme registry initialization failed: {e}")
 
 # Initialize webview windows
-if not headless:
-    loadWindows()
+loadWindows()
 
 # Start an the HTTP server to serve the images from the "tables" directory
 themes_dir = str(config_dir / "themes")
@@ -168,21 +164,11 @@ http_server.start_file_server(port=theme_assets_port)
 manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
 start_manager_ui(port=manager_ui_port)
 
-if headless:
-    print(f"[VPinFE] Running in headless mode (no frontend)")
-    print(f"[VPinFE] Theme assets server on port {theme_assets_port}")
-    print(f"[VPinFE] Manager UI on port {manager_ui_port}")
-    print(f"[VPinFE] Press Ctrl+C to stop")
-    try:
-        threading.Event().wait()
-    except KeyboardInterrupt:
-        print("\n[VPinFE] Shutting down...")
+# block and start webview
+if sys.platform == "darwin":
+    webview.start(gui="cocoa")
 else:
-    # block and start webview
-    if sys.platform == "darwin":
-        webview.start(gui="cocoa")
-    else:
-        webview.start()
+    webview.start()
 
 # shutdown items
 http_server.on_closed()
