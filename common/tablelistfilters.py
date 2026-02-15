@@ -170,62 +170,67 @@ class TableListFilters:
         return str(year) if year else ""
 
     def filter_by_letter(self, tables, letter):
-        """Filter tables by starting letter of name."""
+        """Filter tables by starting letter of name. Supports comma-separated values."""
         if not letter or letter == "All":
             return tables
 
+        letters = {l.strip().upper() for l in str(letter).split(',')}
         filtered = []
         for table in tables:
             name = self._get_table_name(table)
-            if name and name[0].upper() == letter.upper():
+            if name and name[0].upper() in letters:
                 filtered.append(table)
         return filtered
 
     def filter_by_theme(self, tables, theme):
-        """Filter tables by theme."""
+        """Filter tables by theme. Supports comma-separated values."""
         if not theme or theme == "All":
             return tables
 
+        themes = {t.strip() for t in str(theme).split(',')}
         filtered = []
         for table in tables:
             table_themes = self._get_table_theme(table)
-            if theme in table_themes:
+            if themes & set(table_themes):
                 filtered.append(table)
         return filtered
 
     def filter_by_type(self, tables, table_type):
-        """Filter tables by type (EM, SS, etc.)."""
+        """Filter tables by type (EM, SS, etc.). Supports comma-separated values."""
         if not table_type or table_type == "All":
             return tables
 
+        types = {t.strip() for t in str(table_type).split(',')}
         filtered = []
         for table in tables:
             current_type = self._get_table_type(table)
-            if current_type == table_type:
+            if current_type in types:
                 filtered.append(table)
         return filtered
 
     def filter_by_manufacturer(self, tables, manufacturer):
-        """Filter tables by manufacturer."""
+        """Filter tables by manufacturer. Supports comma-separated values."""
         if not manufacturer or manufacturer == "All":
             return tables
 
+        manufacturers = {m.strip() for m in str(manufacturer).split(',')}
         filtered = []
         for table in tables:
             current_manufacturer = self._get_table_manufacturer(table)
-            if current_manufacturer == manufacturer:
+            if current_manufacturer in manufacturers:
                 filtered.append(table)
         return filtered
 
     def filter_by_year(self, tables, year):
-        """Filter tables by year."""
+        """Filter tables by year. Supports comma-separated values."""
         if not year or year == "All":
             return tables
 
+        years = {y.strip() for y in str(year).split(',')}
         filtered = []
         for table in tables:
             current_year = self._get_table_year(table)
-            if current_year == str(year):
+            if current_year in years:
                 filtered.append(table)
         return filtered
 
