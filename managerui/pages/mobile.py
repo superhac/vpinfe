@@ -90,23 +90,43 @@ def _build_table_rows(tables):
 
 
 def _http_request(url, data=b'', method='POST', timeout=300, retries=3):
-    """Make an HTTP request matching VPinball's JS client behavior."""
+    """Make an HTTP request matching VPinball's JS client behavior.
+    Uses http.client directly to avoid urllib URL re-encoding issues.
+    """
     import time
     import http.client
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
     for attempt in range(retries):
         try:
-            req = urllib.request.Request(url, data=data, method=method)
-            req.add_header('Connection', 'close')
-            resp = urllib.request.urlopen(req, timeout=timeout)
-            resp.read()
-            resp.close()
+            path_and_query = parsed.path
+            if parsed.query:
+                path_and_query += '?' + parsed.query
+            print(f"[WebSend] {method} {url} (data={len(data)} bytes, attempt {attempt+1}/{retries})")
+            print(f"[WebSend] Raw request line: {method} {path_and_query} HTTP/1.1")
+            conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=timeout)
+            conn.request(method, path_and_query, body=data, headers={
+                'Host': f'{parsed.hostname}:{parsed.port}',
+                'Connection': 'close',
+                'Content-Length': str(len(data)),
+            })
+            resp = conn.getresponse()
+            body = resp.read()
+            print(f"[WebSend] Response: {resp.status} {resp.reason}, body={body[:200]}")
+            conn.close()
+            if resp.status >= 400:
+                print(f"[WebSend] HTTPError {resp.status} {resp.reason} for {url}")
+                print(f"[WebSend] Response headers: {dict(resp.getheaders())}")
+                print(f"[WebSend] Error body: {body.decode('utf-8', errors='replace')[:500]}")
+                raise urllib.error.HTTPError(url, resp.status, resp.reason, dict(resp.getheaders()), None)
             return resp
         except urllib.error.HTTPError:
             raise
         except (urllib.error.URLError, ConnectionError, OSError, http.client.RemoteDisconnected) as e:
+            print(f"[WebSend] Connection error: {type(e).__name__}: {e}")
             if attempt < retries - 1:
                 wait = 2 * (attempt + 1)
-                print(f"[WebSend] Request failed ({e}), retrying in {wait}s... (attempt {attempt+2}/{retries})")
+                print(f"[WebSend] Retrying in {wait}s... (attempt {attempt+2}/{retries})")
                 time.sleep(wait)
             else:
                 raise
@@ -167,55 +187,61 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None):
         encoded_dir = urllib.parse.quote(rel_dir, safe='')
         encoded_file = urllib.parse.quote(fname, safe='')
 
+        print(f"[WebSend] Uploading ({i+1}/{total_files}): {rel_dir}/{fname} ({file_size} bytes)")
         if file_size == 0:
             url = f'{base_url}/upload?offset=0&q={encoded_dir}&file={encoded_file}&length=0'
             _http_request(url, data=b'', timeout=30)
         else:
             with open(full_path, 'rb') as f:
                 offset = 0
+                chunk_num = 0
+                total_chunks = (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
                 while offset < file_size:
                     chunk = f.read(CHUNK_SIZE)
                     if not chunk:
                         break
+                    chunk_num += 1
+                    print(f"[WebSend]   Chunk {chunk_num}/{total_chunks}: offset={offset}, chunk_size={len(chunk)}, file_size={file_size}")
                     url = f'{base_url}/upload?offset={offset}&q={encoded_dir}&file={encoded_file}&length={file_size}'
                     _http_request(url, data=chunk)
                     offset += len(chunk)
 
-        print(f"[WebSend] Uploaded ({i+1}/{total_files}): {rel_dir}/{fname} ({file_size} bytes)")
+        print(f"[WebSend] Done ({i+1}/{total_files}): {rel_dir}/{fname}")
 
     if progress_cb:
         progress_cb(total_files, total_files, 'Complete')
 
 
-def build():
+def build(standalone=True):
     ui.dark_mode(value=True)
 
-    ui.add_head_html('''
-    <style>
-        body {
-            margin: 0 !important;
-            padding: 0 !important;
-            background-color: #111827 !important;
-        }
-    </style>
-    ''')
+    if standalone:
+        ui.add_head_html('''
+        <style>
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background-color: #111827 !important;
+            }
+        </style>
+        ''')
 
     with ui.column().classes('w-full items-center p-4'):
         ui.label('VPinFE Mobile').classes('text-2xl font-bold text-white mb-4')
 
         with ui.tabs().classes('w-full').props('dark') as tabs:
-            vpxz_tab = ui.tab('VPXZ Download')
             websend_tab = ui.tab('Web Send')
+            vpxz_tab = ui.tab('VPXZ Download')
 
         with ui.tab_panels(tabs, value=websend_tab).classes('w-full').props('dark'):
-
-            # ── VPXZ Download Tab ──
-            with ui.tab_panel(vpxz_tab):
-                _build_vpxz_download_panel()
 
             # ── Web Send Tab ──
             with ui.tab_panel(websend_tab):
                 _build_web_send_panel()
+
+            # ── VPXZ Download Tab ──
+            with ui.tab_panel(vpxz_tab):
+                _build_vpxz_download_panel()
 
 
 def _build_vpxz_download_panel():
@@ -306,6 +332,8 @@ def _build_web_send_panel():
         port_val = e.value.strip() if e.value else '2112'
         cfg.config.set('Mobile', 'deviceport', port_val)
         cfg.save()
+
+    ui.label("This uses the the built in web server on the mobile version of vpx for Android and iOS. It allows you seamlessly transfer your tables onto your mobile device.  You must turn it on in the settings in VPX on your mobile device.  Also note this same location will show you your IP and PORT.  Thats what you put into the device configuration settings below.  The device must be kept on and VPX running when doing transfers. ").classes('text-gray-400 text-sm mb-4')
 
     # Connection settings
     with ui.card().classes('w-full bg-gray-800 p-4 mb-4'):

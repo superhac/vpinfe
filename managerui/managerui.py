@@ -242,6 +242,12 @@ def build_app():
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
+            mobile_btn = (
+                ui.button('Mobile Uploader', icon='smartphone', on_click=lambda: show_page('mobile'))
+                .classes('w-full text-white nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px;')
+                .props('flat align=left')
+            )
             config_btn = (
                 ui.button('Configuration', icon='tune', on_click=lambda: show_page('vpinfe'))
                 .classes('w-full text-white nav-btn')
@@ -270,6 +276,7 @@ def build_app():
         collections_btn.classes(remove='nav-btn-active')
         media_btn.classes(remove='nav-btn-active')
         themes_btn.classes(remove='nav-btn-active')
+        mobile_btn.classes(remove='nav-btn-active')
         config_btn.classes(remove='nav-btn-active')
 
         # Set active button
@@ -281,6 +288,8 @@ def build_app():
             media_btn.classes(add='nav-btn-active')
         elif page_key == 'themes':
             themes_btn.classes(add='nav-btn-active')
+        elif page_key == 'mobile':
+            mobile_btn.classes(add='nav-btn-active')
         elif page_key == 'vpinfe':
             config_btn.classes(add='nav-btn-active')
 
@@ -300,6 +309,8 @@ def build_app():
                 tab_media.render_panel()
             elif page_key == 'themes':
                 tab_themes.render_panel()
+            elif page_key == 'mobile':
+                tab_mobile.build(standalone=False)
             elif page_key == 'vpinfe':
                 tab_vpinfe.render_panel()
 
