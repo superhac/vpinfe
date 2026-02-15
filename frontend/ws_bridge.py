@@ -48,6 +48,8 @@ class WebSocketBridge:
         'build_metadata',
         'get_theme_config',
         'get_theme_name',
+        'get_table_orientation',
+        'get_table_rotation',
         'get_theme_assets_port',
         'get_theme_index_page',
         'send_event',
