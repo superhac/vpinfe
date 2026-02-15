@@ -89,44 +89,49 @@ def _build_table_rows(tables):
     return rows
 
 
-def _http_request(url, data=b'', method='POST', timeout=300, retries=3):
+def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=None):
     """Make an HTTP request matching VPinball's JS client behavior.
     Uses http.client directly to avoid urllib URL re-encoding issues.
+    Pass a persistent conn (http.client.HTTPConnection) to reuse the TCP connection.
     """
     import time
     import http.client
     from urllib.parse import urlparse
     parsed = urlparse(url)
+    own_conn = conn is None
     for attempt in range(retries):
         try:
             path_and_query = parsed.path
             if parsed.query:
                 path_and_query += '?' + parsed.query
-            print(f"[WebSend] {method} {url} (data={len(data)} bytes, attempt {attempt+1}/{retries})")
-            print(f"[WebSend] Raw request line: {method} {path_and_query} HTTP/1.1")
-            conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=timeout)
+            if own_conn:
+                conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=timeout)
             conn.request(method, path_and_query, body=data, headers={
                 'Host': f'{parsed.hostname}:{parsed.port}',
-                'Connection': 'close',
+                'Connection': 'keep-alive',
                 'Content-Length': str(len(data)),
             })
             resp = conn.getresponse()
             body = resp.read()
-            print(f"[WebSend] Response: {resp.status} {resp.reason}, body={body[:200]}")
-            conn.close()
+            if own_conn:
+                conn.close()
             if resp.status >= 400:
-                print(f"[WebSend] HTTPError {resp.status} {resp.reason} for {url}")
-                print(f"[WebSend] Response headers: {dict(resp.getheaders())}")
-                print(f"[WebSend] Error body: {body.decode('utf-8', errors='replace')[:500]}")
                 raise urllib.error.HTTPError(url, resp.status, resp.reason, dict(resp.getheaders()), None)
             return resp
         except urllib.error.HTTPError:
             raise
         except (urllib.error.URLError, ConnectionError, OSError, http.client.RemoteDisconnected) as e:
-            print(f"[WebSend] Connection error: {type(e).__name__}: {e}")
+            print(f"[WebSend] Connection error on attempt {attempt+1}: {type(e).__name__}: {e}")
+            if not own_conn:
+                # Reconnect the persistent connection
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=timeout)
             if attempt < retries - 1:
                 wait = 2 * (attempt + 1)
-                print(f"[WebSend] Retrying in {wait}s... (attempt {attempt+2}/{retries})")
+                print(f"[WebSend] Retrying in {wait}s...")
                 time.sleep(wait)
             else:
                 raise
@@ -139,6 +144,8 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None):
       - POST /folder?q=<relative_dir>        -> create directory
       - POST /upload?q=<dir>&file=<name>&offset=<off>&length=<size>  -> upload file chunk
     """
+    import http.client
+
     tables_path = _get_tables_path()
     table_path = os.path.join(tables_path, table_dir_name)
     base_url = f'http://{host}:{port}'
@@ -159,61 +166,59 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None):
     if total_files == 0:
         return
 
-    # Collect unique directories to create
-    dirs_to_create = set()
-    for dirpath, _, _ in os.walk(table_path):
-        rel_dir = os.path.relpath(dirpath, tables_path)
-        dirs_to_create.add(rel_dir)
+    # Single persistent connection for the entire transfer
+    conn = http.client.HTTPConnection(host, int(port), timeout=300)
 
-    # Create directories (sorted so parents come first)
-    # Match JS client: encodeURIComponent encodes everything including /
-    for rel_dir in sorted(dirs_to_create):
-        encoded_dir = urllib.parse.quote(rel_dir, safe='')
-        url = f'{base_url}/folder?q={encoded_dir}'
-        try:
-            _http_request(url, data=b'', timeout=10)
-            print(f"[WebSend] Created folder: {rel_dir}")
-        except urllib.error.HTTPError as e:
-            print(f"[WebSend] Folder create response {e.code} for {rel_dir}")
-
-    # Upload each file in 512KB chunks (matches VPinball JS client: 1024 * 512)
-    CHUNK_SIZE = 1024 * 1024 * 2  # 2MB - larger than VPinball JS client (512KB) to reduce HTTP round-trip overhead
-
-    for i, (rel_dir, fname, full_path, file_size) in enumerate(all_files):
-        if progress_cb:
-            progress_cb(i, total_files, fname)
-
-        # Match JS client URL format: /upload?offset=N&q=DIR&file=NAME&length=TOTAL
-        encoded_dir = urllib.parse.quote(rel_dir, safe='')
-        encoded_file = urllib.parse.quote(fname, safe='')
-
-        print(f"[WebSend] Uploading ({i+1}/{total_files}): {rel_dir}/{fname} ({file_size} bytes)")
-        if file_size == 0:
-            url = f'{base_url}/upload?offset=0&q={encoded_dir}&file={encoded_file}&length=0'
-            _http_request(url, data=b'', timeout=30)
-        else:
-            with open(full_path, 'rb') as f:
-                offset = 0
-                chunk_num = 0
-                total_chunks = (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
-                while offset < file_size:
-                    chunk = f.read(CHUNK_SIZE)
-                    if not chunk:
-                        break
-                    chunk_num += 1
-                    print(f"[WebSend]   Chunk {chunk_num}/{total_chunks}: offset={offset}, chunk_size={len(chunk)}, file_size={file_size}")
-                    url = f'{base_url}/upload?offset={offset}&q={encoded_dir}&file={encoded_file}&length={file_size}'
-                    _http_request(url, data=chunk)
-                    offset += len(chunk)
-
-        print(f"[WebSend] Done ({i+1}/{total_files}): {rel_dir}/{fname}")
-
-    # Tell the mobile device to reload its table list
     try:
-        _http_request(f'{base_url}/command?cmd=refresh_tables', data=b'', timeout=10)
-        print("[WebSend] Sent refresh_tables command to device")
-    except Exception as e:
-        print(f"[WebSend] Warning: refresh_tables command failed: {e}")
+        # Collect unique directories to create
+        dirs_to_create = set()
+        for dirpath, _, _ in os.walk(table_path):
+            rel_dir = os.path.relpath(dirpath, tables_path)
+            dirs_to_create.add(rel_dir)
+
+        # Create directories (sorted so parents come first)
+        for rel_dir in sorted(dirs_to_create):
+            encoded_dir = urllib.parse.quote(rel_dir, safe='')
+            url = f'{base_url}/folder?q={encoded_dir}'
+            try:
+                _http_request(url, data=b'', timeout=10, conn=conn)
+            except urllib.error.HTTPError:
+                pass
+
+        # Upload each file in 2.5MB chunks
+        CHUNK_SIZE = int(1024 * 1024 * 2.5)  # 2.5MB
+
+        for i, (rel_dir, fname, full_path, file_size) in enumerate(all_files):
+            if progress_cb:
+                progress_cb(i, total_files, fname)
+
+            encoded_dir = urllib.parse.quote(rel_dir, safe='')
+            encoded_file = urllib.parse.quote(fname, safe='')
+
+            if file_size == 0:
+                url = f'{base_url}/upload?offset=0&q={encoded_dir}&file={encoded_file}&length=0'
+                _http_request(url, data=b'', timeout=30, conn=conn)
+            else:
+                with open(full_path, 'rb') as f:
+                    offset = 0
+                    chunk_num = 0
+                    total_chunks = (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
+                    while offset < file_size:
+                        chunk = f.read(CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        chunk_num += 1
+                        url = f'{base_url}/upload?offset={offset}&q={encoded_dir}&file={encoded_file}&length={file_size}'
+                        _http_request(url, data=chunk, conn=conn)
+                        offset += len(chunk)
+
+        # Tell the mobile device to reload its table list
+        try:
+            _http_request(f'{base_url}/command?cmd=refresh_tables', data=b'', timeout=10, conn=conn)
+        except Exception:
+            pass
+    finally:
+        conn.close()
 
     if progress_cb:
         progress_cb(total_files, total_files, 'Complete')
