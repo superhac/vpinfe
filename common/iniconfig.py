@@ -6,7 +6,7 @@ class IniConfig:
 	def __init__(self, configfilepath):
 		
 		self.defaults = {
-			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '0', 'tableorientation': 'landscape', 'tablerotation': '0' },
+			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '0', 'tableorientation': 'landscape', 'tablerotation': '270' },
 			'Settings': {
 				'vpxbinpath': '',
 				'tablerootdir': '',
