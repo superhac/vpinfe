@@ -204,10 +204,11 @@ def render_panel(tab=None):
                         # Show details based on type
                         if is_filter:
                             filters = manager.get_filters(name)
-                            with ui.row().classes('mt-3 gap-4 flex-wrap'):
+                            with ui.row().classes('mt-3 gap-2 flex-wrap'):
                                 for key, value in filters.items():
                                     if value and value != 'All':
-                                        ui.chip(f'{key}: {value}', icon='label').props('outline color=purple')
+                                        for v in value.split(','):
+                                            ui.chip(f'{key}: {v.strip()}', icon='label').props('outline color=purple dense')
                         else:
                             vpsids = manager.get_vpsids(name)
                             if vpsids:
@@ -415,13 +416,20 @@ def render_panel(tab=None):
 
                 ui.label('Filter Criteria:').classes('text-sm text-gray-400 mt-4 mb-2')
 
-                # Filter dropdowns populated from table data
-                letter_input = ui.select(label='Starting Letter', options=filter_opts['letters'], value='All').classes('w-full')
-                theme_input = ui.select(label='Theme', options=filter_opts['themes'], value='All').classes('w-full')
-                type_input = ui.select(label='Table Type', options=filter_opts['types'], value='All').classes('w-full')
-                manufacturer_input = ui.select(label='Manufacturer', options=filter_opts['manufacturers'], value='All').classes('w-full')
-                year_input = ui.select(label='Year', options=filter_opts['years'], value='All').classes('w-full')
+                # Filter dropdowns populated from table data (multi-select supported)
+                # Remove 'All' from options for multi-select; empty selection means 'All'
+                letter_input = ui.select(label='Starting Letter', options=filter_opts['letters'][1:], value=[], multiple=True).classes('w-full')
+                theme_input = ui.select(label='Theme', options=filter_opts['themes'][1:], value=[], multiple=True).classes('w-full')
+                type_input = ui.select(label='Table Type', options=filter_opts['types'][1:], value=[], multiple=True).classes('w-full')
+                manufacturer_input = ui.select(label='Manufacturer', options=filter_opts['manufacturers'][1:], value=[], multiple=True).classes('w-full')
+                year_input = ui.select(label='Year', options=filter_opts['years'][1:], value=[], multiple=True).classes('w-full')
                 sort_input = ui.select(label='Sort By', options=filter_opts['sort_options'], value='Alpha').classes('w-full')
+
+                def _join_or_all(values):
+                    """Join selected values with comma, or return 'All' if none selected."""
+                    if not values:
+                        return 'All'
+                    return ','.join(str(v) for v in values)
 
                 with ui.row().classes('justify-end gap-2 mt-4'):
                     ui.button('Cancel', on_click=dlg.close).props('flat')
@@ -435,11 +443,11 @@ def render_panel(tab=None):
                             manager = get_collections_manager()
                             manager.add_filter_collection(
                                 name,
-                                letter=letter_input.value or 'All',
-                                theme=theme_input.value or 'All',
-                                table_type=type_input.value or 'All',
-                                manufacturer=manufacturer_input.value or 'All',
-                                year=year_input.value or 'All',
+                                letter=_join_or_all(letter_input.value),
+                                theme=_join_or_all(theme_input.value),
+                                table_type=_join_or_all(type_input.value),
+                                manufacturer=_join_or_all(manufacturer_input.value),
+                                year=_join_or_all(year_input.value),
                                 sort_by=sort_input.value or 'Alpha',
                             )
                             manager.save()
@@ -468,22 +476,32 @@ def render_panel(tab=None):
             # Get filter options from tables
             filter_opts = get_filter_options()
 
-            # Helper to ensure saved value is in options list
-            def ensure_value_in_options(options: list, value: str) -> list:
-                if value and value not in options:
-                    # Insert after 'All' if present, otherwise at beginning
-                    if 'All' in options:
-                        idx = options.index('All') + 1
-                        return options[:idx] + [value] + options[idx:]
-                    return [value] + options
-                return options
+            def _parse_csv_to_list(value):
+                """Parse a comma-separated filter value into a list, or empty list for 'All'."""
+                if not value or value == 'All':
+                    return []
+                return [v.strip() for v in value.split(',') if v.strip()]
 
-            # Ensure saved values are in their respective option lists
-            letter_opts = ensure_value_in_options(filter_opts['letters'], filters.get('letter', 'All'))
-            theme_opts = ensure_value_in_options(filter_opts['themes'], filters.get('theme', 'All'))
-            type_opts = ensure_value_in_options(filter_opts['types'], filters.get('table_type', 'All'))
-            manufacturer_opts = ensure_value_in_options(filter_opts['manufacturers'], filters.get('manufacturer', 'All'))
-            year_opts = ensure_value_in_options(filter_opts['years'], filters.get('year', 'All'))
+            def _ensure_values_in_options(options, values):
+                """Ensure all saved values exist in the options list."""
+                result = list(options)
+                for v in values:
+                    if v not in result:
+                        result.append(v)
+                return sorted(result)
+
+            # Parse saved values and build option lists (without 'All')
+            saved_letters = _parse_csv_to_list(filters.get('letter', 'All'))
+            saved_themes = _parse_csv_to_list(filters.get('theme', 'All'))
+            saved_types = _parse_csv_to_list(filters.get('table_type', 'All'))
+            saved_manufacturers = _parse_csv_to_list(filters.get('manufacturer', 'All'))
+            saved_years = _parse_csv_to_list(filters.get('year', 'All'))
+
+            letter_opts = _ensure_values_in_options(filter_opts['letters'][1:], saved_letters)
+            theme_opts = _ensure_values_in_options(filter_opts['themes'][1:], saved_themes)
+            type_opts = _ensure_values_in_options(filter_opts['types'][1:], saved_types)
+            manufacturer_opts = _ensure_values_in_options(filter_opts['manufacturers'][1:], saved_manufacturers)
+            year_opts = _ensure_values_in_options(filter_opts['years'][1:], saved_years)
 
             dlg = ui.dialog().props('persistent max-width=600px')
             with dlg, ui.card().classes('w-[550px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
@@ -492,13 +510,18 @@ def render_panel(tab=None):
 
                 ui.label('Filter Criteria:').classes('text-sm text-gray-400 mt-4 mb-2')
 
-                # Filter dropdowns populated from table data (with saved values ensured)
-                letter_input = ui.select(label='Starting Letter', options=letter_opts, value=filters.get('letter', 'All')).classes('w-full')
-                theme_input = ui.select(label='Theme', options=theme_opts, value=filters.get('theme', 'All')).classes('w-full')
-                type_input = ui.select(label='Table Type', options=type_opts, value=filters.get('table_type', 'All')).classes('w-full')
-                manufacturer_input = ui.select(label='Manufacturer', options=manufacturer_opts, value=filters.get('manufacturer', 'All')).classes('w-full')
-                year_input = ui.select(label='Year', options=year_opts, value=filters.get('year', 'All')).classes('w-full')
+                # Multi-select filter dropdowns
+                letter_input = ui.select(label='Starting Letter', options=letter_opts, value=saved_letters, multiple=True).classes('w-full')
+                theme_input = ui.select(label='Theme', options=theme_opts, value=saved_themes, multiple=True).classes('w-full')
+                type_input = ui.select(label='Table Type', options=type_opts, value=saved_types, multiple=True).classes('w-full')
+                manufacturer_input = ui.select(label='Manufacturer', options=manufacturer_opts, value=saved_manufacturers, multiple=True).classes('w-full')
+                year_input = ui.select(label='Year', options=year_opts, value=saved_years, multiple=True).classes('w-full')
                 sort_input = ui.select(label='Sort By', options=filter_opts['sort_options'], value=filters.get('sort_by', 'Alpha')).classes('w-full')
+
+                def _join_or_all(values):
+                    if not values:
+                        return 'All'
+                    return ','.join(str(v) for v in values)
 
                 with ui.row().classes('justify-end gap-2 mt-4'):
                     ui.button('Cancel', on_click=dlg.close).props('flat')
@@ -506,12 +529,11 @@ def render_panel(tab=None):
                     def save_changes():
                         try:
                             m = get_collections_manager()
-                            # Update filter values
-                            m.config[name]['letter'] = letter_input.value or 'All'
-                            m.config[name]['theme'] = theme_input.value or 'All'
-                            m.config[name]['table_type'] = type_input.value or 'All'
-                            m.config[name]['manufacturer'] = manufacturer_input.value or 'All'
-                            m.config[name]['year'] = year_input.value or 'All'
+                            m.config[name]['letter'] = _join_or_all(letter_input.value)
+                            m.config[name]['theme'] = _join_or_all(theme_input.value)
+                            m.config[name]['table_type'] = _join_or_all(type_input.value)
+                            m.config[name]['manufacturer'] = _join_or_all(manufacturer_input.value)
+                            m.config[name]['year'] = _join_or_all(year_input.value)
                             m.config[name]['sort_by'] = sort_input.value or 'Alpha'
                             m.save()
                             ui.notify(f'Collection "{name}" updated', type='positive')
