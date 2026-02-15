@@ -177,7 +177,7 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None):
             print(f"[WebSend] Folder create response {e.code} for {rel_dir}")
 
     # Upload each file in 512KB chunks (matches VPinball JS client: 1024 * 512)
-    CHUNK_SIZE = 1024 * 512  # 512KB - same as official VPinball web client
+    CHUNK_SIZE = 1024 * 1024 * 2  # 2MB - larger than VPinball JS client (512KB) to reduce HTTP round-trip overhead
 
     for i, (rel_dir, fname, full_path, file_size) in enumerate(all_files):
         if progress_cb:
