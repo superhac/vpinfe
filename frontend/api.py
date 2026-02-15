@@ -575,6 +575,12 @@ class API:
     def get_theme_name(self):
         return self._iniConfig.config['Settings'].get('theme', 'default')
 
+    def get_table_orientation(self):
+        return self._iniConfig.config['Displays'].get('tableorientation', 'landscape')
+
+    def get_table_rotation(self):
+        return int(self._iniConfig.config['Displays'].get('tablerotation', '0'))
+
     def get_theme_assets_port(self):
         return int(self._iniConfig.config['Network'].get('themeassetsport', '8000'))
 
