@@ -90,37 +90,28 @@ def _build_table_rows(tables):
 
 
 def _http_request(url, data=b'', method='POST', timeout=300, retries=3):
-    """Make an HTTP request matching VPinball's JS client behavior.
-    Uses http.client directly to avoid urllib URL re-encoding issues.
-    """
+    """Make an HTTP request matching VPinball's JS client behavior."""
     import time
     import http.client
-    from urllib.parse import urlparse
-    parsed = urlparse(url)
     for attempt in range(retries):
         try:
-            path_and_query = parsed.path
-            if parsed.query:
-                path_and_query += '?' + parsed.query
             print(f"[WebSend] {method} {url} (data={len(data)} bytes, attempt {attempt+1}/{retries})")
-            print(f"[WebSend] Raw request line: {method} {path_and_query} HTTP/1.1")
-            conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=timeout)
-            conn.request(method, path_and_query, body=data, headers={
-                'Host': f'{parsed.hostname}:{parsed.port}',
-                'Connection': 'close',
-                'Content-Length': str(len(data)),
-            })
-            resp = conn.getresponse()
+            req = urllib.request.Request(url, data=data, method=method)
+            req.add_header('Connection', 'close')
+            resp = urllib.request.urlopen(req, timeout=timeout)
             body = resp.read()
             print(f"[WebSend] Response: {resp.status} {resp.reason}, body={body[:200]}")
-            conn.close()
-            if resp.status >= 400:
-                print(f"[WebSend] HTTPError {resp.status} {resp.reason} for {url}")
-                print(f"[WebSend] Response headers: {dict(resp.getheaders())}")
-                print(f"[WebSend] Error body: {body.decode('utf-8', errors='replace')[:500]}")
-                raise urllib.error.HTTPError(url, resp.status, resp.reason, dict(resp.getheaders()), None)
+            resp.close()
             return resp
-        except urllib.error.HTTPError:
+        except urllib.error.HTTPError as e:
+            error_body = ''
+            try:
+                error_body = e.read().decode('utf-8', errors='replace')[:500]
+            except Exception:
+                pass
+            print(f"[WebSend] HTTPError {e.code} {e.reason} for {url}")
+            print(f"[WebSend] Response headers: {dict(e.headers)}")
+            print(f"[WebSend] Error body: {error_body}")
             raise
         except (urllib.error.URLError, ConnectionError, OSError, http.client.RemoteDisconnected) as e:
             print(f"[WebSend] Connection error: {type(e).__name__}: {e}")
