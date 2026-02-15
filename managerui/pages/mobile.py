@@ -224,6 +224,19 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None):
         progress_cb(total_files, total_files, 'Complete')
 
 
+def _delete_table_from_device(host, port, table_dir_name):
+    """Delete a table directory from the mobile device via POST /delete?q=<path>."""
+    base_url = f'http://{host}:{port}'
+    encoded_dir = urllib.parse.quote(table_dir_name, safe='')
+    url = f'{base_url}/delete?q={encoded_dir}'
+    _http_request(url, data=b'', timeout=30)
+    # Tell the mobile device to reload its table list
+    try:
+        _http_request(f'{base_url}/command?cmd=refresh_tables', data=b'', timeout=10)
+    except Exception:
+        pass
+
+
 def build(standalone=True):
     ui.dark_mode(value=True)
 
@@ -513,8 +526,10 @@ def _build_web_send_panel():
 
             tbl.add_slot('body-cell-display_name', '''
                 <q-td :props="props">
-                    <q-btn flat dense icon="send" color="green" class="q-mr-sm"
+                    <q-btn v-if="!props.row.installed" flat dense icon="send" color="green" class="q-mr-sm"
                         @click.stop="$parent.$emit('websend', props.row)" />
+                    <q-btn v-if="props.row.installed" flat dense icon="delete" color="red" class="q-mr-sm"
+                        @click.stop="$parent.$emit('webdelete', props.row)" />
                     <q-icon v-if="props.row.installed" name="check_circle" color="light-green" class="q-mr-xs" />
                     <span :style="props.row.installed ? 'color: #81c784;' : ''">
                         {{ props.row.display_name }}
@@ -537,6 +552,35 @@ def _build_web_send_panel():
                     await check_device()
 
             tbl.on('websend', handle_send)
+
+            async def handle_delete(e):
+                name = e.args['table_dir_name']
+                host = ip_input.value.strip()
+                port = port_input.value.strip()
+
+                if not host or not port:
+                    ui.notify('Please enter IP and Port', type='warning')
+                    return
+
+                with ui.dialog() as dlg, ui.card().classes('bg-gray-800 p-6'):
+                    ui.label(f'Delete "{name}" from device?').classes('text-white font-bold')
+                    ui.label('This will permanently remove the table from the mobile device.').classes('text-gray-400 text-sm')
+                    with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                        ui.button('Cancel', on_click=dlg.close).props('flat').classes('text-white')
+                        ui.button('Delete', on_click=lambda: dlg.submit(True)).props('color=red')
+                dlg.open()
+                result = await dlg
+                if not result:
+                    return
+
+                try:
+                    await run.io_bound(lambda: _delete_table_from_device(host, port, name))
+                    ui.notify(f'Deleted "{name}" from device', type='positive')
+                    await check_device()
+                except Exception as ex:
+                    ui.notify(f'Delete failed: {ex}', type='negative')
+
+            tbl.on('webdelete', handle_delete)
 
         # Auto-check device after tables load if IP is configured
         if saved_ip:
