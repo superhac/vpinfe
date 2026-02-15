@@ -208,6 +208,13 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None):
 
         print(f"[WebSend] Done ({i+1}/{total_files}): {rel_dir}/{fname}")
 
+    # Tell the mobile device to reload its table list
+    try:
+        _http_request(f'{base_url}/command?cmd=refresh_tables', data=b'', timeout=10)
+        print("[WebSend] Sent refresh_tables command to device")
+    except Exception as e:
+        print(f"[WebSend] Warning: refresh_tables command failed: {e}")
+
     if progress_cb:
         progress_cb(total_files, total_files, 'Complete')
 
