@@ -234,6 +234,7 @@ def parseArgs():
     parser.add_argument("--buildmeta", action="store_true", help="Builds the meta.ini file in each table dir")
     parser.add_argument("--vpxpatch", action="store_true", help="Attempt to apply patches automatically")
     parser.add_argument("--gamepadtest", action="store_true", help="Test and map your gamepad via JS API")
+    parser.add_argument("--headless", action="store_true", help="Run web servers/services only, skip the pywebview frontend")
 
     # Secondary args
     parser.add_argument("--no-media", action="store_true", help="Do not download images when building meta.ini")
@@ -278,4 +279,6 @@ def parseArgs():
     if args.vpxpatch:
         vpxPatches()
         sys.exit()
+
+    return args
 
