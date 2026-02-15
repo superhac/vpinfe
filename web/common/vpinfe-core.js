@@ -35,6 +35,10 @@ class VPinFECore {
     this.managerUiPort = 8001; // default manager UI port
     this.wsPort = 8002; // WebSocket bridge port
 
+    // Display config
+    this.tableOrientation = 'landscape'; // default, will be updated from config
+    this.tableRotation = 0; // default, will be updated from config
+
     // Remote launch state tracking
     this.remoteLaunchActive = false;
 
@@ -329,6 +333,9 @@ class VPinFECore {
     console.log("WebSocket bridge is ready!");
     // Load network config
     this.themeAssetsPort = await this.call("get_theme_assets_port");
+    // Load display config
+    this.tableOrientation = await this.call("get_table_orientation");
+    this.tableRotation = await this.call("get_table_rotation");
     await this.#loadMonitors();
     await this.getTableData();
 
