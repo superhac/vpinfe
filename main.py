@@ -6,6 +6,7 @@ from screeninfo import get_monitors
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
 import threading
+import signal
 from common.iniconfig import IniConfig
 import sys
 import os
@@ -167,6 +168,19 @@ http_server.start_file_server(port=theme_assets_port)
 # Start the NiceGUI HTTP server
 manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
 start_manager_ui(port=manager_ui_port)
+
+# Windows CTRL-C workaround: Python on Windows cannot deliver KeyboardInterrupt
+# while the main thread is blocked in threading.Event.wait() or a native GUI loop.
+if sys.platform == "win32":
+    def _sigint_handler(sig, frame):
+        print("\n[VPinFE] Shutting down...")
+        for name, win, api in webview_windows:
+            try:
+                win.destroy()
+            except Exception:
+                pass
+        sys.exit(0)
+    signal.signal(signal.SIGINT, _sigint_handler)
 
 if headless:
     print(f"[VPinFE] Running in headless mode (no frontend)")
