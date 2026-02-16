@@ -416,13 +416,24 @@ def render_panel(tab=None):
 
                 ui.label('Filter Criteria:').classes('text-sm text-gray-400 mt-4 mb-2')
 
-                # Filter dropdowns populated from table data (multi-select supported)
-                # Remove 'All' from options for multi-select; empty selection means 'All'
-                letter_input = ui.select(label='Starting Letter', options=filter_opts['letters'][1:], value=[], multiple=True).classes('w-full')
-                theme_input = ui.select(label='Theme', options=filter_opts['themes'][1:], value=[], multiple=True).classes('w-full')
-                type_input = ui.select(label='Table Type', options=filter_opts['types'][1:], value=[], multiple=True).classes('w-full')
-                manufacturer_input = ui.select(label='Manufacturer', options=filter_opts['manufacturers'][1:], value=[], multiple=True).classes('w-full')
-                year_input = ui.select(label='Year', options=filter_opts['years'][1:], value=[], multiple=True).classes('w-full')
+                # Multi-select filter dropdowns (empty selection = All)
+                _ms_props = 'clearable use-chips multiple'
+
+                def _make_label_updater(select, base_label):
+                    def update(e):
+                        select.label = base_label if e.value else f'{base_label} (All)'
+                    return update
+
+                letter_input = ui.select(label='Starting Letter (All)', options=filter_opts['letters'][1:], value=[], multiple=True).props(_ms_props).classes('w-full')
+                letter_input.on_value_change(_make_label_updater(letter_input, 'Starting Letter'))
+                theme_input = ui.select(label='Theme (All)', options=filter_opts['themes'][1:], value=[], multiple=True).props(_ms_props).classes('w-full')
+                theme_input.on_value_change(_make_label_updater(theme_input, 'Theme'))
+                type_input = ui.select(label='Table Type (All)', options=filter_opts['types'][1:], value=[], multiple=True).props(_ms_props).classes('w-full')
+                type_input.on_value_change(_make_label_updater(type_input, 'Table Type'))
+                manufacturer_input = ui.select(label='Manufacturer (All)', options=filter_opts['manufacturers'][1:], value=[], multiple=True).props(_ms_props).classes('w-full')
+                manufacturer_input.on_value_change(_make_label_updater(manufacturer_input, 'Manufacturer'))
+                year_input = ui.select(label='Year (All)', options=filter_opts['years'][1:], value=[], multiple=True).props(_ms_props).classes('w-full')
+                year_input.on_value_change(_make_label_updater(year_input, 'Year'))
                 sort_input = ui.select(label='Sort By', options=filter_opts['sort_options'], value='Alpha').classes('w-full')
 
                 def _join_or_all(values):
@@ -510,12 +521,27 @@ def render_panel(tab=None):
 
                 ui.label('Filter Criteria:').classes('text-sm text-gray-400 mt-4 mb-2')
 
-                # Multi-select filter dropdowns
-                letter_input = ui.select(label='Starting Letter', options=letter_opts, value=saved_letters, multiple=True).classes('w-full')
-                theme_input = ui.select(label='Theme', options=theme_opts, value=saved_themes, multiple=True).classes('w-full')
-                type_input = ui.select(label='Table Type', options=type_opts, value=saved_types, multiple=True).classes('w-full')
-                manufacturer_input = ui.select(label='Manufacturer', options=manufacturer_opts, value=saved_manufacturers, multiple=True).classes('w-full')
-                year_input = ui.select(label='Year', options=year_opts, value=saved_years, multiple=True).classes('w-full')
+                # Multi-select filter dropdowns (empty selection = All)
+                _ms_props = 'clearable use-chips multiple'
+
+                def _make_label_updater(select, base_label):
+                    def update(e):
+                        select.label = base_label if e.value else f'{base_label} (All)'
+                    return update
+
+                def _init_label(base_label, values):
+                    return base_label if values else f'{base_label} (All)'
+
+                letter_input = ui.select(label=_init_label('Starting Letter', saved_letters), options=letter_opts, value=saved_letters, multiple=True).props(_ms_props).classes('w-full')
+                letter_input.on_value_change(_make_label_updater(letter_input, 'Starting Letter'))
+                theme_input = ui.select(label=_init_label('Theme', saved_themes), options=theme_opts, value=saved_themes, multiple=True).props(_ms_props).classes('w-full')
+                theme_input.on_value_change(_make_label_updater(theme_input, 'Theme'))
+                type_input = ui.select(label=_init_label('Table Type', saved_types), options=type_opts, value=saved_types, multiple=True).props(_ms_props).classes('w-full')
+                type_input.on_value_change(_make_label_updater(type_input, 'Table Type'))
+                manufacturer_input = ui.select(label=_init_label('Manufacturer', saved_manufacturers), options=manufacturer_opts, value=saved_manufacturers, multiple=True).props(_ms_props).classes('w-full')
+                manufacturer_input.on_value_change(_make_label_updater(manufacturer_input, 'Manufacturer'))
+                year_input = ui.select(label=_init_label('Year', saved_years), options=year_opts, value=saved_years, multiple=True).props(_ms_props).classes('w-full')
+                year_input.on_value_change(_make_label_updater(year_input, 'Year'))
                 sort_input = ui.select(label='Sort By', options=filter_opts['sort_options'], value=filters.get('sort_by', 'Alpha')).classes('w-full')
 
                 def _join_or_all(values):
