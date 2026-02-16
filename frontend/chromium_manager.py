@@ -33,6 +33,17 @@ def get_chromium_path():
     system = platform.system()
 
     if system == "Windows":
+        # Check common system Chrome/Chromium install paths first
+        common_paths = [
+            os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%ProgramFiles%\Chromium\Application\chrome.exe"),
+            os.path.expandvars(r"%LocalAppData%\Chromium\Application\chrome.exe"),
+        ]
+        for path in common_paths:
+            if os.path.isfile(path):
+                return path
         return resource_path("chromium/windows/chrome-win/chrome.exe")
     elif system == "Darwin":
         return resource_path("chromium/Chromium.app/Contents/MacOS/Chromium")
