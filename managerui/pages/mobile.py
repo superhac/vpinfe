@@ -117,7 +117,7 @@ def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=Non
                 conn.close()
             if resp.status >= 400:
                 raise urllib.error.HTTPError(url, resp.status, resp.reason, dict(resp.getheaders()), None)
-            return resp
+            return conn
         except urllib.error.HTTPError:
             raise
         except (urllib.error.URLError, ConnectionError, OSError, http.client.RemoteDisconnected) as e:
@@ -181,7 +181,7 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None, chunk_si
             encoded_dir = urllib.parse.quote(rel_dir.replace(os.sep, '/'), safe='/')
             url = f'{base_url}/folder?q={encoded_dir}'
             try:
-                _http_request(url, data=b'', timeout=10, conn=conn)
+                conn = _http_request(url, data=b'', timeout=10, conn=conn)
             except urllib.error.HTTPError:
                 pass
 
@@ -196,7 +196,7 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None, chunk_si
 
             if file_size == 0:
                 url = f'{base_url}/upload?offset=0&q={encoded_dir}&file={encoded_file}&length=0'
-                _http_request(url, data=b'', timeout=30, conn=conn)
+                conn = _http_request(url, data=b'', timeout=30, conn=conn)
             else:
                 with open(full_path, 'rb') as f:
                     offset = 0
@@ -208,12 +208,12 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None, chunk_si
                             break
                         chunk_num += 1
                         url = f'{base_url}/upload?offset={offset}&q={encoded_dir}&file={encoded_file}&length={file_size}'
-                        _http_request(url, data=chunk, conn=conn)
+                        conn = _http_request(url, data=chunk, conn=conn)
                         offset += len(chunk)
 
         # Tell the mobile device to reload its table list
         try:
-            _http_request(f'{base_url}/command?cmd=refresh_tables', data=b'', timeout=10, conn=conn)
+            conn = _http_request(f'{base_url}/command?cmd=refresh_tables', data=b'', timeout=10, conn=conn)
         except Exception:
             pass
     finally:
