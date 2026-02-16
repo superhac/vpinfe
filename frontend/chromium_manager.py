@@ -8,6 +8,7 @@ positioned on the correct monitor with fullscreen.
 
 import os
 import sys
+from shutil import which
 import platform
 import subprocess
 import tempfile
@@ -36,6 +37,10 @@ def get_chromium_path():
     elif system == "Darwin":
         return resource_path("chromium/Chromium.app/Contents/MacOS/Chromium")
     elif system == "Linux":
+        # Check if chromium is locally available on the system. 
+        # If so use that instead of bundled chromium.
+        if which("chromium") is not None:
+            return which("chromium")
         return resource_path("chromium/linux/chrome/chrome")
     else:
         raise RuntimeError(f"Unsupported OS: {system}")
