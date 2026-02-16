@@ -6,7 +6,6 @@ from screeninfo import get_monitors
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
 import threading
-import signal
 from common.iniconfig import IniConfig
 import sys
 import os
