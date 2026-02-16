@@ -33,7 +33,7 @@ def _norm_path(p: str) -> str:
         return os.path.normpath(p).lower()
 
 
-def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_cb=None, log_cb=None):
+def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName: str = None, progress_cb=None, log_cb=None):
 
     def log(msg):
         print(msg)
@@ -46,6 +46,14 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, progress_c
     tp = TableParser(iniconfig.config['Settings']['tablerootdir'], iniconfig)
     tp.loadTables(reload=True)
     tables = tp.getAllTables()
+
+    if tableName:
+        tables = [t for t in tables if t.tableDirName == tableName]
+        if not tables:
+            log(f"Table folder '{tableName}' not found")
+            return {"found": 0, "not_found": 0}
+        log(f"Processing single table: {tableName}")
+
     total = len(tables)
 
     vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
@@ -239,6 +247,7 @@ def parseArgs():
     # Secondary args
     parser.add_argument("--no-media", action="store_true", help="Do not download images when building meta.ini")
     parser.add_argument("--update-all", action="store_true", help="Reparse all tables when building meta.ini")
+    parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta")
 
     args, unknown = parser.parse_known_args()  # macOS-friendly parsing
 
@@ -269,7 +278,7 @@ def parseArgs():
         configfile = args.configfile  # TODO: wire into IniConfig if needed
 
     if args.buildmeta:
-        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all)
+        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all, tableName=args.table)
         sys.exit()
 
     if args.gamepadtest:
