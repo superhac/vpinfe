@@ -156,3 +156,21 @@ jobs:
         with:
           name: vpinfe-Windows-slim
           path: dist/
+
+      # 13. Build macOS slim variant (no bundled Chromium - uses system Chrome/Chromium)
+      - name: Build slim app with PyInstaller (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          rm -rf build dist
+          pyinstaller --onedir --noconfirm --name vpinfe \
+            --add-data "web:web" \
+            --add-data "managerui/static:managerui/static" \
+            main.py
+        shell: bash
+
+      - name: Upload slim build artifact (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpinfe-macOS-slim
+          path: dist/

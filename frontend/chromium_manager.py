@@ -46,6 +46,16 @@ def get_chromium_path():
                 return path
         return resource_path("chromium/windows/chrome-win/chrome.exe")
     elif system == "Darwin":
+        # Check common system Chrome/Chromium install paths first
+        common_paths = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            os.path.expanduser("~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+            os.path.expanduser("~/Applications/Chromium.app/Contents/MacOS/Chromium"),
+        ]
+        for path in common_paths:
+            if os.path.isfile(path):
+                return path
         return resource_path("chromium/Chromium.app/Contents/MacOS/Chromium")
     elif system == "Linux":
         # Check if chromium is locally available on the system. 
