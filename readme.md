@@ -10,6 +10,7 @@
 - Automatic [vpx patching](https://github.com/jsm174/vpx-standalone-scripts) for Linux & Mac
 - Fully customizable UI theming using HTML, JS and CSS
 - JSON-based table metadata with VPX file parsing and feature detection
+- Mobile transfer support for VPinball on Android and iOS (Web Send & VPXZ Download)
 
 ## Themes
 Cab
@@ -57,7 +58,7 @@ git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
 python3 -m venv vvv --system-site-packages
 source vvv/bin/activate
-pip install nicegui screeninfo colorama olefile pynput nicegui==2.* websockets platformdirs
+pip install nicegui screeninfo colorama olefile pynput nicegui==2.* pywebview platformdirs
 deactivate
 
 # then run like this inside the vpinfe dir
@@ -71,7 +72,7 @@ git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
 python3 -m venv vvv --system-site-packages
 source vvv/bin/activate
-pip install websockets nicegui screeninfo colorama
+pip install pywebview nicegui screeninfo colorama
 deactivate
 
 # then run like this inside the vpinfe dir
@@ -119,7 +120,7 @@ cd vpinfe
 python -m pip install —-upgrade pip
 python -m venv venv-vpinfe --system-site-packages
 .\venv-vpinfe\scripts\Activate.ps1
-pip install websockets screeninfo colorama requests olefile nicegui pynput
+pip install pywebview screeninfo colorama requests olefile nicegui pynput
 python main.py -h
 ```
 * add Shortcut to this Script on the Desktop
@@ -357,7 +358,6 @@ options:
 | ----------------- | ------------------------------------------------------------------------- |
 | themeassetsport   | Port for the theme assets HTTP server. Default is `8000`.                 |
 | manageruiport     | Port for the Manager UI (NiceGUI) server. Default is `8001`.              |
-| wsport            | Port for the WebSocket bridge (JS↔Python communication). Default is `8002`. |
 
 ## Table Metadata File (based on the Zero install table format)
 When you run VPinFE with the `--buildmeta` option it recursively goes through your table directory attempts to match your tables to their VPSDB id.  When matched, it will then parse the VPX for the table for more meta information and produce a `TABLE FOLDER NAME(manufactuer year).info` in that tables directory.  Heres an example for the table 1-2-3:
@@ -521,26 +521,51 @@ VPinFE can automaticlly pull patches from [vpx-standalone-scripts](https://githu
 ## Server Listeners
 There are three server listeners started on your machine:
 
-| Service   | Bound Address/Port | Description                                                           |
-| --------- | ---------------    | --------------------------------------------------------------------- |
-| HTTP      | 127.0.0.1:8000     | Python HTTPServer. Serves tables media assets and themes (configurable) |
-| HTTP      | 0.0.0.0:8001       | NiceGui server. Handles the UI for configuration and management (configurable) |
-| WebSocket | 127.0.0.1:8002     | WebSocket bridge. JS↔Python API communication for Chromium windows (configurable) |
+| Service | Bound Address/Port | Description                                                           |
+| ------- | ---------------    | --------------------------------------------------------------------- |
+| HTTP    | 127.0.0.1:RANDOM   | PyWebView server.  Frontend UI/Themes                                 |
+| HTTP    | 127.0.0.1:8000     | Python HTTPServer. Serves tables media assets (configurable)          |
+| HTTP    | 0.0.0.0:8001       | NiceGui sever.  Handles the UI for configuration and management (configurable) |
 
-The only service that is externally accessible from your machine is the NiceGUI management UI. This is setup like this so people with cabinets can administer it remotely.
+The only service that externally accessable from your machine its UI for managing it.  This is setup like this so people with cabinets can administer it remotely.
 
-The ports can be configured in your `vpinfe.ini` file under the `[Network]` section:
+The ports for the theme assets server and manager UI can be configured in your `vpinfe.ini` file under the `[Network]` section:
 
 ```ini
 [Network]
 themeassetsport = 8000
 manageruiport = 8001
-wsport = 8002
 ```
 
 External Web Endpoints:
 - Table/VPX Configuration and Management: http://{YOUR-IP}:8001
 - Remote Control: http://{YOUR-IP}:8001/remote
+- Mobile Uploader: http://{YOUR-IP}:8001/mobile
+
+## Mobile Transfer
+
+VPinFE includes a mobile transfer feature for sending tables to the mobile version of VPinball on Android and iOS. Access it from the Manager UI sidebar ("Mobile Uploader") or directly at `http://{YOUR-IP}:8001/mobile`.
+
+### Web Send
+Transfers tables directly to a mobile device running VPinball's built-in web server. To use this:
+
+1. Open VPinball on your mobile device and enable the web server in its settings
+2. Note the IP address and port displayed in VPinball's settings
+3. Enter the device IP and port in VPinFE's Mobile Uploader connection settings (saved to `vpinfe.ini` under `[Mobile]`)
+4. Click "Check Device" to verify the connection and see which tables are already installed
+5. Send individual tables or batch-send multiple selected tables
+
+Tables already on the device are shown with a green checkmark. You can also delete tables from the device directly.
+
+### VPXZ Download
+Packages any of your tables into a `.vpxz` archive (zip format) for manual transfer. Click the download icon next to a table to generate and download the archive.
+
+### vpinfe.ini [Mobile]
+| Key        | Description                                              |
+| ---------- | -------------------------------------------------------- |
+| deviceip   | IP address of the mobile device running VPinball         |
+| deviceport | Port of the mobile device's web server. Default is `2112` |
+| chunksize  | Upload chunk size in bytes. Default is `1048576` (1MB)    |
 
 # Enabling the Shutdown Feature
 If you plan on using the Shutdown/Reboot option in the frontend or in the remote you need to have the right permissions on some systems:

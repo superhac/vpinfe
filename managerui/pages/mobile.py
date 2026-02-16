@@ -137,7 +137,7 @@ def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=Non
                 raise
 
 
-def _send_table_to_device(host, port, table_dir_name, progress_cb=None):
+def _send_table_to_device(host, port, table_dir_name, progress_cb=None, chunk_size=1048576):
     """Send all files in a table folder to the mobile device via its HTTP API.
 
     Protocol (Mongoose-based WebServer on mobile device):
@@ -185,8 +185,7 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None):
             except urllib.error.HTTPError:
                 pass
 
-        # Upload each file in 2.5MB chunks
-        CHUNK_SIZE = int(1024 * 1024 * 2.5)  # 2.5MB
+        CHUNK_SIZE = int(chunk_size)
 
         for i, (rel_dir, fname, full_path, file_size) in enumerate(all_files):
             if progress_cb:
@@ -347,6 +346,7 @@ def _build_web_send_panel():
     cfg = _get_ini_config()
     saved_ip = cfg.config.get('Mobile', 'deviceip', fallback='').strip()
     saved_port = cfg.config.get('Mobile', 'deviceport', fallback='2112').strip()
+    saved_chunk = cfg.config.get('Mobile', 'chunksize', fallback='1048576').strip()
 
     def _save_ip(e):
         ip_val = e.value.strip() if e.value else ''
@@ -358,6 +358,11 @@ def _build_web_send_panel():
         cfg.config.set('Mobile', 'deviceport', port_val)
         cfg.save()
 
+    def _save_chunk(e):
+        chunk_val = e.value.strip() if e.value else '1048576'
+        cfg.config.set('Mobile', 'chunksize', chunk_val)
+        cfg.save()
+
     ui.label("This uses the the built in web server on the mobile version of vpx for Android and iOS. It allows you seamlessly transfer your tables onto your mobile device.  You must turn it on in the settings in VPX on your mobile device.  Also note this same location will show you your IP and PORT.  Thats what you put into the device configuration settings below.  The device must be kept on and VPX running when doing transfers. ").classes('text-gray-400 text-sm mb-4')
 
     # Connection settings
@@ -366,6 +371,7 @@ def _build_web_send_panel():
         with ui.row().classes('items-end gap-4 w-full'):
             ip_input = ui.input('IP Address', value=saved_ip, on_change=_save_ip).props('dark outlined dense').classes('flex-grow')
             port_input = ui.input('Port', value=saved_port, on_change=_save_port).props('dark outlined dense').style('max-width: 100px;')
+            chunk_input = ui.input('Chunk Size (bytes)', value=saved_chunk, on_change=_save_chunk).props('dark outlined dense').style('max-width: 160px;')
             check_btn = ui.button('Check Device', icon='sync', on_click=lambda: check_device()) \
                 .props('dense outline').classes('text-white')
 
@@ -449,7 +455,8 @@ def _build_web_send_panel():
 
         def do_send():
             try:
-                _send_table_to_device(host, port, name, progress_cb=progress_cb)
+                cs = int(chunk_input.value.strip() or '1048576')
+                _send_table_to_device(host, port, name, progress_cb=progress_cb, chunk_size=cs)
                 state['done'] = True
             except Exception as ex:
                 state['error'] = str(ex)
