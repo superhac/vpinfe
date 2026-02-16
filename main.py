@@ -169,22 +169,26 @@ http_server.start_file_server(port=theme_assets_port)
 manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
 start_manager_ui(port=manager_ui_port)
 
-# Windows CTRL-C workaround: Python on Windows cannot deliver KeyboardInterrupt
-# while the main thread is blocked in threading.Event.wait() or a native GUI loop.
+# Windows CTRL-C workaround: Python's signal module cannot interrupt native GUI
+# loops, so we use the Win32 SetConsoleCtrlHandler API which runs on its own OS thread.
 if sys.platform == "win32":
-    def _sigint_handler(sig, frame):
-        print("\n[VPinFE] Shutting down...")
-        try:
-            http_server.on_closed()
-        except Exception:
-            pass
-        try:
-            nicegui_app.shutdown()
-            stop_manager_ui()
-        except Exception:
-            pass
-        os._exit(0)
-    signal.signal(signal.SIGINT, _sigint_handler)
+    import ctypes
+    def _console_ctrl_handler(ctrl_type):
+        if ctrl_type == 0:  # CTRL_C_EVENT
+            print("\n[VPinFE] Shutting down...")
+            try:
+                http_server.on_closed()
+            except Exception:
+                pass
+            try:
+                nicegui_app.shutdown()
+                stop_manager_ui()
+            except Exception:
+                pass
+            os._exit(0)
+        return False
+    _handler_func = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_ulong)(_console_ctrl_handler)
+    ctypes.windll.kernel32.SetConsoleCtrlHandler(_handler_func, True)
 
 if headless:
     print(f"[VPinFE] Running in headless mode (no frontend)")
