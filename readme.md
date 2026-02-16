@@ -10,6 +10,7 @@
 - Automatic [vpx patching](https://github.com/jsm174/vpx-standalone-scripts) for Linux & Mac
 - Fully customizable UI theming using HTML, JS and CSS
 - JSON-based table metadata with VPX file parsing and feature detection
+- Mobile transfer support for VPinball on Android and iOS (Web Send & VPXZ Download)
 
 ## Themes
 Cab
@@ -539,6 +540,31 @@ manageruiport = 8001
 External Web Endpoints:
 - Table/VPX Configuration and Management: http://{YOUR-IP}:8001
 - Remote Control: http://{YOUR-IP}:8001/remote
+- Mobile Uploader: http://{YOUR-IP}:8001/mobile
+
+## Mobile Transfer
+
+VPinFE includes a mobile transfer feature for sending tables to the mobile version of VPinball on Android and iOS. Access it from the Manager UI sidebar ("Mobile Uploader") or directly at `http://{YOUR-IP}:8001/mobile`.
+
+### Web Send
+Transfers tables directly to a mobile device running VPinball's built-in web server. To use this:
+
+1. Open VPinball on your mobile device and enable the web server in its settings
+2. Note the IP address and port displayed in VPinball's settings
+3. Enter the device IP and port in VPinFE's Mobile Uploader connection settings (saved to `vpinfe.ini` under `[Mobile]`)
+4. Click "Check Device" to verify the connection and see which tables are already installed
+5. Send individual tables or batch-send multiple selected tables
+
+Tables already on the device are shown with a green checkmark. You can also delete tables from the device directly.
+
+### VPXZ Download
+Packages any of your tables into a `.vpxz` archive (zip format) for manual transfer. Click the download icon next to a table to generate and download the archive.
+
+### vpinfe.ini [Mobile]
+| Key        | Description                                              |
+| ---------- | -------------------------------------------------------- |
+| deviceip   | IP address of the mobile device running VPinball         |
+| deviceport | Port of the mobile device's web server. Default is `2112` |
 
 # Enabling the Shutdown Feature
 If you plan on using the Shutdown/Reboot option in the frontend or in the remote you need to have the right permissions on some systems:
