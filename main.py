@@ -174,12 +174,16 @@ start_manager_ui(port=manager_ui_port)
 if sys.platform == "win32":
     def _sigint_handler(sig, frame):
         print("\n[VPinFE] Shutting down...")
-        for name, win, api in webview_windows:
-            try:
-                win.destroy()
-            except Exception:
-                pass
-        sys.exit(0)
+        try:
+            http_server.on_closed()
+        except Exception:
+            pass
+        try:
+            nicegui_app.shutdown()
+            stop_manager_ui()
+        except Exception:
+            pass
+        os._exit(0)
     signal.signal(signal.SIGINT, _sigint_handler)
 
 if headless:
