@@ -178,7 +178,7 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None):
 
         # Create directories (sorted so parents come first)
         for rel_dir in sorted(dirs_to_create):
-            encoded_dir = urllib.parse.quote(rel_dir, safe='')
+            encoded_dir = urllib.parse.quote(rel_dir.replace(os.sep, '/'), safe='/')
             url = f'{base_url}/folder?q={encoded_dir}'
             try:
                 _http_request(url, data=b'', timeout=10, conn=conn)
@@ -192,7 +192,7 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None):
             if progress_cb:
                 progress_cb(i, total_files, fname)
 
-            encoded_dir = urllib.parse.quote(rel_dir, safe='')
+            encoded_dir = urllib.parse.quote(rel_dir.replace(os.sep, '/'), safe='/')
             encoded_file = urllib.parse.quote(fname, safe='')
 
             if file_size == 0:
