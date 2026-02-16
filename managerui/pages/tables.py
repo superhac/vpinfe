@@ -1322,12 +1322,50 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
         # Header
         with ui.row().classes('table-dialog-header w-full items-center gap-3'):
             ui.icon('casino', size='32px').classes('text-white')
-            with ui.column().classes('gap-0'):
+            with ui.column().classes('gap-0 flex-grow'):
                 ui.label(table_name).classes('text-xl font-bold text-white')
                 manufacturer = row_data.get('manufacturer', '')
                 year = row_data.get('year', '')
                 if manufacturer or year:
                     ui.label(f'{manufacturer} {year}'.strip()).classes('text-sm text-blue-200')
+            # Rebuild metadata button - anchored to the right
+            table_dir_name = os.path.basename(row_data.get('table_path', ''))
+            if table_dir_name:
+                rebuild_btn = ui.button('Rebuild Meta', icon='refresh').props('color=white text-color=primary rounded dense').classes('ml-auto')
+                rebuild_status = ui.label('').classes('text-xs text-white ml-2')
+                rebuild_status.visible = False
+                rebuild_client = context.client
+
+                async def on_rebuild_meta():
+                    client = rebuild_client
+                    with client:
+                        rebuild_btn.disable()
+                        rebuild_status.visible = True
+                        rebuild_status.set_text('Rebuilding...')
+                    try:
+                        result = await run.io_bound(
+                            buildMetaData,
+                            downloadMedia=True,
+                            updateAll=True,
+                            tableName=table_dir_name,
+                        )
+                        with client:
+                            not_found = result.get('not_found', 0)
+                            if not_found > 0:
+                                rebuild_status.set_text('Not found in VPS')
+                                ui.notify('Table not found in VPSdb', type='warning')
+                            else:
+                                rebuild_status.visible = False
+                                ui.notify('Metadata rebuilt successfully', type='positive')
+                    except Exception as ex:
+                        with client:
+                            rebuild_status.set_text('Error')
+                            ui.notify(f'Rebuild failed: {ex}', type='negative')
+                    finally:
+                        with client:
+                            rebuild_btn.enable()
+
+                rebuild_btn.on_click(lambda: asyncio.create_task(on_rebuild_meta()))
 
         # Main info section
         with ui.column().classes('w-full gap-4 p-4'):
