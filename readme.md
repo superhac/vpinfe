@@ -565,6 +565,7 @@ Packages any of your tables into a `.vpxz` archive (zip format) for manual trans
 | ---------- | -------------------------------------------------------- |
 | deviceip   | IP address of the mobile device running VPinball         |
 | deviceport | Port of the mobile device's web server. Default is `2112` |
+| chunksize  | Upload chunk size in bytes. Default is `1048576` (1MB)    |
 
 # Enabling the Shutdown Feature
 If you plan on using the Shutdown/Reboot option in the frontend or in the remote you need to have the right permissions on some systems:

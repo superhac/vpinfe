@@ -44,6 +44,7 @@ class IniConfig:
 			'Mobile': {
 				'deviceip': '',
 				'deviceport': '2112',
+				'chunksize': '1048576',
 				},
 		}
 
