@@ -285,7 +285,7 @@ def gamepadtest():
 
     mount_points = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
-        '/web/': os.path.join(os.getcwd(), 'web'),
+        '/web/': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web'),
     }
     http_server = CustomHTTPServer(mount_points)
     theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
