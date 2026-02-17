@@ -243,11 +243,6 @@ jobs:
           echo "xattr exit code: $?"
         shell: bash
       #20. Create DMG
-      - name: Install create-dmg Slim
-        if: runner.os == 'macOS'
-        run: brew install create-dmg
-        shell: bash
-         
       - name: Package as DMG (macOS Slim)
         if: runner.os == 'macOS'
         run: |
