@@ -213,7 +213,7 @@ def save_upload_bytes(dest_file: Path, content: bytes) -> None:
 
 # --- helper to create meta.ini with a chosen VPS record for ONE folder ---
 
-def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media: bool = False) -> None:
+def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media: bool = False, user_media: bool = False) -> None:
     """
     Creates meta.ini inside `table_folder` using the selected vps_entry and the VPX metadata.
     """
@@ -248,7 +248,15 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
     meta = MetaConfig(str(meta_path))
     meta.writeConfigMeta(finalini)
 
-    if download_media:
+    if user_media:
+        from clioptions import _claimMediaForTable
+        from common.table import Table
+        tabletype = _INI_CFG.config['Media'].get('tabletype', 'table').lower()
+        pseudo = Table()
+        pseudo.tableDirName = table_folder.name
+        pseudo.fullPathTable = str(table_folder)
+        _claimMediaForTable(pseudo, tabletype)
+    elif download_media:
         from common.vpsdb import VPSdb      # your VPSdb wrapper that has downloadMediaForTable
         vps = VPSdb(_INI_CFG.config['Settings']['tablerootdir'], _INI_CFG)
         # Build a lightweight Table-like object with all attributes needed by downloadMediaForTable
@@ -1666,6 +1674,13 @@ def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Call
         title = ui.label(f'Missing Tables ({len(missing_rows)})').classes('text-lg font-bold')
         ui.separator()
 
+        # User media toggle - applies to all associations from this dialog
+        use_own_media = ui.switch('Use my own media').props('color=orange').classes('q-mt-xs')
+        ui.label(
+            'When enabled, existing media files in the table folder will be claimed as user-sourced '
+            'instead of downloading from VPinMediaDB. Missing media types will still be downloaded on the next --buildmeta run.'
+        ).classes('text-xs text-gray-400 q-ml-lg').style('margin-top: -4px;')
+
         container = ui.column().classes('w-full')
 
         def render(items: list[dict]):
@@ -1684,6 +1699,7 @@ def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Call
                             rr,
                             refresh_missing=lambda: (ui.notify('Missing list updated', type='info'), render(scan_missing_tables())),
                             refresh_installed=None,
+                            use_own_media_switch=use_own_media,
                         )
                     ).props('color=primary outline')
 
@@ -1704,11 +1720,13 @@ def open_match_vps_dialog(
     missing_row: dict,
     refresh_missing: Optional[Callable[[], None]] = None,
     refresh_installed: Optional[Callable[[], None]] = None,
+    use_own_media_switch=None,
     ):
     """
     missing_row: {'folder': '<name>', 'path': '<abs path>'}
     refresh_missing: callback to refresh the missing list/count after success
     refresh_installed: callback to refresh the installed tables list after success
+    use_own_media_switch: optional NiceGUI switch element from the parent dialog
     """
     dlg = ui.dialog().props('max-width=1080px persistent')
     dialog_state = {'busy': False}
@@ -1793,11 +1811,18 @@ def open_match_vps_dialog(
                                 else:
                                     folder_path = old_path
 
-                                # Update loading message and run download in background
-                                loading_label.set_text('Creating metadata and downloading media...')
-                                await run.io_bound(associate_vps_to_folder, folder_path, it, True)
+                                # Update loading message and run association in background
+                                own_media = use_own_media_switch.value if use_own_media_switch else False
+                                if own_media:
+                                    loading_label.set_text('Creating metadata and claiming user media...')
+                                else:
+                                    loading_label.set_text('Creating metadata and downloading media...')
+                                await run.io_bound(associate_vps_to_folder, folder_path, it, not own_media, own_media)
 
-                                ui.notify(f"Associated with VPS ID '{vid}' and downloaded media", type='positive')
+                                if own_media:
+                                    ui.notify(f"Associated with VPS ID '{vid}' and claimed user media", type='positive')
+                                else:
+                                    ui.notify(f"Associated with VPS ID '{vid}' and downloaded media", type='positive')
                                 dlg.close()
                                 if callable(refresh_missing):
                                     refresh_missing()
