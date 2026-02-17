@@ -170,7 +170,7 @@ jobs:
           echo "Removing extended attributes."
           xattr -rc dist/VPinFE.app 
           echo $?
-          xattr -d com.apple.quarantine
+          xattr -d com.apple.quarantine dist/VPinFE.app 
           echo $?
         shell: bash
 
