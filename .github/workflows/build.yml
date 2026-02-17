@@ -162,15 +162,58 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           rm -rf build dist
-          pyinstaller --onedir --noconfirm --name vpinfe \
+          pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
             main.py
+           #remove build directory
+          rm -rf dist/vpinfe
+        shell: bash
+      #14. Ad-hoc sign the app bundle
+      #    This prevents the "app is damaged" error and satisfies basic structural
+      #    signing requirements. Users will still need to allow the app via
+      #    System Settings > Privacy & Security > "Open Anyway" on first launch.
+      - name: Ad-hoc sign the app (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --deep --sign - dist/VPinFE.app
+          echo "Signing exit code: $?"
+          codesign --verify --verbose dist/VPinFE.app
         shell: bash
 
+      #15. Remove extended attributes from the artifact before packaging
+      - name: Remove extended attributes (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          sudo xattr -rc dist
+          echo "xattr exit code: $?"
+        shell: bash
+      #16. Create DMG
+      - name: Install create-dmg
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
+        shell: bash
+         
+      - name: Package as DMG (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          create-dmg \
+            --volname "VPinFE" \
+            --volicon "icon/VPinFE.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "VPinFE.app" 175 190 \
+            --hide-extension "VPinFE.app" \
+            --app-drop-link 425 190 \
+            "dist/VPinFE.dmg" \
+            "dist/VPinFE.app"
+        shell: bash
+       #17 Upload artifact
       - name: Upload slim build artifact (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-macOS-slim
-          path: dist/
+          path: dist/VPinFE.dmg
+
