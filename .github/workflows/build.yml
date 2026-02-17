@@ -43,7 +43,7 @@ jobs:
             main.py
           #Remove extended attributes so it doesn't fully quarantine
           echo "Removing extended attributes."
-          xattr -rc dist/VPinFE.app 
+          sudo xattr -rc dist/VPinFE.app 
           echo $?
         shell: bash
 
