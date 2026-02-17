@@ -3,6 +3,8 @@ import json
 from difflib import SequenceMatcher
 import os
 import re
+from pathlib import Path
+from platformdirs import user_config_dir
 
 
 class VPSdb:
@@ -18,6 +20,9 @@ class VPSdb:
     vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
     vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
     vpinmdbUrl = "https://github.com/superhac/vpinmediadb/raw/refs/heads/main/vpinmdb.json"
+
+    _config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+    vpsdb_path = _config_dir / "vpsdb.json"
 
     def __init__(self, rootTableDir, vpinfeIniConfig):
         print("Initializing VPSdb")
@@ -44,9 +49,9 @@ class VPSdb:
             self.rootTableDir = rootTableDir
 
             # Load database from local file
-            if self.fileExists('vpsdb.json'):
+            if self.fileExists(self.vpsdb_path):
                 try:
-                    with open('vpsdb.json', 'r', encoding="utf-8") as file:
+                    with open(self.vpsdb_path, 'r', encoding="utf-8") as file:
                         self.data = json.load(file)
                         print(f"Total VPSdb entries: {len(self.data)}")
                 except json.JSONDecodeError:
@@ -129,7 +134,8 @@ class VPSdb:
         try:
             response = requests.get(VPSdb.vpsUrldb)
             response.raise_for_status()
-            with open('vpsdb.json', 'wb') as file:
+            os.makedirs(self._config_dir, exist_ok=True)
+            with open(self.vpsdb_path, 'wb') as file:
                 file.write(response.content)
             print("Successfully downloaded vpsdb.json from VPSdb")
         except requests.RequestException as e:
