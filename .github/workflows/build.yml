@@ -41,6 +41,7 @@ jobs:
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
             main.py
+          rm -rf dist/vpinfe
         shell: bash
       #14. Ad-hoc sign the app bundle
       #    This prevents the "app is damaged" error and satisfies basic structural
