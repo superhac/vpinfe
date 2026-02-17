@@ -162,7 +162,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           rm -rf build dist
-          pyinstaller ---windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name vpinfe \
+          pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name vpinfe \
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
             main.py
