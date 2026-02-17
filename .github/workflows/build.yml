@@ -149,7 +149,7 @@ jobs:
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: vpinfe-macOS-slim
+          name: vpinfe-macOS
           path: dist/VPinFE.dmg
 
 
