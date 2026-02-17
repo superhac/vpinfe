@@ -3,6 +3,8 @@ import json
 from difflib import SequenceMatcher
 import os
 import re
+from pathlib import Path
+from platformdirs import user_config_dir
 
 
 class VPSdb:
@@ -23,6 +25,9 @@ class VPSdb:
         print("Initializing VPSdb")
 
         self._vpinfeIniConfig = vpinfeIniConfig
+        self._config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        self._config_dir.mkdir(parents=True, exist_ok=True)
+        self._vpsdb_path = self._config_dir / "vpsdb.json"
         version = self.downloadLastUpdate()
 
         if version:
@@ -44,15 +49,15 @@ class VPSdb:
             self.rootTableDir = rootTableDir
 
             # Load database from local file
-            if self.fileExists('vpsdb.json'):
+            if self._vpsdb_path.exists():
                 try:
-                    with open('vpsdb.json', 'r', encoding="utf-8") as file:
+                    with open(self._vpsdb_path, 'r', encoding="utf-8") as file:
                         self.data = json.load(file)
                         print(f"Total VPSdb entries: {len(self.data)}")
                 except json.JSONDecodeError:
-                    print("Invalid JSON format in vpsdb.json.")
+                    print(f"Invalid JSON format in {self._vpsdb_path}")
             else:
-                print("JSON file vpsdb.json not found.")
+                print(f"JSON file {self._vpsdb_path} not found.")
 
         # Setup preferences
         self.tabletype = self._vpinfeIniConfig.config['Media']["tabletype"].lower()
@@ -129,7 +134,7 @@ class VPSdb:
         try:
             response = requests.get(VPSdb.vpsUrldb)
             response.raise_for_status()
-            with open('vpsdb.json', 'wb') as file:
+            with open(self._vpsdb_path, 'wb') as file:
                 file.write(response.content)
             print("Successfully downloaded vpsdb.json from VPSdb")
         except requests.RequestException as e:
