@@ -333,9 +333,11 @@ options:
   --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
   --gamepadtest         Testing and mapping your gamepad via js api
   --headless            Run web servers/services only, skip the pywebview frontend
+  --claim-user-media    Bulk mark existing media files as user-sourced so they won't be overwritten by vpinmediadb
   --no-media            When building meta.ini files don't download the images at the same time.
   --update-all          When building meta.ini reparse all tables to recreate the meta.ini file.
-  --table TABLE         Specify a single table folder name to process with --buildmeta
+  --user-media          With --buildmeta: skip vpinmediadb downloads and claim existing local media as user-sourced
+  --table TABLE         Specify a single table folder name to process with --buildmeta or --claim-user-media
 ```
 
 ## Vpinfe.ini Definition
@@ -543,6 +545,36 @@ Table Folder Name (Manufacturer Year)/
 | flyer.png         | Promotional flyer image                 |
 | realdmd.png       | Real DMD for use with ZeDMD            |
 | realdmd-color.png | Real DMD (Colorized) for use with ZeDMD |
+
+## Using Your Own Media (User Media)
+
+By default, `--buildmeta` downloads media artwork from [VPinMediaDB](https://github.com/superhac/vpinmediadb) and tracks updates via MD5 hashes. If you prefer to use your own media collection instead, VPinFE provides two options to mark media as "user-sourced" so it won't be pulled from or overwritten by VPinMediaDB.
+
+### `--claim-user-media` (Standalone)
+
+Scans all table directories for existing media files in the `medias/` subfolder and marks them as `"Source": "user"` in each table's `.info` file. Use this if you already have `.info` files and want to retroactively protect your media from being overwritten.
+
+```bash
+# Claim all existing media across all tables
+python3 main.py --claim-user-media
+
+# Claim media for a single table
+python3 main.py --claim-user-media --table "Back To The Future - The Pinball (Data East 1990)"
+```
+
+### `--user-media` (With `--buildmeta`)
+
+A modifier for `--buildmeta` that skips VPinMediaDB downloads entirely and instead claims any media files found locally as user-sourced. Use this when building metadata from scratch and you never want VPinMediaDB media.
+
+```bash
+# Build metadata and claim local media instead of downloading
+python3 main.py --buildmeta --user-media
+
+# Rebuild all metadata with user media
+python3 main.py --buildmeta --update-all --user-media
+```
+
+Once media is marked as `"Source": "user"`, subsequent runs of `--buildmeta` will skip downloading that media type from VPinMediaDB. You can also set individual media sources to "user" via the Media Manager UI.
 
 ## VPX Table Patches
 VPinFE can automaticlly pull patches from [vpx-standalone-scripts](https://github.com/jsm174/vpx-standalone-scripts) via the `--vpxpatch` CLI option if a matching patch can be found.  

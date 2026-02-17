@@ -4,6 +4,7 @@ import os
 import uuid
 from pathlib import Path
 
+import webview
 from screeninfo import get_monitors
 from platformdirs import user_config_dir
 
@@ -15,8 +16,6 @@ from common.vpxparser import VPXParser
 from common.standalonescripts import StandaloneScripts
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
-from frontend.ws_bridge import WebSocketBridge
-from frontend.chromium_manager import ChromiumManager
 
 # Initialize config
 config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
@@ -34,7 +33,7 @@ def _norm_path(p: str) -> str:
         return os.path.normpath(p).lower()
 
 
-def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName: str = None, progress_cb=None, log_cb=None):
+def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName: str = None, userMedia: bool = False, progress_cb=None, log_cb=None):
 
     def log(msg):
         print(msg)
@@ -112,7 +111,12 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName:
 
         log(f"Created {table.tableDirName}.info")
 
-        if downloadMedia:
+        if userMedia:
+            tabletype = iniconfig.config['Media'].get('tabletype', 'table').lower()
+            claimed = _claimMediaForTable(table, tabletype, log)
+            if claimed:
+                log(f"  Claimed {claimed} media file(s) as user-sourced")
+        elif downloadMedia:
             try:
                 vps.downloadMediaForTable(table, vpsData["id"], metaConfig=meta)
                 log("Downloaded media")
@@ -196,44 +200,121 @@ def vpxPatches(progress_cb=None):
     StandaloneScripts(tables, progress_cb=progress_cb)
 
 
+def _claimMediaForTable(table, tabletype, log=print):
+    """Scan a table's medias/ dir and mark all found files as user-sourced in the .info."""
+    info_path = os.path.join(table.fullPathTable, f"{table.tableDirName}.info")
+    if not os.path.exists(info_path):
+        log(f"  Skipping {table.tableDirName}: no .info file")
+        return 0
+
+    # Media keys mapped to their filenames, accounting for tabletype (table vs fss)
+    media_files = {
+        'bg': 'bg.png',
+        'dmd': 'dmd.png',
+        tabletype: f'{tabletype}.png',
+        'wheel': 'wheel.png',
+        'cab': 'cab.png',
+        'realdmd': 'realdmd.png',
+        'realdmd_color': 'realdmd-color.png',
+        'flyer': 'flyer.png',
+        f'{tabletype}_video': f'{tabletype}.mp4',
+        'bg_video': 'bg.mp4',
+        'dmd_video': 'dmd.mp4',
+    }
+
+    medias_dir = os.path.join(table.fullPathTable, "medias")
+    meta = MetaConfig(info_path)
+    claimed = 0
+
+    for media_key, filename in media_files.items():
+        filepath = os.path.join(medias_dir, filename)
+        if os.path.exists(filepath):
+            existing = meta.getMedia(media_key)
+            if existing and existing.get("Source") == "user":
+                continue
+            meta.addMedia(media_key, "user", filepath, "")
+            log(f"  Claimed {media_key} ({filename}) as user media")
+            claimed += 1
+
+    return claimed
+
+
+def claimUserMedia(tableName=None, progress_cb=None, log_cb=None):
+    """Bulk scan tables and mark existing media files as user-sourced."""
+
+    def log(msg):
+        print(msg)
+        if log_cb:
+            log_cb(msg)
+
+    tp = TableParser(iniconfig.config['Settings']['tablerootdir'], iniconfig)
+    tp.loadTables(reload=True)
+    tables = tp.getAllTables()
+
+    tabletype = iniconfig.config['Media'].get('tabletype', 'table').lower()
+
+    if tableName:
+        tables = [t for t in tables if t.tableDirName == tableName]
+        if not tables:
+            log(f"Table folder '{tableName}' not found")
+            return {"tables_processed": 0, "media_claimed": 0}
+        log(f"Processing single table: {tableName}")
+
+    total = len(tables)
+    total_claimed = 0
+
+    if progress_cb:
+        progress_cb(0, total, "Starting")
+
+    for current, table in enumerate(tables, 1):
+        log(f"Scanning {table.tableDirName}")
+        if progress_cb:
+            progress_cb(current, total, f"Scanning {table.tableDirName}")
+
+        claimed = _claimMediaForTable(table, tabletype, log)
+        total_claimed += claimed
+
+    if progress_cb:
+        progress_cb(total, total, "Complete")
+
+    log(f"\nDone. Scanned {total} tables, claimed {total_claimed} media files as user-sourced.")
+    return {"tables_processed": total, "media_claimed": total_claimed}
+
+
+def loadGamepadTestWindow():
+    """Open a test webview window for gamepad diagnostics."""
+    webview_windows = []
+    api = API(iniconfig)
+    html = Path(__file__).parent / "web/diag/gamepad.html"
+
+    win = webview.create_window(
+        "BG Screen",
+        url=f"file://{html.resolve()}",
+        js_api=api,
+        background_color="#000000",
+        fullscreen=True
+    )
+
+    api.myWindow.append(win)
+    webview_windows.append(['table', win, api])
+    api.webview_windows = webview_windows
+    api._iniConfig = iniconfig
+    api._finish_setup()
+
+
 def gamepadtest():
-    """Run the gamepad test window using embedded Chromium."""
-    base_path = os.path.dirname(os.path.abspath(__file__))
-    # Start HTTP server
+    """Run the gamepad test window and serve local files."""
+    loadGamepadTestWindow()
+
     mount_points = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
-        '/web/': os.path.join(base_path, 'web'),
+        '/web/': os.path.join(os.getcwd(), 'web'),
     }
     http_server = CustomHTTPServer(mount_points)
     theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
     http_server.start_file_server(port=theme_assets_port)
 
-    # Create API and WebSocket bridge
-    ws_bridge = WebSocketBridge(
-        port=int(iniconfig.config['Network'].get('wsport', '8002'))
-    )
-    chromium_mgr = ChromiumManager()
-
-    api = API(
-        iniConfig=iniconfig,
-        window_name='table',
-        ws_bridge=ws_bridge,
-        chromium_manager=chromium_mgr,
-    )
-    api._finish_setup()
-    ws_bridge.register_api('table', api)
-    ws_bridge.start()
-
-    # Launch Chromium with gamepad test page
-    monitors = get_monitors()
-    url = f"http://127.0.0.1:{theme_assets_port}/web/diag/gamepad.html?window=table"
-    chromium_mgr.launch_window('table', url, monitors[0], 0)
-
-    # Block until window closes
-    chromium_mgr.wait_for_exit()
-
-    # Cleanup
-    ws_bridge.stop()
+    webview.start(http_server=True)
     http_server.on_closed()
 
 
@@ -247,12 +328,14 @@ def parseArgs():
     parser.add_argument("--buildmeta", action="store_true", help="Builds the meta.ini file in each table dir")
     parser.add_argument("--vpxpatch", action="store_true", help="Attempt to apply patches automatically")
     parser.add_argument("--gamepadtest", action="store_true", help="Test and map your gamepad via JS API")
-    parser.add_argument("--headless", action="store_true", help="Start servers only, without launching the Chromium frontend")
+    parser.add_argument("--headless", action="store_true", help="Run web servers/services only, skip the pywebview frontend")
+    parser.add_argument("--claim-user-media", action="store_true", help="Bulk mark existing media files as user-sourced so they won't be overwritten by vpinmediadb")
 
     # Secondary args
     parser.add_argument("--no-media", action="store_true", help="Do not download images when building meta.ini")
     parser.add_argument("--update-all", action="store_true", help="Reparse all tables when building meta.ini")
-    parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta")
+    parser.add_argument("--user-media", action="store_true", help="With --buildmeta: skip vpinmediadb downloads and claim existing local media as user-sourced")
+    parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta or --claim-user-media")
 
     args, unknown = parser.parse_known_args()  # macOS-friendly parsing
 
@@ -282,8 +365,12 @@ def parseArgs():
     if args.configfile:
         configfile = args.configfile  # TODO: wire into IniConfig if needed
 
+    if args.claim_user_media:
+        claimUserMedia(tableName=args.table)
+        sys.exit()
+
     if args.buildmeta:
-        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all, tableName=args.table)
+        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all, tableName=args.table, userMedia=args.user_media)
         sys.exit()
 
     if args.gamepadtest:
