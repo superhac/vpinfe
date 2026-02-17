@@ -180,7 +180,10 @@ class VPSdb:
 
         remoteMd5 = metadata.get(f"{key}_md5", "")
 
-        if self.fileExists(filename):
+        # Check the explicit path first, then fall back to the default path
+        actual_path = filename if self.fileExists(filename) else (defaultFilename if self.fileExists(defaultFilename) else None)
+
+        if actual_path:
             # Check if the remote hash changed compared to what we stored
             if metaConfig and mediaType and remoteMd5:
                 existing = metaConfig.getMedia(mediaType)
@@ -188,8 +191,8 @@ class VPSdb:
                     storedMd5 = existing.get("MD5Hash", "")
                     if storedMd5 and storedMd5 != remoteMd5:
                         print(f"MD5 changed for {mediaType} ({storedMd5} -> {remoteMd5}), re-downloading")
-                        self.downloadMediaFile(tableId, metadata[key], filename)
-            return (filename, remoteMd5)
+                        self.downloadMediaFile(tableId, metadata[key], actual_path)
+            return (actual_path, remoteMd5)
 
         self.downloadMediaFile(tableId, metadata[key], defaultFilename)
         if self.fileExists(defaultFilename):
