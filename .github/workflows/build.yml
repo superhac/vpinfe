@@ -62,10 +62,30 @@ jobs:
           sudo xattr -rc dist
           echo "xattr exit code: $?"
         shell: bash
-        
+      
+      - name: Install create-dmg
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
+        shell: bash
+         
+      - name: Package as DMG (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          create-dmg \
+            --volname "VPinFE" \
+            --volicon "icon/VPinFE.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "VPinFE.app" 175 190 \
+            --hide-extension "VPinFE.app" \
+            --app-drop-link 425 190 \
+            "dist/VPinFE.dmg" \
+            "dist/VPinFE.app"
+        shell: bash
       - name: Upload slim build artifact (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-macOS-slim
-          path: dist/
+          path: dist/VPinFE.dmg
