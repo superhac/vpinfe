@@ -280,6 +280,10 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
         pseudo_table = _LightTable(table_folder, vpx_file)
         vps.downloadMediaForTable(pseudo_table, vps_entry.get('id'), metaConfig=meta)
 
+    # Invalidate the media page cache so next visit shows fresh data
+    from managerui.pages.media import invalidate_media_cache
+    invalidate_media_cache()
+
 
 logger = logging.getLogger("tables")
 
@@ -713,6 +717,10 @@ def render_panel(tab=None):
                         with log_container:
                             for m in dialog_state['log_messages']:
                                 ui.label(m).classes("text-white text-xs whitespace-pre-wrap")
+
+                        # Invalidate media cache so media page shows fresh data
+                        from managerui.pages.media import invalidate_media_cache
+                        invalidate_media_cache()
 
                         # Refresh table list after completion
                         await perform_scan(silent=True)
@@ -1365,6 +1373,9 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             else:
                                 rebuild_status.visible = False
                                 ui.notify('Metadata rebuilt successfully', type='positive')
+                            # Invalidate media cache so media page shows fresh data
+                            from managerui.pages.media import invalidate_media_cache
+                            invalidate_media_cache()
                     except Exception as ex:
                         with client:
                             rebuild_status.set_text('Error')

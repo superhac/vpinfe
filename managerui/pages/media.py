@@ -21,6 +21,12 @@ logger = logging.getLogger("media")
 
 # Cache for scanned media data (persists across page visits)
 _media_cache: Optional[List[Dict]] = None
+
+
+def invalidate_media_cache():
+    """Reset the media cache so the next page visit triggers a fresh scan."""
+    global _media_cache
+    _media_cache = None
 # Track whether we've registered the media files route
 _media_route_registered = False
 
