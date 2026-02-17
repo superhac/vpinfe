@@ -132,8 +132,8 @@ class ChromiumManager:
             # Allows re-accessing /dev/input devices and bypasses gesture requirements.
             "--no-sandbox",
             "--disable-gpu-sandbox",
-            #"--autoplay-policy=no-user-gesture-required",
-            #"--disable-features=PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies",
+            "--autoplay-policy=no-user-gesture-required",
+            "--disable-features=PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies",
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
