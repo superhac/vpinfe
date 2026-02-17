@@ -180,6 +180,11 @@ jobs:
         with:
           dmg_name: 'VPinFE'
           src_dir: dist/VPinFE.app
+      - name: Remove extended attributes from dmg 
+        if: runner.os == 'macOS'
+        run: |
+            sudo xattr -cr ${{ github.workspace }}/VPinFE.dmg 
+        shell: bash
       - name: Upload slim build artifact (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
