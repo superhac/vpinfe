@@ -108,7 +108,7 @@ jobs:
       #    This prevents the "app is damaged" error and satisfies basic structural
       #    signing requirements. Users will still need to allow the app via
       #    System Settings > Privacy & Security > "Open Anyway" on first launch.
-      - name: Ad-hoc sign the app (macOS)
+      - name: Ad-hoc sign the app (macOS FAT)
         if: runner.os == 'macOS'
         run: |
           codesign --force --deep --sign - dist/VPinFE.app
@@ -117,19 +117,19 @@ jobs:
         shell: bash
 
       #10. Remove extended attributes from the artifact before packaging
-      - name: Remove extended attributes (macOS)
+      - name: Remove extended attributes (macOS FAT)
         if: runner.os == 'macOS'
         run: |
           sudo xattr -rc dist
           echo "xattr exit code: $?"
         shell: bash
       #11. Create DMG
-      - name: Install create-dmg
+      - name: Install create-dmg FAT
         if: runner.os == 'macOS'
         run: brew install create-dmg
         shell: bash
          
-      - name: Package as DMG (macOS)
+      - name: Package as DMG (macOS FAT)
         if: runner.os == 'macOS'
         run: |
           create-dmg \
@@ -145,7 +145,7 @@ jobs:
             "dist/VPinFE.app"
         shell: bash
        #12 Upload artifact
-      - name: Upload slim build artifact (macOS)
+      - name: Upload slim build artifact (macOS FAT)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
