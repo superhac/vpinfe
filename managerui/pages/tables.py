@@ -624,7 +624,7 @@ def render_panel(tab=None):
                     ui.label('Reparse all tables, even if .info already exists').classes('text-xs text-grey q-ml-lg')
 
                     download_media_switch = ui.switch('Download Media', value=True).classes('text-sm')
-                    ui.label('Automatically download table images and media from VPSdb').classes('text-xs text-grey q-ml-lg')
+                    ui.label('Automatically download table images and media from VPinMediaDB').classes('text-xs text-grey q-ml-lg')
 
                 # Progress section (shown during build)
                 progress_container = ui.column().classes('w-full gap-2')
