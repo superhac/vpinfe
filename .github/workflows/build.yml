@@ -41,16 +41,27 @@ jobs:
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
             main.py
-          #Remove extended attributes so it doesn't fully quarantine
-          echo "Removing extended attributes."
-          sudo xattr -rc dist
-          echo $?
         shell: bash
+      #14. Ad-hoc sign the app bundle
+      #    This prevents the "app is damaged" error and satisfies basic structural
+      #    signing requirements. Users will still need to allow the app via
+      #    System Settings > Privacy & Security > "Open Anyway" on first launch.
       - name: Ad-hoc sign the app (macOS)
         if: runner.os == 'macOS'
         run: |
           codesign --force --deep --sign - dist/VPinFE.app
+          echo "Signing exit code: $?"
+          codesign --verify --verbose dist/VPinFE.app
         shell: bash
+
+      #15. Remove extended attributes from the artifact before packaging
+      - name: Remove extended attributes (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          sudo xattr -rc dist
+          echo "xattr exit code: $?"
+        shell: bash
+        
       - name: Upload slim build artifact (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
