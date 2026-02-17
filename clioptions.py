@@ -4,7 +4,6 @@ import os
 import uuid
 from pathlib import Path
 
-import webview
 from screeninfo import get_monitors
 from platformdirs import user_config_dir
 
@@ -15,7 +14,6 @@ from common.metaconfig import MetaConfig
 from common.vpxparser import VPXParser
 from common.standalonescripts import StandaloneScripts
 from frontend.customhttpserver import CustomHTTPServer
-from frontend.api import API
 
 # Initialize config
 config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
@@ -281,30 +279,9 @@ def claimUserMedia(tableName=None, progress_cb=None, log_cb=None):
     return {"tables_processed": total, "media_claimed": total_claimed}
 
 
-def loadGamepadTestWindow():
-    """Open a test webview window for gamepad diagnostics."""
-    webview_windows = []
-    api = API(iniconfig)
-    html = Path(__file__).parent / "web/diag/gamepad.html"
-
-    win = webview.create_window(
-        "BG Screen",
-        url=f"file://{html.resolve()}",
-        js_api=api,
-        background_color="#000000",
-        fullscreen=True
-    )
-
-    api.myWindow.append(win)
-    webview_windows.append(['table', win, api])
-    api.webview_windows = webview_windows
-    api._iniConfig = iniconfig
-    api._finish_setup()
-
-
 def gamepadtest():
-    """Run the gamepad test window and serve local files."""
-    loadGamepadTestWindow()
+    """Run the gamepad test window using Chromium and the HTTP server."""
+    from frontend.chromium_manager import ChromiumManager
 
     mount_points = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
@@ -314,7 +291,11 @@ def gamepadtest():
     theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
     http_server.start_file_server(port=theme_assets_port)
 
-    webview.start(http_server=True)
+    monitors = get_monitors()
+    chromium = ChromiumManager()
+    url = f"http://127.0.0.1:{theme_assets_port}/web/diag/gamepad.html"
+    chromium.launch_window("gamepad", url, monitors[0], 0)
+    chromium.wait_for_exit()
     http_server.on_closed()
 
 
@@ -328,7 +309,7 @@ def parseArgs():
     parser.add_argument("--buildmeta", action="store_true", help="Builds the meta.ini file in each table dir")
     parser.add_argument("--vpxpatch", action="store_true", help="Attempt to apply patches automatically")
     parser.add_argument("--gamepadtest", action="store_true", help="Test and map your gamepad via JS API")
-    parser.add_argument("--headless", action="store_true", help="Run web servers/services only, skip the pywebview frontend")
+    parser.add_argument("--headless", action="store_true", help="Run web servers/services only, skip the Chromium frontend")
     parser.add_argument("--claim-user-media", action="store_true", help="Bulk mark existing media files as user-sourced so they won't be overwritten by vpinmediadb")
 
     # Secondary args
