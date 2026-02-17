@@ -157,37 +157,20 @@ jobs:
           name: vpinfe-Windows-slim
           path: dist/
 
-      # 13a. Build macOS slim variant (no bundled Chromium - uses system Chrome/Chromium)
+      # 13. Build macOS slim variant (no bundled Chromium - uses system Chrome/Chromium)
       - name: Build slim app with PyInstaller (macOS)
         if: runner.os == 'macOS'
         run: |
           rm -rf build dist
-          pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
+          pyinstaller ---windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name vpinfe \
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
             main.py
-            #Remove extra directory
-            echo "removing extra directory"
-            rm -rf dist/vpinfe/
-            #Remove extended attributes so it doesn't fully quarantine
-            echo "removing extended attributes"
-            sudo xattr -cr dist/VPinFE.app 
         shell: bash
-       # 13b. Create dmg and upload artifact
-      - name: Create dmg
-        if: runner.os == 'macOS'
-        uses: L-Super/create-dmg-actions@v1
-        with:
-          dmg_name: 'VPinFE'
-          src_dir: dist/VPinFE.app
-      - name: Remove extended attributes from dmg 
-        if: runner.os == 'macOS'
-        run: |
-            sudo xattr -cr ${{ github.workspace }}/VPinFE.dmg 
-        shell: bash
+
       - name: Upload slim build artifact (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-macOS-slim
-          path: ${{ github.workspace }}/VPinFE.dmg
+          path: dist/
