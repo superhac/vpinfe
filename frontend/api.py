@@ -127,6 +127,7 @@ class API:
                 "TableVideoPath": table.TableVideoPath,
                 "BGVideoPath": table.BGVideoPath,
                 "DMDVideoPath": table.DMDVideoPath,
+                "AudioPath": table.AudioPath,
                 "pupPackExists": table.pupPackExists,
                 "altColorExists": table.altColorExists,
                 "altSoundExists": table.altSoundExists,

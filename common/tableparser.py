@@ -80,7 +80,11 @@ class TableParser:
             "DMDVideoPath": "dmd.mp4",
         }
 
-        for attr, fname in {**images, **videos}.items():
+        audio = {
+            "AudioPath": "audio.mp3",
+        }
+
+        for attr, fname in {**images, **videos, **audio}.items():
             # Check medias/ subfolder first, then fall back to root folder
             fpath_medias = medias_dir / fname
             fpath_root = table_dir / fname
