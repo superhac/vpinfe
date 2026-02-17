@@ -162,12 +162,12 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           rm -rf build dist
-          pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name vpinfe \
+          pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
             main.py
           #Remove extended attributes so it doesn't fully quarantine
-          sudo xattr -cr dist/vpinfe.app 
+          sudo xattr -cr dist/VPinFE.app 
         shell: bash
 
       - name: Upload slim build artifact (macOS)
@@ -175,4 +175,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-macOS-slim
-          path: dist/
+          path: dist/VPinFE.app
