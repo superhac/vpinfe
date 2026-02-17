@@ -50,7 +50,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           codesign --force --deep --sign - dist/VPinFE.app
-  shell: bash
+        shell: bash
       - name: Upload slim build artifact (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
