@@ -41,17 +41,23 @@ carousel2 (Single Screen)
 
 ## Installing
 
-### Ubuntu 25.10 (GTK):
+<details>
+<summary><h3>Ubuntu 25.10 (GTK)</h3></summary>
+
 Beware if you upgrade to 25.10 as they [removed gamepad support from webkitgtk](https://launchpad.net/ubuntu/+source/webkit2gtk/2.48.5-1ubuntu1):
 ```
-    * Disable gamepad feature on Ubuntu since libmanette is in universe there. 
+    * Disable gamepad feature on Ubuntu since libmanette is in universe there.
 
-libmanette is a library that provides a GObject-based API for interacting with gamepads. The change log indicates that the developers of the webkit2gtk package chose to disable the built-in gamepad support in this specific Ubuntu package version because the necessary dependency (libmanette) is located in the "universe" repository (which contains community-maintained software) rather than the main "main" repository. This decision was likely made to avoid dependency issues or to ensure the stability of the core webkit2gtk package within Ubuntu's main archives. 
+libmanette is a library that provides a GObject-based API for interacting with gamepads. The change log indicates that the developers of the webkit2gtk package chose to disable the built-in gamepad support in this specific Ubuntu package version because the necessary dependency (libmanette) is located in the "universe" repository (which contains community-maintained software) rather than the main "main" repository. This decision was likely made to avoid dependency issues or to ensure the stability of the core webkit2gtk package within Ubuntu's main archives.
 Therefore, this package version likely has gamepad support explicitly disabled in Ubuntu.
 ```
 This breaks the gamepad functionally in VPinfe.  There is currently no work around for this.
 
-### Debian 13
+</details>
+
+<details>
+<summary><h3>Debian 13</h3></summary>
+
 ```
 sudo apt install python3.13-venv python3-evdev
 git clone https://github.com/superhac/vpinfe.git
@@ -65,7 +71,11 @@ deactivate
 GDK_BACKEND=x11 vvv/bin/python3 main.py
 ```
 
-### Ubuntu 25.04 (GTK):
+</details>
+
+<details>
+<summary><h3>Ubuntu 25.04 (GTK)</h3></summary>
+
 ```
 sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-webview python3-screeninfo platformdirs
 git clone https://github.com/superhac/vpinfe.git
@@ -82,25 +92,36 @@ GDK_BACKEND=x11 vvv/bin/python3 main.py
 *** There is a known issue with positioning windows under wayland.  To get around that run VpinFE with the following env var:
 `GDK_BACKEND=x11 python3 main.py`.
 
-### Fedora ???? (KDE):
+</details>
+
+<details>
+<summary><h3>Fedora ???? (KDE)</h3></summary>
+
 ```
 git clone https://github.com/superhac/vpinfe.git
 ```
 
-### Mac ????: 
+</details>
+
+<details>
+<summary><h3>Mac ????</h3></summary>
+
 ```
 git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
 pip install -r osx_requirements.txt
 ```
 
-### Windows 11
- 
+</details>
+
+<details>
+<summary><h3>Windows 11</h3></summary>
+
 **Requirements**
 
 * Python 3.13.12
 
->[!CAUTION] 
+>[!CAUTION]
 >If you use the top Button, you might download a wrong Version not working with the following Steps
 
 ![image](https://github.com/user-attachments/assets/201ead7f-297f-4b2a-9bf2-f085c14feba8)
@@ -132,6 +153,8 @@ Python Main.py
 
 >[!TIP]
 >You might have to change the "Open With" from Editor to PowerShell
+
+</details>
 
 
 ### Setup your configuration (vpinfe.ini)
@@ -359,6 +382,13 @@ options:
 | themeassetsport   | Port for the theme assets HTTP server. Default is `8000`.                 |
 | manageruiport     | Port for the Manager UI (NiceGUI) server. Default is `8001`.              |
 
+### [Mobile]
+| Key        | Description                                              |
+| ---------- | -------------------------------------------------------- |
+| deviceip   | IP address of the mobile device running VPinball         |
+| deviceport | Port of the mobile device's web server. Default is `2112` |
+| chunksize  | Upload chunk size in bytes. Default is `1048576` (1MB)    |
+
 ## Table Metadata File (based on the Zero install table format)
 When you run VPinFE with the `--buildmeta` option it recursively goes through your table directory attempts to match your tables to their VPSDB id.  When matched, it will then parse the VPX for the table for more meta information and produce a `TABLE FOLDER NAME(manufactuer year).info` in that tables directory.  Heres an example for the table 1-2-3:
 
@@ -559,13 +589,6 @@ Tables already on the device are shown with a green checkmark. You can also dele
 
 ### VPXZ Download
 Packages any of your tables into a `.vpxz` archive (zip format) for manual transfer. Click the download icon next to a table to generate and download the archive.
-
-### vpinfe.ini [Mobile]
-| Key        | Description                                              |
-| ---------- | -------------------------------------------------------- |
-| deviceip   | IP address of the mobile device running VPinball         |
-| deviceport | Port of the mobile device's web server. Default is `2112` |
-| chunksize  | Upload chunk size in bytes. Default is `1048576` (1MB)    |
 
 # Enabling the Shutdown Feature
 If you plan on using the Shutdown/Reboot option in the frontend or in the remote you need to have the right permissions on some systems:
