@@ -46,7 +46,11 @@ jobs:
           sudo xattr -rc dist
           echo $?
         shell: bash
-
+      - name: Ad-hoc sign the app (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --deep --sign - dist/VPinFE.app
+  shell: bash
       - name: Upload slim build artifact (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
