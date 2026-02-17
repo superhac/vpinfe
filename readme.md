@@ -512,7 +512,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 
 - Medias
 
-  Tracks downloaded media files per table. Preserved across `--buildmeta --update-all`. Each entry is keyed by media type (bg, dmd, table, fss, wheel, cab, realdmd, realdmd_color):
+  Tracks downloaded media files per table. Preserved across `--buildmeta --update-all`. Each entry is keyed by media type (bg, dmd, table, fss, wheel, cab, realdmd, realdmd_color, audio):
   - Source: Where the media was downloaded from (e.g. "vpinmediadb" or "user" for manually uploaded)
   - Path: Full local path to the media file
   - MD5Hash: MD5 hash of the media from the source. On `--buildmeta`, if the remote MD5 differs from the stored hash, the image is re-downloaded automatically.
@@ -531,7 +531,8 @@ Table Folder Name (Manufacturer Year)/
     ├── cab.png
     ├── flyer.png
     ├── realdmd.png
-    └── realdmd-color.png
+    ├── realdmd-color.png
+    └── audio.mp3
 ```
 
 | File Name         | Image Type                              |
@@ -545,6 +546,7 @@ Table Folder Name (Manufacturer Year)/
 | flyer.png         | Promotional flyer image                 |
 | realdmd.png       | Real DMD for use with ZeDMD            |
 | realdmd-color.png | Real DMD (Colorized) for use with ZeDMD |
+| audio.mp3         | Table audio track for frontend playback  |
 
 ## Using Your Own Media (User Media)
 
