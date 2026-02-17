@@ -167,8 +167,10 @@ jobs:
             --add-data "managerui/static:managerui/static" \
             main.py
           #Remove extended attributes so it doesn't fully quarantine
-          echo "Removing extended attributes"
-          sudo xattr -cr dist/VPinFE.app 
+          echo "Removing extended attributes."
+          xattr -rc dist/VPinFE.app 
+          echo $?
+          xattr -d com.apple.quarantine
           echo $?
         shell: bash
 
