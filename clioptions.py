@@ -33,7 +33,7 @@ def _norm_path(p: str) -> str:
         return os.path.normpath(p).lower()
 
 
-def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName: str = None, progress_cb=None, log_cb=None):
+def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName: str = None, userMedia: bool = False, progress_cb=None, log_cb=None):
 
     def log(msg):
         print(msg)
@@ -111,7 +111,12 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName:
 
         log(f"Created {table.tableDirName}.info")
 
-        if downloadMedia:
+        if userMedia:
+            tabletype = iniconfig.config['Media'].get('tabletype', 'table').lower()
+            claimed = _claimMediaForTable(table, tabletype, log)
+            if claimed:
+                log(f"  Claimed {claimed} media file(s) as user-sourced")
+        elif downloadMedia:
             try:
                 vps.downloadMediaForTable(table, vpsData["id"], metaConfig=meta)
                 log("Downloaded media")
@@ -195,6 +200,87 @@ def vpxPatches(progress_cb=None):
     StandaloneScripts(tables, progress_cb=progress_cb)
 
 
+def _claimMediaForTable(table, tabletype, log=print):
+    """Scan a table's medias/ dir and mark all found files as user-sourced in the .info."""
+    info_path = os.path.join(table.fullPathTable, f"{table.tableDirName}.info")
+    if not os.path.exists(info_path):
+        log(f"  Skipping {table.tableDirName}: no .info file")
+        return 0
+
+    # Media keys mapped to their filenames, accounting for tabletype (table vs fss)
+    media_files = {
+        'bg': 'bg.png',
+        'dmd': 'dmd.png',
+        tabletype: f'{tabletype}.png',
+        'wheel': 'wheel.png',
+        'cab': 'cab.png',
+        'realdmd': 'realdmd.png',
+        'realdmd_color': 'realdmd-color.png',
+        'flyer': 'flyer.png',
+        f'{tabletype}_video': f'{tabletype}.mp4',
+        'bg_video': 'bg.mp4',
+        'dmd_video': 'dmd.mp4',
+    }
+
+    medias_dir = os.path.join(table.fullPathTable, "medias")
+    meta = MetaConfig(info_path)
+    claimed = 0
+
+    for media_key, filename in media_files.items():
+        filepath = os.path.join(medias_dir, filename)
+        if os.path.exists(filepath):
+            existing = meta.getMedia(media_key)
+            if existing and existing.get("Source") == "user":
+                continue
+            meta.addMedia(media_key, "user", filepath, "")
+            log(f"  Claimed {media_key} ({filename}) as user media")
+            claimed += 1
+
+    return claimed
+
+
+def claimUserMedia(tableName=None, progress_cb=None, log_cb=None):
+    """Bulk scan tables and mark existing media files as user-sourced."""
+
+    def log(msg):
+        print(msg)
+        if log_cb:
+            log_cb(msg)
+
+    tp = TableParser(iniconfig.config['Settings']['tablerootdir'], iniconfig)
+    tp.loadTables(reload=True)
+    tables = tp.getAllTables()
+
+    tabletype = iniconfig.config['Media'].get('tabletype', 'table').lower()
+
+    if tableName:
+        tables = [t for t in tables if t.tableDirName == tableName]
+        if not tables:
+            log(f"Table folder '{tableName}' not found")
+            return {"tables_processed": 0, "media_claimed": 0}
+        log(f"Processing single table: {tableName}")
+
+    total = len(tables)
+    total_claimed = 0
+
+    if progress_cb:
+        progress_cb(0, total, "Starting")
+
+    for current, table in enumerate(tables, 1):
+        log(f"Scanning {table.tableDirName}")
+        if progress_cb:
+            progress_cb(current, total, f"Scanning {table.tableDirName}")
+
+        claimed = _claimMediaForTable(table, tabletype, log)
+        total_claimed += claimed
+
+    if progress_cb:
+        progress_cb(total, total, "Complete")
+
+    log(f"\nDone. Scanned {total} tables, claimed {total_claimed} media files as user-sourced.")
+    return {"tables_processed": total, "media_claimed": total_claimed}
+
+
 def loadGamepadTestWindow():
     """Open a test webview window for gamepad diagnostics."""
     webview_windows = []
@@ -243,11 +329,13 @@ def parseArgs():
     parser.add_argument("--vpxpatch", action="store_true", help="Attempt to apply patches automatically")
     parser.add_argument("--gamepadtest", action="store_true", help="Test and map your gamepad via JS API")
     parser.add_argument("--headless", action="store_true", help="Run web servers/services only, skip the pywebview frontend")
+    parser.add_argument("--claim-user-media", action="store_true", help="Bulk mark existing media files as user-sourced so they won't be overwritten by vpinmediadb")
 
     # Secondary args
     parser.add_argument("--no-media", action="store_true", help="Do not download images when building meta.ini")
     parser.add_argument("--update-all", action="store_true", help="Reparse all tables when building meta.ini")
-    parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta")
+    parser.add_argument("--user-media", action="store_true", help="With --buildmeta: skip vpinmediadb downloads and claim existing local media as user-sourced")
+    parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta or --claim-user-media")
 
     args, unknown = parser.parse_known_args()  # macOS-friendly parsing
 
@@ -277,8 +365,12 @@ def parseArgs():
     if args.configfile:
         configfile = args.configfile  # TODO: wire into IniConfig if needed
 
+    if args.claim_user_media:
+        claimUserMedia(tableName=args.table)
+        sys.exit()
+
     if args.buildmeta:
-        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all, tableName=args.table)
+        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all, tableName=args.table, userMedia=args.user_media)
         sys.exit()
 
     if args.gamepadtest:
