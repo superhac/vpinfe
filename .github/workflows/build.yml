@@ -167,7 +167,9 @@ jobs:
             --add-data "managerui/static:managerui/static" \
             main.py
           #Remove extended attributes so it doesn't fully quarantine
+          echo "Removing extended attributes"
           sudo xattr -cr dist/VPinFE.app 
+          echo $?
         shell: bash
 
       - name: Upload slim build artifact (macOS)
@@ -175,4 +177,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-macOS-slim
-          path: dist/VPinFE.app
+          path: dist/
