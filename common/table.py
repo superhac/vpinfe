@@ -22,4 +22,6 @@ class Table:
     BGVideoPath = None
     DMDVideoPath = None
 
+    AudioPath = None
+
     metaConfig = None

@@ -109,6 +109,7 @@ class ChromiumManager:
             f"--window-size={monitor.width},{monitor.height}",
             f"--user-data-dir={user_data_dir}",
             "--no-first-run",
+            f"--remote-debugging-port={9222 + index}",
             "--disable-infobars",
             "--disable-session-crashed-bubble",
             "--disable-restore-session-state",
@@ -133,6 +134,7 @@ class ChromiumManager:
             "--no-sandbox",
             "--disable-gpu-sandbox",
             "--autoplay-policy=no-user-gesture-required",
+            "--disable-features=PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies",
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "

@@ -250,6 +250,9 @@ class VPSdb:
         _process('dmd_video', tablemediajson.get(self.tablevideoresolution), 'dmd_video', table.DMDVideoPath, f"{table.fullPathTable}/medias/dmd.mp4")
         _process(f'{self.tabletype}_video', tablemediajson.get(self.tablevideoresolution), f'{self.tabletype}_video', table.TableVideoPath, f"{table.fullPathTable}/medias/{self.tabletype}.mp4")
 
+        # Audio
+        _process('audio', tablemediajson, 'audio', table.AudioPath, f"{table.fullPathTable}/medias/audio.mp3")
+
     # ----------------------------------------------------------------------
     def updateTable(self, name, manufacturer, year):
         """UI hook: updates progress label (requires UI integration)."""
