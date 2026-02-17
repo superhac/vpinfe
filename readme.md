@@ -156,8 +156,7 @@ Python Main.py
 
 </details>
 
-
-### Setup your configuration (vpinfe.ini)
+## Setup your configuration (vpinfe.ini)
 
 VPinFE uses a platform-specific configuration directory to store its settings. On first run, VPinFE will automatically create a default `vpinfe.ini` file in the following location:
 
@@ -333,11 +332,13 @@ options:
   --buildmeta           Builds the meta.ini file in each table dir
   --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
   --gamepadtest         Testing and mapping your gamepad via js api
+  --headless            Run web servers/services only, skip the pywebview frontend
   --no-media            When building meta.ini files don't download the images at the same time.
   --update-all          When building meta.ini reparse all tables to recreate the meta.ini file.
+  --table TABLE         Specify a single table folder name to process with --buildmeta
 ```
 
-## Vpinfe.ini
+## Vpinfe.ini Definition
 ### [Displays]
 | Key               | Description                                                                                         |
 | ----------------- | -------------------------------------------------------------------------                           |
