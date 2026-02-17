@@ -112,6 +112,9 @@ class ChromiumManager:
             "--disable-infobars",
             "--disable-session-crashed-bubble",
             "--disable-restore-session-state",
+            "--disable-background-networking",
+            "--disable-component-update",
+            "--disable-default-apps",
             "--log-level=3",
             # Prevent throttling/freezing when window is not focused. This is
             # important for Linux when an external game takes focus and occludes
