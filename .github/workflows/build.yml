@@ -167,8 +167,10 @@ jobs:
             --add-data "managerui/static:managerui/static" \
             main.py
             #Remove extra directory
+            echo "removing extra directory"
             rm -rf dist/vpinfe/
             #Remove extended attributes so it doesn't fully quarantine
+            echo "removing extended attributes"
             sudo xattr -cr dist/vpinfe.app 
         shell: bash
        # 13b. Create dmg and upload artifact
