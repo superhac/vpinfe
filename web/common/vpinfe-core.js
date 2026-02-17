@@ -97,40 +97,47 @@ class VPinFECore {
   getImageURL(index, type) {
     const table = this.tableData[index];
     if (type == "table") {
-      //this.call("console_out", this.#convertImagePathToURL(table.TableImagePath))
-      return this.#convertImagePathToURL(table.TableImagePath);
+      //this.call("console_out", this.#convertPathToURL(table.TableImagePath))
+      return this.#convertPathToURL(table.TableImagePath);
     }
     else if (type == "bg") {
-      //this.call("console_out", this.#convertImagePathToURL(table.BGImagePath))
-      return this.#convertImagePathToURL(table.BGImagePath);
+      //this.call("console_out", this.#convertPathToURL(table.BGImagePath))
+      return this.#convertPathToURL(table.BGImagePath);
 
     }
     else if (type == "dmd") {
-      //this.call("console_out", this.#convertImagePathToURL(table.DMDImagePath))
-      return this.#convertImagePathToURL(table.DMDImagePath);
+      //this.call("console_out", this.#convertPathToURL(table.DMDImagePath))
+      return this.#convertPathToURL(table.DMDImagePath);
 
     }
     else if (type == "wheel") {
-      //this.call("console_out", this.#convertImagePathToURL(table.WheelImagePath))
-      return this.#convertImagePathToURL(table.WheelImagePath);
+      //this.call("console_out", this.#convertPathToURL(table.WheelImagePath))
+      return this.#convertPathToURL(table.WheelImagePath);
     }
     else if (type == "cab") {
-      //this.call("console_out", this.#convertImagePathToURL(table.CabImagePath))
-      return this.#convertImagePathToURL(table.CabImagePath);
+      //this.call("console_out", this.#convertPathToURL(table.CabImagePath))
+      return this.#convertPathToURL(table.CabImagePath);
     }
+  }
+
+  // get table audio url path (returns null if no audio exists)
+  getAudioURL(index) {
+    const table = this.tableData[index];
+    if (!table.AudioPath) return null;
+    return this.#convertPathToURL(table.AudioPath);
   }
 
   // get table video url paths
   getVideoURL(index, type) {
     const table = this.tableData[index];
     if (type == "table") {
-      return this.#convertImagePathToURL(table.TableVideoPath);
+      return this.#convertPathToURL(table.TableVideoPath);
     }
     else if (type == "bg") {
-      return this.#convertImagePathToURL(table.BGVideoPath);
+      return this.#convertPathToURL(table.BGVideoPath);
     }
     else if (type == "dmd") {
-      return this.#convertImagePathToURL(table.DMDVideoPath);
+      return this.#convertPathToURL(table.DMDVideoPath);
     }
   }
 
@@ -400,7 +407,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
   }
 
   // convert the hard full local path to the web servers url map
-  #convertImagePathToURL(localPath) {
+  #convertPathToURL(localPath) {
     if (!localPath || typeof localPath !== 'string') {
       return "/web/images/file_missing.png";  // fallback default
     }
