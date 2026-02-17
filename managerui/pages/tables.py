@@ -249,6 +249,7 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
     meta.writeConfigMeta(finalini)
 
     if user_media:
+        # First, claim any existing local media as user-sourced
         from clioptions import _claimMediaForTable
         from common.table import Table
         tabletype = _INI_CFG.config['Media'].get('tabletype', 'table').lower()
@@ -256,16 +257,18 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
         pseudo.tableDirName = table_folder.name
         pseudo.fullPathTable = str(table_folder)
         _claimMediaForTable(pseudo, tabletype)
-    elif download_media:
-        from common.vpsdb import VPSdb      # your VPSdb wrapper that has downloadMediaForTable
+        # Re-read meta so downloadMediaForTable sees the freshly claimed user entries
+        meta = MetaConfig(str(meta_path))
+
+    if download_media or user_media:
+        # Download missing media from vpinmediadb (skips user-sourced entries)
+        from common.vpsdb import VPSdb
         vps = VPSdb(_INI_CFG.config['Settings']['tablerootdir'], _INI_CFG)
-        # Build a lightweight Table-like object with all attributes needed by downloadMediaForTable
         class _LightTable:
             def __init__(self, folder: Path, vpx: Path):
                 self.tableDirName = folder.name
                 self.fullPathTable = str(folder)
                 self.fullPathVPXfile = str(vpx)
-                # Media paths - set to None so downloadMediaForTable uses defaults
                 self.BGImagePath = None
                 self.DMDImagePath = None
                 self.TableImagePath = None
