@@ -133,6 +133,7 @@ class ChromiumManager:
             "--no-sandbox",
             "--disable-gpu-sandbox",
             "--autoplay-policy=no-user-gesture-required",
+            "--disable-features=PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies",
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "

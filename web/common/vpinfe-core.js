@@ -470,7 +470,9 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     if (!localPath || typeof localPath !== 'string') {
       return "/web/images/file_missing.png";  // fallback default
     }
-    const parts = localPath.split('/');
+    // Normalize Windows backslashes to forward slashes
+    const normalized = localPath.replace(/\\/g, '/');
+    const parts = normalized.split('/');
     const file = parts[parts.length - 1];    // last part = filename
     const port = this.themeAssetsPort;
 
