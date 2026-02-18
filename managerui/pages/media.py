@@ -44,6 +44,7 @@ MEDIA_TYPES = [
     ('table_video', 'Table Video', 'table.mp4'),
     ('bg_video', 'BG Video', 'bg.mp4'),
     ('dmd_video', 'DMD Video', 'dmd.mp4'),
+    ('audio', 'Audio', 'audio.mp3'),
 ]
 
 
@@ -124,6 +125,7 @@ def scan_media_tables(silent: bool = False):
                     'has_realdmd': media_info.get('realdmd') is not None,
                     'has_realdmd_color': media_info.get('realdmd_color') is not None,
                     'has_flyer': media_info.get('flyer') is not None,
+                    'has_audio': media_info.get('audio') is not None,
                 })
             except Exception as e:
                 logger.error(f"Error reading {meta_path}: {e}")
@@ -232,6 +234,7 @@ def render_panel():
             {'name': 'table_video', 'label': 'Table Video', 'field': 'has_table_video', 'align': 'center', 'sortable': True},
             {'name': 'bg_video', 'label': 'BG Video', 'field': 'has_bg_video', 'align': 'center', 'sortable': True},
             {'name': 'dmd_video', 'label': 'DMD Video', 'field': 'has_dmd_video', 'align': 'center', 'sortable': True},
+            {'name': 'audio', 'label': 'Audio', 'field': 'has_audio', 'align': 'center', 'sortable': True},
         ]
 
         # --- Filter state and functions ---
@@ -461,8 +464,9 @@ def render_panel():
             """Open a dialog to replace a media file for a table."""
             target_filename = MEDIA_KEY_TO_FILENAME[media_key]
             is_video = target_filename.endswith('.mp4')
-            media_type_label = 'Video' if is_video else 'Image'
-            accept_type = '.mp4' if is_video else 'image/*'
+            is_audio = target_filename.endswith('.mp3')
+            media_type_label = 'Audio' if is_audio else ('Video' if is_video else 'Image')
+            accept_type = '.mp3,audio/*' if is_audio else ('.mp4' if is_video else 'image/*')
             current_url = None
             # Find current media URL from cache
             if _media_cache:
@@ -479,7 +483,9 @@ def render_panel():
                 # Show current media if exists
                 if current_url:
                     ui.label('Current:').classes('text-slate-400 text-sm')
-                    if is_video:
+                    if is_audio:
+                        ui.html(f'<audio src="{current_url}" controls style="max-width: 300px;"></audio>').classes('mb-4')
+                    elif is_video:
                         ui.html(f'<video src="{current_url}" style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid #334155;" autoplay loop muted></video>').classes('mb-4')
                     else:
                         ui.image(current_url).style('max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid #334155;').classes('mb-4')
@@ -627,8 +633,23 @@ def render_panel():
                     col_name = 'table_img'
                 emit_expr = "$parent.$emit('media_click', [props.row.table_dir, props.row.table_path, props.row.name, '" + media_key + "'])"
                 is_video = media_filename.endswith('.mp4')
+                is_audio = media_filename.endswith('.mp3')
 
-                if is_video:
+                if is_audio:
+                    media_table.add_slot(f'body-cell-{col_name}', '''
+                        <q-td :props="props">
+                            <div v-if="props.row.media.''' + media_key + '''"
+                                 @click.stop="''' + emit_expr + '''"
+                                 style="cursor: pointer;">
+                                <q-badge color="green-8" text-color="white" label="Audio"
+                                         style="font-size: 10px; padding: 2px 8px;" />
+                            </div>
+                            <div v-else class="media-missing"
+                                 @click.stop="''' + emit_expr + '''"
+                                 style="cursor: pointer;">--</div>
+                        </q-td>
+                    ''')
+                elif is_video:
                     media_table.add_slot(f'body-cell-{col_name}', '''
                         <q-td :props="props">
                             <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
