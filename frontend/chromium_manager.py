@@ -40,6 +40,7 @@ def get_chromium_path():
             os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%ProgramFiles%\Chromium\Application\chrome.exe"),
             os.path.expandvars(r"%LocalAppData%\Chromium\Application\chrome.exe"),
+            os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe")
         ]
         for path in common_paths:
             if os.path.isfile(path):
