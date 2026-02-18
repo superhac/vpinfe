@@ -58,6 +58,11 @@ class API:
         if self.ws_bridge:
             self.ws_bridge.send_event(self.window_name, {"type": "playSound", "sound": sound})
 
+    def trigger_audio_play(self):
+        """Fallback for pywebview autoplay bypass. In Chromium mode this is a
+        no-op because --autoplay-policy already allows direct audio.play()."""
+        pass
+
     def get_my_window_name(self):
         return self.window_name or "unknown"
 
