@@ -9,6 +9,7 @@ from .pages import collections as tab_collections
 from .pages import media as tab_media
 from .pages import themes as tab_themes
 from .pages import remote
+from .pages.remote import _restart_app
 from .pages import mobile as tab_mobile
 import threading
 import subprocess
@@ -118,6 +119,9 @@ def header():
         with ui.row().classes('gap-3 items-center'):
             ui.icon('sports_esports', size='28px').classes('text-blue-400')
             ui.label('VPinFE Manager').classes('text-xl font-bold text-white')
+            ui.button(icon='restart_alt', on_click=lambda: _restart_app()) \
+                .props('flat round dense').classes('text-green-400') \
+                .tooltip('Restart VPinFE')
 
         # Update notification (right side of header)
         update_container = ui.row().classes('gap-2 items-center')
