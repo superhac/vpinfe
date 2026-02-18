@@ -240,6 +240,82 @@ Registers an input handler for the collection menu overlay.
 #### call(method, ...args)
 Invokes a backend API method. Works transparently with both pywebview and WebSocket backends. Returns a Promise.
 
+The following methods are available via `vpin.call()`:
+
+##### Window & App
+
+| Method | Args | Returns | Description |
+|--------|------|---------|-------------|
+| `get_my_window_name` | — | `string` | Returns the window name for this instance (`"table"`, `"bg"`, or `"dmd"`). |
+| `close_app` | — | — | Shuts down all browser windows and exits the application. |
+| `get_monitors` | — | `array` | Returns list of monitor objects with `name`, `x`, `y`, `width`, `height`. |
+| `console_out` | `output` | `string` | Prints a message to the Python CLI console. Useful for debugging. Returns the same string. |
+
+##### Table Data
+
+| Method | Args | Returns | Description |
+|--------|------|---------|-------------|
+| `get_tables` | `reset=false` | `string` (JSON) | Returns JSON string of the current (filtered) table list. Pass `true` to reset to the full unfiltered list. Each table object includes paths, media paths, addon flags, and metadata. |
+| `launch_table` | `index` | — | Launches the VPX table at the given index. Blocks until the table exits. Automatically tracks play in the "Last Played" collection and sends `TableLaunchComplete` event to all windows. |
+| `build_metadata` | `download_media=true`, `update_all=false` | `object` | Triggers a background metadata build/refresh. Sends progress events (`buildmeta_progress`, `buildmeta_log`, `buildmeta_complete`, `buildmeta_error`) to all windows. Returns `{success, message}`. |
+
+##### Collections
+
+| Method | Args | Returns | Description |
+|--------|------|---------|-------------|
+| `get_collections` | — | `array` | Returns list of collection names from `collections.ini`. |
+| `set_tables_by_collection` | `collection` | — | Filters the table list by the named collection. Supports both VPS ID-based and filter-based collections. |
+| `save_filter_collection` | `name`, `letter`, `theme`, `table_type`, `manufacturer`, `year`, `sort_by` | `object` | Saves the current filter settings as a named collection. Returns `{success, message}`. |
+| `get_current_collection` | — | `string` | Returns the name of the currently active collection, or `"None"`. |
+
+##### Filters & Sorting
+
+| Method | Args | Returns | Description |
+|--------|------|---------|-------------|
+| `apply_filters` | `letter`, `theme`, `table_type`, `manufacturer`, `year` | `number` | Applies VPSdb filters to the full table list. Each arg is optional (pass `null` to keep current). Returns the filtered count. |
+| `reset_filters` | — | — | Resets all filters back to the full table list. |
+| `apply_sort` | `sort_type` | `number` | Sorts the current filtered tables. `sort_type` is `"Alpha"` or `"Newest"`. Returns the count. |
+| `get_current_filter_state` | — | `object` | Returns the current filter state: `{letter, theme, type, manufacturer, year}`. |
+| `get_current_sort_state` | — | `string` | Returns the current sort type (`"Alpha"` or `"Newest"`). |
+| `get_filter_letters` | — | `array` | Returns available starting letters from all tables (for filter UI). |
+| `get_filter_themes` | — | `array` | Returns available themes/categories from all tables. |
+| `get_filter_types` | — | `array` | Returns available table types (SS, EM, PM, etc.) from all tables. |
+| `get_filter_manufacturers` | — | `array` | Returns available manufacturers from all tables. |
+| `get_filter_years` | — | `array` | Returns available years from all tables. |
+
+##### Events & Messaging
+
+| Method | Args | Returns | Description |
+|--------|------|---------|-------------|
+| `send_event_all_windows` | `message` | — | Sends an event to all windows except the caller. |
+| `send_event_all_windows_incself` | `message` | — | Sends an event to all windows including the caller and iframes. |
+| `send_event` | `window_name`, `message` | — | Sends an event to a specific window by name (`"table"`, `"bg"`, or `"dmd"`). |
+| `playSound` | `sound` | — | Sends a `playSound` event to the current window. |
+
+##### Input
+
+| Method | Args | Returns | Description |
+|--------|------|---------|-------------|
+| `get_joymaping` | — | `object` | Returns the gamepad button mapping from `vpinfe.ini`. Keys: `joyleft`, `joyright`, `joyup`, `joydown`, `joyselect`, `joymenu`, `joyback`, `joyexit`, `joycollectionmenu`. Values are button index strings. |
+| `set_button_mapping` | `button_name`, `button_index` | `object` | Sets a gamepad button mapping and saves to config. Returns `{success, message}`. |
+
+##### Theme & Display Config
+
+| Method | Args | Returns | Description |
+|--------|------|---------|-------------|
+| `get_theme_name` | — | `string` | Returns the active theme name from `vpinfe.ini`. |
+| `get_theme_config` | — | `object\|null` | Loads and returns the theme's `config.json` file, or `null` if not found. Use this for user-customizable theme options. |
+| `get_theme_assets_port` | — | `number` | Returns the HTTP server port (default `8000`). |
+| `get_theme_index_page` | — | `string` | Returns the full URL for this window's theme index page. |
+| `get_table_orientation` | — | `string` | Returns the table orientation from config (`"landscape"` or `"portrait"`). |
+| `get_table_rotation` | — | `number` | Returns the table rotation angle in degrees from config (default `0`). |
+
+##### Audio (pywebview only)
+
+| Method | Args | Returns | Description |
+|--------|------|---------|-------------|
+| `trigger_audio_play` | — | — | Triggers `tableAudio._resumePlay()` via `evaluate_js` to bypass WebKitGTK autoplay policy. No-op on Chromium (direct `audio.play()` works). See [Audio Support](#audio-support). |
+
 #### getImageURL(index, type)
 Returns an HTTP URL for a table's image. `type` can be `"table"`, `"bg"`, `"dmd"`, `"wheel"`, or `"cab"`. Returns a fallback missing-image URL if the file doesn't exist.
 
