@@ -91,31 +91,85 @@ jobs:
               --add-data "chromium/windows;chromium/windows" \
               main.py
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            pyinstaller --onedir --noconfirm --name vpinfe \
+            pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
               --add-data "web:web" \
               --add-data "managerui/static:managerui/static" \
               main.py
             # Preserve Chromium.app bundle structure (PyInstaller breaks symlinks)
-            mkdir -p dist/vpinfe/_internal/chromium
-            cp -R chromium/Chromium.app dist/vpinfe/_internal/chromium/Chromium.app
-            chmod +x dist/vpinfe/_internal/chromium/Chromium.app/Contents/MacOS/Chromium
+            mkdir -p dist/VPinFE.app/Contents/Frameworks/chromium
+            cp -R chromium/Chromium.app dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app
+            chmod +x dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app/Contents/MacOS/Chromium
+            #remove build directory
+            rm -rf dist/vpinfe
           fi
         shell: bash
+        
+      #9. Ad-hoc sign the app bundle
+      #    This prevents the "app is damaged" error and satisfies basic structural
+      #    signing requirements. Users will still need to allow the app via
+      #    System Settings > Privacy & Security > "Open Anyway" on first launch.
+      - name: Ad-hoc sign the app (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          codesign --force --deep --sign - dist/VPinFE.app
+          echo "Signing exit code: $?"
+          codesign --verify --verbose dist/VPinFE.app
+        shell: bash
 
-      # 9. Copy Windows launcher bat file
+      #10. Remove extended attributes from the artifact before packaging
+      - name: Remove extended attributes (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          sudo xattr -rc dist
+          echo "xattr exit code: $?"
+        shell: bash
+      #11. Create DMG
+      - name: Install create-dmg
+        if: runner.os == 'macOS'
+        run: brew install create-dmg
+        shell: bash
+         
+      - name: Package as DMG (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          create-dmg \
+            --volname "VPinFE" \
+            --volicon "icon/VPinFE.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "VPinFE.app" 175 190 \
+            --hide-extension "VPinFE.app" \
+            --app-drop-link 425 190 \
+            "dist/VPinFE.dmg" \
+            "dist/VPinFE.app"
+        shell: bash
+        
+       #12 Upload artifact
+      - name: Upload build artifact (macOS)
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vpinfe-macOS
+          path: dist/VPinFE.dmg
+
+
+
+      # 13. Copy Windows launcher bat file
       - name: Copy Windows launcher
         if: runner.os == 'Windows'
         run: cp vpinfe.bat dist/vpinfe/
         shell: bash
 
-      # 10. Upload artifact per OS
+      # 14. Upload artifact per OS
       - name: Upload build artifact
+        if: runner.os != 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: vpinfe-${{ runner.os }}
           path: dist/
 
-      # 11. Build Linux slim variant (no bundled Chromium - uses system chromium)
+      # 15. Build Linux slim variant (no bundled Chromium - uses system chromium)
       - name: Build slim app with PyInstaller (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -135,7 +189,7 @@ jobs:
           name: vpinfe-Linux-slim
           path: dist/
 
-      # 12. Build Windows slim variant (no bundled Chromium - uses system Chrome/Chromium)
+      # 16. Build Windows slim variant (no bundled Chromium - uses system Chrome/Chromium)
       - name: Build slim app with PyInstaller (Windows)
         if: runner.os == 'Windows'
         run: |
@@ -157,7 +211,7 @@ jobs:
           name: vpinfe-Windows-slim
           path: dist/
 
-      # 13. Build macOS slim variant (no bundled Chromium - uses system Chrome/Chromium)
+      # 17. Build macOS slim variant (no bundled Chromium - uses system Chrome/Chromium)
       - name: Build slim app with PyInstaller (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -169,11 +223,11 @@ jobs:
            #remove build directory
           rm -rf dist/vpinfe
         shell: bash
-      #14. Ad-hoc sign the app bundle
+      #18. Ad-hoc sign the app bundle
       #    This prevents the "app is damaged" error and satisfies basic structural
       #    signing requirements. Users will still need to allow the app via
       #    System Settings > Privacy & Security > "Open Anyway" on first launch.
-      - name: Ad-hoc sign the app (macOS)
+      - name: Ad-hoc sign the app (macOS Slim)
         if: runner.os == 'macOS'
         run: |
           codesign --force --deep --sign - dist/VPinFE.app
@@ -181,20 +235,15 @@ jobs:
           codesign --verify --verbose dist/VPinFE.app
         shell: bash
 
-      #15. Remove extended attributes from the artifact before packaging
-      - name: Remove extended attributes (macOS)
+      #19. Remove extended attributes from the artifact before packaging
+      - name: Remove extended attributes (macOS Slim)
         if: runner.os == 'macOS'
         run: |
           sudo xattr -rc dist
           echo "xattr exit code: $?"
         shell: bash
-      #16. Create DMG
-      - name: Install create-dmg
-        if: runner.os == 'macOS'
-        run: brew install create-dmg
-        shell: bash
-         
-      - name: Package as DMG (macOS)
+      #20. Create DMG
+      - name: Package as DMG (macOS Slim)
         if: runner.os == 'macOS'
         run: |
           create-dmg \
@@ -209,7 +258,7 @@ jobs:
             "dist/VPinFE.dmg" \
             "dist/VPinFE.app"
         shell: bash
-       #17 Upload artifact
+       #21 Upload artifact
       - name: Upload slim build artifact (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
