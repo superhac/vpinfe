@@ -103,9 +103,37 @@ def loadWindows():
         api._iniConfig = iniconfig
         api._finish_setup()
 
-    # --- TABLE SCREEN (ALWAYS LAST) ---
-    # Table window is created after webview.start() via _create_table_window()
-    # so it appears on top with focus after the other windows are already shown.
+    # --- TABLE SCREEN ---
+    if sys.platform == "darwin":
+        # On macOS, create the table window before starting the webview loop
+        # to prevent a crash when it's the only window configured.
+        if iniconfig.config['Displays']['tablescreenid']:
+            screen_id = int(iniconfig.config['Displays']['tablescreenid'])
+            api = API(iniconfig)
+
+            win = webview.create_window(
+                "Table Screen",
+                url=f"file://{html_file.resolve()}",
+                js_api=api,
+                x=monitors[screen_id].x,
+                y=monitors[screen_id].y,
+                width=monitors[screen_id].width,
+                height=monitors[screen_id].height,
+                background_color="#000000",
+                fullscreen=window_flags["fullscreen"],
+                frameless=True, # Always frameless on mac
+                resizable=window_flags["resizable"],
+            )
+
+            api.myWindow.append(win)
+            webview_windows.append(['table', win, api])
+            api.webview_windows = webview_windows
+            api._iniConfig = iniconfig
+            api._finish_setup()
+    else:
+        # On Linux/Windows, the table window is created after webview.start()
+        # via _create_table_window() to ensure it appears on top with focus.
+        pass
 
 
 headless = False
@@ -217,8 +245,9 @@ else:
         api._finish_setup()
 
     def _on_webview_started():
-        """Create the table window after webview starts."""
-        threading.Thread(target=_create_table_window, daemon=True).start()
+        """Create the table window after webview starts (non-macOS)."""
+        if sys.platform != "darwin":
+            threading.Thread(target=_create_table_window, daemon=True).start()
 
     # block and start webview
     if sys.platform == "darwin":
