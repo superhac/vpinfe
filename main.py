@@ -104,30 +104,8 @@ def loadWindows():
         api._finish_setup()
 
     # --- TABLE SCREEN (ALWAYS LAST) ---
-    # The last window created will be the one in focus.  AKA the controller for all the other windows!!!! Always "table"
-    if iniconfig.config['Displays']['tablescreenid']:
-        screen_id = int(iniconfig.config['Displays']['tablescreenid'])
-        api = API(iniconfig)
-
-        win = webview.create_window(
-            "Table Screen",
-            url=f"file://{html_file.resolve()}",
-            js_api=api,
-            x=monitors[screen_id].x,
-            y=monitors[screen_id].y,
-            width=monitors[screen_id].width,
-            height=monitors[screen_id].height,
-            background_color="#000000",
-            fullscreen=window_flags["fullscreen"],
-            frameless=True if is_mac else False,
-            resizable=window_flags["resizable"],
-        )
-
-        api.myWindow.append(win)
-        webview_windows.append(['table', win, api])
-        api.webview_windows = webview_windows
-        api._iniConfig = iniconfig
-        api._finish_setup()
+    # Table window is created after webview.start() via _create_table_window()
+    # so it appears on top with focus after the other windows are already shown.
 
 
 headless = False
@@ -198,11 +176,55 @@ if headless:
     except KeyboardInterrupt:
         print("\n[VPinFE] Shutting down...")
 else:
+    def _create_table_window():
+        """Create the table window after a delay so it appears on top with focus."""
+        global webview_windows
+        import time
+        time.sleep(.5)  # delay to ensure this runs after the initial windows are created
+
+        if not iniconfig.config['Displays']['tablescreenid']:
+            return
+
+        monitors = get_monitors()
+        is_mac = sys.platform == "darwin"
+        window_flags = {
+            "fullscreen": not is_mac,
+            "frameless": is_mac,
+            "resizable": False if is_mac else True,
+        }
+
+        screen_id = int(iniconfig.config['Displays']['tablescreenid'])
+        api = API(iniconfig)
+
+        win = webview.create_window(
+            "Table Screen",
+            url=f"file://{html_file.resolve()}",
+            js_api=api,
+            x=monitors[screen_id].x,
+            y=monitors[screen_id].y,
+            width=monitors[screen_id].width,
+            height=monitors[screen_id].height,
+            background_color="#000000",
+            fullscreen=window_flags["fullscreen"],
+            frameless=True if is_mac else False,
+            resizable=window_flags["resizable"],
+        )
+
+        api.myWindow.append(win)
+        webview_windows.append(['table', win, api])
+        api.webview_windows = webview_windows
+        api._iniConfig = iniconfig
+        api._finish_setup()
+
+    def _on_webview_started():
+        """Create the table window after webview starts."""
+        threading.Thread(target=_create_table_window, daemon=True).start()
+
     # block and start webview
     if sys.platform == "darwin":
-        webview.start(gui="cocoa")
+        webview.start(func=_on_webview_started, gui="cocoa")
     else:
-        webview.start()
+        webview.start(func=_on_webview_started)
 
 # shutdown items
 http_server.on_closed()
