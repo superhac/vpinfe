@@ -1,13 +1,26 @@
 # Themes
 
-VPinfe uses pywebview to render the screens and is basically a webkit browser window.  Currently three screens are supported and their pywebview window names are as follows:
-- table
-- bg
-- dmd
+VPinFE supports two rendering backends:
+- **pywebview** (master branch) — uses a WebKitGTK/MSHTML browser window with a direct JS bridge (`window.pywebview.api`).
+- **Embedded Chromium** (vpinfe-chromium branch) — uses a WebSocket bridge to communicate between the browser and Python backend.
 
-Each window has its own webpage, but shares a single instance of the VPinfe API ([frontend/api.py](https://github.com/superhac/vpinfe/blob/master/frontend/api.py)) and is access via [vpinfe-core.js](#vpinfe-corejs).  A theme is created in the `web/theme` dir and has this basic layout:
+Themes are fully compatible with both backends. The `vpinfe-core.js` library abstracts the communication layer so theme code does not need to know which backend is in use.
+
+- `table` — The main screen. Controller for all other screens and input.
+- `bg` — Backglass screen.
+- `dmd` — DMD screen (not a "real DMD" like ZeDMD).
+
+Each window has its own webpage but shares an instance of the VPinFE API ([frontend/api.py](https://github.com/superhac/vpinfe/blob/master/frontend/api.py)), accessed via [vpinfe-core.js](#vpinfe-corejs).
+
+## Theme Structure
+
+Themes are installed in the user config directory: `~/.config/vpinfe/themes/<THEME NAME>/` (Linux) or the equivalent `platformdirs` location on other platforms.
+
 ```
 <THEME NAME>
+├── manifest.json
+├── config.json        (optional - user-customizable theme options)
+├── preview.png        (optional - shown in manager UI)
 ├── index_bg.html
 ├── index_dmd.html
 ├── index_table.html
@@ -15,25 +28,42 @@ Each window has its own webpage, but shares a single instance of the VPinfe API 
 └── theme.js
 ```
 
-Depending on how the user has their screens configued after the splash screen it will load the respective html page for each page.  These files need to be named exactly how they are listed below.
+### manifest.json
 
-| File | Desc |
-|--------|-----|
-|index_table.html | The main screen. Also the controller for all other screens and input. |
-|index_bg.html | Would normally be the Blackglass screen |
-|index_dmd.html | Would normally be the FULLDMD screen.  This is not a "real dmd" , like ZeDMD. |
-
-## index_table.html
-
-This is the main html file used to control and interact with the VPinFE API.  This is also the window where the in theme main menu gets rendered. Below is the minium required to make things work.
-
-A plain example used in the `web/theme/template` theme. 
+Every theme should include a `manifest.json`:
+```json
+{
+  "name": "My Theme",
+  "version": "1.0",
+  "author": "Your Name",
+  "description": "A brief description of the theme.",
+  "preview_image": "preview.png",
+  "supported_screens": 3,
+  "type": "desktop",
+  "change_log": "Initial release."
+}
 ```
+
+## HTML Files
+
+Each screen has its own HTML file. These must be named exactly as listed:
+
+| File | Description |
+|--------|-----|
+| `index_table.html` | The main screen. Controller for all other screens and input. |
+| `index_bg.html` | Backglass screen. |
+| `index_dmd.html` | DMD screen. |
+
+### index_table.html
+
+This is the main HTML file used to control and interact with the VPinFE API. This is also the window where the in-theme main menu gets rendered. Below is the minimum required to make things work.
+
+```html
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8" />
-  <title>VPinFE - Template</title>
+  <title>VPinFE - My Theme</title>
   <link rel="stylesheet" href="../../common/vpinfe-style.css">
   <link rel="stylesheet" href="style.css">
   <script src="../../common/vpinfe-core.js"></script>
@@ -51,285 +81,256 @@ A plain example used in the `web/theme/template` theme.
 
 The `common` includes:
 
-```
+```html
 <link rel="stylesheet" href="../../common/vpinfe-style.css">
 <script src="../../common/vpinfe-core.js"></script>
 ```
 
-These are the core of VPinFE interface.  The `vpinfe-core.js` is the interface to the pywebview API.  It includes all the calls for getting table data and joystick/keyboard interface.  `vpinfe-style.css` needs to be included because that is the style sheet we use to render the in theme Menu system. 
+These are the core of the VPinFE interface. `vpinfe-core.js` provides all calls for getting table data, media URLs, and joystick/keyboard input. `vpinfe-style.css` is required for the in-theme menu system.
 
-`theme.js` and `style.css` are your JS and CSS respectivietly.  You can name those whatever you want.
+`theme.js` and `style.css` are your theme's JS and CSS respectively. You can name those whatever you want.
 
-Refer to the [web/theme/template](https://github.com/superhac/vpinfe/tree/master/web/theme/default) for a full example with the bare bones.  
+### index_bg.html & index_dmd.html
 
-## index_bg.html & index_bg.html
+Same structure as above, with content appropriate for each screen.
 
-The same as above.
+## Setting the Theme
+
+The user selects a theme by setting this in `vpinfe.ini`:
+```ini
+[Settings]
+theme = <THEME NAME>
+```
 
 ## theme.js
-The base JS for interacting with the VPinFE API and all your own JS for controlling the interface
 
-```
+The main JS file for interacting with VPinFE and controlling the theme UI.
+
+```javascript
 /*
-Bare minimum example of how a theme can be implemented.
+Bare minimum theme example.
 */
 
 // Globals
 windowName = ""
 currentTableIndex = 0;
-lastTableIndex = 0;
 
 // init the core interface to VPinFE
 const vpin = new VPinFECore();
 vpin.init();
 window.vpin = vpin // main menu needs this to call back in.
 
+// Register receiveEvent globally BEFORE vpin.ready to avoid timing issues
+window.receiveEvent = receiveEvent;
 
 // wait for VPinFECore to be ready
 vpin.ready.then(async () => {
-    console.log("VPinFECore is fully initialized");
-    // blocks
     await vpin.call("get_my_window_name")
         .then(result => {
             windowName = result;
         });
-    // register your input handler.  VPinFECOre handles all the input(keyboard or gamepad)and calls your handler when input is detected.
+
+    // register your input handler
     vpin.registerInputHandler(handleInput);
 
-    // register a window event listener.  VPinFECore sends events to all windows.
-    window.receiveEvent = receiveEvent;  // get events from other windows.
-
-    //
-    // anything you want to run after VPinFECore has been initialized the first time.
-    //
-
-    // example load a config.json file from your theme dir.  You can use this to have users customize options of your theme.
+    // optional: load a config.json from your theme dir for user-customizable options
     config = await vpin.call("get_theme_config");
 
-    // example:
+    // Initialize the display
     updateScreen();
 });
 
-// listener for windows events.  VPinFECore uses this to send events to all windows.
+// listener for window events
 async function receiveEvent(message) {
-    vpin.call("console_out", message); // this is just example debug. you can send text to the CLI console that launched VPinFE
+    // Let VPinFECore handle the data refresh logic (TableDataChange, filters, sorts)
+    await vpin.handleEvent(message);
 
-    // another window changed the table index.  Typcially the "table" window changes this when user selects a table.  So only BG/DMD window gets this event.
     if (message.type == "TableIndexUpdate") {
-        this.currentTableIndex = message.index;
-         updateScreen() 
+        currentTableIndex = message.index;
+        updateScreen();
     }
-    // the table is launching. 
     else if (message.type == "TableLaunching") {
-        //do something, like fade out
+        // table is launching - fade out, stop audio, etc.
     }
-    // the table was exited and we are back to theme
     else if (message.type == "TableLaunchComplete") {
-        //do something, like fade in
+        // returned from table - fade in, resume audio, etc.
     }
-    // the collection was changed.  All windows get (table,bg,dmd) this event.  The table window changes this when user selects a new collection in the main menu. we need a new table list.
+    else if (message.type == "RemoteLaunching") {
+        // remote launch from manager UI
+    }
+    else if (message.type == "RemoteLaunchComplete") {
+        // remote launch completed
+    }
     else if (message.type == "TableDataChange") {
-        // if collection is "All" then reset to all tables, otherwise set to the selected collection.
-        if (message.collection == "All") {
-            vpin.getTableData(reset = true);
-        } else {
-            vpin.call("console_out", "collection change.");
-            await vpin.call("set_tables_by_collection", message.collection);
-            await vpin.getTableData();
-        }
-        this.currentTableIndex = message.index;
-        // NOW do something with the new table data. like update the images.
-         updateScreen() 
-
+        currentTableIndex = message.index;
+        updateScreen();
     }
 }
 
-// create an input handler function. ***** Only for the "table" window *****
-/*  joyleft 
-    joyright 
-    joyup
-    joydown
-    joyselect
-    joymenu
-    joycollectionmenu
-*/
+// input handler - only called on the "table" window
+/*  joyleft, joyright, joyup, joydown,
+    joyselect, joymenu, joyback, joycollectionmenu */
 async function handleInput(input) {
     switch (input) {
         case "joyleft":
             currentTableIndex = wrapIndex(currentTableIndex - 1, vpin.tableData.length);
             updateScreen();
-            
-            // tell other windows the table index changed
             vpin.sendMessageToAllWindows({
                 type: 'TableIndexUpdate',
-                index: this.currentTableIndex
+                index: currentTableIndex
             });
             break;
         case "joyright":
             currentTableIndex = wrapIndex(currentTableIndex + 1, vpin.tableData.length);
             updateScreen();
-
-            // tell other windows the table index changed
             vpin.sendMessageToAllWindows({
                 type: 'TableIndexUpdate',
-                index: this.currentTableIndex
+                index: currentTableIndex
             });
             break;
         case "joyselect":
-            vpin.sendMessageToAllWindows({ type: "TableLaunching" })
-            // do something like fade out the table window!  
-            await vpin.launchTable(currentTableIndex); // this will notifiy all windows other windows.  You don't need to do it here.
+            tableAudio.stop(); // stop audio before launching
+            vpin.sendMessageToAllWindows({ type: "TableLaunching" });
+            await vpin.launchTable(currentTableIndex);
             break;
         case "joyback":
-            // do something on joyback if you want
             break;
     }
 }
 
-// example. for updating the screen
 function updateScreen() {
-    const container = document.getElementById('rootContainer');
-
-    // clear out old content
-    container.innerHTML = '';
-
-    container.innerHTML += 'Window name: ' + windowName + '<br>';
-    container.innerHTML += 'Current table index: ' + currentTableIndex + '<br>';
-    container.innerHTML += 'Total tables: ' + vpin.getTableCount() + '<br><br>';
-
-    // table metadata
-    container.innerHTML +=
-        'table meta data (json): <pre>' +
-        JSON.stringify(vpin.getTableMeta(currentTableIndex), null, 2) +
-        '</pre><br><br>';
-
-    // get table images
-    // table, cab, bg, dmd, wheel
-    container.innerHTML += 'table img url: ' + vpin.getImageURL(currentTableIndex, "table") + '<br>';
-    container.innerHTML += 'bg img url: ' + vpin.getImageURL(currentTableIndex, "bg") + '<br>';
-    container.innerHTML += 'dmd img url: ' + vpin.getImageURL(currentTableIndex, "dmd") + '<br>';
-    container.innerHTML += 'cab img url: ' + vpin.getImageURL(currentTableIndex, "cab") + '<br>';
-    container.innerHTML += 'wheel img url: ' + vpin.getImageURL(currentTableIndex, "wheel") + '<br>';
+    // Update images, info, audio for currentTableIndex
+    // Only play audio on the table window
+    if (windowName === "table") {
+        tableAudio.play(vpin.getAudioURL(currentTableIndex));
+    }
 }
 
-//
-// MISC suuport functions
-//
-
-// circular table index
+// circular table index helper
 function wrapIndex(index, length) {
     return (index + length) % length;
 }
 ```
 
-Again, Refer to the [web/theme/template](https://github.com/superhac/vpinfe/tree/master/web/theme/default) for a full example with the bare bones. 
+> **Important:** Call `await vpin.handleEvent(message)` at the top of your `receiveEvent` function. This lets VPinFECore handle `TableDataChange` events automatically (collection changes, filter/sort updates) so you don't have to manage that logic yourself.
 
-
-# Setting the theme
-
-The user selects the theme by setting this in the `vpinfe.ini`:
-```
-[Settings]
-theme = <THEME NAME>
-```
+---
 
 ## vpinfe-core.js
-This is the Javascrip interface to the VPinFE API.  Must be loaded into your theme from `../../common/vpinfe-core.js` as:
-```
+
+The JavaScript interface to the VPinFE API. Must be loaded in your theme:
+```html
 <script src="../../common/vpinfe-core.js"></script>
 ```
 
-### API
+### API Reference
 
 #### init()
-
-- Sets up:
-
-  - Keyboard event listener.
-
-  - pywebviewready listener, which loads monitors, table data, and gamepad mapping.
+Sets up keyboard event listener and connects to the backend (pywebview bridge or WebSocket).
 
 #### registerInputHandler(handler)
-
-- Registers an input handler for the table screen.
-
-- Only works when the current window name is "table".
+Registers an input handler for the table screen. Only works when the current window name is `"table"`.
 
 #### registerInputHandlerMenu(handler)
+Registers an input handler for the main menu overlay.
 
- - Registers an input handler for the menu.
+#### registerInputHandlerCollectionMenu(handler)
+Registers an input handler for the collection menu overlay.
 
 #### call(method, ...args)
-
-- Invokes a pywebview.api method if available.
-
-- Throws an error if the method does not exist.
+Invokes a backend API method. Works transparently with both pywebview and WebSocket backends. Returns a Promise.
 
 #### getImageURL(index, type)
-
-- Returns a web server URL for a table's image.
-
-- type can be "table", "bg", "dmd", "wheel", "cab".
-
-- Falls back to "../../images/file_missing.png" if missing.
+Returns an HTTP URL for a table's image. `type` can be `"table"`, `"bg"`, `"dmd"`, `"wheel"`, or `"cab"`. Returns a fallback missing-image URL if the file doesn't exist.
 
 #### getVideoURL(index, type)
+Returns an HTTP URL for a table's video. `type` can be `"table"`, `"bg"`, or `"dmd"`. Returns a fallback missing-image URL if no video exists. See [Video Support](#video-support).
 
-- Returns a web server URL for a table's video.
-
-- type can be "table", "bg", or "dmd".
-
-- Falls back to "../../images/file_missing.png" if no video exists.
-
-- See [Video Support](#video-support) for usage details.
+#### getAudioURL(index)
+Returns an HTTP URL for a table's audio file, or `null` if no audio exists. See [Audio Support](#audio-support).
 
 #### getTableMeta(index)
-
-- Returns metadata for a given table.
+Returns the full metadata object for a given table, including VPSdb info, VPX file detection flags, and paths.
 
 #### getTableCount()
-
-- Returns the number of tables.
+Returns the number of tables in the current (possibly filtered) table list.
 
 #### sendMessageToAllWindows(message)
-
-- Sends an event to all windows except self.
+Sends an event to all windows except the current one.
 
 #### sendMessageToAllWindowsIncSelf(message)
-
-- Sends an event to all windows including self.
+Sends an event to all windows including the current one.
 
 #### launchTable(index)
-
-- Disables gamepad input.
-
-- Calls backend to launch the selected table.
-
-- Re-enables gamepad input afterward.
+Disables gamepad input, calls backend to launch the selected table, then re-enables gamepad input. Sends `TableLaunchComplete` event to all windows when the table exits.
 
 #### getTableData(reset=false)
+Loads table data from the backend into `vpin.tableData`. Pass `reset=true` to reload from the full unfiltered table list.
 
-- Loads table metadata from backend into tableData.
+#### handleEvent(message)
+Handles incoming events with built-in logic for `TableDataChange` (collection/filter/sort changes). Call this at the top of your `receiveEvent` function to get automatic data refresh.
+
+#### registerEventHandler(eventType, handler)
+Registers a custom event handler for a specific event type. The handler is called whenever that event type is received via `handleEvent()`.
+
+---
+
+## Media Files
+
+All media files are stored per-table in either the `medias/` subfolder or the table's root folder. The `medias/` subfolder is checked first.
+
+```
+<Table Folder>
+├── medias/
+│   ├── table.png (or fss.png)
+│   ├── bg.png
+│   ├── dmd.png
+│   ├── wheel.png
+│   ├── cab.png
+│   ├── table.mp4 (or fss.mp4)
+│   ├── bg.mp4
+│   ├── dmd.mp4
+│   └── audio.mp3
+└── <tablename>.vpx
+```
+
+### Images
+
+| File | API Type | Description |
+|------|----------|-------------|
+| `table.png` / `fss.png` | `"table"` | Table playfield image |
+| `bg.png` | `"bg"` | Backglass image |
+| `dmd.png` | `"dmd"` | DMD image |
+| `wheel.png` | `"wheel"` | Wheel/logo image |
+| `cab.png` | `"cab"` | Cabinet image |
+
+Use `vpin.getImageURL(index, type)` to get the URL.
+
+### Videos
+
+| File | API Type | Description |
+|------|----------|-------------|
+| `table.mp4` / `fss.mp4` | `"table"` | Table playfield video |
+| `bg.mp4` | `"bg"` | Backglass video |
+| `dmd.mp4` | `"dmd"` | DMD video |
+
+Use `vpin.getVideoURL(index, type)` to get the URL.
+
+### Audio
+
+| File | Description |
+|------|-------------|
+| `audio.mp3` | Per-table audio (music, callouts, etc.) |
+
+Use `vpin.getAudioURL(index)` to get the URL. Returns `null` if no audio file exists.
+
+---
 
 ## Video Support
 
 Themes can display looping videos for table, backglass, and DMD screens in addition to (or instead of) static images.
 
-### Video Files
-
-Videos are stored in the same `medias/` folder as images, using the `.mp4` extension:
-
-| File | Description |
-|------|-------------|
-| `table.mp4` (or `fss.mp4`) | Table playfield video |
-| `bg.mp4` | Backglass video |
-| `dmd.mp4` | DMD video |
-
-The same lookup order applies as images: `medias/` subfolder first, then the table root folder.
-
-### Using Videos in a Theme
-
-Use `vpin.getVideoURL(index, type)` to get the video URL, where type is `"table"`, `"bg"`, or `"dmd"`. The method returns `"../../images/file_missing.png"` if no video file exists for that table, so you should check for this before creating a `<video>` element.
+Use `vpin.getVideoURL(index, type)` to get the video URL. The method returns a fallback missing-image URL if no video file exists, so check for this before creating a `<video>` element.
 
 Example with image fallback:
 ```javascript
@@ -362,8 +363,164 @@ if (videoUrl && !videoUrl.includes('file_missing')) {
 ```
 
 Key points:
-- Set `muted = true` — browsers require this for autoplay to work.
-- Set `poster = imageUrl` — this gives the video element proper dimensions before its metadata loads, preventing layout shifts.
-- The `onerror` handler provides a graceful fallback to the static image if the video can't be played.
-- The `slider-video` theme is a full working example of video integration.
+- Set `muted = true` — browsers require this for autoplay to work without user gesture.
+- Set `poster = imageUrl` — gives the video element proper dimensions before metadata loads, preventing layout shifts.
+- The `onerror` handler provides a graceful fallback to the static image.
 
+---
+
+## Audio Support
+
+Themes can play per-table audio (e.g., table music or callouts) that changes as the user navigates between tables.
+
+### Audio File
+
+Place an `audio.mp3` file in the table's `medias/` folder (or root folder). `vpin.getAudioURL(index)` returns the URL, or `null` if no audio file exists.
+
+### Implementation
+
+Audio playback requires handling two different autoplay policies depending on the backend:
+
+- **Chromium** (vpinfe-chromium branch): Launches with `--autoplay-policy=no-user-gesture-required`, so direct `audio.play()` calls work without restriction.
+- **pywebview** (master branch): WebKitGTK blocks `audio.play()` from non-user-gesture contexts (like gamepad polling via `requestAnimationFrame`). The workaround is to call `vpin.call("trigger_audio_play")`, which uses Python's `evaluate_js` to play from a privileged context.
+
+Here is a complete audio manager that works with both backends, supporting crossfade, retries, and fast navigation:
+
+```javascript
+const tableAudio = {
+    audio: Object.assign(new Audio(), { loop: true }),
+    fadeId: null,
+    fadeDuration: 500,   // fade duration in ms
+    maxVolume: 0.8,
+    currentUrl: null,
+
+    play(url, retries = 3) {
+        if (!url) { this.stop(); return; }
+        if (this.currentUrl === url && !this.audio.paused) return;
+
+        const audio = this.audio;
+        clearInterval(this.fadeId);
+        audio.pause();
+        audio.volume = 0;
+        audio.src = url;
+        this.currentUrl = url;
+
+        // Try direct play first (works in Chromium)
+        audio.play().then(() => {
+            if (this.currentUrl === url) this._fade(0, this.maxVolume);
+        }).catch(e => {
+            if (e.name === 'NotAllowedError') {
+                // Autoplay blocked (pywebview/WebKitGTK) - wait for audio to
+                // load, then ask Python to play via evaluate_js
+                this._retries = retries;
+                this._triggerWhenReady(url);
+            } else {
+                // Other error (e.g., network) - retry after delay
+                if (retries > 0 && this.currentUrl === url) {
+                    setTimeout(() => this.play(url, retries - 1), 1000);
+                }
+            }
+        });
+    },
+
+    // Wait for audio to load, then request privileged play from Python.
+    // URL check ensures stale requests from fast navigation are ignored.
+    _triggerWhenReady(url) {
+        if (this.currentUrl !== url) return;
+        if (this.audio.readyState >= 2) {
+            vpin.call("trigger_audio_play").catch(() => {});
+        } else {
+            this.audio.addEventListener('canplay', () => {
+                if (this.currentUrl === url) {
+                    vpin.call("trigger_audio_play").catch(() => {});
+                }
+            }, { once: true });
+        }
+    },
+
+    // Called from Python via evaluate_js (privileged context).
+    // Audio is guaranteed loaded by _triggerWhenReady before this is called.
+    _resumePlay() {
+        const url = this.currentUrl;
+        const retries = this._retries || 0;
+        if (!url) return;
+
+        this.audio.play().then(() => {
+            if (this.currentUrl === url) this._fade(0, this.maxVolume);
+        }).catch(e => {
+            if (retries > 0 && this.currentUrl === url) {
+                this._retries = retries - 1;
+                setTimeout(() => this._triggerWhenReady(url), 500);
+            }
+        });
+    },
+
+    stop() {
+        if (this.audio && !this.audio.paused) {
+            this._fade(this.audio.volume, 0, () => {
+                this.audio.pause();
+                this.currentUrl = null;
+            });
+        } else {
+            clearInterval(this.fadeId);
+            this.currentUrl = null;
+        }
+    },
+
+    _fade(from, to, onComplete) {
+        clearInterval(this.fadeId);
+        const audio = this.audio;
+        if (!audio) { if (onComplete) onComplete(); return; }
+        audio.volume = from;
+        const steps = this.fadeDuration / 20;
+        const delta = (to - from) / steps;
+        this.fadeId = setInterval(() => {
+            const next = audio.volume + delta;
+            if ((delta > 0 && next >= to) || (delta < 0 && next <= to) || delta === 0) {
+                audio.volume = to;
+                clearInterval(this.fadeId);
+                if (onComplete) onComplete();
+            } else {
+                audio.volume = next;
+            }
+        }, 20);
+    }
+};
+```
+
+### Usage in Your Theme
+
+```javascript
+function updateScreen() {
+    // ... update images, carousel, etc. ...
+
+    // Play audio only on the table window
+    if (windowName === "table") {
+        tableAudio.play(vpin.getAudioURL(currentTableIndex));
+    }
+}
+
+// In your input handler:
+case "joyselect":
+    tableAudio.stop();  // stop audio before launching table
+    vpin.sendMessageToAllWindows({ type: "TableLaunching" });
+    await vpin.launchTable(currentTableIndex);
+    break;
+
+// In receiveEvent:
+if (message.type == "TableLaunchComplete") {
+    fadeIn();
+    if (windowName === "table") tableAudio.play(vpin.getAudioURL(currentTableIndex));
+}
+```
+
+### Backend API Requirement
+
+For audio to work on pywebview, the Python API class must include:
+```python
+def trigger_audio_play(self):
+    """Trigger audio.play() via evaluate_js to bypass WebKitGTK autoplay policy."""
+    self.myWindow[0].evaluate_js('tableAudio._resumePlay()')
+```
+
+On the Chromium branch, this method is a no-op since `--autoplay-policy=no-user-gesture-required` allows direct playback.
