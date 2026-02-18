@@ -124,7 +124,7 @@ class ChromiumManager:
             "--disable-backgrounding-occluded-windows",
             "--disable-renderer-backgrounding",
             "--disable-background-media-suspend",
-            "--disable-features=CalculateNativeWindowOcclusion",
+            "--disable-features=CalculateNativeWindowOcclusion,PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies",
             "--disable-hang-monitor",
             "--disable-ipc-flooding-protection",
             "--disable-gpu-process-crash-limit",
@@ -134,7 +134,6 @@ class ChromiumManager:
             "--no-sandbox",
             "--disable-gpu-sandbox",
             "--autoplay-policy=no-user-gesture-required",
-            "--disable-features=PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies",
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
