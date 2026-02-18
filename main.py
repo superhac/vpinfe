@@ -104,8 +104,7 @@ def loadWindows():
         api._finish_setup()
 
     # --- TABLE SCREEN (ALWAYS LAST) ---
-    import time
-    time.sleep(0.5)  # slight delay to ensure Table window is created last and gets focus
+    # The last window created will be the one in focus.  AKA the controller for all the other windows!!!! Always "table"
     if iniconfig.config['Displays']['tablescreenid']:
         screen_id = int(iniconfig.config['Displays']['tablescreenid'])
         api = API(iniconfig)
@@ -120,7 +119,7 @@ def loadWindows():
             height=monitors[screen_id].height,
             background_color="#000000",
             fullscreen=window_flags["fullscreen"],
-            frameless=True if is_mac else False,  # force frameless for table on mac
+            frameless=True if is_mac else False,
             resizable=window_flags["resizable"],
         )
 

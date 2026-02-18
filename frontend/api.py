@@ -59,8 +59,13 @@ class API:
             PIXI.sound.play("{sound}");
             """
             )
-       
-    
+
+    def trigger_audio_play(self):
+        """Trigger audio.play() via evaluate_js to bypass WebKitGTK autoplay restrictions.
+        Gamepad input (requestAnimationFrame polling) is not a user gesture, so audio.play()
+        called directly from JS is blocked. evaluate_js runs in a privileged context."""
+        self.myWindow[0].evaluate_js('tableAudio._resumePlay()')
+
     def get_my_window_name(self):
         for window_name, window, api in self.webview_windows:
             if self.myWindow[0].uid == window.uid:
