@@ -104,9 +104,9 @@ def loadWindows():
         api._finish_setup()
 
     # --- TABLE SCREEN ---
-    if sys.platform == "darwin" or sys.platform == "win32":
-        # On macOS, create the table window before starting the webview loop
-        # to prevent a crash when it's the only window configured.
+    if sys.platform == "darwin" or sys.platform == "win32" or not webview_windows:
+        # On macOS/Windows, or when table is the only window (single-screen),
+        # create the table window before starting the webview loop.
         if iniconfig.config['Displays']['tablescreenid']:
             screen_id = int(iniconfig.config['Displays']['tablescreenid'])
             api = API(iniconfig)
@@ -245,8 +245,8 @@ else:
         api._finish_setup()
 
     def _on_webview_started():
-        """Create the table window after webview starts (Linux only)."""
-        if sys.platform == "linux":
+        """Create the table window after webview starts (Linux multi-screen only)."""
+        if sys.platform == "linux" and not any(w[0] == 'table' for w in webview_windows):
             threading.Thread(target=_create_table_window, daemon=True).start()
 
     # Ensure at least one window was created before starting webview
