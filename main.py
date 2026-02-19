@@ -104,7 +104,7 @@ def loadWindows():
         api._finish_setup()
 
     # --- TABLE SCREEN ---
-    if sys.platform == "darwin":
+    if sys.platform == "darwin" or sys.platform == "win32":
         # On macOS, create the table window before starting the webview loop
         # to prevent a crash when it's the only window configured.
         if iniconfig.config['Displays']['tablescreenid']:
