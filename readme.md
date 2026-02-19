@@ -104,14 +104,30 @@ git clone https://github.com/superhac/vpinfe.git
 </details>
 
 <details>
-<summary><h3>Mac ????</h3></summary>
+<summary><h3>Mac</h3></summary>
+After downloading the chosen build (bundled with Chromium, or Slim if you already have Chrome or Chromium installed).
+Open the DMG and move the app to your applications folder. 
+ 
+!<img width="604" height="373" alt="Screenshot 2026-02-19 at 11 04 49 AM" src="https://github.com/user-attachments/assets/f981c4a2-7b3a-45c7-8fb2-38ee7b10ec3b" />
 
-```
-git clone https://github.com/superhac/vpinfe.git
-cd vpinfe
-pip install -r osx_requirements.txt
-```
+When you initiall run the app from your applications folder, you'll get this message: 
 
+!<img width="259" height="282" alt="Screenshot 2026-02-17 at 2 42 08 PM" src="https://github.com/user-attachments/assets/e6130f83-b161-44e9-938a-c1ccdb02a48e" />
+
+Click "Done" and then go to System Settings > Privacy & Security, scroll down and click  "Open Anyway".
+
+!<img width="488" height="125" alt="Screenshot 2026-02-19 at 11 07 35 AM" src="https://github.com/user-attachments/assets/5327407a-d543-4b25-9e82-2bbfa9b8b07c" />
+
+Click "Open Anyway" again and then authorize the app. 
+
+!<img width="258" height="348" alt="Screenshot 2026-02-19 at 11 08 50 AM" src="https://github.com/user-attachments/assets/bc5438ac-38d5-4b7b-8ecb-a5136a02a368" />
+
+The app may start then, but there's a chance you'll have to start it again. 
+You'll also get prompted to allow network access and allow app management. 
+If you don't allow either of these, they can be enabled later in System Settings. 
+System Settings > Privacy & Security> Local Network 
+and 
+System Settings > Privacy & Security> App Management 
 </details>
 
 <details>
