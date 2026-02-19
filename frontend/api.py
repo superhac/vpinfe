@@ -354,12 +354,21 @@ class API:
         table = self.filteredTables[index]
         vpx = table.fullPathVPXfile
         vpxbin = self._iniConfig.config['Settings'].get('vpxbinpath', '')
+         
+        vpxbin_path = Path(vpxbin).expanduser()
+        
+        # If on macOS and the target is an App bundle, dynamically route to its internal executable
+        if sys.platform == "darwin" and vpxbin_path.suffix.lower() == ".app":
+            # .stem gets the file name without the extension (e.g., 'VPinballX_GL')
+            app_name = vpxbin_path.stem
+            vpxbin_path = vpxbin_path / "Contents" / "MacOS" / app_name
         print("Launching: ", [vpxbin, "-play", vpx])
 
         # Track the table play
         self._track_table_play(table)
 
-        cmd = [Path(vpxbin).expanduser(), "-play", vpx]
+        cmd = [vpxbin_path, "-play", vpx]
+        
         process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL)
