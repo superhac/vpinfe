@@ -10,26 +10,6 @@ CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 
-
-def _get_collection_names():
-    """Get list of collection names for the dropdown."""
-    try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        return [''] + collections.get_collections_name()  # Empty option + all collections
-    except Exception:
-        return ['']
-
-
-def _get_installed_theme_names():
-    """Get list of installed theme names."""
-    themes = []
-    themes_dir = CONFIG_DIR / 'themes'
-    if themes_dir.is_dir():
-        for entry in os.scandir(themes_dir):
-            if entry.is_dir():
-                themes.append(entry.name)
-    return sorted(themes)
-
 # Sections to ignore
 IGNORED_SECTIONS = {'VPSdb'}
 
@@ -41,6 +21,68 @@ SECTION_ICONS = {
     'Media': 'perm_media',
     'Displays': 'monitor',
 }
+
+# Dictionary for explicit user-friendly name mappings
+FRIENDLY_NAMES = {
+    # [Settings]
+    'vpxbinpath': 'VPX Executable Path',
+    'vpxinipath' : 'VPX Ini Path',
+    'tablerootdir': 'Tables Directory',
+    'startup_collection': 'Startup Collection',
+    'theme': 'Active Theme',
+    'level': 'Log Verbosity',
+    'console': 'Logging Console',
+    'file': 'Log File',
+    
+    # [Displays]
+    'tablescreenid': 'Playfield Monitor ID',
+    'bgscreenid': 'Backglass Monitor ID',
+    'dmdscreenid': 'DMD Monitor ID',
+    'tablerotation': 'Playfield Rotation (0/90/270)',
+    'tableorientation': 'Playfield Orientation (Landscape/Portrait)',
+    
+    # [Network]
+    'http_port': 'Web Server Port',
+    'themeassetsport': 'Theme Server Port',
+    'manageruiport': 'Manager UI Port',
+    'startup_collection': 'Default Startup Collection',
+    # [Mobile]
+    'deviceip': 'Mobile Device IP',
+    'deviceport': 'Mobile Device Port',
+    'chunksize': 'Mobile Chunk Size',
+    # [Media]
+    'tabletype': 'Table Type',
+    'tableresolution': 'Default Table Resolution',
+    'tablevideoresolution': 'Default Table Video Resolution',
+    'defaultmissingmediaimg': 'Default Missing Media Image',
+    
+    
+}
+
+def get_friendly_name(key: str) -> str:
+    """Return an explicitly mapped friendly name, or cleanly format the raw key."""
+    if key in FRIENDLY_NAMES:
+        return FRIENDLY_NAMES[key]
+    # Fallback: 'my_raw_key' becomes 'My Raw Key'
+    return key.replace('_', ' ').title()
+
+def _get_collection_names():
+    """Get list of collection names for the dropdown."""
+    try:
+        collections = VPXCollections(str(COLLECTIONS_PATH))
+        return [''] + collections.get_collections_name()  # Empty option + all collections
+    except Exception:
+        return ['']
+
+def _get_installed_theme_names():
+    """Get list of installed theme names."""
+    themes = []
+    themes_dir = CONFIG_DIR / 'themes'
+    if themes_dir.is_dir():
+        for entry in os.scandir(themes_dir):
+            if entry.is_dir():
+                themes.append(entry.name)
+    return sorted(themes)
 
 def render_panel(tab=None):
     # Re-read config from disk each time the page is opened
@@ -124,6 +166,7 @@ def render_panel(tab=None):
                         with ui.column().classes('gap-3'):
                             for key in options:
                                 value = config.config.get(section, key, fallback='')
+                                friendly_label = get_friendly_name(key)
 
                                 # Special handling for startup_collection in Settings
                                 if section == 'Settings' and key == 'startup_collection':
@@ -132,7 +175,7 @@ def render_panel(tab=None):
                                     if value and value not in collection_options:
                                         collection_options.append(value)
                                     inp = ui.select(
-                                        label=key,
+                                        label=friendly_label,
                                         options=collection_options,
                                         value=value
                                     ).classes('config-input').style('min-width: 200px;')
@@ -142,16 +185,21 @@ def render_panel(tab=None):
                                     if value and value not in theme_options:
                                         theme_options.append(value)
                                     inp = ui.select(
-                                        label=key,
+                                        label=friendly_label,
                                         options=theme_options,
                                         value=value
                                     ).classes('config-input').style('min-width: 200px;')
                                 else:
-                                    # Calculate width: 10% bigger than content, minimum 100px
-                                    char_width = max(len(value), len(key), 5)  # at least 5 chars
-                                    width_px = int(char_width * 10 * 1.1)  # ~10px per char, +10%
-                                    width_px = max(width_px, 100)  # minimum 100px
-                                    inp = ui.input(key, value=value).classes('config-input').style(f'width: {width_px}px;')
+                                    # Calculate width based on the longer string (value or friendly label)
+                                    char_width = max(len(value), len(friendly_label), 5)  
+                                    width_px = int(char_width * 10 * 1.1)  
+                                    width_px = max(width_px, 100)  
+                                    inp = ui.input(
+                                        label=friendly_label, 
+                                        value=value
+                                    ).classes('config-input').style(f'width: {width_px}px;')
+                                
+                                # Store the original INI key so saving works correctly
                                 inputs[section][key] = inp
 
         # Save button
