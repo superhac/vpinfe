@@ -131,7 +131,7 @@ def loadWindows():
             api._iniConfig = iniconfig
             api._finish_setup()
     else:
-        # On Linux/Windows, the table window is created after webview.start()
+        # On Linux, the table window is created after webview.start()
         # via _create_table_window() to ensure it appears on top with focus.
         pass
 
