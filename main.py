@@ -245,9 +245,15 @@ else:
         api._finish_setup()
 
     def _on_webview_started():
-        """Create the table window after webview starts (non-macOS)."""
-        if sys.platform != "darwin":
+        """Create the table window after webview starts (Linux only)."""
+        if sys.platform == "linux":
             threading.Thread(target=_create_table_window, daemon=True).start()
+
+    # Ensure at least one window was created before starting webview
+    if not webview_windows:
+        print("[ERROR] No display windows configured. Check your vpinfe.ini [Displays] section.")
+        print("[ERROR] At minimum, 'tablescreenid' must be set (e.g. tablescreenid = 0).")
+        sys.exit(1)
 
     # block and start webview
     if sys.platform == "darwin":
