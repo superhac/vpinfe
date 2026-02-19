@@ -539,7 +539,8 @@ Table Folder Name (Manufacturer Year)/
 | ----------------- | --------------------------------------- |
 | bg.png            | Backglass Image                         |
 | dmd.png           | DMD Image                               |
-| table.png         | Table Image (portrait)                  |
+| table.png         | Table Image (landscape)                 |
+| table.mp4         | Table Video (landscape)                 |
 | fss.png           | Full Single Screen Image                |
 | wheel.png         | Icon on Hud                             |
 | cab.png           | A cabinet image of the pinball machine  |
