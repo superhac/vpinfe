@@ -372,6 +372,19 @@ class API:
         process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             stdin=subprocess.DEVNULL)
+        cmd = [Path(vpxbin).expanduser(), "-play", vpx]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            text=True)
+
+        startup_detected = False
+        for line in process.stdout:
+            if not startup_detected and "Startup done" in line:
+                startup_detected = True
+                self.send_event_all_windows_incself({"type": "TableRunning"})
+                print("table running")
+
         process.wait()
 
         # Delete NVRAM file if configured for this table
