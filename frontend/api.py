@@ -368,11 +368,7 @@ class API:
         self._track_table_play(table)
 
         cmd = [vpxbin_path, "-play", vpx]
-        
-        process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL)
-        cmd = [Path(vpxbin).expanduser(), "-play", vpx]
+
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
