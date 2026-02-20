@@ -318,12 +318,57 @@ def build_app():
             elif page_key == 'vpinfe':
                 tab_vpinfe.render_panel()
 
-    # Show default page (tables) or saved page
-    saved_page = app.storage.user.get('active_page', 'tables')
-    show_page(saved_page)
+    # Determine initial page: URL ?page= param takes priority, then saved page
+    page_param = app.storage.user.get('_page_param')
+    if page_param:
+        del app.storage.user['_page_param']
+    initial_page = page_param or app.storage.user.get('active_page', 'tables')
+    show_page(initial_page)
+
+    # Show dialog if requested via URL param
+    dialog_param = app.storage.user.get('_dialog_param')
+    if dialog_param:
+        del app.storage.user['_dialog_param']
+        handler = _DIALOG_HANDLERS.get(dialog_param)
+        if handler:
+            handler()
+
+# Map of friendly URL param values to internal page keys
+_PAGE_ALIASES = {
+    'tables': 'tables',
+    'collections': 'collections',
+    'media': 'media',
+    'themes': 'themes',
+    'mobile': 'mobile',
+    'vpinfe': 'vpinfe',
+    'vpinfe_config': 'vpinfe',
+    'configuration': 'vpinfe',
+    'config': 'vpinfe',
+}
+
+def _dialog_test():
+    """Test dialog triggered by ?dialog=test."""
+    with ui.dialog() as dlg, ui.card():
+        ui.label('Testing dialog').classes('text-lg font-bold')
+        ui.button('Close', on_click=dlg.close)
+    dlg.open()
+
+# Registry mapping dialog param values to handler functions.
+# Add new entries here to support additional dialogs via ?dialog=<key>.
+_DIALOG_HANDLERS = {
+    'test': _dialog_test,
+}
 
 @ui.page('/')
-def index():
+def index(page: str = '', dialog: str = ''):
+    if page:
+        resolved = _PAGE_ALIASES.get(page.lower())
+        if resolved:
+            app.storage.user['_page_param'] = resolved
+    if dialog:
+        key = dialog.lower()
+        if key in _DIALOG_HANDLERS:
+            app.storage.user['_dialog_param'] = key
     build_app()
 
 @ui.page('/remote')
