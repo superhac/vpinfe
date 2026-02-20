@@ -381,7 +381,7 @@ class API:
         self._track_table_play(table)
 
         cmd = [Path(vpxbin).expanduser(), "-play", vpx]
-        self.myWindow[0].toggle_fullscreen()
+        #self.myWindow[0].toggle_fullscreen()
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
@@ -399,7 +399,7 @@ class API:
         # Delete NVRAM file if configured for this table
         self._delete_nvram_if_configured(table)
 
-        self.myWindow[0].toggle_fullscreen()
+        #self.myWindow[0].toggle_fullscreen()
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 
     def _track_table_play(self, table):
