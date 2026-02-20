@@ -243,6 +243,21 @@ def _restart_app():
         window.destroy()
 
 
+def _quit_app():
+    """Quit VPinFE by closing all webview windows (or signaling shutdown in headless mode)."""
+    import webview
+    from managerui.managerui import _shutdown_event
+
+    ui.notify('Quitting VPinFE...', type='info')
+
+    # Signal the shutdown event (unblocks headless mode)
+    _shutdown_event.set()
+
+    # Close all webview windows to trigger clean shutdown (no restart sentinel)
+    for window in webview.windows:
+        window.destroy()
+
+
 def _shutdown_system():
     """Shutdown the system (cross-platform)."""
     import webview

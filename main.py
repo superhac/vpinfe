@@ -28,7 +28,7 @@ iniconfig = IniConfig(str(config_path))
 
 # Now safe to import modules that create their own IniConfig at import time
 from clioptions import parseArgs
-from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run
+from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run, _shutdown_event
 from nicegui import app as nicegui_app
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
@@ -239,9 +239,10 @@ if headless:
     print(f"[VPinFE] Manager UI on port {manager_ui_port}")
     print(f"[VPinFE] Press Ctrl+C to stop")
     try:
-        threading.Event().wait()
+        _shutdown_event.wait()
     except KeyboardInterrupt:
-        print("\n[VPinFE] Shutting down...")
+        pass
+    print("\n[VPinFE] Shutting down...")
 else:
     def _create_table_window():
         """Create the table window after a delay so it appears on top with focus."""

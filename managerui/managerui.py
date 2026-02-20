@@ -9,7 +9,7 @@ from .pages import collections as tab_collections
 from .pages import media as tab_media
 from .pages import themes as tab_themes
 from .pages import remote
-from .pages.remote import _restart_app
+from .pages.remote import _restart_app, _quit_app
 from .pages import mobile as tab_mobile
 import threading
 import subprocess
@@ -18,6 +18,10 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 import os
 import json
+
+# Shutdown event — set by _quit_app() to unblock headless mode
+import threading as _threading
+_shutdown_event = _threading.Event()
 
 # First-run flag — set by main.py when no vpinfe.ini existed
 _first_run = False
@@ -129,6 +133,9 @@ def header():
             ui.button(icon='restart_alt', on_click=lambda: _restart_app()) \
                 .props('flat round dense').classes('text-green-400') \
                 .tooltip('Restart VPinFE')
+            ui.button(icon='power_settings_new', on_click=lambda: _quit_app()) \
+                .props('flat round dense').classes('text-red-400') \
+                .tooltip('Quit VPinFE')
 
         # Update notification (right side of header)
         update_container = ui.row().classes('gap-2 items-center')
