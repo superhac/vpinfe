@@ -241,6 +241,9 @@ async function receiveEvent(message) {
         tableAudio.stop();
         await fadeOut();
     }
+    else if (message.type == "TableRunning") {
+        // Table has finished loading and is now running
+    }
     else if (message.type == "TableLaunchComplete") {
         fadeIn();
         if (windowName === "table") tableAudio.play(vpin.getAudioURL(currentTableIndex));
@@ -877,6 +880,9 @@ case "joyselect":
     break;
 
 // In receiveEvent:
+if (message.type == "TableRunning") {
+    // Table has finished loading and is now running
+}
 if (message.type == "TableLaunchComplete") {
     fadeIn();
     if (windowName === "table") tableAudio.play(vpin.getAudioURL(currentTableIndex));
