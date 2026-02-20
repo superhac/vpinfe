@@ -52,12 +52,12 @@ class IniConfig:
 		self.configfilepath = configfilepath
 
 		# check if the file exists
+		self.is_new = False
 		if not os.path.exists(configfilepath):
 				print(f"Generating a default 'vpinfe.ini' at: {configfilepath}")
+				self.is_new = True
 				self.formatDefaults()
 				self.save()
-				print(f"Please edit the config file and restart the application.")
-				raise FileNotFoundError(f"Config file created at '{configfilepath}'. Please configure it and restart.")
 
 		self.config.read(configfilepath)
 		# Add any missing default options

@@ -19,6 +19,13 @@ from email.utils import parsedate_to_datetime
 import os
 import json
 
+# First-run flag — set by main.py when no vpinfe.ini existed
+_first_run = False
+
+def set_first_run(value: bool = True):
+    global _first_run
+    _first_run = value
+
 # Shared state for remote launch notifications
 _remote_launch_state = {
     'launching': False,
@@ -318,17 +325,29 @@ def build_app():
             elif page_key == 'vpinfe':
                 tab_vpinfe.render_panel()
 
-    # Determine initial page: URL ?page= param takes priority, then saved page
+    # Determine initial page: URL ?page= param takes priority, then first-run, then saved page
+    global _first_run
     page_param = app.storage.user.get('_page_param')
     if page_param:
         del app.storage.user['_page_param']
-    initial_page = page_param or app.storage.user.get('active_page', 'tables')
+
+    if _first_run:
+        initial_page = 'vpinfe'
+    elif page_param:
+        initial_page = page_param
+    else:
+        initial_page = app.storage.user.get('active_page', 'tables')
     show_page(initial_page)
 
-    # Show dialog if requested via URL param
+    # Show dialog if requested via URL param, or first-run dialog
     dialog_param = app.storage.user.get('_dialog_param')
     if dialog_param:
         del app.storage.user['_dialog_param']
+
+    if _first_run:
+        _first_run = False  # Only show once
+        _dialog_first_run()
+    elif dialog_param:
         handler = _DIALOG_HANDLERS.get(dialog_param)
         if handler:
             handler()
@@ -353,10 +372,23 @@ def _dialog_test():
         ui.button('Close', on_click=dlg.close)
     dlg.open()
 
+def _dialog_first_run():
+    """Welcome dialog shown on first run when no vpinfe.ini existed."""
+    with ui.dialog() as dlg, ui.card().classes('p-6'):
+        ui.icon('settings_suggest', size='48px').classes('text-blue-400 self-center')
+        ui.label('Welcome to VPinFE!').classes('text-xl font-bold text-center')
+        ui.label(
+            'No configuration file was found so a default vpinfe.ini has been created. '
+            'Please configure your settings below, then restart VPinFE.'
+        ).classes('text-sm text-gray-300 text-center')
+        ui.button('Got it', on_click=dlg.close).classes('self-center mt-2')
+    dlg.open()
+
 # Registry mapping dialog param values to handler functions.
 # Add new entries here to support additional dialogs via ?dialog=<key>.
 _DIALOG_HANDLERS = {
     'test': _dialog_test,
+    'first_run': _dialog_first_run,
 }
 
 @ui.page('/')

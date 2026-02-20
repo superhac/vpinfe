@@ -9,9 +9,6 @@ import threading
 from common.iniconfig import IniConfig
 import sys
 import os
-from clioptions import parseArgs
-from managerui.managerui import start_manager_ui, stop_manager_ui
-from nicegui import app as nicegui_app
 from platformdirs import user_config_dir
 from common.themes import ThemeRegistry
 
@@ -23,15 +20,20 @@ from common.tableparser import TableParser
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
 
-nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
-html_file = Path(base_path) / "web/splash.html"
-webview_windows = [] # [ [window_name, window, api] ]
-
-# Use platform-specific config directory
+# Load config BEFORE importing clioptions/managerui (they create IniConfig at import time)
 config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
 config_dir.mkdir(parents=True, exist_ok=True)
 config_path = config_dir / "vpinfe.ini"
 iniconfig = IniConfig(str(config_path))
+
+# Now safe to import modules that create their own IniConfig at import time
+from clioptions import parseArgs
+from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run
+from nicegui import app as nicegui_app
+
+nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
+html_file = Path(base_path) / "web/splash.html"
+webview_windows = [] # [ [window_name, window, api] ]
 
  # The last window created will be the one in focus.  AKA the controller for all the other windows!!!! Always "table"
 import sys
@@ -52,6 +54,25 @@ def loadWindows():
         "frameless": is_mac,
         "resizable": False if is_mac else True,
     }
+
+    # First-run: show manager UI config page in the table window instead of theme
+    if iniconfig.is_new:
+        manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
+        setup_url = f'http://localhost:{manager_ui_port}/'
+        screen_id = int(iniconfig.config['Displays'].get('tablescreenid', '0'))
+        print(f"[VPinFE] First run — loading Manager UI in table window for initial configuration.")
+
+        win = webview.create_window(
+            "VPinFE Setup",
+            url=setup_url,
+            x=monitors[screen_id].x,
+            y=monitors[screen_id].y,
+            width=monitors[screen_id].width,
+            height=monitors[screen_id].height,
+            background_color="#0f172a",
+        )
+        webview_windows.append(['table', win, None])
+        return
 
     # --- BG SCREEN ---
     if iniconfig.config['Displays']['bgscreenid']:
@@ -142,6 +163,22 @@ if len(sys.argv) > 0:
     if cli_args and cli_args.headless:
         headless = True
 
+# On first run, start the manager UI early so the webview can load it
+if iniconfig.is_new:
+    import time
+    set_first_run(True)
+    manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
+    start_manager_ui(port=manager_ui_port)
+    # Wait for the NiceGUI server to be ready before webview tries to load it
+    for _attempt in range(30):
+        try:
+            import urllib.request as _ur
+            _ur.urlopen(f'http://localhost:{manager_ui_port}/api/remote-launch', timeout=1)
+            break
+        except Exception:
+            time.sleep(0.5)
+    print(f"[VPinFE] First run — Manager UI ready on port {manager_ui_port}")
+
 # Initialize theme registry and auto-install default themes
 try:
     theme_registry = ThemeRegistry()
@@ -161,10 +198,12 @@ os.makedirs(themes_dir, exist_ok=True)
 nicegui_app.add_static_files('/themes', themes_dir)
 
 MOUNT_POINTS = {
-        '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
         '/web/': os.path.join(base_path, 'web'),
         '/themes/': themes_dir,
         }
+table_root = iniconfig.config['Settings']['tablerootdir']
+if table_root:
+    MOUNT_POINTS['/tables/'] = os.path.abspath(table_root)
 http_server = CustomHTTPServer(MOUNT_POINTS)
 theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
 http_server.start_file_server(port=theme_assets_port)
