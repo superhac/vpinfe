@@ -245,6 +245,22 @@ def _restart_app():
         chromium_mgr.terminate_all()
 
 
+def _quit_app():
+    """Quit VPinFE by closing all Chromium windows (or signaling shutdown in headless mode)."""
+    from managerui.managerui import _shutdown_event
+
+    ui.notify('Quitting VPinFE...', type='info')
+
+    # Signal the shutdown event (unblocks headless mode)
+    _shutdown_event.set()
+
+    # Terminate all Chromium windows to trigger clean shutdown (no restart sentinel)
+    main_module = sys.modules['__main__']
+    chromium_mgr = getattr(main_module, 'chromium_manager', None)
+    if chromium_mgr:
+        chromium_mgr.terminate_all()
+
+
 def _shutdown_system():
     """Shutdown the system (cross-platform)."""
     ui.notify('Shutting down system...', type='warning')

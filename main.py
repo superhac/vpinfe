@@ -39,7 +39,7 @@ iniconfig = IniConfig(str(config_path))
 
 # Now safe to import modules that create their own IniConfig at import time
 from clioptions import parseArgs
-from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run
+from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run, _shutdown_event
 from nicegui import app as nicegui_app
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
@@ -137,13 +137,12 @@ ws_bridge.start()
 
 if headless:
     import signal
-    import threading
     print("[Main] Headless mode: servers running without Chromium frontend")
     print("[Main] Press Ctrl+C to stop...")
-    stop_event = threading.Event()
-    signal.signal(signal.SIGINT, lambda s, f: stop_event.set())
-    signal.signal(signal.SIGTERM, lambda s, f: stop_event.set())
-    stop_event.wait()
+    signal.signal(signal.SIGINT, lambda s, f: _shutdown_event.set())
+    signal.signal(signal.SIGTERM, lambda s, f: _shutdown_event.set())
+    _shutdown_event.wait()
+    print("\n[VPinFE] Shutting down...")
 elif iniconfig.is_new:
     # First-run: show manager UI config page in a chromium window instead of theme
     from screeninfo import get_monitors
