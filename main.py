@@ -159,6 +159,8 @@ elif iniconfig.is_new:
         monitor=monitor,
         index=0,
     )
+    # Block until the setup chromium window exits
+    chromium_manager.wait_for_exit()
 else:
     # Launch Chromium windows on configured monitors
     chromium_manager.launch_all_windows(iniconfig)
