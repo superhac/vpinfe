@@ -353,6 +353,7 @@ Events are sent between windows via `receiveEvent()`. These are the built-in eve
 |------------|------------|-------------|
 | `TableIndexUpdate` | `index` | User navigated to a different table. Sent by the table window to all others. |
 | `TableLaunching` | — | A table is about to launch. Use this to fade out, stop audio, etc. |
+| `TableRunning` | — | The launched table has finished loading and is now running. Sent when the table process outputs "Startup done". |
 | `TableLaunchComplete` | — | The launched table has exited. Use this to fade back in, resume audio. |
 | `RemoteLaunching` | `table_name` | The manager UI triggered a remote table launch. Show an overlay. |
 | `RemoteLaunchComplete` | — | The remote-launched table has exited. Hide the overlay. |
@@ -443,7 +444,7 @@ The following methods are available via `vpin.call()`:
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
 | `get_tables` | `reset=false` | `string` (JSON) | Returns JSON string of the current (filtered) table list. Pass `true` to reset to the full unfiltered list. Each table object includes paths, media paths, addon flags, and metadata. |
-| `launch_table` | `index` | — | Launches the VPX table at the given index. Blocks until the table exits. Automatically tracks play in the "Last Played" collection and sends `TableLaunchComplete` event to all windows. |
+| `launch_table` | `index` | — | Launches the VPX table at the given index. Blocks until the table exits. Automatically tracks play in the "Last Played" collection. Sends `TableRunning` when the table finishes loading and `TableLaunchComplete` when it exits. |
 | `build_metadata` | `download_media=true`, `update_all=false` | `object` | Triggers a background metadata build/refresh. Sends progress events (`buildmeta_progress`, `buildmeta_log`, `buildmeta_complete`, `buildmeta_error`) to all windows. Returns `{success, message}`. |
 
 ##### Collections
@@ -525,7 +526,7 @@ Sends an event to all windows except the current one. Convenience wrapper around
 Sends an event to all windows including the current one and forwarding to iframes.
 
 #### launchTable(index)
-Disables gamepad input, calls backend to launch the selected table, then re-enables gamepad input. Sends `TableLaunchComplete` event to all windows when the table exits.
+Disables gamepad input, calls backend to launch the selected table, then re-enables gamepad input. Sends `TableRunning` when the table finishes loading and `TableLaunchComplete` when it exits.
 
 #### getTableData(reset=false)
 Loads table data from the backend into `vpin.tableData`. Pass `reset=true` to reload from the full unfiltered table list.
