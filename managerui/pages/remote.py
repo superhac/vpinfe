@@ -12,7 +12,7 @@ content_area = None
 category_select = None
 
 # Config for launching tables
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
+CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
 VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 
@@ -274,7 +274,7 @@ def _shutdown_system():
     else:
         # Linux: use systemctl with -i flag to ignore inhibitors (like GNOME session)
         subprocess.Popen(["systemctl", "poweroff", "-i"])
-       
+
     # Close VPinFE windows after issuing shutdown
     for window in webview.windows:
         window.destroy()

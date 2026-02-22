@@ -11,7 +11,7 @@ from platformdirs import user_config_dir
 
 from common.iniconfig import IniConfig
 
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
+CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
 VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 
 _INI_CFG = None

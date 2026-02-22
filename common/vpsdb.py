@@ -21,7 +21,7 @@ class VPSdb:
     vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
     vpinmdbUrl = "https://github.com/superhac/vpinmediadb/raw/refs/heads/main/vpinmdb.json"
 
-    _config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+    _config_dir = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
     vpsdb_path = _config_dir / "vpsdb.json"
 
     def __init__(self, rootTableDir, vpinfeIniConfig):

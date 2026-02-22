@@ -95,7 +95,7 @@ class KeySimulator:
         68: Key.f11,
         69: Key.f12,
 
-        # Navigation        
+        # Navigation
         74: Key.home,
         75: Key.page_up,
         76: Key.delete,
@@ -116,7 +116,7 @@ class KeySimulator:
         230: Key.alt_r,
         231: Key.cmd,
     }
-    
+
     # navigation: not on mac,  but other platforms get these keys
     if sys.platform != "darwin":  # macOS
             SDL_TO_PYNPUT.update({
@@ -124,8 +124,8 @@ class KeySimulator:
                 72: Key.pause,
                 73: Key.insert,
         })
-    
-    # Pinmame 
+
+    # Pinmame
     PINMAME_OPEN_COIN_DOOR = Key.end
     PINMAME_CANCEL = '7'
     PINMAME_DOWN = '8'
@@ -140,7 +140,7 @@ class KeySimulator:
         self.debug = debug
         self._keyboard = None
 
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        config_dir = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
         config_path = config_dir / "vpinfe.ini"
 
         if self.debug:

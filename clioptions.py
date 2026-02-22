@@ -18,7 +18,7 @@ from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
 
 # Initialize config
-config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+config_dir = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
 config_dir.mkdir(parents=True, exist_ok=True)
 config_path = config_dir / "vpinfe.ini"
 print(f"Using config file at: {config_path}")

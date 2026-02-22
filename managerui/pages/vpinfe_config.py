@@ -5,7 +5,7 @@ from common.vpxcollections import VPXCollections
 from pathlib import Path
 from platformdirs import user_config_dir
 
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
+CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
@@ -33,14 +33,14 @@ FRIENDLY_NAMES = {
     'level': 'Log Verbosity',
     'console': 'Logging Console',
     'file': 'Log File',
-    
+
     # [Displays]
     'tablescreenid': 'Playfield Monitor ID',
     'bgscreenid': 'Backglass Monitor ID',
     'dmdscreenid': 'DMD Monitor ID',
     'tablerotation': 'Playfield Rotation (0/90/270)',
     'tableorientation': 'Playfield Orientation (Landscape/Portrait)',
-    
+
     # [Network]
     'http_port': 'Web Server Port',
     'themeassetsport': 'Theme Server Port',
@@ -55,8 +55,8 @@ FRIENDLY_NAMES = {
     'tableresolution': 'Default Table Resolution',
     'tablevideoresolution': 'Default Table Video Resolution',
     'defaultmissingmediaimg': 'Default Missing Media Image',
-    
-    
+
+
 }
 
 def get_friendly_name(key: str) -> str:
@@ -191,14 +191,14 @@ def render_panel(tab=None):
                                     ).classes('config-input').style('min-width: 200px;')
                                 else:
                                     # Calculate width based on the longer string (value or friendly label)
-                                    char_width = max(len(value), len(friendly_label), 5)  
-                                    width_px = int(char_width * 10 * 1.1)  
-                                    width_px = max(width_px, 100)  
+                                    char_width = max(len(value), len(friendly_label), 5)
+                                    width_px = int(char_width * 10 * 1.1)
+                                    width_px = max(width_px, 100)
                                     inp = ui.input(
-                                        label=friendly_label, 
+                                        label=friendly_label,
                                         value=value
                                     ).classes('config-input').style(f'width: {width_px}px;')
-                                
+
                                 # Store the original INI key so saving works correctly
                                 inputs[section][key] = inp
 

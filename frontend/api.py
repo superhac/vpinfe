@@ -13,7 +13,7 @@ from common.tablelistfilters import TableListFilters
 from platformdirs import user_config_dir
 
 class API:
-    
+
     def __init__(self, iniConfig):
         self.webview_windows = None
         self._iniConfig = iniConfig
@@ -44,15 +44,15 @@ class API:
     ####################
     ## Private Functions
     ####################
-    
+
     def _finish_setup(self): # incase we need to do anything after the windows are created and instanc evars are loaded.
         pass
-    
-        
+
+
     ###################
     ## Public Functions
     ###################
-    
+
     def playSound(self, sound):
        self.myWindow[0].evaluate_js(
             f"""
@@ -78,7 +78,7 @@ class API:
             print("name: ", window.uid)
             window.destroy()
         sys.exit(0)
-    
+
     def get_monitors(self):
         monitors = get_monitors()
         # Return a list of dicts with relevant info
@@ -89,19 +89,19 @@ class API:
             'width': m.width,
             'height': m.height
         } for i, m in enumerate(monitors)]
-        
+
     def send_event_all_windows(self, message):
         msg_json = json.dumps(message)  # safely convert Python dict to JS object literal
         for window_name, window, api in self.webview_windows:
             if self.myWindow[0].uid != window.uid:
                 window.evaluate_js(f'receiveEvent({msg_json})')
-    
+
     def send_event(self, window_name, message):
         msg_json = json.dumps(message)  # safely convert Python dict to JS object literal
         for win_name, window, api in self.webview_windows:
             if window_name == win_name:
                  window.evaluate_js(f'receiveEvent({msg_json})')
-                 
+
     def send_event_all_windows_incself(self, message):
         msg_json = json.dumps(message)  # safely convert Python dict to JS object literal
         for window_name, window, api in self.webview_windows:
@@ -164,16 +164,16 @@ class API:
         self.jsTableDictData = json.dumps(tables)
         return self.jsTableDictData
 
-    
+
     def get_collections(self):
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        config_dir = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
         c = VPXCollections(config_dir / "collections.ini")
         return c.get_collections_name()
 
     def set_tables_by_collection(self, collection):
         """Set filtered tables based on collection from collections.ini."""
         self.current_collection = collection
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        config_dir = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
         c = VPXCollections(config_dir / "collections.ini")
 
         # Check if this is a filter-based collection
@@ -213,7 +213,7 @@ class API:
 
     def save_filter_collection(self, name, letter="All", theme="All", table_type="All", manufacturer="All", year="All", sort_by="Alpha"):
         """Save current filter settings as a named collection."""
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        config_dir = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
         c = VPXCollections(config_dir / "collections.ini")
         try:
             c.add_filter_collection(name, letter, theme, table_type, manufacturer, year, sort_by)
@@ -338,7 +338,7 @@ class API:
     def console_out(self, output):
         print(f'Win: {self.myWindow[0].uid} - {output}')
         return output
-           
+
     def get_joymaping(self):
         return {
             'joyleft': self._iniConfig.config['Input'].get('joyleft', '0'),
@@ -370,7 +370,7 @@ class API:
             return {"success": True, "message": f"Mapped {button_name} to button {button_index}"}
         except Exception as e:
             return {"success": False, "message": f"Error saving mapping: {str(e)}"}
-        
+
     def launch_table(self, index):
         table = self.filteredTables[index]
         vpx = table.fullPathVPXfile
@@ -413,7 +413,7 @@ class API:
             print("Table has no VPSId, cannot track play")
             return
 
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        config_dir = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
         c = VPXCollections(config_dir / "collections.ini")
 
         # Create Last Played collection if it doesn't exist
@@ -562,7 +562,7 @@ class API:
 
     def _resolve_theme_dir(self, theme_name):
         """Returns the filesystem path to the theme directory."""
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        config_dir = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
         theme_dir = config_dir / "themes" / theme_name
         if theme_dir.is_dir():
             return theme_dir
@@ -582,11 +582,11 @@ class API:
             return config
         except Exception as e:
             return None
-    
+
     ###################
     ### For splash page
     ###################
-    
+
     def get_theme_name(self):
         return self._iniConfig.config['Settings'].get('theme', 'default')
 

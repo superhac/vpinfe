@@ -5,7 +5,7 @@ from pathlib import Path
 from platformdirs import user_config_dir
 from managerui.pages.remote import _restart_app
 
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
+CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
 INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 
 # Module-level registry cache

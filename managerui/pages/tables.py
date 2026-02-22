@@ -16,7 +16,7 @@ from platformdirs import user_config_dir
 
 # Resolve project root and important paths explicitly
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
+CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
 VPSDB_JSON_PATH = CONFIG_DIR / 'vpsdb.json'
 VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'

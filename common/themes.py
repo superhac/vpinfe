@@ -21,7 +21,7 @@ class ThemeRegistry:
         self.themes: Dict[str, Any] = {}
 
         # Correct platform dir usage (two args to match rest of codebase)
-        self.base_dir = user_config_dir("vpinfe", "vpinfe")
+        self.base_dir = user_config_dir("vpinfe", "vpinfe", roaming=True)
         self.themes_dir = os.path.join(self.base_dir, "themes")
         os.makedirs(self.themes_dir, exist_ok=True)
 
@@ -307,7 +307,7 @@ def main():
         installed_status = "Installed" if registry.is_installed(key) else "Not installed"
         folder_name = registry.get_installed_folder(key)
         print(f" - {key} ({installed_status}) -> folder: {folder_name}")
-             
+
     print("\nDone.")
 
 

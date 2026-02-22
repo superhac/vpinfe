@@ -8,7 +8,7 @@ from common.vpxcollections import VPXCollections
 
 logger = logging.getLogger("collections")
 
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
+CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe", roaming=True))
 COLLECTIONS_PATH = CONFIG_DIR / "collections.ini"
 
 # Import tables module to access cache (import module, not variable, to get live values)
