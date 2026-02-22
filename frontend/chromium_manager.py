@@ -75,7 +75,7 @@ class ChromiumManager:
         self._processes = []   # [(window_name, process, temp_dir, monitor)]
         self._exit_event = threading.Event()
 
-    def launch_window(self, window_name, url, monitor, index):
+    def launch_window(self, window_name, url, monitor, index, background=False):
         """Launch one Chromium instance for a given monitor.
 
         Args:
@@ -83,6 +83,7 @@ class ChromiumManager:
             url: The URL to load (e.g. http://127.0.0.1:8000/web/splash.html?window=bg)
             monitor: screeninfo Monitor object with x, y, width, height
             index: Unique index for temp profile directory
+            background: If True, launch without bringing to foreground (macOS only)
         """
         chrome_path = get_chromium_path()
         if not os.path.exists(chrome_path):
@@ -101,8 +102,7 @@ class ChromiumManager:
 
         fullscreen_flag = "--kiosk"
 
-        args = [
-            chrome_path,
+        chrome_args = [
             f"--app={url}",
             f"--window-name=vpinfe-{window_name}",
             fullscreen_flag,
@@ -144,6 +144,22 @@ class ChromiumManager:
         popen_kwargs = dict(env=env)
         if platform.system() != "Windows":
             popen_kwargs['start_new_session'] = True
+
+        # On macOS, use 'open' to properly handle app activation/focus.
+        # -g = open in background, -n = open new instance, --args = pass args to app
+        if platform.system() == "Darwin":
+            # Resolve the .app bundle path from the binary path
+            # e.g. .../Chromium.app/Contents/MacOS/Chromium -> .../Chromium.app
+            app_path = chrome_path
+            if ".app/Contents/MacOS/" in chrome_path:
+                app_path = chrome_path.split(".app/Contents/MacOS/")[0] + ".app"
+            open_cmd = ["open", "-n", "-a", app_path]
+            if background:
+                open_cmd.append("-g")
+            open_cmd.append("--args")
+            args = open_cmd + chrome_args
+        else:
+            args = [chrome_path] + chrome_args
 
         proc = subprocess.Popen(args, **popen_kwargs)
         self._processes.append((window_name, proc, user_data_dir, monitor))
@@ -187,16 +203,9 @@ class ChromiumManager:
             if window_name == 'table':
                 time.sleep(0.5)
 
-            proc = self.launch_window(window_name, url, monitor, screen_id)
-
-            # macOS doesn't auto-focus subprocess windows; use osascript to
-            # bring the Chromium app to the front after the table launches.
-            if window_name == 'table' and platform.system() == "Darwin":
-                time.sleep(1.5)
-                subprocess.Popen([
-                    "osascript", "-e",
-                    'tell application "Chromium" to activate'
-                ])
+            # On macOS, launch bg/dmd in background so table gets focus
+            background = (platform.system() == "Darwin" and window_name != 'table')
+            self.launch_window(window_name, url, monitor, screen_id, background=background)
 
         print(f"[Chromium] Launched {len(self._processes)} browser windows")
 
