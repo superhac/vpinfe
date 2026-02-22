@@ -187,7 +187,17 @@ class ChromiumManager:
             if window_name == 'table':
                 time.sleep(0.5)
 
-            self.launch_window(window_name, url, monitor, screen_id)
+            proc = self.launch_window(window_name, url, monitor, screen_id)
+
+            # macOS doesn't auto-focus subprocess windows; use osascript to
+            # bring the table Chromium process to the front after launch.
+            if window_name == 'table' and platform.system() == "Darwin":
+                time.sleep(1.0)
+                subprocess.Popen([
+                    "osascript", "-e",
+                    'tell application "System Events" to set frontmost of '
+                    f'first process whose unix id is {proc.pid} to true'
+                ])
 
         print(f"[Chromium] Launched {len(self._processes)} browser windows")
 
