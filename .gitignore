@@ -2,6 +2,7 @@
 /vvv
 *.ini
 *.json
+.DS_Store
 
 # PyInstaller build directories
 build/
