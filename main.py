@@ -327,10 +327,26 @@ else:
         api._iniConfig = iniconfig
         api._finish_setup()
 
+    def _focus_table_window():
+        """macOS: ensure focus goes to the table window regardless of launch screen."""
+        import time
+        time.sleep(0.5)
+        try:
+            import AppKit
+            AppKit.NSApp.activateIgnoringOtherApps_(True)
+            for win_name, window, api in webview_windows:
+                if win_name == 'table':
+                    window.show()
+                    break
+        except Exception:
+            pass
+
     def _on_webview_started():
         """Create the table window after webview starts (Linux multi-screen only)."""
         if sys.platform == "linux" and not any(w[0] == 'table' for w in webview_windows):
             threading.Thread(target=_create_table_window, daemon=True).start()
+        if sys.platform == "darwin":
+            threading.Thread(target=_focus_table_window, daemon=True).start()
 
     # Ensure at least one window was created before starting webview
     if not webview_windows:
