@@ -399,6 +399,19 @@ class API:
         # Delete NVRAM file if configured for this table
         self._delete_nvram_if_configured(table)
 
+        # macOS: restore focus to VPinFE after VPX exits
+        if sys.platform == "darwin":
+            try:
+                import AppKit
+                AppKit.NSApp.activateIgnoringOtherApps_(True)
+                # Bring the table window to front
+                for win_name, window, api in self.webview_windows:
+                    if win_name == 'table':
+                        window.show()
+                        break
+            except Exception as e:
+                print(f"[WARN] Could not restore macOS focus: {e}")
+
         #self.myWindow[0].toggle_fullscreen()
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 

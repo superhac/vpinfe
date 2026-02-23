@@ -45,7 +45,8 @@ import webview
 if sys.platform == "darwin":
     try:
         from webview.platforms import cocoa as _cocoa_module
-        _orig_windowDidMove_ = _cocoa_module.BrowserView.windowDidMove_
+        _WinDelegate = _cocoa_module.BrowserView.WindowDelegate
+        _orig_windowDidMove_ = _WinDelegate.windowDidMove_
 
         def _safe_windowDidMove_(self, notification):
             try:
@@ -53,7 +54,7 @@ if sys.platform == "darwin":
             except AttributeError:
                 pass  # screen() returned None during window positioning
 
-        _cocoa_module.BrowserView.windowDidMove_ = _safe_windowDidMove_
+        _WinDelegate.windowDidMove_ = _safe_windowDidMove_
     except Exception:
         pass  # Non-cocoa platform or import issue, skip
 
