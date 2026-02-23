@@ -39,6 +39,24 @@ webview_windows = [] # [ [window_name, window, api] ]
 import sys
 import webview
 
+# Monkey-patch pywebview cocoa backend to handle NSWindow.screen() returning None.
+# This happens when a window is positioned on a different screen from where the app
+# launched, causing windowDidMove_ to crash with AttributeError.
+if sys.platform == "darwin":
+    try:
+        from webview.platforms import cocoa as _cocoa_module
+        _orig_windowDidMove_ = _cocoa_module.BrowserView.windowDidMove_
+
+        def _safe_windowDidMove_(self, notification):
+            try:
+                _orig_windowDidMove_(self, notification)
+            except AttributeError:
+                pass  # screen() returned None during window positioning
+
+        _cocoa_module.BrowserView.windowDidMove_ = _safe_windowDidMove_
+    except Exception:
+        pass  # Non-cocoa platform or import issue, skip
+
 def loadWindows():
     global webview_windows
     global api
