@@ -58,6 +58,28 @@ if sys.platform == "darwin":
     except Exception:
         pass  # Non-cocoa platform or import issue, skip
 
+def _get_screen_info(screen_id):
+    """Get screen position/size and optional pywebview Screen object for a given screen ID.
+
+    On macOS, uses pywebview's native screens (Cocoa coordinate system) to avoid
+    coordinate mismatches between screeninfo (top-left origin) and Cocoa (bottom-left origin).
+    On other platforms, uses screeninfo.get_monitors().
+    """
+    if sys.platform == "darwin":
+        screens = webview.screens
+        if screen_id < len(screens):
+            s = screens[screen_id]
+            return {"x": 0, "y": 0, "width": s.width, "height": s.height, "screen": s}
+        else:
+            print(f"[WARN] Screen ID {screen_id} not found in webview.screens (have {len(screens)}), falling back to screen 0")
+            s = screens[0]
+            return {"x": 0, "y": 0, "width": s.width, "height": s.height, "screen": s}
+    else:
+        monitors = get_monitors()
+        m = monitors[screen_id]
+        return {"x": m.x, "y": m.y, "width": m.width, "height": m.height, "screen": None}
+
+
 def loadWindows():
     global webview_windows
     global api
@@ -79,15 +101,17 @@ def loadWindows():
         manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
         setup_url = f'http://localhost:{manager_ui_port}/'
         screen_id = int(iniconfig.config['Displays'].get('tablescreenid', '0'))
+        scr = _get_screen_info(screen_id)
         print(f"[VPinFE] First run — loading Manager UI in table window for initial configuration.")
 
         win = webview.create_window(
             "VPinFE Setup",
             url=setup_url,
-            x=monitors[screen_id].x,
-            y=monitors[screen_id].y,
-            width=monitors[screen_id].width,
-            height=monitors[screen_id].height,
+            x=scr["x"],
+            y=scr["y"],
+            width=scr["width"],
+            height=scr["height"],
+            screen=scr["screen"],
             background_color="#0f172a",
         )
         webview_windows.append(['table', win, None])
@@ -96,16 +120,18 @@ def loadWindows():
     # --- BG SCREEN ---
     if iniconfig.config['Displays']['bgscreenid']:
         screen_id = int(iniconfig.config['Displays']['bgscreenid'])
+        scr = _get_screen_info(screen_id)
         api = API(iniconfig)
 
         win = webview.create_window(
             "BG Screen",
             url=f"file://{html_file.resolve()}",
             js_api=api,
-            x=monitors[screen_id].x,
-            y=monitors[screen_id].y,
-            width=monitors[screen_id].width,
-            height=monitors[screen_id].height,
+            x=scr["x"],
+            y=scr["y"],
+            width=scr["width"],
+            height=scr["height"],
+            screen=scr["screen"],
             background_color="#000000",
             fullscreen=window_flags["fullscreen"],
             frameless=window_flags["frameless"],
@@ -121,16 +147,18 @@ def loadWindows():
     # --- DMD SCREEN ---
     if iniconfig.config['Displays']['dmdscreenid']:
         screen_id = int(iniconfig.config['Displays']['dmdscreenid'])
+        scr = _get_screen_info(screen_id)
         api = API(iniconfig)
 
         win = webview.create_window(
             "DMD Screen",
             url=f"file://{html_file.resolve()}",
             js_api=api,
-            x=monitors[screen_id].x,
-            y=monitors[screen_id].y,
-            width=monitors[screen_id].width,
-            height=monitors[screen_id].height,
+            x=scr["x"],
+            y=scr["y"],
+            width=scr["width"],
+            height=scr["height"],
+            screen=scr["screen"],
             background_color="#000000",
             fullscreen=window_flags["fullscreen"],
             frameless=window_flags["frameless"],
@@ -149,16 +177,18 @@ def loadWindows():
         # create the table window before starting the webview loop.
         if iniconfig.config['Displays']['tablescreenid']:
             screen_id = int(iniconfig.config['Displays']['tablescreenid'])
+            scr = _get_screen_info(screen_id)
             api = API(iniconfig)
 
             win = webview.create_window(
                 "Table Screen",
                 url=f"file://{html_file.resolve()}",
                 js_api=api,
-                x=monitors[screen_id].x,
-                y=monitors[screen_id].y,
-                width=monitors[screen_id].width,
-                height=monitors[screen_id].height,
+                x=scr["x"],
+                y=scr["y"],
+                width=scr["width"],
+                height=scr["height"],
+                screen=scr["screen"],
                 background_color="#000000",
                 fullscreen=window_flags["fullscreen"],
                 frameless=True, # Always frameless on mac
@@ -272,29 +302,23 @@ else:
         if not iniconfig.config['Displays']['tablescreenid']:
             return
 
-        monitors = get_monitors()
-        is_mac = sys.platform == "darwin"
-        window_flags = {
-            "fullscreen": not is_mac,
-            "frameless": is_mac,
-            "resizable": False if is_mac else True,
-        }
-
         screen_id = int(iniconfig.config['Displays']['tablescreenid'])
+        scr = _get_screen_info(screen_id)
         api = API(iniconfig)
 
         win = webview.create_window(
             "Table Screen",
             url=f"file://{html_file.resolve()}",
             js_api=api,
-            x=monitors[screen_id].x,
-            y=monitors[screen_id].y,
-            width=monitors[screen_id].width,
-            height=monitors[screen_id].height,
+            x=scr["x"],
+            y=scr["y"],
+            width=scr["width"],
+            height=scr["height"],
+            screen=scr["screen"],
             background_color="#000000",
-            fullscreen=window_flags["fullscreen"],
-            frameless=True if is_mac else False,
-            resizable=window_flags["resizable"],
+            fullscreen=True,
+            frameless=False,
+            resizable=True,
         )
 
         api.myWindow.append(win)

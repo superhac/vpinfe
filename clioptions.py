@@ -344,6 +344,7 @@ def parseArgs():
 
     if args.listres:
         monitors = get_monitors()
+        print("screeninfo monitors:")
         [print({
             'ID': f'Monitor {i}',
             'output': m.name,
@@ -352,6 +353,10 @@ def parseArgs():
             'width': m.width,
             'height': m.height
         }) for i, m in enumerate(monitors)]
+        if sys.platform == "darwin":
+            print("\nwebview.screens (used for window positioning on macOS):")
+            for i, s in enumerate(webview.screens):
+                print({'ID': f'Screen {i}', 'width': s.width, 'height': s.height})
         sys.exit()
 
     if args.listmissing:
