@@ -125,18 +125,17 @@ class ChromiumManager:
         env["GOOGLE_DEFAULT_CLIENT_ID"] = "no"
         env["GOOGLE_DEFAULT_CLIENT_SECRET"] = "no"
 
-        # macOS: --kiosk creates separate Spaces per window, breaking multi-monitor.
-        # Use --start-fullscreen on macOS instead.
-        if platform.system() == "Darwin":
-            fullscreen_flag = "--start-fullscreen"
-        else:
-            fullscreen_flag = "--kiosk"
+        # macOS: both --kiosk and --start-fullscreen trigger native macOS
+        # fullscreen which creates separate Spaces and blacks out other monitors.
+        # Instead, skip fullscreen entirely and just size the window to fill the
+        # screen.  --app mode already removes browser chrome.
+        is_mac = platform.system() == "Darwin"
 
         args = [
             chrome_path,
             f"--app={url}",
             f"--window-name=vpinfe-{window_name}",
-            fullscreen_flag,
+            *([] if is_mac else ["--kiosk"]),
             f"--window-position={monitor.x},{monitor.y}",
             f"--window-size={monitor.width},{monitor.height}",
             f"--user-data-dir={user_data_dir}",
