@@ -164,6 +164,8 @@ class ChromiumManager:
             "--no-sandbox",
             "--disable-gpu-sandbox",
             "--autoplay-policy=no-user-gesture-required",
+            # Suppress "unsupported command-line flag" info bar warnings
+            "--test-type",
         ]
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
