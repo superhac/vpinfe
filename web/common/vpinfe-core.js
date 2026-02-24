@@ -332,37 +332,6 @@ class VPinFECore {
       this.#updateGamepads();           // No await needed here — runs loop
       this.#pollRemoteLaunch();         // Poll for remote launch events
     }
-
-    // macOS: use Window Management API to go fullscreen on the correct screen
-    // without triggering native macOS fullscreen Spaces (which blacks out
-    // other monitors).  --auto-grant-permissions skips the permission prompt.
-    if (/Mac/.test(navigator.platform)) {
-      this.#requestMacFullscreen();
-    }
-  }
-
-  async #requestMacFullscreen() {
-    try {
-      if (!('getScreenDetails' in window)) {
-        console.warn("[VPinFE] Window Management API not available");
-        return;
-      }
-
-      const screenDetails = await window.getScreenDetails();
-      console.log(`[VPinFE] macOS: detected ${screenDetails.screens.length} screens`);
-
-      // Find the screen this window is currently on
-      const currentScreen = screenDetails.currentScreen;
-      console.log(`[VPinFE] macOS: current screen — ` +
-        `${currentScreen.width}x${currentScreen.height} at ` +
-        `(${currentScreen.left},${currentScreen.top}) label="${currentScreen.label}"`);
-
-      // Request fullscreen on the current screen
-      await document.documentElement.requestFullscreen({ screen: currentScreen });
-      console.log("[VPinFE] macOS: entered fullscreen via Window Management API");
-    } catch (e) {
-      console.warn("[VPinFE] macOS fullscreen failed:", e.message);
-    }
   }
 
   #setupGamepadListeners() {
