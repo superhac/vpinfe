@@ -135,7 +135,7 @@ class ChromiumManager:
             chrome_path,
             f"--app={url}",
             f"--window-name=vpinfe-{window_name}",
-            *([] if is_mac else ["--kiosk"]),
+            *(["--hide-top-chrome"] if is_mac else ["--kiosk"]),
             f"--window-position={monitor.x},{monitor.y}",
             f"--window-size={monitor.width},{monitor.height}",
             f"--user-data-dir={user_data_dir}",
