@@ -383,9 +383,14 @@ class API:
 
         process.wait()
 
+        # macOS: re-activate Chromium windows so they return to foreground
+        # after VPX exits (kiosk windows don't auto-regain focus on macOS)
+        if sys.platform == "darwin" and self.chromium_manager:
+            self.chromium_manager.activate_all_mac()
+
         # Delete NVRAM file if configured for this table
-        self._delete_nvram_if_configured(table)        
-        
+        self._delete_nvram_if_configured(table)
+
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 
     def _track_table_play(self, table):

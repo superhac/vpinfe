@@ -241,6 +241,26 @@ class ChromiumManager:
         except Exception as e:
             print(f"[Chromium] macOS focus activation failed: {e}")
 
+    def activate_all_mac(self):
+        """macOS: re-activate all Chromium windows after an external app (e.g. VPX) exits.
+
+        Called after VPX exits so Chromium kiosk windows return to the foreground
+        instead of staying hidden behind the desktop.
+        """
+        try:
+            import AppKit
+            our_pids = {proc.pid for _, proc, _, _ in self._processes}
+            activated = 0
+            for ns_app in AppKit.NSWorkspace.sharedWorkspace().runningApplications():
+                if ns_app.processIdentifier() in our_pids:
+                    ns_app.activateWithOptions_(
+                        AppKit.NSApplicationActivateIgnoringOtherApps
+                    )
+                    activated += 1
+            print(f"[Chromium] macOS: re-activated {activated} Chromium windows after VPX exit")
+        except Exception as e:
+            print(f"[Chromium] macOS re-activation failed: {e}")
+
     @staticmethod
     def _get_descendant_pids(pid):
         """Recursively find all descendant PIDs via /proc on Linux."""
