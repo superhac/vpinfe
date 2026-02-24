@@ -145,11 +145,15 @@ if headless:
     print("\n[VPinFE] Shutting down...")
 elif iniconfig.is_new:
     # First-run: show manager UI config page in a chromium window instead of theme
-    from screeninfo import get_monitors
     manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
     setup_url = f'http://localhost:{manager_ui_port}/'
     screen_id = int(iniconfig.config['Displays'].get('tablescreenid', '0'))
-    monitors = get_monitors()
+    if sys.platform == "darwin":
+        from frontend.chromium_manager import get_mac_screens
+        monitors = get_mac_screens()
+    else:
+        from screeninfo import get_monitors
+        monitors = get_monitors()
     monitor = monitors[screen_id] if screen_id < len(monitors) else monitors[0]
     print(f"[VPinFE] First run — loading Manager UI in chromium window for initial configuration.")
     chromium_manager.launch_window(

@@ -325,6 +325,7 @@ def parseArgs():
 
     if args.listres:
         monitors = get_monitors()
+        print("screeninfo monitors:")
         [print({
             'ID': f'Monitor {i}',
             'output': m.name,
@@ -333,6 +334,12 @@ def parseArgs():
             'width': m.width,
             'height': m.height
         }) for i, m in enumerate(monitors)]
+        if sys.platform == "darwin":
+            from frontend.chromium_manager import get_mac_screens
+            print("\nNSScreen monitors (used for window positioning on macOS):")
+            for i, s in enumerate(get_mac_screens()):
+                print({'ID': f'Screen {i}', 'x': s.x, 'y': s.y,
+                       'width': s.width, 'height': s.height})
         sys.exit()
 
     if args.listmissing:

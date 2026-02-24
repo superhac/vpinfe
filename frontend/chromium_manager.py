@@ -9,6 +9,7 @@ positioned on the correct monitor with fullscreen.
 import os
 import sys
 from shutil import which
+from collections import namedtuple
 import platform
 import subprocess
 import tempfile
@@ -68,6 +69,34 @@ def get_chromium_path():
         raise RuntimeError(f"Unsupported OS: {system}")
 
 
+MonitorInfo = namedtuple('MonitorInfo', ['x', 'y', 'width', 'height'])
+
+
+def get_mac_screens():
+    """Get monitor info from NSScreen (macOS only).
+
+    screeninfo.get_monitors() reports coordinates that can mismatch what
+    Chromium expects on macOS.  NSScreen uses Cocoa's bottom-left origin
+    coordinate system, so we convert to top-left origin for Chromium's
+    --window-position flag.
+    """
+    import AppKit
+    screens = AppKit.NSScreen.screens()
+    # Total virtual height for bottom-left → top-left conversion
+    max_bottom = max(
+        s.frame().origin.y + s.frame().size.height for s in screens
+    )
+    result = []
+    for s in screens:
+        frame = s.frame()
+        x = int(frame.origin.x)
+        y = int(max_bottom - frame.origin.y - frame.size.height)
+        result.append(MonitorInfo(x=x, y=y,
+                                  width=int(frame.size.width),
+                                  height=int(frame.size.height)))
+    return result
+
+
 class ChromiumManager:
     """Manages Chromium subprocess lifecycle for multi-monitor display."""
 
@@ -96,10 +125,12 @@ class ChromiumManager:
         env["GOOGLE_DEFAULT_CLIENT_ID"] = "no"
         env["GOOGLE_DEFAULT_CLIENT_SECRET"] = "no"
 
-        # Use --kiosk on Windows to avoid dual-window issue with --start-fullscreen
-        #fullscreen_flag = "--kiosk" if platform.system() == "Windows" else "--start-fullscreen"
-
-        fullscreen_flag = "--kiosk"
+        # macOS: --kiosk creates separate Spaces per window, breaking multi-monitor.
+        # Use --start-fullscreen on macOS instead.
+        if platform.system() == "Darwin":
+            fullscreen_flag = "--start-fullscreen"
+        else:
+            fullscreen_flag = "--kiosk"
 
         args = [
             chrome_path,
@@ -156,9 +187,13 @@ class ChromiumManager:
             iniconfig: IniConfig instance with display and network settings
             base_url: Base URL for the HTTP server
         """
-        from screeninfo import get_monitors
-        monitors = get_monitors()
-        print(f"[Chromium] Detected {len(monitors)} monitors: {monitors}")
+        if sys.platform == "darwin":
+            monitors = get_mac_screens()
+            print(f"[Chromium] Detected {len(monitors)} macOS screens (via NSScreen): {monitors}")
+        else:
+            from screeninfo import get_monitors
+            monitors = get_monitors()
+            print(f"[Chromium] Detected {len(monitors)} monitors: {monitors}")
 
         theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
 
@@ -190,6 +225,23 @@ class ChromiumManager:
             self.launch_window(window_name, url, monitor, screen_id)
 
         print(f"[Chromium] Launched {len(self._processes)} browser windows")
+
+        # macOS: ensure the table window gets focus after all windows launch
+        if sys.platform == "darwin":
+            threading.Thread(target=self._focus_table_window_mac, daemon=True).start()
+
+    def _focus_table_window_mac(self):
+        """macOS: ensure focus goes to the table window after launch."""
+        time.sleep(0.5)
+        try:
+            import AppKit
+            AppKit.NSApp.activateIgnoringOtherApps_(True)
+            for win_name, proc, _, _ in self._processes:
+                if win_name == 'table':
+                    print("[Chromium] macOS: activating app focus for table window")
+                    break
+        except Exception as e:
+            print(f"[Chromium] macOS focus activation failed: {e}")
 
     @staticmethod
     def _get_descendant_pids(pid):
