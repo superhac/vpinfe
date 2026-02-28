@@ -131,15 +131,34 @@ class API:
 
             # Ensure detection flags are booleans
             vpx = meta.get("VPXFile", {})
-            for key in [
-                "detectNfozzy", "detectFleep", "detectSSF",
-                "detectLUT", "detectScorebit", "detectFastflips", "detectFlex"
-            ]:
-                if key in vpx:
-                    val = vpx[key]
-                    # Convert strings "true"/"false" to booleans
-                    if isinstance(val, str):
-                        vpx[key] = val.lower() == "true"
+            detect_key_map = {
+                "detectNfozzy": "detectnfozzy",
+                "detectFleep": "detectfleep",
+                "detectSSF": "detectssf",
+                "detectLUT": "detectlut",
+                "detectScorebit": "detectscorebit",
+                "detectFastflips": "detectfastflips",
+                "detectFlex": "detectflex",
+            }
+
+            def _to_bool(val):
+                if isinstance(val, bool):
+                    return val
+                if isinstance(val, str):
+                    return val.lower() == "true"
+                return val == 1
+
+            # Normalize detection keys so themes can use either mixed-case or lowercase.
+            for mixed_key, lower_key in detect_key_map.items():
+                raw_val = vpx.get(mixed_key, vpx.get(lower_key, False))
+                bool_val = _to_bool(raw_val)
+                vpx[mixed_key] = bool_val
+                vpx[lower_key] = bool_val
+
+            # Addon flags live on the Table object, but mirror them into VPX metadata for theme compatibility.
+            vpx["altSoundExists"] = bool(table.altSoundExists)
+            vpx["altColorExists"] = bool(table.altColorExists)
+            vpx["pupPackExists"] = bool(table.pupPackExists)
 
             table_data = {
                 "tableDirName": table.tableDirName,
