@@ -13,6 +13,7 @@ class IniConfig:
 				'vpxinipath': '',
 				'theme': 'carousel-desktop',
 				'startup_collection': '',
+				'autoupdatemediaonstartup': 'false',
 				},
 			'Input': {
 				'joyleft': '',
