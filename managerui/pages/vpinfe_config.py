@@ -29,6 +29,7 @@ FRIENDLY_NAMES = {
     'vpxinipath' : 'VPX Ini Path',
     'tablerootdir': 'Tables Directory',
     'startup_collection': 'Startup Collection',
+    'autoupdatemediaonstartup': 'Auto Update Media On Startup',
     'theme': 'Active Theme',
     'level': 'Log Verbosity',
     'console': 'Logging Console',
@@ -188,6 +189,17 @@ def render_panel(tab=None):
                                         label=friendly_label,
                                         options=theme_options,
                                         value=value
+                                    ).classes('config-input').style('min-width: 200px;')
+                                # Special handling for startup media auto-update in Settings
+                                elif section == 'Settings' and key == 'autoupdatemediaonstartup':
+                                    bool_options = ['true', 'false']
+                                    normalized = (value or '').strip().lower()
+                                    if normalized not in bool_options:
+                                        normalized = 'false'
+                                    inp = ui.select(
+                                        label=friendly_label,
+                                        options=bool_options,
+                                        value=normalized
                                     ).classes('config-input').style('min-width: 200px;')
                                 else:
                                     # Calculate width based on the longer string (value or friendly label)

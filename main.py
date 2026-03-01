@@ -3,6 +3,7 @@
 import sys
 import os
 import platform
+import threading
 import multiprocessing
 multiprocessing.freeze_support()
 
@@ -38,7 +39,7 @@ config_path = config_dir / "vpinfe.ini"
 iniconfig = IniConfig(str(config_path))
 
 # Now safe to import modules that create their own IniConfig at import time
-from clioptions import parseArgs
+from clioptions import parseArgs, buildMetaData
 from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run, _shutdown_event
 from nicegui import app as nicegui_app
 
@@ -47,6 +48,7 @@ nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/stati
 # Shared instances accessible from other modules (e.g. remote.py)
 ws_bridge = None
 chromium_manager = None
+_startup_media_sync_started = False
 
 
 def create_api_instances():
@@ -81,6 +83,47 @@ def create_api_instances():
         print(f"[Main] Registered API for window '{window_name}'")
 
 
+def _start_startup_media_sync():
+    """Optionally sync media from VPinMediaDB on startup in a background thread."""
+    global _startup_media_sync_started
+    if _startup_media_sync_started:
+        return
+
+    if iniconfig.is_new:
+        print("[VPinFE] Skipping startup media sync on first run.")
+        return
+
+    try:
+        enabled = iniconfig.config.getboolean('Settings', 'autoupdatemediaonstartup', fallback=False)
+    except Exception:
+        enabled = str(iniconfig.config['Settings'].get('autoupdatemediaonstartup', 'false')).strip().lower() in ('1', 'true', 'yes', 'on')
+
+    if not enabled:
+        return
+
+    table_root = iniconfig.config['Settings'].get('tablerootdir', '').strip()
+    if not table_root:
+        print("[VPinFE] Startup media sync enabled, but tablerootdir is empty. Skipping.")
+        return
+
+    _startup_media_sync_started = True
+
+    def _worker():
+        print("[VPinFE] Startup media sync enabled. Checking VPinMediaDB for missing/updated media...")
+        try:
+            result = buildMetaData(downloadMedia=True, updateAll=True, userMedia=False)
+            if isinstance(result, dict):
+                found = result.get('found', 0)
+                not_found = result.get('not_found', 0)
+                print(f"[VPinFE] Startup media sync complete. Scanned {found} table(s); {not_found} not found in VPSdb.")
+            else:
+                print("[VPinFE] Startup media sync complete.")
+        except Exception as e:
+            print(f"[WARN] Startup media sync failed: {e}")
+
+    threading.Thread(target=_worker, daemon=True, name="startup-media-sync").start()
+
+
 cli_args = parseArgs() if len(sys.argv) > 0 else None
 headless = cli_args and cli_args.headless
 
@@ -108,6 +151,9 @@ try:
     theme_registry.auto_install_defaults()
 except Exception as e:
     print(f"[WARN] Theme registry initialization failed: {e}")
+
+# Optionally sync media updates from VPinMediaDB in background
+_start_startup_media_sync()
 
 # Create API instances and register with WebSocket bridge
 create_api_instances()
