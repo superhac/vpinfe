@@ -240,8 +240,6 @@ def render_panel():
         'active': True,
         'scan_in_progress': False,
         'thumb_warm_in_progress': False,
-        'current_page': 1,
-        'rows_per_page': 25,
     }
 
     if page_client is not None:
@@ -445,9 +443,10 @@ def render_panel():
             return result
 
         def _visible_rows(rows: List[Dict]) -> List[Dict]:
+            pagination = media_table._props.get('pagination', {}) if hasattr(media_table, '_props') else {}
             try:
-                page = int(page_state.get('current_page', 1) or 1)
-                rows_per_page = int(page_state.get('rows_per_page', 25) or 25)
+                page = int(pagination.get('page', 1) or 1)
+                rows_per_page = int(pagination.get('rowsPerPage', 25) or 25)
             except Exception:
                 page = 1
                 rows_per_page = 25
@@ -482,6 +481,7 @@ def render_panel():
                 page_state['thumb_warm_in_progress'] = True
                 sem = asyncio.Semaphore(1)
                 changed = False
+                current_pagination = dict(media_table._props.get('pagination', {}))
 
                 async def _build_one(row: Dict, media_key: str, source_path: str):
                     nonlocal changed
@@ -501,17 +501,15 @@ def render_panel():
                 await asyncio.gather(*(_build_one(r, k, p) for r, k, p in pending))
                 if changed and can_update_ui():
                     with page_client:
-                        media_table._props['pagination']['page'] = page_state.get('current_page', 1)
-                        media_table._props['pagination']['rowsPerPage'] = page_state.get('rows_per_page', 25)
                         media_table.update()
+                        if current_pagination:
+                            media_table.run_method('setPagination', current_pagination)
             finally:
                 page_state['thumb_warm_in_progress'] = False
 
         def update_table_display():
             filtered = apply_filters()
             media_table._props['rows'] = filtered
-            media_table._props['pagination']['page'] = page_state.get('current_page', 1)
-            media_table._props['pagination']['rowsPerPage'] = page_state.get('rows_per_page', 25)
             media_table.update()
             total = len(_media_cache or [])
             shown = len(filtered)
@@ -559,7 +557,6 @@ def render_panel():
             for cb in missing_checkboxes.values():
                 cb.value = False
             media_table._props['pagination']['page'] = 1
-            page_state['current_page'] = 1
             update_table_display()
 
         def refresh_filter_options():
@@ -883,9 +880,12 @@ def render_panel():
                             <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
-                                <img :src="(props.row.thumbs && props.row.thumbs.''' + media_key + ''') ? props.row.thumbs.''' + media_key + ''' : props.row.media.''' + media_key + '''"
+                                <img v-if="props.row.thumbs && props.row.thumbs.''' + media_key + '''"
+                                     :src="props.row.thumbs.''' + media_key + '''"
                                      class="media-thumb"
                                      loading="lazy" />
+                                <q-badge v-else color="blue-grey-7" text-color="white" label="IMG"
+                                         style="font-size: 10px; padding: 2px 8px;" />
                                 <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
                                            class="bg-dark" style="padding: 4px;">
                                     <img :src="props.row.media.''' + media_key + '''"
@@ -924,8 +924,6 @@ def render_panel():
                         pagination = e.args[0]
                     if pagination:
                         media_table._props['pagination'].update(pagination)
-                        page_state['current_page'] = int(pagination.get('page', page_state['current_page']) or 1)
-                        page_state['rows_per_page'] = int(pagination.get('rowsPerPage', page_state['rows_per_page']) or 25)
                 except Exception:
                     pass
                 if is_page_active():
