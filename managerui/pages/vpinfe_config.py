@@ -56,6 +56,7 @@ FRIENDLY_NAMES = {
     'tableresolution': 'Default Table Resolution',
     'tablevideoresolution': 'Default Table Video Resolution',
     'defaultmissingmediaimg': 'Default Missing Media Image',
+    'thumbcachemaxmb': 'Thumbnail Cache Max (MB)',
     
     
 }

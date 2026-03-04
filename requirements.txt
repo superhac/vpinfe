@@ -1,11 +1,12 @@
 # Core dependencies for VPinFE
 requests
-websockets
+pywebview
 screeninfo
 olefile
 pynput
 nicegui
 platformdirs
+Pillow
 
 # Platform-specific dependencies (installed conditionally)
 # pyobjc; sys_platform == "darwin"
