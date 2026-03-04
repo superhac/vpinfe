@@ -6,6 +6,7 @@ olefile
 pynput
 nicegui
 platformdirs
+Pillow
 
 # Platform-specific dependencies (installed conditionally)
 # pyobjc; sys_platform == "darwin"

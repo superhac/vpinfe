@@ -21,6 +21,12 @@ logger = logging.getLogger("media")
 
 # Cache for scanned media data (persists across page visits)
 _media_cache: Optional[List[Dict]] = None
+_thumb_route_registered = False
+
+CACHE_DIR = CONFIG_DIR / "cache"
+THUMB_CACHE_ROOT = CACHE_DIR / "media_thumbs"
+THUMB_SIZE = (128, 128)
+THUMB_WARM_ROW_BATCH_SIZE = 25
 
 
 def invalidate_media_cache():
@@ -46,6 +52,86 @@ MEDIA_TYPES = [
     ('dmd_video', 'DMD Video', 'dmd.mp4'),
     ('audio', 'Audio', 'audio.mp3'),
 ]
+MEDIA_KEY_TO_FILENAME = {key: fname for key, _, fname in MEDIA_TYPES}
+IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif'}
+IMAGE_MEDIA_KEYS = [
+    key for key, _, filename in MEDIA_TYPES
+    if Path(filename).suffix.lower() in IMAGE_EXTENSIONS
+]
+
+
+def _is_image_media_key(media_key: str) -> bool:
+    filename = MEDIA_KEY_TO_FILENAME.get(media_key, '')
+    return Path(filename).suffix.lower() in IMAGE_EXTENSIONS
+
+
+def _source_media_path(table_path: str, media_key: str) -> Optional[str]:
+    filename = MEDIA_KEY_TO_FILENAME.get(media_key)
+    if not filename:
+        return None
+    medias_path = os.path.join(table_path, 'medias', filename)
+    if os.path.exists(medias_path):
+        return medias_path
+    root_path = os.path.join(table_path, filename)
+    if os.path.exists(root_path):
+        return root_path
+    return None
+
+
+def _build_thumb_sig(source_path: str) -> str:
+    st = os.stat(source_path)
+    return f'{st.st_mtime_ns}_{st.st_size}'
+
+
+def _thumb_file_path(table_dir: str, media_key: str, source_path: str) -> Path:
+    return THUMB_CACHE_ROOT / table_dir / f'{media_key}_{_build_thumb_sig(source_path)}.jpg'
+
+
+def _thumb_url(path: Path) -> str:
+    rel = path.relative_to(THUMB_CACHE_ROOT).as_posix()
+    return f'/media_thumbs/{rel}'
+
+
+def _get_cached_thumb_url(table_dir: str, media_key: str, source_path: str) -> Optional[str]:
+    if not _is_image_media_key(media_key) or not os.path.exists(source_path):
+        return None
+    try:
+        path = _thumb_file_path(table_dir, media_key, source_path)
+        if path.exists():
+            os.utime(path, None)
+            return _thumb_url(path)
+    except Exception:
+        return None
+    return None
+
+
+def _ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[str]:
+    if not _is_image_media_key(media_key) or not os.path.exists(source_path):
+        return None
+    try:
+        from PIL import Image, ImageOps
+    except Exception:
+        return None
+
+    try:
+        path = _thumb_file_path(table_dir, media_key, source_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            os.utime(path, None)
+            return _thumb_url(path)
+
+        for old in path.parent.glob(f'{media_key}_*.jpg'):
+            if old != path:
+                old.unlink(missing_ok=True)
+
+        with Image.open(source_path) as img:
+            img = ImageOps.exif_transpose(img).convert('RGB')
+            img.thumbnail(THUMB_SIZE, Image.Resampling.LANCZOS)
+            img.save(path, format='JPEG', quality=82, optimize=True)
+        os.utime(path, None)
+        return _thumb_url(path)
+    except Exception:
+        return None
 
 
 def get_tables_path() -> str:
@@ -93,6 +179,7 @@ def scan_media_tables(silent: bool = False):
 
                 # Build media availability dict
                 media_info = {}
+                thumb_info = {}
                 medias_dir = os.path.join(root, "medias")
                 for media_key, _, media_filename in MEDIA_TYPES:
                     # Check medias/ subfolder first, then fall back to root folder
@@ -101,10 +188,13 @@ def scan_media_tables(silent: bool = False):
                     if os.path.exists(img_path_medias):
                         # URL path relative to the served tables directory
                         media_info[media_key] = f"/media_tables/{current_dir}/medias/{media_filename}"
+                        thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, img_path_medias)
                     elif os.path.exists(img_path_root):
                         media_info[media_key] = f"/media_tables/{current_dir}/{media_filename}"
+                        thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, img_path_root)
                     else:
                         media_info[media_key] = None
+                        thumb_info[media_key] = None
 
                 rows.append({
                     'name': name,
@@ -115,6 +205,8 @@ def scan_media_tables(silent: bool = False):
                     'type': ttype,
                     'themes': themes,
                     'media': media_info,
+                    'thumbs': thumb_info,
+                    'thumb_errors': {},
                     # Flat fields for Quasar table rendering
                     'has_bg': media_info.get('bg') is not None,
                     'has_dmd': media_info.get('dmd') is not None,
@@ -125,6 +217,9 @@ def scan_media_tables(silent: bool = False):
                     'has_realdmd': media_info.get('realdmd') is not None,
                     'has_realdmd_color': media_info.get('realdmd_color') is not None,
                     'has_flyer': media_info.get('flyer') is not None,
+                    'has_table_video': media_info.get('table_video') is not None,
+                    'has_bg_video': media_info.get('bg_video') is not None,
+                    'has_dmd_video': media_info.get('dmd_video') is not None,
                     'has_audio': media_info.get('audio') is not None,
                 })
             except Exception as e:
@@ -134,14 +229,20 @@ def scan_media_tables(silent: bool = False):
 
 
 def render_panel():
-    global _media_route_registered
+    global _media_route_registered, _thumb_route_registered
 
     try:
         page_client = context.client
     except RuntimeError:
         page_client = None
 
-    page_state = {'active': True, 'scan_in_progress': False}
+    page_state = {
+        'active': True,
+        'scan_in_progress': False,
+        'thumb_warm_in_progress': False,
+        'current_page': 1,
+        'rows_per_page': 25,
+    }
 
     if page_client is not None:
         page_client.on_disconnect(lambda: page_state.__setitem__('active', False))
@@ -162,6 +263,10 @@ def render_panel():
         if os.path.exists(tables_path):
             app.add_media_files('/media_tables', tables_path)
             _media_route_registered = True
+    if not _thumb_route_registered:
+        THUMB_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
+        app.add_media_files('/media_thumbs', str(THUMB_CACHE_ROOT))
+        _thumb_route_registered = True
 
     with ui.column().classes('w-full'):
         # Table styles (same as tables page for consistency)
@@ -339,9 +444,74 @@ def render_panel():
             result.sort(key=lambda r: (r.get('name') or '').lower())
             return result
 
+        def _visible_rows(rows: List[Dict]) -> List[Dict]:
+            try:
+                page = int(page_state.get('current_page', 1) or 1)
+                rows_per_page = int(page_state.get('rows_per_page', 25) or 25)
+            except Exception:
+                page = 1
+                rows_per_page = 25
+            if rows_per_page <= 0:
+                rows_per_page = 25
+            start = max(0, (page - 1) * rows_per_page)
+            return rows[start:start + rows_per_page]
+
+        async def warm_visible_thumbnails(rows: List[Dict]) -> None:
+            try:
+                if not is_page_active() or page_state.get('thumb_warm_in_progress'):
+                    return
+                visible = _visible_rows(rows)
+                visible = visible[:THUMB_WARM_ROW_BATCH_SIZE]
+                pending = []
+                for row in visible:
+                    media = row.get('media', {})
+                    thumbs = row.setdefault('thumbs', {})
+                    errors = row.setdefault('thumb_errors', {})
+                    for media_key in IMAGE_MEDIA_KEYS:
+                        if not media.get(media_key):
+                            continue
+                        if thumbs.get(media_key) or errors.get(media_key):
+                            continue
+                        source_path = _source_media_path(row.get('table_path', ''), media_key)
+                        if source_path:
+                            pending.append((row, media_key, source_path))
+
+                if not pending:
+                    return
+
+                page_state['thumb_warm_in_progress'] = True
+                sem = asyncio.Semaphore(1)
+                changed = False
+
+                async def _build_one(row: Dict, media_key: str, source_path: str):
+                    nonlocal changed
+                    try:
+                        async with sem:
+                            thumb = await run.io_bound(_ensure_thumb, row.get('table_dir', ''), media_key, source_path)
+                        if thumb:
+                            if row['thumbs'].get(media_key) != thumb:
+                                row['thumbs'][media_key] = thumb
+                                changed = True
+                            row.setdefault('thumb_errors', {}).pop(media_key, None)
+                        else:
+                            row.setdefault('thumb_errors', {})[media_key] = True
+                    except Exception:
+                        row.setdefault('thumb_errors', {})[media_key] = True
+
+                await asyncio.gather(*(_build_one(r, k, p) for r, k, p in pending))
+                if changed and can_update_ui():
+                    with page_client:
+                        media_table._props['pagination']['page'] = page_state.get('current_page', 1)
+                        media_table._props['pagination']['rowsPerPage'] = page_state.get('rows_per_page', 25)
+                        media_table.update()
+            finally:
+                page_state['thumb_warm_in_progress'] = False
+
         def update_table_display():
             filtered = apply_filters()
             media_table._props['rows'] = filtered
+            media_table._props['pagination']['page'] = page_state.get('current_page', 1)
+            media_table._props['pagination']['rowsPerPage'] = page_state.get('rows_per_page', 25)
             media_table.update()
             total = len(_media_cache or [])
             shown = len(filtered)
@@ -349,6 +519,8 @@ def render_panel():
                 count_label.set_text(f"Tables ({total})")
             else:
                 count_label.set_text(f"Tables ({shown} of {total})")
+            if is_page_active():
+                asyncio.create_task(warm_visible_thumbnails(filtered))
 
         def on_search_change(e: events.ValueChangeEventArguments):
             filter_state['search'] = e.value or ''
@@ -387,6 +559,7 @@ def render_panel():
             for cb in missing_checkboxes.values():
                 cb.value = False
             media_table._props['pagination']['page'] = 1
+            page_state['current_page'] = 1
             update_table_display()
 
         def refresh_filter_options():
@@ -458,8 +631,6 @@ def render_panel():
                         scan_btn.enable()
 
         # --- Media replacement logic ---
-        # Lookup: media_key -> standard filename
-        MEDIA_KEY_TO_FILENAME = {key: fname for key, _, fname in MEDIA_TYPES}
 
         def replace_media_file(table_path: str, table_dir: str, media_key: str, uploaded_path: str):
             """Copy uploaded file to medias/ subfolder with standard name, update .info."""
@@ -479,13 +650,15 @@ def render_panel():
 
             return target_path
 
-        def update_cache_entry(table_dir: str, media_key: str, url_path: str):
+        def update_cache_entry(table_dir: str, media_key: str, url_path: str, thumb_url: Optional[str] = None):
             """Update the in-memory cache for the replaced media."""
             if _media_cache is None:
                 return
             for row in _media_cache:
                 if row['table_dir'] == table_dir:
                     row['media'][media_key] = url_path
+                    row.setdefault('thumbs', {})[media_key] = thumb_url
+                    row.setdefault('thumb_errors', {}).pop(media_key, None)
                     row[f'has_{media_key}'] = url_path is not None
                     break
 
@@ -550,11 +723,12 @@ def render_panel():
                             return
                         try:
                             src = upload_state['path']
-                            await run.io_bound(replace_media_file, table_path, table_dir, media_key, src)
+                            target_path = await run.io_bound(replace_media_file, table_path, table_dir, media_key, src)
 
                             # Build the URL for the new media (now in medias/ subfolder)
                             new_url = f"/media_tables/{table_dir}/medias/{target_filename}"
-                            update_cache_entry(table_dir, media_key, new_url)
+                            new_thumb = await run.io_bound(_ensure_thumb, table_dir, media_key, target_path)
+                            update_cache_entry(table_dir, media_key, new_url, new_thumb)
                             update_table_display()
 
                             # Cleanup temp
@@ -684,14 +858,17 @@ def render_panel():
                             <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
-                                <video :src="props.row.media.''' + media_key + '''"
-                                       class="media-thumb"
-                                       preload="metadata"
-                                       muted />
+                                <q-checkbox
+                                    :model-value="true"
+                                    dense
+                                    disable
+                                    color="positive"
+                                />
                                 <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
                                            class="bg-dark" style="padding: 4px;">
                                     <video :src="props.row.media.''' + media_key + '''"
                                            style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 2px solid #3b82f6;"
+                                           preload="none"
                                            autoplay loop muted />
                                 </q-tooltip>
                             </div>
@@ -706,7 +883,7 @@ def render_panel():
                             <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
-                                <img :src="props.row.media.''' + media_key + '''"
+                                <img :src="(props.row.thumbs && props.row.thumbs.''' + media_key + ''') ? props.row.thumbs.''' + media_key + ''' : props.row.media.''' + media_key + '''"
                                      class="media-thumb"
                                      loading="lazy" />
                                 <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
@@ -737,6 +914,24 @@ def render_panel():
                     media_label=media_label,
                 )
             media_table.on('media_click', on_media_click)
+
+            def on_pagination_change(e):
+                try:
+                    pagination = None
+                    if isinstance(e.args, dict):
+                        pagination = e.args
+                    elif isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
+                        pagination = e.args[0]
+                    if pagination:
+                        media_table._props['pagination'].update(pagination)
+                        page_state['current_page'] = int(pagination.get('page', page_state['current_page']) or 1)
+                        page_state['rows_per_page'] = int(pagination.get('rowsPerPage', page_state['rows_per_page']) or 25)
+                except Exception:
+                    pass
+                if is_page_active():
+                    asyncio.create_task(warm_visible_thumbnails(media_table._props.get('rows', [])))
+
+            media_table.on('update:pagination', on_pagination_change)
 
         # Startup scan
         async def refresh_on_startup():

@@ -5,4 +5,5 @@ olefile
 pynput
 nicegui
 platformdirs
+Pillow
 pyobjc; sys_platform == "darwin"

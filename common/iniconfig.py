@@ -31,12 +31,13 @@ class IniConfig:
 				'console': '1',
 				'file': '',
 				},
-			'Media': {
-				'tabletype': 'table',
-				'tableresolution': '4k',
-				'tablevideoresolution': '1k',
-				'defaultmissingmediaimg': '',
-				},
+				'Media': {
+					'tabletype': 'table',
+					'tableresolution': '4k',
+					'tablevideoresolution': '1k',
+					'defaultmissingmediaimg': '',
+					'thumbcachemaxmb': '500',
+					},
 			'VPSdb': {'last': ''},
 			'Network': {
 				'themeassetsport': '8000',

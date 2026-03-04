@@ -64,7 +64,7 @@ git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
 python3 -m venv vvv --system-site-packages
 source vvv/bin/activate
-pip install nicegui screeninfo colorama olefile pynput nicegui==2.* pywebview platformdirs
+pip install nicegui screeninfo colorama olefile pynput nicegui==2.* pywebview platformdirs Pillow
 deactivate
 
 # then run like this inside the vpinfe dir
@@ -82,7 +82,7 @@ git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
 python3 -m venv vvv --system-site-packages
 source vvv/bin/activate
-pip install pywebview nicegui screeninfo colorama
+pip install pywebview nicegui screeninfo colorama Pillow
 deactivate
 
 # then run like this inside the vpinfe dir
@@ -141,7 +141,7 @@ cd vpinfe
 python -m pip install —-upgrade pip
 python -m venv venv-vpinfe --system-site-packages
 .\venv-vpinfe\scripts\Activate.ps1
-pip install pywebview screeninfo colorama requests olefile nicegui pynput
+pip install pywebview screeninfo colorama requests olefile nicegui pynput Pillow
 python main.py -h
 ```
 * add Shortcut to this Script on the Desktop
