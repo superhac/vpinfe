@@ -1,9 +1,9 @@
 requests
-pywebview
+websockets
 screeninfo
 olefile
 pynput
 nicegui
 platformdirs
-Pillow
+pillow
 pyobjc; sys_platform == "darwin"
