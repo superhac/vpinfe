@@ -500,12 +500,12 @@ def render_panel():
                     # Save to a temp location first
                     tmp_dir = os.path.join(table_path, '.tmp_upload')
                     os.makedirs(tmp_dir, exist_ok=True)
-                    tmp_path = os.path.join(tmp_dir, e.name)
+                    tmp_path = os.path.join(tmp_dir, e.file.name)
                     with open(tmp_path, 'wb') as f:
-                        f.write(e.content.read())
+                        f.write(await e.file.read())
                     upload_state['path'] = tmp_path
                     confirm_btn.enable()
-                    ui.notify(f'File ready: {e.name}', type='info')
+                    ui.notify(f'File ready: {e.file.name}', type='info')
 
                 ui.upload(
                     on_upload=handle_upload,
