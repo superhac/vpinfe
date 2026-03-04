@@ -136,6 +136,26 @@ def scan_media_tables(silent: bool = False):
 def render_panel():
     global _media_route_registered
 
+    try:
+        page_client = context.client
+    except RuntimeError:
+        page_client = None
+
+    page_state = {'active': True, 'scan_in_progress': False}
+
+    if page_client is not None:
+        page_client.on_disconnect(lambda: page_state.__setitem__('active', False))
+
+    def is_page_active() -> bool:
+        return page_state['active']
+
+    def can_update_ui() -> bool:
+        if not is_page_active():
+            return False
+        if page_client is None:
+            return False
+        return page_client.has_socket_connection
+
     # Register media files route once
     if not _media_route_registered:
         tables_path = get_tables_path()
@@ -382,6 +402,9 @@ def render_panel():
 
         async def perform_scan(*_, silent: bool = False):
             global _media_cache
+            if page_state['scan_in_progress']:
+                return
+            page_state['scan_in_progress'] = True
             print("Scanning media...")
             # Capture client context before any io_bound calls (may not exist if called from timer)
             try:
@@ -389,10 +412,10 @@ def render_panel():
             except RuntimeError:
                 client = None
             try:
-                scan_btn.disable()
-            except Exception:
-                pass
-            try:
+                if can_update_ui():
+                    with page_client:
+                        scan_btn.disable()
+
                 media_rows = await run.io_bound(scan_media_tables, silent)
                 try:
                     media_rows.sort(key=lambda r: (r.get('name') or '').lower())
@@ -401,32 +424,38 @@ def render_panel():
 
                 _media_cache = media_rows
 
-                try:
-                    refresh_filter_options()
-                    update_table_display()
-                except NameError:
-                    media_table._props['rows'] = media_rows
-                    media_table.update()
+                if can_update_ui():
+                    with page_client:
+                        try:
+                            refresh_filter_options()
+                            update_table_display()
+                        except NameError:
+                            media_table._props['rows'] = media_rows
+                            media_table.update()
 
                 await asyncio.sleep(0.05)
-                try:
-                    ui.run_javascript('window.dispatchEvent(new Event("resize"));')
-                except RuntimeError:
-                    pass
+                if can_update_ui():
+                    with page_client:
+                        try:
+                            ui.run_javascript('window.dispatchEvent(new Event("resize"));')
+                        except RuntimeError:
+                            pass
 
                 if not silent and client:
-                    with client:
-                        ui.notify('Media scan complete!', type='positive')
+                    if can_update_ui():
+                        with client:
+                            ui.notify('Media scan complete!', type='positive')
             except Exception as e:
                 logger.exception("Failed to scan media")
                 if not silent and client:
-                    with client:
-                        ui.notify(f"Error during scan: {e}", type='negative')
+                    if can_update_ui():
+                        with client:
+                            ui.notify(f"Error during scan: {e}", type='negative')
             finally:
-                try:
-                    scan_btn.enable()
-                except Exception:
-                    pass
+                page_state['scan_in_progress'] = False
+                if can_update_ui():
+                    with page_client:
+                        scan_btn.enable()
 
         # --- Media replacement logic ---
         # Lookup: media_key -> standard filename
@@ -711,18 +740,25 @@ def render_panel():
 
         # Startup scan
         async def refresh_on_startup():
+            if not is_page_active():
+                return
             if _media_cache is not None:
-                refresh_filter_options()
-                update_table_display()
+                if can_update_ui():
+                    refresh_filter_options()
+                    update_table_display()
             else:
                 await perform_scan(silent=True)
-            try:
-                ui.run_javascript('window.dispatchEvent(new Event("resize"));')
-            except RuntimeError:
-                pass
+            if can_update_ui():
+                with page_client:
+                    try:
+                        ui.run_javascript('window.dispatchEvent(new Event("resize"));')
+                    except RuntimeError:
+                        pass
 
         async def startup_refresh():
             await asyncio.sleep(0.2)
+            if not is_page_active():
+                return
             await refresh_on_startup()
 
         ui.timer(0.1, lambda: asyncio.create_task(startup_refresh()), once=True)
