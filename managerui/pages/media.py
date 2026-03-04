@@ -25,8 +25,9 @@ _thumb_route_registered = False
 
 CACHE_DIR = CONFIG_DIR / "cache"
 THUMB_CACHE_ROOT = CACHE_DIR / "media_thumbs"
-THUMB_SIZE = (128, 128)
+THUMB_SIZE = (256, 256)
 THUMB_WARM_ROW_BATCH_SIZE = 25
+THUMB_WARM_CHUNK_SIZE = 8
 
 
 def invalidate_media_cache():
@@ -240,6 +241,7 @@ def render_panel():
         'active': True,
         'scan_in_progress': False,
         'thumb_warm_in_progress': False,
+        'pending_warm_rows': None,
     }
 
     if page_client is not None:
@@ -457,8 +459,25 @@ def render_panel():
 
         async def warm_visible_thumbnails(rows: List[Dict]) -> None:
             try:
-                if not is_page_active() or page_state.get('thumb_warm_in_progress'):
+                if not is_page_active():
                     return
+                if page_state.get('thumb_warm_in_progress'):
+                    # Queue the latest request (e.g. user switched pages) and run it next.
+                    page_state['pending_warm_rows'] = rows
+                    return
+                # On first page load, defer warm-up until the websocket connection is ready,
+                # otherwise thumbnails can be built without any UI updates being sent.
+                if page_client is not None and not page_client.has_socket_connection:
+                    try:
+                        await page_client.connected(timeout=3)
+                    except Exception:
+                        if is_page_active():
+                            async def _retry():
+                                await asyncio.sleep(0.5)
+                                if is_page_active():
+                                    await warm_visible_thumbnails(rows)
+                            asyncio.create_task(_retry())
+                        return
                 visible = _visible_rows(rows)
                 visible = visible[:THUMB_WARM_ROW_BATCH_SIZE]
                 pending = []
@@ -479,12 +498,11 @@ def render_panel():
                     return
 
                 page_state['thumb_warm_in_progress'] = True
-                sem = asyncio.Semaphore(1)
-                changed = False
+                sem = asyncio.Semaphore(4)
                 current_pagination = dict(media_table._props.get('pagination', {}))
 
                 async def _build_one(row: Dict, media_key: str, source_path: str):
-                    nonlocal changed
+                    changed = False
                     try:
                         async with sem:
                             thumb = await run.io_bound(_ensure_thumb, row.get('table_dir', ''), media_key, source_path)
@@ -497,17 +515,25 @@ def render_panel():
                             row.setdefault('thumb_errors', {})[media_key] = True
                     except Exception:
                         row.setdefault('thumb_errors', {})[media_key] = True
+                    return changed
 
-                await asyncio.gather(*(_build_one(r, k, p) for r, k, p in pending))
-                if changed and can_update_ui():
-                    with page_client:
-                        media_table.update()
-                        if current_pagination:
-                            media_table.run_method('setPagination', current_pagination)
+                for i in range(0, len(pending), THUMB_WARM_CHUNK_SIZE):
+                    chunk = pending[i:i + THUMB_WARM_CHUNK_SIZE]
+                    results = await asyncio.gather(*(_build_one(r, k, p) for r, k, p in chunk))
+                    if any(results) and can_update_ui():
+                        with page_client:
+                            # Rebuild rows from cache (same path as revisit), but keep current pagination.
+                            update_table_display(schedule_warm=False)
+                            if current_pagination:
+                                media_table.run_method('setPagination', current_pagination)
             finally:
                 page_state['thumb_warm_in_progress'] = False
+                pending_rows = page_state.get('pending_warm_rows')
+                if pending_rows is not None and is_page_active():
+                    page_state['pending_warm_rows'] = None
+                    asyncio.create_task(warm_visible_thumbnails(pending_rows))
 
-        def update_table_display():
+        def update_table_display(schedule_warm: bool = True):
             filtered = apply_filters()
             media_table._props['rows'] = filtered
             media_table.update()
@@ -517,8 +543,22 @@ def render_panel():
                 count_label.set_text(f"Tables ({total})")
             else:
                 count_label.set_text(f"Tables ({shown} of {total})")
-            if is_page_active():
+            if schedule_warm and is_page_active():
                 asyncio.create_task(warm_visible_thumbnails(filtered))
+
+        def _extract_pagination(payload):
+            """Normalize pagination payloads emitted by Quasar/NiceGUI."""
+            if isinstance(payload, dict):
+                if isinstance(payload.get('pagination'), dict):
+                    return payload['pagination']
+                if 'page' in payload or 'rowsPerPage' in payload:
+                    return payload
+            if isinstance(payload, (list, tuple)):
+                for item in payload:
+                    pg = _extract_pagination(item)
+                    if pg:
+                        return pg
+            return None
 
         def on_search_change(e: events.ValueChangeEventArguments):
             filter_state['search'] = e.value or ''
@@ -888,8 +928,11 @@ def render_panel():
                                          style="font-size: 10px; padding: 2px 8px;" />
                                 <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
                                            class="bg-dark" style="padding: 4px;">
-                                    <img :src="props.row.media.''' + media_key + '''"
+                                    <img v-if="props.row.thumbs && props.row.thumbs.''' + media_key + '''"
+                                         :src="props.row.thumbs.''' + media_key + '''"
                                          style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 2px solid #3b82f6;" />
+                                    <q-badge v-else color="blue-grey-7" text-color="white" label="Generating..."
+                                             style="font-size: 10px; padding: 2px 8px;" />
                                 </q-tooltip>
                             </div>
                             <div v-else class="media-missing"
@@ -917,17 +960,14 @@ def render_panel():
 
             def on_pagination_change(e):
                 try:
-                    pagination = None
-                    if isinstance(e.args, dict):
-                        pagination = e.args
-                    elif isinstance(e.args, (list, tuple)) and e.args and isinstance(e.args[0], dict):
-                        pagination = e.args[0]
+                    pagination = _extract_pagination(e.args)
                     if pagination:
+                        media_table._props.setdefault('pagination', {})
                         media_table._props['pagination'].update(pagination)
                 except Exception:
                     pass
                 if is_page_active():
-                    asyncio.create_task(warm_visible_thumbnails(media_table._props.get('rows', [])))
+                    asyncio.create_task(warm_visible_thumbnails(apply_filters()))
 
             media_table.on('update:pagination', on_pagination_change)
 
