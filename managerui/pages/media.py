@@ -25,7 +25,7 @@ _thumb_route_registered = False
 
 CACHE_DIR = CONFIG_DIR / "cache"
 THUMB_CACHE_ROOT = CACHE_DIR / "media_thumbs"
-THUMB_SIZE = (256, 256)
+THUMB_SIZE = (512, 512)
 THUMB_WARM_ROW_BATCH_SIZE = 25
 THUMB_WARM_CHUNK_SIZE = 8
 
@@ -85,7 +85,7 @@ def _build_thumb_sig(source_path: str) -> str:
 
 
 def _thumb_file_path(table_dir: str, media_key: str, source_path: str) -> Path:
-    return THUMB_CACHE_ROOT / table_dir / f'{media_key}_{_build_thumb_sig(source_path)}.jpg'
+    return THUMB_CACHE_ROOT / table_dir / f'{media_key}_{_build_thumb_sig(source_path)}.png'
 
 
 def _thumb_url(path: Path) -> str:
@@ -121,14 +121,22 @@ def _ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[
             os.utime(path, None)
             return _thumb_url(path)
 
+        for old in path.parent.glob(f'{media_key}_*.png'):
+            if old != path:
+                old.unlink(missing_ok=True)
         for old in path.parent.glob(f'{media_key}_*.jpg'):
             if old != path:
                 old.unlink(missing_ok=True)
 
         with Image.open(source_path) as img:
-            img = ImageOps.exif_transpose(img).convert('RGB')
+            img = ImageOps.exif_transpose(img)
+            has_alpha = (
+                img.mode in ('RGBA', 'LA')
+                or (img.mode == 'P' and 'transparency' in img.info)
+            )
+            img = img.convert('RGBA' if has_alpha else 'RGB')
             img.thumbnail(THUMB_SIZE, Image.Resampling.LANCZOS)
-            img.save(path, format='JPEG', quality=82, optimize=True)
+            img.save(path, format='PNG', optimize=True)
         os.utime(path, None)
         return _thumb_url(path)
     except Exception:
@@ -930,7 +938,7 @@ def render_panel():
                                            class="bg-dark" style="padding: 4px;">
                                     <img v-if="props.row.thumbs && props.row.thumbs.''' + media_key + '''"
                                          :src="props.row.thumbs.''' + media_key + '''"
-                                         style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 2px solid #3b82f6;" />
+                                         style="max-width: 480px; max-height: 480px; border-radius: 6px; border: 2px solid #3b82f6; object-fit: contain;" />
                                     <q-badge v-else color="blue-grey-7" text-color="white" label="Generating..."
                                              style="font-size: 10px; padding: 2px 8px;" />
                                 </q-tooltip>
