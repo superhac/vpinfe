@@ -4,6 +4,7 @@ import hashlib
 import json
 import shutil
 import tempfile
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -22,6 +23,81 @@ def _download(url: str, dest: Path) -> None:
         shutil.copyfileobj(response, out)
 
 
+def _download_with_headers(url: str, dest: Path, headers: dict | None = None) -> None:
+    req = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(req) as response, dest.open('wb') as out:
+        shutil.copyfileobj(response, out)
+
+
+def _read_json(url: str, headers: dict | None = None) -> dict:
+    req = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(req) as response:
+        return json.loads(response.read().decode('utf-8'))
+
+
+def _tag_candidates(version: str) -> list[str]:
+    v = version.strip()
+    if not v:
+        return []
+    if v.startswith('v'):
+        return [v, v[1:]]
+    return [v, f'v{v}']
+
+
+def _download_manifest(repo: str, version: str, manifest_path: Path) -> str:
+    last_err = None
+    for tag in _tag_candidates(version):
+        base = f"https://github.com/{repo}/releases/download/{tag}"
+        manifest_url = f"{base}/manifest.json"
+        try:
+            print(f"[DOF FETCH] Downloading manifest: {manifest_url}")
+            _download(manifest_url, manifest_path)
+            return tag
+        except urllib.error.HTTPError as e:
+            if e.code != 404:
+                raise
+            last_err = e
+            print(f"[DOF FETCH] Direct manifest URL not found for tag '{tag}' (404).")
+
+        api_url = f"https://api.github.com/repos/{repo}/releases/tags/{tag}"
+        headers = {
+            'Accept': 'application/vnd.github+json',
+            'User-Agent': 'vpinfe-dof-fetcher',
+        }
+        try:
+            release = _read_json(api_url, headers=headers)
+            assets = release.get('assets', [])
+            manifest_asset = None
+            for asset in assets:
+                if asset.get('name') == 'manifest.json':
+                    manifest_asset = asset
+                    break
+            if manifest_asset is None:
+                for asset in assets:
+                    name = str(asset.get('name', '')).lower()
+                    if 'manifest' in name and name.endswith('.json'):
+                        manifest_asset = asset
+                        break
+            if manifest_asset:
+                dl_url = manifest_asset.get('browser_download_url')
+                if not dl_url:
+                    raise RuntimeError("manifest asset missing browser_download_url")
+                print(f"[DOF FETCH] Downloading manifest asset via API: {dl_url}")
+                _download_with_headers(dl_url, manifest_path, headers={'User-Agent': 'vpinfe-dof-fetcher'})
+                return tag
+            print(f"[DOF FETCH] No manifest asset found for tag '{tag}'.")
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                print(f"[DOF FETCH] Release tag not found via API: {tag}")
+                last_err = e
+                continue
+            raise
+
+    if last_err:
+        raise last_err
+    raise RuntimeError(f"Could not resolve manifest for {repo} {version}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description='Fetch and verify a DOF bundle from GitHub release manifest.'
@@ -32,17 +108,14 @@ def main() -> int:
     parser.add_argument('--outdir', default='third-party/dof', help='Output directory')
     args = parser.parse_args()
 
-    base = f"https://github.com/{args.repo}/releases/download/{args.version}"
-    manifest_url = f"{base}/manifest.json"
-
     with tempfile.TemporaryDirectory(prefix='vpinfe-dof-') as td:
         tmp = Path(td)
         manifest_path = tmp / 'manifest.json'
         bundle_zip = tmp / 'dof.zip'
         extract_dir = tmp / 'extract'
 
-        print(f"[DOF FETCH] Downloading manifest: {manifest_url}")
-        _download(manifest_url, manifest_path)
+        resolved_tag = _download_manifest(args.repo, args.version, manifest_path)
+        base = f"https://github.com/{args.repo}/releases/download/{resolved_tag}"
 
         manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
         assets = manifest.get('assets', {})
