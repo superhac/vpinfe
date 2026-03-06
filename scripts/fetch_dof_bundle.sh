@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DOF_REPO="${DOF_REPO:-superhac/libdof-python}"
-DOF_VERSION="${DOF_VERSION:-1.0.0}"
+DOF_VERSION="${DOF_VERSION:-v1.0.2}"
 
 if [[ "${1:-}" != "" ]]; then
   DOF_TRIPLET="$1"
