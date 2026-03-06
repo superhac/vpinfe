@@ -62,8 +62,10 @@ def get_chromium_path():
     elif system == "Linux":
         # Check if chromium is locally available on the system. 
         # If so use that instead of bundled chromium.
-        if which("chromium") is not None:
-            return which("chromium")
+        for binary_name in ("chromium", "chromium-browser"):
+            chromium_path = which(binary_name)
+            if chromium_path is not None:
+                return chromium_path
         return resource_path("chromium/linux/chrome/chrome")
     else:
         raise RuntimeError(f"Unsupported OS: {system}")
