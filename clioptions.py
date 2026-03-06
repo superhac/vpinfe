@@ -282,6 +282,8 @@ def claimUserMedia(tableName=None, progress_cb=None, log_cb=None):
 def gamepadtest():
     """Run the gamepad test window using Chromium and the HTTP server."""
     from frontend.chromium_manager import ChromiumManager
+    from frontend.api import API
+    from frontend.ws_bridge import WebSocketBridge
 
     mount_points = {
         '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
@@ -289,14 +291,29 @@ def gamepadtest():
     }
     http_server = CustomHTTPServer(mount_points)
     theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
+    ws_port = int(iniconfig.config['Network'].get('wsport', '8002'))
     http_server.start_file_server(port=theme_assets_port)
 
     monitors = get_monitors()
+    ws_bridge = WebSocketBridge(port=ws_port)
     chromium = ChromiumManager()
-    url = f"http://127.0.0.1:{theme_assets_port}/web/diag/gamepad.html"
-    chromium.launch_window("gamepad", url, monitors[0], 0)
-    chromium.wait_for_exit()
-    http_server.on_closed()
+    api = API(
+        iniConfig=iniconfig,
+        window_name="gamepad",
+        ws_bridge=ws_bridge,
+        chromium_manager=chromium,
+    )
+    api._finish_setup()
+    ws_bridge.register_api("gamepad", api)
+
+    ws_bridge.start()
+    try:
+        url = f"http://127.0.0.1:{theme_assets_port}/web/diag/gamepad.html?window=gamepad"
+        chromium.launch_window("gamepad", url, monitors[0], 0)
+        chromium.wait_for_exit()
+    finally:
+        ws_bridge.stop()
+        http_server.on_closed()
 
 
 def parseArgs():
@@ -370,4 +387,3 @@ def parseArgs():
         sys.exit()
 
     return args
-
