@@ -2,6 +2,7 @@ import os
 import logging
 import asyncio
 import shutil
+from urllib.parse import quote
 from nicegui import ui, events, run, app, context
 from pathlib import Path
 import json
@@ -59,6 +60,11 @@ IMAGE_MEDIA_KEYS = [
     key for key, _, filename in MEDIA_TYPES
     if Path(filename).suffix.lower() in IMAGE_EXTENSIONS
 ]
+
+
+def _media_url(*parts: str) -> str:
+    encoded = [quote(p.strip('/')) for p in parts if p]
+    return '/' + '/'.join(encoded)
 
 
 def _is_image_media_key(media_key: str) -> bool:
@@ -196,10 +202,10 @@ def scan_media_tables(silent: bool = False):
                     img_path_root = os.path.join(root, media_filename)
                     if os.path.exists(img_path_medias):
                         # URL path relative to the served tables directory
-                        media_info[media_key] = f"/media_tables/{current_dir}/medias/{media_filename}"
+                        media_info[media_key] = _media_url('media_tables', current_dir, 'medias', media_filename)
                         thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, img_path_medias)
                     elif os.path.exists(img_path_root):
-                        media_info[media_key] = f"/media_tables/{current_dir}/{media_filename}"
+                        media_info[media_key] = _media_url('media_tables', current_dir, media_filename)
                         thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, img_path_root)
                     else:
                         media_info[media_key] = None
@@ -731,7 +737,7 @@ def render_panel():
                 if current_url:
                     ui.label('Current:').classes('text-slate-400 text-sm')
                     if is_audio:
-                        ui.html(f'<audio src="{current_url}" controls style="max-width: 300px;"></audio>').classes('mb-4')
+                        ui.html(f'<audio src="{current_url}" controls preload="metadata" style="width: 320px; max-width: 100%;"></audio>').classes('mb-4')
                     elif is_video:
                         ui.html(f'<video src="{current_url}" style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid #334155;" autoplay loop muted></video>').classes('mb-4')
                     else:
@@ -771,7 +777,7 @@ def render_panel():
                             target_path = await run.io_bound(replace_media_file, table_path, table_dir, media_key, src)
 
                             # Build the URL for the new media (now in medias/ subfolder)
-                            new_url = f"/media_tables/{table_dir}/medias/{target_filename}"
+                            new_url = _media_url('media_tables', table_dir, 'medias', target_filename)
                             new_thumb = await run.io_bound(_ensure_thumb, table_dir, media_key, target_path)
                             update_cache_entry(table_dir, media_key, new_url, new_thumb)
                             update_table_display()
