@@ -8,6 +8,9 @@ on:
 
 jobs:
   build:
+    env:
+      DOF_VERSION: v1.0.1
+      DOF_REPO: superhac/libdof-python
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -23,6 +26,32 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.14'
+
+      # 3. Resolve DOF triplet
+      - name: Resolve DOF triplet
+        run: |
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            echo "DOF_TRIPLET=linux-x64" >> "$GITHUB_ENV"
+          elif [[ "$RUNNER_OS" == "Windows" ]]; then
+            echo "DOF_TRIPLET=win-x64" >> "$GITHUB_ENV"
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            echo "DOF_TRIPLET=macos-arm64" >> "$GITHUB_ENV"
+          else
+            echo "Unsupported OS: $RUNNER_OS"
+            exit 1
+          fi
+        shell: bash
+
+      # 4. Fetch DOF bundle into third-party/dof
+      - name: Fetch DOF bundle
+        run: |
+          python scripts/fetch_dof_bundle.py \
+            --repo "${DOF_REPO}" \
+            --version "${DOF_VERSION}" \
+            --triplet "${DOF_TRIPLET}" \
+            --outdir third-party/dof
+          test -f third-party/dof/dof_runner.py
+        shell: bash
 
       # 3. Install dependencies
       - name: Install Python dependencies
@@ -80,6 +109,7 @@ jobs:
             pyinstaller --onedir --noconfirm --name vpinfe \
               --add-data "web:web" \
               --add-data "managerui/static:managerui/static" \
+              --add-data "third-party/dof:third-party/dof" \
               --add-data "chromium/linux/chrome:chromium/linux/chrome" \
               --hidden-import pynput.keyboard._xorg \
               --hidden-import pynput.mouse._xorg \
@@ -88,12 +118,14 @@ jobs:
             pyinstaller --onedir --noconfirm --name vpinfe \
               --add-data "web;web" \
               --add-data "managerui/static;managerui/static" \
+              --add-data "third-party/dof;third-party/dof" \
               --add-data "chromium/windows;chromium/windows" \
               main.py
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
             pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
               --add-data "web:web" \
               --add-data "managerui/static:managerui/static" \
+              --add-data "third-party/dof:third-party/dof" \
               main.py
             # Preserve Chromium.app bundle structure (PyInstaller breaks symlinks)
             mkdir -p dist/VPinFE.app/Contents/Frameworks/chromium
@@ -178,6 +210,7 @@ jobs:
           pyinstaller --onedir --noconfirm --name vpinfe \
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
+            --add-data "third-party/dof:third-party/dof" \
             --hidden-import pynput.keyboard._xorg \
             --hidden-import pynput.mouse._xorg \
             main.py
@@ -198,6 +231,7 @@ jobs:
           pyinstaller --onedir --noconfirm --name vpinfe `
             --add-data "web;web" `
             --add-data "managerui/static;managerui/static" `
+            --add-data "third-party/dof;third-party/dof" `
             main.py
 
       - name: Copy Windows launcher (slim)
@@ -220,6 +254,7 @@ jobs:
           pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
+            --add-data "third-party/dof:third-party/dof" \
             main.py
            #remove build directory
           rm -rf dist/vpinfe
@@ -267,4 +302,3 @@ jobs:
         with:
           name: vpinfe-macOS-slim
           path: dist/VPinFE.dmg
-

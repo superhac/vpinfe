@@ -30,6 +30,7 @@ FRIENDLY_NAMES = {
     'tablerootdir': 'Tables Directory',
     'startup_collection': 'Startup Collection',
     'autoupdatemediaonstartup': 'Auto Update Media On Startup',
+    'enabledof': 'Enable DOF',
     'theme': 'Active Theme',
     'level': 'Log Verbosity',
     'console': 'Logging Console',
@@ -192,7 +193,7 @@ def render_panel(tab=None):
                                         value=value
                                     ).classes('config-input').style('min-width: 200px;')
                                 # Special handling for startup media auto-update in Settings
-                                elif section == 'Settings' and key == 'autoupdatemediaonstartup':
+                                elif section == 'Settings' and key in ('autoupdatemediaonstartup', 'enabledof'):
                                     bool_options = ['true', 'false']
                                     normalized = (value or '').strip().lower()
                                     if normalized not in bool_options:

@@ -18,6 +18,7 @@ COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 
 # Import config
 from common.iniconfig import IniConfig
+from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.vpxcollections import VPXCollections
 _INI_CFG = None
 
@@ -200,6 +201,8 @@ def _launch_table(vpx_path: str, table_name: str):
         print(f"Remote Launching table: {vpx_path}")
         ui.notify(f'Remote Launching {table_name}...', type='info')
 
+        stop_dof_service()
+
         # Signal to frontend that we're launching
         set_remote_launch_state(True, table_name)
 
@@ -207,15 +210,18 @@ def _launch_table(vpx_path: str, table_name: str):
         cmd = [str(vpxbin_path), "-play", vpx_path]
 
         def run_and_wait():
-            process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                stdin=subprocess.DEVNULL
-            )
-            process.wait()
-            # Clear the launch state when done
-            set_remote_launch_state(False, None)
+            try:
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL
+                )
+                process.wait()
+            finally:
+                # Clear the launch state when done
+                set_remote_launch_state(False, None)
+                start_dof_service_if_enabled(cfg)
 
         # Run in background thread
         thread = threading.Thread(target=run_and_wait, daemon=True)
@@ -223,6 +229,10 @@ def _launch_table(vpx_path: str, table_name: str):
         return True
     except Exception as e:
         set_remote_launch_state(False, None)
+        try:
+            start_dof_service_if_enabled(_get_ini_config())
+        except Exception:
+            pass
         ui.notify(f'Failed to launch: {e}', type='negative')
         return False
 

@@ -10,6 +10,7 @@ import subprocess
 from common.tableparser import TableParser
 from common.vpxcollections import VPXCollections
 from common.tablelistfilters import TableListFilters
+from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from platformdirs import user_config_dir
 
 class API:
@@ -386,21 +387,25 @@ class API:
         # Track the table play
         self._track_table_play(table)
 
-        cmd = [vpxbin_path, "-play", vpx]
+        stop_dof_service()
+        try:
+            cmd = [vpxbin_path, "-play", vpx]
 
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            text=True)
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                text=True)
 
-        startup_detected = False
-        for line in process.stdout:
-            if not startup_detected and "Startup done" in line:
-                startup_detected = True
-                self.send_event_all_windows_incself({"type": "TableRunning"})
-                print("table running")
+            startup_detected = False
+            for line in process.stdout:
+                if not startup_detected and "Startup done" in line:
+                    startup_detected = True
+                    self.send_event_all_windows_incself({"type": "TableRunning"})
+                    print("table running")
 
-        process.wait()
+            process.wait()
+        finally:
+            start_dof_service_if_enabled(self._iniConfig)
 
         # macOS: re-activate Chromium windows so they return to foreground
         # after VPX exits (kiosk windows don't auto-regain focus on macOS)

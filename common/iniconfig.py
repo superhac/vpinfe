@@ -14,6 +14,7 @@ class IniConfig:
 				'theme': 'carousel-desktop',
 				'startup_collection': '',
 				'autoupdatemediaonstartup': 'false',
+				'enabledof': 'false',
 				},
 			'Input': {
 				'joyleft': '',

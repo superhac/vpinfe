@@ -26,6 +26,7 @@ from frontend.api import API
 from frontend.ws_bridge import WebSocketBridge
 from frontend.chromium_manager import ChromiumManager
 from common.iniconfig import IniConfig
+from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from platformdirs import user_config_dir
 from common.themes import ThemeRegistry
 
@@ -154,6 +155,7 @@ except Exception as e:
 
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
+start_dof_service_if_enabled(iniconfig)
 
 # Create API instances and register with WebSocket bridge
 create_api_instances()
@@ -223,6 +225,10 @@ try:
     ws_bridge.stop()
 except Exception as e:
     print(f"[Main] ws_bridge.stop() error: {e}")
+try:
+    stop_dof_service()
+except Exception as e:
+    print(f"[Main] stop_dof_service() error: {e}")
 try:
     http_server.on_closed()
 except Exception as e:
