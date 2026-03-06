@@ -147,11 +147,23 @@ def main() -> int:
         with zipfile.ZipFile(bundle_zip, 'r') as zf:
             zf.extractall(extract_dir)
 
+        # Normalize archive layout: if bundle contains a single top-level directory,
+        # treat that directory as the actual payload root.
+        payload_root = extract_dir
+        children = [p for p in extract_dir.iterdir()]
+        if len(children) == 1 and children[0].is_dir():
+            payload_root = children[0]
+
         outdir = Path(args.outdir)
         outdir.parent.mkdir(parents=True, exist_ok=True)
         if outdir.exists():
             shutil.rmtree(outdir)
-        shutil.move(str(extract_dir), str(outdir))
+        shutil.move(str(payload_root), str(outdir))
+
+        if not (outdir / 'dof_runner.py').exists():
+            raise SystemExit(
+                f"[DOF FETCH] dof_runner.py not found in extracted bundle at {outdir}"
+            )
 
         print(f"[DOF FETCH] Installed bundle to: {outdir}")
     return 0
