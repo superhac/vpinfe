@@ -44,6 +44,8 @@ jobs:
 
       # 4. Fetch DOF bundle into third-party/dof
       - name: Fetch DOF bundle
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           python scripts/fetch_dof_bundle.py \
             --repo "${DOF_REPO}" \

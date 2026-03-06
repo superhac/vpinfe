@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 import shutil
 import tempfile
 import urllib.error
@@ -48,7 +49,10 @@ def _tag_candidates(version: str) -> list[str]:
 
 def _download_manifest(repo: str, version: str, manifest_path: Path) -> str:
     last_err = None
-    for tag in _tag_candidates(version):
+    tags = _tag_candidates(version)
+
+    # First pass: try direct release asset URLs for all candidate tags.
+    for tag in tags:
         base = f"https://github.com/{repo}/releases/download/{tag}"
         manifest_url = f"{base}/manifest.json"
         try:
@@ -61,13 +65,19 @@ def _download_manifest(repo: str, version: str, manifest_path: Path) -> str:
             last_err = e
             print(f"[DOF FETCH] Direct manifest URL not found for tag '{tag}' (404).")
 
+    # Second pass: fall back to GitHub Releases API lookup.
+    github_token = os.environ.get('GITHUB_TOKEN', '').strip()
+    api_headers = {
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'vpinfe-dof-fetcher',
+    }
+    if github_token:
+        api_headers['Authorization'] = f'Bearer {github_token}'
+
+    for tag in tags:
         api_url = f"https://api.github.com/repos/{repo}/releases/tags/{tag}"
-        headers = {
-            'Accept': 'application/vnd.github+json',
-            'User-Agent': 'vpinfe-dof-fetcher',
-        }
         try:
-            release = _read_json(api_url, headers=headers)
+            release = _read_json(api_url, headers=api_headers)
             assets = release.get('assets', [])
             manifest_asset = None
             for asset in assets:
@@ -85,12 +95,19 @@ def _download_manifest(repo: str, version: str, manifest_path: Path) -> str:
                 if not dl_url:
                     raise RuntimeError("manifest asset missing browser_download_url")
                 print(f"[DOF FETCH] Downloading manifest asset via API: {dl_url}")
-                _download_with_headers(dl_url, manifest_path, headers={'User-Agent': 'vpinfe-dof-fetcher'})
+                download_headers = {'User-Agent': 'vpinfe-dof-fetcher'}
+                if github_token:
+                    download_headers['Authorization'] = f'Bearer {github_token}'
+                _download_with_headers(dl_url, manifest_path, headers=download_headers)
                 return tag
             print(f"[DOF FETCH] No manifest asset found for tag '{tag}'.")
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 print(f"[DOF FETCH] Release tag not found via API: {tag}")
+                last_err = e
+                continue
+            if e.code == 403:
+                print(f"[DOF FETCH] API rate limited for tag '{tag}' (403).")
                 last_err = e
                 continue
             raise
