@@ -6,6 +6,7 @@ from pathlib import Path
 
 _LOCK = threading.Lock()
 _RUNNER = None
+_RUNNER_NAMES = ('dof_runner.py', 'random_dof_runner.py')
 
 
 def _is_enabled(iniconfig) -> bool:
@@ -16,12 +17,29 @@ def _is_enabled(iniconfig) -> bool:
         return raw in ('1', 'true', 'yes', 'on')
 
 
-def _get_dof_dir() -> Path:
-    env_override = os.environ.get('VPINFE_DOF_DIR', '').strip()
-    if env_override:
-        return Path(env_override).expanduser()
+def _find_runner_path(base: Path) -> Path | None:
+    if base.is_file() and base.name in _RUNNER_NAMES:
+        return base
+    if not base.exists() or not base.is_dir():
+        return None
 
+    for name in _RUNNER_NAMES:
+        direct = base / name
+        if direct.exists():
+            return direct
+
+    for name in _RUNNER_NAMES:
+        hits = sorted(base.rglob(name))
+        if hits:
+            return hits[0]
+    return None
+
+
+def _get_dof_base_candidates() -> list[Path]:
+    env_override = os.environ.get('VPINFE_DOF_DIR', '').strip()
     candidates = []
+    if env_override:
+        candidates.append(Path(env_override).expanduser())
 
     project_root = Path(__file__).resolve().parents[1]
     candidates.append(project_root / 'third-party' / 'dof')
@@ -34,11 +52,7 @@ def _get_dof_dir() -> Path:
     candidates.append(exe_dir / 'third-party' / 'dof')
     candidates.append(exe_dir.parent / 'Resources' / 'third-party' / 'dof')
 
-    for candidate in candidates:
-        if (candidate / 'dof_runner.py').exists():
-            return candidate
-
-    return candidates[0]
+    return candidates
 
 
 def is_running() -> bool:
@@ -54,13 +68,24 @@ def is_running() -> bool:
 
 
 def _load_runner_class():
-    dof_dir = _get_dof_dir()
-    runner_path = dof_dir / 'dof_runner.py'
-    if not runner_path.exists():
-        print(f"[DOF] enabledof=true but runner not found: {runner_path}")
-        return None, dof_dir
+    candidates = _get_dof_base_candidates()
+    runner_path = None
+    for candidate in candidates:
+        found = _find_runner_path(candidate)
+        if found is not None:
+            runner_path = found
+            break
 
-    module_name = '_vpinfe_dof_runner'
+    if runner_path is None:
+        print(
+            "[DOF] enabledof=true but runner not found. Checked: "
+            + ", ".join(str(c) for c in candidates)
+        )
+        return None, candidates[0]
+
+    dof_dir = runner_path.parent
+
+    module_name = f"_vpinfe_{runner_path.stem}"
     spec = importlib.util.spec_from_file_location(module_name, runner_path)
     if spec is None or spec.loader is None:
         print(f"[DOF] Failed to load module spec from: {runner_path}")

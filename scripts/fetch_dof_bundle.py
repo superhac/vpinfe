@@ -9,6 +9,8 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
+RUNNER_CANDIDATES = ('dof_runner.py', 'random_dof_runner.py')
+
 
 def _sha256_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -160,10 +162,17 @@ def main() -> int:
             shutil.rmtree(outdir)
         shutil.move(str(payload_root), str(outdir))
 
-        if not (outdir / 'dof_runner.py').exists():
+        found_runners = []
+        for name in RUNNER_CANDIDATES:
+            found_runners.extend(outdir.rglob(name))
+        if not found_runners:
+            py_files = [str(p.relative_to(outdir)) for p in outdir.rglob('*.py')]
+            py_preview = ', '.join(py_files[:12]) if py_files else 'none'
             raise SystemExit(
-                f"[DOF FETCH] dof_runner.py not found in extracted bundle at {outdir}"
+                f"[DOF FETCH] No runner file found ({', '.join(RUNNER_CANDIDATES)}) in {outdir}. "
+                f"Found .py files: {py_preview}"
             )
+        print(f"[DOF FETCH] Found runner: {found_runners[0].relative_to(outdir)}")
 
         print(f"[DOF FETCH] Installed bundle to: {outdir}")
     return 0

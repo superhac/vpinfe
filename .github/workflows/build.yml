@@ -50,7 +50,6 @@ jobs:
             --version "${DOF_VERSION}" \
             --triplet "${DOF_TRIPLET}" \
             --outdir third-party/dof
-          test -f third-party/dof/dof_runner.py
         shell: bash
 
       # 3. Install dependencies
