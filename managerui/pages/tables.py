@@ -2128,9 +2128,12 @@ def open_match_vps_dialog(
         with ui.row().classes('w-full items-start gap-2 q-pa-sm').style('background: rgba(59, 130, 246, 0.15); border-radius: 6px; border-left: 3px solid #3b82f6;'):
             ui.icon('info', size='sm').classes('text-blue-400')
             ui.label(
-                'Clicking "Associate" will: rename the folder to "TABLE NAME (MANUFACTURER YEAR)" format, '
+                'Clicking "Associate" will: optionally rename the folder to "TABLE NAME (MANUFACTURER YEAR)" format, '
                 'create a metadata file (.info), and download media images from vpinmediadb.'
             ).classes('text-sm text-gray-300')
+        rename_folder_switch = ui.switch('Rename folder to VPS format', value=True)
+        rename_folder_switch.props('dense')
+        ui.label('Disable to keep the current folder name.').classes('text-xs text-gray-400')
 
         results_container = ui.column().classes('gap-1 w-full q-mt-sm').style('max-height: 55vh; overflow:auto;')
 
@@ -2168,37 +2171,38 @@ def open_match_vps_dialog(
 
                             # Show loading overlay
                             loading_overlay.style(add='display: flex;', remove='display: none;')
-                            loading_label.set_text('Renaming folder...')
+                            loading_label.set_text('Preparing association...')
 
                             try:
                                 old_path = Path(missing_row['path'])
-                                # Build new folder name: TABLE_NAME (MANUFACTURER YEAR)
-                                new_name = it.get('name', '')
-                                new_manuf = it.get('manufacturer') or it.get('mfg') or ''
-                                new_year = it.get('year') or ''
-                                if new_manuf and new_year:
-                                    new_folder_name = f"{new_name} ({new_manuf} {new_year})"
-                                elif new_manuf:
-                                    new_folder_name = f"{new_name} ({new_manuf})"
-                                elif new_year:
-                                    new_folder_name = f"{new_name} ({new_year})"
-                                else:
-                                    new_folder_name = new_name
-                                # Sanitize folder name (remove invalid characters)
-                                new_folder_name = "".join(c for c in new_folder_name if c not in '<>:"/\\|?*')
-                                new_path = old_path.parent / new_folder_name
+                                folder_path = old_path
+                                if rename_folder_switch.value:
+                                    loading_label.set_text('Renaming folder...')
+                                    # Build new folder name: TABLE_NAME (MANUFACTURER YEAR)
+                                    new_name = it.get('name', '')
+                                    new_manuf = it.get('manufacturer') or it.get('mfg') or ''
+                                    new_year = it.get('year') or ''
+                                    if new_manuf and new_year:
+                                        new_folder_name = f"{new_name} ({new_manuf} {new_year})"
+                                    elif new_manuf:
+                                        new_folder_name = f"{new_name} ({new_manuf})"
+                                    elif new_year:
+                                        new_folder_name = f"{new_name} ({new_year})"
+                                    else:
+                                        new_folder_name = new_name
+                                    # Sanitize folder name (remove invalid characters)
+                                    new_folder_name = "".join(c for c in new_folder_name if c not in '<>:"/\\|?*')
+                                    new_path = old_path.parent / new_folder_name
 
-                                # Rename folder if the name is different
-                                if old_path != new_path:
-                                    if new_path.exists():
-                                        ui.notify(f"Cannot rename: folder '{new_folder_name}' already exists", type='negative')
-                                        loading_overlay.style(add='display: none;', remove='display: flex;')
-                                        dialog_state['busy'] = False
-                                        return
-                                    old_path.rename(new_path)
-                                    folder_path = new_path
-                                else:
-                                    folder_path = old_path
+                                    # Rename folder if the name is different
+                                    if old_path != new_path:
+                                        if new_path.exists():
+                                            ui.notify(f"Cannot rename: folder '{new_folder_name}' already exists", type='negative')
+                                            loading_overlay.style(add='display: none;', remove='display: flex;')
+                                            dialog_state['busy'] = False
+                                            return
+                                        old_path.rename(new_path)
+                                        folder_path = new_path
 
                                 # Update loading message and run association in background
                                 own_media = use_own_media_switch.value if use_own_media_switch else False

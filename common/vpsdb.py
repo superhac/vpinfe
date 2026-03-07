@@ -105,9 +105,10 @@ class VPSdb:
     def parseTableNameFromDir(self, directory_name):
         """
         Parses a directory name of format: 'Name (Manufacturer Year)'
-        Example: 'Attack From Mars (Bally 1995)'
+        and ignores any suffix text after that block.
+        Example: 'Attack From Mars (Bally 1995) (v2)'
         """
-        pattern = r"^(.+?) \(([^()]+) (\d{4})\)$"
+        pattern = r"^(.+?) \(([^()]+) (\d{4})\)(?:\s.*)?$"
         match = re.match(pattern, directory_name)
         if not match:
             return None
@@ -262,5 +263,4 @@ class VPSdb:
     def updateTable(self, name, manufacturer, year):
         """UI hook: updates progress label (requires UI integration)."""
         self.progress_table_label.config(text=f"{name}\n({manufacturer} {year})")
-
 
