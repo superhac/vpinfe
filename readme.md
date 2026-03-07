@@ -12,6 +12,7 @@
 - JSON-based table metadata with VPX file parsing and feature detection
 - Mobile transfer support for VPinball on Android and iOS (Web Send & VPXZ Download)
 
+
 ## Themes
 Cab
 <img width="5000" height="1404" alt="wenshot-cab" src="https://github.com/user-attachments/assets/7851b3fc-0b5a-45dc-b8dd-b54093594199" />
