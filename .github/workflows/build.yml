@@ -344,6 +344,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: Download release zip artifacts
         uses: actions/download-artifact@v4
         with:
@@ -391,6 +394,7 @@ jobs:
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2
         with:
+          body_path: RELEASE_NOTES.md
           files: |
             release/vpinfe-${{ github.ref_name }}-*.zip
             release/checksums.txt
