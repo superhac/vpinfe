@@ -1116,6 +1116,13 @@ def render_panel(tab=None):
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span>{{ props.value }}</span>
+                            <q-badge
+                                v-if="props.row.altlauncher"
+                                color="orange-8"
+                                text-color="white"
+                                label="ALT-L"
+                                style="font-size: 10px; padding: 2px 6px;"
+                            />
                             <a v-if="props.row.ipdb_id"
                                :href="'https://www.ipdb.org/machine.cgi?id=' + props.row.ipdb_id"
                                target="_blank"
@@ -1348,7 +1355,10 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
         with ui.row().classes('table-dialog-header w-full items-center gap-3'):
             ui.icon('casino', size='32px').classes('text-white')
             with ui.column().classes('gap-0 flex-grow'):
-                ui.label(table_name).classes('text-xl font-bold text-white')
+                with ui.row().classes('items-center gap-2'):
+                    ui.label(table_name).classes('text-xl font-bold text-white')
+                    if (row_data.get('altlauncher', '') or '').strip():
+                        ui.badge('ALT-L', color='warning').props('rounded')
                 manufacturer = row_data.get('manufacturer', '')
                 year = row_data.get('year', '')
                 if manufacturer or year:
