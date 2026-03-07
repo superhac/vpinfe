@@ -461,7 +461,8 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
         "detectFlex": "false"
     },
     "VPinFE": {
-        "deletedNVRamOnClose": false
+        "deletedNVRamOnClose": false,
+        "altlauncher": ""
     },
     "Medias": {
         "bg": {
@@ -525,6 +526,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 
   VPinFE-specific settings for the table. Preserved across `--buildmeta --update-all`:
   - deletedNVRamOnClose: (true/false) Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing. Default is false.
+  - altlauncher: Optional executable path override used only for this table. If set, this is used instead of `vpinfe.ini` `Settings.vpxbinpath`.
 
 - Medias
 

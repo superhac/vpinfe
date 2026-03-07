@@ -368,6 +368,7 @@ def parse_table_info(info_path):
 
             # VPinFE settings
             "delete_nvram_on_close": vpinfe.get("deletedNVRamOnClose", False),
+            "altlauncher": (vpinfe.get("altlauncher", "") or "").strip(),
         }
 
         return data
@@ -1554,8 +1555,32 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
 
                 table_path_str = row_data.get('table_path', '')
                 delete_nvram_value = row_data.get('delete_nvram_on_close', False)
+                altlauncher_value = row_data.get('altlauncher', '')
 
-                with ui.row().classes('items-center gap-3'):
+                with ui.row().classes('items-center gap-3 w-full'):
+                    altlauncher_input = ui.input(
+                        label='Alt Launcher',
+                        value=altlauncher_value,
+                        placeholder='Optional executable override for this table'
+                    ).props('outlined dense clearable').classes('flex-grow')
+
+                    def on_altlauncher_save():
+                        new_value = (altlauncher_input.value or '').strip()
+                        if update_vpinfe_setting(table_path_str, 'altlauncher', new_value):
+                            row_data['altlauncher'] = new_value
+                            if _tables_cache is not None:
+                                for cached_row in _tables_cache:
+                                    if cached_row.get('table_path') == table_path_str:
+                                        cached_row['altlauncher'] = new_value
+                                        break
+                            ui.notify('Alt launcher saved', type='positive')
+                        else:
+                            ui.notify('Failed to save alt launcher', type='negative')
+
+                    ui.button('Save', icon='save', on_click=on_altlauncher_save).props('color=primary')
+                ui.label('When set, this overrides Settings.vpxbinpath for this table only').classes('text-xs text-gray-400')
+
+                with ui.row().classes('items-center gap-3 mt-3'):
                     def on_delete_nvram_change(e):
                         new_value = e.value
                         if update_vpinfe_setting(table_path_str, 'deletedNVRamOnClose', new_value):

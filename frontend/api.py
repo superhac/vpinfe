@@ -11,6 +11,7 @@ from common.tableparser import TableParser
 from common.vpxcollections import VPXCollections
 from common.tablelistfilters import TableListFilters
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
+from common.launcher import get_effective_launcher
 from platformdirs import user_config_dir
 
 class API:
@@ -374,22 +375,21 @@ class API:
         table = self.filteredTables[index]
         vpx = table.fullPathVPXfile
         vpxbin = self._iniConfig.config['Settings'].get('vpxbinpath', '')
-         
-        vpxbin_path = Path(vpxbin).expanduser()
-        
-        # If on macOS and the target is an App bundle, dynamically route to its internal executable
-        if sys.platform == "darwin" and vpxbin_path.suffix.lower() == ".app":
-            # .stem gets the file name without the extension (e.g., 'VPinballX_GL')
-            app_name = vpxbin_path.stem
-            vpxbin_path = vpxbin_path / "Contents" / "MacOS" / app_name
-        print("Launching: ", [vpxbin, "-play", vpx])
+        vpxbin_path, source_key, _ = get_effective_launcher(vpxbin, table.metaConfig)
+        if not vpxbin_path:
+            print(f"No launcher configured (checked VPinFE.{source_key} and Settings.vpxbinpath)")
+            return
+        if not vpxbin_path.exists():
+            print(f"Launcher not found ({source_key}): {vpxbin_path}")
+            return
+        print("Launching: ", [str(vpxbin_path), "-play", vpx])
 
         # Track the table play
         self._track_table_play(table)
 
         stop_dof_service()
         try:
-            cmd = [vpxbin_path, "-play", vpx]
+            cmd = [str(vpxbin_path), "-play", vpx]
 
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,

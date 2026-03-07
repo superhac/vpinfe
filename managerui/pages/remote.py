@@ -20,6 +20,7 @@ COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.vpxcollections import VPXCollections
+from common.launcher import get_effective_launcher
 _INI_CFG = None
 
 
@@ -149,6 +150,7 @@ def _scan_tables_for_launch():
                     raw = json.load(f)
 
                 info = raw.get("Info", {})
+                vpinfe = raw.get("VPinFE", {})
                 name = (info.get("Title") or current_dir).strip()
                 manufacturer = info.get("Manufacturer", "")
                 year = info.get("Year", "")
@@ -172,6 +174,7 @@ def _scan_tables_for_launch():
                     'year': str(year) if year else '',
                     'type': info.get('Type', ''),
                     'theme': info.get('Theme', ''),
+                    'meta': {'VPinFE': vpinfe},
                 })
             except Exception:
                 pass
@@ -181,21 +184,25 @@ def _scan_tables_for_launch():
     return tables
 
 
-def _launch_table(vpx_path: str, table_name: str):
+def _launch_table(table: dict):
     """Launch a table using the VPX binary."""
     import threading
     from managerui.managerui import set_remote_launch_state
 
     try:
+        vpx_path = table.get('vpx_path', '')
+        table_name = table.get('name', 'table')
+        table_meta = table.get('meta', {})
+
         cfg = _get_ini_config()
         vpxbin = cfg.config['Settings'].get('vpxbinpath', '')
-        if not vpxbin:
-            ui.notify('VPX binary path not configured', type='negative')
+        vpxbin_path, source_key, _ = get_effective_launcher(vpxbin, table_meta)
+        if not vpxbin_path:
+            ui.notify('No launcher configured (set Settings.vpxbinpath or VPinFE.altlauncher)', type='negative')
             return False
 
-        vpxbin_path = Path(vpxbin).expanduser()
         if not vpxbin_path.exists():
-            ui.notify(f'VPX binary not found: {vpxbin}', type='negative')
+            ui.notify(f'Launcher not found ({source_key}): {vpxbin_path}', type='negative')
             return False
 
         print(f"Remote Launching table: {vpx_path}")
@@ -782,7 +789,7 @@ def show_vpx_game_controls():
                     # Find the table by vpx_path (which is the value)
                     table = next((t for t in launch_state['tables'] if t['vpx_path'] == selected), None)
                     if table:
-                        _launch_table(table['vpx_path'], table['name'])
+                        _launch_table(table)
                     else:
                         ui.notify('Please select a table first', type='warning')
                 else:
@@ -898,7 +905,7 @@ def show_vpx_game_controls():
             if table_select.value:
                 table = next((t for t in launch_state['tables'] if t['vpx_path'] == table_select.value), None)
                 if table:
-                    _launch_table(table['vpx_path'], table['name'])
+                    _launch_table(table)
 
         filter_input.on('keydown.enter', on_enter)
 

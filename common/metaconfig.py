@@ -66,9 +66,11 @@ class MetaConfig:
             "Tags": []
         })
 
-        vpinfe = self.data.get("VPinFE", {
-            "deletedNVRamOnClose": False
-        })
+        vpinfe = self.data.get("VPinFE", {})
+        if not isinstance(vpinfe, dict):
+            vpinfe = {}
+        vpinfe.setdefault("deletedNVRamOnClose", False)
+        vpinfe.setdefault("altlauncher", "")
 
         medias = self.data.get("Medias", {})
 
