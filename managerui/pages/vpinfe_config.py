@@ -1,9 +1,11 @@
 import os
+import sys
 from nicegui import ui
 from common.iniconfig import IniConfig
 from common.vpxcollections import VPXCollections
 from pathlib import Path
 from platformdirs import user_config_dir
+from screeninfo import get_monitors
 
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -87,9 +89,58 @@ def _get_installed_theme_names():
                 themes.append(entry.name)
     return sorted(themes)
 
+def _get_detected_displays():
+    """Return monitor info in the same shape/IDs as the --listres CLI output."""
+    detected = {
+        'screeninfo': [],
+        'nsscreen': [],
+        'error': '',
+    }
+
+    try:
+        monitors = get_monitors()
+        detected['screeninfo'] = [{
+            'id': f'Monitor {i}',
+            'output': m.name,
+            'x': m.x,
+            'y': m.y,
+            'width': m.width,
+            'height': m.height,
+        } for i, m in enumerate(monitors)]
+    except Exception as e:
+        detected['error'] = str(e)
+        return detected
+
+    if sys.platform == 'darwin':
+        try:
+            from frontend.chromium_manager import get_mac_screens
+            detected['nsscreen'] = [{
+                'id': f'Screen {i}',
+                'x': s.x,
+                'y': s.y,
+                'width': s.width,
+                'height': s.height,
+            } for i, s in enumerate(get_mac_screens())]
+        except Exception:
+            pass
+
+    return detected
+
+def _get_display_id_options(detected_displays, current_value: str = ''):
+    """Build dropdown options for monitor ID fields: empty + 0..(max detected-1)."""
+    options = ['']
+    count = len(detected_displays.get('screeninfo', []))
+    options.extend(str(i) for i in range(count))
+
+    current = (current_value or '').strip()
+    if current and current not in options:
+        options.append(current)
+    return options
+
 def render_panel(tab=None):
     # Re-read config from disk each time the page is opened
     config = IniConfig(str(INI_PATH))
+    detected_displays = _get_detected_displays()
 
     # Add custom styles for config page
     ui.add_head_html('''
@@ -203,6 +254,14 @@ def render_panel(tab=None):
                                         options=bool_options,
                                         value=normalized
                                     ).classes('config-input').style('min-width: 200px;')
+                                # Special handling for monitor IDs in Displays
+                                elif section == 'Displays' and key in ('tablescreenid', 'bgscreenid', 'dmdscreenid'):
+                                    monitor_options = _get_display_id_options(detected_displays, value)
+                                    inp = ui.select(
+                                        label=friendly_label,
+                                        options=monitor_options,
+                                        value=(value or '').strip()
+                                    ).classes('config-input').style('min-width: 200px;')
                                 else:
                                     # Calculate width based on the longer string (value or friendly label)
                                     char_width = max(len(value), len(friendly_label), 5)  
@@ -215,6 +274,32 @@ def render_panel(tab=None):
                                 
                                 # Store the original INI key so saving works correctly
                                 inputs[section][key] = inp
+
+                            if section == 'Displays':
+                                with ui.card().classes('w-full mt-3 p-3').style(
+                                    'background: #122038; border: 1px solid #334155; border-radius: 10px;'
+                                ):
+                                    ui.label('Detected Displays').classes('text-lg font-semibold')
+                                    ui.label('Use these IDs when setting Playfield/Backglass/DMD monitor IDs above.').classes('text-sm text-slate-300')
+
+                                    if detected_displays['error']:
+                                        ui.label(f"Unable to detect displays: {detected_displays['error']}").classes('text-red-3')
+                                    elif not detected_displays['screeninfo']:
+                                        ui.label('No displays were detected.').classes('text-amber-3')
+                                    else:
+                                        for m in detected_displays['screeninfo']:
+                                            ui.label(
+                                                f"{m['id']}: output={m['output']} "
+                                                f"({m['width']}x{m['height']} at x={m['x']}, y={m['y']})"
+                                            ).classes('text-sm')
+
+                                    if detected_displays['nsscreen']:
+                                        ui.separator().classes('my-2')
+                                        ui.label('macOS NSScreen monitors (used for window positioning):').classes('text-sm text-slate-300')
+                                        for s in detected_displays['nsscreen']:
+                                            ui.label(
+                                                f"{s['id']}: ({s['width']}x{s['height']} at x={s['x']}, y={s['y']})"
+                                            ).classes('text-sm')
 
         # Save button
         with ui.row().classes('w-full justify-end mt-4'):
