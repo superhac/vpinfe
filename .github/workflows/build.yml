@@ -3,8 +3,12 @@ name: Build VPinFE (Cross-Platform)
 on:
   push:
     branches: [ master, vpinfe-chromium ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ master, vpinfe-chromium ]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -18,16 +22,13 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      # 1. Checkout repo
       - uses: actions/checkout@v3
 
-      # 2. Set up Python 3.14
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.14'
 
-      # 3. Resolve DOF triplet
       - name: Resolve DOF triplet
         run: |
           if [[ "$RUNNER_OS" == "Linux" ]]; then
@@ -42,7 +43,27 @@ jobs:
           fi
         shell: bash
 
-      # 4. Fetch DOF bundle into third-party/dof
+      - name: Set app version from tag/commit
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            APP_VERSION="${GITHUB_REF_NAME}"
+          else
+            APP_VERSION="dev-${GITHUB_SHA::7}"
+          fi
+
+          printf '%s\n' \
+            '"""Build/version metadata for VPinFE."""' \
+            '' \
+            "APP_VERSION = \"${APP_VERSION}\"" \
+            '' \
+            'def get_version() -> str:' \
+            '    return APP_VERSION' \
+            > common/app_version.py
+
+          echo "APP_VERSION=${APP_VERSION}" >> "$GITHUB_ENV"
+          echo "Using app version: ${APP_VERSION}"
+        shell: bash
+
       - name: Fetch DOF bundle
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -54,46 +75,38 @@ jobs:
             --outdir third-party/dof
         shell: bash
 
-      # 3. Install dependencies
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
 
-      # 4a. Create Chromium directories (Linux/macOS)
       - name: Create Chromium directories (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
           mkdir -p chromium/linux chromium/windows chromium/mac
         shell: bash
 
-      # 4b. Create Chromium directories (Windows)
       - name: Create Chromium directories (Windows)
         if: runner.os == 'Windows'
         run: |
           New-Item -ItemType Directory -Force -Path chromium\linux,chromium\windows,chromium\mac
 
-      # 5. Download Linux Chromium
       - name: Download Linux Chromium
         if: runner.os == 'Linux'
         run: |
           wget -O chromium/linux/chrome.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F1568190%2Fchrome-linux.zip?generation=1768270474193258&alt=media"
-          #wget -O chromium/linux/chrome.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F1582450%2Fchrome-linux.zip?alt=media"
           unzip -q chromium/linux/chrome.zip -d chromium/linux
           mv chromium/linux/chrome-linux chromium/linux/chrome
           chmod +x chromium/linux/chrome/chrome
 
-      # 6. Download Windows Chromium
       - name: Download Windows Chromium
         if: runner.os == 'Windows'
         run: |
           pwsh -Command "Invoke-WebRequest -Uri 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win_x64%2F1568195%2Fchrome-win.zip?generation=1768274160162696&alt=media' -OutFile 'chromium/windows/chrome.zip' -UseBasicParsing"
-          #pwsh -Command "Invoke-WebRequest -Uri 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Win_x64%2F1582426%2Fchrome-win.zip?alt=media' -OutFile 'chromium/windows/chrome.zip' -UseBasicParsing"
           pwsh -Command "Expand-Archive -Path 'chromium/windows/chrome.zip' -DestinationPath 'chromium/windows'"
           pwsh -Command "Remove-Item 'chromium/windows/chrome.zip'"
 
-      # 7. Download Mac Chromium (ARM)
       - name: Download Mac Chromium
         if: runner.os == 'macOS'
         run: |
@@ -103,7 +116,6 @@ jobs:
           mv chrome-mac/Chromium.app chromium/Chromium.app
           rm -rf chrome-mac chrome-mac.zip
 
-      # 8. Build with PyInstaller
       - name: Build app with PyInstaller
         run: |
           if [[ "$RUNNER_OS" == "Linux" ]]; then
@@ -128,40 +140,31 @@ jobs:
               --add-data "managerui/static:managerui/static" \
               --add-data "third-party/dof:third-party/dof" \
               main.py
-            # Preserve Chromium.app bundle structure (PyInstaller breaks symlinks)
             mkdir -p dist/VPinFE.app/Contents/Frameworks/chromium
             cp -R chromium/Chromium.app dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app
             chmod +x dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app/Contents/MacOS/Chromium
-            #remove build directory
             rm -rf dist/vpinfe
           fi
         shell: bash
-        
-      #9. Ad-hoc sign the app bundle
-      #    This prevents the "app is damaged" error and satisfies basic structural
-      #    signing requirements. Users will still need to allow the app via
-      #    System Settings > Privacy & Security > "Open Anyway" on first launch.
+
       - name: Ad-hoc sign the app (macOS)
         if: runner.os == 'macOS'
         run: |
           codesign --force --deep --sign - dist/VPinFE.app
-          echo "Signing exit code: $?"
           codesign --verify --verbose dist/VPinFE.app
         shell: bash
 
-      #10. Remove extended attributes from the artifact before packaging
       - name: Remove extended attributes (macOS)
         if: runner.os == 'macOS'
         run: |
           sudo xattr -rc dist
-          echo "xattr exit code: $?"
         shell: bash
-      #11. Create DMG
+
       - name: Install create-dmg
         if: runner.os == 'macOS'
         run: brew install create-dmg
         shell: bash
-         
+
       - name: Package as DMG (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -178,32 +181,33 @@ jobs:
             "dist/VPinFE.dmg" \
             "dist/VPinFE.app"
         shell: bash
-        
-       #12 Upload artifact
-      - name: Upload build artifact (macOS)
-        if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: vpinfe-macOS
-          path: dist/VPinFE.dmg
 
-
-
-      # 13. Copy Windows launcher bat file
       - name: Copy Windows launcher
         if: runner.os == 'Windows'
         run: cp vpinfe.bat dist/vpinfe/
         shell: bash
 
-      # 14. Upload artifact per OS
-      - name: Upload build artifact
-        if: runner.os != 'macOS'
+      - name: Upload full build artifact (macOS)
+        if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: vpinfe-${{ runner.os }}
+          name: build-macos-arm64
+          path: dist/VPinFE.dmg
+
+      - name: Upload full build artifact (Linux)
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-linux-x64
           path: dist/
 
-      # 15. Build Linux slim variant (no bundled Chromium - uses system chromium)
+      - name: Upload full build artifact (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-win-x64
+          path: dist/
+
       - name: Build slim app with PyInstaller (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -221,10 +225,9 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v4
         with:
-          name: vpinfe-Linux-slim
+          name: build-linux-x64-slim
           path: dist/
 
-      # 16. Build Windows slim variant (no bundled Chromium - uses system Chrome/Chromium)
       - name: Build slim app with PyInstaller (Windows)
         if: runner.os == 'Windows'
         run: |
@@ -244,10 +247,9 @@ jobs:
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
-          name: vpinfe-Windows-slim
+          name: build-win-x64-slim
           path: dist/
 
-      # 17. Build macOS slim variant (no bundled Chromium - uses system Chrome/Chromium)
       - name: Build slim app with PyInstaller (macOS)
         if: runner.os == 'macOS'
         run: |
@@ -257,29 +259,22 @@ jobs:
             --add-data "managerui/static:managerui/static" \
             --add-data "third-party/dof:third-party/dof" \
             main.py
-           #remove build directory
           rm -rf dist/vpinfe
         shell: bash
-      #18. Ad-hoc sign the app bundle
-      #    This prevents the "app is damaged" error and satisfies basic structural
-      #    signing requirements. Users will still need to allow the app via
-      #    System Settings > Privacy & Security > "Open Anyway" on first launch.
+
       - name: Ad-hoc sign the app (macOS Slim)
         if: runner.os == 'macOS'
         run: |
           codesign --force --deep --sign - dist/VPinFE.app
-          echo "Signing exit code: $?"
           codesign --verify --verbose dist/VPinFE.app
         shell: bash
 
-      #19. Remove extended attributes from the artifact before packaging
       - name: Remove extended attributes (macOS Slim)
         if: runner.os == 'macOS'
         run: |
           sudo xattr -rc dist
-          echo "xattr exit code: $?"
         shell: bash
-      #20. Create DMG
+
       - name: Package as DMG (macOS Slim)
         if: runner.os == 'macOS'
         run: |
@@ -296,10 +291,108 @@ jobs:
             "dist/VPinFE.dmg" \
             "dist/VPinFE.app"
         shell: bash
-       #21 Upload artifact
+
       - name: Upload slim build artifact (macOS)
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: vpinfe-macOS-slim
+          name: build-macos-arm64-slim
           path: dist/VPinFE.dmg
+
+  release_bundle:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - artifact: build-linux-x64
+            triplet: linux-x64
+          - artifact: build-win-x64
+            triplet: win-x64
+          - artifact: build-macos-arm64
+            triplet: macos-arm64
+          - artifact: build-linux-x64-slim
+            triplet: linux-x64-slim
+          - artifact: build-win-x64-slim
+            triplet: win-x64-slim
+          - artifact: build-macos-arm64-slim
+            triplet: macos-arm64-slim
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: staging/${{ matrix.triplet }}
+
+      - name: Create tagged release zip
+        run: |
+          mkdir -p release
+          cd staging/${{ matrix.triplet }}
+          zip -r ../../release/vpinfe-${GITHUB_REF_NAME}-${{ matrix.triplet }}.zip .
+
+      - name: Upload release zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-zip-${{ matrix.triplet }}
+          path: release/vpinfe-${{ github.ref_name }}-${{ matrix.triplet }}.zip
+
+  publish_release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: release_bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download release zip artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-zip-*
+          path: release
+          merge-multiple: true
+
+      - name: Generate checksums.txt
+        run: |
+          cd release
+          sha256sum vpinfe-${GITHUB_REF_NAME}-*.zip > checksums.txt
+
+      - name: Generate manifest.json
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          tag = "${{ github.ref_name }}"
+          release_dir = Path("release")
+          assets = {}
+
+          for zip_path in sorted(release_dir.glob(f"vpinfe-{tag}-*.zip")):
+              name = zip_path.name
+              prefix = f"vpinfe-{tag}-"
+              triplet = name[len(prefix):-4]
+              sha = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+              assets[triplet] = {
+                  "file": name,
+                  "sha256": sha,
+              }
+
+          manifest = {
+              "version": tag,
+              "assets": assets,
+          }
+
+          (release_dir / "manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Publish GitHub release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/vpinfe-${{ github.ref_name }}-*.zip
+            release/checksums.txt
+            release/manifest.json
+          fail_on_unmatched_files: true

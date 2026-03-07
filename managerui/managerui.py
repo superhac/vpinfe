@@ -1,7 +1,5 @@
 from __future__ import annotations
-from pathlib import Path
 from nicegui import ui, app
-from fastapi import Response
 from fastapi.responses import JSONResponse
 from .pages import tables as tab_tables
 from .pages import vpinfe_config as tab_vpinfe
@@ -13,12 +11,11 @@ from .pages import remote
 from .pages.remote import _restart_app, _quit_app
 from .pages import mobile as tab_mobile
 import threading
-import subprocess
 import urllib.request
-from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 import os
 import json
+import re
+from common.app_version import get_version
 
 # Shutdown event — set by _quit_app() to unblock headless mode
 import threading as _threading
@@ -37,87 +34,76 @@ _remote_launch_state = {
     'table_name': None,
 }
 
-# Cache for update check result (check once per session)
-_update_check_cache = {'checked': False, 'update_available': False, 'error': None}
+# Cache for release check result (check once per session)
+_update_check_cache = {
+    'checked': False,
+    'update_available': False,
+    'error': None,
+    'current_version': get_version(),
+    'latest_version': None,
+}
 
-def _get_project_root() -> Path:
-    """Get the project root directory (where .git should be)."""
-    return Path(__file__).resolve().parents[1]
+def _parse_tag_version(tag: str) -> tuple[int, int, int] | None:
+    """Parse tags like v1.2.3 into a comparable tuple."""
+    m = re.match(r'^v?(\d+)\.(\d+)\.(\d+)$', (tag or '').strip())
+    if not m:
+        return None
+    return int(m.group(1)), int(m.group(2)), int(m.group(3))
 
-def _has_git_repo() -> bool:
-    """Check if the project has a .git directory."""
-    git_dir = _get_project_root() / '.git'
-    return git_dir.exists() and git_dir.is_dir()
-
-def _get_local_commit_date() -> datetime | None:
-    """Get the commit date of the local HEAD."""
+def _get_latest_release_tag() -> str | None:
+    """Get the latest published GitHub release tag."""
     try:
-        result = subprocess.run(
-            ['git', 'log', '-1', '--format=%cI'],
-            capture_output=True,
-            text=True,
-            cwd=str(_get_project_root()),
-            timeout=5
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            # Parse ISO 8601 date
-            date_str = result.stdout.strip()
-            return datetime.fromisoformat(date_str)
-    except Exception as e:
-        print(f"[UpdateCheck] Failed to get local commit date: {e}")
-    return None
-
-def _get_remote_last_modified() -> datetime | None:
-    """Get the last-modified date from GitHub API."""
-    try:
-        url = 'https://api.github.com/repos/superhac/vpinfe/commits'
-        req = urllib.request.Request(url, method='HEAD')
-        req.add_header('User-Agent', 'VPinFE-UpdateChecker')
+        url = 'https://api.github.com/repos/superhac/vpinfe/releases/latest'
+        req = urllib.request.Request(url)
+        req.add_header('User-Agent', 'VPinFE-ReleaseChecker')
         with urllib.request.urlopen(req, timeout=10) as response:
-            last_modified = response.headers.get('Last-Modified')
-            if last_modified:
-                return parsedate_to_datetime(last_modified)
+            payload = json.loads(response.read().decode('utf-8'))
+            tag_name = payload.get('tag_name', '').strip()
+            if tag_name:
+                return tag_name
     except Exception as e:
-        print(f"[UpdateCheck] Failed to check remote: {e}")
+        print(f"[ReleaseCheck] Failed to fetch latest release tag: {e}")
     return None
 
 def check_for_updates() -> dict:
     """
-    Check if updates are available by comparing local commit date with remote.
-    Returns dict with 'update_available' (bool) and 'error' (str or None).
+    Check if a newer tagged release is available.
+    Returns:
+      update_available: bool
+      current_version: str
+      latest_version: str | None
+      error: str | None
     """
     global _update_check_cache
 
-    # Return cached result if already checked
     if _update_check_cache['checked']:
         return _update_check_cache
 
     _update_check_cache['checked'] = True
+    _update_check_cache['current_version'] = get_version()
 
-    if not _has_git_repo():
-        _update_check_cache['error'] = 'no_git'
-        return _update_check_cache
-
-    local_date = _get_local_commit_date()
-    if not local_date:
-        _update_check_cache['error'] = 'local_date_failed'
-        return _update_check_cache
-
-    remote_date = _get_remote_last_modified()
-    if not remote_date:
+    latest_tag = _get_latest_release_tag()
+    if not latest_tag:
         _update_check_cache['error'] = 'remote_check_failed'
         return _update_check_cache
 
-    # Ensure both dates are timezone-aware for comparison
-    if local_date.tzinfo is None:
-        local_date = local_date.replace(tzinfo=timezone.utc)
-    if remote_date.tzinfo is None:
-        remote_date = remote_date.replace(tzinfo=timezone.utc)
+    _update_check_cache['latest_version'] = latest_tag
 
-    # Update available if remote is newer than local
-    _update_check_cache['update_available'] = remote_date > local_date
-    _update_check_cache['local_date'] = local_date
-    _update_check_cache['remote_date'] = remote_date
+    current = _update_check_cache['current_version']
+    current_ver = _parse_tag_version(current)
+    latest_ver = _parse_tag_version(latest_tag)
+
+    if current_ver is None:
+        # Dev/local builds should still show latest release as available.
+        _update_check_cache['update_available'] = True
+        _update_check_cache['error'] = 'non_release_build'
+        return _update_check_cache
+
+    if latest_ver is None:
+        _update_check_cache['error'] = 'latest_tag_unparseable'
+        return _update_check_cache
+
+    _update_check_cache['update_available'] = latest_ver > current_ver
 
     return _update_check_cache
 
@@ -138,10 +124,13 @@ def header():
                 .props('flat round dense').classes('text-red-400') \
                 .tooltip('Quit VPinFE')
 
-        # Update notification (right side of header)
+        # Version + release status (right side of header)
         update_container = ui.row().classes('gap-2 items-center')
         with update_container:
-            # Check for updates asynchronously to not block UI
+            current_version = get_version()
+            ui.icon('sell', size='18px').classes('text-slate-300')
+            ui.label(f'Version: {current_version}').classes('text-slate-300 text-sm font-medium')
+
             async def check_updates_async():
                 from nicegui import run
                 result = await run.io_bound(check_for_updates)
@@ -149,17 +138,22 @@ def header():
                     if result.get('update_available'):
                         ui.icon('system_update', size='20px').classes('text-yellow-400')
                         ui.link(
-                            'Update Available',
-                            'https://github.com/superhac/vpinfe/commits/master/',
+                            f"Update Available ({result.get('latest_version', 'latest')})",
+                            'https://github.com/superhac/vpinfe/releases/latest',
                             new_tab=True
                         ).classes('text-yellow-400 text-sm font-medium hover:text-yellow-300').style('text-decoration: none;')
                     elif result.get('error') is None:
                         ui.icon('check_circle', size='20px').classes('text-green-400')
                         ui.label('Up to date').classes('text-green-400 text-sm font-medium')
+                    else:
+                        ui.icon('info', size='18px').classes('text-slate-400')
+                        ui.link(
+                            f"Latest: {result.get('latest_version', 'unknown')}",
+                            'https://github.com/superhac/vpinfe/releases/latest',
+                            new_tab=True
+                        ).classes('text-slate-300 text-sm font-medium hover:text-slate-200').style('text-decoration: none;')
 
-            # Only check if git repo exists
-            if _has_git_repo():
-                ui.timer(0.5, check_updates_async, once=True)
+            ui.timer(0.5, check_updates_async, once=True)
 
 def build_app():
     # Add global styles for modern look

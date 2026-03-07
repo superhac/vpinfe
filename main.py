@@ -27,6 +27,7 @@ from frontend.ws_bridge import WebSocketBridge
 from frontend.chromium_manager import ChromiumManager
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
+from common.app_version import get_version
 from platformdirs import user_config_dir
 from common.themes import ThemeRegistry
 
@@ -38,6 +39,7 @@ config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
 config_dir.mkdir(parents=True, exist_ok=True)
 config_path = config_dir / "vpinfe.ini"
 iniconfig = IniConfig(str(config_path))
+print(f"[VPinFE] Version: {get_version()}")
 
 # Now safe to import modules that create their own IniConfig at import time
 from clioptions import parseArgs, buildMetaData
