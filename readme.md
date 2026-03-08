@@ -13,6 +13,12 @@
 - JSON-based table metadata with VPX file parsing and feature detection
 - Mobile transfer support for VPinball on Android and iOS (Web Send & VPXZ Download)
 
+# Acknowledgements
+- A special thanks to @jsm174 for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and is epitome of the VPinball community.  
+- @MajorFrenchy for all the great testing and feedback.  And we can't forget his great video on using VPinFE on the MAC!  He also made the VPinFE logo and splash video!
+- @gonzonia for all his work on making the MAC App Bundle!  Would not have happened without his knowledge and contributions.
+- A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (@Dux, @Fraesh and @Studlygoorite) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
+
 ## Themes
 Cab
 <img width="5000" height="1404" alt="wenshot-cab" src="https://github.com/user-attachments/assets/7851b3fc-0b5a-45dc-b8dd-b54093594199" />
@@ -40,7 +46,7 @@ carousel2 (Single Screen)
 ![remote](https://github.com/user-attachments/assets/088346a4-db6c-4b6f-8e01-bd653d267b79)
 
 
-## Installing
+# Installing (First time Setup)
 
 The install is the same for all platforms you need to download the right release for it.  Currently there are two different builds available for each platform:
 
@@ -67,7 +73,7 @@ cd vpinfe
 vpinfe.bat
 ```
 
-## Setup your configuration (First Boot)
+## Setup your configuration
 
 When you run VPinFE the first time it load into the ManagerUI.  You need setup the minimum settings to get things to work.  
 
@@ -83,9 +89,13 @@ Next you must configure these three essential settings in the `[Settings]` secti
 2. **tablerootdir** - Root directory where all your tables are located (e.g., `/home/user/tables/`)
 3. **vpxinipath** - Path to your VPinballX.ini file (e.g., `~/.vpinball/VPinballX.ini`)
 
-Once these are configured you can exit the ManagerUI by clicking the shutdown button in the UI (upper left area).  
+Once these are configured you can exit the ManagerUI by clicking the shutdown button in the UI (upper left area).  Anytime you want to return to the ManagerUI look in the console for its webserver address.  Its a line that looks like this:
 
-Note: On first boot if you have nothing set up you won't see much because you don't have any tables or media configured.  
+```
+NiceGUI ready to go on http://localhost:8001, and http://192.168.1.228:8001
+```
+
+Put that URL in a browser and your in the ManagerUI.
 
 ## Setup your tables
 
@@ -104,7 +114,7 @@ Now that your `vpinfe.ini` file has the basics you need build the metadata.  You
 | Select            | Enter       |
 | Quit              | q or ESCAPE |
 
-## Setup Gamepad
+## Setup Gamepad (optional)
 
 VPinFE includes an interactive gamepad configuration tool that makes mapping your controller buttons easy. Run the gamepad test with:
 
@@ -129,73 +139,7 @@ The gamepad configuration interface provides:
 
 Press ESC to exit the gamepad configuration tool when you're done mapping your buttons.
 
-## Collections / Filters
-<img width="435" height="592" alt="filter-menu" src="https://github.com/user-attachments/assets/d9733591-4487-488b-9c27-9b3473fb08f1" />
-
-VPinFE supports two types of collections for organizing your tables. Collections are stored in `collections.ini` in the platform-specific configuration directory alongside `vpinfe.ini`:
-
-- **Linux**: `~/.config/vpinfe/collections.ini`
-- **macOS**: `~/Library/Application Support/vpinfe/collections.ini`
-- **Windows**: `C:\Users\<username>\AppData\Local\vpinfe\vpinfe\collections.ini`
-
-### VPS ID-Based Collections
-Create handpicked collections by specifying individual table VPS IDs. Perfect for curated favorites or competition playlists:
-
-```
-[Favorites]
-type = vpsid
-vpsids = 43ma3WQK, lkSumsrF, 6HmAOp06, F4ma5afn, tTOMTth0p8, 9Paf7-CL,M7FYR1GJ, F6QcJM6t_E,
-        vyWVqHn5QF,garmU1ZC,yxmGmEGyFk, MBZPVX6p, wasB0RRz, 9Uv1Jljw, 3CvHz8Fa,CdZWHtTg
-
-[Competition]
-type = vpsid
-vpsids = wEOAp90_,W1JOjl6A,F4ma5afn,XQqwrauH,GXsgeoz_,x6df4mgv,-QXdrtsH, 1IlVLynt
-```
-
-### Filter-Based Collections
-Create dynamic collections based on VPSdb metadata filters. These collections automatically include all tables matching your filter criteria:
-
-```
-[Williams SS Tables]
-type = filter
-letter = All
-theme = All
-table_type = SS
-manufacturer = Williams
-year = All
-
-[1980s EM Tables]
-type = filter
-letter = All
-theme = All
-table_type = EM
-manufacturer = All
-year = 1980
-```
-
-**Available Filter Options:**
-- `letter` - Filter by starting letter (A-Z) or "All"
-- `theme` - Filter by table theme or "All"
-- `table_type` - Filter by type (EM, SS) or "All"
-- `manufacturer` - Filter by manufacturer (Williams, Bally, Gottlieb, etc.) or "All"
-- `year` - Filter by year or "All"
-
-### Accessing Collections and Filters
-VPinFE provides a dedicated Collection Menu for managing all your collections and filters:
-- **Open Collection Menu**: Press `c` key (or joycollectionmenu button on gamepad)
-- **Navigate**: Use up/down arrows or joyup/joydown to select menu items
-- **Select/Apply**: Press Enter or joyselect to open dropdowns or apply selections
-- **Close Menu**: Press `c` again, joyback, or select "Close" from the menu
-
-### Saving Filter Collections from the Collection Menu
-You can create filter-based collections directly from the Collection Menu:
-1. Open the Collection Menu (default: `c` key or joycollectionmenu button on gamepad)
-2. Set your desired filters (Letter, Theme, Type, Manufacturer, Year)
-3. Select "Save Filter..." from the menu
-4. Enter a name for your collection
-5. Your filter combination is saved and appears in the Collections dropdown
-
-Both collection types appear together in the Collections dropdown menu and can be switched between seamlessly. **Also note if you want to setup a collection to be activated on startup use the `vpinfe.ini` option "startup_collection".**
+# Addtional Information and Context
 
 ## VPinfe CLI Options
 ```
@@ -217,260 +161,6 @@ options:
   --table TABLE         Specify a single table folder name to process with --buildmeta or --claim-user-media
 ```
 
-## Vpinfe.ini Definition
-VPinFE uses a platform-specific configuration directory to store its settings. On first run, VPinFE will automatically create a default `vpinfe.ini` file in the following location:
-
-- **Linux**: `~/.config/vpinfe/vpinfe.ini`
-- **macOS**: `~/Library/Application Support/vpinfe/vpinfe.ini`
-- **Windows**: `C:\Users\<username>\AppData\Local\vpinfe\vpinfe\vpinfe.ini`
-
-### [Displays]
-| Key               | Description                                                                                         |
-| ----------------- | -------------------------------------------------------------------------                           |
-| bgscreenid        | Blackglass screen number.  use `--listres` to get your mointor ids. Leave blank if no display       |
-| dmdscreenid       | dmdscreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display      |
-| tablescreenid     | tablescreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display    |
-
-### [Settings]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
-| tablerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
-| startup_collection| Set the collection VPinFE starts up with.  Case sensitive, match collection name. |
-
-### [Input]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| joyleft           | Move left. Button mapping ids from `--gamepadtest`.                      |
-| joyright          | Move right. Button mapping ids from `--gamepadtest`.                     |
-| joyup             | Move up. Button mapping ids from `--gamepadtest`.                        |
-| joydown           | Move down. Button mapping ids from `--gamepadtest`.                      |
-| joyselect         | Select button / Launch. Button mapping ids from `--gamepadtest`.        |
-| joymenu           | Pop Menu. Button mapping ids from `--gamepadtest`.                       |
-| joyback           | Go Back. Button mapping ids from `--gamepadtest`.                        |
-| joyexit           | Exit VpinFE. Button mapping ids from `--gamepadtest`.                   |
-| joycollectionmenu | Open collection menu in the Theme UI. Button mapping ids from `--gamepadtest`. |
-
-### [VPSdb]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| last              | Rev of VPSDB that was last pulled.                                        |
-
-### [Media]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| tabletype         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait table images. |
-| tableresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
-
-### [Network]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| themeassetsport   | Port for the theme assets HTTP server. Default is `8000`.                 |
-| manageruiport     | Port for the Manager UI (NiceGUI) server. Default is `8001`.              |
-
-### [Mobile]
-| Key        | Description                                              |
-| ---------- | -------------------------------------------------------- |
-| deviceip   | IP address of the mobile device running VPinball         |
-| deviceport | Port of the mobile device's web server. Default is `2112` |
-| chunksize  | Upload chunk size in bytes. Default is `1048576` (1MB)    |
-
-## Table Metadata File (based on the Zero install table format)
-When you run VPinFE with the `--buildmeta` option it recursively goes through your table directory attempts to match your tables to their VPSDB id.  When matched, it will then parse the VPX for the table for more meta information and produce a `TABLE FOLDER NAME(manufactuer year).info` in that tables directory.  Heres an example for the table 1-2-3:
-
-```
-{
-    "Info": {
-        "IPDBId": "5247",
-        "Title": "1-2-3",
-        "Manufacturer": "Automaticos",
-        "Year": 1973,
-        "Type": "EM",
-        "Themes": [
-            "TV Show",
-            "Game Show"
-        ],
-        "VPSId": "HhMnyw53",
-        "Authors": [
-            "jpsalas",
-            "akiles50000",
-            "Loserman76"
-        ],
-        "Rom": "TlD_123",
-        "Description": ""
-    },
-    "User": {
-        "Rating": 0,
-        "Favorite": 0,
-        "LastRun": null,
-        "StartCount": 0,
-        "RunTime": 0,
-        "Tags": []
-    },
-    "VPXFile": {
-        "filename": "123(Talleres de Llobregat 1973) v601.vpx",
-        "filehash": "d685ce54d659fadcafd90a296473fb126754aa23b1145f457c6626aa5baa75d9",
-        "version": "6.0.1",
-        "releaseDate": "25.01.2026",
-        "saveDate": "Sun Jan 25 22:24:36 2026",
-        "saveRev": "91",
-        "manufacturer": "",
-        "year": "",
-        "type": "",
-        "vbsHash": "bd6dcb7e0c618e4553d230095e73c7ca8e17f31def4595c38a8439b279977b45",
-        "rom": "TlD_123",
-        "detectNfozzy": "false",
-        "detectFleep": "false",
-        "detectSSF": "true",
-        "detectLUT": "true",
-        "detectScorebit": "false",
-        "detectFastflips": "false",
-        "detectFlex": "false"
-    },
-    "VPinFE": {
-        "deletedNVRamOnClose": false,
-        "altlauncher": ""
-    },
-    "Medias": {
-        "bg": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/bg.png",
-            "MD5Hash": "d80f67a370ebce2edd19febdc3fd7636"
-        },
-        "wheel": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/wheel.png",
-            "MD5Hash": "a88bcaf2ade6b9614417fc18a8782f78"
-        },
-        "cab": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/cab.png",
-            "MD5Hash": "2df700d28fbfd88bb9a08c50da0c00ae"
-        },
-        "table": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/table.png",
-            "MD5Hash": "ee863e38e38d8dd5552e511a15583d23"
-        }
-    }
-}
-```
-### Sections Explained
-
-- Info
-
-  Contains the core table metadata sourced from VPSdb and the VPX file:
-  - IPDBId: Internet Pinball Database ID (if available)
-  - Title: Table name
-  - Manufacturer, Year, Type (EM, SS, etc.)
-  - Themes: Array of themes
-  - VPSId: Internal VPS database ID
-  - Authors: Table authors
-  - Rom: Name of the ROM file
-  - Description: Table description/blurb
-
-- User
-
-  Stores per-user data for the table. Preserved across `--buildmeta --update-all`:
-  - Rating: User rating (0–10)
-  - Favorite: Favorite flag (0/1)
-  - LastRun: Timestamp of last play
-  - StartCount: How many times played
-  - RunTime: Total playtime in seconds
-  - Tags: Array of custom tags
-
-- VPXFile
-
-  Contains metadata extracted from the VPX file:
-  - filename, filehash, version
-  - releaseDate, saveDate, saveRev (VPX save info)
-  - manufacturer, year, type
-  - vbsHash: SHA-256 hash of table's VBS script
-  - rom: ROM name from the VPX
-  - detect* flags: Booleans indicating which features were detected (detectNfozzy, detectFleep, detectSSF, detectLUT, detectScorebit, detectFastflips, detectFlex)
-
-- VPinFE
-
-  VPinFE-specific settings for the table. Preserved across `--buildmeta --update-all`:
-  - deletedNVRamOnClose: (true/false) Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing. Default is false.
-  - altlauncher: Optional executable path override used only for this table. If set, this is used instead of `vpinfe.ini` `Settings.vpxbinpath`.
-
-- Medias
-
-  Tracks downloaded media files per table. Preserved across `--buildmeta --update-all`. Each entry is keyed by media type (bg, dmd, table, fss, wheel, cab, realdmd, realdmd_color, audio):
-  - Source: Where the media was downloaded from (e.g. "vpinmediadb" or "user" for manually uploaded)
-  - Path: Full local path to the media file
-  - MD5Hash: MD5 hash of the media from the source. On `--buildmeta`, if the remote MD5 differs from the stored hash, the image is re-downloaded automatically.
-
-After that file is created it then attempts to download the media artwork for that table from [VPinMediaDB](https://github.com/superhac/vpinmediadb). All media images are stored in a `medias/` subfolder within each table's directory:
-
-```
-Table Folder Name (Manufacturer Year)/
-├── TableName.vpx
-├── TableName.info
-└── medias/
-    ├── bg.png
-    ├── dmd.png
-    ├── table.png (or fss.png)
-    ├── wheel.png
-    ├── cab.png
-    ├── flyer.png
-    ├── realdmd.png
-    ├── realdmd-color.png
-    └── audio.mp3
-```
-
-| File Name         | Image Type                              |
-| ----------------- | --------------------------------------- |
-| bg.png            | Backglass Image                         |
-| dmd.png           | DMD Image                               |
-| table.png         | Table Image (landscape)                 |
-| table.mp4         | Table Video (landscape)                 |
-| fss.png           | Full Single Screen Image                |
-| wheel.png         | Icon on Hud                             |
-| cab.png           | A cabinet image of the pinball machine  |
-| flyer.png         | Promotional flyer image                 |
-| realdmd.png       | Real DMD for use with ZeDMD            |
-| realdmd-color.png | Real DMD (Colorized) for use with ZeDMD |
-| audio.mp3         | Table audio track for frontend playback  |
-
-## Using Your Own Media (User Media)
-
-By default, `--buildmeta` downloads media artwork from [VPinMediaDB](https://github.com/superhac/vpinmediadb) and tracks updates via MD5 hashes. If you prefer to use your own media collection instead, VPinFE provides two options to mark media as "user-sourced" so it won't be pulled from or overwritten by VPinMediaDB.
-
-### `--claim-user-media` (Standalone)
-
-Scans all table directories for existing media files in the `medias/` subfolder and marks them as `"Source": "user"` in each table's `.info` file. Use this if you already have `.info` files and want to retroactively protect your media from being overwritten.
-
-```bash
-# Claim all existing media across all tables
-python3 main.py --claim-user-media
-
-# Claim media for a single table
-python3 main.py --claim-user-media --table "Back To The Future - The Pinball (Data East 1990)"
-```
-
-### `--user-media` (With `--buildmeta`)
-
-A modifier for `--buildmeta` that skips VPinMediaDB downloads entirely and instead claims any media files found locally as user-sourced. Use this when building metadata from scratch and you never want VPinMediaDB media.
-
-```bash
-# Build metadata and claim local media instead of downloading
-python3 main.py --buildmeta --user-media
-
-# Rebuild all metadata with user media
-python3 main.py --buildmeta --update-all --user-media
-```
-
-Once media is marked as `"Source": "user"`, subsequent runs of `--buildmeta` will skip downloading that media type from VPinMediaDB. You can also set individual media sources to "user" via the Media Manager UI.
-
-**Note:** Only media files that actually exist on disk get claimed as user-sourced. If a media type is missing (e.g., you don't have a `dmd.png`), no entry is written for it. This means the next normal `--buildmeta` run will fill in any gaps by downloading the missing media from VPinMediaDB.
-
-## VPX Table Patches
-VPinFE can automaticlly pull patches from [vpx-standalone-scripts](https://github.com/jsm174/vpx-standalone-scripts) via the `--vpxpatch` CLI option if a matching patch can be found.  
-
-`python3 main.py --vpxpatch`
-
 ## Server Listeners
 There are three server listeners started on your machine:
 
@@ -482,57 +172,12 @@ There are three server listeners started on your machine:
 
 The only service that externally accessable from your machine its UI for managing it.  This is setup like this so people with cabinets can administer it remotely.
 
-The ports for the theme assets server and manager UI can be configured in your `vpinfe.ini` file under the `[Network]` section:
-
-```ini
-[Network]
-themeassetsport = 8000
-manageruiport = 8001
-```
-
 External Web Endpoints:
 - Table/VPX Configuration and Management: http://{YOUR-IP}:8001
 - Remote Control: http://{YOUR-IP}:8001/remote
 - Mobile Uploader: http://{YOUR-IP}:8001/mobile
 
-## Mobile Transfer
-
-VPinFE includes a mobile transfer feature for sending tables to the mobile version of VPinball on Android and iOS. Access it from the Manager UI sidebar ("Mobile Uploader") or directly at `http://{YOUR-IP}:8001/mobile`.
-
-### Web Send
-Transfers tables directly to a mobile device running VPinball's built-in web server. To use this:
-
-1. Open VPinball on your mobile device and enable the web server in its settings
-2. Note the IP address and port displayed in VPinball's settings
-3. Enter the device IP and port in VPinFE's Mobile Uploader connection settings (saved to `vpinfe.ini` under `[Mobile]`)
-4. Click "Check Device" to verify the connection and see which tables are already installed
-5. Send individual tables or batch-send multiple selected tables
-
-Tables already on the device are shown with a green checkmark. You can also delete tables from the device directly.
-
-### VPXZ Download
-Packages any of your tables into a `.vpxz` archive (zip format) for manual transfer. Click the download icon next to a table to generate and download the archive.
-
-# Enabling the Shutdown Feature
-If you plan on using the Shutdown/Reboot option in the frontend or in the remote you need to have the right permissions on some systems:
-
-## Linux
-`sudo nano /etc/polkit-1/rules.d/49-allow-poweroff.rules`
-
-```
-polkit.addRule(function(action, subject) {
-    if (
-        (action.id == "org.freedesktop.login1.power-off" ||
-         action.id == "org.freedesktop.login1.power-off-ignore-inhibit") &&
-        subject.user == "superhac"
-    ) {
-        return polkit.Result.YES;
-    }
-});
-```
-
-`sudo systemctl restart polkit`
-
 ## Making a Theme
 
 See [Theme.md](https://github.com/superhac/vpinfe/blob/master/theme.md)
+
