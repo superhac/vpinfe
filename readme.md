@@ -12,10 +12,10 @@
 - JSON-based table metadata with VPX file parsing and feature detection
 - Mobile transfer support for VPinball on Android and iOS (Web Send & VPXZ Download)
 
-Support/Feedback:
+### Support/Feedback
 Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 
-# Acknowledgements
+## Acknowledgements
 - A special thanks to @jsm174 for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and is epitome of the VPinball community.  
 - @MajorFrenchy for all the great testing and feedback.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video!
 - @gonzonia for all his work on making the MAC App Bundle!  Would not have happened without his knowledge and contributions.
@@ -121,7 +121,7 @@ Now that your `vpinfe.ini` file has the basics you need build the metadata.  You
 VPinFE includes an interactive gamepad configuration tool that makes mapping your controller buttons easy. Run the gamepad test with:
 
 ```bash
-GDK_BACKEND=x11 vvv/bin/python3 main.py --gamepadtest
+./vpinfe --gamepadtest
 ```
 
 <img width="735" height="547" alt="image" src="https://github.com/user-attachments/assets/4291e8dc-7ed5-4dfc-89c8-404a8eb28a1c" />
