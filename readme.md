@@ -24,8 +24,9 @@ Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 ## See it in action
 ![carousel-desktop-Trim-clean-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/6f2d2b6d-652a-47c6-8e8e-a84b6aa461ee)
 
-[Cab Demo](https://www.youtube.com/shorts/49oEZKm6TGE)
-[Desktop](https://www.youtube.com/watch?v=YXK53rmKRfI)
+[Youtube: Cab Demo](https://www.youtube.com/shorts/49oEZKm6TGE)
+
+[YouTube: Desktop](https://www.youtube.com/watch?v=YXK53rmKRfI)
 
 # Installing (First time Setup)
 
