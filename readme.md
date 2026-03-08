@@ -21,32 +21,11 @@ Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 - @gonzonia for all his work on making the MAC App Bundle!  Would not have happened without his knowledge and contributions.
 - A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (@Dux, @Fraesh and @Studlygoorite) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
 
-## Themes
-Cab
-<img width="5000" height="1404" alt="wenshot-cab" src="https://github.com/user-attachments/assets/7851b3fc-0b5a-45dc-b8dd-b54093594199" />
-
-Default
-<img width="1349" height="393" alt="image" src="https://github.com/user-attachments/assets/47a3db0b-6988-4e97-9487-84e394709f92" />
-
-carousel-desktop
-
+## See it in action
 ![carousel-desktop-Trim-clean-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/6f2d2b6d-652a-47c6-8e8e-a84b6aa461ee)
 
-slider (Single Screen)
-<img width="1917" height="1080" alt="Screenshot From 2025-10-07 08-00-59" src="https://github.com/user-attachments/assets/df0d8227-67b5-4ab4-8808-26b00bcb16f8" />
-
-carousel2 (Single Screen)
-<img width="1919" height="1080" alt="Screenshot From 2025-08-12 16-07-26" src="https://github.com/user-attachments/assets/0e0dfd02-999a-476b-a8f8-bc67d2a5ae10" />
-
-[Videos](https://www.youtube.com/@Superhac007)
-
-## ManagerUI:
-![ezgif com-animated-gif-maker](https://github.com/user-attachments/assets/5dec5fab-2222-4a7b-90c3-c90795ab4720)
-
-
-## Remote:
-![remote](https://github.com/user-attachments/assets/088346a4-db6c-4b6f-8e01-bd653d267b79)
-
+[Cab Demo](https://www.youtube.com/shorts/49oEZKm6TGE)
+[Desktop](https://www.youtube.com/watch?v=YXK53rmKRfI)
 
 # Installing (First time Setup)
 
