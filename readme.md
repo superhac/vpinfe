@@ -42,180 +42,50 @@ carousel2 (Single Screen)
 
 ## Installing
 
-<details>
-<summary><h3>Ubuntu 25.10 (GTK)</h3></summary>
+The install is the same for all platforms you need to download the right release for it.  Currently there are two different builds available for each platform:
 
-Beware if you upgrade to 25.10 as they [removed gamepad support from webkitgtk](https://launchpad.net/ubuntu/+source/webkit2gtk/2.48.5-1ubuntu1):
+- A slim build (has slim in its name) is for people who already have chrome or chromium installed locally on there machine. (Recommend bundle)
+- A fat build (no slim in its name and larger binary) that bundles chromium with VPinfe
+
+## Running
+
+### Linux
+Download the latest release and unzip it and then run:
 ```
-    * Disable gamepad feature on Ubuntu since libmanette is in universe there.
-
-libmanette is a library that provides a GObject-based API for interacting with gamepads. The change log indicates that the developers of the webkit2gtk package chose to disable the built-in gamepad support in this specific Ubuntu package version because the necessary dependency (libmanette) is located in the "universe" repository (which contains community-maintained software) rather than the main "main" repository. This decision was likely made to avoid dependency issues or to ensure the stability of the core webkit2gtk package within Ubuntu's main archives.
-Therefore, this package version likely has gamepad support explicitly disabled in Ubuntu.
-```
-This breaks the gamepad functionally in VPinfe.  There is currently no work around for this.
-
-</details>
-
-<details>
-<summary><h3>Debian 13</h3></summary>
-
-```
-sudo apt install python3.13-venv python3-evdev
-git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
-python3 -m venv vvv --system-site-packages
-source vvv/bin/activate
-pip install nicegui screeninfo colorama olefile pynput nicegui==2.* pywebview platformdirs
-deactivate
-
-# then run like this inside the vpinfe dir
-GDK_BACKEND=x11 vvv/bin/python3 main.py
+./vpinfe
 ```
 
-</details>
+### MAC
+This is unsigned APP bundle so you need to do a few things to get VPinFE running.  @MajorFrenchy has put together an excellent video on this [here](https://www.youtube.com/watch?v=YD4eZIqHypw).
 
-<details>
-<summary><h3>Ubuntu 25.04 (GTK)</h3></summary>
+### Windows
+The windows package has a `vpinfe.bat` file for launching it.  Unless your in a terminal always use the batch file or you will end up window focus issues when using VPinFE. Either double click on it to launch or from the CLI:
 
 ```
-sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 python3-webview python3-screeninfo platformdirs
-git clone https://github.com/superhac/vpinfe.git
 cd vpinfe
-python3 -m venv vvv --system-site-packages
-source vvv/bin/activate
-pip install pywebview nicegui screeninfo colorama
-deactivate
-
-# then run like this inside the vpinfe dir
-GDK_BACKEND=x11 vvv/bin/python3 main.py
+vpinfe.bat
 ```
 
-*** There is a known issue with positioning windows under wayland.  To get around that run VpinFE with the following env var:
-`GDK_BACKEND=x11 python3 main.py`.
+## Setup your configuration (First Boot)
 
-</details>
+When you run VPinFE the first time it load into the ManagerUI.  You need setup the minimum settings to get things to work.  
 
-<details>
-<summary><h3>Fedora ???? (KDE)</h3></summary>
+The frist is the display.  Its recommend you just start with one screen as its auto-configured.  So you see one screen configed called Table.  
 
-```
-git clone https://github.com/superhac/vpinfe.git
-```
+Next you must configure these three essential settings in the `[Settings]` section:
 
-</details>
-
-<details>
-<summary><h3>Mac</h3></summary>
-After downloading the chosen build (bundled with Chromium, or Slim if you already have Chrome or Chromium installed).
-Open the DMG and move the app to your applications folder. 
- 
-!<img width="604" height="373" alt="Screenshot 2026-02-19 at 11 04 49 AM" src="https://github.com/user-attachments/assets/f981c4a2-7b3a-45c7-8fb2-38ee7b10ec3b" />
-
-When you initiall run the app from your applications folder, you'll get this message: 
-
-!<img width="259" height="282" alt="Screenshot 2026-02-17 at 2 42 08 PM" src="https://github.com/user-attachments/assets/e6130f83-b161-44e9-938a-c1ccdb02a48e" />
-
-Click "Done" and then go to System Settings > Privacy & Security, scroll down and click  "Open Anyway".
-
-!<img width="488" height="125" alt="Screenshot 2026-02-19 at 11 07 35 AM" src="https://github.com/user-attachments/assets/5327407a-d543-4b25-9e82-2bbfa9b8b07c" />
-
-Click "Open Anyway" again and then authorize the app. 
-
-!<img width="258" height="348" alt="Screenshot 2026-02-19 at 11 08 50 AM" src="https://github.com/user-attachments/assets/bc5438ac-38d5-4b7b-8ecb-a5136a02a368" />
-
-The app may start then, but there's a chance you'll have to start it again. 
-You'll also get prompted to allow network access and allow app management. 
-If you don't allow either of these, they can be enabled later in System Settings. 
-System Settings > Privacy & Security> Local Network 
-and 
-System Settings > Privacy & Security> App Management 
-</details>
-
-<details>
-<summary><h3>Windows 11</h3></summary>
-
-**Requirements**
-
-* Python 3.13.12
-
->[!CAUTION]
->If you use the top Button, you might download a wrong Version not working with the following Steps
-
-![image](https://github.com/user-attachments/assets/201ead7f-297f-4b2a-9bf2-f085c14feba8)
-
-![image](https://github.com/user-attachments/assets/d6815cc6-7016-4c31-9103-e4cde8956f48)
-* add Path to Enviromentvars (Win11 -> System -> Enviroment)
-* enable Script Execution in PowerShell
-![image](https://github.com/user-attachments/assets/0c09970e-0b81-422e-ab7e-c07e18d57a0c)
-
->[!IMPORTANT]
->Due to the Fact Script Execution is needed later on for launching VPINFE, do not disable Script Execution.
-
-* open PowerShell as Admin
-```
-git clone https://github.com/superhac/vpinfe.git
-cd vpinfe
-python -m pip install —-upgrade pip
-python -m venv venv-vpinfe --system-site-packages
-.\venv-vpinfe\scripts\Activate.ps1
-pip install pywebview screeninfo colorama requests olefile nicegui pynput
-python main.py -h
-```
-* add Shortcut to this Script on the Desktop
-```
-cd c:\vpinfe
-.\venv-vpinfe\scripts\Activate.ps1
-Python Main.py
-```
-
->[!TIP]
->You might have to change the "Open With" from Editor to PowerShell
-
-</details>
-
-## Setup your configuration (vpinfe.ini)
-
-VPinFE uses a platform-specific configuration directory to store its settings. On first run, VPinFE will automatically create a default `vpinfe.ini` file in the following location:
-
-- **Linux**: `~/.config/vpinfe/vpinfe.ini`
-- **macOS**: `~/Library/Application Support/vpinfe/vpinfe.ini`
-- **Windows**: `C:\Users\<username>\AppData\Local\vpinfe\vpinfe\vpinfe.ini`
-
-When you first run VPinFE, it will create the default configuration file and exit with a message showing the file location. You must then edit this file with your settings before running VPinFE again.
-
-**Required Settings (Minimum):**
-
-Before VPinFE can run, you must configure these three essential settings in the `[Settings]` section:
+-------- ADD-SCREEN-SHOT -----------
 
 1. **vpxbinpath** - Full path to your VPinball executable (e.g., `/home/user/vpinball/build/VPinballX_BGFX`)
 2. **tablerootdir** - Root directory where all your tables are located (e.g., `/home/user/tables/`)
 3. **vpxinipath** - Path to your VPinballX.ini file (e.g., `~/.vpinball/VPinballX.ini`)
 
-**Display Configuration:**
+Once these are configured you can exit the ManagerUI by clicking the shutdown button in the UI (upper left area).  
 
-VPinFE supports up to three displays. You need to have at least the `tablescreenid` set. This is typically `0` if you're only running one screen. To figure out your display IDs, run:
+Note: On first boot if you have nothing set up you won't see much because you don't have any tables or media configured.  
 
-`python3 main.py --listres`
-
-This will list your monitors starting at ID 0 to X. Set the appropriate screen IDs in the `[Displays]` section:
-- **bgscreenid** - Backglass screen (leave empty if not used)
-- **dmdscreenid** - DMD screen (leave empty if not used)
-- **tablescreenid** - Main table screen (required, typically `0`)
-
-**Theme Selection:**
-
-Set your preferred theme in the `[Settings]` section:
-- **theme** - Choose from: `carousel-desktop`, `carousel2`, `slider`, `cab`, or `default`
-
-**Gamepad/Joystick Controls (Optional):**
-
-All gamepad button mappings are optional. If you want to use a gamepad, configure these in the `[Input]` section after running `--gamepadtest` (see [Setup Gamepad](#setup-gamepad) section):
-- joyleft, joyright, joyup, joydown
-- joyselect, joymenu, joyback, joyexit, joycollectionmenu
-
-All the other settings have sensible defaults and can be left as-is initially. Configuring the gamepad and other advanced fields are covered below. 
-
-Now that your `vpinfe.ini` file has the basics you need build the metadata.  Your names should be in a format like this with the table folders named as they appear in [VPSDB](https://virtualpinballspreadsheet.github.io/tables):
+Now that your `vpinfe.ini` file has the basics you need build the metadata.  Your table folder names should be in a format as they appear in [VPSDB](https://virtualpinballspreadsheet.github.io/tables):
 
 
 ```
@@ -229,7 +99,6 @@ total 28
 4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:49 'Andromeda (Game Plan 1985)'
 4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:51 'Back To The Future - The Pinball (Data East 1990)'
 ...
-```
 
 With your tables in this format run `python3 main.py --buildmeta`.  More details on what this does and what it creates can be found [Meta.ini](#metaini).  At this point you should be able to run VPinfe with keyboard controls.  If using a gamepad see that [section](#setup-gamepad).
 
@@ -349,7 +218,7 @@ options:
   --buildmeta           Builds the meta.ini file in each table dir
   --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
   --gamepadtest         Testing and mapping your gamepad via js api
-  --headless            Run web servers/services only, skip the pywebview frontend
+  --headless            Run web servers/services only, skip the legacy frontend frontend
   --claim-user-media    Bulk mark existing media files as user-sourced so they won't be overwritten by vpinmediadb
   --no-media            When building meta.ini files don't download the images at the same time.
   --update-all          When building meta.ini reparse all tables to recreate the meta.ini file.
@@ -358,6 +227,12 @@ options:
 ```
 
 ## Vpinfe.ini Definition
+VPinFE uses a platform-specific configuration directory to store its settings. On first run, VPinFE will automatically create a default `vpinfe.ini` file in the following location:
+
+- **Linux**: `~/.config/vpinfe/vpinfe.ini`
+- **macOS**: `~/Library/Application Support/vpinfe/vpinfe.ini`
+- **Windows**: `C:\Users\<username>\AppData\Local\vpinfe\vpinfe\vpinfe.ini`
+
 ### [Displays]
 | Key               | Description                                                                                         |
 | ----------------- | -------------------------------------------------------------------------                           |
@@ -610,7 +485,7 @@ There are three server listeners started on your machine:
 
 | Service | Bound Address/Port | Description                                                           |
 | ------- | ---------------    | --------------------------------------------------------------------- |
-| HTTP    | 127.0.0.1:RANDOM   | PyWebView server.  Frontend UI/Themes                                 |
+| HTTP    | 127.0.0.1:RANDOM   | Legacy Frontend server.  Frontend UI/Themes                                 |
 | HTTP    | 127.0.0.1:8000     | Python HTTPServer. Serves tables media assets (configurable)          |
 | HTTP    | 0.0.0.0:8001       | NiceGui sever.  Handles the UI for configuration and management (configurable) |
 
