@@ -87,22 +87,11 @@ Once these are configured you can exit the ManagerUI by clicking the shutdown bu
 
 Note: On first boot if you have nothing set up you won't see much because you don't have any tables or media configured.  
 
+## Setup your tables
+
 Now that your `vpinfe.ini` file has the basics you need build the metadata.  Your table folder names should be in a format as they appear in [VPSDB](https://virtualpinballspreadsheet.github.io/tables):
 
-
-```
-superhac@linpin:~/tables$ ls -las
-total 28
-4 drwxrwxr-x  7 superhac superhac 4096 Feb 21 12:03  .
-4 drwxr-x--- 23 superhac superhac 4096 Feb 21 14:49  ..
-4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:03 '24 (Stern 2009)'
-4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:09 'AC-DC LUCI Premium VR (Stern 2013)'
-4 drwxrwxr-x  3 superhac superhac 4096 Feb 21 15:08 'American Graffiti (Original 2024)'
-4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:49 'Andromeda (Game Plan 1985)'
-4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:51 'Back To The Future - The Pinball (Data East 1990)'
-...
-
-With your tables in this format run `python3 main.py --buildmeta`.  More details on what this does and what it creates can be found [Meta.ini](#metaini).  At this point you should be able to run VPinfe with keyboard controls.  If using a gamepad see that [section](#setup-gamepad).
+---- TODO using the ManagerUI -----
 
 ## Default Keyboard Controls
 
