@@ -1,7 +1,6 @@
 # VPinFE
 ![VpinFE_V1-MF](https://github.com/user-attachments/assets/44609177-22f8-4a06-8b4b-764217789a64)
 
-
 **A frontend for vpinball with the following features:**
 - Works on Linux, Windows, and Mac (Windows must use Standalone dir structure)
 - Multiscreen - Supports up to 3 screens (Backglass, DMD, and Table)
@@ -13,9 +12,12 @@
 - JSON-based table metadata with VPX file parsing and feature detection
 - Mobile transfer support for VPinball on Android and iOS (Web Send & VPXZ Download)
 
+Support/Feedback:
+Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
+
 # Acknowledgements
 - A special thanks to @jsm174 for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and is epitome of the VPinball community.  
-- @MajorFrenchy for all the great testing and feedback.  And we can't forget his great video on using VPinFE on the MAC!  He also made the VPinFE logo and splash video!
+- @MajorFrenchy for all the great testing and feedback.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video!
 - @gonzonia for all his work on making the MAC App Bundle!  Would not have happened without his knowledge and contributions.
 - A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (@Dux, @Fraesh and @Studlygoorite) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
 
