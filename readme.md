@@ -1,5 +1,6 @@
 # VPinFE
-![VPinFE_logo_main](https://github.com/user-attachments/assets/507c50e3-bc1e-499a-b393-f9d11250b709)
+![VpinFE_V1-MF](https://github.com/user-attachments/assets/44609177-22f8-4a06-8b4b-764217789a64)
+
 
 **A frontend for vpinball with the following features:**
 - Works on Linux, Windows, and Mac (Windows must use Standalone dir structure)
