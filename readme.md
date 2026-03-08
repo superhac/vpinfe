@@ -71,11 +71,13 @@ vpinfe.bat
 
 When you run VPinFE the first time it load into the ManagerUI.  You need setup the minimum settings to get things to work.  
 
-The frist is the display.  Its recommend you just start with one screen as its auto-configured.  So you see one screen configed called Table.  
+The frist is the "display" panel.  Its recommend you just start with one screen as its auto-configured.
+
+<img width="1339" height="832" alt="2-settings-panel" src="https://github.com/user-attachments/assets/b659c70d-e103-482c-bafa-539995fcdc2d" />
 
 Next you must configure these three essential settings in the `[Settings]` section:
 
--------- ADD-SCREEN-SHOT -----------
+<img width="1307" height="591" alt="1-settings-panel" src="https://github.com/user-attachments/assets/4c774005-a6a6-4970-b85e-d4f26ea18941" />
 
 1. **vpxbinpath** - Full path to your VPinball executable (e.g., `/home/user/vpinball/build/VPinballX_BGFX`)
 2. **tablerootdir** - Root directory where all your tables are located (e.g., `/home/user/tables/`)
