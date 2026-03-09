@@ -605,6 +605,12 @@ class API:
     def get_table_rotation(self):
         return int(self._iniConfig.config['Displays'].get('tablerotation', '0'))
 
+    def get_cab_mode(self):
+        raw = str(self._iniConfig.config['Displays'].get(
+            'cabmode',
+            self._iniConfig.config['Settings'].get('cabmode', 'false')
+        )).strip().lower()
+        return raw in ('1', 'true', 'yes', 'on')
     def get_theme_assets_port(self):
         return int(self._iniConfig.config['Network'].get('themeassetsport', '8000'))
 

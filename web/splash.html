@@ -13,11 +13,11 @@
     }
 
     .fullscreen {
-      position: fixed;
+      position: absolute;
       top: 0;
       left: 0;
-      width: 100vw;
-      height: 100vh;
+      width: 100%;
+      height: 100%;
       object-fit: cover;
       opacity: 1;
       transition: opacity 1000ms ease;
@@ -29,6 +29,22 @@
 
     .hidden {
       display: none;
+    }
+
+    #viewport {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #splash-root {
+      position: relative;
+      transform-origin: center center;
+      visibility: hidden;
     }
   </style>
 
@@ -48,7 +64,9 @@
         window.location = location;
       };
 
+      const splashRoot = document.getElementById('splash-root');
       const splashVideo = document.getElementById('splash');
+      const splashVideoSource = document.getElementById('splash-source');
       const splashImage = document.getElementById('splash-image');
 
       const fadeOutAndRedirect = () => {
@@ -66,9 +84,41 @@
         }
       };
 
+      const applyRotation = (rotationDegree) => {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const baseWidth = 1920;
+        const baseHeight = 1080;
+        const normalized = ((rotationDegree % 360) + 360) % 360;
+        const swapAxes = normalized === 90 || normalized === 270;
+        const scale = swapAxes
+          ? Math.min(vw / baseHeight, vh / baseWidth)
+          : Math.min(vw / baseWidth, vh / baseHeight);
+
+        splashRoot.style.width = `${baseWidth}px`;
+        splashRoot.style.height = `${baseHeight}px`;
+
+        if (rotationDegree !== 0) {
+          splashRoot.style.transform = `rotate(${rotationDegree}deg) scale(${scale})`;
+        } else {
+          splashRoot.style.transform = `scale(${scale})`;
+        }
+
+        requestAnimationFrame(() => {
+          splashRoot.style.visibility = "visible";
+        });
+      };
+
       if (isTableWindow) {
+        const cabMode = await vpin.call("get_cab_mode");
+        const rotationDegree = await vpin.call("get_table_rotation");
+
         splashImage.classList.add('hidden');
         splashVideo.classList.remove('hidden');
+        splashVideoSource.src = cabMode ? "images/splash-rotated.mp4" : "images/splash.mp4";
+        splashVideo.load();
+        applyRotation(rotationDegree);
+        window.addEventListener('resize', () => applyRotation(rotationDegree));
 
         splashVideo.addEventListener('ended', () => {
           vpin.sendMessageToAllWindowsIncSelf({ type: "SplashFadeOut" });
@@ -81,6 +131,10 @@
       } else {
         splashVideo.classList.add('hidden');
         splashImage.classList.remove('hidden');
+        splashRoot.style.width = "100vw";
+        splashRoot.style.height = "100vh";
+        splashRoot.style.transform = "none";
+        splashRoot.style.visibility = "visible";
       }
 
       // Fallback in case video metadata/playback fails.
@@ -89,9 +143,13 @@
   </script>
 </head>
 <body>
-  <video id="splash" class="fullscreen" autoplay playsinline>
-    <source src="images/splash.mp4" type="video/mp4">
-  </video>
-  <img id="splash-image" class="fullscreen hidden" src="images/splash.png" alt="Splash">
+  <div id="viewport">
+    <div id="splash-root">
+      <video id="splash" class="fullscreen" autoplay playsinline>
+        <source id="splash-source" src="images/splash.mp4" type="video/mp4">
+      </video>
+      <img id="splash-image" class="fullscreen hidden" src="images/splash.png" alt="Splash">
+    </div>
+  </div>
 </body>
 </html>

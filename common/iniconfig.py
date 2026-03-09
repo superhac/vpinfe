@@ -6,7 +6,14 @@ class IniConfig:
 	def __init__(self, configfilepath):
 		
 		self.defaults = {
-			'Displays': {'bgscreenid': '', 'dmdscreenid': '', 'tablescreenid': '0', 'tableorientation': 'landscape', 'tablerotation': '0' },
+			'Displays': {
+				'bgscreenid': '',
+				'dmdscreenid': '',
+				'tablescreenid': '0',
+				'tableorientation': 'landscape',
+				'tablerotation': '0',
+				'cabmode': 'false'
+			},
 			'Settings': {
 				'vpxbinpath': '',
 				'tablerootdir': '',
@@ -73,6 +80,14 @@ class IniConfig:
 				if not self.config.has_option(section, key):
 					self.config.set(section, key, value)
 					changed = True
+
+		# Migrate cabmode from [Settings] to [Displays] if present.
+		if self.config.has_option('Settings', 'cabmode'):
+			if not self.config.has_option('Displays', 'cabmode'):
+				self.config.set('Displays', 'cabmode', self.config.get('Settings', 'cabmode'))
+			self.config.remove_option('Settings', 'cabmode')
+			changed = True
+
 		if changed:
 			self.save()
 
