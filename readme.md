@@ -5,7 +5,7 @@
 - Works on Linux, Windows, and Mac (Windows must use Standalone dir structure)
 - Multiscreen - Supports up to 3 screens (Backglass, DMD, and Table)
 - Fully remote cabinet management
-- Keyboard & Conroller Input support
+- Keyboard & Controller Input support
 - Table and Media Manager (Auto download art via [VPinMediaDB](https://github.com/superhac/vpinmediadb))
 - Build custom table collections (VPS ID-based and filter-based)
 - Automatic [vpx patching](https://github.com/jsm174/vpx-standalone-scripts) for Linux & Mac
@@ -164,5 +164,5 @@ External Web Endpoints:
 
 ## Making a Theme
 
-See [Theme.md](https://github.com/superhac/vpinfe/blob/master/theme.md)
+See **FIX Link in to point to DOCS!**
 
