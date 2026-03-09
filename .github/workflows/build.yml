@@ -124,9 +124,6 @@ jobs:
               --add-data "managerui/static:managerui/static" \
               --add-data "third-party/dof:third-party/dof" \
               --add-data "chromium/linux/chrome:chromium/linux/chrome" \
-              --hidden-import charset_normalizer \
-              --collect-all charset_normalizer \
-              --collect-all chardet \
               --hidden-import pynput.keyboard._xorg \
               --hidden-import pynput.mouse._xorg \
               main.py
@@ -136,29 +133,17 @@ jobs:
               --add-data "managerui/static;managerui/static" \
               --add-data "third-party/dof;third-party/dof" \
               --add-data "chromium/windows;chromium/windows" \
-              --hidden-import charset_normalizer \
               main.py
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
             pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
               --add-data "web:web" \
               --add-data "managerui/static:managerui/static" \
               --add-data "third-party/dof:third-party/dof" \
-              --hidden-import charset_normalizer \
               main.py
             mkdir -p dist/VPinFE.app/Contents/Frameworks/chromium
             cp -R chromium/Chromium.app dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app
             chmod +x dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app/Contents/MacOS/Chromium
             rm -rf dist/vpinfe
-          fi
-        shell: bash
-
-      - name: Verify requests charset detector bundled (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          if ! find dist/vpinfe -maxdepth 6 -type d \( -name charset_normalizer -o -name chardet \) | grep -q .; then
-            echo "ERROR: Missing charset detector package (charset_normalizer/chardet) in dist/vpinfe"
-            find dist/vpinfe -maxdepth 6 -type d | head -n 200
-            exit 1
           fi
         shell: bash
 
@@ -231,22 +216,9 @@ jobs:
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
             --add-data "third-party/dof:third-party/dof" \
-            --hidden-import charset_normalizer \
-            --collect-all charset_normalizer \
-            --collect-all chardet \
             --hidden-import pynput.keyboard._xorg \
             --hidden-import pynput.mouse._xorg \
             main.py
-        shell: bash
-
-      - name: Verify requests charset detector bundled (Linux Slim)
-        if: runner.os == 'Linux'
-        run: |
-          if ! find dist/vpinfe -maxdepth 6 -type d \( -name charset_normalizer -o -name chardet \) | grep -q .; then
-            echo "ERROR: Missing charset detector package (charset_normalizer/chardet) in slim dist/vpinfe"
-            find dist/vpinfe -maxdepth 6 -type d | head -n 200
-            exit 1
-          fi
         shell: bash
 
       - name: Upload slim build artifact (Linux)
@@ -264,7 +236,6 @@ jobs:
             --add-data "web;web" `
             --add-data "managerui/static;managerui/static" `
             --add-data "third-party/dof;third-party/dof" `
-            --hidden-import charset_normalizer `
             main.py
 
       - name: Copy Windows launcher (slim)
@@ -287,7 +258,6 @@ jobs:
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
             --add-data "third-party/dof:third-party/dof" \
-            --hidden-import charset_normalizer \
             main.py
           rm -rf dist/vpinfe
         shell: bash

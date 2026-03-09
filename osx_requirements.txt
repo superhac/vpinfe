@@ -1,6 +1,4 @@
 requests
-charset-normalizer
-chardet
 websockets
 screeninfo
 olefile

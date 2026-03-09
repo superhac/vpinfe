@@ -1,7 +1,5 @@
 # Core dependencies for VPinFE
 requests
-charset-normalizer
-chardet
 websockets
 screeninfo
 olefile
