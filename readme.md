@@ -130,7 +130,7 @@ superhac@testrig:~/test/dof$ tree ~/tables/Hurricane\ \(Williams\ 1991\)/
 
 VPinFE will try to automatch your tables to VPSID's, but in the event it can't you will have to match it manually.  Any table that is not matched shows up as a "UNMATCHED TABLE" in the UI:
 
-**add IMAGE**
+<img width="1327" height="219" alt="unmatched" src="https://github.com/user-attachments/assets/9b646c30-1e30-4edc-8835-eda58d5b18cd" />
 
 Click on the unmatched tables button and walkthtough the dialogs.  Once comleted the table will show in your tables list.
 
