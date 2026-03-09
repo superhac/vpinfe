@@ -1,26 +1,27 @@
 # VPinFE
-<img width="1278" height="852" alt="VpinFE_V1-MF-withCredit" src="https://github.com/user-attachments/assets/935edcc7-500c-4360-913b-b89a4361c611" />
-
+![VpinFE_V1-MF](https://github.com/user-attachments/assets/44609177-22f8-4a06-8b4b-764217789a64)
 
 **A frontend for vpinball with the following features:**
 - Works on Linux, Windows, and Mac (Windows must use Standalone dir structure)
 - Multiscreen - Supports up to 3 screens (Backglass, DMD, and Table)
-- Keyboard & Joystick support
+- Fully remote cabinet management
+- Keyboard & Conroller Input support
 - Table and Media Manager (Auto download art via [VPinMediaDB](https://github.com/superhac/vpinmediadb))
 - Build custom table collections (VPS ID-based and filter-based)
 - Automatic [vpx patching](https://github.com/jsm174/vpx-standalone-scripts) for Linux & Mac
 - Fully customizable UI theming using HTML, JS and CSS
 - JSON-based table metadata with VPX file parsing and feature detection
+- DOF Support using [libdof-python](https://github.com/superhac/libdof-python)
 - Mobile transfer support for VPinball on Android and iOS (Web Send & VPXZ Download)
 
 ### Support/Feedback
 Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 
 ## Acknowledgements
-- A special thanks to **@jsm174** for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and is epitome of the VPinball community.  
-- **@MajorFrenchy** is another great example of what the VPinball community is all about. He jumped in right away and provided invaluable testing and feedback.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video! Thank you, thank you!!!
-- Huge thanks to **@Gonzonia** for all his work on the Mac app bundle. This simply wouldn’t have happened without his knowledge and contributions.
-- A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (**@Dux, @Fraesh and @Studlygoorite**) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
+- A special thanks to @jsm174 for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and is epitome of the VPinball community.  
+- @MajorFrenchy is also a great representation of what the VPinball community is all about.  He jumped right in and provided great testing and feedback for features.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video! Thank you, thank you!!!
+- @gonzonia for all his work on making the MAC App bundle!  Would not have happened without his knowledge and contributions.
+- A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (@Dux, @Fraesh and @Studlygoorite) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
 
 ## See it in action
 ![carousel-desktop-Trim-clean-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/6f2d2b6d-652a-47c6-8e8e-a84b6aa461ee)
@@ -46,7 +47,7 @@ cd vpinfe
 ```
 
 ### MAC
-This is unsigned APP bundle so you need to do a few things to get VPinFE running.  @MajorFrenchy has put together an excellent video on setting this up for the MAC [here](https://www.youtube.com/watch?v=YD4eZIqHypw).  He also has a written tutorial available at his site @  [Major Frenchy's VPinFE on MacOS](https://www.majorfrenchy.com/blog/2026/03/05/vpinfe-macos/).  If you are a MAC user this is best route to take.  Watch the video and/or read the tutorial, and you'll be running quick.   
+This is unsigned APP bundle so you need to do a few things to get VPinFE running.  @MajorFrenchy has put together an excellent video on this [here](https://www.youtube.com/watch?v=YD4eZIqHypw).
 
 ### Windows
 The windows package has a `vpinfe.bat` file for launching it.  Unless your in a terminal always use the batch file or you will end up window focus issues when using VPinFE. Either double click on it to launch or from the CLI:
@@ -56,7 +57,7 @@ cd vpinfe
 vpinfe.bat
 ```
 
-## Setup your configuration (All Platforms)
+## Setup your configuration
 
 When you run VPinFE the first time it load into the ManagerUI.  You need setup the minimum settings to get things to work.  
 
