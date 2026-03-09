@@ -18,7 +18,7 @@
 Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 
 ## Acknowledgements
-- A special thanks to **@jsm174** for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and is epitome of the VPinball community.  
+- A special thanks to **@jsm174** for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and he is the epitome of the VPinball community.  
 - **@MajorFrenchy** is another great example of what the VPinball community is all about. He jumped in right away and provided invaluable testing and feedback.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video! Thank you, thank you!!!
 - Huge thanks to **@Gonzonia** for all his work on the Mac app bundle. This simply wouldn’t have happened without his knowledge and contributions.
 - A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (**@Dux, @Fraesh and @Studlygoorite**) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
@@ -84,9 +84,56 @@ Put that URL in a browser and your in the ManagerUI.
 
 ## Setup your tables
 
-Now that your `vpinfe.ini` file has the basics you need build the metadata.  Your table folder names should be in a format as they appear in [VPSDB](https://virtualpinballspreadsheet.github.io/tables):
+Now that your `vpinfe.ini` file has the basics you need build the metadata.  Your table folder names and layouts should follow the [VPinball table organization standard](https://github.com/vpinball/vpinball/blob/master/docs/FileLayout.md).
 
----- TODO using the ManagerUI -----
+Example of how your table directory should look:
+```
+superhac@linpin:~/tables$ ls -las
+total 28
+4 drwxrwxr-x  7 superhac superhac 4096 Feb 21 12:03  .
+4 drwxr-x--- 23 superhac superhac 4096 Feb 21 14:49  ..
+4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:03 '24 (Stern 2009)'
+4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:09 'AC-DC LUCI Premium VR (Stern 2013)'
+4 drwxrwxr-x  3 superhac superhac 4096 Feb 21 15:08 'American Graffiti (Original 2024)'
+4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:49 'Andromeda (Game Plan 1985)'
+4 drwxrwxr-x  2 superhac superhac 4096 Feb 21 12:51 'Back To The Future - The Pinball (Data East 1990)'
+```
+
+Example of whats inside a table folder:
+```
+superhac@testrig:~/test/dof$ tree ~/tables/Hurricane\ \(Williams\ 1991\)/
+/home/superhac/tables/Hurricane (Williams 1991)/
+├── Hurricane Balutito MOD V2.directb2s
+├── Hurricane Balutito MOD V2.vpx
+├── Hurricane (Williams 1991).info
+├── medias
+│   ├── audio.mp3
+│   ├── bg.png
+│   ├── cab.png
+│   ├── dmd.png
+│   ├── flyer.png
+│   ├── realdmd.png
+│   ├── table.mp4
+│   ├── table.png
+│   └── wheel.png
+└── pinmame
+    ├── cfg
+    │   ├── default.cfg
+    │   └── hurr_l2.cfg
+    ├── ini
+    │   └── hurr_l2.ini
+    ├── nvram
+    │   └── hurr_l2.nv
+    └── roms
+        └── hurr_l2.zip
+```
+
+VPinFE will try to automatch your tables to VPSID's, but in the event it can't you will have to match it manually.  Any table that is not matched shows up as a "UNMATCHED TABLE" in the UI:
+
+**add IMAGE**
+
+Click on the unmatched tables button and walkthtough the dialogs.  Once comleted the table will show in your tables list.
+
 
 ## Default Keyboard Controls
 
