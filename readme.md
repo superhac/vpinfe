@@ -1,5 +1,6 @@
 # VPinFE
-![VpinFE_V1-MF](https://github.com/user-attachments/assets/44609177-22f8-4a06-8b4b-764217789a64)
+<img width="1278" height="852" alt="VpinFE_V1-MF-withCredit" src="https://github.com/user-attachments/assets/935edcc7-500c-4360-913b-b89a4361c611" />
+
 
 **A frontend for vpinball with the following features:**
 - Works on Linux, Windows, and Mac (Windows must use Standalone dir structure)
@@ -16,10 +17,10 @@
 Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 
 ## Acknowledgements
-- A special thanks to @jsm174 for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and is epitome of the VPinball community.  
-- @MajorFrenchy is also a great representation of what the VPinball community is all about.  He jumped right in and provided great testing and feedback.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video! Thank you, thank you!!!
-- @gonzonia for all his work on making the MAC App bundle!  Would not have happened without his knowledge and contributions.
-- A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (@Dux, @Fraesh and @Studlygoorite) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
+- A special thanks to **@jsm174** for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and is epitome of the VPinball community.  
+- **@MajorFrenchy** is another great example of what the VPinball community is all about. He jumped in right away and provided invaluable testing and feedback.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video! Thank you, thank you!!!
+- Huge thanks to **@Gonzonia** for all his work on the Mac app bundle. This simply wouldn’t have happened without his knowledge and contributions.
+- A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (**@Dux, @Fraesh and @Studlygoorite**) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
 
 ## See it in action
 ![carousel-desktop-Trim-clean-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/6f2d2b6d-652a-47c6-8e8e-a84b6aa461ee)
