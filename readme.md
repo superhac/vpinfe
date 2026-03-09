@@ -37,6 +37,8 @@ The install is the same for all platforms you need to download the right release
 - A slim build (has slim in its name) is for people who already have chrome or chromium installed locally on there machine. (Recommend bundle)
 - A fat build (no slim in its name and larger binary) that bundles chromium with VPinfe
 
+The latest version can be downloaded from [Releases](https://github.com/superhac/vpinfe/releases).
+
 ## Running
 
 ### Linux
