@@ -45,7 +45,7 @@ cd vpinfe
 ```
 
 ### MAC
-This is unsigned APP bundle so you need to do a few things to get VPinFE running.  @MajorFrenchy has put together an excellent video on this [here](https://www.youtube.com/watch?v=YD4eZIqHypw).
+This is unsigned APP bundle so you need to do a few things to get VPinFE running.  @MajorFrenchy has put together an excellent video on setting this up for the MAC [here](https://www.youtube.com/watch?v=YD4eZIqHypw).  He also has a written tutorial available at his site @  [Major Frenchy's VPinFE on MacOS](https://www.majorfrenchy.com/blog/2026/03/05/vpinfe-macos/).  If you are a MAC user this is best route to take.  Watch the video and/or read the tutorial, and you'll be running quick.   
 
 ### Windows
 The windows package has a `vpinfe.bat` file for launching it.  Unless your in a terminal always use the batch file or you will end up window focus issues when using VPinFE. Either double click on it to launch or from the CLI:
@@ -55,7 +55,7 @@ cd vpinfe
 vpinfe.bat
 ```
 
-## Setup your configuration
+## Setup your configuration (All Platforms)
 
 When you run VPinFE the first time it load into the ManagerUI.  You need setup the minimum settings to get things to work.  
 
