@@ -12,18 +12,18 @@
       overflow: hidden;
     }
 
-    img.fullscreen {
+    video.fullscreen {
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
       object-fit: cover;
-      transition: opacity 3s ease-out;  /* slower fade */
       opacity: 1;
+      transition: opacity 1000ms ease;
     }
 
-    img.fullscreen.fade-out {
+    video.fullscreen.fade-out {
       opacity: 0;
     }
   </style>
@@ -35,21 +35,34 @@
 
     vpin.ready.then(async () => {
       console.log("VPinFECore is fully initialized");
+      const windowName = await vpin.call("get_my_window_name");
+      const playAudio = windowName === "table";
 
-      // Fade out image after 2 seconds
-      setTimeout(() => {
-        document.getElementById('splash').classList.add('fade-out');
-      }, 1000);
-
-      // Redirect after 5 seconds
-      setTimeout(async () => {
+      const redirectToTheme = async () => {
         const location = await vpin.call("get_theme_index_page");
         window.location = location;
-      }, 3500);
+      };
+
+      const splashVideo = document.getElementById('splash');
+      splashVideo.addEventListener('ended', () => {
+        splashVideo.classList.add('fade-out');
+        setTimeout(redirectToTheme, 1000);
+      }, { once: true });
+
+      // Table screen gets audio; all other screens stay muted.
+      splashVideo.muted = !playAudio;
+      splashVideo.defaultMuted = !playAudio;
+      splashVideo.volume = 1.0;
+      await splashVideo.play();
+
+      // Fallback in case video metadata/playback fails.
+      setTimeout(redirectToTheme, 15000);
     });
   </script>
 </head>
 <body>
-  <img id="splash" src="images/VPinFE_logo_main.png" alt="Fullscreen" class="fullscreen">
+  <video id="splash" class="fullscreen" autoplay playsinline>
+    <source src="images/splash.mp4" type="video/mp4">
+  </video>
 </body>
 </html>

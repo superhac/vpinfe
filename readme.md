@@ -17,8 +17,8 @@ Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 
 ## Acknowledgements
 - A special thanks to @jsm174 for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and is epitome of the VPinball community.  
-- @MajorFrenchy for all the great testing and feedback.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video!
-- @gonzonia for all his work on making the MAC App Bundle!  Would not have happened without his knowledge and contributions.
+- @MajorFrenchy is also a great representation of what the VPinball community is all about.  He jumped right in and provided great testing and feedback.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video! Thank you, thank you!!!
+- @gonzonia for all his work on making the MAC App bundle!  Would not have happened without his knowledge and contributions.
 - A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (@Dux, @Fraesh and @Studlygoorite) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
 
 ## See it in action

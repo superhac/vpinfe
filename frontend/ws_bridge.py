@@ -1,5 +1,5 @@
 """
-WebSocket bridge server that replaces pywebview's JS API bridge.
+WebSocket bridge server that replaces legacy frontend's JS API bridge.
 
 Each Chromium window connects via WebSocket with its window name as a query param:
   ws://127.0.0.1:8002?window=bg
@@ -56,7 +56,6 @@ class WebSocketBridge:
         'send_event_all_windows',
         'send_event_all_windows_incself',
         'playSound',
-        'trigger_audio_play',
     }
 
     def __init__(self, port=8002):

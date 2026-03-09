@@ -1,7 +1,7 @@
 # Themes
 
 VPinFE supports two rendering backends:
-- **pywebview** (master branch) — uses a WebKitGTK/MSHTML browser window with a direct JS bridge (`window.pywebview.api`).
+- **legacy frontend** (master branch) — uses a WebKitGTK/MSHTML browser window with a direct JS bridge (`window.legacy frontend.api`).
 - **Embedded Chromium** (vpinfe-chromium branch) — uses a WebSocket bridge to communicate between the browser and Python backend.
 
 Themes are fully compatible with both backends. The `vpinfe-core.js` library abstracts the communication layer so theme code does not need to know which backend is in use.
@@ -411,7 +411,7 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 ### API Reference
 
 #### init()
-Sets up keyboard event listener and connects to the backend (pywebview bridge or WebSocket).
+Sets up keyboard event listener and connects to the backend (legacy frontend bridge or WebSocket).
 
 #### registerInputHandler(handler)
 Registers an input handler for the table screen. Only works when the current window name is `"table"`. The handler receives a single string argument (the action name).
@@ -429,7 +429,7 @@ Programmatically toggles the main menu overlay open/closed.
 Programmatically toggles the collection menu overlay open/closed.
 
 #### call(method, ...args)
-Invokes a backend API method. Works transparently with both pywebview and WebSocket backends. Returns a Promise.
+Invokes a backend API method. Works transparently with both legacy frontend and WebSocket backends. Returns a Promise.
 
 The following methods are available via `vpin.call()`:
 
@@ -501,7 +501,7 @@ The following methods are available via `vpin.call()`:
 | `get_table_orientation` | — | `string` | Returns the table orientation from config (`"landscape"` or `"portrait"`). |
 | `get_table_rotation` | — | `number` | Returns the table rotation angle in degrees from config (default `0`). |
 
-##### Audio (pywebview only)
+##### Audio (legacy frontend only)
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
@@ -754,7 +754,7 @@ Place an `audio.mp3` file in the table's `medias/` folder (or root folder). `vpi
 Audio playback requires handling two different autoplay policies depending on the backend:
 
 - **Chromium** (vpinfe-chromium branch): Launches with `--autoplay-policy=no-user-gesture-required`, so direct `audio.play()` calls work without restriction.
-- **pywebview** (master branch): WebKitGTK blocks `audio.play()` from non-user-gesture contexts (like gamepad polling via `requestAnimationFrame`). The workaround is to call `vpin.call("trigger_audio_play")`, which uses Python's `evaluate_js` to play from a privileged context.
+- **legacy frontend** (master branch): WebKitGTK blocks `audio.play()` from non-user-gesture contexts (like gamepad polling via `requestAnimationFrame`). The workaround is to call `vpin.call("trigger_audio_play")`, which uses Python's `evaluate_js` to play from a privileged context.
 
 Here is a complete audio manager that works with both backends, supporting crossfade, retries, and fast navigation:
 
@@ -782,7 +782,7 @@ const tableAudio = {
             if (this.currentUrl === url) this._fade(0, this.maxVolume);
         }).catch(e => {
             if (e.name === 'NotAllowedError') {
-                // Autoplay blocked (pywebview/WebKitGTK) - wait for audio to
+                // Autoplay blocked (legacy frontend/WebKitGTK) - wait for audio to
                 // load, then ask Python to play via evaluate_js
                 this._retries = retries;
                 this._triggerWhenReady(url);
@@ -891,7 +891,7 @@ if (message.type == "TableLaunchComplete") {
 
 ### Backend API Requirement
 
-For audio to work on pywebview, the Python API class must include:
+For audio to work on legacy frontend, the Python API class must include:
 ```python
 def trigger_audio_play(self):
     """Trigger audio.play() via evaluate_js to bypass WebKitGTK autoplay policy."""

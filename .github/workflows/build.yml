@@ -329,6 +329,10 @@ jobs:
       - name: Create tagged release zip
         run: |
           mkdir -p release
+          if [[ "${{ matrix.triplet }}" == linux-* ]]; then
+            # Artifact download/extract can lose executable bits; restore Linux launch binary.
+            find "staging/${{ matrix.triplet }}" -type f -name vpinfe -exec chmod 755 {} +
+          fi
           cd staging/${{ matrix.triplet }}
           zip -r ../../release/vpinfe-${GITHUB_REF_NAME}-${{ matrix.triplet }}.zip .
 

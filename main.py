@@ -218,7 +218,7 @@ else:
     # Launch Chromium windows on configured monitors
     chromium_manager.launch_all_windows(iniconfig)
 
-    # Block until Chromium windows exit (replaces webview.start())
+    # Block until Chromium windows exit (replaces the legacy UI main loop)
     chromium_manager.wait_for_exit()
 
 # Shutdown items - wrap each in try/except so restart check always runs

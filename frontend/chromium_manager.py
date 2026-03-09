@@ -106,7 +106,7 @@ class ChromiumManager:
         self._processes = []   # [(window_name, process, temp_dir, monitor)]
         self._exit_event = threading.Event()
 
-    def launch_window(self, window_name, url, monitor, index):
+    def launch_window(self, window_name, url, monitor, index, mute_audio=False):
         """Launch one Chromium instance for a given monitor.
 
         Args:
@@ -166,6 +166,8 @@ class ChromiumManager:
             # Suppress "unsupported command-line flag" info bar warnings
             "--test-type",
         ]
+        if mute_audio:
+            args.append("--mute-audio")
 
         print(f"[Chromium] Launching '{window_name}' on monitor {index} "
               f"({monitor.width}x{monitor.height} at {monitor.x},{monitor.y})")
@@ -222,7 +224,13 @@ class ChromiumManager:
             if window_name == 'table':
                 time.sleep(0.5)
 
-            self.launch_window(window_name, url, monitor, screen_id)
+            self.launch_window(
+                window_name,
+                url,
+                monitor,
+                screen_id,
+                mute_audio=(window_name != 'table')
+            )
 
         print(f"[Chromium] Launched {len(self._processes)} browser windows")
 
@@ -328,7 +336,7 @@ class ChromiumManager:
     def wait_for_exit(self):
         """Block until all Chromium processes have exited.
 
-        This replaces webview.start() as the main blocking call.
+        This replaces the legacy UI main loop as the main blocking call.
         Monitors all processes and returns when any one exits
         (which typically means the user closed a window or the app is shutting down).
         """
