@@ -215,3 +215,6 @@ External Web Endpoints:
 
 See [Theme Doc](docs/theme.md)
 
+## Addtional Details
+
+[Technical Details](docs/technical_details.md)

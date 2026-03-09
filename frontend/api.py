@@ -603,7 +603,13 @@ class API:
         return self._iniConfig.config['Displays'].get('tableorientation', 'landscape')
 
     def get_table_rotation(self):
-        return int(self._iniConfig.config['Displays'].get('tablerotation', '0'))
+        raw = str(self._iniConfig.config['Displays'].get('tablerotation', '0')).strip()
+        if raw == '':
+            return 0
+        try:
+            return int(float(raw))
+        except (ValueError, TypeError):
+            return 0
 
     def get_cab_mode(self):
         raw = str(self._iniConfig.config['Displays'].get(

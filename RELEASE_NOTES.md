@@ -1,14 +1,14 @@
 ## VPinFE Release Notes
 
 ### Summary
-- Replace this section with a short summary of the release.
+This is the offical release of vpinfe v1.0.0.  Remember if you download the "slim" version you need to have either chromium or chrome installed on your local machine.
 
 ### What's New
-- Add new features here.
+Base release
 
 ### Fixes
-- Add bug fixes here.
+None
 
 ### Notes
-- Add known issues, upgrade notes, or migration steps here.
+None
 
