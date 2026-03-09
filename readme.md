@@ -18,10 +18,10 @@
 Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 
 ## Acknowledgements
-- A special thanks to @jsm174 for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and is epitome of the VPinball community.  
-- @MajorFrenchy is also a great representation of what the VPinball community is all about.  He jumped right in and provided great testing and feedback for features.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video! Thank you, thank you!!!
-- @gonzonia for all his work on making the MAC App bundle!  Would not have happened without his knowledge and contributions.
-- A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (@Dux, @Fraesh and @Studlygoorite) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
+- A special thanks to **@jsm174** for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and is epitome of the VPinball community.  
+- **@MajorFrenchy** is another great example of what the VPinball community is all about. He jumped in right away and provided invaluable testing and feedback.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video! Thank you, thank you!!!
+- Huge thanks to **@Gonzonia** for all his work on the Mac app bundle. This simply wouldn’t have happened without his knowledge and contributions.
+- A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (**@Dux, @Fraesh and @Studlygoorite**) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
 
 ## See it in action
 ![carousel-desktop-Trim-clean-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/6f2d2b6d-652a-47c6-8e8e-a84b6aa461ee)
@@ -47,7 +47,8 @@ cd vpinfe
 ```
 
 ### MAC
-This is unsigned APP bundle so you need to do a few things to get VPinFE running.  @MajorFrenchy has put together an excellent video on this [here](https://www.youtube.com/watch?v=YD4eZIqHypw).
+This is unsigned APP bundle so you need to do a few things to get VPinFE running.  @MajorFrenchy has put together an excellent video on setting this up for the MAC [here](https://www.youtube.com/watch?v=YD4eZIqHypw).  He also has a written tutorial available at his site @  [Major Frenchy's VPinFE on MacOS](https://www.majorfrenchy.com/blog/2026/03/05/vpinfe-macos/).  If you are a MAC user this is best route to take.  Watch the video and/or read the tutorial, and you'll be running quick.   
+
 
 ### Windows
 The windows package has a `vpinfe.bat` file for launching it.  Unless your in a terminal always use the batch file or you will end up window focus issues when using VPinFE. Either double click on it to launch or from the CLI:
