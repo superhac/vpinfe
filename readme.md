@@ -1,5 +1,5 @@
 # VPinFE
-![VpinFE_V1-MF](https://github.com/user-attachments/assets/44609177-22f8-4a06-8b4b-764217789a64)
+<img width="1278" height="852" alt="VpinFE_V1-MF-withCredit" src="https://github.com/user-attachments/assets/914dff06-e3de-4096-8bc1-b4586d9802f6" />
 
 **A frontend for vpinball with the following features:**
 - Works on Linux, Windows, and Mac (Windows must use Standalone dir structure)
@@ -164,5 +164,5 @@ External Web Endpoints:
 
 ## Making a Theme
 
-See **FIX Link in to point to DOCS!**
+See [Theme Doc](docs/theme.md)
 
