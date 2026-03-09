@@ -12,7 +12,7 @@
       overflow: hidden;
     }
 
-    video.fullscreen {
+    .fullscreen {
       position: fixed;
       top: 0;
       left: 0;
@@ -23,8 +23,12 @@
       transition: opacity 1000ms ease;
     }
 
-    video.fullscreen.fade-out {
+    .fullscreen.fade-out {
       opacity: 0;
+    }
+
+    .hidden {
+      display: none;
     }
   </style>
 
@@ -36,7 +40,8 @@
     vpin.ready.then(async () => {
       console.log("VPinFECore is fully initialized");
       const windowName = await vpin.call("get_my_window_name");
-      const playAudio = windowName === "table";
+      const isTableWindow = windowName === "table";
+      const fadeMs = 1000;
 
       const redirectToTheme = async () => {
         const location = await vpin.call("get_theme_index_page");
@@ -44,19 +49,42 @@
       };
 
       const splashVideo = document.getElementById('splash');
-      splashVideo.addEventListener('ended', () => {
-        splashVideo.classList.add('fade-out');
-        setTimeout(redirectToTheme, 1000);
-      }, { once: true });
+      const splashImage = document.getElementById('splash-image');
 
-      // Table screen gets audio; all other screens stay muted.
-      splashVideo.muted = !playAudio;
-      splashVideo.defaultMuted = !playAudio;
-      splashVideo.volume = 1.0;
-      await splashVideo.play();
+      const fadeOutAndRedirect = () => {
+        if (isTableWindow) {
+          splashVideo.classList.add('fade-out');
+        } else {
+          splashImage.classList.add('fade-out');
+        }
+        setTimeout(redirectToTheme, fadeMs);
+      };
+
+      window.receiveEvent = (message) => {
+        if (message && message.type === "SplashFadeOut") {
+          fadeOutAndRedirect();
+        }
+      };
+
+      if (isTableWindow) {
+        splashImage.classList.add('hidden');
+        splashVideo.classList.remove('hidden');
+
+        splashVideo.addEventListener('ended', () => {
+          vpin.sendMessageToAllWindowsIncSelf({ type: "SplashFadeOut" });
+        }, { once: true });
+
+        splashVideo.muted = false;
+        splashVideo.defaultMuted = false;
+        splashVideo.volume = 1.0;
+        await splashVideo.play();
+      } else {
+        splashVideo.classList.add('hidden');
+        splashImage.classList.remove('hidden');
+      }
 
       // Fallback in case video metadata/playback fails.
-      setTimeout(redirectToTheme, 15000);
+      setTimeout(fadeOutAndRedirect, 15000);
     });
   </script>
 </head>
@@ -64,5 +92,6 @@
   <video id="splash" class="fullscreen" autoplay playsinline>
     <source src="images/splash.mp4" type="video/mp4">
   </video>
+  <img id="splash-image" class="fullscreen hidden" src="images/splash.png" alt="Splash">
 </body>
 </html>
