@@ -22,6 +22,7 @@ SECTION_ICONS = {
     'Logger': 'terminal',
     'Media': 'perm_media',
     'Displays': 'monitor',
+    'DOF': 'key',
 }
 
 # Dictionary for explicit user-friendly name mappings
@@ -34,6 +35,7 @@ FRIENDLY_NAMES = {
     'autoupdatemediaonstartup': 'Auto Update Media On Startup',
     'cabmode': 'Cabinet Mode',
     'enabledof': 'Enable DOF',
+    'dofconfigtoolapikey': 'DOF Config Tool API Key',
     'theme': 'Active Theme',
     'level': 'Log Verbosity',
     'console': 'Logging Console',
@@ -245,7 +247,7 @@ def render_panel(tab=None):
                                         value=value
                                     ).classes('config-input').style('min-width: 200px;')
                                 # Special handling for startup media auto-update in Settings
-                                elif (section == 'Settings' and key in ('autoupdatemediaonstartup', 'enabledof')) or (section == 'Displays' and key == 'cabmode'):
+                                elif (section == 'Settings' and key == 'autoupdatemediaonstartup') or (section == 'Displays' and key == 'cabmode') or (section == 'DOF' and key == 'enabledof'):
                                     bool_options = ['true', 'false']
                                     normalized = (value or '').strip().lower()
                                     if normalized not in bool_options:

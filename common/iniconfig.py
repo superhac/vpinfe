@@ -21,7 +21,6 @@ class IniConfig:
 				'theme': 'carousel-desktop',
 				'startup_collection': '',
 				'autoupdatemediaonstartup': 'false',
-				'enabledof': 'false',
 				},
 			'Input': {
 				'joyleft': '',
@@ -50,6 +49,10 @@ class IniConfig:
 			'Network': {
 				'themeassetsport': '8000',
 				'manageruiport': '8001',
+				},
+			'DOF': {
+				'enabledof': 'false',
+				'dofconfigtoolapikey': '',
 				},
 			'Mobile': {
 				'deviceip': '',
@@ -86,6 +89,13 @@ class IniConfig:
 			if not self.config.has_option('Displays', 'cabmode'):
 				self.config.set('Displays', 'cabmode', self.config.get('Settings', 'cabmode'))
 			self.config.remove_option('Settings', 'cabmode')
+			changed = True
+
+		# Migrate enabledof from [Settings] to [DOF] if present.
+		if self.config.has_option('Settings', 'enabledof'):
+			if not self.config.has_option('DOF', 'enabledof'):
+				self.config.set('DOF', 'enabledof', self.config.get('Settings', 'enabledof'))
+			self.config.remove_option('Settings', 'enabledof')
 			changed = True
 
 		if changed:

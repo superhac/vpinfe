@@ -11,9 +11,11 @@ _RUNNER_NAMES = ('dof_runner.py', 'random_dof_runner.py')
 
 def _is_enabled(iniconfig) -> bool:
     try:
-        return iniconfig.config.getboolean('Settings', 'enabledof', fallback=False)
+        return iniconfig.config.getboolean('DOF', 'enabledof', fallback=False)
     except Exception:
-        raw = str(iniconfig.config['Settings'].get('enabledof', 'false')).strip().lower()
+        raw = str(
+            iniconfig.config.get('DOF', 'enabledof', fallback='false')
+        ).strip().lower()
         return raw in ('1', 'true', 'yes', 'on')
 
 
