@@ -1,7 +1,12 @@
 import os
+import io
+import contextlib
+import runpy
+import shlex
 import sys
-from nicegui import ui
+from nicegui import ui, run
 from common.iniconfig import IniConfig
+from common.dof_service import find_dof_file
 from common.vpxcollections import VPXCollections
 from pathlib import Path
 from platformdirs import user_config_dir
@@ -140,6 +145,70 @@ def _get_display_id_options(detected_displays, current_value: str = ''):
         options.append(current)
     return options
 
+
+def _get_ledcontrol_command(script_path: Path, api_key: str, force: bool) -> list[str]:
+    """Build the displayed ledcontrol_pull command."""
+    api_key = api_key.strip()
+    if not api_key:
+        raise ValueError('DOF Config Tool API Key is required.')
+
+    command = [str(script_path), '--apikey', api_key]
+    if force:
+        command.append('--force')
+    return command
+
+
+def _run_ledcontrol_pull(script_path: Path, api_key: str, force: bool) -> tuple[int, str, list[str]]:
+    command = _get_ledcontrol_command(script_path, api_key, force)
+    old_env = os.environ.copy()
+    env = old_env.copy()
+    script_dir = str(script_path.parent)
+    if sys.platform.startswith('linux'):
+        env['LD_LIBRARY_PATH'] = script_dir + os.pathsep + env.get('LD_LIBRARY_PATH', '')
+    elif sys.platform == 'darwin':
+        env['DYLD_LIBRARY_PATH'] = script_dir + os.pathsep + env.get('DYLD_LIBRARY_PATH', '')
+    elif sys.platform == 'win32':
+        env['PATH'] = script_dir + os.pathsep + env.get('PATH', '')
+
+    stdout_buffer = io.StringIO()
+    stderr_buffer = io.StringIO()
+    old_cwd = os.getcwd()
+    old_argv = sys.argv[:]
+    old_sys_path = sys.path[:]
+
+    os.environ.update(env)
+    sys.path.insert(0, script_dir)
+    sys.argv = command[:]
+
+    exit_code = 0
+    try:
+        os.chdir(script_dir)
+        with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(stderr_buffer):
+            try:
+                runpy.run_path(str(script_path), run_name='__main__')
+            except SystemExit as e:
+                if isinstance(e.code, int):
+                    exit_code = e.code
+                elif e.code is None:
+                    exit_code = 0
+                else:
+                    exit_code = 1
+                    print(e.code, file=sys.stderr)
+    finally:
+        os.chdir(old_cwd)
+        sys.argv = old_argv
+        sys.path[:] = old_sys_path
+        os.environ.clear()
+        os.environ.update(old_env)
+
+    output = stdout_buffer.getvalue()
+    stderr_output = stderr_buffer.getvalue()
+    if stderr_output:
+        if output and not output.endswith('\n'):
+            output += '\n'
+        output += stderr_output
+    return exit_code, output.strip() or '(no output)', command
+
 def render_panel(tab=None):
     # Re-read config from disk each time the page is opened
     config = IniConfig(str(INI_PATH))
@@ -183,6 +252,8 @@ def render_panel(tab=None):
 
     # Dictionary to store all input references: {section: {key: input_element}}
     inputs = {}
+    dof_force_checkbox = None
+    update_dof_button = None
 
     # Get all sections, filter out ignored ones
     sections = [s for s in config.config.sections() if s not in IGNORED_SECTIONS]
@@ -194,6 +265,66 @@ def render_panel(tab=None):
         with open(INI_PATH, 'w') as f:
             config.config.write(f)
         ui.notify('Configuration Saved', type='positive')
+
+    def show_command_output_dialog(title: str, command: list[str], output: str, exit_code: int | None):
+        with ui.dialog().props('persistent max-width=1000px') as dlg, ui.card().classes('w-full').style(
+            'background: #0f172a; border: 1px solid #334155; min-width: min(92vw, 900px);'
+        ):
+            ui.label(title).classes('text-xl font-bold text-white')
+            ui.label(shlex.join(command)).classes('text-xs text-slate-400 break-all')
+            if exit_code is not None:
+                status_color = 'text-green-400' if exit_code == 0 else 'text-red-400'
+                ui.label(f'Exit code: {exit_code}').classes(f'text-sm {status_color}')
+            ui.textarea(value=output).props('readonly outlined').classes('w-full').style(
+                'height: 420px; font-family: monospace;'
+            )
+            with ui.row().classes('w-full justify-end mt-2'):
+                ui.button('Close', on_click=dlg.close).props('color=primary rounded')
+        dlg.open()
+
+    async def run_dof_online_update():
+        api_key = str(
+            getattr(inputs.get('DOF', {}).get('dofconfigtoolapikey'), 'value', '') or ''
+        ).strip()
+        force = bool(getattr(dof_force_checkbox, 'value', False))
+        script_path = find_dof_file('ledcontrol_pull.py')
+
+        if not api_key:
+            ui.notify('DOF Config Tool API Key is required.', type='warning')
+            return
+
+        if script_path is None:
+            show_command_output_dialog(
+                'DOF Online Config Update',
+                ['ledcontrol_pull.py', '--apikey', api_key] + (['--force'] if force else []),
+                'Unable to locate ledcontrol_pull.py in the bundled DOF files.',
+                None,
+            )
+            return
+
+        update_dof_button.disable()
+        update_dof_button.text = 'Running...'
+        try:
+            exit_code, output, command = await run.io_bound(
+                _run_ledcontrol_pull, script_path, api_key, force
+            )
+            show_command_output_dialog('DOF Online Config Update', command, output, exit_code)
+            if exit_code == 0:
+                ui.notify('DOF update completed.', type='positive')
+            else:
+                ui.notify('DOF update failed. See command output.', type='negative')
+        except Exception as e:
+            command = ['ledcontrol_pull.py', '--apikey', api_key] + (['--force'] if force else [])
+            show_command_output_dialog(
+                'DOF Online Config Update',
+                command,
+                str(e),
+                None,
+            )
+            ui.notify('Failed to start DOF update.', type='negative')
+        finally:
+            update_dof_button.text = 'Update DOF via Online Config Tool'
+            update_dof_button.enable()
 
     with ui.column().classes('w-full'):
         # Header card
@@ -277,6 +408,21 @@ def render_panel(tab=None):
                                 
                                 # Store the original INI key so saving works correctly
                                 inputs[section][key] = inp
+
+                            if section == 'DOF':
+                                with ui.card().classes('w-full mt-3 p-3').style(
+                                    'background: #122038; border: 1px solid #334155; border-radius: 10px;'
+                                ):
+                                    ui.label('Online Config Tool').classes('text-lg font-semibold')
+                                    ui.label(
+                                        'Downloads updated DOF config using ledcontrol_pull.py and the API key above.'
+                                    ).classes('text-sm text-slate-300')
+                                    dof_force_checkbox = ui.checkbox('Force update').classes('mt-2 text-white')
+                                    update_dof_button = ui.button(
+                                        'Update DOF via Online Config Tool',
+                                        icon='cloud_download',
+                                        on_click=run_dof_online_update,
+                                    ).props('color=primary rounded').classes('mt-3')
 
                             if section == 'Displays':
                                 with ui.card().classes('w-full mt-3 p-3').style(

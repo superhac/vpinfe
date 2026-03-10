@@ -2,6 +2,8 @@
 /vvv
 *.ini
 *.json
+*.log
+third-party/
 
 # PyInstaller build directories
 build/

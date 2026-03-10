@@ -13,7 +13,7 @@ permissions:
 jobs:
   build:
     env:
-      DOF_VERSION: v1.0.2
+      DOF_VERSION: latest
       DOF_REPO: superhac/libdof-python
     strategy:
       matrix:

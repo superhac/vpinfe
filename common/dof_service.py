@@ -19,22 +19,26 @@ def _is_enabled(iniconfig) -> bool:
         return raw in ('1', 'true', 'yes', 'on')
 
 
-def _find_runner_path(base: Path) -> Path | None:
-    if base.is_file() and base.name in _RUNNER_NAMES:
+def _find_named_path(base: Path, names: tuple[str, ...]) -> Path | None:
+    if base.is_file() and base.name in names:
         return base
     if not base.exists() or not base.is_dir():
         return None
 
-    for name in _RUNNER_NAMES:
+    for name in names:
         direct = base / name
         if direct.exists():
             return direct
 
-    for name in _RUNNER_NAMES:
+    for name in names:
         hits = sorted(base.rglob(name))
         if hits:
             return hits[0]
     return None
+
+
+def _find_runner_path(base: Path) -> Path | None:
+    return _find_named_path(base, _RUNNER_NAMES)
 
 
 def _get_dof_base_candidates() -> list[Path]:
@@ -116,6 +120,19 @@ def _load_runner_class():
         print("[DOF] RandomDofRunner class not found in dof_runner.py")
         return None, dof_dir
     return runner_class, dof_dir
+
+
+def find_dof_file(*names: str) -> Path | None:
+    candidates = _get_dof_base_candidates()
+    valid_names = tuple(name for name in names if name)
+    if not valid_names:
+        return None
+
+    for candidate in candidates:
+        found = _find_named_path(candidate, valid_names)
+        if found is not None:
+            return found
+    return None
 
 
 def start_dof_service_if_enabled(iniconfig) -> bool:

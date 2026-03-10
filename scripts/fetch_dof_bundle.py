@@ -42,13 +42,41 @@ def _tag_candidates(version: str) -> list[str]:
     v = version.strip()
     if not v:
         return []
+    if v.lower() == 'latest':
+        return ['latest']
     if v.startswith('v'):
         return [v, v[1:]]
     return [v, f'v{v}']
 
 
+def _github_api_headers() -> dict[str, str]:
+    github_token = os.environ.get('GITHUB_TOKEN', '').strip()
+    headers = {
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'vpinfe-dof-fetcher',
+    }
+    if github_token:
+        headers['Authorization'] = f'Bearer {github_token}'
+    return headers
+
+
+def _resolve_latest_release_tag(repo: str) -> str:
+    api_url = f"https://api.github.com/repos/{repo}/releases/latest"
+    release = _read_json(api_url, headers=_github_api_headers())
+    tag = str(release.get('tag_name', '')).strip()
+    if not tag:
+        raise RuntimeError(f"[DOF FETCH] Latest release for {repo} did not include a tag_name.")
+    print(f"[DOF FETCH] Resolved latest release tag: {tag}")
+    return tag
+
+
 def _download_manifest(repo: str, version: str, manifest_path: Path) -> str:
     last_err = None
+    version = version.strip()
+    if not version:
+        raise RuntimeError("[DOF FETCH] Version cannot be empty.")
+    if version.lower() == 'latest':
+        version = _resolve_latest_release_tag(repo)
     tags = _tag_candidates(version)
 
     # First pass: try direct release asset URLs for all candidate tags.
@@ -66,13 +94,7 @@ def _download_manifest(repo: str, version: str, manifest_path: Path) -> str:
             print(f"[DOF FETCH] Direct manifest URL not found for tag '{tag}' (404).")
 
     # Second pass: fall back to GitHub Releases API lookup.
-    github_token = os.environ.get('GITHUB_TOKEN', '').strip()
-    api_headers = {
-        'Accept': 'application/vnd.github+json',
-        'User-Agent': 'vpinfe-dof-fetcher',
-    }
-    if github_token:
-        api_headers['Authorization'] = f'Bearer {github_token}'
+    api_headers = _github_api_headers()
 
     for tag in tags:
         api_url = f"https://api.github.com/repos/{repo}/releases/tags/{tag}"
@@ -96,8 +118,8 @@ def _download_manifest(repo: str, version: str, manifest_path: Path) -> str:
                     raise RuntimeError("manifest asset missing browser_download_url")
                 print(f"[DOF FETCH] Downloading manifest asset via API: {dl_url}")
                 download_headers = {'User-Agent': 'vpinfe-dof-fetcher'}
-                if github_token:
-                    download_headers['Authorization'] = f'Bearer {github_token}'
+                if 'Authorization' in api_headers:
+                    download_headers['Authorization'] = api_headers['Authorization']
                 _download_with_headers(dl_url, manifest_path, headers=download_headers)
                 return tag
             print(f"[DOF FETCH] No manifest asset found for tag '{tag}'.")
@@ -122,7 +144,7 @@ def main() -> int:
         description='Fetch and verify a DOF bundle from GitHub release manifest.'
     )
     parser.add_argument('--repo', required=True, help='GitHub repo owner/name')
-    parser.add_argument('--version', required=True, help='Release tag, e.g. v1.0.1')
+    parser.add_argument('--version', default='latest', help='Release tag, e.g. v1.0.1, or "latest"')
     parser.add_argument('--triplet', required=True, help='Manifest triplet, e.g. linux-x64')
     parser.add_argument('--outdir', default='third-party/dof', help='Output directory')
     args = parser.parse_args()
