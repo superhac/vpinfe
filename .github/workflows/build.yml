@@ -22,10 +22,10 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: '3.14'
 
@@ -189,21 +189,21 @@ jobs:
 
       - name: Upload full build artifact (macOS)
         if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-macos-arm64
           path: dist/VPinFE.dmg
 
       - name: Upload full build artifact (Linux)
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-linux-x64
           path: dist/
 
       - name: Upload full build artifact (Windows)
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-win-x64
           path: dist/
@@ -223,7 +223,7 @@ jobs:
 
       - name: Upload slim build artifact (Linux)
         if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-linux-x64-slim
           path: dist/
@@ -245,7 +245,7 @@ jobs:
 
       - name: Upload slim build artifact (Windows)
         if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-win-x64-slim
           path: dist/
@@ -294,7 +294,7 @@ jobs:
 
       - name: Upload slim build artifact (macOS)
         if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-macos-arm64-slim
           path: dist/VPinFE.dmg
@@ -337,7 +337,7 @@ jobs:
           zip -r ../../release/vpinfe-${GITHUB_REF_NAME}-${{ matrix.triplet }}.zip .
 
       - name: Upload release zip artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-zip-${{ matrix.triplet }}
           path: release/vpinfe-${{ github.ref_name }}-${{ matrix.triplet }}.zip
@@ -349,7 +349,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: Download release zip artifacts
         uses: actions/download-artifact@v4
