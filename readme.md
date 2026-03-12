@@ -34,7 +34,7 @@ Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 
 The install is the same for all platforms you need to download the right release for it.  Currently there are two different builds available for each platform:
 
-- A slim build (has slim in its name) is for people who already have chrome or chromium installed locally on there machine. (Recommend bundle)
+- A slim build (has slim in its name) is for people who already have chrome installed locally on there machine. (Recommend bundle)
 - A fat build (no slim in its name and larger binary) that bundles chromium with VPinfe
 
 The latest version can be downloaded from [Releases](https://github.com/superhac/vpinfe/releases).
