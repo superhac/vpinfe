@@ -10,12 +10,15 @@ from .pages import terminal as tab_terminal
 from .pages import remote
 from .pages.remote import _restart_app, _quit_app
 from .pages import mobile as tab_mobile
+import asyncio
 import threading
-import urllib.request
 import os
-import json
-import re
 from common.app_version import get_version
+from common.app_updater import (
+    check_for_updates as check_for_app_updates,
+    launch_prepared_update,
+    prepare_update,
+)
 
 # Shutdown event — set by _quit_app() to unblock headless mode
 import threading as _threading
@@ -41,70 +44,22 @@ _update_check_cache = {
     'error': None,
     'current_version': get_version(),
     'latest_version': None,
+    'update_supported': False,
+    'support_reason': None,
+    'asset_name': None,
+}
+_update_action_state = {
+    'busy': False,
 }
 
-def _parse_tag_version(tag: str) -> tuple[int, int, int] | None:
-    """Parse tags like v1.2.3 into a comparable tuple."""
-    m = re.match(r'^v?(\d+)\.(\d+)\.(\d+)$', (tag or '').strip())
-    if not m:
-        return None
-    return int(m.group(1)), int(m.group(2)), int(m.group(3))
-
-def _get_latest_release_tag() -> str | None:
-    """Get the latest published GitHub release tag."""
-    try:
-        url = 'https://api.github.com/repos/superhac/vpinfe/releases/latest'
-        req = urllib.request.Request(url)
-        req.add_header('User-Agent', 'VPinFE-ReleaseChecker')
-        with urllib.request.urlopen(req, timeout=10) as response:
-            payload = json.loads(response.read().decode('utf-8'))
-            tag_name = payload.get('tag_name', '').strip()
-            if tag_name:
-                return tag_name
-    except Exception as e:
-        print(f"[ReleaseCheck] Failed to fetch latest release tag: {e}")
-    return None
-
 def check_for_updates() -> dict:
-    """
-    Check if a newer tagged release is available.
-    Returns:
-      update_available: bool
-      current_version: str
-      latest_version: str | None
-      error: str | None
-    """
     global _update_check_cache
 
     if _update_check_cache['checked']:
         return _update_check_cache
 
+    _update_check_cache.update(check_for_app_updates())
     _update_check_cache['checked'] = True
-    _update_check_cache['current_version'] = get_version()
-
-    latest_tag = _get_latest_release_tag()
-    if not latest_tag:
-        _update_check_cache['error'] = 'remote_check_failed'
-        return _update_check_cache
-
-    _update_check_cache['latest_version'] = latest_tag
-
-    current = _update_check_cache['current_version']
-    current_ver = _parse_tag_version(current)
-    latest_ver = _parse_tag_version(latest_tag)
-
-    if current_ver is None:
-        # Dev/local builds should still show latest release as available.
-        _update_check_cache['update_available'] = True
-        _update_check_cache['error'] = 'non_release_build'
-        return _update_check_cache
-
-    if latest_ver is None:
-        _update_check_cache['error'] = 'latest_tag_unparseable'
-        return _update_check_cache
-
-    _update_check_cache['update_available'] = latest_ver > current_ver
-
     return _update_check_cache
 
 def header():
@@ -131,17 +86,60 @@ def header():
             ui.icon('sell', size='18px').classes('text-slate-300')
             ui.label(f'Version: {current_version}').classes('text-slate-300 text-sm font-medium')
 
+            async def run_update_install():
+                from nicegui import run
+                if _update_action_state['busy']:
+                    ui.notify('An update is already in progress', type='warning')
+                    return
+
+                _update_action_state['busy'] = True
+                try:
+                    ui.notify('Downloading update package...', type='info')
+                    prepared = await run.io_bound(prepare_update)
+                    await run.io_bound(lambda: launch_prepared_update(prepared))
+                    ui.notify('Update staged. Restarting VPinFE...', type='positive')
+                    _quit_app()
+                except Exception as e:
+                    ui.notify(f'Update failed: {e}', type='negative')
+                finally:
+                    _update_action_state['busy'] = False
+
+            def show_update_dialog(result: dict):
+                with ui.dialog() as dialog, ui.card().classes('bg-slate-900 p-6 w-[28rem]'):
+                    ui.label(f"Update to {result.get('latest_version', 'latest')}?").classes('text-lg font-bold text-white')
+                    ui.label(
+                        'This will download the release package, close VPinFE, replace the install, and relaunch automatically.'
+                    ).classes('text-sm text-slate-300 mt-2')
+
+                    with ui.row().classes('justify-end gap-2 mt-4 w-full'):
+                        ui.button('Cancel', on_click=dialog.close).props('flat').classes('text-slate-300')
+                        ui.button(
+                            'Update Now',
+                            icon='system_update_alt',
+                            on_click=lambda: (dialog.close(), asyncio.create_task(run_update_install())),
+                        ).props('unelevated color=amber')
+                dialog.open()
+
             async def check_updates_async():
                 from nicegui import run
                 result = await run.io_bound(check_for_updates)
                 with update_container:
                     if result.get('update_available'):
                         ui.icon('system_update', size='20px').classes('text-yellow-400')
-                        ui.link(
-                            f"Update Available ({result.get('latest_version', 'latest')})",
-                            'https://github.com/superhac/vpinfe/releases/latest',
-                            new_tab=True
-                        ).classes('text-yellow-400 text-sm font-medium hover:text-yellow-300').style('text-decoration: none;')
+                        if result.get('update_supported'):
+                            ui.button(
+                                f"Update Available ({result.get('latest_version', 'latest')})",
+                                icon='download',
+                                on_click=lambda r=result: show_update_dialog(r),
+                            ).props('flat dense no-caps').classes(
+                                'text-yellow-400 text-sm font-medium hover:text-yellow-300'
+                            )
+                        else:
+                            ui.link(
+                                f"Update Available ({result.get('latest_version', 'latest')})",
+                                'https://github.com/superhac/vpinfe/releases/latest',
+                                new_tab=True
+                            ).classes('text-yellow-400 text-sm font-medium hover:text-yellow-300').style('text-decoration: none;')
                     elif result.get('error') is None:
                         ui.icon('check_circle', size='20px').classes('text-green-400')
                         ui.label('Up to date').classes('text-green-400 text-sm font-medium')
