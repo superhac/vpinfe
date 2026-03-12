@@ -30,6 +30,7 @@ from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.app_version import get_version
 from platformdirs import user_config_dir
 from common.themes import ThemeRegistry
+from common.filelog import setup_file_log
 
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -38,6 +39,7 @@ base_path = os.path.dirname(os.path.abspath(__file__))
 config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
 config_dir.mkdir(parents=True, exist_ok=True)
 config_path = config_dir / "vpinfe.ini"
+setup_file_log(config_dir / "vpinfe.log")
 iniconfig = IniConfig(str(config_path))
 print(f"[VPinFE] Version: {get_version()}")
 
