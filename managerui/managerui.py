@@ -1,5 +1,5 @@
 from __future__ import annotations
-from nicegui import ui, app
+from nicegui import ui, app, context
 from fastapi.responses import JSONResponse
 from .pages import tables as tab_tables
 from .pages import vpinfe_config as tab_vpinfe
@@ -82,6 +82,7 @@ def header():
         # Version + release status (right side of header)
         update_container = ui.row().classes('gap-2 items-center')
         with update_container:
+            page_client = context.client
             current_version = get_version()
             ui.icon('sell', size='18px').classes('text-slate-300')
             ui.label(f'Version: {current_version}').classes('text-slate-300 text-sm font-medium')
@@ -89,18 +90,22 @@ def header():
             async def run_update_install():
                 from nicegui import run
                 if _update_action_state['busy']:
-                    ui.notify('An update is already in progress', type='warning')
+                    with page_client:
+                        ui.notify('An update is already in progress', type='warning')
                     return
 
                 _update_action_state['busy'] = True
                 try:
-                    ui.notify('Downloading update package...', type='info')
+                    with page_client:
+                        ui.notify('Downloading update package...', type='info')
                     prepared = await run.io_bound(prepare_update)
                     await run.io_bound(lambda: launch_prepared_update(prepared))
-                    ui.notify('Update staged. Restarting VPinFE...', type='positive')
-                    _quit_app()
+                    with page_client:
+                        ui.notify('Update staged. Restarting VPinFE...', type='positive')
+                        _quit_app()
                 except Exception as e:
-                    ui.notify(f'Update failed: {e}', type='negative')
+                    with page_client:
+                        ui.notify(f'Update failed: {e}', type='negative')
                 finally:
                     _update_action_state['busy'] = False
 
