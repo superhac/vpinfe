@@ -6,6 +6,7 @@ import os
 import platform
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -59,6 +60,23 @@ def _append_log_line(path: Path, message: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a", encoding="utf-8") as fh:
         fh.write(message.rstrip() + "\n")
+
+
+def _get_windows_powershell() -> str:
+    system_root = Path(os.environ.get("SystemRoot", r"C:\Windows"))
+    candidates = [
+        system_root / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe",
+        Path("powershell.exe"),
+    ]
+    for candidate in candidates:
+        if candidate.name.lower() == "powershell.exe" and str(candidate) == "powershell.exe":
+            resolved = shutil.which(str(candidate))
+            if resolved:
+                return resolved
+            continue
+        if candidate.exists():
+            return str(candidate)
+    return "powershell.exe"
 
 
 def _sha256_file(path: Path) -> str:
@@ -429,19 +447,43 @@ $NewRoot = Join-Path $ExtractRoot 'vpinfe'
 $BackupRoot = "$InstallRoot.bak"
 $StableLog = '{last_log}'
 
+function Write-Stable([string]$Message) {{
+    Add-Content -Path $StableLog -Value $Message
+}}
+
+function Invoke-WithRetry([scriptblock]$Action, [string]$Description, [int]$Attempts = 20, [int]$DelayMs = 500) {{
+    for ($i = 1; $i -le $Attempts; $i++) {{
+        try {{
+            & $Action
+            if ($i -gt 1) {{
+                Write-Output "[Updater] $Description succeeded on retry $i"
+            }}
+            return
+        }}
+        catch {{
+            Write-Output "[Updater] $Description failed on attempt $i: $($_.Exception.Message)"
+            if ($i -eq $Attempts) {{
+                throw
+            }}
+            Start-Sleep -Milliseconds $DelayMs
+        }}
+    }}
+}}
+
 Start-Transcript -Path '{log_file}' -Append | Out-Null
 try {{
-    Add-Content -Path $StableLog -Value "[Updater] Stage log: {log_file}"
-    Add-Content -Path $StableLog -Value "[Updater] Install root: $InstallRoot"
-    Add-Content -Path $StableLog -Value "[Updater] Launch target: $LaunchTarget"
+    Write-Stable "[Updater] Stage log: {log_file}"
+    Write-Stable "[Updater] Install root: $InstallRoot"
+    Write-Stable "[Updater] Launch target: $LaunchTarget"
     Write-Output "[Updater] Waiting for pid $PidToWait to exit"
     while (Get-Process -Id $PidToWait -ErrorAction SilentlyContinue) {{
         Start-Sleep -Seconds 1
     }}
     Write-Output "[Updater] Source process exited"
+    Start-Sleep -Seconds 2
 
     if (Test-Path -LiteralPath $ExtractRoot) {{
-        Remove-Item -LiteralPath $ExtractRoot -Recurse -Force
+        Invoke-WithRetry {{ Remove-Item -LiteralPath $ExtractRoot -Recurse -Force }} "Removing previous extract root"
     }}
     Write-Output "[Updater] Extracting $ZipPath"
     Expand-Archive -LiteralPath $ZipPath -DestinationPath $ExtractRoot -Force
@@ -452,12 +494,12 @@ try {{
     Write-Output "[Updater] Extraction complete"
 
     if (Test-Path -LiteralPath $BackupRoot) {{
-        Remove-Item -LiteralPath $BackupRoot -Recurse -Force
+        Invoke-WithRetry {{ Remove-Item -LiteralPath $BackupRoot -Recurse -Force }} "Removing previous backup"
     }}
 
-    Rename-Item -LiteralPath $InstallRoot -NewName ([IO.Path]::GetFileName($BackupRoot))
+    Invoke-WithRetry {{ Rename-Item -LiteralPath $InstallRoot -NewName ([IO.Path]::GetFileName($BackupRoot)) }} "Renaming install root to backup"
     Write-Output "[Updater] Moved current install to backup: $BackupRoot"
-    Move-Item -LiteralPath $NewRoot -Destination $InstallRoot
+    Invoke-WithRetry {{ Move-Item -LiteralPath $NewRoot -Destination $InstallRoot }} "Moving extracted install into place"
     Write-Output "[Updater] Installed new version into $InstallRoot"
     $proc = Start-Process -FilePath $LaunchTarget -WorkingDirectory $InstallRoot -PassThru
     Write-Output "[Updater] Relaunch started with pid $($proc.Id)"
@@ -468,14 +510,15 @@ try {{
     else {{
         Write-Output "[Updater] Relaunch process exited quickly"
     }}
-    Remove-Item -LiteralPath $BackupRoot -Recurse -Force
-    Remove-Item -LiteralPath $ExtractRoot -Recurse -Force
+    Invoke-WithRetry {{ Remove-Item -LiteralPath $BackupRoot -Recurse -Force }} "Removing backup after successful relaunch"
+    Invoke-WithRetry {{ Remove-Item -LiteralPath $ExtractRoot -Recurse -Force }} "Removing extract root after successful relaunch"
     Write-Output "[Updater] Update applied successfully"
 }}
 catch {{
     Write-Output "[Updater] ERROR: $($_.Exception.Message)"
+    Write-Stable "[Updater] ERROR: $($_.Exception.Message)"
     if (-not (Test-Path -LiteralPath $InstallRoot) -and (Test-Path -LiteralPath $BackupRoot)) {{
-        Rename-Item -LiteralPath $BackupRoot -NewName ([IO.Path]::GetFileName($InstallRoot))
+        Invoke-WithRetry {{ Rename-Item -LiteralPath $BackupRoot -NewName ([IO.Path]::GetFileName($InstallRoot)) }} "Restoring backup"
     }}
     throw
 }}
@@ -496,12 +539,14 @@ def launch_prepared_update(prepared: dict) -> None:
         script_path = stage_dir / "apply_update.ps1"
         script_path.write_text(_build_windows_update_script(prepared, current_pid, log_path), encoding="utf-8")
         _append_log_line(Path(prepared["last_update_log"]), f"[Updater] PowerShell script written to {script_path}")
+        powershell_exe = _get_windows_powershell()
+        _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Using PowerShell at {powershell_exe}")
         flags = 0
-        for flag_name in ("DETACHED_PROCESS", "CREATE_NEW_PROCESS_GROUP", "CREATE_NO_WINDOW"):
+        for flag_name in ("DETACHED_PROCESS", "CREATE_NEW_PROCESS_GROUP"):
             flags |= getattr(subprocess, flag_name, 0)
         subprocess.Popen(
             [
-                "powershell",
+                powershell_exe,
                 "-NoProfile",
                 "-ExecutionPolicy",
                 "Bypass",
@@ -509,7 +554,6 @@ def launch_prepared_update(prepared: dict) -> None:
                 str(script_path),
             ],
             creationflags=flags,
-            close_fds=True,
         )
         return
 
