@@ -429,6 +429,10 @@ def _ps_literal(value: str) -> str:
     return value.replace("'", "''")
 
 
+def _cmd_literal(value: str) -> str:
+    return value.replace("^", "^^").replace("&", "^&").replace("<", "^<").replace(">", "^>").replace("|", "^|")
+
+
 def _build_windows_update_script(prepared: dict, current_pid: int, log_path: Path) -> str:
     zip_path = _ps_literal(prepared["zip_path"])
     stage_dir = _ps_literal(prepared["stage_dir"])
@@ -528,6 +532,20 @@ finally {{
 """
 
 
+def _build_windows_bootstrap_script(powershell_exe: str, script_path: Path, stable_log: Path) -> str:
+    ps_path = _cmd_literal(str(Path(powershell_exe)))
+    updater_script = _cmd_literal(str(script_path))
+    stable_log_path = _cmd_literal(str(stable_log))
+    return f"""@echo off
+setlocal
+echo [Updater] Bootstrap starting >> "{stable_log_path}"
+start "" /min "{ps_path}" -NoProfile -ExecutionPolicy Bypass -File "{updater_script}"
+set EXIT_CODE=%ERRORLEVEL%
+echo [Updater] Bootstrap launched PowerShell with exit code %EXIT_CODE% >> "{stable_log_path}"
+exit /b %EXIT_CODE%
+"""
+
+
 def launch_prepared_update(prepared: dict) -> None:
     stage_dir = Path(prepared["stage_dir"])
     stage_dir.mkdir(parents=True, exist_ok=True)
@@ -541,19 +559,29 @@ def launch_prepared_update(prepared: dict) -> None:
         _append_log_line(Path(prepared["last_update_log"]), f"[Updater] PowerShell script written to {script_path}")
         powershell_exe = _get_windows_powershell()
         _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Using PowerShell at {powershell_exe}")
-        flags = 0
-        for flag_name in ("DETACHED_PROCESS", "CREATE_NEW_PROCESS_GROUP"):
-            flags |= getattr(subprocess, flag_name, 0)
+        bootstrap_path = stage_dir / "launch_update.cmd"
+        bootstrap_path.write_text(
+            _build_windows_bootstrap_script(
+                powershell_exe=powershell_exe,
+                script_path=script_path,
+                stable_log=Path(prepared["last_update_log"]),
+            ),
+            encoding="utf-8",
+        )
+        _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Bootstrap script written to {bootstrap_path}")
+        cmd_exe = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "cmd.exe")
+        _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Launching bootstrap via {cmd_exe} /c {bootstrap_path}")
+        flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
         subprocess.Popen(
             [
-                powershell_exe,
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                str(script_path),
+                cmd_exe,
+                "/c",
+                str(bootstrap_path),
             ],
             creationflags=flags,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
         )
         return
 
