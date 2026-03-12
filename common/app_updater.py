@@ -19,6 +19,7 @@ from common.app_version import get_version
 
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 UPDATES_DIR = CONFIG_DIR / "updates"
+LAST_UPDATE_LOG = CONFIG_DIR / "last_update.log"
 LATEST_RELEASE_URL = "https://api.github.com/repos/superhac/vpinfe/releases/latest"
 USER_AGENT = "VPinFE-Updater"
 
@@ -52,6 +53,12 @@ def _download_file(url: str, dest: Path) -> None:
                 if not chunk:
                     break
                 fh.write(chunk)
+
+
+def _append_log_line(path: Path, message: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as fh:
+        fh.write(message.rstrip() + "\n")
 
 
 def _sha256_file(path: Path) -> str:
@@ -134,8 +141,7 @@ def get_install_context() -> dict:
     elif system == "Windows":
         triplet = "win-x64"
         install_root = exe_path.parent
-        bat_launcher = install_root / "vpinfe.bat"
-        launch_target = bat_launcher if bat_launcher.exists() else exe_path
+        launch_target = exe_path
     elif system == "Darwin":
         if machine not in {"arm64", "aarch64"}:
             context["reason"] = "unsupported_architecture"
@@ -283,21 +289,28 @@ def prepare_update() -> dict:
 
     stage_dir = UPDATES_DIR / latest_tag / (context["triplet"] or "unknown")
     stage_dir.mkdir(parents=True, exist_ok=True)
+    _append_log_line(LAST_UPDATE_LOG, f"[Updater] Preparing update {latest_tag} for {context['triplet']}")
 
     zip_path = stage_dir / asset_name
     if zip_path.exists() and _sha256_file(zip_path) != expected_sha:
+        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Removing stale cached asset {zip_path}")
         zip_path.unlink()
 
     if not zip_path.exists():
         temp_path = stage_dir / f"{asset_name}.part"
         if temp_path.exists():
             temp_path.unlink()
+        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Downloading {asset_name} to {temp_path}")
         _download_file(asset_url, temp_path)
         actual_sha = _sha256_file(temp_path)
+        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Downloaded asset sha256={actual_sha}")
         if actual_sha != expected_sha:
             temp_path.unlink(missing_ok=True)
             raise UpdateError("Downloaded update failed checksum verification")
         temp_path.replace(zip_path)
+        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Cached verified asset at {zip_path}")
+    else:
+        _append_log_line(LAST_UPDATE_LOG, f"[Updater] Reusing cached asset {zip_path}")
 
     return {
         "latest_version": latest_tag,
@@ -308,6 +321,7 @@ def prepare_update() -> dict:
         "platform": context["platform"],
         "triplet": context["triplet"],
         "asset_name": asset_name,
+        "last_update_log": str(LAST_UPDATE_LOG),
     }
 
 
@@ -317,6 +331,7 @@ def _build_posix_update_script(prepared: dict, current_pid: int, log_path: Path)
     install_root = shlex.quote(prepared["install_root"])
     launch_target = shlex.quote(prepared["launch_target"])
     log_file = shlex.quote(str(log_path))
+    last_log = shlex.quote(prepared["last_update_log"])
     return f"""#!/bin/sh
 set -eu
 
@@ -326,18 +341,28 @@ STAGE_DIR={stage_dir}
 INSTALL_ROOT={install_root}
 LAUNCH_TARGET={launch_target}
 LOG_PATH={log_file}
+LAST_LOG={last_log}
 EXTRACT_ROOT="$STAGE_DIR/extracted"
 NEW_ROOT="$EXTRACT_ROOT/vpinfe"
 BACKUP_ROOT="${{INSTALL_ROOT}}.bak"
 
+mkdir -p "$(dirname "$LOG_PATH")"
+: >"$LOG_PATH"
 exec >>"$LOG_PATH" 2>&1
+echo "[Updater] Stage log: $LOG_PATH"
+echo "[Updater] Stable log: $LAST_LOG"
+echo "[Updater] Stage log: $LOG_PATH" >>"$LAST_LOG"
+echo "[Updater] Install root: $INSTALL_ROOT" >>"$LAST_LOG"
+echo "[Updater] Launch target: $LAUNCH_TARGET" >>"$LAST_LOG"
 echo "[Updater] Waiting for pid $PID to exit"
 while kill -0 "$PID" 2>/dev/null; do
     sleep 1
 done
+echo "[Updater] Source process exited"
 
 rm -rf "$EXTRACT_ROOT"
 mkdir -p "$EXTRACT_ROOT"
+echo "[Updater] Extracting $ZIP_PATH"
 
 if command -v unzip >/dev/null 2>&1; then
     unzip -q "$ZIP_PATH" -d "$EXTRACT_ROOT"
@@ -352,12 +377,24 @@ if [ ! -d "$NEW_ROOT" ]; then
     echo "[Updater] Extracted update missing vpinfe directory"
     exit 1
 fi
+echo "[Updater] Extraction complete"
 
 rm -rf "$BACKUP_ROOT"
 mv "$INSTALL_ROOT" "$BACKUP_ROOT"
+echo "[Updater] Moved current install to backup: $BACKUP_ROOT"
 if mv "$NEW_ROOT" "$INSTALL_ROOT"; then
+    echo "[Updater] Installed new version into $INSTALL_ROOT"
     chmod +x "$LAUNCH_TARGET" 2>/dev/null || true
+    cd "$INSTALL_ROOT"
     nohup "$LAUNCH_TARGET" >/dev/null 2>&1 &
+    NEW_PID=$!
+    echo "[Updater] Relaunch started with pid $NEW_PID"
+    sleep 3
+    if kill -0 "$NEW_PID" 2>/dev/null; then
+        echo "[Updater] Relaunch appears to be running"
+    else
+        echo "[Updater] Relaunch process exited quickly"
+    fi
     rm -rf "$BACKUP_ROOT"
     rm -rf "$EXTRACT_ROOT"
     echo "[Updater] Update applied successfully"
@@ -380,6 +417,7 @@ def _build_windows_update_script(prepared: dict, current_pid: int, log_path: Pat
     install_root = _ps_literal(prepared["install_root"])
     launch_target = _ps_literal(prepared["launch_target"])
     log_file = _ps_literal(str(log_path))
+    last_log = _ps_literal(prepared["last_update_log"])
     return f"""$ErrorActionPreference = 'Stop'
 $PidToWait = {current_pid}
 $ZipPath = '{zip_path}'
@@ -389,36 +427,53 @@ $LaunchTarget = '{launch_target}'
 $ExtractRoot = Join-Path $StageDir 'extracted'
 $NewRoot = Join-Path $ExtractRoot 'vpinfe'
 $BackupRoot = "$InstallRoot.bak"
+$StableLog = '{last_log}'
 
 Start-Transcript -Path '{log_file}' -Append | Out-Null
 try {{
+    Add-Content -Path $StableLog -Value "[Updater] Stage log: {log_file}"
+    Add-Content -Path $StableLog -Value "[Updater] Install root: $InstallRoot"
+    Add-Content -Path $StableLog -Value "[Updater] Launch target: $LaunchTarget"
     Write-Output "[Updater] Waiting for pid $PidToWait to exit"
     while (Get-Process -Id $PidToWait -ErrorAction SilentlyContinue) {{
         Start-Sleep -Seconds 1
     }}
+    Write-Output "[Updater] Source process exited"
 
     if (Test-Path -LiteralPath $ExtractRoot) {{
         Remove-Item -LiteralPath $ExtractRoot -Recurse -Force
     }}
+    Write-Output "[Updater] Extracting $ZipPath"
     Expand-Archive -LiteralPath $ZipPath -DestinationPath $ExtractRoot -Force
 
     if (-not (Test-Path -LiteralPath $NewRoot)) {{
         throw "Extracted update missing vpinfe directory"
     }}
+    Write-Output "[Updater] Extraction complete"
 
     if (Test-Path -LiteralPath $BackupRoot) {{
         Remove-Item -LiteralPath $BackupRoot -Recurse -Force
     }}
 
     Rename-Item -LiteralPath $InstallRoot -NewName ([IO.Path]::GetFileName($BackupRoot))
+    Write-Output "[Updater] Moved current install to backup: $BackupRoot"
     Move-Item -LiteralPath $NewRoot -Destination $InstallRoot
-    Start-Process -FilePath $LaunchTarget -WorkingDirectory $InstallRoot
+    Write-Output "[Updater] Installed new version into $InstallRoot"
+    $proc = Start-Process -FilePath $LaunchTarget -WorkingDirectory $InstallRoot -PassThru
+    Write-Output "[Updater] Relaunch started with pid $($proc.Id)"
+    Start-Sleep -Seconds 3
+    if (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue) {{
+        Write-Output "[Updater] Relaunch appears to be running"
+    }}
+    else {{
+        Write-Output "[Updater] Relaunch process exited quickly"
+    }}
     Remove-Item -LiteralPath $BackupRoot -Recurse -Force
     Remove-Item -LiteralPath $ExtractRoot -Recurse -Force
     Write-Output "[Updater] Update applied successfully"
 }}
 catch {{
-    Write-Output "[Updater] $_"
+    Write-Output "[Updater] ERROR: $($_.Exception.Message)"
     if (-not (Test-Path -LiteralPath $InstallRoot) -and (Test-Path -LiteralPath $BackupRoot)) {{
         Rename-Item -LiteralPath $BackupRoot -NewName ([IO.Path]::GetFileName($InstallRoot))
     }}
@@ -435,10 +490,12 @@ def launch_prepared_update(prepared: dict) -> None:
     stage_dir.mkdir(parents=True, exist_ok=True)
     current_pid = os.getpid()
     log_path = stage_dir / "apply_update.log"
+    _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Launching detached updater for {prepared['latest_version']}")
 
     if platform.system() == "Windows":
         script_path = stage_dir / "apply_update.ps1"
         script_path.write_text(_build_windows_update_script(prepared, current_pid, log_path), encoding="utf-8")
+        _append_log_line(Path(prepared["last_update_log"]), f"[Updater] PowerShell script written to {script_path}")
         flags = 0
         for flag_name in ("DETACHED_PROCESS", "CREATE_NEW_PROCESS_GROUP", "CREATE_NO_WINDOW"):
             flags |= getattr(subprocess, flag_name, 0)
@@ -459,6 +516,7 @@ def launch_prepared_update(prepared: dict) -> None:
     script_path = stage_dir / "apply_update.sh"
     script_path.write_text(_build_posix_update_script(prepared, current_pid, log_path), encoding="utf-8")
     script_path.chmod(0o755)
+    _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Shell script written to {script_path}")
     subprocess.Popen(
         ["/bin/sh", str(script_path)],
         start_new_session=True,
