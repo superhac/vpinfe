@@ -159,14 +159,6 @@ def _get_logger_level_options(current_value: str = ''):
     return options
 
 
-def _get_logger_console_options(current_value: str = ''):
-    options = ['true', 'false']
-    current = (current_value or '').strip().lower()
-    if current not in options:
-        current = 'true'
-    return options, current
-
-
 def _get_ledcontrol_command(script_path: Path, api_key: str, force: bool) -> list[str]:
     """Build the displayed ledcontrol_pull command."""
     api_key = api_key.strip()
@@ -310,7 +302,10 @@ def render_panel(tab=None):
     def save_config():
         for section, keys in inputs.items():
             for key, inp in keys.items():
-                config.config.set(section, key, inp.value)
+                if type(inp.value) is bool:
+                    config.config.set(section, key, str(inp.value).lower())
+                else:
+                    config.config.set(section, key, inp.value)
         with open(INI_PATH, 'w') as f:
             config.config.write(f)
         ui.notify('Configuration Saved', type='positive')
@@ -429,15 +424,10 @@ def render_panel(tab=None):
                                         value=value
                                     ).classes('config-input').style('min-width: 200px;')
                                 # Special handling for startup media auto-update in Settings
-                                elif (section == 'Settings' and key == 'autoupdatemediaonstartup') or (section == 'Displays' and key == 'cabmode') or (section == 'Displays' and key == 'splashscreen') or (section == 'DOF' and key == 'enabledof'):
-                                    bool_options = ['true', 'false']
-                                    normalized = (value or '').strip().lower()
-                                    if normalized not in bool_options:
-                                        normalized = 'false'
-                                    inp = ui.select(
-                                        label=friendly_label,
-                                        options=bool_options,
-                                        value=normalized
+                                elif (section == 'Settings' and key == 'autoupdatemediaonstartup') or (section == 'Displays' and key == 'cabmode') or (section == 'Logger' and key == 'console') or (section == 'Displays' and key == 'splashscreen') or (section == 'DOF' and key == 'enabledof'):
+                                    inp = ui.checkbox(
+                                        text=friendly_label,
+                                        value=(value == "true")
                                     ).classes('config-input').style('min-width: 200px;')
                                 # Special handling for monitor IDs in Displays
                                 elif section == 'Displays' and key in ('tablescreenid', 'bgscreenid', 'dmdscreenid'):
@@ -453,13 +443,6 @@ def render_panel(tab=None):
                                     inp = ui.select(
                                         label=friendly_label,
                                         options=level_options,
-                                        value=normalized
-                                    ).classes('config-input').style('min-width: 200px;')
-                                elif section == 'Logger' and key == 'console':
-                                    console_options, normalized = _get_logger_console_options(value)
-                                    inp = ui.select(
-                                        label=friendly_label,
-                                        options=console_options,
                                         value=normalized
                                     ).classes('config-input').style('min-width: 200px;')
                                 else:
