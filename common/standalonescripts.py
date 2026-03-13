@@ -1,6 +1,10 @@
 import requests
+import logging
 from common.metaconfig import MetaConfig
 import os
+
+
+logger = logging.getLogger("vpinfe.common.standalonescripts")
 
 class StandaloneScripts:
 
@@ -10,7 +14,7 @@ class StandaloneScripts:
         self.hashes = None
         self.tables = tables
         self.progress_cb = progress_cb
-        print("VPX-Standalone-Scripts Patching System initialized.")
+        logger.info("VPX-Standalone-Scripts Patching System initialized.")
         self.downloadHashes()
         self.checkForPatches()
         
@@ -18,9 +22,9 @@ class StandaloneScripts:
         response = requests.get(StandaloneScripts.hashsUrl)
         if response.status_code == 200:
             self.hashes = response.json()
-            print(f"Retrieved hash file from VPX-Standalone-Scripts with {len(self.hashes)} patched tables.")
+            logger.info("Retrieved hash file from VPX-Standalone-Scripts with %s patched tables.", len(self.hashes))
         else:
-            print('Failed to download hash file from VPX-Standalone-Scripts')
+            logger.warning("Failed to download hash file from VPX-Standalone-Scripts")
             
     def checkForPatches(self):
          total = len(self.tables) if self.tables else 0
@@ -36,12 +40,12 @@ class StandaloneScripts:
              try:
                 meta = MetaConfig(basepath+"/"+table.tableDirName+".info")
                 vpxFileVBSHash = meta.data['VPXFile']['vbsHash']
-                print(f"Checking {table.tableDirName}")
+                logger.info("Checking %s", table.tableDirName)
                 for patch in self.hashes:
                     if patch["sha256"] == vpxFileVBSHash:
-                        print(f"Found a match for {table.fullPathVPXfile}")
+                        logger.info("Found a match for %s", table.fullPathVPXfile)
                         if os.path.exists(os.path.splitext(table.fullPathVPXfile)[0] + ".vbs"):
-                            print(f"A .vbs sidecar file already exists for that table. Assuming it is a patch.")
+                            logger.info("A .vbs sidecar file already exists for that table. Assuming it is a patch.")
                             try:
                                 table_dir = os.path.dirname(table.fullPathVPXfile)
                                 meta = MetaConfig(os.path.join(table_dir, table.tableDirName + '.info'))
@@ -73,7 +77,7 @@ class StandaloneScripts:
             with open(filename, "wb") as file:
                 for chunk in response.iter_content(chunk_size=1024):
                     file.write(chunk)
-            print(f"File downloaded successfully: {filename}")
+            logger.info("File downloaded successfully: %s", filename)
             # also set patch_applied in .info if possible (derive from filename)
             try:
                 table_dir = os.path.dirname(filename)
@@ -84,5 +88,4 @@ class StandaloneScripts:
             except Exception:
                 pass
         else:
-            print(f"Failed to download {filename}. Status code: {response.status_code}")
-
+            logger.warning("Failed to download %s. Status code: %s", filename, response.status_code)

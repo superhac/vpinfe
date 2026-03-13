@@ -1,6 +1,10 @@
 # vpxcollections.py
 import configparser
+import logging
 from pathlib import Path
+
+
+logger = logging.getLogger("vpinfe.common.vpxcollections")
 
 
 class VPXCollections:
@@ -11,7 +15,7 @@ class VPXCollections:
 
         if self.ini_path.exists():
             self.config.read(self.ini_path)
-            print("Found collections file...")
+            logger.info("Found collections file...")
 
     def reload(self):
         """Reload the ini file from disk (discard unsaved changes)."""

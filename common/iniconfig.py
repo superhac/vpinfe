@@ -1,5 +1,9 @@
 import configparser
+import logging
 import os
+
+
+logger = logging.getLogger("vpinfe.common.iniconfig")
 
 class IniConfig:
 
@@ -34,9 +38,8 @@ class IniConfig:
 				'joycollectionmenu': '',
 				},
 			'Logger': {
-				'level': 'info',
-				'console': '1',
-				'file': '',
+				'level': 'debug',
+				'console': 'true',
 				},
 				'Media': {
 					'tabletype': 'table',
@@ -67,7 +70,7 @@ class IniConfig:
 		# check if the file exists
 		self.is_new = False
 		if not os.path.exists(configfilepath):
-				print(f"Generating a default 'vpinfe.ini' at: {configfilepath}")
+				logger.info("Generating a default 'vpinfe.ini' at: %s", configfilepath)
 				self.is_new = True
 				self.formatDefaults()
 				self.save()
@@ -96,6 +99,11 @@ class IniConfig:
 			if not self.config.has_option('DOF', 'enabledof'):
 				self.config.set('DOF', 'enabledof', self.config.get('Settings', 'enabledof'))
 			self.config.remove_option('Settings', 'enabledof')
+			changed = True
+
+		# Remove legacy Logger.file option; logs always go to the standard config dir file.
+		if self.config.has_option('Logger', 'file'):
+			self.config.remove_option('Logger', 'file')
 			changed = True
 
 		if changed:

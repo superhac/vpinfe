@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import logging
 import olefile
 import json
 import struct
@@ -9,6 +10,9 @@ import re
 import csv
 import pathlib
 import sys
+
+
+logger = logging.getLogger("vpinfe.common.vpxparser")
 
 
 class VPXParser:
@@ -140,9 +144,9 @@ class VPXParser:
         for key, value in vpxFileValues.items():
             if key in ('gameData', 'tableRules', 'tableDescription'):
                 preview = (value[:50] + "....") if value else ""
-                print(f"{key}: \"{preview}\"")
+                logger.info("%s: \"%s\"", key, preview)
             else:
-                print(f"{key}: \"{value}\"")
+                logger.info("%s: \"%s\"", key, value)
 
     # -------------------------------
     # Extraction helpers
@@ -178,16 +182,16 @@ class VPXParser:
     # -------------------------------
     def singleFileExtract(self, vpxFile):
         if not os.path.exists(vpxFile):
-            print(f"File not found: {vpxFile}")
+            logger.warning("File not found: %s", vpxFile)
             return None
         if not olefile.isOleFile(vpxFile):
-            print(f"Not an OLE file: {vpxFile}")
+            logger.warning("Not an OLE file: %s", vpxFile)
             return None
         return self.extractFile(vpxFile)
 
     def bulkFileExtract(self, vpxFileDir, writer):
         files = self.getAllVpxFilesFromDir(vpxFileDir)
-        print(f"Total Files: {len(files)}")
+        logger.info("Total Files: %s", len(files))
         for file in files:
             vpxFileValues = self.extractFile(file)
             self.printFileValues(vpxFileValues)
@@ -223,13 +227,13 @@ class VPXParser:
     def findFileSHAMatch(self, tables, vpxFileValues):
         for table in tables:
             if vpxFileValues['fileHash'] == table['fileHash']:
-                print("Found FILE hash match.")
+                logger.info("Found FILE hash match.")
                 return table
         return None
 
     def findCodeSHAMatch(self, tables, vpxFileValues):
         for table in tables:
             if vpxFileValues['codeSha256Hash'] == table['codeSha256Hash']:
-                print("Found CODE hash match.")
+                logger.info("Found CODE hash match.")
                 return table
         return None

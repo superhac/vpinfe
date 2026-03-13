@@ -8,6 +8,7 @@ positioned on the correct monitor with fullscreen.
 
 import os
 import sys
+import logging
 from shutil import which
 from collections import namedtuple
 import platform
@@ -16,6 +17,9 @@ import tempfile
 import signal
 import threading
 import time
+
+
+logger = logging.getLogger("vpinfe.frontend.chromium_manager")
 
 
 def resource_path(relative_path):
@@ -169,8 +173,15 @@ class ChromiumManager:
         if mute_audio:
             args.append("--mute-audio")
 
-        print(f"[Chromium] Launching '{window_name}' on monitor {index} "
-              f"({monitor.width}x{monitor.height} at {monitor.x},{monitor.y})")
+        logger.info(
+            "Launching '%s' on monitor %s (%sx%s at %s,%s)",
+            window_name,
+            index,
+            monitor.width,
+            monitor.height,
+            monitor.x,
+            monitor.y,
+        )
 
         # Launch in its own process group so we can kill the entire tree on shutdown
         # (Chromium spawns renderers, GPU, zygote children that must all be killed)
@@ -191,11 +202,11 @@ class ChromiumManager:
         """
         if sys.platform == "darwin":
             monitors = get_mac_screens()
-            print(f"[Chromium] Detected {len(monitors)} macOS screens (via NSScreen): {monitors}")
+            logger.info("Detected %s macOS screens (via NSScreen): %s", len(monitors), monitors)
         else:
             from screeninfo import get_monitors
             monitors = get_monitors()
-            print(f"[Chromium] Detected {len(monitors)} monitors: {monitors}")
+            logger.info("Detected %s monitors: %s", len(monitors), monitors)
 
         theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
 
@@ -213,7 +224,7 @@ class ChromiumManager:
 
             screen_id = int(screen_id_str)
             if screen_id >= len(monitors):
-                print(f"[Chromium] Warning: {config_key}={screen_id} but only {len(monitors)} monitors found")
+                logger.warning("%s=%s but only %s monitors found", config_key, screen_id, len(monitors))
                 continue
 
             monitor = monitors[screen_id]
@@ -232,7 +243,7 @@ class ChromiumManager:
                 mute_audio=(window_name != 'table')
             )
 
-        print(f"[Chromium] Launched {len(self._processes)} browser windows")
+        logger.info("Launched %s browser windows", len(self._processes))
 
         # macOS: ensure the table window gets focus after all windows launch
         if sys.platform == "darwin":
@@ -246,10 +257,10 @@ class ChromiumManager:
             AppKit.NSApp.activateIgnoringOtherApps_(True)
             for win_name, proc, _, _ in self._processes:
                 if win_name == 'table':
-                    print("[Chromium] macOS: activating app focus for table window")
+                    logger.info("macOS: activating app focus for table window")
                     break
-        except Exception as e:
-            print(f"[Chromium] macOS focus activation failed: {e}")
+        except Exception:
+            logger.exception("macOS focus activation failed")
 
     def activate_all_mac(self):
         """macOS: re-activate all Chromium windows after an external app (e.g. VPX) exits.
@@ -267,9 +278,9 @@ class ChromiumManager:
                         AppKit.NSApplicationActivateIgnoringOtherApps
                     )
                     activated += 1
-            print(f"[Chromium] macOS: re-activated {activated} Chromium windows after VPX exit")
-        except Exception as e:
-            print(f"[Chromium] macOS re-activation failed: {e}")
+            logger.info("macOS: re-activated %s Chromium windows after VPX exit", activated)
+        except Exception:
+            logger.exception("macOS re-activation failed")
 
     @staticmethod
     def _get_descendant_pids(pid):
@@ -294,44 +305,44 @@ class ChromiumManager:
                     ['taskkill', '/F', '/T', '/PID', str(proc.pid)],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
                 )
-            except Exception as e:
-                print(f"[Chromium] taskkill failed for '{window_name}': {e}")
+            except Exception:
+                logger.exception("taskkill failed for '%s'", window_name)
         else:
             # Walk /proc to find ALL descendants (regardless of process group)
             # then kill children first, parent last
             sig = signal.SIGKILL if force else signal.SIGTERM
             all_pids = self._get_descendant_pids(proc.pid)
             all_pids.append(proc.pid)
-            print(f"[Chromium] Killing '{window_name}' tree: {all_pids} with signal {sig}")
+            logger.info("Killing '%s' tree: %s with signal %s", window_name, all_pids, sig)
             for pid in all_pids:
                 try:
                     os.kill(pid, sig)
                 except ProcessLookupError:
                     pass
-                except Exception as e:
-                    print(f"[Chromium] kill {pid} failed: {e}")
+                except Exception:
+                    logger.exception("kill %s failed", pid)
 
     def terminate_all(self):
         """Terminate all Chromium processes immediately."""
-        print("[Chromium] Terminating all browser windows...")
+        logger.info("Terminating all browser windows...")
         for window_name, proc, temp_dir, _ in self._processes:
             try:
                 if proc.poll() is None:  # still running
                     # Use force=True (SIGKILL) directly - no need for graceful shutdown
                     self._kill_process_tree(proc, window_name, force=True)
-            except Exception as e:
-                print(f"[Chromium] Error terminating '{window_name}': {e}")
+            except Exception:
+                logger.exception("Error terminating '%s'", window_name)
 
         # Wait for parent processes to be reaped
         for window_name, proc, temp_dir, _ in self._processes:
             try:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
-                print(f"[Chromium] Warning: '{window_name}' still not reaped")
+                logger.warning("'%s' still not reaped", window_name)
 
         self._processes.clear()
         self._exit_event.set()
-        print("[Chromium] All browser windows closed.")
+        logger.info("All browser windows closed.")
 
     def wait_for_exit(self):
         """Block until all Chromium processes have exited.
@@ -348,7 +359,7 @@ class ChromiumManager:
             while self._processes and not self._exit_event.is_set():
                 for window_name, proc, temp_dir, _ in list(self._processes):
                     if proc.poll() is not None:
-                        print(f"[Chromium] Window '{window_name}' exited (code {proc.returncode})")
+                        logger.info("Window '%s' exited (code %s)", window_name, proc.returncode)
                         # One window exited - shut everything down
                         self.terminate_all()
                         return

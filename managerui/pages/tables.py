@@ -289,7 +289,7 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
     invalidate_media_cache()
 
 
-logger = logging.getLogger("tables")
+logger = logging.getLogger("vpinfe.manager.tables")
 
 def get_tables_path() -> str:
     """Resolve tables path from vpinfe.ini [Settings] tablerootdir, fallback to ~/tables."""
@@ -530,7 +530,7 @@ def render_panel(tab=None):
             If silent=True, suppress user notifications.
             """
             global _tables_cache, _missing_cache
-            print("Scanning tables...")
+            logger.info("Scanning tables...")
             # Keep UX simple: disable the Scan button during work, no pre-notify
             try:
                 scan_btn.disable()

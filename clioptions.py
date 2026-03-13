@@ -14,13 +14,16 @@ from common.vpsdb import VPSdb
 from common.metaconfig import MetaConfig
 from common.vpxparser import VPXParser
 from common.standalonescripts import StandaloneScripts
+from common.logging_config import get_logger
 from frontend.customhttpserver import CustomHTTPServer
+
+logger = get_logger("vpinfe.cli")
 
 # Initialize config
 config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
 config_dir.mkdir(parents=True, exist_ok=True)
 config_path = config_dir / "vpinfe.ini"
-print(f"Using config file at: {config_path}")
+logger.info("Using config file at: %s", config_path)
 iniconfig = IniConfig(str(config_path))
 
 
@@ -35,7 +38,7 @@ def _norm_path(p: str) -> str:
 def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName: str = None, userMedia: bool = False, progress_cb=None, log_cb=None):
 
     def log(msg):
-        print(msg)
+        logger.info(msg)
         if log_cb:
             log_cb(msg)
 
@@ -137,12 +140,12 @@ def listMissingTables():
     tp = TableParser(iniconfig.config['Settings']['tablerootdir'], iniconfig)
     tp.loadTables(reload=True)
     tables = tp.getAllTables()
-    print(f"Listing tables missing from {iniconfig.config['Settings']['tablerootdir']}")
+    logger.info("Listing tables missing from %s", iniconfig.config['Settings']['tablerootdir'])
     total = len(tables)
-    print(f"Found {total} tables in {iniconfig.config['Settings']['tablerootdir']}")
+    logger.info("Found %s tables in %s", total, iniconfig.config['Settings']['tablerootdir'])
 
     vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
-    print(f"Found {len(vps)} tables in VPSdb")
+    logger.info("Found %s tables in VPSdb", len(vps))
 
     tables_found = []
     for table in tables:
@@ -161,7 +164,13 @@ def listMissingTables():
     for vpsTable in vps.tables():
         if vpsTable not in tables_found:
             current += 1
-            print(f"Missing table {current}: {vpsTable['name']} ({vpsTable['manufacturer']} {vpsTable['year']})")
+            logger.info(
+                "Missing table %s: %s (%s %s)",
+                current,
+                vpsTable["name"],
+                vpsTable["manufacturer"],
+                vpsTable["year"],
+            )
 
 
 def listUnknownTables():
@@ -169,12 +178,12 @@ def listUnknownTables():
     tp = TableParser(iniconfig.config['Settings']['tablerootdir'], iniconfig)
     tp.loadTables(reload=True)
     tables = tp.getAllTables()
-    print(f"Listing unknown tables from {iniconfig.config['Settings']['tablerootdir']}")
+    logger.info("Listing unknown tables from %s", iniconfig.config['Settings']['tablerootdir'])
     total = len(tables)
-    print(f"Found {total} tables in {iniconfig.config['Settings']['tablerootdir']}")
+    logger.info("Found %s tables in %s", total, iniconfig.config['Settings']['tablerootdir'])
 
     vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
-    print(f"Found {len(vps)} tables in VPSdb")
+    logger.info("Found %s tables in VPSdb", len(vps))
 
     current = 0
     for table in tables:
@@ -188,7 +197,7 @@ def listUnknownTables():
         )
         if vpsData is None:
             current += 1
-            print(f"Unknown table {current}: {table.tableDirName} Not found in VPSdb")
+            logger.info("Unknown table %s: %s Not found in VPSdb", current, table.tableDirName)
 
 
 def vpxPatches(progress_cb=None):
@@ -199,8 +208,9 @@ def vpxPatches(progress_cb=None):
     StandaloneScripts(tables, progress_cb=progress_cb)
 
 
-def _claimMediaForTable(table, tabletype, log=print):
+def _claimMediaForTable(table, tabletype, log=None):
     """Scan a table's medias/ dir and mark all found files as user-sourced in the .info."""
+    log = log or logger.info
     info_path = os.path.join(table.fullPathTable, f"{table.tableDirName}.info")
     if not os.path.exists(info_path):
         log(f"  Skipping {table.tableDirName}: no .info file")
@@ -242,7 +252,7 @@ def claimUserMedia(tableName=None, progress_cb=None, log_cb=None):
     """Bulk scan tables and mark existing media files as user-sourced."""
 
     def log(msg):
-        print(msg)
+        logger.info(msg)
         if log_cb:
             log_cb(msg)
 
@@ -343,26 +353,31 @@ def parseArgs():
         parser.error(f"Unknown arguments: {' '.join(unknown)}")
 
     if args.version:
-        # print(get_version()) # already done in main so we just exit here
         sys.exit(0)
 
     if args.listres:
         monitors = get_monitors()
-        print("screeninfo monitors:")
-        [print({
-            'ID': f'Monitor {i}',
-            'output': m.name,
-            'x': m.x,
-            'y': m.y,
-            'width': m.width,
-            'height': m.height
-        }) for i, m in enumerate(monitors)]
+        logger.info("screeninfo monitors:")
+        for i, m in enumerate(monitors):
+            logger.info({
+                'ID': f'Monitor {i}',
+                'output': m.name,
+                'x': m.x,
+                'y': m.y,
+                'width': m.width,
+                'height': m.height,
+            })
         if sys.platform == "darwin":
             from frontend.chromium_manager import get_mac_screens
-            print("\nNSScreen monitors (used for window positioning on macOS):")
+            logger.info("NSScreen monitors (used for window positioning on macOS):")
             for i, s in enumerate(get_mac_screens()):
-                print({'ID': f'Screen {i}', 'x': s.x, 'y': s.y,
-                       'width': s.width, 'height': s.height})
+                logger.info({
+                    'ID': f'Screen {i}',
+                    'x': s.x,
+                    'y': s.y,
+                    'width': s.width,
+                    'height': s.height,
+                })
         sys.exit()
 
     if args.listmissing:

@@ -1,6 +1,10 @@
 from pathlib import Path
+import logging
 from common.table import Table
 from common.metaconfig import MetaConfig
+
+
+logger = logging.getLogger("vpinfe.common.tableparser")
 
 
 class TableParser:
@@ -23,7 +27,7 @@ class TableParser:
             return
 
         self.tables.clear()
-        print("Loading tables and image paths:")
+        logger.info("Loading tables and image paths:")
 
         for table_dir in sorted(self.tablesRootFilePath.iterdir()):
             if not table_dir.is_dir():
@@ -42,7 +46,7 @@ class TableParser:
                     table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
 
             if not getattr(table, "fullPathVPXfile", None):
-                print(f"{self.RED_CONSOLE_TEXT}    No .vpx found in {table.tableDirName} directory.{self.RESET_CONSOLE_TEXT}")
+                logger.warning("No .vpx found in %s directory.", table.tableDirName)
                 continue
 
             # check for addons

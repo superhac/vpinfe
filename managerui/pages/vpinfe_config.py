@@ -1,6 +1,8 @@
 import os
 import io
 import contextlib
+import html
+import logging
 import runpy
 import shlex
 import sys
@@ -11,6 +13,9 @@ from common.vpxcollections import VPXCollections
 from pathlib import Path
 from platformdirs import user_config_dir
 from screeninfo import get_monitors
+
+
+logger = logging.getLogger("vpinfe.manager.vpinfe_config")
 
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -43,8 +48,7 @@ FRIENDLY_NAMES = {
     'dofconfigtoolapikey': 'DOF Config Tool API Key',
     'theme': 'Active Theme',
     'level': 'Log Verbosity',
-    'console': 'Logging Console',
-    'file': 'Log File',
+    'console': 'Console Logging',
     
     # [Displays]
     'tablescreenid': 'Playfield Monitor ID',
@@ -146,6 +150,22 @@ def _get_display_id_options(detected_displays, current_value: str = ''):
     return options
 
 
+def _get_logger_level_options(current_value: str = ''):
+    options = ['debug', 'info', 'warning', 'error', 'critical']
+    current = (current_value or '').strip().lower()
+    if current and current not in options:
+        options.append(current)
+    return options
+
+
+def _get_logger_console_options(current_value: str = ''):
+    options = ['true', 'false']
+    current = (current_value or '').strip().lower()
+    if current not in options:
+        current = 'true'
+    return options, current
+
+
 def _get_ledcontrol_command(script_path: Path, api_key: str, force: bool) -> list[str]:
     """Build the displayed ledcontrol_pull command."""
     api_key = api_key.strip()
@@ -193,7 +213,7 @@ def _run_ledcontrol_pull(script_path: Path, api_key: str, force: bool) -> tuple[
                     exit_code = 0
                 else:
                     exit_code = 1
-                    print(e.code, file=sys.stderr)
+                    logger.error("%s", e.code)
     finally:
         os.chdir(old_cwd)
         sys.argv = old_argv
@@ -208,6 +228,34 @@ def _run_ledcontrol_pull(script_path: Path, api_key: str, force: bool) -> tuple[
             output += '\n'
         output += stderr_output
     return exit_code, output.strip() or '(no output)', command
+
+
+def show_log_file_dialog() -> None:
+    log_path = CONFIG_DIR / 'vpinfe.log'
+    try:
+        content = log_path.read_text(encoding='utf-8')
+    except FileNotFoundError:
+        content = '(log file not found)'
+    except Exception as exc:
+        content = f'Failed to read log file: {exc}'
+    escaped_content = html.escape(content)
+
+    with ui.dialog().props('persistent max-width=1100px') as dlg, ui.card().classes('w-full').style(
+        'background: #0f172a; border: 1px solid #334155; min-width: min(92vw, 1000px); height: 82vh;'
+    ):
+        with ui.column().classes('w-full h-full gap-3'):
+            ui.label('VPinFE Log').classes('text-xl font-bold text-white')
+            ui.label(str(log_path)).classes('text-xs text-slate-400 break-all')
+            with ui.scroll_area().classes('w-full').style(
+                'flex: 1 1 auto; min-height: 0; border: 1px solid #475569; border-radius: 8px; background: #020617;'
+            ):
+                ui.html(
+                    f'<pre style="margin:0; padding:12px; white-space:pre-wrap; word-break:break-word; '
+                    f'font-family:monospace; font-size:12px; color:#e2e8f0;">{escaped_content}</pre>'
+                ).classes('w-full')
+        with ui.row().classes('w-full justify-end mt-2'):
+            ui.button('Close', on_click=dlg.close).props('color=primary rounded')
+    dlg.open()
 
 def render_panel(tab=None):
     # Re-read config from disk each time the page is opened
@@ -350,6 +398,8 @@ def render_panel(tab=None):
 
                     with ui.card().classes('config-card p-4 w-full'):
                         options = config.config.options(section)
+                        if section == 'Logger':
+                            options = [key for key in options if key != 'file']
 
                         with ui.column().classes('gap-3'):
                             for key in options:
@@ -396,6 +446,21 @@ def render_panel(tab=None):
                                         options=monitor_options,
                                         value=(value or '').strip()
                                     ).classes('config-input').style('min-width: 200px;')
+                                elif section == 'Logger' and key == 'level':
+                                    level_options = _get_logger_level_options(value)
+                                    normalized = (value or 'info').strip().lower()
+                                    inp = ui.select(
+                                        label=friendly_label,
+                                        options=level_options,
+                                        value=normalized
+                                    ).classes('config-input').style('min-width: 200px;')
+                                elif section == 'Logger' and key == 'console':
+                                    console_options, normalized = _get_logger_console_options(value)
+                                    inp = ui.select(
+                                        label=friendly_label,
+                                        options=console_options,
+                                        value=normalized
+                                    ).classes('config-input').style('min-width: 200px;')
                                 else:
                                     # Calculate width based on the longer string (value or friendly label)
                                     char_width = max(len(value), len(friendly_label), 5)  
@@ -422,6 +487,21 @@ def render_panel(tab=None):
                                         'Update DOF via Online Config Tool',
                                         icon='cloud_download',
                                         on_click=run_dof_online_update,
+                                    ).props('color=primary rounded').classes('mt-3')
+
+                            if section == 'Logger':
+                                with ui.card().classes('w-full mt-3 p-3').style(
+                                    'background: #122038; border: 1px solid #334155; border-radius: 10px;'
+                                ):
+                                    ui.label('Log File').classes('text-lg font-semibold')
+                                    ui.label(
+                                        f'VPinFE always writes logs to {CONFIG_DIR / "vpinfe.log"}. '
+                                        'Each app launch starts a fresh log file.'
+                                    ).classes('text-sm text-slate-300')
+                                    ui.button(
+                                        'View Log',
+                                        icon='article',
+                                        on_click=show_log_file_dialog,
                                     ).props('color=primary rounded').classes('mt-3')
 
                             if section == 'Displays':

@@ -1,10 +1,14 @@
 from pynput.keyboard import Key
+import logging
 import time
 import re
 from platformdirs import user_config_dir
 from pathlib import Path
 from common.iniconfig import IniConfig
 import sys
+
+
+logger = logging.getLogger("vpinfe.manager.keysimulator")
 
 if sys.platform == "darwin":
     from Quartz import (
@@ -144,26 +148,26 @@ class KeySimulator:
         config_path = config_dir / "vpinfe.ini"
 
         if self.debug:
-            print(f"[KeySimulator] Looking for vpinfe.ini at: {config_path}")
-            print(f"[KeySimulator] File exists: {config_path.exists()}")
+            logger.debug("Looking for vpinfe.ini at: %s", config_path)
+            logger.debug("File exists: %s", config_path.exists())
 
         iniconfig = IniConfig(str(config_path))
         vpinball_ini_path = iniconfig.config["Settings"]["vpxinipath"]
 
         if self.debug:
-            print(f"[KeySimulator] VPinballX.ini path from config: {vpinball_ini_path}")
-            print(f"[KeySimulator] VPinballX.ini exists: {Path(vpinball_ini_path).exists()}")
+            logger.debug("VPinballX.ini path from config: %s", vpinball_ini_path)
+            logger.debug("VPinballX.ini exists: %s", Path(vpinball_ini_path).exists())
 
         self.raw_mappings = self.parse_vpinball_key_mappings(vpinball_ini_path)
         self.pynput_mappings = self.convert_to_pynput_keys(self.raw_mappings)
 
         if self.debug:
-            print(f"[KeySimulator] Raw SDL mappings found: {len(self.raw_mappings)}")
+            logger.debug("Raw SDL mappings found: %s", len(self.raw_mappings))
             for name, scancode in self.raw_mappings.items():
-                print(f"  {name}: SDL scancode {scancode}")
-            print(f"[KeySimulator] Converted pynput mappings: {len(self.pynput_mappings)}")
+                logger.debug("  %s: SDL scancode %s", name, scancode)
+            logger.debug("Converted pynput mappings: %s", len(self.pynput_mappings))
             for name, key in self.pynput_mappings.items():
-                print(f"  {name}: {key}")
+                logger.debug("  %s: %s", name, key)
 
     @property
     def keyboard(self):
@@ -178,22 +182,22 @@ class KeySimulator:
     def press_mapping(self, name, seconds=0):
         key = self.pynput_mappings.get(name)
         if self.debug:
-            print(f"[KeySimulator] press_mapping('{name}'): key={key}, found={key is not None}")
+            logger.debug("press_mapping('%s'): key=%s, found=%s", name, key, key is not None)
         time.sleep(seconds)
         if key is not None:
             self.press(key)
         elif self.debug:
-            print(f"[KeySimulator] WARNING: No mapping found for '{name}'")
+            logger.warning("No mapping found for '%s'", name)
 
     def hold_mapping(self, name, seconds=0.1):
         """Hold a mapped key for the specified duration"""
         key = self.pynput_mappings.get(name)
         if self.debug:
-            print(f"[KeySimulator] hold_mapping('{name}'): key={key}, found={key is not None}")
+            logger.debug("hold_mapping('%s'): key=%s, found=%s", name, key, key is not None)
         if key is not None:
             self.hold(key, seconds)
         elif self.debug:
-            print(f"[KeySimulator] WARNING: No mapping found for '{name}'")
+            logger.warning("No mapping found for '%s'", name)
 
     def press(self, key):
         self.keyboard.press(key)
@@ -220,7 +224,7 @@ class KeySimulator:
         in_input_section = False
 
         if self.debug:
-            print(f"[KeySimulator] Parsing VPinballX.ini: {ini_path}")
+            logger.debug("Parsing VPinballX.ini: %s", ini_path)
 
         with open(ini_path, "r", encoding="utf-8-sig") as f:
             for raw_line in f:
@@ -232,7 +236,7 @@ class KeySimulator:
                 if line.startswith("[") and line.endswith("]"):
                     in_input_section = (line == "[Input]")
                     if self.debug and in_input_section:
-                        print(f"[KeySimulator] Found [Input] section")
+                        logger.debug("Found [Input] section")
                     continue
 
                 if not in_input_section:
@@ -250,13 +254,13 @@ class KeySimulator:
 
                 if self.debug:
                     scancode = mappings[name]
-                    print(f"[KeySimulator]   Parsed: {name} = {value} -> scancode {scancode}")
+                    logger.debug("  Parsed: %s = %s -> scancode %s", name, value, scancode)
 
         if self.debug:
             if not mappings:
-                print(f"[KeySimulator] WARNING: No mappings found! Check if [Input] section exists with Mapping.* entries")
+                logger.warning("No mappings found! Check if [Input] section exists with Mapping.* entries")
             else:
-                print(f"[KeySimulator] Total mappings parsed: {len(mappings)}")
+                logger.debug("Total mappings parsed: %s", len(mappings))
 
         return mappings
 

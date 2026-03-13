@@ -1,10 +1,14 @@
 import requests
 import json
+import logging
 from difflib import SequenceMatcher
 import os
 import re
 from pathlib import Path
 from platformdirs import user_config_dir
+
+
+logger = logging.getLogger("vpinfe.common.vpsdb")
 
 
 class VPSdb:
@@ -22,7 +26,7 @@ class VPSdb:
     vpinmdbUrl = "https://github.com/superhac/vpinmediadb/raw/refs/heads/main/vpinmdb.json"
 
     def __init__(self, rootTableDir, vpinfeIniConfig):
-        print("Initializing VPSdb")
+        logger.info("Initializing VPSdb")
 
         self._vpinfeIniConfig = vpinfeIniConfig
         self._config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
@@ -31,13 +35,13 @@ class VPSdb:
         version = self.downloadLastUpdate()
 
         if version:
-            print(f"Current VPSdb version @ VPSdb: {version}")
+            logger.info("Current VPSdb version @ VPSdb: %s", version)
             try:
                 # Download DB if newer than local version
                 if self._vpinfeIniConfig.config['VPSdb']['last'] < version:
                     self.downloadDB()
                 else:
-                    print("VPSdb currently at latest revision.")
+                    logger.info("VPSdb currently at latest revision.")
             except KeyError:  # No entry for VPSdb version in config
                 self.downloadDB()
                 self._vpinfeIniConfig.config.setdefault('VPSdb', {})['last'] = version
@@ -53,17 +57,22 @@ class VPSdb:
                 try:
                     with open(self._vpsdb_path, 'r', encoding="utf-8") as file:
                         self.data = json.load(file)
-                        print(f"Total VPSdb entries: {len(self.data)}")
+                        logger.info("Total VPSdb entries: %s", len(self.data))
                 except json.JSONDecodeError:
-                    print(f"Invalid JSON format in {self._vpsdb_path}")
+                    logger.error("Invalid JSON format in %s", self._vpsdb_path)
             else:
-                print(f"JSON file {self._vpsdb_path} not found.")
+                logger.warning("JSON file %s not found.", self._vpsdb_path)
 
         # Setup preferences
         self.tabletype = self._vpinfeIniConfig.config['Media']["tabletype"].lower()
         self.tableresolution = self._vpinfeIniConfig.config['Media']["tableresolution"].lower()
         self.tablevideoresolution = self._vpinfeIniConfig.config['Media']["tablevideoresolution"].lower()
-        print(f"Using {self.tableresolution}/{self.tabletype} tables (video: {self.tablevideoresolution})")
+        logger.info(
+            "Using %s/%s tables (video: %s)",
+            self.tableresolution,
+            self.tabletype,
+            self.tablevideoresolution,
+        )
 
         # Load additional media DB
         self.vpinmediadbjson = self.downloadMediaJson()
@@ -99,7 +108,7 @@ class VPSdb:
             if SequenceMatcher(None, str(year), str(table["year"])).ratio() >= 0.8:
                 return table
 
-        print(f"No match found for: {name}")
+        logger.debug("No match found for: %s", name)
         return None
 
     def parseTableNameFromDir(self, directory_name):
@@ -127,7 +136,7 @@ class VPSdb:
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
-            print(f"Failed to retrieve vpinmdb.json: {e}")
+            logger.warning("Failed to retrieve vpinmdb.json: %s", e)
             return None
 
     def downloadDB(self):
@@ -137,9 +146,9 @@ class VPSdb:
             response.raise_for_status()
             with open(self._vpsdb_path, 'wb') as file:
                 file.write(response.content)
-            print("Successfully downloaded vpsdb.json from VPSdb")
+            logger.info("Successfully downloaded vpsdb.json from VPSdb")
         except requests.RequestException as e:
-            print(f"Failed to download vpsdb.json: {e}")
+            logger.warning("Failed to download vpsdb.json: %s", e)
 
     def downloadLastUpdate(self):
         """Fetches the last update version string from VPSdb."""
@@ -148,20 +157,20 @@ class VPSdb:
             response.raise_for_status()
             return response.text.strip()
         except requests.RequestException as e:
-            print(f"Failed to retrieve lastUpdate.json: {e}")
+            logger.warning("Failed to retrieve lastUpdate.json: %s", e)
             return None
 
     def downloadMediaFile(self, tableId, url, filename):
         """Downloads a single media file by URL."""
-        print(f"Downloading {filename} from {url}")
+        logger.info("Downloading %s from %s", filename, url)
         try:
             response = requests.get(url)
             response.raise_for_status()
             with open(filename, 'wb') as file:
                 file.write(response.content)
-            print(f"Successfully downloaded {filename} from VPinMedia")
+            logger.info("Successfully downloaded %s from VPinMedia", filename)
         except requests.RequestException as e:
-            print(f"Failed to download {filename} for table {tableId}: {e}")
+            logger.warning("Failed to download %s for table %s: %s", filename, tableId, e)
 
     # ----------------------------------------------------------------------
     # Local file helpers
@@ -196,7 +205,12 @@ class VPSdb:
                 if existing and existing.get("Source") == "vpinmediadb":
                     storedMd5 = existing.get("MD5Hash", "")
                     if storedMd5 and storedMd5 != remoteMd5:
-                        print(f"MD5 changed for {mediaType} ({storedMd5} -> {remoteMd5}), re-downloading")
+                        logger.info(
+                            "MD5 changed for %s (%s -> %s), re-downloading",
+                            mediaType,
+                            storedMd5,
+                            remoteMd5,
+                        )
                         self.downloadMediaFile(tableId, metadata[key], actual_path)
             return (actual_path, remoteMd5)
 
@@ -208,7 +222,7 @@ class VPSdb:
     def downloadMediaForTable(self, table, id, metaConfig=None):
         """Download all associated media for a given table."""
         if id not in self.vpinmediadbjson:
-            print(f"No media exists for {table.fullPathTable} (ID {id}).")
+            logger.info("No media exists for %s (ID %s).", table.fullPathTable, id)
             return
 
         tablemediajson = self.vpinmediadbjson[id]
@@ -232,7 +246,7 @@ class VPSdb:
         def _process(mediaType, metadata, key, filename, defaultFilename):
             """Skip download and record if the media is user-provided."""
             if _isUserMedia(mediaType):
-                print(f"Skipping {mediaType}: user-provided media")
+                logger.debug("Skipping %s: user-provided media", mediaType)
                 return
             result = self.downloadMedia(id, metadata, key, filename, defaultFilename, metaConfig, mediaType)
             _record(mediaType, result)
@@ -263,4 +277,3 @@ class VPSdb:
     def updateTable(self, name, manufacturer, year):
         """UI hook: updates progress label (requires UI integration)."""
         self.progress_table_label.config(text=f"{name}\n({manufacturer} {year})")
-

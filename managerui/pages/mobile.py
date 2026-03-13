@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 import shutil
 import tempfile
 import urllib.request
@@ -10,6 +11,9 @@ from nicegui import ui, run
 from platformdirs import user_config_dir
 
 from common.iniconfig import IniConfig
+
+
+logger = logging.getLogger("vpinfe.manager.mobile")
 
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
@@ -121,7 +125,7 @@ def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=Non
         except urllib.error.HTTPError:
             raise
         except (urllib.error.URLError, ConnectionError, OSError, http.client.RemoteDisconnected) as e:
-            print(f"[WebSend] Connection error on attempt {attempt+1}: {type(e).__name__}: {e}")
+            logger.warning("Connection error on attempt %s: %s: %s", attempt + 1, type(e).__name__, e)
             if not own_conn:
                 # Reconnect the persistent connection
                 try:
@@ -131,7 +135,7 @@ def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=Non
                 conn = http.client.HTTPConnection(parsed.hostname, parsed.port, timeout=timeout)
             if attempt < retries - 1:
                 wait = 2 * (attempt + 1)
-                print(f"[WebSend] Retrying in {wait}s...")
+                logger.info("Retrying in %ss...", wait)
                 time.sleep(wait)
             else:
                 raise
@@ -325,11 +329,11 @@ def _build_vpxz_download_panel():
                     zip_path = shutil.make_archive(zip_base, 'zip', root_dir=tables_path, base_dir=name)
                     vpxz_path = zip_base + '.vpxz'
                     os.rename(zip_path, vpxz_path)
-                    print(f"[Mobile] Created download archive: {vpxz_path}")
+                    logger.info("Created download archive: %s", vpxz_path)
                     with open(vpxz_path, 'rb') as f:
                         data = f.read()
                     shutil.rmtree(tmp_dir, ignore_errors=True)
-                    print(f"[Mobile] Cleaned up temp archive: {tmp_dir}")
+                    logger.info("Cleaned up temp archive: %s", tmp_dir)
                     return data
 
                 zip_bytes = await run.io_bound(create_zip)
@@ -478,7 +482,7 @@ def _build_web_send_panel():
                 state['done'] = True
             except Exception as ex:
                 state['error'] = str(ex)
-                print(f"[WebSend] Error: {ex}")
+                logger.exception("WebSend error")
 
         async def update_progress():
             if state['error']:

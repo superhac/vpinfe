@@ -6,7 +6,7 @@ from typing import List, Dict, Optional
 from platformdirs import user_config_dir
 from common.vpxcollections import VPXCollections
 
-logger = logging.getLogger("collections")
+logger = logging.getLogger("vpinfe.manager.collections")
 
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 COLLECTIONS_PATH = CONFIG_DIR / "collections.ini"

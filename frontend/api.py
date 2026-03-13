@@ -1,6 +1,7 @@
 import sys
 import os
 import platform
+import logging
 from pathlib import Path
 from screeninfo import get_monitors
 from common.table import Table
@@ -13,6 +14,10 @@ from common.tablelistfilters import TableListFilters
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.launcher import get_effective_launcher
 from platformdirs import user_config_dir
+
+
+logger = logging.getLogger("vpinfe.frontend.api")
+
 
 class API:
 
@@ -41,8 +46,8 @@ class API:
         if startup_collection:
             try:
                 self.set_tables_by_collection(startup_collection)
-            except Exception as e:
-                print(f"Warning: Could not load startup collection '{startup_collection}': {e}")
+            except Exception:
+                logger.exception("Could not load startup collection '%s'", startup_collection)
 
     ####################
     ## Private Functions
@@ -63,7 +68,7 @@ class API:
         return self.window_name or "unknown"
 
     def close_app(self):
-        print(f"[API] close_app called from window '{self.window_name}'")
+        logger.info("close_app called from window '%s'", self.window_name)
         if self.chromium_manager:
             self.chromium_manager.terminate_all()
 
@@ -272,7 +277,14 @@ class API:
         if year is not None:
             self.current_filters['year'] = year
 
-        print(f"Applying filters: letter={self.current_filters['letter']}, theme={self.current_filters['theme']}, type={self.current_filters['type']}, manufacturer={self.current_filters['manufacturer']}, year={self.current_filters['year']}")
+        logger.debug(
+            "Applying filters: letter=%s, theme=%s, type=%s, manufacturer=%s, year=%s",
+            self.current_filters['letter'],
+            self.current_filters['theme'],
+            self.current_filters['type'],
+            self.current_filters['manufacturer'],
+            self.current_filters['year'],
+        )
 
         # Always start from the full table list
         filters = TableListFilters(self.allTables)
@@ -285,7 +297,7 @@ class API:
         )
 
         count = len(self.filteredTables)
-        print(f"Filtered tables count: {count}")
+        logger.debug("Filtered tables count: %s", count)
         return count
 
     def reset_filters(self):
@@ -306,7 +318,7 @@ class API:
         Returns the count of sorted tables.
         """
         self.current_sort = sort_type
-        print(f"Applying sort: {sort_type}")
+        logger.debug("Applying sort: %s", sort_type)
 
         if sort_type == 'Alpha':
             # Sort alphabetically by VPSdb.name
@@ -326,11 +338,11 @@ class API:
             )
 
         count = len(self.filteredTables)
-        print(f"Sorted {count} tables by {sort_type}")
+        logger.debug("Sorted %s tables by %s", count, sort_type)
         return count
 
     def console_out(self, output):
-        print(f'Win: {self.window_name} - {output}')
+        logger.info("Win: %s - %s", self.window_name, output)
         return output
 
     def get_joymaping(self):
@@ -371,12 +383,12 @@ class API:
         vpxbin = self._iniConfig.config['Settings'].get('vpxbinpath', '')
         vpxbin_path, source_key, _ = get_effective_launcher(vpxbin, table.metaConfig)
         if not vpxbin_path:
-            print(f"No launcher configured (checked VPinFE.{source_key} and Settings.vpxbinpath)")
+            logger.warning("No launcher configured (checked VPinFE.%s and Settings.vpxbinpath)", source_key)
             return
         if not vpxbin_path.exists():
-            print(f"Launcher not found ({source_key}): {vpxbin_path}")
+            logger.warning("Launcher not found (%s): %s", source_key, vpxbin_path)
             return
-        print("Launching: ", [str(vpxbin_path), "-play", vpx])
+        logger.info("Launching: %s", [str(vpxbin_path), "-play", vpx])
 
         # Track the table play
         self._track_table_play(table)
@@ -395,7 +407,7 @@ class API:
                 if not startup_detected and "Startup done" in line:
                     startup_detected = True
                     self.send_event_all_windows_incself({"type": "TableRunning"})
-                    print("table running")
+                    logger.info("table running")
 
             process.wait()
         finally:
@@ -419,7 +431,7 @@ class API:
         vpsid = info.get("VPSId")
 
         if not vpsid:
-            print("Table has no VPSId, cannot track play")
+            logger.debug("Table has no VPSId, cannot track play")
             return
 
         config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
@@ -427,7 +439,7 @@ class API:
 
         # Create Last Played collection if it doesn't exist
         if "Last Played" not in c.get_collections_name():
-            print("Creating 'Last Played' collection")
+            logger.info("Creating 'Last Played' collection")
             c.add_collection("Last Played", vpsids=[])
 
         last_played_ids = c.get_vpsids("Last Played")
@@ -441,7 +453,7 @@ class API:
         c.config["Last Played"]["vpsids"] = ",".join(last_played_ids)
         c.save()
 
-        print(f"Tracked table play: {vpsid} (now {len(last_played_ids)} in Last Played)")
+        logger.info("Tracked table play: %s (now %s in Last Played)", vpsid, len(last_played_ids))
 
     def _delete_nvram_if_configured(self, table):
         """Delete the NVRAM .nv file if deletedNVRamOnClose is enabled for this table."""
@@ -459,15 +471,15 @@ class API:
 
         rom = config.get("Info", {}).get("Rom", "")
         if not rom:
-            print(f"[NVRAM] No ROM name found for table, skipping NVRAM deletion")
+            logger.warning("No ROM name found for table, skipping NVRAM deletion")
             return
 
         nvram_path = Path(table.fullPathTable) / "pinmame" / "nvram" / f"{rom}.nv"
         if nvram_path.exists():
             nvram_path.unlink()
-            print(f"[NVRAM] Deleted NVRAM file: {nvram_path}")
+            logger.info("Deleted NVRAM file: %s", nvram_path)
         else:
-            print(f"[NVRAM] NVRAM file not found (nothing to delete): {nvram_path}")
+            logger.info("NVRAM file not found (nothing to delete): %s", nvram_path)
 
     def build_metadata(self, download_media=True, update_all=False):
         """
@@ -490,7 +502,7 @@ class API:
 
         def progress_callback(current, total, message):
             """Queue progress updates."""
-            print(f"[buildmeta] Progress: {current}/{total} - {message}")
+            logger.debug("[buildmeta] Progress: %s/%s - %s", current, total, message)
             event_queue.put({
                 'type': 'buildmeta_progress',
                 'current': current,
@@ -500,7 +512,7 @@ class API:
 
         def log_callback(message):
             """Queue log messages."""
-            print(f"[buildmeta] Log: {message}")
+            logger.info("[buildmeta] %s", message)
             event_queue.put({
                 'type': 'buildmeta_log',
                 'message': message
@@ -529,8 +541,7 @@ class API:
                     'type': 'buildmeta_error',
                     'error': str(e)
                 })
-                import traceback
-                traceback.print_exc()
+                logger.exception("buildMetaData failed")
             finally:
                 # Signal completion
                 event_queue.put({'type': 'buildmeta_done'})
@@ -538,26 +549,22 @@ class API:
         def process_events():
             """Process queued events and send to windows."""
             try:
-                print("[buildmeta] Event processor started")
+                logger.debug("[buildmeta] Event processor started")
                 while True:
                     # Block until we get an event
                     event = event_queue.get(timeout=30)
-                    print(f"[buildmeta] Processing event: {event['type']}")
+                    logger.debug("[buildmeta] Processing event: %s", event['type'])
                     if event['type'] == 'buildmeta_done':
-                        print("[buildmeta] Build complete, stopping event processor")
+                        logger.debug("[buildmeta] Build complete, stopping event processor")
                         break
                     # Send event to all windows
                     try:
                         self.send_event_all_windows_incself(event)
-                        print(f"[buildmeta] Sent event to windows: {event['type']}")
-                    except Exception as e:
-                        print(f"Error sending event to windows: {e}")
-                        import traceback
-                        traceback.print_exc()
-            except Exception as e:
-                print(f"Error processing buildmeta events: {e}")
-                import traceback
-                traceback.print_exc()
+                        logger.debug("[buildmeta] Sent event to windows: %s", event['type'])
+                    except Exception:
+                        logger.exception("Error sending event to windows")
+            except Exception:
+                logger.exception("Error processing buildmeta events")
 
         # Start build in background thread
         build_thread = threading.Thread(target=run_build, daemon=True)
@@ -584,12 +591,12 @@ class API:
             return None
 
         theme_path = theme_dir / "config.json"
-        print("theme config path: ", theme_path)
+        logger.debug("theme config path: %s", theme_path)
         try:
             with open(theme_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
             return config
-        except Exception as e:
+        except Exception:
             return None
 
     ###################

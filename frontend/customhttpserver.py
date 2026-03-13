@@ -1,5 +1,6 @@
 # custom_http_server.py
 import http.server
+import logging
 from socketserver import ThreadingTCPServer
 import threading
 import os
@@ -7,6 +8,9 @@ import mimetypes
 from urllib.parse import unquote
 from functools import partial
 import posixpath
+
+
+logger = logging.getLogger("vpinfe.frontend.customhttpserver")
 
 class CustomHTTPServer:
     class MultiDirHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -26,14 +30,14 @@ class CustomHTTPServer:
                 normalized[prefix] = os.path.abspath(r)
             self.mount_points = normalized
             if self.debug:
-                print("[HTTP] Mount points:")
+                logger.debug("[HTTP] Mount points:")
                 for k, v in self.mount_points.items():
-                    print(f"  {k} -> {v}")
+                    logger.debug("  %s -> %s", k, v)
             super().__init__(*args, **kwargs)
 
         def log_debug(self, *args):
             if self.debug:
-                print("[HTTP]", *args)
+                logger.debug("[HTTP] %s", " ".join(str(arg) for arg in args))
 
         def translate_path(self, path):
             # 1) Strip query and fragment
@@ -170,7 +174,7 @@ class CustomHTTPServer:
         def log_message(self, fmt, *args):
             # use our debug printer so messages are consistent
             if self.debug:
-                print("[HTTP] " + fmt % args)
+                logger.debug("[HTTP] " + fmt % args)
 
     def __init__(self, mount_points):
         self.file_server = None
@@ -181,15 +185,14 @@ class CustomHTTPServer:
         ThreadingTCPServer.allow_reuse_address = True
         self.file_server = ThreadingTCPServer(("", port), handler_class)
         threading.Thread(target=self.file_server.serve_forever, daemon=True).start()
-        print(f"[INFO] Serving on http://127.0.0.1:{port}/")
+        logger.info("Serving on http://127.0.0.1:%s/", port)
 
     def stop_file_server(self):
         if self.file_server:
             self.file_server.shutdown()
             self.file_server.server_close()
-            print("[INFO] File server stopped.")
+            logger.info("File server stopped.")
             self.file_server = None
 
     def on_closed(self):
         self.stop_file_server()
-

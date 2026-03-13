@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import os
+import logging
 from pathlib import Path
 from nicegui import ui, run
 from managerui.keysimulator import KeySimulator
@@ -22,6 +23,7 @@ from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.vpxcollections import VPXCollections
 from common.launcher import get_effective_launcher
 _INI_CFG = None
+logger = logging.getLogger("vpinfe.manager.remote")
 
 
 def _get_collections():
@@ -29,10 +31,10 @@ def _get_collections():
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
         names = collections.get_collections_name()
-        print(f"[Remote] Loaded collections: {names}")
+        logger.debug("Loaded collections: %s", names)
         return names
     except Exception as e:
-        print(f"[Remote] Error loading collections: {e}")
+        logger.warning("Error loading collections: %s", e)
         return []
 
 
@@ -205,7 +207,7 @@ def _launch_table(table: dict):
             ui.notify(f'Launcher not found ({source_key}): {vpxbin_path}', type='negative')
             return False
 
-        print(f"Remote Launching table: {vpx_path}")
+        logger.info("Remote launching table: %s", vpx_path)
         ui.notify(f'Remote Launching {table_name}...', type='info')
 
         stop_dof_service()
@@ -914,7 +916,7 @@ def show_vpx_game_controls():
             # Load collections
             collections = await run.io_bound(_get_collections)
             collection_options = ['All'] + list(collections)
-            print(f"[Remote] Setting collection options: {collection_options}")
+            logger.debug("Setting collection options: %s", collection_options)
             collection_select.options = collection_options
             collection_select.update()
 
@@ -1079,7 +1081,7 @@ def send_keyboard_key(key, dialog):
     else:
         key_name = key
 
-    print(f"Virtual keyboard: Pressing key '{key_name}'")
+    logger.info("Virtual keyboard: Pressing key '%s'", key_name)
     ks.press(key)
     # Keep dialog open for multiple key presses
     # If you want to close after each key, uncomment the next line:
@@ -1087,7 +1089,7 @@ def send_keyboard_key(key, dialog):
 
 
 def handle_button(category: str, button: str):
-    print(f"[{category}] Button pressed: {button}")
+    logger.info("[%s] Button pressed: %s", category, button)
     match category:
         case 'vpx maintenance' | 'vpx':
             match button:
@@ -1139,4 +1141,5 @@ def handle_button(category: str, button: str):
                 case 'Restart VPinFE': _restart_app()
                 case 'Reboot': _show_reboot_confirmation()
                 case 'Shutdown': _show_shutdown_confirmation()
-                case _: print(f"Other category pressed: {button}")
+                case _:
+                    logger.info("Other category pressed: %s", button)

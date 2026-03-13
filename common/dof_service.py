@@ -1,4 +1,5 @@
 import importlib.util
+import logging
 import os
 import sys
 import threading
@@ -7,6 +8,7 @@ from pathlib import Path
 _LOCK = threading.Lock()
 _RUNNER = None
 _RUNNER_NAMES = ('dof_runner.py', 'random_dof_runner.py')
+logger = logging.getLogger("vpinfe.common.dof_service")
 
 
 def _is_enabled(iniconfig) -> bool:
@@ -83,9 +85,9 @@ def _load_runner_class():
             break
 
     if runner_path is None:
-        print(
-            "[DOF] enabledof=true but runner not found. Checked: "
-            + ", ".join(str(c) for c in candidates)
+        logger.warning(
+            "enabledof=true but runner not found. Checked: %s",
+            ", ".join(str(c) for c in candidates),
         )
         return None, candidates[0]
 
@@ -94,7 +96,7 @@ def _load_runner_class():
     module_name = f"_vpinfe_{runner_path.stem}"
     spec = importlib.util.spec_from_file_location(module_name, runner_path)
     if spec is None or spec.loader is None:
-        print(f"[DOF] Failed to load module spec from: {runner_path}")
+        logger.error("Failed to load module spec from: %s", runner_path)
         return None, dof_dir
 
     module = importlib.util.module_from_spec(spec)
@@ -106,7 +108,7 @@ def _load_runner_class():
     try:
         spec.loader.exec_module(module)
     except Exception as e:
-        print(f"[DOF] Failed importing dof_runner.py: {e}")
+        logger.error("Failed importing dof_runner.py: %s", e)
         return None, dof_dir
     finally:
         if restore_path:
@@ -117,9 +119,24 @@ def _load_runner_class():
 
     runner_class = getattr(module, 'RandomDofRunner', None)
     if runner_class is None:
-        print("[DOF] RandomDofRunner class not found in dof_runner.py")
+        logger.error("RandomDofRunner class not found in dof_runner.py")
         return None, dof_dir
     return runner_class, dof_dir
+
+
+def _dof_log_callback(level, message: str) -> None:
+    level_name = getattr(level, "name", str(level)).upper()
+    message = message or ""
+    if level_name == "DEBUG":
+        logger.debug("[libdof] %s", message)
+    elif level_name == "INFO":
+        logger.info("[libdof] %s", message)
+    elif level_name in {"WARN", "WARNING"}:
+        logger.warning("[libdof] %s", message)
+    elif level_name == "ERROR":
+        logger.error("[libdof] %s", message)
+    else:
+        logger.info("[libdof] %s", message)
 
 
 def find_dof_file(*names: str) -> Path | None:
@@ -159,17 +176,18 @@ def start_dof_service_if_enabled(iniconfig) -> bool:
                 random_min=901,
                 random_max=990,
                 random_on_value=1,
-                debug=False,
+                debug=logger.isEnabledFor(logging.DEBUG),
+                log_callback=_dof_log_callback,
             )
             started = bool(_RUNNER.start())
             if started:
-                print(f"[DOF] Service started using dof_runner.py from {dof_dir}")
+                logger.info("Service started using dof_runner.py from %s", dof_dir)
             else:
-                print("[DOF] Service start requested but runner was already active.")
+                logger.info("Service start requested but runner was already active.")
             return started
         except Exception as e:
             _RUNNER = None
-            print(f"[DOF] Failed to start service: {e}")
+            logger.error("Failed to start service: %s", e)
             return False
 
 
@@ -180,11 +198,11 @@ def stop_dof_service(timeout: float = 10.0) -> bool:
         if runner is None:
             return True
 
-    print("[DOF] Stopping service...")
+    logger.info("Stopping service...")
     try:
         stopped = bool(runner.stop(timeout=timeout))
     except Exception as e:
-        print(f"[DOF] Error while stopping service: {e}")
+        logger.error("Error while stopping service: %s", e)
         stopped = False
 
     with _LOCK:

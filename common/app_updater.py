@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import platform
 import re
@@ -16,6 +17,9 @@ import urllib.request
 from platformdirs import user_config_dir
 
 from common.app_version import get_version
+
+
+logger = logging.getLogger("vpinfe.common.app_updater")
 
 
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
@@ -282,7 +286,7 @@ def check_for_updates() -> dict:
         result["error"] = "remote_check_failed"
         return result
     except Exception as exc:
-        print(f"[Updater] Failed to check for updates: {exc}")
+        logger.error("Failed to check for updates: %s", exc)
         result["error"] = "remote_check_failed"
         return result
 

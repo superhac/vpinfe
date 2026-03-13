@@ -1,5 +1,6 @@
 import requests
 import json
+import logging
 import os
 import time
 import zipfile
@@ -7,6 +8,9 @@ import shutil
 from io import BytesIO
 from typing import Dict, Any
 from platformdirs import user_config_dir
+
+
+logger = logging.getLogger("vpinfe.common.themes")
 
 
 class ThemeRegistryError(Exception):
@@ -44,7 +48,12 @@ class ThemeRegistry:
             response = requests.get(url, timeout=60)
             if response.status_code == 429:
                 wait = int(response.headers.get('Retry-After', 5 * (attempt + 1)))
-                print(f"[RATE-LIMITED] 429 on zip download, waiting {wait}s (attempt {attempt + 1}/{max_retries})")
+                logger.warning(
+                    "429 on zip download, waiting %ss (attempt %s/%s)",
+                    wait,
+                    attempt + 1,
+                    max_retries,
+                )
                 time.sleep(wait)
                 continue
             response.raise_for_status()
@@ -82,7 +91,7 @@ class ThemeRegistry:
                 }
 
             except Exception as e:
-                print(f"[ERROR] {theme_key}: {e}")
+                logger.error("%s: %s", theme_key, e)
 
     # =========================================================
     # VALIDATION
@@ -172,10 +181,10 @@ class ThemeRegistry:
 
         if not force and local_version:
             if not self._is_version_newer(remote_version, local_version):
-                print(f"[SKIP] {theme_key} already up to date ({local_version})")
+                logger.info("%s already up to date (%s)", theme_key, local_version)
                 return
 
-        print(f"[INSTALL] {theme_key} v{remote_version}")
+        logger.info("Installing %s v%s", theme_key, remote_version)
 
         zip_url = self._build_zip_url(base_url)
         zip_data = self._download_zip(zip_url)
@@ -196,7 +205,7 @@ class ThemeRegistry:
                 os.rename(src, dst)
                 break
 
-        print(f"[DONE] Installed {theme_key}")
+        logger.info("Installed %s", theme_key)
 
 
     # =========================================================
@@ -278,37 +287,43 @@ class ThemeRegistry:
 # =============================================================
 
 def main():
-    print("Initializing Theme Manager...\n")
+    logger.info("Initializing Theme Manager...")
 
     registry = ThemeRegistry()
 
     registry.load_registry()
     registry.load_theme_manifests()
 
-    print(f"Themes directory: {registry.themes_dir}\n")
+    logger.info("Themes directory: %s", registry.themes_dir)
 
-    print("Loaded Themes and Installation Status:")
+    logger.info("Loaded Themes and Installation Status:")
     for key in registry.get_themes():
         installed_status = "Installed" if registry.is_installed(key) else "Not installed"
         folder_name = registry.get_installed_folder(key)
-        print(f" - {key} ({installed_status}) -> folder: {folder_name}")
+        logger.info(" - %s (%s) -> folder: %s", key, installed_status, folder_name)
 
-    print("\nAuto installing default themes...\n")
+    logger.info("Auto installing default themes...")
     registry.auto_install_defaults()
 
-    print("\nChecking for updates...\n")
+    logger.info("Checking for updates...")
     updates = registry.check_for_updates()
     for key, info in updates.items():
         status = "UPDATE AVAILABLE" if info["update_available"] else "Up to date"
-        print(f"{key}: {status} (installed: {info['installed_version']}, remote: {info['remote_version']})")
+        logger.info(
+            "%s: %s (installed: %s, remote: %s)",
+            key,
+            status,
+            info['installed_version'],
+            info['remote_version'],
+        )
 
-    print("After Loaded Themes and Installation Status:")
+    logger.info("After Loaded Themes and Installation Status:")
     for key in registry.get_themes():
         installed_status = "Installed" if registry.is_installed(key) else "Not installed"
         folder_name = registry.get_installed_folder(key)
-        print(f" - {key} ({installed_status}) -> folder: {folder_name}")
+        logger.info(" - %s (%s) -> folder: %s", key, installed_status, folder_name)
              
-    print("\nDone.")
+    logger.info("Done.")
 
 
 if __name__ == "__main__":

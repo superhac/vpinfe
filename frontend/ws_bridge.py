@@ -10,12 +10,15 @@ Python→JS: Event push messages for inter-window communication
 
 import asyncio
 import json
+import logging
 import socket
 import threading
-import traceback
 from urllib.parse import urlparse, parse_qs
 
 import websockets
+
+
+logger = logging.getLogger("vpinfe.frontend.ws_bridge")
 
 
 class WebSocketBridge:
@@ -82,7 +85,7 @@ class WebSocketBridge:
                 break
             import time
             time.sleep(0.05)
-        print(f"[WS] WebSocket bridge started on ws://127.0.0.1:{self.port}/")
+        logger.info("WebSocket bridge started on ws://127.0.0.1:%s/", self.port)
 
     def _run_server(self):
         """Run the async event loop in the daemon thread."""
@@ -117,7 +120,7 @@ class WebSocketBridge:
         params = parse_qs(parsed.query)
         window_name = params.get('window', ['unknown'])[0]
 
-        print(f"[WS] Window '{window_name}' connected")
+        logger.info("Window '%s' connected", window_name)
         self._connections[window_name] = websocket
 
         try:
@@ -130,11 +133,10 @@ class WebSocketBridge:
                         'type': 'error',
                         'message': 'Invalid JSON'
                     }))
-                except Exception as e:
-                    print(f"[WS] Error handling message from '{window_name}': {e}")
-                    traceback.print_exc()
+                except Exception:
+                    logger.exception("Error handling message from '%s'", window_name)
         except websockets.exceptions.ConnectionClosed:
-            print(f"[WS] Window '{window_name}' disconnected")
+            logger.info("Window '%s' disconnected", window_name)
         finally:
             if self._connections.get(window_name) is websocket:
                 del self._connections[window_name]
@@ -146,7 +148,7 @@ class WebSocketBridge:
         if msg_type == 'api_call':
             await self._handle_api_call(window_name, websocket, data)
         else:
-            print(f"[WS] Unknown message type from '{window_name}': {msg_type}")
+            logger.warning("Unknown message type from '%s': %s", window_name, msg_type)
 
     async def _handle_api_call(self, window_name, websocket, data):
         """Handle a JS→Python API call."""
@@ -191,9 +193,8 @@ class WebSocketBridge:
             }))
         except websockets.exceptions.ConnectionClosed:
             pass  # Client disconnected before response (e.g. close_app)
-        except Exception as e:
-            print(f"[WS] API call error: {method}({args}) -> {e}")
-            traceback.print_exc()
+        except Exception:
+            logger.exception("API call error: %s(%s)", method, args)
             try:
                 await websocket.send(json.dumps({
                     'type': 'api_response',
@@ -267,4 +268,4 @@ class WebSocketBridge:
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=5)
-        print("[WS] WebSocket bridge stopped.")
+        logger.info("WebSocket bridge stopped.")

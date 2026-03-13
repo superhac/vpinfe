@@ -1,4 +1,5 @@
 from __future__ import annotations
+import logging
 from nicegui import ui, app, context
 from fastapi.responses import JSONResponse
 from .pages import tables as tab_tables
@@ -19,6 +20,8 @@ from common.app_updater import (
     launch_prepared_update,
     prepare_update,
 )
+
+logger = logging.getLogger("vpinfe.manager.ui")
 
 # Shutdown event — set by _quit_app() to unblock headless mode
 import threading as _threading
@@ -471,11 +474,11 @@ def download_table_vpxz(name: str):
     vpxz_path = zip_base + '.vpxz'
     os.rename(zip_path, vpxz_path)
 
-    print(f"[Mobile] Created download archive: {vpxz_path}")
+    logger.info("Created download archive: %s", vpxz_path)
 
     def cleanup():
         shutil.rmtree(tmp_dir, ignore_errors=True)
-        print(f"[Mobile] Cleaned up temp archive: {tmp_dir}")
+        logger.info("Cleaned up temp archive: %s", tmp_dir)
 
     return FileResponse(
         vpxz_path,
@@ -508,7 +511,7 @@ def start_manager_ui(port=8001):
     global _ui_thread, _ui_port
     _ui_port = port
     if _ui_thread and _ui_thread.is_alive():
-        print("Manager UI is already running")
+        logger.info("Manager UI is already running")
         return _ui_thread
     _ui_thread = threading.Thread(target=_run_ui, daemon=True)
     _ui_thread.start()

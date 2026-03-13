@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import sys
 import os
 import platform
@@ -21,6 +23,9 @@ if platform.system() == "Windows" and getattr(sys, 'frozen', False):
             ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
 
 from pathlib import Path
+from platformdirs import user_config_dir
+
+from common.logging_config import configure_logging, get_logger
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.api import API
 from frontend.ws_bridge import WebSocketBridge
@@ -28,7 +33,6 @@ from frontend.chromium_manager import ChromiumManager
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.app_version import get_version
-from platformdirs import user_config_dir
 from common.themes import ThemeRegistry
 
 # Get the base path
@@ -37,9 +41,17 @@ base_path = os.path.dirname(os.path.abspath(__file__))
 # Load config BEFORE importing clioptions/managerui (they create IniConfig at import time)
 config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
 config_dir.mkdir(parents=True, exist_ok=True)
+log_path = configure_logging(config_dir, enable_file=False)
 config_path = config_dir / "vpinfe.ini"
 iniconfig = IniConfig(str(config_path))
-print(f"[VPinFE] Version: {get_version()}")
+log_path = configure_logging(config_dir, iniconfig)
+logger = get_logger("vpinfe.main")
+logger.info("Logging to %s", log_path)
+logger.info("Version: %s", get_version())
+
+
+def reconfigure_app_logging() -> None:
+    configure_logging(config_dir, iniconfig)
 
 # Now safe to import modules that create their own IniConfig at import time
 from clioptions import parseArgs, buildMetaData
@@ -83,7 +95,7 @@ def create_api_instances():
         )
         api._finish_setup()
         ws_bridge.register_api(window_name, api)
-        print(f"[Main] Registered API for window '{window_name}'")
+        logger.info("Registered API for window '%s'", window_name)
 
 
 def _start_startup_media_sync():
@@ -93,7 +105,7 @@ def _start_startup_media_sync():
         return
 
     if iniconfig.is_new:
-        print("[VPinFE] Skipping startup media sync on first run.")
+        logger.info("Skipping startup media sync on first run.")
         return
 
     try:
@@ -106,23 +118,27 @@ def _start_startup_media_sync():
 
     table_root = iniconfig.config['Settings'].get('tablerootdir', '').strip()
     if not table_root:
-        print("[VPinFE] Startup media sync enabled, but tablerootdir is empty. Skipping.")
+        logger.info("Startup media sync enabled, but tablerootdir is empty. Skipping.")
         return
 
     _startup_media_sync_started = True
 
     def _worker():
-        print("[VPinFE] Startup media sync enabled. Checking VPinMediaDB for missing/updated media...")
+        logger.info("Startup media sync enabled. Checking VPinMediaDB for missing/updated media...")
         try:
             result = buildMetaData(downloadMedia=True, updateAll=True, userMedia=False)
             if isinstance(result, dict):
                 found = result.get('found', 0)
                 not_found = result.get('not_found', 0)
-                print(f"[VPinFE] Startup media sync complete. Scanned {found} table(s); {not_found} not found in VPSdb.")
+                logger.info(
+                    "Startup media sync complete. Scanned %s table(s); %s not found in VPSdb.",
+                    found,
+                    not_found,
+                )
             else:
-                print("[VPinFE] Startup media sync complete.")
-        except Exception as e:
-            print(f"[WARN] Startup media sync failed: {e}")
+                logger.info("Startup media sync complete.")
+        except Exception:
+            logger.exception("Startup media sync failed")
 
     threading.Thread(target=_worker, daemon=True, name="startup-media-sync").start()
 
@@ -136,6 +152,7 @@ if iniconfig.is_new:
     set_first_run(True)
     manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
     start_manager_ui(port=manager_ui_port)
+    reconfigure_app_logging()
     # Wait for the NiceGUI server to be ready before chromium tries to load it
     for _attempt in range(30):
         try:
@@ -144,7 +161,7 @@ if iniconfig.is_new:
             break
         except Exception:
             time.sleep(0.5)
-    print(f"[VPinFE] First run — Manager UI ready on port {manager_ui_port}")
+    logger.info("First run: Manager UI ready on port %s", manager_ui_port)
 
 # Initialize theme registry and auto-install default themes
 try:
@@ -152,8 +169,8 @@ try:
     theme_registry.load_registry()
     theme_registry.load_theme_manifests()
     theme_registry.auto_install_defaults()
-except Exception as e:
-    print(f"[WARN] Theme registry initialization failed: {e}")
+except Exception:
+    logger.exception("Theme registry initialization failed")
 
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
@@ -181,18 +198,19 @@ http_server.start_file_server(port=theme_assets_port)
 # Start the NiceGUI HTTP server
 manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
 start_manager_ui(port=manager_ui_port)
+reconfigure_app_logging()
 
 # Start the WebSocket bridge
 ws_bridge.start()
 
 if headless:
     import signal
-    print("[Main] Headless mode: servers running without Chromium frontend")
-    print("[Main] Press Ctrl+C to stop...")
+    logger.info("Headless mode: servers running without Chromium frontend")
+    logger.info("Press Ctrl+C to stop...")
     signal.signal(signal.SIGINT, lambda s, f: _shutdown_event.set())
     signal.signal(signal.SIGTERM, lambda s, f: _shutdown_event.set())
     _shutdown_event.wait()
-    print("\n[VPinFE] Shutting down...")
+    logger.info("Shutting down...")
 elif iniconfig.is_new:
     # First-run: show manager UI config page in a chromium window instead of theme
     manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
@@ -205,7 +223,7 @@ elif iniconfig.is_new:
         from screeninfo import get_monitors
         monitors = get_monitors()
     monitor = monitors[screen_id] if screen_id < len(monitors) else monitors[0]
-    print(f"[VPinFE] First run — loading Manager UI in chromium window for initial configuration.")
+    logger.info("First run: loading Manager UI in chromium window for initial configuration.")
     chromium_manager.launch_window(
         window_name='table',
         url=setup_url,
@@ -222,34 +240,34 @@ else:
     chromium_manager.wait_for_exit()
 
 # Shutdown items - wrap each in try/except so restart check always runs
-print("[Main] Shutting down services...")
+logger.info("Shutting down services...")
 try:
     ws_bridge.stop()
-except Exception as e:
-    print(f"[Main] ws_bridge.stop() error: {e}")
+except Exception:
+    logger.exception("ws_bridge.stop() error")
 try:
     stop_dof_service()
-except Exception as e:
-    print(f"[Main] stop_dof_service() error: {e}")
+except Exception:
+    logger.exception("stop_dof_service() error")
 try:
     http_server.on_closed()
-except Exception as e:
-    print(f"[Main] http_server.on_closed() error: {e}")
+except Exception:
+    logger.exception("http_server.on_closed() error")
 try:
     nicegui_app.shutdown()
-except Exception as e:
-    print(f"[Main] nicegui_app.shutdown() error: {e}")
+except Exception:
+    logger.exception("nicegui_app.shutdown() error")
 try:
     stop_manager_ui()
-except Exception as e:
-    print(f"[Main] stop_manager_ui() error: {e}")
-print("[Main] All services stopped.")
+except Exception:
+    logger.exception("stop_manager_ui() error")
+logger.info("All services stopped.")
 
 # Check for restart sentinel
 restart_flag = config_dir / '.restart'
 if restart_flag.exists():
     restart_flag.unlink()
-    print("[VPinFE] Restart requested, re-launching...")
+    logger.info("Restart requested, re-launching...")
     import time
     time.sleep(1)  # Allow OS to release sockets before rebinding
     if getattr(sys, 'frozen', False):
@@ -260,4 +278,4 @@ if restart_flag.exists():
         main_script = os.path.abspath(__file__)
         os.execvp(sys.executable, [sys.executable, main_script])
 else:
-    print("[Main] No restart requested, exiting.")
+    logger.info("No restart requested, exiting.")

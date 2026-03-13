@@ -18,7 +18,7 @@ from common.iniconfig import IniConfig
 from common.metaconfig import MetaConfig
 _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
-logger = logging.getLogger("media")
+logger = logging.getLogger("vpinfe.manager.media")
 
 # Cache for scanned media data (persists across page visits)
 _media_cache: Optional[List[Dict]] = None
@@ -629,7 +629,7 @@ def render_panel():
             if page_state['scan_in_progress']:
                 return
             page_state['scan_in_progress'] = True
-            print("Scanning media...")
+            logger.info("Scanning media...")
             # Capture client context before any io_bound calls (may not exist if called from timer)
             try:
                 client = context.client
