@@ -16,8 +16,7 @@ class IniConfig:
 				'tablescreenid': '0',
 				'tableorientation': 'landscape',
 				'tablerotation': '0',
-				'cabmode': 'false',
-				'splashscreen': 'true'
+				'cabmode': 'false'
 			},
 			'Settings': {
 				'vpxbinpath': '',
@@ -26,6 +25,7 @@ class IniConfig:
 				'theme': 'carousel-desktop',
 				'startup_collection': '',
 				'autoupdatemediaonstartup': 'false',
+				'splashscreen': 'true',
 				},
 			'Input': {
 				'joyleft': '',
@@ -100,6 +100,13 @@ class IniConfig:
 			if not self.config.has_option('DOF', 'enabledof'):
 				self.config.set('DOF', 'enabledof', self.config.get('Settings', 'enabledof'))
 			self.config.remove_option('Settings', 'enabledof')
+			changed = True
+
+		# Migrate splashscreen from [Displays] to [Settings] if present.
+		if self.config.has_option('Displays', 'splashscreen'):
+			if not self.config.has_option('Settings', 'splashscreen'):
+				self.config.set('Settings', 'splashscreen', self.config.get('Displays', 'splashscreen'))
+			self.config.remove_option('Displays', 'splashscreen')
 			changed = True
 
 		# Remove legacy Logger.file option; logs always go to the standard config dir file.

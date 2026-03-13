@@ -604,7 +604,7 @@ class API:
     ###################
 
     def get_splashscreen_enabled(self):
-        return self._iniConfig.config['Displays'].get('splashscreen', 'true')
+        return self._iniConfig.config['Settings'].get('splashscreen', 'true')
 
     def get_theme_name(self):
         return self._iniConfig.config['Settings'].get('theme', 'default')
