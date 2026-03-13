@@ -14,6 +14,7 @@ from .pages import mobile as tab_mobile
 import asyncio
 import threading
 import os
+import socket
 from common.app_version import get_version
 from common.app_updater import (
     check_for_updates as check_for_app_updates,
@@ -532,13 +533,34 @@ _ui_thread = None
 
 _ui_port = 8001
 
+
+def _manager_ui_urls(port: int) -> list[str]:
+    urls = [f"http://localhost:{port}"]
+    seen = {"127.0.0.1", "0.0.0.0", "::1"}
+    try:
+        hostname = socket.gethostname()
+        for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None, socket.AF_INET):
+            if family != socket.AF_INET:
+                continue
+            ip = sockaddr[0]
+            if ip in seen:
+                continue
+            seen.add(ip)
+            urls.append(f"http://{ip}:{port}")
+    except Exception:
+        logger.exception("Failed to enumerate Manager UI network addresses")
+    return urls
+
 def _run_ui():
     STORAGE_SECRET = "verysecret" # The storatage is just to keep the active tab between sessions. Nothing sensitive.
     nicegui_storage_dir = UPDATER_CONFIG_DIR / ".nicegui"
     nicegui_storage_dir.mkdir(parents=True, exist_ok=True)
     os.environ["NICEGUI_STORAGE_PATH"] = str(nicegui_storage_dir)
     logger.info("Using NiceGUI storage path: %s", nicegui_storage_dir)
+    logger.info("Starting Manager UI on host=0.0.0.0 port=%s", _ui_port)
+    logger.info("Manager UI expected URLs: %s", ", ".join(_manager_ui_urls(_ui_port)))
     ui.run(title='VPinFE Manager UI',
+           host='0.0.0.0',
            port=_ui_port,
            reload=False,
            show=False,
