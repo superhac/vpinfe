@@ -59,10 +59,31 @@ def check_for_updates() -> dict:
     global _update_check_cache
 
     if _update_check_cache['checked']:
+        logger.info(
+            "Returning cached update check result: current=%s latest=%s available=%s error=%s supported=%s support_reason=%s asset=%s",
+            _update_check_cache.get('current_version'),
+            _update_check_cache.get('latest_version'),
+            _update_check_cache.get('update_available'),
+            _update_check_cache.get('error'),
+            _update_check_cache.get('update_supported'),
+            _update_check_cache.get('support_reason'),
+            _update_check_cache.get('asset_name'),
+        )
         return _update_check_cache
 
+    logger.info("Running initial header update check for current_version=%s", get_version())
     _update_check_cache.update(check_for_app_updates())
     _update_check_cache['checked'] = True
+    logger.info(
+        "Initial header update check complete: current=%s latest=%s available=%s error=%s supported=%s support_reason=%s asset=%s",
+        _update_check_cache.get('current_version'),
+        _update_check_cache.get('latest_version'),
+        _update_check_cache.get('update_available'),
+        _update_check_cache.get('error'),
+        _update_check_cache.get('update_supported'),
+        _update_check_cache.get('support_reason'),
+        _update_check_cache.get('asset_name'),
+    )
     return _update_check_cache
 
 def header():
@@ -130,7 +151,18 @@ def header():
 
             async def check_updates_async():
                 from nicegui import run
+                logger.info("Scheduling async header update check")
                 result = await run.io_bound(check_for_updates)
+                logger.info(
+                    "Header update check UI render: current=%s latest=%s available=%s error=%s supported=%s support_reason=%s asset=%s",
+                    result.get('current_version'),
+                    result.get('latest_version'),
+                    result.get('update_available'),
+                    result.get('error'),
+                    result.get('update_supported'),
+                    result.get('support_reason'),
+                    result.get('asset_name'),
+                )
                 with update_container:
                     if result.get('update_available'):
                         ui.icon('system_update', size='20px').classes('text-yellow-400')

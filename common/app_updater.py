@@ -41,10 +41,16 @@ def _parse_tag_version(tag: str) -> tuple[int, int, int] | None:
 
 
 def _request_json(url: str) -> dict:
+    logger.info("Fetching JSON from %s", url)
     req = urllib.request.Request(url)
     req.add_header("User-Agent", USER_AGENT)
     with urllib.request.urlopen(req, timeout=15) as response:
-        return json.loads(response.read().decode("utf-8"))
+        payload = json.loads(response.read().decode("utf-8"))
+    if isinstance(payload, dict):
+        logger.info("Fetched JSON from %s with keys=%s", url, sorted(payload.keys()))
+    else:
+        logger.info("Fetched JSON from %s with type=%s", url, type(payload).__name__)
+    return payload
 
 
 def _download_file(url: str, dest: Path) -> None:
@@ -203,11 +209,25 @@ def get_install_context() -> dict:
             "slim": slim,
         }
     )
+    logger.info(
+        "Install context resolved: version=%s frozen=%s platform=%s triplet=%s supported=%s reason=%s install_root=%s launch_target=%s slim=%s",
+        context["current_version"],
+        context["is_frozen"],
+        context["platform"],
+        context["triplet"],
+        context["supported"],
+        context["reason"],
+        context["install_root"],
+        context["launch_target"],
+        context.get("slim"),
+    )
     return context
 
 
 def _get_release_payload() -> dict:
-    return _request_json(LATEST_RELEASE_URL)
+    payload = _request_json(LATEST_RELEASE_URL)
+    logger.info("Latest release payload tag_name=%s", payload.get("tag_name"))
+    return payload
 
 
 def _get_release_manifest(release_payload: dict) -> dict:
@@ -217,7 +237,9 @@ def _get_release_manifest(release_payload: dict) -> dict:
     manifest_url = manifest_asset.get("browser_download_url")
     if not manifest_url:
         raise UpdateError("Release manifest download URL is missing")
-    return _request_json(manifest_url)
+    manifest = _request_json(manifest_url)
+    logger.info("Release manifest version=%s assets=%s", manifest.get("version"), sorted((manifest.get("assets") or {}).keys()))
+    return manifest
 
 
 def check_for_updates() -> dict:
@@ -232,61 +254,91 @@ def check_for_updates() -> dict:
         "triplet": context["triplet"],
         "asset_name": None,
     }
+    logger.info(
+        "Starting update check: current_version=%s triplet=%s supported=%s support_reason=%s",
+        result["current_version"],
+        result["triplet"],
+        context["supported"],
+        result["support_reason"],
+    )
 
     try:
         release_payload = _get_release_payload()
         latest_tag = (release_payload.get("tag_name") or "").strip()
         if not latest_tag:
             result["error"] = "missing_latest_tag"
+            logger.warning("Update check failed: latest release payload missing tag_name")
             return result
 
         result["latest_version"] = latest_tag
 
         current_ver = _parse_tag_version(context["current_version"])
         latest_ver = _parse_tag_version(latest_tag)
+        logger.info(
+            "Parsed versions for update check: current=%s parsed_current=%s latest=%s parsed_latest=%s",
+            context["current_version"],
+            current_ver,
+            latest_tag,
+            latest_ver,
+        )
 
         if current_ver is None:
             result["update_available"] = True
             if result["error"] is None:
                 result["error"] = "non_release_build"
+            logger.warning("Update check treating current build as non-release: current_version=%s", context["current_version"])
             return result
 
         if latest_ver is None:
             result["error"] = "latest_tag_unparseable"
+            logger.warning("Update check failed: latest tag is unparseable: %s", latest_tag)
             return result
 
         result["update_available"] = latest_ver > current_ver
         if not result["update_available"]:
+            logger.info("Update check complete: already up to date at %s", context["current_version"])
             return result
 
         if not context["supported"]:
+            logger.info("Update available but auto-update unsupported: support_reason=%s", result["support_reason"])
             return result
 
         manifest = _get_release_manifest(release_payload)
         asset_info = (manifest.get("assets") or {}).get(context["triplet"] or "")
         if not asset_info:
             result["support_reason"] = "no_matching_asset"
+            logger.warning("Update available but manifest has no asset for triplet=%s", context["triplet"])
             return result
 
         asset_name = asset_info.get("file")
         if not asset_name:
             result["support_reason"] = "asset_missing_file_name"
+            logger.warning("Update manifest asset missing file name for triplet=%s", context["triplet"])
             return result
 
         asset = _find_release_asset(release_payload, asset_name)
         if not asset:
             result["support_reason"] = "asset_not_attached_to_release"
+            logger.warning("Release payload missing attached asset=%s for triplet=%s", asset_name, context["triplet"])
             return result
 
         result["update_supported"] = True
         result["support_reason"] = None
         result["asset_name"] = asset_name
+        logger.info(
+            "Update check complete: update_available=%s latest=%s asset=%s triplet=%s",
+            result["update_available"],
+            result["latest_version"],
+            result["asset_name"],
+            result["triplet"],
+        )
         return result
-    except URLError:
+    except URLError as exc:
+        logger.exception("Update check failed with URLError against %s: %s", LATEST_RELEASE_URL, exc)
         result["error"] = "remote_check_failed"
         return result
     except Exception as exc:
-        logger.error("Failed to check for updates: %s", exc)
+        logger.exception("Failed to check for updates: %s", exc)
         result["error"] = "remote_check_failed"
         return result
 
