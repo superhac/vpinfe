@@ -431,6 +431,7 @@ LAUNCH_TARGET={launch_target}
 LOG_PATH={log_file}
 LAST_LOG={last_log}
 UPDATES_ROOT={updates_root}
+KEEP_VERSION_DIR="$(dirname "$STAGE_DIR")"
 EXTRACT_ROOT="$STAGE_DIR/extracted"
 NEW_ROOT="$EXTRACT_ROOT/vpinfe"
 BACKUP_ROOT="${{INSTALL_ROOT}}.bak"
@@ -485,7 +486,7 @@ if mv "$NEW_ROOT" "$INSTALL_ROOT"; then
         echo "[Updater] Relaunch process exited quickly"
     fi
     echo "[Updater] Pruning old staged updates"
-    find "$UPDATES_ROOT" -mindepth 1 -maxdepth 1 ! -path "$STAGE_DIR" -exec rm -rf {{}} +
+    find "$UPDATES_ROOT" -mindepth 1 -maxdepth 1 ! -path "$KEEP_VERSION_DIR" -exec rm -rf {{}} +
     rm -rf "$BACKUP_ROOT"
     rm -rf "$EXTRACT_ROOT"
     echo "[Updater] Update applied successfully"
