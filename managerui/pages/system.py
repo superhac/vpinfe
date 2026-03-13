@@ -22,6 +22,7 @@ except ImportError:  # pragma: no cover - handled gracefully in UI
 
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 INI_PATH = CONFIG_DIR / "vpinfe.ini"
+_STATIC_DETAILS_CACHE: dict | None = None
 
 
 def _resolve_usage_path() -> Path:
@@ -58,20 +59,17 @@ def _get_system_metrics() -> dict:
     usage_path = _resolve_usage_path()
     total, used, free = shutil.disk_usage(usage_path)
     disk_percent = (used / total * 100) if total else 0.0
-    install_context = get_install_context()
-    browser_path = _get_frontend_browser_path()
-    browser_name = _get_frontend_browser_name(browser_path)
-    browser_version = _get_frontend_browser_version(browser_path)
+    static_details = _get_static_system_details()
 
     metrics = {
         "hostname": socket.gethostname(),
         "os_name": platform.system() or "Unknown",
         "os_version": platform.version() or platform.release() or "Unknown",
-        "build_flavor": _get_build_flavor(install_context),
-        "release_target": install_context.get("triplet") or "Unknown",
-        "browser_name": browser_name,
-        "browser_path": browser_path or "Unavailable",
-        "browser_version": browser_version or "Unknown",
+        "build_flavor": static_details["build_flavor"],
+        "release_target": static_details["release_target"],
+        "browser_name": static_details["browser_name"],
+        "browser_path": static_details["browser_path"],
+        "browser_version": static_details["browser_version"],
         "usage_path": str(usage_path),
         "disk_total": total,
         "disk_used": used,
@@ -99,6 +97,24 @@ def _metric_color(value: float, warn: float, critical: float) -> str:
     if value >= warn:
         return "text-amber-400"
     return "text-emerald-400"
+
+
+def _get_static_system_details() -> dict:
+    global _STATIC_DETAILS_CACHE
+
+    if _STATIC_DETAILS_CACHE is not None:
+        return _STATIC_DETAILS_CACHE
+
+    install_context = get_install_context()
+    browser_path = _get_frontend_browser_path()
+    _STATIC_DETAILS_CACHE = {
+        "build_flavor": _get_build_flavor(install_context),
+        "release_target": install_context.get("triplet") or "Unknown",
+        "browser_name": _get_frontend_browser_name(browser_path),
+        "browser_path": browser_path or "Unavailable",
+        "browser_version": _get_frontend_browser_version(browser_path) or "Unknown",
+    }
+    return _STATIC_DETAILS_CACHE
 
 
 def _get_build_flavor(install_context: dict) -> str:
@@ -140,9 +156,30 @@ def _get_frontend_browser_version(browser_path: str | None) -> str | None:
     if not browser_path:
         return None
 
+    if platform.system() == "Windows":
+        return _get_windows_file_version(browser_path)
+
     try:
         completed = subprocess.run(
             [browser_path, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except Exception:
+        return None
+
+    output = (completed.stdout or completed.stderr or "").strip()
+    return output or None
+
+
+def _get_windows_file_version(browser_path: str) -> str | None:
+    escaped_path = browser_path.replace("'", "''")
+    powershell_cmd = f"(Get-Item '{escaped_path}').VersionInfo.ProductVersion"
+    try:
+        completed = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", powershell_cmd],
             capture_output=True,
             text=True,
             timeout=5,
