@@ -399,11 +399,20 @@ jobs:
           PY
 
       - name: Publish GitHub release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          body_path: RELEASE_NOTES.md
-          files: |
-            release/vpinfe-${{ github.ref_name }}-*.zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          assets=(
+            release/vpinfe-${GITHUB_REF_NAME}-*.zip
             release/checksums.txt
             release/manifest.json
-          fail_on_unmatched_files: true
+          )
+
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release edit "${GITHUB_REF_NAME}" --notes-file RELEASE_NOTES.md
+            gh release upload "${GITHUB_REF_NAME}" "${assets[@]}" --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" "${assets[@]}" \
+              --notes-file RELEASE_NOTES.md \
+              --verify-tag
+          fi
