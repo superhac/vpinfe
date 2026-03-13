@@ -532,6 +532,7 @@ def set_remote_launch_state(launching: bool, table_name: str = None):
 _ui_thread = None
 
 _ui_port = 8001
+_ui_host = "0.0.0.0"
 
 
 def _manager_ui_urls(port: int) -> list[str]:
@@ -557,18 +558,19 @@ def _run_ui():
     nicegui_storage_dir.mkdir(parents=True, exist_ok=True)
     os.environ["NICEGUI_STORAGE_PATH"] = str(nicegui_storage_dir)
     logger.info("Using NiceGUI storage path: %s", nicegui_storage_dir)
-    logger.info("Starting Manager UI on host=0.0.0.0 port=%s", _ui_port)
+    logger.info("Starting Manager UI on host=%s port=%s", _ui_host, _ui_port)
     logger.info("Manager UI expected URLs: %s", ", ".join(_manager_ui_urls(_ui_port)))
     ui.run(title='VPinFE Manager UI',
-           host='0.0.0.0',
+           host=_ui_host,
            port=_ui_port,
            reload=False,
            show=False,
            storage_secret=STORAGE_SECRET)
 
-def start_manager_ui(port=8001):
-    global _ui_thread, _ui_port
+def start_manager_ui(port=8001,host="0.0.0.0"):
+    global _ui_thread, _ui_port, _ui_host
     _ui_port = port
+    _ui_host = host
     if _ui_thread and _ui_thread.is_alive():
         logger.info("Manager UI is already running")
         return _ui_thread

@@ -74,6 +74,7 @@ FRIENDLY_NAMES = {
     'http_port': 'Web Server Port',
     'themeassetsport': 'Theme Server Port',
     'manageruiport': 'Manager UI Port',
+    'manageruipublic': 'Manager UI is accessible on other computers (Restart required)',
     'startup_collection': 'Default Startup Collection',
     # [Mobile]
     'deviceip': 'Mobile Device IP',
@@ -481,6 +482,7 @@ def render_panel(tab=None):
             or (section == 'Logger' and key == 'console')
             or (section == 'Settings' and key == 'splashscreen')
             or (section == 'DOF' and key == 'enabledof')
+            or (section == 'Network' and key == 'manageruipublic')
         )
 
         with ui.element('div').classes(
@@ -679,6 +681,16 @@ def render_panel(tab=None):
                                             value = config.config.get(section, key, fallback='')
                                             build_config_input(section, key, value)
 
+                            if section == 'Network':
+                                with ui.card().classes('config-side-card w-full mt-4 p-4'):
+                                    ui.label('Warning about publicly accessible management UI').classes('text-lg font-semibold text-white')
+                                    ui.label(
+                                        'Anyone on your local network can connect and access the management UI when the Manager UI is set to be accessible on other computers. This can be a security risk and should be enabled with care.'
+                                    ).classes('text-sm text-slate-300')
+                                    ui.label(
+                                        'The terminal will be disabled when the Manager UI is accessible by other computers.'
+                                    ).classes('text-sm text-slate-300')
+                                    
                             if section == 'Displays':
                                 with ui.card().classes('config-side-card w-full p-4 gap-3'):
                                     ui.label('Detected Displays').classes('text-lg font-semibold text-white')

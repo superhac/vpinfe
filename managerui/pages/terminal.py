@@ -120,6 +120,12 @@ def render_panel(tab=None):
     if client_id in _SESSIONS:
         _close_session(client_id)
 
+    if os.environ['NICEGUI_HOST'] == "0.0.0.0":
+        with ui.column().classes('w-full'):
+            with ui.card().classes('w-full p-4'):
+                ui.label('Terminal is not available when management interface is publicly accessible.').classes('text-red-400')
+        return
+
     if not (pty and fcntl and termios):
         with ui.column().classes('w-full'):
             with ui.card().classes('w-full p-4'):

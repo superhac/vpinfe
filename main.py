@@ -151,7 +151,9 @@ if iniconfig.is_new:
     import time
     set_first_run(True)
     manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
-    start_manager_ui(port=manager_ui_port)
+    manager_ui_host = "0.0.0.0" if iniconfig.config['Network'].get('manageruipublic', 'true') == "true" else "127.0.0.1"
+
+    start_manager_ui(port=manager_ui_port, host=manager_ui_host)
     reconfigure_app_logging()
     # Wait for the NiceGUI server to be ready before chromium tries to load it
     for _attempt in range(30):
@@ -197,7 +199,8 @@ http_server.start_file_server(port=theme_assets_port)
 
 # Start the NiceGUI HTTP server
 manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
-start_manager_ui(port=manager_ui_port)
+manager_ui_host = "0.0.0.0" if iniconfig.config['Network'].get('manageruipublic', 'true') == "true" else "127.0.0.1"
+start_manager_ui(port=manager_ui_port, host=manager_ui_host)
 reconfigure_app_logging()
 
 # Start the WebSocket bridge

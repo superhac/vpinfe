@@ -53,6 +53,7 @@ class IniConfig:
 			'Network': {
 				'themeassetsport': '8000',
 				'manageruiport': '8001',
+				'manageruipublic': 'false'
 				},
 			'DOF': {
 				'enabledof': 'false',
