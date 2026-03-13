@@ -465,7 +465,7 @@ function Invoke-WithRetry([scriptblock]$Action, [string]$Description, [int]$Atte
             return
         }}
         catch {{
-            Write-Output "[Updater] $Description failed on attempt $i: $($_.Exception.Message)"
+            Write-Output "[Updater] $Description failed on attempt ${i}: $($_.Exception.Message)"
             if ($i -eq $Attempts) {{
                 throw
             }}
