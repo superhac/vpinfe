@@ -9,6 +9,7 @@ This is the offical release of vpinfe v1.1.4
 
 ### Fixes
 - Removed the terminal page from the managerUI
+- Fix updater hang on Linux
 
 ### Notes
 None
