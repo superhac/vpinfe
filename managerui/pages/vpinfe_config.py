@@ -35,6 +35,17 @@ SECTION_ICONS = {
     'DOF': 'key',
 }
 
+SECTION_DESCRIPTIONS = {
+    'Settings': 'Core paths, startup behavior, and theme defaults.',
+    'Displays': 'Monitor assignments and playfield orientation settings.',
+    'Input': 'Controller and input-related preferences.',
+    'Logger': 'Verbosity, console logging, and quick log access.',
+    'Media': 'Default media handling and fallback asset preferences.',
+    'Network': 'Ports and services used by the local frontend stack.',
+    'Mobile': 'Connection details for external mobile devices.',
+    'DOF': 'Direct Output Framework integration and sync tools.',
+}
+
 # Dictionary for explicit user-friendly name mappings
 FRIENDLY_NAMES = {
     # [Settings]
@@ -56,6 +67,7 @@ FRIENDLY_NAMES = {
     'dmdscreenid': 'DMD Monitor ID',
     'tablerotation': 'Playfield Rotation (0/90/270)',
     'tableorientation': 'Playfield Orientation (Landscape/Portrait)',
+    'playfieldorientation': 'Playfield Orientation (Landscape/Portrait)',
     'cabmode': 'Cabinet Mode',
     
     # [Network]
@@ -258,35 +270,197 @@ def render_panel(tab=None):
     # Add custom styles for config page
     ui.add_head_html('''
     <style>
+        .config-page-shell {
+            gap: 1.25rem;
+        }
+        .config-hero {
+            background:
+                radial-gradient(circle at top right, rgba(125, 211, 252, 0.16), transparent 34%),
+                linear-gradient(135deg, #203a5e 0%, #305887 55%, #26466c 100%);
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 18px;
+            box-shadow: 0 18px 40px rgba(2, 6, 23, 0.28);
+        }
+        .config-hero-kicker {
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #bfdbfe;
+            font-weight: 700;
+        }
+        .config-tabs {
+            gap: 0.6rem;
+            padding: 0.3rem 0.2rem 0.2rem;
+        }
+        .config-tabs .q-tabs__content {
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+        .config-tabs .q-tab {
+            min-height: 46px;
+            border-radius: 999px;
+            padding: 0 16px;
+            background: rgba(30, 41, 59, 0.72);
+            border: 1px solid rgba(71, 85, 105, 0.9);
+            color: #dbeafe;
+            transition: all 0.2s ease;
+        }
+        .config-tabs .q-tab--active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.22), rgba(14, 165, 233, 0.18));
+            border-color: rgba(96, 165, 250, 0.95);
+            box-shadow: 0 8px 20px rgba(14, 165, 233, 0.12);
+        }
+        .config-tabs .q-tab__label {
+            font-weight: 700;
+        }
+        .config-panel-shell {
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(13, 26, 45, 0.92));
+            border: 1px solid #24344b;
+            border-radius: 18px;
+            padding: 1.2rem;
+        }
+        .config-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem 1.1rem;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(15, 23, 42, 0.52));
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+        .config-section-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+        .config-section-description {
+            font-size: 0.92rem;
+            color: #93c5fd;
+        }
         .config-card {
-            background: linear-gradient(145deg, #1e293b 0%, #152238 100%) !important;
+            background: linear-gradient(145deg, #1c2a40 0%, #152238 100%) !important;
             border: 1px solid #334155 !important;
-            border-radius: 12px !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2) !important;
+            border-radius: 16px !important;
+            box-shadow: 0 12px 30px rgba(2, 6, 23, 0.18) !important;
             transition: all 0.2s ease !important;
         }
         .config-card:hover {
             border-color: #3b82f6 !important;
             box-shadow: 0 8px 12px -2px rgba(59, 130, 246, 0.15) !important;
         }
-        .config-card-header {
-            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
-            margin: -16px -16px 16px -16px;
-            padding: 12px 16px;
-            border-radius: 12px 12px 0 0;
+        .config-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1rem;
+            align-items: start;
+        }
+        .config-display-form-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 1rem;
+            align-items: start;
+        }
+        .config-three-column-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1rem;
+            align-items: start;
+        }
+        .config-display-column {
+            display: grid;
+            gap: 1rem;
+            align-content: start;
+        }
+        .config-main-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
+            gap: 1rem;
+            align-items: start;
+        }
+        .config-field-card {
+            padding: 0.95rem 1rem;
+            border-radius: 14px;
+            background: linear-gradient(180deg, rgba(20, 32, 56, 0.96), rgba(17, 27, 46, 0.96));
+            border: 1px solid rgba(71, 85, 105, 0.72);
+        }
+        .config-field-card.compact {
+            display: flex;
+            align-items: center;
+            min-height: 76px;
+        }
+        .config-field-label {
+            margin-bottom: 0.45rem;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            color: #93c5fd;
+        }
+        .config-input {
+            width: 100%;
         }
         .config-input .q-field__control {
             background: #1a2744 !important;
             border-radius: 8px !important;
         }
+        .config-input .q-field__native,
+        .config-input input,
+        .config-input .q-field__input {
+            color: #f8fafc !important;
+        }
         .config-input .q-field__label {
             color: #94a3b8 !important;
         }
+        .config-input .q-checkbox__label {
+            color: #f8fafc !important;
+            font-weight: 600;
+        }
+        .config-side-card {
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(17, 24, 39, 0.94), rgba(15, 23, 42, 0.98));
+            border: 1px solid rgba(71, 85, 105, 0.8);
+            box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08), 0 10px 30px rgba(2, 6, 23, 0.18);
+        }
+        .config-display-item {
+            padding: 0.75rem 0.85rem;
+            border-radius: 12px;
+            background: rgba(30, 41, 59, 0.55);
+            border: 1px solid rgba(71, 85, 105, 0.58);
+            color: #e2e8f0;
+        }
+        .config-display-item strong {
+            color: #f8fafc;
+        }
+        .config-footer-bar {
+            position: sticky;
+            bottom: 0.75rem;
+            z-index: 5;
+            display: flex;
+            justify-content: flex-end;
+            padding-top: 0.25rem;
+        }
         .q-tab-panels {
-            background: #0d1a2d !important;
+            background: transparent !important;
         }
         .q-tab-panel {
-            background: #0d1a2d !important;
+            background: transparent !important;
+            padding: 0 !important;
+        }
+        @media (max-width: 960px) {
+            .config-main-grid {
+                grid-template-columns: 1fr;
+            }
+            .config-display-form-grid {
+                grid-template-columns: 1fr;
+            }
+            .config-three-column-grid {
+                grid-template-columns: 1fr;
+            }
+            .config-section-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
         }
     </style>
     ''')
@@ -299,6 +473,61 @@ def render_panel(tab=None):
     # Get all sections, filter out ignored ones
     sections = [s for s in config.config.sections() if s not in IGNORED_SECTIONS]
 
+    def build_config_input(section: str, key: str, value: str):
+        friendly_label = get_friendly_name(key)
+        is_checkbox = (
+            (section == 'Settings' and key == 'autoupdatemediaonstartup')
+            or (section == 'Displays' and key == 'cabmode')
+            or (section == 'Logger' and key == 'console')
+            or (section == 'Settings' and key == 'splashscreen')
+            or (section == 'DOF' and key == 'enabledof')
+        )
+
+        with ui.element('div').classes(
+            'config-field-card compact' if is_checkbox else 'config-field-card'
+        ):
+            if not is_checkbox:
+                ui.label(friendly_label).classes('config-field-label')
+
+            if section == 'Settings' and key == 'startup_collection':
+                collection_options = _get_collection_names()
+                if value and value not in collection_options:
+                    collection_options.append(value)
+                inp = ui.select(
+                    options=collection_options,
+                    value=value
+                ).props('outlined dense options-dense').classes('config-input')
+            elif section == 'Settings' and key == 'theme':
+                theme_options = _get_installed_theme_names()
+                if value and value not in theme_options:
+                    theme_options.append(value)
+                inp = ui.select(
+                    options=theme_options,
+                    value=value
+                ).props('outlined dense options-dense').classes('config-input')
+            elif is_checkbox:
+                inp = ui.checkbox(
+                    text=friendly_label,
+                    value=(value == "true")
+                ).classes('config-input')
+            elif section == 'Displays' and key in ('tablescreenid', 'bgscreenid', 'dmdscreenid'):
+                monitor_options = _get_display_id_options(detected_displays, value)
+                inp = ui.select(
+                    options=monitor_options,
+                    value=(value or '').strip()
+                ).props('outlined dense options-dense').classes('config-input')
+            elif section == 'Logger' and key == 'level':
+                level_options = _get_logger_level_options(value)
+                normalized = (value or 'info').strip().lower()
+                inp = ui.select(
+                    options=level_options,
+                    value=normalized
+                ).props('outlined dense options-dense').classes('config-input')
+            else:
+                inp = ui.input(value=value).props('outlined dense').classes('config-input')
+
+            inputs[section][key] = inp
+
     def save_config():
         for section, keys in inputs.items():
             for key, inp in keys.items():
@@ -309,6 +538,12 @@ def render_panel(tab=None):
         with open(INI_PATH, 'w') as f:
             config.config.write(f)
         ui.notify('Configuration Saved', type='positive')
+
+    def split_evenly(items: list[str], columns: int) -> list[list[str]]:
+        if columns <= 1:
+            return [items]
+        size = (len(items) + columns - 1) // columns
+        return [items[i * size:(i + 1) * size] for i in range(columns)]
 
     def show_command_output_dialog(title: str, command: list[str], output: str, exit_code: int | None):
         with ui.dialog().props('persistent max-width=1000px') as dlg, ui.card().classes('w-full').style(
@@ -370,150 +605,136 @@ def render_panel(tab=None):
             update_dof_button.text = 'Update DOF via Online Config Tool'
             update_dof_button.enable()
 
-    with ui.column().classes('w-full'):
-        # Header card
-        with ui.card().classes('w-full mb-6').style(
-            'background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); '
-            'border-radius: 12px;'
-        ):
-            with ui.row().classes('w-full items-center p-4 gap-3'):
-                ui.icon('tune', size='32px').classes('text-white')
-                ui.label('VPinFE Configuration').classes('text-2xl font-bold text-white')
+    with ui.column().classes('w-full config-page-shell'):
+        with ui.card().classes('w-full config-hero').style('overflow: hidden;'):
+            with ui.row().classes('w-full items-center justify-between p-6 gap-6'):
+                with ui.row().classes('items-center gap-4'):
+                    ui.icon('tune', size='34px').classes('text-white')
+                    with ui.column().classes('gap-1'):
+                        ui.label('System Setup').classes('config-hero-kicker')
+                        ui.label('VPinFE Configuration').classes('text-2xl font-bold text-white')
+                        ui.label(
+                            'Organize display mapping, startup behavior, media, and service settings from one place.'
+                        ).classes('text-sm text-blue-100')
+                with ui.column().classes('items-start gap-1'):
+                    ui.label(f'{len(sections)} sections').classes('text-sm font-semibold text-white')
+                    ui.label('Changes are saved directly to your active vpinfe.ini.').classes('text-xs text-blue-100')
 
-        # Tabs for each section - all on one row
-        with ui.tabs().classes('w-full').props('inline-label dense') as tabs:
+        with ui.tabs().classes('w-full config-tabs').props(
+            'inline-label dense active-color=white indicator-color=transparent'
+        ) as tabs:
             for section in sections:
                 icon = SECTION_ICONS.get(section, 'settings')
                 ui.tab(section, label=section, icon=icon)
 
-        # Tab panels with content
         with ui.tab_panels(tabs, value=sections[0] if sections else None).classes('w-full'):
             for section in sections:
                 with ui.tab_panel(section):
                     inputs[section] = {}
+                    options = config.config.options(section)
+                    if section == 'Logger':
+                        options = [key for key in options if key != 'file']
 
-                    with ui.card().classes('config-card p-4 w-full'):
-                        options = config.config.options(section)
-                        if section == 'Logger':
-                            options = [key for key in options if key != 'file']
+                    with ui.element('div').classes('config-panel-shell w-full'):
+                        with ui.element('div').classes('config-section-header'):
+                            with ui.row().classes('items-center gap-3'):
+                                ui.icon(SECTION_ICONS.get(section, 'settings'), size='24px').classes('text-blue-200')
+                                with ui.column().classes('gap-0'):
+                                    ui.label(section).classes('config-section-title')
+                                    ui.label(
+                                        SECTION_DESCRIPTIONS.get(section, 'Configuration values for this section.')
+                                    ).classes('config-section-description')
+                            ui.label(f'{len(options)} setting{"s" if len(options) != 1 else ""}').classes(
+                                'text-xs font-semibold text-slate-300'
+                            )
 
-                        with ui.column().classes('gap-3'):
-                            for key in options:
-                                value = config.config.get(section, key, fallback='')
-                                friendly_label = get_friendly_name(key)
+                        content_classes = 'config-main-grid' if section == 'Displays' else 'w-full'
+                        with ui.element('div').classes(content_classes):
+                            with ui.card().classes('config-card w-full p-4'):
+                                if section in ('Displays', 'Settings'):
+                                    split_key = 'tableorientation' if section == 'Displays' else 'theme'
+                                    split_index = options.index(split_key) if split_key in options else len(options)
+                                    first_column_keys = options[:split_index]
+                                    second_column_keys = options[split_index:]
 
-                                # Special handling for startup_collection in Settings
-                                if section == 'Settings' and key == 'startup_collection':
-                                    collection_options = _get_collection_names()
-                                    # Ensure current value is in options
-                                    if value and value not in collection_options:
-                                        collection_options.append(value)
-                                    inp = ui.select(
-                                        label=friendly_label,
-                                        options=collection_options,
-                                        value=value
-                                    ).classes('config-input').style('min-width: 200px;')
-                                # Special handling for theme in Settings
-                                elif section == 'Settings' and key == 'theme':
-                                    theme_options = _get_installed_theme_names()
-                                    if value and value not in theme_options:
-                                        theme_options.append(value)
-                                    inp = ui.select(
-                                        label=friendly_label,
-                                        options=theme_options,
-                                        value=value
-                                    ).classes('config-input').style('min-width: 200px;')
-                                # Special handling for startup media auto-update in Settings
-                                elif (section == 'Settings' and key == 'autoupdatemediaonstartup') or (section == 'Displays' and key == 'cabmode') or (section == 'Logger' and key == 'console') or (section == 'Settings' and key == 'splashscreen') or (section == 'DOF' and key == 'enabledof'):
-                                    inp = ui.checkbox(
-                                        text=friendly_label,
-                                        value=(value == "true")
-                                    ).classes('config-input').style('min-width: 200px;')
-                                # Special handling for monitor IDs in Displays
-                                elif section == 'Displays' and key in ('tablescreenid', 'bgscreenid', 'dmdscreenid'):
-                                    monitor_options = _get_display_id_options(detected_displays, value)
-                                    inp = ui.select(
-                                        label=friendly_label,
-                                        options=monitor_options,
-                                        value=(value or '').strip()
-                                    ).classes('config-input').style('min-width: 200px;')
-                                elif section == 'Logger' and key == 'level':
-                                    level_options = _get_logger_level_options(value)
-                                    normalized = (value or 'info').strip().lower()
-                                    inp = ui.select(
-                                        label=friendly_label,
-                                        options=level_options,
-                                        value=normalized
-                                    ).classes('config-input').style('min-width: 200px;')
+                                    with ui.element('div').classes('config-display-form-grid'):
+                                        with ui.element('div').classes('config-display-column'):
+                                            for key in first_column_keys:
+                                                value = config.config.get(section, key, fallback='')
+                                                build_config_input(section, key, value)
+                                        with ui.element('div').classes('config-display-column'):
+                                            for key in second_column_keys:
+                                                value = config.config.get(section, key, fallback='')
+                                                build_config_input(section, key, value)
+                                elif section == 'Input':
+                                    with ui.element('div').classes('config-three-column-grid'):
+                                        for column_keys in split_evenly(options, 3):
+                                            with ui.element('div').classes('config-display-column'):
+                                                for key in column_keys:
+                                                    value = config.config.get(section, key, fallback='')
+                                                    build_config_input(section, key, value)
                                 else:
-                                    # Calculate width based on the longer string (value or friendly label)
-                                    char_width = max(len(value), len(friendly_label), 5)  
-                                    width_px = int(char_width * 10 * 1.1)  
-                                    width_px = max(width_px, 100)  
-                                    inp = ui.input(
-                                        label=friendly_label, 
-                                        value=value
-                                    ).classes('config-input').style(f'width: {width_px}px;')
-                                
-                                # Store the original INI key so saving works correctly
-                                inputs[section][key] = inp
-
-                            if section == 'DOF':
-                                with ui.card().classes('w-full mt-3 p-3').style(
-                                    'background: #122038; border: 1px solid #334155; border-radius: 10px;'
-                                ):
-                                    ui.label('Online Config Tool').classes('text-lg font-semibold')
-                                    ui.label(
-                                        'Downloads updated DOF config using ledcontrol_pull.py and the API key above.'
-                                    ).classes('text-sm text-slate-300')
-                                    dof_force_checkbox = ui.checkbox('Force update').classes('mt-2 text-white')
-                                    update_dof_button = ui.button(
-                                        'Update DOF via Online Config Tool',
-                                        icon='cloud_download',
-                                        on_click=run_dof_online_update,
-                                    ).props('color=primary rounded').classes('mt-3')
-
-                            if section == 'Logger':
-                                with ui.card().classes('w-full mt-3 p-3').style(
-                                    'background: #122038; border: 1px solid #334155; border-radius: 10px;'
-                                ):
-                                    ui.label('Log File').classes('text-lg font-semibold')
-                                    ui.label(
-                                        f'VPinFE always writes logs to {CONFIG_DIR / "vpinfe.log"}. '
-                                        'Each app launch starts a fresh log file.'
-                                    ).classes('text-sm text-slate-300')
-                                    ui.button(
-                                        'View Log',
-                                        icon='article',
-                                        on_click=show_log_file_dialog,
-                                    ).props('color=primary rounded').classes('mt-3')
+                                    with ui.element('div').classes('config-form-grid'):
+                                        for key in options:
+                                            value = config.config.get(section, key, fallback='')
+                                            build_config_input(section, key, value)
 
                             if section == 'Displays':
-                                with ui.card().classes('w-full mt-3 p-3').style(
-                                    'background: #122038; border: 1px solid #334155; border-radius: 10px;'
-                                ):
-                                    ui.label('Detected Displays').classes('text-lg font-semibold')
-                                    ui.label('Use these IDs when setting Playfield/Backglass/DMD monitor IDs above.').classes('text-sm text-slate-300')
+                                with ui.card().classes('config-side-card w-full p-4 gap-3'):
+                                    ui.label('Detected Displays').classes('text-lg font-semibold text-white')
+                                    ui.label(
+                                        'Use these IDs when setting Playfield, Backglass, and DMD monitor assignments.'
+                                    ).classes('text-sm text-slate-300')
 
                                     if detected_displays['error']:
-                                        ui.label(f"Unable to detect displays: {detected_displays['error']}").classes('text-red-3')
+                                        ui.label(
+                                            f"Unable to detect displays: {detected_displays['error']}"
+                                        ).classes('text-red-300')
                                     elif not detected_displays['screeninfo']:
-                                        ui.label('No displays were detected.').classes('text-amber-3')
+                                        ui.label('No displays were detected.').classes('text-amber-300')
                                     else:
                                         for m in detected_displays['screeninfo']:
-                                            ui.label(
-                                                f"{m['id']}: output={m['output']} "
-                                                f"({m['width']}x{m['height']} at x={m['x']}, y={m['y']})"
-                                            ).classes('text-sm')
+                                            ui.html(
+                                                f"<div class='config-display-item'><strong>{m['id']}</strong><br>"
+                                                f"output={m['output']}<br>{m['width']}x{m['height']} at x={m['x']}, y={m['y']}</div>"
+                                            )
 
                                     if detected_displays['nsscreen']:
                                         ui.separator().classes('my-2')
-                                        ui.label('macOS NSScreen monitors (used for window positioning):').classes('text-sm text-slate-300')
+                                        ui.label(
+                                            'macOS NSScreen monitors used for window positioning:'
+                                        ).classes('text-sm text-slate-300')
                                         for s in detected_displays['nsscreen']:
-                                            ui.label(
-                                                f"{s['id']}: ({s['width']}x{s['height']} at x={s['x']}, y={s['y']})"
-                                            ).classes('text-sm')
+                                            ui.html(
+                                                f"<div class='config-display-item'><strong>{s['id']}</strong><br>"
+                                                f"{s['width']}x{s['height']} at x={s['x']}, y={s['y']}</div>"
+                                            )
 
-        # Save button
-        with ui.row().classes('w-full justify-end mt-4'):
-            ui.button('Save Changes', icon='save', on_click=save_config).props('color=primary rounded').classes('px-6')
+                        if section == 'DOF':
+                            with ui.card().classes('config-side-card w-full mt-4 p-4'):
+                                ui.label('Online Config Tool').classes('text-lg font-semibold text-white')
+                                ui.label(
+                                    'Downloads updated DOF config using ledcontrol_pull.py and the API key above.'
+                                ).classes('text-sm text-slate-300')
+                                dof_force_checkbox = ui.checkbox('Force update').classes('mt-2 text-white')
+                                update_dof_button = ui.button(
+                                    'Update DOF via Online Config Tool',
+                                    icon='cloud_download',
+                                    on_click=run_dof_online_update,
+                                ).props('color=primary rounded').classes('mt-3')
+
+                        if section == 'Logger':
+                            with ui.card().classes('config-side-card w-full mt-4 p-4'):
+                                ui.label('Log File').classes('text-lg font-semibold text-white')
+                                ui.label(
+                                    f'VPinFE always writes logs to {CONFIG_DIR / "vpinfe.log"}. '
+                                    'Each app launch starts a fresh log file.'
+                                ).classes('text-sm text-slate-300')
+                                ui.button(
+                                    'View Log',
+                                    icon='article',
+                                    on_click=show_log_file_dialog,
+                                ).props('color=primary rounded').classes('mt-3')
+
+        with ui.element('div').classes('w-full config-footer-bar'):
+            ui.button('Save Changes', icon='save', on_click=save_config).props('color=primary rounded').classes('px-6 py-3')
