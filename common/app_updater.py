@@ -159,7 +159,8 @@ def get_install_context() -> dict:
     elif system == "Windows":
         triplet = "win-x64"
         install_root = exe_path.parent
-        launch_target = exe_path
+        bat_launcher = install_root / "vpinfe.bat"
+        launch_target = bat_launcher if bat_launcher.exists() else exe_path
     elif system == "Darwin":
         if machine not in {"arm64", "aarch64"}:
             context["reason"] = "unsupported_architecture"
@@ -336,6 +337,7 @@ def prepare_update() -> dict:
         "stage_dir": str(stage_dir),
         "install_root": str(context["install_root"]),
         "launch_target": str(context["launch_target"]),
+        "launch_exe": str(Path(context["install_root"]) / "vpinfe.exe"),
         "platform": context["platform"],
         "triplet": context["triplet"],
         "asset_name": asset_name,
@@ -438,6 +440,7 @@ def _build_windows_update_script(prepared: dict, current_pid: int, log_path: Pat
     stage_dir = _ps_literal(prepared["stage_dir"])
     install_root = _ps_literal(prepared["install_root"])
     launch_target = _ps_literal(prepared["launch_target"])
+    launch_exe = _ps_literal(prepared["launch_exe"])
     log_file = _ps_literal(str(log_path))
     last_log = _ps_literal(prepared["last_update_log"])
     return f"""$ErrorActionPreference = 'Stop'
@@ -446,14 +449,9 @@ $ZipPath = '{zip_path}'
 $StageDir = '{stage_dir}'
 $InstallRoot = '{install_root}'
 $LaunchTarget = '{launch_target}'
+$LaunchExe = '{launch_exe}'
 $ExtractRoot = Join-Path $StageDir 'extracted'
 $NewRoot = Join-Path $ExtractRoot 'vpinfe'
-$BackupRoot = "$InstallRoot.bak"
-$StableLog = '{last_log}'
-
-function Write-Stable([string]$Message) {{
-    Add-Content -Path $StableLog -Value $Message
-}}
 
 function Invoke-WithRetry([scriptblock]$Action, [string]$Description, [int]$Attempts = 20, [int]$DelayMs = 500) {{
     for ($i = 1; $i -le $Attempts; $i++) {{
@@ -476,9 +474,9 @@ function Invoke-WithRetry([scriptblock]$Action, [string]$Description, [int]$Atte
 
 Start-Transcript -Path '{log_file}' -Append | Out-Null
 try {{
-    Write-Stable "[Updater] Stage log: {log_file}"
-    Write-Stable "[Updater] Install root: $InstallRoot"
-    Write-Stable "[Updater] Launch target: $LaunchTarget"
+    Write-Output "[Updater] Stage log: {log_file}"
+    Write-Output "[Updater] Install root: $InstallRoot"
+    Write-Output "[Updater] Launch target: $LaunchTarget"
     Write-Output "[Updater] Waiting for pid $PidToWait to exit"
     while (Get-Process -Id $PidToWait -ErrorAction SilentlyContinue) {{
         Start-Sleep -Seconds 1
@@ -497,15 +495,21 @@ try {{
     }}
     Write-Output "[Updater] Extraction complete"
 
-    if (Test-Path -LiteralPath $BackupRoot) {{
-        Invoke-WithRetry {{ Remove-Item -LiteralPath $BackupRoot -Recurse -Force }} "Removing previous backup"
+    $robocopyArgs = @($NewRoot, $InstallRoot, '/MIR', '/R:5', '/W:1', '/NFL', '/NDL', '/NJH', '/NJS', '/NP')
+    Write-Output "[Updater] Mirroring extracted install into place"
+    & robocopy @robocopyArgs
+    $robocopyExit = $LASTEXITCODE
+    Write-Output "[Updater] Robocopy exit code: $robocopyExit"
+    if ($robocopyExit -gt 7) {{
+        throw "Robocopy failed with exit code $robocopyExit"
     }}
 
-    Invoke-WithRetry {{ Rename-Item -LiteralPath $InstallRoot -NewName ([IO.Path]::GetFileName($BackupRoot)) }} "Renaming install root to backup"
-    Write-Output "[Updater] Moved current install to backup: $BackupRoot"
-    Invoke-WithRetry {{ Move-Item -LiteralPath $NewRoot -Destination $InstallRoot }} "Moving extracted install into place"
+    $launchPath = $LaunchTarget
+    if (-not (Test-Path -LiteralPath $launchPath) -and (Test-Path -LiteralPath $LaunchExe)) {{
+        $launchPath = $LaunchExe
+    }}
     Write-Output "[Updater] Installed new version into $InstallRoot"
-    $proc = Start-Process -FilePath $LaunchTarget -WorkingDirectory $InstallRoot -PassThru
+    $proc = Start-Process -FilePath $launchPath -WorkingDirectory $InstallRoot -PassThru
     Write-Output "[Updater] Relaunch started with pid $($proc.Id)"
     Start-Sleep -Seconds 3
     if (Get-Process -Id $proc.Id -ErrorAction SilentlyContinue) {{
@@ -514,16 +518,11 @@ try {{
     else {{
         Write-Output "[Updater] Relaunch process exited quickly"
     }}
-    Invoke-WithRetry {{ Remove-Item -LiteralPath $BackupRoot -Recurse -Force }} "Removing backup after successful relaunch"
     Invoke-WithRetry {{ Remove-Item -LiteralPath $ExtractRoot -Recurse -Force }} "Removing extract root after successful relaunch"
     Write-Output "[Updater] Update applied successfully"
 }}
 catch {{
     Write-Output "[Updater] ERROR: $($_.Exception.Message)"
-    Write-Stable "[Updater] ERROR: $($_.Exception.Message)"
-    if (-not (Test-Path -LiteralPath $InstallRoot) -and (Test-Path -LiteralPath $BackupRoot)) {{
-        Invoke-WithRetry {{ Rename-Item -LiteralPath $BackupRoot -NewName ([IO.Path]::GetFileName($InstallRoot)) }} "Restoring backup"
-    }}
     throw
 }}
 finally {{
