@@ -43,7 +43,6 @@ FRIENDLY_NAMES = {
     'tablerootdir': 'Tables Directory',
     'startup_collection': 'Startup Collection',
     'autoupdatemediaonstartup': 'Auto Update Media On Startup',
-    'cabmode': 'Cabinet Mode',
     'enabledof': 'Enable DOF',
     'dofconfigtoolapikey': 'DOF Config Tool API Key',
     'theme': 'Active Theme',
@@ -56,6 +55,8 @@ FRIENDLY_NAMES = {
     'dmdscreenid': 'DMD Monitor ID',
     'tablerotation': 'Playfield Rotation (0/90/270)',
     'tableorientation': 'Playfield Orientation (Landscape/Portrait)',
+    'cabmode': 'Cabinet Mode',
+    'splashscreen': 'Enable splashscreen',
     
     # [Network]
     'http_port': 'Web Server Port',
@@ -428,7 +429,7 @@ def render_panel(tab=None):
                                         value=value
                                     ).classes('config-input').style('min-width: 200px;')
                                 # Special handling for startup media auto-update in Settings
-                                elif (section == 'Settings' and key == 'autoupdatemediaonstartup') or (section == 'Displays' and key == 'cabmode') or (section == 'DOF' and key == 'enabledof'):
+                                elif (section == 'Settings' and key == 'autoupdatemediaonstartup') or (section == 'Displays' and key == 'cabmode') or (section == 'Displays' and key == 'splashscreen') or (section == 'DOF' and key == 'enabledof'):
                                     bool_options = ['true', 'false']
                                     normalized = (value or '').strip().lower()
                                     if normalized not in bool_options:
