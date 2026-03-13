@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build:
@@ -324,7 +324,7 @@ jobs:
 
     steps:
       - name: Download build artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: ${{ matrix.artifact }}
           path: staging/${{ matrix.triplet }}
@@ -355,7 +355,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download release zip artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           pattern: release-zip-*
           path: release
