@@ -7,6 +7,7 @@ from .pages import vpinfe_config as tab_vpinfe
 from .pages import collections as tab_collections
 from .pages import media as tab_media
 from .pages import themes as tab_themes
+from .pages import system as tab_system
 from .pages import remote
 from .pages.remote import _restart_app, _quit_app
 from .pages import mobile as tab_mobile
@@ -300,6 +301,12 @@ def build_app():
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
+            system_btn = (
+                ui.button('System', icon='monitor_heart', on_click=lambda: show_page('system'))
+                .classes('w-full text-white nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px;')
+                .props('flat align=left')
+            )
             config_btn = (
                 ui.button('Configuration', icon='tune', on_click=lambda: show_page('vpinfe'))
                 .classes('w-full text-white nav-btn')
@@ -328,6 +335,7 @@ def build_app():
         media_btn.classes(remove='nav-btn-active')
         themes_btn.classes(remove='nav-btn-active')
         mobile_btn.classes(remove='nav-btn-active')
+        system_btn.classes(remove='nav-btn-active')
         config_btn.classes(remove='nav-btn-active')
 
         # Set active button
@@ -341,6 +349,8 @@ def build_app():
             themes_btn.classes(add='nav-btn-active')
         elif page_key == 'mobile':
             mobile_btn.classes(add='nav-btn-active')
+        elif page_key == 'system':
+            system_btn.classes(add='nav-btn-active')
         elif page_key == 'vpinfe':
             config_btn.classes(add='nav-btn-active')
 
@@ -362,6 +372,8 @@ def build_app():
                 tab_themes.render_panel()
             elif page_key == 'mobile':
                 tab_mobile.build(standalone=False)
+            elif page_key == 'system':
+                tab_system.render_panel()
             elif page_key == 'vpinfe':
                 tab_vpinfe.render_panel()
 
@@ -399,6 +411,7 @@ _PAGE_ALIASES = {
     'media': 'media',
     'themes': 'themes',
     'mobile': 'mobile',
+    'system': 'system',
     'vpinfe': 'vpinfe',
     'vpinfe_config': 'vpinfe',
     'configuration': 'vpinfe',

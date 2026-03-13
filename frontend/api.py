@@ -21,11 +21,11 @@ logger = logging.getLogger("vpinfe.frontend.api")
 
 class API:
 
-    def __init__(self, iniConfig, window_name=None, ws_bridge=None, chromium_manager=None):
+    def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None):
         self._iniConfig = iniConfig
         self.window_name = window_name          # 'bg', 'dmd', or 'table'
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
-        self.chromium_manager = chromium_manager  # ChromiumManager instance
+        self.frontend_browser = frontend_browser  # ChromiumManager instance
         self.allTables = TableParser(self._iniConfig.config['Settings']['tablerootdir'], self._iniConfig).getAllTables()
         self.filteredTables = self.allTables
         self.jsTableDictData = None
@@ -69,8 +69,8 @@ class API:
 
     def close_app(self):
         logger.info("close_app called from window '%s'", self.window_name)
-        if self.chromium_manager:
-            self.chromium_manager.terminate_all()
+        if self.frontend_browser:
+            self.frontend_browser.terminate_all()
 
     def get_monitors(self):
         monitors = get_monitors()
@@ -415,8 +415,8 @@ class API:
 
         # macOS: re-activate Chromium windows so they return to foreground
         # after VPX exits (kiosk windows don't auto-regain focus on macOS)
-        if sys.platform == "darwin" and self.chromium_manager:
-            self.chromium_manager.activate_all_mac()
+        if sys.platform == "darwin" and self.frontend_browser:
+            self.frontend_browser.activate_all_mac()
 
         # Delete NVRAM file if configured for this table
         self._delete_nvram_if_configured(table)

@@ -1,10 +1,11 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.1  TESTING ONLY
+This is the offical release of vpinfe v1.1.3  
 
 ### What's New
 - Clean up and revamp ManagerUI Configuration page. 
+- Added ManagerUI:System page
 
 ### Fixes
 - Removed the terminal page from the managerUI

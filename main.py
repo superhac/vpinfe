@@ -62,18 +62,18 @@ nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/stati
 
 # Shared instances accessible from other modules (e.g. remote.py)
 ws_bridge = None
-chromium_manager = None
+frontend_browser = None
 _startup_media_sync_started = False
 
 
 def create_api_instances():
     """Create API instances for each configured display window."""
-    global ws_bridge, chromium_manager
+    global ws_bridge, frontend_browser
 
     ws_bridge = WebSocketBridge(
         port=int(iniconfig.config['Network'].get('wsport', '8002'))
     )
-    chromium_manager = ChromiumManager()
+    frontend_browser = ChromiumManager()
 
     # Window configs: (window_name, config_key)
     window_configs = [
@@ -91,7 +91,7 @@ def create_api_instances():
             iniConfig=iniconfig,
             window_name=window_name,
             ws_bridge=ws_bridge,
-            chromium_manager=chromium_manager,
+            frontend_browser=frontend_browser,
         )
         api._finish_setup()
         ws_bridge.register_api(window_name, api)
@@ -224,20 +224,20 @@ elif iniconfig.is_new:
         monitors = get_monitors()
     monitor = monitors[screen_id] if screen_id < len(monitors) else monitors[0]
     logger.info("First run: loading Manager UI in chromium window for initial configuration.")
-    chromium_manager.launch_window(
+    frontend_browser.launch_window(
         window_name='table',
         url=setup_url,
         monitor=monitor,
         index=0,
     )
     # Block until the setup chromium window exits
-    chromium_manager.wait_for_exit()
+    frontend_browser.wait_for_exit()
 else:
     # Launch Chromium windows on configured monitors
-    chromium_manager.launch_all_windows(iniconfig)
+    frontend_browser.launch_all_windows(iniconfig)
 
     # Block until Chromium windows exit (replaces the legacy UI main loop)
-    chromium_manager.wait_for_exit()
+    frontend_browser.wait_for_exit()
 
 # Shutdown items - wrap each in try/except so restart check always runs
 logger.info("Shutting down services...")

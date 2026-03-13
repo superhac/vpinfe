@@ -6,4 +6,5 @@ pynput
 nicegui
 platformdirs
 pillow
+psutil
 pyobjc; sys_platform == "darwin"

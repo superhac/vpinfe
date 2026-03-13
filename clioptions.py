@@ -312,7 +312,7 @@ def gamepadtest():
         iniConfig=iniconfig,
         window_name="gamepad",
         ws_bridge=ws_bridge,
-        chromium_manager=chromium,
+        frontend_browser=chromium,
     )
     api._finish_setup()
     ws_bridge.register_api("gamepad", api)

@@ -259,9 +259,9 @@ def _restart_app():
     # NOTE: Use sys.modules['__main__'] because main.py runs as __main__,
     # and "import main" would re-execute the entire module (rebinding ports, etc.)
     main_module = sys.modules['__main__']
-    chromium_mgr = getattr(main_module, 'chromium_manager', None)
-    if chromium_mgr:
-        chromium_mgr.terminate_all()
+    frontend_browser = getattr(main_module, 'frontend_browser', None)
+    if frontend_browser:
+        frontend_browser.terminate_all()
 
 
 def _quit_app():
@@ -275,9 +275,9 @@ def _quit_app():
 
     # Terminate all Chromium windows to trigger clean shutdown (no restart sentinel)
     main_module = sys.modules['__main__']
-    chromium_mgr = getattr(main_module, 'chromium_manager', None)
-    if chromium_mgr:
-        chromium_mgr.terminate_all()
+    frontend_browser = getattr(main_module, 'frontend_browser', None)
+    if frontend_browser:
+        frontend_browser.terminate_all()
 
 
 def _shutdown_system():
@@ -297,9 +297,9 @@ def _shutdown_system():
 
     # Terminate Chromium windows after issuing shutdown
     main_module = sys.modules['__main__']
-    chromium_mgr = getattr(main_module, 'chromium_manager', None)
-    if chromium_mgr:
-        chromium_mgr.terminate_all()
+    frontend_browser = getattr(main_module, 'frontend_browser', None)
+    if frontend_browser:
+        frontend_browser.terminate_all()
 
 
 def _reboot_system():
@@ -319,9 +319,9 @@ def _reboot_system():
 
     # Terminate Chromium windows after issuing reboot
     main_module = sys.modules['__main__']
-    chromium_mgr = getattr(main_module, 'chromium_manager', None)
-    if chromium_mgr:
-        chromium_mgr.terminate_all()
+    frontend_browser = getattr(main_module, 'frontend_browser', None)
+    if frontend_browser:
+        frontend_browser.terminate_all()
 
 
 def _show_reboot_confirmation():
