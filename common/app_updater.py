@@ -539,7 +539,8 @@ def _build_windows_bootstrap_script(powershell_exe: str, script_path: Path, stab
     return f"""@echo off
 setlocal
 echo [Updater] Bootstrap starting >> "{stable_log_path}"
-start "" /min "{ps_path}" -NoProfile -ExecutionPolicy Bypass -File "{updater_script}"
+echo [Updater] Invoking PowerShell script {updater_script} >> "{stable_log_path}"
+"{ps_path}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{updater_script}" >> "{stable_log_path}" 2>&1
 set EXIT_CODE=%ERRORLEVEL%
 echo [Updater] Bootstrap launched PowerShell with exit code %EXIT_CODE% >> "{stable_log_path}"
 exit /b %EXIT_CODE%
