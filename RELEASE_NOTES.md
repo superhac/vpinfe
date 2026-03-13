@@ -1,7 +1,7 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.4 
+This is the offical release of vpinfe v1.1.5 
 
 ### What's New
 - Clean up and revamp ManagerUI Configuration page. 
