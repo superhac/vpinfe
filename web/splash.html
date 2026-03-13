@@ -64,6 +64,14 @@
         window.location = location;
       };
 
+      const splashEnabled = await vpin.call("get_splashscreen_enabled");
+      console.log(splashEnabled)
+      if (splashEnabled == "false") {
+        console.log("Splash disabled")
+        redirectToTheme();
+        return
+      } 
+
       const splashRoot = document.getElementById('splash-root');
       const splashVideo = document.getElementById('splash');
       const splashVideoSource = document.getElementById('splash-source');

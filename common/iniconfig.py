@@ -16,7 +16,8 @@ class IniConfig:
 				'tablescreenid': '0',
 				'tableorientation': 'landscape',
 				'tablerotation': '0',
-				'cabmode': 'false'
+				'cabmode': 'false',
+				'splashscreen': 'true'
 			},
 			'Settings': {
 				'vpxbinpath': '',
