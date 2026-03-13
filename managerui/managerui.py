@@ -7,7 +7,6 @@ from .pages import vpinfe_config as tab_vpinfe
 from .pages import collections as tab_collections
 from .pages import media as tab_media
 from .pages import themes as tab_themes
-from .pages import terminal as tab_terminal
 from .pages import remote
 from .pages.remote import _restart_app, _quit_app
 from .pages import mobile as tab_mobile
@@ -307,13 +306,6 @@ def build_app():
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
-            terminal_btn = (
-                ui.button('Terminal', icon='terminal', on_click=lambda: show_page('terminal'))
-                .classes('w-full text-white nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px;')
-                .props('flat align=left')
-            )
-
         # Remote control button anchored to bottom
         nav_state['remote_container'] = ui.column().classes('w-full gap-1 mt-auto').style('margin-top: auto; padding-bottom: 16px;')
         with nav_state['remote_container']:
@@ -337,7 +329,6 @@ def build_app():
         themes_btn.classes(remove='nav-btn-active')
         mobile_btn.classes(remove='nav-btn-active')
         config_btn.classes(remove='nav-btn-active')
-        terminal_btn.classes(remove='nav-btn-active')
 
         # Set active button
         if page_key == 'tables':
@@ -352,8 +343,6 @@ def build_app():
             mobile_btn.classes(add='nav-btn-active')
         elif page_key == 'vpinfe':
             config_btn.classes(add='nav-btn-active')
-        elif page_key == 'terminal':
-            terminal_btn.classes(add='nav-btn-active')
 
         # Only re-render if page changed
         if current_page['value'] == page_key:
@@ -375,8 +364,6 @@ def build_app():
                 tab_mobile.build(standalone=False)
             elif page_key == 'vpinfe':
                 tab_vpinfe.render_panel()
-            elif page_key == 'terminal':
-                tab_terminal.render_panel()
 
     # Determine initial page: URL ?page= param takes priority, then first-run, then saved page
     global _first_run
@@ -416,8 +403,6 @@ _PAGE_ALIASES = {
     'vpinfe_config': 'vpinfe',
     'configuration': 'vpinfe',
     'config': 'vpinfe',
-    'terminal': 'terminal',
-    'term': 'terminal',
 }
 
 def _dialog_test():
