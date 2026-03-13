@@ -7,7 +7,7 @@ This is the offical release of vpinfe v1.1.1  TESTING ONLY
 - Clean up and revamp ManagerUI Configuration page. 
 
 ### Fixes
-None
+- Removed the terminal page from the managerUI
 
 ### Notes
 None
