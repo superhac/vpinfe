@@ -62,6 +62,22 @@ def _append_log_line(path: Path, message: str) -> None:
         fh.write(message.rstrip() + "\n")
 
 
+def _prune_old_update_dirs(keep_dir: Path) -> None:
+    """Remove staged update directories other than the active one."""
+    UPDATES_DIR.mkdir(parents=True, exist_ok=True)
+    keep_dir = keep_dir.resolve()
+    for candidate in UPDATES_DIR.iterdir():
+        if not candidate.is_dir():
+            continue
+        try:
+            candidate_resolved = candidate.resolve()
+            keep_dir.relative_to(candidate_resolved)
+            continue
+        except ValueError:
+            pass
+        shutil.rmtree(candidate, ignore_errors=True)
+
+
 def _get_windows_powershell() -> str:
     system_root = Path(os.environ.get("SystemRoot", r"C:\Windows"))
     candidates = [
@@ -352,6 +368,7 @@ def _build_posix_update_script(prepared: dict, current_pid: int, log_path: Path)
     launch_target = shlex.quote(prepared["launch_target"])
     log_file = shlex.quote(str(log_path))
     last_log = shlex.quote(prepared["last_update_log"])
+    updates_root = shlex.quote(str(UPDATES_DIR))
     return f"""#!/bin/sh
 set -eu
 
@@ -362,6 +379,7 @@ INSTALL_ROOT={install_root}
 LAUNCH_TARGET={launch_target}
 LOG_PATH={log_file}
 LAST_LOG={last_log}
+UPDATES_ROOT={updates_root}
 EXTRACT_ROOT="$STAGE_DIR/extracted"
 NEW_ROOT="$EXTRACT_ROOT/vpinfe"
 BACKUP_ROOT="${{INSTALL_ROOT}}.bak"
@@ -415,6 +433,8 @@ if mv "$NEW_ROOT" "$INSTALL_ROOT"; then
     else
         echo "[Updater] Relaunch process exited quickly"
     fi
+    echo "[Updater] Pruning old staged updates"
+    find "$UPDATES_ROOT" -mindepth 1 -maxdepth 1 ! -path "$STAGE_DIR" -exec rm -rf {{}} +
     rm -rf "$BACKUP_ROOT"
     rm -rf "$EXTRACT_ROOT"
     echo "[Updater] Update applied successfully"
@@ -442,7 +462,7 @@ def _build_windows_update_script(prepared: dict, current_pid: int, log_path: Pat
     launch_target = _ps_literal(prepared["launch_target"])
     launch_exe = _ps_literal(prepared["launch_exe"])
     log_file = _ps_literal(str(log_path))
-    last_log = _ps_literal(prepared["last_update_log"])
+    updates_root = _ps_literal(str(UPDATES_DIR))
     return f"""$ErrorActionPreference = 'Stop'
 $PidToWait = {current_pid}
 $ZipPath = '{zip_path}'
@@ -450,6 +470,7 @@ $StageDir = '{stage_dir}'
 $InstallRoot = '{install_root}'
 $LaunchTarget = '{launch_target}'
 $LaunchExe = '{launch_exe}'
+$UpdatesRoot = '{updates_root}'
 $ExtractRoot = Join-Path $StageDir 'extracted'
 $NewRoot = Join-Path $ExtractRoot 'vpinfe'
 
@@ -518,6 +539,10 @@ try {{
     else {{
         Write-Output "[Updater] Relaunch process exited quickly"
     }}
+    Write-Output "[Updater] Pruning old staged updates"
+    Get-ChildItem -LiteralPath $UpdatesRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object {{ -not ($StageDir.StartsWith($_.FullName.TrimEnd('\') + '\')) }} |
+        ForEach-Object {{ Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }}
     Invoke-WithRetry {{ Remove-Item -LiteralPath $ExtractRoot -Recurse -Force }} "Removing extract root after successful relaunch"
     Write-Output "[Updater] Update applied successfully"
 }}
@@ -555,6 +580,7 @@ exit /b %EXIT_CODE%
 def launch_prepared_update(prepared: dict) -> None:
     stage_dir = Path(prepared["stage_dir"])
     stage_dir.mkdir(parents=True, exist_ok=True)
+    _prune_old_update_dirs(stage_dir)
     current_pid = os.getpid()
     log_path = stage_dir / "apply_update.log"
     _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Launching detached updater for {prepared['latest_version']}")
