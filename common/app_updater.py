@@ -11,8 +11,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from urllib.error import URLError
-import urllib.request
+import requests
 
 from platformdirs import user_config_dir
 
@@ -42,10 +41,9 @@ def _parse_tag_version(tag: str) -> tuple[int, int, int] | None:
 
 def _request_json(url: str) -> dict:
     logger.info("Fetching JSON from %s", url)
-    req = urllib.request.Request(url)
-    req.add_header("User-Agent", USER_AGENT)
-    with urllib.request.urlopen(req, timeout=15) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    response = requests.get(url, timeout=15, headers={"User-Agent": USER_AGENT})
+    response.raise_for_status()
+    payload = response.json()
     if isinstance(payload, dict):
         logger.info("Fetched JSON from %s with keys=%s", url, sorted(payload.keys()))
     else:
@@ -54,16 +52,13 @@ def _request_json(url: str) -> dict:
 
 
 def _download_file(url: str, dest: Path) -> None:
-    req = urllib.request.Request(url)
-    req.add_header("User-Agent", USER_AGENT)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    with urllib.request.urlopen(req, timeout=60) as response:
+    with requests.get(url, timeout=60, headers={"User-Agent": USER_AGENT}, stream=True) as response:
+        response.raise_for_status()
         with open(dest, "wb") as fh:
-            while True:
-                chunk = response.read(1024 * 1024)
-                if not chunk:
-                    break
-                fh.write(chunk)
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if chunk:
+                    fh.write(chunk)
 
 
 def _append_log_line(path: Path, message: str) -> None:
@@ -333,8 +328,8 @@ def check_for_updates() -> dict:
             result["triplet"],
         )
         return result
-    except URLError as exc:
-        logger.exception("Update check failed with URLError against %s: %s", LATEST_RELEASE_URL, exc)
+    except requests.RequestException as exc:
+        logger.exception("Update check failed with RequestException against %s: %s", LATEST_RELEASE_URL, exc)
         result["error"] = "remote_check_failed"
         return result
     except Exception as exc:

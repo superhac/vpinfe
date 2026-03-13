@@ -19,6 +19,7 @@ from common.app_updater import (
     check_for_updates as check_for_app_updates,
     launch_prepared_update,
     prepare_update,
+    CONFIG_DIR as UPDATER_CONFIG_DIR,
 )
 
 logger = logging.getLogger("vpinfe.manager.ui")
@@ -533,6 +534,10 @@ _ui_port = 8001
 
 def _run_ui():
     STORAGE_SECRET = "verysecret" # The storatage is just to keep the active tab between sessions. Nothing sensitive.
+    nicegui_storage_dir = UPDATER_CONFIG_DIR / ".nicegui"
+    nicegui_storage_dir.mkdir(parents=True, exist_ok=True)
+    os.environ["NICEGUI_STORAGE_PATH"] = str(nicegui_storage_dir)
+    logger.info("Using NiceGUI storage path: %s", nicegui_storage_dir)
     ui.run(title='VPinFE Manager UI',
            port=_ui_port,
            reload=False,
