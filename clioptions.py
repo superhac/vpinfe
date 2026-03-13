@@ -8,6 +8,7 @@ from screeninfo import get_monitors
 from platformdirs import user_config_dir
 
 from common.iniconfig import IniConfig
+from common.app_version import get_version
 from common.tableparser import TableParser
 from common.vpsdb import VPSdb
 from common.metaconfig import MetaConfig
@@ -319,6 +320,7 @@ def gamepadtest():
 def parseArgs():
     """Parse and dispatch command-line arguments."""
     parser = argparse.ArgumentParser(allow_abbrev=False)
+    parser.add_argument("--version", action="store_true", help="Show the app version")
     parser.add_argument("--listres", action="store_true", help="ID and list your screens")
     parser.add_argument("--listmissing", action="store_true", help="List the tables from VPSdb")
     parser.add_argument("--listunknown", action="store_true", help="List the tables we can't match in VPSdb")
@@ -339,6 +341,10 @@ def parseArgs():
 
     if unknown:
         parser.error(f"Unknown arguments: {' '.join(unknown)}")
+
+    if args.version:
+        # print(get_version()) # already done in main so we just exit here
+        sys.exit(0)
 
     if args.listres:
         monitors = get_monitors()
