@@ -532,15 +532,21 @@ finally {{
 """
 
 
-def _build_windows_bootstrap_script(powershell_exe: str, script_path: Path, stable_log: Path) -> str:
+def _build_windows_bootstrap_script(
+    powershell_exe: str,
+    script_path: Path,
+    stable_log: Path,
+    bootstrap_log: Path,
+) -> str:
     ps_path = _cmd_literal(str(Path(powershell_exe)))
     updater_script = _cmd_literal(str(script_path))
     stable_log_path = _cmd_literal(str(stable_log))
+    bootstrap_log_path = _cmd_literal(str(bootstrap_log))
     return f"""@echo off
 setlocal
 echo [Updater] Bootstrap starting >> "{stable_log_path}"
 echo [Updater] Invoking PowerShell script {updater_script} >> "{stable_log_path}"
-"{ps_path}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{updater_script}" >> "{stable_log_path}" 2>&1
+"{ps_path}" -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "{updater_script}" >> "{bootstrap_log_path}" 2>&1
 set EXIT_CODE=%ERRORLEVEL%
 echo [Updater] Bootstrap launched PowerShell with exit code %EXIT_CODE% >> "{stable_log_path}"
 exit /b %EXIT_CODE%
@@ -556,6 +562,7 @@ def launch_prepared_update(prepared: dict) -> None:
 
     if platform.system() == "Windows":
         script_path = stage_dir / "apply_update.ps1"
+        bootstrap_log_path = stage_dir / "bootstrap.log"
         script_path.write_text(_build_windows_update_script(prepared, current_pid, log_path), encoding="utf-8")
         _append_log_line(Path(prepared["last_update_log"]), f"[Updater] PowerShell script written to {script_path}")
         powershell_exe = _get_windows_powershell()
@@ -566,10 +573,12 @@ def launch_prepared_update(prepared: dict) -> None:
                 powershell_exe=powershell_exe,
                 script_path=script_path,
                 stable_log=Path(prepared["last_update_log"]),
+                bootstrap_log=bootstrap_log_path,
             ),
             encoding="utf-8",
         )
         _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Bootstrap script written to {bootstrap_path}")
+        _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Bootstrap log path {bootstrap_log_path}")
         cmd_exe = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "cmd.exe")
         _append_log_line(Path(prepared["last_update_log"]), f"[Updater] Launching bootstrap via {cmd_exe} /c {bootstrap_path}")
         flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
