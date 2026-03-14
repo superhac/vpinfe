@@ -238,12 +238,11 @@ def render_panel(tab=None):
                                     # GitHub repo link
                                     repo_url = registry_info.get('theme_base_url', '')
                                     if repo_url:
-                                        ui.html(
-                                            f'<a href="{repo_url}" target="_blank" rel="noopener" '
-                                            f'title="View on GitHub" '
-                                            f'style="color: #94a3b8; text-decoration: none; display: inline-flex; align-items: center; padding: 2px;" '
-                                            f'onmouseover="this.style.color=\'#60a5fa\'" onmouseout="this.style.color=\'#94a3b8\'">'
-                                            f'<span class="material-icons" style="font-size: 20px;">open_in_new</span></a>'
+                                        ui.button(
+                                            icon='open_in_new',
+                                            on_click=lambda url=repo_url: ui.navigate.to(url, new_tab=True),
+                                        ).props('flat round dense').classes('text-slate-400 hover:text-blue-400').tooltip(
+                                            'View on GitHub'
                                         )
 
                                     # Status badge
@@ -259,7 +258,12 @@ def render_panel(tab=None):
                                     # Type badge
                                     theme_type = manifest.get('type', '')
                                     if theme_type:
-                                        ui.html(f'<span class="theme-badge badge-type">{theme_type}</span>')
+                                        theme_type_label = {
+                                            'both': 'Desktop & Cab',
+                                            'desktop': 'Desktop',
+                                            'cab': 'Cab',
+                                        }.get(theme_type, theme_type)
+                                        ui.html(f'<span class="theme-badge badge-type">{theme_type_label}</span>')
 
                                     # Built-in badge
                                     if is_default:
