@@ -170,10 +170,6 @@ class ChromiumManager:
             # Suppress "unsupported command-line flag" info bar warnings
             "--test-type",
         ]
-        if platform.system() == "Linux":
-            # Give the window a stable X11 class so we can find and fix it up
-            # consistently across desktop environments.
-            args.append(f"--class=vpinfe-{window_name}")
         if mute_audio:
             args.append("--mute-audio")
 
@@ -195,110 +191,7 @@ class ChromiumManager:
 
         proc = subprocess.Popen(args, **popen_kwargs)
         self._processes.append((window_name, proc, user_data_dir, monitor))
-        if self._should_apply_linux_x11_fixups():
-            threading.Thread(
-                target=self._apply_linux_x11_fixups,
-                args=(proc, window_name),
-                daemon=True,
-            ).start()
         return proc
-
-    @staticmethod
-    def _should_apply_linux_x11_fixups():
-        """Return True when Linux/X11-specific window fixups should be attempted."""
-        if platform.system() != "Linux":
-            return False
-        if not os.environ.get("DISPLAY"):
-            return False
-        session_type = os.environ.get("XDG_SESSION_TYPE", "").lower()
-        return session_type != "wayland"
-
-    @staticmethod
-    def _run_quiet_command(args):
-        try:
-            return subprocess.run(
-                args,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                check=False,
-                timeout=3,
-            )
-        except Exception:
-            logger.debug("Command failed: %s", args, exc_info=True)
-            return None
-
-    def _find_linux_window_ids(self, proc, window_name):
-        """Return visible X11 window ids for a Chromium process."""
-        xdotool_path = which("xdotool")
-        if xdotool_path:
-            completed = self._run_quiet_command(
-                [xdotool_path, "search", "--onlyvisible", "--pid", str(proc.pid)]
-            )
-            if completed and completed.returncode == 0 and completed.stdout.strip():
-                return [
-                    line.strip()
-                    for line in completed.stdout.splitlines()
-                    if line.strip()
-                ]
-
-        wmctrl_path = which("wmctrl")
-        if wmctrl_path:
-            completed = self._run_quiet_command([wmctrl_path, "-lp"])
-            if completed and completed.returncode == 0:
-                matches = []
-                for line in completed.stdout.splitlines():
-                    parts = line.split(None, 4)
-                    if len(parts) >= 3 and parts[2] == str(proc.pid):
-                        matches.append(parts[0])
-                if matches:
-                    return matches
-
-        logger.debug("Could not resolve X11 window ids for '%s' (pid %s)", window_name, proc.pid)
-        return []
-
-    def _apply_linux_x11_fixups(self, proc, window_name):
-        """Best-effort X11 fixups for WMs that leave app/kiosk windows decorated."""
-        xprop_path = which("xprop")
-        wmctrl_path = which("wmctrl")
-        if not xprop_path and not wmctrl_path:
-            logger.info(
-                "Skipping Linux/X11 window fixups for '%s': install xprop or wmctrl for stronger kiosk enforcement",
-                window_name,
-            )
-            return
-
-        for _ in range(20):
-            if proc.poll() is not None:
-                return
-
-            window_ids = self._find_linux_window_ids(proc, window_name)
-            if not window_ids:
-                time.sleep(0.25)
-                continue
-
-            for window_id in window_ids:
-                if xprop_path:
-                    # Remove WM decorations where the window manager honors
-                    # Motif hints (common on X11 desktops).
-                    self._run_quiet_command([
-                        xprop_path,
-                        "-id",
-                        window_id,
-                        "-f",
-                        "_MOTIF_WM_HINTS",
-                        "32c",
-                        "-set",
-                        "_MOTIF_WM_HINTS",
-                        "2, 0, 0, 0, 0",
-                    ])
-                if wmctrl_path:
-                    self._run_quiet_command([wmctrl_path, "-ir", window_id, "-b", "add,fullscreen"])
-
-            logger.info("Applied Linux/X11 window fixups to '%s': %s", window_name, ", ".join(window_ids))
-            return
-
-        logger.info("Linux/X11 window fixups could not find a window for '%s' (pid %s)", window_name, proc.pid)
 
     def launch_all_windows(self, iniconfig, base_url="http://127.0.0.1"):
         """Launch Chromium windows for all configured displays.
