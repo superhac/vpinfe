@@ -445,8 +445,18 @@ echo "[Updater] Stage log: $LOG_PATH" >>"$LAST_LOG"
 echo "[Updater] Install root: $INSTALL_ROOT" >>"$LAST_LOG"
 echo "[Updater] Launch target: $LAUNCH_TARGET" >>"$LAST_LOG"
 echo "[Updater] Waiting for pid $PID to exit"
+WAIT_SECONDS=0
 while kill -0 "$PID" 2>/dev/null; do
     sleep 1
+    WAIT_SECONDS=$((WAIT_SECONDS + 1))
+    if [ "$WAIT_SECONDS" -eq 15 ]; then
+        echo "[Updater] Process $PID still running after 15s; sending SIGTERM"
+        kill -TERM "$PID" 2>/dev/null || true
+    fi
+    if [ "$WAIT_SECONDS" -eq 20 ]; then
+        echo "[Updater] Process $PID still running after 20s; sending SIGKILL"
+        kill -KILL "$PID" 2>/dev/null || true
+    fi
 done
 echo "[Updater] Source process exited"
 
