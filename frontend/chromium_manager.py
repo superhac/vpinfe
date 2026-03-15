@@ -163,7 +163,7 @@ class ChromiumManager:
             "--disable-hang-monitor",
             "--disable-ipc-flooding-protection",
             "--disable-gpu-process-crash-limit",
-            "--use-gl=desktop",
+            "--ignore-gpu-blocklist",
             # Fix for Gamepad API losing connection after focus switch on Linux.
             # Allows re-accessing /dev/input devices and bypasses gesture requirements.
             "--no-sandbox",
