@@ -47,6 +47,7 @@ class VPinFECore {
     this._pendingCalls = {}; // {callId: {resolve, reject}}
     this._callIdCounter = 0;
     this._windowName = new URLSearchParams(window.location.search).get('window') || 'unknown';
+    this.#applyWindowIdentity();
 
   }
 
@@ -55,6 +56,8 @@ class VPinFECore {
   // ***********************************
 
   init() {
+    this.#applyWindowIdentity();
+
     // Set up keyboard listener
     window.addEventListener('keydown', (e) => this.#onKeyDown(e));
 
@@ -223,6 +226,27 @@ class VPinFECore {
         await handler(message);
       }
     }
+  }
+
+  #applyWindowIdentity() {
+    const windowName = this._windowName;
+    const windowLabel = this.#getWindowLabel(windowName);
+
+    window.name = windowName;
+    document.title = `VPinFE ${windowLabel}`;
+  }
+
+  #getWindowLabel(windowName) {
+    if (windowName === 'bg') {
+      return 'BG';
+    }
+    if (windowName === 'dmd') {
+      return 'DMD';
+    }
+    if (windowName === 'table') {
+      return 'Table';
+    }
+    return 'Window';
   }
 
   // Default handler for TableDataChange events

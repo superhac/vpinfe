@@ -1,16 +1,14 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.5 
+This is the offical release of vpinfe v1.1.6.
 
 ### What's New
-- Clean up and revamp ManagerUI Configuration page. 
-- Added ManagerUI:System page
+None
 
 ### Fixes
-- Removed the terminal page from the managerUI
-- Fix updater hang on Linux
+- Fix Theme page labels 
 
 ### Notes
-None
+- added injected window names to identify each window for wayland or x11 window position.
 
