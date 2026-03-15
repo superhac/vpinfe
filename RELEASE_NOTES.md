@@ -11,4 +11,5 @@ None
 
 ### Notes
 - added injected window names to identify each window for wayland or x11 window position.
+- updated theme.md doc
 

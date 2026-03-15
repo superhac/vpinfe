@@ -60,7 +60,7 @@ Every theme must include a `manifest.json`:
 | `description` | Brief description shown in the manager UI. |
 | `preview_image` | Filename of the preview image (`.png` or `.gif`). |
 | `supported_screens` | Number of screens the theme supports (typically `3`). |
-| `type` | Theme type: `"desktop"` for desktop/flat-screen setups, `"cab"` for cabinet setups. |
+| `type` | Theme type: `"desktop"` for desktop/flat-screen setups, `"cab"` for cabinet setups, or `"both"` for themes that adapt to either. |
 | `change_log` | Description of changes in this version. |
 
 ---
@@ -135,6 +135,39 @@ Your theme's own `style.css` and `theme.js` can be named whatever you want.
 | `<div id="fadeContainer">` | Wrap your content for fade-to-black transitions on table launch/return. Style with `transition: opacity` in CSS. |
 | `<div id="fadeOverlay">` | Alternative fade pattern: a fixed full-screen black overlay that fades in/out via a CSS class (e.g., `.show { opacity: 1 }`). |
 | `<div id="remote-launch-overlay">` | Overlay shown when the manager UI triggers a remote table launch. Include `<div id="remote-launch-table-name">` inside for the table name. |
+
+### Table Rotation, Cab Mode, And Menu Overlays
+
+If your theme supports cabinets or portrait-style table layouts, build that into the `table` window deliberately. In practice, the `table` window is usually the only screen that needs rotation-aware layout changes. `bg` and `dmd` often stay unrotated.
+
+These calls are especially useful:
+
+```javascript
+const cabMode = await vpin.call("get_cab_mode");
+const rotationDegree = await vpin.call("get_table_rotation");
+```
+
+Good questions to answer up front when starting a new theme:
+
+- Should the theme declare `type: "cab"` or `type: "both"`?
+- Should portrait mode use a different layout, or just rotate the landscape one?
+- Should only the main table UI rotate, or should table-only overlays rotate too?
+
+One easy thing to miss: the built-in menus are injected into `#overlay-root`, not inside your main theme container. If you rotate only your main table wrapper, the menus will still appear unrotated.
+
+In other words:
+
+- Rotating your table wrapper rotates your theme content
+- Rotating `#overlay-root` rotates `mainmenu.html` and `collectionmenu.html`
+- If you only do the first one, rotated table themes will have mismatched menus
+
+For more advanced themes, it helps to think in layers:
+
+- `#tableViewport`: fullscreen viewport wrapper
+- `#tableScreen`: your actual table UI surface that may be rotated and scaled
+- `#overlay-root`: injected menu host that may need the same transform as `#tableScreen`
+
+That wrapper approach is much easier to maintain than rotating individual components one by one.
 
 ### index_bg.html & index_dmd.html
 
@@ -347,6 +380,50 @@ function hideRemoteLaunchOverlay() {
 > **Important:** Call `await vpin.handleEvent(message)` at the top of your `receiveEvent` function. This lets VPinFECore handle `TableDataChange` events automatically (collection changes, filter/sort updates) so you don't have to manage that logic yourself.
 
 > **Important:** Set `window.vpin = vpin` so the in-theme menu system can call back into your VPinFECore instance.
+
+### Strong Recommendation: Keep The Table DOM Persistent
+
+For anything beyond a very simple theme, especially carousel-style table screens, avoid rebuilding the entire table window DOM on every table change.
+
+A much smoother pattern is:
+
+1. Create the table view scaffold once
+2. Keep references to the important nodes
+3. Update wheel art, title text, media, and tags in place
+4. Only swap the specific media layer or text nodes that actually changed
+
+This matters a lot for:
+
+- smoother wheel navigation
+- less layout jitter while images load
+- cleaner image/video fades
+- reduced browser work in Chromium
+
+If a theme feels choppy, a full-screen rebuild on every selection change is one of the first things to remove.
+
+### Media And Transition Performance Tips
+
+The fastest-looking theme is usually the one doing the least work during browsing.
+
+Things that helped in practice:
+
+- preload nearby media such as the current, previous, and next table images
+- prefer updating existing `<img>` / `<video>` nodes or swapping a small media layer instead of rerendering the whole screen
+- keep fades simple; a plain crossfade is usually smoother than blur-heavy "dissolve" effects
+- be careful with simultaneous animation systems; CSS transitions plus a JS animation library or canvas effects can stack up quickly
+- if wheel browsing feels sluggish, test without heavy motion libraries first
+
+For table video specifically, image-first browsing with delayed video start is often smoother than immediately starting video while the user is rapidly scrolling.
+
+### Carousel Motion Guidance
+
+If you want a wheel carousel to feel smooth instead of "slotty":
+
+- keep a persistent wheel strip instead of recreating wheel nodes every move
+- use a buffered strip with offscreen items if you want real scrolling motion
+- anchor any selection halo or highlight to the selected position, not to the moving wheel artwork
+- keep the selected/non-selected size difference moderate during motion so the eye follows the scroll instead of the scale jump
+- tune motion duration generously; motion that is technically correct but too fast still reads like hopping
 
 ### Event Types
 
