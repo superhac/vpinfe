@@ -113,6 +113,9 @@ class VPinFECore {
       //this.call("console_out", this.#convertPathToURL(table.TableImagePath))
       return this.#convertPathToURL(table.TableImagePath);
     }
+    else if (type == "fss") {
+      return this.#convertPathToURL(table.FSSImagePath);
+    }
     else if (type == "bg") {
       //this.call("console_out", this.#convertPathToURL(table.BGImagePath))
       return this.#convertPathToURL(table.BGImagePath);
@@ -130,6 +133,15 @@ class VPinFECore {
     else if (type == "cab") {
       //this.call("console_out", this.#convertPathToURL(table.CabImagePath))
       return this.#convertPathToURL(table.CabImagePath);
+    }
+    else if (type == "realdmd") {
+      return this.#convertPathToURL(table.realDMDImagePath);
+    }
+    else if (type == "realdmd-color") {
+      return this.#convertPathToURL(table.realDMDColorImagePath);
+    }
+    else if (type == "flyer") {
+      return this.#convertPathToURL(table.FlyerImagePath);
     }
   }
 

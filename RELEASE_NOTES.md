@@ -1,15 +1,14 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.6.
+This is the offical release of vpinfe v1.1.7.
 
 ### What's New
 None
 
 ### Fixes
-- Fix disabled GL arg in chrome.  Should be a lot faster now. 
+- fix absent media pulling from the api .
 
 ### Notes
-- added injected window names to identify each window for wayland or x11 window position.
-- updated theme.md doc
+This is needed to run the new themes.  Texal and Texal-Flyer.
 

@@ -71,6 +71,7 @@ class TableParser:
             "BGImagePath": "bg.png",
             "DMDImagePath": "dmd.png",
             "TableImagePath": f"{self.tabletype}.png",
+            "FSSImagePath": "fss.png",
             "WheelImagePath": "wheel.png",
             "CabImagePath": "cab.png",
             "realDMDImagePath": "realdmd.png",

@@ -12,6 +12,7 @@ class Table:
     BGImagePath = None
     DMDImagePath = None
     TableImagePath = None
+    FSSImagePath = None
     WheelImagePath = None
     CabImagePath = None
     realDMDImagePath = None
