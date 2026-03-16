@@ -1,14 +1,14 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.7.
+This is the offical release of vpinfe v1.1.8.
 
 ### What's New
-None
+- Centrilized JS sound API now in vpinfe-core.js.  No need for themes to implement their own audio playback.
 
 ### Fixes
-- fix absent media pulling from the api .
+None
 
 ### Notes
-This is needed to run the new themes.  Texal and Texal-Flyer.
+None
 

@@ -20,7 +20,6 @@ logger = logging.getLogger("vpinfe.frontend.api")
 
 
 class API:
-
     def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None):
         self._iniConfig = iniConfig
         self.window_name = window_name          # 'bg', 'dmd', or 'table'
@@ -61,9 +60,6 @@ class API:
     ## Public Functions
     ###################
 
-    def playSound(self, sound):
-        if self.ws_bridge:
-            self.ws_bridge.send_event(self.window_name, {"type": "playSound", "sound": sound})
     def get_my_window_name(self):
         return self.window_name or "unknown"
 

@@ -42,6 +42,17 @@ class VPinFECore {
     // Remote launch state tracking
     this.remoteLaunchActive = false;
 
+    // Theme config and centralized audio state
+    this.themeConfig = {};
+    this._currentTableIndex = 0;
+    this._coreAudioEnabled = true;
+    this._audio = Object.assign(new Audio(), { loop: true });
+    this._audioFadeId = null;
+    this._audioFadeDuration = 500;
+    this._audioMaxVolume = 0.8;
+    this._audioCurrentUrl = null;
+    this._audioRetries = 0;
+
     // WebSocket bridge
     this._ws = null;
     this._pendingCalls = {}; // {callId: {resolve, reject}}
@@ -57,6 +68,7 @@ class VPinFECore {
 
   init() {
     this.#applyWindowIdentity();
+    window.__vpinCoreResumeAudio = () => this.#audioResumePlay();
 
     // Set up keyboard listener
     window.addEventListener('keydown', (e) => this.#onKeyDown(e));
@@ -148,8 +160,85 @@ class VPinFECore {
   // get table audio url path (returns null if no audio exists)
   getAudioURL(index) {
     const table = this.tableData[index];
+    if (!table) return null;
     if (!table.AudioPath) return null;
     return this.#convertPathToURL(table.AudioPath);
+  }
+
+  enableCoreAudio(enabled = true) {
+    this._coreAudioEnabled = !!enabled;
+    if (!this._coreAudioEnabled) this.stopTableAudio({ immediate: true });
+  }
+
+  isCoreAudioEnabled() {
+    return !!this._coreAudioEnabled;
+  }
+
+  setAudioOptions(options = {}) {
+    if (typeof options !== 'object' || options === null) return;
+
+    const fadeMs = this.#coerceNumber(
+      options.fadeDuration,
+      options.fade_duration_ms,
+      options.fadeMs
+    );
+    if (fadeMs !== null) this._audioFadeDuration = Math.max(0, fadeMs);
+
+    const volume = this.#coerceNumber(
+      options.maxVolume,
+      options.max_volume,
+      options.volume
+    );
+    if (volume !== null) this._audioMaxVolume = Math.min(1, Math.max(0, volume));
+
+    if (typeof options.loop === 'boolean') this._audio.loop = options.loop;
+  }
+
+  playTableAudio(indexOrUrl = this._currentTableIndex, retries = 3) {
+    if (!this._coreAudioEnabled || this._windowName !== "table") return;
+    const url = this.#resolveTableAudioUrl(indexOrUrl);
+    if (!url) {
+      this.stopTableAudio();
+      return;
+    }
+    if (this._audioCurrentUrl === url && !this._audio.paused) return;
+
+    clearInterval(this._audioFadeId);
+    this._audio.pause();
+    this._audio.volume = 0;
+    this._audio.src = url;
+    this._audioCurrentUrl = url;
+
+    this._audio.play().then(() => {
+      if (this._audioCurrentUrl === url) this.#fadeAudio(0, this._audioMaxVolume);
+    }).catch((e) => {
+      if (e && e.name === "NotAllowedError") {
+        this._audioRetries = retries;
+        this.#audioTriggerWhenReady(url);
+      } else if (retries > 0 && this._audioCurrentUrl === url) {
+        setTimeout(() => this.playTableAudio(url, retries - 1), 1000);
+      }
+    });
+  }
+
+  stopTableAudio(options = {}) {
+    const immediate = !!(options && options.immediate);
+    if (!this._audio || this._audio.paused) {
+      clearInterval(this._audioFadeId);
+      this._audioCurrentUrl = null;
+      return;
+    }
+    if (immediate) {
+      clearInterval(this._audioFadeId);
+      this._audio.volume = 0;
+      this._audio.pause();
+      this._audioCurrentUrl = null;
+      return;
+    }
+    this.#fadeAudio(this._audio.volume, 0, () => {
+      this._audio.pause();
+      this._audioCurrentUrl = null;
+    });
   }
 
   // get table video url paths
@@ -227,10 +316,13 @@ class VPinFECore {
   // Handle incoming events from window.receiveEvent
   // This should be called from the theme's receiveEvent function
   async handleEvent(message) {
+    if (typeof message.index === "number") this._currentTableIndex = message.index;
+
     // Default handling for TableDataChange
     if (message.type === "TableDataChange") {
       await this.#handleTableDataChange(message);
     }
+    await this.#handleCoreAudioEvent(message);
 
     // Call any custom handlers registered by the theme
     if (this.eventHandlers[message.type]) {
@@ -296,6 +388,95 @@ class VPinFECore {
     }
   }
 
+  async #handleCoreAudioEvent(message) {
+    if (!this._coreAudioEnabled || this._windowName !== "table") return;
+
+    if (message.type === "TableIndexUpdate") {
+      this.playTableAudio(this._currentTableIndex);
+      return;
+    }
+    if (message.type === "TableLaunching" || message.type === "RemoteLaunching") {
+      this.stopTableAudio();
+      return;
+    }
+    if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
+      this.playTableAudio(this._currentTableIndex);
+      return;
+    }
+    if (message.type === "TableDataChange" && typeof message.index === "number") {
+      this.playTableAudio(this._currentTableIndex);
+    }
+  }
+
+  #resolveTableAudioUrl(indexOrUrl) {
+    if (typeof indexOrUrl === "number" && Number.isFinite(indexOrUrl)) {
+      this._currentTableIndex = indexOrUrl;
+      return this.getAudioURL(indexOrUrl);
+    }
+    if (typeof indexOrUrl === "string") return indexOrUrl;
+    return null;
+  }
+
+  #coerceNumber(...values) {
+    for (const value of values) {
+      if (value === undefined || value === null || value === "") continue;
+      const numeric = Number(value);
+      if (!Number.isNaN(numeric) && Number.isFinite(numeric)) return numeric;
+    }
+    return null;
+  }
+
+  #fadeAudio(from, to, onComplete) {
+    clearInterval(this._audioFadeId);
+    if (!this._audio) {
+      if (onComplete) onComplete();
+      return;
+    }
+    this._audio.volume = from;
+    if (this._audioFadeDuration <= 0 || from === to) {
+      this._audio.volume = to;
+      if (onComplete) onComplete();
+      return;
+    }
+    const steps = this._audioFadeDuration / 20;
+    const delta = (to - from) / steps;
+    this._audioFadeId = setInterval(() => {
+      const next = this._audio.volume + delta;
+      if ((delta > 0 && next >= to) || (delta < 0 && next <= to) || delta === 0) {
+        this._audio.volume = to;
+        clearInterval(this._audioFadeId);
+        if (onComplete) onComplete();
+      } else {
+        this._audio.volume = next;
+      }
+    }, 20);
+  }
+
+  #audioTriggerWhenReady(url) {
+    if (this._audioCurrentUrl !== url) return;
+    if (this._audio.readyState >= 2) {
+      this.call("trigger_audio_play").catch(() => {});
+    } else {
+      this._audio.addEventListener("canplay", () => {
+        if (this._audioCurrentUrl === url) this.call("trigger_audio_play").catch(() => {});
+      }, { once: true });
+    }
+  }
+
+  #audioResumePlay() {
+    const url = this._audioCurrentUrl;
+    const retries = this._audioRetries || 0;
+    if (!url) return;
+    this._audio.play().then(() => {
+      if (this._audioCurrentUrl === url) this.#fadeAudio(0, this._audioMaxVolume);
+    }).catch(() => {
+      if (retries > 0 && this._audioCurrentUrl === url) {
+        this._audioRetries = retries - 1;
+        setTimeout(() => this.#audioTriggerWhenReady(url), 500);
+      }
+    });
+  }
+
 
   // **********************************************
   // private functions
@@ -352,6 +533,25 @@ class VPinFECore {
 
   async #onBridgeReady() {
     console.log("WebSocket bridge is ready!");
+    try {
+      this.themeConfig = await this.call("get_theme_config");
+    } catch (e) {
+      this.themeConfig = {};
+    }
+
+    const audioCfg = (this.themeConfig && typeof this.themeConfig.audio === "object")
+      ? this.themeConfig.audio
+      : {};
+    const enabledOpt = [
+      this.themeConfig.use_core_audio,
+      this.themeConfig.useCoreAudio,
+      audioCfg.use_core_audio,
+      audioCfg.useCoreAudio,
+      audioCfg.enabled
+    ].find(v => v !== undefined);
+    this.enableCoreAudio(enabledOpt === undefined ? true : !!enabledOpt);
+    this.setAudioOptions(audioCfg);
+
     // Load network config
     this.themeAssetsPort = await this.call("get_theme_assets_port");
     // Load display config
@@ -362,7 +562,7 @@ class VPinFECore {
    //this.#overrideConsole(); //disabled for now...
 
     // only run on the table window.. Its the master controller for all screens/windows
-    if (await this.call("get_my_window_name") == "table") {
+    if (this._windowName == "table") {
       await this.#initGamepadMapping();
       this.#setupGamepadListeners();
       this.#updateGamepads();           // No await needed here — runs loop

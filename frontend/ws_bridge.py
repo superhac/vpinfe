@@ -60,7 +60,6 @@ class WebSocketBridge:
         'send_event',
         'send_event_all_windows',
         'send_event_all_windows_incself',
-        'playSound',
     }
 
     def __init__(self, port=8002):

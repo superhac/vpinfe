@@ -271,7 +271,6 @@ async function receiveEvent(message) {
         updateScreen();
     }
     else if (message.type == "TableLaunching") {
-        tableAudio.stop();
         await fadeOut();
     }
     else if (message.type == "TableRunning") {
@@ -279,18 +278,15 @@ async function receiveEvent(message) {
     }
     else if (message.type == "TableLaunchComplete") {
         fadeIn();
-        if (windowName === "table") tableAudio.play(vpin.getAudioURL(currentTableIndex));
     }
     else if (message.type == "RemoteLaunching") {
         // Remote launch from manager UI - message.table_name has the table name
-        tableAudio.stop();
         showRemoteLaunchOverlay(message.table_name);
         await fadeOut();
     }
     else if (message.type == "RemoteLaunchComplete") {
         hideRemoteLaunchOverlay();
         fadeIn();
-        if (windowName === "table") tableAudio.play(vpin.getAudioURL(currentTableIndex));
     }
     else if (message.type == "TableDataChange") {
         currentTableIndex = message.index;
@@ -320,7 +316,6 @@ async function handleInput(input) {
             });
             break;
         case "joyselect":
-            tableAudio.stop(); // stop audio before launching
             vpin.sendMessageToAllWindows({ type: "TableLaunching" });
             await fadeOut();
             await vpin.launchTable(currentTableIndex);
@@ -333,7 +328,7 @@ async function handleInput(input) {
 function updateScreen() {
     if (windowName === "table") {
         // Update table window: images, carousel, info, audio
-        tableAudio.play(vpin.getAudioURL(currentTableIndex));
+        vpin.playTableAudio(currentTableIndex);
     } else if (windowName === "bg") {
         // Update backglass image
     } else if (windowName === "dmd") {
@@ -558,7 +553,6 @@ The following methods are available via `vpin.call()`:
 | `send_event_all_windows` | `message` | — | Sends an event to all windows except the caller. |
 | `send_event_all_windows_incself` | `message` | — | Sends an event to all windows including the caller and iframes. |
 | `send_event` | `window_name`, `message` | — | Sends an event to a specific window by name (`"table"`, `"bg"`, or `"dmd"`). |
-| `playSound` | `sound` | — | Sends a `playSound` event to the current window. |
 
 ##### Input
 
@@ -578,11 +572,15 @@ The following methods are available via `vpin.call()`:
 | `get_table_orientation` | — | `string` | Returns the table orientation from config (`"landscape"` or `"portrait"`). |
 | `get_table_rotation` | — | `number` | Returns the table rotation angle in degrees from config (default `0`). |
 
-##### Audio (legacy frontend only)
+##### Core Audio Helpers
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `trigger_audio_play` | — | — | Triggers `tableAudio._resumePlay()` via `evaluate_js` to bypass WebKitGTK autoplay policy. No-op on Chromium (direct `audio.play()` works). See [Audio Support](#audio-support). |
+| `playTableAudio` | `indexOrUrl`, `retries=3` | — | Plays table audio using VPinFECore's centralized audio manager. Pass a table index (recommended) or URL string. |
+| `stopTableAudio` | `options={}` | — | Stops audio via centralized manager. Supports fade-out; pass `{ immediate: true }` for an immediate stop. |
+| `enableCoreAudio` | `enabled=true` | — | Enables or disables centralized audio handling for the current window. |
+| `isCoreAudioEnabled` | — | `boolean` | Returns whether centralized audio handling is currently enabled. |
+| `setAudioOptions` | `options` | — | Sets runtime audio options. Supported keys: `maxVolume`/`max_volume`/`volume`, `fadeDuration`/`fade_duration_ms`/`fadeMs`, `loop`. |
 
 #### getImageURL(index, type)
 Returns an HTTP URL for a table's image. `type` can be `"table"`, `"bg"`, `"dmd"`, `"wheel"`, or `"cab"`. Returns a fallback `/web/images/file_missing.png` URL if the file doesn't exist.
@@ -592,6 +590,21 @@ Returns an HTTP URL for a table's video. `type` can be `"table"`, `"bg"`, or `"d
 
 #### getAudioURL(index)
 Returns an HTTP URL for a table's audio file, or `null` if no audio exists. See [Audio Support](#audio-support).
+
+#### playTableAudio(indexOrUrl, retries=3)
+Plays table audio via VPinFECore's centralized audio manager. Normally you pass `currentTableIndex`; passing a URL string is also supported.
+
+#### stopTableAudio(options={})
+Stops centralized audio playback. Default behavior is fade-out, or pass `{ immediate: true }` for an immediate stop.
+
+#### enableCoreAudio(enabled=true)
+Turns centralized core audio handling on or off for the current window.
+
+#### isCoreAudioEnabled()
+Returns `true` when centralized core audio handling is enabled.
+
+#### setAudioOptions(options)
+Updates centralized audio options at runtime: volume (`maxVolume`, `max_volume`, or `volume`), fade duration (`fadeDuration`, `fade_duration_ms`, or `fadeMs`), and `loop`.
 
 #### getTableMeta(index)
 Returns the full table object for a given table index. This is the same object as `vpin.tableData[index]`. See [Table Data Object](#table-data-object).
@@ -612,7 +625,11 @@ Disables gamepad input, calls backend to launch the selected table, then re-enab
 Loads table data from the backend into `vpin.tableData`. Pass `reset=true` to reload from the full unfiltered table list.
 
 #### handleEvent(message)
-Handles incoming events with built-in logic for `TableDataChange` (collection/filter/sort changes). Call this at the top of your `receiveEvent` function to get automatic data refresh.
+Handles incoming events with built-in logic for:
+- `TableDataChange` (collection/filter/sort changes)
+- centralized audio transitions on `TableIndexUpdate`, `TableLaunching`, `RemoteLaunching`, `TableLaunchComplete`, and `RemoteLaunchComplete`
+
+Call this at the top of your `receiveEvent` function to get automatic data refresh and default audio behavior.
 
 #### registerEventHandler(eventType, handler)
 Registers a custom event handler for a specific event type. The handler is called whenever that event type is received via `handleEvent()`.
@@ -820,162 +837,65 @@ Key points:
 
 ## Audio Support
 
-Themes can play per-table audio (e.g., table music or callouts) that changes as the user navigates between tables.
+VPinFECore now includes a centralized per-table audio manager. Theme code can use it directly and no longer needs to implement its own `Audio`/fade/retry logic.
 
 ### Audio File
 
 Place an `audio.mp3` file in the table's `medias/` folder (or root folder). `vpin.getAudioURL(index)` returns the URL, or `null` if no audio file exists.
 
-### Implementation
+### Core Behavior
 
-Audio playback requires handling two different autoplay policies depending on the backend:
+On the `table` window, `await vpin.handleEvent(message)` automatically manages audio transitions when core audio is enabled:
+- `TableIndexUpdate` -> play selected table audio
+- `TableLaunching` and `RemoteLaunching` -> fade/stop audio
+- `TableLaunchComplete` and `RemoteLaunchComplete` -> resume audio for current selection
+- `TableDataChange` (with `index`) -> play audio for that index
 
-- **Chromium** (vpinfe-chromium branch): Launches with `--autoplay-policy=no-user-gesture-required`, so direct `audio.play()` calls work without restriction.
-- **legacy frontend** (master branch): WebKitGTK blocks `audio.play()` from non-user-gesture contexts (like gamepad polling via `requestAnimationFrame`). The workaround is to call `vpin.call("trigger_audio_play")`, which uses Python's `evaluate_js` to play from a privileged context.
-
-Here is a complete audio manager that works with both backends, supporting crossfade, retries, and fast navigation:
-
-```javascript
-const tableAudio = {
-    audio: Object.assign(new Audio(), { loop: true }),
-    fadeId: null,
-    fadeDuration: 500,   // fade duration in ms
-    maxVolume: 0.8,
-    currentUrl: null,
-
-    play(url, retries = 3) {
-        if (!url) { this.stop(); return; }
-        if (this.currentUrl === url && !this.audio.paused) return;
-
-        const audio = this.audio;
-        clearInterval(this.fadeId);
-        audio.pause();
-        audio.volume = 0;
-        audio.src = url;
-        this.currentUrl = url;
-
-        // Try direct play first (works in Chromium)
-        audio.play().then(() => {
-            if (this.currentUrl === url) this._fade(0, this.maxVolume);
-        }).catch(e => {
-            if (e.name === 'NotAllowedError') {
-                // Autoplay blocked (legacy frontend/WebKitGTK) - wait for audio to
-                // load, then ask Python to play via evaluate_js
-                this._retries = retries;
-                this._triggerWhenReady(url);
-            } else {
-                // Other error (e.g., network) - retry after delay
-                if (retries > 0 && this.currentUrl === url) {
-                    setTimeout(() => this.play(url, retries - 1), 1000);
-                }
-            }
-        });
-    },
-
-    // Wait for audio to load, then request privileged play from Python.
-    // URL check ensures stale requests from fast navigation are ignored.
-    _triggerWhenReady(url) {
-        if (this.currentUrl !== url) return;
-        if (this.audio.readyState >= 2) {
-            vpin.call("trigger_audio_play").catch(() => {});
-        } else {
-            this.audio.addEventListener('canplay', () => {
-                if (this.currentUrl === url) {
-                    vpin.call("trigger_audio_play").catch(() => {});
-                }
-            }, { once: true });
-        }
-    },
-
-    // Called from Python via evaluate_js (privileged context).
-    // Audio is guaranteed loaded by _triggerWhenReady before this is called.
-    _resumePlay() {
-        const url = this.currentUrl;
-        const retries = this._retries || 0;
-        if (!url) return;
-
-        this.audio.play().then(() => {
-            if (this.currentUrl === url) this._fade(0, this.maxVolume);
-        }).catch(e => {
-            if (retries > 0 && this.currentUrl === url) {
-                this._retries = retries - 1;
-                setTimeout(() => this._triggerWhenReady(url), 500);
-            }
-        });
-    },
-
-    stop() {
-        if (this.audio && !this.audio.paused) {
-            this._fade(this.audio.volume, 0, () => {
-                this.audio.pause();
-                this.currentUrl = null;
-            });
-        } else {
-            clearInterval(this.fadeId);
-            this.currentUrl = null;
-        }
-    },
-
-    _fade(from, to, onComplete) {
-        clearInterval(this.fadeId);
-        const audio = this.audio;
-        if (!audio) { if (onComplete) onComplete(); return; }
-        audio.volume = from;
-        const steps = this.fadeDuration / 20;
-        const delta = (to - from) / steps;
-        this.fadeId = setInterval(() => {
-            const next = audio.volume + delta;
-            if ((delta > 0 && next >= to) || (delta < 0 && next <= to) || delta === 0) {
-                audio.volume = to;
-                clearInterval(this.fadeId);
-                if (onComplete) onComplete();
-            } else {
-                audio.volume = next;
-            }
-        }, 20);
-    }
-};
-```
+Defaults:
+- volume: `0.8`
+- fade duration: `500ms`
+- loop: `true`
 
 ### Usage in Your Theme
 
 ```javascript
 function updateScreen() {
-    // ... update images, carousel, etc. ...
-
-    // Play audio only on the table window
+    // ... update images, carousel, etc ...
     if (windowName === "table") {
-        tableAudio.play(vpin.getAudioURL(currentTableIndex));
+        vpin.playTableAudio(currentTableIndex);
     }
 }
 
-// In your input handler:
-case "joyselect":
-    tableAudio.stop();  // stop audio before launching table
-    vpin.sendMessageToAllWindows({ type: "TableLaunching" });
-    await vpin.launchTable(currentTableIndex);
-    break;
-
-// In receiveEvent:
-if (message.type == "TableRunning") {
-    // Table has finished loading and is now running
+async function receiveEvent(message) {
+    // Keep this call at the top for built-in table-data refresh and core audio handling
+    await vpin.handleEvent(message);
+    // ... theme-specific event handling ...
 }
-if (message.type == "TableLaunchComplete") {
-    fadeIn();
-    if (windowName === "table") tableAudio.play(vpin.getAudioURL(currentTableIndex));
+
+// Optional immediate stop:
+// vpin.stopTableAudio({ immediate: true });
+```
+
+### Configuration (theme `config.json`)
+
+Core audio can be configured from theme config:
+
+```json
+{
+  "use_core_audio": true,
+  "audio": {
+    "enabled": true,
+    "maxVolume": 0.8,
+    "fadeDuration": 500,
+    "loop": true
+  }
 }
 ```
 
-### Backend API Requirement
-
-For audio to work on legacy frontend, the Python API class must include:
-```python
-def trigger_audio_play(self):
-    """Trigger audio.play() via evaluate_js to bypass WebKitGTK autoplay policy."""
-    self.myWindow[0].evaluate_js('tableAudio._resumePlay()')
-```
-
-On the Chromium branch, this method is a no-op since `--autoplay-policy=no-user-gesture-required` allows direct playback.
+Also accepted for compatibility:
+- `useCoreAudio` (camelCase)
+- `audio.max_volume` or `audio.volume`
+- `audio.fade_duration_ms` or `audio.fadeMs`
 
 ---
 
