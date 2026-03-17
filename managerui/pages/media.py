@@ -185,8 +185,9 @@ def scan_media_tables(silent: bool = False):
 
                 info = raw.get("Info", {})
                 vpx = raw.get("VPXFile", {})
+                vpinfe = raw.get("VPinFE", {})
 
-                name = (info.get("Title") or current_dir).strip()
+                name = ((vpinfe.get("alttitle") or info.get("Title") or current_dir) or "").strip()
                 manufacturer = info.get("Manufacturer", "")
                 year = info.get("Year", "")
                 ttype = info.get("Type", "")

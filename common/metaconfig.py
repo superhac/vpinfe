@@ -71,6 +71,8 @@ class MetaConfig:
             vpinfe = {}
         vpinfe.setdefault("deletedNVRamOnClose", False)
         vpinfe.setdefault("altlauncher", "")
+        vpinfe.setdefault("alttitle", "")
+        vpinfe.setdefault("altvpsid", "")
 
         medias = self.data.get("Medias", {})
 

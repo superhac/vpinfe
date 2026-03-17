@@ -13,6 +13,7 @@ from common.vpxcollections import VPXCollections
 from common.tablelistfilters import TableListFilters
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.launcher import get_effective_launcher
+from common.metaconfig import MetaConfig
 from platformdirs import user_config_dir
 
 
@@ -104,6 +105,16 @@ class API:
                     meta = table.metaConfig
                 elif hasattr(table.metaConfig, "getConfig"):
                     meta = table.metaConfig.getConfig()
+
+            # If altvpsid is used for this table, prefer alttitle for frontend display.
+            vpinfe_meta = meta.get("VPinFE", {}) if isinstance(meta, dict) else {}
+            info_meta = meta.get("Info", {}) if isinstance(meta, dict) else {}
+            if isinstance(vpinfe_meta, dict) and isinstance(info_meta, dict):
+                alt_vpsid = str(vpinfe_meta.get("altvpsid", "") or "").strip()
+                alt_title = str(vpinfe_meta.get("alttitle", "") or "").strip()
+                if alt_vpsid and alt_title:
+                    info_meta["Title"] = alt_title
+                    meta["Info"] = info_meta
 
             # Ensure detection flags are booleans
             vpx = meta.get("VPXFile", {})
@@ -394,6 +405,7 @@ class API:
         self._track_table_play(table)
 
         stop_dof_service()
+        launch_started_at = None
         try:
             cmd = [str(vpxbin_path), "-play", vpx]
 
@@ -401,6 +413,8 @@ class API:
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
                 text=True)
+            launch_started_at = time.time()
+            self._increment_user_start_count(table)
 
             startup_detected = False
             for line in process.stdout:
@@ -412,6 +426,10 @@ class API:
             process.wait()
         finally:
             start_dof_service_if_enabled(self._iniConfig)
+
+        if launch_started_at is not None:
+            elapsed_seconds = max(0.0, time.time() - launch_started_at)
+            self._add_user_runtime_minutes(table, elapsed_seconds)
 
         # macOS: re-activate Chromium windows so they return to foreground
         # after VPX exits (kiosk windows don't auto-regain focus on macOS)
@@ -454,6 +472,63 @@ class API:
         c.save()
 
         logger.info("Tracked table play: %s (now %s in Last Played)", vpsid, len(last_played_ids))
+
+    def _get_meta_file_path(self, table):
+        return Path(table.fullPathTable) / f"{table.tableDirName}.info"
+
+    def _persist_table_meta(self, table, config):
+        meta_file_path = self._get_meta_file_path(table)
+        meta_file = MetaConfig(str(meta_file_path))
+        meta_file.data = config
+        meta_file.writeConfig()
+        table.metaConfig = config
+
+    def _get_or_create_user_meta(self, config):
+        user = config.setdefault("User", {})
+        user.setdefault("Rating", 0)
+        user.setdefault("Favorite", 0)
+        user.setdefault("LastRun", None)
+        user.setdefault("StartCount", 0)
+        user.setdefault("RunTime", 0)
+        user.setdefault("Tags", [])
+        return user
+
+    def _increment_user_start_count(self, table):
+        config = table.metaConfig or {}
+        if not isinstance(config, dict):
+            logger.warning("Could not increment StartCount: invalid table metadata for %s", table.tableDirName)
+            return
+
+        user = self._get_or_create_user_meta(config)
+        try:
+            user["StartCount"] = int(user.get("StartCount", 0)) + 1
+        except (TypeError, ValueError):
+            user["StartCount"] = 1
+        user["LastRun"] = int(time.time())
+        self._persist_table_meta(table, config)
+        logger.info("Updated User.StartCount for %s -> %s", table.tableDirName, user["StartCount"])
+
+    def _add_user_runtime_minutes(self, table, elapsed_seconds):
+        config = table.metaConfig or {}
+        if not isinstance(config, dict):
+            logger.warning("Could not update RunTime: invalid table metadata for %s", table.tableDirName)
+            return
+
+        # Round up partial minutes so short plays are still counted.
+        session_minutes = int((elapsed_seconds + 59) // 60)
+        user = self._get_or_create_user_meta(config)
+        try:
+            prior_runtime = int(user.get("RunTime", 0))
+        except (TypeError, ValueError):
+            prior_runtime = 0
+        user["RunTime"] = prior_runtime + session_minutes
+        self._persist_table_meta(table, config)
+        logger.info(
+            "Updated User.RunTime for %s: +%s min (total=%s)",
+            table.tableDirName,
+            session_minutes,
+            user["RunTime"],
+        )
 
     def _delete_nvram_if_configured(self, table):
         """Delete the NVRAM .nv file if deletedNVRamOnClose is enabled for this table."""

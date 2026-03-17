@@ -145,7 +145,8 @@ class VPXCollections:
 
         Assumes:
         table.metaConfig is a DICT
-        VPSId lives at metaConfig["Info"]["VPSId"]
+        Base VPSId lives at metaConfig["Info"]["VPSId"]
+        Optional override lives at metaConfig["VPinFE"]["altvpsid"]
         """
         filter_ids = set(self.get_vpsids(collection))
         result = []
@@ -153,17 +154,27 @@ class VPXCollections:
         for table in tables:
             meta = table.metaConfig or {}
             info = meta.get("Info", {})
-            vpsid = info.get("VPSId")
+            vpinfe = meta.get("VPinFE", {})
+            base_vpsid = str(info.get("VPSId", "") or "").strip()
+            alt_vpsid = ""
+            if isinstance(vpinfe, dict):
+                alt_vpsid = str(vpinfe.get("altvpsid", "") or "").strip()
 
-            if vpsid and vpsid in filter_ids:
+            # Collections may contain either the base VPS ID or an overridden altvpsid.
+            if (
+                (base_vpsid and base_vpsid in filter_ids)
+                or (alt_vpsid and alt_vpsid in filter_ids)
+            ):
                 result.append(table)
 
         # Sort alphabetically by display title
         result.sort(
             key=lambda t: (
-                (t.metaConfig or {})
-                .get("Info", {})
-                .get("Title", "")
+                (
+                    ((t.metaConfig or {}).get("VPinFE", {}).get("alttitle", ""))
+                    if str((t.metaConfig or {}).get("VPinFE", {}).get("altvpsid", "") or "").strip()
+                    else ((t.metaConfig or {}).get("Info", {}).get("Title", ""))
+                )
                 .lower()
             )
         )

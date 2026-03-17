@@ -329,9 +329,10 @@ def parse_table_info(info_path):
 
         data = {
             # Display / identity (strip whitespace from name)
-            "name": (get(("Info", "Title"), ("root", "name"), default=table_name) or "").strip(),
+            "name": (get(("VPinFE", "alttitle"), ("Info", "Title"), ("root", "name"), default=table_name) or "").strip(),
             "filename": get(("VPXFile", "filename"), default=f"{table_name}.vpx"),
-            "id": get(("Info", "VPSId"), ("root", "id")),
+            "vpsid": get(("Info", "VPSId"), ("root", "id")),
+            "id": get(("VPinFE", "altvpsid"), ("Info", "VPSId"), ("root", "id")),
             "ipdb_id": get(("Info", "IPDBId")),
 
             # Metadata
@@ -369,6 +370,8 @@ def parse_table_info(info_path):
             # VPinFE settings
             "delete_nvram_on_close": vpinfe.get("deletedNVRamOnClose", False),
             "altlauncher": (vpinfe.get("altlauncher", "") or "").strip(),
+            "alttitle": (vpinfe.get("alttitle", "") or "").strip(),
+            "altvpsid": (vpinfe.get("altvpsid", "") or "").strip(),
         }
 
         return data
@@ -1123,6 +1126,20 @@ def render_panel(tab=None):
                                 label="ALT-L"
                                 style="font-size: 10px; padding: 2px 6px;"
                             />
+                            <q-badge
+                                v-if="props.row.alttitle"
+                                color="cyan-8"
+                                text-color="white"
+                                label="ALT-T"
+                                style="font-size: 10px; padding: 2px 6px;"
+                            />
+                            <q-badge
+                                v-if="props.row.altvpsid"
+                                color="indigo-8"
+                                text-color="white"
+                                label="ALT-VPS"
+                                style="font-size: 10px; padding: 2px 6px;"
+                            />
                             <a v-if="props.row.ipdb_id"
                                :href="'https://www.ipdb.org/machine.cgi?id=' + props.row.ipdb_id"
                                target="_blank"
@@ -1130,8 +1147,8 @@ def render_panel(tab=None):
                                style="text-decoration: none;">
                                 <q-badge color="yellow-8" text-color="black" label="IPDB" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
                             </a>
-                            <a v-if="props.row.id"
-                               :href="'https://virtualpinballspreadsheet.github.io/?game=' + props.row.id"
+                            <a v-if="props.row.vpsid"
+                               :href="'https://virtualpinballspreadsheet.github.io/?game=' + props.row.vpsid"
                                target="_blank"
                                @click.stop
                                style="text-decoration: none;">
@@ -1356,9 +1373,11 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
             ui.icon('casino', size='32px').classes('text-white')
             with ui.column().classes('gap-0 flex-grow'):
                 with ui.row().classes('items-center gap-2'):
-                    ui.label(table_name).classes('text-xl font-bold text-white')
+                    title_label = ui.label(table_name).classes('text-xl font-bold text-white')
                     if (row_data.get('altlauncher', '') or '').strip():
                         ui.badge('ALT-L', color='warning').props('rounded')
+                    if (row_data.get('alttitle', '') or '').strip():
+                        ui.badge('ALT-T', color='info').props('rounded')
                 manufacturer = row_data.get('manufacturer', '')
                 year = row_data.get('year', '')
                 if manufacturer or year:
@@ -1561,11 +1580,94 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
 
             # VPinFE Settings section
             with ui.card().classes('w-full p-4').style('background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px;'):
-                ui.label('VPinFE Settings').classes('text-lg font-semibold text-white mb-3')
+                ui.label('Overrides').classes('text-lg font-semibold text-white mb-3')
 
                 table_path_str = row_data.get('table_path', '')
                 delete_nvram_value = row_data.get('delete_nvram_on_close', False)
                 altlauncher_value = row_data.get('altlauncher', '')
+                alttitle_value = row_data.get('alttitle', '')
+                altvpsid_value = row_data.get('altvpsid', '')
+
+                with ui.row().classes('items-center gap-3 w-full'):
+                    alttitle_input = ui.input(
+                        label='Alt Title',
+                        value=alttitle_value,
+                        placeholder='Optional display name override'
+                    ).props('outlined dense clearable').classes('flex-grow')
+
+                    def on_alttitle_save():
+                        new_value = (alttitle_input.value or '').strip()
+                        if update_vpinfe_setting(table_path_str, 'alttitle', new_value):
+                            row_data['alttitle'] = new_value
+                            fallback_name = (row_data.get('filename') or 'Table').strip()
+                            try:
+                                info_path = Path(table_path_str) / f"{Path(table_path_str).name}.info"
+                                with open(info_path, 'r', encoding='utf-8') as f:
+                                    raw = json.load(f)
+                                info = raw.get("Info", {})
+                                fallback_name = (info.get("Title") or raw.get("name") or fallback_name).strip()
+                            except Exception:
+                                pass
+                            effective_name = new_value or fallback_name
+                            if _tables_cache is not None:
+                                for cached_row in _tables_cache:
+                                    if cached_row.get('table_path') == table_path_str:
+                                        cached_row['alttitle'] = new_value
+                                        cached_row['name'] = effective_name
+                                        break
+                            row_data['name'] = effective_name
+                            title_label.set_text(effective_name)
+                            # Keep media list in sync on next visit
+                            from managerui.pages.media import invalidate_media_cache
+                            invalidate_media_cache()
+                            if on_close:
+                                on_close()
+                            ui.notify('Alt title saved', type='positive')
+                        else:
+                            ui.notify('Failed to save alt title', type='negative')
+
+                    ui.button('Save', icon='save', on_click=on_alttitle_save).props('color=primary')
+                ui.label('When set, this overrides the table name shown in Manager UI lists').classes('text-xs text-gray-400')
+
+                with ui.row().classes('items-center gap-3 w-full'):
+                    altvpsid_input = ui.input(
+                        label='Alt VPS ID',
+                        value=altvpsid_value,
+                        placeholder='Optional VPS ID override'
+                    ).props('outlined dense clearable').classes('flex-grow')
+
+                    def on_altvpsid_save():
+                        new_value = (altvpsid_input.value or '').strip()
+                        if update_vpinfe_setting(table_path_str, 'altvpsid', new_value):
+                            row_data['altvpsid'] = new_value
+                            fallback_id = (row_data.get('id') or '').strip()
+                            try:
+                                info_path = Path(table_path_str) / f"{Path(table_path_str).name}.info"
+                                with open(info_path, 'r', encoding='utf-8') as f:
+                                    raw = json.load(f)
+                                info = raw.get("Info", {})
+                                fallback_id = (info.get("VPSId") or raw.get("id") or fallback_id).strip()
+                            except Exception:
+                                pass
+                            effective_id = new_value or fallback_id
+                            if _tables_cache is not None:
+                                vpsid_collections_map = get_vpsid_collections_map()
+                                for cached_row in _tables_cache:
+                                    if cached_row.get('table_path') == table_path_str:
+                                        cached_row['altvpsid'] = new_value
+                                        cached_row['id'] = effective_id
+                                        cached_row['collections'] = vpsid_collections_map.get(effective_id, [])
+                                        break
+                            row_data['id'] = effective_id
+                            row_data['collections'] = get_vpsid_collections_map().get(effective_id, [])
+                            if on_close:
+                                on_close()
+                            ui.notify('Alt VPS ID saved', type='positive')
+                        else:
+                            ui.notify('Failed to save alt VPS ID', type='negative')
+
+                    ui.button('Save', icon='save', on_click=on_altvpsid_save).props('color=primary')
+                ui.label('When set, this overrides the VPS ID shown/used in Manager UI').classes('text-xs text-gray-400')
 
                 with ui.row().classes('items-center gap-3 w-full'):
                     altlauncher_input = ui.input(

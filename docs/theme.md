@@ -851,6 +851,20 @@ On the `table` window, `await vpin.handleEvent(message)` automatically manages a
 - `TableLaunchComplete` and `RemoteLaunchComplete` -> resume audio for current selection
 - `TableDataChange` (with `index`) -> play audio for that index
 
+### Backend vs Frontend Responsibility
+
+`api.py` knows when table launch starts/completes and emits lifecycle events, but it does not own the browser `Audio` object. Actual playback, fading, retries, and autoplay-policy handling must run in frontend JavaScript (`VPinFECore`/theme code), which owns the in-memory audio state.
+
+### Practical Note: Self-Event Caveat
+
+`vpin.sendMessageToAllWindows(...)` excludes the sender. If your `table` window sends `TableLaunching`, it might not receive that same event back.
+
+For robust behavior, it is valid to also call:
+- `vpin.stopTableAudio()` directly in your local `joyselect`/launch path
+- `vpin.playTableAudio(currentTableIndex)` directly on local launch-complete handling
+
+This explicit local stop/resume acts as a safety net while still using centralized core audio.
+
 Defaults:
 - volume: `0.8`
 - fade duration: `500ms`
