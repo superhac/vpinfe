@@ -187,7 +187,7 @@ options:
   --buildmeta           Builds the meta.ini file in each table dir
   --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
   --gamepadtest         Testing and mapping your gamepad via js api
-  --headless            Run web servers/services only, skip the legacy frontend frontend
+  --headless            Run web servers/services only, skip the Chromium frontend
   --claim-user-media    Bulk mark existing media files as user-sourced so they won't be overwritten by vpinmediadb
   --no-media            When building meta.ini files don't download the images at the same time.
   --update-all          When building meta.ini reparse all tables to recreate the meta.ini file.
@@ -200,7 +200,7 @@ There are three server listeners started on your machine:
 
 | Service | Bound Address/Port | Description                                                           |
 | ------- | ---------------    | --------------------------------------------------------------------- |
-| HTTP    | 127.0.0.1:RANDOM   | Legacy Frontend server.  Frontend UI/Themes                                 |
+| HTTP    | 127.0.0.1:RANDOM   | Frontend web asset server (themes/UI content)                               |
 | HTTP    | 127.0.0.1:8000     | Python HTTPServer. Serves tables media assets (configurable)          |
 | HTTP    | 0.0.0.0:8001       | NiceGui sever.  Handles the UI for configuration and management (configurable) |
 

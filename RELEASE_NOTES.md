@@ -1,14 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.9.
+This is the offical release of vpinfe v1.1.11.
 
 ### What's New
-- Enhance the random DOF effects to reflect the real state of the events (e.g. skip missing) and fire the match on both sides.
+- theme.md clean up
 
 ### Fixes
-- Fix ocasional hang in the linux updater. 
-- Harden the resolve of theme configs if they are not found.  Splash black screen even if off.
+None
 
 ### Notes
 None

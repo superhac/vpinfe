@@ -1,10 +1,8 @@
 # Themes
 
-VPinFE supports two rendering backends:
-- **legacy frontend** (master branch) — uses a WebKitGTK/MSHTML browser window with a direct JS bridge (`window.legacy frontend.api`).
-- **Embedded Chromium** (vpinfe-chromium branch) — uses a WebSocket bridge to communicate between the browser and Python backend.
+VPinFE uses an embedded Chromium frontend with a WebSocket bridge to communicate between the browser and Python backend.
 
-Themes are fully compatible with both backends. The `vpinfe-core.js` library abstracts the communication layer so theme code does not need to know which backend is in use.
+Themes interact with the backend through `vpinfe-core.js`, so theme code calls `vpin.call(...)` without handling transport details directly.
 
 ### Windows
 
@@ -483,7 +481,7 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 ### API Reference
 
 #### init()
-Sets up keyboard event listener and connects to the backend (legacy frontend bridge or WebSocket).
+Sets up keyboard event listener and connects to the backend over the WebSocket bridge.
 
 #### registerInputHandler(handler)
 Registers an input handler for the table screen. Only works when the current window name is `"table"`. The handler receives a single string argument (the action name).
@@ -501,7 +499,7 @@ Programmatically toggles the main menu overlay open/closed.
 Programmatically toggles the collection menu overlay open/closed.
 
 #### call(method, ...args)
-Invokes a backend API method. Works transparently with both legacy frontend and WebSocket backends. Returns a Promise.
+Invokes a backend API method over the WebSocket bridge. Returns a Promise.
 
 The following methods are available via `vpin.call()`:
 
