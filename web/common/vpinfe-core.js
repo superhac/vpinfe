@@ -263,13 +263,19 @@ class VPinFECore {
     return this.tableData.length;
   }
 
+  getCurrentTableIndex() {
+    return this._currentTableIndex;
+  }
+
   // send a message to all windows except "self"
   sendMessageToAllWindows(message) {
+    this.#syncLocalIndexFromOutgoingMessage(message);
     this.call("send_event_all_windows", message);
   }
 
   // send a message to all windows including "self"
   sendMessageToAllWindowsIncSelf(message) {
+    this.#syncLocalIndexFromOutgoingMessage(message);
     this.call("send_event_all_windows_incself", message);
   }
 
@@ -415,6 +421,15 @@ class VPinFECore {
     }
     if (typeof indexOrUrl === "string") return indexOrUrl;
     return null;
+  }
+
+  #syncLocalIndexFromOutgoingMessage(message) {
+    if (!message || typeof message !== "object") return;
+    if (typeof message.index !== "number" || !Number.isFinite(message.index)) return;
+    if (message.index < 0) return;
+    if (message.type === "TableIndexUpdate" || message.type === "TableDataChange") {
+      this._currentTableIndex = Math.floor(message.index);
+    }
   }
 
   #coerceNumber(...values) {
@@ -750,6 +765,12 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
       }
 
       iframe.style.display = "block"; // show iframe
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          event: "menu_open",
+          table_index: this._currentTableIndex
+        }, "*");
+      }
     } else {
       this.menuUP = false;
       overlayRoot.classList.remove("active"); // fade out

@@ -69,6 +69,23 @@ class API:
         if self.frontend_browser:
             self.frontend_browser.terminate_all()
 
+    def shutdown_system(self):
+        """Shutdown the host system (cross-platform) and close frontend windows."""
+        logger.info("shutdown_system called from window '%s'", self.window_name)
+
+        # Match managerui/pages/remote.py behavior for platform shutdown commands.
+        if sys.platform == 'win32':
+            # 1 second delay gives the app a moment to tear down cleanly.
+            subprocess.Popen(['shutdown', '/s', '/t', '1'], shell=True)
+        elif sys.platform == 'darwin':
+            subprocess.Popen(['osascript', '-e', 'tell app "System Events" to shut down'])
+        else:
+            # Linux: ignore desktop/session inhibitors.
+            subprocess.Popen(["systemctl", "poweroff", "-i"])
+
+        if self.frontend_browser:
+            self.frontend_browser.terminate_all()
+
     def get_monitors(self):
         monitors = get_monitors()
         # Return a list of dicts with relevant info
@@ -440,6 +457,44 @@ class API:
         self._delete_nvram_if_configured(table)
 
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
+
+    def get_table_rating(self, index):
+        """Get User.Rating for a table index in the current filtered list."""
+        try:
+            table = self.filteredTables[index]
+        except Exception:
+            return 0
+
+        config = table.metaConfig or {}
+        if not isinstance(config, dict):
+            return 0
+
+        user = config.get("User", {})
+        raw = user.get("Rating", 0) if isinstance(user, dict) else 0
+        try:
+            rating = int(raw)
+        except (TypeError, ValueError):
+            rating = 0
+        return max(0, min(5, rating))
+
+    def set_table_rating(self, index, rating):
+        """Set User.Rating (0-5) for a table index in the current filtered list."""
+        table = self.filteredTables[index]
+        config = table.metaConfig or {}
+        if not isinstance(config, dict):
+            config = {}
+
+        user = self._get_or_create_user_meta(config)
+        try:
+            normalized = int(rating)
+        except (TypeError, ValueError):
+            normalized = 0
+        normalized = max(0, min(5, normalized))
+
+        user["Rating"] = normalized
+        self._persist_table_meta(table, config)
+        logger.info("Updated User.Rating for %s -> %s", table.tableDirName, normalized)
+        return {"success": True, "rating": normalized}
 
     def _track_table_play(self, table):
         """Track a table play by adding it to the Last Played collection."""

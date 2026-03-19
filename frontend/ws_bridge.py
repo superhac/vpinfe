@@ -28,6 +28,7 @@ class WebSocketBridge:
     ALLOWED_METHODS = {
         'get_my_window_name',
         'close_app',
+        'shutdown_system',
         'get_monitors',
         'get_tables',
         'get_collections',
@@ -48,6 +49,8 @@ class WebSocketBridge:
         'get_joymaping',
         'set_button_mapping',
         'launch_table',
+        'get_table_rating',
+        'set_table_rating',
         'build_metadata',
         'get_theme_config',
         'get_theme_name',

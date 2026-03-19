@@ -4,7 +4,9 @@
 This is the offical release of vpinfe v1.1.11.
 
 ### What's New
-- theme.md clean up
+- Revamp the main menu cosmetically
+- Add table rating to mainmenu
+- Clean up theme.md of legacy
 
 ### Fixes
 None
