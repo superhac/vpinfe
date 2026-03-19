@@ -13,7 +13,7 @@
     background: rgba(0, 0, 0, 0);
     color: #9ed0ff;
     font-family: sans-serif;
-    font-size: 2.5vh;
+    font-size: clamp(12px, 1.15vh, 22px);
     overflow: hidden;
 
     display: flex;
@@ -29,10 +29,13 @@
     background-size: 100% 100%;
     background-repeat: no-repeat;
     background-position: center;
-    min-width: 78vh;
-    min-height: 62vh;
+    width: min(96vw, calc(94vh * 1.5), 1600px);
+    aspect-ratio: 3 / 2;
     box-sizing: border-box;
-    padding: 20% 16% 9vh;
+    padding-top: clamp(120px, 16vh, 210px);
+    padding-right: 12%;
+    padding-bottom: clamp(62px, 8vh, 120px);
+    padding-left: 12%;
   }
 
     .menu-title {
@@ -46,18 +49,18 @@
 
     ul.menu {
       list-style: none;
-      padding: 1vh;
+      padding: clamp(6px, 0.8vh, 12px);
       margin: 0;
     }
 
     li.menu-item {
-      padding: 0.75vh 1vw;
-      margin-bottom: 0.5vh;
+      padding: clamp(6px, 0.8vh, 12px) clamp(8px, 0.9vw, 18px);
+      margin-bottom: clamp(4px, 0.5vh, 9px);
       background-color: #222;
       border-radius: 0.5vh;
       cursor: pointer;
       position: relative;
-      font-size: 2.34vh;
+      font-size: clamp(14px, 1.6vh, 26px);
       color: #9ed0ff;
     }
 
@@ -75,13 +78,13 @@
 
     .dropdown-label {
       display: inline-block;
-      min-width: 30vw;
+      min-width: clamp(150px, 15vw, 300px);
     }
 
     .dropdown-value {
       display: inline-block;
       font-weight: bold;
-      margin-left: 2vw;
+      margin-left: clamp(10px, 1.2vw, 28px);
       color: #b8e0ff;
     }
 
@@ -93,10 +96,10 @@
       border: 1px solid #555;
       z-index: 1000;
       width: 100%;
-      max-height: 60vh;
+      max-height: min(56vh, 520px);
       overflow-y: auto;
       overflow-x: hidden;
-      font-size: 2.34vh;
+      font-size: clamp(14px, 1.6vh, 24px);
     }
 
     .popup-option {
@@ -120,9 +123,9 @@
 
     .table-count {
       text-align: center;
-      font-size: 2.34vh;
-      padding: 1vh;
-      margin-top: 1vh;
+      font-size: clamp(14px, 1.5vh, 24px);
+      padding: clamp(6px, 0.8vh, 12px);
+      margin-top: clamp(6px, 0.9vh, 14px);
       color: #aaa;
     }
   </style>

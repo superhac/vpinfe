@@ -121,14 +121,16 @@ function ratingStarsText(rating) {
 
 function syncMenuWidthFromLongestLabel() {
   const menu = document.getElementById('menu');
+  const container = document.getElementById('menu-container');
   if (!menu) return;
+  if (!container) return;
 
   const menuItems = Array.from(menu.querySelectorAll('.menu-item'));
   if (menuItems.length === 0) return;
 
   // Reserve left/right "cap" space in the button image so labels stay centered.
-  const sideInsetPx = Math.max(44, Math.round(window.innerHeight * 0.11));
-  const edgeBufferPx = Math.max(6, Math.round(window.innerHeight * 0.01));
+  const sideInsetPx = Math.max(32, Math.round(container.clientHeight * 0.09));
+  const edgeBufferPx = Math.max(5, Math.round(container.clientHeight * 0.01));
   menu.style.setProperty('--menu-item-side-inset', `${sideInsetPx}px`);
 
   const styleProbe = getComputedStyle(menuItems[0]);
@@ -152,7 +154,13 @@ function syncMenuWidthFromLongestLabel() {
   });
   ruler.remove();
 
-  const targetWidth = Math.ceil(maxLabelWidth + sideInsetPx * 2 + edgeBufferPx * 2);
+  const computedContainer = getComputedStyle(container);
+  const containerInnerWidth =
+    container.clientWidth
+    - parseFloat(computedContainer.paddingLeft || '0')
+    - parseFloat(computedContainer.paddingRight || '0');
+  const rawTargetWidth = Math.ceil(maxLabelWidth + sideInsetPx * 2 + edgeBufferPx * 2);
+  const targetWidth = Math.max(180, Math.min(rawTargetWidth, Math.floor(containerInnerWidth)));
   menu.style.width = `${targetWidth}px`;
 
   menuItems.forEach((item) => {

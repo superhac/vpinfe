@@ -6,18 +6,19 @@ body {
   background: rgba(0, 0, 0, 0);
   color: #fff;
   font-family: 'Arial Black', 'Arial Bold', sans-serif;
-  font-size: 2.5vh;
+  font-size: clamp(12px, 1.2vh, 24px);
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
 }
 
 #menu-container {
   display: inline-block;
   transition: transform 0.3s ease;
   transform-origin: center center;
-  min-width: 72vh;
-  min-height: 56vh;
+  width: min(90vw, calc(90vh * 1.5), 1500px);
+  aspect-ratio: 3 / 2;
   box-sizing: border-box;
   background-color: #1a1e2a;
   background-image: url('./mainmenu-frame.png');
@@ -74,8 +75,8 @@ ul.menu {
 li.menu-item {
   width: 100%;
   box-sizing: border-box;
-  padding: 2vh var(--menu-item-side-inset, 6vh);
-  margin-bottom: 1.5vh;
+  padding: clamp(10px, 1.8vh, 24px) var(--menu-item-side-inset, 6vh);
+  margin-bottom: clamp(6px, 1.1vh, 16px);
   background-image: url('./menubutton.png');
   background-size: 100% 100%;
   background-repeat: no-repeat;
@@ -84,7 +85,7 @@ li.menu-item {
   border-radius: 0;
   cursor: pointer;
   position: relative;
-  font-size: 2.8vh;
+  font-size: clamp(16px, 2.1vh, 36px);
   font-weight: bold;
   text-align: center;
   text-transform: uppercase;
@@ -104,7 +105,7 @@ li.menu-item::before {
 li.menu-item.selected {
   background-image: url('./menubutton.png');
   box-shadow: none;
-  transform: translateY(-0.26vh) scale(1.01);
+  transform: translateY(clamp(-4px, -0.24vh, -2px)) scale(1.01);
   filter:
     brightness(1.12)
     saturate(1.05)
@@ -117,7 +118,7 @@ li.menu-item.selected::before {
 }
 
 li.menu-item:active {
-  transform: translateY(0.18vh) scale(0.995);
+  transform: translateY(clamp(2px, 0.16vh, 4px)) scale(0.995);
   box-shadow: none;
   filter:
     brightness(0.96)
