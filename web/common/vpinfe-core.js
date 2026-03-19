@@ -538,6 +538,9 @@ class VPinFECore {
     } catch (e) {
       this.themeConfig = {};
     }
+    if (!this.themeConfig || typeof this.themeConfig !== "object") {
+      this.themeConfig = {};
+    }
 
     const audioCfg = (this.themeConfig && typeof this.themeConfig.audio === "object")
       ? this.themeConfig.audio

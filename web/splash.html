@@ -64,9 +64,10 @@
         window.location = location;
       };
 
-      const splashEnabled = await vpin.call("get_splashscreen_enabled");
-      console.log(splashEnabled)
-      if (splashEnabled == "false") {
+      const splashEnabledRaw = await vpin.call("get_splashscreen_enabled");
+      const splashEnabledNormalized = String(splashEnabledRaw).trim().toLowerCase();
+      const splashDisabled = ["false", "0", "no", "off"].includes(splashEnabledNormalized);
+      if (splashDisabled) {
         console.log("Splash disabled")
         redirectToTheme();
         return

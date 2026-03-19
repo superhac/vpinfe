@@ -172,7 +172,7 @@ def start_dof_service_if_enabled(iniconfig) -> bool:
         try:
             _RUNNER = runner_class(
                 rom='pinupmenu',
-                random_interval_sec=1.1,
+                random_interval_sec=.6,
                 random_min=901,
                 random_max=990,
                 random_on_value=1,
