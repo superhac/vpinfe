@@ -10,21 +10,29 @@
     margin: 0;
     padding: 0;
     height: 100%;
-    background-color: #111;
-    color: #fff;
+    background: rgba(0, 0, 0, 0);
+    color: #9ed0ff;
     font-family: sans-serif;
     font-size: 2.5vh;
+    overflow: hidden;
 
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    padding-top: 2vh;
+    align-items: center;
   }
 
   #menu-container {
     display: inline-block;
     transition: transform 0.3s ease;
     transform-origin: center center;
+    background-image: url('./collectionmenu-frame.png');
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: center;
+    min-width: 78vh;
+    min-height: 62vh;
+    box-sizing: border-box;
+    padding: 20% 16% 9vh;
   }
 
     .menu-title {
@@ -50,6 +58,7 @@
       cursor: pointer;
       position: relative;
       font-size: 2.34vh;
+      color: #9ed0ff;
     }
 
     li.menu-item.selected {
@@ -73,6 +82,7 @@
       display: inline-block;
       font-weight: bold;
       margin-left: 2vw;
+      color: #b8e0ff;
     }
 
     .popup {
@@ -120,7 +130,6 @@
 
 <body>
   <div id="menu-container">
-    <div class="menu-title">Collection / Filter</div>
     <ul class="menu" id="menu">
       <li class="menu-item" id="collection-item">
         <span class="dropdown-label">Collections:</span>
