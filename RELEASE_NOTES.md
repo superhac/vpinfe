@@ -8,6 +8,7 @@ This is the offical release of vpinfe v1.1.9.
 
 ### Fixes
 - Fix ocasional hang in the linux updater. 
+- Harden the resolve of theme configs if they are not found.  Splash black screen even if off.
 
 ### Notes
 None
