@@ -1,12 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.11.
+This is the offical release of vpinfe v1.1.12.
 
 ### What's New
-- Revamp the main and collection menu cosmetically
-- Add table ratings to mainmenu / mangerui / Filtering 
-- Clean up theme.md of legacy
+- Added the ability to set ENV vars on vpinball lanuch.
 
 ### Fixes
 None

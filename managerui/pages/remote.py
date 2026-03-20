@@ -21,7 +21,7 @@ COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.vpxcollections import VPXCollections
-from common.launcher import get_effective_launcher
+from common.launcher import get_effective_launcher, parse_launch_env_overrides
 _INI_CFG = None
 logger = logging.getLogger("vpinfe.manager.remote")
 
@@ -246,6 +246,10 @@ def _launch_table(table: dict):
 
         # Run the launch in a background thread so UI stays responsive
         cmd = [str(vpxbin_path), "-play", vpx_path]
+        launch_env = os.environ.copy()
+        launch_env.update(
+            parse_launch_env_overrides(cfg.config['Settings'].get('vpxlaunchenv', ''))
+        )
 
         def run_and_wait():
             try:
@@ -253,7 +257,8 @@ def _launch_table(table: dict):
                     cmd,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    stdin=subprocess.DEVNULL
+                    stdin=subprocess.DEVNULL,
+                    env=launch_env,
                 )
                 process.wait()
             finally:

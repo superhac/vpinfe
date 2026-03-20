@@ -50,6 +50,7 @@ SECTION_DESCRIPTIONS = {
 FRIENDLY_NAMES = {
     # [Settings]
     'vpxbinpath': 'VPX Executable Path',
+    'vpxlaunchenv': 'VPX Launch Environment',
     'vpxinipath' : 'VPX Ini Path',
     'tablerootdir': 'Tables Directory',
     'startup_collection': 'Startup Collection',
@@ -362,6 +363,12 @@ def render_panel(tab=None):
             gap: 1rem;
             align-items: start;
         }
+        .config-settings-form-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 3fr);
+            gap: 1rem;
+            align-items: start;
+        }
         .config-three-column-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -412,6 +419,14 @@ def render_panel(tab=None):
         .config-input .q-field__label {
             color: #94a3b8 !important;
         }
+        .config-input-env {
+            width: 100%;
+        }
+        .config-input-env .q-field__control,
+        .config-input-env .q-field__native,
+        .config-input-env textarea {
+            min-height: 12rem !important;
+        }
         .config-input .q-checkbox__label {
             color: #f8fafc !important;
             font-weight: 600;
@@ -452,6 +467,9 @@ def render_panel(tab=None):
                 grid-template-columns: 1fr;
             }
             .config-display-form-grid {
+                grid-template-columns: 1fr;
+            }
+            .config-settings-form-grid {
                 grid-template-columns: 1fr;
             }
             .config-three-column-grid {
@@ -497,6 +515,11 @@ def render_panel(tab=None):
                     options=collection_options,
                     value=value
                 ).props('outlined dense options-dense').classes('config-input')
+            elif section == 'Settings' and key == 'vpxlaunchenv':
+                inp = ui.textarea(
+                    value=value,
+                    placeholder='KEY=value KEY2="value with spaces"'
+                ).props('outlined autogrow').classes('config-input config-input-env')
             elif section == 'Settings' and key == 'theme':
                 theme_options = _get_installed_theme_names()
                 if value and value not in theme_options:
@@ -651,7 +674,27 @@ def render_panel(tab=None):
                         content_classes = 'config-main-grid' if section == 'Displays' else 'w-full'
                         with ui.element('div').classes(content_classes):
                             with ui.card().classes('config-card w-full p-4'):
-                                if section in ('Displays', 'Settings'):
+                                if section == 'Settings':
+                                    env_key = 'vpxlaunchenv'
+                                    normal_options = [key for key in options if key != env_key]
+                                    split_index = (len(normal_options) + 1) // 2
+                                    first_column_keys = normal_options[:split_index]
+                                    second_column_keys = normal_options[split_index:]
+
+                                    with ui.element('div').classes('config-settings-form-grid'):
+                                        with ui.element('div').classes('config-display-column'):
+                                            for key in first_column_keys:
+                                                value = config.config.get(section, key, fallback='')
+                                                build_config_input(section, key, value)
+                                        with ui.element('div').classes('config-display-column'):
+                                            for key in second_column_keys:
+                                                value = config.config.get(section, key, fallback='')
+                                                build_config_input(section, key, value)
+                                        with ui.element('div').classes('config-display-column'):
+                                            if env_key in options:
+                                                value = config.config.get(section, env_key, fallback='')
+                                                build_config_input(section, env_key, value)
+                                elif section == 'Displays':
                                     split_key = 'tableorientation' if section == 'Displays' else 'theme'
                                     split_index = options.index(split_key) if split_key in options else len(options)
                                     first_column_keys = options[:split_index]

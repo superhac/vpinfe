@@ -1,5 +1,11 @@
 import sys
+import logging
+import re
+import shlex
 from pathlib import Path
+
+logger = logging.getLogger("vpinfe.common.launcher")
+_ENV_KEY_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
 
 def get_altlauncher_from_meta(meta_config) -> str:
@@ -35,3 +41,44 @@ def get_effective_launcher(default_launcher: str, meta_config=None):
         launcher_path = launcher_path / "Contents" / "MacOS" / app_name
 
     return launcher_path, source_key, configured_value
+
+
+def parse_launch_env_overrides(raw_value: str) -> dict[str, str]:
+    """
+    Parse configured launch env overrides into a dict.
+
+    Accepted forms:
+    - Single line: KEY=value OTHER=value2
+    - Multi line: one KEY=value per line
+    - Semicolon separated: KEY=value;OTHER=value2
+    """
+    text = str(raw_value or "").strip()
+    if not text:
+        return {}
+
+    normalized = text.replace('\r\n', '\n').replace('\r', '\n').replace(';', '\n')
+    tokens: list[str] = []
+    for line in normalized.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            tokens.extend(shlex.split(line, comments=True, posix=True))
+        except ValueError:
+            # Fall back to raw token so we can still parse simple KEY=value.
+            tokens.append(line)
+
+    parsed: dict[str, str] = {}
+    for token in tokens:
+        if '=' not in token:
+            logger.warning("Ignoring launch env token without '=': %s", token)
+            continue
+
+        key, value = token.split('=', 1)
+        key = key.strip()
+        if not _ENV_KEY_RE.match(key):
+            logger.warning("Ignoring launch env token with invalid key: %s", token)
+            continue
+        parsed[key] = value
+
+    return parsed

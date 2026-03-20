@@ -20,6 +20,7 @@ class IniConfig:
 			},
 			'Settings': {
 				'vpxbinpath': '',
+				'vpxlaunchenv': '',
 				'tablerootdir': '',
 				'vpxinipath': '',
 				'theme': 'carousel-desktop',

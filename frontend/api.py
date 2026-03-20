@@ -12,7 +12,7 @@ from common.tableparser import TableParser
 from common.vpxcollections import VPXCollections
 from common.tablelistfilters import TableListFilters
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
-from common.launcher import get_effective_launcher
+from common.launcher import get_effective_launcher, parse_launch_env_overrides
 from common.metaconfig import MetaConfig
 from platformdirs import user_config_dir
 
@@ -465,11 +465,18 @@ class API:
         launch_started_at = None
         try:
             cmd = [str(vpxbin_path), "-play", vpx]
+            launch_env = os.environ.copy()
+            launch_env.update(
+                parse_launch_env_overrides(
+                    self._iniConfig.config['Settings'].get('vpxlaunchenv', '')
+                )
+            )
 
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
-                text=True)
+                text=True,
+                env=launch_env)
             launch_started_at = time.time()
             self._increment_user_start_count(table)
 
