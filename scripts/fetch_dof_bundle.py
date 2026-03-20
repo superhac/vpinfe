@@ -13,6 +13,15 @@ from pathlib import Path
 RUNNER_CANDIDATES = ('dof_runner.py', 'random_dof_runner.py')
 
 
+def _triplet_candidates(triplet: str) -> list[str]:
+    t = triplet.strip()
+    if t == 'linux-arm64':
+        return [t, 'linux-aarch64']
+    if t == 'linux-aarch64':
+        return [t, 'linux-arm64']
+    return [t]
+
+
 def _sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     with path.open('rb') as f:
@@ -160,7 +169,16 @@ def main() -> int:
 
         manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
         assets = manifest.get('assets', {})
-        entry = assets.get(args.triplet)
+        entry = None
+        for candidate in _triplet_candidates(args.triplet):
+            entry = assets.get(candidate)
+            if entry:
+                if candidate != args.triplet:
+                    print(
+                        f"[DOF FETCH] Triplet '{args.triplet}' not found; "
+                        f"using compatible manifest key '{candidate}'."
+                    )
+                break
         if not entry:
             raise SystemExit(
                 f"[DOF FETCH] Triplet '{args.triplet}' not found in manifest assets."

@@ -4,6 +4,7 @@
 This is the offical release of vpinfe v1.1.12.
 
 ### What's New
+- New ARM release
 - Added the ability to set ENV vars on vpinball lanuch.
 
 ### Fixes

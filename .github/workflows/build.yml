@@ -35,7 +35,14 @@ jobs:
       - name: Resolve DOF triplet
         run: |
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            echo "DOF_TRIPLET=linux-x64" >> "$GITHUB_ENV"
+            if [[ "$RUNNER_ARCH" == "X64" ]]; then
+              echo "DOF_TRIPLET=linux-x64" >> "$GITHUB_ENV"
+            elif [[ "$RUNNER_ARCH" == "ARM64" ]]; then
+              echo "DOF_TRIPLET=linux-arm64" >> "$GITHUB_ENV"
+            else
+              echo "Unsupported Linux arch: $RUNNER_ARCH"
+              exit 1
+            fi
           elif [[ "$RUNNER_OS" == "Windows" ]]; then
             echo "DOF_TRIPLET=win-x64" >> "$GITHUB_ENV"
           elif [[ "$RUNNER_OS" == "macOS" ]]; then

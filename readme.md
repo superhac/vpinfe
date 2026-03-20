@@ -2,7 +2,7 @@
 <img width="1278" height="852" alt="VpinFE_V1-MF-withCredit" src="https://github.com/user-attachments/assets/914dff06-e3de-4096-8bc1-b4586d9802f6" />
 
 **A frontend for vpinball with the following features:**
-- Works on Linux, Windows, and Mac (Windows must use Standalone dir structure)
+- Works on Linux, Windows, Mac, and ARM (Windows must use Standalone dir structure)
 - Multiscreen - Supports up to 3 screens (Backglass, DMD, and Table)
 - Fully remote cabinet management
 - Keyboard & Controller Input support
@@ -21,6 +21,7 @@ Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 - A special thanks to **@jsm174** for making VPX available to all these other platforms.  He's also a great mentor.  I learned a tremendous amount working with him on the vpx project and he is the epitome of the VPinball community.  
 - **@MajorFrenchy** is another great example of what the VPinball community is all about. He jumped in right away and provided invaluable testing and feedback.  And we can't forget his great video on using [VPinFE on the MAC](https://www.youtube.com/watch?v=YD4eZIqHypw)!  He also made the VPinFE logo and splash video! Thank you, thank you!!!
 - Huge thanks to **@Gonzonia** for all his work on the Mac app bundle. This simply wouldn’t have happened without his knowledge and contributions.
+- A big high five to @evilwraith for making the ARM build! 
 - A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (**@Dux, @Fraesh and @Studlygoorite**) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
 
 ## See it in action
@@ -41,7 +42,7 @@ The latest version can be downloaded from [Releases](https://github.com/superhac
 
 ## Running
 
-### Linux
+### Linux (X64 & ARM)
 Download the latest release and unzip it and then run:
 ```
 cd vpinfe
