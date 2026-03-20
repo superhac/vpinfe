@@ -755,7 +755,13 @@ def render_panel(tab=None):
 
                         if section == 'DOF':
                             with ui.card().classes('config-side-card w-full mt-4 p-4'):
-                                ui.label('Online Config Tool').classes('text-lg font-semibold text-white')
+                                with ui.row().classes('items-center gap-3'):
+                                    ui.label('Online Config Tool').classes('text-lg font-semibold text-white')
+                                    ui.link(
+                                        '(DOF Config Online Tool)',
+                                        'https://configtool.vpuniverse.com/app/home',
+                                        new_tab=True,
+                                    ).classes('text-blue-300 text-sm underline')
                                 ui.label(
                                     'Downloads updated DOF config using ledcontrol_pull.py and the API key above.'
                                 ).classes('text-sm text-slate-300')
