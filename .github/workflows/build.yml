@@ -2,7 +2,7 @@ name: Build VPinFE (Cross-Platform)
 
 on:
   push:
-    branches: [ master, vpinfe-chromium ]
+    branches: [ master, vpinfe-chromium, arm-linux ]
     tags: [ 'v*' ]
   pull_request:
     branches: [ master, vpinfe-chromium ]
@@ -20,7 +20,7 @@ jobs:
       DOF_REPO: superhac/libdof-python
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -96,11 +96,19 @@ jobs:
           New-Item -ItemType Directory -Force -Path chromium\linux,chromium\windows,chromium\mac
 
       - name: Download Linux Chromium
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
           wget -O chromium/linux/chrome.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F1568190%2Fchrome-linux.zip?generation=1768270474193258&alt=media"
           unzip -q chromium/linux/chrome.zip -d chromium/linux
           mv chromium/linux/chrome-linux chromium/linux/chrome
+          chmod +x chromium/linux/chrome/chrome
+
+      - name: Download ARM Linux Chromium
+        if: runner.os == 'Linux' && runner.arch == 'ARM64'
+        run: |
+          wget -O chromium/linux/chrome.tar.xz "https://github.com/ungoogled-software/ungoogled-chromium-portablelinux/releases/download/144.0.7559.109-1/ungoogled-chromium-144.0.7559.109-1-arm64_linux.tar.xz"
+          tar xvf chromium/linux/chrome.tar.xz -C chromium/linux/
+          mv chromium/linux/ungoogled-chromium-144.0.7559.109-1-arm64_linux chromium/linux/chrome
           chmod +x chromium/linux/chrome/chrome
 
       - name: Download Windows Chromium
@@ -201,7 +209,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6
         with:
-          name: build-linux-x64
+          name: build-linux-${{ runner.arch == 'X64' && 'x64' || 'arm64' }}
           path: dist/
 
       - name: Upload full build artifact (Windows)
@@ -228,7 +236,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6
         with:
-          name: build-linux-x64-slim
+          name: build-linux-${{ runner.arch == 'X64' && 'x64' || 'arm64' }}-slim
           path: dist/
 
       - name: Build slim app with PyInstaller (Windows)
@@ -311,12 +319,16 @@ jobs:
         include:
           - artifact: build-linux-x64
             triplet: linux-x64
+          - artifact: build-linux-arm64
+            triplet: linux-arm64
           - artifact: build-win-x64
             triplet: win-x64
           - artifact: build-macos-arm64
             triplet: macos-arm64
           - artifact: build-linux-x64-slim
             triplet: linux-x64-slim
+          - artifact: build-linux-arm64-slim
+            triplet: linux-arm64-slim
           - artifact: build-win-x64-slim
             triplet: win-x64-slim
           - artifact: build-macos-arm64-slim
