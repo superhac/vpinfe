@@ -52,6 +52,15 @@ _tables_cache: Optional[List[Dict]] = None
 _missing_cache: Optional[List[Dict]] = None
 
 
+def normalize_table_rating(value) -> int:
+    """Normalize rating values to an integer in the range 0..5."""
+    try:
+        normalized = int(float(value))
+    except (TypeError, ValueError):
+        normalized = 0
+    return max(0, min(5, normalized))
+
+
 def get_vpsid_collections_map() -> Dict[str, List[str]]:
     """Build a map of VPS ID -> list of collection names (only vpsid type collections)."""
     vpsid_to_collections: Dict[str, List[str]] = {}
@@ -165,6 +174,33 @@ def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
         return True
     except Exception as e:
         logger.error(f"Failed to update VPinFE setting: {e}")
+        return False
+
+
+def update_user_setting(table_path: str, key: str, value) -> bool:
+    """Update a User setting in the table's .info file."""
+    try:
+        table_dir = Path(table_path)
+        info_file = table_dir / f"{table_dir.name}.info"
+
+        if not info_file.exists():
+            logger.error(f"Info file not found: {info_file}")
+            return False
+
+        with open(info_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        if 'User' not in data:
+            data['User'] = {}
+
+        data['User'][key] = value
+
+        with open(info_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+
+        return True
+    except Exception as e:
+        logger.error(f"Failed to update User setting: {e}")
         return False
 
 
@@ -372,6 +408,7 @@ def parse_table_info(info_path):
             "altlauncher": (vpinfe.get("altlauncher", "") or "").strip(),
             "alttitle": (vpinfe.get("alttitle", "") or "").strip(),
             "altvpsid": (vpinfe.get("altvpsid", "") or "").strip(),
+            "rating": normalize_table_rating(user.get("Rating", 0)),
         }
 
         return data
@@ -1119,6 +1156,9 @@ def render_panel(tab=None):
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span>{{ props.value }}</span>
+                            <span v-if="Number(props.row.rating || 0) > 0" style="font-size: 0.9em; white-space: nowrap;">
+                                <span style="color: #facc15;">{{ '★'.repeat(Math.max(0, Math.min(5, Number(props.row.rating || 0)))) }}</span><span style="color: #64748b;">{{ '☆'.repeat(5 - Math.max(0, Math.min(5, Number(props.row.rating || 0)))) }}</span>
+                            </span>
                             <q-badge
                                 v-if="props.row.altlauncher"
                                 color="orange-8"
@@ -1367,6 +1407,8 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
     dlg = ui.dialog()
     with dlg, ui.card().classes('table-dialog-card').style('width: 1000px; max-width: 85vw;'):
         table_name = row_data.get('name') or row_data.get('filename') or 'Table'
+        table_path_str = row_data.get('table_path', '')
+        row_data['rating'] = normalize_table_rating(row_data.get('rating', 0))
 
         # Header
         with ui.row().classes('table-dialog-header w-full items-center gap-3'):
@@ -1530,6 +1572,63 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             else:
                                 ui.badge(label, color='grey').props('rounded outline')
 
+                # User rating row
+                rating_state = {'value': normalize_table_rating(row_data.get('rating', 0))}
+                rating_buttons = []
+
+                with ui.row().classes('detail-row items-center gap-2 w-full mt-2'):
+                    ui.icon('star', size='18px').classes('text-blue-400')
+                    ui.label('Rating').classes('detail-label')
+                    with ui.row().classes('items-center gap-1 flex-wrap'):
+                        rating_text = ui.label('').style('color: #94a3b8; font-size: 0.85rem; min-width: 48px;')
+
+                        def refresh_rating_ui() -> None:
+                            value = normalize_table_rating(rating_state['value'])
+                            rating_text.set_text(f'({value}/5)')
+                            for idx, button in enumerate(rating_buttons, start=1):
+                                is_set = idx <= value
+                                color = '#facc15' if is_set else 'rgba(255, 255, 255, 0.38)'
+                                button.set_text('★' if is_set else '☆')
+                                button.style(
+                                    'min-width: 34px; '
+                                    f'color: {color} !important; '
+                                    'font-size: 1.1rem; '
+                                    'background: transparent !important;'
+                                )
+
+                        def save_rating(new_rating: int) -> None:
+                            clamped = normalize_table_rating(new_rating)
+                            if not table_path_str:
+                                ui.notify('Unable to save rating: missing table path', type='negative')
+                                return
+                            if update_user_setting(table_path_str, 'Rating', clamped):
+                                rating_state['value'] = clamped
+                                row_data['rating'] = clamped
+                                if _tables_cache is not None:
+                                    for cached_row in _tables_cache:
+                                        if cached_row.get('table_path') == table_path_str:
+                                            cached_row['rating'] = clamped
+                                            break
+                                refresh_rating_ui()
+                                if on_close:
+                                    on_close()
+                                ui.notify('Rating saved', type='positive')
+                            else:
+                                ui.notify('Failed to save rating', type='negative')
+
+                        for star_index in range(1, 6):
+                            star_button = ui.button('★', on_click=lambda v=star_index: save_rating(v)).props(
+                                'flat round dense color=white text-color=white'
+                            )
+                            rating_buttons.append(star_button)
+
+                        ui.button(
+                            'Clear',
+                            on_click=lambda: save_rating(0)
+                        ).props('flat dense size=sm color=grey-6').classes('ml-1')
+
+                        refresh_rating_ui()
+
             # Collections section - add table to collection
             vpsid = row_data.get('id', '')
             current_collections = row_data.get('collections', [])
@@ -1582,7 +1681,6 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
             with ui.card().classes('w-full p-4').style('background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px;'):
                 ui.label('Overrides').classes('text-lg font-semibold text-white mb-3')
 
-                table_path_str = row_data.get('table_path', '')
                 delete_nvram_value = row_data.get('delete_nvram_on_close', False)
                 altlauncher_value = row_data.get('altlauncher', '')
                 alttitle_value = row_data.get('alttitle', '')

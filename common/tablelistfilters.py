@@ -169,6 +169,29 @@ class TableListFilters:
             year = self._get_meta_value(table, "VPSdb", "year", fallback="")
         return str(year) if year else ""
 
+    @staticmethod
+    def _normalize_rating(value):
+        """Normalize rating values to an integer in the range 0..5."""
+        try:
+            normalized = int(float(value))
+        except (TypeError, ValueError):
+            normalized = 0
+        return max(0, min(5, normalized))
+
+    @staticmethod
+    def _is_truthy(value):
+        """Convert common string/bool truthy values to bool."""
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+        return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+    def _get_table_rating(self, table):
+        """Get table rating from User.Rating metadata."""
+        rating = self._get_meta_value(table, "User", "Rating", fallback=0)
+        return self._normalize_rating(rating)
+
     def filter_by_letter(self, tables, letter):
         """Filter tables by starting letter of name. Supports comma-separated values."""
         if not letter or letter == "All":
@@ -234,7 +257,29 @@ class TableListFilters:
                 filtered.append(table)
         return filtered
 
-    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None):
+    def filter_by_rating(self, tables, rating, rating_or_higher=False):
+        """Filter tables by rating. Supports comma-separated values and optional 'or higher' mode."""
+        if not rating or rating == "All":
+            return tables
+
+        selected_ratings = []
+        for r in str(rating).split(','):
+            try:
+                selected_ratings.append(self._normalize_rating(r.strip()))
+            except Exception:
+                continue
+
+        if not selected_ratings:
+            return tables
+
+        if self._is_truthy(rating_or_higher):
+            min_rating = min(selected_ratings)
+            return [table for table in tables if self._get_table_rating(table) >= min_rating]
+
+        rating_set = set(selected_ratings)
+        return [table for table in tables if self._get_table_rating(table) in rating_set]
+
+    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=False):
         """
         Apply multiple filters in combination.
         Returns filtered and sorted list of tables.
@@ -256,6 +301,9 @@ class TableListFilters:
 
         if year and year != "All":
             result = self.filter_by_year(result, year)
+
+        if rating and rating != "All":
+            result = self.filter_by_rating(result, rating, rating_or_higher)
 
         # Sort alphabetically by name
         result.sort(

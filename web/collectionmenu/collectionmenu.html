@@ -29,12 +29,13 @@
     background-size: 100% 100%;
     background-repeat: no-repeat;
     background-position: center;
-    width: min(96vw, calc(94vh * 1.5), 1600px);
-    aspect-ratio: 3 / 2;
+    width: min(96vw, 1600px);
+    min-height: min(94vh, 66.67vw, 1066px);
+    height: auto;
     box-sizing: border-box;
-    padding-top: clamp(120px, 16vh, 210px);
+    padding-top: 20%;
     padding-right: 12%;
-    padding-bottom: clamp(62px, 8vh, 120px);
+    padding-bottom: 14%;
     padding-left: 12%;
   }
 
@@ -158,6 +159,14 @@
         <span class="dropdown-label">Year:</span>
         <span class="dropdown-value" id="year-value">All</span>
       </li>
+      <li class="menu-item" id="rating-item">
+        <span class="dropdown-label">Rating:</span>
+        <span class="dropdown-value" id="rating-value">All</span>
+      </li>
+      <li class="menu-item" id="ratingmode-item">
+        <span class="dropdown-label">Rating Mode:</span>
+        <span class="dropdown-value" id="ratingmode-value">Exact</span>
+      </li>
       <li class="menu-item" id="sortby-item">
         <span class="dropdown-label">Sort By:</span>
         <span class="dropdown-value" id="sortby-value">Alpha</span>
@@ -198,6 +207,8 @@
     let types = ['All'];
     let manufacturers = ['All'];
     let years = ['All'];
+    let ratings = ['All', '1', '2', '3', '4', '5'];
+    let ratingModes = ['Exact', 'Or Higher'];
     let sortOptions = ['Alpha', 'Newest'];
 
     // Current selections
@@ -207,6 +218,8 @@
     let typeIndex = 0;
     let manufacturerIndex = 0;
     let yearIndex = 0;
+    let ratingIndex = 0;
+    let ratingModeIndex = 0;
     let sortByIndex = 0;
 
     async function init() {
@@ -234,6 +247,10 @@
       if (manufacturerIndex === -1) manufacturerIndex = 0;
       yearIndex = years.indexOf(currentFilters.year || 'All');
       if (yearIndex === -1) yearIndex = 0;
+      ratingIndex = ratings.indexOf(String(currentFilters.rating || 'All'));
+      if (ratingIndex === -1) ratingIndex = 0;
+      ratingModeIndex = currentFilters.rating_or_higher ? 1 : 0;
+      if (ratings[ratingIndex] === 'All') ratingModeIndex = 0;
 
       // Get current sort state
       const currentSort = await window.parent.vpin.call('get_current_sort_state');
@@ -330,6 +347,10 @@
             openDropdown(selectedItem, 'manufacturer');
           } else if (selectedItem.id === 'year-item') {
             openDropdown(selectedItem, 'year');
+          } else if (selectedItem.id === 'rating-item') {
+            openDropdown(selectedItem, 'rating');
+          } else if (selectedItem.id === 'ratingmode-item') {
+            openDropdown(selectedItem, 'ratingmode');
           } else if (selectedItem.id === 'sortby-item') {
             openDropdown(selectedItem, 'sortby');
           } else if (selectedItem.id === 'save-filter-item') {
@@ -363,9 +384,52 @@
       document.getElementById('type-value').textContent = types[typeIndex];
       document.getElementById('manufacturer-value').textContent = manufacturers[manufacturerIndex];
       document.getElementById('year-value').textContent = years[yearIndex];
+      document.getElementById('rating-value').textContent = ratings[ratingIndex];
+      document.getElementById('ratingmode-value').textContent = ratingModes[ratingModeIndex];
       document.getElementById('sortby-value').textContent = sortOptions[sortByIndex];
 
       updateTableCount();
+    }
+
+    function normalizeRatingMode() {
+      if (ratings[ratingIndex] === 'All') {
+        ratingModeIndex = 0;
+      }
+    }
+
+    function getSelectedFilterValues() {
+      normalizeRatingMode();
+      const ratingValue = ratings[ratingIndex] === "All" ? "All" : ratings[ratingIndex];
+      const ratingOrHigher = ratingValue !== "All" && ratingModes[ratingModeIndex] === 'Or Higher';
+      return {
+        letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
+        theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
+        type: types[typeIndex] === "All" ? "All" : types[typeIndex],
+        manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
+        year: years[yearIndex] === "All" ? "All" : years[yearIndex],
+        rating: ratingValue,
+        rating_or_higher: ratingOrHigher
+      };
+    }
+
+    async function applyCurrentFiltersAndBroadcast() {
+      const filters = getSelectedFilterValues();
+      const count = await window.parent.vpin.call(
+        "apply_filters",
+        filters.letter,
+        filters.theme,
+        filters.type,
+        filters.manufacturer,
+        filters.year,
+        filters.rating,
+        filters.rating_or_higher
+      );
+      window.parent.vpin.sendMessageToAllWindowsIncSelf({
+        type: "TableDataChange",
+        index: 0,
+        filters
+      });
+      return count;
     }
 
     function getCurrentDropdownOptions() {
@@ -376,6 +440,8 @@
         case 'type': return types;
         case 'manufacturer': return manufacturers;
         case 'year': return years;
+        case 'rating': return ratings;
+        case 'ratingmode': return ratingModes;
         case 'sortby': return sortOptions;
         default: return [];
       }
@@ -389,6 +455,8 @@
         case 'type': return typeIndex;
         case 'manufacturer': return manufacturerIndex;
         case 'year': return yearIndex;
+        case 'rating': return ratingIndex;
+        case 'ratingmode': return ratingModeIndex;
         case 'sortby': return sortByIndex;
         default: return 0;
       }
@@ -435,12 +503,13 @@
           collectionIndex = dropdownSelected;
 
           if (selectedValue == "None") {
-            // Reset all filters when "None" is selected
             letterIndex = 0;
             themeIndex = 0;
             typeIndex = 0;
             manufacturerIndex = 0;
             yearIndex = 0;
+            ratingIndex = 0;
+            ratingModeIndex = 0;
 
             await window.parent.vpin.call("get_tables", true);
             window.parent.vpin.sendMessageToAllWindowsIncSelf({
@@ -449,24 +518,28 @@
               collection: "None"
             });
           } else {
-            // Load the collection (could be VPS ID-based or filter-based)
             await window.parent.vpin.call("set_tables_by_collection", selectedValue);
-
-            // Get the updated table data after collection is loaded
             await window.parent.vpin.call("get_tables");
 
-            // Get current filter state from API to update UI
             const filterState = await window.parent.vpin.call("get_current_filter_state");
 
             if (filterState && filterState.letter !== null) {
-              // Filter-based collection - update UI to show active filters
               letterIndex = letters.indexOf(filterState.letter);
               themeIndex = themes.indexOf(filterState.theme);
               typeIndex = types.indexOf(filterState.type);
               manufacturerIndex = manufacturers.indexOf(filterState.manufacturer);
               yearIndex = years.indexOf(filterState.year);
+              ratingIndex = ratings.indexOf(String(filterState.rating || 'All'));
+              ratingModeIndex = filterState.rating_or_higher ? 1 : 0;
 
-              // Get and set the sort order if available
+              if (letterIndex === -1) letterIndex = 0;
+              if (themeIndex === -1) themeIndex = 0;
+              if (typeIndex === -1) typeIndex = 0;
+              if (manufacturerIndex === -1) manufacturerIndex = 0;
+              if (yearIndex === -1) yearIndex = 0;
+              if (ratingIndex === -1) ratingIndex = 0;
+              normalizeRatingMode();
+
               const sortState = await window.parent.vpin.call("get_current_sort_state");
               if (sortState) {
                 const sortIdx = sortOptions.indexOf(sortState);
@@ -475,26 +548,21 @@
                 }
               }
 
-              // Send as filter message with sort information
+              const currentFilters = getSelectedFilterValues();
               window.parent.vpin.sendMessageToAllWindowsIncSelf({
                 type: "TableDataChange",
                 index: 0,
-                filters: {
-                  letter: filterState.letter,
-                  theme: filterState.theme,
-                  type: filterState.type,
-                  manufacturer: filterState.manufacturer,
-                  year: filterState.year
-                },
+                filters: currentFilters,
                 sort: sortState || 'Alpha'
               });
             } else {
-              // VPS ID-based collection - reset filter UI
               letterIndex = 0;
               themeIndex = 0;
               typeIndex = 0;
               manufacturerIndex = 0;
               yearIndex = 0;
+              ratingIndex = 0;
+              ratingModeIndex = 0;
 
               window.parent.vpin.sendMessageToAllWindowsIncSelf({
                 type: "TableDataChange",
@@ -504,139 +572,55 @@
             }
           }
           updateMenu();
-
-          // Close the collection menu after selecting a collection
           window.parent.vpin.toggleCollectionMenu();
           break;
 
         case 'letter':
           letterIndex = dropdownSelected;
           collectionIndex = 0;
-
-          const letterCount = await window.parent.vpin.call("apply_filters",
-            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-            types[typeIndex] === "All" ? "All" : types[typeIndex],
-            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-            years[yearIndex] === "All" ? "All" : years[yearIndex]
-          );
-          window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
-            index: 0,
-            filters: {
-              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
-              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-              year: years[yearIndex] === "All" ? "All" : years[yearIndex]
-            }
-          });
-          document.getElementById('table-count').textContent = `Table Count: ${letterCount}`;
+          document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'theme':
           themeIndex = dropdownSelected;
           collectionIndex = 0;
-
-          const themeCount = await window.parent.vpin.call("apply_filters",
-            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-            types[typeIndex] === "All" ? "All" : types[typeIndex],
-            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-            years[yearIndex] === "All" ? "All" : years[yearIndex]
-          );
-          window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
-            index: 0,
-            filters: {
-              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
-              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-              year: years[yearIndex] === "All" ? "All" : years[yearIndex]
-            }
-          });
-          document.getElementById('table-count').textContent = `Table Count: ${themeCount}`;
+          document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'type':
           typeIndex = dropdownSelected;
           collectionIndex = 0;
-
-          const typeCount = await window.parent.vpin.call("apply_filters",
-            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-            types[typeIndex] === "All" ? "All" : types[typeIndex],
-            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-            years[yearIndex] === "All" ? "All" : years[yearIndex]
-          );
-          window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
-            index: 0,
-            filters: {
-              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
-              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-              year: years[yearIndex] === "All" ? "All" : years[yearIndex]
-            }
-          });
-          document.getElementById('table-count').textContent = `Table Count: ${typeCount}`;
+          document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'manufacturer':
           manufacturerIndex = dropdownSelected;
           collectionIndex = 0;
-
-          const manufacturerCount = await window.parent.vpin.call("apply_filters",
-            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-            types[typeIndex] === "All" ? "All" : types[typeIndex],
-            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-            years[yearIndex] === "All" ? "All" : years[yearIndex]
-          );
-          window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
-            index: 0,
-            filters: {
-              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
-              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-              year: years[yearIndex] === "All" ? "All" : years[yearIndex]
-            }
-          });
-          document.getElementById('table-count').textContent = `Table Count: ${manufacturerCount}`;
+          document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'year':
           yearIndex = dropdownSelected;
           collectionIndex = 0;
+          document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
+          break;
 
-          const yearCount = await window.parent.vpin.call("apply_filters",
-            letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-            themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-            types[typeIndex] === "All" ? "All" : types[typeIndex],
-            manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-            years[yearIndex] === "All" ? "All" : years[yearIndex]
-          );
-          window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
-            index: 0,
-            filters: {
-              letter: letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-              theme: themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-              type: types[typeIndex] === "All" ? "All" : types[typeIndex],
-              manufacturer: manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-              year: years[yearIndex] === "All" ? "All" : years[yearIndex]
-            }
-          });
-          document.getElementById('table-count').textContent = `Table Count: ${yearCount}`;
+        case 'rating':
+          ratingIndex = dropdownSelected;
+          collectionIndex = 0;
+          normalizeRatingMode();
+          document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
+          break;
+
+        case 'ratingmode':
+          ratingModeIndex = dropdownSelected;
+          collectionIndex = 0;
+          normalizeRatingMode();
+          document.getElementById('table-count').textContent = `Table Count: ${await applyCurrentFiltersAndBroadcast()}`;
           break;
 
         case 'sortby':
           sortByIndex = dropdownSelected;
-
           const sortCount = await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex]);
           window.parent.vpin.sendMessageToAllWindowsIncSelf({
             type: "TableDataChange",
@@ -689,6 +673,7 @@
         (themes[themeIndex] !== "All") ||
         (types[typeIndex] !== "All") ||
         (manufacturers[manufacturerIndex] !== "All") ||
+        (ratings[ratingIndex] !== "All") ||
         (years[yearIndex] !== "All") ||
         (sortOptions[sortByIndex] !== "Alpha");
 
@@ -698,15 +683,19 @@
         return;
       }
 
+      const selectedFilters = getSelectedFilterValues();
+
       // Save the filter
       const result = await window.parent.vpin.call("save_filter_collection",
         filterName,
-        letters[letterIndex] === "All" ? "All" : letters[letterIndex],
-        themes[themeIndex] === "All" ? "All" : themes[themeIndex],
-        types[typeIndex] === "All" ? "All" : types[typeIndex],
-        manufacturers[manufacturerIndex] === "All" ? "All" : manufacturers[manufacturerIndex],
-        years[yearIndex] === "All" ? "All" : years[yearIndex],
-        sortOptions[sortByIndex]
+        selectedFilters.letter,
+        selectedFilters.theme,
+        selectedFilters.type,
+        selectedFilters.manufacturer,
+        selectedFilters.year,
+        sortOptions[sortByIndex],
+        selectedFilters.rating,
+        selectedFilters.rating_or_higher
       );
 
       if (result.success) {

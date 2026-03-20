@@ -45,6 +45,8 @@ class VPXCollections:
             "table_type": sec.get("table_type", "All"),
             "manufacturer": sec.get("manufacturer", "All"),
             "year": sec.get("year", "All"),
+            "rating": sec.get("rating", "All"),
+            "rating_or_higher": sec.get("rating_or_higher", "false"),
             "sort_by": sec.get("sort_by", "Alpha"),
         }
 
@@ -77,6 +79,8 @@ class VPXCollections:
         table_type="All",
         manufacturer="All",
         year="All",
+        rating="All",
+        rating_or_higher="false",
         sort_by="Alpha",
     ):
         """Add a filter-based collection."""
@@ -91,6 +95,8 @@ class VPXCollections:
         sec["table_type"] = table_type
         sec["manufacturer"] = manufacturer
         sec["year"] = year
+        sec["rating"] = rating
+        sec["rating_or_higher"] = rating_or_higher
         sec["sort_by"] = sort_by
 
     def delete_collection(self, section: str):

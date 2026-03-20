@@ -159,7 +159,8 @@ function syncMenuWidthFromLongestLabel() {
     container.clientWidth
     - parseFloat(computedContainer.paddingLeft || '0')
     - parseFloat(computedContainer.paddingRight || '0');
-  const rawTargetWidth = Math.ceil(maxLabelWidth + sideInsetPx * 2 + edgeBufferPx * 2);
+  const labelWidthWithExtra = Math.ceil(maxLabelWidth * 1.4);
+  const rawTargetWidth = Math.ceil(labelWidthWithExtra + sideInsetPx * 2 + edgeBufferPx * 2);
   const targetWidth = Math.max(180, Math.min(rawTargetWidth, Math.floor(containerInnerWidth)));
   menu.style.width = `${targetWidth}px`;
 

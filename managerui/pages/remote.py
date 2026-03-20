@@ -70,6 +70,16 @@ def _table_matches_filters(table, filters):
     if not filters:
         return False
 
+    def _normalize_rating(value):
+        try:
+            normalized = int(float(value))
+        except (TypeError, ValueError):
+            normalized = 0
+        return max(0, min(5, normalized))
+
+    def _is_truthy(value):
+        return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
     # Check letter filter
     letter = filters.get('letter', 'All')
     if letter != 'All':
@@ -100,6 +110,23 @@ def _table_matches_filters(table, filters):
     if theme != 'All':
         if table.get('theme', '') != theme:
             return False
+
+    # Check rating filter
+    rating = filters.get('rating', 'All')
+    if rating != 'All':
+        selected = []
+        for r in str(rating).split(','):
+            try:
+                selected.append(_normalize_rating(r.strip()))
+            except Exception:
+                continue
+        table_rating = _normalize_rating(table.get('rating', 0))
+        if _is_truthy(filters.get('rating_or_higher', 'false')):
+            if not selected or table_rating < min(selected):
+                return False
+        else:
+            if table_rating not in set(selected):
+                return False
 
     return True
 
@@ -152,6 +179,7 @@ def _scan_tables_for_launch():
                     raw = json.load(f)
 
                 info = raw.get("Info", {})
+                user = raw.get("User", {})
                 vpinfe = raw.get("VPinFE", {})
                 name = (info.get("Title") or current_dir).strip()
                 manufacturer = info.get("Manufacturer", "")
@@ -176,6 +204,7 @@ def _scan_tables_for_launch():
                     'year': str(year) if year else '',
                     'type': info.get('Type', ''),
                     'theme': info.get('Theme', ''),
+                    'rating': user.get('Rating', 0),
                     'meta': {'VPinFE': vpinfe},
                 })
             except Exception:

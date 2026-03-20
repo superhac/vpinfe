@@ -40,7 +40,7 @@ def vpsid_to_name(vpsid: str, table_map: Dict[str, str] = None) -> str:
 
 
 def get_filter_options() -> Dict[str, List[str]]:
-    """Get filter options (letters, themes, types, manufacturers, years) from the tables cache."""
+    """Get filter options (letters, themes, types, manufacturers, years, ratings) from the tables cache."""
     # Use the tables cache from the tables module (same data used in the Tables page)
     tables = tables_module._tables_cache
 
@@ -56,6 +56,7 @@ def get_filter_options() -> Dict[str, List[str]]:
             'types': ['All'],
             'manufacturers': ['All'],
             'years': ['All'],
+            'ratings': ['All', '1', '2', '3', '4', '5'],
             'sort_options': ['Alpha', 'Newest'],
         }
 
@@ -103,6 +104,7 @@ def get_filter_options() -> Dict[str, List[str]]:
         'types': ['All'] + sorted(types),
         'manufacturers': ['All'] + sorted(manufacturers),
         'years': ['All'] + sorted(years),
+        'ratings': ['All', '1', '2', '3', '4', '5'],
         'sort_options': ['Alpha', 'Newest'],
     }
 
@@ -170,6 +172,9 @@ def render_panel(tab=None):
             collection_names = manager.get_collections_name()
             table_map = get_table_name_map()
 
+            def _is_truthy(value) -> bool:
+                return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
             if not collection_names:
                 with collections_container:
                     with ui.card().classes('collection-card w-full p-8'):
@@ -205,10 +210,24 @@ def render_panel(tab=None):
                         if is_filter:
                             filters = manager.get_filters(name)
                             with ui.row().classes('mt-3 gap-2 flex-wrap'):
-                                for key, value in filters.items():
+                                rating_value = filters.get('rating', 'All') if filters else 'All'
+                                rating_or_higher = _is_truthy(filters.get('rating_or_higher', 'false')) if filters else False
+                                key_labels = {
+                                    'letter': 'letter',
+                                    'theme': 'theme',
+                                    'table_type': 'type',
+                                    'manufacturer': 'mfr',
+                                    'year': 'year',
+                                    'sort_by': 'sort',
+                                }
+                                for key in ('letter', 'theme', 'table_type', 'manufacturer', 'year', 'sort_by'):
+                                    value = (filters or {}).get(key, '')
                                     if value and value != 'All':
-                                        for v in value.split(','):
-                                            ui.chip(f'{key}: {v.strip()}', icon='label').props('outline color=purple dense')
+                                        for v in str(value).split(','):
+                                            ui.chip(f'{key_labels[key]}: {v.strip()}', icon='label').props('outline color=purple dense')
+                                if rating_value and rating_value != 'All':
+                                    rating_chip = f'rating: {rating_value}+ ' if rating_or_higher else f'rating: {rating_value}'
+                                    ui.chip(rating_chip.strip(), icon='star').props('outline color=amber dense')
                         else:
                             vpsids = manager.get_vpsids(name)
                             if vpsids:
@@ -434,6 +453,19 @@ def render_panel(tab=None):
                 manufacturer_input.on_value_change(_make_label_updater(manufacturer_input, 'Manufacturer'))
                 year_input = ui.select(label='Year (All)', options=filter_opts['years'][1:], value=[], multiple=True).props(_ms_props).classes('w-full')
                 year_input.on_value_change(_make_label_updater(year_input, 'Year'))
+                rating_input = ui.select(label='Rating', options=filter_opts['ratings'], value='All').props('clearable').classes('w-full')
+                rating_or_higher_input = ui.checkbox('Or Higher', value=False).classes('text-white')
+                rating_or_higher_input.disable()
+
+                def _on_new_rating_change(e):
+                    current_rating = e.value or 'All'
+                    if current_rating == 'All':
+                        rating_or_higher_input.value = False
+                        rating_or_higher_input.disable()
+                    else:
+                        rating_or_higher_input.enable()
+
+                rating_input.on_value_change(_on_new_rating_change)
                 sort_input = ui.select(label='Sort By', options=filter_opts['sort_options'], value='Alpha').classes('w-full')
 
                 def _join_or_all(values):
@@ -452,6 +484,8 @@ def render_panel(tab=None):
                             return
                         try:
                             manager = get_collections_manager()
+                            selected_rating = rating_input.value or 'All'
+                            selected_rating_or_higher = 'true' if (selected_rating != 'All' and rating_or_higher_input.value) else 'false'
                             manager.add_filter_collection(
                                 name,
                                 letter=_join_or_all(letter_input.value),
@@ -459,6 +493,8 @@ def render_panel(tab=None):
                                 table_type=_join_or_all(type_input.value),
                                 manufacturer=_join_or_all(manufacturer_input.value),
                                 year=_join_or_all(year_input.value),
+                                rating=selected_rating,
+                                rating_or_higher=selected_rating_or_higher,
                                 sort_by=sort_input.value or 'Alpha',
                             )
                             manager.save()
@@ -507,12 +543,17 @@ def render_panel(tab=None):
             saved_types = _parse_csv_to_list(filters.get('table_type', 'All'))
             saved_manufacturers = _parse_csv_to_list(filters.get('manufacturer', 'All'))
             saved_years = _parse_csv_to_list(filters.get('year', 'All'))
+            saved_rating = str(filters.get('rating', 'All') or 'All')
+            saved_rating_or_higher = str(filters.get('rating_or_higher', 'false')).strip().lower() in {'1', 'true', 'yes', 'on'}
 
             letter_opts = _ensure_values_in_options(filter_opts['letters'][1:], saved_letters)
             theme_opts = _ensure_values_in_options(filter_opts['themes'][1:], saved_themes)
             type_opts = _ensure_values_in_options(filter_opts['types'][1:], saved_types)
             manufacturer_opts = _ensure_values_in_options(filter_opts['manufacturers'][1:], saved_manufacturers)
             year_opts = _ensure_values_in_options(filter_opts['years'][1:], saved_years)
+            rating_opts = list(filter_opts['ratings'])
+            if saved_rating not in rating_opts:
+                rating_opts.append(saved_rating)
 
             dlg = ui.dialog().props('persistent max-width=600px')
             with dlg, ui.card().classes('w-[550px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
@@ -542,6 +583,21 @@ def render_panel(tab=None):
                 manufacturer_input.on_value_change(_make_label_updater(manufacturer_input, 'Manufacturer'))
                 year_input = ui.select(label=_init_label('Year', saved_years), options=year_opts, value=saved_years, multiple=True).props(_ms_props).classes('w-full')
                 year_input.on_value_change(_make_label_updater(year_input, 'Year'))
+                rating_input = ui.select(label='Rating', options=rating_opts, value=saved_rating).props('clearable').classes('w-full')
+                rating_or_higher_input = ui.checkbox('Or Higher', value=saved_rating_or_higher).classes('text-white')
+                if saved_rating == 'All':
+                    rating_or_higher_input.value = False
+                    rating_or_higher_input.disable()
+
+                def _on_edit_rating_change(e):
+                    current_rating = e.value or 'All'
+                    if current_rating == 'All':
+                        rating_or_higher_input.value = False
+                        rating_or_higher_input.disable()
+                    else:
+                        rating_or_higher_input.enable()
+
+                rating_input.on_value_change(_on_edit_rating_change)
                 sort_input = ui.select(label='Sort By', options=filter_opts['sort_options'], value=filters.get('sort_by', 'Alpha')).classes('w-full')
 
                 def _join_or_all(values):
@@ -560,6 +616,9 @@ def render_panel(tab=None):
                             m.config[name]['table_type'] = _join_or_all(type_input.value)
                             m.config[name]['manufacturer'] = _join_or_all(manufacturer_input.value)
                             m.config[name]['year'] = _join_or_all(year_input.value)
+                            selected_rating = rating_input.value or 'All'
+                            m.config[name]['rating'] = selected_rating
+                            m.config[name]['rating_or_higher'] = 'true' if (selected_rating != 'All' and rating_or_higher_input.value) else 'false'
                             m.config[name]['sort_by'] = sort_input.value or 'Alpha'
                             m.save()
                             ui.notify(f'Collection "{name}" updated', type='positive')

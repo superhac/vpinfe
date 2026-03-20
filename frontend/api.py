@@ -35,7 +35,9 @@ class API:
             'theme': None,
             'type': None,
             'manufacturer': None,
-            'year': None
+            'year': None,
+            'rating': None,
+            'rating_or_higher': False,
         }
         # Track current sort state
         self.current_sort = 'Alpha'
@@ -213,7 +215,9 @@ class API:
                 theme=filters['theme'],
                 table_type=filters['table_type'],
                 manufacturer=filters['manufacturer'],
-                year=filters['year']
+                year=filters['year'],
+                rating=filters.get('rating', 'All'),
+                rating_or_higher=filters.get('rating_or_higher', 'false'),
             )
             # Update current filter state to match the collection
             self.current_filters = {
@@ -221,7 +225,9 @@ class API:
                 'theme': filters['theme'],
                 'type': filters['table_type'],
                 'manufacturer': filters['manufacturer'],
-                'year': filters['year']
+                'year': filters['year'],
+                'rating': filters.get('rating', 'All'),
+                'rating_or_higher': str(filters.get('rating_or_higher', 'false')).lower() in ('1', 'true', 'yes', 'on'),
             }
             # Apply the sort order
             self.current_sort = filters['sort_by']
@@ -235,15 +241,39 @@ class API:
                 'theme': None,
                 'type': None,
                 'manufacturer': None,
-                'year': None
+                'year': None,
+                'rating': None,
+                'rating_or_higher': False,
             }
 
-    def save_filter_collection(self, name, letter="All", theme="All", table_type="All", manufacturer="All", year="All", sort_by="Alpha"):
+    def save_filter_collection(
+        self,
+        name,
+        letter="All",
+        theme="All",
+        table_type="All",
+        manufacturer="All",
+        year="All",
+        sort_by="Alpha",
+        rating="All",
+        rating_or_higher=False,
+    ):
         """Save current filter settings as a named collection."""
         config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
         c = VPXCollections(config_dir / "collections.ini")
+        rating_or_higher_flag = str(rating_or_higher).strip().lower() in ('1', 'true', 'yes', 'on')
         try:
-            c.add_filter_collection(name, letter, theme, table_type, manufacturer, year, sort_by)
+            c.add_filter_collection(
+                name,
+                letter,
+                theme,
+                table_type,
+                manufacturer,
+                year,
+                rating,
+                'true' if rating_or_higher_flag else 'false',
+                sort_by,
+            )
             c.save()
             return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
         except ValueError as e:
@@ -286,7 +316,7 @@ class API:
         filters = TableListFilters(self.allTables)
         return filters.get_available_years()
 
-    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None):
+    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
         """
         Apply VPSdb filters to the full table list.
         These filters work independently of collections.
@@ -304,14 +334,20 @@ class API:
             self.current_filters['manufacturer'] = manufacturer
         if year is not None:
             self.current_filters['year'] = year
+        if rating is not None:
+            self.current_filters['rating'] = rating
+        if rating_or_higher is not None:
+            self.current_filters['rating_or_higher'] = str(rating_or_higher).strip().lower() in ('1', 'true', 'yes', 'on')
 
         logger.debug(
-            "Applying filters: letter=%s, theme=%s, type=%s, manufacturer=%s, year=%s",
+            "Applying filters: letter=%s, theme=%s, type=%s, manufacturer=%s, year=%s, rating=%s, rating_or_higher=%s",
             self.current_filters['letter'],
             self.current_filters['theme'],
             self.current_filters['type'],
             self.current_filters['manufacturer'],
             self.current_filters['year'],
+            self.current_filters['rating'],
+            self.current_filters['rating_or_higher'],
         )
 
         # Always start from the full table list
@@ -321,7 +357,9 @@ class API:
             theme=self.current_filters['theme'],
             table_type=self.current_filters['type'],
             manufacturer=self.current_filters['manufacturer'],
-            year=self.current_filters['year']
+            year=self.current_filters['year'],
+            rating=self.current_filters['rating'],
+            rating_or_higher=self.current_filters['rating_or_higher'],
         )
 
         count = len(self.filteredTables)
@@ -336,7 +374,9 @@ class API:
             'theme': None,
             'manufacturer': None,
             'type': None,
-            'year': None
+            'year': None,
+            'rating': None,
+            'rating_or_higher': False,
         }
 
     def apply_sort(self, sort_type):
