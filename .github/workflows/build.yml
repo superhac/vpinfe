@@ -20,7 +20,7 @@ jobs:
       DOF_REPO: superhac/libdof-python
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -96,11 +96,19 @@ jobs:
           New-Item -ItemType Directory -Force -Path chromium\linux,chromium\windows,chromium\mac
 
       - name: Download Linux Chromium
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && runner.arch == 'X64'
         run: |
           wget -O chromium/linux/chrome.zip "https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/Linux_x64%2F1568190%2Fchrome-linux.zip?generation=1768270474193258&alt=media"
           unzip -q chromium/linux/chrome.zip -d chromium/linux
           mv chromium/linux/chrome-linux chromium/linux/chrome
+          chmod +x chromium/linux/chrome/chrome
+
+      - name: Download ARM Linux Chromium
+        if: runner.os == 'Linux' && runner.arch == 'ARM64'
+        run: |
+          wget -O chromium/linux/chrome.tar.xz "https://github.com/ungoogled-software/ungoogled-chromium-portablelinux/releases/download/144.0.7559.109-1/ungoogled-chromium-144.0.7559.109-1-arm64_linux.tar.xz"
+          tar xvf chromium/linux/chrome.tar.xz -C chromium/linux/
+          mv chromium/linux/ungoogled-chromium-144.0.7559.109-1-arm64_linux chromium/linux/chrome
           chmod +x chromium/linux/chrome/chrome
 
       - name: Download Windows Chromium
