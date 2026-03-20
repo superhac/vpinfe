@@ -209,7 +209,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6
         with:
-          name: build-linux-x64
+          name: build-linux-${{ runner.arch == 'X64' && 'x64' || 'arm64' }}
           path: dist/
 
       - name: Upload full build artifact (Windows)
@@ -236,7 +236,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6
         with:
-          name: build-linux-x64-slim
+          name: build-linux-${{ runner.arch == 'X64' && 'x64' || 'arm64' }}-slim
           path: dist/
 
       - name: Build slim app with PyInstaller (Windows)
@@ -319,12 +319,16 @@ jobs:
         include:
           - artifact: build-linux-x64
             triplet: linux-x64
+          - artifact: build-linux-arm64
+            triplet: linux-arm64
           - artifact: build-win-x64
             triplet: win-x64
           - artifact: build-macos-arm64
             triplet: macos-arm64
           - artifact: build-linux-x64-slim
             triplet: linux-x64-slim
+          - artifact: build-linux-arm64-slim
+            triplet: linux-arm64-slim
           - artifact: build-win-x64-slim
             triplet: win-x64-slim
           - artifact: build-macos-arm64-slim
