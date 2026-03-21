@@ -535,7 +535,7 @@ if mv "$NEW_ROOT" "$INSTALL_ROOT"; then
     echo "[Updater] Installed new version into $INSTALL_ROOT"
     chmod +x "$LAUNCH_TARGET" 2>/dev/null || true
     cd "$INSTALL_ROOT"
-    echo "[Updater] Relaunch environment: DISPLAY=${DISPLAY:-<unset>} WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-<unset>} XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-<unset>}"
+    echo "[Updater] Relaunch environment: DISPLAY=${{DISPLAY:-<unset>}} WAYLAND_DISPLAY=${{WAYLAND_DISPLAY:-<unset>}} XDG_RUNTIME_DIR=${{XDG_RUNTIME_DIR:-<unset>}}"
     # Relaunch with a clean runtime env so we don't inherit stale PyInstaller
     # library paths from the old process (which can point at INSTALL_ROOT.bak).
     if command -v setsid >/dev/null 2>&1; then
