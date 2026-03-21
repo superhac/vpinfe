@@ -576,7 +576,7 @@ The following methods are available via `vpin.call()`:
 |--------|------|---------|-------------|
 | `playTableAudio` | `indexOrUrl`, `retries=3` | — | Plays table audio using VPinFECore's centralized audio manager. Pass a table index (recommended) or URL string. |
 | `stopTableAudio` | `options={}` | — | Stops audio via centralized manager. Supports fade-out; pass `{ immediate: true }` for an immediate stop. |
-| `enableCoreAudio` | `enabled=true` | — | Enables or disables centralized audio handling for the current window. |
+| `enableCoreAudio` | `enabled=true` | — | Enables or disables centralized audio handling for the current window. Core audio is opt-in by default unless enabled in theme config. |
 | `isCoreAudioEnabled` | — | `boolean` | Returns whether centralized audio handling is currently enabled. |
 | `setAudioOptions` | `options` | — | Sets runtime audio options. Supported keys: `maxVolume`/`max_volume`/`volume`, `fadeDuration`/`fade_duration_ms`/`fadeMs`, `loop`. |
 
@@ -843,7 +843,11 @@ Place an `audio.mp3` file in the table's `medias/` folder (or root folder). `vpi
 
 ### Core Behavior
 
-On the `table` window, `await vpin.handleEvent(message)` automatically manages audio transitions when core audio is enabled:
+On the `table` window, `await vpin.handleEvent(message)` automatically manages audio transitions when core audio is enabled.
+
+Core audio is opt-in by default. If your theme does not explicitly enable it (or call `vpin.enableCoreAudio(true)` at runtime), no automatic table audio playback will occur.
+
+When enabled, these transitions are handled automatically:
 - `TableIndexUpdate` -> play selected table audio
 - `TableLaunching` and `RemoteLaunching` -> fade/stop audio
 - `TableLaunchComplete` and `RemoteLaunchComplete` -> resume audio for current selection
@@ -903,6 +907,8 @@ Core audio can be configured from theme config:
   }
 }
 ```
+
+If omitted, core audio remains disabled by default.
 
 Also accepted for compatibility:
 - `useCoreAudio` (camelCase)

@@ -567,7 +567,8 @@ class VPinFECore {
       audioCfg.useCoreAudio,
       audioCfg.enabled
     ].find(v => v !== undefined);
-    this.enableCoreAudio(enabledOpt === undefined ? true : !!enabledOpt);
+    // Opt-in by default: themes must explicitly enable core audio.
+    this.enableCoreAudio(enabledOpt === undefined ? false : !!enabledOpt);
     this.setAudioOptions(audioCfg);
 
     // Load network config
