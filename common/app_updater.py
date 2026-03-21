@@ -32,6 +32,37 @@ class UpdateError(RuntimeError):
     """Raised when an update cannot be prepared or applied."""
 
 
+def _triplet_candidates(triplet: str) -> list[str]:
+    t = (triplet or "").strip()
+    if not t:
+        return []
+
+    slim_suffix = "-slim"
+    is_slim = t.endswith(slim_suffix)
+    base = t[:-len(slim_suffix)] if is_slim else t
+
+    aliases = {
+        "linux-arm64": "linux-aarch64",
+        "linux-aarch64": "linux-arm64",
+    }
+    candidates = [t]
+    alias_base = aliases.get(base)
+    if alias_base:
+        candidates.append(f"{alias_base}{slim_suffix}" if is_slim else alias_base)
+    return candidates
+
+
+def _resolve_manifest_asset(manifest: dict, triplet: str | None) -> tuple[str | None, dict | None]:
+    assets = manifest.get("assets") or {}
+    if not isinstance(assets, dict):
+        return None, None
+    for candidate in _triplet_candidates(triplet or ""):
+        asset = assets.get(candidate)
+        if asset:
+            return candidate, asset
+    return None, None
+
+
 def _parse_tag_version(tag: str) -> tuple[int, int, int] | None:
     match = re.match(r"^v?(\d+)\.(\d+)\.(\d+)$", (tag or "").strip())
     if not match:
@@ -174,7 +205,13 @@ def get_install_context() -> dict:
     slim = not _bundled_chromium_exists()
 
     if system == "Linux":
-        triplet = "linux-x64"
+        if machine in {"x86_64", "amd64"}:
+            triplet = "linux-x64"
+        elif machine in {"arm64", "aarch64"}:
+            triplet = "linux-arm64"
+        else:
+            context["reason"] = "unsupported_architecture"
+            return context
         install_root = exe_path.parent
         launch_target = install_root / "vpinfe"
     elif system == "Windows":
@@ -299,11 +336,17 @@ def check_for_updates() -> dict:
             return result
 
         manifest = _get_release_manifest(release_payload)
-        asset_info = (manifest.get("assets") or {}).get(context["triplet"] or "")
+        resolved_triplet, asset_info = _resolve_manifest_asset(manifest, context["triplet"])
         if not asset_info:
             result["support_reason"] = "no_matching_asset"
             logger.warning("Update available but manifest has no asset for triplet=%s", context["triplet"])
             return result
+        if resolved_triplet and resolved_triplet != context["triplet"]:
+            logger.info(
+                "Using compatible manifest triplet=%s for context triplet=%s",
+                resolved_triplet,
+                context["triplet"],
+            )
 
         asset_name = asset_info.get("file")
         if not asset_name:
@@ -356,9 +399,15 @@ def prepare_update() -> dict:
         raise UpdateError("Already on the latest version")
 
     manifest = _get_release_manifest(release_payload)
-    asset_info = (manifest.get("assets") or {}).get(context["triplet"] or "")
+    resolved_triplet, asset_info = _resolve_manifest_asset(manifest, context["triplet"])
     if not asset_info:
         raise UpdateError(f"No release asset for {context['triplet']}")
+    if resolved_triplet and resolved_triplet != context["triplet"]:
+        logger.info(
+            "Preparing update using compatible manifest triplet=%s for context triplet=%s",
+            resolved_triplet,
+            context["triplet"],
+        )
 
     asset_name = asset_info.get("file")
     expected_sha = (asset_info.get("sha256") or "").strip().lower()
