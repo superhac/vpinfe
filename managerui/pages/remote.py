@@ -245,7 +245,11 @@ def _launch_table(table: dict):
         set_remote_launch_state(True, table_name)
 
         # Run the launch in a background thread so UI stays responsive
-        cmd = [str(vpxbin_path), "-play", vpx_path]
+        cmd = [str(vpxbin_path)]
+        global_ini_override = cfg.config['Settings'].get('globalinioverride', '').strip()
+        if global_ini_override:
+            cmd.extend(["-ini", global_ini_override])
+        cmd.extend(["-play", vpx_path])
         launch_env = os.environ.copy()
         launch_env.update(
             parse_launch_env_overrides(cfg.config['Settings'].get('vpxlaunchenv', ''))

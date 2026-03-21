@@ -21,6 +21,7 @@ class IniConfig:
 			'Settings': {
 				'vpxbinpath': '',
 				'vpxlaunchenv': '',
+				'globalinioverride': '',
 				'tablerootdir': '',
 				'vpxinipath': '',
 				'theme': 'carousel-desktop',

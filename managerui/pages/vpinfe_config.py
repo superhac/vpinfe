@@ -51,6 +51,7 @@ FRIENDLY_NAMES = {
     # [Settings]
     'vpxbinpath': 'VPX Executable Path',
     'vpxlaunchenv': 'VPX Launch Environment',
+    'globalinioverride': 'Global ini Override (/home/test/mysuper.ini)',
     'vpxinipath' : 'VPX Ini Path',
     'tablerootdir': 'Tables Directory',
     'startup_collection': 'Startup Collection',
@@ -676,7 +677,11 @@ def render_panel(tab=None):
                             with ui.card().classes('config-card w-full p-4'):
                                 if section == 'Settings':
                                     env_key = 'vpxlaunchenv'
-                                    normal_options = [key for key in options if key != env_key]
+                                    ini_override_key = 'globalinioverride'
+                                    normal_options = [
+                                        key for key in options
+                                        if key not in (env_key, ini_override_key)
+                                    ]
                                     split_index = (len(normal_options) + 1) // 2
                                     first_column_keys = normal_options[:split_index]
                                     second_column_keys = normal_options[split_index:]
@@ -694,6 +699,9 @@ def render_panel(tab=None):
                                             if env_key in options:
                                                 value = config.config.get(section, env_key, fallback='')
                                                 build_config_input(section, env_key, value)
+                                            if ini_override_key in options:
+                                                value = config.config.get(section, ini_override_key, fallback='')
+                                                build_config_input(section, ini_override_key, value)
                                 elif section == 'Displays':
                                     split_key = 'tableorientation' if section == 'Displays' else 'theme'
                                     split_index = options.index(split_key) if split_key in options else len(options)

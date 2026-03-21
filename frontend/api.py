@@ -456,15 +456,18 @@ class API:
         if not vpxbin_path.exists():
             logger.warning("Launcher not found (%s): %s", source_key, vpxbin_path)
             return
-        logger.info("Launching: %s", [str(vpxbin_path), "-play", vpx])
-
         # Track the table play
         self._track_table_play(table)
 
         stop_dof_service()
         launch_started_at = None
         try:
-            cmd = [str(vpxbin_path), "-play", vpx]
+            cmd = [str(vpxbin_path)]
+            global_ini_override = self._iniConfig.config['Settings'].get('globalinioverride', '').strip()
+            if global_ini_override:
+                cmd.extend(["-ini", global_ini_override])
+            cmd.extend(["-play", vpx])
+            logger.info("Launching: %s", cmd)
             launch_env = os.environ.copy()
             launch_env.update(
                 parse_launch_env_overrides(
