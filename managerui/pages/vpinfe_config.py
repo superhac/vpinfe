@@ -9,6 +9,7 @@ import sys
 from nicegui import ui, run
 from common.iniconfig import IniConfig
 from common.dof_service import find_dof_file
+from common.launcher import build_masked_tableini_path, build_vpx_launch_command
 from common.vpxcollections import VPXCollections
 from pathlib import Path
 from platformdirs import user_config_dir
@@ -499,9 +500,73 @@ def render_panel(tab=None):
     inputs = {}
     dof_force_checkbox = None
     update_dof_button = None
+    launch_command_preview = None
+    launch_env_preview = None
 
     # Get all sections, filter out ignored ones
     sections = [s for s in config.config.sections() if s not in IGNORED_SECTIONS]
+    launch_preview_keys = {
+        ('Settings', 'vpxbinpath'),
+        ('Settings', 'globalinioverride'),
+        ('Settings', 'globaltableinioverrideenabled'),
+        ('Settings', 'globaltableinioverridemask'),
+        ('Settings', 'vpxlaunchenv'),
+    }
+
+    def _as_bool(value) -> bool:
+        if isinstance(value, bool):
+            return value
+        return str(value or '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+    def _build_launch_preview_text() -> tuple[str, str]:
+        sample_vpx = 'A-Go-Go (Williams 1966).vpx'
+        settings_inputs = inputs.get('Settings', {})
+
+        vpxbin = str(
+            getattr(settings_inputs.get('vpxbinpath'), 'value', config.config.get('Settings', 'vpxbinpath', fallback=''))
+            or ''
+        ).strip()
+        global_ini_override = str(
+            getattr(settings_inputs.get('globalinioverride'), 'value', config.config.get('Settings', 'globalinioverride', fallback=''))
+            or ''
+        ).strip()
+        tableini_enabled = _as_bool(
+            getattr(
+                settings_inputs.get('globaltableinioverrideenabled'),
+                'value',
+                config.config.get('Settings', 'globaltableinioverrideenabled', fallback='false'),
+            )
+        )
+        tableini_mask = str(
+            getattr(
+                settings_inputs.get('globaltableinioverridemask'),
+                'value',
+                config.config.get('Settings', 'globaltableinioverridemask', fallback=''),
+            )
+            or ''
+        ).strip()
+        launch_env = str(
+            getattr(settings_inputs.get('vpxlaunchenv'), 'value', config.config.get('Settings', 'vpxlaunchenv', fallback=''))
+            or ''
+        ).strip()
+
+        tableini_override = build_masked_tableini_path(sample_vpx, tableini_enabled, tableini_mask)
+        launcher = vpxbin or '<VPX Executable Path>'
+        command = build_vpx_launch_command(
+            launcher_path=launcher,
+            vpx_table_path=sample_vpx,
+            global_ini_override=global_ini_override,
+            tableini_override=tableini_override,
+        )
+        env_line = launch_env if launch_env else '(none)'
+        return shlex.join(command), env_line
+
+    def update_launch_preview():
+        if launch_command_preview is None or launch_env_preview is None:
+            return
+        command_text, env_text = _build_launch_preview_text()
+        launch_command_preview.value = command_text
+        launch_env_preview.value = env_text
 
     def build_config_input(section: str, key: str, value: str):
         friendly_label = get_friendly_name(key)
@@ -581,6 +646,8 @@ def render_panel(tab=None):
                     inp.on_value_change(on_mask_change)
 
             inputs[section][key] = inp
+            if (section, key) in launch_preview_keys:
+                inp.on_value_change(lambda _: update_launch_preview())
 
     def save_config():
         for section, keys in inputs.items():
@@ -826,6 +893,25 @@ def render_panel(tab=None):
                                     icon='cloud_download',
                                     on_click=run_dof_online_update,
                                 ).props('color=primary rounded').classes('mt-3')
+
+                        if section == 'Settings':
+                            with ui.card().classes('config-side-card w-full mt-4 p-4'):
+                                ui.label('VPinball Launch Comand w/Options').classes('text-lg font-semibold text-white')
+                                ui.label(
+                                    'Preview uses sample table: A-Go-Go (Williams 1966).vpx'
+                                ).classes('text-sm text-slate-300')
+                                launch_command_preview = ui.textarea(
+                                    value='',
+                                ).props('readonly outlined autogrow').classes('w-full mt-2').style(
+                                    'font-family: monospace;'
+                                )
+                                ui.label('Launch environment overrides').classes('text-sm font-semibold text-slate-200 mt-2')
+                                launch_env_preview = ui.textarea(
+                                    value='',
+                                ).props('readonly outlined autogrow').classes('w-full').style(
+                                    'font-family: monospace;'
+                                )
+                                update_launch_preview()
 
                         if section == 'Logger':
                             with ui.card().classes('config-side-card w-full mt-4 p-4'):
