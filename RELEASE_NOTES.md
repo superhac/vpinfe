@@ -1,14 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.21.
+This is the offical release of vpinfe v1.1.22.
 
 ### What's New
-- Add global "-tableini" masking override for vpx table launching. 
-- Add a live view of the vpinball actual launching command
+None 
 
 ### Fixes
-- fix for windows dof config downloading not working.  thanks @emb417
+- add logic if the masked --initable doesn't exist we don't add the initable option to launcher
 
 ### Notes
 
