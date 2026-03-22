@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.22.
+This is the offical release of vpinfe v1.1.23.
 
 ### What's New
-None 
+- add mobile support for copying the masked initable table to mobile device as the default ini for the table. 
 
 ### Fixes
-- add logic if the masked --initable doesn't exist we don't add the initable option to launcher
+None
 
 ### Notes
 

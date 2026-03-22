@@ -141,7 +141,16 @@ def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=Non
                 raise
 
 
-def _send_table_to_device(host, port, table_dir_name, progress_cb=None, chunk_size=1048576, exclude_ini=True):
+def _send_table_to_device(
+    host,
+    port,
+    table_dir_name,
+    progress_cb=None,
+    chunk_size=1048576,
+    exclude_ini=True,
+    copy_masked_tableini_as_default=False,
+    global_tableini_mask='',
+):
     """Send all files in a table folder to the mobile device via its HTTP API.
 
     Protocol (Mongoose-based WebServer on mobile device):
@@ -157,6 +166,21 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None, chunk_si
     if not os.path.isdir(table_path):
         raise FileNotFoundError(f"Table directory not found: {table_path}")
 
+    masked_ini_name_for_copy = ''
+    default_ini_name_for_copy = ''
+    if copy_masked_tableini_as_default:
+        mask = str(global_tableini_mask or '').strip()
+        if mask:
+            try:
+                root_entries = os.listdir(table_path)
+            except Exception:
+                root_entries = []
+            root_vpx_files = sorted([f for f in root_entries if f.lower().endswith('.vpx')])
+            if root_vpx_files:
+                base_name = os.path.splitext(root_vpx_files[0])[0]
+                masked_ini_name_for_copy = f'{base_name}.{mask}.ini'
+                default_ini_name_for_copy = f'{base_name}.ini'
+
     # Collect all files first to calculate total count
     all_files = []
     for dirpath, dirnames, filenames in os.walk(table_path):
@@ -166,6 +190,15 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None, chunk_si
         filenames_lower_set = {f.lower() for f in filenames}
 
         for fname in filenames:
+            # When "Rename mask to default tableini" is enabled, don't send the
+            # original masked ini; we optionally upload it only as the default ini name.
+            if (
+                masked_ini_name_for_copy
+                and dirpath == table_path
+                and fname.lower() == masked_ini_name_for_copy.lower()
+            ):
+                continue
+
             # Exclude .ini files that have a matching .vpx file in the same directory
             if exclude_ini and fname.lower().endswith('.ini'):
                 # Get the base name of the .ini file (without extension)
@@ -177,6 +210,35 @@ def _send_table_to_device(host, port, table_dir_name, progress_cb=None, chunk_si
             full_path = os.path.join(dirpath, fname)
             file_size = os.path.getsize(full_path)
             all_files.append((rel_dir, fname, full_path, file_size))
+
+    if copy_masked_tableini_as_default:
+        if masked_ini_name_for_copy and default_ini_name_for_copy:
+            masked_ini_path = os.path.join(table_path, masked_ini_name_for_copy)
+            default_ini_path = os.path.join(table_path, default_ini_name_for_copy)
+            rel_root_dir = os.path.relpath(table_path, tables_path)
+
+            default_already_in_file_list = any(
+                rel_dir == rel_root_dir and fname.lower() == default_ini_name_for_copy.lower()
+                for rel_dir, fname, _, _ in all_files
+            )
+
+            if os.path.isfile(masked_ini_path) and not os.path.isfile(default_ini_path) and not default_already_in_file_list:
+                all_files.append((
+                    rel_root_dir,
+                    default_ini_name_for_copy,
+                    masked_ini_path,
+                    os.path.getsize(masked_ini_path),
+                ))
+                logger.info(
+                    "WebSend: using masked tableini '%s' as '%s' for transfer",
+                    masked_ini_name_for_copy,
+                    default_ini_name_for_copy,
+                )
+            elif os.path.isfile(masked_ini_path) and os.path.isfile(default_ini_path):
+                logger.info(
+                    "WebSend: default ini already exists; not copying masked tableini '%s'",
+                    masked_ini_name_for_copy,
+                )
 
     total_files = len(all_files)
     if total_files == 0:
@@ -379,6 +441,13 @@ def _build_web_send_panel():
         cfg.config.set('Mobile', 'chunksize', chunk_val)
         cfg.save()
 
+    def _get_global_tableini_mask() -> str:
+        try:
+            fresh_cfg = IniConfig(str(VPINFE_INI_PATH))
+            return fresh_cfg.config.get('Settings', 'globaltableinioverridemask', fallback='').strip()
+        except Exception:
+            return ''
+
     ui.label("This uses the the built in web server on the mobile version of vpx for Android and iOS. It allows you seamlessly transfer your tables onto your mobile device.  You must turn it on in the settings in VPX on your mobile device.  Also note this same location will show you your IP and PORT.  Thats what you put into the device configuration settings below.  The device must be kept on and VPX running when doing transfers. ").classes('text-gray-400 text-sm mb-4')
 
     # Connection settings
@@ -396,6 +465,10 @@ def _build_web_send_panel():
         ui.label('Send Options').classes('text-white font-bold mb-2')
         exclude_ini_checkbox = ui.checkbox('Exclude {VPX_FILENAME}.ini files', value=True).props('dark')
         ui.label("Prevents sending the table-specific configuration file, e.g. 'tablename.ini'.").classes('text-gray-400 text-xs ml-8 -mt-2')
+        masked_ini_copy_checkbox = ui.checkbox('Rename mask to default tableini', value=False).props('dark')
+        ui.label(
+            'If mask exists, sends {VPX_FILENAME}.{MASK}.ini as {VPX_FILENAME}.ini when default ini is missing.'
+        ).classes('text-gray-400 text-xs ml-8 -mt-2')
 
     # Action bar: filter toggle + send selected
     with ui.row().classes('w-full items-center gap-4 mb-2'):
@@ -456,7 +529,7 @@ def _build_web_send_panel():
         except Exception as e:
             ui.notify(f'Could not connect: {e}', type='negative')
 
-    async def _send_single_table(host, port, name, exclude_ini):
+    async def _send_single_table(host, port, name, exclude_ini, masked_ini_copy_enabled):
         """Send a single table with progress dialog. Returns True on success."""
         # Progress dialog
         with ui.dialog() as dlg, ui.card().classes('bg-gray-800 p-6').style('min-width: 400px;'):
@@ -478,7 +551,16 @@ def _build_web_send_panel():
         def do_send():
             try:
                 cs = int(chunk_input.value.strip() or '1048576')
-                _send_table_to_device(host, port, name, progress_cb=progress_cb, chunk_size=cs, exclude_ini=exclude_ini)
+                _send_table_to_device(
+                    host,
+                    port,
+                    name,
+                    progress_cb=progress_cb,
+                    chunk_size=cs,
+                    exclude_ini=exclude_ini,
+                    copy_masked_tableini_as_default=masked_ini_copy_enabled,
+                    global_tableini_mask=_get_global_tableini_mask(),
+                )
                 state['done'] = True
             except Exception as ex:
                 state['error'] = str(ex)
@@ -517,13 +599,20 @@ def _build_web_send_panel():
             return
 
         exclude_ini = exclude_ini_checkbox.value
+        masked_ini_copy_enabled = masked_ini_copy_checkbox.value
         selected = list(panel_state['tbl'].selected)
         total = len(selected)
         success = 0
         for i, row in enumerate(selected):
             name = row['table_dir_name']
             ui.notify(f'Batch send: {i+1}/{total} - {name}', type='info')
-            ok = await _send_single_table(host, port, name, exclude_ini=exclude_ini)
+            ok = await _send_single_table(
+                host,
+                port,
+                name,
+                exclude_ini=exclude_ini,
+                masked_ini_copy_enabled=masked_ini_copy_enabled,
+            )
             if ok:
                 success += 1
         ui.notify(f'Batch complete: {success}/{total} tables sent', type='positive')
@@ -577,7 +666,14 @@ def _build_web_send_panel():
                     return
 
                 exclude_ini = exclude_ini_checkbox.value
-                ok = await _send_single_table(host, port, name, exclude_ini=exclude_ini)
+                masked_ini_copy_enabled = masked_ini_copy_checkbox.value
+                ok = await _send_single_table(
+                    host,
+                    port,
+                    name,
+                    exclude_ini=exclude_ini,
+                    masked_ini_copy_enabled=masked_ini_copy_enabled,
+                )
                 if ok:
                     ui.notify(f'Transfer complete! All files sent to {host}:{port}', type='positive')
                     await check_device()
