@@ -1,6 +1,12 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from common.launcher import build_masked_tableini_path, build_vpx_launch_command
+from common.launcher import (
+    build_masked_tableini_path,
+    build_vpx_launch_command,
+    resolve_launch_tableini_override,
+)
 
 
 class TestLauncherTableIniOverride(unittest.TestCase):
@@ -19,6 +25,22 @@ class TestLauncherTableIniOverride(unittest.TestCase):
     def test_build_masked_tableini_path_empty_mask_returns_empty(self) -> None:
         vpx = "/tables/example.vpx"
         self.assertEqual(build_masked_tableini_path(vpx, True, "  "), "")
+
+    def test_resolve_launch_tableini_override_requires_existing_file(self) -> None:
+        with TemporaryDirectory() as tmp:
+            vpx = Path(tmp) / "Example Table.vpx"
+            vpx.write_text("", encoding="utf-8")
+            self.assertEqual(
+                resolve_launch_tableini_override(str(vpx), True, "windows"),
+                "",
+            )
+
+            masked = Path(tmp) / "Example Table.windows.ini"
+            masked.write_text("[table]\n", encoding="utf-8")
+            self.assertEqual(
+                resolve_launch_tableini_override(str(vpx), True, "windows"),
+                str(masked),
+            )
 
     def test_build_vpx_launch_command_keeps_play_last_with_all_overrides(self) -> None:
         cmd = build_vpx_launch_command(

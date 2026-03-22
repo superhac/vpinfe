@@ -13,10 +13,10 @@ from common.vpxcollections import VPXCollections
 from common.tablelistfilters import TableListFilters
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.launcher import (
-    build_masked_tableini_path,
     build_vpx_launch_command,
     get_effective_launcher,
     parse_launch_env_overrides,
+    resolve_launch_tableini_override,
 )
 from common.metaconfig import MetaConfig
 from platformdirs import user_config_dir
@@ -468,7 +468,7 @@ class API:
         launch_started_at = None
         try:
             global_ini_override = self._iniConfig.config['Settings'].get('globalinioverride', '').strip()
-            tableini_override = build_masked_tableini_path(
+            tableini_override = resolve_launch_tableini_override(
                 vpx,
                 self._iniConfig.config['Settings'].get('globaltableinioverrideenabled', 'false'),
                 self._iniConfig.config['Settings'].get('globaltableinioverridemask', ''),

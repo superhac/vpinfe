@@ -113,6 +113,23 @@ def build_masked_tableini_path(vpx_table_path: str, override_enabled, override_m
     return str(table_path.with_name(masked_name))
 
 
+def resolve_launch_tableini_override(vpx_table_path: str, override_enabled, override_mask: str) -> str:
+    """
+    Resolve a tableini override for launch-time use.
+
+    Returns empty string when disabled, mask is empty, or the resolved ini file does not exist.
+    """
+    masked_path = build_masked_tableini_path(vpx_table_path, override_enabled, override_mask)
+    if not masked_path:
+        return ""
+
+    if not Path(masked_path).is_file():
+        logger.info("Masked tableini does not exist; skipping -tableini: %s", masked_path)
+        return ""
+
+    return masked_path
+
+
 def build_vpx_launch_command(
     launcher_path: str,
     vpx_table_path: str,

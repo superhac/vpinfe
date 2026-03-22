@@ -22,10 +22,10 @@ from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.vpxcollections import VPXCollections
 from common.launcher import (
-    build_masked_tableini_path,
     build_vpx_launch_command,
     get_effective_launcher,
     parse_launch_env_overrides,
+    resolve_launch_tableini_override,
 )
 _INI_CFG = None
 logger = logging.getLogger("vpinfe.manager.remote")
@@ -251,7 +251,7 @@ def _launch_table(table: dict):
 
         # Run the launch in a background thread so UI stays responsive
         global_ini_override = cfg.config['Settings'].get('globalinioverride', '').strip()
-        tableini_override = build_masked_tableini_path(
+        tableini_override = resolve_launch_tableini_override(
             vpx_path,
             cfg.config['Settings'].get('globaltableinioverrideenabled', 'false'),
             cfg.config['Settings'].get('globaltableinioverridemask', ''),
