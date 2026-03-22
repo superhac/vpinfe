@@ -21,7 +21,12 @@ COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.vpxcollections import VPXCollections
-from common.launcher import get_effective_launcher, parse_launch_env_overrides
+from common.launcher import (
+    build_masked_tableini_path,
+    build_vpx_launch_command,
+    get_effective_launcher,
+    parse_launch_env_overrides,
+)
 _INI_CFG = None
 logger = logging.getLogger("vpinfe.manager.remote")
 
@@ -245,11 +250,18 @@ def _launch_table(table: dict):
         set_remote_launch_state(True, table_name)
 
         # Run the launch in a background thread so UI stays responsive
-        cmd = [str(vpxbin_path)]
         global_ini_override = cfg.config['Settings'].get('globalinioverride', '').strip()
-        if global_ini_override:
-            cmd.extend(["-ini", global_ini_override])
-        cmd.extend(["-play", vpx_path])
+        tableini_override = build_masked_tableini_path(
+            vpx_path,
+            cfg.config['Settings'].get('globaltableinioverrideenabled', 'false'),
+            cfg.config['Settings'].get('globaltableinioverridemask', ''),
+        )
+        cmd = build_vpx_launch_command(
+            launcher_path=str(vpxbin_path),
+            vpx_table_path=vpx_path,
+            global_ini_override=global_ini_override,
+            tableini_override=tableini_override,
+        )
         launch_env = os.environ.copy()
         launch_env.update(
             parse_launch_env_overrides(cfg.config['Settings'].get('vpxlaunchenv', ''))

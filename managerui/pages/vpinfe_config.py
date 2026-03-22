@@ -52,6 +52,8 @@ FRIENDLY_NAMES = {
     'vpxbinpath': 'VPX Executable Path',
     'vpxlaunchenv': 'VPX Launch Environment',
     'globalinioverride': 'Global ini Override (/home/test/mysuper.ini)',
+    'globaltableinioverrideenabled': 'Global tableini Override Enabled',
+    'globaltableinioverridemask': 'Global tableini Override Mask',
     'vpxinipath' : 'VPX Ini Path',
     'tablerootdir': 'Tables Directory',
     'startup_collection': 'Startup Collection',
@@ -387,6 +389,12 @@ def render_panel(tab=None):
             gap: 1rem;
             align-items: start;
         }
+        .config-inline-pair {
+            display: grid;
+            grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.6fr);
+            gap: 0.75rem;
+            align-items: start;
+        }
         .config-field-card {
             padding: 0.95rem 1rem;
             border-radius: 14px;
@@ -467,6 +475,9 @@ def render_panel(tab=None):
             .config-main-grid {
                 grid-template-columns: 1fr;
             }
+            .config-inline-pair {
+                grid-template-columns: 1fr;
+            }
             .config-display-form-grid {
                 grid-template-columns: 1fr;
             }
@@ -500,13 +511,22 @@ def render_panel(tab=None):
             or (section == 'Logger' and key == 'console')
             or (section == 'Settings' and key == 'splashscreen')
             or (section == 'DOF' and key == 'enabledof')
+            or (section == 'Settings' and key == 'globaltableinioverrideenabled')
         )
 
         with ui.element('div').classes(
             'config-field-card compact' if is_checkbox else 'config-field-card'
         ):
+            label_widget = None
             if not is_checkbox:
-                ui.label(friendly_label).classes('config-field-label')
+                label_text = friendly_label
+                if section == 'Settings' and key == 'globaltableinioverridemask':
+                    mask_value = (value or '').strip()
+                    if mask_value:
+                        label_text = (
+                            f'{friendly_label} (Example: A-Go-Go (Williams 1966).{mask_value}.ini)'
+                        )
+                label_widget = ui.label(label_text).classes('config-field-label')
 
             if section == 'Settings' and key == 'startup_collection':
                 collection_options = _get_collection_names()
@@ -549,6 +569,16 @@ def render_panel(tab=None):
                 ).props('outlined dense options-dense').classes('config-input')
             else:
                 inp = ui.input(value=value).props('outlined dense').classes('config-input')
+                if section == 'Settings' and key == 'globaltableinioverridemask' and label_widget is not None:
+                    def on_mask_change(e):
+                        mask_value = (e.value or '').strip()
+                        if mask_value:
+                            label_widget.text = (
+                                f'{friendly_label} (Example: A-Go-Go (Williams 1966).{mask_value}.ini)'
+                            )
+                        else:
+                            label_widget.text = friendly_label
+                    inp.on_value_change(on_mask_change)
 
             inputs[section][key] = inp
 
@@ -678,9 +708,16 @@ def render_panel(tab=None):
                                 if section == 'Settings':
                                     env_key = 'vpxlaunchenv'
                                     ini_override_key = 'globalinioverride'
+                                    tableini_enabled_key = 'globaltableinioverrideenabled'
+                                    tableini_mask_key = 'globaltableinioverridemask'
                                     normal_options = [
                                         key for key in options
-                                        if key not in (env_key, ini_override_key)
+                                        if key not in (
+                                            env_key,
+                                            ini_override_key,
+                                            tableini_enabled_key,
+                                            tableini_mask_key,
+                                        )
                                     ]
                                     split_index = (len(normal_options) + 1) // 2
                                     first_column_keys = normal_options[:split_index]
@@ -702,6 +739,16 @@ def render_panel(tab=None):
                                             if ini_override_key in options:
                                                 value = config.config.get(section, ini_override_key, fallback='')
                                                 build_config_input(section, ini_override_key, value)
+                                            if tableini_enabled_key in options or tableini_mask_key in options:
+                                                with ui.element('div').classes('w-full config-inline-pair'):
+                                                    if tableini_enabled_key in options:
+                                                        value = config.config.get(section, tableini_enabled_key, fallback='false')
+                                                        with ui.element('div').classes('w-full'):
+                                                            build_config_input(section, tableini_enabled_key, value)
+                                                    if tableini_mask_key in options:
+                                                        value = config.config.get(section, tableini_mask_key, fallback='')
+                                                        with ui.element('div').classes('w-full'):
+                                                            build_config_input(section, tableini_mask_key, value)
                                 elif section == 'Displays':
                                     split_key = 'tableorientation' if section == 'Displays' else 'theme'
                                     split_index = options.index(split_key) if split_key in options else len(options)

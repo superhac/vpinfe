@@ -82,3 +82,54 @@ def parse_launch_env_overrides(raw_value: str) -> dict[str, str]:
         parsed[key] = value
 
     return parsed
+
+
+def _to_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value or "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def build_masked_tableini_path(vpx_table_path: str, override_enabled, override_mask: str) -> str:
+    """
+    Build a masked table ini path for VPX -tableini override.
+
+    Pattern: {VPX_FILENAME_NO_EXT}.{MASK}.ini
+    Result path lives next to the source VPX file.
+    """
+    if not _to_bool(override_enabled):
+        return ""
+
+    mask = str(override_mask or "").strip()
+    if not mask:
+        logger.warning("Global tableini override enabled, but mask is empty; skipping -tableini")
+        return ""
+
+    table_path = Path(str(vpx_table_path or "").strip())
+    if not table_path.name:
+        return ""
+
+    masked_name = f"{table_path.stem}.{mask}.ini"
+    return str(table_path.with_name(masked_name))
+
+
+def build_vpx_launch_command(
+    launcher_path: str,
+    vpx_table_path: str,
+    global_ini_override: str = "",
+    tableini_override: str = "",
+) -> list[str]:
+    """
+    Build VPX launch command and guarantee '-play <table>' is the last argument pair.
+    """
+    cmd = [str(launcher_path)]
+    ini_override = str(global_ini_override or "").strip()
+    if ini_override:
+        cmd.extend(["-ini", ini_override])
+
+    tableini = str(tableini_override or "").strip()
+    if tableini:
+        cmd.extend(["-tableini", tableini])
+
+    cmd.extend(["-play", str(vpx_table_path)])
+    return cmd

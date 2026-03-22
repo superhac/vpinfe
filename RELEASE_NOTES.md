@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.19.
+This is the offical release of vpinfe v1.1.20.
 
 ### What's New
-None
+- Add global "-tableini" masking override for vpx table launching. 
 
 ### Fixes
-- fix splash cab mode rotation.
+None
 
 ### Notes
 

@@ -12,7 +12,12 @@ from common.tableparser import TableParser
 from common.vpxcollections import VPXCollections
 from common.tablelistfilters import TableListFilters
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
-from common.launcher import get_effective_launcher, parse_launch_env_overrides
+from common.launcher import (
+    build_masked_tableini_path,
+    build_vpx_launch_command,
+    get_effective_launcher,
+    parse_launch_env_overrides,
+)
 from common.metaconfig import MetaConfig
 from platformdirs import user_config_dir
 
@@ -462,11 +467,18 @@ class API:
         stop_dof_service()
         launch_started_at = None
         try:
-            cmd = [str(vpxbin_path)]
             global_ini_override = self._iniConfig.config['Settings'].get('globalinioverride', '').strip()
-            if global_ini_override:
-                cmd.extend(["-ini", global_ini_override])
-            cmd.extend(["-play", vpx])
+            tableini_override = build_masked_tableini_path(
+                vpx,
+                self._iniConfig.config['Settings'].get('globaltableinioverrideenabled', 'false'),
+                self._iniConfig.config['Settings'].get('globaltableinioverridemask', ''),
+            )
+            cmd = build_vpx_launch_command(
+                launcher_path=str(vpxbin_path),
+                vpx_table_path=vpx,
+                global_ini_override=global_ini_override,
+                tableini_override=tableini_override,
+            )
             logger.info("Launching: %s", cmd)
             launch_env = os.environ.copy()
             launch_env.update(
