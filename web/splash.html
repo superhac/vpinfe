@@ -121,13 +121,16 @@
       if (isTableWindow) {
         const cabMode = await vpin.call("get_cab_mode");
         const rotationDegree = await vpin.call("get_table_rotation");
+        const effectiveRotationDegree = cabMode && rotationDegree !== 0
+          ? rotationDegree + 90
+          : rotationDegree;
 
         splashImage.classList.add('hidden');
         splashVideo.classList.remove('hidden');
         splashVideoSource.src = cabMode ? "images/splash-rotated.mp4" : "images/splash.mp4";
         splashVideo.load();
-        applyRotation(rotationDegree);
-        window.addEventListener('resize', () => applyRotation(rotationDegree));
+        applyRotation(effectiveRotationDegree);
+        window.addEventListener('resize', () => applyRotation(effectiveRotationDegree));
 
         splashVideo.addEventListener('ended', () => {
           vpin.sendMessageToAllWindowsIncSelf({ type: "SplashFadeOut" });
