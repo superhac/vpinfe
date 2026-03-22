@@ -8,7 +8,7 @@ This is the offical release of vpinfe v1.1.20.
 - Add a live view of the vpinball actual launching command
 
 ### Fixes
-None
+- fix for windows dof config downloading not working.  thanks @emb417
 
 ### Notes
 
