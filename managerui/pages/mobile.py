@@ -248,6 +248,17 @@ def _send_table_to_device(
                 # Check if a corresponding .vpx file exists in the same directory
                 if f'{base_name.lower()}.vpx' in filenames_lower_set:
                     continue  # This is a table-specific .ini file, so exclude it
+                # Also exclude suffix variants like:
+                #   "Table Name.ini-win.ini"
+                #   "Table Name.ini-lin.ini"
+                # when "Table Name.vpx" exists in the same folder.
+                base_lower = base_name.lower()
+                marker = '.ini-'
+                marker_pos = base_lower.find(marker)
+                if marker_pos > 0:
+                    vpx_base = base_name[:marker_pos]
+                    if f'{vpx_base.lower()}.vpx' in filenames_lower_set:
+                        continue
 
             full_path = os.path.join(dirpath, fname)
             file_size = os.path.getsize(full_path)
