@@ -168,6 +168,8 @@ def _send_table_to_device(
 
     masked_ini_name_for_copy = ''
     default_ini_name_for_copy = ''
+    masked_ini_exists_for_copy = False
+    primary_vpx_base_name = ''
     if copy_masked_tableini_as_default:
         mask = str(masked_tableini_mask or '').strip()
         if mask.lower().endswith('.ini'):
@@ -181,6 +183,7 @@ def _send_table_to_device(
             root_vpx_files = sorted([f for f in root_entries if f.lower().endswith('.vpx')])
             if root_vpx_files:
                 base_name = os.path.splitext(root_vpx_files[0])[0]
+                primary_vpx_base_name = base_name
                 expected_masked_ini_name = f'{base_name}.{mask}.ini'
                 default_ini_name_for_copy = f'{base_name}.ini'
                 entries_by_lower = {entry.lower(): entry for entry in root_entries}
@@ -188,6 +191,19 @@ def _send_table_to_device(
                     expected_masked_ini_name.lower(),
                     expected_masked_ini_name,
                 )
+                masked_ini_exists_for_copy = os.path.isfile(
+                    os.path.join(table_path, masked_ini_name_for_copy)
+                )
+    else:
+        # When the mobile rename-mask option is disabled, prefer the default
+        # table ini and avoid sending masked table ini variants.
+        try:
+            root_entries = os.listdir(table_path)
+        except Exception:
+            root_entries = []
+        root_vpx_files = sorted([f for f in root_entries if f.lower().endswith('.vpx')])
+        if root_vpx_files:
+            primary_vpx_base_name = os.path.splitext(root_vpx_files[0])[0]
 
     # Collect all files first to calculate total count
     all_files = []
@@ -206,6 +222,16 @@ def _send_table_to_device(
                 and fname.lower() == masked_ini_name_for_copy.lower()
             ):
                 continue
+            if (
+                copy_masked_tableini_as_default
+                and masked_ini_exists_for_copy
+                and default_ini_name_for_copy
+                and dirpath == table_path
+                and fname.lower() == default_ini_name_for_copy.lower()
+            ):
+                # In mask-copy mode, when masked ini exists, suppress local default ini.
+                # We'll inject masked content under default ini name below.
+                continue
 
             # Exclude .ini files that have a matching .vpx file in the same directory
             if exclude_ini and fname.lower().endswith('.ini'):
@@ -222,7 +248,6 @@ def _send_table_to_device(
     if copy_masked_tableini_as_default:
         if masked_ini_name_for_copy and default_ini_name_for_copy:
             masked_ini_path = os.path.join(table_path, masked_ini_name_for_copy)
-            default_ini_path = os.path.join(table_path, default_ini_name_for_copy)
             rel_root_dir = os.path.relpath(table_path, tables_path)
 
             default_already_in_file_list = any(
@@ -230,7 +255,7 @@ def _send_table_to_device(
                 for rel_dir, fname, _, _ in all_files
             )
 
-            if os.path.isfile(masked_ini_path) and not os.path.isfile(default_ini_path) and not default_already_in_file_list:
+            if os.path.isfile(masked_ini_path) and not default_already_in_file_list:
                 all_files.append((
                     rel_root_dir,
                     default_ini_name_for_copy,
@@ -241,11 +266,6 @@ def _send_table_to_device(
                     "WebSend: using masked tableini '%s' as '%s' for transfer",
                     masked_ini_name_for_copy,
                     default_ini_name_for_copy,
-                )
-            elif os.path.isfile(masked_ini_path) and os.path.isfile(default_ini_path):
-                logger.info(
-                    "WebSend: default ini already exists; not copying masked tableini '%s'",
-                    masked_ini_name_for_copy,
                 )
 
     total_files = len(all_files)

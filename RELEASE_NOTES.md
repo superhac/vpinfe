@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.24.
+This is the offical release of vpinfe v1.1.26.
 
 ### What's New
 None
 
 ### Fixes
-- Windows libdof-python fix for loading dlls
+- Fix mobile initable logic.
 
 ### Notes
-
+None
