@@ -84,6 +84,8 @@ FRIENDLY_NAMES = {
     'deviceip': 'Mobile Device IP',
     'deviceport': 'Mobile Device Port',
     'chunksize': 'Mobile Chunk Size',
+    'renamemasktodefaultini': 'Enable Rename Mask To Default INI',
+    'renamemasktodefaultinimask': 'Rename Mask To Default INI Mask',
     # [Media]
     'tabletype': 'Table Type',
     'tableresolution': 'Default Table Resolution',
@@ -577,6 +579,7 @@ def render_panel(tab=None):
             or (section == 'Settings' and key == 'splashscreen')
             or (section == 'DOF' and key == 'enabledof')
             or (section == 'Settings' and key == 'globaltableinioverrideenabled')
+            or (section == 'Mobile' and key == 'renamemasktodefaultini')
         )
 
         with ui.element('div').classes(
@@ -838,6 +841,32 @@ def render_panel(tab=None):
                                                 for key in column_keys:
                                                     value = config.config.get(section, key, fallback='')
                                                     build_config_input(section, key, value)
+                                elif section == 'Mobile':
+                                    rename_enabled_key = 'renamemasktodefaultini'
+                                    rename_mask_key = 'renamemasktodefaultinimask'
+                                    normal_mobile_options = [
+                                        key for key in options
+                                        if key not in (rename_enabled_key, rename_mask_key)
+                                    ]
+                                    with ui.element('div').classes('config-form-grid'):
+                                        for key in normal_mobile_options:
+                                            value = config.config.get(section, key, fallback='')
+                                            build_config_input(section, key, value)
+                                    if rename_enabled_key in options or rename_mask_key in options:
+                                        with ui.element('div').classes('config-field-card mt-3'):
+                                            with ui.column().classes('w-full gap-3'):
+                                                if rename_enabled_key in options:
+                                                    value = config.config.get(section, rename_enabled_key, fallback='false')
+                                                    inp = ui.checkbox(
+                                                        text=get_friendly_name(rename_enabled_key),
+                                                        value=(value == "true")
+                                                    ).classes('config-input')
+                                                    inputs[section][rename_enabled_key] = inp
+                                                if rename_mask_key in options:
+                                                    value = config.config.get(section, rename_mask_key, fallback='')
+                                                    ui.label(get_friendly_name(rename_mask_key)).classes('config-field-label')
+                                                    inp = ui.input(value=value).props('outlined dense').classes('config-input')
+                                                    inputs[section][rename_mask_key] = inp
                                 else:
                                     with ui.element('div').classes('config-form-grid'):
                                         for key in options:

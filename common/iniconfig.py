@@ -66,6 +66,8 @@ class IniConfig:
 				'deviceip': '',
 				'deviceport': '2112',
 				'chunksize': '1048576',
+				'renamemasktodefaultini': 'false',
+				'renamemasktodefaultinimask': '',
 				},
 		}
 
