@@ -21,6 +21,12 @@ VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 _INI_CFG = None
 
 
+def _to_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value or '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+
 def _get_ini_config():
     global _INI_CFG
     if _INI_CFG is None:
@@ -158,6 +164,8 @@ def _send_table_to_device(
       - POST /upload?q=<dir>&file=<name>&offset=<off>&length=<size>  -> upload file chunk
     """
     import http.client
+    exclude_ini = _to_bool(exclude_ini)
+    copy_masked_tableini_as_default = _to_bool(copy_masked_tableini_as_default)
 
     tables_path = _get_tables_path()
     table_path = os.path.join(tables_path, table_dir_name)
@@ -244,6 +252,22 @@ def _send_table_to_device(
             full_path = os.path.join(dirpath, fname)
             file_size = os.path.getsize(full_path)
             all_files.append((rel_dir, fname, full_path, file_size))
+
+    # Safety rule: when both options are OFF, transfer all .ini files as-is.
+    if not exclude_ini and not copy_masked_tableini_as_default:
+        existing_keys = {(rel_dir, fname.lower()) for rel_dir, fname, _, _ in all_files}
+        for dirpath, _, filenames in os.walk(table_path):
+            rel_dir = os.path.relpath(dirpath, tables_path)
+            for fname in filenames:
+                if not fname.lower().endswith('.ini'):
+                    continue
+                key = (rel_dir, fname.lower())
+                if key in existing_keys:
+                    continue
+                full_path = os.path.join(dirpath, fname)
+                file_size = os.path.getsize(full_path)
+                all_files.append((rel_dir, fname, full_path, file_size))
+                existing_keys.add(key)
 
     if copy_masked_tableini_as_default:
         if masked_ini_name_for_copy and default_ini_name_for_copy:
@@ -642,7 +666,8 @@ def _build_web_send_panel():
             return
 
         exclude_ini = exclude_ini_checkbox.value
-        masked_ini_copy_enabled = masked_ini_copy_checkbox.value
+        exclude_ini = _to_bool(exclude_ini)
+        masked_ini_copy_enabled = _to_bool(masked_ini_copy_checkbox.value)
         masked_ini_mask = (masked_ini_input.value or '').strip()
         selected = list(panel_state['tbl'].selected)
         total = len(selected)
@@ -711,7 +736,8 @@ def _build_web_send_panel():
                     return
 
                 exclude_ini = exclude_ini_checkbox.value
-                masked_ini_copy_enabled = masked_ini_copy_checkbox.value
+                exclude_ini = _to_bool(exclude_ini)
+                masked_ini_copy_enabled = _to_bool(masked_ini_copy_checkbox.value)
                 masked_ini_mask = (masked_ini_input.value or '').strip()
                 ok = await _send_single_table(
                     host,
