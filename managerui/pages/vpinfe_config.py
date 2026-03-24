@@ -697,6 +697,22 @@ def render_panel(tab=None):
                 ui.button('Close', on_click=dlg.close).props('color=primary rounded')
         dlg.open()
 
+    def show_live_command_dialog(title: str, command: list[str]):
+        with ui.dialog().props('persistent max-width=1000px') as dlg, ui.card().classes('w-full').style(
+            'background: #0f172a; border: 1px solid #334155; min-width: min(92vw, 900px);'
+        ):
+            ui.label(title).classes('text-xl font-bold text-white')
+            command_label = ui.label(shlex.join(command)).classes('text-xs text-slate-400 break-all')
+            status_label = ui.label('Running...').classes('text-sm text-amber-300')
+            output_area = ui.textarea(value='Starting sync...').props('readonly outlined').classes('w-full').style(
+                'height: 420px; font-family: monospace;'
+            )
+            with ui.row().classes('w-full justify-end mt-2'):
+                close_button = ui.button('Close', on_click=dlg.close).props('color=primary rounded')
+                close_button.disable()
+        dlg.open()
+        return command_label, status_label, output_area, close_button
+
     async def run_dof_online_update():
         api_key = str(
             getattr(inputs.get('DOF', {}).get('dofconfigtoolapikey'), 'value', '') or ''
@@ -775,6 +791,10 @@ def render_panel(tab=None):
             ui.notify('Tables Directory is required in Settings.', type='warning')
             return
 
+        command_label, status_label, output_area, close_button = show_live_command_dialog(
+            'VPinPlay Sync',
+            ['POST', service_ip],
+        )
         sync_vpinplay_button.disable()
         sync_vpinplay_button.text = 'Syncing...'
         try:
@@ -792,25 +812,19 @@ def render_panel(tab=None):
                 f"HTTP status: {result['status_code']}\n\n"
                 f"{result['response_body']}"
             )
-            show_command_output_dialog(
-                'VPinPlay Sync',
-                ['POST', result['endpoint']],
-                summary,
-                0 if result['ok'] else 1,
-            )
+            command_label.text = shlex.join(['POST', result['endpoint']])
+            status_label.text = f"Exit code: {0 if result['ok'] else 1}"
+            output_area.value = summary
             if result['ok']:
                 ui.notify('Sync completed.', type='positive')
             else:
                 ui.notify('Sync failed. See output for details.', type='negative')
         except Exception as e:
-            show_command_output_dialog(
-                'VPinPlay Sync',
-                ['POST', service_ip],
-                str(e),
-                None,
-            )
+            status_label.text = 'Failed to start sync.'
+            output_area.value = str(e)
             ui.notify('Failed to start sync.', type='negative')
         finally:
+            close_button.enable()
             sync_vpinplay_button.text = 'Sync Installed Tables'
             sync_vpinplay_button.enable()
 
