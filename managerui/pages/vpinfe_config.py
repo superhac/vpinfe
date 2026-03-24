@@ -383,6 +383,12 @@ def render_panel(tab=None):
             gap: 1rem;
             align-items: start;
         }
+        .config-vpinplay-pair {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 1rem;
+            align-items: start;
+        }
         .config-three-column-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -496,6 +502,9 @@ def render_panel(tab=None):
                 grid-template-columns: 1fr;
             }
             .config-three-column-grid {
+                grid-template-columns: 1fr;
+            }
+            .config-vpinplay-pair {
                 grid-template-columns: 1fr;
             }
             .config-section-header {
@@ -968,12 +977,33 @@ def render_panel(tab=None):
                                                     inputs[section][rename_mask_key] = inp
                                 elif section == 'vpinplay':
                                     sync_key = 'synconexit'
-                                    remaining_options = [key for key in options if key != sync_key]
-                                    with ui.element('div').classes('config-form-grid'):
+                                    endpoint_key = 'apiendpoint'
+                                    user_key = 'userid'
+                                    machine_key = 'machineid'
+                                    with ui.column().classes('w-full gap-3'):
                                         if sync_key in options:
-                                            value = config.config.get(section, sync_key, fallback='false')
-                                            build_config_input(section, sync_key, value)
-                                        for key in remaining_options:
+                                            with ui.element('div').classes('w-full'):
+                                                value = config.config.get(section, sync_key, fallback='false')
+                                                build_config_input(section, sync_key, value)
+
+                                        if endpoint_key in options:
+                                            with ui.element('div').classes('w-full'):
+                                                value = config.config.get(section, endpoint_key, fallback='')
+                                                build_config_input(section, endpoint_key, value)
+
+                                        with ui.element('div').classes('config-vpinplay-pair'):
+                                            if user_key in options:
+                                                with ui.element('div').classes('w-full'):
+                                                    value = config.config.get(section, user_key, fallback='')
+                                                    build_config_input(section, user_key, value)
+                                            if machine_key in options:
+                                                with ui.element('div').classes('w-full'):
+                                                    value = config.config.get(section, machine_key, fallback='')
+                                                    build_config_input(section, machine_key, value)
+
+                                        for key in options:
+                                            if key in (sync_key, endpoint_key, user_key, machine_key):
+                                                continue
                                             value = config.config.get(section, key, fallback='')
                                             build_config_input(section, key, value)
                                 else:

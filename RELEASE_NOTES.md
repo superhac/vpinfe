@@ -7,7 +7,7 @@ This is the offical release of vpinfe v1.1.31.
 None
 
 ### Fixes
-- fix vpinplay sync dialog.
+- fix vpinplay sync dialog. Clean up panel.
 
 ### Notes
 None
