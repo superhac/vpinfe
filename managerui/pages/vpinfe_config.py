@@ -9,6 +9,7 @@ import sys
 from nicegui import ui, run
 from common.iniconfig import IniConfig
 from common.dof_service import find_dof_file
+from common.vpinplay_service import sync_installed_tables
 from common.launcher import build_masked_tableini_path, build_vpx_launch_command
 from common.vpxcollections import VPXCollections
 from pathlib import Path
@@ -34,6 +35,7 @@ SECTION_ICONS = {
     'Media': 'perm_media',
     'Displays': 'monitor',
     'DOF': 'key',
+    'vpinplay': 'science',
 }
 
 SECTION_DESCRIPTIONS = {
@@ -45,6 +47,7 @@ SECTION_DESCRIPTIONS = {
     'Network': 'Ports and services used by the local frontend stack.',
     'Mobile': 'Connection details for external mobile devices.',
     'DOF': 'Direct Output Framework integration and sync tools.',
+    'VPinPlay': 'VPinPlay Experimental',
 }
 
 # Dictionary for explicit user-friendly name mappings
@@ -86,6 +89,11 @@ FRIENDLY_NAMES = {
     'chunksize': 'Mobile Chunk Size',
     'renamemasktodefaultini': 'Enable Rename Mask To Default INI',
     'renamemasktodefaultinimask': 'Rename Mask To Default INI Mask',
+    # [vpinplay]
+    'synconexit': 'Sync on Exit',
+    'apiendpoint': 'API Endpoint',
+    'userid': 'User ID',
+    'machineid': 'Machine ID',
     # [Media]
     'tabletype': 'Table Type',
     'tableresolution': 'Default Table Resolution',
@@ -502,6 +510,7 @@ def render_panel(tab=None):
     inputs = {}
     dof_force_checkbox = None
     update_dof_button = None
+    sync_vpinplay_button = None
     launch_command_preview = None
     launch_env_preview = None
 
@@ -580,6 +589,7 @@ def render_panel(tab=None):
             or (section == 'DOF' and key == 'enabledof')
             or (section == 'Settings' and key == 'globaltableinioverrideenabled')
             or (section == 'Mobile' and key == 'renamemasktodefaultini')
+            or (section == 'vpinplay' and key == 'synconexit')
         )
 
         with ui.element('div').classes(
@@ -637,6 +647,8 @@ def render_panel(tab=None):
                 ).props('outlined dense options-dense').classes('config-input')
             else:
                 inp = ui.input(value=value).props('outlined dense').classes('config-input')
+                if section == 'vpinplay' and key == 'machineid':
+                    inp.props('readonly')
                 if section == 'Settings' and key == 'globaltableinioverridemask' and label_widget is not None:
                     def on_mask_change(e):
                         mask_value = (e.value or '').strip()
@@ -728,6 +740,79 @@ def render_panel(tab=None):
         finally:
             update_dof_button.text = 'Update DOF via Online Config Tool'
             update_dof_button.enable()
+
+    async def run_vpinplay_sync():
+        vpinplay_inputs = inputs.get('vpinplay', {})
+        settings_inputs = inputs.get('Settings', {})
+
+        service_ip = str(
+            getattr(vpinplay_inputs.get('apiendpoint'), 'value', config.config.get('vpinplay', 'apiendpoint', fallback=''))
+            or ''
+        ).strip()
+        user_id = str(
+            getattr(vpinplay_inputs.get('userid'), 'value', config.config.get('vpinplay', 'userid', fallback=''))
+            or ''
+        ).strip()
+        machine_id = str(
+            getattr(vpinplay_inputs.get('machineid'), 'value', config.config.get('vpinplay', 'machineid', fallback=''))
+            or ''
+        ).strip()
+        tables_dir = str(
+            getattr(settings_inputs.get('tablerootdir'), 'value', config.config.get('Settings', 'tablerootdir', fallback=''))
+            or ''
+        ).strip()
+
+        if not service_ip:
+            ui.notify('API Endpoint is required.', type='warning')
+            return
+        if not user_id:
+            ui.notify('User ID is required.', type='warning')
+            return
+        if not machine_id:
+            ui.notify('Machine ID is required.', type='warning')
+            return
+        if not tables_dir:
+            ui.notify('Tables Directory is required in Settings.', type='warning')
+            return
+
+        sync_vpinplay_button.disable()
+        sync_vpinplay_button.text = 'Syncing...'
+        try:
+            result = await run.io_bound(
+                sync_installed_tables,
+                service_ip,
+                user_id,
+                machine_id,
+                tables_dir,
+            )
+            summary = (
+                f"Scanned: {result['tables_scanned']}\n"
+                f"Sent: {result['tables_sent']}\n"
+                f"Skipped (missing VPSId): {result['tables_skipped']}\n\n"
+                f"HTTP status: {result['status_code']}\n\n"
+                f"{result['response_body']}"
+            )
+            show_command_output_dialog(
+                'VPinPlay Sync',
+                ['POST', result['endpoint']],
+                summary,
+                0 if result['ok'] else 1,
+            )
+            if result['ok']:
+                ui.notify('Sync completed.', type='positive')
+            else:
+                ui.notify('Sync failed. See output for details.', type='negative')
+        except Exception as e:
+            show_command_output_dialog(
+                'VPinPlay Sync',
+                ['POST', service_ip],
+                str(e),
+                None,
+            )
+            ui.notify('Failed to start sync.', type='negative')
+        finally:
+            sync_vpinplay_button.text = 'Sync Installed Tables'
+            sync_vpinplay_button.enable()
 
     with ui.column().classes('w-full config-page-shell'):
         with ui.card().classes('w-full config-hero').style('overflow: hidden;'):
@@ -867,6 +952,16 @@ def render_panel(tab=None):
                                                     ui.label(get_friendly_name(rename_mask_key)).classes('config-field-label')
                                                     inp = ui.input(value=value).props('outlined dense').classes('config-input')
                                                     inputs[section][rename_mask_key] = inp
+                                elif section == 'vpinplay':
+                                    sync_key = 'synconexit'
+                                    remaining_options = [key for key in options if key != sync_key]
+                                    with ui.element('div').classes('config-form-grid'):
+                                        if sync_key in options:
+                                            value = config.config.get(section, sync_key, fallback='false')
+                                            build_config_input(section, sync_key, value)
+                                        for key in remaining_options:
+                                            value = config.config.get(section, key, fallback='')
+                                            build_config_input(section, key, value)
                                 else:
                                     with ui.element('div').classes('config-form-grid'):
                                         for key in options:
@@ -921,6 +1016,18 @@ def render_panel(tab=None):
                                     'Update DOF via Online Config Tool',
                                     icon='cloud_download',
                                     on_click=run_dof_online_update,
+                                ).props('color=primary rounded').classes('mt-3')
+
+                        if section == 'vpinplay':
+                            with ui.card().classes('config-side-card w-full mt-4 p-4'):
+                                ui.label('Table Metadata Sync').classes('text-lg font-semibold text-white')
+                                ui.label(
+                                    'Sends installed table metadata to the configured VPinPlay service endpoint.'
+                                ).classes('text-sm text-slate-300')
+                                sync_vpinplay_button = ui.button(
+                                    'Sync Installed Tables',
+                                    icon='sync',
+                                    on_click=run_vpinplay_sync,
                                 ).props('color=primary rounded').classes('mt-3')
 
                         if section == 'Settings':

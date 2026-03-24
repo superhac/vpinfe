@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.29.
+This is the offical release of vpinfe v1.1.30.
 
 ### What's New
-None
+- Beta/Testing version of VPinPlay service.  Ratings, play tracking and table metadata.
 
 ### Fixes
--  fix startup race condition.
+None
 
 ### Notes
 None

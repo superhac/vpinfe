@@ -1,9 +1,16 @@
 import configparser
 import logging
 import os
+import secrets
+import string
 
 
 logger = logging.getLogger("vpinfe.common.iniconfig")
+
+
+def _generate_machine_id(length: int = 64) -> str:
+	alphabet = string.ascii_letters + string.digits
+	return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 class IniConfig:
 
@@ -69,6 +76,12 @@ class IniConfig:
 				'renamemasktodefaultini': 'false',
 				'renamemasktodefaultinimask': '',
 				},
+				'vpinplay': {
+					'synconexit': 'false',
+					'apiendpoint': 'https://api.vpinplay.com:8888',
+					'userid': '',
+					'machineid': '',
+					},
 		}
 
 		self.config = configparser.ConfigParser()
@@ -118,6 +131,12 @@ class IniConfig:
 		# Remove legacy Logger.file option; logs always go to the standard config dir file.
 		if self.config.has_option('Logger', 'file'):
 			self.config.remove_option('Logger', 'file')
+			changed = True
+
+		# Auto-generate vpinplay.machineid when not set.
+		current_machine_id = self.config.get('vpinplay', 'machineid', fallback='').strip()
+		if not current_machine_id:
+			self.config.set('vpinplay', 'machineid', _generate_machine_id())
 			changed = True
 
 		if changed:

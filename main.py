@@ -32,6 +32,7 @@ from frontend.ws_bridge import WebSocketBridge
 from frontend.chromium_manager import ChromiumManager
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
+from common.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
 from common.app_version import get_version
 from common.themes import ThemeRegistry
 
@@ -241,6 +242,10 @@ else:
 
 # Shutdown items - wrap each in try/except so restart check always runs
 logger.info("Shutting down services...")
+try:
+    vpinplay_sync_on_shutdown(iniconfig)
+except Exception:
+    logger.exception("vpinplay_sync_on_shutdown() error")
 try:
     ws_bridge.stop()
 except Exception:
