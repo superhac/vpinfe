@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.28.
+This is the offical release of vpinfe v1.1.29.
 
 ### What's New
 None
 
 ### Fixes
-- hopefully final .ini mobile fix
+-  fix startup race condition.
 
 ### Notes
 None

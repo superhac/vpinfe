@@ -138,8 +138,13 @@ class WebSocketBridge:
                     }))
                 except Exception:
                     logger.exception("Error handling message from '%s'", window_name)
-        except websockets.exceptions.ConnectionClosed:
-            logger.info("Window '%s' disconnected", window_name)
+        except websockets.exceptions.ConnectionClosed as exc:
+            logger.info(
+                "Window '%s' disconnected (code=%s, reason=%s)",
+                window_name,
+                getattr(exc, "code", "unknown"),
+                getattr(exc, "reason", ""),
+            )
         finally:
             if self._connections.get(window_name) is websocket:
                 del self._connections[window_name]
@@ -196,7 +201,7 @@ class WebSocketBridge:
             }))
         except websockets.exceptions.ConnectionClosed:
             pass  # Client disconnected before response (e.g. close_app)
-        except Exception:
+        except Exception as e:
             logger.exception("API call error: %s(%s)", method, args)
             try:
                 await websocket.send(json.dumps({
