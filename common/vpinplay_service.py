@@ -88,6 +88,7 @@ def _build_table_payload(meta: dict) -> dict | None:
             "detectFlex": bool(vpx.get("detectFlex", False)),
         },
         "vpinfe": {
+            "alttitle": str(vpinfe.get("alttitle", "") or ""),
             "altvpsid": str(vpinfe.get("altvpsid", "") or ""),
         },
     }
@@ -144,11 +145,10 @@ def sync_installed_tables(
     }
 
     logger.info(
-        "Syncing %s table(s) to %s for user=%s machine=%s (skipped=%s)",
+        "Syncing %s table(s) to %s for user=%s (skipped=%s)",
         len(payload_tables),
         endpoint,
         user_id,
-        machine_id,
         skipped,
     )
 
