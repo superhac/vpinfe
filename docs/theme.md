@@ -669,6 +669,19 @@ VPSdb and user-edited metadata:
 | `Authors` | `array` | List of VPX table author names. |
 | `Theme` | `string` | Table theme/category. |
 
+### meta.User
+
+Per-user stats and preferences stored in each table's `.info` file:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Rating` | `number` | User rating from `0` to `5`. |
+| `Favorite` | `number` | Favorite flag (`0` or `1`). |
+| `LastRun` | `number\|null` | Unix timestamp (seconds) of the last launch, or `null` if never played. |
+| `StartCount` | `number` | Number of times the table has been launched. |
+| `RunTime` | `number` | Total accumulated play time in minutes. |
+| `Tags` | `array` | User-defined tags (string list). |
+
 ### meta.VPXFile
 
 Data extracted from the `.vpx` file itself:
@@ -728,12 +741,15 @@ Common pattern for getting display-ready table information:
 ```javascript
 const table = vpin.getTableMeta(currentTableIndex);
 const info = table.meta.Info || {};
+const user = table.meta.User || {};
 const vpx = table.meta.VPXFile || {};
 
 const title = info.Title || vpx.filename || table.tableDirName || 'Unknown Table';
 const manufacturer = info.Manufacturer || vpx.manufacturer || 'Unknown';
 const year = info.Year || vpx.year || '';
 const authors = Array.isArray(info.Authors) ? info.Authors.join(', ') : 'Unknown';
+const rating = Number(user.Rating || 0);
+const plays = Number(user.StartCount || 0);
 ```
 
 ---

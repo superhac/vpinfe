@@ -57,7 +57,7 @@ def get_filter_options() -> Dict[str, List[str]]:
             'manufacturers': ['All'],
             'years': ['All'],
             'ratings': ['All', '1', '2', '3', '4', '5'],
-            'sort_options': ['Alpha', 'Newest'],
+            'sort_options': ['Alpha', 'Newest', 'Highest StartCount'],
         }
 
     # Extract unique values from the cached table data
@@ -105,7 +105,7 @@ def get_filter_options() -> Dict[str, List[str]]:
         'manufacturers': ['All'] + sorted(manufacturers),
         'years': ['All'] + sorted(years),
         'ratings': ['All', '1', '2', '3', '4', '5'],
-        'sort_options': ['Alpha', 'Newest'],
+        'sort_options': ['Alpha', 'Newest', 'Highest StartCount'],
     }
 
 

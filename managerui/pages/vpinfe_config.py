@@ -660,7 +660,7 @@ def render_panel(tab=None):
             else:
                 inp = ui.input(value=value).props('outlined dense').classes('config-input')
                 if section == 'vpinplay' and key == 'machineid':
-                    inp.props('readonly')
+                    inp.props('readonly disable')
                 if section == 'Settings' and key == 'globaltableinioverridemask' and label_widget is not None:
                     def on_mask_change(e):
                         mask_value = (e.value or '').strip()
@@ -872,9 +872,6 @@ def render_panel(tab=None):
                         ui.label(
                             'Organize display mapping, startup behavior, media, and service settings from one place.'
                         ).classes('text-sm text-blue-100')
-                with ui.column().classes('items-start gap-1'):
-                    ui.label(f'{len(sections)} sections').classes('text-sm font-semibold text-white')
-                    ui.label('Changes are saved directly to your active vpinfe.ini.').classes('text-xs text-blue-100')
 
         with ui.tabs().classes('w-full config-tabs').props(
             'inline-label dense active-color=white indicator-color=transparent'

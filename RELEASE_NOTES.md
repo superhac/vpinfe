@@ -4,10 +4,11 @@
 This is the offical release of vpinfe v1.1.33.
 
 ### What's New
-None
+- New "sort by" added to filtered collections to support "startcount". Aka Most played filter.
 
 ### Fixes
 None
 
 ### Notes
-None
+General clean up.
+Updated Themes.md

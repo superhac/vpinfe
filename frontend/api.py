@@ -384,7 +384,7 @@ class API:
     def apply_sort(self, sort_type):
         """
         Sort the current filtered tables.
-        sort_type: 'Alpha' or 'Newest'
+        sort_type: 'Alpha', 'Newest', or 'Highest StartCount'
         Returns the count of sorted tables.
         """
         self.current_sort = sort_type
@@ -406,6 +406,19 @@ class API:
                 key=lambda t: t.creation_time if t.creation_time is not None else 0,
                 reverse=True
             )
+        elif sort_type == 'Highest StartCount':
+            # Sort by User.StartCount (highest first), then title for deterministic ties.
+            def _sort_key(t):
+                meta = t.metaConfig if isinstance(t.metaConfig, dict) else {}
+                user = meta.get("User", {}) if isinstance(meta, dict) else {}
+                try:
+                    start_count = int(user.get("StartCount", 0)) if isinstance(user, dict) else 0
+                except (TypeError, ValueError):
+                    start_count = 0
+                title = str((meta.get("Info", {}) if isinstance(meta, dict) else {}).get("Title", "")).lower()
+                return (-start_count, title)
+
+            self.filteredTables.sort(key=_sort_key)
 
         count = len(self.filteredTables)
         logger.debug("Sorted %s tables by %s", count, sort_type)
