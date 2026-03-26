@@ -6,6 +6,7 @@ import logging
 import runpy
 import shlex
 import sys
+from urllib.parse import quote
 from nicegui import ui, run
 from common.iniconfig import IniConfig
 from common.dof_service import find_dof_file
@@ -23,6 +24,7 @@ CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
+VPINPLAY_BASE_URL = 'https://www.vpinplay.com/'
 
 # Sections to ignore
 IGNORED_SECTIONS = {'VPSdb'}
@@ -522,6 +524,7 @@ def render_panel(tab=None):
     sync_vpinplay_button = None
     launch_command_preview = None
     launch_env_preview = None
+    vpinplay_user_link = None
 
     # Get all sections, filter out ignored ones
     sections = [s for s in config.config.sections() if s not in IGNORED_SECTIONS]
@@ -837,6 +840,27 @@ def render_panel(tab=None):
             sync_vpinplay_button.text = 'Sync Installed Tables'
             sync_vpinplay_button.enable()
 
+    def _get_vpinplay_user_id_value() -> str:
+        vpinplay_inputs = inputs.get('vpinplay', {})
+        return str(
+            getattr(vpinplay_inputs.get('userid'), 'value', config.config.get('vpinplay', 'userid', fallback=''))
+            or ''
+        ).strip()
+
+    def _build_vpinplay_user_url(user_id: str) -> str:
+        uid = (user_id or '').strip()
+        if not uid:
+            return f'{VPINPLAY_BASE_URL}player.html'
+        return f'{VPINPLAY_BASE_URL}player.html?userid={quote(uid)}'
+
+    def update_vpinplay_user_link():
+        if vpinplay_user_link is None:
+            return
+        user_id = _get_vpinplay_user_id_value()
+        user_url = _build_vpinplay_user_url(user_id)
+        vpinplay_user_link.text = 'Your Stats'
+        vpinplay_user_link.props(f'href={user_url}')
+
     with ui.column().classes('w-full config-page-shell'):
         with ui.card().classes('w-full config-hero').style('overflow: hidden;'):
             with ui.row().classes('w-full items-center justify-between p-6 gap-6'):
@@ -980,32 +1004,67 @@ def render_panel(tab=None):
                                     endpoint_key = 'apiendpoint'
                                     user_key = 'userid'
                                     machine_key = 'machineid'
-                                    with ui.column().classes('w-full gap-3'):
-                                        if sync_key in options:
-                                            with ui.element('div').classes('w-full'):
-                                                value = config.config.get(section, sync_key, fallback='false')
-                                                build_config_input(section, sync_key, value)
+                                    with ui.element('div').classes('config-vpinplay-pair'):
+                                        with ui.column().classes('w-full gap-3'):
+                                            with ui.element('div').classes('w-full config-field-card'):
+                                                with ui.column().classes('w-full gap-1'):
+                                                    ui.label('VPinPlay Links').classes(
+                                                        'text-blue-200 text-lg font-semibold'
+                                                    )
+                                                    with ui.row().classes('w-full items-center gap-4 flex-wrap'):
+                                                        ui.link(
+                                                            'VPinPlay Home',
+                                                            VPINPLAY_BASE_URL,
+                                                            new_tab=True,
+                                                        ).classes('text-blue-300 text-sm underline')
+                                                        vpinplay_user_link = ui.link(
+                                                            '',
+                                                            _build_vpinplay_user_url(
+                                                                config.config.get(section, user_key, fallback='')
+                                                            ),
+                                                            new_tab=True,
+                                                        ).classes('text-blue-300 text-sm underline')
+                                                    update_vpinplay_user_link()
 
-                                        if endpoint_key in options:
-                                            with ui.element('div').classes('w-full'):
-                                                value = config.config.get(section, endpoint_key, fallback='')
-                                                build_config_input(section, endpoint_key, value)
-
-                                        with ui.element('div').classes('config-vpinplay-pair'):
-                                            if user_key in options:
+                                            if sync_key in options:
                                                 with ui.element('div').classes('w-full'):
-                                                    value = config.config.get(section, user_key, fallback='')
-                                                    build_config_input(section, user_key, value)
-                                            if machine_key in options:
-                                                with ui.element('div').classes('w-full'):
-                                                    value = config.config.get(section, machine_key, fallback='')
-                                                    build_config_input(section, machine_key, value)
+                                                    value = config.config.get(section, sync_key, fallback='false')
+                                                    build_config_input(section, sync_key, value)
 
-                                        for key in options:
-                                            if key in (sync_key, endpoint_key, user_key, machine_key):
-                                                continue
-                                            value = config.config.get(section, key, fallback='')
-                                            build_config_input(section, key, value)
+                                            if endpoint_key in options:
+                                                with ui.element('div').classes('w-full'):
+                                                    value = config.config.get(section, endpoint_key, fallback='')
+                                                    build_config_input(section, endpoint_key, value)
+
+                                            with ui.element('div').classes('config-vpinplay-pair'):
+                                                if user_key in options:
+                                                    with ui.element('div').classes('w-full'):
+                                                        value = config.config.get(section, user_key, fallback='')
+                                                        build_config_input(section, user_key, value)
+                                                        user_input = inputs.get(section, {}).get(user_key)
+                                                        if user_input is not None:
+                                                            user_input.on_value_change(lambda _: update_vpinplay_user_link())
+                                                if machine_key in options:
+                                                    with ui.element('div').classes('w-full'):
+                                                        value = config.config.get(section, machine_key, fallback='')
+                                                        build_config_input(section, machine_key, value)
+
+                                            for key in options:
+                                                if key in (sync_key, endpoint_key, user_key, machine_key):
+                                                    continue
+                                                value = config.config.get(section, key, fallback='')
+                                                build_config_input(section, key, value)
+
+                                        with ui.card().classes('config-side-card w-full p-4'):
+                                            ui.label('Table Metadata Sync').classes('text-lg font-semibold text-white')
+                                            ui.label(
+                                                'Sends installed table metadata to the configured VPinPlay service endpoint.'
+                                            ).classes('text-sm text-slate-300')
+                                            sync_vpinplay_button = ui.button(
+                                                'Sync Installed Tables',
+                                                icon='sync',
+                                                on_click=run_vpinplay_sync,
+                                            ).props('color=primary rounded').classes('mt-3')
                                 else:
                                     with ui.element('div').classes('config-form-grid'):
                                         for key in options:
@@ -1060,18 +1119,6 @@ def render_panel(tab=None):
                                     'Update DOF via Online Config Tool',
                                     icon='cloud_download',
                                     on_click=run_dof_online_update,
-                                ).props('color=primary rounded').classes('mt-3')
-
-                        if section == 'vpinplay':
-                            with ui.card().classes('config-side-card w-full mt-4 p-4'):
-                                ui.label('Table Metadata Sync').classes('text-lg font-semibold text-white')
-                                ui.label(
-                                    'Sends installed table metadata to the configured VPinPlay service endpoint.'
-                                ).classes('text-sm text-slate-300')
-                                sync_vpinplay_button = ui.button(
-                                    'Sync Installed Tables',
-                                    icon='sync',
-                                    on_click=run_vpinplay_sync,
                                 ).props('color=primary rounded').classes('mt-3')
 
                         if section == 'Settings':

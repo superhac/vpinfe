@@ -1,14 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.32.
+This is the offical release of vpinfe v1.1.33.
 
 ### What's New
-- capture alttitle for vpinplay
-- remove logging machineid
+None
 
 ### Fixes
-- Fix duplicate feature/addon detect enteries in .info
+None
 
 ### Notes
 None

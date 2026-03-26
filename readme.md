@@ -212,6 +212,14 @@ External Web Endpoints:
 - Remote Control: http://{YOUR-IP}:8001/remote
 - Mobile Uploader: http://{YOUR-IP}:8001/mobile
 
+## VPINPlay (Experimental)
+
+VPinFE includes an experimental VPINPlay integration for syncing your installed table metadata and usage stats to the VPinPlay service.
+
+- Main site: [vpinplay.com](https://www.vpinplay.com)
+- API default: `https://api.vpinplay.com:8888`
+- ManagerUI config page: `vpinplay` section in **VPinFE Configuration**
+
 ## Making a Theme
 
 See [Theme Doc](docs/theme.md)
