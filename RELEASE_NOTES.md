@@ -1,14 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.33.
+This is the offical release of vpinfe v1.1.34.
 
 ### What's New
-- New "sort by" added to filtered collections to support "startcount". Aka Most played filter.
+- Support global theme audio muting 
 
 ### Fixes
 None
 
 ### Notes
-General clean up.
-Updated Themes.md
+None

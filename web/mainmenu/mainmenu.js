@@ -8,6 +8,7 @@ let ratingDraft = 0;
 let ratingTableIndex = 0;
 let currentTableIndex = 0;
 let ratingLabelRequestSeq = 0;
+let audioMuted = false;
 
 window.parent.vpin.registerInputHandlerMenu(handleInput);
 
@@ -40,6 +41,7 @@ window.addEventListener('message', (event) => {
     selectedIndex = 0;
     updateMenu();
     refreshRatingMenuLabel(currentTableIndex);
+    refreshAudioMenuLabel();
     return;
   }
 
@@ -47,6 +49,7 @@ window.addEventListener('message', (event) => {
     selectedIndex = 0;
     updateMenu();
     refreshRatingMenuLabel(resolveCurrentTableIndex());
+    refreshAudioMenuLabel();
     return;
   }
 
@@ -228,6 +231,8 @@ function handleInput(input) {
         window.parent.vpin.call('shutdown_system');
       } else if (selectedItem.id === 'rating-item') {
         showRatingDialog();
+      } else if (selectedItem.id === 'audio-item') {
+        toggleAudioMute();
       } else if (selectedItem.id === 'buildmeta-item') {
         showBuildMetaDialog();
       }
@@ -428,11 +433,50 @@ function updateMenu() {
   });
 }
 
+function audioMenuLabel(muted) {
+  return `Frontend Audio: ${muted ? 'Off' : 'On'}`;
+}
+
+async function refreshAudioMenuLabel() {
+  const audioItem = document.getElementById('audio-item');
+  if (!audioItem) return;
+
+  try {
+    const muted = await window.parent.vpin.call('get_audio_muted');
+    audioMuted = !!muted;
+  } catch (_e) {
+    audioMuted = false;
+  }
+  audioItem.textContent = audioMenuLabel(audioMuted);
+  syncMenuWidthFromLongestLabel();
+}
+
+async function toggleAudioMute() {
+  const nextMuted = !audioMuted;
+  try {
+    const savedMuted = await window.parent.vpin.call('set_audio_muted', nextMuted);
+    audioMuted = !!savedMuted;
+  } catch (_e) {
+    audioMuted = nextMuted;
+  }
+
+  const audioItem = document.getElementById('audio-item');
+  if (audioItem) {
+    audioItem.textContent = audioMenuLabel(audioMuted);
+    syncMenuWidthFromLongestLabel();
+  }
+
+  if (window.parent.vpin && typeof window.parent.vpin.setAudioMuted === 'function') {
+    window.parent.vpin.setAudioMuted(audioMuted);
+  }
+}
+
 window.onload = async () => {
   currentTableIndex = resolveCurrentTableIndex();
   items = Array.from(document.querySelectorAll('.menu-item'));
   syncMenuWidthFromLongestLabel();
   await refreshRatingMenuLabel(currentTableIndex);
+  await refreshAudioMenuLabel();
   updateMenu();
 
   document.getElementById('buildmeta-cancel').addEventListener('click', hideBuildMetaDialog);

@@ -808,6 +808,23 @@ class API:
     def get_splashscreen_enabled(self):
         return self._iniConfig.config['Settings'].get('splashscreen', 'true')
 
+    def get_audio_muted(self):
+        raw = str(self._iniConfig.config['Settings'].get('muteaudio', 'false')).strip().lower()
+        return raw in ('1', 'true', 'yes', 'on')
+
+    def set_audio_muted(self, muted):
+        if isinstance(muted, bool):
+            muted_flag = muted
+        else:
+            muted_flag = str(muted or '').strip().lower() in ('1', 'true', 'yes', 'on')
+        self._iniConfig.config.set('Settings', 'muteaudio', 'true' if muted_flag else 'false')
+        self._iniConfig.save()
+        self.send_event_all_windows_incself({
+            'type': 'AudioMuteChanged',
+            'muted': muted_flag,
+        })
+        return muted_flag
+
     def get_theme_name(self):
         return self._iniConfig.config['Settings'].get('theme', 'default')
 

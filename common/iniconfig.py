@@ -37,6 +37,7 @@ class IniConfig:
 				'startup_collection': '',
 				'autoupdatemediaonstartup': 'false',
 				'splashscreen': 'true',
+				'muteaudio': 'false',
 				},
 			'Input': {
 				'joyleft': '',

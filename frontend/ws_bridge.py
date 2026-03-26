@@ -57,6 +57,8 @@ class WebSocketBridge:
         'get_table_orientation',
         'get_table_rotation',
         'get_splashscreen_enabled',
+        'get_audio_muted',
+        'set_audio_muted',
         'get_cab_mode',
         'get_theme_assets_port',
         'get_theme_index_page',

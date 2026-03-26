@@ -65,6 +65,7 @@ FRIENDLY_NAMES = {
     'startup_collection': 'Startup Collection',
     'autoupdatemediaonstartup': 'Auto Update Media On Startup',
     'splashscreen': 'Enable splashscreen',
+    'muteaudio': 'Mute Frontend Audio',
     'enabledof': 'Enable DOF',
     'dofconfigtoolapikey': 'DOF Config Tool API Key',
     'theme': 'Active Theme',
@@ -598,6 +599,7 @@ def render_panel(tab=None):
             or (section == 'Displays' and key == 'cabmode')
             or (section == 'Logger' and key == 'console')
             or (section == 'Settings' and key == 'splashscreen')
+            or (section == 'Settings' and key == 'muteaudio')
             or (section == 'DOF' and key == 'enabledof')
             or (section == 'Settings' and key == 'globaltableinioverrideenabled')
             or (section == 'Mobile' and key == 'renamemasktodefaultini')

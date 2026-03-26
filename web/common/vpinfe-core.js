@@ -46,6 +46,7 @@ class VPinFECore {
     this.themeConfig = {};
     this._currentTableIndex = 0;
     this._coreAudioEnabled = true;
+    this._audioMuted = false;
     this._audio = Object.assign(new Audio(), { loop: true });
     this._audioFadeId = null;
     this._audioFadeDuration = 500;
@@ -174,6 +175,22 @@ class VPinFECore {
     return !!this._coreAudioEnabled;
   }
 
+  setAudioMuted(muted = true) {
+    this._audioMuted = !!muted;
+    if (this._audio) this._audio.muted = this._audioMuted;
+    if (this._audioMuted) {
+      this.stopTableAudio({ immediate: true });
+      return;
+    }
+    if (this._coreAudioEnabled && this._windowName === "table") {
+      this.playTableAudio(this._currentTableIndex);
+    }
+  }
+
+  isAudioMuted() {
+    return !!this._audioMuted;
+  }
+
   setAudioOptions(options = {}) {
     if (typeof options !== 'object' || options === null) return;
 
@@ -195,7 +212,7 @@ class VPinFECore {
   }
 
   playTableAudio(indexOrUrl = this._currentTableIndex, retries = 3) {
-    if (!this._coreAudioEnabled || this._windowName !== "table") return;
+    if (!this._coreAudioEnabled || this._audioMuted || this._windowName !== "table") return;
     const url = this.#resolveTableAudioUrl(indexOrUrl);
     if (!url) {
       this.stopTableAudio();
@@ -323,6 +340,10 @@ class VPinFECore {
   // This should be called from the theme's receiveEvent function
   async handleEvent(message) {
     if (typeof message.index === "number") this._currentTableIndex = message.index;
+    if (message.type === "AudioMuteChanged") {
+      this.setAudioMuted(!!message.muted);
+      return;
+    }
 
     // Default handling for TableDataChange
     if (message.type === "TableDataChange") {
@@ -479,6 +500,7 @@ class VPinFECore {
   }
 
   #audioResumePlay() {
+    if (this._audioMuted) return;
     const url = this._audioCurrentUrl;
     const retries = this._audioRetries || 0;
     if (!url) return;
@@ -491,7 +513,6 @@ class VPinFECore {
       }
     });
   }
-
 
   // **********************************************
   // private functions
@@ -548,6 +569,11 @@ class VPinFECore {
 
   async #onBridgeReady() {
     console.log("WebSocket bridge is ready!");
+    try {
+      this.setAudioMuted(await this.call("get_audio_muted"));
+    } catch (_e) {
+      this.setAudioMuted(false);
+    }
     try {
       this.themeConfig = await this.call("get_theme_config");
     } catch (e) {
