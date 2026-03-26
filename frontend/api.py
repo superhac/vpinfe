@@ -143,13 +143,13 @@ class API:
             # Ensure detection flags are booleans
             vpx = meta.get("VPXFile", {})
             detect_key_map = {
-                "detectNfozzy": "detectnfozzy",
-                "detectFleep": "detectfleep",
-                "detectSSF": "detectssf",
-                "detectLUT": "detectlut",
-                "detectScorebit": "detectscorebit",
-                "detectFastflips": "detectfastflips",
-                "detectFlex": "detectflex",
+                "detectnfozzy",
+                "detectfleep",
+                "detectssf",
+                "detectlut",
+                "detectscorebit",
+                "detectfastflips",
+                "detectflex",
             }
 
             def _to_bool(val):
@@ -159,12 +159,9 @@ class API:
                     return val.lower() == "true"
                 return val == 1
 
-            # Normalize detection keys so themes can use either mixed-case or lowercase.
-            for mixed_key, lower_key in detect_key_map.items():
-                raw_val = vpx.get(mixed_key, vpx.get(lower_key, False))
-                bool_val = _to_bool(raw_val)
-                vpx[mixed_key] = bool_val
-                vpx[lower_key] = bool_val
+            # Normalize to lowercase-only detection keys.
+            for key in detect_key_map:
+                vpx[key] = _to_bool(vpx.get(key, False))
 
             # Addon flags live on the Table object, but mirror them into VPX metadata for theme compatibility.
             vpx["altSoundExists"] = bool(table.altSoundExists)

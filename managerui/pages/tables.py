@@ -382,14 +382,14 @@ def parse_table_info(info_path):
             "filehash": get(("VPXFile", "filehash")),
             "vbshash": get(("VPXFile", "vbsHash")),
 
-            # Detection flags (keys match JSON: detectNfozzy, detectFleep, detectSSF, etc.)
-            "detectnfozzy": get(("VPXFile", "detectNfozzy")),
-            "detectfleep": get(("VPXFile", "detectFleep")),
-            "detectssf": get(("VPXFile", "detectSSF")),
-            "detectlut": get(("VPXFile", "detectLUT")),
-            "detectscorebit": get(("VPXFile", "detectScorebit")),
-            "detectfastflips": get(("VPXFile", "detectFastflips")),
-            "detectflex": get(("VPXFile", "detectFlex")),
+            # Detection flags (canonical lowercase keys)
+            "detectnfozzy": get(("VPXFile", "detectnfozzy")),
+            "detectfleep": get(("VPXFile", "detectfleep")),
+            "detectssf": get(("VPXFile", "detectssf")),
+            "detectlut": get(("VPXFile", "detectlut")),
+            "detectscorebit": get(("VPXFile", "detectscorebit")),
+            "detectfastflips": get(("VPXFile", "detectfastflips")),
+            "detectflex": get(("VPXFile", "detectflex")),
 
             # Patching
             "patch_applied": get(("VPXFile", "patch_applied"), default=False),

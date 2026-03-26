@@ -3,6 +3,15 @@ import os
 from urllib.parse import urlparse, parse_qs
 
 class MetaConfig:
+    DETECT_KEY_MAP = {
+        "detectNfozzy": "detectnfozzy",
+        "detectFleep": "detectfleep",
+        "detectSSF": "detectssf",
+        "detectLUT": "detectlut",
+        "detectScorebit": "detectscorebit",
+        "detectFastflips": "detectfastflips",
+        "detectFlex": "detectflex",
+    }
 
     def __init__(self, configfilepath):
         self.configFilePath = configfilepath
@@ -13,6 +22,7 @@ class MetaConfig:
                 self.data = json.load(f)
         else:
             self.data = {}
+        self._normalize_detection_flags()
 
     def writeConfigMeta(self, configdata):
         """
@@ -48,13 +58,13 @@ class MetaConfig:
             "type": configdata["vpxdata"]["tableType"],
             "vbsHash": configdata["vpxdata"]["codeSha256Hash"],
             "rom": configdata["vpxdata"]["rom"],
-            "detectNfozzy": configdata["vpxdata"]["detectNfozzy"],
-            "detectFleep": configdata["vpxdata"]["detectFleep"],
-            "detectSSF": configdata["vpxdata"]["detectSSF"],
-            "detectLUT": configdata["vpxdata"]["detectLut"],
-            "detectScorebit": configdata["vpxdata"]["detectScorebit"],
-            "detectFastflips": configdata["vpxdata"]["detectFastflips"],
-            "detectFlex": configdata["vpxdata"]["detectFlex"]
+            "detectnfozzy": configdata["vpxdata"]["detectnfozzy"],
+            "detectfleep": configdata["vpxdata"]["detectfleep"],
+            "detectssf": configdata["vpxdata"]["detectssf"],
+            "detectlut": configdata["vpxdata"]["detectlut"],
+            "detectscorebit": configdata["vpxdata"]["detectscorebit"],
+            "detectfastflips": configdata["vpxdata"]["detectfastflips"],
+            "detectflex": configdata["vpxdata"]["detectflex"]
         }
 
         user = self.data.get("User", {
@@ -87,6 +97,7 @@ class MetaConfig:
         self.writeConfig()
 
     def writeConfig(self):
+        self._normalize_detection_flags()
         os.makedirs(os.path.dirname(self.configFilePath), exist_ok=True)
         with open(self.configFilePath, "w", encoding="utf-8") as f:
             json.dump(self.data, f, indent=4)
@@ -114,5 +125,27 @@ class MetaConfig:
         if not value:
             return []
         return [a.strip() for a in value.split(",") if a.strip()]
+
+    def _to_bool(self, val):
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, str):
+            return val.strip().lower() in ("true", "1", "yes", "on")
+        return val == 1
+
+    def _normalize_detection_flags(self):
+        if not isinstance(self.data, dict):
+            return
+        vpx = self.data.get("VPXFile")
+        if not isinstance(vpx, dict):
+            return
+
+        for mixed_key, lower_key in self.DETECT_KEY_MAP.items():
+            if lower_key in vpx:
+                raw_val = vpx.get(lower_key)
+            else:
+                raw_val = vpx.get(mixed_key, False)
+            vpx[lower_key] = self._to_bool(raw_val)
+            vpx.pop(mixed_key, None)
 
         

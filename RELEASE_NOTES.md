@@ -8,7 +8,7 @@ This is the offical release of vpinfe v1.1.32.
 - remove logging machineid
 
 ### Fixes
-None
+- Fix duplicate feature/addon detect enteries in .info
 
 ### Notes
 None

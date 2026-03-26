@@ -45,13 +45,13 @@ class VPXParser:
         'filename': '',
         'codeSha256Hash': '',
         'fileHash': '',
-        'detectFleep': '',
-        'detectNfozzy': '',
-        'detectScorebit': '',
-        'detectSSF': '',
-        'detectFastflips': '',
-        'detectLut': '',
-        'detectFlex': '',
+        'detectfleep': '',
+        'detectnfozzy': '',
+        'detectscorebit': '',
+        'detectssf': '',
+        'detectfastflips': '',
+        'detectlut': '',
+        'detectflex': '',
     }
 
     def __init__(self):
@@ -166,13 +166,13 @@ class VPXParser:
     def runDetectors(self, vpxFileValues):
         game_data_lower = vpxFileValues['gameData'].lower()
         detectors = {
-            'detectNfozzy': 'class flipperpolarity',
-            'detectFleep': 'rubberstrongsoundfactor',
-            'detectSSF': 'playsoundat',
-            'detectLut': 'lut',
-            'detectScorebit': 'scorebit',
-            'detectFastflips': 'fastflips',
-            'detectFlex': 'flexdmd',
+            'detectnfozzy': 'class flipperpolarity',
+            'detectfleep': 'rubberstrongsoundfactor',
+            'detectssf': 'playsoundat',
+            'detectlut': 'lut',
+            'detectscorebit': 'scorebit',
+            'detectfastflips': 'fastflips',
+            'detectflex': 'flexdmd',
         }
         for key, token in detectors.items():
             vpxFileValues[key] = "true" if token in game_data_lower else "false"

@@ -101,13 +101,13 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
         "type": "",
         "vbsHash": "bd6dcb7e0c618e4553d230095e73c7ca8e17f31def4595c38a8439b279977b45",
         "rom": "TlD_123",
-        "detectNfozzy": "false",
-        "detectFleep": "false",
-        "detectSSF": "true",
-        "detectLUT": "true",
-        "detectScorebit": "false",
-        "detectFastflips": "false",
-        "detectFlex": "false"
+        "detectnfozzy": "false",
+        "detectfleep": "false",
+        "detectssf": "true",
+        "detectlut": "true",
+        "detectscorebit": "false",
+        "detectfastflips": "false",
+        "detectflex": "false"
     },
     "VPinFE": {
         "deletedNVRamOnClose": false,
@@ -169,7 +169,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   - manufacturer, year, type
   - vbsHash: SHA-256 hash of table's VBS script
   - rom: ROM name from the VPX
-  - detect* flags: Booleans indicating which features were detected (detectNfozzy, detectFleep, detectSSF, detectLUT, detectScorebit, detectFastflips, detectFlex)
+  - detect* flags: Booleans indicating which features were detected (detectnfozzy, detectfleep, detectssf, detectlut, detectscorebit, detectfastflips, detectflex)
 
 - VPinFE
 
