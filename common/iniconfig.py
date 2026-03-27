@@ -33,7 +33,7 @@ class IniConfig:
 				'globaltableinioverridemask': '',
 				'tablerootdir': '',
 				'vpxinipath': '',
-				'theme': 'carousel-desktop',
+				'theme': 'Revolution',
 				'startup_collection': '',
 				'autoupdatemediaonstartup': 'false',
 				'splashscreen': 'true',
@@ -132,6 +132,12 @@ class IniConfig:
 		# Remove legacy Logger.file option; logs always go to the standard config dir file.
 		if self.config.has_option('Logger', 'file'):
 			self.config.remove_option('Logger', 'file')
+			changed = True
+
+		# Normalize blank theme values back to the configured default.
+		current_theme = self.config.get('Settings', 'theme', fallback='').strip()
+		if not current_theme:
+			self.config.set('Settings', 'theme', self.defaults['Settings']['theme'])
 			changed = True
 
 		# Auto-generate vpinplay.machineid when not set.

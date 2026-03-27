@@ -168,7 +168,7 @@ if iniconfig.is_new:
 try:
     theme_registry = ThemeRegistry()
     theme_registry.load_registry()
-    theme_registry.load_theme_manifests()
+    theme_registry.load_theme_manifests(default_only=True)
     theme_registry.auto_install_defaults()
 except Exception:
     logger.exception("Theme registry initialization failed")

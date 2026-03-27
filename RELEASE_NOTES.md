@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.35.
+This is the offical release of vpinfe v1.1.36.
 
 ### What's New
-None
+- Only loads default loaded themes on startup. Changed the default theme on new installs.
 
 ### Fixes
-- Startup hanging on some system due to binding the managerui interface. Now it will move on and only bind to 127.0.0.1.
+None
 
 ### Notes
 None

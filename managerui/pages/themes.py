@@ -16,9 +16,10 @@ def _get_active_theme() -> str:
     """Get the currently active theme name from config."""
     try:
         config = IniConfig(str(INI_PATH))
-        return config.config.get('Settings', 'theme', fallback='default')
+        theme_name = config.config.get('Settings', 'theme', fallback='Revolution').strip()
+        return theme_name or 'Revolution'
     except Exception:
-        return 'default'
+        return 'Revolution'
 
 
 def _set_active_theme(theme_key: str):

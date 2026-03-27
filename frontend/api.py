@@ -826,7 +826,8 @@ class API:
         return muted_flag
 
     def get_theme_name(self):
-        return self._iniConfig.config['Settings'].get('theme', 'default')
+        theme_name = str(self._iniConfig.config['Settings'].get('theme', 'Revolution')).strip()
+        return theme_name or 'Revolution'
 
     def get_table_orientation(self):
         return self._iniConfig.config['Displays'].get('tableorientation', 'landscape')

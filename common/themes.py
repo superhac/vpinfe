@@ -72,11 +72,14 @@ class ThemeRegistry:
 
         self.themes_index = data["themes"]
 
-    def load_theme_manifests(self):
+    def load_theme_manifests(self, default_only: bool = False):
         if not self.themes_index:
             raise ThemeRegistryError("Registry not loaded.")
 
         for theme_key, theme_info in self.themes_index.items():
+            if default_only and not theme_info.get("default_install", False):
+                continue
+
             manifest_url = theme_info.get("theme_manifest_url")
             if not manifest_url:
                 continue
