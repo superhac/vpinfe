@@ -547,18 +547,40 @@ _ui_port = 8001
 def _manager_ui_urls(port: int) -> list[str]:
     urls = [f"http://localhost:{port}"]
     seen = {"127.0.0.1", "0.0.0.0", "::1"}
-    try:
-        hostname = socket.gethostname()
-        for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None, socket.AF_INET):
-            if family != socket.AF_INET:
-                continue
-            ip = sockaddr[0]
-            if ip in seen:
-                continue
-            seen.add(ip)
-            urls.append(f"http://{ip}:{port}")
-    except Exception:
-        logger.exception("Failed to enumerate Manager UI network addresses")
+    resolved_ips: list[str] = []
+    resolve_error: list[Exception] = []
+
+    def _resolve() -> None:
+        try:
+            hostname = socket.gethostname()
+            for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None, socket.AF_INET):
+                if family != socket.AF_INET:
+                    continue
+                ip = sockaddr[0]
+                if ip in seen:
+                    continue
+                resolved_ips.append(ip)
+        except Exception as e:
+            resolve_error.append(e)
+
+    resolver = threading.Thread(target=_resolve, daemon=True, name="manager-ui-ip-resolver")
+    resolver.start()
+    resolver.join(timeout=1.0)
+
+    if resolver.is_alive():
+        logger.warning(
+            "Timed out while enumerating Manager UI network addresses; "
+            "continuing startup with localhost URL only."
+        )
+        return urls
+
+    if resolve_error:
+        logger.warning("Failed to enumerate Manager UI network addresses: %s", resolve_error[0])
+        return urls
+
+    for ip in resolved_ips:
+        seen.add(ip)
+        urls.append(f"http://{ip}:{port}")
     return urls
 
 def _run_ui():

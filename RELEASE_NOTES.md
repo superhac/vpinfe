@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.34.
+This is the offical release of vpinfe v1.1.35.
 
 ### What's New
-- Support global theme audio muting 
+None
 
 ### Fixes
-None
+- Startup hanging on some system due to binding the managerui interface. Now it will move on and only bind to 127.0.0.1.
 
 ### Notes
 None
