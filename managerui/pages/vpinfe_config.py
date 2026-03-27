@@ -76,6 +76,8 @@ FRIENDLY_NAMES = {
     'tablescreenid': 'Playfield Monitor ID',
     'bgscreenid': 'Backglass Monitor ID',
     'dmdscreenid': 'DMD Monitor ID',
+    'bgwindowoverride': 'Backglass Window Override (x,y,width,height)',
+    'dmdwindowoverride': 'DMD Window Override (x,y,width,height)',
     'tablerotation': 'Playfield Rotation (0/90/270)',
     'tableorientation': 'Playfield Orientation (Landscape/Portrait)',
     'playfieldorientation': 'Playfield Orientation (Landscape/Portrait)',
@@ -663,6 +665,11 @@ def render_panel(tab=None):
                 inp = ui.input(value=value).props('outlined dense').classes('config-input')
                 if section == 'vpinplay' and key == 'machineid':
                     inp.props('readonly disable')
+                if section == 'Displays' and key in ('bgwindowoverride', 'dmdwindowoverride'):
+                    inp.props('hint="Format: x,y,width,height"')
+                    inp.tooltip(
+                        'Optional high-DPI override passed to themes instead of the detected window bounds.'
+                    )
                 if section == 'Settings' and key == 'globaltableinioverridemask' and label_widget is not None:
                     def on_mask_change(e):
                         mask_value = (e.value or '').strip()
@@ -955,6 +962,23 @@ def render_panel(tab=None):
                                     split_index = options.index(split_key) if split_key in options else len(options)
                                     first_column_keys = options[:split_index]
                                     second_column_keys = options[split_index:]
+                                    override_keys = ['bgwindowoverride', 'dmdwindowoverride']
+                                    present_override_keys = []
+
+                                    for override_key in override_keys:
+                                        if override_key in first_column_keys:
+                                            first_column_keys.remove(override_key)
+                                            present_override_keys.append(override_key)
+                                        elif override_key in second_column_keys:
+                                            second_column_keys.remove(override_key)
+                                            present_override_keys.append(override_key)
+
+                                    monitor_anchor_keys = ['tablescreenid', 'bgscreenid', 'dmdscreenid']
+                                    insert_after = max(
+                                        (first_column_keys.index(key) for key in monitor_anchor_keys if key in first_column_keys),
+                                        default=-1,
+                                    )
+                                    first_column_keys[insert_after + 1:insert_after + 1] = present_override_keys
 
                                     with ui.element('div').classes('config-display-form-grid'):
                                         with ui.element('div').classes('config-display-column'):
