@@ -251,24 +251,17 @@ class ChromiumManager:
             monitor = monitors[screen_id]
             url = f"{base_url}:{theme_assets_port}/web/splash.html?window={window_name}"
 
-            # Comprehensive override debugging
             override_key = f"{window_name}windowoverride"
-            logger.info("=== OVERRIDE DEBUG for '%s' ===", window_name)
-            logger.info("Looking for key: '%s' in [Displays] section", override_key)
-            logger.info(
-                "All Displays keys: %s", list(iniconfig.config["Displays"].keys())
-            )
+            logger.debug("Found override key: '%s' in [Displays] section", override_key)
+
             override_str = iniconfig.config["Displays"].get(override_key, "").strip()
-            logger.info(
+            logger.debug(
                 "Retrieved value: '%s' (empty=%s)", override_str, len(override_str) == 0
             )
 
             if override_str:
                 url += f"&override={override_str}"
                 logger.info("Override applied - Final URL: %s", url)
-            else:
-                logger.info("No override applied - Final URL: %s", url)
-            logger.info("=== END OVERRIDE DEBUG ===")
 
             # Brief delay before launching the table window to ensure bg/dmd
             # are initialized first, so table gets focus as the last window
