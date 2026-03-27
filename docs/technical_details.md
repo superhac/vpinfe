@@ -173,7 +173,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 
 - VPinFE
 
-  VPinFE-specific settings for the table. Preserved across `--buildmeta --update-all`:
+  VPinFE-specific settings for the table. Preserved across `--buildmeta --update-all`, except `altvpsid` which is cleared when the table's stored `VPXFile.filehash` changes during a rebuild:
   - deletedNVRamOnClose: (true/false) Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing. Default is false.
   - altlauncher: Optional executable path override used only for this table. If set, this is used instead of `vpinfe.ini` `Settings.vpxbinpath`.
 

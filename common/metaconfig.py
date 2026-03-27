@@ -28,6 +28,11 @@ class MetaConfig:
         """
         Build the .info JSON structure
         """
+        existing_vpxfile = self.data.get("VPXFile", {})
+        if not isinstance(existing_vpxfile, dict):
+            existing_vpxfile = {}
+        existing_filehash = str(existing_vpxfile.get("filehash", "") or "").strip()
+        new_filehash = str(configdata.get("vpxdata", {}).get("fileHash", "") or "").strip()
 
         info = {
             "IPDBId": parse_qs(urlparse(configdata.get("vpsdata", {}).get("ipdbUrl", "")).query).get("id", [""])[0],
@@ -82,7 +87,10 @@ class MetaConfig:
         vpinfe.setdefault("deletedNVRamOnClose", False)
         vpinfe.setdefault("altlauncher", "")
         vpinfe.setdefault("alttitle", "")
-        vpinfe.setdefault("altvpsid", "")
+        if existing_filehash and new_filehash and existing_filehash != new_filehash:
+            vpinfe["altvpsid"] = ""
+        else:
+            vpinfe.setdefault("altvpsid", "")
 
         medias = self.data.get("Medias", {})
 
