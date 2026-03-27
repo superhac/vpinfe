@@ -232,6 +232,12 @@ class ChromiumManager:
             monitor = monitors[screen_id]
             url = f"{base_url}:{theme_assets_port}/web/splash.html?window={window_name}"
 
+            # Check for overrides to pass to the theme URL
+            override_key = f"{window_name}windowoverride"
+            override_str = iniconfig.config["Displays"].get(override_key, "").strip()
+            if override_str:
+                url += f"&override={override_str}"
+
             # Brief delay before launching the table window to ensure bg/dmd
             # are initialized first, so table gets focus as the last window
             if window_name == 'table':

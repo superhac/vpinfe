@@ -20,6 +20,8 @@ class IniConfig:
 			'Displays': {
 				'bgscreenid': '',
 				'dmdscreenid': '',
+				'bgwindowoverride': '',
+				'dmdwindowoverride': '',
 				'tablescreenid': '0',
 				'tableorientation': 'landscape',
 				'tablerotation': '0',
