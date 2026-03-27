@@ -24,7 +24,7 @@ logger = logging.getLogger("vpinfe.frontend.chromium_manager")
 
 def resource_path(relative_path):
     """Get absolute path to resource, works for both dev and PyInstaller bundle."""
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         # Running as PyInstaller bundle
         base_path = sys._MEIPASS
     else:
@@ -41,11 +41,15 @@ def get_chromium_path():
         # Check common system Chrome/Chromium install paths first
         common_paths = [
             os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
-            os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(
+                r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+            ),
             os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%ProgramFiles%\Chromium\Application\chrome.exe"),
             os.path.expandvars(r"%LocalAppData%\Chromium\Application\chrome.exe"),
-            os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe")
+            os.path.expandvars(
+                r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
+            ),
         ]
         for path in common_paths:
             if os.path.isfile(path):
@@ -56,7 +60,9 @@ def get_chromium_path():
         common_paths = [
             "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
             "/Applications/Chromium.app/Contents/MacOS/Chromium",
-            os.path.expanduser("~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+            os.path.expanduser(
+                "~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            ),
             os.path.expanduser("~/Applications/Chromium.app/Contents/MacOS/Chromium"),
         ]
         for path in common_paths:
@@ -64,7 +70,7 @@ def get_chromium_path():
                 return path
         return resource_path("chromium/Chromium.app/Contents/MacOS/Chromium")
     elif system == "Linux":
-        # Check if chromium is locally available on the system. 
+        # Check if chromium is locally available on the system.
         # If so use that instead of bundled chromium.
         for binary_name in ("chromium", "chromium-browser", "google-chrome"):
             chromium_path = which(binary_name)
@@ -75,7 +81,7 @@ def get_chromium_path():
         raise RuntimeError(f"Unsupported OS: {system}")
 
 
-MonitorInfo = namedtuple('MonitorInfo', ['x', 'y', 'width', 'height'])
+MonitorInfo = namedtuple("MonitorInfo", ["x", "y", "width", "height"])
 
 
 def get_mac_screens():
@@ -87,19 +93,20 @@ def get_mac_screens():
     --window-position flag.
     """
     import AppKit
+
     screens = AppKit.NSScreen.screens()
     # Total virtual height for bottom-left → top-left conversion
-    max_bottom = max(
-        s.frame().origin.y + s.frame().size.height for s in screens
-    )
+    max_bottom = max(s.frame().origin.y + s.frame().size.height for s in screens)
     result = []
     for s in screens:
         frame = s.frame()
         x = int(frame.origin.x)
         y = int(max_bottom - frame.origin.y - frame.size.height)
-        result.append(MonitorInfo(x=x, y=y,
-                                  width=int(frame.size.width),
-                                  height=int(frame.size.height)))
+        result.append(
+            MonitorInfo(
+                x=x, y=y, width=int(frame.size.width), height=int(frame.size.height)
+            )
+        )
     return result
 
 
@@ -107,7 +114,7 @@ class ChromiumManager:
     """Manages Chromium subprocess lifecycle for multi-monitor display."""
 
     def __init__(self):
-        self._processes = []   # [(window_name, process, temp_dir, monitor)]
+        self._processes = []  # [(window_name, process, temp_dir, monitor)]
         self._exit_event = threading.Event()
 
     def launch_window(self, window_name, url, monitor, index, mute_audio=False):
@@ -123,7 +130,9 @@ class ChromiumManager:
         if not os.path.exists(chrome_path):
             raise FileNotFoundError(f"Chromium binary not found: {chrome_path}")
 
-        user_data_dir = tempfile.mkdtemp(prefix=f"vpinfe_chromium_{window_name}_{index}_")
+        user_data_dir = tempfile.mkdtemp(
+            prefix=f"vpinfe_chromium_{window_name}_{index}_"
+        )
 
         # Suppress "Google API keys missing" banner
         env = os.environ.copy()
@@ -189,7 +198,7 @@ class ChromiumManager:
         # (Chromium spawns renderers, GPU, zygote children that must all be killed)
         popen_kwargs = dict(env=env)
         if platform.system() != "Windows":
-            popen_kwargs['start_new_session'] = True
+            popen_kwargs["start_new_session"] = True
 
         proc = subprocess.Popen(args, **popen_kwargs)
         self._processes.append((window_name, proc, user_data_dir, monitor))
@@ -204,43 +213,66 @@ class ChromiumManager:
         """
         if sys.platform == "darwin":
             monitors = get_mac_screens()
-            logger.info("Detected %s macOS screens (via NSScreen): %s", len(monitors), monitors)
+            logger.info(
+                "Detected %s macOS screens (via NSScreen): %s", len(monitors), monitors
+            )
         else:
             from screeninfo import get_monitors
+
             monitors = get_monitors()
             logger.info("Detected %s monitors: %s", len(monitors), monitors)
 
-        theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
+        theme_assets_port = int(
+            iniconfig.config["Network"].get("themeassetsport", "8000")
+        )
 
         # Launch windows in order: bg, dmd, table (table last so it gets focus)
         window_configs = [
-            ('bg', 'bgscreenid'),
-            ('dmd', 'dmdscreenid'),
-            ('table', 'tablescreenid'),
+            ("bg", "bgscreenid"),
+            ("dmd", "dmdscreenid"),
+            ("table", "tablescreenid"),
         ]
 
         for window_name, config_key in window_configs:
-            screen_id_str = iniconfig.config['Displays'].get(config_key, '').strip()
+            screen_id_str = iniconfig.config["Displays"].get(config_key, "").strip()
             if not screen_id_str:
                 continue
 
             screen_id = int(screen_id_str)
             if screen_id >= len(monitors):
-                logger.warning("%s=%s but only %s monitors found", config_key, screen_id, len(monitors))
+                logger.warning(
+                    "%s=%s but only %s monitors found",
+                    config_key,
+                    screen_id,
+                    len(monitors),
+                )
                 continue
 
             monitor = monitors[screen_id]
             url = f"{base_url}:{theme_assets_port}/web/splash.html?window={window_name}"
 
-            # Check for overrides to pass to the theme URL
+            # Comprehensive override debugging
             override_key = f"{window_name}windowoverride"
+            logger.info("=== OVERRIDE DEBUG for '%s' ===", window_name)
+            logger.info("Looking for key: '%s' in [Displays] section", override_key)
+            logger.info(
+                "All Displays keys: %s", list(iniconfig.config["Displays"].keys())
+            )
             override_str = iniconfig.config["Displays"].get(override_key, "").strip()
+            logger.info(
+                "Retrieved value: '%s' (empty=%s)", override_str, len(override_str) == 0
+            )
+
             if override_str:
                 url += f"&override={override_str}"
+                logger.info("Override applied - Final URL: %s", url)
+            else:
+                logger.info("No override applied - Final URL: %s", url)
+            logger.info("=== END OVERRIDE DEBUG ===")
 
             # Brief delay before launching the table window to ensure bg/dmd
             # are initialized first, so table gets focus as the last window
-            if window_name == 'table':
+            if window_name == "table":
                 time.sleep(0.5)
 
             self.launch_window(
@@ -248,7 +280,7 @@ class ChromiumManager:
                 url,
                 monitor,
                 screen_id,
-                mute_audio=(window_name != 'table')
+                mute_audio=(window_name != "table"),
             )
 
         logger.info("Launched %s browser windows", len(self._processes))
@@ -262,9 +294,10 @@ class ChromiumManager:
         time.sleep(0.5)
         try:
             import AppKit
+
             AppKit.NSApp.activateIgnoringOtherApps_(True)
             for win_name, proc, _, _ in self._processes:
-                if win_name == 'table':
+                if win_name == "table":
                     logger.info("macOS: activating app focus for table window")
                     break
         except Exception:
@@ -278,6 +311,7 @@ class ChromiumManager:
         """
         try:
             import AppKit
+
             our_pids = {proc.pid for _, proc, _, _ in self._processes}
             activated = 0
             for ns_app in AppKit.NSWorkspace.sharedWorkspace().runningApplications():
@@ -286,7 +320,9 @@ class ChromiumManager:
                         AppKit.NSApplicationActivateIgnoringOtherApps
                     )
                     activated += 1
-            logger.info("macOS: re-activated %s Chromium windows after VPX exit", activated)
+            logger.info(
+                "macOS: re-activated %s Chromium windows after VPX exit", activated
+            )
         except Exception:
             logger.exception("macOS re-activation failed")
 
@@ -295,7 +331,7 @@ class ChromiumManager:
         """Recursively find all descendant PIDs via /proc on Linux."""
         descendants = []
         try:
-            with open(f'/proc/{pid}/task/{pid}/children') as f:
+            with open(f"/proc/{pid}/task/{pid}/children") as f:
                 for child_str in f.read().split():
                     child_pid = int(child_str)
                     descendants.append(child_pid)
@@ -310,8 +346,9 @@ class ChromiumManager:
             # taskkill /T kills the entire process tree, /F forces it
             try:
                 subprocess.call(
-                    ['taskkill', '/F', '/T', '/PID', str(proc.pid)],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                 )
             except Exception:
                 logger.exception("taskkill failed for '%s'", window_name)
@@ -321,7 +358,9 @@ class ChromiumManager:
             sig = signal.SIGKILL if force else signal.SIGTERM
             all_pids = self._get_descendant_pids(proc.pid)
             all_pids.append(proc.pid)
-            logger.info("Killing '%s' tree: %s with signal %s", window_name, all_pids, sig)
+            logger.info(
+                "Killing '%s' tree: %s with signal %s", window_name, all_pids, sig
+            )
             for pid in all_pids:
                 try:
                     os.kill(pid, sig)
@@ -367,7 +406,9 @@ class ChromiumManager:
             while self._processes and not self._exit_event.is_set():
                 for window_name, proc, temp_dir, _ in list(self._processes):
                     if proc.poll() is not None:
-                        logger.info("Window '%s' exited (code %s)", window_name, proc.returncode)
+                        logger.info(
+                            "Window '%s' exited (code %s)", window_name, proc.returncode
+                        )
                         # One window exited - shut everything down
                         self.terminate_all()
                         return
