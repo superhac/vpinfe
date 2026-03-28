@@ -19,6 +19,7 @@ from common.launcher import (
     resolve_launch_tableini_override,
 )
 from common.metaconfig import MetaConfig
+from common.score_parser import read_rom, result_to_jsonable
 from platformdirs import user_config_dir
 
 
@@ -519,6 +520,7 @@ class API:
         if launch_started_at is not None:
             elapsed_seconds = max(0.0, time.time() - launch_started_at)
             self._add_user_runtime_minutes(table, elapsed_seconds)
+            self._update_user_score_from_nvram(table)
 
         # macOS: re-activate Chromium windows so they return to foreground
         # after VPX exits (kiosk windows don't auto-regain focus on macOS)
@@ -619,6 +621,41 @@ class API:
         user.setdefault("RunTime", 0)
         user.setdefault("Tags", [])
         return user
+
+    def _update_user_score_from_nvram(self, table):
+        config = table.metaConfig or {}
+        if not isinstance(config, dict):
+            logger.warning("Could not update Score: invalid table metadata for %s", table.tableDirName)
+            return
+
+        rom = str(config.get("Info", {}).get("Rom", "") or "").strip()
+        if not rom:
+            logger.debug("No ROM name found for %s, skipping score update", table.tableDirName)
+            return
+
+        nvram_path = Path(table.fullPathTable) / "pinmame" / "nvram" / f"{rom}.nv"
+        if not nvram_path.exists():
+            logger.debug("NVRAM file not found for %s: %s", table.tableDirName, nvram_path)
+            return
+
+        try:
+            parsed_result = read_rom(rom, str(nvram_path))
+            score_data = result_to_jsonable(rom, parsed_result)
+        except KeyError:
+            logger.debug("ROM %s is not supported for score parsing", rom)
+            return
+        except Exception:
+            logger.exception("Failed to parse score data for %s from %s", table.tableDirName, nvram_path)
+            return
+
+        if not score_data:
+            logger.debug("Parsed score data for %s was empty, skipping metadata update", table.tableDirName)
+            return
+
+        user = self._get_or_create_user_meta(config)
+        user["Score"] = score_data
+        self._persist_table_meta(table, config)
+        logger.info("Updated User.Score for %s from %s", table.tableDirName, nvram_path)
 
     def _increment_user_start_count(self, table):
         config = table.metaConfig or {}
