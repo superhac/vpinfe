@@ -225,6 +225,8 @@ theme = <THEME NAME>
 
 The main JS file for interacting with VPinFE and controlling the theme UI. All three windows (`table`, `bg`, `dmd`) load the same `theme.js`, so use `windowName` to branch logic per window.
 
+VPinFE also passes the current window identity in the page URL as `?window=table`, `?window=bg`, or `?window=dmd`. For high-DPI backglass and DMD setups, VPinFE may also include an optional `override` query parameter in the form `x,y,width,height`. Theme authors can read that value when they need to use the configured bounds instead of the auto-detected browser window size.
+
 ```javascript
 /*
 Bare minimum theme example.
@@ -569,6 +571,41 @@ The following methods are available via `vpin.call()`:
 | `get_theme_index_page` | — | `string` | Returns the full URL for this window's theme index page. |
 | `get_table_orientation` | — | `string` | Returns the table orientation from config (`"landscape"` or `"portrait"`). |
 | `get_table_rotation` | — | `number` | Returns the table rotation angle in degrees from config (default `0`). |
+
+##### URL Query Parameters
+
+Theme pages receive the current window name in the `window` query parameter:
+
+- `?window=table`
+- `?window=bg`
+- `?window=dmd`
+
+For `bg` and `dmd`, VPinFE can also pass an optional high-DPI display override:
+
+- `?override=x,y,width,height`
+
+This is intended for setups where the detected Chromium window bounds are not the values the theme should use, usually on high-DPI screens. The `override` value is a comma-separated string containing:
+
+- `x`: left position
+- `y`: top position
+- `width`: window width
+- `height`: window height
+
+Example:
+
+```javascript
+const params = new URLSearchParams(window.location.search);
+const windowName = params.get('window') || 'unknown';
+const override = params.get('override');
+
+let overrideBounds = null;
+if (override) {
+  const [x, y, width, height] = override.split(',').map(Number);
+  overrideBounds = { x, y, width, height };
+}
+```
+
+If `override` is present, themes that position or scale BG/DMD content based on window bounds should prefer those values over `window.innerWidth`, `window.innerHeight`, or other automatically detected measurements.
 
 ##### Core Audio Helpers
 

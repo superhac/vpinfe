@@ -1,13 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.37.
+This is the offical release of vpinfe v1.1.38.
 
 ### What's New
-None
+- updated the theme doc to account for the new bg and dmd high DPI overrides
 
 ### Fixes
-- Fix revert .bat to fix focus issue
-
+None
 ### Notes
 None
