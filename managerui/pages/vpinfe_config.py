@@ -398,6 +398,18 @@ def render_panel(tab=None):
             gap: 1rem;
             align-items: start;
         }
+        .config-vpinplay-links {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+        .config-vpinplay-links-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+            min-width: 180px;
+        }
         .config-three-column-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -515,6 +527,13 @@ def render_panel(tab=None):
             }
             .config-vpinplay-pair {
                 grid-template-columns: 1fr;
+            }
+            .config-vpinplay-links {
+                justify-content: center;
+            }
+            .config-vpinplay-links-copy {
+                align-items: center;
+                text-align: center;
             }
             .config-section-header {
                 align-items: flex-start;
@@ -1078,11 +1097,11 @@ def render_panel(tab=None):
                                     with ui.element('div').classes('config-vpinplay-pair'):
                                         with ui.column().classes('w-full gap-3'):
                                             with ui.element('div').classes('w-full config-field-card'):
-                                                with ui.column().classes('w-full gap-1'):
-                                                    ui.label('VPinPlay Links').classes(
-                                                        'text-blue-200 text-lg font-semibold'
+                                                with ui.element('div').classes('w-full config-vpinplay-links'):
+                                                    ui.image('/static/img/VPinPlay_Logo_1.0.png').style(
+                                                        'width: 200px; height: 200px; object-fit: contain;'
                                                     )
-                                                    with ui.row().classes('w-full items-center gap-4 flex-wrap'):
+                                                    with ui.column().classes('config-vpinplay-links-copy'):
                                                         ui.link(
                                                             'VPinPlay Home',
                                                             VPINPLAY_BASE_URL,

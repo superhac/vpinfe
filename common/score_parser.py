@@ -28,8 +28,31 @@ rom_aliases = {
     "afm_113b": "afm_113",
 }
 
+def get_roms_path() -> Path:
+    candidates = [
+        Path(__file__).with_name("resources") / "roms.json",
+    ]
+
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(Path(meipass) / "common" / "resources" / "roms.json")
+
+    exe_dir = Path(sys.executable).resolve().parent
+    candidates.append(exe_dir / "common" / "resources" / "roms.json")
+    candidates.append(exe_dir / "_internal" / "common" / "resources" / "roms.json")
+    candidates.append(exe_dir.parent / "Resources" / "common" / "resources" / "roms.json")
+
+    for path in candidates:
+        if path.exists():
+            return path
+
+    raise FileNotFoundError(
+        "Could not find roms.json. Checked: "
+        + ", ".join(str(path) for path in candidates)
+    )
+
 def load_roms() -> dict:
-    roms_path = Path(__file__).with_name("resources") / "roms.json"
+    roms_path = get_roms_path()
     with roms_path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
