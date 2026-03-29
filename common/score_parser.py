@@ -1,5 +1,7 @@
+import configparser
 import json
 import logging
+import re
 import sys
 from dataclasses import dataclass, field
 from dataclasses import asdict
@@ -23,6 +25,7 @@ rom_aliases = {
     "alpok_b6": "alpok_l2",
     "arena": "amazon3a",
     "bcats_l5": "bcats_l2",
+    "afm_113b": "afm_113",
 }
 
 def load_roms() -> dict:
@@ -389,6 +392,75 @@ def decode_mixed_leaderboard(
 
     return results
 
+def parse_ini_score(value: str) -> int:
+    normalized = value.strip().replace(",", "")
+    return int(normalized)
+
+def build_ini_section_name(section_name: str, group_name: str) -> str:
+    group_name = group_name.strip()
+    return group_name or section_name
+
+def decode_ini_file(filename: str) -> list[ParsedEntry]:
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.optionxform = str
+    read_files = parser.read(filename, encoding="utf-8")
+    if not read_files:
+        raise FileNotFoundError(filename)
+
+    entries: list[ParsedEntry] = []
+    paired_keys: set[str] = set()
+    trailing_name_pattern = re.compile(r"^(?P<score_key>.+?\d+)Name$")
+    split_name_pattern = re.compile(r"^(?P<prefix>.+?)Score(?P<rank>\d+)$")
+
+    for section_name in parser.sections():
+        section_items = dict(parser.items(section_name))
+
+        for key, value in section_items.items():
+            if key in paired_keys:
+                continue
+
+            trailing_name_match = trailing_name_pattern.match(key)
+            if trailing_name_match:
+                score_key = trailing_name_match.group("score_key")
+                score_value = section_items.get(score_key)
+                if score_value is None:
+                    continue
+
+                rank_match = re.search(r"(\d+)$", score_key)
+                rank = int(rank_match.group(1)) if rank_match else None
+                group_name = re.sub(r"\d+$", "", score_key)
+                entries.append(
+                    ParsedEntry(
+                        section=build_ini_section_name(section_name, group_name),
+                        rank=rank,
+                        initials=clean_text(value),
+                        score=parse_ini_score(score_value),
+                    )
+                )
+                paired_keys.update({key, score_key})
+                continue
+
+            split_name_match = split_name_pattern.match(key)
+            if split_name_match:
+                group_name = split_name_match.group("prefix")
+                rank_text = split_name_match.group("rank")
+                name_key = f"{group_name}Name{rank_text}"
+                name_value = section_items.get(name_key)
+                if name_value is None:
+                    continue
+
+                entries.append(
+                    ParsedEntry(
+                        section=build_ini_section_name(section_name, group_name),
+                        rank=int(rank_text),
+                        initials=clean_text(name_value),
+                        score=parse_ini_score(value),
+                    )
+                )
+                paired_keys.update({key, name_key})
+
+    return entries
+
 DECODERS = {
     "single_bcd_score": decode_single_bcd_score,
     "single_digit_score": decode_single_digit_score,
@@ -431,6 +503,13 @@ def format_result(rom_name: str, result: int | list[ParsedEntry]) -> list[str]:
 
     return lines
 
+def detect_score_type(rom_name: str, filename: str | None = None) -> str:
+    if filename and Path(filename).suffix.lower() == ".ini":
+        return "ini"
+
+    resolved_rom_name = resolve_rom_name(rom_name)
+    return roms[resolved_rom_name]["scoretype"]
+
 def _has_meaningful_entry(entry: ParsedEntry) -> bool:
     return bool(
         clean_text(entry.initials)
@@ -439,14 +518,19 @@ def _has_meaningful_entry(entry: ParsedEntry) -> bool:
     )
 
 
-def result_to_jsonable(rom_name: str, result: int | list[ParsedEntry]) -> dict | None:
+def result_to_jsonable(
+    rom_name: str,
+    result: int | list[ParsedEntry],
+    filename: str | None = None,
+) -> dict | None:
     resolved_rom_name = resolve_rom_name(rom_name)
+    score_type = detect_score_type(rom_name, filename)
 
     if isinstance(result, int):
         return {
             "rom": rom_name,
             "resolved_rom": resolved_rom_name,
-            "score_type": roms[resolved_rom_name]["scoretype"],
+            "score_type": score_type,
             "value": result,
         }
 
@@ -457,7 +541,7 @@ def result_to_jsonable(rom_name: str, result: int | list[ParsedEntry]) -> dict |
     return {
         "rom": rom_name,
         "resolved_rom": resolved_rom_name,
-        "score_type": roms[resolved_rom_name]["scoretype"],
+        "score_type": score_type,
         "entries": [asdict(entry) for entry in filtered_entries],
     }
 
@@ -466,6 +550,9 @@ def read_rom(
     filename: str,
     settings: dict | None = None,
 ) -> int | list[ParsedEntry]:
+    if Path(filename).suffix.lower() == ".ini":
+        return decode_ini_file(filename)
+
     resolved_rom_name = resolve_rom_name(rom_name)
     rom_config = roms.get(resolved_rom_name)
     if rom_config is None:
@@ -497,7 +584,7 @@ if __name__ == "__main__":
         "abv106": "/home/superhac/tables/Airborne (Capcom 1996)/pinmame/nvram/abv106.nv",
         "abv106r": "/home/superhac/tables/Airborne (Capcom 1996)/pinmame/nvram/abv106r.nv",
         "acd_170h": "/home/superhac/tables/AC-DC LUCI Premium VR (Stern 2013)/pinmame/nvram/acd_170h.nv",
-        "afm_113": "/home/superhac/tables/Attack from Mars (Bally 1995)/pinmame/nvram/afm_113b.nv",
+        "afm_113b": "/home/superhac/tables/Attack from Mars (Bally 1995)/pinmame/nvram/afm_113b.nv",
         "ali": "/home/superhac/tables/Ali (Stern 1980)/pinmame/nvram/ali.nv",
         "attack": "/home/superhac/tables/Attack (Playmatic 1980)/pinmame/nvram/attack.nv",
         "andretti": "/home/superhac/tables/Mario Andretti (Gottlieb 1995)/pinmame/nvram/andretti.nv",
@@ -517,6 +604,8 @@ if __name__ == "__main__":
         #"alpok_l2": "/home/superhac/tables/Alien Poker (Williams 1980)/pinmame/nvram/alpok_l2.nv",
         "alpok_b6": "/home/superhac/tables/Alien Poker (Williams 1980)/pinmame/nvram/alpok_b6.nv",
         #"amazon3a": "/home/superhac/tables/Amazon Hunt (Gottlieb 1983)/pinmame/nvram/amazonh.nv",
+        "Matrix": "/home/superhac/tables/The Matrix (Original 2026)/user/VPReg.ini",
+        "DarkestDungeon": "/home/superhac/tables/The Matrix (Original 2026)/user/VPReg.ini", 
     }
 
     for rom_name, filename in rom_files.items():
@@ -534,5 +623,5 @@ if __name__ == "__main__":
             print(line)
 
         print()
-        print(json.dumps(result_to_jsonable(rom_name, result), indent=2))
+        print(json.dumps(result_to_jsonable(rom_name, result, filename), indent=2))
         print()

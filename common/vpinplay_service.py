@@ -26,6 +26,10 @@ def _normalize_last_run(value):
     return value
 
 
+def _normalize_score(value):
+    return value if isinstance(value, dict) else None
+
+
 def _normalize_service_endpoint(service_ip: str) -> str:
     raw = str(service_ip or "").strip()
     if not raw:
@@ -66,6 +70,7 @@ def _build_table_payload(meta: dict) -> dict | None:
             "lastRun": _normalize_last_run(user.get("LastRun")),
             "startCount": _to_int(user.get("StartCount", 0), default=0),
             "runTime": _to_int(user.get("RunTime", 0), default=0),
+            "score": _normalize_score(user.get("Score")),
         },
         "vpxFile": {
             "filename": str(vpx.get("filename", "") or ""),
@@ -97,17 +102,21 @@ def _build_table_payload(meta: dict) -> dict | None:
 def sync_installed_tables(
     service_ip: str,
     user_id: str,
+    initials: str,
     machine_id: str,
     table_root_dir: str,
     timeout_seconds: int = 30,
 ) -> dict:
     endpoint = _normalize_service_endpoint(service_ip)
     user_id = str(user_id or "").strip()
+    initials = str(initials or "").strip()
     machine_id = str(machine_id or "").strip()
     table_root_dir = str(table_root_dir or "").strip()
 
     if not user_id:
         raise ValueError("User ID is required.")
+    if not initials:
+        raise ValueError("Initials is required.")
     if not machine_id:
         raise ValueError("Machine ID is required.")
     if not table_root_dir:
@@ -138,6 +147,7 @@ def sync_installed_tables(
         },
         "client": {
             "userId": user_id,
+            "initials": initials,
             "machineId": machine_id,
         },
         "sentAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
@@ -191,15 +201,17 @@ def sync_on_shutdown(iniconfig, timeout_seconds: int = 10) -> dict | None:
 
     service_ip = iniconfig.config.get(section, "apiendpoint", fallback="").strip()
     user_id = iniconfig.config.get(section, "userid", fallback="").strip()
+    initials = iniconfig.config.get(section, "initials", fallback="").strip()
     machine_id = iniconfig.config.get(section, "machineid", fallback="").strip()
     table_root_dir = iniconfig.config.get("Settings", "tablerootdir", fallback="").strip()
 
-    if not service_ip or not user_id or not machine_id or not table_root_dir:
+    if not service_ip or not user_id or not initials or not machine_id or not table_root_dir:
         logger.warning(
             "Skipping VPinPlay shutdown sync: missing required settings "
-            "(apiendpoint=%s, userid=%s, machineid=%s, tablerootdir=%s).",
+            "(apiendpoint=%s, userid=%s, initials=%s, machineid=%s, tablerootdir=%s).",
             bool(service_ip),
             bool(user_id),
+            bool(initials),
             bool(machine_id),
             bool(table_root_dir),
         )
@@ -209,6 +221,7 @@ def sync_on_shutdown(iniconfig, timeout_seconds: int = 10) -> dict | None:
         result = sync_installed_tables(
             service_ip=service_ip,
             user_id=user_id,
+            initials=initials,
             machine_id=machine_id,
             table_root_dir=table_root_dir,
             timeout_seconds=timeout_seconds,

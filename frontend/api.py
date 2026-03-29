@@ -633,19 +633,36 @@ class API:
             logger.debug("No ROM name found for %s, skipping score update", table.tableDirName)
             return
 
-        nvram_path = Path(table.fullPathTable) / "pinmame" / "nvram" / f"{rom}.nv"
-        if not nvram_path.exists():
-            logger.debug("NVRAM file not found for %s: %s", table.tableDirName, nvram_path)
-            return
+        primary_score_path = Path(table.fullPathTable) / "pinmame" / "nvram" / f"{rom}.nv"
+        fallback_score_path = Path(table.fullPathTable) / "user" / "VPReg.ini"
+
+        score_path = primary_score_path
+        if not score_path.exists():
+            if fallback_score_path.exists():
+                score_path = fallback_score_path
+                logger.debug(
+                    "NVRAM file not found for %s, falling back to %s",
+                    table.tableDirName,
+                    score_path,
+                )
+            else:
+                logger.debug(
+                    "No score source found for %s. Checked %s and %s",
+                    table.tableDirName,
+                    primary_score_path,
+                    fallback_score_path,
+                )
+                return
 
         try:
-            parsed_result = read_rom(rom, str(nvram_path))
-            score_data = result_to_jsonable(rom, parsed_result)
+            parsed_result = read_rom(rom, str(score_path))
+            score_data = result_to_jsonable(rom, parsed_result, str(score_path))
         except KeyError:
             logger.debug("ROM %s is not supported for score parsing", rom)
             return
+
         except Exception:
-            logger.exception("Failed to parse score data for %s from %s", table.tableDirName, nvram_path)
+            logger.exception("Failed to parse score data for %s from %s", table.tableDirName, score_path)
             return
 
         if not score_data:
@@ -655,7 +672,7 @@ class API:
         user = self._get_or_create_user_meta(config)
         user["Score"] = score_data
         self._persist_table_meta(table, config)
-        logger.info("Updated User.Score for %s from %s", table.tableDirName, nvram_path)
+        logger.info("Updated User.Score for %s from %s", table.tableDirName, score_path)
 
     def _increment_user_start_count(self, table):
         config = table.metaConfig or {}

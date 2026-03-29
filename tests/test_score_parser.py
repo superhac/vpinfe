@@ -45,6 +45,32 @@ class TestScoreParser(unittest.TestCase):
             },
         )
 
+    def test_result_to_jsonable_uses_ini_score_type_for_ini_sources(self) -> None:
+        result = result_to_jsonable(
+            "Matrix",
+            [ParsedEntry(section="Scores", rank=1, initials="NEO", score=424242)],
+            "/tmp/VPReg.ini",
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "rom": "Matrix",
+                "resolved_rom": "Matrix",
+                "score_type": "ini",
+                "entries": [
+                    {
+                        "section": "Scores",
+                        "rank": 1,
+                        "initials": "NEO",
+                        "score": 424242,
+                        "value_suffix": None,
+                        "extra_lines": [],
+                    }
+                ],
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

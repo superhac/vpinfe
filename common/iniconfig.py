@@ -83,6 +83,7 @@ class IniConfig:
 					'synconexit': 'false',
 					'apiendpoint': 'https://api.vpinplay.com:8888',
 					'userid': '',
+					'initials': '',
 					'machineid': '',
 					},
 		}
@@ -140,6 +141,15 @@ class IniConfig:
 		current_theme = self.config.get('Settings', 'theme', fallback='').strip()
 		if not current_theme:
 			self.config.set('Settings', 'theme', self.defaults['Settings']['theme'])
+			changed = True
+
+		# Migrate misspelled vpinplay.initals to vpinplay.initials if present.
+		if self.config.has_option('vpinplay', 'initals'):
+			legacy_initials = self.config.get('vpinplay', 'initals', fallback='').strip()
+			current_initials = self.config.get('vpinplay', 'initials', fallback='').strip()
+			if legacy_initials and not current_initials:
+				self.config.set('vpinplay', 'initials', legacy_initials)
+			self.config.remove_option('vpinplay', 'initals')
 			changed = True
 
 		# Auto-generate vpinplay.machineid when not set.

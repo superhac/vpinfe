@@ -98,6 +98,7 @@ FRIENDLY_NAMES = {
     'synconexit': 'Sync on Exit',
     'apiendpoint': 'API Endpoint',
     'userid': 'User ID',
+    'initials': 'Initials',
     'machineid': 'Machine ID',
     # [Media]
     'tabletype': 'Table Type',
@@ -307,6 +308,9 @@ def render_panel(tab=None):
             text-transform: uppercase;
             color: #bfdbfe;
             font-weight: 700;
+        }
+        .config-uppercase-input input {
+            text-transform: uppercase !important;
         }
         .config-tabs {
             gap: 0.6rem;
@@ -680,10 +684,23 @@ def render_panel(tab=None):
                         else:
                             label_widget.text = friendly_label
                     inp.on_value_change(on_mask_change)
+                if section == 'vpinplay' and key == 'initials':
+                    inp.props('maxlength=3').classes('config-uppercase-input')
+
+                    def on_initials_change(e):
+                        normalized = str(e.value or '').upper()
+                        if inp.value != normalized:
+                            inp.value = normalized
+                        update_vpinplay_sync_button_state()
+
+                    inp.on('input', on_initials_change)
+                    inp.on_value_change(on_initials_change)
 
             inputs[section][key] = inp
             if (section, key) in launch_preview_keys:
                 inp.on_value_change(lambda _: update_launch_preview())
+            if section == 'vpinplay' and key == 'userid':
+                inp.on_value_change(lambda _: update_vpinplay_sync_button_state())
 
     def save_config():
         for section, keys in inputs.items():
@@ -691,9 +708,14 @@ def render_panel(tab=None):
                 if type(inp.value) is bool:
                     config.config.set(section, key, str(inp.value).lower())
                 else:
-                    config.config.set(section, key, inp.value)
+                    value = inp.value
+                    if section == 'vpinplay' and key == 'initials':
+                        value = str(value or '').upper()
+                        inp.value = value
+                    config.config.set(section, key, value)
         with open(INI_PATH, 'w') as f:
             config.config.write(f)
+        update_vpinplay_sync_button_state()
         ui.notify('Configuration Saved', type='positive')
 
     def split_evenly(items: list[str], columns: int) -> list[list[str]]:
@@ -790,6 +812,10 @@ def render_panel(tab=None):
             getattr(vpinplay_inputs.get('userid'), 'value', config.config.get('vpinplay', 'userid', fallback=''))
             or ''
         ).strip()
+        initials = str(
+            getattr(vpinplay_inputs.get('initials'), 'value', config.config.get('vpinplay', 'initials', fallback=''))
+            or ''
+        ).strip()
         machine_id = str(
             getattr(vpinplay_inputs.get('machineid'), 'value', config.config.get('vpinplay', 'machineid', fallback=''))
             or ''
@@ -804,6 +830,9 @@ def render_panel(tab=None):
             return
         if not user_id:
             ui.notify('User ID is required.', type='warning')
+            return
+        if not initials:
+            ui.notify('Initials is required.', type='warning')
             return
         if not machine_id:
             ui.notify('Machine ID is required.', type='warning')
@@ -823,6 +852,7 @@ def render_panel(tab=None):
                 sync_installed_tables,
                 service_ip,
                 user_id,
+                initials,
                 machine_id,
                 tables_dir,
             )
@@ -847,7 +877,7 @@ def render_panel(tab=None):
         finally:
             close_button.enable()
             sync_vpinplay_button.text = 'Sync Installed Tables'
-            sync_vpinplay_button.enable()
+            update_vpinplay_sync_button_state()
 
     def _get_vpinplay_user_id_value() -> str:
         vpinplay_inputs = inputs.get('vpinplay', {})
@@ -869,6 +899,23 @@ def render_panel(tab=None):
         user_url = _build_vpinplay_user_url(user_id)
         vpinplay_user_link.text = 'Your Stats'
         vpinplay_user_link.props(f'href={user_url}')
+
+    def update_vpinplay_sync_button_state():
+        if sync_vpinplay_button is None:
+            return
+        vpinplay_inputs = inputs.get('vpinplay', {})
+        user_id = str(
+            getattr(vpinplay_inputs.get('userid'), 'value', config.config.get('vpinplay', 'userid', fallback=''))
+            or ''
+        ).strip()
+        initials = str(
+            getattr(vpinplay_inputs.get('initials'), 'value', config.config.get('vpinplay', 'initials', fallback=''))
+            or ''
+        ).strip()
+        if user_id and initials:
+            sync_vpinplay_button.enable()
+        else:
+            sync_vpinplay_button.disable()
 
     with ui.column().classes('w-full config-page-shell'):
         with ui.card().classes('w-full config-hero').style('overflow: hidden;'):
@@ -1026,6 +1073,7 @@ def render_panel(tab=None):
                                     sync_key = 'synconexit'
                                     endpoint_key = 'apiendpoint'
                                     user_key = 'userid'
+                                    initials_key = 'initials'
                                     machine_key = 'machineid'
                                     with ui.element('div').classes('config-vpinplay-pair'):
                                         with ui.column().classes('w-full gap-3'):
@@ -1067,13 +1115,19 @@ def render_panel(tab=None):
                                                         user_input = inputs.get(section, {}).get(user_key)
                                                         if user_input is not None:
                                                             user_input.on_value_change(lambda _: update_vpinplay_user_link())
+                                                if initials_key in options:
+                                                    with ui.element('div').classes('w-full'):
+                                                        value = config.config.get(section, initials_key, fallback='')
+                                                        build_config_input(section, initials_key, value)
+
+                                            with ui.element('div').classes('config-vpinplay-pair'):
                                                 if machine_key in options:
                                                     with ui.element('div').classes('w-full'):
                                                         value = config.config.get(section, machine_key, fallback='')
                                                         build_config_input(section, machine_key, value)
 
                                             for key in options:
-                                                if key in (sync_key, endpoint_key, user_key, machine_key):
+                                                if key in (sync_key, endpoint_key, user_key, initials_key, machine_key):
                                                     continue
                                                 value = config.config.get(section, key, fallback='')
                                                 build_config_input(section, key, value)
@@ -1088,6 +1142,7 @@ def render_panel(tab=None):
                                                 icon='sync',
                                                 on_click=run_vpinplay_sync,
                                             ).props('color=primary rounded').classes('mt-3')
+                                            update_vpinplay_sync_button_state()
                                 else:
                                     with ui.element('div').classes('config-form-grid'):
                                         for key in options:
