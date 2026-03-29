@@ -29,18 +29,22 @@ rom_aliases = {
 }
 
 def get_roms_path() -> Path:
-    candidates = [
-        Path(__file__).with_name("resources") / "roms.json",
-    ]
+    candidate_paths: list[Path] = [Path(__file__).with_name("resources") / "roms.json"]
 
     meipass = getattr(sys, "_MEIPASS", None)
     if meipass:
-        candidates.append(Path(meipass) / "common" / "resources" / "roms.json")
+        candidate_paths.append(Path(meipass) / "common" / "resources" / "roms.json")
 
     exe_dir = Path(sys.executable).resolve().parent
-    candidates.append(exe_dir / "common" / "resources" / "roms.json")
-    candidates.append(exe_dir / "_internal" / "common" / "resources" / "roms.json")
-    candidates.append(exe_dir.parent / "Resources" / "common" / "resources" / "roms.json")
+    candidate_paths.extend(
+        [
+            exe_dir / "common" / "resources" / "roms.json",
+            exe_dir / "_internal" / "common" / "resources" / "roms.json",
+            exe_dir.parent / "Resources" / "common" / "resources" / "roms.json",
+        ]
+    )
+
+    candidates = list(dict.fromkeys(candidate_paths))
 
     for path in candidates:
         if path.exists():
