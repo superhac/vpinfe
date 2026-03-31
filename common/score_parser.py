@@ -31,6 +31,7 @@ rom_aliases = {
     "cp_16": "cp_15",
     "eatpm_l4": "eatpm_l1",
     "fg_1200af":"fg_1200al",
+    "eightbll": "evelknie",
 }
 
 def get_roms_path() -> Path:
@@ -671,6 +672,9 @@ if __name__ == "__main__":
         "fg_1200af":"/home/superhac/tables/Family Guy (Stern 2007)/pinmame/nvram/fg_1200af.nv",
         "fh_905h":"/home/superhac/tables/Funhouse (Williams 1990)/pinmame/nvram/fh_905h.nv",
         "cc_13": "/home/superhac/tables/Cactus Canyon (Bally 1998)/pinmame/nvram/cc_13.nv",
+        "eightbll": "/home/superhac/tables/Eight Ball (Bally 1977)/pinmame/nvram/eightbll.nv",
+        "frankst": "/home/superhac/tables/Mary Shelley's Frankenstein (Sega 1995)/pinmame/nvram/frankst.nv",
+        "freddy": "/home/superhac/tables/Freddy - A Nightmare on Elm Street (Gottlieb 1994)/pinmame/nvram/freddy.nv",
     }
 
     for rom_name, filename in rom_files.items():

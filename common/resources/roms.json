@@ -2035,6 +2035,47 @@
       }
     ]
   },
+  "frankst": {
+    "decoder": "leaderboard_bcd",
+    "entries": [
+      {"name_offsets": [5819, 5820, 5821], "rank": 1, "score_offsets": [5781, 5757, 5758, 5759, 5760], "title": "HIGH SCORES"},
+      {"name_offsets": [5822, 5823, 5824], "rank": 2, "score_offsets": [5782, 5761, 5762, 5763, 5764], "title": "HIGH SCORES"},
+      {"name_offsets": [5825, 5826, 5827], "rank": 3, "score_offsets": [5783, 5765, 5766, 5767, 5768], "title": "HIGH SCORES"},
+      {"name_offsets": [5828, 5829, 5830], "rank": 4, "score_offsets": [5784, 5769, 5770, 5771, 5772], "title": "HIGH SCORES"},
+      {"name_offsets": [5831, 5832, 5833], "rank": 5, "score_offsets": [5785, 5773, 5774, 5775, 5776], "title": "HIGH SCORES"},
+      {"name_offsets": [5834, 5835, 5836], "rank": 6, "score_offsets": [5786, 5777, 5778, 5779, 5780], "title": "HIGH SCORES"}
+    ],
+    "one_based": true,
+    "scoretype": "Leaderboard"
+  },
+  "freddy": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [3341, 3342, 3343], "rank": 1, "score_decoder": "bcd", "score_offsets": [3366, 3367, 3368, 3369, 3370]}
+        ],
+        "title": "DREAM MASTER"
+      },
+      {
+        "entries": [
+          {"name_offsets": [3346, 3347, 3348], "rank": 2, "score_decoder": "bcd", "score_offsets": [3371, 3372, 3373, 3374, 3375]},
+          {"name_offsets": [3351, 3352, 3353], "rank": 3, "score_decoder": "bcd", "score_offsets": [3376, 3377, 3378, 3379, 3380]},
+          {"name_offsets": [3356, 3357, 3358], "rank": 4, "score_decoder": "bcd", "score_offsets": [3381, 3382, 3383, 3384, 3385]},
+          {"name_offsets": [3361, 3362, 3363], "rank": 5, "score_decoder": "bcd", "score_offsets": [3386, 3387, 3388, 3389, 3390]}
+        ],
+        "title": "DREAM WARRIORS"
+      },
+      {
+        "entries": [
+          {"name_offsets": [1617, 1618, 1619], "rank": null, "score_decoder": "bcd", "score_offsets": [3455, 3456]}
+        ],
+        "title": "MOST SOULS SAVED"
+      }
+    ]
+  },
   "dollyptb": {
     "decoder": "single_high_nibble_score_x10",
     "offsets": [172, 173, 174, 175, 176, 177],

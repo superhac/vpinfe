@@ -7,6 +7,26 @@ from pathlib import Path
 logger = logging.getLogger("vpinfe.common.vpxcollections")
 
 
+def _get_display_title(table):
+    meta = table.metaConfig if isinstance(table.metaConfig, dict) else {}
+    vpinfe = meta.get("VPinFE", {}) if isinstance(meta.get("VPinFE"), dict) else {}
+    info = meta.get("Info", {}) if isinstance(meta.get("Info"), dict) else {}
+
+    if str(vpinfe.get("altvpsid", "") or "").strip():
+        return str(vpinfe.get("alttitle", "") or "").strip()
+    return str(info.get("Title", "") or "").strip()
+
+
+def _get_last_run_value(table):
+    meta = table.metaConfig if isinstance(table.metaConfig, dict) else {}
+    user = meta.get("User", {}) if isinstance(meta.get("User"), dict) else {}
+    raw = user.get("LastRun")
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return -1
+
+
 class VPXCollections:
     def __init__(self, ini_path: str):
         """Load and parse the collections ini file."""
@@ -173,16 +193,12 @@ class VPXCollections:
             ):
                 result.append(table)
 
-        # Sort alphabetically by display title
-        result.sort(
-            key=lambda t: (
-                (
-                    ((t.metaConfig or {}).get("VPinFE", {}).get("alttitle", ""))
-                    if str((t.metaConfig or {}).get("VPinFE", {}).get("altvpsid", "") or "").strip()
-                    else ((t.metaConfig or {}).get("Info", {}).get("Title", ""))
-                )
-                .lower()
+        if collection == "Last Played":
+            # Automatic recents collection should surface the most recently run tables first.
+            result.sort(
+                key=lambda t: (-_get_last_run_value(t), _get_display_title(t).lower())
             )
-        )
+        else:
+            result.sort(key=lambda t: _get_display_title(t).lower())
 
         return result
