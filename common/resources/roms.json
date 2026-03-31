@@ -950,6 +950,1192 @@
       }
     ]
   },
+  "bonebstr": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [184, 185, 186, 187, 188, 189],
+            "rank": 1,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [190, 191, 192, 193, 194, 195, 196]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [197, 198, 199, 200, 201, 202],
+            "rank": 2,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [203, 204, 205, 206, 207, 208, 209]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [210, 211, 212, 213, 214, 215],
+            "rank": 3,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [216, 217, 218, 219, 220, 221, 222]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [223, 224, 225, 226, 227, 228],
+            "rank": 4,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [229, 230, 231, 232, 233, 234, 235]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [236, 237, 238, 239, 240, 241],
+            "rank": 5,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [242, 243, 244, 245, 246, 247, 248]
+          }
+        ],
+        "title": "BONE BUSTERS"
+      }
+    ]
+  },
+  "bop_l6": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7880, 7881, 7882], "rank": null, "score_decoder": "bcd", "score_offsets": [7883, 7884, 7885, 7886, 7887], "skip_score_values": [1000000000]},
+          {"name_offsets": [7888, 7889, 7890], "rank": null, "score_decoder": "bcd", "score_offsets": [7891, 7892, 7893, 7894, 7895], "skip_score_values": [1000000000]},
+          {"name_offsets": [7896, 7897, 7898], "rank": null, "score_decoder": "bcd", "score_offsets": [7899, 7900, 7901, 7902, 7903], "skip_score_values": [1000000000]},
+          {"name_offsets": [7904, 7905, 7906], "rank": null, "score_decoder": "bcd", "score_offsets": [7907, 7908, 7909, 7910, 7911], "skip_score_values": [1000000000]},
+          {"name_offsets": [7912, 7913, 7914], "rank": null, "score_decoder": "bcd", "score_offsets": [7915, 7916, 7917, 7918, 7919], "skip_score_values": [1000000000]},
+          {"name_offsets": [7920, 7921, 7922], "rank": null, "score_decoder": "bcd", "score_offsets": [7923, 7924, 7925, 7926, 7927], "skip_score_values": [1000000000]},
+          {"name_offsets": [7928, 7929, 7930], "rank": null, "score_decoder": "bcd", "score_offsets": [7931, 7932, 7933, 7934, 7935], "skip_score_values": [1000000000]},
+          {"name_offsets": [7936, 7937, 7938], "rank": null, "score_decoder": "bcd", "score_offsets": [7939, 7940, 7941, 7942, 7943], "skip_score_values": [1000000000]},
+          {"name_offsets": [7944, 7945, 7946], "rank": null, "score_decoder": "bcd", "score_offsets": [7947, 7948, 7949, 7950, 7951], "skip_score_values": [1000000000]},
+          {"name_offsets": [7952, 7953, 7954], "rank": null, "score_decoder": "bcd", "score_offsets": [7955, 7956, 7957, 7958, 7959], "skip_score_values": [1000000000]},
+          {"name_offsets": [7960, 7961, 7962], "rank": null, "score_decoder": "bcd", "score_offsets": [7963, 7964, 7965, 7966, 7967], "skip_score_values": [1000000000]},
+          {"name_offsets": [7968, 7969, 7970], "rank": null, "score_decoder": "bcd", "score_offsets": [7971, 7972, 7973, 7974, 7975], "skip_score_values": [1000000000]},
+          {"name_offsets": [7976, 7977, 7978], "rank": null, "score_decoder": "bcd", "score_offsets": [7979, 7980, 7981, 7982, 7983], "skip_score_values": [1000000000]},
+          {"name_offsets": [7984, 7985, 7986], "rank": null, "score_decoder": "bcd", "score_offsets": [7987, 7988, 7989, 7990, 7991], "skip_score_values": [1000000000]},
+          {"name_offsets": [7992, 7993, 7994], "rank": null, "score_decoder": "bcd", "score_offsets": [7995, 7996, 7997, 7998, 7999], "skip_score_values": [1000000000]},
+          {"name_offsets": [8000, 8001, 8002], "rank": null, "score_decoder": "bcd", "score_offsets": [8003, 8004, 8005, 8006, 8007], "skip_score_values": [1000000000]},
+          {"name_offsets": [8008, 8009, 8010], "rank": null, "score_decoder": "bcd", "score_offsets": [8011, 8012, 8013, 8014, 8015], "skip_score_values": [1000000000]},
+          {"name_offsets": [8016, 8017, 8018], "rank": null, "score_decoder": "bcd", "score_offsets": [8019, 8020, 8021, 8022, 8023], "skip_score_values": [1000000000]},
+          {"name_offsets": [8024, 8025, 8026], "rank": null, "score_decoder": "bcd", "score_offsets": [8027, 8028, 8029, 8030, 8031], "skip_score_values": [1000000000]},
+          {"name_offsets": [8032, 8033, 8034], "rank": null, "score_decoder": "bcd", "score_offsets": [8035, 8036, 8037, 8038, 8039], "skip_score_values": [1000000000]}
+        ],
+        "title": "BILLIONAIRE CLUB MEMBERS"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7279, 7280, 7281], "rank": null, "score_decoder": "bcd", "score_offsets": [7282, 7283, 7284, 7285, 7286]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7245, 7246, 7247], "rank": 1, "score_decoder": "bcd", "score_offsets": [7248, 7249, 7250, 7251, 7252]},
+          {"name_offsets": [7253, 7254, 7255], "rank": 2, "score_decoder": "bcd", "score_offsets": [7256, 7257, 7258, 7259, 7260]},
+          {"name_offsets": [7261, 7262, 7263], "rank": 3, "score_decoder": "bcd", "score_offsets": [7264, 7265, 7266, 7267, 7268]},
+          {"name_offsets": [7269, 7270, 7271], "rank": 4, "score_decoder": "bcd", "score_offsets": [7272, 7273, 7274, 7275, 7276]}
+        ],
+        "title": "HIGHEST SCORES"
+      }
+    ]
+  },
+  "bop_l7": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7970, 7971, 7972], "rank": null, "score_decoder": "bcd", "score_offsets": [7973, 7974, 7975, 7976, 7977], "skip_score_values": [1000000000]},
+          {"name_offsets": [7978, 7979, 7980], "rank": null, "score_decoder": "bcd", "score_offsets": [7981, 7982, 7983, 7984, 7985], "skip_score_values": [1000000000]},
+          {"name_offsets": [7986, 7987, 7988], "rank": null, "score_decoder": "bcd", "score_offsets": [7989, 7990, 7991, 7992, 7993], "skip_score_values": [1000000000]},
+          {"name_offsets": [7994, 7995, 7996], "rank": null, "score_decoder": "bcd", "score_offsets": [7997, 7998, 7999, 8000, 8001], "skip_score_values": [1000000000]},
+          {"name_offsets": [8002, 8003, 8004], "rank": null, "score_decoder": "bcd", "score_offsets": [8005, 8006, 8007, 8008, 8009], "skip_score_values": [1000000000]},
+          {"name_offsets": [8010, 8011, 8012], "rank": null, "score_decoder": "bcd", "score_offsets": [8013, 8014, 8015, 8016, 8017], "skip_score_values": [1000000000]},
+          {"name_offsets": [8018, 8019, 8020], "rank": null, "score_decoder": "bcd", "score_offsets": [8021, 8022, 8023, 8024, 8025], "skip_score_values": [1000000000]},
+          {"name_offsets": [8026, 8027, 8028], "rank": null, "score_decoder": "bcd", "score_offsets": [8029, 8030, 8031, 8032, 8033], "skip_score_values": [1000000000]},
+          {"name_offsets": [8034, 8035, 8036], "rank": null, "score_decoder": "bcd", "score_offsets": [8037, 8038, 8039, 8040, 8041], "skip_score_values": [1000000000]},
+          {"name_offsets": [8042, 8043, 8044], "rank": null, "score_decoder": "bcd", "score_offsets": [8045, 8046, 8047, 8048, 8049], "skip_score_values": [1000000000]},
+          {"name_offsets": [8050, 8051, 8052], "rank": null, "score_decoder": "bcd", "score_offsets": [8053, 8054, 8055, 8056, 8057], "skip_score_values": [1000000000]},
+          {"name_offsets": [8058, 8059, 8060], "rank": null, "score_decoder": "bcd", "score_offsets": [8061, 8062, 8063, 8064, 8065], "skip_score_values": [1000000000]},
+          {"name_offsets": [8066, 8067, 8068], "rank": null, "score_decoder": "bcd", "score_offsets": [8069, 8070, 8071, 8072, 8073], "skip_score_values": [1000000000]},
+          {"name_offsets": [8074, 8075, 8076], "rank": null, "score_decoder": "bcd", "score_offsets": [8077, 8078, 8079, 8080, 8081], "skip_score_values": [1000000000]},
+          {"name_offsets": [8082, 8083, 8084], "rank": null, "score_decoder": "bcd", "score_offsets": [8085, 8086, 8087, 8088, 8089], "skip_score_values": [1000000000]},
+          {"name_offsets": [8090, 8091, 8092], "rank": null, "score_decoder": "bcd", "score_offsets": [8093, 8094, 8095, 8096, 8097], "skip_score_values": [1000000000]},
+          {"name_offsets": [8098, 8099, 8100], "rank": null, "score_decoder": "bcd", "score_offsets": [8101, 8102, 8103, 8104, 8105], "skip_score_values": [1000000000]},
+          {"name_offsets": [8106, 8107, 8108], "rank": null, "score_decoder": "bcd", "score_offsets": [8109, 8110, 8111, 8112, 8113], "skip_score_values": [1000000000]},
+          {"name_offsets": [8114, 8115, 8116], "rank": null, "score_decoder": "bcd", "score_offsets": [8117, 8118, 8119, 8120, 8121], "skip_score_values": [1000000000]},
+          {"name_offsets": [8122, 8123, 8124], "rank": null, "score_decoder": "bcd", "score_offsets": [8125, 8126, 8127, 8128, 8129], "skip_score_values": [1000000000]}
+        ],
+        "title": "BILLIONAIRE CLUB MEMBERS"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7390, 7391, 7392], "rank": null, "score_decoder": "bcd", "score_offsets": [7393, 7394, 7395, 7396, 7397]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7356, 7357, 7358], "rank": 1, "score_decoder": "bcd", "score_offsets": [7359, 7360, 7361, 7362, 7363]},
+          {"name_offsets": [7364, 7365, 7366], "rank": 2, "score_decoder": "bcd", "score_offsets": [7367, 7368, 7369, 7370, 7371]},
+          {"name_offsets": [7372, 7373, 7374], "rank": 3, "score_decoder": "bcd", "score_offsets": [7375, 7376, 7377, 7378, 7379]},
+          {"name_offsets": [7380, 7381, 7382], "rank": 4, "score_decoder": "bcd", "score_offsets": [7383, 7384, 7385, 7386, 7387]}
+        ],
+        "title": "HIGHEST SCORES"
+      }
+    ]
+  },
+  "bountyh": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [187, 188, 189, 190, 191, 192],
+            "rank": 1,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [193, 194, 195, 196, 197, 198]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [199, 200, 201, 202, 203, 204],
+            "rank": 2,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [205, 206, 207, 208, 209, 210]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [211, 212, 213, 214, 215, 216],
+            "rank": 3,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [217, 218, 219, 220, 221, 222]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [223, 224, 225, 226, 227, 228],
+            "rank": 4,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [229, 230, 231, 232, 233, 234]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [235, 236, 237, 238, 239, 240],
+            "rank": 5,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [241, 242, 243, 244, 245, 246]
+          }
+        ],
+        "title": "TOP GUNS"
+      }
+    ]
+  },
+  "br_l4": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7312, 7313, 7314], "rank": null, "score_decoder": "bcd", "score_offsets": [7315, 7316, 7317, 7318, 7319]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7278, 7279, 7280], "rank": 1, "score_decoder": "bcd", "score_offsets": [7281, 7282, 7283, 7284, 7285]},
+          {"name_offsets": [7286, 7287, 7288], "rank": 2, "score_decoder": "bcd", "score_offsets": [7289, 7290, 7291, 7292, 7293]},
+          {"name_offsets": [7294, 7295, 7296], "rank": 3, "score_decoder": "bcd", "score_offsets": [7297, 7298, 7299, 7300, 7301]},
+          {"name_offsets": [7302, 7303, 7304], "rank": 4, "score_decoder": "bcd", "score_offsets": [7305, 7306, 7307, 7308, 7309]}
+        ],
+        "title": "HIGHEST SCORES"
+      },
+      {
+        "entries": [
+          {
+            "data_offsets": [7895],
+            "entry_decoder": "labeled_single_value",
+            "name_offsets": [7892, 7893, 7894],
+            "rank": null,
+            "value_format": "int",
+            "value_suffix": "SHIPS SUNK"
+          }
+        ],
+        "title": "MOST SHIPS SUNK"
+      }
+    ]
+  },
+  "bsv103": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "settings": {"buyins": true},
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [281, 283, 285], "rank": null, "score_decoder": "big_endian_x10", "score_offsets": [241, 243, 245, 247]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [289, 291, 293], "rank": 1, "score_decoder": "big_endian_x10", "score_offsets": [249, 251, 253, 255]},
+          {"name_offsets": [297, 299, 301], "rank": 2, "score_decoder": "big_endian_x10", "score_offsets": [257, 259, 261, 263]},
+          {"name_offsets": [305, 307, 309], "rank": 3, "score_decoder": "big_endian_x10", "score_offsets": [265, 267, 269, 271]},
+          {"name_offsets": [313, 315, 317], "rank": 4, "score_decoder": "big_endian_x10", "score_offsets": [273, 275, 277, 279]}
+        ],
+        "title": "TOP HUSTLERS"
+      },
+      {
+        "enabled_setting": "buyins",
+        "entries": [
+          {"name_offsets": [361, 363, 365], "rank": 1, "score_decoder": "big_endian_x10", "score_offsets": [321, 323, 325, 327]},
+          {"name_offsets": [369, 371, 373], "rank": 2, "score_decoder": "big_endian_x10", "score_offsets": [329, 331, 333, 335]},
+          {"name_offsets": [377, 379, 381], "rank": 3, "score_decoder": "big_endian_x10", "score_offsets": [337, 339, 341, 343]},
+          {"name_offsets": [385, 387, 389], "rank": 4, "score_decoder": "big_endian_x10", "score_offsets": [345, 347, 349, 351]},
+          {"name_offsets": [393, 395, 397], "rank": 5, "score_decoder": "big_endian_x10", "score_offsets": [353, 355, 357, 359]}
+        ],
+        "title": "BUY IN SHARKS"
+      },
+      {
+        "entries": [
+          {"name_offsets": [619, 621, 623], "rank": 1, "score_decoder": "big_endian_x10", "score_offsets": [587, 589, 591, 593]},
+          {"name_offsets": [627, 629, 631], "rank": 2, "score_decoder": "big_endian_x10", "score_offsets": [595, 597, 599, 601]},
+          {"name_offsets": [635, 637, 639], "rank": 3, "score_decoder": "big_endian_x10", "score_offsets": [603, 605, 607, 609]},
+          {"name_offsets": [643, 645, 647], "rank": 4, "score_decoder": "big_endian_x10", "score_offsets": [611, 613, 615, 617]}
+        ],
+        "title": "CUTTHROAT CHAMPIONS"
+      }
+    ]
+  },
+  "cactjack": {
+    "decoder": "leaderboard_bcd",
+    "entries": [
+      {"name_offsets": [1671, 1672, 1673], "rank": 1, "score_offsets": [1691, 1692, 1693, 1694], "title": "TOP FRUIT THROWERS"},
+      {"name_offsets": [1675, 1676, 1677], "rank": 2, "score_offsets": [1695, 1696, 1697, 1698], "title": "TOP FRUIT THROWERS"},
+      {"name_offsets": [1679, 1680, 1681], "rank": 3, "score_offsets": [1699, 1700, 1701, 1702], "title": "TOP FRUIT THROWERS"},
+      {"name_offsets": [1683, 1684, 1685], "rank": 4, "score_offsets": [1703, 1704, 1705, 1706], "title": "TOP FRUIT THROWERS"},
+      {"name_offsets": [1687, 1688, 1689], "rank": 5, "score_offsets": [1707, 1708, 1709, 1710], "title": "TOP FRUIT THROWERS"}
+    ],
+    "one_based": true,
+    "scoretype": "Leaderboard"
+  },
+  "carhop": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [1671, 1672, 1673], "rank": 1, "score_decoder": "bcd", "score_offsets": [1691, 1692, 1693, 1694]},
+          {"name_offsets": [1675, 1676, 1677], "rank": 2, "score_decoder": "bcd", "score_offsets": [1695, 1696, 1697, 1698]},
+          {"name_offsets": [1679, 1680, 1681], "rank": 3, "score_decoder": "bcd", "score_offsets": [1699, 1700, 1701, 1702]},
+          {"name_offsets": [1683, 1684, 1685], "rank": 4, "score_decoder": "bcd", "score_offsets": [1703, 1704, 1705, 1706]},
+          {"name_offsets": [1687, 1688, 1689], "rank": 5, "score_decoder": "bcd", "score_offsets": [1707, 1708, 1709, 1710]}
+        ],
+        "title": "HIGH HOPPERS"
+      },
+      {
+        "entries": [
+          {"name_offsets": [297, 298, 299], "rank": null}
+        ],
+        "title": "RECORD HEAT WAVE"
+      }
+    ]
+  },
+  "ccruise": {
+    "decoder": "leaderboard_bcd",
+    "entries": [
+      {"name_offsets": [1671, 1672, 1673], "rank": 1, "score_offsets": [1691, 1692, 1693, 1694], "title": "CRUISE DIRECTORS"},
+      {"name_offsets": [1675, 1676, 1677], "rank": 2, "score_offsets": [1695, 1696, 1697, 1698], "title": "CRUISE DIRECTORS"},
+      {"name_offsets": [1679, 1680, 1681], "rank": 3, "score_offsets": [1699, 1700, 1701, 1702], "title": "CRUISE DIRECTORS"},
+      {"name_offsets": [1683, 1684, 1685], "rank": 4, "score_offsets": [1703, 1704, 1705, 1706], "title": "CRUISE DIRECTORS"},
+      {"name_offsets": [1687, 1688, 1689], "rank": 5, "score_offsets": [1707, 1708, 1709, 1710], "title": "CRUISE DIRECTORS"}
+    ],
+    "one_based": true,
+    "scoretype": "Leaderboard"
+  },
+  "cc_13": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7420, 7421, 7422], "rank": null, "score_decoder": "bcd", "score_offsets": [7423, 7424, 7425, 7426, 7427]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7386, 7387, 7388], "rank": 1, "score_decoder": "bcd", "score_offsets": [7389, 7390, 7391, 7392, 7393]},
+          {"name_offsets": [7394, 7395, 7396], "rank": 2, "score_decoder": "bcd", "score_offsets": [7397, 7398, 7399, 7400, 7401]},
+          {"name_offsets": [7402, 7403, 7404], "rank": 3, "score_decoder": "bcd", "score_offsets": [7405, 7406, 7407, 7408, 7409]},
+          {"name_offsets": [7410, 7411, 7412], "rank": 4, "score_decoder": "bcd", "score_offsets": [7413, 7414, 7415, 7416, 7417]}
+        ],
+        "title": "HIGHEST SCORES"
+      }
+    ]
+  },
+  "cftbl_l3": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7372, 7373, 7374], "rank": null, "score_decoder": "bcd", "score_offsets": [7375, 7376, 7377, 7378, 7379]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7338, 7339, 7340], "rank": 1, "score_decoder": "bcd", "score_offsets": [7341, 7342, 7343, 7344, 7345]},
+          {"name_offsets": [7346, 7347, 7348], "rank": 2, "score_decoder": "bcd", "score_offsets": [7349, 7350, 7351, 7352, 7353]},
+          {"name_offsets": [7354, 7355, 7356], "rank": 3, "score_decoder": "bcd", "score_offsets": [7357, 7358, 7359, 7360, 7361]},
+          {"name_offsets": [7362, 7363, 7364], "rank": 4, "score_decoder": "bcd", "score_offsets": [7365, 7366, 7367, 7368, 7369]}
+        ],
+        "title": "CREATURE FEATURE HALL OF FAME"
+      }
+    ]
+  },
+  "che_cho": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7279, 7280, 7281], "rank": null, "score_decoder": "bcd", "score_offsets": [7282, 7283, 7284, 7285, 7286]}
+        ],
+        "title": "ROAD-TRIP KING"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7245, 7246, 7247], "rank": 1, "score_decoder": "bcd", "score_offsets": [7248, 7249, 7250, 7251, 7252]},
+          {"name_offsets": [7253, 7254, 7255], "rank": 2, "score_decoder": "bcd", "score_offsets": [7256, 7257, 7258, 7259, 7260]},
+          {"name_offsets": [7261, 7262, 7263], "rank": 3, "score_decoder": "bcd", "score_offsets": [7264, 7265, 7266, 7267, 7268]},
+          {"name_offsets": [7269, 7270, 7271], "rank": 4, "score_decoder": "bcd", "score_offsets": [7272, 7273, 7274, 7275, 7276]}
+        ],
+        "title": "HIGHEST SCORES"
+      }
+    ]
+  },
+  "ckpt_a17": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7629, 7630, 7631], "rank": 1, "score_decoder": "bcd", "score_offsets": [7585, 7586, 7587, 7588]}
+        ],
+        "title": "WORLD RECORD"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7632, 7633, 7634], "rank": 2, "score_decoder": "bcd", "score_offsets": [7589, 7590, 7591, 7592]},
+          {"name_offsets": [7635, 7636, 7637], "rank": 3, "score_decoder": "bcd", "score_offsets": [7593, 7594, 7595, 7596]},
+          {"name_offsets": [7638, 7639, 7640], "rank": 4, "score_decoder": "bcd", "score_offsets": [7597, 7598, 7599, 7600]},
+          {"name_offsets": [7641, 7642, 7643], "rank": 5, "score_decoder": "bcd", "score_offsets": [7601, 7602, 7603, 7604]},
+          {"name_offsets": [7644, 7645, 7646], "rank": 6, "score_decoder": "bcd", "score_offsets": [7605, 7606, 7607, 7608]}
+        ],
+        "title": "HIGH SCORES"
+      },
+      {
+        "entries": [
+          {
+            "data_offsets": [5891],
+            "entry_decoder": "labeled_single_value",
+            "name_offsets": [5892, 5893, 5894],
+            "rank": null,
+            "value_format": "hex"
+          }
+        ],
+        "title": "LOOP RECORD"
+      },
+      {
+        "entries": [
+          {
+            "data_offsets": [5899],
+            "entry_decoder": "labeled_single_value",
+            "name_offsets": [5900, 5901, 5902],
+            "rank": null,
+            "value_format": "int",
+            "value_suffix": "MPH"
+          }
+        ],
+        "title": "SPEED RECORD"
+      }
+    ]
+  },
+  "clas1812": {
+    "decoder": "leaderboard_bcd",
+    "entries": [
+      {"name_offsets": [1671, 1672, 1673], "rank": 1, "score_offsets": [1691, 1692, 1693, 1694], "title": "VALEDICTORIANS"},
+      {"name_offsets": [1675, 1676, 1677], "rank": 2, "score_offsets": [1695, 1696, 1697, 1698], "title": "VALEDICTORIANS"},
+      {"name_offsets": [1679, 1680, 1681], "rank": 3, "score_offsets": [1699, 1700, 1701, 1702], "title": "VALEDICTORIANS"},
+      {"name_offsets": [1683, 1684, 1685], "rank": 4, "score_offsets": [1703, 1704, 1705, 1706], "title": "VALEDICTORIANS"},
+      {"name_offsets": [1687, 1688, 1689], "rank": 5, "score_offsets": [1707, 1708, 1709, 1710], "title": "VALEDICTORIANS"}
+    ],
+    "one_based": true,
+    "scoretype": "Leaderboard"
+  },
+  "coneyis": {
+    "decoder": "single_bcd_score_x10",
+    "offsets": [109, 108, 107],
+    "one_based": true,
+    "scoretype": "HIGHEST SCORE"
+  },
+  "congo_21": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7434, 7435, 7436], "rank": null, "score_decoder": "bcd", "score_offsets": [7437, 7438, 7439, 7440, 7441, 7442]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7396, 7397, 7398], "rank": 1, "score_decoder": "bcd", "score_offsets": [7399, 7400, 7401, 7402, 7403, 7404]},
+          {"name_offsets": [7405, 7406, 7407], "rank": 2, "score_decoder": "bcd", "score_offsets": [7408, 7409, 7410, 7411, 7412, 7413]},
+          {"name_offsets": [7414, 7415, 7416], "rank": 3, "score_decoder": "bcd", "score_offsets": [7417, 7418, 7419, 7420, 7421, 7422]},
+          {"name_offsets": [7423, 7424, 7425], "rank": 4, "score_decoder": "bcd", "score_offsets": [7426, 7427, 7428, 7429, 7430, 7431]}
+        ],
+        "title": "HIGHEST SCORES"
+      },
+      {
+        "entries": [
+          {"name_offsets": [8029, 8030, 8031], "rank": null, "score_decoder": "big_endian", "score_offsets": [8060, 8061], "value_suffix": "DIAMONDS"}
+        ],
+        "title": "DIAMOND CHAMPION"
+      }
+    ]
+  },
+  "corv_21": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7494, 7495, 7496], "rank": null, "score_decoder": "bcd", "score_offsets": [7497, 7498, 7499, 7500, 7501, 7502]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7456, 7457, 7458], "rank": 1, "score_decoder": "bcd", "score_offsets": [7459, 7460, 7461, 7462, 7463, 7464]},
+          {"name_offsets": [7465, 7466, 7467], "rank": 2, "score_decoder": "bcd", "score_offsets": [7468, 7469, 7470, 7471, 7472, 7473]},
+          {"name_offsets": [7474, 7475, 7476], "rank": 3, "score_decoder": "bcd", "score_offsets": [7477, 7478, 7479, 7480, 7481, 7482]},
+          {"name_offsets": [7483, 7484, 7485], "rank": 4, "score_decoder": "bcd", "score_offsets": [7486, 7487, 7488, 7489, 7490, 7491]}
+        ],
+        "title": "HIGHEST SCORES"
+      },
+      {
+        "entries": [
+          {"name_offsets": [8069, 8070, 8071], "rank": null}
+        ],
+        "title": "FUTURE CAR CHAMP"
+      },
+      {
+        "entries": [
+          {"name_offsets": [8080, 8081, 8082], "rank": null, "score_decoder": "raw_byte", "score_offsets": [8108], "value_suffix": "LOOPS"}
+        ],
+        "title": "WORLD SPEED RECORD"
+      },
+      {
+        "entries": [
+          {"name_offsets": [8091, 8092, 8093], "rank": null, "score_decoder": "raw_byte", "score_offsets": [8109], "value_suffix": "LOOPS"}
+        ],
+        "title": "CORNERING RECORD"
+      }
+    ]
+  },
+  "cp_15": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7484, 7485, 7486], "rank": null, "score_decoder": "bcd", "score_offsets": [7487, 7488, 7489, 7490, 7491, 7492]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7446, 7447, 7448], "rank": 1, "score_decoder": "bcd", "score_offsets": [7449, 7450, 7451, 7452, 7453, 7454]},
+          {"name_offsets": [7455, 7456, 7457], "rank": 2, "score_decoder": "bcd", "score_offsets": [7458, 7459, 7460, 7461, 7462, 7463]},
+          {"name_offsets": [7464, 7465, 7466], "rank": 3, "score_decoder": "bcd", "score_offsets": [7467, 7468, 7469, 7470, 7471, 7472]},
+          {"name_offsets": [7473, 7474, 7475], "rank": 4, "score_decoder": "bcd", "score_offsets": [7476, 7477, 7478, 7479, 7480, 7481]}
+        ],
+        "title": "HIGHEST SCORES"
+      },
+      {
+        "entries": [
+          {
+            "data_offsets": [5966, 5967, 5968, 5969],
+            "entry_decoder": "since_date",
+            "name_offsets": [5962, 5963, 5964],
+            "rank": null
+          }
+        ],
+        "title": "PUB CHAMPION"
+      },
+      {
+        "entries": [
+          {
+            "data_offsets": [5959],
+            "entry_decoder": "labeled_single_value",
+            "name_offsets": [5956, 5957, 5958],
+            "rank": null,
+            "value_format": "int",
+            "value_suffix": "JUMPS"
+          }
+        ],
+        "title": "JUMP ROPE CHAMPION"
+      },
+      {
+        "entries": [
+          {
+            "data_offsets": [5953],
+            "entry_decoder": "labeled_single_value",
+            "name_offsets": [5950, 5951, 5952],
+            "rank": null,
+            "value_format": "int",
+            "value_suffix": "HITS"
+          }
+        ],
+        "title": "SPEED BAG CHAMPION"
+      }
+    ]
+  },
+  "csi_240": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {
+            "name_offsets": [11161, 11162, 11163, 11164, 11165, 11166, 11167, 11168, 11169, 11170],
+            "rank": null,
+            "score_decoder": "big_endian",
+            "score_offsets": [11188, 11187, 11186, 11185]
+          }
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {
+            "name_offsets": [11193, 11194, 11195, 11196, 11197, 11198, 11199, 11200, 11201, 11202],
+            "rank": 1,
+            "score_decoder": "big_endian",
+            "score_offsets": [11220, 11219, 11218, 11217]
+          },
+          {
+            "name_offsets": [11225, 11226, 11227, 11228, 11229, 11230, 11231, 11232, 11233, 11234],
+            "rank": 2,
+            "score_decoder": "big_endian",
+            "score_offsets": [11252, 11251, 11250, 11249]
+          },
+          {
+            "name_offsets": [11257, 11258, 11259, 11260, 11261, 11262, 11263, 11264, 11265, 11266],
+            "rank": 3,
+            "score_decoder": "big_endian",
+            "score_offsets": [11284, 11283, 11282, 11281]
+          },
+          {
+            "name_offsets": [11289, 11290, 11291, 11292, 11293, 11294, 11295, 11296, 11297, 11298],
+            "rank": 4,
+            "score_decoder": "big_endian",
+            "score_offsets": [11316, 11315, 11314, 11313]
+          }
+        ],
+        "title": "HIGH SCORES"
+      }
+    ]
+  },
+  "cueball": {
+    "decoder": "leaderboard_bcd",
+    "entries": [
+      {"name_offsets": [1677, 1678, 1679], "rank": 1, "score_offsets": [1702, 1703, 1704, 1705, 1706], "title": "CUE BALL WIZARDS"},
+      {"name_offsets": [1682, 1683, 1684], "rank": 2, "score_offsets": [1707, 1708, 1709, 1710, 1711], "title": "CUE BALL WIZARDS"},
+      {"name_offsets": [1687, 1688, 1689], "rank": 3, "score_offsets": [1712, 1713, 1714, 1715, 1716], "title": "CUE BALL WIZARDS"},
+      {"name_offsets": [1692, 1693, 1694], "rank": 4, "score_offsets": [1717, 1718, 1719, 1720, 1721], "title": "CUE BALL WIZARDS"},
+      {"name_offsets": [1697, 1698, 1699], "rank": 5, "score_offsets": [1722, 1723, 1724, 1725, 1726], "title": "CUE BALL WIZARDS"}
+    ],
+    "one_based": true,
+    "scoretype": "Leaderboard"
+  },
+  "cv_20h": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [5967, 5968, 5969], "rank": null, "score_decoder": "byte_pair_100_1", "score_offsets": [5970, 5971]}
+        ],
+        "title": "CANNON BALL CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7606, 7607, 7608], "rank": null, "score_decoder": "bcd", "score_offsets": [7609, 7610, 7611, 7612, 7613]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7572, 7573, 7574], "rank": 1, "score_decoder": "bcd", "score_offsets": [7575, 7576, 7577, 7578, 7579]},
+          {"name_offsets": [7580, 7581, 7582], "rank": 2, "score_decoder": "bcd", "score_offsets": [7583, 7584, 7585, 7586, 7587]},
+          {"name_offsets": [7588, 7589, 7590], "rank": 3, "score_decoder": "bcd", "score_offsets": [7591, 7592, 7593, 7594, 7595]},
+          {"name_offsets": [7596, 7597, 7598], "rank": 4, "score_decoder": "bcd", "score_offsets": [7599, 7600, 7601, 7602, 7603]}
+        ],
+        "title": "HIGHEST SCORES"
+      },
+      {
+        "entries": [
+          {"name_offsets": [5974, 5975, 5976], "rank": null, "score_decoder": "bcd", "score_offsets": [5977, 5978, 5979, 5980, 5981]}
+        ],
+        "title": "PARTY CHAMPION"
+      }
+    ]
+  },
+  "cycln_l5": {
+    "decoder": "leaderboard_bcd",
+    "entries": [
+      {"name_offsets": [1824, 1825, 1826], "rank": 1, "score_offsets": [1808, 1809, 1810, 1811], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1827, 1828, 1829], "rank": 2, "score_offsets": [1812, 1813, 1814, 1815], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1830, 1831, 1832], "rank": 3, "score_offsets": [1816, 1817, 1818, 1819], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1833, 1834, 1835], "rank": 4, "score_offsets": [1820, 1821, 1822, 1823], "title": "HIGHEST SCORES"}
+    ],
+    "one_based": true,
+    "scoretype": "Leaderboard"
+  },
+  "dd_l2": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {
+            "name_decoder": "dd_l2_initials",
+            "name_offsets": [1494, 1495, 1496],
+            "rank": null,
+            "score_decoder": "bcd",
+            "score_offsets": [1490, 1491, 1492, 1493]
+          }
+        ],
+        "title": "CHAMPION"
+      },
+      {
+        "entries": [
+          {
+            "name_decoder": "dd_l2_initials",
+            "name_offsets": [1823, 1824, 1825],
+            "rank": 1,
+            "score_decoder": "bcd",
+            "score_offsets": [1807, 1808, 1809, 1810]
+          },
+          {
+            "name_decoder": "dd_l2_initials",
+            "name_offsets": [1826, 1827, 1828],
+            "rank": 2,
+            "score_decoder": "bcd",
+            "score_offsets": [1811, 1812, 1813, 1814]
+          },
+          {
+            "name_decoder": "dd_l2_initials",
+            "name_offsets": [1829, 1830, 1831],
+            "rank": 3,
+            "score_decoder": "bcd",
+            "score_offsets": [1815, 1816, 1817, 1818]
+          },
+          {
+            "name_decoder": "dd_l2_initials",
+            "name_offsets": [1832, 1833, 1834],
+            "rank": 4,
+            "score_decoder": "bcd",
+            "score_offsets": [1819, 1820, 1821, 1822]
+          }
+        ],
+        "title": "HIGHEST SCORES"
+      }
+    ]
+  },
+  "deadweap": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [1671, 1672, 1673], "rank": 1, "score_decoder": "bcd", "score_offsets": [1691, 1692, 1693, 1694]},
+          {"name_offsets": [1675, 1676, 1677], "rank": 2, "score_decoder": "bcd", "score_offsets": [1695, 1696, 1697, 1698]},
+          {"name_offsets": [1679, 1680, 1681], "rank": 3, "score_decoder": "bcd", "score_offsets": [1699, 1700, 1701, 1702]},
+          {"name_offsets": [1683, 1684, 1685], "rank": 4, "score_decoder": "bcd", "score_offsets": [1703, 1704, 1705, 1706]},
+          {"name_offsets": [1687, 1688, 1689], "rank": 5, "score_decoder": "bcd", "score_offsets": [1707, 1708, 1709, 1710]}
+        ],
+        "title": "TOP COPS"
+      },
+      {
+        "entries": [
+          {
+            "data_offsets": [1760],
+            "entry_decoder": "labeled_single_value",
+            "name_offsets": [297, 298, 299],
+            "rank": null,
+            "value_format": "hex"
+          }
+        ],
+        "title": "HIGHEST ARRESTS"
+      }
+    ]
+  },
+  "dh_lx2": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7434, 7435, 7436], "rank": null, "score_decoder": "bcd", "score_offsets": [7437, 7438, 7439, 7440, 7441, 7442]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7396, 7397, 7398], "rank": 1, "score_decoder": "bcd", "score_offsets": [7399, 7400, 7401, 7402, 7403, 7404]},
+          {"name_offsets": [7405, 7406, 7407], "rank": 2, "score_decoder": "bcd", "score_offsets": [7408, 7409, 7410, 7411, 7412, 7413]},
+          {"name_offsets": [7414, 7415, 7416], "rank": 3, "score_decoder": "bcd", "score_offsets": [7417, 7418, 7419, 7420, 7421, 7422]},
+          {"name_offsets": [7423, 7424, 7425], "rank": 4, "score_decoder": "bcd", "score_offsets": [7426, 7427, 7428, 7429, 7430, 7431]}
+        ],
+        "title": "HIGHEST SCORES"
+      },
+      {
+        "entries": [
+          {"name_offsets": [8009, 8010, 8011], "rank": null}
+        ],
+        "title": "CRIME WAVE CHAMP"
+      }
+    ]
+  },
+  "diamond": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [184, 185, 186, 187, 188, 189],
+            "rank": 1,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [190, 191, 192, 193, 194, 195, 196]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [197, 198, 199, 200, 201, 202],
+            "rank": 2,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [203, 204, 205, 206, 207, 208, 209]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [210, 211, 212, 213, 214, 215],
+            "rank": 3,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [216, 217, 218, 219, 220, 221, 222]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [223, 224, 225, 226, 227, 228],
+            "rank": 4,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [229, 230, 231, 232, 233, 234, 235]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [236, 237, 238, 239, 240, 241],
+            "rank": 5,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [242, 243, 244, 245, 246, 247, 248]
+          }
+        ],
+        "title": "CARD SHARKS"
+      }
+    ]
+  },
+  "dm_lx4": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7304, 7305, 7306], "rank": null, "score_decoder": "bcd", "score_offsets": [7307, 7308, 7309, 7310, 7311, 7312]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7266, 7267, 7268], "rank": 1, "score_decoder": "bcd", "score_offsets": [7269, 7270, 7271, 7272, 7273, 7274]},
+          {"name_offsets": [7275, 7276, 7277], "rank": 2, "score_decoder": "bcd", "score_offsets": [7278, 7279, 7280, 7281, 7282, 7283]},
+          {"name_offsets": [7284, 7285, 7286], "rank": 3, "score_decoder": "bcd", "score_offsets": [7287, 7288, 7289, 7290, 7291, 7292]},
+          {"name_offsets": [7293, 7294, 7295], "rank": 4, "score_decoder": "bcd", "score_offsets": [7296, 7297, 7298, 7299, 7300, 7301]}
+        ],
+        "title": "HIGHEST SCORES"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7885, 7886, 7887], "rank": null, "score_decoder": "bcd", "score_offsets": [7888, 7889, 7890, 7891, 7892, 7893]}
+        ],
+        "title": "DEMOLITION TIME CHAMPION"
+      }
+    ]
+  },
+  "drac_l1": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7482, 7483, 7484], "rank": null, "score_decoder": "bcd", "score_offsets": [7485, 7486, 7487, 7488, 7489]}
+        ],
+        "title": "GREATEST VAMPIRE HUNTER"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7448, 7449, 7450], "rank": 1, "score_decoder": "bcd", "score_offsets": [7451, 7452, 7453, 7454, 7455]},
+          {"name_offsets": [7456, 7457, 7458], "rank": 2, "score_decoder": "bcd", "score_offsets": [7459, 7460, 7461, 7462, 7463]},
+          {"name_offsets": [7464, 7465, 7466], "rank": 3, "score_decoder": "bcd", "score_offsets": [7467, 7468, 7469, 7470, 7471]},
+          {"name_offsets": [7472, 7473, 7474], "rank": 4, "score_decoder": "bcd", "score_offsets": [7475, 7476, 7477, 7478, 7479]}
+        ],
+        "title": "BEST HUNTERS"
+      },
+      {
+        "entries": [
+          {"name_offsets": [8062, 8063, 8064], "rank": null, "score_decoder": "bcd", "score_offsets": [8068, 8069]}
+        ],
+        "title": "LOOP CHAMPION"
+      }
+    ]
+  },
+  "dw_l2": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7482, 7483, 7484], "rank": null, "score_decoder": "bcd", "score_offsets": [7485, 7486, 7487, 7488, 7489]}
+        ],
+        "title": "GREATEST TIME LORD"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7448, 7449, 7450], "rank": 1, "score_decoder": "bcd", "score_offsets": [7451, 7452, 7453, 7454, 7455]},
+          {"name_offsets": [7456, 7457, 7458], "rank": 2, "score_decoder": "bcd", "score_offsets": [7459, 7460, 7461, 7462, 7463]},
+          {"name_offsets": [7464, 7465, 7466], "rank": 3, "score_decoder": "bcd", "score_offsets": [7467, 7468, 7469, 7470, 7471]},
+          {"name_offsets": [7472, 7473, 7474], "rank": 4, "score_decoder": "bcd", "score_offsets": [7475, 7476, 7477, 7478, 7479]}
+        ],
+        "title": "BEST TIME LORDS"
+      },
+      {
+        "entries": [
+          {"name_offsets": [8072, 8073, 8074], "rank": null, "score_decoder": "bcd", "score_offsets": [8078, 8079]}
+        ],
+        "title": "LOOP CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [8062, 8063, 8064], "rank": null, "score_decoder": "bcd", "score_offsets": [8065, 8066]}
+        ],
+        "title": "HIGHEST DAVROS MULTIBALL WAVE"
+      }
+    ]
+  },
+  "eatpm_l1": {
+    "decoder": "leaderboard_bcd",
+    "entries": [
+      {"name_offsets": [1804, 1805, 1806], "rank": 1, "score_offsets": [1788, 1789, 1790, 1791], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1807, 1808, 1809], "rank": 2, "score_offsets": [1792, 1793, 1794, 1795], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1810, 1811, 1812], "rank": 3, "score_offsets": [1796, 1797, 1798, 1799], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1813, 1814, 1815], "rank": 4, "score_offsets": [1800, 1801, 1802, 1803], "title": "HIGHEST SCORES"}
+    ],
+    "one_based": true,
+    "scoretype": "Leaderboard"
+  },
+  "eballchp": {
+    "decoder": "single_high_nibble_score",
+    "offsets": [1561, 1562, 1563, 1564, 1565, 1566, 1567],
+    "one_based": true,
+    "scoretype": "HIGHEST SCORE",
+    "zero_byte": 240
+  },
+  "esha_la3": {
+    "decoder": "leaderboard_bcd",
+    "entries": [
+      {"name_offsets": [1804, 1805, 1806], "rank": 1, "score_offsets": [1788, 1789, 1790, 1791], "title": "MOVERS AND SHAKERS"},
+      {"name_offsets": [1807, 1808, 1809], "rank": 2, "score_offsets": [1792, 1793, 1794, 1795], "title": "MOVERS AND SHAKERS"},
+      {"name_offsets": [1810, 1811, 1812], "rank": 3, "score_offsets": [1796, 1797, 1798, 1799], "title": "MOVERS AND SHAKERS"},
+      {"name_offsets": [1813, 1814, 1815], "rank": 4, "score_offsets": [1800, 1801, 1802, 1803], "title": "MOVERS AND SHAKERS"}
+    ],
+    "one_based": true,
+    "scoretype": "Leaderboard"
+  },
+  "evelknie": {
+    "decoder": "single_high_nibble_score",
+    "offsets": [208, 209, 210, 211, 212, 213],
+    "one_based": true,
+    "scoretype": "HIGHEST SCORE",
+    "zero_byte": 255
+  },
+  "excalibr": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [184, 185, 186, 187, 188, 189],
+            "rank": 1,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [190, 191, 192, 193, 194, 195, 196]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [197, 198, 199, 200, 201, 202],
+            "rank": 2,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [203, 204, 205, 206, 207, 208, 209]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [210, 211, 212, 213, 214, 215],
+            "rank": 3,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [216, 217, 218, 219, 220, 221, 222]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [223, 224, 225, 226, 227, 228],
+            "rank": 4,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [229, 230, 231, 232, 233, 234, 235]
+          },
+          {
+            "name_decoder": "low_nibble_pairs_ascii",
+            "name_offsets": [236, 237, 238, 239, 240, 241],
+            "rank": 5,
+            "score_decoder": "raw_digits_x10",
+            "score_offsets": [242, 243, 244, 245, 246, 247, 248]
+          }
+        ],
+        "title": "CONQUERORS"
+      }
+    ]
+  },
+  "f14_l1": {
+    "decoder": "leaderboard_bcd",
+    "entries": [
+      {"name_offsets": [1848, 1849, 1850], "rank": 1, "score_offsets": [1832, 1833, 1834, 1835], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1851, 1852, 1853], "rank": 2, "score_offsets": [1836, 1837, 1838, 1839], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1854, 1855, 1856], "rank": 3, "score_offsets": [1840, 1841, 1842, 1843], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1857, 1858, 1859], "rank": 4, "score_offsets": [1844, 1845, 1846, 1847], "title": "HIGHEST SCORES"}
+    ],
+    "one_based": true,
+    "scoretype": "Leaderboard"
+  },
+  "fg_1200al": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {
+            "name_offsets": [11105, 11106, 11107, 11108, 11109, 11110, 11111, 11112, 11113, 11114],
+            "rank": null,
+            "score_decoder": "big_endian",
+            "score_offsets": [11132, 11131, 11130, 11129]
+          }
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {
+            "name_offsets": [11137, 11138, 11139, 11140, 11141, 11142, 11143, 11144, 11145, 11146],
+            "rank": 1,
+            "score_decoder": "big_endian",
+            "score_offsets": [11164, 11163, 11162, 11161]
+          },
+          {
+            "name_offsets": [11169, 11170, 11171, 11172, 11173, 11174, 11175, 11176, 11177, 11178],
+            "rank": 2,
+            "score_decoder": "big_endian",
+            "score_offsets": [11196, 11195, 11194, 11193]
+          },
+          {
+            "name_offsets": [11201, 11202, 11203, 11204, 11205, 11206, 11207, 11208, 11209, 11210],
+            "rank": 3,
+            "score_decoder": "big_endian",
+            "score_offsets": [11228, 11227, 11226, 11225]
+          },
+          {
+            "name_offsets": [11233, 11234, 11235, 11236, 11237, 11238, 11239, 11240, 11241, 11242],
+            "rank": 4,
+            "score_decoder": "big_endian",
+            "score_offsets": [11260, 11259, 11258, 11257]
+          }
+        ],
+        "title": "HIGH SCORES"
+      }
+    ]
+  },
+  "fh_905h": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7310, 7311, 7312], "rank": null, "score_decoder": "bcd", "score_offsets": [7313, 7314, 7315, 7316, 7317]}
+        ],
+        "title": "GRAND CHAMPION"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7276, 7277, 7278], "rank": 1, "score_decoder": "bcd", "score_offsets": [7279, 7280, 7281, 7282, 7283]},
+          {"name_offsets": [7284, 7285, 7286], "rank": 2, "score_decoder": "bcd", "score_offsets": [7287, 7288, 7289, 7290, 7291]},
+          {"name_offsets": [7292, 7293, 7294], "rank": 3, "score_decoder": "bcd", "score_offsets": [7295, 7296, 7297, 7298, 7299]},
+          {"name_offsets": [7300, 7301, 7302], "rank": 4, "score_decoder": "bcd", "score_offsets": [7303, 7304, 7305, 7306, 7307]}
+        ],
+        "title": "HIGH SCORES"
+      }
+    ]
+  },
+  "dollyptb": {
+    "decoder": "single_high_nibble_score_x10",
+    "offsets": [172, 173, 174, 175, 176, 177],
+    "one_based": true,
+    "scoretype": "HIGHEST SCORE",
+    "zero_byte": 255
+  },
+  "btmn_101": {
+    "decoder": "leaderboard_bcd",
+    "entries": [
+      {"name_offsets": [7627, 7628, 7629], "rank": 1, "score_offsets": [7577, 7578, 7579, 7580], "title": "DARK KNIGHT"},
+      {"name_offsets": [7630, 7631, 7632], "rank": 2, "score_offsets": [7581, 7582, 7583, 7584], "title": "DARK KNIGHT"},
+      {"name_offsets": [7633, 7634, 7635], "rank": 3, "score_offsets": [7585, 7586, 7587, 7588], "title": "DARK KNIGHT"},
+      {"name_offsets": [7636, 7637, 7638], "rank": 4, "score_offsets": [7589, 7590, 7591, 7592], "title": "DARK KNIGHT"},
+      {"name_offsets": [7639, 7640, 7641], "rank": 5, "score_offsets": [7593, 7594, 7595, 7596], "title": "DARK KNIGHT"},
+      {"name_offsets": [7642, 7643, 7644], "rank": 6, "score_offsets": [7597, 7598, 7599, 7600], "title": "DARK KNIGHT"}
+    ],
+    "one_based": true,
+    "scoretype": "Leaderboard"
+  },
+  "bttf_a27": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7629, 7630, 7631], "rank": null, "score_decoder": "bcd", "score_offsets": [7585, 7586, 7587, 7588]}
+        ],
+        "title": "WORLD RECORD"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7632, 7633, 7634], "rank": 1, "score_decoder": "bcd", "score_offsets": [7589, 7590, 7591, 7592]},
+          {"name_offsets": [7635, 7636, 7637], "rank": 2, "score_decoder": "bcd", "score_offsets": [7593, 7594, 7595, 7596]},
+          {"name_offsets": [7638, 7639, 7640], "rank": 3, "score_decoder": "bcd", "score_offsets": [7597, 7598, 7599, 7600]},
+          {"name_offsets": [7641, 7642, 7643], "rank": 4, "score_decoder": "bcd", "score_offsets": [7601, 7602, 7603, 7604]},
+          {"name_offsets": [7644, 7645, 7646], "rank": 5, "score_decoder": "bcd", "score_offsets": [7605, 7606, 7607, 7608]}
+        ],
+        "title": "TODAY'S HI-SCORE"
+      },
+      {
+        "entries": [
+          {
+            "data_offsets": [5897],
+            "entry_decoder": "labeled_single_value",
+            "name_offsets": [5898, 5899, 5900],
+            "rank": null,
+            "value_format": "hex"
+          }
+        ],
+        "title": "LOOP BACK CHAMP"
+      }
+    ]
+  },
+  "bttf_a20": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "entries": [
+          {"name_offsets": [7621, 7622, 7623], "rank": null, "score_decoder": "bcd", "score_offsets": [7585, 7586, 7587, 7588]}
+        ],
+        "title": "WORLD RECORD"
+      },
+      {
+        "entries": [
+          {"name_offsets": [7624, 7625, 7626], "rank": 1, "score_decoder": "bcd", "score_offsets": [7589, 7590, 7591, 7592]},
+          {"name_offsets": [7627, 7628, 7629], "rank": 2, "score_decoder": "bcd", "score_offsets": [7593, 7594, 7595, 7596]},
+          {"name_offsets": [7630, 7631, 7632], "rank": 3, "score_decoder": "bcd", "score_offsets": [7597, 7598, 7599, 7600]},
+          {"name_offsets": [7633, 7634, 7635], "rank": 4, "score_decoder": "bcd", "score_offsets": [7601, 7602, 7603, 7604]},
+          {"name_offsets": [7636, 7637, 7638], "rank": 5, "score_decoder": "bcd", "score_offsets": [7605, 7606, 7607, 7608]}
+        ],
+        "title": "TODAY'S HI-SCORE"
+      },
+      {
+        "entries": [
+          {
+            "data_offsets": [5897],
+            "entry_decoder": "labeled_single_value",
+            "name_offsets": [5898, 5899, 5900],
+            "rank": null,
+            "value_format": "hex"
+          }
+        ],
+        "title": "LOOP BACK CHAMP"
+      }
+    ]
+  },
+  "bnzai_l3": {
+    "decoder": "leaderboard_bcd",
+    "entries": [
+      {"name_offsets": [1812, 1813, 1814], "rank": 1, "score_offsets": [1796, 1797, 1798, 1799], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1815, 1816, 1817], "rank": 2, "score_offsets": [1800, 1801, 1802, 1803], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1818, 1819, 1820], "rank": 3, "score_offsets": [1804, 1805, 1806, 1807], "title": "HIGHEST SCORES"},
+      {"name_offsets": [1821, 1822, 1823], "rank": 4, "score_offsets": [1808, 1809, 1810, 1811], "title": "HIGHEST SCORES"}
+    ],
+    "one_based": true,
+    "scoretype": "Leaderboard"
+  },
   "bk2k_l4": {
     "decoder": "mixed_leaderboard",
     "one_based": true,

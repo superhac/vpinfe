@@ -1,12 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.40.
+This is the offical release of vpinfe v1.1.41.
 
 ### What's New
+- More rom support/ ini support
 
 ### Fixes
-- fix pathing to roms.json and add to common/resources to bundle. linux failed too. 
+None
 
 ### Notes
 None

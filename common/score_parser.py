@@ -26,6 +26,11 @@ rom_aliases = {
     "arena": "amazon3a",
     "bcats_l5": "bcats_l2",
     "afm_113b": "afm_113",
+    "btmn_106": "btmn_101",
+    "cftbl_l4": "cftbl_l3",
+    "cp_16": "cp_15",
+    "eatpm_l4": "eatpm_l1",
+    "fg_1200af":"fg_1200al",
 }
 
 def get_roms_path() -> Path:
@@ -113,6 +118,13 @@ def atlantis_initials_to_text(byte_vals: list[int]) -> str:
         chars.append(chr(32 if byte_val == 79 else byte_val + 48))
     return "".join(chars)
 
+def dd_l2_initials_to_text(byte_vals: list[int]) -> str:
+    """Decode Dr Dude Team initials where 0 is space and other values map via +54."""
+    chars = []
+    for byte_val in byte_vals:
+        chars.append(chr(32 if byte_val == 0 else byte_val + 54))
+    return "".join(chars)
+
 def austin_name_to_text(byte_vals: list[int]) -> str:
     """Decode Austin Powers names, handling bracket-as-space padding and short names."""
     chars = [chr(32 if byte_val == 91 else byte_val) for byte_val in byte_vals]
@@ -168,6 +180,8 @@ def decode_initials(byte_vals: list[int], name_decoder: str | None = None) -> st
         return clean_text(low_nibble_pairs_to_text(byte_vals))
     if name_decoder == "atlantis_initials":
         return clean_text(atlantis_initials_to_text(byte_vals))
+    if name_decoder == "dd_l2_initials":
+        return clean_text(dd_l2_initials_to_text(byte_vals))
     if name_decoder == "austin_name":
         return clean_text(austin_name_to_text(byte_vals))
 
@@ -181,6 +195,9 @@ def decode_single_bcd_score(filename: str, rom_config: dict) -> int:
             one_based=rom_config.get("one_based", False),
         )
     return bcd_to_int(bytes_read)
+
+def decode_single_bcd_score_x10(filename: str, rom_config: dict) -> int:
+    return decode_single_bcd_score(filename, rom_config) * 10
 
 def decode_single_digit_score(filename: str, rom_config: dict) -> int:
     with open(filename, "rb") as f:
@@ -201,6 +218,9 @@ def decode_single_high_nibble_score(filename: str, rom_config: dict) -> int:
             one_based=rom_config.get("one_based", False),
         )
     return high_nibble_bytes_to_int(bytes_read, rom_config.get("zero_byte"))
+
+def decode_single_high_nibble_score_x10(filename: str, rom_config: dict) -> int:
+    return decode_single_high_nibble_score(filename, rom_config) * 10
 
 def decode_leaderboard_bcd(filename: str, rom_config: dict) -> list[ParsedEntry]:
     entries: list[ParsedEntry] = []
@@ -233,6 +253,8 @@ def decode_score_bytes(score_bytes: list[int], score_decoder: str) -> int:
         return bytes_to_int(score_bytes)
     if score_decoder == "big_endian_x10":
         return bytes_to_int(score_bytes) * 10
+    if score_decoder == "byte_pair_100_1":
+        return score_bytes[0] * 100 + score_bytes[1]
     if score_decoder == "raw_digits_x10":
         return digit_bytes_to_int(score_bytes) * 10
     if score_decoder == "raw_byte":
@@ -327,6 +349,8 @@ def decode_labeled_single_value_entry(
 
     if "value_suffix" in entry and "label" not in entry:
         line = f"{value_text} {entry['value_suffix']}".rstrip()
+    elif "label" not in entry:
+        line = value_text
     else:
         line = f"{entry['label']} = {value_text}"
 
@@ -335,6 +359,39 @@ def decode_labeled_single_value_entry(
         rank=entry["rank"],
         initials=initials,
         extra_lines=[line],
+    )
+
+def decode_since_date_entry(
+    f: BinaryIO,
+    entry: dict,
+    initials: str,
+    one_based: bool,
+) -> ParsedEntry:
+    data_bytes = read_offsets(f, entry["data_offsets"], one_based=one_based)
+    month_names = {
+        1: "JAN",
+        2: "FEB",
+        3: "MAR",
+        4: "APR",
+        5: "MAY",
+        6: "JUN",
+        7: "JUL",
+        8: "AUG",
+        9: "SEP",
+        10: "OCT",
+        11: "NOV",
+        12: "DEC",
+    }
+
+    month = month_names.get(data_bytes[0], str(data_bytes[0]))
+    day = data_bytes[1]
+    year = data_bytes[2] * 256 + data_bytes[3]
+
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials=initials,
+        extra_lines=[f"SINCE {month}. {day}, {year}"],
     )
 
 def decode_mixed_leaderboard(
@@ -396,6 +453,13 @@ def decode_mixed_leaderboard(
                             initials,
                             one_based,
                         )
+                    elif entry["entry_decoder"] == "since_date":
+                        decoded_entry = decode_since_date_entry(
+                            f,
+                            entry,
+                            initials,
+                            one_based,
+                        )
                     else:
                         raise ValueError(f"Unknown entry decoder: {entry['entry_decoder']}")
                     decoded_entry.section = section["title"]
@@ -407,12 +471,15 @@ def decode_mixed_leaderboard(
                     entry["score_offsets"],
                     one_based=one_based,
                 )
+                decoded_score = decode_score_bytes(score_bytes, entry["score_decoder"])
+                if decoded_score in entry.get("skip_score_values", []):
+                    continue
                 results.append(
                     ParsedEntry(
                         section=section["title"],
                         rank=entry["rank"],
                         initials=initials,
-                        score=decode_score_bytes(score_bytes, entry["score_decoder"]),
+                        score=decoded_score,
                         value_suffix=entry.get("value_suffix"),
                     )
                 )
@@ -490,8 +557,10 @@ def decode_ini_file(filename: str) -> list[ParsedEntry]:
 
 DECODERS = {
     "single_bcd_score": decode_single_bcd_score,
+    "single_bcd_score_x10": decode_single_bcd_score_x10,
     "single_digit_score": decode_single_digit_score,
     "single_high_nibble_score": decode_single_high_nibble_score,
+    "single_high_nibble_score_x10": decode_single_high_nibble_score_x10,
     "leaderboard_bcd": decode_leaderboard_bcd,
     "mixed_leaderboard": decode_mixed_leaderboard,
 }
@@ -593,46 +662,15 @@ def read_rom(
     return decoder(filename, rom_config, settings) if settings is not None else decoder(filename, rom_config)
     
 if __name__ == "__main__":
-    rom_files = {
-        "agent777": "/home/superhac/tables/Agents 777 (Game Plan 1984)/pinmame/nvram/agent777.nv",
-        "aar_101": "/home/superhac/tables/Aaron Spelling (Data East 1992)/pinmame/nvram/aar_101.nv",
-        "bbb109": "/home/superhac/tables/Big Bang Bar (Capcom 1996)/pinmame/nvram/bbb109.nv",
-        "badgirls": "/home/superhac/tables/Bad Girls (Gottlieb 1988)/pinmame/nvram/badgirls.nv",
-        "baywatch": "/home/superhac/tables/Baywatch (Sega 1995)/pinmame/nvram/baywatch.nv",
-        "beav_butt": "/home/superhac/tables/Beavis and Butt-Head Pinballed (Original 2024)/pinmame/nvram/beav_butt.nv",
-        "bguns_l8": "/home/superhac/tables/Big Guns (Williams 1987)/pinmame/nvram/bguns_l8.nv",
-        "biggame": "/home/superhac/tables/Big Game (Stern 1980)/pinmame/nvram/biggame.nv",
-        "bighouse": "/home/superhac/tables/Big House (Gottlieb 1989)/pinmame/nvram/bighouse.nv",
-        "bighurt": "/home/superhac/tables/Frank Thomas' Big Hurt (Gottlieb 1995)/pinmame/nvram/bighurt.nv",
-        "blkshpsq": "/home/superhac/tables/Black Sheep Squadron (Astro Games 1979)/pinmame/nvram/blkshpsq.nv",
-        "bk2k_l4": "/home/superhac/tables/Black Knight 2000 (Williams 1989)/pinmame/nvram/bk2k_l4.nv",
-        #"beachbms": "/home/superhac/tables/Beach Bums (Bally 1992)/pinmame/nvram/beachbms.nv",
-        #"barbwire": "/home/superhac/tables/Barb Wire (Gottlieb 1996)/pinmame/nvram/barbwire.nv",
-        "abv106": "/home/superhac/tables/Airborne (Capcom 1996)/pinmame/nvram/abv106.nv",
-        "abv106r": "/home/superhac/tables/Airborne (Capcom 1996)/pinmame/nvram/abv106r.nv",
-        "acd_170h": "/home/superhac/tables/AC-DC LUCI Premium VR (Stern 2013)/pinmame/nvram/acd_170h.nv",
-        "afm_113b": "/home/superhac/tables/Attack from Mars (Bally 1995)/pinmame/nvram/afm_113b.nv",
-        "ali": "/home/superhac/tables/Ali (Stern 1980)/pinmame/nvram/ali.nv",
-        "attack": "/home/superhac/tables/Attack (Playmatic 1980)/pinmame/nvram/attack.nv",
-        "andretti": "/home/superhac/tables/Mario Andretti (Gottlieb 1995)/pinmame/nvram/andretti.nv",
-        "apollo13": "/home/superhac/tables/Apollo 13 (Sega 1995)/pinmame/nvram/apollo13.nv",
-        "atlantis": "/home/superhac/tables/Atlantis (Bally 1989)/pinmame/nvram/atlantis.nv",
-        "atleta": "/home/superhac/tables/Atleta (Inder 1991)/pinmame/nvram/atleta.nv",
-        "black100": "/home/superhac/tables/Blackwater 100 (Bally 1988)/pinmame/nvram/black100.nv",
-        #"bbh_160": "/home/superhac/tables/Big Buck Hunter Pro (Stern 2010)/pinmame/nvram/bbh_160.nv",
-        "bbh_170": "/home/superhac/tables/Big Buck Hunter Pro (Stern 2010)/pinmame/nvram/bbh_170.nv",
-        "bcats_l5": "/home/superhac/tables/Bad Cats (Williams 1989)/pinmame/nvram/bcats_l5.nv",
-        "bdk_294": "/home/superhac/tables/Batman (Stern 2008)/pinmame/nvram/bdk_294.nv",
-        "avr_200": "/home/superhac/tables/James Cameron's Avatar (Stern 2010)/pinmame/nvram/avr_200.nv",
-        "avs_170": "/home/superhac/tables/The Avengers Pro (Stern 2012)/pinmame/nvram/avs_170.nv",
-        "austin": "/home/superhac/tables/Austin Powers (Stern 2001)/pinmame/nvram/austin.nv",
-        "arena": "/home/superhac/tables/Arena (Gottlieb 1987)/pinmame/nvram/arena.nv",
-        #"andrett4": "/home/superhac/tables/Andretti (Gottlieb 1995)/pinmame/nvram/andrett4.nv",
-        #"alpok_l2": "/home/superhac/tables/Alien Poker (Williams 1980)/pinmame/nvram/alpok_l2.nv",
-        "alpok_b6": "/home/superhac/tables/Alien Poker (Williams 1980)/pinmame/nvram/alpok_b6.nv",
-        #"amazon3a": "/home/superhac/tables/Amazon Hunt (Gottlieb 1983)/pinmame/nvram/amazonh.nv",
-        "Matrix": "/home/superhac/tables/The Matrix (Original 2026)/user/VPReg.ini",
-        "DarkestDungeon": "/home/superhac/tables/The Matrix (Original 2026)/user/VPReg.ini", 
+    rom_files = {       
+        "eballchp": "/home/superhac/tables/Eight Ball Champ (Bally 1985)/pinmame/nvram/eballchp.nv",
+        "esha_la3": "/home/superhac/tables/Earthshaker (Williams 1989)/pinmame/nvram/esha_la3.nv",
+        "evelknie": "/home/superhac/tables/Evel Knievel (Bally 1977)/pinmame/nvram/evelknie.nv",
+        "excalibr":"/home/superhac/tables/Excalibur (Gottlieb 1988)/pinmame/nvram/excalibr.nv",
+        "f14_l1":"/home/superhac/tables/F-14 Tomcat (Williams 1987)/pinmame/nvram/f14_l1.nv",
+        "fg_1200af":"/home/superhac/tables/Family Guy (Stern 2007)/pinmame/nvram/fg_1200af.nv",
+        "fh_905h":"/home/superhac/tables/Funhouse (Williams 1990)/pinmame/nvram/fh_905h.nv",
+        "cc_13": "/home/superhac/tables/Cactus Canyon (Bally 1998)/pinmame/nvram/cc_13.nv",
     }
 
     for rom_name, filename in rom_files.items():
