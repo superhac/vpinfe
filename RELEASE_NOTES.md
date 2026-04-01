@@ -1,11 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.42
+This is the offical release of vpinfe v1.1.43
 
 ### What's New
-- "Last Played" now sorts on "LastRun".
-- Added sort by "LastRun" to collections.
+- More rom support for vpinplay
 
 ### Fixes
 None
