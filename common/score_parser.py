@@ -15,12 +15,16 @@ class ParsedEntry:
     rank: int | None
     initials: str
     score: int | None = None
+    value_prefix: str | None = None
     value_suffix: str | None = None
+    value_format: str | None = None
     extra_lines: list[str] = field(default_factory=list)
+    multiline: bool = False
 
 
 logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
 
+# alias, rom name in roms.json 
 rom_aliases = {
     "alpok_b6": "alpok_l2",
     "arena": "amazon3a",
@@ -32,6 +36,24 @@ rom_aliases = {
     "eatpm_l4": "eatpm_l1",
     "fg_1200af":"fg_1200al",
     "eightbll": "evelknie",
+    "frpwr_b7": "frpwr_b6",
+    "hook_501":"hook_408",
+    "im_185ve": "im_185",
+    "im_183ve": "im_185",
+    "jd_l1": "jd_l7",
+    "jupk_600":"jupk_513",
+    "kpb105":"kpv106",
+    "lah_113":"lah_112",
+    "lca2":"lca",
+    "mb_106b":"mb_106",
+    "mm_109b":"mm_109c",
+    "rab_320":"rab_103",
+    "sc_18n11":"sc_180",
+    "ss_15":"ss_14",
+    "twenty4_150": "twenty4_144",
+    "ww_lh6": "ww_lh5",
+    "wwfr_106":"wwfr_103",
+
 }
 
 def get_roms_path() -> Path:
@@ -112,6 +134,22 @@ def low_nibble_pairs_to_text(byte_vals: list[int]) -> str:
 
     return "".join(chars)
 
+def high_nibble_pairs_to_text(byte_vals: list[int]) -> str:
+    """Decode packed initials from pairs of high nibbles, with FF meaning space."""
+    if len(byte_vals) % 2 != 0:
+        raise ValueError("Packed nibble text requires an even number of bytes")
+
+    chars = []
+    for index in range(0, len(byte_vals), 2):
+        high = (byte_vals[index] >> 4) & 0x0F
+        low = (byte_vals[index + 1] >> 4) & 0x0F
+        if high == 0x0F and low == 0x0F:
+            chars.append(" ")
+            continue
+        chars.append(chr((high << 4) | low))
+
+    return "".join(chars)
+
 def atlantis_initials_to_text(byte_vals: list[int]) -> str:
     """Decode Atlantis initials where 79 is space and other values map via +48."""
     chars = []
@@ -119,11 +157,25 @@ def atlantis_initials_to_text(byte_vals: list[int]) -> str:
         chars.append(chr(32 if byte_val == 79 else byte_val + 48))
     return "".join(chars)
 
+def hvymetal_initials_to_text(byte_vals: list[int]) -> str:
+    """Decode Heavy Metal initials where 79/255 are spaces, others map via +48, then reverse."""
+    chars = []
+    for byte_val in byte_vals:
+        chars.append(chr(32 if byte_val in (79, 255) else byte_val + 48))
+    return "".join(reversed(chars))
+
 def dd_l2_initials_to_text(byte_vals: list[int]) -> str:
     """Decode Dr Dude Team initials where 0 is space and other values map via +54."""
     chars = []
     for byte_val in byte_vals:
         chars.append(chr(32 if byte_val == 0 else byte_val + 54))
+    return "".join(chars)
+
+def grand_l4_initials_to_text(byte_vals: list[int]) -> str:
+    """Decode Grand Lizard initials where values above 96 are stored with +128."""
+    chars = []
+    for byte_val in byte_vals:
+        chars.append(chr(byte_val - 128 if byte_val > 96 else byte_val))
     return "".join(chars)
 
 def austin_name_to_text(byte_vals: list[int]) -> str:
@@ -134,6 +186,37 @@ def austin_name_to_text(byte_vals: list[int]) -> str:
         return "".join(chars[:3]).rstrip()
 
     return "".join(chars).rstrip()
+
+def monopoly_name_to_text(byte_vals: list[int]) -> str:
+    """Decode Monopoly names, where some entries are 3 initials plus a token id."""
+    token_names = {
+        0: "BATTLESHIP",
+        1: "THIMBLE",
+        2: "SACK OF MONEY",
+        3: "IRON",
+        4: "CANNON",
+        5: "DOG",
+        6: "HORSE AND RIDER",
+        7: "SHOE",
+        8: "TOP HAT",
+        9: "WHEELBARROW",
+        10: "RACECAR",
+        11: "PLD LOGO",
+    }
+
+    token_id = byte_vals[3]
+    if token_id in token_names:
+        initials = "".join(chr(byte_val) for byte_val in byte_vals[:3]).rstrip()
+        return f"{initials} {token_names[token_id]}".rstrip()
+
+    return clean_text(bytes_to_text(byte_vals))
+
+def ff_blank_initials_to_text(byte_vals: list[int]) -> str:
+    """Decode ASCII initials where 255 bytes should be treated as blanks."""
+    chars = []
+    for byte_val in byte_vals:
+        chars.append("\x00" if byte_val == 255 else chr(byte_val))
+    return "".join(chars)
 
 def clean_text(text: str) -> str:
     """Strip common NVRAM padding characters from decoded text."""
@@ -149,24 +232,37 @@ def bytes_to_int(byte_vals: list[int]) -> int:
 
     return value
 
-def digit_bytes_to_int(byte_vals: list[int], digit_offset: int = 0) -> int:
+def digit_bytes_to_int(
+    byte_vals: list[int],
+    digit_offset: int = 0,
+    zero_byte: int | None = None,
+) -> int:
     """Convert a sequence of digit bytes into an integer."""
     value = 0
 
     for byte_val in byte_vals:
-        digit = byte_val - digit_offset
+        if zero_byte is not None and byte_val == zero_byte:
+            digit = 0
+        else:
+            digit = byte_val - digit_offset
         if digit < 0 or digit > 9:
             raise ValueError(f"Invalid digit byte: {byte_val} with offset {digit_offset}")
         value = value * 10 + digit
 
     return value
 
-def high_nibble_bytes_to_int(byte_vals: list[int], zero_byte: int | None = None) -> int:
+def high_nibble_bytes_to_int(
+    byte_vals: list[int],
+    zero_byte: int | None = None,
+    zero_if_gte: int | None = None,
+) -> int:
     """Convert bytes whose high nibbles represent digits into an integer."""
     value = 0
 
     for byte_val in reversed(byte_vals):
-        if zero_byte is not None and byte_val == zero_byte:
+        if zero_if_gte is not None and byte_val >= zero_if_gte:
+            digit = 0
+        elif zero_byte is not None and byte_val == zero_byte:
             digit = 0
         else:
             digit = (byte_val >> 4) & 0x0F
@@ -177,14 +273,26 @@ def high_nibble_bytes_to_int(byte_vals: list[int], zero_byte: int | None = None)
     return value
 
 def decode_initials(byte_vals: list[int], name_decoder: str | None = None) -> str:
+    if name_decoder == "ascii_upper":
+        return clean_text(bytes_to_text(byte_vals)).upper()
     if name_decoder == "low_nibble_pairs_ascii":
         return clean_text(low_nibble_pairs_to_text(byte_vals))
+    if name_decoder == "high_nibble_pairs_ascii":
+        return clean_text(high_nibble_pairs_to_text(byte_vals))
     if name_decoder == "atlantis_initials":
         return clean_text(atlantis_initials_to_text(byte_vals))
+    if name_decoder == "hvymetal_initials":
+        return clean_text(hvymetal_initials_to_text(byte_vals))
     if name_decoder == "dd_l2_initials":
         return clean_text(dd_l2_initials_to_text(byte_vals))
+    if name_decoder == "grand_l4_initials":
+        return clean_text(grand_l4_initials_to_text(byte_vals))
     if name_decoder == "austin_name":
         return clean_text(austin_name_to_text(byte_vals))
+    if name_decoder == "monopoly_name":
+        return clean_text(monopoly_name_to_text(byte_vals))
+    if name_decoder == "ff_blank_ascii":
+        return clean_text(ff_blank_initials_to_text(byte_vals))
 
     return clean_text(bytes_to_text(byte_vals))
 
@@ -209,7 +317,14 @@ def decode_single_digit_score(filename: str, rom_config: dict) -> int:
         )
     if rom_config.get("reverse_digits", False):
         bytes_read = list(reversed(bytes_read))
-    return digit_bytes_to_int(bytes_read, rom_config.get("digit_offset", 0))
+    return digit_bytes_to_int(
+        bytes_read,
+        rom_config.get("digit_offset", 0),
+        rom_config.get("zero_byte"),
+    )
+
+def decode_single_digit_score_x10(filename: str, rom_config: dict) -> int:
+    return decode_single_digit_score(filename, rom_config) * 10
 
 def decode_single_high_nibble_score(filename: str, rom_config: dict) -> int:
     with open(filename, "rb") as f:
@@ -218,7 +333,11 @@ def decode_single_high_nibble_score(filename: str, rom_config: dict) -> int:
             rom_config["offsets"],
             one_based=rom_config.get("one_based", False),
         )
-    return high_nibble_bytes_to_int(bytes_read, rom_config.get("zero_byte"))
+    return high_nibble_bytes_to_int(
+        bytes_read,
+        rom_config.get("zero_byte"),
+        rom_config.get("zero_if_gte"),
+    )
 
 def decode_single_high_nibble_score_x10(filename: str, rom_config: dict) -> int:
     return decode_single_high_nibble_score(filename, rom_config) * 10
@@ -247,17 +366,43 @@ def decode_leaderboard_bcd(filename: str, rom_config: dict) -> list[ParsedEntry]
 
     return entries
 
-def decode_score_bytes(score_bytes: list[int], score_decoder: str) -> int:
+def decode_score_bytes(
+    score_bytes: list[int],
+    score_decoder: str,
+    entry: dict | None = None,
+) -> int:
+    entry = entry or {}
+
     if score_decoder == "bcd":
         return bcd_to_int(score_bytes)
+    if score_decoder == "bcd_x10":
+        return bcd_to_int(score_bytes) * 10
     if score_decoder == "big_endian":
         return bytes_to_int(score_bytes)
     if score_decoder == "big_endian_x10":
         return bytes_to_int(score_bytes) * 10
     if score_decoder == "byte_pair_100_1":
         return score_bytes[0] * 100 + score_bytes[1]
+    if score_decoder == "low_nibble_100_bcd":
+        return (score_bytes[0] & 0x0F) * 100 + bcd_to_int([score_bytes[1]])
+    if score_decoder == "high_nibble_digits":
+        return high_nibble_bytes_to_int(
+            score_bytes,
+            entry.get("zero_byte", 255),
+            entry.get("zero_if_gte"),
+        )
+    if score_decoder == "raw_digits":
+        return digit_bytes_to_int(
+            score_bytes,
+            entry.get("digit_offset", 0),
+            entry.get("zero_byte"),
+        )
     if score_decoder == "raw_digits_x10":
-        return digit_bytes_to_int(score_bytes) * 10
+        return digit_bytes_to_int(
+            score_bytes,
+            entry.get("digit_offset", 0),
+            entry.get("zero_byte"),
+        ) * 10
     if score_decoder == "raw_byte":
         return score_bytes[0]
 
@@ -395,6 +540,277 @@ def decode_since_date_entry(
         extra_lines=[f"SINCE {month}. {day}, {year}"],
     )
 
+def decode_x_y_seconds_entry(
+    f: BinaryIO,
+    entry: dict,
+    initials: str,
+    one_based: bool,
+) -> ParsedEntry:
+    data_bytes = read_offsets(f, entry["data_offsets"], one_based=one_based)
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials=initials,
+        extra_lines=[f"{data_bytes[0]}.{data_bytes[1]} SECONDS"],
+    )
+
+def decode_mm_ss_cc_entry(
+    f: BinaryIO,
+    entry: dict,
+    initials: str,
+    one_based: bool,
+) -> ParsedEntry:
+    data_bytes = read_offsets(f, entry["data_offsets"], one_based=one_based)
+    total = data_bytes[0] * 256 + data_bytes[1]
+    minutes = round(total / 6000.0)
+    seconds = round((total - minutes * 6000) / 100.0)
+    centiseconds = total - minutes * 6000 - seconds * 100
+
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials=initials,
+        extra_lines=[f"{minutes:02d}:{seconds:02d}.{centiseconds:02d}"],
+    )
+
+def decode_crowned_datetime_entry(
+    f: BinaryIO,
+    entry: dict,
+    initials: str,
+    one_based: bool,
+) -> ParsedEntry:
+    data_bytes = read_offsets(f, entry["data_offsets"], one_based=one_based)
+    crown_count = read_offsets(f, [entry["extra_offsets"]["crown_count"]], one_based=one_based)[0]
+
+    if crown_count == 0:
+        return ParsedEntry(section="", rank=entry["rank"], initials="")
+
+    month_names = {
+        1: "JAN",
+        2: "FEB",
+        3: "MAR",
+        4: "APR",
+        5: "MAY",
+        6: "JUN",
+        7: "JUL",
+        8: "AUG",
+        9: "SEP",
+        10: "OCT",
+        11: "NOV",
+        12: "DEC",
+    }
+    ordinal_suffix = {1: "st", 2: "nd", 3: "rd"}.get(crown_count, "th")
+    month = month_names.get(data_bytes[2], str(data_bytes[2]))
+    hour = data_bytes[4]
+    suffix = " AM"
+    if hour > 12:
+        hour -= 12
+        suffix = " PM"
+
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials=initials,
+        extra_lines=[
+            f"CROWNED FOR THE {crown_count}{ordinal_suffix} TIME",
+            f"{data_bytes[3]} {month}, {data_bytes[0] * 256 + data_bytes[1]} {hour}:{data_bytes[5]:02d}{suffix}",
+        ],
+    )
+
+def decode_datetime_entry(
+    f: BinaryIO,
+    entry: dict,
+    initials: str,
+    one_based: bool,
+) -> ParsedEntry:
+    data_bytes = read_offsets(f, entry["data_offsets"], one_based=one_based)
+
+    month_names = {
+        1: "JAN",
+        2: "FEB",
+        3: "MAR",
+        4: "APR",
+        5: "MAY",
+        6: "JUN",
+        7: "JUL",
+        8: "AUG",
+        9: "SEP",
+        10: "OCT",
+        11: "NOV",
+        12: "DEC",
+    }
+    month = month_names.get(data_bytes[2], str(data_bytes[2]))
+    hour = data_bytes[4]
+    suffix = " AM"
+    if hour > 12:
+        hour -= 12
+        suffix = " PM"
+
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials=initials,
+        extra_lines=[
+            f"{data_bytes[3]} {month}, {data_bytes[0] * 256 + data_bytes[1]} {hour}:{data_bytes[5]:02d}{suffix}",
+        ],
+        multiline=True,
+    )
+
+def decode_team_wins_rings_entry(
+    f: BinaryIO,
+    entry: dict,
+    initials: str,
+    one_based: bool,
+) -> ParsedEntry:
+    data_bytes = read_offsets(f, entry["data_offsets"], one_based=one_based)
+    rings = bcd_to_int([data_bytes[0]])
+    wins = bcd_to_int([data_bytes[1]]) * 100 + bcd_to_int([data_bytes[2]])
+
+    if rings == 0:
+        line = f"{wins}"
+    elif rings == 1:
+        line = f"{wins} 1-RING"
+    else:
+        line = f"{wins} {rings}-RINGS"
+
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials=initials,
+        extra_lines=[line],
+    )
+
+def decode_static_text_entry(
+    entry: dict,
+    initials: str,
+) -> ParsedEntry:
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials=initials,
+        extra_lines=[entry["text"]],
+    )
+
+def decode_name_text_entry(
+    entry: dict,
+    initials: str,
+) -> ParsedEntry:
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials="",
+        extra_lines=[f"{initials}   {entry['text']}"],
+    )
+
+def decode_labeled_score_entry(
+    f: BinaryIO,
+    entry: dict,
+    one_based: bool,
+) -> ParsedEntry:
+    score_bytes = read_offsets(f, entry["data_offsets"], one_based=one_based)
+    score = decode_score_bytes(score_bytes, entry["score_decoder"], entry)
+    line = f"{entry['label']}   {score:,}"
+    if entry.get("value_suffix"):
+        line = f"{line} {entry['value_suffix']}"
+
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials="",
+        extra_lines=[line],
+    )
+
+def decode_got_to_year_entry(
+    f: BinaryIO,
+    entry: dict,
+    initials: str,
+    one_based: bool,
+) -> ParsedEntry:
+    data_byte = read_offsets(f, entry["data_offsets"], one_based=one_based)[0]
+    year = entry.get("base_year", 1993) - bcd_to_int([data_byte]) * 100
+
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials="",
+        extra_lines=[f"{initials} GOT TO {year}"],
+    )
+
+def decode_label_name_value_entry(
+    f: BinaryIO,
+    entry: dict,
+    initials: str,
+    one_based: bool,
+) -> ParsedEntry:
+    data_bytes = read_offsets(f, entry["data_offsets"], one_based=one_based)
+    value = decode_score_bytes(data_bytes, entry["score_decoder"], entry)
+    if entry.get("value_format") == "hex":
+        value_text = format(value, "X")
+    else:
+        value_text = str(value)
+    if entry.get("value_prefix"):
+        value_text = f"{entry['value_prefix']}{value_text}"
+    if entry.get("value_suffix"):
+        value_text = f"{value_text} {entry['value_suffix']}"
+
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials="",
+        extra_lines=[entry["label"], initials, value_text],
+        multiline=True,
+    )
+
+def decode_name_value_entry(
+    f: BinaryIO,
+    entry: dict,
+    initials: str,
+    one_based: bool,
+) -> ParsedEntry:
+    data_bytes = read_offsets(f, entry["data_offsets"], one_based=one_based)
+    value = decode_score_bytes(data_bytes, entry["score_decoder"], entry)
+    if entry.get("value_format") == "hex":
+        value_text = format(value, "X")
+    else:
+        value_text = str(value)
+    if entry.get("value_prefix"):
+        value_text = f"{entry['value_prefix']}{value_text}"
+    if entry.get("value_suffix"):
+        value_text = f"{value_text} {entry['value_suffix']}"
+
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials="",
+        extra_lines=[initials, value_text],
+        multiline=True,
+    )
+
+def decode_label_value_name_entry(
+    f: BinaryIO,
+    entry: dict,
+    initials: str,
+    one_based: bool,
+) -> ParsedEntry:
+    data_bytes = read_offsets(f, entry["data_offsets"], one_based=one_based)
+    value = decode_score_bytes(data_bytes, entry["score_decoder"], entry)
+    if entry.get("value_format") == "hex":
+        value_text = format(value, "X")
+    else:
+        value_text = str(value)
+    if entry.get("value_prefix"):
+        value_text = f"{entry['value_prefix']}{value_text}"
+    if entry.get("value_suffix"):
+        value_text = f"{value_text} {entry['value_suffix']}"
+
+    return ParsedEntry(
+        section="",
+        rank=entry["rank"],
+        initials="",
+        extra_lines=[f"{entry['label']}{value_text}", initials],
+        multiline=True,
+    )
+
 def decode_mixed_leaderboard(
     filename: str,
     rom_config: dict,
@@ -419,13 +835,14 @@ def decode_mixed_leaderboard(
                     entry.get("name_decoder"),
                 )
                 if "score_offsets" not in entry and "entry_decoder" not in entry:
-                    results.append(
-                        ParsedEntry(
-                            section=section["title"],
-                            rank=entry["rank"],
-                            initials=initials,
-                        )
+                    decoded_entry = ParsedEntry(
+                        section=section["title"],
+                        rank=entry["rank"],
+                        initials=initials,
                     )
+                    if not _has_meaningful_entry(decoded_entry):
+                        continue
+                    results.append(decoded_entry)
                     continue
                 if "entry_decoder" in entry:
                     if entry["entry_decoder"] == "afm_ruler_of_the_universe":
@@ -461,8 +878,89 @@ def decode_mixed_leaderboard(
                             initials,
                             one_based,
                         )
+                    elif entry["entry_decoder"] == "x_y_seconds":
+                        decoded_entry = decode_x_y_seconds_entry(
+                            f,
+                            entry,
+                            initials,
+                            one_based,
+                        )
+                    elif entry["entry_decoder"] == "mm_ss_cc":
+                        decoded_entry = decode_mm_ss_cc_entry(
+                            f,
+                            entry,
+                            initials,
+                            one_based,
+                        )
+                    elif entry["entry_decoder"] == "crowned_datetime":
+                        decoded_entry = decode_crowned_datetime_entry(
+                            f,
+                            entry,
+                            initials,
+                            one_based,
+                        )
+                    elif entry["entry_decoder"] == "datetime":
+                        decoded_entry = decode_datetime_entry(
+                            f,
+                            entry,
+                            initials,
+                            one_based,
+                        )
+                    elif entry["entry_decoder"] == "team_wins_rings":
+                        decoded_entry = decode_team_wins_rings_entry(
+                            f,
+                            entry,
+                            initials,
+                            one_based,
+                        )
+                    elif entry["entry_decoder"] == "static_text":
+                        decoded_entry = decode_static_text_entry(
+                            entry,
+                            initials,
+                        )
+                    elif entry["entry_decoder"] == "name_text":
+                        decoded_entry = decode_name_text_entry(
+                            entry,
+                            initials,
+                        )
+                    elif entry["entry_decoder"] == "labeled_score":
+                        decoded_entry = decode_labeled_score_entry(
+                            f,
+                            entry,
+                            one_based,
+                        )
+                    elif entry["entry_decoder"] == "got_to_year":
+                        decoded_entry = decode_got_to_year_entry(
+                            f,
+                            entry,
+                            initials,
+                            one_based,
+                        )
+                    elif entry["entry_decoder"] == "label_name_value":
+                        decoded_entry = decode_label_name_value_entry(
+                            f,
+                            entry,
+                            initials,
+                            one_based,
+                        )
+                    elif entry["entry_decoder"] == "name_value":
+                        decoded_entry = decode_name_value_entry(
+                            f,
+                            entry,
+                            initials,
+                            one_based,
+                        )
+                    elif entry["entry_decoder"] == "label_value_name":
+                        decoded_entry = decode_label_value_name_entry(
+                            f,
+                            entry,
+                            initials,
+                            one_based,
+                        )
                     else:
                         raise ValueError(f"Unknown entry decoder: {entry['entry_decoder']}")
+                    if not _has_meaningful_entry(decoded_entry):
+                        continue
                     decoded_entry.section = section["title"]
                     results.append(decoded_entry)
                     continue
@@ -472,16 +970,22 @@ def decode_mixed_leaderboard(
                     entry["score_offsets"],
                     one_based=one_based,
                 )
-                decoded_score = decode_score_bytes(score_bytes, entry["score_decoder"])
+                decoded_score = decode_score_bytes(
+                    score_bytes,
+                    entry["score_decoder"],
+                    entry,
+                )
                 if decoded_score in entry.get("skip_score_values", []):
                     continue
                 results.append(
                     ParsedEntry(
                         section=section["title"],
-                        rank=entry["rank"],
+                        rank=entry.get("rank"),
                         initials=initials,
                         score=decoded_score,
+                        value_prefix=entry.get("value_prefix"),
                         value_suffix=entry.get("value_suffix"),
+                        value_format=entry.get("value_format"),
                     )
                 )
 
@@ -494,6 +998,14 @@ def parse_ini_score(value: str) -> int:
 def build_ini_section_name(section_name: str, group_name: str) -> str:
     group_name = group_name.strip()
     return group_name or section_name
+
+def is_standalone_ini_score_key(key: str) -> bool:
+    normalized_key = key.strip().lower()
+    return normalized_key in {
+        "hiscore",
+        "highscore",
+        "score",
+    }
 
 def decode_ini_file(filename: str) -> list[ParsedEntry]:
     parser = configparser.ConfigParser(interpolation=None)
@@ -553,6 +1065,17 @@ def decode_ini_file(filename: str) -> list[ParsedEntry]:
                     )
                 )
                 paired_keys.update({key, name_key})
+                continue
+
+            if is_standalone_ini_score_key(key):
+                entries.append(
+                    ParsedEntry(
+                        section=section_name,
+                        rank=None,
+                        initials="",
+                        score=parse_ini_score(value),
+                    )
+                )
 
     return entries
 
@@ -560,6 +1083,7 @@ DECODERS = {
     "single_bcd_score": decode_single_bcd_score,
     "single_bcd_score_x10": decode_single_bcd_score_x10,
     "single_digit_score": decode_single_digit_score,
+    "single_digit_score_x10": decode_single_digit_score_x10,
     "single_high_nibble_score": decode_single_high_nibble_score,
     "single_high_nibble_score_x10": decode_single_high_nibble_score_x10,
     "leaderboard_bcd": decode_leaderboard_bcd,
@@ -573,12 +1097,29 @@ def format_entry(entry: ParsedEntry) -> list[str]:
     rank_text = f"{entry.rank} " if entry.rank is not None else ""
 
     if entry.score is not None:
-        value_text = f"{entry.score:,}"
+        if entry.value_format == "hex":
+            value_text = format(entry.score, "X")
+        else:
+            value_text = f"{entry.score:,}"
+        if entry.value_prefix:
+            value_text = f"{entry.value_prefix}{value_text}"
         if entry.value_suffix:
-            value_text = f"{value_text} {entry.value_suffix}"
+            if entry.value_suffix.startswith("-"):
+                value_text = f"{value_text}{entry.value_suffix}"
+            else:
+                value_text = f"{value_text} {entry.value_suffix}"
+        if not entry.initials:
+            return [f"{rank_text}{value_text}".rstrip()]
         return [f"{rank_text}{entry.initials} - {value_text}"]
 
     if entry.extra_lines:
+        if entry.multiline:
+            lines = list(entry.extra_lines)
+            if lines and rank_text:
+                lines[0] = f"{rank_text}{lines[0]}".rstrip()
+            return lines
+        if not entry.initials:
+            return [f"{rank_text}{' | '.join(entry.extra_lines)}".rstrip()]
         return [f"{rank_text}{entry.initials} - {' | '.join(entry.extra_lines)}".rstrip()]
 
     return [f"{rank_text}{entry.initials}".rstrip()]
@@ -594,7 +1135,8 @@ def format_result(rom_name: str, result: int | list[ParsedEntry]) -> list[str]:
     last_section = None
     for entry in result:
         if entry.section != last_section:
-            lines.append(entry.section)
+            if entry.section:
+                lines.append(entry.section)
             last_section = entry.section
         lines.extend(format_entry(entry))
 
@@ -675,6 +1217,42 @@ if __name__ == "__main__":
         "eightbll": "/home/superhac/tables/Eight Ball (Bally 1977)/pinmame/nvram/eightbll.nv",
         "frankst": "/home/superhac/tables/Mary Shelley's Frankenstein (Sega 1995)/pinmame/nvram/frankst.nv",
         "freddy": "/home/superhac/tables/Freddy - A Nightmare on Elm Street (Gottlieb 1994)/pinmame/nvram/freddy.nv",
+        "frpwr_b7":"/home/superhac/tables/Firepower (Williams 1980)/pinmame/nvram/frpwr_b7.nv",
+        "fs_lx5": "/home/superhac/tables/The Flintstones (Williams 1994)/pinmame/nvram/fs_lx5.nv",
+        "genesis": "/home/superhac/tables/Genesis (Gottlieb 1986)/pinmame/nvram/genesis.nv",
+        "gi_l9": "/home/superhac/tables/Gilligan's Island (Bally 1991)/pinmame/nvram/gi_l9.nv",
+        "gladiatr": "/home/superhac/tables/Gladiators (Gottlieb 1993)/pinmame/nvram/gladiatr.nv",
+        "gldneye": "/home/superhac/tables/Goldeneye (Sega 1996)/pinmame/nvram/gldneye.nv",
+        "gnr_300": "/home/superhac/tables/Guns N Roses (Data East 1994)/pinmame/nvram/gnr_300.nv",
+        "godzilla": "/home/superhac/tables/Godzilla (Sega 1998)/pinmame/nvram/godzilla.nv",
+        "goldcue": "/home/superhac/tables/Golden Cue (Sega 1998)/pinmame/nvram/goldcue.nv",
+        "goldwing": "/home/superhac/tables/Gold Wings (Gottlieb 1986)/pinmame/nvram/goldwing.nv",
+        "grand_l4": "/home/superhac/tables/Grand Lizard (Williams 1986)/pinmame/nvram/grand_l4.nv",
+        "granny": "/home/superhac/tables/Granny (Gottlieb 1990)/pinmame/nvram/granny.nv",
+        "gw_l5": "/home/superhac/tables/The Getaway - High Speed II (Williams 1992)/pinmame/nvram/gw_l5.nv",
+        "hd_l1": "/home/superhac/tables/Harley-Davidson (Bally 1991)/pinmame/nvram/hd_l3.nv",
+        "hh": "/home/superhac/tables/Haunted House (Gottlieb 1982)/pinmame/nvram/hh.nv",
+        "hirolcas": "/home/superhac/tables/High Roller Casino (Stern 2001)/pinmame/nvram/hirolcas.nv",
+        "hlywoodh": "/home/superhac/tables/Hollywood Heat (Gottlieb 1986)/pinmame/nvram/hlywoodh.nv",
+        "hook_501": "/home/superhac/tables/Hook (Data East 1992)/pinmame/nvram/hook_501.nv",
+        "hoops": "/home/superhac/tables/Hoops (Gottlieb 1991)/pinmame/nvram/hoops.nv",
+        "im_185": "/home/superhac/tables/Iron Man (Stern 2010)/pinmame/nvram/im_185ve.nv",
+        "jd_l1":"/home/superhac/tables/Judge Dredd (Bally 1993)/pinmame/nvram/jd_l1.nv",
+        "jupk_600":"/home/superhac/tables/Jurassic Park (Data East 1993)/pinmame/nvram/jupk_600.nv",
+        "kpv106": "/home/superhac/tables/Kingpin (Capcom 1996)/pinmame/nvram/kpb105.nv",
+        "lah_112":"/home/superhac/tables/Last Action Hero (Data East 1993)/pinmame/nvram/lah_113.nv",
+        "lca2": "/home/superhac/tables/Lights Camera Action (Gottlieb 1989)/pinmame/nvram/lca2.nv",
+        "lostspc": "/home/superhac/tables/Lost in Space (Sega 1998)/pinmame/nvram/lostspc.nv",
+        "lsrcu_l2": "/home/superhac/tables/Laser Cue (Williams 1984)/pinmame/nvram/lsrcu_l2.nv",
+        "mb_106b":"/home/superhac/tables/Monster Bash (Williams 1998)/pinmame/nvram/mb_106b.nv",
+        "meteorb":"/home/superhac/tables/Meteor (Stern 1979)/pinmame/nvram/meteorb.nv",
+        "mm_109c":"/home/superhac/tables/Medieval Madness (Williams 1997)/pinmame/nvram/mm_109c.nv",
+        "rab_320": "/home/superhac/tables/Adventures of Rocky and Bullwinkle and Friends (Data East 1993)/pinmame/nvram/rab_320.nv",
+        "sc_18":"/home/superhac/tables/Safe Cracker (Bally 1996)/pinmame/nvram/sc_18n11.nv",
+        "ss_15": "/home/superhac/tables/Scared Stiff (Bally 1996)/pinmame/nvram/ss_15.nv",
+        "twenty4_150": "/home/superhac/tables/24 (Stern 2009)/pinmame/nvram/twenty4_150.nv",
+        "ww_lh6": "/home/superhac/tables/White Water (Williams 1993)/pinmame/nvram/ww_lh6.nv",
+        "wwfr_106":"/home/superhac/tables/WWF Royal Rumble (Data East 1994)/pinmame/nvram/wwfr_106.nv",
     }
 
     for rom_name, filename in rom_files.items():
