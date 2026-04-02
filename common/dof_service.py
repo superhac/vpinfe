@@ -238,12 +238,14 @@ def _resolve_frontend_event_token(event_token: str | None) -> str:
     return f"E{random.randint(900, 990)}"
 
 
-def send_frontend_dof_event(iniconfig, event_token: str | None = None) -> bool:
+def send_dof_event_token(iniconfig, event_token: str) -> bool:
     global _RUNNER, _CURRENT_EVENT
     if not _is_enabled(iniconfig):
         return False
 
-    resolved_event = _resolve_frontend_event_token(event_token)
+    resolved_event = _normalize_event_token(event_token)
+    if not resolved_event:
+        raise ValueError("DOF event token is required.")
 
     with _LOCK:
         runner = _RUNNER
@@ -275,3 +277,33 @@ def send_frontend_dof_event(iniconfig, event_token: str | None = None) -> bool:
 
     logger.debug("Sent frontend DOF event: %s", resolved_event)
     return True
+
+
+def clear_active_dof_event(iniconfig) -> bool:
+    global _RUNNER, _CURRENT_EVENT
+    if not _is_enabled(iniconfig):
+        return False
+
+    with _LOCK:
+        runner = _RUNNER
+
+    if runner is None or not is_running():
+        return False
+
+    try:
+        runner.stop_event()
+    except Exception as e:
+        logger.error("Failed to clear active DOF event: %s", e)
+        return False
+
+    with _LOCK:
+        if _RUNNER is runner:
+            _CURRENT_EVENT = None
+
+    logger.debug("Cleared active frontend DOF event")
+    return True
+
+
+def send_frontend_dof_event(iniconfig, event_token: str | None = None) -> bool:
+    resolved_event = _resolve_frontend_event_token(event_token)
+    return send_dof_event_token(iniconfig, resolved_event)

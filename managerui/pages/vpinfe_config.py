@@ -9,7 +9,7 @@ import sys
 from urllib.parse import quote
 from nicegui import ui, run
 from common.iniconfig import IniConfig
-from common.dof_service import find_dof_file
+from common.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
 from common.vpinplay_service import sync_installed_tables
 from common.launcher import build_masked_tableini_path, build_vpx_launch_command
 from common.vpxcollections import VPXCollections
@@ -547,6 +547,7 @@ def render_panel(tab=None):
     inputs = {}
     dof_force_checkbox = None
     update_dof_button = None
+    dof_test_event_input = None
     sync_vpinplay_button = None
     launch_command_preview = None
     launch_env_preview = None
@@ -818,6 +819,35 @@ def render_panel(tab=None):
         finally:
             update_dof_button.text = 'Update DOF via Online Config Tool'
             update_dof_button.enable()
+
+    async def run_dof_test_event_start():
+        event_token = str(getattr(dof_test_event_input, 'value', '') or '').strip()
+        if not event_token:
+            ui.notify('Enter a DOF event like E900.', type='warning')
+            return
+
+        try:
+            started = await run.io_bound(send_dof_event_token, config, event_token)
+            if started:
+                ui.notify(f'Started DOF event {event_token.strip().upper()}.', type='positive')
+            else:
+                ui.notify('DOF is disabled or unavailable.', type='warning')
+        except ValueError as e:
+            ui.notify(str(e), type='warning')
+        except Exception as e:
+            logger.exception("Failed to start DOF test event")
+            ui.notify(f'Failed to start DOF event: {e}', type='negative')
+
+    async def run_dof_test_event_stop():
+        try:
+            cleared = await run.io_bound(clear_active_dof_event, config)
+            if cleared:
+                ui.notify('Stopped active DOF event.', type='positive')
+            else:
+                ui.notify('No active DOF event to stop.', type='warning')
+        except Exception as e:
+            logger.exception("Failed to stop DOF test event")
+            ui.notify(f'Failed to stop DOF event: {e}', type='negative')
 
     async def run_vpinplay_sync():
         vpinplay_inputs = inputs.get('vpinplay', {})
@@ -1162,6 +1192,40 @@ def render_panel(tab=None):
                                                 with ui.element('div').classes('w-full'):
                                                     value = config.config.get(section, sync_key, fallback='false')
                                                     build_config_input(section, sync_key, value)
+                                elif section == 'DOF':
+                                    with ui.element('div').classes('config-vpinplay-pair'):
+                                        with ui.column().classes('w-full gap-3'):
+                                            with ui.card().classes('config-side-card w-full p-4'):
+                                                ui.label('DOF Settings').classes('text-lg font-semibold text-white')
+                                                ui.label(
+                                                    'Configure frontend DOF support and the online config tool API key.'
+                                                ).classes('text-sm text-slate-300')
+                                                with ui.element('div').classes('config-form-grid mt-3'):
+                                                    for key in options:
+                                                        value = config.config.get(section, key, fallback='')
+                                                        build_config_input(section, key, value)
+                                        with ui.column().classes('w-full gap-3'):
+                                            with ui.card().classes('config-side-card w-full p-4'):
+                                                ui.label('DOF Event Test').classes('text-lg font-semibold text-white')
+                                                ui.label(
+                                                    'Enter an event token like E900 or S27, then start or stop it for testing.'
+                                                ).classes('text-sm text-slate-300')
+                                                dof_test_event_input = ui.input(
+                                                    label='Test Event',
+                                                    value='E900',
+                                                    placeholder='E900',
+                                                ).props('outlined').classes('w-full mt-2')
+                                                with ui.row().classes('items-center gap-3 mt-3'):
+                                                    ui.button(
+                                                        'Start Event',
+                                                        icon='play_arrow',
+                                                        on_click=run_dof_test_event_start,
+                                                    ).props('color=primary rounded')
+                                                    ui.button(
+                                                        'Stop Event',
+                                                        icon='stop',
+                                                        on_click=run_dof_test_event_stop,
+                                                    ).props('color=negative flat rounded')
                                 else:
                                     with ui.element('div').classes('config-form-grid'):
                                         for key in options:
