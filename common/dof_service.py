@@ -1,13 +1,17 @@
 import importlib.util
 import logging
 import os
+import random
+import re
 import sys
 import threading
 from pathlib import Path
 
 _LOCK = threading.Lock()
 _RUNNER = None
-_RUNNER_NAMES = ('dof_runner.py', 'random_dof_runner.py')
+_CURRENT_EVENT = None
+_RUNNER_NAMES = ('dof_runner.py', 'runner_dof.py', 'random_dof_runner.py')
+_EVENT_TOKEN_RE = re.compile(r'^([A-Za-z])(\d+)$')
 logger = logging.getLogger("vpinfe.common.dof_service")
 
 
@@ -117,9 +121,9 @@ def _load_runner_class():
             except ValueError:
                 pass
 
-    runner_class = getattr(module, 'RandomDofRunner', None)
+    runner_class = getattr(module, 'SingleEventDofRunner', None)
     if runner_class is None:
-        logger.error("RandomDofRunner class not found in dof_runner.py")
+        logger.error("SingleEventDofRunner class not found in dof_runner.py")
         return None, dof_dir
     return runner_class, dof_dir
 
@@ -153,7 +157,7 @@ def find_dof_file(*names: str) -> Path | None:
 
 
 def start_dof_service_if_enabled(iniconfig) -> bool:
-    global _RUNNER
+    global _RUNNER, _CURRENT_EVENT
     if not _is_enabled(iniconfig):
         return False
 
@@ -172,15 +176,12 @@ def start_dof_service_if_enabled(iniconfig) -> bool:
         try:
             _RUNNER = runner_class(
                 rom='pinupmenu',
-                random_interval_sec=.6,
-                random_min=901,
-                random_max=990,
-                random_on_value=1,
                 debug=logger.isEnabledFor(logging.DEBUG),
                 log_callback=_dof_log_callback,
             )
             started = bool(_RUNNER.start())
             if started:
+                _CURRENT_EVENT = None
                 logger.info("Service started using dof_runner.py from %s", dof_dir)
             else:
                 logger.info("Service start requested but runner was already active.")
@@ -192,7 +193,7 @@ def start_dof_service_if_enabled(iniconfig) -> bool:
 
 
 def stop_dof_service(timeout: float = 10.0) -> bool:
-    global _RUNNER
+    global _RUNNER, _CURRENT_EVENT
     with _LOCK:
         runner = _RUNNER
         if runner is None:
@@ -208,9 +209,69 @@ def stop_dof_service(timeout: float = 10.0) -> bool:
     with _LOCK:
         if _RUNNER is runner and (stopped or not _RUNNER.is_running()):
             _RUNNER = None
+            _CURRENT_EVENT = None
     return stopped
 
 
 def restart_dof_service_if_enabled(iniconfig) -> bool:
     stop_dof_service()
     return start_dof_service_if_enabled(iniconfig)
+
+
+def _normalize_event_token(event_token: str | None) -> str | None:
+    token = str(event_token or '').strip().upper()
+    if not token:
+        return None
+
+    match = _EVENT_TOKEN_RE.fullmatch(token)
+    if not match:
+        raise ValueError(f"Invalid DOF event token: {event_token!r}")
+
+    type_char, number_text = match.groups()
+    return f"{type_char}{int(number_text)}"
+
+
+def _resolve_frontend_event_token(event_token: str | None) -> str:
+    normalized = _normalize_event_token(event_token)
+    if normalized:
+        return normalized
+    return f"E{random.randint(900, 990)}"
+
+
+def send_frontend_dof_event(iniconfig, event_token: str | None = None) -> bool:
+    global _RUNNER, _CURRENT_EVENT
+    if not _is_enabled(iniconfig):
+        return False
+
+    resolved_event = _resolve_frontend_event_token(event_token)
+
+    with _LOCK:
+        runner = _RUNNER
+        current_event = _CURRENT_EVENT
+
+    if runner is None or not is_running():
+        started = start_dof_service_if_enabled(iniconfig)
+        if not started and not is_running():
+            return False
+        with _LOCK:
+            runner = _RUNNER
+            current_event = _CURRENT_EVENT
+
+    if runner is None:
+        return False
+
+    if current_event == resolved_event:
+        return False
+
+    try:
+        runner.send_event_token(resolved_event)
+    except Exception as e:
+        logger.error("Failed to send frontend DOF event %s: %s", resolved_event, e)
+        return False
+
+    with _LOCK:
+        if _RUNNER is runner:
+            _CURRENT_EVENT = resolved_event
+
+    logger.debug("Sent frontend DOF event: %s", resolved_event)
+    return True

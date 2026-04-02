@@ -11,7 +11,11 @@ import subprocess
 from common.tableparser import TableParser
 from common.vpxcollections import VPXCollections
 from common.tablelistfilters import TableListFilters
-from common.dof_service import start_dof_service_if_enabled, stop_dof_service
+from common.dof_service import (
+    send_frontend_dof_event,
+    start_dof_service_if_enabled,
+    stop_dof_service,
+)
 from common.launcher import (
     build_vpx_launch_command,
     get_effective_launcher,
@@ -63,6 +67,21 @@ class API:
 
     def _finish_setup(self):
         pass
+
+    def _normalize_table_meta(self, table):
+        meta = table.metaConfig or {}
+        if isinstance(meta, dict):
+            return meta
+        if hasattr(meta, "getConfig"):
+            return meta.getConfig()
+        return {}
+
+    def _get_frontend_dof_event_for_table(self, table) -> str:
+        meta = self._normalize_table_meta(table)
+        user = meta.get("User", {}) if isinstance(meta, dict) else {}
+        if not isinstance(user, dict):
+            return ""
+        return str(user.get("FrontendDOFEvent", "") or "").strip()
 
 
     ###################
@@ -545,6 +564,25 @@ class API:
 
         self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
 
+    def update_frontend_dof_for_table(self, index):
+        """Send the configured frontend DOF event for the selected table."""
+        try:
+            table = self.filteredTables[int(index)]
+        except Exception:
+            logger.debug("Skipping frontend DOF update for invalid table index: %s", index)
+            return {"success": False, "reason": "invalid_index"}
+
+        event_token = self._get_frontend_dof_event_for_table(table)
+        event_sent = send_frontend_dof_event(self._iniConfig, event_token)
+        resolved_event = event_token if event_token else "random:E900-E990"
+        logger.debug(
+            "Frontend DOF update for %s -> %s (sent=%s)",
+            table.tableDirName,
+            resolved_event,
+            event_sent,
+        )
+        return {"success": True, "event": resolved_event, "sent": event_sent}
+
     def get_table_rating(self, index):
         """Get User.Rating for a table index in the current filtered list."""
         try:
@@ -552,7 +590,7 @@ class API:
         except Exception:
             return 0
 
-        config = table.metaConfig or {}
+        config = self._normalize_table_meta(table)
         if not isinstance(config, dict):
             return 0
 
@@ -567,7 +605,7 @@ class API:
     def set_table_rating(self, index, rating):
         """Set User.Rating (0-5) for a table index in the current filtered list."""
         table = self.filteredTables[index]
-        config = table.metaConfig or {}
+        config = self._normalize_table_meta(table)
         if not isinstance(config, dict):
             config = {}
 
@@ -586,7 +624,7 @@ class API:
     def _track_table_play(self, table):
         """Track a table play by adding it to the Last Played collection."""
 
-        meta = table.metaConfig or {}
+        meta = self._normalize_table_meta(table)
         info = meta.get("Info", {})
         vpsid = info.get("VPSId")
 
@@ -633,10 +671,11 @@ class API:
         user.setdefault("StartCount", 0)
         user.setdefault("RunTime", 0)
         user.setdefault("Tags", [])
+        user.setdefault("FrontendDOFEvent", "")
         return user
 
     def _update_user_score_from_nvram(self, table):
-        config = table.metaConfig or {}
+        config = self._normalize_table_meta(table)
         if not isinstance(config, dict):
             logger.warning("Could not update Score: invalid table metadata for %s", table.tableDirName)
             return
@@ -688,7 +727,7 @@ class API:
         logger.info("Updated User.Score for %s from %s", table.tableDirName, score_path)
 
     def _increment_user_start_count(self, table):
-        config = table.metaConfig or {}
+        config = self._normalize_table_meta(table)
         if not isinstance(config, dict):
             logger.warning("Could not increment StartCount: invalid table metadata for %s", table.tableDirName)
             return
@@ -703,7 +742,7 @@ class API:
         logger.info("Updated User.StartCount for %s -> %s", table.tableDirName, user["StartCount"])
 
     def _add_user_runtime_minutes(self, table, elapsed_seconds):
-        config = table.metaConfig or {}
+        config = self._normalize_table_meta(table)
         if not isinstance(config, dict):
             logger.warning("Could not update RunTime: invalid table metadata for %s", table.tableDirName)
             return
@@ -726,12 +765,8 @@ class API:
 
     def _delete_nvram_if_configured(self, table):
         """Delete the NVRAM .nv file if deletedNVRamOnClose is enabled for this table."""
-        meta = table.metaConfig or {}
-        if isinstance(meta, dict):
-            config = meta
-        elif hasattr(meta, "getConfig"):
-            config = meta.getConfig()
-        else:
+        config = self._normalize_table_meta(table)
+        if not isinstance(config, dict):
             return
 
         vpinfe = config.get("VPinFE", {})

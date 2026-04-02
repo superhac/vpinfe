@@ -408,6 +408,7 @@ def parse_table_info(info_path):
             "altlauncher": (vpinfe.get("altlauncher", "") or "").strip(),
             "alttitle": (vpinfe.get("alttitle", "") or "").strip(),
             "altvpsid": (vpinfe.get("altvpsid", "") or "").strip(),
+            "frontend_dof_event": (user.get("FrontendDOFEvent", "") or "").strip(),
             "rating": normalize_table_rating(user.get("Rating", 0)),
         }
 
@@ -1685,6 +1686,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                 altlauncher_value = row_data.get('altlauncher', '')
                 alttitle_value = row_data.get('alttitle', '')
                 altvpsid_value = row_data.get('altvpsid', '')
+                frontend_dof_event_value = row_data.get('frontend_dof_event', '')
 
                 with ui.row().classes('items-center gap-3 w-full'):
                     alttitle_input = ui.input(
@@ -1789,6 +1791,29 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
 
                     ui.button('Save', icon='save', on_click=on_altlauncher_save).props('color=primary')
                 ui.label('When set, this overrides Settings.vpxbinpath for this table only').classes('text-xs text-gray-400')
+
+                with ui.row().classes('items-center gap-3 w-full'):
+                    frontend_dof_event_input = ui.input(
+                        label='FrontendDOFEvent',
+                        value=frontend_dof_event_value,
+                        placeholder='Optional frontend DOF event override'
+                    ).props('outlined dense clearable').classes('flex-grow')
+
+                    def on_frontend_dof_event_save():
+                        new_value = (frontend_dof_event_input.value or '').strip()
+                        if update_user_setting(table_path_str, 'FrontendDOFEvent', new_value):
+                            row_data['frontend_dof_event'] = new_value
+                            if _tables_cache is not None:
+                                for cached_row in _tables_cache:
+                                    if cached_row.get('table_path') == table_path_str:
+                                        cached_row['frontend_dof_event'] = new_value
+                                        break
+                            ui.notify('Frontend DOF event saved', type='positive')
+                        else:
+                            ui.notify('Failed to save Frontend DOF event', type='negative')
+
+                    ui.button('Save', icon='save', on_click=on_frontend_dof_event_save).props('color=primary')
+                ui.label('When set, this stores the per-table User.FrontendDOFEvent value').classes('text-xs text-gray-400')
 
                 with ui.row().classes('items-center gap-3 mt-3'):
                     def on_delete_nvram_change(e):

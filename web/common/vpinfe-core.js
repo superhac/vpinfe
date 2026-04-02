@@ -53,6 +53,7 @@ class VPinFECore {
     this._audioMaxVolume = 0.8;
     this._audioCurrentUrl = null;
     this._audioRetries = 0;
+    this._lastFrontendDofIndex = null;
 
     // WebSocket bridge
     this._ws = null;
@@ -287,12 +288,14 @@ class VPinFECore {
   // send a message to all windows except "self"
   sendMessageToAllWindows(message) {
     this.#syncLocalIndexFromOutgoingMessage(message);
+    this.#syncFrontendDofFromMessage(message);
     this.call("send_event_all_windows", message);
   }
 
   // send a message to all windows including "self"
   sendMessageToAllWindowsIncSelf(message) {
     this.#syncLocalIndexFromOutgoingMessage(message);
+    this.#syncFrontendDofFromMessage(message);
     this.call("send_event_all_windows_incself", message);
   }
 
@@ -321,6 +324,15 @@ class VPinFECore {
 
   async getTableData(reset=false) {
     this.tableData = JSON.parse(await this.call("get_tables", reset));
+    if (this._windowName === "table") {
+      const maxIndex = Math.max(0, this.tableData.length - 1);
+      if (this._currentTableIndex > maxIndex) this._currentTableIndex = maxIndex;
+      if (this.tableData.length > 0) {
+        this.#updateFrontendDofForCurrentTable().catch(() => {});
+      } else {
+        this._lastFrontendDofIndex = null;
+      }
+    }
   }
 
   // Register an event handler for a specific event type
@@ -347,8 +359,10 @@ class VPinFECore {
 
     // Default handling for TableDataChange
     if (message.type === "TableDataChange") {
+      if (this._windowName === "table") this._lastFrontendDofIndex = null;
       await this.#handleTableDataChange(message);
     }
+    this.#syncFrontendDofFromMessage(message);
     await this.#handleCoreAudioEvent(message);
 
     // Call any custom handlers registered by the theme
@@ -450,6 +464,37 @@ class VPinFECore {
     if (message.index < 0) return;
     if (message.type === "TableIndexUpdate" || message.type === "TableDataChange") {
       this._currentTableIndex = Math.floor(message.index);
+    }
+  }
+
+  #syncFrontendDofFromMessage(message) {
+    if (!message || typeof message !== "object") return;
+    if (this._windowName !== "table") return;
+
+    if (message.type === "TableIndexUpdate") {
+      this.#updateFrontendDofForCurrentTable().catch(() => {});
+      return;
+    }
+    if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
+      this._lastFrontendDofIndex = null;
+      this.#updateFrontendDofForCurrentTable().catch(() => {});
+    }
+  }
+
+  async #updateFrontendDofForCurrentTable() {
+    if (this._windowName !== "table") return;
+    if (!Array.isArray(this.tableData) || this.tableData.length === 0) return;
+
+    const index = Math.floor(this._currentTableIndex);
+    if (!Number.isFinite(index) || index < 0 || index >= this.tableData.length) return;
+    if (this._lastFrontendDofIndex === index) return;
+
+    this._lastFrontendDofIndex = index;
+    try {
+      await this.call("update_frontend_dof_for_table", index);
+    } catch (e) {
+      this._lastFrontendDofIndex = null;
+      this.call("console_out", `update_frontend_dof_for_table failed: ${e.message}`);
     }
   }
 

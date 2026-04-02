@@ -908,8 +908,8 @@ def render_panel(tab=None):
     def _build_vpinplay_user_url(user_id: str) -> str:
         uid = (user_id or '').strip()
         if not uid:
-            return f'{VPINPLAY_BASE_URL}player.html'
-        return f'{VPINPLAY_BASE_URL}player.html?userid={quote(uid)}'
+            return f'{VPINPLAY_BASE_URL}players.html'
+        return f'{VPINPLAY_BASE_URL}players.html?userid={quote(uid)}'
 
     def update_vpinplay_user_link():
         if vpinplay_user_link is None:
@@ -1116,11 +1116,6 @@ def render_panel(tab=None):
                                                         ).classes('text-blue-300 text-sm underline')
                                                     update_vpinplay_user_link()
 
-                                            if sync_key in options:
-                                                with ui.element('div').classes('w-full'):
-                                                    value = config.config.get(section, sync_key, fallback='false')
-                                                    build_config_input(section, sync_key, value)
-
                                             if endpoint_key in options:
                                                 with ui.element('div').classes('w-full'):
                                                     value = config.config.get(section, endpoint_key, fallback='')
@@ -1151,17 +1146,22 @@ def render_panel(tab=None):
                                                 value = config.config.get(section, key, fallback='')
                                                 build_config_input(section, key, value)
 
-                                        with ui.card().classes('config-side-card w-full p-4'):
-                                            ui.label('Table Metadata Sync').classes('text-lg font-semibold text-white')
-                                            ui.label(
-                                                'Sends installed table metadata to the configured VPinPlay service endpoint.'
-                                            ).classes('text-sm text-slate-300')
-                                            sync_vpinplay_button = ui.button(
-                                                'Sync Installed Tables',
-                                                icon='sync',
-                                                on_click=run_vpinplay_sync,
-                                            ).props('color=primary rounded').classes('mt-3')
-                                            update_vpinplay_sync_button_state()
+                                        with ui.column().classes('w-full gap-3'):
+                                            with ui.card().classes('config-side-card w-full p-4'):
+                                                ui.label('Table Metadata Sync').classes('text-lg font-semibold text-white')
+                                                ui.label(
+                                                    'Sends installed table metadata to the configured VPinPlay service endpoint.'
+                                                ).classes('text-sm text-slate-300')
+                                                sync_vpinplay_button = ui.button(
+                                                    'Sync Installed Tables',
+                                                    icon='sync',
+                                                    on_click=run_vpinplay_sync,
+                                                ).props('color=primary rounded').classes('mt-3')
+                                                update_vpinplay_sync_button_state()
+                                            if sync_key in options:
+                                                with ui.element('div').classes('w-full'):
+                                                    value = config.config.get(section, sync_key, fallback='false')
+                                                    build_config_input(section, sync_key, value)
                                 else:
                                     with ui.element('div').classes('config-form-grid'):
                                         for key in options:

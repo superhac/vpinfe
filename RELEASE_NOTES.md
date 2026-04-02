@@ -1,12 +1,14 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.43
+This is the offical release of vpinfe v1.1.44
 
 ### What's New
-- More rom support for vpinplay
+- DOF now loops on single events E900 - E990 until the table is changed.  You can also hard code an effect on per table basis in the table dialog.
 
 ### Fixes
-None
+- link fix player stat
+- adjust configuration layout
+- DOF updated to support Matrix setups
 
 ### Notes

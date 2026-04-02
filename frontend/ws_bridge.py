@@ -49,6 +49,7 @@ class WebSocketBridge:
         'get_joymaping',
         'set_button_mapping',
         'launch_table',
+        'update_frontend_dof_for_table',
         'get_table_rating',
         'set_table_rating',
         'build_metadata',

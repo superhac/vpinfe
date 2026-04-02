@@ -78,8 +78,18 @@ class MetaConfig:
             "LastRun": None,
             "StartCount": 0,
             "RunTime": 0,
-            "Tags": []
+            "Tags": [],
+            "FrontendDOFEvent": ""
         })
+        if not isinstance(user, dict):
+            user = {}
+        user.setdefault("Rating", 0)
+        user.setdefault("Favorite", 0)
+        user.setdefault("LastRun", None)
+        user.setdefault("StartCount", 0)
+        user.setdefault("RunTime", 0)
+        user.setdefault("Tags", [])
+        user.setdefault("FrontendDOFEvent", "")
 
         vpinfe = self.data.get("VPinFE", {})
         if not isinstance(vpinfe, dict):
