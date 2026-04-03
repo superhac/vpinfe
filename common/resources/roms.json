@@ -8035,6 +8035,79 @@
       }
     ]
   },
+  "mm_10": {
+    "decoder": "mixed_leaderboard",
+    "one_based": true,
+    "scoretype": "Leaderboard",
+    "sections": [
+      {
+        "title": "GRAND CHAMPION",
+        "entries": [
+          {"name_offsets": [7492, 7493, 7494], "rank": null, "score_decoder": "bcd", "score_offsets": [7495, 7496, 7497, 7498, 7499]}
+        ]
+      },
+      {
+        "title": "HIGHEST SCORES",
+        "entries": [
+          {"name_offsets": [7458, 7459, 7460], "rank": 1, "score_decoder": "bcd", "score_offsets": [7461, 7462, 7463, 7464, 7465]},
+          {"name_offsets": [7466, 7467, 7468], "rank": 2, "score_decoder": "bcd", "score_offsets": [7469, 7470, 7471, 7472, 7473]},
+          {"name_offsets": [7474, 7475, 7476], "rank": 3, "score_decoder": "bcd", "score_offsets": [7477, 7478, 7479, 7480, 7481]},
+          {"name_offsets": [7482, 7483, 7484], "rank": 4, "score_decoder": "bcd", "score_offsets": [7485, 7486, 7487, 7488, 7489]}
+        ]
+      },
+      {
+        "title": "CASTLE CHAMPION",
+        "entries": [
+          {"name_offsets": [8066, 8067, 8068], "rank": null, "score_decoder": "byte_pair_100_1", "score_offsets": [8069, 8070], "value_suffix": "CASTLES DESTROYED"}
+        ]
+      },
+      {
+        "title": "JOUST CHAMPION",
+        "entries": [
+          {"name_offsets": [8076, 8077, 8078], "rank": null, "score_decoder": "byte_pair_100_1", "score_offsets": [8079, 8080], "value_suffix": "JOUST VICTORIES"}
+        ]
+      },
+      {
+        "title": "CATAPULT CHAMPION",
+        "entries": [
+          {"name_offsets": [8086, 8087, 8088], "rank": null, "score_decoder": "byte_pair_100_1", "score_offsets": [8089, 8090], "value_suffix": "CATAPULT SLAMS"}
+        ]
+      },
+      {
+        "title": "PEASANT CHAMPION",
+        "entries": [
+          {"name_offsets": [8096, 8097, 8098], "rank": null, "score_decoder": "byte_pair_100_1", "score_offsets": [8099, 8100], "value_suffix": "PEASANT REVOLTS"}
+        ]
+      },
+      {
+        "title": "DAMSEL CHAMPION",
+        "entries": [
+          {"name_offsets": [8106, 8107, 8108], "rank": null, "score_decoder": "byte_pair_100_1", "score_offsets": [8109, 8110], "value_suffix": "DAMSELS SAVED"}
+        ]
+      },
+      {
+        "title": "TROLL CHAMPION",
+        "entries": [
+          {"name_offsets": [8116, 8117, 8118], "rank": null, "score_decoder": "byte_pair_100_1", "score_offsets": [8119, 8120], "value_suffix": "TROLLS DESTROYED"}
+        ]
+      },
+      {
+        "title": "MADNESS CHAMPION",
+        "entries": [
+          {"name_offsets": [8126, 8127, 8128], "rank": null, "score_decoder": "bcd", "score_offsets": [8129, 8130, 8131, 8132, 8133]}
+        ]
+      },
+      {
+        "title": "KING OF THE REALM",
+        "entries": [
+          {"entry_decoder": "crowned_datetime", "name_offsets": [8136, 8137, 8138], "rank": 1, "data_offsets": [7449, 7450, 7451, 7452, 7454, 7455], "extra_offsets": {"crown_count": 8143}},
+          {"entry_decoder": "crowned_datetime", "name_offsets": [8144, 8145, 8146], "rank": 2, "data_offsets": [7351, 7352, 7353, 7354, 7356, 7357], "extra_offsets": {"crown_count": 8151}},
+          {"entry_decoder": "crowned_datetime", "name_offsets": [8152, 8153, 8154], "rank": 3, "data_offsets": [7358, 7359, 7360, 7361, 7363, 7364], "extra_offsets": {"crown_count": 8159}},
+          {"entry_decoder": "crowned_datetime", "name_offsets": [8160, 8161, 8162], "rank": 4, "data_offsets": [7365, 7366, 7367, 7368, 7370, 7371], "extra_offsets": {"crown_count": 8167}}
+        ]
+      }
+    ]
+  },
   "stingray": {
     "decoder": "single_high_nibble_score",
     "offsets": [208, 209, 210, 211, 212, 213],
