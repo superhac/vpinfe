@@ -4,7 +4,7 @@
 This is the offical release of vpinfe v1.1.49
 
 ### What's New
-None
+- Added libdmdutils-python for ZeDMD, Pixelcade and PIN2DMD support.   
 
 ### Fixes
 None

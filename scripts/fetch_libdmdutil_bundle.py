@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shutil
+import tarfile
 import tempfile
 import urllib.error
 import urllib.request
@@ -148,6 +149,29 @@ def _download_manifest(repo: str, version: str, manifest_path: Path) -> str:
     raise RuntimeError(f"Could not resolve manifest for {repo} {version}")
 
 
+def _extract_archive(archive_path: Path, extract_dir: Path, file_name: str) -> None:
+    lower_name = file_name.lower()
+    if lower_name.endswith('.zip'):
+        with zipfile.ZipFile(archive_path, 'r') as zf:
+            zf.extractall(extract_dir)
+        return
+
+    if (
+        lower_name.endswith('.tar')
+        or lower_name.endswith('.tar.gz')
+        or lower_name.endswith('.tgz')
+        or lower_name.endswith('.tar.xz')
+        or lower_name.endswith('.tar.bz2')
+    ):
+        with tarfile.open(archive_path, 'r:*') as tf:
+            tf.extractall(extract_dir)
+        return
+
+    raise SystemExit(
+        f"[LIBDMDUTIL FETCH] Unsupported archive format for '{file_name}'."
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description='Fetch and verify a libdmdutil bundle from GitHub release manifest.'
@@ -161,7 +185,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix='vpinfe-libdmdutil-') as td:
         tmp = Path(td)
         manifest_path = tmp / 'manifest.json'
-        bundle_zip = tmp / 'libdmdutil.zip'
+        bundle_archive = tmp / 'libdmdutil.bundle'
         extract_dir = tmp / 'extract'
 
         resolved_tag = _download_manifest(args.repo, args.version, manifest_path)
@@ -191,9 +215,9 @@ def main() -> int:
 
         zip_url = f"{base}/{file_name}"
         print(f"[LIBDMDUTIL FETCH] Downloading bundle: {zip_url}")
-        _download(zip_url, bundle_zip)
+        _download(zip_url, bundle_archive)
 
-        actual_sha = _sha256_file(bundle_zip)
+        actual_sha = _sha256_file(bundle_archive)
         if actual_sha != expected_sha:
             raise SystemExit(
                 "[LIBDMDUTIL FETCH] SHA256 mismatch.\n"
@@ -203,8 +227,7 @@ def main() -> int:
 
         print("[LIBDMDUTIL FETCH] SHA256 verified.")
         extract_dir.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(bundle_zip, 'r') as zf:
-            zf.extractall(extract_dir)
+        _extract_archive(bundle_archive, extract_dir, file_name)
 
         payload_root = extract_dir
         children = [p for p in extract_dir.iterdir()]
