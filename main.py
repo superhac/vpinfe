@@ -26,12 +26,9 @@ from pathlib import Path
 from platformdirs import user_config_dir
 
 from common.logging_config import configure_logging, get_logger
-from frontend.customhttpserver import CustomHTTPServer
-from frontend.api import API
-from frontend.ws_bridge import WebSocketBridge
-from frontend.chromium_manager import ChromiumManager
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
+from common.pinmame_score_parser_updater import ensure_latest_roms_json
 from common.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
 from common.app_version import get_version
 from common.themes import ThemeRegistry
@@ -50,11 +47,25 @@ logger = get_logger("vpinfe.main")
 logger.info("Logging to %s", log_path)
 logger.info("Version: %s", get_version())
 
+try:
+    roms_update_result = ensure_latest_roms_json(iniconfig)
+    logger.info(
+        "pinmame-score-parser roms.json status=%s path=%s",
+        roms_update_result.get("status"),
+        roms_update_result.get("path"),
+    )
+except Exception:
+    logger.exception("Failed to update pinmame-score-parser roms.json at startup")
+
 
 def reconfigure_app_logging() -> None:
     configure_logging(config_dir, iniconfig)
 
 # Now safe to import modules that create their own IniConfig at import time
+from frontend.customhttpserver import CustomHTTPServer
+from frontend.api import API
+from frontend.ws_bridge import WebSocketBridge
+from frontend.chromium_manager import ChromiumManager
 from clioptions import parseArgs, buildMetaData
 from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run, _shutdown_event
 from nicegui import app as nicegui_app

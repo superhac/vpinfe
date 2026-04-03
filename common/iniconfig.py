@@ -64,6 +64,9 @@ class IniConfig:
 					'thumbcachemaxmb': '500',
 					},
 			'VPSdb': {'last': ''},
+			'pinmame-score-parser': {
+				'romsupdatesha': '',
+				},
 			'Network': {
 				'themeassetsport': '8000',
 				'manageruiport': '8001',

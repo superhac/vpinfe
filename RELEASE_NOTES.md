@@ -1,11 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.47
+This is the offical release of vpinfe v1.1.48
 
 ### What's New
-- Added a DOF event test panel to the DOF configuration panel. 
-- Add mm_109c rom
+- roms.json now separated from the build.  Downloads updates.  
 
 ### Fixes
 None

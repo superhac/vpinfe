@@ -8,6 +8,8 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import BinaryIO
 
+from platformdirs import user_config_dir
+
 
 @dataclass
 class ParsedEntry:
@@ -23,6 +25,11 @@ class ParsedEntry:
 
 
 logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
+
+USER_ROMS_PATH = Path(user_config_dir("vpinfe", "vpinfe")) / "roms.json"
+_roms_cache: dict | None = None
+_roms_cache_path: Path | None = None
+_roms_cache_mtime_ns: int | None = None
 
 # alias, rom name in roms.json 
 rom_aliases = {
@@ -57,36 +64,33 @@ rom_aliases = {
 }
 
 def get_roms_path() -> Path:
-    candidate_paths: list[Path] = [Path(__file__).with_name("resources") / "roms.json"]
-
-    meipass = getattr(sys, "_MEIPASS", None)
-    if meipass:
-        candidate_paths.append(Path(meipass) / "common" / "resources" / "roms.json")
-
-    exe_dir = Path(sys.executable).resolve().parent
-    candidate_paths.extend(
-        [
-            exe_dir / "common" / "resources" / "roms.json",
-            exe_dir / "_internal" / "common" / "resources" / "roms.json",
-            exe_dir.parent / "Resources" / "common" / "resources" / "roms.json",
-        ]
-    )
-
-    candidates = list(dict.fromkeys(candidate_paths))
-
-    for path in candidates:
-        if path.exists():
-            return path
+    if USER_ROMS_PATH.exists():
+        return USER_ROMS_PATH
 
     raise FileNotFoundError(
-        "Could not find roms.json. Checked: "
-        + ", ".join(str(path) for path in candidates)
+        "Could not find roms.json in the user config directory. "
+        f"Expected: {USER_ROMS_PATH}. "
+        "VPinFE now downloads this file from the pinmame-score-parser releases at startup."
     )
 
 def load_roms() -> dict:
+    global _roms_cache, _roms_cache_path, _roms_cache_mtime_ns, roms
     roms_path = get_roms_path()
+    roms_mtime_ns = roms_path.stat().st_mtime_ns
+    if (
+        _roms_cache is not None
+        and _roms_cache_path == roms_path
+        and _roms_cache_mtime_ns == roms_mtime_ns
+    ):
+        return _roms_cache
+
     with roms_path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        _roms_cache = json.load(f)
+
+    _roms_cache_path = roms_path
+    _roms_cache_mtime_ns = roms_mtime_ns
+    roms = _roms_cache
+    return _roms_cache
 
 
 roms = load_roms()
@@ -1125,11 +1129,12 @@ def format_entry(entry: ParsedEntry) -> list[str]:
     return [f"{rank_text}{entry.initials}".rstrip()]
 
 def format_result(rom_name: str, result: int | list[ParsedEntry]) -> list[str]:
+    roms_data = load_roms()
     lines = [f"{rom_name}:"]
     resolved_rom_name = resolve_rom_name(rom_name)
 
     if isinstance(result, int):
-        lines.append(f"{roms[resolved_rom_name]['scoretype']}: {result:,}")
+        lines.append(f"{roms_data[resolved_rom_name]['scoretype']}: {result:,}")
         return lines
 
     last_section = None
@@ -1147,7 +1152,7 @@ def detect_score_type(rom_name: str, filename: str | None = None) -> str:
         return "ini"
 
     resolved_rom_name = resolve_rom_name(rom_name)
-    return roms[resolved_rom_name]["scoretype"]
+    return load_roms()[resolved_rom_name]["scoretype"]
 
 def _has_meaningful_entry(entry: ParsedEntry) -> bool:
     return bool(
@@ -1193,7 +1198,7 @@ def read_rom(
         return decode_ini_file(filename)
 
     resolved_rom_name = resolve_rom_name(rom_name)
-    rom_config = roms.get(resolved_rom_name)
+    rom_config = load_roms().get(resolved_rom_name)
     if rom_config is None:
         raise KeyError(f"Unknown ROM: {rom_name}")
 

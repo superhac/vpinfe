@@ -139,7 +139,6 @@ jobs:
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             pyinstaller --onedir --noconfirm --name vpinfe \
               --add-data "web:web" \
-              --add-data "common/resources:common/resources" \
               --add-data "managerui/static:managerui/static" \
               --add-data "third-party/dof:third-party/dof" \
               --add-data "chromium/linux/chrome:chromium/linux/chrome" \
@@ -149,7 +148,6 @@ jobs:
           elif [[ "$RUNNER_OS" == "Windows" ]]; then
             pyinstaller --onedir --noconfirm --name vpinfe \
               --add-data "web;web" \
-              --add-data "common/resources;common/resources" \
               --add-data "managerui/static;managerui/static" \
               --add-data "third-party/dof;third-party/dof" \
               --add-data "chromium/windows;chromium/windows" \
@@ -157,7 +155,6 @@ jobs:
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
             pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
               --add-data "web:web" \
-              --add-data "common/resources:common/resources" \
               --add-data "managerui/static:managerui/static" \
               --add-data "third-party/dof:third-party/dof" \
               main.py
@@ -235,7 +232,6 @@ jobs:
           rm -rf build dist
           pyinstaller --onedir --noconfirm --name vpinfe \
             --add-data "web:web" \
-            --add-data "common/resources:common/resources" \
             --add-data "managerui/static:managerui/static" \
             --add-data "third-party/dof:third-party/dof" \
             --hidden-import pynput.keyboard._xorg \
@@ -256,7 +252,6 @@ jobs:
           Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
           pyinstaller --onedir --noconfirm --name vpinfe `
             --add-data "web;web" `
-            --add-data "common/resources;common/resources" `
             --add-data "managerui/static;managerui/static" `
             --add-data "third-party/dof;third-party/dof" `
             main.py
@@ -279,7 +274,6 @@ jobs:
           rm -rf build dist
           pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
             --add-data "web:web" \
-            --add-data "common/resources:common/resources" \
             --add-data "managerui/static:managerui/static" \
             --add-data "third-party/dof:third-party/dof" \
             main.py
