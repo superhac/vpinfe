@@ -18,6 +18,8 @@ jobs:
     env:
       DOF_VERSION: latest
       DOF_REPO: superhac/libdof-python
+      DMDUTIL_VERSION: latest
+      DMDUTIL_REPO: superhac/libdmdutil-python
     strategy:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
@@ -85,6 +87,17 @@ jobs:
             --outdir third-party/dof
         shell: bash
 
+      - name: Fetch libdmdutil bundle
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/fetch_libdmdutil_bundle.py \
+            --repo "${DMDUTIL_REPO}" \
+            --version "${DMDUTIL_VERSION}" \
+            --triplet "${DOF_TRIPLET}" \
+            --outdir third-party/libdmdutil
+        shell: bash
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
@@ -141,6 +154,7 @@ jobs:
               --add-data "web:web" \
               --add-data "managerui/static:managerui/static" \
               --add-data "third-party/dof:third-party/dof" \
+              --add-data "third-party/libdmdutil:third-party/libdmdutil" \
               --add-data "chromium/linux/chrome:chromium/linux/chrome" \
               --hidden-import pynput.keyboard._xorg \
               --hidden-import pynput.mouse._xorg \
@@ -150,6 +164,7 @@ jobs:
               --add-data "web;web" \
               --add-data "managerui/static;managerui/static" \
               --add-data "third-party/dof;third-party/dof" \
+              --add-data "third-party/libdmdutil;third-party/libdmdutil" \
               --add-data "chromium/windows;chromium/windows" \
               main.py
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
@@ -157,6 +172,7 @@ jobs:
               --add-data "web:web" \
               --add-data "managerui/static:managerui/static" \
               --add-data "third-party/dof:third-party/dof" \
+              --add-data "third-party/libdmdutil:third-party/libdmdutil" \
               main.py
             mkdir -p dist/VPinFE.app/Contents/Frameworks/chromium
             cp -R chromium/Chromium.app dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app
@@ -234,6 +250,7 @@ jobs:
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
             --add-data "third-party/dof:third-party/dof" \
+            --add-data "third-party/libdmdutil:third-party/libdmdutil" \
             --hidden-import pynput.keyboard._xorg \
             --hidden-import pynput.mouse._xorg \
             main.py
@@ -254,6 +271,7 @@ jobs:
             --add-data "web;web" `
             --add-data "managerui/static;managerui/static" `
             --add-data "third-party/dof;third-party/dof" `
+            --add-data "third-party/libdmdutil;third-party/libdmdutil" `
             main.py
 
       - name: Copy Windows launcher (slim)
@@ -276,6 +294,7 @@ jobs:
             --add-data "web:web" \
             --add-data "managerui/static:managerui/static" \
             --add-data "third-party/dof:third-party/dof" \
+            --add-data "third-party/libdmdutil:third-party/libdmdutil" \
             main.py
           rm -rf dist/vpinfe
         shell: bash

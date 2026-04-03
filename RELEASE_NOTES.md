@@ -1,10 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.48
+This is the offical release of vpinfe v1.1.49
 
 ### What's New
-- roms.json now separated from the build.  Downloads updates.  
+None
 
 ### Fixes
 None
