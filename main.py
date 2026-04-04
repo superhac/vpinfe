@@ -28,6 +28,10 @@ from platformdirs import user_config_dir
 from common.logging_config import configure_logging, get_logger
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
+from common.libdmdutil_service import (
+    start_libdmdutil_service_if_enabled,
+    stop_libdmdutil_service,
+)
 from common.pinmame_score_parser_updater import ensure_latest_roms_json
 from common.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
 from common.app_version import get_version
@@ -187,6 +191,7 @@ except Exception:
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
 start_dof_service_if_enabled(iniconfig)
+start_libdmdutil_service_if_enabled(iniconfig)
 
 # Create API instances and register with WebSocket bridge
 create_api_instances()
@@ -265,6 +270,10 @@ try:
     stop_dof_service()
 except Exception:
     logger.exception("stop_dof_service() error")
+try:
+    stop_libdmdutil_service(clear=False)
+except Exception:
+    logger.exception("stop_libdmdutil_service() error")
 try:
     http_server.on_closed()
 except Exception:

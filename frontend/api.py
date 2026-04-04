@@ -16,6 +16,11 @@ from common.dof_service import (
     start_dof_service_if_enabled,
     stop_dof_service,
 )
+from common.libdmdutil_service import (
+    show_image as show_libdmdutil_image,
+    start_libdmdutil_service_if_enabled,
+    stop_libdmdutil_service,
+)
 from common.launcher import (
     build_vpx_launch_command,
     get_effective_launcher,
@@ -82,6 +87,16 @@ class API:
         if not isinstance(user, dict):
             return ""
         return str(user.get("FrontendDOFEvent", "") or "").strip()
+
+    def _get_realdmd_image_for_table(self, table) -> Path | None:
+        image_path = str(getattr(table, "realDMDImagePath", "") or "").strip()
+        if not image_path:
+            return None
+        path = Path(image_path).expanduser()
+        try:
+            return path.resolve()
+        except Exception:
+            return path
 
 
     ###################
@@ -508,6 +523,7 @@ class API:
         self._track_table_play(table)
 
         stop_dof_service()
+        stop_libdmdutil_service(clear=False)
         launch_started_at = None
         try:
             global_ini_override = self._iniConfig.config['Settings'].get('globalinioverride', '').strip()
@@ -548,6 +564,7 @@ class API:
             process.wait()
         finally:
             start_dof_service_if_enabled(self._iniConfig)
+            start_libdmdutil_service_if_enabled(self._iniConfig)
 
         if launch_started_at is not None:
             elapsed_seconds = max(0.0, time.time() - launch_started_at)
@@ -574,14 +591,24 @@ class API:
 
         event_token = self._get_frontend_dof_event_for_table(table)
         event_sent = send_frontend_dof_event(self._iniConfig, event_token)
+        realdmd_path = self._get_realdmd_image_for_table(table)
+        image_sent = show_libdmdutil_image(self._iniConfig, realdmd_path)
         resolved_event = event_token if event_token else "random:E900-E990"
         logger.debug(
-            "Frontend DOF update for %s -> %s (sent=%s)",
+            "Frontend media update for %s -> event=%s (dof_sent=%s, dmd_sent=%s, image=%s)",
             table.tableDirName,
             resolved_event,
             event_sent,
+            image_sent,
+            realdmd_path,
         )
-        return {"success": True, "event": resolved_event, "sent": event_sent}
+        return {
+            "success": True,
+            "event": resolved_event,
+            "sent": event_sent,
+            "realdmd_image": str(realdmd_path) if realdmd_path else "",
+            "realdmd_sent": image_sent,
+        }
 
     def get_table_rating(self, index):
         """Get User.Rating for a table index in the current filtered list."""

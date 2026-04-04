@@ -20,6 +20,10 @@ COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 # Import config
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
+from common.libdmdutil_service import (
+    start_libdmdutil_service_if_enabled,
+    stop_libdmdutil_service,
+)
 from common.vpxcollections import VPXCollections
 from common.launcher import (
     build_vpx_launch_command,
@@ -245,6 +249,7 @@ def _launch_table(table: dict):
         ui.notify(f'Remote Launching {table_name}...', type='info')
 
         stop_dof_service()
+        stop_libdmdutil_service(clear=False)
 
         # Signal to frontend that we're launching
         set_remote_launch_state(True, table_name)
@@ -281,6 +286,7 @@ def _launch_table(table: dict):
                 # Clear the launch state when done
                 set_remote_launch_state(False, None)
                 start_dof_service_if_enabled(cfg)
+                start_libdmdutil_service_if_enabled(cfg)
 
         # Run in background thread
         thread = threading.Thread(target=run_and_wait, daemon=True)
@@ -290,6 +296,10 @@ def _launch_table(table: dict):
         set_remote_launch_state(False, None)
         try:
             start_dof_service_if_enabled(_get_ini_config())
+        except Exception:
+            pass
+        try:
+            start_libdmdutil_service_if_enabled(_get_ini_config())
         except Exception:
             pass
         ui.notify(f'Failed to launch: {e}', type='negative')

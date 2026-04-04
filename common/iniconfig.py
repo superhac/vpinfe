@@ -75,6 +75,13 @@ class IniConfig:
 				'enabledof': 'false',
 				'dofconfigtoolapikey': '',
 				},
+			'libdmdutil': {
+				'enabled': 'false',
+				'pin2dmdenabled': 'false',
+				'pixelcadedevice': '',
+				'zedmddevice': '',
+				'zedmdwifiaddr': '',
+				},
 			'Mobile': {
 				'deviceip': '',
 				'deviceport': '2112',

@@ -27,7 +27,10 @@ COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 VPINPLAY_BASE_URL = 'https://www.vpinplay.com/'
 
 # Sections to ignore
-IGNORED_SECTIONS = {'VPSdb'}
+IGNORED_SECTIONS = {
+    'VPSdb',
+    'pinmame-score-parser',
+}
 
 # Icons for each section (fallback to 'settings' if not defined)
 SECTION_ICONS = {
@@ -37,6 +40,7 @@ SECTION_ICONS = {
     'Media': 'perm_media',
     'Displays': 'monitor',
     'DOF': 'key',
+    'libdmdutil': 'developer_board',
     'vpinplay': 'science',
 }
 
@@ -49,6 +53,7 @@ SECTION_DESCRIPTIONS = {
     'Network': 'Ports and services used by the local frontend stack.',
     'Mobile': 'Connection details for external mobile devices.',
     'DOF': 'Direct Output Framework integration and sync tools.',
+    'libdmdutil': 'libdmdutil integration settings for DMD device support.',
     'VPinPlay': 'VPinPlay Experimental',
 }
 
@@ -68,6 +73,11 @@ FRIENDLY_NAMES = {
     'muteaudio': 'Mute Frontend Audio',
     'enabledof': 'Enable DOF',
     'dofconfigtoolapikey': 'DOF Config Tool API Key',
+    'enabled': 'Enabled',
+    'pin2dmdenabled': 'Enable',
+    'pixelcadedevice': 'PixelcadeDevice',
+    'zedmddevice': 'ZeDMDDevice',
+    'zedmdwifiaddr': 'ZeDMDWiFiAddr',
     'theme': 'Active Theme',
     'level': 'Log Verbosity',
     'console': 'Console Logging',
@@ -620,6 +630,10 @@ def render_panel(tab=None):
 
     def build_config_input(section: str, key: str, value: str):
         friendly_label = get_friendly_name(key)
+        special_label_above = (
+            (section == 'libdmdutil' and key == 'enabled')
+            or (section == 'libdmdutil' and key == 'pin2dmdenabled')
+        )
         is_checkbox = (
             (section == 'Settings' and key == 'autoupdatemediaonstartup')
             or (section == 'Displays' and key == 'cabmode')
@@ -627,17 +641,24 @@ def render_panel(tab=None):
             or (section == 'Settings' and key == 'splashscreen')
             or (section == 'Settings' and key == 'muteaudio')
             or (section == 'DOF' and key == 'enabledof')
+            or (section == 'libdmdutil' and key == 'enabled')
+            or (section == 'libdmdutil' and key == 'pin2dmdenabled')
             or (section == 'Settings' and key == 'globaltableinioverrideenabled')
             or (section == 'Mobile' and key == 'renamemasktodefaultini')
             or (section == 'vpinplay' and key == 'synconexit')
         )
 
         with ui.element('div').classes(
-            'config-field-card compact' if is_checkbox else 'config-field-card'
+            'config-field-card compact' if is_checkbox and not special_label_above else 'config-field-card'
         ):
             label_widget = None
-            if not is_checkbox:
-                label_text = friendly_label
+            if not is_checkbox or special_label_above:
+                if section == 'libdmdutil' and key == 'enabled':
+                    label_text = 'libdmdutil Service'
+                elif section == 'libdmdutil' and key == 'pin2dmdenabled':
+                    label_text = 'PIN2DMD'
+                else:
+                    label_text = friendly_label
                 if section == 'Settings' and key == 'globaltableinioverridemask':
                     mask_value = (value or '').strip()
                     if mask_value:
@@ -669,7 +690,7 @@ def render_panel(tab=None):
                 ).props('outlined dense options-dense').classes('config-input')
             elif is_checkbox:
                 inp = ui.checkbox(
-                    text=friendly_label,
+                    text='Enable' if special_label_above else friendly_label,
                     value=(value == "true")
                 ).classes('config-input')
             elif section == 'Displays' and key in ('tablescreenid', 'bgscreenid', 'dmdscreenid'):
@@ -1226,6 +1247,32 @@ def render_panel(tab=None):
                                                         icon='stop',
                                                         on_click=run_dof_test_event_stop,
                                                     ).props('color=negative flat rounded')
+                                elif section == 'libdmdutil':
+                                    service_key = 'enabled'
+                                    zedmd_keys = ['zedmddevice', 'zedmdwifiaddr']
+                                    trailing_keys = [
+                                        key for key in options
+                                        if key not in ([service_key] + zedmd_keys)
+                                    ]
+
+                                    with ui.element('div').classes('config-form-grid'):
+                                        if service_key in options:
+                                            value = config.config.get(section, service_key, fallback='false')
+                                            build_config_input(section, service_key, value)
+
+                                    present_zedmd_keys = [key for key in zedmd_keys if key in options]
+                                    if present_zedmd_keys:
+                                        with ui.element('div').classes('config-field-card mt-3'):
+                                            with ui.column().classes('w-full gap-3'):
+                                                ui.label('ZeDMD').classes('config-field-label')
+                                                for key in present_zedmd_keys:
+                                                    value = config.config.get(section, key, fallback='')
+                                                    build_config_input(section, key, value)
+
+                                    with ui.element('div').classes('config-form-grid mt-3'):
+                                        for key in trailing_keys:
+                                            value = config.config.get(section, key, fallback='')
+                                            build_config_input(section, key, value)
                                 else:
                                     with ui.element('div').classes('config-form-grid'):
                                         for key in options:

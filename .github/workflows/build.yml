@@ -29,6 +29,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Ensure fetch scripts are executable
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x scripts/fetch_dof_bundle.sh
+          chmod +x scripts/fetch_libdmdutil_bundle.sh
+        shell: bash
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
