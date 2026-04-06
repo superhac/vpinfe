@@ -4,6 +4,7 @@ import shutil
 import socket
 import platform
 import subprocess
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -23,6 +24,22 @@ except ImportError:  # pragma: no cover - handled gracefully in UI
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 INI_PATH = CONFIG_DIR / "vpinfe.ini"
 _STATIC_DETAILS_CACHE: dict | None = None
+_RADEONTOP_PAIR_RE = re.compile(r"([a-z]+)\s+([0-9.]+)%")
+_RADEONTOP_MEMORY_RE = re.compile(r"(vram|gtt)\s+([0-9.]+)%\s+([0-9.]+)mb")
+_RADEONTOP_CLOCK_RE = re.compile(r"(mclk|sclk)\s+([0-9.]+)%\s+([0-9.]+)ghz")
+_RADEONTOP_BUS_RE = re.compile(r"bus\s+([0-9a-fA-F]+)")
+_GPU_BLOCK_NAMES = {
+    "ee": "Event Engine",
+    "vgt": "Vertex Grouper + Tessellator",
+    "ta": "Texture Addresser",
+    "sx": "Shader Export",
+    "sh": "Sequencer Instruction Cache",
+    "spi": "Shader Interpolator",
+    "sc": "Scan Converter",
+    "pa": "Primitive Assembly",
+    "db": "Depth Block",
+    "cb": "Color Block",
+}
 
 
 def _resolve_usage_path() -> Path:
@@ -55,7 +72,7 @@ def _format_bytes(value: int) -> str:
     return f"{size:.1f} PB"
 
 
-def _get_system_metrics() -> dict:
+def _get_system_metrics(include_gpu: bool = False) -> dict:
     usage_path = _resolve_usage_path()
     total, used, free = shutil.disk_usage(usage_path)
     disk_percent = (used / total * 100) if total else 0.0
@@ -79,6 +96,22 @@ def _get_system_metrics() -> dict:
         "memory_total": None,
         "memory_available": None,
         "memory_percent": None,
+        "gpu_supported": platform.system() == "Linux",
+        "gpu_available": False,
+        "gpu_error": None,
+        "gpu_bus": None,
+        "gpu_percent": None,
+        "gpu_blocks": {},
+        "gpu_vram_percent": None,
+        "gpu_vram_mb": None,
+        "gpu_vram_total_mb": None,
+        "gpu_gtt_percent": None,
+        "gpu_gtt_mb": None,
+        "gpu_gtt_total_mb": None,
+        "gpu_mclk_percent": None,
+        "gpu_mclk_ghz": None,
+        "gpu_sclk_percent": None,
+        "gpu_sclk_ghz": None,
     }
 
     if psutil is not None:
@@ -88,7 +121,144 @@ def _get_system_metrics() -> dict:
         metrics["memory_available"] = memory.available
         metrics["memory_percent"] = memory.percent
 
+    if include_gpu and metrics["gpu_supported"]:
+        gpu_metrics = _get_radeontop_metrics()
+        metrics.update(gpu_metrics)
+
     return metrics
+
+
+def _get_radeontop_metrics() -> dict:
+    empty_metrics = {
+        "gpu_available": False,
+        "gpu_error": None,
+        "gpu_bus": None,
+        "gpu_percent": None,
+        "gpu_blocks": {},
+        "gpu_vram_percent": None,
+        "gpu_vram_mb": None,
+        "gpu_vram_total_mb": None,
+        "gpu_gtt_percent": None,
+        "gpu_gtt_mb": None,
+        "gpu_gtt_total_mb": None,
+        "gpu_mclk_percent": None,
+        "gpu_mclk_ghz": None,
+        "gpu_sclk_percent": None,
+        "gpu_sclk_ghz": None,
+    }
+
+    radeontop_path = shutil.which("radeontop")
+    if not radeontop_path:
+        empty_metrics["gpu_error"] = "radeontop is not installed."
+        return empty_metrics
+
+    try:
+        completed = subprocess.run(
+            [radeontop_path, "-d", "-", "-l", "1", "-i", "1"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        empty_metrics["gpu_error"] = "radeontop timed out."
+        return empty_metrics
+    except Exception as exc:
+        empty_metrics["gpu_error"] = f"radeontop failed: {exc}"
+        return empty_metrics
+
+    output_lines = [
+        line.strip()
+        for line in (completed.stdout or "").splitlines()
+        if line.strip() and ": bus " in line
+    ]
+    if not output_lines:
+        error_output = (completed.stderr or "").strip() or "No radeontop sample was returned."
+        empty_metrics["gpu_error"] = error_output
+        return empty_metrics
+
+    return _parse_radeontop_line(output_lines[-1], empty_metrics)
+
+
+def _parse_radeontop_line(line: str, empty_metrics: dict) -> dict:
+    metrics = empty_metrics.copy()
+    metrics["gpu_blocks"] = {}
+
+    bus_match = _RADEONTOP_BUS_RE.search(line)
+    if bus_match:
+        metrics["gpu_bus"] = bus_match.group(1)
+
+    for key, percent in _RADEONTOP_PAIR_RE.findall(line):
+        value = float(percent)
+        if key == "gpu":
+            metrics["gpu_percent"] = value
+        elif key not in {"vram", "gtt", "mclk", "sclk"}:
+            metrics["gpu_blocks"][key] = value
+
+    for key, percent, value in _RADEONTOP_MEMORY_RE.findall(line):
+        metrics[f"gpu_{key}_percent"] = float(percent)
+        metrics[f"gpu_{key}_mb"] = float(value)
+
+    for key, percent, value in _RADEONTOP_CLOCK_RE.findall(line):
+        metrics[f"gpu_{key}_percent"] = float(percent)
+        metrics[f"gpu_{key}_ghz"] = float(value)
+
+    totals = _get_linux_gpu_memory_totals(metrics["gpu_bus"])
+    metrics.update(totals)
+
+    if metrics["gpu_percent"] is None:
+        metrics["gpu_error"] = "Could not parse radeontop output."
+        return metrics
+
+    metrics["gpu_available"] = True
+    return metrics
+
+
+def _get_linux_gpu_memory_totals(bus: str | None) -> dict:
+    totals = {
+        "gpu_vram_total_mb": None,
+        "gpu_gtt_total_mb": None,
+    }
+    if not bus:
+        return totals
+
+    sysfs_root = Path("/sys/class/drm")
+    bus_suffix = f"0000:{bus.lower()}:"
+    for card_dir in sysfs_root.glob("card[0-9]*"):
+        device_dir = card_dir / "device"
+        if not device_dir.exists():
+            continue
+
+        try:
+            resolved_device = device_dir.resolve()
+        except Exception:
+            continue
+
+        if bus_suffix not in resolved_device.name.lower():
+            continue
+
+        vram_total = _read_sysfs_int(device_dir / "mem_info_vram_total")
+        gtt_total = _read_sysfs_int(device_dir / "mem_info_gtt_total")
+        if vram_total is not None:
+            totals["gpu_vram_total_mb"] = vram_total / (1024 * 1024)
+        if gtt_total is not None:
+            totals["gpu_gtt_total_mb"] = gtt_total / (1024 * 1024)
+        break
+
+    return totals
+
+
+def _read_sysfs_int(path: Path) -> int | None:
+    try:
+        return int(path.read_text().strip())
+    except Exception:
+        return None
+
+
+def _format_mb_or_gb(value_mb: float) -> str:
+    if value_mb >= 1024:
+        return f"{value_mb / 1024:.2f} GB"
+    return f"{value_mb:.0f} MB"
 
 
 def _metric_color(value: float, warn: float, critical: float) -> str:
@@ -97,6 +267,14 @@ def _metric_color(value: float, warn: float, critical: float) -> str:
     if value >= warn:
         return "text-amber-400"
     return "text-emerald-400"
+
+
+def _metric_tone(value: float, warn: float, critical: float) -> str:
+    if value >= critical:
+        return "critical"
+    if value >= warn:
+        return "warn"
+    return "ok"
 
 
 def _get_static_system_details() -> dict:
@@ -215,12 +393,54 @@ def render_panel(tab=None):
                 color: #94a3b8;
                 font-size: 0.875rem;
             }
+            .gpu-pill {
+                background: rgba(15, 23, 42, 0.82);
+                border: 1px solid rgba(71, 85, 105, 0.9);
+                border-radius: 999px;
+                padding: 0.55rem 0.9rem;
+                min-height: 3.1rem;
+            }
+            .gpu-pill-ok {
+                border-color: rgba(16, 185, 129, 0.55);
+                box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.12);
+            }
+            .gpu-pill-warn {
+                border-color: rgba(251, 191, 36, 0.6);
+                box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.14);
+            }
+            .gpu-pill-critical {
+                border-color: rgba(248, 113, 113, 0.65);
+                box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.16);
+            }
+            .gpu-pill-label {
+                color: #94a3b8;
+                font-size: 0.72rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                line-height: 1;
+            }
+            .gpu-pill-label-ok {
+                color: #6ee7b7;
+            }
+            .gpu-pill-label-warn {
+                color: #fcd34d;
+            }
+            .gpu-pill-label-critical {
+                color: #fca5a5;
+            }
+            .gpu-pill-value {
+                color: #e2e8f0;
+                font-size: 0.95rem;
+                font-weight: 600;
+                line-height: 1.2;
+            }
         </style>
         '''
     )
 
     page_client = context.client
     refresh_state = {"busy": False}
+    gpu_state = {"enabled": False}
 
     with ui.column().classes("w-full gap-4"):
         with ui.card().classes("w-full system-hero"):
@@ -233,6 +453,23 @@ def render_panel(tab=None):
                             "text-teal-100 text-sm"
                         )
                 refresh_button = ui.button("Refresh", icon="refresh").props("color=primary rounded")
+
+        gpu_toggle_card = None
+        gpu_toggle = None
+        if platform.system() == "Linux":
+            with ui.card().classes("system-card w-full p-5"):
+                gpu_toggle_card = ui.card_section().classes("w-full")
+                with gpu_toggle_card:
+                    with ui.row().classes("w-full items-center justify-between gap-4"):
+                        with ui.column().classes("gap-1"):
+                            ui.label("AMD GPU Monitoring").classes("text-lg font-semibold text-white")
+                            ui.label(
+                                "Optional Linux-only monitoring. Requires `radeontop` to be installed and accessible."
+                            ).classes("text-slate-300")
+                            ui.label(
+                                "Turn this on to display RadeonTop GPU utilization and per-block activity."
+                            ).classes("text-slate-400 text-sm")
+                        gpu_toggle = ui.switch("Enable GPU metrics", value=False).props("color=teal")
 
         with ui.row().classes("w-full gap-4 items-stretch flex-wrap"):
             with ui.card().classes("system-card p-5").style("flex: 1 1 320px; min-width: 280px;"):
@@ -252,6 +489,28 @@ def render_panel(tab=None):
                     ui.label("Free Disk Space").classes("text-sm uppercase tracking-wide text-slate-400")
                     disk_value = ui.label("--").classes("system-value text-slate-200")
                     disk_detail = ui.label("Waiting for sample...").classes("system-subtle")
+
+            gpu_value = None
+            gpu_detail = None
+            gpu_summary_card = None
+            if platform.system() == "Linux":
+                with ui.card().classes("system-card p-5").style("flex: 1 1 320px; min-width: 280px;") as gpu_summary_card:
+                    with ui.column().classes("gap-2"):
+                        ui.label("GPU Utilization").classes("text-sm uppercase tracking-wide text-slate-400")
+                        gpu_value = ui.label("--").classes("system-value text-slate-200")
+                        gpu_detail = ui.label("Waiting for sample...").classes("system-subtle")
+                gpu_summary_card.visible = False
+
+        gpu_blocks_label = None
+        gpu_blocks_container = None
+        gpu_details_card = None
+        if platform.system() == "Linux":
+            with ui.card().classes("system-card w-full p-5") as gpu_details_card:
+                with ui.column().classes("gap-2"):
+                    ui.label("AMD GPU Details").classes("text-lg font-semibold text-white")
+                    gpu_blocks_label = ui.label("Waiting for sample...").classes("text-slate-400 text-sm")
+                    gpu_blocks_container = ui.row().classes("w-full gap-2 items-stretch flex-wrap")
+            gpu_details_card.visible = False
 
         with ui.card().classes("system-card w-full p-5"):
             with ui.column().classes("gap-2"):
@@ -273,7 +532,7 @@ def render_panel(tab=None):
         refresh_state["busy"] = True
         refresh_button.disable()
         try:
-            metrics = await run.io_bound(_get_system_metrics)
+            metrics = await run.io_bound(_get_system_metrics, gpu_state["enabled"])
             cpu_percent = metrics["cpu_percent"]
             memory_percent = metrics["memory_percent"]
             disk_percent = metrics["disk_percent"]
@@ -282,6 +541,7 @@ def render_panel(tab=None):
             disk_used = _format_bytes(metrics["disk_used"])
             disk_total = _format_bytes(metrics["disk_total"])
             disk_free = _format_bytes(metrics["disk_free"])
+            gpu_percent = metrics["gpu_percent"]
 
             with page_client:
                 if cpu_percent is None:
@@ -319,6 +579,76 @@ def render_panel(tab=None):
                     add=_metric_color(disk_percent, warn=80.0, critical=90.0),
                 )
                 disk_detail.set_text(f"{disk_used} used of {disk_total} total ({disk_percent:.0f}% full)")
+
+                if (
+                    gpu_state["enabled"]
+                    and gpu_value is not None
+                    and gpu_detail is not None
+                    and gpu_blocks_label is not None
+                    and gpu_blocks_container is not None
+                ):
+                    if not metrics["gpu_available"]:
+                        gpu_value.set_text("Unavailable")
+                        gpu_value.classes(
+                            remove="text-emerald-400 text-amber-400 text-red-400",
+                            add="text-slate-200",
+                        )
+                        gpu_detail.set_text(metrics["gpu_error"] or "AMD GPU metrics are unavailable.")
+                        gpu_blocks_label.set_text("No AMD GPU details available.")
+                        gpu_blocks_container.clear()
+                    else:
+                        gpu_value.set_text(f"{gpu_percent:.0f}%")
+                        gpu_value.classes(
+                            remove="text-slate-200 text-emerald-400 text-amber-400 text-red-400",
+                            add=_metric_color(gpu_percent, warn=70.0, critical=90.0),
+                        )
+                        gpu_parts = []
+                        if metrics["gpu_bus"]:
+                            gpu_parts.append(f"Bus {metrics['gpu_bus']}")
+                        if metrics["gpu_vram_mb"] is not None and metrics["gpu_vram_percent"] is not None:
+                            vram_text = _format_mb_or_gb(metrics["gpu_vram_mb"])
+                            if metrics["gpu_vram_total_mb"] is not None:
+                                vram_text = (
+                                    f"VRAM {vram_text} / {_format_mb_or_gb(metrics['gpu_vram_total_mb'])}"
+                                    f" ({metrics['gpu_vram_percent']:.1f}%)"
+                                )
+                            else:
+                                vram_text = f"VRAM {vram_text} ({metrics['gpu_vram_percent']:.1f}%)"
+                            gpu_parts.append(vram_text)
+                        if metrics["gpu_gtt_mb"] is not None and metrics["gpu_gtt_percent"] is not None:
+                            gtt_text = _format_mb_or_gb(metrics["gpu_gtt_mb"])
+                            if metrics["gpu_gtt_total_mb"] is not None:
+                                gtt_text = (
+                                    f"GTT {gtt_text} / {_format_mb_or_gb(metrics['gpu_gtt_total_mb'])}"
+                                    f" ({metrics['gpu_gtt_percent']:.1f}%)"
+                                )
+                            else:
+                                gtt_text = f"GTT {gtt_text} ({metrics['gpu_gtt_percent']:.1f}%)"
+                            gpu_parts.append(gtt_text)
+                        if metrics["gpu_sclk_ghz"] is not None and metrics["gpu_sclk_percent"] is not None:
+                            gpu_parts.append(
+                                f"SCLK {metrics['gpu_sclk_ghz']:.3f} GHz ({metrics['gpu_sclk_percent']:.1f}%)"
+                            )
+                        if metrics["gpu_mclk_ghz"] is not None and metrics["gpu_mclk_percent"] is not None:
+                            gpu_parts.append(
+                                f"MCLK {metrics['gpu_mclk_ghz']:.3f} GHz ({metrics['gpu_mclk_percent']:.1f}%)"
+                            )
+                        gpu_detail.set_text(", ".join(gpu_parts) or "AMD GPU metrics detected.")
+
+                        gpu_blocks_label.set_text("Per-block AMD GPU activity")
+                        gpu_blocks_container.clear()
+                        with gpu_blocks_container:
+                            for name, value in metrics["gpu_blocks"].items():
+                                label = _GPU_BLOCK_NAMES.get(name, name.upper())
+                                tone = _metric_tone(value, warn=70.0, critical=90.0)
+                                with ui.column().classes(f"gpu-pill gpu-pill-{tone}").style("flex: 1 1 220px;"):
+                                    ui.label(label).classes(f"gpu-pill-label gpu-pill-label-{tone}")
+                                    ui.label(f"{value:.1f}%").classes(
+                                        f"gpu-pill-value {_metric_color(value, warn=70.0, critical=90.0)}"
+                                    )
+                        if not metrics["gpu_blocks"]:
+                            gpu_blocks_label.set_text("No detailed block metrics were reported.")
+
                 host_label.set_text(f"Host: {metrics['hostname']}")
                 os_label.set_text(f"Operating system: {metrics['os_name']} {metrics['os_version']}")
                 build_label.set_text(f"VPinFE build: {metrics['build_flavor']}")
@@ -339,9 +669,41 @@ def render_panel(tab=None):
                 disk_value.set_text("Error")
                 disk_value.classes(remove="text-emerald-400 text-amber-400", add="text-red-400")
                 disk_detail.set_text("Could not read disk usage.")
+                if gpu_value is not None and gpu_detail is not None:
+                    gpu_value.set_text("Error")
+                    gpu_value.classes(remove="text-emerald-400 text-amber-400", add="text-red-400")
+                    gpu_detail.set_text("Could not read GPU usage.")
+                if gpu_blocks_label is not None:
+                    gpu_blocks_label.set_text("Could not read AMD GPU details.")
+                if gpu_blocks_container is not None:
+                    gpu_blocks_container.clear()
         finally:
             refresh_button.enable()
             refresh_state["busy"] = False
+
+    def _apply_gpu_toggle() -> None:
+        enabled = bool(gpu_toggle.value) if gpu_toggle is not None else False
+        gpu_state["enabled"] = enabled
+        if gpu_summary_card is not None:
+            gpu_summary_card.visible = enabled
+        if gpu_details_card is not None:
+            gpu_details_card.visible = enabled
+        if enabled:
+            if gpu_detail is not None:
+                gpu_detail.set_text("Waiting for sample...")
+            if gpu_blocks_label is not None:
+                gpu_blocks_label.set_text("Waiting for sample...")
+        else:
+            if gpu_blocks_container is not None:
+                gpu_blocks_container.clear()
+
+    if gpu_toggle is not None:
+        async def handle_gpu_toggle(_event) -> None:
+            _apply_gpu_toggle()
+            await refresh_metrics()
+
+        gpu_toggle.on_value_change(handle_gpu_toggle)
+        _apply_gpu_toggle()
 
     refresh_button.on_click(refresh_metrics)
     ui.timer(0.1, refresh_metrics, once=True)
