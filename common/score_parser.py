@@ -8,7 +8,11 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import BinaryIO
 
-from platformdirs import user_config_dir
+try:
+    from platformdirs import user_config_dir
+except ImportError:
+    def user_config_dir(appname: str, appauthor: str | None = None) -> str:
+        return str(Path.home() / ".config" / appname)
 
 
 @dataclass
@@ -27,9 +31,6 @@ class ParsedEntry:
 logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
 
 USER_ROMS_PATH = Path(user_config_dir("vpinfe", "vpinfe")) / "roms.json"
-_roms_cache: dict | None = None
-_roms_cache_path: Path | None = None
-_roms_cache_mtime_ns: int | None = None
 
 # alias, rom name in roms.json 
 rom_aliases = {
@@ -64,33 +65,39 @@ rom_aliases = {
 }
 
 def get_roms_path() -> Path:
-    if USER_ROMS_PATH.exists():
-        return USER_ROMS_PATH
+    candidate_paths: list[Path] = [
+        USER_ROMS_PATH,
+        Path(__file__).with_name("resources") / "roms.json",
+    ]
+
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidate_paths.append(Path(meipass) / "common" / "resources" / "roms.json")
+
+    exe_dir = Path(sys.executable).resolve().parent
+    candidate_paths.extend(
+        [
+            exe_dir / "common" / "resources" / "roms.json",
+            exe_dir / "_internal" / "common" / "resources" / "roms.json",
+            exe_dir.parent / "Resources" / "common" / "resources" / "roms.json",
+        ]
+    )
+
+    candidates = list(dict.fromkeys(candidate_paths))
+
+    for path in candidates:
+        if path.exists():
+            return path
 
     raise FileNotFoundError(
-        "Could not find roms.json in the user config directory. "
-        f"Expected: {USER_ROMS_PATH}. "
-        "VPinFE now downloads this file from the pinmame-score-parser releases at startup."
+        "Could not find roms.json. Checked: "
+        + ", ".join(str(path) for path in candidates)
     )
 
 def load_roms() -> dict:
-    global _roms_cache, _roms_cache_path, _roms_cache_mtime_ns, roms
     roms_path = get_roms_path()
-    roms_mtime_ns = roms_path.stat().st_mtime_ns
-    if (
-        _roms_cache is not None
-        and _roms_cache_path == roms_path
-        and _roms_cache_mtime_ns == roms_mtime_ns
-    ):
-        return _roms_cache
-
     with roms_path.open("r", encoding="utf-8") as f:
-        _roms_cache = json.load(f)
-
-    _roms_cache_path = roms_path
-    _roms_cache_mtime_ns = roms_mtime_ns
-    roms = _roms_cache
-    return _roms_cache
+        return json.load(f)
 
 
 roms = load_roms()
@@ -834,10 +841,12 @@ def decode_mixed_leaderboard(
                 continue
 
             for entry in section["entries"]:
-                initials = decode_initials(
-                    read_offsets(f, entry["name_offsets"], one_based=one_based),
-                    entry.get("name_decoder"),
-                )
+                initials = ""
+                if "name_offsets" in entry:
+                    initials = decode_initials(
+                        read_offsets(f, entry["name_offsets"], one_based=one_based),
+                        entry.get("name_decoder"),
+                    )
                 if "score_offsets" not in entry and "entry_decoder" not in entry:
                     decoded_entry = ParsedEntry(
                         section=section["title"],
@@ -1129,12 +1138,11 @@ def format_entry(entry: ParsedEntry) -> list[str]:
     return [f"{rank_text}{entry.initials}".rstrip()]
 
 def format_result(rom_name: str, result: int | list[ParsedEntry]) -> list[str]:
-    roms_data = load_roms()
     lines = [f"{rom_name}:"]
     resolved_rom_name = resolve_rom_name(rom_name)
 
     if isinstance(result, int):
-        lines.append(f"{roms_data[resolved_rom_name]['scoretype']}: {result:,}")
+        lines.append(f"{roms[resolved_rom_name]['scoretype']}: {result:,}")
         return lines
 
     last_section = None
@@ -1152,7 +1160,7 @@ def detect_score_type(rom_name: str, filename: str | None = None) -> str:
         return "ini"
 
     resolved_rom_name = resolve_rom_name(rom_name)
-    return load_roms()[resolved_rom_name]["scoretype"]
+    return roms[resolved_rom_name]["scoretype"]
 
 def _has_meaningful_entry(entry: ParsedEntry) -> bool:
     return bool(
@@ -1198,7 +1206,7 @@ def read_rom(
         return decode_ini_file(filename)
 
     resolved_rom_name = resolve_rom_name(rom_name)
-    rom_config = load_roms().get(resolved_rom_name)
+    rom_config = roms.get(resolved_rom_name)
     if rom_config is None:
         raise KeyError(f"Unknown ROM: {rom_name}")
 
@@ -1211,53 +1219,12 @@ def read_rom(
     
 if __name__ == "__main__":
     rom_files = {       
-        "eballchp": "/home/superhac/tables/Eight Ball Champ (Bally 1985)/pinmame/nvram/eballchp.nv",
-        "esha_la3": "/home/superhac/tables/Earthshaker (Williams 1989)/pinmame/nvram/esha_la3.nv",
-        "evelknie": "/home/superhac/tables/Evel Knievel (Bally 1977)/pinmame/nvram/evelknie.nv",
-        "excalibr":"/home/superhac/tables/Excalibur (Gottlieb 1988)/pinmame/nvram/excalibr.nv",
-        "f14_l1":"/home/superhac/tables/F-14 Tomcat (Williams 1987)/pinmame/nvram/f14_l1.nv",
-        "fg_1200af":"/home/superhac/tables/Family Guy (Stern 2007)/pinmame/nvram/fg_1200af.nv",
-        "fh_905h":"/home/superhac/tables/Funhouse (Williams 1990)/pinmame/nvram/fh_905h.nv",
-        "cc_13": "/home/superhac/tables/Cactus Canyon (Bally 1998)/pinmame/nvram/cc_13.nv",
-        "eightbll": "/home/superhac/tables/Eight Ball (Bally 1977)/pinmame/nvram/eightbll.nv",
-        "frankst": "/home/superhac/tables/Mary Shelley's Frankenstein (Sega 1995)/pinmame/nvram/frankst.nv",
-        "freddy": "/home/superhac/tables/Freddy - A Nightmare on Elm Street (Gottlieb 1994)/pinmame/nvram/freddy.nv",
-        "frpwr_b7":"/home/superhac/tables/Firepower (Williams 1980)/pinmame/nvram/frpwr_b7.nv",
-        "fs_lx5": "/home/superhac/tables/The Flintstones (Williams 1994)/pinmame/nvram/fs_lx5.nv",
-        "genesis": "/home/superhac/tables/Genesis (Gottlieb 1986)/pinmame/nvram/genesis.nv",
-        "gi_l9": "/home/superhac/tables/Gilligan's Island (Bally 1991)/pinmame/nvram/gi_l9.nv",
-        "gladiatr": "/home/superhac/tables/Gladiators (Gottlieb 1993)/pinmame/nvram/gladiatr.nv",
-        "gldneye": "/home/superhac/tables/Goldeneye (Sega 1996)/pinmame/nvram/gldneye.nv",
-        "gnr_300": "/home/superhac/tables/Guns N Roses (Data East 1994)/pinmame/nvram/gnr_300.nv",
-        "godzilla": "/home/superhac/tables/Godzilla (Sega 1998)/pinmame/nvram/godzilla.nv",
-        "goldcue": "/home/superhac/tables/Golden Cue (Sega 1998)/pinmame/nvram/goldcue.nv",
-        "goldwing": "/home/superhac/tables/Gold Wings (Gottlieb 1986)/pinmame/nvram/goldwing.nv",
-        "grand_l4": "/home/superhac/tables/Grand Lizard (Williams 1986)/pinmame/nvram/grand_l4.nv",
-        "granny": "/home/superhac/tables/Granny (Gottlieb 1990)/pinmame/nvram/granny.nv",
-        "gw_l5": "/home/superhac/tables/The Getaway - High Speed II (Williams 1992)/pinmame/nvram/gw_l5.nv",
-        "hd_l1": "/home/superhac/tables/Harley-Davidson (Bally 1991)/pinmame/nvram/hd_l3.nv",
-        "hh": "/home/superhac/tables/Haunted House (Gottlieb 1982)/pinmame/nvram/hh.nv",
-        "hirolcas": "/home/superhac/tables/High Roller Casino (Stern 2001)/pinmame/nvram/hirolcas.nv",
-        "hlywoodh": "/home/superhac/tables/Hollywood Heat (Gottlieb 1986)/pinmame/nvram/hlywoodh.nv",
-        "hook_501": "/home/superhac/tables/Hook (Data East 1992)/pinmame/nvram/hook_501.nv",
-        "hoops": "/home/superhac/tables/Hoops (Gottlieb 1991)/pinmame/nvram/hoops.nv",
-        "im_185": "/home/superhac/tables/Iron Man (Stern 2010)/pinmame/nvram/im_185ve.nv",
-        "jd_l1":"/home/superhac/tables/Judge Dredd (Bally 1993)/pinmame/nvram/jd_l1.nv",
-        "jupk_600":"/home/superhac/tables/Jurassic Park (Data East 1993)/pinmame/nvram/jupk_600.nv",
-        "kpv106": "/home/superhac/tables/Kingpin (Capcom 1996)/pinmame/nvram/kpb105.nv",
-        "lah_112":"/home/superhac/tables/Last Action Hero (Data East 1993)/pinmame/nvram/lah_113.nv",
-        "lca2": "/home/superhac/tables/Lights Camera Action (Gottlieb 1989)/pinmame/nvram/lca2.nv",
-        "lostspc": "/home/superhac/tables/Lost in Space (Sega 1998)/pinmame/nvram/lostspc.nv",
-        "lsrcu_l2": "/home/superhac/tables/Laser Cue (Williams 1984)/pinmame/nvram/lsrcu_l2.nv",
-        "mb_106b":"/home/superhac/tables/Monster Bash (Williams 1998)/pinmame/nvram/mb_106b.nv",
-        "meteorb":"/home/superhac/tables/Meteor (Stern 1979)/pinmame/nvram/meteorb.nv",
-        "mm_109c":"/home/superhac/tables/Medieval Madness (Williams 1997)/pinmame/nvram/mm_109c.nv",
-        "rab_320": "/home/superhac/tables/Adventures of Rocky and Bullwinkle and Friends (Data East 1993)/pinmame/nvram/rab_320.nv",
-        "sc_18":"/home/superhac/tables/Safe Cracker (Bally 1996)/pinmame/nvram/sc_18n11.nv",
-        "ss_15": "/home/superhac/tables/Scared Stiff (Bally 1996)/pinmame/nvram/ss_15.nv",
         "twenty4_150": "/home/superhac/tables/24 (Stern 2009)/pinmame/nvram/twenty4_150.nv",
         "ww_lh6": "/home/superhac/tables/White Water (Williams 1993)/pinmame/nvram/ww_lh6.nv",
         "wwfr_106":"/home/superhac/tables/WWF Royal Rumble (Data East 1994)/pinmame/nvram/wwfr_106.nv",
+        "dvlsdre":"/home/superhac/tables/Devils Dare (Gottlieb 1982)/pinmame/nvram/dvlsdre.nv",
+        "dollyptb": "/home/superhac/tables/Dolly Parton (Bally 1979)/pinmame/nvram/dollyptb.nv",
+        "comet_l5":"/home/superhac/tables/Miami Vice (Original 2020)/pinmame/nvram/comet_l5.nv",
     }
 
     for rom_name, filename in rom_files.items():

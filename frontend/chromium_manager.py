@@ -17,9 +17,19 @@ import tempfile
 import signal
 import threading
 import time
+from urllib.parse import quote
 
 
 logger = logging.getLogger("vpinfe.frontend.chromium_manager")
+
+
+def _config_truthy(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    normalized = str(value).strip().lower()
+    if normalized == "":
+        return default
+    return normalized in {"1", "true", "yes", "on"}
 
 
 def resource_path(relative_path):
@@ -225,6 +235,11 @@ class ChromiumManager:
         theme_assets_port = int(
             iniconfig.config["Network"].get("themeassetsport", "8000")
         )
+        theme_name = iniconfig.config["Settings"].get("theme", "Revolution").strip() or "Revolution"
+        splash_enabled = _config_truthy(
+            iniconfig.config["Settings"].get("splashscreen", "true"),
+            default=True,
+        )
 
         # Launch windows in order: bg, dmd, table (table last so it gets focus)
         window_configs = [
@@ -249,7 +264,14 @@ class ChromiumManager:
                 continue
 
             monitor = monitors[screen_id]
-            url = f"{base_url}:{theme_assets_port}/web/splash.html?window={window_name}"
+            if splash_enabled:
+                url = f"{base_url}:{theme_assets_port}/web/splash.html?window={window_name}"
+            else:
+                encoded_theme = quote(theme_name, safe="")
+                url = (
+                    f"{base_url}:{theme_assets_port}/themes/"
+                    f"{encoded_theme}/index_{window_name}.html?window={window_name}"
+                )
 
             override_key = f"{window_name}windowoverride"
             logger.debug("Found override key: '%s' in [Displays] section", override_key)

@@ -8,6 +8,7 @@ from common.table import Table
 import json
 import time
 import subprocess
+import threading
 from common.tableparser import TableParser
 from common.vpxcollections import VPXCollections
 from common.tablelistfilters import TableListFilters
@@ -18,7 +19,6 @@ from common.dof_service import (
 )
 from common.libdmdutil_service import (
     show_image as show_libdmdutil_image,
-    start_libdmdutil_service_if_enabled,
     stop_libdmdutil_service,
 )
 from common.launcher import (
@@ -66,6 +66,12 @@ class API:
             except Exception:
                 logger.exception("Could not load startup collection '%s'", startup_collection)
 
+        self._realdmd_worker_lock = threading.Lock()
+        self._realdmd_worker_event = threading.Event()
+        self._realdmd_worker_image_path = None
+        self._realdmd_worker_table_name = ""
+        self._realdmd_worker_thread = None
+
     ####################
     ## Private Functions
     ####################
@@ -97,6 +103,48 @@ class API:
             return path.resolve()
         except Exception:
             return path
+
+    def _ensure_realdmd_worker(self) -> None:
+        with self._realdmd_worker_lock:
+            if self._realdmd_worker_thread is not None and self._realdmd_worker_thread.is_alive():
+                return
+
+            self._realdmd_worker_thread = threading.Thread(
+                target=self._realdmd_worker_loop,
+                name=f"realdmd-worker-{self.window_name or 'unknown'}",
+                daemon=True,
+            )
+            self._realdmd_worker_thread.start()
+
+    def _queue_realdmd_image_update(self, table_name: str, image_path: Path | None) -> None:
+        self._ensure_realdmd_worker()
+        with self._realdmd_worker_lock:
+            self._realdmd_worker_table_name = table_name
+            self._realdmd_worker_image_path = image_path
+            self._realdmd_worker_event.set()
+
+    def _realdmd_worker_loop(self) -> None:
+        while True:
+            self._realdmd_worker_event.wait()
+            with self._realdmd_worker_lock:
+                image_path = self._realdmd_worker_image_path
+                table_name = self._realdmd_worker_table_name
+                self._realdmd_worker_event.clear()
+
+            try:
+                image_sent = show_libdmdutil_image(self._iniConfig, image_path)
+                logger.debug(
+                    "Async real DMD update for %s -> sent=%s image=%s",
+                    table_name,
+                    image_sent,
+                    image_path,
+                )
+            except Exception:
+                logger.exception(
+                    "Async real DMD update failed for %s (image=%s)",
+                    table_name,
+                    image_path,
+                )
 
 
     ###################
@@ -564,7 +612,6 @@ class API:
             process.wait()
         finally:
             start_dof_service_if_enabled(self._iniConfig)
-            start_libdmdutil_service_if_enabled(self._iniConfig)
 
         if launch_started_at is not None:
             elapsed_seconds = max(0.0, time.time() - launch_started_at)
@@ -592,14 +639,14 @@ class API:
         event_token = self._get_frontend_dof_event_for_table(table)
         event_sent = send_frontend_dof_event(self._iniConfig, event_token)
         realdmd_path = self._get_realdmd_image_for_table(table)
-        image_sent = show_libdmdutil_image(self._iniConfig, realdmd_path)
+        self._queue_realdmd_image_update(table.tableDirName, realdmd_path)
         resolved_event = event_token if event_token else "random:E900-E990"
         logger.debug(
-            "Frontend media update for %s -> event=%s (dof_sent=%s, dmd_sent=%s, image=%s)",
+            "Frontend media update for %s -> event=%s (dof_sent=%s, dmd_queued=%s, image=%s)",
             table.tableDirName,
             resolved_event,
             event_sent,
-            image_sent,
+            True,
             realdmd_path,
         )
         return {
@@ -607,7 +654,8 @@ class API:
             "event": resolved_event,
             "sent": event_sent,
             "realdmd_image": str(realdmd_path) if realdmd_path else "",
-            "realdmd_sent": image_sent,
+            "realdmd_sent": False,
+            "realdmd_queued": True,
         }
 
     def get_table_rating(self, index):
