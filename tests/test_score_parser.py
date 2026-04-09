@@ -110,6 +110,62 @@ class TestScoreParser(unittest.TestCase):
             },
         )
 
+    def test_result_to_jsonable_uses_vpinplay_initials_for_blank_entries(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "vpinfe.ini"
+            config_path.write_text("[vpinplay]\ninitials = JSM\n", encoding="utf-8")
+            with mock.patch.object(score_parser, "USER_CONFIG_PATH", config_path):
+                result = result_to_jsonable(
+                    "aar_101",
+                    [ParsedEntry(section="HIGH SCORES", rank=1, initials="", score=1000)],
+                )
+
+        self.assertEqual(
+            result,
+            {
+                "rom": "aar_101",
+                "resolved_rom": "aar_101",
+                "score_type": "Leaderboard",
+                "entries": [
+                    {
+                        "section": "HIGH SCORES",
+                        "rank": 1,
+                        "initials": "JSM",
+                        "score": 1000,
+                        "value_prefix": None,
+                        "value_suffix": None,
+                        "value_format": None,
+                        "extra_lines": [],
+                        "multiline": False,
+                    }
+                ],
+            },
+        )
+
+    def test_result_to_jsonable_preserves_existing_initials(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "vpinfe.ini"
+            config_path.write_text("[vpinplay]\ninitials = JSM\n", encoding="utf-8")
+            with mock.patch.object(score_parser, "USER_CONFIG_PATH", config_path):
+                result = result_to_jsonable(
+                    "aar_101",
+                    [ParsedEntry(section="HIGH SCORES", rank=1, initials="AAA", score=1000)],
+                )
+
+        self.assertEqual(result["entries"][0]["initials"], "AAA")
+
+    def test_result_to_jsonable_does_not_fill_blank_non_score_entries(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "vpinfe.ini"
+            config_path.write_text("[vpinplay]\ninitials = JSM\n", encoding="utf-8")
+            with mock.patch.object(score_parser, "USER_CONFIG_PATH", config_path):
+                result = result_to_jsonable(
+                    "aar_101",
+                    [ParsedEntry(section="HIGH SCORES", rank=1, initials="", extra_lines=["SPECIAL"])],
+                )
+
+        self.assertEqual(result["entries"][0]["initials"], "")
+
 
 if __name__ == "__main__":
     unittest.main()

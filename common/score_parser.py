@@ -3,8 +3,7 @@ import json
 import logging
 import re
 import sys
-from dataclasses import dataclass, field
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import BinaryIO
 
@@ -31,6 +30,7 @@ class ParsedEntry:
 logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
 
 USER_ROMS_PATH = Path(user_config_dir("vpinfe", "vpinfe")) / "roms.json"
+USER_CONFIG_PATH = Path(user_config_dir("vpinfe", "vpinfe")) / "vpinfe.ini"
 
 # alias, rom name in roms.json 
 rom_aliases = {
@@ -101,6 +101,31 @@ def load_roms() -> dict:
 
 
 roms = load_roms()
+
+
+def get_default_initials() -> str:
+    parser = configparser.ConfigParser(interpolation=None)
+    read_files = parser.read(USER_CONFIG_PATH, encoding="utf-8")
+    if not read_files:
+        return ""
+    return parser.get("vpinplay", "initials", fallback="").strip()
+
+
+def apply_default_initials(result: int | list[ParsedEntry]) -> int | list[ParsedEntry]:
+    if isinstance(result, int):
+        return result
+
+    default_initials = get_default_initials()
+    if not default_initials:
+        return result
+
+    normalized_entries: list[ParsedEntry] = []
+    for entry in result:
+        if entry.initials or entry.score is None:
+            normalized_entries.append(entry)
+            continue
+        normalized_entries.append(replace(entry, initials=default_initials))
+    return normalized_entries
 
 
 def bcd_to_int(byte_vals: list[int]) -> int:
@@ -1140,6 +1165,7 @@ def format_entry(entry: ParsedEntry) -> list[str]:
 def format_result(rom_name: str, result: int | list[ParsedEntry]) -> list[str]:
     lines = [f"{rom_name}:"]
     resolved_rom_name = resolve_rom_name(rom_name)
+    result = apply_default_initials(result)
 
     if isinstance(result, int):
         lines.append(f"{roms[resolved_rom_name]['scoretype']}: {result:,}")
@@ -1177,6 +1203,7 @@ def result_to_jsonable(
 ) -> dict | None:
     resolved_rom_name = resolve_rom_name(rom_name)
     score_type = detect_score_type(rom_name, filename)
+    result = apply_default_initials(result)
 
     if isinstance(result, int):
         return {

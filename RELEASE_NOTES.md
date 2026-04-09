@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.50
+This is the offical release of vpinfe v1.1.51
 
 ### What's New
-- add rom parser fix for leaderboard comet_l5
+None
 
 ### Fixes
-- Fix libdmdutil race condition if the device isn't there.
+- Fix default with initials of "" to the players in roms.
 
 ### Notes
 None
