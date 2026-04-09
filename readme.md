@@ -13,6 +13,7 @@
 - JSON-based table metadata with VPX file parsing and feature detection
 - DOF Support using [libdof-python](https://github.com/superhac/libdof-python)
 - Mobile transfer support for VPinball on Android and iOS (Web Send & VPXZ Download)
+- Optional online ratings, scoring and play tracking via [VPin Play](https://www.vpinplay.com/). The [GitHub Project](https://github.com/superhac/vpinplay)
 
 ### Support/Feedback
 Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
