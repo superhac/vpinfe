@@ -1,10 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.55
+This is the offical release of vpinfe v1.1.56
 
 ### What's New
-- Added Mac support for GPU metrics in system page.
+- Fix the abilityin the media page to select the number of records per page.
 
 ### Fixes
 None

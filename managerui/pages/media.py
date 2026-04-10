@@ -393,6 +393,12 @@ def render_panel():
             'missing_realdmd': False,
             'missing_realdmd_color': False,
         }
+        pagination_state = {
+            'page': 1,
+            'rowsPerPage': 25,
+            'sortBy': 'name',
+            'descending': False,
+        }
 
         def get_filter_options_from_cache():
             tables = _media_cache or []
@@ -460,10 +466,9 @@ def render_panel():
             return result
 
         def _visible_rows(rows: List[Dict]) -> List[Dict]:
-            pagination = media_table._props.get('pagination', {}) if hasattr(media_table, '_props') else {}
             try:
-                page = int(pagination.get('page', 1) or 1)
-                rows_per_page = int(pagination.get('rowsPerPage', 25) or 25)
+                page = int(pagination_state.get('page', 1) or 1)
+                rows_per_page = int(pagination_state.get('rowsPerPage', 25) or 25)
             except Exception:
                 page = 1
                 rows_per_page = 25
@@ -471,6 +476,24 @@ def render_panel():
                 rows_per_page = 25
             start = max(0, (page - 1) * rows_per_page)
             return rows[start:start + rows_per_page]
+
+        def _store_pagination(pagination: Optional[Dict]) -> None:
+            if not isinstance(pagination, dict):
+                return
+            try:
+                if 'page' in pagination:
+                    pagination_state['page'] = max(1, int(pagination.get('page') or 1))
+                if 'rowsPerPage' in pagination:
+                    rows_per_page = int(pagination.get('rowsPerPage') or 25)
+                    pagination_state['rowsPerPage'] = rows_per_page if rows_per_page > 0 else 25
+            except Exception:
+                pagination_state['page'] = max(1, int(pagination_state.get('page', 1) or 1))
+                pagination_state['rowsPerPage'] = max(1, int(pagination_state.get('rowsPerPage', 25) or 25))
+
+            if 'sortBy' in pagination:
+                pagination_state['sortBy'] = pagination.get('sortBy')
+            if 'descending' in pagination:
+                pagination_state['descending'] = bool(pagination.get('descending'))
 
         async def warm_visible_thumbnails(rows: List[Dict]) -> None:
             try:
@@ -550,8 +573,13 @@ def render_panel():
 
         def update_table_display(schedule_warm: bool = True):
             filtered = apply_filters()
+            rows_per_page = max(1, int(pagination_state.get('rowsPerPage', 25) or 25))
+            max_page = max(1, (len(filtered) + rows_per_page - 1) // rows_per_page)
+            pagination_state['page'] = min(max(1, int(pagination_state.get('page', 1) or 1)), max_page)
+            media_table._props['pagination'] = dict(pagination_state)
             media_table._props['rows'] = filtered
             media_table.update()
+            media_table.run_method('setPagination', dict(pagination_state))
             total = len(_media_cache or [])
             shown = len(filtered)
             if shown == total:
@@ -611,7 +639,8 @@ def render_panel():
                 filter_state[f'missing_{media_key}'] = False
             for cb in missing_checkboxes.values():
                 cb.value = False
-            media_table._props['pagination']['page'] = 1
+            pagination_state['page'] = 1
+            media_table._props['pagination'] = dict(pagination_state)
             update_table_display()
 
         def refresh_filter_options():
@@ -872,7 +901,7 @@ def render_panel():
 
         with table_container:
             media_table = (
-                ui.table(columns=columns, rows=initial_rows, row_key='table_dir', pagination={'rowsPerPage': 25})
+                ui.table(columns=columns, rows=initial_rows, row_key='table_dir', pagination=dict(pagination_state))
                   .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
                   .classes("w-full")
                   .style("flex: 1; overflow: auto;")
@@ -973,12 +1002,42 @@ def render_panel():
                 )
             media_table.on('media_click', on_media_click)
 
+            media_table.add_slot('bottom', '''
+                <div class="row full-width items-center q-pa-sm"
+                     style="background-color: #1e293b; color: #94a3b8; border-top: 1px solid #334155;">
+                    <span class="q-mr-sm" style="font-size: 0.85rem;">Rows per page:</span>
+                    <q-select
+                        :model-value="props.pagination.rowsPerPage"
+                        :options="[25, 50, 100]"
+                        @update:model-value="val => $parent.$emit('update:pagination', Object.assign({}, props.pagination, {rowsPerPage: val, page: 1}))"
+                        dense
+                        borderless
+                        dark
+                        emit-value
+                        map-options
+                        options-dense
+                        popup-content-style="z-index: 10000;"
+                        options-cover="false"
+                        style="min-width: 50px; color: #e2e8f0;"
+                    />
+                    <q-space />
+                    <q-btn flat round dense icon="first_page" :disable="props.isFirstPage" @click="props.firstPage" size="sm" color="grey-5" />
+                    <q-btn flat round dense icon="chevron_left" :disable="props.isFirstPage" @click="props.prevPage" size="sm" color="grey-5" />
+                    <span class="q-mx-sm" style="font-size: 0.85rem;">
+                        Page {{ props.pagination.page }} of {{ props.pagesNumber }}
+                    </span>
+                    <q-btn flat round dense icon="chevron_right" :disable="props.isLastPage" @click="props.nextPage" size="sm" color="grey-5" />
+                    <q-btn flat round dense icon="last_page" :disable="props.isLastPage" @click="props.lastPage" size="sm" color="grey-5" />
+                </div>
+            ''')
+
             def on_pagination_change(e):
                 try:
                     pagination = _extract_pagination(e.args)
                     if pagination:
-                        media_table._props.setdefault('pagination', {})
-                        media_table._props['pagination'].update(pagination)
+                        _store_pagination(pagination)
+                        media_table._props['pagination'] = dict(pagination_state)
+                        media_table.run_method('setPagination', dict(pagination_state))
                 except Exception:
                     pass
                 if is_page_active():
