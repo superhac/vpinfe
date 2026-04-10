@@ -1,10 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.52
+This is the offical release of vpinfe v1.1.54
 
 ### What's New
-- Update libdof-python to the latest
+- Updated the readme for dof and libdmdutil. 
 
 ### Fixes
 None

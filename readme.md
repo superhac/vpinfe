@@ -175,6 +175,68 @@ The gamepad configuration interface provides:
 
 Press ESC to exit the gamepad configuration tool when you're done mapping your buttons.
 
+## DOF and libdmdutil
+
+VPinFE includes two bundled integrations in its release distributions:
+
+- **DOF** for cabinet output events such as feedback devices and toys
+- **libdmdutil** for sending the table's real DMD image to supported external DMD hardware
+
+They are fetched during the GitHub build workflow and packaged into the distributed app under `third-party/dof` and `third-party/libdmdutil`. You can leave either integration disabled in `vpinfe.ini`, but the supporting files are included with the release builds.
+
+### DOF setup
+
+Release builds already include the DOF files in `third-party/dof`. If you are running from source or want to refresh the bundled files locally, use:
+
+```bash
+./scripts/fetch_dof_bundle.sh
+```
+
+You can also point VPinFE at a custom DOF bundle location by setting `VPINFE_DOF_DIR`.
+
+Enable DOF in the ManagerUI under the **DOF** section, or in `vpinfe.ini`:
+
+```ini
+[DOF]
+enabledof = true
+dofconfigtoolapikey =
+```
+
+Notes:
+
+- VPinFE starts the DOF runner automatically when `enabledof = true`.
+- The ManagerUI includes a **DOF Event Test** panel where you can send event tokens like `E900` or `S27`.
+- If you use the VPUniverse online config tool, put your API key in `dofconfigtoolapikey` and use the **Update DOF via Online Config Tool** button. That uses the bundled `ledcontrol_pull.py` helper from the DOF package.
+
+### libdmdutil setup
+
+Release builds already include the libdmdutil files in `third-party/libdmdutil`. If you are running from source or want to refresh the bundled files locally, use:
+
+```bash
+./scripts/fetch_libdmdutil_bundle.sh
+```
+
+You can also override the lookup path with `VPINFE_LIBDMDUTIL_DIR`.
+
+Enable it in the ManagerUI under the **libdmdutil** section, or in `vpinfe.ini`:
+
+```ini
+[libdmdutil]
+enabled = true
+pin2dmdenabled = false
+pixelcadedevice =
+zedmddevice =
+zedmdwifiaddr =
+```
+
+Notes:
+
+- VPinFE loads `libdmdutil_wrapper.py` from the bundled package when `enabled = true`.
+- If `zedmddevice` is set, VPinFE connects to that device path first.
+- If `zedmddevice` is blank and `zedmdwifiaddr` is set, VPinFE connects over Wi-Fi instead.
+- If both are blank, libdmdutil falls back to its default auto-detection behavior.
+- `pin2dmdenabled` and `pixelcadedevice` are preserved in `vpinfe.ini` for libdmdutil-related configuration, even though VPinFE currently only uses the ZeDMD device and Wi-Fi address fields directly.
+
 # Addtional Information and Context
 
 ## VPinfe CLI Options
