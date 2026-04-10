@@ -1,14 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.54
+This is the offical release of vpinfe v1.1.55
 
 ### What's New
-- Updated the readme for dof and libdmdutil. 
-- updated theme.md and added new media_flow.md
+- Added Mac support for GPU metrics in system page.
 
 ### Fixes
-- Fix frontend collections for multiple year collections.  E.g. 80's 
+None
 
 ### Notes
 None

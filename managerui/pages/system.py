@@ -35,6 +35,10 @@ _GPU_FIELD_LABELS = {
 }
 
 
+def _gpu_monitoring_supported() -> bool:
+    return platform.system() in {"Linux", "Darwin"}
+
+
 def _resolve_usage_path() -> Path:
     """Choose an existing path on the filesystem whose volume we want to monitor."""
     candidate = Path.home()
@@ -89,7 +93,7 @@ def _get_system_metrics(include_gpu: bool = False) -> dict:
         "memory_total": None,
         "memory_available": None,
         "memory_percent": None,
-        "gpu_supported": platform.system() == "Linux",
+        "gpu_supported": _gpu_monitoring_supported(),
         "gpu_available": False,
         "gpu_error": None,
         "gpu_name": None,
@@ -399,7 +403,7 @@ def render_panel(tab=None):
 
         gpu_toggle_card = None
         gpu_toggle = None
-        if platform.system() == "Linux":
+        if _gpu_monitoring_supported():
             with ui.card().classes("system-card w-full p-5"):
                 gpu_toggle_card = ui.card_section().classes("w-full")
                 with gpu_toggle_card:
@@ -407,10 +411,10 @@ def render_panel(tab=None):
                         with ui.column().classes("gap-1"):
                             ui.label("GPU Monitoring").classes("text-lg font-semibold text-white")
                             ui.label(
-                                "Optional Linux-only monitoring. Requires `nvtop` to be installed and accessible."
+                                "Optional Linux and macOS monitoring. Requires `nvtop` to be installed and accessible."
                             ).classes("text-slate-300")
                             ui.label(
-                                "Turn this on to display GPU utilization, temperature, clocks, fan speed, and power draw."
+                                "Turn this on to display GPU utilization, temperature, clocks, fan speed, and power draw when supported by nvtop."
                             ).classes("text-slate-400 text-sm")
                         gpu_toggle = ui.switch("Enable GPU metrics", value=False).props("color=teal")
 
@@ -436,7 +440,7 @@ def render_panel(tab=None):
             gpu_value = None
             gpu_detail = None
             gpu_summary_card = None
-            if platform.system() == "Linux":
+            if _gpu_monitoring_supported():
                 with ui.card().classes("system-card p-5").style("flex: 1 1 320px; min-width: 280px;") as gpu_summary_card:
                     with ui.column().classes("gap-2"):
                         ui.label("GPU Utilization").classes("text-sm uppercase tracking-wide text-slate-400")
@@ -447,7 +451,7 @@ def render_panel(tab=None):
         gpu_blocks_label = None
         gpu_blocks_container = None
         gpu_details_card = None
-        if platform.system() == "Linux":
+        if _gpu_monitoring_supported():
             with ui.card().classes("system-card w-full p-5") as gpu_details_card:
                 with ui.column().classes("gap-2"):
                     ui.label("GPU Details").classes("text-lg font-semibold text-white")
