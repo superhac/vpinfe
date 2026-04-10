@@ -138,6 +138,378 @@ VPinFE will try to automatch your tables to VPSID's, but in the event it can't y
 
 Click on the unmatched tables button and walkthtough the dialogs.  Once comleted the table will show in your tables list.
 
+## ManagerUI Guide
+
+When VPinFE starts for the first time it opens the ManagerUI on the **Configuration** page. On later runs it remembers the last page you had open. The ManagerUI header also includes:
+
+- **Restart VPinFE** to restart the frontend process
+- **Quit VPinFE** to close the app
+- **Version and update status** with direct install support when the running build supports in-app updates
+
+The main navigation includes:
+
+- **Tables**
+- **Collections**
+- **Media**
+- **Themes**
+- **Mobile Uploader**
+- **System**
+- **Configuration**
+- **Remote Control** opens in a separate tab at `/remote`
+
+### Configuration page
+
+The **Configuration** page edits `vpinfe.ini`. Changes are only written when you click **Save Changes**.
+
+#### Settings section
+
+Core startup and launch behavior:
+
+- **VPX Executable Path**: main VPinball executable or app bundle used to launch tables
+- **VPX Launch Environment**: optional environment variable overrides added only to VPX launches. Accepts `KEY=value` pairs, multiple lines, or semicolon-separated entries
+- **Global ini Override**: adds `-ini <path>` to all VPX launches
+- **Global tableini Override Enabled**: enables masked per-table `-tableini` launching
+- **Global tableini Override Mask**: builds `{TableName}.{mask}.ini` beside the `.vpx` and uses it only when the file exists
+- **Tables Directory**: root folder scanned for tables, metadata, media, mobile transfer, and VPinPlay sync
+- **VPX Ini Path**: path to your VPinballX ini file
+- **Active Theme**: currently selected frontend theme
+- **Startup Collection**: collection opened when VPinFE starts
+- **Auto Update Media On Startup**: enables startup media refresh behavior
+- **Enable splashscreen**: shows the frontend splash screen during startup
+- **Mute Frontend Audio**: mutes frontend audio playback
+
+The page also shows a **VPinball Launch Command w/Options** preview so you can verify the exact launch command and launch environment before saving.
+
+#### Displays section
+
+Screen assignment and playfield layout:
+
+- **Playfield Monitor ID**
+- **Backglass Monitor ID**
+- **DMD Monitor ID**
+- **Backglass Window Override (x,y,width,height)**: optional explicit bounds passed to themes
+- **DMD Window Override (x,y,width,height)**: optional explicit bounds passed to themes
+- **Playfield Orientation (Landscape/Portrait)**
+- **Playfield Rotation (0/90/270)**
+- **Cabinet Mode**
+
+The right side of the page lists detected displays so you can map IDs correctly. On macOS it also shows NSScreen coordinates used for window placement.
+
+#### Input section
+
+Gamepad button mappings stored in `vpinfe.ini`:
+
+- **Left**
+- **Right**
+- **Up**
+- **Down**
+- **Select**
+- **Menu**
+- **Back**
+- **Exit**
+- **Collection Menu**
+
+You normally set these from `./vpinfe --gamepadtest`, but the values are visible and editable here.
+
+#### Logger section
+
+Logging behavior:
+
+- **Log Verbosity**: debug/info/warning/error/critical
+- **Console Logging**: enables console log output
+
+The page also has a **View Log** button that opens the current `vpinfe.log`. VPinFE writes logs to the standard config directory and starts a fresh log file on each launch.
+
+#### Media section
+
+Default metadata/media behavior:
+
+- **Table Type**: preferred media type family when downloading media
+- **Default Table Resolution**
+- **Default Table Video Resolution**
+- **Default Missing Media Image**
+- **Thumbnail Cache Max (MB)**: cap for generated media thumbnails used by ManagerUI
+
+#### Network section
+
+Local service ports:
+
+- **Theme Server Port**: media/theme asset server
+- **Manager UI Port**: NiceGUI management interface
+
+#### Mobile section
+
+Saved defaults for the **Mobile Uploader** page:
+
+- **Mobile Device IP**
+- **Mobile Device Port**
+- **Mobile Chunk Size**
+- **Enable Rename Mask To Default INI**
+- **Rename Mask To Default INI Mask**
+
+When the rename-mask option is enabled for Web Send, VPinFE can send `{VPX_FILENAME}.{MASK}.ini` to the mobile device as `{VPX_FILENAME}.ini`.
+
+#### DOF section
+
+Frontend DOF integration:
+
+- **Enable DOF**: starts the bundled DOF runner for frontend events
+- **DOF Config Tool API Key**: used by the online config sync helper
+
+The page also includes:
+
+- **DOF Event Test**: starts and stops a test event token like `E900` or `S27`
+- **Online Config Tool**: runs the bundled `ledcontrol_pull.py` helper using your API key, with an optional force update
+
+#### libdmdutil section
+
+Real DMD output integration:
+
+- **libdmdutil Service**: enables the bundled libdmdutil controller
+- **ZeDMDDevice**: explicit ZeDMD device path
+- **ZeDMDWiFiAddr**: ZeDMD network address
+- **PIN2DMD**
+- **PixelcadeDevice**
+
+VPinFE currently uses the service enable flag plus the ZeDMD device/Wi-Fi settings directly. If both ZeDMD fields are blank, libdmdutil falls back to its own auto-detection behavior.
+
+#### VPinPlay section
+
+Experimental online metadata sync:
+
+- **API Endpoint**: VPinPlay service base URL
+- **User ID**
+- **Initials**: uppercased in the UI and limited to 3 characters
+- **Machine ID**: auto-generated if missing and read-only in the UI
+- **Sync on Exit**: sends installed table metadata during shutdown when all required values are present
+
+The page also provides:
+
+- **VPinPlay Home** and **Your Stats** links
+- **Sync Installed Tables** button that posts installed table metadata to the configured VPinPlay endpoint
+
+### Tables page
+
+The **Tables** page scans your tables root for folders that contain both a `.vpx` file and a matching `.info` file. It provides:
+
+- Search by table name
+- Filters for manufacturer, year, theme, type, and PUP Pack presence
+- Multi-select with **Select Page**
+- Batch **Add to Collection**
+- Links to **IPDB** and **VPS**
+- Badges for rating, collection membership, and per-table overrides
+
+Header actions:
+
+- **Scan Tables** opens the **Build Metadata** workflow
+- **Apply Patches** runs standalone VPX patching across supported tables
+- **Unmatched Tables** opens folders that have a `.vpx` but no `.info`
+- **Import Table** imports a new table package into your tables root
+
+Build Metadata options:
+
+- **Update All Tables** reparses tables even if `.info` already exists
+- **Download Media** downloads media from VPinMediaDB while building metadata
+
+Clicking a table opens a detail dialog with:
+
+- Table information from `.info`
+- Detected feature flags such as nFozzy, Fleep, SSF, LUT, ScoreBit, FastFlips, and Flex
+- Addon detection for PupVideos, Serum, VNI, and AltSound
+- Editable **Rating**
+- Collection membership management
+- Per-table overrides:
+  - **Alt Title**
+  - **Alt VPS ID**
+  - **Alt Launcher**
+  - **FrontendDOFEvent**
+  - **Delete NVRAM on close**
+- Addon upload tools:
+  - PUP packs as `.zip`
+  - Serum `.cRZ`
+  - VNI `.vni` and `.pal`
+  - AltSound files
+- **Rebuild Meta** for that single table
+
+The **Unmatched Tables** dialog lets you:
+
+- Search VPS by name
+- Associate a table folder with a VPS entry
+- Optionally rename the folder to `Table Name (Manufacturer Year)`
+- Either download media from VPinMediaDB or claim your existing local media as user-owned
+
+The **Import Table** dialog lets you:
+
+- Choose a VPS entry first
+- Upload a required `.vpx`
+- Optionally upload `.directb2s`, ROM `.zip`, PUP pack `.zip`, and music `.zip`
+- Create the table folder, generate metadata, copy/extract uploaded files, and download media
+
+### Collections page
+
+The **Collections** page manages both collection types used by VPinFE:
+
+- **Table collections**: explicit VPS ID lists
+- **Filter collections**: dynamic collections based on metadata filters
+
+Supported collection filters:
+
+- Starting letter
+- Theme
+- Table type
+- Manufacturer
+- Year
+- Rating
+- Rating or higher
+- Sort order
+
+From this page you can:
+
+- Create, edit, rename, and delete collections
+- Search installed tables and add them to a table collection
+- Edit filter rules for filter collections
+- See collection contents directly in the list
+
+### Media page
+
+The **Media** page scans each table folder and shows which standard media assets are present. Supported media keys are:
+
+- BG
+- DMD
+- Table
+- FSS
+- Wheel
+- Cab
+- Flyer
+- Real DMD
+- Real DMD Color
+- Table Video
+- BG Video
+- DMD Video
+- Audio
+
+Features on this page:
+
+- Search by table name
+- Filters for manufacturer, year, theme, and type
+- Missing-media filters per media type
+- Generated image thumbnails with on-demand caching
+- Click any media cell to replace that asset for the selected table
+
+Replacement behavior:
+
+- New files are written to the table's `medias/` folder using the standard VPinFE filename
+- The table's `.info` media entry is updated as user media
+- The cached media listing refreshes immediately
+
+### Themes page
+
+The **Themes** page loads the remote theme registry and compares it to locally installed themes. It shows:
+
+- Preview image
+- Theme name, author, description, version, and supported screen count
+- Theme type: desktop, cab, or both
+- Whether the theme is built-in, installed, active, or has an update available
+- Optional change log text when a new version exists
+
+Actions:
+
+- **Refresh Registry**
+- **Install**
+- **Update**
+- **Set as Active** which writes `Settings.theme` and restarts VPinFE
+- **Delete** for non-default themes
+
+### Mobile Uploader page
+
+The **Mobile Uploader** page has two tabs.
+
+**Web Send**
+
+Uses the built-in web server in the mobile VPX app on Android/iOS. VPinFE can:
+
+- Save the target device IP/port/chunk size in `vpinfe.ini`
+- Check the device and compare which table folders are already installed
+- Filter to **Show Installed Only**
+- Send a single table or **Send Selected** for multiple tables
+- Delete a table from the mobile device
+- Request a mobile-side table refresh after uploads or deletes
+
+Send options:
+
+- **Exclude {VPX_FILENAME}.ini files** prevents sending table-specific default ini files
+- **Enable Rename Mask To Default INI** can copy `{VPX_FILENAME}.{MASK}.ini` to the mobile device as `{VPX_FILENAME}.ini`
+
+**VPXZ Download**
+
+Creates a `.vpxz` archive from an installed table folder and downloads it from the ManagerUI.
+
+### System page
+
+The **System** page shows live host metrics and build information:
+
+- CPU utilization
+- Memory utilization
+- Free disk space for the monitored tables/config volume
+- Hostname and OS details
+- Build flavor and release target
+- Frontend browser name, version, and path
+- Last refresh timestamp
+
+On Linux, it also supports optional **GPU Monitoring** using `nvtop`. When enabled it shows:
+
+- GPU utilization
+- Device name
+- Temperature
+- Power draw
+- GPU and memory clocks
+- Fan speed
+- Per-device metrics when multiple GPUs are present
+
+### Remote Control page
+
+The **Remote Control** page is available from the left nav and directly at `/remote`. It uses the configured VPX and PinMAME key mappings through the internal key simulator.
+
+Modes:
+
+- **VPX Maintenance**
+  - Reset
+  - Quit
+  - Volume up/down
+  - Toggle stereo
+  - In-game UI navigation
+  - Debugger
+  - Debug balls
+  - Performance overlay
+- **VPX Game**
+  - Start
+  - Pause
+  - Quit
+  - Show Rules
+  - Extra Ball
+  - Lockbar / Fire
+  - Credit 1-4
+  - Launch Table picker with collection filter and search
+- **PinMAME**
+  - Coin Door
+  - Up/Down
+  - Enter/Cancel
+  - Service 1-8
+- **VPinFE**
+  - Restart VPinFE
+  - Reboot system
+  - Shutdown system
+
+Remote table launch behavior:
+
+- Uses `Settings.vpxbinpath` unless the table has a per-table **Alt Launcher**
+- Applies `Settings.globalinioverride` and masked `-tableini` overrides when configured
+- Applies `Settings.vpxlaunchenv` environment overrides
+- Stops DOF and libdmdutil before launching
+- Restarts DOF after the launched process exits
+
+The page also includes a **Virtual Keyboard** dialog for sending manual key presses.
+
 
 ## Default Keyboard Controls
 
