@@ -97,7 +97,67 @@ That means:
 3. `vpin.getVideoURL(index, "dmd")` reads `table.DMDVideoPath`.
 4. `#convertPathToURL()` maps that path to `http://127.0.0.1:<port>/tables/<table>/medias/dmd.mp4`.
 
-## Theme Pattern: Prefer dmd.mp4, Fall Back To dmd.png
+## Table Video Flow
+
+For table playfield video support, the key flow is:
+
+- [common/tableparser.py](/home/superhac/repos/testing/vpinfe/common/tableparser.py#L83)
+- [frontend/api.py](/home/superhac/repos/testing/vpinfe/frontend/api.py#L267)
+- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L265)
+- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L808)
+
+That means:
+
+1. `common/tableparser.py` finds `table.mp4` or `fss.mp4` and stores it as `TableVideoPath`.
+2. `frontend/api.py` includes `TableVideoPath` in the table payload.
+3. `vpin.getVideoURL(index, "table")` reads `table.TableVideoPath`.
+4. `#convertPathToURL()` maps that path to a `/tables/.../medias/<file>.mp4` URL.
+
+## Backglass Video Flow
+
+For `bg.mp4` support specifically, the key flow is:
+
+- [common/tableparser.py](/home/superhac/repos/testing/vpinfe/common/tableparser.py#L84)
+- [frontend/api.py](/home/superhac/repos/testing/vpinfe/frontend/api.py#L268)
+- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L268)
+- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L808)
+
+That means:
+
+1. `common/tableparser.py` finds `bg.mp4` and stores it as `BGVideoPath`.
+2. `frontend/api.py` includes `BGVideoPath` in the table payload.
+3. `vpin.getVideoURL(index, "bg")` reads `table.BGVideoPath`.
+4. `#convertPathToURL()` maps that path to `http://127.0.0.1:<port>/tables/<table>/medias/bg.mp4`.
+
+## Fallback Behavior
+
+`vpinfe-core.js` does not automatically choose between video and image for a theme. It only exposes both URLs.
+
+That means fallback behavior is the theme's responsibility:
+
+- Table screen: prefer `table.mp4` or `fss.mp4`, fall back to `table.png` or `fss.png`
+- BG screen: prefer `bg.mp4`, fall back to `bg.png`
+- DMD screen: prefer `dmd.mp4`, fall back to `dmd.png`
+
+If the theme only calls `vpin.getImageURL()`, it will remain image-only even when the matching video file exists.
+
+If the theme uses `vpin.getVideoURL()`, it should check whether the returned URL is usable. When no video exists, `getVideoURL()` returns the fallback missing-file URL rather than `null`.
+
+## Theme Pattern: Prefer Video, Fall Back To Image
+
+Typical theme usage is to ask for both the video and image for a screen and then decide what to render.
+
+```js
+const index = vpin.getCurrentTableIndex();
+const tableVideoUrl = vpin.getVideoURL(index, "table");
+const tableImageUrl = vpin.getImageURL(index, "table");
+const bgVideoUrl = vpin.getVideoURL(index, "bg");
+const bgImageUrl = vpin.getImageURL(index, "bg");
+const dmdVideoUrl = vpin.getVideoURL(index, "dmd");
+const dmdImageUrl = vpin.getImageURL(index, "dmd");
+```
+
+### DMD Example
 
 Typical theme usage is to ask for both the DMD video and DMD image and then decide what to render.
 
@@ -141,6 +201,82 @@ function updateDmdMedia(index) {
     imageEl.hidden = false;
     imageEl.src = dmdImageUrl;
   }
+}
+```
+
+### Reusable Pattern For Table, BG, And DMD
+
+```js
+function hasUsableMedia(url) {
+  return Boolean(url) && !String(url).includes("file_missing");
+}
+
+function renderWindowMedia(container, imageUrl, videoUrl, altText) {
+  const existingMedia = container.querySelector("video, img");
+  const wantsVideo = hasUsableMedia(videoUrl);
+
+  if (existingMedia) {
+    if (existingMedia.tagName === "VIDEO") {
+      existingMedia.pause();
+      existingMedia.removeAttribute("src");
+      existingMedia.load();
+    }
+    existingMedia.remove();
+  }
+
+  if (wantsVideo) {
+    const video = document.createElement("video");
+    video.src = videoUrl;
+    video.poster = hasUsableMedia(imageUrl) ? imageUrl : "";
+    video.autoplay = true;
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.onerror = () => {
+      if (!hasUsableMedia(imageUrl)) return;
+      const fallback = document.createElement("img");
+      fallback.src = imageUrl;
+      fallback.alt = altText;
+      video.replaceWith(fallback);
+    };
+    container.appendChild(video);
+    return;
+  }
+
+  const img = document.createElement("img");
+  img.src = hasUsableMedia(imageUrl) ? imageUrl : "";
+  img.alt = altText;
+  container.appendChild(img);
+}
+
+function updateTableMedia(index) {
+  const container = document.getElementById("table-root");
+  renderWindowMedia(
+    container,
+    vpin.getImageURL(index, "table"),
+    vpin.getVideoURL(index, "table"),
+    "Table"
+  );
+}
+
+function updateBgMedia(index) {
+  const container = document.getElementById("bg-root");
+  renderWindowMedia(
+    container,
+    vpin.getImageURL(index, "bg"),
+    vpin.getVideoURL(index, "bg"),
+    "Backglass"
+  );
+}
+
+function updateDmdMedia(index) {
+  const container = document.getElementById("dmd-root");
+  renderWindowMedia(
+    container,
+    vpin.getImageURL(index, "dmd"),
+    vpin.getVideoURL(index, "dmd"),
+    "DMD"
+  );
 }
 ```
 
