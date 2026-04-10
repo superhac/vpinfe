@@ -8,7 +8,7 @@ This is the offical release of vpinfe v1.1.54
 - updated theme.md and added new media_flow.md
 
 ### Fixes
-None
+- Fix frontend collections for multiple year collections.  E.g. 80's 
 
 ### Notes
 None

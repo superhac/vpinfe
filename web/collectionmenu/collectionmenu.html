@@ -221,6 +221,24 @@
     let ratingIndex = 0;
     let ratingModeIndex = 0;
     let sortByIndex = 0;
+    let filterDisplayOverrides = {};
+
+    function setFilterDisplayOverrides(filterState = {}) {
+      filterDisplayOverrides = {
+        letter: filterState.letter || 'All',
+        theme: filterState.theme || 'All',
+        type: filterState.type || 'All',
+        manufacturer: filterState.manufacturer || 'All',
+        year: filterState.year || 'All',
+        rating: String(filterState.rating || 'All'),
+        ratingmode: filterState.rating_or_higher ? 'Or Higher' : 'Exact',
+        sortby: filterState.sort || sortOptions[sortByIndex] || 'Alpha',
+      };
+    }
+
+    function clearFilterDisplayOverrides() {
+      filterDisplayOverrides = {};
+    }
 
     async function init() {
       collections = collections.concat(await window.parent.vpin.call('get_collections'));
@@ -256,6 +274,13 @@
       const currentSort = await window.parent.vpin.call('get_current_sort_state');
       sortByIndex = sortOptions.indexOf(currentSort);
       if (sortByIndex === -1) sortByIndex = 0;
+
+      if (currentCollection && currentCollection !== 'None') {
+        setFilterDisplayOverrides({
+          ...currentFilters,
+          sort: currentSort || 'Alpha',
+        });
+      }
 
       window.parent.vpin.call("console_out", "Collection menu filters loaded");
     }
@@ -379,14 +404,14 @@
       });
 
       document.getElementById('collection-value').textContent = collections[collectionIndex];
-      document.getElementById('letter-value').textContent = letters[letterIndex];
-      document.getElementById('theme-value').textContent = themes[themeIndex];
-      document.getElementById('type-value').textContent = types[typeIndex];
-      document.getElementById('manufacturer-value').textContent = manufacturers[manufacturerIndex];
-      document.getElementById('year-value').textContent = years[yearIndex];
-      document.getElementById('rating-value').textContent = ratings[ratingIndex];
-      document.getElementById('ratingmode-value').textContent = ratingModes[ratingModeIndex];
-      document.getElementById('sortby-value').textContent = sortOptions[sortByIndex];
+      document.getElementById('letter-value').textContent = filterDisplayOverrides.letter || letters[letterIndex];
+      document.getElementById('theme-value').textContent = filterDisplayOverrides.theme || themes[themeIndex];
+      document.getElementById('type-value').textContent = filterDisplayOverrides.type || types[typeIndex];
+      document.getElementById('manufacturer-value').textContent = filterDisplayOverrides.manufacturer || manufacturers[manufacturerIndex];
+      document.getElementById('year-value').textContent = filterDisplayOverrides.year || years[yearIndex];
+      document.getElementById('rating-value').textContent = filterDisplayOverrides.rating || ratings[ratingIndex];
+      document.getElementById('ratingmode-value').textContent = filterDisplayOverrides.ratingmode || ratingModes[ratingModeIndex];
+      document.getElementById('sortby-value').textContent = filterDisplayOverrides.sortby || sortOptions[sortByIndex];
 
       updateTableCount();
     }
@@ -413,6 +438,7 @@
     }
 
     async function applyCurrentFiltersAndBroadcast() {
+      clearFilterDisplayOverrides();
       const filters = getSelectedFilterValues();
       const count = await window.parent.vpin.call(
         "apply_filters",
@@ -501,6 +527,7 @@
       switch (currentDropdownType) {
         case 'collection':
           collectionIndex = dropdownSelected;
+          clearFilterDisplayOverrides();
 
           if (selectedValue == "None") {
             letterIndex = 0;
@@ -522,6 +549,7 @@
             await window.parent.vpin.call("get_tables");
 
             const filterState = await window.parent.vpin.call("get_current_filter_state");
+            const sortState = await window.parent.vpin.call("get_current_sort_state");
 
             if (filterState && filterState.letter !== null) {
               letterIndex = letters.indexOf(filterState.letter);
@@ -539,21 +567,20 @@
               if (yearIndex === -1) yearIndex = 0;
               if (ratingIndex === -1) ratingIndex = 0;
               normalizeRatingMode();
-
-              const sortState = await window.parent.vpin.call("get_current_sort_state");
               if (sortState) {
                 const sortIdx = sortOptions.indexOf(sortState);
                 if (sortIdx !== -1) {
                   sortByIndex = sortIdx;
                 }
               }
-
-              const currentFilters = getSelectedFilterValues();
+              setFilterDisplayOverrides({
+                ...filterState,
+                sort: sortState || 'Alpha',
+              });
               window.parent.vpin.sendMessageToAllWindowsIncSelf({
                 type: "TableDataChange",
                 index: 0,
-                filters: currentFilters,
-                sort: sortState || 'Alpha'
+                collection: selectedValue
               });
             } else {
               letterIndex = 0;
@@ -621,6 +648,9 @@
 
         case 'sortby':
           sortByIndex = dropdownSelected;
+          if (collectionIndex !== 0) {
+            filterDisplayOverrides.sortby = sortOptions[sortByIndex];
+          }
           const sortCount = await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex]);
           window.parent.vpin.sendMessageToAllWindowsIncSelf({
             type: "TableDataChange",
