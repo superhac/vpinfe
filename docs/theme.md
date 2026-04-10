@@ -171,6 +171,13 @@ That wrapper approach is much easier to maintain than rotating individual compon
 
 Same structure as above but with simpler content. These windows only display media and respond to events — they don't handle input.
 
+Important: theme code for these windows should support both static images and videos. In practice that means:
+
+- `bg` windows should prefer `bg.mp4` and fall back to `bg.png`
+- `dmd` windows should prefer `dmd.mp4` and fall back to `dmd.png`
+
+Do not hardcode these windows to image-only rendering with `getImageURL()` alone, or `bg.mp4` / `dmd.mp4` will never appear even when the files exist.
+
 ```html
 <!DOCTYPE html>
 <html>
@@ -191,6 +198,69 @@ Same structure as above but with simpler content. These windows only display med
   <div id="overlay-root"></div>
 </body>
 </html>
+```
+
+Typical JS pattern for these windows:
+
+```javascript
+function hasUsableMedia(url) {
+  return Boolean(url) && !String(url).includes('file_missing');
+}
+
+function renderWindowMedia(container, imageUrl, videoUrl, altText) {
+  const existingMedia = container.querySelector('video, img');
+  const wantsVideo = hasUsableMedia(videoUrl);
+
+  if (existingMedia) {
+    if (existingMedia.tagName === 'VIDEO') {
+      existingMedia.pause();
+      existingMedia.removeAttribute('src');
+      existingMedia.load();
+    }
+    existingMedia.remove();
+  }
+
+  if (wantsVideo) {
+    const video = document.createElement('video');
+    video.src = videoUrl;
+    video.poster = hasUsableMedia(imageUrl) ? imageUrl : '';
+    video.autoplay = true;
+    video.loop = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+    video.onerror = () => {
+      if (!hasUsableMedia(imageUrl)) return;
+      const fallback = document.createElement('img');
+      fallback.src = imageUrl;
+      fallback.alt = altText;
+      fallback.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+      video.replaceWith(fallback);
+    };
+    container.appendChild(video);
+    return;
+  }
+
+  const img = document.createElement('img');
+  img.src = hasUsableMedia(imageUrl) ? imageUrl : '';
+  img.alt = altText;
+  img.style.cssText = 'width: 100%; height: 100%; object-fit: cover;';
+  container.appendChild(img);
+}
+
+function updateBGWindow() {
+  const container = document.getElementById('rootContainer');
+  const bgUrl = vpin.getImageURL(currentTableIndex, 'bg');
+  const bgVideoUrl = vpin.getVideoURL(currentTableIndex, 'bg');
+  renderWindowMedia(container, bgUrl, bgVideoUrl, 'Backglass');
+}
+
+function updateDMDWindow() {
+  const container = document.getElementById('rootContainer');
+  const dmdUrl = vpin.getImageURL(currentTableIndex, 'dmd');
+  const dmdVideoUrl = vpin.getVideoURL(currentTableIndex, 'dmd');
+  renderWindowMedia(container, dmdUrl, dmdVideoUrl, 'DMD');
+}
 ```
 
 ### Custom Fonts
@@ -877,6 +947,19 @@ if (videoUrl && !videoUrl.includes('file_missing')) {
     container.appendChild(preview);
 }
 ```
+
+For `bg` and `dmd` windows, use the same pattern with:
+
+- `vpin.getVideoURL(currentTableIndex, 'bg')` plus `vpin.getImageURL(currentTableIndex, 'bg')`
+- `vpin.getVideoURL(currentTableIndex, 'dmd')` plus `vpin.getImageURL(currentTableIndex, 'dmd')`
+
+Recommended rule for theme authors:
+
+- Table window: optionally prefer `table.mp4` over `table.png` / `fss.png`
+- BG window: prefer `bg.mp4`, fall back to `bg.png`
+- DMD window: prefer `dmd.mp4`, fall back to `dmd.png`
+
+If you only use `getImageURL()` in BG or DMD renderers, those windows will remain image-only even when the matching video files exist.
 
 Key points:
 - Set `muted = true` — browsers require this for autoplay to work without user gesture.
