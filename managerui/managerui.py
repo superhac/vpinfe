@@ -284,43 +284,43 @@ def build_app():
         nav_state['nav_content'] = ui.column().classes('w-full gap-1 mt-2')
         with nav_state['nav_content']:
             tables_btn = (
-                ui.button('Tables', icon='view_list', on_click=lambda: asyncio.create_task(show_page('tables')))
+                ui.button('Tables', icon='view_list', on_click=lambda: request_show_page('tables'))
                 .classes('w-full text-white nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
             collections_btn = (
-                ui.button('Collections', icon='collections_bookmark', on_click=lambda: asyncio.create_task(show_page('collections')))
+                ui.button('Collections', icon='collections_bookmark', on_click=lambda: request_show_page('collections'))
                 .classes('w-full text-white nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
             media_btn = (
-                ui.button('Media', icon='image', on_click=lambda: asyncio.create_task(show_page('media')))
+                ui.button('Media', icon='image', on_click=lambda: request_show_page('media'))
                 .classes('w-full text-white nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
             themes_btn = (
-                ui.button('Themes', icon='palette', on_click=lambda: asyncio.create_task(show_page('themes')))
+                ui.button('Themes', icon='palette', on_click=lambda: request_show_page('themes'))
                 .classes('w-full text-white nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
             mobile_btn = (
-                ui.button('Mobile Uploader', icon='smartphone', on_click=lambda: asyncio.create_task(show_page('mobile')))
+                ui.button('Mobile Uploader', icon='smartphone', on_click=lambda: request_show_page('mobile'))
                 .classes('w-full text-white nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
             system_btn = (
-                ui.button('System', icon='monitor_heart', on_click=lambda: asyncio.create_task(show_page('system')))
+                ui.button('System', icon='monitor_heart', on_click=lambda: request_show_page('system'))
                 .classes('w-full text-white nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
             )
             config_btn = (
-                ui.button('Configuration', icon='tune', on_click=lambda: asyncio.create_task(show_page('vpinfe')))
+                ui.button('Configuration', icon='tune', on_click=lambda: request_show_page('vpinfe'))
                 .classes('w-full text-white nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px;')
                 .props('flat align=left')
@@ -337,6 +337,7 @@ def build_app():
             )
 
     current_page = {'value': None}
+    navigation_state = {'running': False, 'pending': None}
 
     async def show_page(page_key: str):
         nav_started = time.perf_counter()
@@ -418,6 +419,24 @@ def build_app():
                 render_elapsed,
             )
 
+    def request_show_page(page_key: str) -> None:
+        navigation_state['pending'] = page_key
+        if navigation_state['running']:
+            return
+
+        navigation_state['running'] = True
+
+        async def _drain_navigation_requests() -> None:
+            try:
+                while navigation_state['pending'] is not None:
+                    next_page = navigation_state['pending']
+                    navigation_state['pending'] = None
+                    await show_page(next_page)
+            finally:
+                navigation_state['running'] = False
+
+        asyncio.create_task(_drain_navigation_requests())
+
     # Determine initial page: URL ?page= param takes priority, then first-run, then saved page
     global _first_run
     page_param = app.storage.user.get('_page_param')
@@ -430,7 +449,7 @@ def build_app():
         initial_page = page_param
     else:
         initial_page = app.storage.user.get('active_page', 'tables')
-    ui.timer(0.0, lambda: asyncio.create_task(show_page(initial_page)), once=True)
+    ui.timer(0.0, lambda: request_show_page(initial_page), once=True)
 
     # Show dialog if requested via URL param, or first-run dialog
     dialog_param = app.storage.user.get('_dialog_param')
