@@ -1,10 +1,13 @@
 import logging
 import asyncio
-from nicegui import ui, events, run
+from nicegui import ui, events, run, context
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from platformdirs import user_config_dir
 from common.vpxcollections import VPXCollections
+from .scroll_state import capture_scroll_state as capture_page_scroll_state
+from .scroll_state import restore_scroll_state as restore_page_scroll_state
+from .scroll_state import default_scroll_state
 
 logger = logging.getLogger("vpinfe.manager.collections")
 
@@ -13,6 +16,24 @@ COLLECTIONS_PATH = CONFIG_DIR / "collections.ini"
 
 # Import tables module to access cache (import module, not variable, to get live values)
 from . import tables as tables_module
+from common.table_catalog import get_cached_table_rows
+
+
+_collections_scroll_state: Dict[str, Any] = default_scroll_state()
+_collections_page_client: Any = None
+
+
+async def capture_scroll_state() -> None:
+    global _collections_scroll_state, _collections_page_client
+    _collections_scroll_state = await capture_page_scroll_state(
+        _collections_page_client,
+        '.collections-main-scroll',
+        '.collections-main-scroll [data-scroll-anchor]',
+    )
+
+
+def get_scroll_state() -> Dict[str, Any]:
+    return dict(_collections_scroll_state)
 
 
 def get_collections_manager() -> VPXCollections:
@@ -23,7 +44,7 @@ def get_collections_manager() -> VPXCollections:
 def get_table_name_map() -> Dict[str, str]:
     """Build a map of VPS ID -> table name from the tables cache."""
     # Access the cache through the module to get the current value
-    tables = tables_module._tables_cache
+    tables = get_cached_table_rows()
 
     # If cache is empty, scan tables to populate it
     if not tables:
@@ -42,7 +63,7 @@ def vpsid_to_name(vpsid: str, table_map: Dict[str, str] = None) -> str:
 def get_filter_options() -> Dict[str, List[str]]:
     """Get filter options (letters, themes, types, manufacturers, years, ratings) from the tables cache."""
     # Use the tables cache from the tables module (same data used in the Tables page)
-    tables = tables_module._tables_cache
+    tables = get_cached_table_rows()
 
     # If cache is empty, scan tables to populate it
     if not tables:
@@ -110,6 +131,12 @@ def get_filter_options() -> Dict[str, List[str]]:
 
 
 def render_panel(tab=None):
+    global _collections_page_client
+    try:
+        _collections_page_client = context.client
+    except Exception:
+        _collections_page_client = None
+
     # Add custom styles
     ui.add_head_html('''
     <style>
@@ -149,7 +176,7 @@ def render_panel(tab=None):
     </style>
     ''')
 
-    with ui.column().classes('w-full'):
+    with ui.column().classes('w-full collections-main-scroll').style('max-height: calc(100vh - 132px); overflow-y: auto; overflow-x: hidden;'):
         # Header card
         with ui.card().classes('w-full mb-4').style(
             'background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); border-radius: 12px;'
@@ -189,6 +216,7 @@ def render_panel(tab=None):
                     is_filter = manager.is_filter_based(name)
 
                     with ui.card().classes('collection-card w-full p-4'):
+                        ui.element('div').props(f'data-scroll-anchor="{name}"').style('height: 0; overflow: hidden;')
                         with ui.row().classes('w-full justify-between items-center'):
                             with ui.row().classes('items-center gap-3'):
                                 ui.icon('filter_list' if is_filter else 'list', size='24px').classes(
@@ -363,7 +391,7 @@ def render_panel(tab=None):
                     search_results.clear()
 
                     # Get tables from cache or scan
-                    tables = tables_module._tables_cache
+                    tables = get_cached_table_rows()
                     if tables is None:
                         tables = await run.io_bound(tables_module.scan_tables, True)
 
@@ -682,7 +710,7 @@ def render_panel(tab=None):
                     term = (e.value or '').strip().lower()
                     search_results.clear()
 
-                    tables = tables_module._tables_cache
+                    tables = get_cached_table_rows()
                     if tables is None:
                         tables = await run.io_bound(tables_module.scan_tables, True)
 
@@ -741,3 +769,13 @@ def render_panel(tab=None):
 
         # Initial load
         refresh_collections()
+
+        def restore_collections_scroll() -> None:
+            restore_page_scroll_state(
+                _collections_page_client,
+                get_scroll_state(),
+                '.collections-main-scroll',
+                '.collections-main-scroll [data-scroll-anchor]',
+            )
+
+        ui.timer(0.1, restore_collections_scroll, once=True)
