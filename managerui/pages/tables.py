@@ -4,12 +4,17 @@ import logging
 import asyncio
 import zipfile
 import io
-from nicegui import ui, events, run, context
+from nicegui import ui, events, run, context, app
 from pathlib import Path
 import json
-from typing import List, Dict, Optional, Callable
+from typing import List, Dict, Optional, Callable, Any
 from common.vpxparser import VPXParser
 from common.vpxcollections import VPXCollections
+from common.table_catalog import get_cached_missing_rows, get_cached_table_rows, set_cached_catalog
+from common.table_catalog import normalize_table_rating, scan_installed_and_missing_tables
+from .scroll_state import capture_scroll_state as capture_page_scroll_state
+from .scroll_state import restore_scroll_state as restore_page_scroll_state
+from .scroll_state import default_scroll_state
 from clioptions import buildMetaData, vpxPatches
 from queue import Queue
 from platformdirs import user_config_dir
@@ -47,18 +52,68 @@ def ensure_vpsdb_downloaded() -> bool:
         return VPSDB_JSON_PATH.exists()
 # Ensure only one Missing Tables dialog at a time
 _missing_tables_dialog: Optional[ui.dialog] = None
-# Cache for scanned tables data (persists across page visits)
-_tables_cache: Optional[List[Dict]] = None
-_missing_cache: Optional[List[Dict]] = None
+_tables_pagination_state: Dict[str, Any] = {
+    'page': 1,
+    'rowsPerPage': 100,
+    'sortBy': 'name',
+    'descending': False,
+}
+_tables_scroll_state: Dict[str, Any] = default_scroll_state()
+_tables_page_client: Any = None
+_tables_filter_state: Dict[str, Any] = {
+    'search': '',
+    'manufacturer': 'All',
+    'year': 'All',
+    'theme': 'All',
+    'table_type': 'All',
+    'has_pup_pack': False,
+}
 
 
-def normalize_table_rating(value) -> int:
-    """Normalize rating values to an integer in the range 0..5."""
+def _load_persisted_rows_per_page() -> int:
     try:
-        normalized = int(float(value))
-    except (TypeError, ValueError):
-        normalized = 0
-    return max(0, min(5, normalized))
+        stored = app.storage.user.get('tables_pagination_state', {}) or {}
+        value = stored.get('rowsPerPage', 100)
+        value = int(value) if value is not None else 100
+        result = value if value >= 0 else 100
+        return result
+    except Exception as e:
+        logger.error(f"Error loading tables_rows_per_page: {e}")
+        return 100
+
+
+def _save_persisted_rows_per_page(rows_per_page: int) -> None:
+    try:
+        stored = dict(app.storage.user.get('tables_pagination_state', {}) or {})
+        stored['rowsPerPage'] = rows_per_page
+        app.storage.user['tables_pagination_state'] = stored
+    except Exception as e:
+        logger.error(f"Error saving tables_rows_per_page={rows_per_page}: {e}")
+
+
+def _get_tables_cache() -> Optional[List[Dict]]:
+    return get_cached_table_rows()
+
+
+def _get_missing_cache() -> Optional[List[Dict]]:
+    return get_cached_missing_rows()
+
+
+def _set_catalog_cache(table_rows: List[Dict], missing_rows: List[Dict]) -> None:
+    set_cached_catalog(table_rows, missing_rows)
+
+
+async def capture_scroll_state() -> None:
+    global _tables_scroll_state, _tables_page_client
+    _tables_scroll_state = await capture_page_scroll_state(
+        _tables_page_client,
+        '.tables-main-table .q-table__middle',
+        '.tables-main-table [data-scroll-anchor]',
+    )
+
+
+def get_scroll_state() -> Dict[str, Any]:
+    return dict(_tables_scroll_state)
 
 
 def get_vpsid_collections_map() -> Dict[str, List[str]]:
@@ -98,14 +153,14 @@ def get_vpsid_collections() -> List[str]:
 
 def add_table_to_collection(vpsid: str, collection_name: str) -> bool:
     """Add a table (by VPS ID) to a collection. Returns True on success."""
-    global _tables_cache
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
         collections.add_vpsid(collection_name, vpsid)
         collections.save()
         # Update the cache so the table list reflects the change
-        if _tables_cache is not None:
-            for row in _tables_cache:
+        tables_cache = _get_tables_cache()
+        if tables_cache is not None:
+            for row in tables_cache:
                 if row.get('id') == vpsid:
                     if 'collections' not in row:
                         row['collections'] = []
@@ -124,15 +179,15 @@ def sync_collections_to_cache():
     Call this after modifying collections outside of add_table_to_collection(),
     such as when removing tables from collections or deleting/renaming collections.
     """
-    global _tables_cache
-    if _tables_cache is None:
+    tables_cache = _get_tables_cache()
+    if tables_cache is None:
         return
 
     # Rebuild the VPS ID to collections map from disk
     vpsid_collections_map = get_vpsid_collections_map()
 
     # Update each cached row with current collection memberships
-    for row in _tables_cache:
+    for row in tables_cache:
         vpsid = row.get('id', '')
         row['collections'] = vpsid_collections_map.get(vpsid, [])
 
@@ -337,148 +392,31 @@ def get_tables_path() -> str:
         logger.debug(f'Could not read tablerootdir from vpinfe.ini: {e}')
     return os.path.expanduser('~/tables')
 
-def parse_table_info(info_path):
-    import os
-    import json
+def _scan_all(silent: bool = False):
+    """Single-pass disk scan. Returns (table_rows, missing_rows).
 
-    try:
-        with open(info_path, "r", encoding="utf-8") as f:
-            raw = json.load(f)
-
-        table_dir = os.path.dirname(info_path)
-        table_name = os.path.basename(table_dir)
-
-        info = raw.get("Info", {})
-        vpx = raw.get("VPXFile", {})
-        user = raw.get("User", {})
-        vpinfe = raw.get("VPinFE", {})
-
-        def get(*paths, default=""):
-            """
-            paths = [("VPXFile","rom"), ("Info","Rom"), ...]
-            """
-            for section, key in paths:
-                src = {"Info": info, "VPXFile": vpx, "User": user, "VPinFE": vpinfe, "root": raw}.get(section)
-                if src and key in src and src[key] not in ("", None):
-                    return src[key]
-            return default
-
-        data = {
-            # Display / identity (strip whitespace from name)
-            "name": (get(("VPinFE", "alttitle"), ("Info", "Title"), ("root", "name"), default=table_name) or "").strip(),
-            "filename": get(("VPXFile", "filename"), default=f"{table_name}.vpx"),
-            "vpsid": get(("Info", "VPSId"), ("root", "id")),
-            "id": get(("VPinFE", "altvpsid"), ("Info", "VPSId"), ("root", "id")),
-            "ipdb_id": get(("Info", "IPDBId")),
-
-            # Metadata
-            "manufacturer": get(("Info", "Manufacturer"), ("VPXFile", "manufacturer")),
-            "year": get(("Info", "Year"), ("VPXFile", "year")),
-            "type": get(("Info", "Type"), ("VPXFile", "type")),
-            "themes": get(("Info", "Themes"), default=[]),
-            "authors": get(("Info", "Authors"), default=[]),
-            "rom": get(("VPXFile", "rom"), ("Info", "Rom")),
-            "version": get(("VPXFile", "version")),
-            "filehash": get(("VPXFile", "filehash")),
-            "vbshash": get(("VPXFile", "vbsHash")),
-
-            # Detection flags (canonical lowercase keys)
-            "detectnfozzy": get(("VPXFile", "detectnfozzy")),
-            "detectfleep": get(("VPXFile", "detectfleep")),
-            "detectssf": get(("VPXFile", "detectssf")),
-            "detectlut": get(("VPXFile", "detectlut")),
-            "detectscorebit": get(("VPXFile", "detectscorebit")),
-            "detectfastflips": get(("VPXFile", "detectfastflips")),
-            "detectflex": get(("VPXFile", "detectflex")),
-
-            # Patching
-            "patch_applied": get(("VPXFile", "patch_applied"), default=False),
-
-            # Internal
-            "table_path": table_dir,
-
-            # Addon detection (check for directories)
-            "pup_pack_exists": (Path(table_dir) / "pupvideos").is_dir(),
-            "serum_exists": (Path(table_dir) / "serum").is_dir(),
-            "vni_exists": (Path(table_dir) / "vni").is_dir(),
-            "alt_sound_exists": (Path(table_dir) / "pinmame" / "altsound").is_dir(),
-
-            # VPinFE settings
-            "delete_nvram_on_close": vpinfe.get("deletedNVRamOnClose", False),
-            "altlauncher": (vpinfe.get("altlauncher", "") or "").strip(),
-            "alttitle": (vpinfe.get("alttitle", "") or "").strip(),
-            "altvpsid": (vpinfe.get("altvpsid", "") or "").strip(),
-            "frontend_dof_event": (user.get("FrontendDOFEvent", "") or "").strip(),
-            "rating": normalize_table_rating(user.get("Rating", 0)),
-        }
-
-        return data
-
-    except Exception as e:
-        logger.error(f"Error reading {info_path}: {e}")
-        return {}
-
-def scan_tables(silent: bool = False):
+    Uses os.scandir at the top level only (never recurses into subdirs) and
+    processes each table directory in parallel to pipeline disk I/O.
+    """
     tables_path = get_tables_path()
-    rows = []
     if not os.path.exists(tables_path):
         logger.warning(f"Tables path does not exist: {tables_path}. Skipping scan.")
         if not silent:
             ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
-        return []
+        return [], []
 
-    # Build VPS ID to collections map
     vpsid_collections_map = get_vpsid_collections_map()
 
-    for root, _, files in os.walk(tables_path):
-        current_dir = os.path.basename(root)
-        info_file = f"{current_dir}.info"
+    return scan_installed_and_missing_tables(tables_path, vpsid_collections_map)
 
-        if info_file in files:
-            # Verify at least one .vpx file exists in the directory
-            has_vpx = any(f.lower().endswith('.vpx') for f in files)
-            if not has_vpx:
-                # .info exists but no .vpx file - skip this entry
-                continue
 
-            meta_path = os.path.join(root, info_file)
-            data = parse_table_info(meta_path)
-            if data:
-                data["table_path"] = root
-                # Add collections membership
-                vpsid = data.get("id", "")
-                data["collections"] = vpsid_collections_map.get(vpsid, [])
-                rows.append(data)
-
+def scan_tables(silent: bool = False):
+    rows, _ = _scan_all(silent)
     return rows
 
+
 def scan_missing_tables():
-    """
-    A 'missing table' = any directory under ~/tables that does NOT contain <current_dir>.info.
-    Only directories with at least one .vpx file are considered.
-    """
-    base = Path(get_tables_path())
-    missing = []
-
-    if not base.exists():
-        return missing
-
-    for root, dirs, files in os.walk(base):
-        files_set = set(files)
-        current_dir = os.path.basename(root)
-        info_filename = f"{current_dir}.info"
-
-        # Skip directories that already have <current_dir>.info
-        if info_filename in files_set:
-            continue
-
-        # Only consider directories with at least one .vpx file
-        if any(f.lower().endswith('.vpx') for f in files):
-            missing.append({
-                'folder': current_dir,
-                'path': root,
-            })
-
+    _, missing = _scan_all(silent=True)
     return missing
 
 
@@ -486,6 +424,19 @@ def load_metadata_from_ini():
     return scan_tables()
 
 def render_panel(tab=None):
+    global _tables_pagination_state, _tables_filter_state, _tables_page_client
+    try:
+        _tables_page_client = context.client
+    except Exception:
+        _tables_page_client = None
+    logger.info(f"render_panel called, current rows_per_page: {_tables_pagination_state.get('rowsPerPage')}")
+    loaded_rows_per_page = _load_persisted_rows_per_page()
+    _tables_pagination_state = {
+        **_tables_pagination_state,
+        'rowsPerPage': loaded_rows_per_page,
+    }
+    logger.info(f"After loading persisted state, rows_per_page now: {_tables_pagination_state.get('rowsPerPage')}")
+    _initial_loaded_rows_per_page = loaded_rows_per_page
     with ui.column().classes('w-full'):
         # Hide Quasar's built-in numeric overlay inside linear progress bars (prevents 0..1 decimals)
         ui.add_head_html('<style>.q-linear-progress__info{display:none!important}</style>')
@@ -556,8 +507,9 @@ def render_panel(tab=None):
                 # (the clicked row from Quasar is a copy that may be stale)
                 table_path = clicked_row.get('table_path', '')
                 row_data = clicked_row
-                if _tables_cache is not None and table_path:
-                    for cached_row in _tables_cache:
+                tables_cache = _get_tables_cache()
+                if tables_cache is not None and table_path:
+                    for cached_row in tables_cache:
                         if cached_row.get('table_path') == table_path:
                             row_data = cached_row
                             break
@@ -570,7 +522,6 @@ def render_panel(tab=None):
             """Scans for tables asynchronously and updates the UI.
             If silent=True, suppress user notifications.
             """
-            global _tables_cache, _missing_cache
             logger.info("Scanning tables...")
             # Keep UX simple: disable the Scan button during work, no pre-notify
             try:
@@ -584,9 +535,8 @@ def render_panel(tab=None):
                         ui.notify('Downloading VPSdb...', type='info')
                     await run.io_bound(ensure_vpsdb_downloaded)
 
-                # Run blocking I/O in a separate thread to avoid freezing the UI
-                table_rows = await run.io_bound(scan_tables, silent)
-                missing_rows = await run.io_bound(scan_missing_tables)
+                # Single-pass disk scan (tables + missing in one parallel walk)
+                table_rows, missing_rows = await run.io_bound(_scan_all, silent)
 
                 # Update UI components (default sort by Name; force refresh by reassigning rows)
                 try:
@@ -595,8 +545,7 @@ def render_panel(tab=None):
                     pass
 
                 # Cache the results
-                _tables_cache = table_rows
-                _missing_cache = missing_rows
+                _set_catalog_cache(table_rows, missing_rows)
 
                 # Refresh filter options and apply current filters
                 try:
@@ -797,7 +746,8 @@ def render_panel(tab=None):
                     scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).props("color=white text-color=primary rounded")
                     patch_btn = ui.button("Apply Patches", icon="construction").props("color=secondary rounded")
                     # Start with green if no cached missing, will update after scan
-                    initial_missing_count = len(_missing_cache) if _missing_cache else 0
+                    initial_missing_cache = _get_missing_cache()
+                    initial_missing_count = len(initial_missing_cache) if initial_missing_cache else 0
                     initial_color = "positive" if initial_missing_count == 0 else "negative"
                     missing_button = ui.button("Unmatched", icon="warning").props(f"color={initial_color} rounded")
 
@@ -910,22 +860,15 @@ def render_panel(tab=None):
                     import_btn.on_click(lambda: open_import_table_dialog(perform_scan))
 
         # Use cached data if available, otherwise start with empty
-        initial_rows = _tables_cache if _tables_cache is not None else []
-        initial_missing = _missing_cache if _missing_cache is not None else []
+        initial_rows = _get_tables_cache() or []
+        initial_missing = _get_missing_cache() or []
 
         # --- Filter state and functions ---
-        filter_state = {
-            'search': '',
-            'manufacturer': 'All',
-            'year': 'All',
-            'theme': 'All',
-            'table_type': 'All',
-            'has_pup_pack': False,
-        }
+        filter_state = dict(_tables_filter_state)
 
         def get_filter_options_from_cache():
             """Extract unique filter values from cached tables."""
-            tables = _tables_cache or []
+            tables = _get_tables_cache() or []
             manufacturers = set()
             years = set()
             themes = set()
@@ -959,7 +902,7 @@ def render_panel(tab=None):
 
         def apply_filters():
             """Filter the cached tables based on current filter state."""
-            tables = _tables_cache or []
+            tables = _get_tables_cache() or []
             result = tables
 
             # Search filter (name or filename)
@@ -1005,7 +948,7 @@ def render_panel(tab=None):
             table._props['rows'] = filtered
             table.update()
             # Update title with filtered count
-            total = len(_tables_cache or [])
+            total = len(_get_tables_cache() or [])
             shown = len(filtered)
             if shown == total:
                 title_label.set_text(f"Installed Tables ({total})")
@@ -1014,35 +957,43 @@ def render_panel(tab=None):
 
         def on_search_change(e: events.ValueChangeEventArguments):
             filter_state['search'] = e.value or ''
+            _tables_filter_state['search'] = filter_state['search']
             update_table_display()
 
         def on_manufacturer_change(e: events.ValueChangeEventArguments):
             filter_state['manufacturer'] = e.value or 'All'
+            _tables_filter_state['manufacturer'] = filter_state['manufacturer']
             update_table_display()
 
         def on_year_change(e: events.ValueChangeEventArguments):
             filter_state['year'] = e.value or 'All'
+            _tables_filter_state['year'] = filter_state['year']
             update_table_display()
 
         def on_theme_change(e: events.ValueChangeEventArguments):
             filter_state['theme'] = e.value or 'All'
+            _tables_filter_state['theme'] = filter_state['theme']
             update_table_display()
 
         def on_table_type_change(e: events.ValueChangeEventArguments):
             filter_state['table_type'] = e.value or 'All'
+            _tables_filter_state['table_type'] = filter_state['table_type']
             update_table_display()
 
         def on_pup_pack_change(e: events.ValueChangeEventArguments):
             filter_state['has_pup_pack'] = e.value or False
+            _tables_filter_state['has_pup_pack'] = filter_state['has_pup_pack']
             update_table_display()
 
         def clear_filters():
+            global _tables_pagination_state, _tables_filter_state
             filter_state['search'] = ''
             filter_state['manufacturer'] = 'All'
             filter_state['year'] = 'All'
             filter_state['theme'] = 'All'
             filter_state['table_type'] = 'All'
             filter_state['has_pup_pack'] = False
+            _tables_filter_state = dict(filter_state)
             search_input.value = ''
             manufacturer_select.value = 'All'
             year_select.value = 'All'
@@ -1050,6 +1001,10 @@ def render_panel(tab=None):
             table_type_select.value = 'All'
             pup_pack_checkbox.value = False
             table._props['pagination']['page'] = 1
+            _tables_pagination_state = {
+                **_tables_pagination_state,
+                'page': 1,
+            }
             update_table_display()
 
         def refresh_filter_options():
@@ -1071,7 +1026,7 @@ def render_panel(tab=None):
         with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155;'):
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
                 # Search input
-                search_input = ui.input(placeholder='Search tables...').props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
+                search_input = ui.input(placeholder='Search tables...', value=filter_state['search']).props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
                 search_input.on_value_change(on_search_change)
 
                 # Filter dropdowns
@@ -1080,33 +1035,33 @@ def render_panel(tab=None):
                 manufacturer_select = ui.select(
                     label='Manufacturer',
                     options=filter_opts['manufacturers'],
-                    value='All'
+                    value=filter_state['manufacturer']
                 ).props('outlined dense').classes('w-40')
                 manufacturer_select.on_value_change(on_manufacturer_change)
 
                 year_select = ui.select(
                     label='Year',
                     options=filter_opts['years'],
-                    value='All'
+                    value=filter_state['year']
                 ).props('outlined dense').classes('w-32')
                 year_select.on_value_change(on_year_change)
 
                 theme_select = ui.select(
                     label='Theme',
                     options=filter_opts['themes'],
-                    value='All'
+                    value=filter_state['theme']
                 ).props('outlined dense').classes('w-40')
                 theme_select.on_value_change(on_theme_change)
 
                 table_type_select = ui.select(
                     label='Type',
                     options=filter_opts['table_types'],
-                    value='All'
+                    value=filter_state['table_type']
                 ).props('outlined dense').classes('w-28')
                 table_type_select.on_value_change(on_table_type_change)
 
                 # PUP Pack checkbox
-                pup_pack_checkbox = ui.checkbox('PUP Pack', value=False).classes('text-white')
+                pup_pack_checkbox = ui.checkbox('PUP Pack', value=filter_state['has_pup_pack']).classes('text-white')
                 pup_pack_checkbox.on_value_change(on_pup_pack_change)
 
                 # Clear filters button
@@ -1143,10 +1098,10 @@ def render_panel(tab=None):
         with table_container:
             table = (
                 ui.table(columns=columns, rows=initial_rows, row_key='filename', selection='multiple',
-                         on_select=on_selection_change, pagination={'rowsPerPage': 25})
-                  .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
+                         on_select=on_selection_change, pagination=dict(_tables_pagination_state))
+                  .props('rows-per-page-options="[100,200,500,0]" sort-by="name" sort-order="asc"')
                   .on('row-click', on_row_click)
-                  .classes("w-full cursor-pointer")
+                .classes("w-full cursor-pointer tables-main-table")
                   .style("flex: 1; overflow: auto;")
             )
             # Add custom slot for name column to include IPDB, VPS links, and collections
@@ -1154,7 +1109,7 @@ def render_panel(tab=None):
             collection_colors = ['purple-8', 'teal-8', 'pink-8', 'cyan-8', 'amber-8', 'lime-8', 'indigo-8', 'orange-8']
             table.add_slot('body-cell-name', '''
                 <q-td :props="props">
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div :data-scroll-anchor="props.row.filename || props.row.name || props.value" style="display: flex; flex-direction: column; gap: 4px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span>{{ props.value }}</span>
                             <span v-if="Number(props.row.rating || 0) > 0" style="font-size: 0.9em; white-space: nowrap;">
@@ -1226,8 +1181,8 @@ def render_panel(tab=None):
                             const sel = $parent.selected || [];
                             const rows = $parent.rows || [];
                             const p = props.pagination;
-                            const start = (p.page - 1) * p.rowsPerPage;
-                            const pageRows = rows.slice(start, start + p.rowsPerPage);
+                            const start = p.rowsPerPage === 0 ? 0 : (p.page - 1) * p.rowsPerPage;
+                            const pageRows = p.rowsPerPage === 0 ? rows : rows.slice(start, start + p.rowsPerPage);
                             if (!pageRows.length) return false;
                             const selKeys = new Set(sel.map(r => r.filename));
                             return pageRows.every(r => selKeys.has(r.filename));
@@ -1243,7 +1198,7 @@ def render_panel(tab=None):
                     <span class="q-mr-sm" style="font-size: 0.85rem;">Rows per page:</span>
                     <q-select
                         :model-value="props.pagination.rowsPerPage"
-                        :options="[25, 50, 100]"
+                        :options="[{label:'100', value:100}, {label:'200', value:200}, {label:'500', value:500}, {label:'All', value:0}]"
                         @update:model-value="val => $parent.$emit('update:pagination', Object.assign({}, props.pagination, {rowsPerPage: val, page: 1}))"
                         dense
                         borderless
@@ -1298,15 +1253,63 @@ def render_panel(tab=None):
 
         batch_add_btn.on_click(on_batch_add)
 
+        def _extract_pagination(payload):
+            if isinstance(payload, dict):
+                if isinstance(payload.get('pagination'), dict):
+                    return payload['pagination']
+                if 'page' in payload or 'rowsPerPage' in payload:
+                    return payload
+            if isinstance(payload, (list, tuple)):
+                for item in payload:
+                    pg = _extract_pagination(item)
+                    if pg:
+                        return pg
+            return None
+
+        def on_pagination_change(e):
+            nonlocal table
+            global _tables_pagination_state
+            pagination = _extract_pagination(e.args)
+            if not isinstance(pagination, dict):
+                return
+
+            merged = dict(table._props.get('pagination', {}))
+            merged.update(pagination)
+            try:
+                merged['page'] = max(1, int(merged.get('page', 1) or 1))
+            except Exception:
+                merged['page'] = 1
+            try:
+                rows_per_page = int(merged.get('rowsPerPage', 100))
+                merged['rowsPerPage'] = rows_per_page if rows_per_page >= 0 else 100
+            except Exception:
+                merged['rowsPerPage'] = 100
+
+            _tables_pagination_state = {
+                'page': merged.get('page', 1),
+                'rowsPerPage': merged.get('rowsPerPage', 100),
+                'sortBy': merged.get('sortBy', 'name'),
+                'descending': bool(merged.get('descending', False)),
+            }
+            # Only save if rows_per_page actually changed from what we loaded initially
+            if _tables_pagination_state['rowsPerPage'] != _initial_loaded_rows_per_page:
+                _save_persisted_rows_per_page(_tables_pagination_state['rowsPerPage'])
+            table._props['pagination'] = dict(_tables_pagination_state)
+
+        table.on('update:pagination', on_pagination_change)
+
         # Handle Select All toggle from the bottom slot checkbox (current page only)
         def on_toggle_select_all(e):
             rows = table._props.get('rows', [])
             pagination = table._props.get('pagination', {})
             page = pagination.get('page', 1)
-            per_page = pagination.get('rowsPerPage', 25)
-            start = (page - 1) * per_page
-            end = start + per_page
-            page_rows = rows[start:end]
+            per_page = pagination.get('rowsPerPage', 100)
+            if per_page == 0:
+                page_rows = rows
+            else:
+                start = (page - 1) * per_page
+                end = start + per_page
+                page_rows = rows[start:end]
 
             # If all current page rows are already selected, deselect them; otherwise select them
             selected_keys = {r.get('filename') for r in table.selected}
@@ -1333,28 +1336,38 @@ def render_panel(tab=None):
         table.on('toggle_select_all', on_toggle_select_all)
 
         # Update missing button if we have cached data
-        if _missing_cache is not None:
-            missing_button.text = f"Unmatched Tables ({len(_missing_cache)})"
+        missing_cache = _get_missing_cache()
+        if missing_cache is not None:
+            missing_button.text = f"Unmatched Tables ({len(missing_cache)})"
             # Update button color: green if 0, red if > 0
-            btn_color = "positive" if len(_missing_cache) == 0 else "negative"
+            btn_color = "positive" if len(missing_cache) == 0 else "negative"
             missing_button._props['color'] = btn_color
             missing_button.on('click', lambda: open_missing_tables_dialog(
-                _missing_cache,
+                missing_cache,
                 on_close=lambda: asyncio.create_task(perform_scan(silent=True))
             ))
 
         # Function to refresh the table display
         async def refresh_table_on_startup():
-            if _tables_cache is not None:
+            if _get_tables_cache() is not None:
                 # Refresh filter options and apply filters from cache
                 refresh_filter_options()
                 update_table_display()
             else:
                 # No cache, run the scan
                 await perform_scan(silent=True)
-            # Trigger resize to ensure proper rendering
+            table._props['pagination'] = dict(_tables_pagination_state)
+            table.run_method('setPagination', dict(_tables_pagination_state))
+            # Trigger resize to ensure proper rendering, then restore saved scroll
             try:
-                ui.run_javascript('window.dispatchEvent(new Event("resize"));')
+                if _tables_page_client is None:
+                    return
+                restore_page_scroll_state(
+                    _tables_page_client,
+                    get_scroll_state(),
+                    '.tables-main-table .q-table__middle',
+                    '.tables-main-table [data-scroll-anchor]',
+                )
             except RuntimeError:
                 pass
 
@@ -1605,8 +1618,9 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             if update_user_setting(table_path_str, 'Rating', clamped):
                                 rating_state['value'] = clamped
                                 row_data['rating'] = clamped
-                                if _tables_cache is not None:
-                                    for cached_row in _tables_cache:
+                                tables_cache = _get_tables_cache()
+                                if tables_cache is not None:
+                                    for cached_row in tables_cache:
                                         if cached_row.get('table_path') == table_path_str:
                                             cached_row['rating'] = clamped
                                             break
@@ -1709,8 +1723,9 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             except Exception:
                                 pass
                             effective_name = new_value or fallback_name
-                            if _tables_cache is not None:
-                                for cached_row in _tables_cache:
+                            tables_cache = _get_tables_cache()
+                            if tables_cache is not None:
+                                for cached_row in tables_cache:
                                     if cached_row.get('table_path') == table_path_str:
                                         cached_row['alttitle'] = new_value
                                         cached_row['name'] = effective_name
@@ -1750,9 +1765,10 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             except Exception:
                                 pass
                             effective_id = new_value or fallback_id
-                            if _tables_cache is not None:
+                            tables_cache = _get_tables_cache()
+                            if tables_cache is not None:
                                 vpsid_collections_map = get_vpsid_collections_map()
-                                for cached_row in _tables_cache:
+                                for cached_row in tables_cache:
                                     if cached_row.get('table_path') == table_path_str:
                                         cached_row['altvpsid'] = new_value
                                         cached_row['id'] = effective_id
@@ -1780,8 +1796,9 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         new_value = (altlauncher_input.value or '').strip()
                         if update_vpinfe_setting(table_path_str, 'altlauncher', new_value):
                             row_data['altlauncher'] = new_value
-                            if _tables_cache is not None:
-                                for cached_row in _tables_cache:
+                            tables_cache = _get_tables_cache()
+                            if tables_cache is not None:
+                                for cached_row in tables_cache:
                                     if cached_row.get('table_path') == table_path_str:
                                         cached_row['altlauncher'] = new_value
                                         break
@@ -1803,8 +1820,9 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         new_value = (frontend_dof_event_input.value or '').strip()
                         if update_user_setting(table_path_str, 'FrontendDOFEvent', new_value):
                             row_data['frontend_dof_event'] = new_value
-                            if _tables_cache is not None:
-                                for cached_row in _tables_cache:
+                            tables_cache = _get_tables_cache()
+                            if tables_cache is not None:
+                                for cached_row in tables_cache:
                                     if cached_row.get('table_path') == table_path_str:
                                         cached_row['frontend_dof_event'] = new_value
                                         break
@@ -1821,8 +1839,9 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         if update_vpinfe_setting(table_path_str, 'deletedNVRamOnClose', new_value):
                             row_data['delete_nvram_on_close'] = new_value
                             # Also update the cache so the value persists across dialog opens
-                            if _tables_cache is not None:
-                                for cached_row in _tables_cache:
+                            tables_cache = _get_tables_cache()
+                            if tables_cache is not None:
+                                for cached_row in tables_cache:
                                     if cached_row.get('table_path') == table_path_str:
                                         cached_row['delete_nvram_on_close'] = new_value
                                         break

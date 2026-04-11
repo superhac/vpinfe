@@ -2,11 +2,12 @@ import os
 import logging
 import asyncio
 import shutil
+import concurrent.futures
 from urllib.parse import quote
 from nicegui import ui, events, run, app, context
 from pathlib import Path
 import json
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 from platformdirs import user_config_dir
 
 # Resolve project root and important paths explicitly
@@ -16,6 +17,9 @@ VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 
 from common.iniconfig import IniConfig
 from common.metaconfig import MetaConfig
+from .scroll_state import capture_scroll_state as capture_page_scroll_state
+from .scroll_state import restore_scroll_state as restore_page_scroll_state
+from .scroll_state import default_scroll_state
 _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 logger = logging.getLogger("vpinfe.manager.media")
@@ -23,6 +27,68 @@ logger = logging.getLogger("vpinfe.manager.media")
 # Cache for scanned media data (persists across page visits)
 _media_cache: Optional[List[Dict]] = None
 _thumb_route_registered = False
+_media_pagination_state: Dict[str, Any] = {
+    'page': 1,
+    'rowsPerPage': 100,
+    'sortBy': 'name',
+    'descending': False,
+}
+_media_scroll_state: Dict[str, Any] = default_scroll_state()
+_media_page_client: Any = None
+_media_filter_state: Dict[str, Any] = {
+    'search': '',
+    'manufacturer': 'All',
+    'year': 'All',
+    'theme': 'All',
+    'table_type': 'All',
+    'missing_bg': False,
+    'missing_dmd': False,
+    'missing_table': False,
+    'missing_fss': False,
+    'missing_wheel': False,
+    'missing_cab': False,
+    'missing_realdmd': False,
+    'missing_realdmd_color': False,
+    'missing_flyer': False,
+    'missing_table_video': False,
+    'missing_bg_video': False,
+    'missing_dmd_video': False,
+    'missing_audio': False,
+}
+
+
+def _load_persisted_rows_per_page() -> int:
+    try:
+        stored = app.storage.user.get('media_pagination_state', {}) or {}
+        value = stored.get('rowsPerPage', 100)
+        value = int(value) if value is not None else 100
+        result = value if value >= 0 else 100
+        return result
+    except Exception as e:
+        logger.error(f"Error loading media_rows_per_page: {e}")
+        return 100
+
+
+def _save_persisted_rows_per_page(rows_per_page: int) -> None:
+    try:
+        stored = dict(app.storage.user.get('media_pagination_state', {}) or {})
+        stored['rowsPerPage'] = rows_per_page
+        app.storage.user['media_pagination_state'] = stored
+    except Exception as e:
+        logger.error(f"Error saving media_rows_per_page={rows_per_page}: {e}")
+
+
+async def capture_scroll_state() -> None:
+    global _media_scroll_state, _media_page_client
+    _media_scroll_state = await capture_page_scroll_state(
+        _media_page_client,
+        '.media-main-table .q-table__middle',
+        '.media-main-table [data-scroll-anchor]',
+    )
+
+
+def get_scroll_state() -> Dict[str, Any]:
+    return dict(_media_scroll_state)
 
 CACHE_DIR = CONFIG_DIR / "cache"
 THUMB_CACHE_ROOT = CACHE_DIR / "media_thumbs"
@@ -99,8 +165,10 @@ def _thumb_url(path: Path) -> str:
     return f'/media_thumbs/{rel}'
 
 
-def _get_cached_thumb_url(table_dir: str, media_key: str, source_path: str) -> Optional[str]:
-    if not _is_image_media_key(media_key) or not os.path.exists(source_path):
+def _get_cached_thumb_url(table_dir: str, media_key: str, source_path: str, source_exists: bool = False) -> Optional[str]:
+    if not _is_image_media_key(media_key):
+        return None
+    if not source_exists and not os.path.exists(source_path):
         return None
     try:
         path = _thumb_file_path(table_dir, media_key, source_path)
@@ -162,95 +230,125 @@ def get_tables_path() -> str:
 def scan_media_tables(silent: bool = False):
     """Scan table directories and collect media file info."""
     tables_path = get_tables_path()
-    rows = []
     if not os.path.exists(tables_path):
         logger.warning(f"Tables path does not exist: {tables_path}. Skipping scan.")
         if not silent:
             ui.notify("Tables path does not exist. Please verify your vpinfe.ini settings", type="negative")
         return []
 
-    for root, _, files in os.walk(tables_path):
-        current_dir = os.path.basename(root)
+    # Shallow scan — only immediate children of the tables root
+    try:
+        top_entries = [(e.name, e.path) for e in os.scandir(tables_path) if e.is_dir(follow_symlinks=False)]
+    except Exception as exc:
+        logger.error(f"Failed to list tables directory: {exc}")
+        return []
+
+    def _process_table(current_dir, root):
         info_file = f"{current_dir}.info"
+        try:
+            dir_contents = set(os.listdir(root))
+        except Exception:
+            return None
 
-        if info_file in files:
-            has_vpx = any(f.lower().endswith('.vpx') for f in files)
-            if not has_vpx:
-                continue
+        if info_file not in dir_contents:
+            return None
+        if not any(f.lower().endswith('.vpx') for f in dir_contents):
+            return None
 
-            meta_path = os.path.join(root, info_file)
+        # Single listdir for medias/ subfolder
+        medias_dir = os.path.join(root, "medias")
+        try:
+            medias_contents = set(os.listdir(medias_dir)) if "medias" in dir_contents else set()
+        except Exception:
+            medias_contents = set()
+
+        meta_path = os.path.join(root, info_file)
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+        except Exception as e:
+            logger.error(f"Error reading {meta_path}: {e}")
+            return None
+
+        info = raw.get("Info", {})
+        vpinfe = raw.get("VPinFE", {})
+
+        name = ((vpinfe.get("alttitle") or info.get("Title") or current_dir) or "").strip()
+
+        # Build media availability dict using in-memory listings
+        media_info = {}
+        thumb_info = {}
+        for media_key, _, media_filename in MEDIA_TYPES:
+            if media_filename in medias_contents:
+                src_path = os.path.join(medias_dir, media_filename)
+                media_info[media_key] = _media_url('media_tables', current_dir, 'medias', media_filename)
+                thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, src_path, source_exists=True)
+            elif media_filename in dir_contents:
+                src_path = os.path.join(root, media_filename)
+                media_info[media_key] = _media_url('media_tables', current_dir, media_filename)
+                thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, src_path, source_exists=True)
+            else:
+                media_info[media_key] = None
+                thumb_info[media_key] = None
+
+        return {
+            'name': name,
+            'table_dir': current_dir,
+            'table_path': root,
+            'manufacturer': info.get("Manufacturer", ""),
+            'year': info.get("Year", ""),
+            'type': info.get("Type", ""),
+            'themes': info.get("Themes", []),
+            'media': media_info,
+            'thumbs': thumb_info,
+            'thumb_errors': {},
+            # Flat fields for Quasar table rendering
+            'has_bg': media_info.get('bg') is not None,
+            'has_dmd': media_info.get('dmd') is not None,
+            'has_table': media_info.get('table') is not None,
+            'has_fss': media_info.get('fss') is not None,
+            'has_wheel': media_info.get('wheel') is not None,
+            'has_cab': media_info.get('cab') is not None,
+            'has_realdmd': media_info.get('realdmd') is not None,
+            'has_realdmd_color': media_info.get('realdmd_color') is not None,
+            'has_flyer': media_info.get('flyer') is not None,
+            'has_table_video': media_info.get('table_video') is not None,
+            'has_bg_video': media_info.get('bg_video') is not None,
+            'has_dmd_video': media_info.get('dmd_video') is not None,
+            'has_audio': media_info.get('audio') is not None,
+        }
+
+    rows = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {pool.submit(_process_table, name, path): (name, path)
+                   for name, path in top_entries}
+        for future in concurrent.futures.as_completed(futures):
             try:
-                with open(meta_path, "r", encoding="utf-8") as f:
-                    raw = json.load(f)
-
-                info = raw.get("Info", {})
-                vpx = raw.get("VPXFile", {})
-                vpinfe = raw.get("VPinFE", {})
-
-                name = ((vpinfe.get("alttitle") or info.get("Title") or current_dir) or "").strip()
-                manufacturer = info.get("Manufacturer", "")
-                year = info.get("Year", "")
-                ttype = info.get("Type", "")
-                themes = info.get("Themes", [])
-
-                # Build media availability dict
-                media_info = {}
-                thumb_info = {}
-                medias_dir = os.path.join(root, "medias")
-                for media_key, _, media_filename in MEDIA_TYPES:
-                    # Check medias/ subfolder first, then fall back to root folder
-                    img_path_medias = os.path.join(medias_dir, media_filename)
-                    img_path_root = os.path.join(root, media_filename)
-                    if os.path.exists(img_path_medias):
-                        # URL path relative to the served tables directory
-                        media_info[media_key] = _media_url('media_tables', current_dir, 'medias', media_filename)
-                        thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, img_path_medias)
-                    elif os.path.exists(img_path_root):
-                        media_info[media_key] = _media_url('media_tables', current_dir, media_filename)
-                        thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, img_path_root)
-                    else:
-                        media_info[media_key] = None
-                        thumb_info[media_key] = None
-
-                rows.append({
-                    'name': name,
-                    'table_dir': current_dir,
-                    'table_path': root,
-                    'manufacturer': manufacturer,
-                    'year': year,
-                    'type': ttype,
-                    'themes': themes,
-                    'media': media_info,
-                    'thumbs': thumb_info,
-                    'thumb_errors': {},
-                    # Flat fields for Quasar table rendering
-                    'has_bg': media_info.get('bg') is not None,
-                    'has_dmd': media_info.get('dmd') is not None,
-                    'has_table': media_info.get('table') is not None,
-                    'has_fss': media_info.get('fss') is not None,
-                    'has_wheel': media_info.get('wheel') is not None,
-                    'has_cab': media_info.get('cab') is not None,
-                    'has_realdmd': media_info.get('realdmd') is not None,
-                    'has_realdmd_color': media_info.get('realdmd_color') is not None,
-                    'has_flyer': media_info.get('flyer') is not None,
-                    'has_table_video': media_info.get('table_video') is not None,
-                    'has_bg_video': media_info.get('bg_video') is not None,
-                    'has_dmd_video': media_info.get('dmd_video') is not None,
-                    'has_audio': media_info.get('audio') is not None,
-                })
-            except Exception as e:
-                logger.error(f"Error reading {meta_path}: {e}")
+                row = future.result()
+            except Exception as exc:
+                name, path = futures[future]
+                logger.warning(f"Error processing table {name}: {exc}")
+                continue
+            if row:
+                rows.append(row)
 
     return rows
 
 
 def render_panel():
-    global _media_route_registered, _thumb_route_registered
+    global _media_route_registered, _thumb_route_registered, _media_pagination_state, _media_filter_state, _media_page_client
 
     try:
         page_client = context.client
+        _media_page_client = page_client
     except RuntimeError:
         page_client = None
+        _media_page_client = None
+
+    _media_pagination_state = {
+        **_media_pagination_state,
+        'rowsPerPage': _load_persisted_rows_per_page(),
+    }
 
     page_state = {
         'active': True,
@@ -378,27 +476,8 @@ def render_panel():
         ]
 
         # --- Filter state and functions ---
-        filter_state = {
-            'search': '',
-            'manufacturer': 'All',
-            'year': 'All',
-            'theme': 'All',
-            'table_type': 'All',
-            'missing_bg': False,
-            'missing_dmd': False,
-            'missing_table': False,
-            'missing_fss': False,
-            'missing_wheel': False,
-            'missing_cab': False,
-            'missing_realdmd': False,
-            'missing_realdmd_color': False,
-        }
-        pagination_state = {
-            'page': 1,
-            'rowsPerPage': 25,
-            'sortBy': 'name',
-            'descending': False,
-        }
+        filter_state = dict(_media_filter_state)
+        pagination_state = dict(_media_pagination_state)
 
         def get_filter_options_from_cache():
             tables = _media_cache or []
@@ -468,32 +547,39 @@ def render_panel():
         def _visible_rows(rows: List[Dict]) -> List[Dict]:
             try:
                 page = int(pagination_state.get('page', 1) or 1)
-                rows_per_page = int(pagination_state.get('rowsPerPage', 25) or 25)
+                rows_per_page = int(pagination_state.get('rowsPerPage', 100))
             except Exception:
                 page = 1
-                rows_per_page = 25
-            if rows_per_page <= 0:
-                rows_per_page = 25
+                rows_per_page = 100
+            if rows_per_page < 0:
+                rows_per_page = 100
+            if rows_per_page == 0:
+                return rows
             start = max(0, (page - 1) * rows_per_page)
             return rows[start:start + rows_per_page]
 
         def _store_pagination(pagination: Optional[Dict]) -> None:
+            global _media_pagination_state
             if not isinstance(pagination, dict):
                 return
             try:
                 if 'page' in pagination:
                     pagination_state['page'] = max(1, int(pagination.get('page') or 1))
                 if 'rowsPerPage' in pagination:
-                    rows_per_page = int(pagination.get('rowsPerPage') or 25)
-                    pagination_state['rowsPerPage'] = rows_per_page if rows_per_page > 0 else 25
+                    rows_per_page = int(pagination.get('rowsPerPage', 100))
+                    pagination_state['rowsPerPage'] = rows_per_page if rows_per_page >= 0 else 100
             except Exception:
                 pagination_state['page'] = max(1, int(pagination_state.get('page', 1) or 1))
-                pagination_state['rowsPerPage'] = max(1, int(pagination_state.get('rowsPerPage', 25) or 25))
+                rows_per_page = int(pagination_state.get('rowsPerPage', 100) or 100)
+                pagination_state['rowsPerPage'] = rows_per_page if rows_per_page >= 0 else 100
 
             if 'sortBy' in pagination:
                 pagination_state['sortBy'] = pagination.get('sortBy')
             if 'descending' in pagination:
                 pagination_state['descending'] = bool(pagination.get('descending'))
+
+            _media_pagination_state = dict(pagination_state)
+            _save_persisted_rows_per_page(_media_pagination_state['rowsPerPage'])
 
         async def warm_visible_thumbnails(rows: List[Dict]) -> None:
             try:
@@ -573,8 +659,10 @@ def render_panel():
 
         def update_table_display(schedule_warm: bool = True):
             filtered = apply_filters()
-            rows_per_page = max(1, int(pagination_state.get('rowsPerPage', 25) or 25))
-            max_page = max(1, (len(filtered) + rows_per_page - 1) // rows_per_page)
+            rows_per_page = int(pagination_state.get('rowsPerPage', 100) or 100)
+            if rows_per_page < 0:
+                rows_per_page = 100
+            max_page = 1 if rows_per_page == 0 else max(1, (len(filtered) + rows_per_page - 1) // rows_per_page)
             pagination_state['page'] = min(max(1, int(pagination_state.get('page', 1) or 1)), max_page)
             media_table._props['pagination'] = dict(pagination_state)
             media_table._props['rows'] = filtered
@@ -605,25 +693,31 @@ def render_panel():
 
         def on_search_change(e: events.ValueChangeEventArguments):
             filter_state['search'] = e.value or ''
+            _media_filter_state['search'] = filter_state['search']
             update_table_display()
 
         def on_manufacturer_change(e: events.ValueChangeEventArguments):
             filter_state['manufacturer'] = e.value or 'All'
+            _media_filter_state['manufacturer'] = filter_state['manufacturer']
             update_table_display()
 
         def on_year_change(e: events.ValueChangeEventArguments):
             filter_state['year'] = e.value or 'All'
+            _media_filter_state['year'] = filter_state['year']
             update_table_display()
 
         def on_theme_change(e: events.ValueChangeEventArguments):
             filter_state['theme'] = e.value or 'All'
+            _media_filter_state['theme'] = filter_state['theme']
             update_table_display()
 
         def on_table_type_change(e: events.ValueChangeEventArguments):
             filter_state['table_type'] = e.value or 'All'
+            _media_filter_state['table_type'] = filter_state['table_type']
             update_table_display()
 
         def clear_filters():
+            global _media_pagination_state, _media_filter_state
             filter_state['search'] = ''
             filter_state['manufacturer'] = 'All'
             filter_state['year'] = 'All'
@@ -639,7 +733,9 @@ def render_panel():
                 filter_state[f'missing_{media_key}'] = False
             for cb in missing_checkboxes.values():
                 cb.value = False
+            _media_filter_state = dict(filter_state)
             pagination_state['page'] = 1
+            _media_pagination_state = dict(pagination_state)
             media_table._props['pagination'] = dict(pagination_state)
             update_table_display()
 
@@ -842,7 +938,7 @@ def render_panel():
         # Filter UI
         with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155;'):
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
-                search_input = ui.input(placeholder='Search tables...').props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
+                search_input = ui.input(placeholder='Search tables...', value=filter_state['search']).props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
                 search_input.on_value_change(on_search_change)
 
                 filter_opts = get_filter_options_from_cache()
@@ -850,28 +946,28 @@ def render_panel():
                 manufacturer_select = ui.select(
                     label='Manufacturer',
                     options=filter_opts['manufacturers'],
-                    value='All'
+                    value=filter_state['manufacturer']
                 ).props('outlined dense').classes('w-40')
                 manufacturer_select.on_value_change(on_manufacturer_change)
 
                 year_select = ui.select(
                     label='Year',
                     options=filter_opts['years'],
-                    value='All'
+                    value=filter_state['year']
                 ).props('outlined dense').classes('w-32')
                 year_select.on_value_change(on_year_change)
 
                 theme_select = ui.select(
                     label='Theme',
                     options=filter_opts['themes'],
-                    value='All'
+                    value=filter_state['theme']
                 ).props('outlined dense').classes('w-40')
                 theme_select.on_value_change(on_theme_change)
 
                 table_type_select = ui.select(
                     label='Type',
                     options=filter_opts['table_types'],
-                    value='All'
+                    value=filter_state['table_type']
                 ).props('outlined dense').classes('w-28')
                 table_type_select.on_value_change(on_table_type_change)
 
@@ -886,10 +982,11 @@ def render_panel():
                     def make_handler(key):
                         def handler(e: events.ValueChangeEventArguments):
                             filter_state[f'missing_{key}'] = e.value
+                            _media_filter_state[f'missing_{key}'] = e.value
                             media_table._props['pagination']['page'] = 1
                             update_table_display()
                         return handler
-                    cb = ui.checkbox(media_label, value=False, on_change=make_handler(media_key)).classes('text-white')
+                    cb = ui.checkbox(media_label, value=filter_state.get(f'missing_{media_key}', False), on_change=make_handler(media_key)).classes('text-white')
                     missing_checkboxes[media_key] = cb
 
         # Table count label
@@ -902,10 +999,18 @@ def render_panel():
         with table_container:
             media_table = (
                 ui.table(columns=columns, rows=initial_rows, row_key='table_dir', pagination=dict(pagination_state))
-                  .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
-                  .classes("w-full")
+                                    .props('rows-per-page-options="[100,200,500,0]" sort-by="name" sort-order="asc"')
+                .classes("w-full media-main-table")
                   .style("flex: 1; overflow: auto;")
             )
+
+            media_table.add_slot('body-cell-name', '''
+                <q-td :props="props">
+                    <div :data-scroll-anchor="props.row.table_dir || props.row.name || props.value" style="display: flex; align-items: center; min-height: 100%;">
+                        <span>{{ props.value }}</span>
+                    </div>
+                </q-td>
+            ''')
 
             # Lookup for media_key -> label
             MEDIA_KEY_TO_LABEL = {key: label for key, label, _ in MEDIA_TYPES}
@@ -1008,7 +1113,7 @@ def render_panel():
                     <span class="q-mr-sm" style="font-size: 0.85rem;">Rows per page:</span>
                     <q-select
                         :model-value="props.pagination.rowsPerPage"
-                        :options="[25, 50, 100]"
+                        :options="[{label:'100', value:100}, {label:'200', value:200}, {label:'500', value:500}, {label:'All', value:0}]"
                         @update:model-value="val => $parent.$emit('update:pagination', Object.assign({}, props.pagination, {rowsPerPage: val, page: 1}))"
                         dense
                         borderless
@@ -1056,11 +1161,12 @@ def render_panel():
             else:
                 await perform_scan(silent=True)
             if can_update_ui():
-                with page_client:
-                    try:
-                        ui.run_javascript('window.dispatchEvent(new Event("resize"));')
-                    except RuntimeError:
-                        pass
+                restore_page_scroll_state(
+                    page_client,
+                    get_scroll_state(),
+                    '.media-main-table .q-table__middle',
+                    '.media-main-table [data-scroll-anchor]',
+                )
 
         async def startup_refresh():
             await asyncio.sleep(0.2)

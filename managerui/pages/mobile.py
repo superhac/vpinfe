@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 import logging
@@ -7,10 +8,15 @@ import urllib.request
 import urllib.parse
 import urllib.error
 from pathlib import Path
-from nicegui import ui, run
+from nicegui import ui, run, context, app
 from platformdirs import user_config_dir
+from typing import Callable
 
 from common.iniconfig import IniConfig
+from common.table_catalog import get_mobile_display_rows
+from .scroll_state import capture_scroll_state as capture_page_scroll_state
+from .scroll_state import restore_scroll_state as restore_page_scroll_state
+from .scroll_state import default_scroll_state
 
 
 logger = logging.getLogger("vpinfe.manager.mobile")
@@ -19,6 +25,130 @@ CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 
 _INI_CFG = None
+_mobile_page_client = None
+_mobile_active_tab = 'websend'
+_mobile_tabs_ref = None
+_mobile_render_id = 0
+_mobile_scroll_states = {
+    'websend': default_scroll_state(),
+    'vpxz': default_scroll_state(),
+}
+_mobile_pagination_states = {
+    'websend': {'page': 1, 'rowsPerPage': 100},
+    'vpxz': {'page': 1, 'rowsPerPage': 100},
+}
+
+_MOBILE_TAB_CONFIG = {
+    'websend': {
+        'selector': '.mobile-websend-table .q-table__middle',
+        'anchor_selector': '.mobile-websend-table [data-scroll-anchor]',
+    },
+    'vpxz': {
+        'selector': '.mobile-vpxz-table .q-table__middle',
+        'anchor_selector': '.mobile-vpxz-table [data-scroll-anchor]',
+    },
+}
+
+
+def _extract_pagination(payload) -> dict:
+    """Robustly extract the pagination dict from a NiceGUI event args payload."""
+    if isinstance(payload, dict):
+        if 'pagination' in payload:
+            return payload['pagination']
+        if 'page' in payload or 'rowsPerPage' in payload:
+            return payload
+    if isinstance(payload, (list, tuple)):
+        for item in payload:
+            pg = _extract_pagination(item)
+            if pg:
+                return pg
+    return {}
+
+
+def _normalize_pagination_state(value) -> dict:
+    if isinstance(value, dict):
+        try:
+            page = value.get('page', 1)
+            page = max(1, int(page) if page is not None else 1)
+        except Exception:
+            page = 1
+        try:
+            rows_per_page = value.get('rowsPerPage', 100)
+            rows_per_page = int(rows_per_page) if rows_per_page is not None else 100
+            rows_per_page = rows_per_page if rows_per_page >= 0 else 100
+        except Exception:
+            rows_per_page = 100
+        return {'page': page, 'rowsPerPage': rows_per_page}
+    try:
+        rows_per_page = int(value) if value is not None else 100
+        rows_per_page = rows_per_page if rows_per_page >= 0 else 100
+    except Exception:
+        rows_per_page = 100
+    return {'page': 1, 'rowsPerPage': rows_per_page}
+
+
+def _save_mobile_pagination_state(tab_key: str, pagination: dict) -> None:
+    normalized = _normalize_pagination_state(pagination)
+    _mobile_pagination_states[tab_key] = normalized
+    try:
+        stored = dict(app.storage.user.get('mobile_pagination_states', {}) or {})
+        stored[tab_key] = {'rowsPerPage': normalized['rowsPerPage']}
+        app.storage.user['mobile_pagination_states'] = stored
+    except Exception as e:
+        logger.error(f"Error saving mobile pagination state for {tab_key}: {e}")
+
+
+def _normalize_tab_key(value: object) -> str:
+    raw = str(value or '').strip()
+    lowered = raw.lower()
+    if lowered in _MOBILE_TAB_CONFIG:
+        return lowered
+    if lowered in {'web send', 'websend'}:
+        return 'websend'
+    if lowered in {'vpxz download', 'vpxz'}:
+        return 'vpxz'
+    return 'websend'
+
+
+async def _capture_tab_scroll_state(tab_key: str) -> None:
+    global _mobile_scroll_states, _mobile_page_client
+    cfg = _MOBILE_TAB_CONFIG.get(tab_key)
+    if not cfg:
+        return
+    _mobile_scroll_states[tab_key] = await capture_page_scroll_state(
+        _mobile_page_client,
+        cfg['selector'],
+        cfg['anchor_selector'],
+    )
+
+
+def _restore_tab_scroll_state(tab_key: str) -> None:
+    cfg = _MOBILE_TAB_CONFIG.get(tab_key)
+    if not cfg:
+        return
+    restore_page_scroll_state(
+        _mobile_page_client,
+        _mobile_scroll_states.get(tab_key, default_scroll_state()),
+        cfg['selector'],
+        cfg['anchor_selector'],
+    )
+
+
+async def capture_scroll_state() -> None:
+    global _mobile_active_tab, _mobile_tabs_ref
+    current_tab = _mobile_active_tab
+    try:
+        if _mobile_tabs_ref is not None:
+            current_tab = _mobile_tabs_ref.value
+    except Exception:
+        pass
+    tab_key = _normalize_tab_key(current_tab)
+    _mobile_active_tab = tab_key
+    try:
+        app.storage.user['mobile_active_tab'] = tab_key
+    except Exception:
+        pass
+    await _capture_tab_scroll_state(tab_key)
 
 
 def _to_bool(value) -> bool:
@@ -45,58 +175,55 @@ def _get_tables_path() -> str:
     return os.path.expanduser('~/tables')
 
 
-def _scan_tables():
-    """Scan for tables with .info and .vpx files, return list of dicts."""
-    tables_path = _get_tables_path()
-    tables = []
-
-    if not os.path.exists(tables_path):
-        return tables
-
-    for root, _, files in os.walk(tables_path):
-        current_dir = os.path.basename(root)
-        info_file = f"{current_dir}.info"
-
-        if info_file in files:
-            vpx_files = [f for f in files if f.lower().endswith('.vpx')]
-            if not vpx_files:
-                continue
-
-            meta_path = os.path.join(root, info_file)
-            try:
-                with open(meta_path, "r", encoding="utf-8") as f:
-                    raw = json.load(f)
-
-                info = raw.get("Info", {})
-                name = (info.get("Title") or current_dir).strip()
-                manufacturer = info.get("Manufacturer", "")
-                year = info.get("Year", "")
-
-                tables.append({
-                    'name': name,
-                    'manufacturer': manufacturer,
-                    'year': str(year) if year else '',
-                    'table_dir_name': current_dir,
-                    'table_path': root,
-                })
-            except Exception:
-                pass
-
-    tables.sort(key=lambda t: t['name'].lower())
-    return tables
-
-
 def _build_table_rows(tables):
     """Build display rows from scanned tables."""
     rows = []
     for t in tables:
-        parts = [p for p in [t['manufacturer'], t['year']] if p]
-        display = f"{t['name']} ({' '.join(parts)})" if parts else t['name']
+        table_dir_name = t.get('table_dir_name') or t.get('filename') or ''
+        if not table_dir_name:
+            continue
+        name = (t.get('name') or table_dir_name).strip()
+        if not name:
+            continue
+        manufacturer = str(t.get('manufacturer', '') or '').strip()
+        year = str(t.get('year', '') or '').strip()
+        parts = [p for p in [manufacturer, year] if p]
+        display = f"{name} ({' '.join(parts)})" if parts else name
         rows.append({
             'display_name': display,
-            'table_dir_name': t['table_dir_name'],
+            'table_dir_name': table_dir_name,
         })
     return rows
+
+
+def _get_mobile_base_rows():
+    """Return mobile display rows built from tables cache or common scanner summaries."""
+    return get_mobile_display_rows(_get_tables_path())
+
+
+async def _ensure_mobile_rows_loaded(
+    state: dict,
+    loading_label,
+    is_page_active: Callable[[], bool],
+    render_rows: Callable[[list], None],
+    error_context: str,
+) -> None:
+    if state['loaded'] or state['loading']:
+        return
+
+    state['loading'] = True
+    try:
+        rows = await run.io_bound(_get_mobile_base_rows)
+        if not is_page_active():
+            return
+        loading_label.set_visibility(False)
+        render_rows(rows)
+        state['loaded'] = True
+    except Exception as e:
+        logger.exception('%s load failed', error_context)
+        loading_label.set_text(f'Could not load tables: {e}')
+    finally:
+        state['loading'] = False
 
 
 def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=None):
@@ -378,6 +505,18 @@ def _delete_table_from_device(host, port, table_dir_name):
 
 
 def build(standalone=True):
+    global _mobile_page_client, _mobile_active_tab, _mobile_render_id, _mobile_tabs_ref
+    try:
+        _mobile_page_client = context.client
+    except Exception:
+        _mobile_page_client = None
+
+    _mobile_render_id += 1
+    current_render_id = _mobile_render_id
+
+    def is_page_active() -> bool:
+        return _mobile_render_id == current_render_id
+
     ui.dark_mode(value=True)
 
     if standalone:
@@ -394,53 +533,119 @@ def build(standalone=True):
     with ui.column().classes('w-full items-center p-4'):
         ui.label('VPinFE Mobile').classes('text-2xl font-bold text-white mb-4')
 
-        with ui.tabs().classes('w-full').props('dark') as tabs:
-            websend_tab = ui.tab('Web Send')
-            vpxz_tab = ui.tab('VPXZ Download')
+        try:
+            stored_tab = app.storage.user.get('mobile_active_tab', 'websend')
+        except Exception:
+            stored_tab = 'websend'
+        initial_tab = _normalize_tab_key(stored_tab)
+        _mobile_active_tab = initial_tab
 
-        with ui.tab_panels(tabs, value=websend_tab).classes('w-full').props('dark'):
+        try:
+            stored_pag = app.storage.user.get('mobile_pagination_states', {})
+            if isinstance(stored_pag, dict):
+                for _tab_key in ('websend', 'vpxz'):
+                    _val = stored_pag.get(_tab_key)
+                    if _val is not None:
+                        persisted = _normalize_pagination_state(_val)
+                        _mobile_pagination_states[_tab_key] = {
+                            **_mobile_pagination_states[_tab_key],
+                            'rowsPerPage': persisted['rowsPerPage'],
+                        }
+        except Exception as e:
+            logger.error(f"Error loading mobile pagination state: {e}")
+
+        with ui.tabs(value=initial_tab).classes('w-full').props('dark') as tabs:
+            websend_tab = ui.tab('Web Send').props('name=websend')
+            vpxz_tab = ui.tab('VPXZ Download').props('name=vpxz')
+        _mobile_tabs_ref = tabs
+
+        async def _handle_tab_change(new_value) -> None:
+            global _mobile_active_tab
+            if not is_page_active():
+                return
+            new_tab = _normalize_tab_key(new_value)
+            old_tab = _normalize_tab_key(_mobile_active_tab)
+            if new_tab == old_tab:
+                return
+            await _capture_tab_scroll_state(old_tab)
+            _mobile_active_tab = new_tab
+            try:
+                app.storage.user['mobile_active_tab'] = new_tab
+            except Exception:
+                pass
+            if new_tab == 'websend':
+                await ensure_websend_loaded()
+            elif new_tab == 'vpxz':
+                await ensure_vpxz_loaded()
+            if is_page_active():
+                _restore_tab_scroll_state(new_tab)
+
+        tabs.on_value_change(lambda e: asyncio.create_task(_handle_tab_change(e.value)))
+
+        with ui.tab_panels(tabs, value=initial_tab).classes('w-full').props('dark'):
 
             # ── Web Send Tab ──
-            with ui.tab_panel(websend_tab):
-                _build_web_send_panel()
+            with ui.tab_panel('websend'):
+                ensure_websend_loaded = _build_web_send_panel(is_page_active, dict(_mobile_pagination_states['websend']))
 
             # ── VPXZ Download Tab ──
-            with ui.tab_panel(vpxz_tab):
-                _build_vpxz_download_panel()
+            with ui.tab_panel('vpxz'):
+                ensure_vpxz_loaded = _build_vpxz_download_panel(is_page_active, dict(_mobile_pagination_states['vpxz']))
+
+        async def _load_initial_tab() -> None:
+            if not is_page_active():
+                return
+            if initial_tab == 'websend':
+                await ensure_websend_loaded()
+                if is_page_active():
+                    await ensure_vpxz_loaded()
+            else:
+                await ensure_vpxz_loaded()
+                if is_page_active():
+                    await ensure_websend_loaded()
+            if is_page_active():
+                _restore_tab_scroll_state(initial_tab)
+
+        ui.timer(0.1, lambda: asyncio.create_task(_load_initial_tab()) if is_page_active() else None, once=True)
 
 
-def _build_vpxz_download_panel():
-    loading = ui.label('Loading tables...').classes('text-gray-400')
+def _build_vpxz_download_panel(is_page_active: Callable[[], bool] = lambda: True, initial_pagination: dict | None = None):
     table_container = ui.column().classes('w-full')
+    pagination_state = _normalize_pagination_state(initial_pagination)
 
-    async def load_tables():
-        tables = await run.io_bound(_scan_tables)
-        loading.set_visibility(False)
-        rows = _build_table_rows(tables)
-
+    def _render_table(rows):
         columns = [
             {'name': 'display_name', 'label': 'Table', 'field': 'display_name', 'align': 'left', 'sortable': True},
         ]
-
         with table_container:
             tbl = ui.table(
                 columns=columns,
                 rows=rows,
                 row_key='table_dir_name',
-                pagination={'rowsPerPage': 25},
-            ).classes('w-full').props('dark dense')
+                pagination=dict(pagination_state),
+            ).classes('w-full mobile-vpxz-table').props('dark dense rows-per-page-label="Rows per page" :rows-per-page-options="[100, 200, 500, 0]"')
+
+            def on_vpxz_pagination_change(e):
+                merged = dict(tbl._props.get('pagination', {}))
+                merged.update(_extract_pagination(e.args))
+                normalized = _normalize_pagination_state(merged)
+                tbl._props['pagination'] = dict(normalized)
+                _save_mobile_pagination_state('vpxz', normalized)
+
+            tbl.on('update:pagination', on_vpxz_pagination_change)
 
             tbl.add_slot('body-cell-display_name', '''
                 <q-td :props="props">
-                    <q-btn flat dense icon="download" color="blue" class="q-mr-sm"
-                        @click.stop="$parent.$emit('download', props.row)" />
-                    {{ props.row.display_name }}
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <q-btn flat dense icon="download" color="blue" class="q-mr-sm"
+                            @click.stop="$parent.$emit('download', props.row)" />
+                        {{ props.row.display_name }}
+                    </div>
                 </q-td>
             ''')
 
             async def handle_download(e):
                 name = e.args['table_dir_name']
-
                 with ui.dialog() as dlg, ui.card().classes('bg-gray-800 p-6'):
                     with ui.row().classes('items-center gap-3'):
                         ui.spinner(size='lg')
@@ -458,7 +663,6 @@ def _build_vpxz_download_panel():
                     with open(vpxz_path, 'rb') as f:
                         data = f.read()
                     shutil.rmtree(tmp_dir, ignore_errors=True)
-                    logger.info("Cleaned up temp archive: %s", tmp_dir)
                     return data
 
                 zip_bytes = await run.io_bound(create_zip)
@@ -467,7 +671,19 @@ def _build_vpxz_download_panel():
 
             tbl.on('download', handle_download)
 
-    ui.timer(0.1, load_tables, once=True)
+    state = {'loaded': False, 'loading': False}
+    loading = ui.label('Loading tables...').classes('text-gray-400')
+
+    async def ensure_loaded():
+        await _ensure_mobile_rows_loaded(
+            state,
+            loading,
+            is_page_active,
+            _render_table,
+            'Mobile VPXZ',
+        )
+
+    return ensure_loaded
 
 
 def _fetch_device_folders(host, port):
@@ -482,9 +698,10 @@ def _fetch_device_folders(host, port):
     return {entry['name'] for entry in data if entry.get('isDir', False)}
 
 
-def _build_web_send_panel():
+def _build_web_send_panel(is_page_active: Callable[[], bool] = lambda: True, initial_pagination: dict | None = None):
     # Load saved connection settings from ini
     cfg = _get_ini_config()
+    pagination_state = _normalize_pagination_state(initial_pagination)
     saved_ip = cfg.config.get('Mobile', 'deviceip', fallback='').strip()
     saved_port = cfg.config.get('Mobile', 'deviceport', fallback='2112').strip()
     saved_chunk = cfg.config.get('Mobile', 'chunksize', fallback='1048576').strip()
@@ -559,6 +776,7 @@ def _build_web_send_panel():
 
     loading = ui.label('Loading tables...').classes('text-gray-400')
     table_container = ui.column().classes('w-full')
+    state = {'loaded': False, 'loading': False}
 
     # Shared state for the table reference and device folders
     panel_state = {
@@ -570,9 +788,9 @@ def _build_web_send_panel():
         if not panel_state['tbl']:
             return
         if panel_state['filter_installed']:
-            filtered = [dict(r) for r in panel_state['rows'] if r.get('installed')]
+            filtered = [r for r in panel_state['rows'] if r.get('installed')]
         else:
-            filtered = [dict(r) for r in panel_state['rows']]
+            filtered = panel_state['rows']
         panel_state['tbl'].rows = filtered
         panel_state['tbl'].selected.clear()
         panel_state['tbl'].update()
@@ -590,6 +808,8 @@ def _build_web_send_panel():
         _apply_filter()
 
     async def check_device():
+        if not is_page_active():
+            return
         host = ip_input.value.strip()
         port = port_input.value.strip()
         if not host or not port:
@@ -597,6 +817,8 @@ def _build_web_send_panel():
             return
         try:
             folders = await run.io_bound(lambda: _fetch_device_folders(host, port))
+            if not is_page_active():
+                return
             panel_state['device_folders'] = folders
             # Update rows with installed status
             for row in panel_state['rows']:
@@ -702,40 +924,57 @@ def _build_web_send_panel():
         await check_device()
 
     async def load_tables():
-        tables = await run.io_bound(_scan_tables)
-        loading.set_visibility(False)
-        rows = _build_table_rows(tables)
-        # Add installed field
-        for row in rows:
-            row['installed'] = False
-        panel_state['rows'] = rows
+        def render_rows(rows):
+            loading.set_visibility(False)
+            rows_per_page = pagination_state.get('rowsPerPage', 100)
+            current_page = pagination_state.get('page', 1)
+            if rows_per_page == 0:
+                initial_row_count = len(rows)
+            else:
+                initial_row_count = rows_per_page * current_page
+            initial_rows = rows[:initial_row_count]
+            # Add installed field
+            for row in rows:
+                row['installed'] = False
+            panel_state['rows'] = rows
 
-        columns = [
-            {'name': 'display_name', 'label': 'Table', 'field': 'display_name', 'align': 'left', 'sortable': True},
-        ]
+            columns = [
+                {'name': 'display_name', 'label': 'Table', 'field': 'display_name', 'align': 'left', 'sortable': True},
+            ]
 
-        with table_container:
-            tbl = ui.table(
-                columns=columns,
-                rows=rows,
-                row_key='table_dir_name',
-                selection='multiple',
-                pagination={'rowsPerPage': 25},
-            ).classes('w-full').props('dark dense')
-            panel_state['tbl'] = tbl
+            with table_container:
+                tbl = ui.table(
+                    columns=columns,
+                    rows=initial_rows,
+                    row_key='table_dir_name',
+                    selection='multiple',
+                    pagination=dict(pagination_state),
+                ).classes('w-full mobile-websend-table').props('dark dense rows-per-page-label="Rows per page" :rows-per-page-options="[100, 200, 500, 0]"')
+                panel_state['tbl'] = tbl
 
-            tbl.add_slot('body-cell-display_name', '''
-                <q-td :props="props">
-                    <q-btn v-if="!props.row.installed" flat dense icon="send" color="green" class="q-mr-sm"
-                        @click.stop="$parent.$emit('websend', props.row)" />
-                    <q-btn v-if="props.row.installed" flat dense icon="delete" color="red" class="q-mr-sm"
-                        @click.stop="$parent.$emit('webdelete', props.row)" />
-                    <q-icon v-if="props.row.installed" name="check_circle" color="light-green" class="q-mr-xs" />
-                    <span :style="props.row.installed ? 'color: #81c784;' : ''">
-                        {{ props.row.display_name }}
-                    </span>
-                </q-td>
-            ''')
+                def on_websend_pagination_change(e):
+                    merged = dict(tbl._props.get('pagination', {}))
+                    merged.update(_extract_pagination(e.args))
+                    normalized = _normalize_pagination_state(merged)
+                    tbl._props['pagination'] = dict(normalized)
+                    _save_mobile_pagination_state('websend', normalized)
+
+                tbl.on('update:pagination', on_websend_pagination_change)
+
+                tbl.add_slot('body-cell-display_name', '''
+                    <q-td :props="props">
+                        <div :data-scroll-anchor="props.row.table_dir_name" style="display: flex; align-items: center; gap: 8px;">
+                            <q-btn v-if="!props.row.installed" flat dense icon="send" color="green" class="q-mr-sm"
+                                @click.stop="$parent.$emit('websend', props.row)" />
+                            <q-btn v-if="props.row.installed" flat dense icon="delete" color="red" class="q-mr-sm"
+                                @click.stop="$parent.$emit('webdelete', props.row)" />
+                            <q-icon v-if="props.row.installed" name="check_circle" color="light-green" class="q-mr-xs" />
+                            <span :style="props.row.installed ? 'color: #81c784;' : ''">
+                                {{ props.row.display_name }}
+                            </span>
+                        </div>
+                    </q-td>
+                ''')
 
             async def handle_send(e):
                 name = e.args['table_dir_name']
@@ -793,8 +1032,23 @@ def _build_web_send_panel():
 
             tbl.on('webdelete', handle_delete)
 
-        # Auto-check device after tables load if IP is configured
-        if saved_ip:
-            await check_device()
+            async def hydrate_full_rows():
+                await asyncio.sleep(0)
+                if not is_page_active():
+                    return
+                _apply_filter()
 
-    ui.timer(0.1, load_tables, once=True)
+            asyncio.create_task(hydrate_full_rows())
+
+        await _ensure_mobile_rows_loaded(
+            state,
+            loading,
+            is_page_active,
+            render_rows,
+            'Mobile WebSend',
+        )
+
+    async def ensure_loaded() -> None:
+        await load_tables()
+
+    return ensure_loaded
