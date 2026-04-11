@@ -14,6 +14,7 @@ from common.table_catalog import get_cached_missing_rows, get_cached_table_rows,
 from common.table_catalog import normalize_table_rating, scan_installed_and_missing_tables
 from common.table_catalog import clear_cached_catalog
 from common.table_scanner import clear_scan_caches
+from common.table_scanner import get_scan_depth_from_config
 from .scroll_state import capture_scroll_state as capture_page_scroll_state
 from .scroll_state import restore_scroll_state as restore_page_scroll_state
 from .scroll_state import default_scroll_state
@@ -406,13 +407,6 @@ def get_tables_path() -> str:
     return os.path.expanduser('~/tables')
 
 
-def _get_table_scan_depth() -> str:
-    try:
-        value = (_INI_CFG.config.get('Settings', 'tablescandepth', fallback='shallow') or '').strip().lower()
-        return 'recursive' if value == 'recursive' else 'shallow'
-    except Exception:
-        return 'shallow'
-
 def _scan_all(silent: bool = False):
     """Single-pass disk scan. Returns (table_rows, missing_rows).
 
@@ -431,7 +425,7 @@ def _scan_all(silent: bool = False):
     return scan_installed_and_missing_tables(
         tables_path,
         vpsid_collections_map,
-        scan_depth=_get_table_scan_depth(),
+        scan_depth=get_scan_depth_from_config(_INI_CFG.config),
     )
 
 

@@ -5,7 +5,7 @@ import json
 import concurrent.futures
 import threading
 from dataclasses import dataclass
-from typing import List, Set, Tuple, Dict
+from typing import List, Set, Tuple, Dict, Any
 
 
 @dataclass
@@ -27,6 +27,15 @@ _SUMMARY_INFLIGHT: Dict[Tuple[str, str], threading.Event] = {}
 def normalize_scan_depth(value: str | None) -> str:
     lowered = str(value or '').strip().lower()
     return 'recursive' if lowered == 'recursive' else 'shallow'
+
+
+def get_scan_depth_from_config(config: Any) -> str:
+    """Read table scan depth from config and return normalized value."""
+    try:
+        value = config.get('Settings', 'tablescandepth', fallback='shallow')
+    except Exception:
+        value = 'shallow'
+    return normalize_scan_depth(value)
 
 
 def clear_scan_caches(tables_path: str | None = None) -> None:

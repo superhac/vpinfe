@@ -14,6 +14,7 @@ from typing import Callable
 
 from common.iniconfig import IniConfig
 from common.table_catalog import get_mobile_display_rows
+from common.table_scanner import get_scan_depth_from_config
 from .scroll_state import capture_scroll_state as capture_page_scroll_state
 from .scroll_state import restore_scroll_state as restore_page_scroll_state
 from .scroll_state import default_scroll_state
@@ -171,15 +172,6 @@ def _get_tables_path() -> str:
     return os.path.expanduser('~/tables')
 
 
-def _get_table_scan_depth() -> str:
-    try:
-        cfg = _get_ini_config()
-        value = (cfg.config.get('Settings', 'tablescandepth', fallback='shallow') or '').strip().lower()
-        return 'recursive' if value == 'recursive' else 'shallow'
-    except Exception:
-        return 'shallow'
-
-
 def _build_table_rows(tables):
     """Build display rows from scanned tables."""
     rows = []
@@ -203,9 +195,10 @@ def _build_table_rows(tables):
 
 def _get_mobile_base_rows():
     """Return mobile display rows built from tables cache or common scanner summaries."""
+    cfg = _get_ini_config()
     return get_mobile_display_rows(
         _get_tables_path(),
-        scan_depth=_get_table_scan_depth(),
+        scan_depth=get_scan_depth_from_config(cfg.config),
     )
 
 

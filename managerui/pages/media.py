@@ -17,6 +17,7 @@ VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 
 from common.iniconfig import IniConfig
 from common.metaconfig import MetaConfig
+from common.table_scanner import get_scan_depth_from_config
 from .scroll_state import capture_scroll_state as capture_page_scroll_state
 from .scroll_state import restore_scroll_state as restore_page_scroll_state
 from .scroll_state import default_scroll_state
@@ -226,14 +227,6 @@ def get_tables_path() -> str:
     return os.path.expanduser('~/tables')
 
 
-def _get_table_scan_depth() -> str:
-    try:
-        value = (_INI_CFG.config.get('Settings', 'tablescandepth', fallback='shallow') or '').strip().lower()
-        return 'recursive' if value == 'recursive' else 'shallow'
-    except Exception:
-        return 'shallow'
-
-
 def scan_media_tables(silent: bool = False):
     """Scan table directories and collect media file info."""
     tables_path = get_tables_path()
@@ -243,7 +236,7 @@ def scan_media_tables(silent: bool = False):
             ui.notify("Tables path does not exist. Please verify your vpinfe.ini settings", type="negative")
         return []
 
-    scan_depth = _get_table_scan_depth()
+    scan_depth = get_scan_depth_from_config(_INI_CFG.config)
     if scan_depth == 'recursive':
         top_entries = []
         try:

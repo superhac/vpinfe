@@ -19,6 +19,7 @@ COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 
 # Import config
 from common.iniconfig import IniConfig
+from common.table_scanner import get_scan_depth_from_config
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.libdmdutil_service import (
     stop_libdmdutil_service,
@@ -161,21 +162,12 @@ def _get_tables_path() -> str:
     return os.path.expanduser('~/tables')
 
 
-def _get_table_scan_depth() -> str:
-    try:
-        cfg = _get_ini_config()
-        value = (cfg.config.get('Settings', 'tablescandepth', fallback='shallow') or '').strip().lower()
-        return 'recursive' if value == 'recursive' else 'shallow'
-    except Exception:
-        return 'shallow'
-
-
 def _scan_tables_for_launch():
     """Scan for tables that can be launched (have .info and .vpx files)."""
     import os
     import json
     tables_path = _get_tables_path()
-    scan_depth = _get_table_scan_depth()
+    scan_depth = get_scan_depth_from_config(_get_ini_config().config)
     tables = []
 
     if not os.path.exists(tables_path):
