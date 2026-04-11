@@ -493,48 +493,49 @@ def render_panel(tab=None):
         ui.add_head_html('''
         <style>
             .q-table {
-                border-radius: 8px !important;
+                border-radius: var(--radius) !important;
                 overflow: hidden !important;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+                box-shadow: var(--shadow-intense) !important;
+                background: var(--surface) !important;
             }
             .q-table thead tr {
-                background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%) !important;
+                background: var(--header-gradient) !important;
             }
             .q-table thead tr th {
                 background: transparent !important;
-                color: #fff !important;
+                color: var(--ink) !important;
                 font-weight: 600 !important;
                 text-transform: uppercase !important;
                 font-size: 0.75rem !important;
-                letter-spacing: 0.05em !important;
                 padding: 16px 12px !important;
             }
             .q-table tbody tr:nth-child(odd) {
-                background-color: #1e293b !important;
+                background-color: var(--table-row) !important;
             }
             .q-table tbody tr:nth-child(even) {
-                background-color: #0f172a !important;
+                background-color: var(--table-row-alt) !important;
             }
             .q-table tbody tr td {
-                color: #e2e8f0 !important;
+                color: var(--ink-muted) !important;
                 padding: 12px !important;
-                border-bottom: 1px solid #334155 !important;
+                border-bottom: 1px solid var(--line) !important;
             }
             .q-table tbody tr:hover {
-                background-color: #334155 !important;
+                background-color: var(--table-hover) !important;
                 transition: background-color 0.2s ease !important;
             }
             .q-table tbody tr:hover td {
-                color: #fff !important;
+                color: var(--neon-cyan) !important;
             }
             .q-table__top {
                 padding: 0 !important;
-                background-color: #1e293b !important;
+                background-color: var(--surface-2) !important;
+                border-bottom: 1px solid var(--line) !important;
             }
             .q-table__bottom {
-                background-color: #1e293b !important;
-                color: #94a3b8 !important;
-                border-top: 1px solid #334155 !important;
+                background-color: var(--surface-2) !important;
+                color: var(--ink-muted) !important;
+                border-top: 1px solid var(--line) !important;
                 padding: 0 !important;
             }
         </style>
@@ -659,7 +660,7 @@ def render_panel(tab=None):
                 'log_q': Queue(),
             }
 
-            with dlg, ui.card().classes('w-[650px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
+            with dlg, ui.card().classes('w-[650px]').style('background: var(--surface);'):
                 ui.label('Build Metadata').classes('text-xl font-bold text-white')
                 ui.separator()
 
@@ -790,7 +791,7 @@ def render_panel(tab=None):
 
         # --- UI Layout ---
         # Header section with page title and action buttons
-        with ui.card().classes('w-full mb-4').style('background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); border-radius: 12px;'):
+        with ui.card().classes('w-full mb-4').style('background: var(--surface); border-radius: 12px;'):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
                 ui.label('Tables Management').classes('text-2xl font-bold text-white').style('flex-shrink: 0;')
                 with ui.row().classes('gap-3 items-center flex-wrap'):
@@ -815,7 +816,7 @@ def render_panel(tab=None):
                             'client': context.client,  # Capture client while in UI context
                         }
 
-                        with dlg, ui.card().classes('w-[550px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
+                        with dlg, ui.card().classes('w-[550px]').style('background: var(--surface); border-radius: var(--radius);'):
                             ui.label('Apply VPX Patches').classes('text-xl font-bold text-white')
                             ui.separator()
 
@@ -1068,7 +1069,7 @@ def render_panel(tab=None):
         title_label = ui.label("Installed Tables").classes('text-xl font-semibold text-center w-full py-2')
 
         # --- Search and Filter UI ---
-        with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155;'):
+        with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: var(--surface); border: 1px solid var(--line);'):
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
                 # Search input
                 search_input = ui.input(placeholder='Search tables...').props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
@@ -1207,7 +1208,7 @@ def render_panel(tab=None):
             # Add top pagination controls (styled to match bottom)
             table.add_slot('top', '''
                 <div class="row full-width items-center justify-end q-pa-sm"
-                     style="background-color: #1e293b; color: #94a3b8; border-bottom: 1px solid #334155;">
+                     style="background-color: var(--surface); color: var(--ink); border-bottom: 1px solid var(--line);">
                     <q-btn flat round dense icon="first_page" :disable="props.isFirstPage" @click="props.firstPage" size="sm" color="grey-5" />
                     <q-btn flat round dense icon="chevron_left" :disable="props.isFirstPage" @click="props.prevPage" size="sm" color="grey-5" />
                     <span class="q-mx-sm" style="font-size: 0.85rem; color: #94a3b8;">
@@ -1220,7 +1221,7 @@ def render_panel(tab=None):
             # Add bottom with Select All checkbox alongside pagination
             table.add_slot('bottom', '''
                 <div class="row full-width items-center q-pa-sm"
-                     style="background-color: #1e293b; color: #94a3b8; border-top: 1px solid #334155;">
+                     style="background-color: var(--surface); color: var(--ink); border-top: 1px solid var(--line);">
                     <q-checkbox
                         :model-value="(() => {
                             const sel = $parent.selected || [];
@@ -1370,11 +1371,11 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
     ui.add_head_html('''
     <style>
         .table-dialog-card {
-            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%) !important;
-            border: 1px solid #334155 !important;
+            background: var(--surface) !important;
+            border: 1px solid var(--line) !important;
         }
         .table-dialog-header {
-            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            background: var(--header-gradient);
             margin: -16px -16px 0 -16px;
             padding: 16px 20px;
             border-radius: 4px 4px 0 0;
@@ -1382,23 +1383,23 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
         .detail-row {
             padding: 8px 12px;
             border-radius: 6px;
-            background: rgba(30, 41, 59, 0.5);
+            background: var(--table-row);
         }
         .detail-row:hover {
-            background: rgba(51, 65, 85, 0.5);
+            background: var(--table-row-alt);
         }
         .detail-label {
-            color: #94a3b8;
+            color: var(--ink-muted);
             font-size: 0.85rem;
             min-width: 120px;
         }
         .detail-value {
-            color: #e2e8f0;
+            color: var(--ink);
             font-weight: 500;
         }
         .addon-card {
-            background: rgba(30, 41, 59, 0.6);
-            border: 1px solid #334155;
+            background: var(--surface);
+            border: 1px solid var(--line);
             border-radius: 8px;
             padding: 12px 16px;
         }

@@ -107,7 +107,7 @@ def header():
         'box-shadow: var(--shadow);'
     ):
         with ui.row().classes('gap-3 items-center'):
-            ui.icon('sports_esports', size='28px').classes('text-blue-400').style('filter: drop-shadow(var(--glow-cyan));')
+            ui.image('/static/img/VPinPlay_Logo_1.0.png').style('height: 28px; width: auto; filter: drop-shadow(var(--glow-cyan));')
             ui.label('VPinFE Manager').classes('text-xl font-bold text-white').style('text-shadow: var(--glow-purple);')
             ui.button(icon='restart_alt', on_click=lambda: _restart_app()) \
                 .props('flat round dense').classes('text-green-400') \
@@ -287,6 +287,23 @@ def build_app():
             overflow-x: hidden;
             transition: background 300ms ease, color 300ms ease;
         }
+        
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(0deg, var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            opacity: 0.3;
+            z-index: 0;
+        }
+        
         .nicegui-content {
             overflow-x: hidden !important;
             max-width: 100vw !important;
