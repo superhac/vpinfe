@@ -10,7 +10,7 @@ import urllib.error
 from pathlib import Path
 from nicegui import ui, run, context, app
 from platformdirs import user_config_dir
-from typing import Callable
+from typing import Callable, Optional
 
 from common.iniconfig import IniConfig, get_tables_root_from_config
 from common.table_catalog import get_mobile_display_rows
@@ -30,6 +30,7 @@ _mobile_page_client = None
 _mobile_active_tab = 'websend'
 _mobile_tabs_ref = None
 _mobile_render_id = 0
+_mobile_base_rows_cache: Optional[list[dict]] = None
 _mobile_scroll_states = {
     'websend': default_scroll_state(),
     'vpxz': default_scroll_state(),
@@ -187,13 +188,28 @@ def _build_table_rows(tables):
     return rows
 
 
+def _clone_mobile_rows(rows: list[dict]) -> list[dict]:
+    return [dict(row) for row in rows]
+
+
+def invalidate_mobile_rows_cache() -> None:
+    global _mobile_base_rows_cache
+    _mobile_base_rows_cache = None
+
+
 def _get_mobile_base_rows():
     """Return mobile display rows built from tables cache or common scanner summaries."""
+    global _mobile_base_rows_cache
+    if _mobile_base_rows_cache is not None:
+        return _clone_mobile_rows(_mobile_base_rows_cache)
+
     cfg = _get_ini_config()
-    return get_mobile_display_rows(
+    rows = get_mobile_display_rows(
         _get_tables_path(),
         scan_depth=get_scan_depth_from_config(cfg.config),
     )
+    _mobile_base_rows_cache = _clone_mobile_rows(rows)
+    return rows
 
 
 async def _ensure_mobile_rows_loaded(
@@ -203,12 +219,17 @@ async def _ensure_mobile_rows_loaded(
     render_rows: Callable[[list], None],
     error_context: str,
 ) -> None:
+    global _mobile_base_rows_cache
     if state['loaded'] or state['loading']:
         return
 
     state['loading'] = True
     try:
-        rows = await run.io_bound(_get_mobile_base_rows)
+        if _mobile_base_rows_cache is None:
+            logger.info("Loading tables...")
+            rows = await run.io_bound(_get_mobile_base_rows)
+        else:
+            rows = _get_mobile_base_rows()
         if not is_page_active():
             return
         loading_label.set_visibility(False)

@@ -4,8 +4,13 @@ import os
 import json
 import concurrent.futures
 import threading
+import logging
+import time
 from dataclasses import dataclass
 from typing import List, Set, Tuple, Dict, Any
+
+
+logger = logging.getLogger("vpinfe.common.table_scanner")
 
 
 @dataclass
@@ -170,10 +175,20 @@ def scan_tables_root(tables_path: str, max_workers: int = 8, scan_depth: str = '
 
         if should_scan:
             try:
+                start_time = time.time()
+                logger.info("Disk %s scan starting...", normalized_depth)
                 entries, missing = _scan_tables_root_uncached(
                     normalized_path,
                     max_workers=max_workers,
                     scan_depth=normalized_depth,
+                )
+                elapsed = time.time() - start_time
+                logger.info(
+                    "Disk %s scan finished in %.2fs (%d tables, %d missing)",
+                    normalized_depth,
+                    elapsed,
+                    len(entries),
+                    len(missing),
                 )
                 with _SCAN_STATE_LOCK:
                     _SCAN_CACHE[cache_key] = (current_mtime, entries, missing)

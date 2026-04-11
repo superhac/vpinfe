@@ -4,6 +4,7 @@ import logging
 import asyncio
 import zipfile
 import io
+from threading import Condition
 from nicegui import ui, events, run, context, app
 from pathlib import Path
 import json
@@ -55,6 +56,8 @@ def ensure_vpsdb_downloaded() -> bool:
         return VPSDB_JSON_PATH.exists()
 # Ensure only one Missing Tables dialog at a time
 _missing_tables_dialog: Optional[ui.dialog] = None
+_scan_all_condition = Condition()
+_scan_all_in_progress = False
 _tables_pagination_state: Dict[str, Any] = {
     'page': 1,
     'rowsPerPage': 100,
@@ -110,6 +113,8 @@ def _invalidate_table_data_caches() -> None:
     """Invalidate shared table data caches after metadata/disk mutations."""
     clear_cached_catalog()
     clear_scan_caches(get_tables_path())
+    from managerui.pages.mobile import invalidate_mobile_rows_cache
+    invalidate_mobile_rows_cache()
 
 
 async def capture_scroll_state() -> None:
@@ -401,36 +406,64 @@ def get_tables_path() -> str:
     return get_tables_root_from_config(_INI_CFG.config)
 
 
+# Cached result from last _scan_all call.
+_cached_scan_result: Optional[tuple] = None
+
 def _scan_all(silent: bool = False):
     """Single-pass disk scan. Returns (table_rows, missing_rows).
 
     Uses configurable discovery depth (shallow or recursive) and processes each
     table directory in parallel to pipeline disk I/O.
     """
+    global _cached_scan_result, _scan_all_in_progress
+
     tables_path = get_tables_path()
     if not os.path.exists(tables_path):
         logger.warning(f"Tables path does not exist: {tables_path}. Skipping scan.")
         if not silent:
             ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
-        return [], []
+        _cached_scan_result = ([], [])
+        return _cached_scan_result
 
     vpsid_collections_map = get_vpsid_collections_map()
 
-    return scan_installed_and_missing_tables(
-        tables_path,
-        vpsid_collections_map,
-        scan_depth=get_scan_depth_from_config(_INI_CFG.config),
-    )
+    with _scan_all_condition:
+        if _scan_all_in_progress:
+            while _scan_all_in_progress:
+                _scan_all_condition.wait()
+            if _cached_scan_result is not None:
+                return _cached_scan_result
+        _scan_all_in_progress = True
+
+    try:
+        result = scan_installed_and_missing_tables(
+            tables_path,
+            vpsid_collections_map,
+            scan_depth=get_scan_depth_from_config(_INI_CFG.config),
+        )
+        _cached_scan_result = result
+        return result
+    finally:
+        with _scan_all_condition:
+            _scan_all_in_progress = False
+            _scan_all_condition.notify_all()
 
 
 def scan_tables(silent: bool = False):
-    rows, _ = _scan_all(silent)
-    return rows
+    """Get installed table rows, using cached result if available."""
+    result = _scan_all(silent)
+    return result[0] if result else []
 
 
 def scan_missing_tables():
-    _, missing = _scan_all(silent=True)
-    return missing
+    """Get missing table rows, using cached result from last _scan_all call."""
+    # Use cached result if available to avoid duplicate disk scan
+    global _cached_scan_result
+    if _cached_scan_result is not None:
+        return _cached_scan_result[1]
+    # Fallback: run scan if no cache (shouldn't happen in normal UI flow)
+    result = _scan_all(silent=True)
+    return result[1] if result else []
 
 
 def load_metadata_from_ini():
@@ -533,7 +566,7 @@ def render_panel(tab=None):
             """Scans for tables asynchronously and updates the UI.
             If silent=True, suppress user notifications.
             """
-            logger.info("Scanning tables...")
+            logger.info("Loading tables...")
             # Keep UX simple: disable the Scan button during work, no pre-notify
             try:
                 scan_btn.disable()

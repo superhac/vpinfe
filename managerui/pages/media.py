@@ -224,6 +224,8 @@ def get_tables_path() -> str:
 
 def scan_media_tables(silent: bool = False):
     """Scan table directories and collect media file info."""
+    scan_depth = get_scan_depth_from_config(_INI_CFG.config)
+
     tables_path = get_tables_path()
     if not os.path.exists(tables_path):
         logger.warning(f"Tables path does not exist: {tables_path}. Skipping scan.")
@@ -234,7 +236,7 @@ def scan_media_tables(silent: bool = False):
     try:
         entries, _ = scan_tables_root(
             tables_path,
-            scan_depth=get_scan_depth_from_config(_INI_CFG.config),
+            scan_depth=scan_depth,
         )
     except Exception as exc:
         logger.error(f"Failed to scan tables directory: {exc}")
@@ -744,7 +746,7 @@ def render_panel():
             if page_state['scan_in_progress']:
                 return
             page_state['scan_in_progress'] = True
-            logger.info("Scanning media...")
+            logger.info("Loading tables...")
             # Capture client context before any io_bound calls (may not exist if called from timer)
             try:
                 client = context.client
