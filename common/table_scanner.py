@@ -29,6 +29,21 @@ def normalize_scan_depth(value: str | None) -> str:
     return 'recursive' if lowered == 'recursive' else 'shallow'
 
 
+def clear_scan_caches(tables_path: str | None = None) -> None:
+    """Clear scanner caches globally or for a specific tables root path."""
+    with _SCAN_STATE_LOCK:
+        if not tables_path:
+            _SCAN_CACHE.clear()
+            _SUMMARY_CACHE.clear()
+            return
+
+        normalized_path = os.path.abspath(os.path.expanduser(tables_path))
+        for cache_key in [k for k in _SCAN_CACHE.keys() if k[0] == normalized_path]:
+            _SCAN_CACHE.pop(cache_key, None)
+        for cache_key in [k for k in _SUMMARY_CACHE.keys() if k[0] == normalized_path]:
+            _SUMMARY_CACHE.pop(cache_key, None)
+
+
 def _get_root_mtime(tables_path: str) -> float | None:
     try:
         return os.path.getmtime(tables_path) if os.path.exists(tables_path) else None

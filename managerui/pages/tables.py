@@ -12,6 +12,8 @@ from common.vpxparser import VPXParser
 from common.vpxcollections import VPXCollections
 from common.table_catalog import get_cached_missing_rows, get_cached_table_rows, set_cached_catalog
 from common.table_catalog import normalize_table_rating, scan_installed_and_missing_tables
+from common.table_catalog import clear_cached_catalog
+from common.table_scanner import clear_scan_caches
 from .scroll_state import capture_scroll_state as capture_page_scroll_state
 from .scroll_state import restore_scroll_state as restore_page_scroll_state
 from .scroll_state import default_scroll_state
@@ -101,6 +103,12 @@ def _get_missing_cache() -> Optional[List[Dict]]:
 
 def _set_catalog_cache(table_rows: List[Dict], missing_rows: List[Dict]) -> None:
     set_cached_catalog(table_rows, missing_rows)
+
+
+def _invalidate_table_data_caches() -> None:
+    """Invalidate shared table data caches after metadata/disk mutations."""
+    clear_cached_catalog()
+    clear_scan_caches(get_tables_path())
 
 
 async def capture_scroll_state() -> None:
@@ -225,6 +233,8 @@ def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
         with open(info_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4)
 
+        _invalidate_table_data_caches()
+
         return True
     except Exception as e:
         logger.error(f"Failed to update VPinFE setting: {e}")
@@ -251,6 +261,8 @@ def update_user_setting(table_path: str, key: str, value) -> bool:
 
         with open(info_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4)
+
+        _invalidate_table_data_caches()
 
         return True
     except Exception as e:
@@ -373,6 +385,8 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
                 self.AudioPath = None
         pseudo_table = _LightTable(table_folder, vpx_file)
         vps.downloadMediaForTable(pseudo_table, vps_entry.get('id'), metaConfig=meta)
+
+    _invalidate_table_data_caches()
 
     # Invalidate the media page cache so next visit shows fresh data
     from managerui.pages.media import invalidate_media_cache
@@ -725,6 +739,7 @@ def render_panel(tab=None):
                         # Invalidate media cache so media page shows fresh data
                         from managerui.pages.media import invalidate_media_cache
                         invalidate_media_cache()
+                        _invalidate_table_data_caches()
 
                         # Refresh table list after completion
                         await perform_scan(silent=True)
@@ -1478,6 +1493,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             # Invalidate media cache so media page shows fresh data
                             from managerui.pages.media import invalidate_media_cache
                             invalidate_media_cache()
+                            _invalidate_table_data_caches()
                     except Exception as ex:
                         with client:
                             rebuild_status.set_text('Error')
@@ -2334,6 +2350,7 @@ def open_import_table_dialog(perform_scan_cb=None):
                 # Invalidate media cache
                 from managerui.pages.media import invalidate_media_cache
                 invalidate_media_cache()
+                _invalidate_table_data_caches()
 
                 with client:
                     ui.notify(f'Table imported successfully: {folder_name}', type='positive')
