@@ -1,5 +1,6 @@
 from pathlib import Path
 import logging
+import os
 from common.table import Table
 from common.metaconfig import MetaConfig
 
@@ -67,6 +68,18 @@ class TableParser:
     def loadImagePaths(self, Table):
         table_dir = Path(Table.fullPathTable)
         medias_dir = table_dir / "medias"
+
+        # Batch directory listings to minimize disk calls
+        try:
+            table_contents = set(os.listdir(str(table_dir)))
+        except Exception:
+            table_contents = set()
+
+        try:
+            medias_contents = set(os.listdir(str(medias_dir))) if medias_dir.is_dir() else set()
+        except Exception:
+            medias_contents = set()
+
         images = {
             "BGImagePath": "bg.png",
             "DMDImagePath": "dmd.png",
@@ -90,13 +103,11 @@ class TableParser:
         }
 
         for attr, fname in {**images, **videos, **audio}.items():
-            # Check medias/ subfolder first, then fall back to root folder
-            fpath_medias = medias_dir / fname
-            fpath_root = table_dir / fname
-            if fpath_medias.exists():
-                setattr(Table, attr, str(fpath_medias))
-            elif fpath_root.exists():
-                setattr(Table, attr, str(fpath_root))
+            # Check in-memory file listings instead of individual network calls
+            if fname in medias_contents:
+                setattr(Table, attr, str(medias_dir / fname))
+            elif fname in table_contents:
+                setattr(Table, attr, str(table_dir / fname))
 
     def loadMetaData(self, Table):
         meta_path = Path(Table.fullPathTable) / f"{Table.tableDirName}.info"
