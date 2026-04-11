@@ -83,7 +83,6 @@ async def capture_scroll_state() -> None:
     _media_scroll_state = await capture_page_scroll_state(
         _media_page_client,
         '.media-main-table .q-table__middle',
-        '.media-main-table [data-scroll-anchor]',
     )
 
 
@@ -1006,7 +1005,7 @@ def render_panel():
 
             media_table.add_slot('body-cell-name', '''
                 <q-td :props="props">
-                    <div :data-scroll-anchor="props.row.table_dir || props.row.name || props.value" style="display: flex; align-items: center; min-height: 100%;">
+                    <div style="display: flex; align-items: center; min-height: 100%;">
                         <span>{{ props.value }}</span>
                     </div>
                 </q-td>
@@ -1165,7 +1164,6 @@ def render_panel():
                     page_client,
                     get_scroll_state(),
                     '.media-main-table .q-table__middle',
-                    '.media-main-table [data-scroll-anchor]',
                 )
 
         async def startup_refresh():

@@ -41,11 +41,9 @@ _mobile_pagination_states = {
 _MOBILE_TAB_CONFIG = {
     'websend': {
         'selector': '.mobile-websend-table .q-table__middle',
-        'anchor_selector': '.mobile-websend-table [data-scroll-anchor]',
     },
     'vpxz': {
         'selector': '.mobile-vpxz-table .q-table__middle',
-        'anchor_selector': '.mobile-vpxz-table [data-scroll-anchor]',
     },
 }
 
@@ -118,7 +116,6 @@ async def _capture_tab_scroll_state(tab_key: str) -> None:
     _mobile_scroll_states[tab_key] = await capture_page_scroll_state(
         _mobile_page_client,
         cfg['selector'],
-        cfg['anchor_selector'],
     )
 
 
@@ -130,7 +127,6 @@ def _restore_tab_scroll_state(tab_key: str) -> None:
         _mobile_page_client,
         _mobile_scroll_states.get(tab_key, default_scroll_state()),
         cfg['selector'],
-        cfg['anchor_selector'],
     )
 
 
@@ -963,7 +959,7 @@ def _build_web_send_panel(is_page_active: Callable[[], bool] = lambda: True, ini
 
                 tbl.add_slot('body-cell-display_name', '''
                     <q-td :props="props">
-                        <div :data-scroll-anchor="props.row.table_dir_name" style="display: flex; align-items: center; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
                             <q-btn v-if="!props.row.installed" flat dense icon="send" color="green" class="q-mr-sm"
                                 @click.stop="$parent.$emit('websend', props.row)" />
                             <q-btn v-if="props.row.installed" flat dense icon="delete" color="red" class="q-mr-sm"

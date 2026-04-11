@@ -28,7 +28,6 @@ async def capture_scroll_state() -> None:
     _collections_scroll_state = await capture_page_scroll_state(
         _collections_page_client,
         '.collections-main-scroll',
-        '.collections-main-scroll [data-scroll-anchor]',
     )
 
 
@@ -216,7 +215,6 @@ def render_panel(tab=None):
                     is_filter = manager.is_filter_based(name)
 
                     with ui.card().classes('collection-card w-full p-4'):
-                        ui.element('div').props(f'data-scroll-anchor="{name}"').style('height: 0; overflow: hidden;')
                         with ui.row().classes('w-full justify-between items-center'):
                             with ui.row().classes('items-center gap-3'):
                                 ui.icon('filter_list' if is_filter else 'list', size='24px').classes(
@@ -775,7 +773,6 @@ def render_panel(tab=None):
                 _collections_page_client,
                 get_scroll_state(),
                 '.collections-main-scroll',
-                '.collections-main-scroll [data-scroll-anchor]',
             )
 
         ui.timer(0.1, restore_collections_scroll, once=True)

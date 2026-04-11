@@ -13,11 +13,10 @@ def default_scroll_state() -> Dict[str, Any]:
     return {
         'winTop': 0,
         'elTop': 0,
-        'anchor': '',
     }
 
 
-async def capture_scroll_state(page_client: Any, selector: str, anchor_selector: str) -> Dict[str, Any]:
+async def capture_scroll_state(page_client: Any, selector: str) -> Dict[str, Any]:
     started = time.perf_counter()
     if page_client is None:
         return default_scroll_state()
@@ -30,7 +29,7 @@ async def capture_scroll_state(page_client: Any, selector: str, anchor_selector:
                     const elementTarget = document.querySelector(selector);
                     const winTop = window.scrollY || 0;
                     const elTop = elementTarget ? (elementTarget.scrollTop || 0) : 0;
-                    return JSON.stringify({winTop, elTop, anchor: ''});
+                    return JSON.stringify({winTop, elTop});
                 })()
             '''
                 .replace('__SELECTOR__', json.dumps(selector))
@@ -41,7 +40,6 @@ async def capture_scroll_state(page_client: Any, selector: str, anchor_selector:
         state = {
             'winTop': int(parsed.get('winTop') or 0),
             'elTop': int(parsed.get('elTop') or 0),
-            'anchor': '',
         }
         elapsed = time.perf_counter() - started
         if elapsed >= 0.15:
@@ -51,7 +49,7 @@ async def capture_scroll_state(page_client: Any, selector: str, anchor_selector:
         return default_scroll_state()
 
 
-def restore_scroll_state(page_client: Any, state: Dict[str, Any], selector: str, anchor_selector: str) -> None:
+def restore_scroll_state(page_client: Any, state: Dict[str, Any], selector: str) -> None:
     started = time.perf_counter()
     if page_client is None:
         return

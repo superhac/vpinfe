@@ -108,7 +108,6 @@ async def capture_scroll_state() -> None:
     _tables_scroll_state = await capture_page_scroll_state(
         _tables_page_client,
         '.tables-main-table .q-table__middle',
-        '.tables-main-table [data-scroll-anchor]',
     )
 
 
@@ -429,13 +428,11 @@ def render_panel(tab=None):
         _tables_page_client = context.client
     except Exception:
         _tables_page_client = None
-    logger.info(f"render_panel called, current rows_per_page: {_tables_pagination_state.get('rowsPerPage')}")
     loaded_rows_per_page = _load_persisted_rows_per_page()
     _tables_pagination_state = {
         **_tables_pagination_state,
         'rowsPerPage': loaded_rows_per_page,
     }
-    logger.info(f"After loading persisted state, rows_per_page now: {_tables_pagination_state.get('rowsPerPage')}")
     _initial_loaded_rows_per_page = loaded_rows_per_page
     with ui.column().classes('w-full'):
         # Hide Quasar's built-in numeric overlay inside linear progress bars (prevents 0..1 decimals)
@@ -1109,7 +1106,7 @@ def render_panel(tab=None):
             collection_colors = ['purple-8', 'teal-8', 'pink-8', 'cyan-8', 'amber-8', 'lime-8', 'indigo-8', 'orange-8']
             table.add_slot('body-cell-name', '''
                 <q-td :props="props">
-                    <div :data-scroll-anchor="props.row.filename || props.row.name || props.value" style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span>{{ props.value }}</span>
                             <span v-if="Number(props.row.rating || 0) > 0" style="font-size: 0.9em; white-space: nowrap;">
@@ -1366,7 +1363,6 @@ def render_panel(tab=None):
                     _tables_page_client,
                     get_scroll_state(),
                     '.tables-main-table .q-table__middle',
-                    '.tables-main-table [data-scroll-anchor]',
                 )
             except RuntimeError:
                 pass
