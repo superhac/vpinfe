@@ -35,7 +35,6 @@ class VPXCollections:
 
         if self.ini_path.exists():
             self.config.read(self.ini_path)
-            logger.info("Found collections file...")
 
     def reload(self):
         """Reload the ini file from disk (discard unsaved changes)."""
