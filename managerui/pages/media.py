@@ -18,6 +18,7 @@ VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 from common.iniconfig import IniConfig
 from common.metaconfig import MetaConfig
 from common.table_scanner import get_scan_depth_from_config
+from common.table_scanner import scan_tables_root
 from .scroll_state import capture_scroll_state as capture_page_scroll_state
 from .scroll_state import restore_scroll_state as restore_page_scroll_state
 from .scroll_state import default_scroll_state
@@ -236,34 +237,19 @@ def scan_media_tables(silent: bool = False):
             ui.notify("Tables path does not exist. Please verify your vpinfe.ini settings", type="negative")
         return []
 
-    scan_depth = get_scan_depth_from_config(_INI_CFG.config)
-    if scan_depth == 'recursive':
-        top_entries = []
-        try:
-            for root, dirs, _ in os.walk(tables_path):
-                for dirname in dirs:
-                    top_entries.append((dirname, os.path.join(root, dirname)))
-        except Exception as exc:
-            logger.error(f"Failed to walk tables directory recursively: {exc}")
-            return []
-    else:
-        try:
-            top_entries = [(e.name, e.path) for e in os.scandir(tables_path) if e.is_dir(follow_symlinks=False)]
-        except Exception as exc:
-            logger.error(f"Failed to list tables directory: {exc}")
-            return []
+    try:
+        entries, _ = scan_tables_root(
+            tables_path,
+            scan_depth=get_scan_depth_from_config(_INI_CFG.config),
+        )
+    except Exception as exc:
+        logger.error(f"Failed to scan tables directory: {exc}")
+        return []
 
-    def _process_table(current_dir, root):
-        info_file = f"{current_dir}.info"
-        try:
-            dir_contents = set(os.listdir(root))
-        except Exception:
-            return None
-
-        if info_file not in dir_contents:
-            return None
-        if not any(f.lower().endswith('.vpx') for f in dir_contents):
-            return None
+    def _process_table(entry):
+        current_dir = entry.table_name
+        root = entry.table_dir
+        dir_contents = entry.dir_contents
 
         # Single listdir for medias/ subfolder
         medias_dir = os.path.join(root, "medias")
@@ -272,7 +258,7 @@ def scan_media_tables(silent: bool = False):
         except Exception:
             medias_contents = set()
 
-        meta_path = os.path.join(root, info_file)
+        meta_path = entry.info_path
         try:
             with open(meta_path, "r", encoding="utf-8") as f:
                 raw = json.load(f)
@@ -330,14 +316,13 @@ def scan_media_tables(silent: bool = False):
 
     rows = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-        futures = {pool.submit(_process_table, name, path): (name, path)
-                   for name, path in top_entries}
+        futures = {pool.submit(_process_table, entry): entry for entry in entries}
         for future in concurrent.futures.as_completed(futures):
             try:
                 row = future.result()
             except Exception as exc:
-                name, path = futures[future]
-                logger.warning(f"Error processing table {name}: {exc}")
+                entry = futures[future]
+                logger.warning(f"Error processing table {entry.table_name}: {exc}")
                 continue
             if row:
                 rows.append(row)

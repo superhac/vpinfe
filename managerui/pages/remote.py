@@ -20,6 +20,7 @@ COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 # Import config
 from common.iniconfig import IniConfig
 from common.table_scanner import get_scan_depth_from_config
+from common.table_scanner import scan_tables_root
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.libdmdutil_service import (
     stop_libdmdutil_service,
@@ -164,79 +165,60 @@ def _get_tables_path() -> str:
 
 def _scan_tables_for_launch():
     """Scan for tables that can be launched (have .info and .vpx files)."""
-    import os
     import json
     tables_path = _get_tables_path()
-    scan_depth = get_scan_depth_from_config(_get_ini_config().config)
     tables = []
 
     if not os.path.exists(tables_path):
         return tables
 
-    if scan_depth == 'recursive':
-        iterator = os.walk(tables_path)
-    else:
+    entries, _ = scan_tables_root(
+        tables_path,
+        scan_depth=get_scan_depth_from_config(_get_ini_config().config),
+    )
+
+    for entry in entries:
+        root = entry.table_dir
+        current_dir = entry.table_name
+        vpx_files = sorted([f for f in entry.dir_contents if f.lower().endswith('.vpx')])
+        if not vpx_files:
+            continue
+
         try:
-            entries = [e for e in os.scandir(tables_path) if e.is_dir(follow_symlinks=False)]
+            with open(entry.info_path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+
+            info = raw.get("Info", {})
+            user = raw.get("User", {})
+            vpinfe = raw.get("VPinFE", {})
+            name = (info.get("Title") or current_dir).strip()
+            manufacturer = info.get("Manufacturer", "")
+            year = info.get("Year", "")
+
+            # Build display name
+            display_name = name
+            if manufacturer and year:
+                display_name = f"{name} ({manufacturer} {year})"
+            elif manufacturer:
+                display_name = f"{name} ({manufacturer})"
+            elif year:
+                display_name = f"{name} ({year})"
+
+            tables.append({
+                'name': name,
+                'display_name': display_name,
+                'vpx_path': os.path.join(root, vpx_files[0]),
+                'table_path': root,
+                'vpsid': info.get('VPSId', ''),
+                'manufacturer': manufacturer,
+                'year': str(year) if year else '',
+                'type': info.get('Type', ''),
+                'theme': info.get('Theme', ''),
+                'rating': user.get('Rating', 0),
+                'meta': {'VPinFE': vpinfe},
+            })
         except Exception:
-            entries = []
-
-        def _shallow_iter():
-            for entry in entries:
-                try:
-                    files = os.listdir(entry.path)
-                except Exception:
-                    continue
-                yield entry.path, [], files
-
-        iterator = _shallow_iter()
-
-    for root, _, files in iterator:
-        current_dir = os.path.basename(root)
-        info_file = f"{current_dir}.info"
-
-        if info_file in files:
-            # Find the .vpx file
-            vpx_files = [f for f in files if f.lower().endswith('.vpx')]
-            if not vpx_files:
-                continue
-
-            meta_path = os.path.join(root, info_file)
-            try:
-                with open(meta_path, "r", encoding="utf-8") as f:
-                    raw = json.load(f)
-
-                info = raw.get("Info", {})
-                user = raw.get("User", {})
-                vpinfe = raw.get("VPinFE", {})
-                name = (info.get("Title") or current_dir).strip()
-                manufacturer = info.get("Manufacturer", "")
-                year = info.get("Year", "")
-
-                # Build display name
-                display_name = name
-                if manufacturer and year:
-                    display_name = f"{name} ({manufacturer} {year})"
-                elif manufacturer:
-                    display_name = f"{name} ({manufacturer})"
-                elif year:
-                    display_name = f"{name} ({year})"
-
-                tables.append({
-                    'name': name,
-                    'display_name': display_name,
-                    'vpx_path': os.path.join(root, vpx_files[0]),
-                    'table_path': root,
-                    'vpsid': info.get('VPSId', ''),
-                    'manufacturer': manufacturer,
-                    'year': str(year) if year else '',
-                    'type': info.get('Type', ''),
-                    'theme': info.get('Theme', ''),
-                    'rating': user.get('Rating', 0),
-                    'meta': {'VPinFE': vpinfe},
-                })
-            except Exception:
-                pass
+            pass
 
     # Sort by name
     tables.sort(key=lambda t: t['name'].lower())
