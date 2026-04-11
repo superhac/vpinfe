@@ -567,6 +567,10 @@ def render_panel(tab=None):
             If silent=True, suppress user notifications.
             """
             logger.info("Loading tables...")
+            show_startup_placeholder = (_get_tables_cache() is None) and not (table._props.get('rows') or [])
+            if show_startup_placeholder:
+                tables_loading_placeholder.visible = True
+                table.visible = False
             # Keep UX simple: disable the Scan button during work, no pre-notify
             try:
                 scan_btn.disable()
@@ -627,7 +631,12 @@ def render_panel(tab=None):
                 logger.exception("Failed to scan tables")
                 if not silent:
                     ui.notify(f"Error during scan: {e}", type='negative')
+                if show_startup_placeholder:
+                    tables_loading_label.set_text(f"Could not load tables: {e}")
             finally:
+                if _get_tables_cache() is not None:
+                    tables_loading_placeholder.visible = False
+                    table.visible = True
                 try:
                     scan_btn.enable()
                 except Exception:
@@ -1140,7 +1149,15 @@ def render_panel(tab=None):
         # Create a scrollable container for the table with proper height constraint
         table_container = ui.column().classes("w-full").style("flex: 1; overflow: hidden; display: flex;")
 
+        cache_ready = _get_tables_cache() is not None
+
         with table_container:
+            tables_loading_placeholder = ui.column().classes('w-full items-center justify-center gap-2 py-10')
+            tables_loading_placeholder.visible = not cache_ready
+            with tables_loading_placeholder:
+                ui.spinner('dots', size='48px', color='blue')
+                tables_loading_label = ui.label('Loading tables...').classes('text-slate-300')
+
             table = (
                 ui.table(columns=columns, rows=initial_rows, row_key='filename', selection='multiple',
                          on_select=on_selection_change, pagination=dict(_tables_pagination_state))
@@ -1149,6 +1166,7 @@ def render_panel(tab=None):
                 .classes("w-full cursor-pointer tables-main-table")
                   .style("flex: 1; overflow: auto;")
             )
+            table.visible = cache_ready
             # Add custom slot for name column to include IPDB, VPS links, and collections
             # Define colors for collections - will cycle through these
             collection_colors = ['purple-8', 'teal-8', 'pink-8', 'cyan-8', 'amber-8', 'lime-8', 'indigo-8', 'orange-8']

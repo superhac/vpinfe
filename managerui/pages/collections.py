@@ -8,14 +8,13 @@ from common.vpxcollections import VPXCollections
 from .scroll_state import capture_scroll_state as capture_page_scroll_state
 from .scroll_state import restore_scroll_state as restore_page_scroll_state
 from .scroll_state import default_scroll_state
+from . import tables as tables_module
 
 logger = logging.getLogger("vpinfe.manager.collections")
 
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 COLLECTIONS_PATH = CONFIG_DIR / "collections.ini"
 
-# Import tables module to access cache (import module, not variable, to get live values)
-from . import tables as tables_module
 from common.table_catalog import get_cached_table_rows
 
 
@@ -42,12 +41,12 @@ def get_collections_manager() -> VPXCollections:
 
 def get_table_name_map() -> Dict[str, str]:
     """Build a map of VPS ID -> table name from the tables cache."""
-    # Access the cache through the module to get the current value
     tables = get_cached_table_rows()
 
-    # If cache is empty, scan tables to populate it
+    # Do not trigger a foreground scan from the Collections page.
+    # If a scan is already running elsewhere, waiting here would block navigation.
     if not tables:
-        tables = tables_module.scan_tables(silent=True)
+        return {}
 
     return {t.get('id'): t.get('name', t.get('id')) for t in tables if t.get('id')}
 
@@ -61,12 +60,7 @@ def vpsid_to_name(vpsid: str, table_map: Dict[str, str] = None) -> str:
 
 def get_filter_options() -> Dict[str, List[str]]:
     """Get filter options (letters, themes, types, manufacturers, years, ratings) from the tables cache."""
-    # Use the tables cache from the tables module (same data used in the Tables page)
     tables = get_cached_table_rows()
-
-    # If cache is empty, scan tables to populate it
-    if not tables:
-        tables = tables_module.scan_tables(silent=True)
 
     if not tables:
         # Fallback to basic options if no tables
@@ -136,6 +130,13 @@ def render_panel(tab=None):
     except Exception:
         _collections_page_client = None
 
+    page_state = {'active': True, 'cache_refresh_started': False}
+    if _collections_page_client is not None:
+        _collections_page_client.on_disconnect(lambda: page_state.__setitem__('active', False))
+
+    def is_page_active() -> bool:
+        return page_state['active']
+
     # Add custom styles
     ui.add_head_html('''
     <style>
@@ -189,6 +190,10 @@ def render_panel(tab=None):
                     add_filter_btn = ui.button("New Filter Collection", icon="filter_list").props("color=secondary rounded")
 
         # Collections list container
+        loading_row = ui.row().classes('items-center gap-2 text-gray-400 mb-2')
+        with loading_row:
+            ui.spinner('dots', size='24px', color='blue')
+            loading_label = ui.label('Loading tables...').classes('text-gray-400 text-sm')
         collections_container = ui.column().classes('w-full gap-3')
 
         def refresh_collections():
@@ -197,6 +202,8 @@ def render_panel(tab=None):
             manager = get_collections_manager()
             collection_names = manager.get_collections_name()
             table_map = get_table_name_map()
+            cache_rows = get_cached_table_rows()
+            loading_row.set_visibility(cache_rows is None)
 
             def _is_truthy(value) -> bool:
                 return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -767,6 +774,16 @@ def render_panel(tab=None):
 
         # Initial load
         refresh_collections()
+
+        async def refresh_when_cache_ready() -> None:
+            while is_page_active() and get_cached_table_rows() is None:
+                await asyncio.sleep(0.5)
+            if is_page_active():
+                refresh_collections()
+
+        if get_cached_table_rows() is None and not page_state['cache_refresh_started']:
+            page_state['cache_refresh_started'] = True
+            ui.timer(0.1, lambda: asyncio.create_task(refresh_when_cache_ready()), once=True)
 
         def restore_collections_scroll() -> None:
             restore_page_scroll_state(

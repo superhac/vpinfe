@@ -214,6 +214,7 @@ def _get_mobile_base_rows():
 
 async def _ensure_mobile_rows_loaded(
     state: dict,
+    loading_container,
     loading_label,
     is_page_active: Callable[[], bool],
     render_rows: Callable[[list], None],
@@ -232,7 +233,7 @@ async def _ensure_mobile_rows_loaded(
             rows = _get_mobile_base_rows()
         if not is_page_active():
             return
-        loading_label.set_visibility(False)
+        loading_container.set_visibility(False)
         render_rows(rows)
         state['loaded'] = True
     except Exception as e:
@@ -664,7 +665,7 @@ def _build_vpxz_download_panel(is_page_active: Callable[[], bool] = lambda: True
                 name = e.args['table_dir_name']
                 with ui.dialog() as dlg, ui.card().classes('bg-gray-800 p-6'):
                     with ui.row().classes('items-center gap-3'):
-                        ui.spinner(size='lg')
+                        ui.spinner('dots', size='48px', color='blue')
                         ui.label(f'Preparing {name}.vpxz ...').classes('text-white')
                 dlg.open()
 
@@ -688,11 +689,15 @@ def _build_vpxz_download_panel(is_page_active: Callable[[], bool] = lambda: True
             tbl.on('download', handle_download)
 
     state = {'loaded': False, 'loading': False}
-    loading = ui.label('Loading tables...').classes('text-gray-400')
+    loading_container = ui.row().classes('items-center gap-2 text-gray-400')
+    with loading_container:
+        ui.spinner('dots', size='24px', color='blue')
+        loading = ui.label('Loading tables...').classes('text-gray-400')
 
     async def ensure_loaded():
         await _ensure_mobile_rows_loaded(
             state,
+            loading_container,
             loading,
             is_page_active,
             _render_table,
@@ -790,7 +795,10 @@ def _build_web_send_panel(is_page_active: Callable[[], bool] = lambda: True, ini
                                       on_click=lambda: batch_send()) \
             .props('dense').classes('text-white bg-green-800')
 
-    loading = ui.label('Loading tables...').classes('text-gray-400')
+    loading_container = ui.row().classes('items-center gap-2 text-gray-400')
+    with loading_container:
+        ui.spinner('dots', size='24px', color='blue')
+        loading = ui.label('Loading tables...').classes('text-gray-400')
     table_container = ui.column().classes('w-full')
     state = {'loaded': False, 'loading': False}
 
@@ -941,7 +949,7 @@ def _build_web_send_panel(is_page_active: Callable[[], bool] = lambda: True, ini
 
     async def load_tables():
         def render_rows(rows):
-            loading.set_visibility(False)
+            loading_container.set_visibility(False)
             rows_per_page = pagination_state.get('rowsPerPage', 100)
             current_page = pagination_state.get('page', 1)
             if rows_per_page == 0:
@@ -1058,6 +1066,7 @@ def _build_web_send_panel(is_page_active: Callable[[], bool] = lambda: True, ini
 
         await _ensure_mobile_rows_loaded(
             state,
+            loading_container,
             loading,
             is_page_active,
             render_rows,

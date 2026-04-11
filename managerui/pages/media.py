@@ -747,6 +747,10 @@ def render_panel():
                 return
             page_state['scan_in_progress'] = True
             logger.info("Loading tables...")
+            show_startup_placeholder = (_media_cache is None) and not (media_table._props.get('rows') or [])
+            if show_startup_placeholder:
+                media_loading_placeholder.visible = True
+                media_table.visible = False
             # Capture client context before any io_bound calls (may not exist if called from timer)
             try:
                 client = context.client
@@ -792,8 +796,13 @@ def render_panel():
                     if can_update_ui():
                         with client:
                             ui.notify(f"Error during scan: {e}", type='negative')
+                if show_startup_placeholder:
+                    media_loading_label.set_text(f"Could not load tables: {e}")
             finally:
                 page_state['scan_in_progress'] = False
+                if _media_cache is not None:
+                    media_loading_placeholder.visible = False
+                    media_table.visible = True
                 if can_update_ui():
                     with page_client:
                         scan_btn.enable()
@@ -986,14 +995,22 @@ def render_panel():
 
         # Table with image thumbnails
         table_container = ui.column().classes("w-full media-table").style("flex: 1; overflow: hidden; display: flex;")
+        cache_ready = _media_cache is not None
 
         with table_container:
+            media_loading_placeholder = ui.column().classes('w-full items-center justify-center gap-2 py-10')
+            media_loading_placeholder.visible = not cache_ready
+            with media_loading_placeholder:
+                ui.spinner('dots', size='48px', color='blue')
+                media_loading_label = ui.label('Loading tables...').classes('text-slate-300')
+
             media_table = (
                 ui.table(columns=columns, rows=initial_rows, row_key='table_dir', pagination=dict(pagination_state))
                                     .props('rows-per-page-options="[100,200,500,0]" sort-by="name" sort-order="asc"')
                 .classes("w-full media-main-table")
                   .style("flex: 1; overflow: auto;")
             )
+            media_table.visible = cache_ready
 
             media_table.add_slot('body-cell-name', '''
                 <q-td :props="props">
