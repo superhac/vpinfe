@@ -107,7 +107,7 @@ def header():
         'box-shadow: var(--shadow);'
     ):
         with ui.row().classes('gap-3 items-center'):
-            ui.image('/static/img/vpinfe-logo.png').style('height: 32px; width: 32px; filter: drop-shadow(var(--glow-cyan));')
+            ui.image('/static/img/vpinfe-logo.png').style('height: 60px; width: 75px; filter: drop-shadow(var(--glow-cyan));margin: -10px;')
             ui.label('VPinFE Manager').classes('text-xl font-bold text-white').style('text-shadow: var(--glow-purple);')
             ui.button(icon='restart_alt', on_click=lambda: _restart_app()) \
                 .props('flat round dense').classes('text-green-400') \
@@ -308,6 +308,7 @@ def build_app():
             overflow-x: hidden !important;
             max-width: 100vw !important;
         }
+        
         .nav-btn {
             transition: all 0.2s ease !important;
             border-radius: var(--radius) !important;
@@ -324,6 +325,14 @@ def build_app():
             background: linear-gradient(135deg, var(--neon-purple) 0%, var(--neon-pink) 100%) !important;
             box-shadow: var(--glow-purple) !important;
             color: white !important;
+        }
+        .nav-btn .q-btn__content {
+            transition: opacity 0.3s ease;
+        }
+        .nav-collapsed .nav-btn .q-btn__content > :not(.q-icon) {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
         }
     </style>
     ''')
@@ -352,13 +361,13 @@ def build_app():
         nav_state['expanded'] = not nav_state['expanded']
         if nav_state['expanded']:
             nav_panel.style(add='width: 220px;', remove='width: 56px;')
-            nav_state['nav_content'].set_visibility(True)
+            nav_state['nav_content'].classes(remove='nav-collapsed')
             nav_state['nav_label'].set_visibility(True)
             nav_state['remote_container'].set_visibility(True)
             content_container.style(add='margin-left: 220px; width: calc(100vw - 220px); max-width: calc(100vw - 220px);', remove='margin-left: 56px; width: calc(100vw - 56px); max-width: calc(100vw - 56px);')
         else:
             nav_panel.style(add='width: 56px;', remove='width: 220px;')
-            nav_state['nav_content'].set_visibility(False)
+            nav_state['nav_content'].classes(add='nav-collapsed')
             nav_state['nav_label'].set_visibility(False)
             nav_state['remote_container'].set_visibility(False)
             content_container.style(add='margin-left: 56px; width: calc(100vw - 56px); max-width: calc(100vw - 56px);', remove='margin-left: 220px; width: calc(100vw - 220px); max-width: calc(100vw - 220px);')
