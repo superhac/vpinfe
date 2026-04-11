@@ -15,7 +15,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 
-from common.iniconfig import IniConfig
+from common.iniconfig import IniConfig, get_tables_root_from_config
 from common.metaconfig import MetaConfig
 from common.table_scanner import get_scan_depth_from_config
 from common.table_scanner import scan_tables_root
@@ -220,12 +220,10 @@ def _ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[
 
 def get_tables_path() -> str:
     try:
-        tableroot = _INI_CFG.config.get('Settings', 'tablerootdir', fallback='').strip()
-        if tableroot:
-            return os.path.expanduser(tableroot)
+        return get_tables_root_from_config(_INI_CFG.config)
     except Exception as e:
         logger.debug(f'Could not read tablerootdir from vpinfe.ini: {e}')
-    return os.path.expanduser('~/tables')
+        return os.path.expanduser('~/tables')
 
 
 def scan_media_tables(silent: bool = False):

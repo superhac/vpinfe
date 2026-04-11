@@ -12,6 +12,17 @@ def _generate_machine_id(length: int = 64) -> str:
 	alphabet = string.ascii_letters + string.digits
 	return ''.join(secrets.choice(alphabet) for _ in range(length))
 
+
+def get_tables_root_from_config(config: configparser.ConfigParser, fallback: str = '~/tables') -> str:
+	"""Resolve [Settings].tablerootdir with fallback to a user-home-relative path."""
+	try:
+		tableroot = (config.get('Settings', 'tablerootdir', fallback='') or '').strip()
+		if tableroot:
+			return os.path.expanduser(tableroot)
+	except Exception:
+		pass
+	return os.path.expanduser(fallback)
+
 class IniConfig:
 
 	def __init__(self, configfilepath):

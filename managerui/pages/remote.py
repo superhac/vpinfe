@@ -18,9 +18,10 @@ VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 
 # Import config
-from common.iniconfig import IniConfig
+from common.iniconfig import IniConfig, get_tables_root_from_config
 from common.table_scanner import get_scan_depth_from_config
 from common.table_scanner import scan_tables_root
+from common.table_catalog import normalize_table_rating, format_table_display_name
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.libdmdutil_service import (
     stop_libdmdutil_service,
@@ -80,13 +81,6 @@ def _table_matches_filters(table, filters):
     if not filters:
         return False
 
-    def _normalize_rating(value):
-        try:
-            normalized = int(float(value))
-        except (TypeError, ValueError):
-            normalized = 0
-        return max(0, min(5, normalized))
-
     def _is_truthy(value):
         return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
 
@@ -127,10 +121,10 @@ def _table_matches_filters(table, filters):
         selected = []
         for r in str(rating).split(','):
             try:
-                selected.append(_normalize_rating(r.strip()))
+                selected.append(normalize_table_rating(r.strip()))
             except Exception:
                 continue
-        table_rating = _normalize_rating(table.get('rating', 0))
+        table_rating = normalize_table_rating(table.get('rating', 0))
         if _is_truthy(filters.get('rating_or_higher', 'false')):
             if not selected or table_rating < min(selected):
                 return False
@@ -152,15 +146,9 @@ def _get_ini_config():
 def _get_tables_path() -> str:
     """Get the tables root directory from config."""
     try:
-        cfg = _get_ini_config()
-        tableroot = cfg.config.get('Settings', 'tablerootdir', fallback='').strip()
-        if tableroot:
-            import os
-            return os.path.expanduser(tableroot)
+        return get_tables_root_from_config(_get_ini_config().config)
     except Exception:
-        pass
-    import os
-    return os.path.expanduser('~/tables')
+        return os.path.expanduser('~/tables')
 
 
 def _scan_tables_for_launch():
@@ -195,14 +183,7 @@ def _scan_tables_for_launch():
             manufacturer = info.get("Manufacturer", "")
             year = info.get("Year", "")
 
-            # Build display name
-            display_name = name
-            if manufacturer and year:
-                display_name = f"{name} ({manufacturer} {year})"
-            elif manufacturer:
-                display_name = f"{name} ({manufacturer})"
-            elif year:
-                display_name = f"{name} ({year})"
+            display_name = format_table_display_name(name, manufacturer, year)
 
             tables.append({
                 'name': name,

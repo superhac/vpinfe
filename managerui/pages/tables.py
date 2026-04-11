@@ -30,7 +30,7 @@ VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
 
 # Load vpinfe.ini once to avoid repeated parsing
-from common.iniconfig import IniConfig
+from common.iniconfig import IniConfig, get_tables_root_from_config
 _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 #_vpsdb_cache: List[Dict] | None = None
@@ -399,12 +399,10 @@ logger = logging.getLogger("vpinfe.manager.tables")
 def get_tables_path() -> str:
     """Resolve tables path from vpinfe.ini [Settings] tablerootdir, fallback to ~/tables."""
     try:
-        tableroot = _INI_CFG.config.get('Settings', 'tablerootdir', fallback='').strip()
-        if tableroot:
-            return os.path.expanduser(tableroot)
+        return get_tables_root_from_config(_INI_CFG.config)
     except Exception as e:
         logger.debug(f'Could not read tablerootdir from vpinfe.ini: {e}')
-    return os.path.expanduser('~/tables')
+        return os.path.expanduser('~/tables')
 
 
 def _scan_all(silent: bool = False):

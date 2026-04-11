@@ -12,7 +12,7 @@ from nicegui import ui, run, context, app
 from platformdirs import user_config_dir
 from typing import Callable
 
-from common.iniconfig import IniConfig
+from common.iniconfig import IniConfig, get_tables_root_from_config
 from common.table_catalog import get_mobile_display_rows
 from common.table_scanner import get_scan_depth_from_config
 from .scroll_state import capture_scroll_state as capture_page_scroll_state
@@ -164,12 +164,9 @@ def _get_ini_config():
 def _get_tables_path() -> str:
     try:
         cfg = _get_ini_config()
-        tableroot = cfg.config.get('Settings', 'tablerootdir', fallback='').strip()
-        if tableroot:
-            return os.path.expanduser(tableroot)
+        return get_tables_root_from_config(cfg.config)
     except Exception:
-        pass
-    return os.path.expanduser('~/tables')
+        return os.path.expanduser('~/tables')
 
 
 def _build_table_rows(tables):

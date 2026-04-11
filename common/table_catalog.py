@@ -43,6 +43,12 @@ def clear_cached_catalog() -> None:
         _MISSING_ROWS_CACHE = None
 
 
+def format_table_display_name(name: str, manufacturer: str = '', year: str = '') -> str:
+    parts = [part for part in (str(manufacturer or '').strip(), str(year or '').strip()) if part]
+    base = str(name or '').strip()
+    return f"{base} ({' '.join(parts)})" if parts else base
+
+
 def build_mobile_display_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, str]]:
     display_rows: List[Dict[str, str]] = []
     for row in rows:
@@ -52,10 +58,9 @@ def build_mobile_display_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, str]
         name = str(row.get('name') or table_dir_name).strip()
         if not name:
             continue
-        manufacturer = str(row.get('manufacturer', '') or '').strip()
-        year = str(row.get('year', '') or '').strip()
-        parts = [part for part in (manufacturer, year) if part]
-        display_name = f"{name} ({' '.join(parts)})" if parts else name
+        manufacturer = row.get('manufacturer', '')
+        year = row.get('year', '')
+        display_name = format_table_display_name(name, manufacturer, year)
         display_rows.append({
             'display_name': display_name,
             'table_dir_name': table_dir_name,
