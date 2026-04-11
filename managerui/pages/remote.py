@@ -161,17 +161,45 @@ def _get_tables_path() -> str:
     return os.path.expanduser('~/tables')
 
 
+def _get_table_scan_depth() -> str:
+    try:
+        cfg = _get_ini_config()
+        value = (cfg.config.get('Settings', 'tablescandepth', fallback='shallow') or '').strip().lower()
+        return 'recursive' if value == 'recursive' else 'shallow'
+    except Exception:
+        return 'shallow'
+
+
 def _scan_tables_for_launch():
     """Scan for tables that can be launched (have .info and .vpx files)."""
     import os
     import json
     tables_path = _get_tables_path()
+    scan_depth = _get_table_scan_depth()
     tables = []
 
     if not os.path.exists(tables_path):
         return tables
 
-    for root, _, files in os.walk(tables_path):
+    if scan_depth == 'recursive':
+        iterator = os.walk(tables_path)
+    else:
+        try:
+            entries = [e for e in os.scandir(tables_path) if e.is_dir(follow_symlinks=False)]
+        except Exception:
+            entries = []
+
+        def _shallow_iter():
+            for entry in entries:
+                try:
+                    files = os.listdir(entry.path)
+                except Exception:
+                    continue
+                yield entry.path, [], files
+
+        iterator = _shallow_iter()
+
+    for root, _, files in iterator:
         current_dir = os.path.basename(root)
         info_file = f"{current_dir}.info"
 

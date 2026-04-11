@@ -226,6 +226,14 @@ def get_tables_path() -> str:
     return os.path.expanduser('~/tables')
 
 
+def _get_table_scan_depth() -> str:
+    try:
+        value = (_INI_CFG.config.get('Settings', 'tablescandepth', fallback='shallow') or '').strip().lower()
+        return 'recursive' if value == 'recursive' else 'shallow'
+    except Exception:
+        return 'shallow'
+
+
 def scan_media_tables(silent: bool = False):
     """Scan table directories and collect media file info."""
     tables_path = get_tables_path()
@@ -235,12 +243,22 @@ def scan_media_tables(silent: bool = False):
             ui.notify("Tables path does not exist. Please verify your vpinfe.ini settings", type="negative")
         return []
 
-    # Shallow scan — only immediate children of the tables root
-    try:
-        top_entries = [(e.name, e.path) for e in os.scandir(tables_path) if e.is_dir(follow_symlinks=False)]
-    except Exception as exc:
-        logger.error(f"Failed to list tables directory: {exc}")
-        return []
+    scan_depth = _get_table_scan_depth()
+    if scan_depth == 'recursive':
+        top_entries = []
+        try:
+            for root, dirs, _ in os.walk(tables_path):
+                for dirname in dirs:
+                    top_entries.append((dirname, os.path.join(root, dirname)))
+        except Exception as exc:
+            logger.error(f"Failed to walk tables directory recursively: {exc}")
+            return []
+    else:
+        try:
+            top_entries = [(e.name, e.path) for e in os.scandir(tables_path) if e.is_dir(follow_symlinks=False)]
+        except Exception as exc:
+            logger.error(f"Failed to list tables directory: {exc}")
+            return []
 
     def _process_table(current_dir, root):
         info_file = f"{current_dir}.info"

@@ -391,11 +391,19 @@ def get_tables_path() -> str:
         logger.debug(f'Could not read tablerootdir from vpinfe.ini: {e}')
     return os.path.expanduser('~/tables')
 
+
+def _get_table_scan_depth() -> str:
+    try:
+        value = (_INI_CFG.config.get('Settings', 'tablescandepth', fallback='shallow') or '').strip().lower()
+        return 'recursive' if value == 'recursive' else 'shallow'
+    except Exception:
+        return 'shallow'
+
 def _scan_all(silent: bool = False):
     """Single-pass disk scan. Returns (table_rows, missing_rows).
 
-    Uses os.scandir at the top level only (never recurses into subdirs) and
-    processes each table directory in parallel to pipeline disk I/O.
+    Uses configurable discovery depth (shallow or recursive) and processes each
+    table directory in parallel to pipeline disk I/O.
     """
     tables_path = get_tables_path()
     if not os.path.exists(tables_path):
@@ -406,7 +414,11 @@ def _scan_all(silent: bool = False):
 
     vpsid_collections_map = get_vpsid_collections_map()
 
-    return scan_installed_and_missing_tables(tables_path, vpsid_collections_map)
+    return scan_installed_and_missing_tables(
+        tables_path,
+        vpsid_collections_map,
+        scan_depth=_get_table_scan_depth(),
+    )
 
 
 def scan_tables(silent: bool = False):

@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from common.table_scanner import scan_table_summaries
 from common.table_scanner import scan_tables_root
+from common.table_scanner import normalize_scan_depth
 
 
 logger = logging.getLogger("vpinfe.table_catalog")
@@ -62,11 +63,16 @@ def build_mobile_display_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, str]
     return display_rows
 
 
-def get_mobile_display_rows(tables_path: str) -> List[Dict[str, str]]:
+def get_mobile_display_rows(tables_path: str, scan_depth: str = 'shallow') -> List[Dict[str, str]]:
     cached_rows = get_cached_table_rows()
     if cached_rows:
         return build_mobile_display_rows(cached_rows)
-    return build_mobile_display_rows(scan_table_summaries(tables_path))
+    return build_mobile_display_rows(
+        scan_table_summaries(
+            tables_path,
+            scan_depth=normalize_scan_depth(scan_depth),
+        )
+    )
 
 
 def normalize_table_rating(value) -> int:
@@ -152,13 +158,17 @@ def parse_table_info(info_path: str, dir_contents=None, pinmame_contents=None) -
 def scan_installed_and_missing_tables(
     tables_path: str,
     vpsid_collections_map: Optional[Dict[str, List[str]]] = None,
+    scan_depth: str = 'shallow',
 ) -> tuple[List[Dict[str, Any]], List[Dict[str, str]]]:
     if not os.path.exists(tables_path):
         return [], []
 
     vpsid_collections_map = vpsid_collections_map or {}
     rows: List[Dict[str, Any]] = []
-    entries, missing = scan_tables_root(tables_path)
+    entries, missing = scan_tables_root(
+        tables_path,
+        scan_depth=normalize_scan_depth(scan_depth),
+    )
 
     for entry in entries:
         data = parse_table_info(

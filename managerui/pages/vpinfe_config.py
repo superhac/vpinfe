@@ -65,6 +65,7 @@ FRIENDLY_NAMES = {
     'globalinioverride': 'Global ini Override (/home/test/mysuper.ini)',
     'globaltableinioverrideenabled': 'Global tableini Override Enabled',
     'globaltableinioverridemask': 'Global tableini Override Mask',
+    'tablescandepth': 'Table Scan Depth',
     'vpxinipath' : 'VPX Ini Path',
     'tablerootdir': 'Tables Directory',
     'startup_collection': 'Startup Collection',
@@ -687,6 +688,14 @@ def render_panel(tab=None):
                 inp = ui.select(
                     options=theme_options,
                     value=value
+                ).props('outlined dense options-dense').classes('config-input')
+            elif section == 'Settings' and key == 'tablescandepth':
+                normalized = (value or 'shallow').strip().lower()
+                if normalized not in {'shallow', 'recursive'}:
+                    normalized = 'shallow'
+                inp = ui.select(
+                    options=['shallow', 'recursive'],
+                    value=normalized
                 ).props('outlined dense options-dense').classes('config-input')
             elif is_checkbox:
                 inp = ui.checkbox(

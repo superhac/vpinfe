@@ -33,6 +33,7 @@ class IniConfig:
 				'globalinioverride': '',
 				'globaltableinioverrideenabled': 'false',
 				'globaltableinioverridemask': '',
+				'tablescandepth': 'shallow',
 				'tablerootdir': '',
 				'vpxinipath': '',
 				'theme': 'Revolution',

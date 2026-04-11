@@ -171,6 +171,15 @@ def _get_tables_path() -> str:
     return os.path.expanduser('~/tables')
 
 
+def _get_table_scan_depth() -> str:
+    try:
+        cfg = _get_ini_config()
+        value = (cfg.config.get('Settings', 'tablescandepth', fallback='shallow') or '').strip().lower()
+        return 'recursive' if value == 'recursive' else 'shallow'
+    except Exception:
+        return 'shallow'
+
+
 def _build_table_rows(tables):
     """Build display rows from scanned tables."""
     rows = []
@@ -194,7 +203,10 @@ def _build_table_rows(tables):
 
 def _get_mobile_base_rows():
     """Return mobile display rows built from tables cache or common scanner summaries."""
-    return get_mobile_display_rows(_get_tables_path())
+    return get_mobile_display_rows(
+        _get_tables_path(),
+        scan_depth=_get_table_scan_depth(),
+    )
 
 
 async def _ensure_mobile_rows_loaded(
