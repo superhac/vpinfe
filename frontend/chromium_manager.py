@@ -210,6 +210,11 @@ class ChromiumManager:
         if platform.system() != "Windows":
             popen_kwargs["start_new_session"] = True
 
+        # Keep Chromium helper process noise (updater/crashpad) out of app logs.
+        popen_kwargs["stdin"] = subprocess.DEVNULL
+        popen_kwargs["stdout"] = subprocess.DEVNULL
+        popen_kwargs["stderr"] = subprocess.DEVNULL
+
         proc = subprocess.Popen(args, **popen_kwargs)
         self._processes.append((window_name, proc, user_data_dir, monitor))
         return proc
@@ -310,11 +315,24 @@ class ChromiumManager:
         try:
             import AppKit
 
-            AppKit.NSApp.activateIgnoringOtherApps_(True)
+            table_pid = None
             for win_name, proc, _, _ in self._processes:
                 if win_name == "table":
-                    logger.info("macOS: activating app focus for table window")
+                    table_pid = proc.pid
                     break
+
+            if table_pid is None:
+                return
+
+            for ns_app in AppKit.NSWorkspace.sharedWorkspace().runningApplications():
+                if ns_app.processIdentifier() == table_pid:
+                    ns_app.activateWithOptions_(
+                        AppKit.NSApplicationActivateIgnoringOtherApps
+                    )
+                    logger.info("macOS: activating table window focus")
+                    return
+
+            logger.debug("macOS: table app process not available for focus activation")
         except Exception:
             logger.exception("macOS focus activation failed")
 
