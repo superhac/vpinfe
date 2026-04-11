@@ -113,7 +113,11 @@ class CustomHTTPServer:
             range_header = self.headers.get('Range')
             if not range_header:
                 # No Range header — use default behavior
-                super().do_GET()
+                try:
+                    super().do_GET()
+                except (ConnectionResetError, BrokenPipeError):
+                    # Client closed connection while we were writing the response.
+                    return
                 return
 
             # Resolve the file path
