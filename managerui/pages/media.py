@@ -288,12 +288,13 @@ def render_panel():
         ui.add_head_html('''
         <style>
             .media-table .q-table {
-                border-radius: 8px !important;
+                border-radius: var(--radius) !important;
                 overflow: hidden !important;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+                box-shadow: var(--shadow) !important;
+                border: 1px solid var(--line) !important;
             }
             .media-table .q-table thead tr {
-                background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%) !important;
+                background: var(--header-gradient) !important;
             }
             .media-table .q-table thead tr th {
                 background: transparent !important;
@@ -303,29 +304,30 @@ def render_panel():
                 font-size: 0.75rem !important;
                 letter-spacing: 0.05em !important;
                 padding: 16px 12px !important;
+                text-shadow: var(--glow-purple);
             }
             .media-table .q-table tbody tr:nth-child(odd) {
-                background-color: #1e293b !important;
+                background-color: var(--table-row) !important;
             }
             .media-table .q-table tbody tr:nth-child(even) {
-                background-color: #0f172a !important;
+                background-color: var(--table-row-alt) !important;
             }
             .media-table .q-table tbody tr td {
-                color: #e2e8f0 !important;
+                color: var(--ink) !important;
                 padding: 8px 12px !important;
-                border-bottom: 1px solid #334155 !important;
+                border-bottom: 1px solid var(--line) !important;
             }
             .media-table .q-table tbody tr:hover {
-                background-color: #334155 !important;
+                background-color: var(--table-hover) !important;
                 transition: background-color 0.2s ease !important;
             }
             .media-table .q-table tbody tr:hover td {
                 color: #fff !important;
             }
             .media-table .q-table__bottom {
-                background-color: #1e293b !important;
-                color: #94a3b8 !important;
-                border-top: 1px solid #334155 !important;
+                background-color: var(--surface) !important;
+                color: var(--ink-muted) !important;
+                border-top: 1px solid var(--line) !important;
             }
             .media-thumb-wrapper {
                 width: 50px;
@@ -340,9 +342,15 @@ def render_panel():
                 height: 48px;
                 object-fit: cover;
                 border-radius: 4px;
-                border: 1px solid #334155;
+                border: 1px solid var(--line);
                 cursor: pointer;
                 display: block;
+                transition: transform 0.2s ease, border-color 0.2s ease;
+            }
+            .media-thumb:hover {
+                transform: scale(1.1);
+                border-color: var(--neon-cyan);
+                box-shadow: var(--glow-cyan);
             }
             .media-missing {
                 width: 50px;
@@ -351,11 +359,17 @@ def render_panel():
                 align-items: center;
                 justify-content: center;
                 border-radius: 4px;
-                border: 1px dashed #475569;
-                color: #475569;
+                border: 1px dashed var(--line);
+                color: var(--ink-muted);
                 font-size: 10px;
                 margin: 0 auto;
                 cursor: pointer;
+                opacity: 0.6;
+            }
+            .media-missing:hover {
+                opacity: 1;
+                border-color: var(--neon-pink);
+                color: var(--neon-pink);
             }
         </style>
         ''')

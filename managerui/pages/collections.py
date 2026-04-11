@@ -114,37 +114,43 @@ def render_panel(tab=None):
     ui.add_head_html('''
     <style>
         .collection-card {
-            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%) !important;
-            border: 1px solid #334155 !important;
-            border-radius: 12px !important;
+            background: var(--surface) !important;
+            border: 1px solid var(--line) !important;
+            border-radius: var(--radius) !important;
             transition: all 0.2s ease !important;
+            box-shadow: var(--shadow);
         }
         .collection-card:hover {
-            border-color: #3b82f6 !important;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15) !important;
+            border-color: var(--neon-cyan) !important;
+            box-shadow: var(--glow-cyan) !important;
+            transform: translateY(-2px);
         }
         .collection-item {
-            background: rgba(30, 41, 59, 0.6);
-            border: 1px solid #334155;
-            border-radius: 8px;
+            background: var(--surface-2);
+            border: 1px solid var(--line);
+            border-radius: calc(var(--radius) / 1.5);
             padding: 12px 16px;
             transition: all 0.2s ease;
         }
         .collection-item:hover {
-            background: rgba(51, 65, 85, 0.6);
-            border-color: #475569;
+            background: var(--surface-soft);
+            border-color: var(--neon-purple);
         }
         .filter-badge {
-            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
-            padding: 2px 8px;
-            border-radius: 4px;
+            background: linear-gradient(135deg, var(--neon-purple) 0%, var(--neon-pink) 100%);
+            padding: 2px 10px;
+            border-radius: 999px;
             font-size: 11px;
+            font-weight: bold;
+            box-shadow: var(--glow-purple);
         }
         .vpsid-badge {
-            background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
-            padding: 2px 8px;
-            border-radius: 4px;
+            background: linear-gradient(135deg, var(--neon-cyan) 0%, #06b6d4 100%);
+            padding: 2px 10px;
+            border-radius: 999px;
             font-size: 11px;
+            font-weight: bold;
+            box-shadow: var(--glow-cyan);
         }
     </style>
     ''')
@@ -152,12 +158,12 @@ def render_panel(tab=None):
     with ui.column().classes('w-full'):
         # Header card
         with ui.card().classes('w-full mb-4').style(
-            'background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); border-radius: 12px;'
+            'background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);'
         ):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
                 with ui.row().classes('items-center gap-3'):
-                    ui.icon('collections_bookmark', size='32px').classes('text-white')
-                    ui.label('Collections Manager').classes('text-2xl font-bold text-white')
+                    ui.icon('collections_bookmark', size='32px').classes('text-white').style('filter: drop-shadow(var(--glow-purple));')
+                    ui.label('Collections Manager').classes('text-2xl font-bold text-white').style('text-shadow: var(--glow-purple);')
                 with ui.row().classes('gap-3'):
                     add_vpsid_btn = ui.button("New Table Collection", icon="add").props("color=primary rounded")
                     add_filter_btn = ui.button("New Filter Collection", icon="filter_list").props("color=secondary rounded")

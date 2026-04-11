@@ -103,12 +103,12 @@ def header():
     # Enable dark mode by default
     ui.dark_mode(value=True)
     with ui.header().classes('items-center justify-between').style(
-        'background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); '
-        'box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);'
+        'background: var(--header-gradient); '
+        'box-shadow: var(--shadow);'
     ):
         with ui.row().classes('gap-3 items-center'):
-            ui.icon('sports_esports', size='28px').classes('text-blue-400')
-            ui.label('VPinFE Manager').classes('text-xl font-bold text-white')
+            ui.icon('sports_esports', size='28px').classes('text-blue-400').style('filter: drop-shadow(var(--glow-cyan));')
+            ui.label('VPinFE Manager').classes('text-xl font-bold text-white').style('text-shadow: var(--glow-purple);')
             ui.button(icon='restart_alt', on_click=lambda: _restart_app()) \
                 .props('flat round dense').classes('text-green-400') \
                 .tooltip('Restart VPinFE')
@@ -148,7 +148,7 @@ def header():
                     _update_action_state['busy'] = False
 
             def show_update_dialog(result: dict):
-                with ui.dialog() as dialog, ui.card().classes('bg-slate-900 p-6 w-[28rem]'):
+                with ui.dialog() as dialog, ui.card().classes('bg-slate-900 p-6 w-[28rem]').style('border: 1px solid var(--neon-purple); box-shadow: var(--glow-purple);'):
                     ui.label(f"Update to {result.get('latest_version', 'latest')}?").classes('text-lg font-bold text-white')
                     ui.label(
                         'This will download the release package, close VPinFE, replace the install, and relaunch automatically.'
@@ -211,10 +211,81 @@ def build_app():
     # Add global styles for modern look
     ui.add_head_html('''
     <style>
+        :root {
+          --bg: #0a0518;
+          --bg-secondary: #150a2e;
+          --surface: #1a0f35;
+          --surface-2: #251447;
+          --surface-soft: #2a1a4a;
+          --ink: #e8d5ff;
+          --ink-muted: #b89dd9;
+          --line: #3d2461;
+          --neon-pink: #ff0a78;
+          --neon-cyan: #00d9ff;
+          --neon-purple: #b429f9;
+          --neon-orange: #ff6b35;
+          --neon-yellow: #ffd93d;
+          --header-gradient: linear-gradient(135deg, #b429f9 0%, #4a1e7c 50%, #0a0518 100%);
+          --sunset-gradient: linear-gradient(180deg, #ff6b35 0%, #ff0a78 25%, #b429f9 50%, #4a1e7c 100%);
+          --link: #00d9ff;
+          --ok: #00ff9f;
+          --warn: #ffd93d;
+          --bad: #ff0a78;
+          --table-row: #1a0f35;
+          --table-row-alt: #251447;
+          --table-hover: #3d2461;
+          --glow-pink: 0 0 4px rgba(255, 10, 120, 0.5), 0 0 8px rgba(255, 10, 120, 0.3);
+          --glow-cyan: 0 0 4px rgba(0, 217, 255, 0.5), 0 0 8px rgba(0, 217, 255, 0.3);
+          --glow-purple: 0 0 4px rgba(180, 41, 249, 0.5), 0 0 8px rgba(180, 41, 249, 0.3);
+          --glow-yellow: 0 0 2px rgba(255, 217, 61, 0.4);
+          --shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
+          --shadow-intense: 0 2px 8px rgba(180, 41, 249, 0.35);
+          --radius: 12px;
+          --grid-color: rgba(0, 217, 255, 0.2);
+        }
+
+        [data-theme="light"] {
+          --bg: #fef3ff;
+          --bg-secondary: #f5e6ff;
+          --surface: #ffffff;
+          --surface-2: #f0e0ff;
+          --surface-soft: #faf5ff;
+          --ink: #2d1b3d;
+          --ink-muted: #6b4c7d;
+          --line: #e0c9f0;
+          --neon-pink: #d4006d;
+          --neon-cyan: #0099cc;
+          --neon-purple: #8e24c7;
+          --neon-orange: #e65528;
+          --neon-yellow: #d4a500;
+          --header-gradient: linear-gradient(135deg, #fef3ff 0%, #f0e0ff 50%, #0099cc 100%);
+          --sunset-gradient: linear-gradient(180deg, #e65528 0%, #d4006d 25%, #8e24c7 50%, #6b4c7d 100%);
+          --link: #0099cc;
+          --ok: #00a876;
+          --warn: #d4a500;
+          --bad: #c7004f;
+          --table-row: #ffffff;
+          --table-row-alt: #faf5ff;
+          --table-hover: #f0e0ff;
+          --glow-pink: 0 4px 16px rgba(212, 0, 109, 0.25);
+          --glow-cyan: 0 4px 16px rgba(0, 153, 204, 0.25);
+          --glow-purple: 0 4px 16px rgba(142, 36, 199, 0.25);
+          --glow-yellow: 0 2px 10px rgba(212, 165, 0, 0.2);
+          --shadow: 0 4px 24px rgba(142, 36, 199, 0.2);
+          --shadow-intense: 0 8px 32px rgba(142, 36, 199, 0.2);
+          --radius: 12px;
+          --grid-color: rgba(0, 153, 204, 0.2);
+        }
+
+        * { box-sizing: border-box; }
+
         body {
-            background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
+            background: var(--bg) !important;
+            color: var(--ink);
+            font-family: "Orbitron", "Rajdhani", "Exo 2", "Segoe UI", sans-serif;
             min-height: 100vh;
             overflow-x: hidden;
+            transition: background 300ms ease, color 300ms ease;
         }
         .nicegui-content {
             overflow-x: hidden !important;
@@ -222,17 +293,20 @@ def build_app():
         }
         .nav-btn {
             transition: all 0.2s ease !important;
-            border-radius: 8px !important;
+            border-radius: var(--radius) !important;
             margin: 4px 8px !important;
             max-width: calc(100% - 16px) !important;
             overflow: hidden !important;
+            color: var(--ink) !important;
         }
         .nav-btn:hover {
-            background: rgba(59, 130, 246, 0.2) !important;
+            background: rgba(0, 217, 255, 0.1) !important;
+            box-shadow: var(--glow-cyan);
         }
         .nav-btn-active {
-            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%) !important;
-            box-shadow: 0 2px 8px rgba(45, 90, 135, 0.4) !important;
+            background: linear-gradient(135deg, var(--neon-purple) 0%, var(--neon-pink) 100%) !important;
+            box-shadow: var(--glow-purple) !important;
+            color: white !important;
         }
     </style>
     ''')
@@ -244,8 +318,8 @@ def build_app():
 
     # Navigation panel container (fixed position on left side)
     nav_panel = ui.column().classes('fixed left-0 top-16 bottom-0').style(
-        'background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); '
-        'border-right: 1px solid #334155; '
+        'background: var(--bg-secondary); '
+        'border-right: 1px solid var(--line); '
         'z-index: 100; '
         'transition: width 0.3s ease; '
         'width: 220px; '
@@ -275,10 +349,10 @@ def build_app():
     with nav_panel:
         # Navigation header with hamburger menu
         with ui.row().classes('w-full items-center gap-2 p-3').style(
-            'background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);'
+            'background: var(--surface-2); border-bottom: 1px solid var(--line);'
         ):
             ui.button(icon='menu', on_click=toggle_nav).props('flat round dense').classes('text-white')
-            nav_state['nav_label'] = ui.label('Navigation').classes('text-white text-lg font-bold')
+            nav_state['nav_label'] = ui.label('Navigation').classes('text-white text-lg font-bold').style('text-shadow: var(--glow-cyan);')
 
         # Navigation menu items
         nav_state['nav_content'] = ui.column().classes('w-full gap-1 mt-2')

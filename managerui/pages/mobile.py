@@ -386,15 +386,16 @@ def build(standalone=True):
             body {
                 margin: 0 !important;
                 padding: 0 !important;
-                background-color: #111827 !important;
+                background: var(--bg) !important;
+                color: var(--ink) !important;
             }
         </style>
         ''')
 
     with ui.column().classes('w-full items-center p-4'):
-        ui.label('VPinFE Mobile').classes('text-2xl font-bold text-white mb-4')
+        ui.label('VPinFE Mobile').classes('text-2xl font-bold text-white mb-4').style('text-shadow: var(--glow-cyan);')
 
-        with ui.tabs().classes('w-full').props('dark') as tabs:
+        with ui.tabs().classes('w-full').props('dark active-color=white indicator-color=transparent') as tabs:
             websend_tab = ui.tab('Web Send')
             vpxz_tab = ui.tab('VPXZ Download')
 
@@ -519,19 +520,19 @@ def _build_web_send_panel():
     ui.label("This uses the the built in web server on the mobile version of vpx for Android and iOS. It allows you seamlessly transfer your tables onto your mobile device.  You must turn it on in the settings in VPX on your mobile device.  Also note this same location will show you your IP and PORT.  Thats what you put into the device configuration settings below.  The device must be kept on and VPX running when doing transfers. ").classes('text-gray-400 text-sm mb-4')
 
     # Connection settings
-    with ui.card().classes('w-full bg-gray-800 p-4 mb-4'):
-        ui.label('Device Connection').classes('text-white font-bold mb-2')
+    with ui.card().classes('w-full p-4 mb-4').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);'):
+        ui.label('Device Connection').classes('text-white font-bold mb-2').style('color: var(--neon-cyan) !important;')
         with ui.row().classes('items-end gap-4 w-full'):
             ip_input = ui.input('IP Address', value=saved_ip, on_change=_save_ip).props('dark outlined dense').classes('flex-grow')
             port_input = ui.input('Port', value=saved_port, on_change=_save_port).props('dark outlined dense').style('max-width: 100px;')
             chunk_input = ui.input('Chunk Size (bytes)', value=saved_chunk, on_change=_save_chunk).props('dark outlined dense').style('max-width: 160px;')
             check_btn = ui.button('Check Device', icon='sync', on_click=lambda: check_device()) \
-                .props('dense outline').classes('text-white')
+                .props('dense outline').classes('text-white').style('border-color: var(--neon-cyan); color: var(--neon-cyan) !important;')
 
     # Send Options
-    with ui.card().classes('w-full bg-gray-800 p-4 mb-4'):
-        ui.label('Send Options').classes('text-white font-bold mb-2')
-        exclude_ini_checkbox = ui.checkbox('Exclude {VPX_FILENAME}.ini files', value=True).props('dark')
+    with ui.card().classes('w-full p-4 mb-4').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);'):
+        ui.label('Send Options').classes('text-white font-bold mb-2').style('color: var(--neon-purple) !important;')
+        exclude_ini_checkbox = ui.checkbox('Exclude {VPX_FILENAME}.ini files', value=True).props('dark color=purple')
         ui.label("Prevents sending the table-specific configuration file, e.g. 'tablename.ini'.").classes('text-gray-400 text-xs ml-8 -mt-2')
         with ui.row().classes('w-full items-end gap-3'):
             masked_ini_copy_checkbox = ui.checkbox(
@@ -721,7 +722,7 @@ def _build_web_send_panel():
                 row_key='table_dir_name',
                 selection='multiple',
                 pagination={'rowsPerPage': 25},
-            ).classes('w-full').props('dark dense')
+            ).classes('w-full').props('dark dense').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);')
             panel_state['tbl'] = tbl
 
             tbl.add_slot('body-cell-display_name', '''
