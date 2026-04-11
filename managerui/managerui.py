@@ -107,7 +107,7 @@ def header():
         'box-shadow: var(--shadow);'
     ):
         with ui.row().classes('gap-3 items-center'):
-            ui.image('/static/img/VPinPlay_Logo_1.0.png').style('height: 28px; width: auto; filter: drop-shadow(var(--glow-cyan));')
+            ui.image('/static/img/vpinfe-logo.png').style('height: 32px; width: 32px; filter: drop-shadow(var(--glow-cyan));')
             ui.label('VPinFE Manager').classes('text-xl font-bold text-white').style('text-shadow: var(--glow-purple);')
             ui.button(icon='restart_alt', on_click=lambda: _restart_app()) \
                 .props('flat round dense').classes('text-green-400') \
