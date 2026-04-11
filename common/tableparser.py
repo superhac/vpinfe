@@ -37,46 +37,61 @@ class TableParser:
             table = Table()
             table.tableDirName = table_dir.name
             table.fullPathTable = str(table_dir)
+            table_contents = set()
+            table_subdirs = set()
 
-            # search for .vpx file
-            for f in table_dir.iterdir():
-                if f.is_file() and f.suffix.lower() == ".vpx":
-                    table.fullPathVPXfile = str(f)
-                    # Get creation time (cross-platform)
-                    stat = f.stat()
-                    table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
+            # Search with scandir to avoid per-entry pathlib stat calls on slow volumes.
+            try:
+                with os.scandir(table_dir) as entries:
+                    for entry in entries:
+                        if entry.is_dir():
+                            table_subdirs.add(entry.name)
+                            continue
+                        table_contents.add(entry.name)
+                        if getattr(table, "fullPathVPXfile", None) or not entry.name.lower().endswith('.vpx'):
+                            continue
+                        table.fullPathVPXfile = entry.path
+                        stat = entry.stat()
+                        table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
+            except OSError:
+                logger.exception("Failed to enumerate table directory: %s", table_dir)
 
             if not getattr(table, "fullPathVPXfile", None):
                 logger.warning("No .vpx found in %s directory.", table.tableDirName)
                 continue
 
             # check for addons
-            if (table_dir / "pupvideos").is_dir():
+            if "pupvideos" in table_subdirs:
                 table.pupPackExists = True
-            if (table_dir / "serum").is_dir():
+            if "serum" in table_subdirs:
                 table.altColorExists = True
-            if (table_dir / "vni").is_dir():
+            if "vni" in table_subdirs:
                 table.vniExists = True
-            if (table_dir / "pinmame" / "altsound").is_dir():
+            if "pinmame" in table_subdirs and (table_dir / "pinmame" / "altsound").is_dir():
                 table.altSoundExists = True
 
-            self.loadImagePaths(table)
+            self.loadImagePaths(
+                table,
+                table_contents=table_contents,
+                has_medias_dir="medias" in table_subdirs,
+            )
             self.loadMetaData(table)
 
             self.tables.append(table)
 
-    def loadImagePaths(self, Table):
+    def loadImagePaths(self, Table, table_contents=None, has_medias_dir=None):
         table_dir = Path(Table.fullPathTable)
         medias_dir = table_dir / "medias"
 
         # Batch directory listings to minimize disk calls
-        try:
-            table_contents = set(os.listdir(str(table_dir)))
-        except Exception:
-            table_contents = set()
+        if table_contents is None:
+            try:
+                table_contents = set(os.listdir(str(table_dir)))
+            except Exception:
+                table_contents = set()
 
         try:
-            medias_contents = set(os.listdir(str(medias_dir))) if medias_dir.is_dir() else set()
+            medias_contents = set(os.listdir(str(medias_dir))) if (has_medias_dir if has_medias_dir is not None else medias_dir.is_dir()) else set()
         except Exception:
             medias_contents = set()
 
