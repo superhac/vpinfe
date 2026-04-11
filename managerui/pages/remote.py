@@ -145,10 +145,7 @@ def _get_ini_config():
 
 def _get_tables_path() -> str:
     """Get the tables root directory from config."""
-    try:
-        return get_tables_root_from_config(_get_ini_config().config)
-    except Exception:
-        return os.path.expanduser('~/tables')
+    return get_tables_root_from_config(_get_ini_config().config)
 
 
 def _scan_tables_for_launch():

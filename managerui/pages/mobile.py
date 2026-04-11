@@ -162,11 +162,8 @@ def _get_ini_config():
 
 
 def _get_tables_path() -> str:
-    try:
-        cfg = _get_ini_config()
-        return get_tables_root_from_config(cfg.config)
-    except Exception:
-        return os.path.expanduser('~/tables')
+    cfg = _get_ini_config()
+    return get_tables_root_from_config(cfg.config)
 
 
 def _build_table_rows(tables):

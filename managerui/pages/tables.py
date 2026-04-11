@@ -398,11 +398,7 @@ logger = logging.getLogger("vpinfe.manager.tables")
 
 def get_tables_path() -> str:
     """Resolve tables path from vpinfe.ini [Settings] tablerootdir, fallback to ~/tables."""
-    try:
-        return get_tables_root_from_config(_INI_CFG.config)
-    except Exception as e:
-        logger.debug(f'Could not read tablerootdir from vpinfe.ini: {e}')
-        return os.path.expanduser('~/tables')
+    return get_tables_root_from_config(_INI_CFG.config)
 
 
 def _scan_all(silent: bool = False):

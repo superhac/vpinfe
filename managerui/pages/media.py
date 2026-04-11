@@ -219,11 +219,7 @@ def _ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[
 
 
 def get_tables_path() -> str:
-    try:
-        return get_tables_root_from_config(_INI_CFG.config)
-    except Exception as e:
-        logger.debug(f'Could not read tablerootdir from vpinfe.ini: {e}')
-        return os.path.expanduser('~/tables')
+    return get_tables_root_from_config(_INI_CFG.config)
 
 
 def scan_media_tables(silent: bool = False):
