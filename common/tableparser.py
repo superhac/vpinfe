@@ -67,6 +67,14 @@ class TableParser:
                 logger.warning("No .vpx found in %s directory.", table.tableDirName)
                 continue
 
+            info_name = f"{table.tableDirName}.info"
+            if info_name not in table_contents:
+                self.missing_tables.append({
+                    'folder': table.tableDirName,
+                    'path': str(table_dir),
+                })
+                continue
+
             # check for addons
             if "pupvideos" in table_subdirs:
                 table.pupPackExists = True
