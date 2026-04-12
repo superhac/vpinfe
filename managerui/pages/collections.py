@@ -204,6 +204,12 @@ def render_panel(tab=None):
             table_map = get_table_name_map()
             cache_rows = get_cached_table_rows()
             loading_row.set_visibility(cache_rows is None)
+            logger.debug(
+                "Collections refresh: cache_ready=%s collections=%d table_name_map=%d",
+                cache_rows is not None,
+                len(collection_names),
+                len(table_map),
+            )
 
             def _is_truthy(value) -> bool:
                 return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -306,11 +312,13 @@ def render_panel(tab=None):
                     ui.button('Cancel', on_click=dlg.close).props('flat')
                     def do_delete():
                         try:
+                            logger.debug("Collection delete requested: name=%s", name)
                             manager = get_collections_manager()
                             manager.delete_collection(name)
                             manager.save()
                             # Sync the tables cache with updated collection memberships
                             tables_module.sync_collections_to_cache()
+                            logger.debug("Collection deleted and cache sync requested: name=%s", name)
                             ui.notify(f'Collection "{name}" deleted', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -340,11 +348,13 @@ def render_panel(tab=None):
                             dlg.close()
                             return
                         try:
+                            logger.debug("Collection rename requested: old=%s new=%s", name, new_name)
                             manager = get_collections_manager()
                             manager.rename_collection(name, new_name)
                             manager.save()
                             # Sync the tables cache with updated collection memberships
                             tables_module.sync_collections_to_cache()
+                            logger.debug("Collection renamed and cache sync requested: old=%s new=%s", name, new_name)
                             ui.notify(f'Renamed to "{new_name}"', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -440,10 +450,20 @@ def render_panel(tab=None):
                         try:
                             manager = get_collections_manager()
                             vpsids = [t['id'] for t in selected_tables['items']]
+                            logger.debug(
+                                "Collection create requested: name=%s type=vpsid tables=%d",
+                                name,
+                                len(vpsids),
+                            )
                             manager.add_collection(name, vpsids)
                             manager.save()
                             # Sync the tables cache with updated collection memberships
                             tables_module.sync_collections_to_cache()
+                            logger.debug(
+                                "Collection created and cache sync requested: name=%s type=vpsid tables=%d",
+                                name,
+                                len(vpsids),
+                            )
                             ui.notify(f'Collection "{name}" created', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -519,6 +539,7 @@ def render_panel(tab=None):
                             manager = get_collections_manager()
                             selected_rating = rating_input.value or 'All'
                             selected_rating_or_higher = 'true' if (selected_rating != 'All' and rating_or_higher_input.value) else 'false'
+                            logger.debug("Collection create requested: name=%s type=filter", name)
                             manager.add_filter_collection(
                                 name,
                                 letter=_join_or_all(letter_input.value),
@@ -531,6 +552,7 @@ def render_panel(tab=None):
                                 sort_by=sort_input.value or 'Alpha',
                             )
                             manager.save()
+                            logger.debug("Collection created: name=%s type=filter", name)
                             ui.notify(f'Filter collection "{name}" created', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -643,6 +665,7 @@ def render_panel(tab=None):
 
                     def save_changes():
                         try:
+                            logger.debug("Collection update requested: name=%s type=filter", name)
                             m = get_collections_manager()
                             m.config[name]['letter'] = _join_or_all(letter_input.value)
                             m.config[name]['theme'] = _join_or_all(theme_input.value)
@@ -654,6 +677,7 @@ def render_panel(tab=None):
                             m.config[name]['rating_or_higher'] = 'true' if (selected_rating != 'All' and rating_or_higher_input.value) else 'false'
                             m.config[name]['sort_by'] = sort_input.value or 'Alpha'
                             m.save()
+                            logger.debug("Collection updated: name=%s type=filter", name)
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -754,10 +778,20 @@ def render_panel(tab=None):
                         try:
                             m = get_collections_manager()
                             vpsids = [t['id'] for t in selected_tables['items']]
+                            logger.debug(
+                                "Collection update requested: name=%s type=vpsid tables=%d",
+                                name,
+                                len(vpsids),
+                            )
                             m.config[name]['vpsids'] = ','.join(vpsids)
                             m.save()
                             # Sync the tables cache with updated collection memberships
                             tables_module.sync_collections_to_cache()
+                            logger.debug(
+                                "Collection updated and cache sync requested: name=%s type=vpsid tables=%d",
+                                name,
+                                len(vpsids),
+                            )
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
                             refresh_collections()

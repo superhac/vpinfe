@@ -47,15 +47,30 @@ def clear_scan_caches(tables_path: str | None = None) -> None:
     """Clear scanner caches globally or for a specific tables root path."""
     with _SCAN_STATE_LOCK:
         if not tables_path:
+            cleared_scan = len(_SCAN_CACHE)
+            cleared_summary = len(_SUMMARY_CACHE)
             _SCAN_CACHE.clear()
             _SUMMARY_CACHE.clear()
+            logger.debug(
+                "Scanner caches cleared globally: scan_entries=%d summary_entries=%d",
+                cleared_scan,
+                cleared_summary,
+            )
             return
 
         normalized_path = os.path.abspath(os.path.expanduser(tables_path))
-        for cache_key in [k for k in _SCAN_CACHE.keys() if k[0] == normalized_path]:
+        scan_keys = [k for k in _SCAN_CACHE.keys() if k[0] == normalized_path]
+        summary_keys = [k for k in _SUMMARY_CACHE.keys() if k[0] == normalized_path]
+        for cache_key in scan_keys:
             _SCAN_CACHE.pop(cache_key, None)
-        for cache_key in [k for k in _SUMMARY_CACHE.keys() if k[0] == normalized_path]:
+        for cache_key in summary_keys:
             _SUMMARY_CACHE.pop(cache_key, None)
+        logger.debug(
+            "Scanner caches cleared for path=%s: scan_entries=%d summary_entries=%d",
+            normalized_path,
+            len(scan_keys),
+            len(summary_keys),
+        )
 
 
 def _get_root_mtime(tables_path: str) -> float | None:
@@ -137,6 +152,96 @@ def _scan_tables_root_uncached(tables_path: str, max_workers: int = 8, scan_dept
                 missing.append(miss)
 
     return entries, missing
+
+
+def _scan_single_table_dir_uncached(table_dir: str) -> Tuple[TableScanEntry | None, Dict[str, str] | None]:
+    """Scan a single table directory and return one entry/missing result."""
+    table_dir = os.path.abspath(os.path.expanduser(table_dir))
+    table_name = os.path.basename(table_dir)
+    info_file = f"{table_name}.info"
+
+    try:
+        dir_contents = set(os.listdir(table_dir))
+    except Exception:
+        return None, None
+
+    has_vpx = any(name.lower().endswith('.vpx') for name in dir_contents)
+    if not has_vpx:
+        return None, None
+
+    if info_file not in dir_contents:
+        return None, {'folder': table_name, 'path': table_dir}
+
+    pinmame_contents: Set[str] = set()
+    if 'pinmame' in dir_contents:
+        try:
+            pinmame_contents = set(os.listdir(os.path.join(table_dir, 'pinmame')))
+        except Exception:
+            pinmame_contents = set()
+
+    return TableScanEntry(
+        table_name=table_name,
+        table_dir=table_dir,
+        info_path=os.path.join(table_dir, info_file),
+        dir_contents=dir_contents,
+        pinmame_contents=pinmame_contents,
+    ), None
+
+
+def refresh_table_in_scan_cache(tables_path: str, table_path: str) -> None:
+    """Refresh one table directory inside cached scan results for a tables root.
+
+    This avoids clearing the full scanner cache when only one table folder changed.
+    """
+    normalized_root = os.path.abspath(os.path.expanduser(tables_path))
+    normalized_table = os.path.abspath(os.path.expanduser(table_path))
+    normalized_parent = os.path.dirname(normalized_table)
+
+    refreshed_keys = 0
+    with _SCAN_STATE_LOCK:
+        for depth in ('shallow', 'recursive'):
+            cache_key = (normalized_root, depth)
+            cached = _SCAN_CACHE.get(cache_key)
+            if cached is None:
+                continue
+
+            cached_mtime, cached_entries, cached_missing = cached
+            updated_entries = [
+                entry for entry in cached_entries
+                if os.path.abspath(entry.table_dir) != normalized_table
+            ]
+            updated_missing = [
+                miss for miss in cached_missing
+                if os.path.abspath(miss.get('path', '')) != normalized_table
+            ]
+
+            # Shallow mode only tracks immediate children of the tables root.
+            include_table = True
+            if depth == 'shallow':
+                include_table = (normalized_parent == normalized_root)
+
+            if include_table and os.path.isdir(normalized_table):
+                entry, missing = _scan_single_table_dir_uncached(normalized_table)
+                if entry is not None:
+                    updated_entries.append(entry)
+                if missing is not None:
+                    updated_missing.append(missing)
+
+            _SCAN_CACHE[cache_key] = (cached_mtime, updated_entries, updated_missing)
+            refreshed_keys += 1
+
+        # Force summary rows to rebuild next read (cheap and keeps behavior correct).
+        summary_keys = [k for k in _SUMMARY_CACHE.keys() if k[0] == normalized_root]
+        for key in summary_keys:
+            _SUMMARY_CACHE.pop(key, None)
+
+    logger.debug(
+        "Scanner cache refreshed for single table: root=%s table=%s updated_scan_keys=%d cleared_summary_keys=%d",
+        normalized_root,
+        normalized_table,
+        refreshed_keys,
+        len(summary_keys) if 'summary_keys' in locals() else 0,
+    )
 
 
 def scan_tables_root(tables_path: str, max_workers: int = 8, scan_depth: str = 'shallow') -> Tuple[List[TableScanEntry], List[Dict[str, str]]]:

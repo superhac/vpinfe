@@ -12,10 +12,11 @@ from typing import List, Dict, Optional, Callable, Any
 from common.vpxparser import VPXParser
 from common.vpxcollections import VPXCollections
 from common.table_catalog import get_cached_missing_rows, get_cached_table_rows, set_cached_catalog
-from common.table_catalog import normalize_table_rating, scan_installed_and_missing_tables
+from common.table_catalog import normalize_table_rating, parse_table_info, scan_installed_and_missing_tables
 from common.table_catalog import clear_cached_catalog
 from common.table_scanner import clear_scan_caches
 from common.table_scanner import get_scan_depth_from_config
+from common.table_scanner import refresh_table_in_scan_cache
 from .scroll_state import capture_scroll_state as capture_page_scroll_state
 from .scroll_state import restore_scroll_state as restore_page_scroll_state
 from .scroll_state import default_scroll_state
@@ -106,13 +107,95 @@ def _get_missing_cache() -> Optional[List[Dict]]:
 
 
 def _set_catalog_cache(table_rows: List[Dict], missing_rows: List[Dict]) -> None:
+    logger.debug(
+        "Cache set request: table_rows=%d missing_rows=%d",
+        len(table_rows),
+        len(missing_rows),
+    )
     set_cached_catalog(table_rows, missing_rows)
 
 
-def _invalidate_table_data_caches() -> None:
+def _invalidate_table_data_caches(reason: str = "unspecified", table_path: str | None = None) -> None:
     """Invalidate shared table data caches after metadata/disk mutations."""
+    table_name = ""
+    if table_path:
+        try:
+            table_name = Path(table_path).name
+        except Exception:
+            table_name = ""
+    logger.debug(
+        "Invalidating table-related caches: reason=%s table=\"%s\"",
+        reason,
+        table_name or "-",
+    )
     clear_cached_catalog()
     clear_scan_caches(get_tables_path())
+    from managerui.pages.mobile import invalidate_mobile_rows_cache
+    invalidate_mobile_rows_cache()
+
+
+def _refresh_single_table_data(table_path: str, reason: str = "unspecified") -> None:
+    """Refresh scanner/catalog/mobile caches for one table directory only."""
+    table_name = ""
+    try:
+        table_name = Path(table_path).name
+    except Exception:
+        table_name = ""
+
+    logger.debug(
+        "Refreshing single-table caches: reason=%s table=\"%s\"",
+        reason,
+        table_name or "-",
+    )
+
+    refresh_table_in_scan_cache(get_tables_path(), table_path)
+
+    table_rows_cache = _get_tables_cache()
+    missing_rows_cache = _get_missing_cache()
+    if table_rows_cache is not None or missing_rows_cache is not None:
+        table_rows = list(table_rows_cache or [])
+        missing_rows = list(missing_rows_cache or [])
+
+        table_rows = [row for row in table_rows if row.get('table_path') != table_path]
+        missing_rows = [row for row in missing_rows if row.get('path') != table_path]
+
+        table_dir = Path(table_path)
+        dir_contents = set()
+        has_vpx = False
+        try:
+            dir_contents = set(os.listdir(table_path))
+            has_vpx = any(name.lower().endswith('.vpx') for name in dir_contents)
+        except Exception:
+            dir_contents = set()
+            has_vpx = False
+
+        info_path = table_dir / f"{table_dir.name}.info"
+        if has_vpx and info_path.exists():
+            pinmame_contents = set()
+            if 'pinmame' in dir_contents:
+                try:
+                    pinmame_contents = set(os.listdir(str(table_dir / 'pinmame')))
+                except Exception:
+                    pinmame_contents = set()
+
+            parsed = parse_table_info(
+                str(info_path),
+                dir_contents=dir_contents,
+                pinmame_contents=pinmame_contents,
+            )
+            if parsed:
+                parsed['table_path'] = table_path
+                parsed['collections'] = get_vpsid_collections_map().get(parsed.get('id', ''), [])
+                table_rows.append(parsed)
+                table_rows.sort(key=lambda r: (r.get('name') or '').lower())
+        elif has_vpx:
+            missing_rows.append({'folder': table_dir.name, 'path': table_path})
+
+        _set_catalog_cache(table_rows, missing_rows)
+
+        global _cached_scan_result
+        _cached_scan_result = (table_rows, missing_rows)
+
     from managerui.pages.mobile import invalidate_mobile_rows_cache
     invalidate_mobile_rows_cache()
 
@@ -167,6 +250,11 @@ def get_vpsid_collections() -> List[str]:
 def add_table_to_collection(vpsid: str, collection_name: str) -> bool:
     """Add a table (by VPS ID) to a collection. Returns True on success."""
     try:
+        logger.debug(
+            "Collection membership update: action=add vpsid=%s collection=%s",
+            vpsid,
+            collection_name,
+        )
         collections = VPXCollections(str(COLLECTIONS_PATH))
         collections.add_vpsid(collection_name, vpsid)
         collections.save()
@@ -194,6 +282,7 @@ def sync_collections_to_cache():
     """
     tables_cache = _get_tables_cache()
     if tables_cache is None:
+        logger.debug("Collection cache sync skipped: tables cache is empty")
         return
 
     # Rebuild the VPS ID to collections map from disk
@@ -203,9 +292,14 @@ def sync_collections_to_cache():
     for row in tables_cache:
         vpsid = row.get('id', '')
         row['collections'] = vpsid_collections_map.get(vpsid, [])
+    logger.debug(
+        "Collection cache sync complete: rows=%d mapped_vpsids=%d",
+        len(tables_cache),
+        len(vpsid_collections_map),
+    )
 
 
-def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
+def update_vpinfe_setting(table_path: str, key: str, value, invalidate_caches: bool = False) -> bool:
     """Update a VPinFE setting in the table's .info file.
 
     Args:
@@ -239,7 +333,15 @@ def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
         with open(info_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4)
 
-        _invalidate_table_data_caches()
+        logger.debug(
+            "Table metadata update: section=VPinFE key=%s table=\"%s\" value=%s invalidate_caches=%s",
+            key,
+            table_dir.name,
+            value,
+            invalidate_caches,
+        )
+        if invalidate_caches:
+            _invalidate_table_data_caches(reason=f"vpinfe.{key}", table_path=table_path)
 
         return True
     except Exception as e:
@@ -247,7 +349,7 @@ def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
         return False
 
 
-def update_user_setting(table_path: str, key: str, value) -> bool:
+def update_user_setting(table_path: str, key: str, value, invalidate_caches: bool = False) -> bool:
     """Update a User setting in the table's .info file."""
     try:
         table_dir = Path(table_path)
@@ -268,7 +370,15 @@ def update_user_setting(table_path: str, key: str, value) -> bool:
         with open(info_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4)
 
-        _invalidate_table_data_caches()
+        logger.debug(
+            "Table metadata update: section=User key=%s table=\"%s\" value=%s invalidate_caches=%s",
+            key,
+            table_dir.name,
+            value,
+            invalidate_caches,
+        )
+        if invalidate_caches:
+            _invalidate_table_data_caches(reason=f"user.{key}", table_path=table_path)
 
         return True
     except Exception as e:
@@ -392,7 +502,14 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
         pseudo_table = _LightTable(table_folder, vpx_file)
         vps.downloadMediaForTable(pseudo_table, vps_entry.get('id'), metaConfig=meta)
 
-    _invalidate_table_data_caches()
+    logger.debug(
+        "Table association updated: table=\"%s\" vpsid=%s download_media=%s user_media=%s",
+        table_folder.name,
+        vps_entry.get('id', ''),
+        download_media,
+        user_media,
+    )
+    _refresh_single_table_data(str(table_folder), reason="associate_vps_to_folder")
 
     # Invalidate the media page cache so next visit shows fresh data
     from managerui.pages.media import invalidate_media_cache
@@ -998,11 +1115,23 @@ def render_panel(tab=None):
 
         def update_table_display():
             """Update the table with filtered results."""
+            cached_rows = _get_tables_cache()
+            if cached_rows is None:
+                tables_loading_label.set_text('Loading tables...')
+                tables_loading_placeholder.visible = True
+                table.visible = False
+                title_label.set_text('Installed Tables')
+                if not _scan_all_in_progress:
+                    asyncio.create_task(perform_scan(silent=True))
+                return
+
             filtered = apply_filters()
             table._props['rows'] = filtered
             table.update()
+            tables_loading_placeholder.visible = False
+            table.visible = True
             # Update title with filtered count
-            total = len(_get_tables_cache() or [])
+            total = len(cached_rows)
             shown = len(filtered)
             if shown == total:
                 title_label.set_text(f"Installed Tables ({total})")
@@ -1481,6 +1610,26 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
     ''')
 
     dlg = ui.dialog()
+    refresh_state = {'needed': False}
+    close_state = {'handled': False}
+
+    def _mark_refresh_needed(reason: str) -> None:
+        if not refresh_state['needed']:
+            table_name = row_data.get('name') or Path(row_data.get('table_path', '')).name or '-'
+            logger.debug(
+                "Table dialog marked for parent refresh: table=\"%s\" reason=%s",
+                table_name,
+                reason,
+            )
+        refresh_state['needed'] = True
+
+    def _run_deferred_refresh() -> None:
+        if close_state['handled']:
+            return
+        close_state['handled'] = True
+        if on_close and refresh_state['needed']:
+            on_close()
+
     with dlg, ui.card().classes('table-dialog-card').style('width: 1000px; max-width: 85vw;'):
         table_name = row_data.get('name') or row_data.get('filename') or 'Table'
         table_path_str = row_data.get('table_path', '')
@@ -1532,7 +1681,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             # Invalidate media cache so media page shows fresh data
                             from managerui.pages.media import invalidate_media_cache
                             invalidate_media_cache()
-                            _invalidate_table_data_caches()
+                            _refresh_single_table_data(table_path_str, reason="rebuild_meta")
                     except Exception as ex:
                         with client:
                             rebuild_status.set_text('Error')
@@ -1688,8 +1837,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                                             cached_row['rating'] = clamped
                                             break
                                 refresh_rating_ui()
-                                if on_close:
-                                    on_close()
+                                _mark_refresh_needed('rating')
                                 ui.notify('Rating saved', type='positive')
                             else:
                                 ui.notify('Failed to save rating', type='negative')
@@ -1798,8 +1946,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             # Keep media list in sync on next visit
                             from managerui.pages.media import invalidate_media_cache
                             invalidate_media_cache()
-                            if on_close:
-                                on_close()
+                            _mark_refresh_needed('alttitle')
                             ui.notify('Alt title saved', type='positive')
                         else:
                             ui.notify('Failed to save alt title', type='negative')
@@ -1839,8 +1986,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                                         break
                             row_data['id'] = effective_id
                             row_data['collections'] = get_vpsid_collections_map().get(effective_id, [])
-                            if on_close:
-                                on_close()
+                            _mark_refresh_needed('altvpsid')
                             ui.notify('Alt VPS ID saved', type='positive')
                         else:
                             ui.notify('Failed to save alt VPS ID', type='negative')
@@ -1865,6 +2011,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                                     if cached_row.get('table_path') == table_path_str:
                                         cached_row['altlauncher'] = new_value
                                         break
+                            _mark_refresh_needed('altlauncher')
                             ui.notify('Alt launcher saved', type='positive')
                         else:
                             ui.notify('Failed to save alt launcher', type='negative')
@@ -1889,6 +2036,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                                     if cached_row.get('table_path') == table_path_str:
                                         cached_row['frontend_dof_event'] = new_value
                                         break
+                            _mark_refresh_needed('frontend_dof_event')
                             ui.notify('Frontend DOF event saved', type='positive')
                         else:
                             ui.notify('Failed to save Frontend DOF event', type='negative')
@@ -1908,6 +2056,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                                     if cached_row.get('table_path') == table_path_str:
                                         cached_row['delete_nvram_on_close'] = new_value
                                         break
+                            _mark_refresh_needed('delete_nvram_on_close')
                             ui.notify('Setting saved', type='positive')
                         else:
                             ui.notify('Failed to save setting', type='negative')
@@ -2016,9 +2165,9 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
         with ui.row().classes('w-full justify-end p-4 pt-0'):
             def close_dialog():
                 dlg.close()
-                if on_close:
-                    on_close()
             ui.button('Close', icon='close', on_click=close_dialog).props('flat color=grey')
+    # Run deferred refresh regardless of how the dialog is closed
+    dlg.on('hide', lambda e: _run_deferred_refresh())
     dlg.open()
 
 def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Callable[[], None]] = None):
@@ -2389,7 +2538,7 @@ def open_import_table_dialog(perform_scan_cb=None):
                 # Invalidate media cache
                 from managerui.pages.media import invalidate_media_cache
                 invalidate_media_cache()
-                _invalidate_table_data_caches()
+                _refresh_single_table_data(str(table_dir), reason="import_table")
 
                 with client:
                     ui.notify(f'Table imported successfully: {folder_name}', type='positive')

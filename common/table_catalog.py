@@ -34,13 +34,25 @@ def set_cached_catalog(table_rows: List[Dict[str, Any]], missing_rows: List[Dict
         global _TABLE_ROWS_CACHE, _MISSING_ROWS_CACHE
         _TABLE_ROWS_CACHE = table_rows
         _MISSING_ROWS_CACHE = missing_rows
+    logger.debug(
+        "Catalog cache set: table_rows=%d missing_rows=%d",
+        len(table_rows),
+        len(missing_rows),
+    )
 
 
 def clear_cached_catalog() -> None:
     with _CATALOG_LOCK:
         global _TABLE_ROWS_CACHE, _MISSING_ROWS_CACHE
+        prev_tables = 0 if _TABLE_ROWS_CACHE is None else len(_TABLE_ROWS_CACHE)
+        prev_missing = 0 if _MISSING_ROWS_CACHE is None else len(_MISSING_ROWS_CACHE)
         _TABLE_ROWS_CACHE = None
         _MISSING_ROWS_CACHE = None
+    logger.debug(
+        "Catalog cache cleared: previous_table_rows=%d previous_missing_rows=%d",
+        prev_tables,
+        prev_missing,
+    )
 
 
 def format_table_display_name(name: str, manufacturer: str = '', year: str = '') -> str:
@@ -71,7 +83,9 @@ def build_mobile_display_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, str]
 def get_mobile_display_rows(tables_path: str, scan_depth: str = 'shallow') -> List[Dict[str, str]]:
     cached_rows = get_cached_table_rows()
     if cached_rows:
+        logger.debug("Mobile display rows from catalog cache: rows=%d", len(cached_rows))
         return build_mobile_display_rows(cached_rows)
+    logger.debug("Mobile display rows from scanner summaries: path=%s depth=%s", tables_path, scan_depth)
     return build_mobile_display_rows(
         scan_table_summaries(
             tables_path,

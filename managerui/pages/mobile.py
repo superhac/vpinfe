@@ -194,6 +194,10 @@ def _clone_mobile_rows(rows: list[dict]) -> list[dict]:
 
 def invalidate_mobile_rows_cache() -> None:
     global _mobile_base_rows_cache
+    logger.debug(
+        "Invalidating mobile rows cache: had_rows=%s",
+        0 if _mobile_base_rows_cache is None else len(_mobile_base_rows_cache),
+    )
     _mobile_base_rows_cache = None
 
 
@@ -201,6 +205,7 @@ def _get_mobile_base_rows():
     """Return mobile display rows built from tables cache or common scanner summaries."""
     global _mobile_base_rows_cache
     if _mobile_base_rows_cache is not None:
+        logger.debug("Mobile rows cache hit: rows=%d", len(_mobile_base_rows_cache))
         return _clone_mobile_rows(_mobile_base_rows_cache)
 
     cfg = _get_ini_config()
@@ -209,6 +214,7 @@ def _get_mobile_base_rows():
         scan_depth=get_scan_depth_from_config(cfg.config),
     )
     _mobile_base_rows_cache = _clone_mobile_rows(rows)
+    logger.debug("Mobile rows cache miss: populated rows=%d", len(rows))
     return rows
 
 

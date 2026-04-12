@@ -101,6 +101,10 @@ THUMB_WARM_CHUNK_SIZE = 8
 def invalidate_media_cache():
     """Reset the media cache so the next page visit triggers a fresh scan."""
     global _media_cache
+    logger.debug(
+        "Invalidating media cache: had_rows=%s",
+        0 if _media_cache is None else len(_media_cache),
+    )
     _media_cache = None
 # Track whether we've registered the media files route
 _media_route_registered = False
