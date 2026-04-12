@@ -72,8 +72,24 @@ from frontend.chromium_manager import ChromiumManager
 from clioptions import parseArgs, buildMetaData
 from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run, _shutdown_event
 from nicegui import app as nicegui_app
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
+
+
+class _SuppressNoResponseReturnedMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        try:
+            return await call_next(request)
+        except RuntimeError as exc:
+            if str(exc) == "No response returned.":
+                # Harmless client disconnect race in Starlette/NiceGUI middleware chain.
+                return Response(status_code=204)
+            raise
+
+
+nicegui_app.add_middleware(_SuppressNoResponseReturnedMiddleware)
 
 # Shared instances accessible from other modules (e.g. remote.py)
 ws_bridge = None

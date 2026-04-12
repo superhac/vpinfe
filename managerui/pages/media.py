@@ -7,6 +7,7 @@ import time
 from urllib.parse import quote
 from nicegui import ui, events, run, app, context
 from pathlib import Path
+from PIL import Image, ImageOps
 import json
 from typing import List, Dict, Optional, Any
 from platformdirs import user_config_dir
@@ -191,17 +192,6 @@ def _ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[
         return None
 
     try:
-        from PIL import Image, ImageOps
-    except Exception as exc:
-        logger.debug(
-            'Thumbnail generation unavailable: table="%s" key=%s reason=%s',
-            table_dir,
-            media_key,
-            exc,
-        )
-        return None
-
-    try:
         path = _thumb_file_path(table_dir, media_key, source_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
@@ -231,10 +221,9 @@ def _ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[
         return _thumb_url(path)
     except Exception as exc:
         logger.debug(
-            'Thumbnail generation failed: table="%s" key=%s path="%s" reason=%s',
+            'Thumbnail generation failed: table="%s" key=%s reason=%s',
             table_dir,
             media_key,
-            source_path,
             exc,
         )
         return None
@@ -559,8 +548,14 @@ def render_panel():
 
         def _visible_rows(rows: List[Dict]) -> List[Dict]:
             try:
-                page = int(pagination_state.get('page', 1) or 1)
-                rows_per_page = int(pagination_state.get('rowsPerPage', 100))
+                live_pagination = None
+                try:
+                    live_pagination = media_table._props.get('pagination', None)  # type: ignore[name-defined]
+                except Exception:
+                    live_pagination = None
+
+                page = int((live_pagination or pagination_state).get('page', 1) or 1)
+                rows_per_page = int((live_pagination or pagination_state).get('rowsPerPage', 100))
             except Exception:
                 page = 1
                 rows_per_page = 100
@@ -617,13 +612,19 @@ def render_panel():
                         return
                 visible = _visible_rows(rows)
                 try:
-                    rows_per_page = int(pagination_state.get('rowsPerPage', THUMB_WARM_ROW_BATCH_SIZE) or THUMB_WARM_ROW_BATCH_SIZE)
+                    live_pagination = None
+                    try:
+                        live_pagination = media_table._props.get('pagination', None)  # type: ignore[name-defined]
+                    except Exception:
+                        live_pagination = None
+                    rows_per_page_raw = (live_pagination or pagination_state).get('rowsPerPage', THUMB_WARM_ROW_BATCH_SIZE)
+                    rows_per_page = int(rows_per_page_raw if rows_per_page_raw is not None else THUMB_WARM_ROW_BATCH_SIZE)
                 except Exception:
                     rows_per_page = THUMB_WARM_ROW_BATCH_SIZE
-                # Warm the whole current page so rows revealed by in-table scrolling
-                # eventually get thumbnails too. When "All" is selected, keep a cap.
-                warm_limit = rows_per_page if rows_per_page > 0 else THUMB_WARM_ROW_BATCH_SIZE
-                visible = visible[:max(THUMB_WARM_ROW_BATCH_SIZE, warm_limit)]
+                # Warm the whole current page. When rowsPerPage=0 (All), _visible_rows
+                # already returns all rows currently shown, so do not cap to 25.
+                if rows_per_page > 0:
+                    visible = visible[:rows_per_page]
                 pending = []
                 for row in visible:
                     media = row.get('media', {})
@@ -691,7 +692,8 @@ def render_panel():
 
         def update_table_display(schedule_warm: bool = True):
             filtered = apply_filters()
-            rows_per_page = int(pagination_state.get('rowsPerPage', 100) or 100)
+            rows_per_page_raw = pagination_state.get('rowsPerPage', 100)
+            rows_per_page = int(rows_per_page_raw if rows_per_page_raw is not None else 100)
             if rows_per_page < 0:
                 rows_per_page = 100
             max_page = 1 if rows_per_page == 0 else max(1, (len(filtered) + rows_per_page - 1) // rows_per_page)
