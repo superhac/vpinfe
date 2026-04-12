@@ -72,8 +72,24 @@ from frontend.chromium_manager import ChromiumManager
 from clioptions import parseArgs, buildMetaData
 from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run, _shutdown_event
 from nicegui import app as nicegui_app
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
+
+
+class _SuppressNoResponseReturnedMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        try:
+            return await call_next(request)
+        except RuntimeError as exc:
+            if str(exc) == "No response returned.":
+                # Harmless client disconnect race in Starlette/NiceGUI middleware chain.
+                return Response(status_code=204)
+            raise
+
+
+nicegui_app.add_middleware(_SuppressNoResponseReturnedMiddleware)
 
 # Shared instances accessible from other modules (e.g. remote.py)
 ws_bridge = None
@@ -210,6 +226,28 @@ http_server = CustomHTTPServer(MOUNT_POINTS)
 theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
 http_server.start_file_server(port=theme_assets_port)
 
+# On Windows, the Proactor event loop logs a noisy ConnectionResetError (WinError 10054)
+# whenever a browser tab is closed mid-connection. Install a startup handler that
+# silently drops those and forwards everything else to the default handler.
+if sys.platform == "win32":
+    import asyncio as _asyncio
+
+    @nicegui_app.on_startup
+    async def _suppress_proactor_connection_reset() -> None:
+        loop = _asyncio.get_running_loop()
+        _default = loop.get_exception_handler()
+
+        def _handler(loop: _asyncio.AbstractEventLoop, ctx: dict) -> None:
+            exc = ctx.get("exception")
+            if isinstance(exc, ConnectionResetError):
+                return  # swallow WinError 10054 noise from browser disconnects
+            if _default is not None:
+                _default(loop, ctx)
+            else:
+                loop.default_exception_handler(ctx)
+
+        loop.set_exception_handler(_handler)
+
 # Start the NiceGUI HTTP server
 manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
 start_manager_ui(port=manager_ui_port)
@@ -220,11 +258,23 @@ ws_bridge.start()
 
 if headless:
     import signal
+
+    def _request_shutdown(_signum, _frame):
+        _shutdown_event.set()
+
     logger.info("Headless mode: servers running without Chromium frontend")
     logger.info("Press Ctrl+C to stop...")
-    signal.signal(signal.SIGINT, lambda s, f: _shutdown_event.set())
-    signal.signal(signal.SIGTERM, lambda s, f: _shutdown_event.set())
-    _shutdown_event.wait()
+    signal.signal(signal.SIGTERM, _request_shutdown)
+    if hasattr(signal, "SIGBREAK"):
+        signal.signal(signal.SIGBREAK, _request_shutdown)
+
+    try:
+        # Use a short timeout loop so signal handling remains responsive on all platforms.
+        while not _shutdown_event.is_set():
+            _shutdown_event.wait(0.2)
+    except KeyboardInterrupt:
+        _shutdown_event.set()
+
     logger.info("Shutting down...")
 elif iniconfig.is_new:
     # First-run: show manager UI config page in a chromium window instead of theme
