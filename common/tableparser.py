@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import logging
+from time import perf_counter
 from common.table import Table
 from common.metaconfig import MetaConfig
 
@@ -28,13 +29,14 @@ class TableParser:
         if not reload and self.tables:
             return
 
+        started_at = perf_counter()
         self.tables.clear()
         self.missing_tables.clear()
-        logger.info("Loading tables and image paths:")
 
         if not self.tablesRootFilePath.exists():
             return
 
+        logger.info("Loading tables and image paths...")
         for table_dir in sorted(self.tablesRootFilePath.iterdir()):
             if not table_dir.is_dir():
                 continue
@@ -93,6 +95,14 @@ class TableParser:
             self.loadMetaData(table)
 
             self.tables.append(table)
+
+        elapsed = perf_counter() - started_at
+        logger.debug(
+            "Load completed in %.3fs: loaded=%s missing_info=%s",
+            elapsed,
+            len(self.tables),
+            len(self.missing_tables)
+        )
 
     def loadImagePaths(self, Table, table_contents=None, has_medias_dir=None):
         table_dir = Path(Table.fullPathTable)
