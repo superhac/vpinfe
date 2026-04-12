@@ -1,10 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.56
+This is the offical release of vpinfe v1.1.57
 
 ### What's New
-- Fix the abilityin the media page to select the number of records per page.
+- Switch to single "tables" instance shared between the frontend and mangerui.  Speed up on tables running over NAS.  Credit to @gitfool
 
 ### Fixes
 None
