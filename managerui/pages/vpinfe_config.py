@@ -1202,7 +1202,7 @@ def render_panel(tab=None):
                                                     'Sync Installed Tables',
                                                     icon='sync',
                                                     on_click=run_vpinplay_sync,
-                                                ).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;').classes('mt-3')
+                                                ).classes('mt-3').style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                                                 update_vpinplay_sync_button_state()
                                             if sync_key in options:
                                                 with ui.element('div').classes('w-full'):
@@ -1241,7 +1241,7 @@ def render_panel(tab=None):
                                                         'Stop Event',
                                                         icon='stop',
                                                         on_click=run_dof_test_event_stop,
-                                                    ).props('color=negative flat rounded')
+                                                    ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                                 elif section == 'libdmdutil':
                                     service_key = 'enabled'
                                     zedmd_keys = ['zedmddevice', 'zedmdwifiaddr']
@@ -1322,7 +1322,7 @@ def render_panel(tab=None):
                                     'Update DOF via Online Config Tool',
                                     icon='cloud_download',
                                     on_click=run_dof_online_update,
-                                ).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;').classes('mt-3')
+                                ).classes('mt-3').style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
 
                         if section == 'Settings':
                             with ui.card().classes('config-side-card w-full mt-4 p-4'):
@@ -1354,7 +1354,7 @@ def render_panel(tab=None):
                                     'View Log',
                                     icon='article',
                                     on_click=show_log_file_dialog,
-                                ).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;').classes('mt-3')
+                                ).classes('mt-3').style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
 
         with ui.element('div').classes('w-full config-footer-bar'):
-            ui.button('Save Changes', icon='save', on_click=save_config).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;').classes('px-6 py-3')
+            ui.button('Save Changes', icon='save', on_click=save_config).classes('px-6 py-3').style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
