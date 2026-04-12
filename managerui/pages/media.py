@@ -3,6 +3,7 @@ import logging
 import asyncio
 import shutil
 import concurrent.futures
+import time
 from urllib.parse import quote
 from nicegui import ui, events, run, app, context
 from pathlib import Path
@@ -907,7 +908,9 @@ def render_panel():
                             target_path = await run.io_bound(replace_media_file, table_path, table_dir, media_key, src)
 
                             # Build the URL for the new media (now in medias/ subfolder)
-                            new_url = _media_url('media_tables', table_dir, 'medias', target_filename)
+                            # Add cache-buster query param so browser re-fetches instead of using 404 cache
+                            cache_buster = str(int(time.time() * 1000))
+                            new_url = _media_url('media_tables', table_dir, 'medias', target_filename) + f'?t={cache_buster}'
                             new_thumb = await run.io_bound(_ensure_thumb, table_dir, media_key, target_path)
                             update_cache_entry(table_dir, media_key, new_url, new_thumb)
                             update_table_display()
