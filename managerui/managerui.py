@@ -322,7 +322,7 @@ def build_app():
             box-shadow: var(--glow-cyan);
         }
         .nav-btn-active {
-            background: linear-gradient(135deg, var(--neon-purple) 0%, var(--neon-pink) 100%) !important;
+            background: var(--surface-2) !important;
             box-shadow: var(--glow-purple) !important;
             color: var(--neon-cyan) !important;
         }
