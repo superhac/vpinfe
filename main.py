@@ -220,11 +220,23 @@ ws_bridge.start()
 
 if headless:
     import signal
+
+    def _request_shutdown(_signum, _frame):
+        _shutdown_event.set()
+
     logger.info("Headless mode: servers running without Chromium frontend")
     logger.info("Press Ctrl+C to stop...")
-    signal.signal(signal.SIGINT, lambda s, f: _shutdown_event.set())
-    signal.signal(signal.SIGTERM, lambda s, f: _shutdown_event.set())
-    _shutdown_event.wait()
+    signal.signal(signal.SIGTERM, _request_shutdown)
+    if hasattr(signal, "SIGBREAK"):
+        signal.signal(signal.SIGBREAK, _request_shutdown)
+
+    try:
+        # Use a short timeout loop so signal handling remains responsive on all platforms.
+        while not _shutdown_event.is_set():
+            _shutdown_event.wait(0.2)
+    except KeyboardInterrupt:
+        _shutdown_event.set()
+
     logger.info("Shutting down...")
 elif iniconfig.is_new:
     # First-run: show manager UI config page in a chromium window instead of theme
