@@ -108,7 +108,7 @@ def header():
     ):
         with ui.row().classes('gap-3 items-center'):
             ui.image('/static/img/vpinfe-logo.png').style('height: 60px; width: 75px; filter: drop-shadow(var(--glow-cyan));margin: -10px;')
-            ui.label('VPinFE Manager').classes('text-xl font-bold text-white').style('text-shadow: var(--glow-purple);')
+            ui.label('VPinFE Manager').classes('text-xl').style('color: var(--ink); text-shadow: var(--glow-cyan); font-weigth: 900;')
             ui.button(icon='restart_alt', on_click=lambda: _restart_app()) \
                 .props('flat round dense').classes('text-green-400') \
                 .tooltip('Restart VPinFE')
@@ -121,8 +121,8 @@ def header():
         with update_container:
             page_client = context.client
             current_version = get_version()
-            ui.icon('sell', size='18px').classes('text-slate-300')
-            ui.label(f'Version: {current_version}').classes('text-slate-300 text-sm font-medium')
+            ui.icon('sell', size='18px').style('color: var(--ink-muted);')
+            ui.label(f'Version: {current_version}').classes('text-sm').style('color: var(--ink-muted); font-weight: 500;')
 
             async def run_update_install():
                 from nicegui import run
@@ -148,14 +148,14 @@ def header():
                     _update_action_state['busy'] = False
 
             def show_update_dialog(result: dict):
-                with ui.dialog() as dialog, ui.card().classes('bg-slate-900 p-6 w-[28rem]').style('border: 1px solid var(--neon-purple); box-shadow: var(--glow-purple);'):
-                    ui.label(f"Update to {result.get('latest_version', 'latest')}?").classes('text-lg font-bold text-white')
+                with ui.dialog() as dialog, ui.card().classes('p-6 w-[28rem]').style('background: var(--bg); border: 1px solid var(--neon-purple); box-shadow: var(--glow-purple);'):
+                    ui.label(f"Update to {result.get('latest_version', 'latest')}?").classes('text-lg font-bold').style('color: var(--ink);')
                     ui.label(
                         'This will download the release package, close VPinFE, replace the install, and relaunch automatically.'
-                    ).classes('text-sm text-slate-300 mt-2')
+                    ).classes('text-sm mt-2').style('color: var(--ink-muted);')
 
                     with ui.row().classes('justify-end gap-2 mt-4 w-full'):
-                        ui.button('Cancel', on_click=dialog.close).props('flat').classes('text-slate-300')
+                        ui.button('Cancel', on_click=dialog.close).props('flat').style('color: var(--ink-muted);')
                         ui.button(
                             'Update Now',
                             icon='system_update_alt',
@@ -198,12 +198,12 @@ def header():
                         ui.icon('check_circle', size='20px').classes('text-green-400')
                         ui.label('Up to date').classes('text-green-400 text-sm font-medium')
                     else:
-                        ui.icon('info', size='18px').classes('text-slate-400')
+                        ui.icon('info', size='18px').style('color: var(--ink-muted);')
                         ui.link(
                             f"Latest: {result.get('latest_version', 'unknown')}",
                             'https://github.com/superhac/vpinfe/releases/latest',
                             new_tab=True
-                        ).classes('text-slate-300 text-sm font-medium hover:text-slate-200').style('text-decoration: none;')
+                        ).classes('text-sm font-medium').style('text-decoration: none; ')
 
             ui.timer(0.5, check_updates_async, once=True)
 
@@ -282,7 +282,7 @@ def build_app():
         body {
             background: var(--bg) !important;
             color: var(--ink);
-            font-family: "Orbitron", "Rajdhani", "Exo 2", "Segoe UI", sans-serif;
+            font-family: sans-serif;
             min-height: 100vh;
             overflow-x: hidden;
             transition: background 300ms ease, color 300ms ease;
@@ -324,7 +324,7 @@ def build_app():
         .nav-btn-active {
             background: linear-gradient(135deg, var(--neon-purple) 0%, var(--neon-pink) 100%) !important;
             box-shadow: var(--glow-purple) !important;
-            color: white !important;
+            color: var(--neon-cyan) !important;
         }
         .nav-btn .q-btn__content {
             transition: opacity 0.3s ease;
@@ -332,7 +332,20 @@ def build_app():
         .nav-collapsed .nav-btn .q-btn__content > :not(.q-icon) {
             opacity: 0;
             width: 0;
+            height: 0;
             overflow: hidden;
+            position: absolute;
+        }
+        .nav-collapsed .nav-btn {
+            padding: 12px 8px !important;
+        }
+
+        .version-link {
+            color: var(--ink) !important;
+            text-shadow: var(--glow-cyan);
+        }        
+        .version-link:hover {
+            color: var(--neon-cyan) !important;
         }
     </style>
     ''')
@@ -377,62 +390,62 @@ def build_app():
         with ui.row().classes('w-full items-center gap-2 p-3').style(
             'background: var(--surface-2); border-bottom: 1px solid var(--line);'
         ):
-            ui.button(icon='menu', on_click=toggle_nav).props('flat round dense').classes('text-white')
-            nav_state['nav_label'] = ui.label('Navigation').classes('text-white text-lg font-bold').style('text-shadow: var(--glow-cyan);')
+            ui.button(icon='menu', on_click=toggle_nav).props('flat round dense').style('color: var(--neon-cyan);')
+            nav_state['nav_label'] = ui.label('Navigation').classes('text-lg font-bold').style('color: var(--neon-cyan); text-shadow: var(--glow-cyan);')
 
         # Navigation menu items
         nav_state['nav_content'] = ui.column().classes('w-full gap-1 mt-2')
         with nav_state['nav_content']:
             tables_btn = (
                 ui.button('Tables', icon='view_list', on_click=lambda: show_page('tables'))
-                .classes('w-full text-white nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px;')
+                .classes('w-full nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
                 .props('flat align=left')
             )
             collections_btn = (
                 ui.button('Collections', icon='collections_bookmark', on_click=lambda: show_page('collections'))
-                .classes('w-full text-white nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px;')
+                .classes('w-full nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
                 .props('flat align=left')
             )
             media_btn = (
                 ui.button('Media', icon='image', on_click=lambda: show_page('media'))
-                .classes('w-full text-white nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px;')
+                .classes('w-full nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
                 .props('flat align=left')
             )
             themes_btn = (
                 ui.button('Themes', icon='palette', on_click=lambda: show_page('themes'))
-                .classes('w-full text-white nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px;')
+                .classes('w-full nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
                 .props('flat align=left')
             )
             mobile_btn = (
                 ui.button('Mobile Uploader', icon='smartphone', on_click=lambda: show_page('mobile'))
-                .classes('w-full text-white nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px;')
+                .classes('w-full nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
                 .props('flat align=left')
             )
             system_btn = (
                 ui.button('System', icon='monitor_heart', on_click=lambda: show_page('system'))
-                .classes('w-full text-white nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px;')
+                .classes('w-full nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
                 .props('flat align=left')
             )
             config_btn = (
                 ui.button('Configuration', icon='tune', on_click=lambda: show_page('vpinfe'))
-                .classes('w-full text-white nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px;')
+                .classes('w-full nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
                 .props('flat align=left')
             )
         # Remote control button anchored to bottom
         nav_state['remote_container'] = ui.column().classes('w-full gap-1 mt-auto').style('margin-top: auto; padding-bottom: 16px;')
         with nav_state['remote_container']:
-            ui.separator().classes('bg-slate-600')
+            ui.separator().style('background: var(--surface-2);')
             (
                 ui.button('Remote Control', icon='settings_remote', on_click=lambda: ui.navigate.to('/remote', new_tab=True))
-                .classes('w-full text-white nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px;')
+                .classes('w-full nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink);')
                 .props('flat align=left')
             )
 
