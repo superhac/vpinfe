@@ -11,6 +11,7 @@ from nicegui import ui, run
 from platformdirs import user_config_dir
 
 from common.iniconfig import IniConfig
+from common.table_repository import get_table_rows
 
 
 logger = logging.getLogger("vpinfe.manager.mobile")
@@ -46,43 +47,16 @@ def _get_tables_path() -> str:
 
 
 def _scan_tables():
-    """Scan for tables with .info and .vpx files, return list of dicts."""
-    tables_path = _get_tables_path()
     tables = []
-
-    if not os.path.exists(tables_path):
-        return tables
-
-    for root, _, files in os.walk(tables_path):
-        current_dir = os.path.basename(root)
-        info_file = f"{current_dir}.info"
-
-        if info_file in files:
-            vpx_files = [f for f in files if f.lower().endswith('.vpx')]
-            if not vpx_files:
-                continue
-
-            meta_path = os.path.join(root, info_file)
-            try:
-                with open(meta_path, "r", encoding="utf-8") as f:
-                    raw = json.load(f)
-
-                info = raw.get("Info", {})
-                name = (info.get("Title") or current_dir).strip()
-                manufacturer = info.get("Manufacturer", "")
-                year = info.get("Year", "")
-
-                tables.append({
-                    'name': name,
-                    'manufacturer': manufacturer,
-                    'year': str(year) if year else '',
-                    'table_dir_name': current_dir,
-                    'table_path': root,
-                })
-            except Exception:
-                pass
-
-    tables.sort(key=lambda t: t['name'].lower())
+    for row in get_table_rows(reload=False):
+        table_path = row.get('table_path', '')
+        tables.append({
+            'name': row.get('name', ''),
+            'manufacturer': row.get('manufacturer', ''),
+            'year': str(row.get('year', '') or ''),
+            'table_dir_name': Path(table_path).name if table_path else '',
+            'table_path': table_path,
+        })
     return tables
 
 

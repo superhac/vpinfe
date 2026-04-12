@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import logging
 from common.table import Table
@@ -14,6 +15,7 @@ class TableParser:
 
     # Shared class variable - single instance across all TableParser instances
     tables: list[Table] = []
+    missing_tables: list[dict] = []
 
     def __init__(self, tablesRootFilePath, iniConfig=None):
         self.tablesRootFilePath = Path(tablesRootFilePath)
@@ -27,46 +29,72 @@ class TableParser:
             return
 
         self.tables.clear()
+        self.missing_tables.clear()
         logger.info("Loading tables and image paths:")
+
+        if not self.tablesRootFilePath.exists():
+            return
 
         for table_dir in sorted(self.tablesRootFilePath.iterdir()):
             if not table_dir.is_dir():
+                continue
+
+            try:
+                dir_entries = sorted(os.listdir(table_dir))
+            except Exception:
+                logger.warning("Could not list %s directory.", table_dir.name)
+                continue
+
+            vpx_names = [name for name in dir_entries if name.lower().endswith(".vpx")]
+            if not vpx_names:
+                logger.warning("No .vpx found in %s directory.", table_dir.name)
+                continue
+
+            info_name = f"{table_dir.name}.info"
+            if info_name not in dir_entries:
+                self.missing_tables.append({
+                    'folder': table_dir.name,
+                    'path': str(table_dir),
+                })
                 continue
 
             table = Table()
             table.tableDirName = table_dir.name
             table.fullPathTable = str(table_dir)
 
-            # search for .vpx file
-            for f in table_dir.iterdir():
-                if f.is_file() and f.suffix.lower() == ".vpx":
-                    table.fullPathVPXfile = str(f)
-                    # Get creation time (cross-platform)
-                    stat = f.stat()
-                    table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
-
-            if not getattr(table, "fullPathVPXfile", None):
-                logger.warning("No .vpx found in %s directory.", table.tableDirName)
-                continue
+            vpx_path = table_dir / vpx_names[0]
+            table.fullPathVPXfile = str(vpx_path)
+            stat = vpx_path.stat()
+            table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
 
             # check for addons
-            if (table_dir / "pupvideos").is_dir():
+            dir_entries_set = set(dir_entries)
+            if "pupvideos" in dir_entries_set and (table_dir / "pupvideos").is_dir():
                 table.pupPackExists = True
-            if (table_dir / "serum").is_dir():
+            if "serum" in dir_entries_set and (table_dir / "serum").is_dir():
                 table.altColorExists = True
-            if (table_dir / "vni").is_dir():
+            if "vni" in dir_entries_set and (table_dir / "vni").is_dir():
                 table.vniExists = True
-            if (table_dir / "pinmame" / "altsound").is_dir():
+            if "pinmame" in dir_entries_set and (table_dir / "pinmame" / "altsound").is_dir():
                 table.altSoundExists = True
 
-            self.loadImagePaths(table)
+            self.loadImagePaths(table, dir_entries_set)
             self.loadMetaData(table)
 
             self.tables.append(table)
 
-    def loadImagePaths(self, Table):
+    def loadImagePaths(self, Table, table_contents=None):
         table_dir = Path(Table.fullPathTable)
         medias_dir = table_dir / "medias"
+        if table_contents is None:
+            try:
+                table_contents = set(os.listdir(table_dir))
+            except Exception:
+                table_contents = set()
+        try:
+            medias_contents = set(os.listdir(medias_dir)) if "medias" in table_contents and medias_dir.is_dir() else set()
+        except Exception:
+            medias_contents = set()
         images = {
             "BGImagePath": "bg.png",
             "DMDImagePath": "dmd.png",
@@ -90,13 +118,10 @@ class TableParser:
         }
 
         for attr, fname in {**images, **videos, **audio}.items():
-            # Check medias/ subfolder first, then fall back to root folder
-            fpath_medias = medias_dir / fname
-            fpath_root = table_dir / fname
-            if fpath_medias.exists():
-                setattr(Table, attr, str(fpath_medias))
-            elif fpath_root.exists():
-                setattr(Table, attr, str(fpath_root))
+            if fname in medias_contents:
+                setattr(Table, attr, str(medias_dir / fname))
+            elif fname in table_contents:
+                setattr(Table, attr, str(table_dir / fname))
 
     def loadMetaData(self, Table):
         meta_path = Path(Table.fullPathTable) / f"{Table.tableDirName}.info"
@@ -111,6 +136,9 @@ class TableParser:
 
     def getAllTables(self):
         return self.tables
+
+    def getMissingTables(self):
+        return self.missing_tables
 
     def isFavorite(self, Table):
         return Table.metaConfig.get("VPinFE", {}).get("favorite", "").lower() == "true"

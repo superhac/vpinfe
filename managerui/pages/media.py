@@ -16,6 +16,7 @@ VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 
 from common.iniconfig import IniConfig
 from common.metaconfig import MetaConfig
+from common.table_repository import ensure_tables_loaded
 _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 logger = logging.getLogger("vpinfe.manager.media")
@@ -159,7 +160,42 @@ def get_tables_path() -> str:
     return os.path.expanduser('~/tables')
 
 
-def scan_media_tables(silent: bool = False):
+TABLE_ATTR_TO_MEDIA_KEY = {
+    'BGImagePath': 'bg',
+    'DMDImagePath': 'dmd',
+    'TableImagePath': 'table',
+    'FSSImagePath': 'fss',
+    'WheelImagePath': 'wheel',
+    'CabImagePath': 'cab',
+    'realDMDImagePath': 'realdmd',
+    'realDMDColorImagePath': 'realdmd_color',
+    'FlyerImagePath': 'flyer',
+    'TableVideoPath': 'table_video',
+    'BGVideoPath': 'bg_video',
+    'DMDVideoPath': 'dmd_video',
+    'AudioPath': 'audio',
+}
+
+
+def _table_meta_sections(table):
+    raw = table.metaConfig or {}
+    if not isinstance(raw, dict):
+        raw = {}
+    info = raw.get("Info", {}) if isinstance(raw.get("Info", {}), dict) else {}
+    vpinfe = raw.get("VPinFE", {}) if isinstance(raw.get("VPinFE", {}), dict) else {}
+    return info, vpinfe
+
+
+def _media_url_from_path(table_dir: str, source_path: str) -> Optional[str]:
+    if not source_path:
+        return None
+    source = Path(source_path)
+    if source.parent.name == 'medias':
+        return _media_url('media_tables', table_dir, 'medias', source.name)
+    return _media_url('media_tables', table_dir, source.name)
+
+
+def scan_media_tables(silent: bool = False, reload: bool = False):
     """Scan table directories and collect media file info."""
     tables_path = get_tables_path()
     rows = []
@@ -169,77 +205,50 @@ def scan_media_tables(silent: bool = False):
             ui.notify("Tables path does not exist. Please verify your vpinfe.ini settings", type="negative")
         return []
 
-    for root, _, files in os.walk(tables_path):
-        current_dir = os.path.basename(root)
-        info_file = f"{current_dir}.info"
+    for table in ensure_tables_loaded(reload=reload):
+        root = getattr(table, 'fullPathTable', '') or ''
+        if not root:
+            continue
+        current_dir = Path(root).name
+        info, vpinfe = _table_meta_sections(table)
+        name = ((vpinfe.get("alttitle") or info.get("Title") or current_dir) or "").strip()
 
-        if info_file in files:
-            has_vpx = any(f.lower().endswith('.vpx') for f in files)
-            if not has_vpx:
-                continue
+        media_info = {}
+        thumb_info = {}
+        for attr_name, media_key in TABLE_ATTR_TO_MEDIA_KEY.items():
+            source_path = getattr(table, attr_name, None)
+            if source_path:
+                media_info[media_key] = _media_url_from_path(current_dir, source_path)
+                thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, source_path)
+            else:
+                media_info[media_key] = None
+                thumb_info[media_key] = None
 
-            meta_path = os.path.join(root, info_file)
-            try:
-                with open(meta_path, "r", encoding="utf-8") as f:
-                    raw = json.load(f)
-
-                info = raw.get("Info", {})
-                vpx = raw.get("VPXFile", {})
-                vpinfe = raw.get("VPinFE", {})
-
-                name = ((vpinfe.get("alttitle") or info.get("Title") or current_dir) or "").strip()
-                manufacturer = info.get("Manufacturer", "")
-                year = info.get("Year", "")
-                ttype = info.get("Type", "")
-                themes = info.get("Themes", [])
-
-                # Build media availability dict
-                media_info = {}
-                thumb_info = {}
-                medias_dir = os.path.join(root, "medias")
-                for media_key, _, media_filename in MEDIA_TYPES:
-                    # Check medias/ subfolder first, then fall back to root folder
-                    img_path_medias = os.path.join(medias_dir, media_filename)
-                    img_path_root = os.path.join(root, media_filename)
-                    if os.path.exists(img_path_medias):
-                        # URL path relative to the served tables directory
-                        media_info[media_key] = _media_url('media_tables', current_dir, 'medias', media_filename)
-                        thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, img_path_medias)
-                    elif os.path.exists(img_path_root):
-                        media_info[media_key] = _media_url('media_tables', current_dir, media_filename)
-                        thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, img_path_root)
-                    else:
-                        media_info[media_key] = None
-                        thumb_info[media_key] = None
-
-                rows.append({
-                    'name': name,
-                    'table_dir': current_dir,
-                    'table_path': root,
-                    'manufacturer': manufacturer,
-                    'year': year,
-                    'type': ttype,
-                    'themes': themes,
-                    'media': media_info,
-                    'thumbs': thumb_info,
-                    'thumb_errors': {},
-                    # Flat fields for Quasar table rendering
-                    'has_bg': media_info.get('bg') is not None,
-                    'has_dmd': media_info.get('dmd') is not None,
-                    'has_table': media_info.get('table') is not None,
-                    'has_fss': media_info.get('fss') is not None,
-                    'has_wheel': media_info.get('wheel') is not None,
-                    'has_cab': media_info.get('cab') is not None,
-                    'has_realdmd': media_info.get('realdmd') is not None,
-                    'has_realdmd_color': media_info.get('realdmd_color') is not None,
-                    'has_flyer': media_info.get('flyer') is not None,
-                    'has_table_video': media_info.get('table_video') is not None,
-                    'has_bg_video': media_info.get('bg_video') is not None,
-                    'has_dmd_video': media_info.get('dmd_video') is not None,
-                    'has_audio': media_info.get('audio') is not None,
-                })
-            except Exception as e:
-                logger.error(f"Error reading {meta_path}: {e}")
+        rows.append({
+            'name': name,
+            'table_dir': current_dir,
+            'table_path': root,
+            'manufacturer': info.get("Manufacturer", ""),
+            'year': info.get("Year", ""),
+            'type': info.get("Type", ""),
+            'themes': info.get("Themes", []),
+            'media': media_info,
+            'thumbs': thumb_info,
+            'thumb_errors': {},
+            'has_bg': media_info.get('bg') is not None,
+            'has_dmd': media_info.get('dmd') is not None,
+            'has_table': media_info.get('table') is not None,
+            'has_fss': media_info.get('fss') is not None,
+            'has_wheel': media_info.get('wheel') is not None,
+            'has_cab': media_info.get('cab') is not None,
+            'has_realdmd': media_info.get('realdmd') is not None,
+            'has_realdmd_color': media_info.get('realdmd_color') is not None,
+            'has_flyer': media_info.get('flyer') is not None,
+            'has_table_video': media_info.get('table_video') is not None,
+            'has_bg_video': media_info.get('bg_video') is not None,
+            'has_dmd_video': media_info.get('dmd_video') is not None,
+            'has_audio': media_info.get('audio') is not None,
+        })
 
     return rows
 
@@ -684,7 +693,7 @@ def render_panel():
                     with page_client:
                         scan_btn.disable()
 
-                media_rows = await run.io_bound(scan_media_tables, silent)
+                media_rows = await run.io_bound(scan_media_tables, silent, True)
                 try:
                     media_rows.sort(key=lambda r: (r.get('name') or '').lower())
                 except Exception:

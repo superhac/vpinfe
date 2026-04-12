@@ -10,6 +10,8 @@ import json
 from typing import List, Dict, Optional, Callable
 from common.vpxparser import VPXParser
 from common.vpxcollections import VPXCollections
+from common.table_repository import get_table_rows, get_missing_tables
+from common.table_repository import refresh_table
 from clioptions import buildMetaData, vpxPatches
 from queue import Queue
 from platformdirs import user_config_dir
@@ -171,6 +173,7 @@ def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
         with open(info_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4)
 
+        refresh_table(table_path)
         return True
     except Exception as e:
         logger.error(f"Failed to update VPinFE setting: {e}")
@@ -198,6 +201,7 @@ def update_user_setting(table_path: str, key: str, value) -> bool:
         with open(info_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=4)
 
+        refresh_table(table_path)
         return True
     except Exception as e:
         logger.error(f"Failed to update User setting: {e}")
@@ -323,6 +327,7 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
     # Invalidate the media page cache so next visit shows fresh data
     from managerui.pages.media import invalidate_media_cache
     invalidate_media_cache()
+    refresh_table(str(table_folder))
 
 
 logger = logging.getLogger("vpinfe.manager.tables")
@@ -420,66 +425,15 @@ def parse_table_info(info_path):
 
 def scan_tables(silent: bool = False):
     tables_path = get_tables_path()
-    rows = []
     if not os.path.exists(tables_path):
         logger.warning(f"Tables path does not exist: {tables_path}. Skipping scan.")
         if not silent:
             ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
         return []
-
-    # Build VPS ID to collections map
-    vpsid_collections_map = get_vpsid_collections_map()
-
-    for root, _, files in os.walk(tables_path):
-        current_dir = os.path.basename(root)
-        info_file = f"{current_dir}.info"
-
-        if info_file in files:
-            # Verify at least one .vpx file exists in the directory
-            has_vpx = any(f.lower().endswith('.vpx') for f in files)
-            if not has_vpx:
-                # .info exists but no .vpx file - skip this entry
-                continue
-
-            meta_path = os.path.join(root, info_file)
-            data = parse_table_info(meta_path)
-            if data:
-                data["table_path"] = root
-                # Add collections membership
-                vpsid = data.get("id", "")
-                data["collections"] = vpsid_collections_map.get(vpsid, [])
-                rows.append(data)
-
-    return rows
+    return get_table_rows(reload=False)
 
 def scan_missing_tables():
-    """
-    A 'missing table' = any directory under ~/tables that does NOT contain <current_dir>.info.
-    Only directories with at least one .vpx file are considered.
-    """
-    base = Path(get_tables_path())
-    missing = []
-
-    if not base.exists():
-        return missing
-
-    for root, dirs, files in os.walk(base):
-        files_set = set(files)
-        current_dir = os.path.basename(root)
-        info_filename = f"{current_dir}.info"
-
-        # Skip directories that already have <current_dir>.info
-        if info_filename in files_set:
-            continue
-
-        # Only consider directories with at least one .vpx file
-        if any(f.lower().endswith('.vpx') for f in files):
-            missing.append({
-                'folder': current_dir,
-                'path': root,
-            })
-
-    return missing
+    return get_missing_tables(reload=False)
 
 
 def load_metadata_from_ini():
@@ -585,9 +539,9 @@ def render_panel(tab=None):
                         ui.notify('Downloading VPSdb...', type='info')
                     await run.io_bound(ensure_vpsdb_downloaded)
 
-                # Run blocking I/O in a separate thread to avoid freezing the UI
-                table_rows = await run.io_bound(scan_tables, silent)
-                missing_rows = await run.io_bound(scan_missing_tables)
+                # Pull rows from the shared startup-backed repository
+                table_rows = await run.io_bound(get_table_rows, True)
+                missing_rows = await run.io_bound(get_missing_tables, False)
 
                 # Update UI components (default sort by Name; force refresh by reassigning rows)
                 try:

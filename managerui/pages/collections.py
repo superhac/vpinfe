@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 from platformdirs import user_config_dir
 from common.vpxcollections import VPXCollections
+from common.table_repository import get_table_rows
 
 logger = logging.getLogger("vpinfe.manager.collections")
 
@@ -22,13 +23,7 @@ def get_collections_manager() -> VPXCollections:
 
 def get_table_name_map() -> Dict[str, str]:
     """Build a map of VPS ID -> table name from the tables cache."""
-    # Access the cache through the module to get the current value
-    tables = tables_module._tables_cache
-
-    # If cache is empty, scan tables to populate it
-    if not tables:
-        tables = tables_module.scan_tables(silent=True)
-
+    tables = tables_module._tables_cache or get_table_rows(reload=False)
     return {t.get('id'): t.get('name', t.get('id')) for t in tables if t.get('id')}
 
 
@@ -41,12 +36,7 @@ def vpsid_to_name(vpsid: str, table_map: Dict[str, str] = None) -> str:
 
 def get_filter_options() -> Dict[str, List[str]]:
     """Get filter options (letters, themes, types, manufacturers, years, ratings) from the tables cache."""
-    # Use the tables cache from the tables module (same data used in the Tables page)
-    tables = tables_module._tables_cache
-
-    # If cache is empty, scan tables to populate it
-    if not tables:
-        tables = tables_module.scan_tables(silent=True)
+    tables = tables_module._tables_cache or get_table_rows(reload=False)
 
     if not tables:
         # Fallback to basic options if no tables
@@ -371,7 +361,7 @@ def render_panel(tab=None):
                     # Get tables from cache or scan
                     tables = tables_module._tables_cache
                     if tables is None:
-                        tables = await run.io_bound(tables_module.scan_tables, True)
+                        tables = await run.io_bound(get_table_rows, False)
 
                     if not term:
                         return
@@ -690,7 +680,7 @@ def render_panel(tab=None):
 
                     tables = tables_module._tables_cache
                     if tables is None:
-                        tables = await run.io_bound(tables_module.scan_tables, True)
+                        tables = await run.io_bound(get_table_rows, False)
 
                     if not term:
                         return

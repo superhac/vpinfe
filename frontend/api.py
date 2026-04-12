@@ -9,7 +9,7 @@ import json
 import time
 import subprocess
 import threading
-from common.tableparser import TableParser
+from common.table_repository import ensure_tables_loaded
 from common.vpxcollections import VPXCollections
 from common.tablelistfilters import TableListFilters
 from common.dof_service import (
@@ -41,7 +41,7 @@ class API:
         self.window_name = window_name          # 'bg', 'dmd', or 'table'
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
         self.frontend_browser = frontend_browser  # ChromiumManager instance
-        self.allTables = TableParser(self._iniConfig.config['Settings']['tablerootdir'], self._iniConfig).getAllTables()
+        self.allTables = ensure_tables_loaded()
         self.filteredTables = self.allTables
         self.jsTableDictData = None
         # Track current filter state
@@ -912,7 +912,7 @@ class API:
                     'result': result
                 })
                 # Refresh table list after completion
-                self.allTables = TableParser(self._iniConfig.config['Settings']['tablerootdir'], self._iniConfig).getAllTables()
+                self.allTables = ensure_tables_loaded(reload=True)
                 self.filteredTables = self.allTables
             except Exception as e:
                 # Queue error event
