@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import sys
 from pathlib import Path
 
@@ -44,15 +45,52 @@ def _resolve_level(value: str | None) -> int:
     return getattr(logging, str(value).strip().upper(), logging.INFO)
 
 
+def _parse_level_and_flags(value: str | None) -> tuple[int, bool]:
+    if not value:
+        return logging.INFO, False
+
+    include_third_party = False
+    level_token = None
+    tokens = [token.strip().lower() for token in re.split(r"[|,]", str(value)) if token.strip()]
+
+    for token in tokens:
+        if token == "thirdparty":
+            include_third_party = True
+            continue
+        level_token = token
+
+    return _resolve_level(level_token), include_third_party
+
+
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
+
+
+def _is_third_party_logger(logger_name: str) -> bool:
+    for name in _THIRD_PARTY_LOGGERS:
+        if logger_name == name or logger_name.startswith(f"{name}."):
+            return True
+    return False
+
+
+class _ThirdPartyFilter(logging.Filter):
+    def __init__(self, include_third_party: bool):
+        super().__init__()
+        self.include_third_party = include_third_party
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if not _is_third_party_logger(record.name):
+            return True
+        if self.include_third_party:
+            return True
+        return record.levelno >= logging.WARNING
 
 
 def _normalize_third_party_loggers() -> None:
     for name in _THIRD_PARTY_LOGGERS:
         logger = logging.getLogger(name)
         logger.handlers.clear()
-        logger.setLevel(logging.WARNING)
+        logger.setLevel(logging.NOTSET)
         logger.propagate = True
 
 
@@ -72,8 +110,10 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
         log_level = logger_cfg.get("level", DEFAULT_LOG_LEVEL)
         console_enabled = _coerce_bool(logger_cfg.get("console"), True)
 
+    resolved_level, include_third_party = _parse_level_and_flags(log_level)
+
     root_logger = logging.getLogger()
-    root_logger.setLevel(_resolve_level(log_level))
+    root_logger.setLevel(resolved_level)
 
     for handler in list(root_logger.handlers):
         root_logger.removeHandler(handler)
@@ -90,6 +130,7 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
     if console_enabled:
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
+        console_handler.addFilter(_ThirdPartyFilter(include_third_party))
         root_logger.addHandler(console_handler)
 
     if file_enabled:
@@ -100,6 +141,7 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
             encoding="utf-8",
         )
         file_handler.setFormatter(formatter)
+        file_handler.addFilter(_ThirdPartyFilter(include_third_party))
         root_logger.addHandler(file_handler)
         _FILE_LOG_INITIALIZED = True
 
