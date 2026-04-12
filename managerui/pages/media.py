@@ -298,7 +298,7 @@ def render_panel():
             }
             .media-table .q-table thead tr th {
                 background: transparent !important;
-                color: #fff !important;
+                color: var(--ink) !important;
                 font-weight: 600 !important;
                 text-transform: uppercase !important;
                 font-size: 0.75rem !important;
@@ -322,7 +322,7 @@ def render_panel():
                 transition: background-color 0.2s ease !important;
             }
             .media-table .q-table tbody tr:hover td {
-                color: #fff !important;
+                color: var(--ink-) !important;
             }
             .media-table .q-table__bottom {
                 background-color: var(--surface) !important;
@@ -772,25 +772,25 @@ def render_panel():
                         current_url = row['media'].get(media_key)
                         break
 
-            with ui.dialog() as dlg, ui.card().style('min-width: 500px; background: #1e293b; border: 1px solid #334155;'):
-                ui.label(f'Replace {media_label}').classes('text-xl font-bold text-white mb-2')
-                ui.label(f'Table: {table_name}').classes('text-slate-400 mb-1')
-                ui.label(f'Target: {target_filename}').classes('text-slate-500 text-sm mb-4')
+            with ui.dialog() as dlg, ui.card().style('min-width: 500px; background: var(--surface) !important; border: 1px solid var(--line) !important;'):
+                ui.label(f'Replace {media_label}').classes('text-xl font-bold mb-2').style('color: var(--ink)')
+                ui.label(f'Table: {table_name}').classes('mb-1').style('color: var(--ink-muted)')
+                ui.label(f'Target: {target_filename}').classes('text-sm mb-4').style('color: var(--ink-muted)')
 
                 # Show current media if exists
                 if current_url:
-                    ui.label('Current:').classes('text-slate-400 text-sm')
+                    ui.label('Current:').classes('text-sm').style('color: var(--ink-muted)')
                     if is_audio:
                         ui.html(f'<audio src="{current_url}" controls preload="metadata" style="width: 320px; max-width: 100%;"></audio>').classes('mb-4')
                     elif is_video:
-                        ui.html(f'<video src="{current_url}" style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid #334155;" autoplay loop muted></video>').classes('mb-4')
+                        ui.html(f'<video src="{current_url}" style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid var(--line);" autoplay loop muted></video>').classes('mb-4')
                     else:
-                        ui.image(current_url).style('max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid #334155;').classes('mb-4')
+                        ui.image(current_url).style('max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid var(--line;').classes('mb-4')
                 else:
-                    ui.label(f'No current {media_type_label.lower()}').classes('text-slate-500 italic mb-4')
+                    ui.label(f'No current {media_type_label.lower()}').classes('italic mb-4').style('color: var(--ink-muted)')
 
                 # File upload
-                ui.label(f'Select new {media_type_label.lower()}:').classes('text-slate-400 text-sm mb-1')
+                ui.label(f'Select new {media_type_label.lower()}:').classes('text-sm mb-1').style('color: var(--ink-muted)')
                 upload_state = {'path': None}
 
                 async def handle_upload(e: events.UploadEventArguments):
@@ -808,10 +808,10 @@ def render_panel():
                     on_upload=handle_upload,
                     auto_upload=True,
                     max_files=1,
-                ).props(f'accept="{accept_type}" flat bordered').classes('w-full mb-4').style('background: #0f172a; border: 1px dashed #475569;')
+                ).props(f'accept="{accept_type}" flat bordered').classes('w-full mb-4').style('background: var(--bg); border: 1px dashed var(--line);')
 
                 with ui.row().classes('w-full justify-end gap-3 mt-2'):
-                    ui.button('Cancel', on_click=dlg.close).props('flat').classes('text-slate-400')
+                    ui.button('Cancel', on_click=dlg.close).props('flat').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
 
                     async def do_replace():
                         if not upload_state['path']:
@@ -837,24 +837,24 @@ def render_panel():
                             logger.exception("Failed to replace media")
                             ui.notify(f'Error: {ex}', type='negative')
 
-                    confirm_btn = ui.button('Replace', icon='save', on_click=do_replace).props('color=primary')
+                    confirm_btn = ui.button('Replace', icon='save', on_click=do_replace).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                     confirm_btn.disable()
 
             dlg.open()
 
         # --- UI Layout ---
         # Header section
-        with ui.card().classes('w-full mb-4').style('background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); border-radius: 12px;'):
+        with ui.card().classes('w-full mb-4').style('background: var(--surface) !important; border-radius: var(--radius);'):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
-                ui.label('Media Management').classes('text-2xl font-bold text-white').style('flex-shrink: 0;')
+                ui.label('Media Management').classes('text-2xl font-bold').style('flex-shrink: 0; color: var(--ink) !important;')
                 with ui.row().classes('gap-3 items-center flex-wrap'):
-                    scan_btn = ui.button("Scan Media", icon="refresh", on_click=lambda: asyncio.create_task(perform_scan())).props("color=white text-color=primary rounded")
+                    scan_btn = ui.button("Scan Media", icon="refresh", on_click=lambda: asyncio.create_task(perform_scan())).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
 
         # Use cached data if available
         initial_rows = _media_cache if _media_cache is not None else []
 
         # Filter UI
-        with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155;'):
+        with ui.card().classes('w-full mb-4').style('border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line);'):
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
                 search_input = ui.input(placeholder='Search tables...').props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
                 search_input.on_value_change(on_search_change)
@@ -893,9 +893,9 @@ def render_panel():
 
         # Missing Media filter panel
         missing_checkboxes = {}
-        with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155;'):
+        with ui.card().classes('w-full mb-4').style('border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line);'):
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
-                ui.label('Missing Media:').classes('text-sm text-slate-400 font-semibold').style('flex-shrink: 0;')
+                ui.label('Missing Media:').classes('text-sm font-semibold').style('flex-shrink: 0; color: var(--ink) !important;')
                 for media_key, media_label, _ in MEDIA_TYPES:
                     def make_handler(key):
                         def handler(e: events.ValueChangeEventArguments):
@@ -903,12 +903,12 @@ def render_panel():
                             media_table._props['pagination']['page'] = 1
                             update_table_display()
                         return handler
-                    cb = ui.checkbox(media_label, value=False, on_change=make_handler(media_key)).classes('text-white')
+                    cb = ui.checkbox(media_label, value=False, on_change=make_handler(media_key)).style('color: var(--ink) !important;')
                     missing_checkboxes[media_key] = cb
 
         # Table count label
         total = len(initial_rows)
-        count_label = ui.label(f"Tables ({total})").classes('text-lg font-semibold text-slate-300 py-1 text-center w-full')
+        count_label = ui.label(f"Tables ({total})").classes('text-lg font-semibold py-1 text-center w-full').style('color: var(--ink-muted) !important;')
 
         # Table with image thumbnails
         table_container = ui.column().classes("w-full media-table").style("flex: 1; overflow: hidden; display: flex;")
