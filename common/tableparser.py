@@ -38,6 +38,8 @@ class TableParser:
         for table_dir in sorted(self.tablesRootFilePath.iterdir()):
             if not table_dir.is_dir():
                 continue
+            if table_dir.name.startswith('.'):
+                continue
 
             table = Table()
             table.tableDirName = table_dir.name
