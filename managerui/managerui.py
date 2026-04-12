@@ -445,7 +445,7 @@ def build_app():
             (
                 ui.button('Remote Control', icon='settings_remote', on_click=lambda: ui.navigate.to('/remote', new_tab=True))
                 .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink);')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
             )
 
