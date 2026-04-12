@@ -360,19 +360,19 @@ def build(standalone=True):
             body {
                 margin: 0 !important;
                 padding: 0 !important;
-                background-color: #111827 !important;
+                background-color: var(--surface) !important;
             }
         </style>
         ''')
 
     with ui.column().classes('w-full items-center p-4'):
-        ui.label('VPinFE Mobile').classes('text-2xl font-bold text-white mb-4')
+        ui.label('VPinFE Mobile').classes('text-2xl font-bold mb-4').style('color: var(--ink) !important;')
 
-        with ui.tabs().classes('w-full').props('dark') as tabs:
+        with ui.tabs().classes('w-full').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);') as tabs:
             websend_tab = ui.tab('Web Send')
             vpxz_tab = ui.tab('VPXZ Download')
 
-        with ui.tab_panels(tabs, value=websend_tab).classes('w-full').props('dark'):
+        with ui.tab_panels(tabs, value=websend_tab).classes('w-full').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);'):
 
             # ── Web Send Tab ──
             with ui.tab_panel(websend_tab):
@@ -384,7 +384,7 @@ def build(standalone=True):
 
 
 def _build_vpxz_download_panel():
-    loading = ui.label('Loading tables...').classes('text-gray-400')
+    loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
     table_container = ui.column().classes('w-full')
 
     async def load_tables():
@@ -402,11 +402,11 @@ def _build_vpxz_download_panel():
                 rows=rows,
                 row_key='table_dir_name',
                 pagination={'rowsPerPage': 25},
-            ).classes('w-full').props('dark dense')
+            ).classes('w-full').props('dense').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);')
 
             tbl.add_slot('body-cell-display_name', '''
                 <q-td :props="props">
-                    <q-btn flat dense icon="download" color="blue" class="q-mr-sm"
+                    <q-btn flat dense icon="download" class="q-mr-sm" style="color: var(--neon-cyan) !important;"
                         @click.stop="$parent.$emit('download', props.row)" />
                     {{ props.row.display_name }}
                 </q-td>
@@ -415,10 +415,10 @@ def _build_vpxz_download_panel():
             async def handle_download(e):
                 name = e.args['table_dir_name']
 
-                with ui.dialog() as dlg, ui.card().classes('bg-gray-800 p-6'):
+                with ui.dialog() as dlg, ui.card().classes('p-6').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);'):
                     with ui.row().classes('items-center gap-3'):
                         ui.spinner(size='lg')
-                        ui.label(f'Preparing {name}.vpxz ...').classes('text-white')
+                        ui.label(f'Preparing {name}.vpxz ...').style('color: var(--ink) !important;')
                 dlg.open()
 
                 def create_zip():
@@ -490,23 +490,23 @@ def _build_web_send_panel():
         cfg.config.set('Mobile', 'renamemasktodefaultinimask', mask_val)
         cfg.save()
 
-    ui.label("This uses the the built in web server on the mobile version of vpx for Android and iOS. It allows you seamlessly transfer your tables onto your mobile device.  You must turn it on in the settings in VPX on your mobile device.  Also note this same location will show you your IP and PORT.  Thats what you put into the device configuration settings below.  The device must be kept on and VPX running when doing transfers. ").classes('text-gray-400 text-sm mb-4')
+    ui.label("This uses the the built in web server on the mobile version of vpx for Android and iOS. It allows you seamlessly transfer your tables onto your mobile device.  You must turn it on in the settings in VPX on your mobile device.  Also note this same location will show you your IP and PORT.  Thats what you put into the device configuration settings below.  The device must be kept on and VPX running when doing transfers. ").classes('text-sm mb-4').style('color: var(--ink-muted) !important;')
 
     # Connection settings
-    with ui.card().classes('w-full bg-gray-800 p-4 mb-4'):
-        ui.label('Device Connection').classes('text-white font-bold mb-2')
+    with ui.card().classes('w-full p-4 mb-4').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);'):
+        ui.label('Device Connection').classes('font-bold mb-2').style('color: var(--ink) !important;')
         with ui.row().classes('items-end gap-4 w-full'):
             ip_input = ui.input('IP Address', value=saved_ip, on_change=_save_ip).props('dark outlined dense').classes('flex-grow')
             port_input = ui.input('Port', value=saved_port, on_change=_save_port).props('dark outlined dense').style('max-width: 100px;')
             chunk_input = ui.input('Chunk Size (bytes)', value=saved_chunk, on_change=_save_chunk).props('dark outlined dense').style('max-width: 160px;')
             check_btn = ui.button('Check Device', icon='sync', on_click=lambda: check_device()) \
-                .props('dense outline').classes('text-white')
+                .props('dense outline').style('color: var(--ink) !important;')
 
     # Send Options
-    with ui.card().classes('w-full bg-gray-800 p-4 mb-4'):
-        ui.label('Send Options').classes('text-white font-bold mb-2')
+    with ui.card().classes('w-fullp-4 mb-4').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);'):
+        ui.label('Send Options').classes('font-bold mb-2').style('color: var(--ink) !important;')
         exclude_ini_checkbox = ui.checkbox('Exclude {VPX_FILENAME}.ini files', value=True).props('dark')
-        ui.label("Prevents sending the table-specific configuration file, e.g. 'tablename.ini'.").classes('text-gray-400 text-xs ml-8 -mt-2')
+        ui.label("Prevents sending the table-specific configuration file, e.g. 'tablename.ini'.").classes('text-xs ml-8 -mt-2').style('color: var(--ink-muted) !important;')
         with ui.row().classes('w-full items-end gap-3'):
             masked_ini_copy_checkbox = ui.checkbox(
                 'Enable Rename Mask To Default INI',
@@ -520,18 +520,18 @@ def _build_web_send_panel():
             ).props('dark outlined dense').style('min-width: 180px; max-width: 280px;')
         ui.label(
             'If mask exists, sends {VPX_FILENAME}.{MASK}.ini as {VPX_FILENAME}.ini when default ini is missing.'
-        ).classes('text-gray-400 text-xs ml-8 -mt-2')
+        ).classes('text-xs ml-8 -mt-2').style('color: var(--ink-muted) !important;')
 
     # Action bar: filter toggle + send selected
     with ui.row().classes('w-full items-center gap-4 mb-2'):
         filter_toggle = ui.button('Show Installed Only', icon='filter_list',
                                   on_click=lambda: toggle_filter()) \
-            .props('dense outline').classes('text-white')
+            .props('dense outline').style('color: var(--ink) !important;')
         send_selected_btn = ui.button('Send Selected', icon='send',
                                       on_click=lambda: batch_send()) \
-            .props('dense').classes('text-white bg-green-800')
+            .props('dense').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
 
-    loading = ui.label('Loading tables...').classes('text-gray-400')
+    loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
     table_container = ui.column().classes('w-full')
 
     # Shared state for the table reference and device folders
@@ -554,11 +554,11 @@ def _build_web_send_panel():
     def toggle_filter():
         panel_state['filter_installed'] = not panel_state['filter_installed']
         if panel_state['filter_installed']:
-            filter_toggle.props(add='color=blue')
+            filter_toggle.style(add='color: var(--neon-cyan) !important;')
             filter_toggle._text = 'Show All'
             filter_toggle.update()
         else:
-            filter_toggle.props(remove='color=blue')
+            filter_toggle.style(remove='color: var(--neon-cyan) !important;')
             filter_toggle._text = 'Show Installed Only'
             filter_toggle.update()
         _apply_filter()
@@ -584,12 +584,12 @@ def _build_web_send_panel():
     async def _send_single_table(host, port, name, exclude_ini, masked_ini_copy_enabled, masked_ini_mask):
         """Send a single table with progress dialog. Returns True on success."""
         # Progress dialog
-        with ui.dialog() as dlg, ui.card().classes('bg-gray-800 p-6').style('min-width: 400px;'):
+        with ui.dialog() as dlg, ui.card().classes('p-6').style('min-width: 400px; background: var(--surface) !important;'):
             with ui.column().classes('w-full gap-3'):
-                ui.label(f'Sending {name}').classes('text-white font-bold text-lg')
+                ui.label(f'Sending {name}').classes('font-bold text-lg').style('color: var(--ink) !important;')
                 progress_bar = ui.linear_progress(value=0, show_value=False).classes('w-full')
-                status_label = ui.label('Connecting...').classes('text-gray-400 text-sm')
-                file_label = ui.label('').classes('text-gray-500 text-xs')
+                status_label = ui.label('Connecting...').classes('text-sm').style('color: var(--ink-muted) !important;')
+                file_label = ui.label('').classes('text-xs').style('color: var(--ink-muted) !important;')
         dlg.props('persistent')
         dlg.open()
 
@@ -700,12 +700,12 @@ def _build_web_send_panel():
 
             tbl.add_slot('body-cell-display_name', '''
                 <q-td :props="props">
-                    <q-btn v-if="!props.row.installed" flat dense icon="send" color="green" class="q-mr-sm"
+                    <q-btn v-if="!props.row.installed" flat dense icon="send" class="q-mr-sm" style="color: var(--ok) !important;"
                         @click.stop="$parent.$emit('websend', props.row)" />
-                    <q-btn v-if="props.row.installed" flat dense icon="delete" color="red" class="q-mr-sm"
+                    <q-btn v-if="props.row.installed" flat dense icon="delete" class="q-mr-sm" style="color: var(--bad) !important;"
                         @click.stop="$parent.$emit('webdelete', props.row)" />
-                    <q-icon v-if="props.row.installed" name="check_circle" color="light-green" class="q-mr-xs" />
-                    <span :style="props.row.installed ? 'color: #81c784;' : ''">
+                    <q-icon v-if="props.row.installed" name="check_circle" class="q-mr-xs" /> style="color: var(--neon-cyan) !important;"
+                    <span :style="props.row.installed ? 'color: var(--neon-purple);' : ''">
                         {{ props.row.display_name }}
                     </span>
                 </q-td>
@@ -747,12 +747,12 @@ def _build_web_send_panel():
                     ui.notify('Please enter IP and Port', type='warning')
                     return
 
-                with ui.dialog() as dlg, ui.card().classes('bg-gray-800 p-6'):
-                    ui.label(f'Delete "{name}" from device?').classes('text-white font-bold')
-                    ui.label('This will permanently remove the table from the mobile device.').classes('text-gray-400 text-sm')
+                with ui.dialog() as dlg, ui.card().classes('p-6').style('background: var(--surface) !important;'):
+                    ui.label(f'Delete "{name}" from device?').classes('font-bold').style('color: var(--ink) !important;')
+                    ui.label('This will permanently remove the table from the mobile device.').classes('text-sm').style('color: var(--ink-muted) !important;')
                     with ui.row().classes('w-full justify-end gap-2 mt-4'):
-                        ui.button('Cancel', on_click=dlg.close).props('flat').classes('text-white')
-                        ui.button('Delete', on_click=lambda: dlg.submit(True)).props('color=red')
+                        ui.button('Cancel', on_click=dlg.close).props('flat').style('color: var(--ink-) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                        ui.button('Delete', on_click=lambda: dlg.submit(True)).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 dlg.open()
                 result = await dlg
                 if not result:
