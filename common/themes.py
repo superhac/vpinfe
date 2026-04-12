@@ -5,6 +5,7 @@ import os
 import time
 import zipfile
 import shutil
+import concurrent.futures
 from io import BytesIO
 from typing import Dict, Any
 from platformdirs import user_config_dir
@@ -76,25 +77,38 @@ class ThemeRegistry:
         if not self.themes_index:
             raise ThemeRegistryError("Registry not loaded.")
 
+        # Reset loaded themes for this pass.
+        self.themes = {}
+
+        theme_jobs = []
         for theme_key, theme_info in self.themes_index.items():
             if default_only and not theme_info.get("default_install", False):
                 continue
-
             manifest_url = theme_info.get("theme_manifest_url")
             if not manifest_url:
                 continue
+            theme_jobs.append((theme_key, theme_info, manifest_url))
 
-            try:
-                manifest = self._fetch_json(manifest_url)
-                self._validate_manifest(theme_key, manifest)
+        def _load_one(job):
+            theme_key, theme_info, manifest_url = job
+            manifest = self._fetch_json(manifest_url)
+            self._validate_manifest(theme_key, manifest)
+            return theme_key, theme_info, manifest
 
-                self.themes[theme_key] = {
-                    "registry_info": theme_info,
-                    "manifest": manifest
-                }
-
-            except Exception as e:
-                logger.error("%s: %s", theme_key, e)
+        # Network-bound workload: parallelize manifest fetches.
+        max_workers = min(8, max(1, len(theme_jobs)))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {pool.submit(_load_one, job): job[0] for job in theme_jobs}
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    theme_key, theme_info, manifest = future.result()
+                    self.themes[theme_key] = {
+                        "registry_info": theme_info,
+                        "manifest": manifest,
+                    }
+                except Exception as e:
+                    failed_key = futures.get(future, "unknown")
+                    logger.error("%s: %s", failed_key, e)
 
     # =========================================================
     # VALIDATION
@@ -325,7 +339,7 @@ def main():
         installed_status = "Installed" if registry.is_installed(key) else "Not installed"
         folder_name = registry.get_installed_folder(key)
         logger.info(" - %s (%s) -> folder: %s", key, installed_status, folder_name)
-             
+
     logger.info("Done.")
 
 
