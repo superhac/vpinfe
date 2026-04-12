@@ -399,42 +399,49 @@ def build_app():
                 .classes('w-full nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
+                .tooltip('Tables')
             )
             collections_btn = (
                 ui.button('Collections', icon='collections_bookmark', on_click=lambda: show_page('collections'))
                 .classes('w-full nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
+                .tooltip('Collections')
             )
             media_btn = (
                 ui.button('Media', icon='image', on_click=lambda: show_page('media'))
                 .classes('w-full nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
+                .tooltip('Media')
             )
             themes_btn = (
                 ui.button('Themes', icon='palette', on_click=lambda: show_page('themes'))
                 .classes('w-full nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
+                .tooltip('Themes')
             )
             mobile_btn = (
                 ui.button('Mobile Uploader', icon='smartphone', on_click=lambda: show_page('mobile'))
                 .classes('w-full nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
+                .tooltip('Mobile Uploader')
             )
             system_btn = (
                 ui.button('System', icon='monitor_heart', on_click=lambda: show_page('system'))
                 .classes('w-full nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
+                .tooltip('System')
             )
             config_btn = (
                 ui.button('Configuration', icon='tune', on_click=lambda: show_page('vpinfe'))
                 .classes('w-full nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
+                .tooltip('Configuration')
             )
         # Remote control button anchored to bottom
         nav_state['remote_container'] = ui.column().classes('w-full gap-1 mt-auto').style('margin-top: auto; padding-bottom: 16px;')
@@ -445,6 +452,7 @@ def build_app():
                 .classes('w-full nav-btn')
                 .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
+                .tooltip('Remote Control')
             )
 
     current_page = {'value': None}
