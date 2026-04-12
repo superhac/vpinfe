@@ -913,7 +913,9 @@ def render_panel():
                             new_url = _media_url('media_tables', table_dir, 'medias', target_filename) + f'?t={cache_buster}'
                             new_thumb = await run.io_bound(_ensure_thumb, table_dir, media_key, target_path)
                             update_cache_entry(table_dir, media_key, new_url, new_thumb)
-                            update_table_display()
+                            
+                            # Only re-render the affected row instead of full table filter/redraw
+                            media_table.update()
 
                             # Cleanup temp
                             tmp_dir = os.path.join(table_path, '.tmp_upload')
