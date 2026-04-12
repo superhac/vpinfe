@@ -623,6 +623,7 @@ def render_panel():
 
                 async def _build_one(row: Dict, media_key: str, source_path: str):
                     changed = False
+                    table_dir = row.get('table_dir', '')
                     try:
                         async with sem:
                             thumb = await run.io_bound(_ensure_thumb, row.get('table_dir', ''), media_key, source_path)
@@ -635,17 +636,23 @@ def render_panel():
                             row.setdefault('thumb_errors', {})[media_key] = True
                     except Exception:
                         row.setdefault('thumb_errors', {})[media_key] = True
-                    return changed
+                    return changed, table_dir
 
                 for i in range(0, len(pending), THUMB_WARM_CHUNK_SIZE):
                     chunk = pending[i:i + THUMB_WARM_CHUNK_SIZE]
                     results = await asyncio.gather(*(_build_one(r, k, p) for r, k, p in chunk))
-                    if any(results) and can_update_ui():
+                    changed_table_dirs = {
+                        table_dir for changed, table_dir in results
+                        if changed and table_dir
+                    }
+                    if changed_table_dirs and can_update_ui():
                         with page_client:
-                            # Rebuild rows from cache (same path as revisit), but keep current pagination.
-                            update_table_display(schedule_warm=False)
-                            if current_pagination:
-                                media_table.run_method('setPagination', current_pagination)
+                            # Refresh only changed visible rows; full redraw only as fallback.
+                            refreshed = _refresh_visible_rows(changed_table_dirs)
+                            if not refreshed:
+                                update_table_display(schedule_warm=False)
+                                if current_pagination:
+                                    media_table.run_method('setPagination', current_pagination)
             finally:
                 page_state['thumb_warm_in_progress'] = False
                 pending_rows = page_state.get('pending_warm_rows')
@@ -957,6 +964,38 @@ def render_panel():
             for row in current_rows:
                 if row.get('table_dir') == table_dir:
                     # Replace object reference so Quasar reliably re-renders this row.
+                    updated_rows.append(dict(live_row))
+                    replaced = True
+                else:
+                    updated_rows.append(row)
+
+            if not replaced:
+                return False
+
+            media_table._props['rows'] = updated_rows
+            media_table.update()
+            return True
+
+        def _refresh_visible_rows(table_dirs: set[str]) -> bool:
+            """Refresh multiple visible rows in one table update call."""
+            if _media_cache is None or not table_dirs:
+                return False
+
+            live_rows = {
+                row.get('table_dir'): row
+                for row in _media_cache
+                if row.get('table_dir') in table_dirs
+            }
+            if not live_rows:
+                return False
+
+            current_rows = media_table._props.get('rows') or []
+            replaced = False
+            updated_rows = []
+            for row in current_rows:
+                table_dir = row.get('table_dir')
+                live_row = live_rows.get(table_dir)
+                if live_row is not None:
                     updated_rows.append(dict(live_row))
                     replaced = True
                 else:
