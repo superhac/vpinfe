@@ -277,20 +277,20 @@ def show_log_file_dialog() -> None:
     escaped_content = html.escape(content)
 
     with ui.dialog().props('persistent max-width=1100px') as dlg, ui.card().classes('w-full').style(
-        'background: #0f172a; border: 1px solid #334155; min-width: min(92vw, 1000px); height: 82vh;'
+        'background: var(--surface); border: 1px solid var(--line); min-width: min(92vw, 1000px); height: 82vh;'
     ):
         with ui.column().classes('w-full h-full gap-3'):
-            ui.label('VPinFE Log').classes('text-xl font-bold text-white')
-            ui.label(str(log_path)).classes('text-xs text-slate-400 break-all')
+            ui.label('VPinFE Log').classes('text-xl font-bold').style('color: var(--ink) !important;')
+            ui.label(str(log_path)).classes('text-xs break-all').style('color: var(--ink-muted) !important;')
             with ui.scroll_area().classes('w-full').style(
-                'flex: 1 1 auto; min-height: 0; border: 1px solid #475569; border-radius: 8px; background: #020617;'
+                'flex: 1 1 auto; min-height: 0; border: 1px solid var(--neon-purple); border-radius: 8px; background: var(--surface);'
             ):
                 ui.html(
                     f'<pre style="margin:0; padding:12px; white-space:pre-wrap; word-break:break-word; '
-                    f'font-family:monospace; font-size:12px; color:#e2e8f0;">{escaped_content}</pre>'
+                    f'font-family:monospace; font-size:12px; color:var(--ink);">{escaped_content}</pre>'
                 ).classes('w-full')
         with ui.row().classes('w-full justify-end mt-2'):
-            ui.button('Close', on_click=dlg.close).props('color=primary rounded')
+            ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
     dlg.open()
 
 def render_panel(tab=None):
@@ -305,18 +305,15 @@ def render_panel(tab=None):
             gap: 1.25rem;
         }
         .config-hero {
-            background:
-                radial-gradient(circle at top right, rgba(125, 211, 252, 0.16), transparent 34%),
-                linear-gradient(135deg, #203a5e 0%, #305887 55%, #26466c 100%);
-            border: 1px solid rgba(148, 163, 184, 0.22);
-            border-radius: 18px;
-            box-shadow: 0 18px 40px rgba(2, 6, 23, 0.28);
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: 0 18px 40px var(--shadow);
         }
         .config-hero-kicker {
-            font-size: 0.72rem;
-            letter-spacing: 0.12em;
+            font-size: 0.7rem;
             text-transform: uppercase;
-            color: #bfdbfe;
+            color: var(--ink);
             font-weight: 700;
         }
         .config-uppercase-input input {
@@ -334,23 +331,23 @@ def render_panel(tab=None):
             min-height: 46px;
             border-radius: 999px;
             padding: 0 16px;
-            background: rgba(30, 41, 59, 0.72);
-            border: 1px solid rgba(71, 85, 105, 0.9);
-            color: #dbeafe;
+            background: var(--surface-soft);
+            border: 1px solid var(--line);
+            color: var(--ink);
             transition: all 0.2s ease;
         }
         .config-tabs .q-tab--active {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.22), rgba(14, 165, 233, 0.18));
-            border-color: rgba(96, 165, 250, 0.95);
-            box-shadow: 0 8px 20px rgba(14, 165, 233, 0.12);
+            background: var(--surface);
+            border-color: var(--neon-purple);
+            box-shadow: 0 8px 20px var(--shadow);
         }
         .config-tabs .q-tab__label {
             font-weight: 700;
         }
         .config-panel-shell {
-            background: linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(13, 26, 45, 0.92));
-            border: 1px solid #24344b;
-            border-radius: 18px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
             padding: 1.2rem;
         }
         .config-section-header {
@@ -361,28 +358,28 @@ def render_panel(tab=None):
             margin-bottom: 1rem;
             padding: 1rem 1.1rem;
             border-radius: 14px;
-            background: linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(15, 23, 42, 0.52));
-            border: 1px solid rgba(59, 130, 246, 0.25);
+            background: var(--surface-2);
+            border: 1px solid var(--line);
         }
         .config-section-title {
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             font-weight: 700;
-            color: #f8fafc;
+            color: var(--ink);
         }
         .config-section-description {
-            font-size: 0.92rem;
-            color: #93c5fd;
+            font-size: 0.9rem;
+            color: var(--ink-muted);
         }
         .config-card {
-            background: linear-gradient(145deg, #1c2a40 0%, #152238 100%) !important;
-            border: 1px solid #334155 !important;
-            border-radius: 16px !important;
-            box-shadow: 0 12px 30px rgba(2, 6, 23, 0.18) !important;
+            background: var(--surface-2) !important;
+            border: 1px solid var(--line) !important;
+            border-radius: var(--radius) !important;
+            box-shadow: 0 12px 30px var(--glow-purple) !important;
             transition: all 0.2s ease !important;
         }
         .config-card:hover {
-            border-color: #3b82f6 !important;
-            box-shadow: 0 8px 12px -2px rgba(59, 130, 246, 0.15) !important;
+            border-color: var(--neon-purple) !important;
+            box-shadow: 0 8px 12px -2px var(--glow-purple) !important;
         }
         .config-form-grid {
             display: grid;
@@ -446,8 +443,8 @@ def render_panel(tab=None):
         .config-field-card {
             padding: 0.95rem 1rem;
             border-radius: 14px;
-            background: linear-gradient(180deg, rgba(20, 32, 56, 0.96), rgba(17, 27, 46, 0.96));
-            border: 1px solid rgba(71, 85, 105, 0.72);
+            background: var(--surface-soft);
+            border: 1px solid var(--line);
         }
         .config-field-card.compact {
             display: flex;
@@ -459,22 +456,22 @@ def render_panel(tab=None):
             font-size: 0.82rem;
             font-weight: 700;
             letter-spacing: 0.01em;
-            color: #93c5fd;
+            color: var(--ink);
         }
         .config-input {
             width: 100%;
         }
         .config-input .q-field__control {
-            background: #1a2744 !important;
+            background: var(--surface) !important;
             border-radius: 8px !important;
         }
         .config-input .q-field__native,
         .config-input input,
         .config-input .q-field__input {
-            color: #f8fafc !important;
+            color: var(--ink-muted) !important;
         }
         .config-input .q-field__label {
-            color: #94a3b8 !important;
+            color: var(--ink) !important;
         }
         .config-input-env {
             width: 100%;
@@ -485,24 +482,24 @@ def render_panel(tab=None):
             min-height: 12rem !important;
         }
         .config-input .q-checkbox__label {
-            color: #f8fafc !important;
+            color: var(--ink) !important;
             font-weight: 600;
         }
         .config-side-card {
             border-radius: 16px;
-            background: linear-gradient(180deg, rgba(17, 24, 39, 0.94), rgba(15, 23, 42, 0.98));
-            border: 1px solid rgba(71, 85, 105, 0.8);
-            box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08), 0 10px 30px rgba(2, 6, 23, 0.18);
+            background: var(--surface-2);
+            border: 1px solid var(--line);
+            box-shadow: inset 0 1px 0 var(--glow-purple), 0 10px 30px var(--shadow);
         }
         .config-display-item {
             padding: 0.75rem 0.85rem;
             border-radius: 12px;
-            background: rgba(30, 41, 59, 0.55);
-            border: 1px solid rgba(71, 85, 105, 0.58);
-            color: #e2e8f0;
+            background: var(--surface-soft);
+            border: 1px solid var(--neon-purple);
+            color: var(--ink-muted);
         }
         .config-display-item strong {
-            color: #f8fafc;
+            color: var(--ink);
         }
         .config-footer-bar {
             position: sticky;
@@ -767,10 +764,10 @@ def render_panel(tab=None):
 
     def show_command_output_dialog(title: str, command: list[str], output: str, exit_code: int | None):
         with ui.dialog().props('persistent max-width=1000px') as dlg, ui.card().classes('w-full').style(
-            'background: #0f172a; border: 1px solid #334155; min-width: min(92vw, 900px);'
+            'background: var(--surface); border: 1px solid var(--line); min-width: min(92vw, 900px);'
         ):
-            ui.label(title).classes('text-xl font-bold text-white')
-            ui.label(shlex.join(command)).classes('text-xs text-slate-400 break-all')
+            ui.label(title).classes('text-xl font-bold').style('color: var(--ink) !important;')
+            ui.label(shlex.join(command)).classes('text-xs break-all').style('color: var(--ink-muted) !important;')
             if exit_code is not None:
                 status_color = 'text-green-400' if exit_code == 0 else 'text-red-400'
                 ui.label(f'Exit code: {exit_code}').classes(f'text-sm {status_color}')
@@ -778,21 +775,21 @@ def render_panel(tab=None):
                 'height: 420px; font-family: monospace;'
             )
             with ui.row().classes('w-full justify-end mt-2'):
-                ui.button('Close', on_click=dlg.close).props('color=primary rounded')
+                ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
         dlg.open()
 
     def show_live_command_dialog(title: str, command: list[str]):
         with ui.dialog().props('persistent max-width=1000px') as dlg, ui.card().classes('w-full').style(
-            'background: #0f172a; border: 1px solid #334155; min-width: min(92vw, 900px);'
+            'background: var(--surface); border: 1px solid var(--line); min-width: min(92vw, 900px);'
         ):
-            ui.label(title).classes('text-xl font-bold text-white')
-            command_label = ui.label(shlex.join(command)).classes('text-xs text-slate-400 break-all')
-            status_label = ui.label('Running...').classes('text-sm text-amber-300')
+            ui.label(title).classes('text-xl font-bold').style('color: var(--ink) !important;')
+            command_label = ui.label(shlex.join(command)).classes('text-xs break-all').style('color: var(--ink-muted) !important;')
+            status_label = ui.label('Running...').classes('text-sm').style('color: var(--neon-yellow) !important;')
             output_area = ui.textarea(value='Starting sync...').props('readonly outlined').classes('w-full').style(
                 'height: 420px; font-family: monospace;'
             )
             with ui.row().classes('w-full justify-end mt-2'):
-                close_button = ui.button('Close', on_click=dlg.close).props('color=primary rounded')
+                close_button = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                 close_button.disable()
         dlg.open()
         return command_label, status_label, output_area, close_button
@@ -991,13 +988,13 @@ def render_panel(tab=None):
         with ui.card().classes('w-full config-hero').style('overflow: hidden;'):
             with ui.row().classes('w-full items-center justify-between p-6 gap-6'):
                 with ui.row().classes('items-center gap-4'):
-                    ui.icon('tune', size='34px').classes('text-white')
+                    ui.icon('tune', size='34px').style('color: var(--ink) !important;')
                     with ui.column().classes('gap-1'):
                         ui.label('System Setup').classes('config-hero-kicker')
-                        ui.label('VPinFE Configuration').classes('text-2xl font-bold text-white')
+                        ui.label('VPinFE Configuration').classes('text-2xl font-bold').style('color: var(--ink) !important;')
                         ui.label(
                             'Organize display mapping, startup behavior, media, and service settings from one place.'
-                        ).classes('text-sm text-blue-100')
+                        ).classes('text-sm').style('color: var(--neon-cyan) !important;')
 
         with ui.tabs().classes('w-full config-tabs').props(
             'inline-label dense active-color=white indicator-color=transparent'
@@ -1017,15 +1014,13 @@ def render_panel(tab=None):
                     with ui.element('div').classes('config-panel-shell w-full'):
                         with ui.element('div').classes('config-section-header'):
                             with ui.row().classes('items-center gap-3'):
-                                ui.icon(SECTION_ICONS.get(section, 'settings'), size='24px').classes('text-blue-200')
+                                ui.icon(SECTION_ICONS.get(section, 'settings'), size='24px').style('color: var(--neon-cyan) !important;')
                                 with ui.column().classes('gap-0'):
                                     ui.label(section).classes('config-section-title')
                                     ui.label(
                                         SECTION_DESCRIPTIONS.get(section, 'Configuration values for this section.')
                                     ).classes('config-section-description')
-                            ui.label(f'{len(options)} setting{"s" if len(options) != 1 else ""}').classes(
-                                'text-xs font-semibold text-slate-300'
-                            )
+                            ui.label(f'{len(options)} setting{"s" if len(options) != 1 else ""}').classes('text-xs font-semibold').style('color: var(--ink-muted) !important;')
 
                         content_classes = 'config-main-grid' if section == 'Displays' else 'w-full'
                         with ui.element('div').classes(content_classes):
@@ -1157,14 +1152,14 @@ def render_panel(tab=None):
                                                             'VPinPlay Home',
                                                             VPINPLAY_BASE_URL,
                                                             new_tab=True,
-                                                        ).classes('text-blue-300 text-sm underline')
+                                                        ).style('color: var(--neon-cyan) !important;')
                                                         vpinplay_user_link = ui.link(
                                                             '',
                                                             _build_vpinplay_user_url(
                                                                 config.config.get(section, user_key, fallback='')
                                                             ),
                                                             new_tab=True,
-                                                        ).classes('text-blue-300 text-sm underline')
+                                                        ).style('color: var(--neon-cyan) !important;')
                                                     update_vpinplay_user_link()
 
                                             if endpoint_key in options:
@@ -1199,7 +1194,7 @@ def render_panel(tab=None):
 
                                         with ui.column().classes('w-full gap-3'):
                                             with ui.card().classes('config-side-card w-full p-4'):
-                                                ui.label('Table Metadata Sync').classes('text-lg font-semibold text-white')
+                                                ui.label('Table Metadata Sync').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                                 ui.label(
                                                     'Sends installed table metadata to the configured VPinPlay service endpoint.'
                                                 ).classes('text-sm text-slate-300')
@@ -1207,7 +1202,7 @@ def render_panel(tab=None):
                                                     'Sync Installed Tables',
                                                     icon='sync',
                                                     on_click=run_vpinplay_sync,
-                                                ).props('color=primary rounded').classes('mt-3')
+                                                ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                                                 update_vpinplay_sync_button_state()
                                             if sync_key in options:
                                                 with ui.element('div').classes('w-full'):
@@ -1217,20 +1212,20 @@ def render_panel(tab=None):
                                     with ui.element('div').classes('config-vpinplay-pair'):
                                         with ui.column().classes('w-full gap-3'):
                                             with ui.card().classes('config-side-card w-full p-4'):
-                                                ui.label('DOF Settings').classes('text-lg font-semibold text-white')
+                                                ui.label('DOF Settings').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                                 ui.label(
                                                     'Configure frontend DOF support and the online config tool API key.'
-                                                ).classes('text-sm text-slate-300')
+                                                ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                                 with ui.element('div').classes('config-form-grid mt-3'):
                                                     for key in options:
                                                         value = config.config.get(section, key, fallback='')
                                                         build_config_input(section, key, value)
                                         with ui.column().classes('w-full gap-3'):
                                             with ui.card().classes('config-side-card w-full p-4'):
-                                                ui.label('DOF Event Test').classes('text-lg font-semibold text-white')
+                                                ui.label('DOF Event Test').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                                 ui.label(
                                                     'Enter an event token like E900 or S27, then start or stop it for testing.'
-                                                ).classes('text-sm text-slate-300')
+                                                ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                                 dof_test_event_input = ui.input(
                                                     label='Test Event',
                                                     value='E900',
@@ -1241,12 +1236,12 @@ def render_panel(tab=None):
                                                         'Start Event',
                                                         icon='play_arrow',
                                                         on_click=run_dof_test_event_start,
-                                                    ).props('color=primary rounded')
+                                                    ).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                                                     ui.button(
                                                         'Stop Event',
                                                         icon='stop',
                                                         on_click=run_dof_test_event_stop,
-                                                    ).props('color=negative flat rounded')
+                                                    ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                                 elif section == 'libdmdutil':
                                     service_key = 'enabled'
                                     zedmd_keys = ['zedmddevice', 'zedmdwifiaddr']
@@ -1281,17 +1276,17 @@ def render_panel(tab=None):
 
                             if section == 'Displays':
                                 with ui.card().classes('config-side-card w-full p-4 gap-3'):
-                                    ui.label('Detected Displays').classes('text-lg font-semibold text-white')
+                                    ui.label('Detected Displays').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                     ui.label(
                                         'Use these IDs when setting Playfield, Backglass, and DMD monitor assignments.'
-                                    ).classes('text-sm text-slate-300')
+                                    ).classes('text-sm').style('color: var(--ink-muted) !important;')
 
                                     if detected_displays['error']:
                                         ui.label(
                                             f"Unable to detect displays: {detected_displays['error']}"
-                                        ).classes('text-red-300')
+                                        ).style('color: var(--bad) !important;')
                                     elif not detected_displays['screeninfo']:
-                                        ui.label('No displays were detected.').classes('text-amber-300')
+                                        ui.label('No displays were detected.').style('color: var(--warn) !important;')
                                     else:
                                         for m in detected_displays['screeninfo']:
                                             ui.html(
@@ -1303,7 +1298,7 @@ def render_panel(tab=None):
                                         ui.separator().classes('my-2')
                                         ui.label(
                                             'macOS NSScreen monitors used for window positioning:'
-                                        ).classes('text-sm text-slate-300')
+                                        ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                         for s in detected_displays['nsscreen']:
                                             ui.html(
                                                 f"<div class='config-display-item'><strong>{s['id']}</strong><br>"
@@ -1313,34 +1308,34 @@ def render_panel(tab=None):
                         if section == 'DOF':
                             with ui.card().classes('config-side-card w-full mt-4 p-4'):
                                 with ui.row().classes('items-center gap-3'):
-                                    ui.label('Online Config Tool').classes('text-lg font-semibold text-white')
+                                    ui.label('Online Config Tool').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                     ui.link(
                                         '(DOF Config Online Tool)',
                                         'https://configtool.vpuniverse.com/app/home',
                                         new_tab=True,
-                                    ).classes('text-blue-300 text-sm underline')
+                                    ).style('color: var(--neon-cyan) !important;')
                                 ui.label(
                                     'Downloads updated DOF config using ledcontrol_pull.py and the API key above.'
-                                ).classes('text-sm text-slate-300')
-                                dof_force_checkbox = ui.checkbox('Force update').classes('mt-2 text-white')
+                                ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                dof_force_checkbox = ui.checkbox('Force update').classes('mt-2').style('color: var(--ink) !important;')
                                 update_dof_button = ui.button(
                                     'Update DOF via Online Config Tool',
                                     icon='cloud_download',
                                     on_click=run_dof_online_update,
-                                ).props('color=primary rounded').classes('mt-3')
+                                ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
 
                         if section == 'Settings':
                             with ui.card().classes('config-side-card w-full mt-4 p-4'):
-                                ui.label('VPinball Launch Comand w/Options').classes('text-lg font-semibold text-white')
+                                ui.label('VPinball Launch Comand w/Options').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                 ui.label(
                                     'Preview uses sample table: A-Go-Go (Williams 1966).vpx'
-                                ).classes('text-sm text-slate-300')
+                                ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                 launch_command_preview = ui.textarea(
                                     value='',
                                 ).props('readonly outlined autogrow').classes('w-full mt-2').style(
                                     'font-family: monospace;'
                                 )
-                                ui.label('Launch environment overrides').classes('text-sm font-semibold text-slate-200 mt-2')
+                                ui.label('Launch environment overrides').classes('text-sm font-semibold mt-2').style('color: var(--ink-muted) !important;')
                                 launch_env_preview = ui.textarea(
                                     value='',
                                 ).props('readonly outlined autogrow').classes('w-full').style(
@@ -1350,16 +1345,16 @@ def render_panel(tab=None):
 
                         if section == 'Logger':
                             with ui.card().classes('config-side-card w-full mt-4 p-4'):
-                                ui.label('Log File').classes('text-lg font-semibold text-white')
+                                ui.label('Log File').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                 ui.label(
                                     f'VPinFE always writes logs to {CONFIG_DIR / "vpinfe.log"}. '
                                     'Each app launch starts a fresh log file.'
-                                ).classes('text-sm text-slate-300')
+                                ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                 ui.button(
                                     'View Log',
                                     icon='article',
                                     on_click=show_log_file_dialog,
-                                ).props('color=primary rounded').classes('mt-3')
+                                ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
 
         with ui.element('div').classes('w-full config-footer-bar'):
-            ui.button('Save Changes', icon='save', on_click=save_config).props('color=primary rounded').classes('px-6 py-3')
+            ui.button('Save Changes', icon='save', on_click=save_config).classes('px-6 py-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')

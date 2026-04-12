@@ -426,162 +426,203 @@ def build(parent=None):
     # Custom CSS for remote control styling
     ui.add_head_html("""
     <style>
-    /* Remove default body margins and set background */
-    body {
-        margin: 0 !important;
-        padding: 0 !important;
-        background-color: #111827 !important;
-        overflow-x: hidden !important;
-    }
-
-    /* Remote control button styling */
-    .remote-button {
-        background: linear-gradient(145deg, #4a5568, #2d3748) !important;
-        border: 2px solid #1a202c !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1) !important;
-        transition: all 0.15s ease !important;
-    }
-    .remote-button:hover {
-        background: linear-gradient(145deg, #5a6678, #3d4758) !important;
-        box-shadow: 0 6px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important;
-    }
-    .remote-button:active {
-        background: linear-gradient(145deg, #2d3748, #1a202c) !important;
-        box-shadow: 0 2px 3px rgba(0,0,0,0.3), inset 0 2px 4px rgba(0,0,0,0.4) !important;
-        transform: translateY(2px) !important;
-    }
-
-    /* Icon button styling - 25% smaller */
-    .icon-button {
-        background: linear-gradient(145deg, #374151, #1f2937) !important;
-        border: 2px solid #111827 !important;
-        width: 52px !important;
-        height: 52px !important;
-        border-radius: 50% !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1) !important;
-        transition: all 0.15s ease !important;
-    }
-    .icon-button:hover {
-        background: linear-gradient(145deg, #4b5563, #374151) !important;
-        box-shadow: 0 6px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15) !important;
-    }
-    .icon-button:active {
-        background: linear-gradient(145deg, #1f2937, #111827) !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 3px 6px rgba(0,0,0,0.5) !important;
-        transform: translateY(2px) !important;
-    }
-
-    /* D-pad button styling - 25% smaller */
-    .dpad-button {
-        background: linear-gradient(145deg, #374151, #1f2937) !important;
-        border: 2px solid #111827 !important;
-        width: 45px !important;
-        height: 45px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1) !important;
-        transition: all 0.15s ease !important;
-    }
-    .dpad-button:hover {
-        background: linear-gradient(145deg, #4b5563, #374151) !important;
-    }
-    .dpad-button:active {
-        background: linear-gradient(145deg, #1f2937, #111827) !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.5) !important;
-        transform: translateY(1px) !important;
-    }
-
-    /* Select dropdown styling */
-    .q-field__native, .q-field__control, .q-field__marginal {
-        min-height: 32px !important;
-        height: 32px !important;
-    }
-    .q-field__control {
-        background-color: #1f2937 !important;
-        border: 2px solid #111827 !important;
-        border-radius: 8px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        padding: 0 8px !important;
-    }
-    .q-field__native {
-        color: white !important;
-        text-align: center !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    .q-field__input {
-        color: white !important;
-        text-align: center !important;
-    }
-    .q-field__append {
-        color: white !important;
-    }
-    .q-select__dropdown-icon {
-        color: white !important;
-    }
-    .q-menu {
-        background-color: #1f2937 !important;
-        color: white !important;
-        border-radius: 8px !important;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.4) !important;
-    }
-    .q-item {
-        color: white !important;
-        min-height: 40px !important;
-        padding: 8px 16px !important;
-    }
-    .q-item__label {
-        color: white !important;
-        font-size: 14px !important;
-    }
-    .q-item:hover, .q-item--active {
-        background-color: #374151 !important;
-    }
-    .q-field--focused .q-field__control:before,
-    .q-field--focused .q-field__control:after {
-        display: none !important;
-        box-shadow: none !important;
-    }
-
-    /* Mobile optimizations */
-    @media (max-width: 640px) {
-        .remote-body {
-            max-width: 100vw !important;
-            width: 100vw !important;
+        :root {
+          --bg: #0a0518;
+          --bg-secondary: #150a2e;
+          --surface: #1a0f35;
+          --surface-2: #251447;
+          --surface-soft: #2a1a4a;
+          --ink: #e8d5ff;
+          --ink-muted: #b89dd9;
+          --line: #3d2461;
+          --neon-pink: #ff0a78;
+          --neon-cyan: #00d9ff;
+          --neon-purple: #b429f9;
+          --neon-orange: #ff6b35;
+          --neon-yellow: #ffd93d;
+          --header-gradient: linear-gradient(135deg, #b429f9 0%, #4a1e7c 50%, #0a0518 100%);
+          --sunset-gradient: linear-gradient(180deg, #ff6b35 0%, #ff0a78 25%, #b429f9 50%, #4a1e7c 100%);
+          --link: #00d9ff;
+          --ok: #00ff9f;
+          --warn: #ffd93d;
+          --bad: #ff0a78;
+          --table-row: #1a0f35;
+          --table-row-alt: #251447;
+          --table-hover: #3d2461;
+          --glow-pink: 0 0 4px rgba(255, 10, 120, 0.5), 0 0 8px rgba(255, 10, 120, 0.3);
+          --glow-cyan: 0 0 4px rgba(0, 217, 255, 0.5), 0 0 8px rgba(0, 217, 255, 0.3);
+          --glow-purple: 0 0 4px rgba(180, 41, 249, 0.5), 0 0 8px rgba(180, 41, 249, 0.3);
+          --glow-yellow: 0 0 2px rgba(255, 217, 61, 0.4);
+          --shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
+          --shadow-intense: 0 2px 8px rgba(180, 41, 249, 0.35);
+          --radius: 12px;
+          --grid-color: rgba(0, 217, 255, 0.2);
+        }
+        
+        body {
+            background: var(--bg) !important;
+            color: var(--ink) !important;
             margin: 0 !important;
-            border-radius: 0 !important;
-            border: none !important;
-            min-height: 100vh !important;
+            padding: 0 !important;
+            overflow-x: hidden !important;
+        }
+        
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(0deg, var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            opacity: 0.3;
+            z-index: 0;
+        }
+            
+        /* Remote control button styling */
+        .remote-button {
+            background: var(--surface) !important;
+            border: 2px solid var(--line) !important;
+            box-shadow: 0 4px 6px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
+            transition: all 0.15s ease !important;
+        }
+        .remote-button:hover {
+            background: var(--surface-soft) !important;
+            box-shadow: 0 6px 8px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
+        }
+        .remote-button:active {
+            background: linear-gradient(145deg, #2d3748, #1a202c) !important;
+            box-shadow: 0 2px 3px var(--shadow), inset 0 2px 4px rgba(0,0,0,0.4) !important;
+            transform: translateY(2px) !important;
+        }
+
+        /* Icon button styling - 25% smaller */
+        .icon-button {
+            background: var(--surface) !important;
+            border: 2px solid var(--line) !important;
+            width: 52px !important;
+            height: 52px !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: 0 4px 8px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
+            transition: all 0.15s ease !important;
+        }
+        .icon-button:hover {
+            background: var(--surface-soft) !important;
+            box-shadow: 0 6px 10px var(--neon-purple), inset 0 1px 0 var(--shadow) !important;
+        }
+        .icon-button:active {
+            background: var(--surface-soft) !important;
+            box-shadow: 0 2px 4px var(--shadow), inset 0 3px 6px var(--shadow-intense) !important;
+            transform: translateY(2px) !important;
+        }
+
+        /* D-pad button styling - 25% smaller */
+        .dpad-button {
+            background: var(--surface) !important;
+            border: 2px solid var(--line) !important;
+            width: 45px !important;
+            height: 45px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: 0 3px 6px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
+            transition: all 0.15s ease !important;
+        }
+        .dpad-button:hover {
+            background: var(--surface-soft) !important;
+        }
+        .dpad-button:active {
+            background: var(--surface-soft) !important;
+            box-shadow: 0 1px 3px var(--neon-purple), inset 0 2px 4px var(--glow-purple) !important;
+            transform: translateY(1px) !important;
+        }
+
+        /* Select dropdown styling */
+        .q-field__native, .q-field__control, .q-field__marginal {
+            min-height: 32px !important;
+            height: 32px !important;
+        }
+        .q-field__control {
+            background-color: var(--surface-soft) !important;
+            border-radius: 8px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 8px !important;
+        }
+        .q-field__native {
+            color: var(--ink) !important;
+            text-align: center !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .q-field__input {
+            color: var(--ink) !important;
+            text-align: center !important;
+        }
+        .q-field__append {
+            color: var(--ink) !important;
+        }
+        .q-select__dropdown-icon {
+            color: var(--ink) !important;
         }
         .q-menu {
-            max-height: 60vh !important;
+            background-color: var(--surface-2) !important;
+            color: var(--ink) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 6px 18px var(--glow-purple) !important;
         }
-        /* Scale down fonts by 25% on mobile */
+        .q-item {
+            color: var(--ink) !important;
+            min-height: 40px !important;
+            padding: 8px 16px !important;
+        }
+        .q-item__label {
+            color: var(--ink) !important;
+            font-size: 14px !important;
+        }
+        .q-item:hover, .q-item--active {
+            background-color: var(--surface-soft) !important;
+        }
+        .q-field--focused .q-field__control:before,
+        .q-field--focused .q-field__control:after {
+            display: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+            .remote-body {
+                max-width: 100vw !important;
+                width: 100vw !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                border: none !important;
+                min-height: 100vh !important;
+            }
+            .q-menu {
+                max-height: 60vh !important;
+            }
+            /* Scale down fonts by 25% on mobile */
+            .remote-body {
+                font-size: 0.75em !important;
+            }
+        }
+
+        /* Remote control body */
         .remote-body {
-            font-size: 0.75em !important;
+            background: var(--surface-2) !important;
+            border: 3px solid var(--line) !important;
+            box-shadow: 0 10px 30px var(--glow-purple), inset 0 1px 0 var(--glow-purple) !important;
         }
-    }
-
-    /* Remote control body */
-    .remote-body {
-        background: linear-gradient(145deg, #1f2937, #111827) !important;
-        border: 3px solid #0f1419 !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05) !important;
-    }
-
-    /* Section dividers */
-    .section-divider {
-        height: 2px;
-        background: linear-gradient(90deg, transparent, #374151, transparent);
-        margin: 8px 0;
-    }
     </style>
     """)
 
@@ -630,8 +671,8 @@ def show_vpx_controls():
     """VPX remote control layout"""
 
     # Main Section (moved to top)
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Main").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Main").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
         with ui.row().classes("items-center justify-center gap-3 md:gap-4 w-full"):
             # Reset
             with ui.column().classes("items-center gap-1"):
@@ -639,7 +680,7 @@ def show_vpx_controls():
                     on_click=lambda: handle_button("vpx", "Table Reset")
                 ).props("flat round").classes("icon-button").style("font-size: 18px;"):
                     ui.icon("refresh", size="sm").classes("text-orange-400")
-                ui.label("Reset").classes("text-[10px] md:text-xs text-gray-400")
+                ui.label("Reset").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
             # Quit
             with ui.column().classes("items-center gap-1"):
@@ -647,11 +688,11 @@ def show_vpx_controls():
                     on_click=lambda: handle_button("vpx", "Quit")
                 ).props("flat round").classes("icon-button").style("font-size: 18px;"):
                     ui.icon("power_settings_new", size="sm").classes("text-red-400")
-                ui.label("Quit").classes("text-[10px] md:text-xs text-gray-400")
+                ui.label("Quit").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
     # Volume Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Volume").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Volume").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
         with ui.column().classes("items-center justify-center gap-2 md:gap-3 w-full"):
             # Volume buttons row
             with ui.row().classes("items-center justify-center gap-4 md:gap-6 w-full"):
@@ -671,20 +712,20 @@ def show_vpx_controls():
             ui.button(
                 "Toggle Stereo",
                 on_click=lambda: handle_button("vpx", "Toggle Stereo")
-            ).classes("remote-button text-white px-4 md:px-6 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium")
+            ).classes("remote-button px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-medium").style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px;')
 
     # In-Game UI Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
         # Title row with menu button
         with ui.row().classes("items-start justify-between w-full"):
             # Title (left aligned)
-            ui.label("In Game UI").classes("text-xs md:text-sm font-semibold text-gray-300")
+            ui.label("In Game UI").classes("text-xs md:text-sm font-semibold").style("color: var(--ink-muted) !important;")
 
             # Menu button (right aligned with circle)
             with ui.button(
                 on_click=lambda: handle_button("vpx", "Menu")
-            ).props("flat round").classes("icon-button bg-gray-800 border-2 border-blue-300"):
-                ui.icon("menu", size="sm").classes("text-blue-300")
+            ).props("flat round").classes("icon-button").style("background-color: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px;"):
+                ui.icon("menu", size="sm").style('color: var(--neon-cyan) !important;')
 
         # D-pad navigation (all centered vertically)
         with ui.column().classes("items-center gap-1 w-full"):
@@ -692,72 +733,72 @@ def show_vpx_controls():
             with ui.button(
                 on_click=lambda: handle_button("vpx", "Navigate Up")
             ).props("flat").classes("dpad-button rounded-t-xl"):
-                ui.icon("keyboard_arrow_up", size="sm").classes("text-blue-300")
+                ui.icon("keyboard_arrow_up", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important;')
 
             # Left, Enter, Right row
             with ui.row().classes("gap-1"):
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Navigate Left")
                 ).props("flat").classes("dpad-button rounded-l-xl"):
-                    ui.icon("chevron_left", size="sm").classes("text-blue-300")
+                    ui.icon("chevron_left", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important;')
 
                 ui.button(
                     "Enter",
                     on_click=lambda: handle_button("vpx", "Enter")
-                ).classes("dpad-button text-white font-medium text-[10px] md:text-xs")
+                ).classes("dpad-button text-white font-medium text-[10px] md:text-xs").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple);')
 
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Navigate Right")
                 ).props("flat").classes("dpad-button rounded-r-xl"):
-                    ui.icon("chevron_right", size="sm").classes("text-blue-300")
+                    ui.icon("chevron_right", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important;')
 
             # Down arrow
             with ui.button(
                 on_click=lambda: handle_button("vpx", "Navigate Down")
             ).props("flat").classes("dpad-button rounded-b-xl"):
-                ui.icon("keyboard_arrow_down", size="sm").classes("text-blue-300")
+                ui.icon("keyboard_arrow_down", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important;')
 
             # Keyboard button (below D-pad)
             ui.button(
                 "Keyboard",
                 on_click=lambda: show_virtual_keyboard()
-            ).classes("remote-button text-white px-6 md:px-8 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium mt-2")
+            ).classes("remote-button px-6 md:px-8 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium mt-2").style("color: var(--ink) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple);")
 
     # Debug Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Debug").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Debug").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
         with ui.row().classes("items-center justify-center gap-3 md:gap-4 w-full"):
             # Debugger
             with ui.column().classes("items-center gap-1"):
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Debugger")
                 ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                    ui.icon("bug_report", size="sm").classes("text-yellow-400")
-                ui.label("Debugger").classes("text-[10px] md:text-xs text-gray-400")
+                    ui.icon("bug_report", size="sm").style("color: var(--neon-yellow) !important;")
+                ui.label("Debugger").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
             # Debug Balls
             with ui.column().classes("items-center gap-1"):
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Debug Balls")
                 ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                    ui.icon("circle", size="sm").classes("text-gray-300")
-                ui.label("Debug Balls").classes("text-[10px] md:text-xs text-gray-400")
+                    ui.icon("circle", size="sm").style("color: var(--ink-muted) !important;")
+                ui.label("Debug Balls").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
             # Performance Overlay
             with ui.column().classes("items-center gap-1"):
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Performance Overlay")
                 ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                    ui.icon("speed", size="sm").classes("text-purple-400")
-                ui.label("Perf Overlay").classes("text-[10px] md:text-xs text-gray-400")
+                    ui.icon("speed", size="sm").style("color: var(--neon-purple) !important;")
+                ui.label("Perf Overlay").classes("text-[10px] md:text-xs text-gray-400").style("color: var(--ink-muted) !important;")
 
 
 def show_vpx_game_controls():
     """VPX Game control layout"""
 
     # Main Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Main").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Main").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
         with ui.column().classes("items-center gap-2 w-full"):
             # Icon buttons row: Start, Pause, and Quit
             with ui.row().classes("items-center justify-center gap-3 md:gap-4 w-full"):
@@ -766,60 +807,60 @@ def show_vpx_game_controls():
                     with ui.button(
                         on_click=lambda: handle_button("vpx game", "Start")
                     ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                        ui.icon("play_arrow", size="sm").classes("text-green-400")
-                    ui.label("Start").classes("text-[10px] md:text-xs text-gray-400")
+                        ui.icon("play_arrow", size="sm").style("color: var(--ok) !important;")
+                    ui.label("Start").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
                 # Pause
                 with ui.column().classes("items-center gap-1"):
                     with ui.button(
                         on_click=lambda: handle_button("vpx game", "Pause")
                     ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                        ui.icon("pause", size="sm").classes("text-blue-400")
-                    ui.label("Pause").classes("text-[10px] md:text-xs text-gray-400")
+                        ui.icon("pause", size="sm").style("color: var(--neon-cyan) !important;")
+                    ui.label("Pause").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
                 # Quit
                 with ui.column().classes("items-center gap-1"):
                     with ui.button(
                         on_click=lambda: handle_button("vpx game", "Quit")
                     ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                        ui.icon("power_settings_new", size="sm").classes("text-red-400")
-                    ui.label("Quit").classes("text-[10px] md:text-xs text-gray-400")
+                        ui.icon("power_settings_new", size="sm").style("color: var(--bad) !important;")
+                    ui.label("Quit").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
             # Row with ShowRules, ExtraBall, Lockbar
             with ui.row().classes("items-center justify-center gap-2 w-full"):
                 with ui.button(
                     on_click=lambda: handle_button("vpx game", "ShowRules")
-                ).classes("remote-button text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1"):
-                    ui.icon("description", size="xs").classes("text-cyan-400")
+                ).classes("remote-button px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1").style("color: var(--ink) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple);"):
+                    ui.icon("description", size="xs").style("color: var(--neon-cyan) !important;")
                     ui.label("Show Rules").classes("text-[10px] md:text-xs")
 
                 with ui.button(
                     on_click=lambda: handle_button("vpx game", "ExtraBall")
-                ).classes("remote-button text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1"):
-                    ui.icon("sports_baseball", size="xs").classes("text-yellow-400")
+                ).classes("remote-button px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1").style("color: var(--ink) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple);"):
+                    ui.icon("sports_baseball", size="xs").style("color: var(--neon-yellow) !important;")
                     ui.label("Extra Ball").classes("text-[10px] md:text-xs")
 
                 with ui.button(
                     on_click=lambda: handle_button("vpx game", "Lockbar")
-                ).classes("remote-button text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1"):
-                     ui.icon("fiber_manual_record", size="xs").classes("text-red-600")
+                ).classes("remote-button px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1").style("color: var(--ink) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple);"):
+                     ui.icon("fiber_manual_record", size="xs").style("color: var(--bad) !important;")
                      ui.label("Fire!").classes("text-[10px] md:text-xs")
 
     # Coins Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Coins").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Coins").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
         with ui.grid(columns=2).classes("gap-2 w-full justify-items-center"):
             for i in range(1, 5):
                 with ui.button(
                     on_click=lambda num=i: handle_button("vpx game", f"Credit{num}")
-                ).classes("remote-button text-white px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center gap-1"):
-                    ui.icon("paid", size="xs").classes("text-yellow-400")
+                ).classes("remote-button px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center gap-1").style("color: var(--ink) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple);"):
+                    ui.icon("paid", size="xs").style("color: var(--neon-yellow) !important;")
                     ui.label(f"Credit {i}").classes("text-xs md:text-sm")
 
     # Launch Table Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Launch Table").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Launch Table").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
         # State for the selection - also store UI element references
         launch_state = {'tables': [], 'all_options': {}, 'filtered_options': {}, 'collection': 'All', 'last_term': ''}
@@ -834,7 +875,7 @@ def show_vpx_game_controls():
             ).props(
                 "outlined dense options-dense dark behavior='menu' menu-anchor='top left' menu-self='bottom left'"
             ).classes("flex-grow").style(
-                "min-width: 0; background: #1f2937; border-radius: 8px;"
+                "min-width: 0; background: var(--surface) !important; border-radius: 8px;"
             )
             ui_refs['table_select'] = table_select
 
@@ -852,9 +893,9 @@ def show_vpx_game_controls():
                     ui.notify('Please select a table first', type='warning')
 
             with ui.button(on_click=do_launch).props("flat round dense").classes("icon-button").style(
-                "width: 40px !important; height: 40px !important;"
+                "width: 40px !important; height: 40px !important; background: var(--surface-soft) !important;"
             ):
-                ui.icon("play_arrow", size="sm").classes("text-green-400")
+                ui.icon("play_arrow", size="sm").style("color: var(--ok) !important;")
 
         def apply_collection_filter():
             """Apply collection filter to get base options."""
@@ -896,7 +937,7 @@ def show_vpx_game_controls():
             ui_refs['table_select'].update()
 
         # Collections dropdown (with label above)
-        ui.label("Collection").classes("text-xs text-gray-400 mb-1")
+        ui.label("Collection").classes("text-xs mb-1").style("color: var(--ink-muted) !important;")
         collection_select = ui.select(
             options=['All'],
             value='All',
@@ -904,7 +945,7 @@ def show_vpx_game_controls():
         ).props(
             "outlined dense options-dense dark behavior='menu'"
         ).classes("w-full mb-2").style(
-            "background: #1f2937; border-radius: 8px;"
+            "background: var(--surface) !important; border-radius: 8px;"
         )
         ui_refs['collection_select'] = collection_select
 
@@ -912,7 +953,7 @@ def show_vpx_game_controls():
         filter_input = ui.input(
             placeholder="Search/Filter..."
         ).props("outlined dense clearable dark").classes("w-full").style(
-            "background: #1f2937; border-radius: 8px;"
+            "background: var(--surface) !important; border-radius: 8px;"
         )
         ui_refs['filter_input'] = filter_input
 
@@ -995,8 +1036,8 @@ def show_vpx_game_controls():
 def show_pinmame_controls():
     """PinMAME remote control layout"""
 
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Service Menu Navigation").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Service Menu Navigation").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
         # Three column layout: Coin Door | Up/Down | Enter/Cancel
         with ui.row().classes("items-center justify-center gap-4 w-full flex-nowrap"):
@@ -1004,22 +1045,22 @@ def show_pinmame_controls():
             with ui.column().classes("items-center justify-center flex-shrink-0"):
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Coin Door")
-                ).props("flat").classes("dpad-button"):
-                    ui.icon("meeting_room", size="sm").classes("text-blue-400")
+                ).props("flat").classes("dpad-button").style("background-color: var(--surface-soft) !important; border: 1px solid var(--line) !important;"):
+                    ui.icon("meeting_room", size="sm").style("color: var(--neon-cyan) !important;")
 
             # Middle column: Up/Down
             with ui.column().classes("items-center justify-center gap-2 flex-shrink-0"):
                 # Up
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Up")
-                ).props("flat").classes("dpad-button rounded-t-xl"):
-                    ui.icon("keyboard_arrow_up", size="sm").classes("text-green-400")
+                ).props("flat").classes("dpad-button rounded-t-xl").style("background-color: var(--surface-soft) !important; border: 1px solid var(--line) !important;"):
+                    ui.icon("keyboard_arrow_up", size="sm").style("color: var(--ok) !important;")
 
                 # Down
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Down")
-                ).props("flat").classes("dpad-button rounded-b-xl"):
-                    ui.icon("keyboard_arrow_down", size="sm").classes("text-green-400")
+                ).props("flat").classes("dpad-button rounded-b-xl").style("background-color: var(--surface-soft) !important; border: 1px solid var(--line) !important;"):
+                    ui.icon("keyboard_arrow_down", size="sm").style("color: var(--ok) !important;")
 
             # Right column: Enter/Cancel (side by side)
             with ui.column().classes("items-center justify-center gap-2 flex-shrink-0"):
@@ -1028,31 +1069,31 @@ def show_pinmame_controls():
                     ui.button(
                         "Enter",
                         on_click=lambda: handle_button("pinmame", "Enter")
-                    ).classes("dpad-button text-white font-bold text-[10px] md:text-xs px-3").style("background: linear-gradient(145deg, #10b981, #059669) !important;")
+                    ).classes("dpad-button font-bold text-[10px] md:text-xs px-3").style("color: var(--ok) !important; background: var(--surface-soft) !important; border: 1px solid var(--line) !important;")
 
                     # Cancel
                     with ui.button(
                         on_click=lambda: handle_button("pinmame", "Cancel")
-                    ).props("flat").classes("dpad-button"):
-                        ui.icon("close", size="sm").classes("text-red-400")
+                    ).props("flat").classes("dpad-button").style("color: var(--bad) !important; background: var(--surface-soft) !important; border: 1px solid var(--line) !important;"):
+                        ui.icon("close", size="sm").style("color: var(--bad) !important;")
 
     # Services Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Service Buttons").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Service Buttons").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
         with ui.grid(columns=4).classes("gap-2 w-full justify-items-center"):
             for i in range(1, 9):
                 ui.button(
                     f"S{i}",
                     on_click=lambda num=i: handle_button("pinmame", f"Service {num}")
-                ).classes("remote-button text-white px-3 py-2 rounded-lg text-[10px] md:text-xs font-medium")
+                ).classes("remote-button px-3 py-2 rounded-lg text-[10px] md:text-xs font-medium").style("color: var(--ink) !important; background: var(--surface-soft) !important; border: 1px solid var(--line) !important;")
 
 
 def show_other_controls():
     """Other controls layout"""
 
-    with ui.card().classes("bg-gray-900/50 w-full p-4 rounded-xl border border-gray-700"):
-        ui.label("System Controls").classes("text-center text-sm font-semibold text-gray-300 mb-4")
+    with ui.card().classes("w-full p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("System Controls").classes("text-center text-sm font-semibold mb-4").style("color: var(--ink-muted) !important;")
 
         with ui.grid(columns=3).classes("gap-4 w-full justify-items-center"):
             # (label, icon, color, enabled)
@@ -1081,8 +1122,8 @@ def show_other_controls():
 
 def show_virtual_keyboard():
     """Show a virtual keyboard dialog"""
-    with ui.dialog() as keyboard_dialog, ui.card().classes("bg-gray-800 p-4 w-[90vw] max-w-[500px]"):
-        ui.label("Virtual Keyboard").classes("text-xl font-bold text-white mb-4")
+    with ui.dialog() as keyboard_dialog, ui.card().classes("p-4 w-[90vw] max-w-[500px]").style("backgroud: var(--surface) !important;"):
+        ui.label("Virtual Keyboard").classes("text-xl font-bold mb-4").style("color: var(--ink) !important;")
 
         # Common keys layout
         keyboard_layout = [
@@ -1098,31 +1139,31 @@ def show_virtual_keyboard():
                     ui.button(
                         key,
                         on_click=lambda k=key, d=keyboard_dialog: send_keyboard_key(k, d)
-                    ).classes("bg-gray-700 text-white px-3 py-2 rounded text-sm min-w-[40px] hover:bg-gray-600")
+                    ).classes("px-3 py-2 rounded text-sm min-w-[40px]").style("color: var(--ink) !important; background: var(--surface-soft) !important;")
 
         # Special keys row
         with ui.row().classes("gap-2 justify-center w-full mt-2"):
             ui.button(
                 "Space",
                 on_click=lambda d=keyboard_dialog: send_keyboard_key(Key.space, d)
-            ).classes("bg-gray-700 text-white px-6 py-2 rounded text-sm hover:bg-gray-600")
+            ).classes("px-6 py-2 rounded text-sm").style("color: var(--ink) !important; background: var(--surface-soft) !important;")
 
             ui.button(
                 "Enter",
                 on_click=lambda d=keyboard_dialog: send_keyboard_key(Key.enter, d)
-            ).classes("bg-blue-600 text-white px-6 py-2 rounded text-sm hover:bg-blue-500")
+            ).classes("px-6 py-2 rounded text-sm").style("color: var(--ink) !important; background: var(--surface-soft) !important;")
 
             ui.button(
                 "Backspace",
                 on_click=lambda d=keyboard_dialog: send_keyboard_key(Key.backspace, d)
-            ).classes("bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-500")
+            ).classes("px-4 py-2 rounded text-sm").style("color: var(--ink) !important; background: var(--surface-soft) !important;")
 
         # Close button
         with ui.row().classes("justify-center w-full mt-4"):
             ui.button(
                 "Close",
                 on_click=keyboard_dialog.close
-            ).classes("bg-gray-600 text-white px-8 py-2 rounded hover:bg-gray-500")
+            ).classes("px-8 py-2 rounded").style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
 
     keyboard_dialog.open()
 

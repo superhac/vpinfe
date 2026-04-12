@@ -322,14 +322,14 @@ def render_panel(tab=None):
         '''
         <style>
             .system-hero {
-                background: linear-gradient(135deg, #134e4a 0%, #0f172a 100%);
+                background: var(--surface) !important;
                 border-radius: 12px;
             }
             .system-card {
-                background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%) !important;
-                border: 1px solid #334155 !important;
+                background: var(--surface) !important;
+                border: 1px solid var(--line) !important;
                 border-radius: 12px !important;
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2) !important;
+                box-shadow: var(--shadow) !important;
             }
             .system-value {
                 font-size: 2rem;
@@ -393,13 +393,11 @@ def render_panel(tab=None):
         with ui.card().classes("w-full system-hero"):
             with ui.row().classes("w-full justify-between items-center p-4 gap-4"):
                 with ui.row().classes("items-center gap-3"):
-                    ui.icon("monitor_heart", size="32px").classes("text-teal-200")
+                    ui.icon("monitor_heart", size="32px").style("color: var(--neon-cyan) !important;")
                     with ui.column().classes("gap-0"):
-                        ui.label("System Monitor").classes("text-2xl font-bold text-white")
-                        ui.label("Live CPU and storage metrics for the current host.").classes(
-                            "text-teal-100 text-sm"
-                        )
-                refresh_button = ui.button("Refresh", icon="refresh").props("color=primary rounded")
+                        ui.label("System Monitor").classes("text-2xl font-bold").style("color: var(--ink) !important;")
+                        ui.label("Live CPU and storage metrics for the current host.").classes("text-sm").style("color: var(--neon-cyan) !important;")
+                refresh_button = ui.button("Refresh", icon="refresh").style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
 
         gpu_toggle_card = None
         gpu_toggle = None
@@ -409,32 +407,32 @@ def render_panel(tab=None):
                 with gpu_toggle_card:
                     with ui.row().classes("w-full items-center justify-between gap-4"):
                         with ui.column().classes("gap-1"):
-                            ui.label("GPU Monitoring").classes("text-lg font-semibold text-white")
+                            ui.label("GPU Monitoring").classes("text-lg font-semibold").style("color: var(--ink) !important;")
                             ui.label(
                                 "Optional Linux and macOS monitoring. Requires `nvtop` to be installed and accessible."
-                            ).classes("text-slate-300")
+                            ).style("color: var(--ink-muted) !important;")
                             ui.label(
                                 "Turn this on to display GPU utilization, temperature, clocks, fan speed, and power draw when supported by nvtop."
-                            ).classes("text-slate-400 text-sm")
-                        gpu_toggle = ui.switch("Enable GPU metrics", value=False).props("color=teal")
+                            ).classes("text-sm").style("color: var(--ink-muted) !important;")
+                        gpu_toggle = ui.switch("Enable GPU metrics", value=False).style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
 
         with ui.row().classes("w-full gap-4 items-stretch flex-wrap"):
             with ui.card().classes("system-card p-5").style("flex: 1 1 320px; min-width: 280px;"):
                 with ui.column().classes("gap-2"):
-                    ui.label("CPU Utilization").classes("text-sm uppercase tracking-wide text-slate-400")
-                    cpu_value = ui.label("--").classes("system-value text-slate-200")
+                    ui.label("CPU Utilization").classes("text-sm uppercase tracking-wide").style("color: var(--ink-muted) !important;")
+                    cpu_value = ui.label("--").classes("system-value text-slate-200").style("color: var(--ink-muted) !important;")
                     cpu_detail = ui.label("Waiting for sample...").classes("system-subtle")
 
             with ui.card().classes("system-card p-5").style("flex: 1 1 320px; min-width: 280px;"):
                 with ui.column().classes("gap-2"):
-                    ui.label("Memory Utilization").classes("text-sm uppercase tracking-wide text-slate-400")
-                    memory_value = ui.label("--").classes("system-value text-slate-200")
+                    ui.label("Memory Utilization").classes("text-sm uppercase tracking-wide").style("color: var(--ink-muted) !important;")
+                    memory_value = ui.label("--").classes("system-value").style("color: var(--ink-muted) !important;")
                     memory_detail = ui.label("Waiting for sample...").classes("system-subtle")
 
             with ui.card().classes("system-card p-5").style("flex: 1 1 320px; min-width: 280px;"):
                 with ui.column().classes("gap-2"):
-                    ui.label("Free Disk Space").classes("text-sm uppercase tracking-wide text-slate-400")
-                    disk_value = ui.label("--").classes("system-value text-slate-200")
+                    ui.label("Free Disk Space").classes("text-sm uppercase tracking-wide").style("color: var(--ink-muted) !important;")
+                    disk_value = ui.label("--").classes("system-value").style("color: var(--ink-muted) !important;")
                     disk_detail = ui.label("Waiting for sample...").classes("system-subtle")
 
             gpu_value = None
@@ -443,8 +441,8 @@ def render_panel(tab=None):
             if _gpu_monitoring_supported():
                 with ui.card().classes("system-card p-5").style("flex: 1 1 320px; min-width: 280px;") as gpu_summary_card:
                     with ui.column().classes("gap-2"):
-                        ui.label("GPU Utilization").classes("text-sm uppercase tracking-wide text-slate-400")
-                        gpu_value = ui.label("--").classes("system-value text-slate-200")
+                        ui.label("GPU Utilization").classes("text-sm uppercase tracking-wide").style("color: var(--ink-muted) !important;")
+                        gpu_value = ui.label("--").classes("system-value").style("color: var(--ink-muted) !important;")
                         gpu_detail = ui.label("Waiting for sample...").classes("system-subtle")
                 gpu_summary_card.visible = False
 
@@ -454,23 +452,23 @@ def render_panel(tab=None):
         if _gpu_monitoring_supported():
             with ui.card().classes("system-card w-full p-5") as gpu_details_card:
                 with ui.column().classes("gap-2"):
-                    ui.label("GPU Details").classes("text-lg font-semibold text-white")
-                    gpu_blocks_label = ui.label("Waiting for sample...").classes("text-slate-400 text-sm")
+                    ui.label("GPU Details").classes("text-lg font-semibold").style("color: var(--ink) !important;")
+                    gpu_blocks_label = ui.label("Waiting for sample...").classes("text-sm").style("color: var(--ink-muted) !important;")
                     gpu_blocks_container = ui.row().classes("w-full gap-2 items-stretch flex-wrap")
             gpu_details_card.visible = False
 
         with ui.card().classes("system-card w-full p-5"):
             with ui.column().classes("gap-2"):
-                ui.label("System Details").classes("text-lg font-semibold text-white")
-                host_label = ui.label("Host: --").classes("text-slate-300")
-                os_label = ui.label("Operating system: --").classes("text-slate-300")
-                build_label = ui.label("VPinFE build: --").classes("text-slate-300")
-                release_label = ui.label("Release target: --").classes("text-slate-300")
-                browser_label = ui.label("Frontend browser: --").classes("text-slate-300")
-                browser_version_label = ui.label("Browser version: --").classes("text-slate-300")
-                browser_path_label = ui.label("Browser path: --").classes("text-slate-400 break-all")
-                path_label = ui.label("Monitored path: --").classes("text-slate-400 break-all")
-                updated_label = ui.label("Last updated: --").classes("text-slate-500 text-sm")
+                ui.label("System Details").classes("text-lg font-semibold").style("color: var(--ink) !important;")
+                host_label = ui.label("Host: --").style("color: var(--ink-muted) !important;")
+                os_label = ui.label("Operating system: --").style("color: var(--ink-muted) !important;")
+                build_label = ui.label("VPinFE build: --").style("color: var(--ink-muted) !important;")
+                release_label = ui.label("Release target: --").style("color: var(--ink-muted) !important;")
+                browser_label = ui.label("Frontend browser: --").style("color: var(--ink-muted) !important;")
+                browser_version_label = ui.label("Browser version: --").style("color: var(--ink-muted) !important;")
+                browser_path_label = ui.label("Browser path: --").classes("break-all").style("color: var(--ink-muted) !important;")
+                path_label = ui.label("Monitored path: --").classes("break-all").style("color: var(--ink-muted) !important;")
+                updated_label = ui.label("Last updated: --").classes("text-sm").style("color: var(--ink-muted) !important;")
 
     async def refresh_metrics():
         if refresh_state["busy"]:
