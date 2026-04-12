@@ -426,172 +426,240 @@ def build(parent=None):
     # Custom CSS for remote control styling
     ui.add_head_html("""
     <style>
-    /* Remove default body margins and set background */
-    body {
-        margin: 0 !important;
-        padding: 0 !important;
-        background: var(--bg) !important;
-        overflow-x: hidden !important;
-        transition: background 300ms ease, color 300ms ease;
-    }
-    
-    body::before {
-        content: "";
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-image:
-            linear-gradient(0deg, var(--grid-color) 1px, transparent 1px),
-            linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-        background-size: 40px 40px;
-        pointer-events: none;
-        opacity: 0.3;
-        z-index: 0;
-    }
+        :root {
+          --bg: #0a0518;
+          --bg-secondary: #150a2e;
+          --surface: #1a0f35;
+          --surface-2: #251447;
+          --surface-soft: #2a1a4a;
+          --ink: #e8d5ff;
+          --ink-muted: #b89dd9;
+          --line: #3d2461;
+          --neon-pink: #ff0a78;
+          --neon-cyan: #00d9ff;
+          --neon-purple: #b429f9;
+          --neon-orange: #ff6b35;
+          --neon-yellow: #ffd93d;
+          --header-gradient: linear-gradient(135deg, #b429f9 0%, #4a1e7c 50%, #0a0518 100%);
+          --sunset-gradient: linear-gradient(180deg, #ff6b35 0%, #ff0a78 25%, #b429f9 50%, #4a1e7c 100%);
+          --link: #00d9ff;
+          --ok: #00ff9f;
+          --warn: #ffd93d;
+          --bad: #ff0a78;
+          --table-row: #1a0f35;
+          --table-row-alt: #251447;
+          --table-hover: #3d2461;
+          --glow-pink: 0 0 4px rgba(255, 10, 120, 0.5), 0 0 8px rgba(255, 10, 120, 0.3);
+          --glow-cyan: 0 0 4px rgba(0, 217, 255, 0.5), 0 0 8px rgba(0, 217, 255, 0.3);
+          --glow-purple: 0 0 4px rgba(180, 41, 249, 0.5), 0 0 8px rgba(180, 41, 249, 0.3);
+          --glow-yellow: 0 0 2px rgba(255, 217, 61, 0.4);
+          --shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
+          --shadow-intense: 0 2px 8px rgba(180, 41, 249, 0.35);
+          --radius: 12px;
+          --grid-color: rgba(0, 217, 255, 0.2);
+        }
+
+        [data-theme="light"] {
+          --bg: #fef3ff;
+          --bg-secondary: #f5e6ff;
+          --surface: #ffffff;
+          --surface-2: #f0e0ff;
+          --surface-soft: #faf5ff;
+          --ink: #2d1b3d;
+          --ink-muted: #6b4c7d;
+          --line: #e0c9f0;
+          --neon-pink: #d4006d;
+          --neon-cyan: #0099cc;
+          --neon-purple: #8e24c7;
+          --neon-orange: #e65528;
+          --neon-yellow: #d4a500;
+          --header-gradient: linear-gradient(135deg, #fef3ff 0%, #f0e0ff 50%, #0099cc 100%);
+          --sunset-gradient: linear-gradient(180deg, #e65528 0%, #d4006d 25%, #8e24c7 50%, #6b4c7d 100%);
+          --link: #0099cc;
+          --ok: #00a876;
+          --warn: #d4a500;
+          --bad: #c7004f;
+          --table-row: #ffffff;
+          --table-row-alt: #faf5ff;
+          --table-hover: #f0e0ff;
+          --glow-pink: 0 4px 16px rgba(212, 0, 109, 0.25);
+          --glow-cyan: 0 4px 16px rgba(0, 153, 204, 0.25);
+          --glow-purple: 0 4px 16px rgba(142, 36, 199, 0.25);
+          --glow-yellow: 0 2px 10px rgba(212, 165, 0, 0.2);
+          --shadow: 0 4px 24px rgba(142, 36, 199, 0.2);
+          --shadow-intense: 0 8px 32px rgba(142, 36, 199, 0.2);
+          --radius: 12px;
+          --grid-color: rgba(0, 153, 204, 0.2);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            background: var(--bg) !important;
+            color: var(--ink);
+            font-family: sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: background 300ms ease, color 300ms ease;
+        }
         
-    /* Remote control button styling */
-    .remote-button {
-        background: var(--surface) !important;
-        border: 2px solid var(--line) !important;
-        box-shadow: 0 4px 6px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
-        transition: all 0.15s ease !important;
-    }
-    .remote-button:hover {
-        background: var(--surface-soft) !important;
-        box-shadow: 0 6px 8px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
-    }
-    .remote-button:active {
-        background: linear-gradient(145deg, #2d3748, #1a202c) !important;
-        box-shadow: 0 2px 3px var(--shadow), inset 0 2px 4px rgba(0,0,0,0.4) !important;
-        transform: translateY(2px) !important;
-    }
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(0deg, var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            opacity: 0.3;
+            z-index: 0;
+        }
+            
+        /* Remote control button styling */
+        .remote-button {
+            background: var(--surface) !important;
+            border: 2px solid var(--line) !important;
+            box-shadow: 0 4px 6px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
+            transition: all 0.15s ease !important;
+        }
+        .remote-button:hover {
+            background: var(--surface-soft) !important;
+            box-shadow: 0 6px 8px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
+        }
+        .remote-button:active {
+            background: linear-gradient(145deg, #2d3748, #1a202c) !important;
+            box-shadow: 0 2px 3px var(--shadow), inset 0 2px 4px rgba(0,0,0,0.4) !important;
+            transform: translateY(2px) !important;
+        }
 
-    /* Icon button styling - 25% smaller */
-    .icon-button {
-        background: var(--surface) !important;
-        border: 2px solid var(--line) !important;
-        width: 52px !important;
-        height: 52px !important;
-        border-radius: 50% !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 4px 8px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
-        transition: all 0.15s ease !important;
-    }
-    .icon-button:hover {
-        background: var(--surface-soft) !important;
-        box-shadow: 0 6px 10px var(--neon-purple), inset 0 1px 0 var(--shadow) !important;
-    }
-    .icon-button:active {
-        background: linear-gradient(145deg, #1f2937, #111827) !important;
-        box-shadow: 0 2px 4px var(--shadow), inset 0 3px 6px var(--shadow-intense) !important;
-        transform: translateY(2px) !important;
-    }
+        /* Icon button styling - 25% smaller */
+        .icon-button {
+            background: var(--surface) !important;
+            border: 2px solid var(--line) !important;
+            width: 52px !important;
+            height: 52px !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: 0 4px 8px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
+            transition: all 0.15s ease !important;
+        }
+        .icon-button:hover {
+            background: var(--surface-soft) !important;
+            box-shadow: 0 6px 10px var(--neon-purple), inset 0 1px 0 var(--shadow) !important;
+        }
+        .icon-button:active {
+            background: linear-gradient(145deg, #1f2937, #111827) !important;
+            box-shadow: 0 2px 4px var(--shadow), inset 0 3px 6px var(--shadow-intense) !important;
+            transform: translateY(2px) !important;
+        }
 
-    /* D-pad button styling - 25% smaller */
-    .dpad-button {
-        background: var(--surface) !important;
-        border: 2px solid #111827 !important;
-        width: 45px !important;
-        height: 45px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0 3px 6px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
-        transition: all 0.15s ease !important;
-    }
-    .dpad-button:hover {
-        background: var(--surface-soft) !important;
-    }
-    .dpad-button:active {
-        background: var(--surface-soft) !important;
-        box-shadow: 0 1px 3px var(--neon-purple), inset 0 2px 4px var(--glow-purple) !important;
-        transform: translateY(1px) !important;
-    }
+        /* D-pad button styling - 25% smaller */
+        .dpad-button {
+            background: var(--surface) !important;
+            border: 2px solid #111827 !important;
+            width: 45px !important;
+            height: 45px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: 0 3px 6px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
+            transition: all 0.15s ease !important;
+        }
+        .dpad-button:hover {
+            background: var(--surface-soft) !important;
+        }
+        .dpad-button:active {
+            background: var(--surface-soft) !important;
+            box-shadow: 0 1px 3px var(--neon-purple), inset 0 2px 4px var(--glow-purple) !important;
+            transform: translateY(1px) !important;
+        }
 
-    /* Select dropdown styling */
-    .q-field__native, .q-field__control, .q-field__marginal {
-        min-height: 32px !important;
-        height: 32px !important;
-    }
-    .q-field__control {
-        background-color: var(--surface-soft) !important;
-        border: 2px solid var(--neon-purple) !important;
-        border-radius: 8px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        padding: 0 8px !important;
-    }
-    .q-field__native {
-        color: var(--ink) !important;
-        text-align: center !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-    .q-field__input {
-        color: var(--ink) !important;
-        text-align: center !important;
-    }
-    .q-field__append {
-        color: var(--ink) !important;
-    }
-    .q-select__dropdown-icon {
-        color: var(--ink) !important;
-    }
-    .q-menu {
-        background-color: var(--surface-2) !important;
-        color: var(--ink) !important;
-        border-radius: 8px !important;
-        box-shadow: 0 6px 18px var(--glow-purple) !important;
-    }
-    .q-item {
-        color: var(--ink) !important;
-        min-height: 40px !important;
-        padding: 8px 16px !important;
-    }
-    .q-item__label {
-        color: var(--ink) !important;
-        font-size: 14px !important;
-    }
-    .q-item:hover, .q-item--active {
-        background-color: var(--surface-soft) !important;
-    }
-    .q-field--focused .q-field__control:before,
-    .q-field--focused .q-field__control:after {
-        display: none !important;
-        box-shadow: none !important;
-    }
-
-    /* Mobile optimizations */
-    @media (max-width: 640px) {
-        .remote-body {
-            max-width: 100vw !important;
-            width: 100vw !important;
-            margin: 0 !important;
-            border-radius: 0 !important;
-            border: none !important;
-            min-height: 100vh !important;
+        /* Select dropdown styling */
+        .q-field__native, .q-field__control, .q-field__marginal {
+            min-height: 32px !important;
+            height: 32px !important;
+        }
+        .q-field__control {
+            background-color: var(--surface-soft) !important;
+            border: 2px solid var(--neon-purple) !important;
+            border-radius: 8px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 0 8px !important;
+        }
+        .q-field__native {
+            color: var(--ink) !important;
+            text-align: center !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+        .q-field__input {
+            color: var(--ink) !important;
+            text-align: center !important;
+        }
+        .q-field__append {
+            color: var(--ink) !important;
+        }
+        .q-select__dropdown-icon {
+            color: var(--ink) !important;
         }
         .q-menu {
-            max-height: 60vh !important;
+            background-color: var(--surface-2) !important;
+            color: var(--ink) !important;
+            border-radius: 8px !important;
+            box-shadow: 0 6px 18px var(--glow-purple) !important;
         }
-        /* Scale down fonts by 25% on mobile */
-        .remote-body {
-            font-size: 0.75em !important;
+        .q-item {
+            color: var(--ink) !important;
+            min-height: 40px !important;
+            padding: 8px 16px !important;
         }
-    }
+        .q-item__label {
+            color: var(--ink) !important;
+            font-size: 14px !important;
+        }
+        .q-item:hover, .q-item--active {
+            background-color: var(--surface-soft) !important;
+        }
+        .q-field--focused .q-field__control:before,
+        .q-field--focused .q-field__control:after {
+            display: none !important;
+            box-shadow: none !important;
+        }
 
-    /* Remote control body */
-    .remote-body {
-        background: var(--surface-2) !important;
-        border: 3px solid var(--neon-purple) !important;
-        box-shadow: 0 10px 30px var(--neon-purple), inset 0 1px 0 var(--glow-purple) !important;
-    }
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+            .remote-body {
+                max-width: 100vw !important;
+                width: 100vw !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                border: none !important;
+                min-height: 100vh !important;
+            }
+            .q-menu {
+                max-height: 60vh !important;
+            }
+            /* Scale down fonts by 25% on mobile */
+            .remote-body {
+                font-size: 0.75em !important;
+            }
+        }
+
+        /* Remote control body */
+        .remote-body {
+            background: var(--surface-2) !important;
+            border: 3px solid var(--neon-purple) !important;
+            box-shadow: 0 10px 30px var(--neon-purple), inset 0 1px 0 var(--glow-purple) !important;
+        }
     </style>
     """)
 
