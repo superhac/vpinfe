@@ -182,7 +182,7 @@ def render_panel(tab=None):
     </style>
     ''')
 
-    with ui.column().classes('w-full collections-main-scroll').style('max-height: calc(100vh - 132px); overflow-y: auto; overflow-x: hidden;'):
+    with ui.column().classes('w-full collections-main-scroll'):
         # Header card
         with ui.card().classes('w-full mb-4').style(
             'background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); border-radius: 12px;'
