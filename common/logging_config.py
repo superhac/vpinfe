@@ -10,15 +10,21 @@ DEFAULT_LOG_LEVEL = "INFO"
 _CONFIGURED = False
 _FILE_LOG_INITIALIZED = False
 _THIRD_PARTY_LOGGERS = (
-    "websockets",
-    "websockets.client",
-    "websockets.server",
+    "asyncio",
+    "multipart",
+    "PIL",
+    "PIL.Image",
+    "PIL.PngImagePlugin",
+    "python_multipart",
+    "python_multipart.multipart",
+    "urllib3",
+    "urllib3.connectionpool",
     "uvicorn",
     "uvicorn.error",
     "uvicorn.access",
-    "python_multipart",
-    "python_multipart.multipart",
-    "multipart",
+    "websockets",
+    "websockets.client",
+    "websockets.server",
 )
 
 

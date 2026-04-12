@@ -94,7 +94,7 @@ def get_scroll_state() -> Dict[str, Any]:
 
 CACHE_DIR = CONFIG_DIR / "cache"
 THUMB_CACHE_ROOT = CACHE_DIR / "media_thumbs"
-THUMB_SIZE = (512, 512)
+THUMB_SIZE = (128, 128)
 THUMB_WARM_ROW_BATCH_SIZE = 25
 THUMB_WARM_CHUNK_SIZE = 8
 
@@ -163,7 +163,7 @@ def _build_thumb_sig(source_path: str) -> str:
 
 
 def _thumb_file_path(table_dir: str, media_key: str, source_path: str) -> Path:
-    return THUMB_CACHE_ROOT / table_dir / f'{media_key}_{_build_thumb_sig(source_path)}.png'
+    return THUMB_CACHE_ROOT / table_dir / f'{media_key}_{_build_thumb_sig(source_path)}.webp'
 
 
 def _thumb_url(path: Path) -> str:
@@ -189,9 +189,16 @@ def _get_cached_thumb_url(table_dir: str, media_key: str, source_path: str, sour
 def _ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[str]:
     if not _is_image_media_key(media_key) or not os.path.exists(source_path):
         return None
+
     try:
         from PIL import Image, ImageOps
-    except Exception:
+    except Exception as exc:
+        logger.debug(
+            'Thumbnail generation unavailable: table="%s" key=%s reason=%s',
+            table_dir,
+            media_key,
+            exc,
+        )
         return None
 
     try:
@@ -207,6 +214,9 @@ def _ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[
         for old in path.parent.glob(f'{media_key}_*.jpg'):
             if old != path:
                 old.unlink(missing_ok=True)
+        for old in path.parent.glob(f'{media_key}_*.webp'):
+            if old != path:
+                old.unlink(missing_ok=True)
 
         with Image.open(source_path) as img:
             img = ImageOps.exif_transpose(img)
@@ -216,10 +226,17 @@ def _ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[
             )
             img = img.convert('RGBA' if has_alpha else 'RGB')
             img.thumbnail(THUMB_SIZE, Image.Resampling.LANCZOS)
-            img.save(path, format='PNG', optimize=True)
+            img.save(path, format='WEBP', quality=70, method=4)
         os.utime(path, None)
         return _thumb_url(path)
-    except Exception:
+    except Exception as exc:
+        logger.debug(
+            'Thumbnail generation failed: table="%s" key=%s path="%s" reason=%s',
+            table_dir,
+            media_key,
+            source_path,
+            exc,
+        )
         return None
 
 
@@ -599,16 +616,22 @@ def render_panel():
                             asyncio.create_task(_retry())
                         return
                 visible = _visible_rows(rows)
-                visible = visible[:THUMB_WARM_ROW_BATCH_SIZE]
+                try:
+                    rows_per_page = int(pagination_state.get('rowsPerPage', THUMB_WARM_ROW_BATCH_SIZE) or THUMB_WARM_ROW_BATCH_SIZE)
+                except Exception:
+                    rows_per_page = THUMB_WARM_ROW_BATCH_SIZE
+                # Warm the whole current page so rows revealed by in-table scrolling
+                # eventually get thumbnails too. When "All" is selected, keep a cap.
+                warm_limit = rows_per_page if rows_per_page > 0 else THUMB_WARM_ROW_BATCH_SIZE
+                visible = visible[:max(THUMB_WARM_ROW_BATCH_SIZE, warm_limit)]
                 pending = []
                 for row in visible:
                     media = row.get('media', {})
                     thumbs = row.setdefault('thumbs', {})
-                    errors = row.setdefault('thumb_errors', {})
                     for media_key in IMAGE_MEDIA_KEYS:
                         if not media.get(media_key):
                             continue
-                        if thumbs.get(media_key) or errors.get(media_key):
+                        if thumbs.get(media_key):
                             continue
                         source_path = _source_media_path(row.get('table_path', ''), media_key)
                         if source_path:
@@ -634,8 +657,14 @@ def render_panel():
                             row.setdefault('thumb_errors', {}).pop(media_key, None)
                         else:
                             row.setdefault('thumb_errors', {})[media_key] = True
-                    except Exception:
+                    except Exception as exc:
                         row.setdefault('thumb_errors', {})[media_key] = True
+                        logger.debug(
+                            'Thumbnail worker exception: table="%s" key=%s reason=%s',
+                            table_dir,
+                            media_key,
+                            exc,
+                        )
                     return changed, table_dir
 
                 for i in range(0, len(pending), THUMB_WARM_CHUNK_SIZE):
@@ -886,6 +915,8 @@ def render_panel():
                 for old in thumb_dir.glob(f'{media_key}_*.png'):
                     old.unlink(missing_ok=True)
                 for old in thumb_dir.glob(f'{media_key}_*.jpg'):
+                    old.unlink(missing_ok=True)
+                for old in thumb_dir.glob(f'{media_key}_*.webp'):
                     old.unlink(missing_ok=True)
 
             # Remove metadata entry from .info
@@ -1322,18 +1353,16 @@ def render_panel():
                                      :src="props.row.thumbs.''' + media_key + '''"
                                      class="media-thumb"
                                      loading="lazy" />
-                              <img v-else
-                                  :src="props.row.media.''' + media_key + '''"
-                                  class="media-thumb"
-                                  loading="lazy" />
+                                <div v-else class="media-missing">--</div>
                                 <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
                                            class="bg-dark" style="padding: 4px;">
-                                    <img v-if="props.row.thumbs && props.row.thumbs.''' + media_key + '''"
-                                         :src="props.row.thumbs.''' + media_key + '''"
-                                         style="max-width: 480px; max-height: 480px; border-radius: 6px; border: 2px solid #3b82f6; object-fit: contain;" />
-                                 <img v-else
-                                     :src="props.row.media.''' + media_key + '''"
-                                     style="max-width: 480px; max-height: 480px; border-radius: 6px; border: 2px solid #3b82f6; object-fit: contain;" />
+                                    <template v-if="props.row.thumbs && props.row.thumbs.''' + media_key + '''">
+                                        <img :src="props.row.media.''' + media_key + '''"
+                                             style="max-width: 480px; max-height: 480px; border-radius: 6px; border: 2px solid #3b82f6; object-fit: contain;" />
+                                    </template>
+                                    <template v-else>
+                                        <div class="media-missing" style="width: 120px; height: 120px;">--</div>
+                                    </template>
                                 </q-tooltip>
                             </div>
                             <div v-else class="media-missing"
