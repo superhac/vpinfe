@@ -373,13 +373,13 @@ def build_app():
     def toggle_nav():
         nav_state['expanded'] = not nav_state['expanded']
         if nav_state['expanded']:
-            nav_panel.style(add='width: 206px;', remove='width: 40px;')
+            nav_panel.style(add='width: 220px;', remove='width: 56px;')
             nav_state['nav_content'].classes(remove='nav-collapsed')
             nav_state['nav_label'].set_visibility(True)
             nav_state['remote_container'].set_visibility(True)
             content_container.style(add='margin-left: 206px; width: calc(100vw - 220px); max-width: calc(100vw - 220px);', remove='margin-left: 56px; width: calc(100vw - 56px); max-width: calc(100vw - 56px);')
         else:
-            nav_panel.style(add='width: 40px;', remove='width: 206px;')
+            nav_panel.style(add='width: 56px;', remove='width: 220px;')
             nav_state['nav_content'].classes(add='nav-collapsed')
             nav_state['nav_label'].set_visibility(False)
             nav_state['remote_container'].set_visibility(False)
