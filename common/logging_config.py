@@ -10,12 +10,21 @@ DEFAULT_LOG_LEVEL = "INFO"
 _CONFIGURED = False
 _FILE_LOG_INITIALIZED = False
 _THIRD_PARTY_LOGGERS = (
-    "websockets",
-    "websockets.client",
-    "websockets.server",
+    "asyncio",
+    "multipart",
+    "PIL",
+    "PIL.Image",
+    "PIL.PngImagePlugin",
+    "python_multipart",
+    "python_multipart.multipart",
+    "urllib3",
+    "urllib3.connectionpool",
     "uvicorn",
     "uvicorn.error",
     "uvicorn.access",
+    "websockets",
+    "websockets.client",
+    "websockets.server",
 )
 
 
@@ -43,6 +52,7 @@ def _normalize_third_party_loggers() -> None:
     for name in _THIRD_PARTY_LOGGERS:
         logger = logging.getLogger(name)
         logger.handlers.clear()
+        logger.setLevel(logging.WARNING)
         logger.propagate = True
 
 
