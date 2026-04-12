@@ -1018,7 +1018,7 @@ def render_panel():
 
             media_table.add_slot('bottom', '''
                 <div class="row full-width items-center q-pa-sm"
-                     style="background-color: #1e293b; color: #94a3b8; border-top: 1px solid #334155;">
+                     style="background-color: var(--surface); color: var(--ink-muted); border-top: 1px solid var(--line);">
                     <span class="q-mr-sm" style="font-size: 0.85rem;">Rows per page:</span>
                     <q-select
                         :model-value="props.pagination.rowsPerPage"
@@ -1035,13 +1035,13 @@ def render_panel():
                         style="min-width: 50px; color: #e2e8f0;"
                     />
                     <q-space />
-                    <q-btn flat round dense icon="first_page" :disable="props.isFirstPage" @click="props.firstPage" size="sm" color="grey-5" />
-                    <q-btn flat round dense icon="chevron_left" :disable="props.isFirstPage" @click="props.prevPage" size="sm" color="grey-5" />
+                    <q-btn flat round dense icon="first_page" :disable="props.isFirstPage" @click="props.firstPage" size="sm" style="color: var(--ink-muted) !important;" />
+                    <q-btn flat round dense icon="chevron_left" :disable="props.isFirstPage" @click="props.prevPage" size="sm" style="color: var(--ink-muted) !important;" />
                     <span class="q-mx-sm" style="font-size: 0.85rem;">
                         Page {{ props.pagination.page }} of {{ props.pagesNumber }}
                     </span>
-                    <q-btn flat round dense icon="chevron_right" :disable="props.isLastPage" @click="props.nextPage" size="sm" color="grey-5" />
-                    <q-btn flat round dense icon="last_page" :disable="props.isLastPage" @click="props.lastPage" size="sm" color="grey-5" />
+                    <q-btn flat round dense icon="chevron_right" :disable="props.isLastPage" @click="props.nextPage" size="sm" style="color: var(--ink-muted) !important;" />
+                    <q-btn flat round dense icon="last_page" :disable="props.isLastPage" @click="props.lastPage" size="sm" style="color: var(--ink-muted) !important;" />
                 </div>
             ''')
 
