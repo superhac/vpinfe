@@ -695,7 +695,7 @@ def _build_web_send_panel():
                 row_key='table_dir_name',
                 selection='multiple',
                 pagination={'rowsPerPage': 25},
-            ).classes('w-full').props('dark dense')
+            ).classes('w-full').props('dense').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);')
             panel_state['tbl'] = tbl
 
             tbl.add_slot('body-cell-display_name', '''
