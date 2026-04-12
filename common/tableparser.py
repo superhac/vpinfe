@@ -39,60 +39,64 @@ class TableParser:
             if not table_dir.is_dir():
                 continue
 
-            try:
-                dir_entries = sorted(os.listdir(table_dir))
-            except Exception:
-                logger.warning("Could not list %s directory.", table_dir.name)
-                continue
-
-            vpx_names = [name for name in dir_entries if name.lower().endswith(".vpx")]
-            if not vpx_names:
-                logger.warning("No .vpx found in %s directory.", table_dir.name)
-                continue
-
-            info_name = f"{table_dir.name}.info"
-            if info_name not in dir_entries:
-                self.missing_tables.append({
-                    'folder': table_dir.name,
-                    'path': str(table_dir),
-                })
-                continue
-
             table = Table()
             table.tableDirName = table_dir.name
             table.fullPathTable = str(table_dir)
+            table_contents = set()
+            table_subdirs = set()
 
-            vpx_path = table_dir / vpx_names[0]
-            table.fullPathVPXfile = str(vpx_path)
-            stat = vpx_path.stat()
-            table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
+            # Search with scandir to avoid per-entry pathlib stat calls on slow volumes.
+            try:
+                with os.scandir(table_dir) as entries:
+                    for entry in entries:
+                        if entry.is_dir():
+                            table_subdirs.add(entry.name)
+                            continue
+                        table_contents.add(entry.name)
+                        if getattr(table, "fullPathVPXfile", None) or not entry.name.lower().endswith('.vpx'):
+                            continue
+                        table.fullPathVPXfile = entry.path
+                        stat = entry.stat()
+                        table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
+            except OSError:
+                logger.exception("Failed to enumerate table directory: %s", table_dir)
+
+            if not getattr(table, "fullPathVPXfile", None):
+                logger.warning("No .vpx found in %s directory.", table.tableDirName)
+                continue
 
             # check for addons
-            dir_entries_set = set(dir_entries)
-            if "pupvideos" in dir_entries_set and (table_dir / "pupvideos").is_dir():
+            if "pupvideos" in table_subdirs:
                 table.pupPackExists = True
-            if "serum" in dir_entries_set and (table_dir / "serum").is_dir():
+            if "serum" in table_subdirs:
                 table.altColorExists = True
-            if "vni" in dir_entries_set and (table_dir / "vni").is_dir():
+            if "vni" in table_subdirs:
                 table.vniExists = True
-            if "pinmame" in dir_entries_set and (table_dir / "pinmame" / "altsound").is_dir():
+            if "pinmame" in table_subdirs and (table_dir / "pinmame" / "altsound").is_dir():
                 table.altSoundExists = True
 
-            self.loadImagePaths(table, dir_entries_set)
+            self.loadImagePaths(
+                table,
+                table_contents=table_contents,
+                has_medias_dir="medias" in table_subdirs,
+            )
             self.loadMetaData(table)
 
             self.tables.append(table)
 
-    def loadImagePaths(self, Table, table_contents=None):
+    def loadImagePaths(self, Table, table_contents=None, has_medias_dir=None):
         table_dir = Path(Table.fullPathTable)
         medias_dir = table_dir / "medias"
+
+        # Batch directory listings to minimize disk calls
         if table_contents is None:
             try:
-                table_contents = set(os.listdir(table_dir))
+                table_contents = set(os.listdir(str(table_dir)))
             except Exception:
                 table_contents = set()
+
         try:
-            medias_contents = set(os.listdir(medias_dir)) if "medias" in table_contents and medias_dir.is_dir() else set()
+            medias_contents = set(os.listdir(str(medias_dir))) if (has_medias_dir if has_medias_dir is not None else medias_dir.is_dir()) else set()
         except Exception:
             medias_contents = set()
         images = {
