@@ -337,7 +337,7 @@ def render_panel(tab=None):
             finally:
                 btn.enable()
 
-        btn = ui.button(label, icon=icon, on_click=do_install).props('no-wrap').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+        btn = ui.button(label, icon=icon, on_click=do_install).props('no-wrap').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
 
     def _make_activate_btn(theme_key: str):
         """Create a 'Set as Active' button for a theme."""
@@ -362,7 +362,7 @@ def render_panel(tab=None):
                 ui.button('Cancel', on_click=confirm_dlg.close).props('flat').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 ui.button('Set & Restart', icon='restart_alt', on_click=do_activate).style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
 
-        btn = ui.button('Set as Active', icon='check_circle', on_click=confirm_dlg.open).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+        btn = ui.button('Set as Active', icon='check_circle', on_click=confirm_dlg.open).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
 
     def _make_delete_btn(theme_key: str):
         """Create a delete button with confirmation for a theme."""
