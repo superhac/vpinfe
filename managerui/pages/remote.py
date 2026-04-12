@@ -430,68 +430,85 @@ def build(parent=None):
     body {
         margin: 0 !important;
         padding: 0 !important;
-        background-color: #111827 !important;
+        background: var(--bg) !important;
         overflow-x: hidden !important;
+        transition: background 300ms ease, color 300ms ease;
     }
-
+    
+    body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image:
+            linear-gradient(0deg, var(--grid-color) 1px, transparent 1px),
+            linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+        background-size: 40px 40px;
+        pointer-events: none;
+        opacity: 0.3;
+        z-index: 0;
+    }
+        
     /* Remote control button styling */
     .remote-button {
-        background: linear-gradient(145deg, #4a5568, #2d3748) !important;
-        border: 2px solid #1a202c !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+        background: var(--surface) !important;
+        border: 2px solid var(--line) !important;
+        box-shadow: 0 4px 6px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
         transition: all 0.15s ease !important;
     }
     .remote-button:hover {
-        background: linear-gradient(145deg, #5a6678, #3d4758) !important;
-        box-shadow: 0 6px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+        background: var(--surface-soft) !important;
+        box-shadow: 0 6px 8px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
     }
     .remote-button:active {
         background: linear-gradient(145deg, #2d3748, #1a202c) !important;
-        box-shadow: 0 2px 3px rgba(0,0,0,0.3), inset 0 2px 4px rgba(0,0,0,0.4) !important;
+        box-shadow: 0 2px 3px var(--shadow), inset 0 2px 4px rgba(0,0,0,0.4) !important;
         transform: translateY(2px) !important;
     }
 
     /* Icon button styling - 25% smaller */
     .icon-button {
-        background: linear-gradient(145deg, #374151, #1f2937) !important;
-        border: 2px solid #111827 !important;
+        background: var(--surface) !important;
+        border: 2px solid var(--line) !important;
         width: 52px !important;
         height: 52px !important;
         border-radius: 50% !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+        box-shadow: 0 4px 8px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
         transition: all 0.15s ease !important;
     }
     .icon-button:hover {
-        background: linear-gradient(145deg, #4b5563, #374151) !important;
-        box-shadow: 0 6px 10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+        background: var(--surface-soft) !important;
+        box-shadow: 0 6px 10px var(--neon-purple), inset 0 1px 0 var(--shadow) !important;
     }
     .icon-button:active {
         background: linear-gradient(145deg, #1f2937, #111827) !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.4), inset 0 3px 6px rgba(0,0,0,0.5) !important;
+        box-shadow: 0 2px 4px var(--shadow), inset 0 3px 6px var(--shadow-intense) !important;
         transform: translateY(2px) !important;
     }
 
     /* D-pad button styling - 25% smaller */
     .dpad-button {
-        background: linear-gradient(145deg, #374151, #1f2937) !important;
+        background: var(--surface) !important;
         border: 2px solid #111827 !important;
         width: 45px !important;
         height: 45px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1) !important;
+        box-shadow: 0 3px 6px var(--shadow), inset 0 1px 0 var(--shadow-intense) !important;
         transition: all 0.15s ease !important;
     }
     .dpad-button:hover {
-        background: linear-gradient(145deg, #4b5563, #374151) !important;
+        background: var(--surface-soft) !important;
     }
     .dpad-button:active {
-        background: linear-gradient(145deg, #1f2937, #111827) !important;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.5) !important;
+        background: var(--surface-soft) !important;
+        box-shadow: 0 1px 3px var(--neon-purple), inset 0 2px 4px var(--glow-purple) !important;
         transform: translateY(1px) !important;
     }
 
@@ -501,8 +518,8 @@ def build(parent=None):
         height: 32px !important;
     }
     .q-field__control {
-        background-color: #1f2937 !important;
-        border: 2px solid #111827 !important;
+        background-color: var(--surface-soft) !important;
+        border: 2px solid var(--neon-purple) !important;
         border-radius: 8px !important;
         display: flex !important;
         align-items: center !important;
@@ -510,39 +527,39 @@ def build(parent=None):
         padding: 0 8px !important;
     }
     .q-field__native {
-        color: white !important;
+        color: var(--ink) !important;
         text-align: center !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
     }
     .q-field__input {
-        color: white !important;
+        color: var(--ink) !important;
         text-align: center !important;
     }
     .q-field__append {
-        color: white !important;
+        color: var(--ink) !important;
     }
     .q-select__dropdown-icon {
-        color: white !important;
+        color: var(--ink) !important;
     }
     .q-menu {
-        background-color: #1f2937 !important;
-        color: white !important;
+        background-color: var(--surface-2) !important;
+        color: var(--ink) !important;
         border-radius: 8px !important;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.4) !important;
+        box-shadow: 0 6px 18px var(--glow-purple) !important;
     }
     .q-item {
-        color: white !important;
+        color: var(--ink) !important;
         min-height: 40px !important;
         padding: 8px 16px !important;
     }
     .q-item__label {
-        color: white !important;
+        color: var(--ink) !important;
         font-size: 14px !important;
     }
     .q-item:hover, .q-item--active {
-        background-color: #374151 !important;
+        background-color: var(--surface-soft) !important;
     }
     .q-field--focused .q-field__control:before,
     .q-field--focused .q-field__control:after {
@@ -571,16 +588,9 @@ def build(parent=None):
 
     /* Remote control body */
     .remote-body {
-        background: linear-gradient(145deg, #1f2937, #111827) !important;
-        border: 3px solid #0f1419 !important;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05) !important;
-    }
-
-    /* Section dividers */
-    .section-divider {
-        height: 2px;
-        background: linear-gradient(90deg, transparent, #374151, transparent);
-        margin: 8px 0;
+        background: var(--surface-2) !important;
+        border: 3px solid var(--neon-purple) !important;
+        box-shadow: 0 10px 30px var(--neon-purple), inset 0 1px 0 var(--glow-purple) !important;
     }
     </style>
     """)
