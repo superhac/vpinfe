@@ -353,7 +353,7 @@ def build_app():
     header()
 
     # Main content area - offset by nav panel width (create first so toggle_nav can reference it)
-    content_container = ui.column().classes('p-6').style('margin-left: 220px; transition: margin-left 0.3s ease; width: calc(100vw - 220px); max-width: calc(100vw - 220px); box-sizing: border-box;')
+    content_container = ui.column().classes('p-6').style('margin-left: 206px; transition: margin-left 0.3s ease; width: calc(100vw - 220px); max-width: calc(100vw - 220px); box-sizing: border-box;')
 
     # Navigation panel container (fixed position on left side)
     nav_panel = ui.column().classes('fixed left-0 top-16 bottom-0').style(
@@ -373,17 +373,17 @@ def build_app():
     def toggle_nav():
         nav_state['expanded'] = not nav_state['expanded']
         if nav_state['expanded']:
-            nav_panel.style(add='width: 220px;', remove='width: 56px;')
+            nav_panel.style(add='width: 206px;', remove='width: 40px;')
             nav_state['nav_content'].classes(remove='nav-collapsed')
             nav_state['nav_label'].set_visibility(True)
             nav_state['remote_container'].set_visibility(True)
-            content_container.style(add='margin-left: 220px; width: calc(100vw - 220px); max-width: calc(100vw - 220px);', remove='margin-left: 56px; width: calc(100vw - 56px); max-width: calc(100vw - 56px);')
+            content_container.style(add='margin-left: 206px; width: calc(100vw - 220px); max-width: calc(100vw - 220px);', remove='margin-left: 56px; width: calc(100vw - 56px); max-width: calc(100vw - 56px);')
         else:
-            nav_panel.style(add='width: 56px;', remove='width: 220px;')
+            nav_panel.style(add='width: 40px;', remove='width: 206px;')
             nav_state['nav_content'].classes(add='nav-collapsed')
             nav_state['nav_label'].set_visibility(False)
             nav_state['remote_container'].set_visibility(False)
-            content_container.style(add='margin-left: 56px; width: calc(100vw - 56px); max-width: calc(100vw - 56px);', remove='margin-left: 220px; width: calc(100vw - 220px); max-width: calc(100vw - 220px);')
+            content_container.style(add='margin-left: 40px; width: calc(100vw - 56px); max-width: calc(100vw - 56px);', remove='margin-left: 220px; width: calc(100vw - 220px); max-width: calc(100vw - 220px);')
 
     with nav_panel:
         # Navigation header with hamburger menu
