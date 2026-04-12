@@ -704,7 +704,7 @@ def _build_web_send_panel():
                         @click.stop="$parent.$emit('websend', props.row)" />
                     <q-btn v-if="props.row.installed" flat dense icon="delete" class="q-mr-sm" style="color: var(--bad) !important;"
                         @click.stop="$parent.$emit('webdelete', props.row)" />
-                    <q-icon v-if="props.row.installed" name="check_circle" class="q-mr-xs" /> style="color: var(--neon-cyan) !important;"
+                    <q-icon v-if="props.row.installed" name="check_circle" class="q-mr-xs" style="color: var(--neon-cyan) !important;" />
                     <span :style="props.row.installed ? 'color: var(--neon-purple);' : ''">
                         {{ props.row.display_name }}
                     </span>
