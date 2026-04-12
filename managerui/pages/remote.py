@@ -458,49 +458,13 @@ def build(parent=None):
           --radius: 12px;
           --grid-color: rgba(0, 217, 255, 0.2);
         }
-
-        [data-theme="light"] {
-          --bg: #fef3ff;
-          --bg-secondary: #f5e6ff;
-          --surface: #ffffff;
-          --surface-2: #f0e0ff;
-          --surface-soft: #faf5ff;
-          --ink: #2d1b3d;
-          --ink-muted: #6b4c7d;
-          --line: #e0c9f0;
-          --neon-pink: #d4006d;
-          --neon-cyan: #0099cc;
-          --neon-purple: #8e24c7;
-          --neon-orange: #e65528;
-          --neon-yellow: #d4a500;
-          --header-gradient: linear-gradient(135deg, #fef3ff 0%, #f0e0ff 50%, #0099cc 100%);
-          --sunset-gradient: linear-gradient(180deg, #e65528 0%, #d4006d 25%, #8e24c7 50%, #6b4c7d 100%);
-          --link: #0099cc;
-          --ok: #00a876;
-          --warn: #d4a500;
-          --bad: #c7004f;
-          --table-row: #ffffff;
-          --table-row-alt: #faf5ff;
-          --table-hover: #f0e0ff;
-          --glow-pink: 0 4px 16px rgba(212, 0, 109, 0.25);
-          --glow-cyan: 0 4px 16px rgba(0, 153, 204, 0.25);
-          --glow-purple: 0 4px 16px rgba(142, 36, 199, 0.25);
-          --glow-yellow: 0 2px 10px rgba(212, 165, 0, 0.2);
-          --shadow: 0 4px 24px rgba(142, 36, 199, 0.2);
-          --shadow-intense: 0 8px 32px rgba(142, 36, 199, 0.2);
-          --radius: 12px;
-          --grid-color: rgba(0, 153, 204, 0.2);
-        }
-
-        * { box-sizing: border-box; }
-
+        
         body {
             background: var(--bg) !important;
-            color: var(--ink);
-            font-family: sans-serif;
-            min-height: 100vh;
-            overflow-x: hidden;
-            transition: background 300ms ease, color 300ms ease;
+            color: var(--ink) !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow-x: hidden !important;
         }
         
         body::before {
