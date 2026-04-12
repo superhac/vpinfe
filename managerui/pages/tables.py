@@ -687,9 +687,9 @@ def render_panel(tab=None):
                 # Buttons
                 buttons_container = ui.row().classes('justify-end gap-2 q-mt-md w-full')
                 with buttons_container:
-                    cancel_btn = ui.button('Cancel', on_click=dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
-                    start_btn = ui.button('Start Build', icon='build').style('color: var(--neon-cyan) !important; background: var(--surface) !important;')
-                    close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) important; background: var(--surface) important;')
+                    cancel_btn = ui.button('Cancel', on_click=dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                    start_btn = ui.button('Start Build', icon='build').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
+                    close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                     close_btn.visible = False
 
                 def pump_progress():
@@ -795,7 +795,7 @@ def render_panel(tab=None):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
                 ui.label('Tables Management').classes('text-2xl font-bold').style('color: var(--ink);').style('flex-shrink: 0;')
                 with ui.row().classes('gap-3 items-center flex-wrap'):
-                    scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).style('color: var(--neon-cyan) !important; background: var(--surface) !important;')
+                    scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).style('color: var(--ink) !important; background: var(--neon-purple) !important; border-radius: 18px;')
                     patch_btn = ui.button("Apply Patches", icon="construction").props("color=secondary rounded")
                     # Start with green if no cached missing, will update after scan
                     initial_missing_count = len(_missing_cache) if _missing_cache else 0
@@ -836,9 +836,9 @@ def render_panel(tab=None):
                             # Buttons
                             buttons_container = ui.row().classes('justify-end gap-2 q-mt-md w-full')
                             with buttons_container:
-                                cancel_btn = ui.button('Cancel', on_click=dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
-                                start_btn = ui.button('Start Build', icon='build').style('color: var(--neon-cyan) !important; background: var(--surface) !important;')
-                                close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) important; background: var(--surface) important;')
+                                cancel_btn = ui.button('Cancel', on_click=dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                                start_btn = ui.button('Start Build', icon='build').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border-radius: 18px; padding: 4px 10px;')
+                                close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) important; background: var(--surface) important; border-radius: 18px; padding: 4px 10px;')
                                 close_btn.visible = False
 
                             def pump_patch_progress():
@@ -1428,7 +1428,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
             # Rebuild metadata button - anchored to the right
             table_dir_name = os.path.basename(row_data.get('table_path', ''))
             if table_dir_name:
-                rebuild_btn = ui.button('Rebuild Meta', icon='refresh').props('dense').classes('ml-auto').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
+                rebuild_btn = ui.button('Rebuild Meta', icon='refresh').props('dense').classes('ml-auto').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 rebuild_status = ui.label('').classes('text-xs ml-2').style('color: var(--ink);')
                 rebuild_status.visible = False
                 rebuild_client = context.client
@@ -1626,7 +1626,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         ui.button(
                             'Clear',
                             on_click=lambda: save_rating(0)
-                        ).props('flat dense size=sm').classes('ml-1').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
+                        ).props('flat dense size=sm').classes('ml-1').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
 
                         refresh_rating_ui()
 
@@ -1674,7 +1674,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                                 else:
                                     ui.notify('Failed to add to collection', type='negative')
 
-                            ui.button('Add', icon='add', on_click=on_add_to_collection).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
+                            ui.button('Add', icon='add', on_click=on_add_to_collection).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                     else:
                         ui.label('Table is in all available collections').classes('text-sm').style('color: var(--ink-muted);')
 
@@ -1726,7 +1726,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         else:
                             ui.notify('Failed to save alt title', type='negative')
 
-                    ui.button('Save', icon='save', on_click=on_alttitle_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
+                    ui.button('Save', icon='save', on_click=on_alttitle_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 ui.label('When set, this overrides the table name shown in Manager UI lists').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 w-full'):
@@ -1766,7 +1766,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         else:
                             ui.notify('Failed to save alt VPS ID', type='negative')
 
-                    ui.button('Save', icon='save', on_click=on_altvpsid_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
+                    ui.button('Save', icon='save', on_click=on_altvpsid_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 ui.label('When set, this overrides the VPS ID shown/used in Manager UI').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 w-full'):
@@ -1789,7 +1789,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         else:
                             ui.notify('Failed to save alt launcher', type='negative')
 
-                    ui.button('Save', icon='save', on_click=on_altlauncher_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
+                    ui.button('Save', icon='save', on_click=on_altlauncher_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 ui.label('When set, this overrides Settings.vpxbinpath for this table only').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 w-full'):
@@ -1812,7 +1812,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         else:
                             ui.notify('Failed to save Frontend DOF event', type='negative')
 
-                    ui.button('Save', icon='save', on_click=on_frontend_dof_event_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
+                    ui.button('Save', icon='save', on_click=on_frontend_dof_event_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
                 ui.label('When set, this stores the per-table User.FrontendDOFEvent value').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 mt-3'):
@@ -1936,7 +1936,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                 dlg.close()
                 if on_close:
                     on_close()
-            ui.button('Close', icon='close', on_click=close_dialog).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
+            ui.button('Close', icon='close', on_click=close_dialog).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
     dlg.open()
 
 def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Callable[[], None]] = None):
@@ -1980,7 +1980,7 @@ def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Call
                             refresh_installed=None,
                             use_own_media_switch=use_own_media,
                         )
-                    ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
+                    ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
 
         render(missing_rows)
 
@@ -1992,7 +1992,7 @@ def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Call
                 _missing_tables_dialog = None
                 if callable(on_close):
                     on_close()
-            ui.button('Close', on_click=_close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
+            ui.button('Close', on_click=_close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
     dlg.open()
 
 def open_import_table_dialog(perform_scan_cb=None):
@@ -2079,11 +2079,11 @@ def open_import_table_dialog(perform_scan_cb=None):
                     render_results([])
 
                     with ui.row().classes('justify-end q-mt-md'):
-                        ui.button('Close', on_click=search_dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
+                        ui.button('Close', on_click=search_dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
 
                 search_dlg.open()
 
-            ui.button('Search VPS…', icon='search', on_click=open_vps_search_dialog).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
+            ui.button('Search VPS…', icon='search', on_click=open_vps_search_dialog).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
 
         ui.separator().classes('q-mt-sm')
 
@@ -2202,7 +2202,7 @@ def open_import_table_dialog(perform_scan_cb=None):
         # --- Buttons ---
         with ui.row().classes('justify-end gap-2 q-mt-sm w-full'):
             ui.button('Cancel', on_click=dlg.close).props('flat').style('color: var(--ink-muted);')
-            do_import_btn = ui.button('Import', icon='upload').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
+            do_import_btn = ui.button('Import', icon='upload').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
             do_import_btn.disable()
 
         async def do_import():
@@ -2453,7 +2453,7 @@ def open_match_vps_dialog(
                                 loading_overlay.style(add='display: none;', remove='display: flex;')
                                 dialog_state['busy'] = False
 
-                        ui.button('Associate', on_click=_on_assoc).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
+                        ui.button('Associate', on_click=_on_assoc).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
 
         # Pre-fill the search with folder name for convenience
         initial_term = missing_row['folder']
@@ -2469,5 +2469,5 @@ def open_match_vps_dialog(
         render_results(search_vpsdb(initial_term, limit=80))
 
         with ui.row().classes('justify-end q-mt-md'):
-            ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple) !important;')
+            ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple) !important; border-radius: 18px; padding: 4px 10px;')
     dlg.open()
