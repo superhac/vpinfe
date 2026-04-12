@@ -687,9 +687,9 @@ def render_panel(tab=None):
                 # Buttons
                 buttons_container = ui.row().classes('justify-end gap-2 q-mt-md w-full')
                 with buttons_container:
-                    cancel_btn = ui.button('Cancel', on_click=dlg.close).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
-                    start_btn = ui.button('Start Build', icon='build').style('color: var(--neon-cyan); background: var(--surface); border: 1px solid var(--neon-cyan); border-radius: var(--radius);')
-                    close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple); background: var(--surface); border: 1px solid var(--neon-purple); border-radius: var(--radius);')
+                    cancel_btn = ui.button('Cancel', on_click=dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
+                    start_btn = ui.button('Start Build', icon='build').style('color: var(--neon-cyan) !important; background: var(--surface) !important;')
+                    close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) important; background: var(--surface) important;')
                     close_btn.visible = False
 
                 def pump_progress():
@@ -795,7 +795,7 @@ def render_panel(tab=None):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
                 ui.label('Tables Management').classes('text-2xl font-bold').style('color: var(--ink);').style('flex-shrink: 0;')
                 with ui.row().classes('gap-3 items-center flex-wrap'):
-                    scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).props("color=white text-color=primary rounded")
+                    scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).style('color: var(--neon-cyan) !important; background: var(--surface) !important;')
                     patch_btn = ui.button("Apply Patches", icon="construction").props("color=secondary rounded")
                     # Start with green if no cached missing, will update after scan
                     initial_missing_count = len(_missing_cache) if _missing_cache else 0
@@ -836,9 +836,9 @@ def render_panel(tab=None):
                             # Buttons
                             buttons_container = ui.row().classes('justify-end gap-2 q-mt-md w-full')
                             with buttons_container:
-                                cancel_btn = ui.button('Cancel', on_click=dlg.close)
-                                start_btn = ui.button('Start Patching', icon='construction').style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
-                                close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+                                cancel_btn = ui.button('Cancel', on_click=dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
+                                start_btn = ui.button('Start Build', icon='build').style('color: var(--neon-cyan) !important; background: var(--surface) !important;')
+                                close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) important; background: var(--surface) important;')
                                 close_btn.visible = False
 
                             def pump_patch_progress():
@@ -1115,7 +1115,7 @@ def render_panel(tab=None):
 
         # Batch action bar for adding multiple tables to a collection at once
         batch_bar = ui.card().classes('w-full mb-2').style(
-            'border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line);'
+            'border-radius: var(--radius) !important; background: var(--surface) !important; border: 1px solid var(--line) !important;'
         )
         batch_bar.visible = False
         with batch_bar:
@@ -1126,7 +1126,7 @@ def render_panel(tab=None):
                     options=get_vpsid_collections(),
                     value=None
                 ).props('dense').classes('w-48').style('color: var(--ink); border: 1px solid var(--line);')
-                batch_add_btn = ui.button('Add to Collection', icon='playlist_add').style('background: var(--neon-purple); color: var(--ink);')
+                batch_add_btn = ui.button('Add to Collection', icon='playlist_add').style('background: var(--neon-purple) !important; color: var(--ink) !important;')
 
         def on_selection_change(e):
             selected = e.selection
@@ -1428,7 +1428,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
             # Rebuild metadata button - anchored to the right
             table_dir_name = os.path.basename(row_data.get('table_path', ''))
             if table_dir_name:
-                rebuild_btn = ui.button('Rebuild Meta', icon='refresh').props('dense').classes('ml-auto').style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+                rebuild_btn = ui.button('Rebuild Meta', icon='refresh').props('dense').classes('ml-auto').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
                 rebuild_status = ui.label('').classes('text-xs ml-2').style('color: var(--ink);')
                 rebuild_status.visible = False
                 rebuild_client = context.client
@@ -1626,7 +1626,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         ui.button(
                             'Clear',
                             on_click=lambda: save_rating(0)
-                        ).props('flat dense size=sm').classes('ml-1').style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+                        ).props('flat dense size=sm').classes('ml-1').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
 
                         refresh_rating_ui()
 
@@ -1674,13 +1674,13 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                                 else:
                                     ui.notify('Failed to add to collection', type='negative')
 
-                            ui.button('Add', icon='add', on_click=on_add_to_collection).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+                            ui.button('Add', icon='add', on_click=on_add_to_collection).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
                     else:
                         ui.label('Table is in all available collections').classes('text-sm').style('color: var(--ink-muted);')
 
             # VPinFE Settings section
             with ui.card().classes('w-full p-4').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);'):
-                ui.label('Overrides').classes('text-lg font-semibold text-white mb-3')
+                ui.label('Overrides').classes('text-lg font-semibold mb-3').style('color: var(--ink);')
 
                 delete_nvram_value = row_data.get('delete_nvram_on_close', False)
                 altlauncher_value = row_data.get('altlauncher', '')
@@ -1726,7 +1726,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         else:
                             ui.notify('Failed to save alt title', type='negative')
 
-                    ui.button('Save', icon='save', on_click=on_alttitle_save).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+                    ui.button('Save', icon='save', on_click=on_alttitle_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
                 ui.label('When set, this overrides the table name shown in Manager UI lists').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 w-full'):
@@ -1766,7 +1766,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         else:
                             ui.notify('Failed to save alt VPS ID', type='negative')
 
-                    ui.button('Save', icon='save', on_click=on_altvpsid_save).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+                    ui.button('Save', icon='save', on_click=on_altvpsid_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
                 ui.label('When set, this overrides the VPS ID shown/used in Manager UI').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 w-full'):
@@ -1789,7 +1789,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         else:
                             ui.notify('Failed to save alt launcher', type='negative')
 
-                    ui.button('Save', icon='save', on_click=on_altlauncher_save).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+                    ui.button('Save', icon='save', on_click=on_altlauncher_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink);')
                 ui.label('When set, this overrides Settings.vpxbinpath for this table only').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 w-full'):
@@ -1812,7 +1812,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         else:
                             ui.notify('Failed to save Frontend DOF event', type='negative')
 
-                    ui.button('Save', icon='save', on_click=on_frontend_dof_event_save).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+                    ui.button('Save', icon='save', on_click=on_frontend_dof_event_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
                 ui.label('When set, this stores the per-table User.FrontendDOFEvent value').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 mt-3'):
@@ -1928,7 +1928,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                             content = e.content.read() if hasattr(e.content, 'read') else e.content
                             save_upload_bytes(dest, content)
                             ui.notify(f'Saved: {e.name}', type='positive')
-                        ui.upload(on_upload=on_altsound_upload, multiple=True).props('flat label="Upload"').style('color: var(--neon-purple); background: var(--surface); border: 1px solid var(--neon-purple); border-radius: var(--radius);')
+                        ui.upload(on_upload=on_altsound_upload, multiple=True).props('flat label="Upload"').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple) !important;')
 
         # Footer with close button
         with ui.row().classes('w-full justify-end p-4 pt-0'):
@@ -1936,7 +1936,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                 dlg.close()
                 if on_close:
                     on_close()
-            ui.button('Close', icon='close', on_click=close_dialog).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+            ui.button('Close', icon='close', on_click=close_dialog).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
     dlg.open()
 
 def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Callable[[], None]] = None):
@@ -1980,7 +1980,7 @@ def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Call
                             refresh_installed=None,
                             use_own_media_switch=use_own_media,
                         )
-                    ).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+                    ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
 
         render(missing_rows)
 
@@ -1992,7 +1992,7 @@ def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Call
                 _missing_tables_dialog = None
                 if callable(on_close):
                     on_close()
-            ui.button('Close', on_click=_close).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+            ui.button('Close', on_click=_close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
     dlg.open()
 
 def open_import_table_dialog(perform_scan_cb=None):
@@ -2079,11 +2079,11 @@ def open_import_table_dialog(perform_scan_cb=None):
                     render_results([])
 
                     with ui.row().classes('justify-end q-mt-md'):
-                        ui.button('Close', on_click=search_dlg.close).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+                        ui.button('Close', on_click=search_dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
 
                 search_dlg.open()
 
-            ui.button('Search VPS…', icon='search', on_click=open_vps_search_dialog).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+            ui.button('Search VPS…', icon='search', on_click=open_vps_search_dialog).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
 
         ui.separator().classes('q-mt-sm')
 
@@ -2202,7 +2202,7 @@ def open_import_table_dialog(perform_scan_cb=None):
         # --- Buttons ---
         with ui.row().classes('justify-end gap-2 q-mt-sm w-full'):
             ui.button('Cancel', on_click=dlg.close).props('flat').style('color: var(--ink-muted);')
-            do_import_btn = ui.button('Import', icon='upload').style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
+            do_import_btn = ui.button('Import', icon='upload').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
             do_import_btn.disable()
 
         async def do_import():
@@ -2356,7 +2356,7 @@ def open_match_vps_dialog(
             ui.label(
                 'Clicking "Associate" will: optionally rename the folder to "TABLE NAME (MANUFACTURER YEAR)" format, '
                 'create a metadata file (.info), and download media images from vpinmediadb.'
-            ).classes('text-sm text-gray-300')
+            ).classes('text-sm').style('color: var(--ink-muted);')
         rename_folder_switch = ui.switch('Rename folder to VPS format', value=True)
         rename_folder_switch.props('dense')
         ui.label('Disable to keep the current folder name.').classes('text-xs').style('color: var(--ink-muted);')
@@ -2378,7 +2378,7 @@ def open_match_vps_dialog(
             results_container.clear()
             if not items:
                 with results_container:
-                    ui.label('Search by Table Name').classes('text-sm text-gray-500')
+                    ui.label('Search by Table Name').classes('text-sm').style('color: var(--ink-muted);')
                 return
 
             for it in items:
@@ -2453,7 +2453,7 @@ def open_match_vps_dialog(
                                 loading_overlay.style(add='display: none;', remove='display: flex;')
                                 dialog_state['busy'] = False
 
-                        ui.button('Associate', on_click=_on_assoc).style('color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);').style('flex-shrink: 0;')
+                        ui.button('Associate', on_click=_on_assoc).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important;')
 
         # Pre-fill the search with folder name for convenience
         initial_term = missing_row['folder']
@@ -2469,5 +2469,5 @@ def open_match_vps_dialog(
         render_results(search_vpsdb(initial_term, limit=80))
 
         with ui.row().classes('justify-end q-mt-md'):
-            ui.button('Close', on_click=dlg.close)
+            ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple) !important;')
     dlg.open()
