@@ -554,11 +554,11 @@ def _build_web_send_panel():
     def toggle_filter():
         panel_state['filter_installed'] = not panel_state['filter_installed']
         if panel_state['filter_installed']:
-            filter_toggle.style(add='color: var(--neon-cyan) !important;')
+            filter_toggle.style('color: var(--neon-cyan) !important; border-radius: 18px; padding: 4px 10px; border: 1px solid var(--neon-cyan);')
             filter_toggle._text = 'Show All'
             filter_toggle.update()
         else:
-            filter_toggle.style(remove='color: var(--neon-cyan) !important;')
+            filter_toggle.style('color: inherit; border-radius: 18px; padding: 4px 10px; border: inherit;')
             filter_toggle._text = 'Show Installed Only'
             filter_toggle.update()
         _apply_filter()
