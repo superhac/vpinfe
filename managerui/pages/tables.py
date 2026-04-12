@@ -4,22 +4,25 @@ import logging
 import asyncio
 import zipfile
 import io
-from threading import Condition
 from nicegui import ui, events, run, context, app
 from pathlib import Path
 import json
 from typing import List, Dict, Optional, Callable, Any
 from common.vpxparser import VPXParser
-from common.vpxcollections import VPXCollections
+from common.table_catalog import build_vpsid_collections_map
+from common.table_catalog import ensure_catalog_loaded
 from common.table_catalog import get_cached_missing_rows, get_cached_table_rows, set_cached_catalog
-from common.table_catalog import normalize_table_rating, parse_table_info, scan_installed_and_missing_tables
+from common.table_catalog import normalize_table_rating, parse_table_info
 from common.table_catalog import clear_cached_catalog
+from common.table_catalog import sync_catalog_collections
 from common.table_scanner import clear_scan_caches
 from common.table_scanner import get_scan_depth_from_config
 from common.table_scanner import refresh_table_in_scan_cache
 from .scroll_state import capture_scroll_state as capture_page_scroll_state
 from .scroll_state import restore_scroll_state as restore_page_scroll_state
 from .scroll_state import default_scroll_state
+from managerui.collection_actions import add_table_to_collection
+from managerui.collection_actions import get_vpsid_collections
 from clioptions import buildMetaData, vpxPatches
 from queue import Queue
 from platformdirs import user_config_dir
@@ -57,8 +60,6 @@ def ensure_vpsdb_downloaded() -> bool:
         return VPSDB_JSON_PATH.exists()
 # Ensure only one Missing Tables dialog at a time
 _missing_tables_dialog: Optional[ui.dialog] = None
-_scan_all_condition = Condition()
-_scan_all_in_progress = False
 _tables_pagination_state: Dict[str, Any] = {
     'page': 1,
     'rowsPerPage': 100,
@@ -214,65 +215,7 @@ def get_scroll_state() -> Dict[str, Any]:
 
 def get_vpsid_collections_map() -> Dict[str, List[str]]:
     """Build a map of VPS ID -> list of collection names (only vpsid type collections)."""
-    vpsid_to_collections: Dict[str, List[str]] = {}
-    try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        for collection_name in collections.get_collections_name():
-            # Only consider vpsid type collections
-            if collections.is_filter_based(collection_name):
-                continue
-            try:
-                vpsids = collections.get_vpsids(collection_name)
-                for vpsid in vpsids:
-                    if vpsid not in vpsid_to_collections:
-                        vpsid_to_collections[vpsid] = []
-                    vpsid_to_collections[vpsid].append(collection_name)
-            except Exception:
-                pass
-    except Exception:
-        pass
-    return vpsid_to_collections
-
-
-def get_vpsid_collections() -> List[str]:
-    """Get list of all vpsid-type collection names."""
-    result = []
-    try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        for collection_name in collections.get_collections_name():
-            if not collections.is_filter_based(collection_name):
-                result.append(collection_name)
-    except Exception:
-        pass
-    return result
-
-
-def add_table_to_collection(vpsid: str, collection_name: str) -> bool:
-    """Add a table (by VPS ID) to a collection. Returns True on success."""
-    try:
-        logger.debug(
-            "Collection membership update: action=add vpsid=%s collection=%s",
-            vpsid,
-            collection_name,
-        )
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        collections.add_vpsid(collection_name, vpsid)
-        collections.save()
-        # Update the cache so the table list reflects the change
-        tables_cache = _get_tables_cache()
-        if tables_cache is not None:
-            for row in tables_cache:
-                if row.get('id') == vpsid:
-                    if 'collections' not in row:
-                        row['collections'] = []
-                    if collection_name not in row['collections']:
-                        row['collections'].append(collection_name)
-                    break
-        return True
-    except Exception as e:
-        logger.error(f"Failed to add table to collection: {e}")
-        return False
-
+    return build_vpsid_collections_map(str(COLLECTIONS_PATH))
 
 def sync_collections_to_cache():
     """Sync the tables cache with current collection memberships from disk.
@@ -280,23 +223,7 @@ def sync_collections_to_cache():
     Call this after modifying collections outside of add_table_to_collection(),
     such as when removing tables from collections or deleting/renaming collections.
     """
-    tables_cache = _get_tables_cache()
-    if tables_cache is None:
-        logger.debug("Collection cache sync skipped: tables cache is empty")
-        return
-
-    # Rebuild the VPS ID to collections map from disk
-    vpsid_collections_map = get_vpsid_collections_map()
-
-    # Update each cached row with current collection memberships
-    for row in tables_cache:
-        vpsid = row.get('id', '')
-        row['collections'] = vpsid_collections_map.get(vpsid, [])
-    logger.debug(
-        "Collection cache sync complete: rows=%d mapped_vpsids=%d",
-        len(tables_cache),
-        len(vpsid_collections_map),
-    )
+    sync_catalog_collections(str(COLLECTIONS_PATH))
 
 
 def update_vpinfe_setting(table_path: str, key: str, value, invalidate_caches: bool = False) -> bool:
@@ -532,38 +459,25 @@ def _scan_all(silent: bool = False):
     Uses configurable discovery depth (shallow or recursive) and processes each
     table directory in parallel to pipeline disk I/O.
     """
-    global _cached_scan_result, _scan_all_in_progress
+    global _cached_scan_result
 
     tables_path = get_tables_path()
     if not os.path.exists(tables_path):
         logger.warning(f"Tables path does not exist: {tables_path}. Skipping scan.")
         if not silent:
             ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
+        _set_catalog_cache([], [])
         _cached_scan_result = ([], [])
         return _cached_scan_result
 
-    vpsid_collections_map = get_vpsid_collections_map()
-
-    with _scan_all_condition:
-        if _scan_all_in_progress:
-            while _scan_all_in_progress:
-                _scan_all_condition.wait()
-            if _cached_scan_result is not None:
-                return _cached_scan_result
-        _scan_all_in_progress = True
-
-    try:
-        result = scan_installed_and_missing_tables(
-            tables_path,
-            vpsid_collections_map,
-            scan_depth=get_scan_depth_from_config(_INI_CFG.config),
-        )
-        _cached_scan_result = result
-        return result
-    finally:
-        with _scan_all_condition:
-            _scan_all_in_progress = False
-            _scan_all_condition.notify_all()
+    result = ensure_catalog_loaded(
+        tables_path,
+        str(COLLECTIONS_PATH),
+        scan_depth=get_scan_depth_from_config(_INI_CFG.config),
+        force_refresh=True,
+    )
+    _cached_scan_result = result
+    return result
 
 
 def scan_tables(silent: bool = False):
@@ -578,6 +492,9 @@ def scan_missing_tables():
     global _cached_scan_result
     if _cached_scan_result is not None:
         return _cached_scan_result[1]
+    missing_cache = _get_missing_cache()
+    if missing_cache is not None:
+        return missing_cache
     # Fallback: run scan if no cache (shouldn't happen in normal UI flow)
     result = _scan_all(silent=True)
     return result[1] if result else []
@@ -598,6 +515,7 @@ def render_panel(tab=None):
         'rowsPerPage': loaded_rows_per_page,
     }
     _initial_loaded_rows_per_page = loaded_rows_per_page
+    startup_scan_state = {'requested': False}
     with ui.column().classes('w-full'):
         # Hide Quasar's built-in numeric overlay inside linear progress bars (prevents 0..1 decimals)
         ui.add_head_html('<style>.q-linear-progress__info{display:none!important}</style>')
@@ -1121,7 +1039,8 @@ def render_panel(tab=None):
                 tables_loading_placeholder.visible = True
                 table.visible = False
                 title_label.set_text('Installed Tables')
-                if not _scan_all_in_progress:
+                if not startup_scan_state['requested']:
+                    startup_scan_state['requested'] = True
                     asyncio.create_task(perform_scan(silent=True))
                 return
 

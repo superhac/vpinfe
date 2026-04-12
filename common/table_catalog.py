@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from common.table_scanner import scan_table_summaries
 from common.table_scanner import scan_tables_root
 from common.table_scanner import normalize_scan_depth
+from common.vpxcollections import VPXCollections
 
 
 logger = logging.getLogger("vpinfe.table_catalog")
@@ -17,6 +18,8 @@ logger = logging.getLogger("vpinfe.table_catalog")
 _CATALOG_LOCK = threading.Lock()
 _TABLE_ROWS_CACHE: Optional[List[Dict[str, Any]]] = None
 _MISSING_ROWS_CACHE: Optional[List[Dict[str, Any]]] = None
+_CATALOG_SCAN_CONDITION = threading.Condition()
+_CATALOG_SCAN_IN_PROGRESS = False
 
 
 def get_cached_table_rows() -> Optional[List[Dict[str, Any]]]:
@@ -53,6 +56,95 @@ def clear_cached_catalog() -> None:
         prev_tables,
         prev_missing,
     )
+
+
+def build_vpsid_collections_map(collections_path: str) -> Dict[str, List[str]]:
+    """Build a map of VPS ID -> collection names for non-filter collections."""
+    vpsid_to_collections: Dict[str, List[str]] = {}
+    try:
+        collections = VPXCollections(collections_path)
+        for collection_name in collections.get_collections_name():
+            if collections.is_filter_based(collection_name):
+                continue
+            try:
+                for vpsid in collections.get_vpsids(collection_name):
+                    if vpsid not in vpsid_to_collections:
+                        vpsid_to_collections[vpsid] = []
+                    vpsid_to_collections[vpsid].append(collection_name)
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return vpsid_to_collections
+
+
+def sync_catalog_collections(collections_path: str) -> None:
+    """Update cached table rows with collection memberships from disk."""
+    with _CATALOG_LOCK:
+        table_rows = _TABLE_ROWS_CACHE
+
+    if table_rows is None:
+        logger.debug("Catalog collection sync skipped: table cache is empty")
+        return
+
+    vpsid_collections_map = build_vpsid_collections_map(collections_path)
+    for row in table_rows:
+        row['collections'] = vpsid_collections_map.get(row.get('id', ''), [])
+
+    logger.debug(
+        "Catalog collection sync complete: rows=%d mapped_vpsids=%d",
+        len(table_rows),
+        len(vpsid_collections_map),
+    )
+
+
+def ensure_catalog_loaded(
+    tables_path: str,
+    collections_path: str,
+    scan_depth: str = 'shallow',
+    force_refresh: bool = False,
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Return catalog rows, populating the shared cache on demand.
+
+    When a scan is already in progress, concurrent callers wait for the active
+    scan to finish and then reuse the populated cache.
+    """
+    global _CATALOG_SCAN_IN_PROGRESS
+
+    with _CATALOG_LOCK:
+        cached_table_rows = _TABLE_ROWS_CACHE
+        cached_missing_rows = _MISSING_ROWS_CACHE
+
+    if not force_refresh and cached_table_rows is not None and cached_missing_rows is not None:
+        return cached_table_rows, cached_missing_rows
+
+    if not os.path.exists(tables_path):
+        set_cached_catalog([], [])
+        return [], []
+
+    with _CATALOG_SCAN_CONDITION:
+        if _CATALOG_SCAN_IN_PROGRESS:
+            while _CATALOG_SCAN_IN_PROGRESS:
+                _CATALOG_SCAN_CONDITION.wait()
+            with _CATALOG_LOCK:
+                cached_table_rows = _TABLE_ROWS_CACHE
+                cached_missing_rows = _MISSING_ROWS_CACHE
+            if cached_table_rows is not None and cached_missing_rows is not None:
+                return cached_table_rows, cached_missing_rows
+        _CATALOG_SCAN_IN_PROGRESS = True
+
+    try:
+        result = scan_installed_and_missing_tables(
+            tables_path,
+            build_vpsid_collections_map(collections_path),
+            scan_depth=scan_depth,
+        )
+        set_cached_catalog(*result)
+        return result
+    finally:
+        with _CATALOG_SCAN_CONDITION:
+            _CATALOG_SCAN_IN_PROGRESS = False
+            _CATALOG_SCAN_CONDITION.notify_all()
 
 
 def format_table_display_name(name: str, manufacturer: str = '', year: str = '') -> str:

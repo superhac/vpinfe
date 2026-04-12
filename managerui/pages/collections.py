@@ -4,19 +4,22 @@ from nicegui import ui, events, run, context
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 from platformdirs import user_config_dir
-from common.vpxcollections import VPXCollections
+from common.iniconfig import IniConfig, get_tables_root_from_config
+from common.table_catalog import ensure_catalog_loaded
+from common.table_catalog import sync_catalog_collections
+from common.table_catalog import get_cached_table_rows
+from common.table_scanner import get_scan_depth_from_config
+from managerui.collection_actions import get_collections_manager
 from .scroll_state import capture_scroll_state as capture_page_scroll_state
 from .scroll_state import restore_scroll_state as restore_page_scroll_state
 from .scroll_state import default_scroll_state
-from . import tables as tables_module
 
 logger = logging.getLogger("vpinfe.manager.collections")
 
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 COLLECTIONS_PATH = CONFIG_DIR / "collections.ini"
-
-from common.table_catalog import get_cached_table_rows
-
+VPINFE_INI_PATH = CONFIG_DIR / "vpinfe.ini"
+_INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 _collections_scroll_state: Dict[str, Any] = default_scroll_state()
 _collections_page_client: Any = None
@@ -33,10 +36,13 @@ async def capture_scroll_state() -> None:
 def get_scroll_state() -> Dict[str, Any]:
     return dict(_collections_scroll_state)
 
-
-def get_collections_manager() -> VPXCollections:
-    """Get a fresh VPXCollections instance."""
-    return VPXCollections(str(COLLECTIONS_PATH))
+def _load_table_catalog() -> List[Dict[str, Any]]:
+    table_rows, _ = ensure_catalog_loaded(
+        get_tables_root_from_config(_INI_CFG.config),
+        str(COLLECTIONS_PATH),
+        scan_depth=get_scan_depth_from_config(_INI_CFG.config),
+    )
+    return table_rows
 
 
 def get_table_name_map() -> Dict[str, str]:
@@ -317,7 +323,7 @@ def render_panel(tab=None):
                             manager.delete_collection(name)
                             manager.save()
                             # Sync the tables cache with updated collection memberships
-                            tables_module.sync_collections_to_cache()
+                            sync_catalog_collections(str(COLLECTIONS_PATH))
                             logger.debug("Collection deleted and cache sync requested: name=%s", name)
                             ui.notify(f'Collection "{name}" deleted', type='positive')
                             dlg.close()
@@ -353,7 +359,7 @@ def render_panel(tab=None):
                             manager.rename_collection(name, new_name)
                             manager.save()
                             # Sync the tables cache with updated collection memberships
-                            tables_module.sync_collections_to_cache()
+                            sync_catalog_collections(str(COLLECTIONS_PATH))
                             logger.debug("Collection renamed and cache sync requested: old=%s new=%s", name, new_name)
                             ui.notify(f'Renamed to "{new_name}"', type='positive')
                             dlg.close()
@@ -408,7 +414,7 @@ def render_panel(tab=None):
                     # Get tables from cache or scan
                     tables = get_cached_table_rows()
                     if tables is None:
-                        tables = await run.io_bound(tables_module.scan_tables, True)
+                        tables = await run.io_bound(_load_table_catalog)
 
                     if not term:
                         return
@@ -458,7 +464,7 @@ def render_panel(tab=None):
                             manager.add_collection(name, vpsids)
                             manager.save()
                             # Sync the tables cache with updated collection memberships
-                            tables_module.sync_collections_to_cache()
+                            sync_catalog_collections(str(COLLECTIONS_PATH))
                             logger.debug(
                                 "Collection created and cache sync requested: name=%s type=vpsid tables=%d",
                                 name,
@@ -741,7 +747,7 @@ def render_panel(tab=None):
 
                     tables = get_cached_table_rows()
                     if tables is None:
-                        tables = await run.io_bound(tables_module.scan_tables, True)
+                        tables = await run.io_bound(_load_table_catalog)
 
                     if not term:
                         return
@@ -786,7 +792,7 @@ def render_panel(tab=None):
                             m.config[name]['vpsids'] = ','.join(vpsids)
                             m.save()
                             # Sync the tables cache with updated collection memberships
-                            tables_module.sync_collections_to_cache()
+                            sync_catalog_collections(str(COLLECTIONS_PATH))
                             logger.debug(
                                 "Collection updated and cache sync requested: name=%s type=vpsid tables=%d",
                                 name,
@@ -810,8 +816,10 @@ def render_panel(tab=None):
         refresh_collections()
 
         async def refresh_when_cache_ready() -> None:
-            while is_page_active() and get_cached_table_rows() is None:
-                await asyncio.sleep(0.5)
+            if get_cached_table_rows() is None:
+                # Tables page hasn't run yet — trigger the scan ourselves so the
+                # spinner doesn't hang indefinitely when collections is the first page.
+                await run.io_bound(_load_table_catalog)
             if is_page_active():
                 refresh_collections()
 
