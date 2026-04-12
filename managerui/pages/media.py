@@ -821,6 +821,12 @@ def render_panel():
             os.makedirs(medias_dir, exist_ok=True)
             target_path = os.path.join(medias_dir, target_filename)
 
+            logger.debug(
+                'Media replace requested: table="%s" key=%s',
+                table_dir,
+                media_key,
+            )
+
             # Copy the uploaded file (overwrite if exists)
             shutil.copy2(uploaded_path, target_path)
 
@@ -829,12 +835,34 @@ def render_panel():
             if os.path.exists(info_file):
                 mc = MetaConfig(info_file)
                 mc.addMedia(media_key, "user", target_path, "")
+                logger.debug(
+                    'Media metadata updated: table="%s" key=%s',
+                    table_dir,
+                    media_key,
+                )
+            else:
+                logger.debug(
+                    'Media metadata skipped (info missing): table="%s" key=%s',
+                    table_dir,
+                    media_key,
+                )
+
+            logger.debug(
+                'Media replace complete: table="%s" key=%s',
+                table_dir,
+                media_key,
+            )
 
             return target_path
 
         def update_cache_entry(table_dir: str, media_key: str, url_path: str, thumb_url: Optional[str] = None):
             """Update the in-memory cache for the replaced media."""
             if _media_cache is None:
+                logger.debug(
+                    'Media cache update skipped: cache_empty table="%s" key=%s',
+                    table_dir,
+                    media_key,
+                )
                 return
             for row in _media_cache:
                 if row['table_dir'] == table_dir:
@@ -842,7 +870,62 @@ def render_panel():
                     row.setdefault('thumbs', {})[media_key] = thumb_url
                     row.setdefault('thumb_errors', {}).pop(media_key, None)
                     row[f'has_{media_key}'] = url_path is not None
+                    logger.debug(
+                        'Media cache updated: table="%s" key=%s has_media=%s has_thumb=%s',
+                        table_dir,
+                        media_key,
+                        url_path is not None,
+                        bool(thumb_url),
+                    )
                     break
+
+        def _has_active_filter_constraints() -> bool:
+            """Return True when current filters can change row membership/order."""
+            if (filter_state.get('search') or '').strip():
+                return True
+            if filter_state.get('manufacturer', 'All') != 'All':
+                return True
+            if filter_state.get('year', 'All') != 'All':
+                return True
+            if filter_state.get('theme', 'All') != 'All':
+                return True
+            if filter_state.get('table_type', 'All') != 'All':
+                return True
+            for media_key, _, _ in MEDIA_TYPES:
+                if filter_state.get(f'missing_{media_key}', False):
+                    return True
+            return False
+
+        def _refresh_visible_row(table_dir: str) -> bool:
+            """Refresh one row in the currently displayed grid without full re-filter."""
+            if _media_cache is None:
+                return False
+
+            live_row = None
+            for row in _media_cache:
+                if row.get('table_dir') == table_dir:
+                    live_row = row
+                    break
+            if live_row is None:
+                return False
+
+            current_rows = media_table._props.get('rows') or []
+            replaced = False
+            updated_rows = []
+            for row in current_rows:
+                if row.get('table_dir') == table_dir:
+                    # Replace object reference so Quasar reliably re-renders this row.
+                    updated_rows.append(dict(live_row))
+                    replaced = True
+                else:
+                    updated_rows.append(row)
+
+            if not replaced:
+                return False
+
+            media_table._props['rows'] = updated_rows
+            media_table.update()
+            return True
 
         def open_replace_dialog(table_dir: str, table_path: str, table_name: str, media_key: str, media_label: str):
             """Open a dialog to replace a media file for a table."""
@@ -888,6 +971,11 @@ def render_panel():
                     with open(tmp_path, 'wb') as f:
                         f.write(await e.file.read())
                     upload_state['path'] = tmp_path
+                    logger.debug(
+                        'Media upload staged: table="%s" key=%s',
+                        table_dir,
+                        media_key,
+                    )
                     confirm_btn.enable()
                     ui.notify(f'File ready: {e.file.name}', type='info')
 
@@ -913,9 +1001,30 @@ def render_panel():
                             new_url = _media_url('media_tables', table_dir, 'medias', target_filename) + f'?t={cache_buster}'
                             new_thumb = await run.io_bound(_ensure_thumb, table_dir, media_key, target_path)
                             update_cache_entry(table_dir, media_key, new_url, new_thumb)
-                            
-                            # Only re-render the affected row instead of full table filter/redraw
-                            media_table.update()
+
+                            # Use targeted row refresh when safe; otherwise re-apply filters.
+                            if _has_active_filter_constraints():
+                                logger.debug(
+                                    'Media grid refresh: mode=full_filtered table="%s" key=%s',
+                                    table_dir,
+                                    media_key,
+                                )
+                                update_table_display(schedule_warm=False)
+                            else:
+                                refreshed = _refresh_visible_row(table_dir)
+                                if not refreshed:
+                                    logger.debug(
+                                        'Media grid refresh fallback: mode=full_filtered table="%s" key=%s',
+                                        table_dir,
+                                        media_key,
+                                    )
+                                    update_table_display(schedule_warm=False)
+                                else:
+                                    logger.debug(
+                                        'Media grid refresh: mode=single_row table="%s" key=%s',
+                                        table_dir,
+                                        media_key,
+                                    )
 
                             # Cleanup temp
                             tmp_dir = os.path.join(table_path, '.tmp_upload')
@@ -1090,15 +1199,18 @@ def render_panel():
                                      :src="props.row.thumbs.''' + media_key + '''"
                                      class="media-thumb"
                                      loading="lazy" />
-                                <q-badge v-else color="blue-grey-7" text-color="white" label="IMG"
-                                         style="font-size: 10px; padding: 2px 8px;" />
+                              <img v-else
+                                  :src="props.row.media.''' + media_key + '''"
+                                  class="media-thumb"
+                                  loading="lazy" />
                                 <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 8]"
                                            class="bg-dark" style="padding: 4px;">
                                     <img v-if="props.row.thumbs && props.row.thumbs.''' + media_key + '''"
                                          :src="props.row.thumbs.''' + media_key + '''"
                                          style="max-width: 480px; max-height: 480px; border-radius: 6px; border: 2px solid #3b82f6; object-fit: contain;" />
-                                    <q-badge v-else color="blue-grey-7" text-color="white" label="Generating..."
-                                             style="font-size: 10px; padding: 2px 8px;" />
+                                 <img v-else
+                                     :src="props.row.media.''' + media_key + '''"
+                                     style="max-width: 480px; max-height: 480px; border-radius: 6px; border: 2px solid #3b82f6; object-fit: contain;" />
                                 </q-tooltip>
                             </div>
                             <div v-else class="media-missing"

@@ -16,6 +16,9 @@ _THIRD_PARTY_LOGGERS = (
     "uvicorn",
     "uvicorn.error",
     "uvicorn.access",
+    "python_multipart",
+    "python_multipart.multipart",
+    "multipart",
 )
 
 
@@ -43,6 +46,7 @@ def _normalize_third_party_loggers() -> None:
     for name in _THIRD_PARTY_LOGGERS:
         logger = logging.getLogger(name)
         logger.handlers.clear()
+        logger.setLevel(logging.WARNING)
         logger.propagate = True
 
 
