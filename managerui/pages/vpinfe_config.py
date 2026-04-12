@@ -290,7 +290,7 @@ def show_log_file_dialog() -> None:
                     f'font-family:monospace; font-size:12px; color:var(--ink);">{escaped_content}</pre>'
                 ).classes('w-full')
         with ui.row().classes('w-full justify-end mt-2'):
-            ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+            ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
     dlg.open()
 
 def render_panel(tab=None):
@@ -775,7 +775,7 @@ def render_panel(tab=None):
                 'height: 420px; font-family: monospace;'
             )
             with ui.row().classes('w-full justify-end mt-2'):
-                ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
         dlg.open()
 
     def show_live_command_dialog(title: str, command: list[str]):
@@ -789,7 +789,7 @@ def render_panel(tab=None):
                 'height: 420px; font-family: monospace;'
             )
             with ui.row().classes('w-full justify-end mt-2'):
-                close_button = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                close_button = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                 close_button.disable()
         dlg.open()
         return command_label, status_label, output_area, close_button
@@ -1202,7 +1202,7 @@ def render_panel(tab=None):
                                                     'Sync Installed Tables',
                                                     icon='sync',
                                                     on_click=run_vpinplay_sync,
-                                                ).classes('mt-3').style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                                                ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                                                 update_vpinplay_sync_button_state()
                                             if sync_key in options:
                                                 with ui.element('div').classes('w-full'):
@@ -1236,7 +1236,7 @@ def render_panel(tab=None):
                                                         'Start Event',
                                                         icon='play_arrow',
                                                         on_click=run_dof_test_event_start,
-                                                    ).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                                                    ).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                                                     ui.button(
                                                         'Stop Event',
                                                         icon='stop',
@@ -1322,7 +1322,7 @@ def render_panel(tab=None):
                                     'Update DOF via Online Config Tool',
                                     icon='cloud_download',
                                     on_click=run_dof_online_update,
-                                ).classes('mt-3').style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                                ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
 
                         if section == 'Settings':
                             with ui.card().classes('config-side-card w-full mt-4 p-4'):
@@ -1354,7 +1354,7 @@ def render_panel(tab=None):
                                     'View Log',
                                     icon='article',
                                     on_click=show_log_file_dialog,
-                                ).classes('mt-3').style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                                ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
 
         with ui.element('div').classes('w-full config-footer-bar'):
-            ui.button('Save Changes', icon='save', on_click=save_config).classes('px-6 py-3').style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+            ui.button('Save Changes', icon='save', on_click=save_config).classes('px-6 py-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
