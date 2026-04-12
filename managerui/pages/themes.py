@@ -54,23 +54,22 @@ def render_panel(tab=None):
     ui.add_head_html('''
     <style>
         .theme-card {
-            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%) !important;
-            border: 1px solid #334155 !important;
+            background: var(--surface) !important;
+            border: 1px solid var(--line) !important;
             border-radius: 12px !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2) !important;
             transition: all 0.2s ease !important;
         }
         .theme-card:hover {
-            border-color: #3b82f6 !important;
-            box-shadow: 0 8px 12px -2px rgba(59, 130, 246, 0.15) !important;
+            border-color: var(--neon-purple) !important;
+            box-shadow: var(--glow-purple) !important;
         }
         .theme-card-active {
-            border: 2px solid #22c55e !important;
-            box-shadow: 0 0 16px rgba(34, 197, 94, 0.25) !important;
+            border: 2px solid var(--neon-cyan) !important;
+            box-shadow: var(--glow-cyan) !important;
         }
         .theme-card-active:hover {
-            border-color: #4ade80 !important;
-            box-shadow: 0 0 20px rgba(34, 197, 94, 0.35) !important;
+            border-color: var(--neon-purple) !important;
+            box-shadow: var(--glow-purple) !important;
         }
         .theme-preview-wrap {
             position: relative;
@@ -85,13 +84,13 @@ def render_panel(tab=None):
             max-height: 180px;
             object-fit: cover;
             border-radius: 8px;
-            border: 1px solid #334155;
+            border: 1px solid var(--line);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
             transform-origin: left center;
         }
         .theme-preview:hover {
             transform: scale(2);
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+            box-shadow: var(--shadow);
             z-index: 100;
         }
         .theme-badge {
@@ -131,24 +130,24 @@ def render_panel(tab=None):
     with ui.column().classes('w-full'):
         # Header card
         with ui.card().classes('w-full mb-4').style(
-            'background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%); '
+            'background: var(--surface); border: 1px solid var(--line); '
             'border-radius: 12px;'
         ):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
                 with ui.row().classes('items-center gap-3'):
-                    ui.icon('palette', size='32px').classes('text-white')
-                    ui.label('Themes').classes('text-2xl font-bold text-white')
+                    ui.icon('palette', size='32px').style('color: var(--ink) !important;')
+                    ui.label('Themes').classes('text-2xl font-bold').style('color: var(--ink) !important;')
 
                 refresh_btn = ui.button('Refresh Registry', icon='refresh',
-                                        on_click=lambda: do_refresh()).props('color=primary rounded')
+                                        on_click=lambda: do_refresh()).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
 
         # Loading spinner area
         loading_container = ui.column().classes('w-full items-center justify-center').style('min-height: 200px;')
         loading_container.visible = False
 
         with loading_container:
-            ui.spinner('dots', size='48px', color='blue')
-            ui.label('Loading theme registry...').classes('text-slate-400 mt-2')
+            ui.spinner('dots', size='48px').style('color: var(--neon-cyan) !important;')
+            ui.label('Loading theme registry...').classes('mt-2').style('color: var(--ink-muted) !important;')
 
         # Cards container
         cards_container = ui.column().classes('w-full gap-4')
@@ -163,7 +162,7 @@ def render_panel(tab=None):
 
             if not _registry or not _registry.get_themes():
                 with ui.card().classes('theme-card w-full p-6'):
-                    ui.label('No themes found in registry.').classes('text-slate-400')
+                    ui.label('No themes found in registry.').style('color: var(--ink-muted) !important;')
                 return
 
             updates = {}
@@ -222,9 +221,9 @@ def render_panel(tab=None):
                         else:
                             with ui.column().classes('items-center justify-center').style(
                                 'width: 280px; min-width: 280px; height: 180px; '
-                                'background: #1a2744; border-radius: 8px; border: 1px solid #334155;'
+                                'background: var(--surface-2); border-radius: 8px; border: 1px solid var(--line);'
                             ):
-                                ui.icon('image_not_supported', size='48px').classes('text-slate-600')
+                                ui.icon('image_not_supported', size='48px').style('color: var(--ink-muted) !important;')
 
                         # Right: Info + optional Change log side by side
                         with ui.row().classes('flex-grow gap-6'):
@@ -232,9 +231,7 @@ def render_panel(tab=None):
                             with ui.column().classes('gap-2'):
                                 # Name + badges row
                                 with ui.row().classes('items-center gap-2 flex-wrap'):
-                                    ui.label(manifest.get('name', theme_key)).classes(
-                                        'text-xl font-bold text-white'
-                                    )
+                                    ui.label(manifest.get('name', theme_key)).classes('text-xl font-bold').style('color: var(--ink) !important;')
 
                                     # GitHub repo link
                                     repo_url = registry_info.get('theme_base_url', '')
@@ -242,9 +239,7 @@ def render_panel(tab=None):
                                         ui.button(
                                             icon='open_in_new',
                                             on_click=lambda url=repo_url: ui.navigate.to(url, new_tab=True),
-                                        ).props('flat round dense').classes('text-slate-400 hover:text-blue-400').tooltip(
-                                            'View on GitHub'
-                                        )
+                                        ).props('flat dense').tooltip('View on GitHub').style('color: var(--ink-muted) !important; border-radius: 999px;')
 
                                     # Status badge
                                     if is_active:
@@ -272,37 +267,37 @@ def render_panel(tab=None):
 
                                 # Author
                                 with ui.row().classes('items-center gap-2'):
-                                    ui.icon('person', size='16px').classes('text-slate-400')
-                                    ui.label(manifest.get('author', 'Unknown')).classes('text-sm text-slate-300')
+                                    ui.icon('person', size='16px').style('color: var(--ink-muted) !important;')
+                                    ui.label(manifest.get('author', 'Unknown')).classes('text-sm').style('color: var(--ink-muted) !important;')
 
                                 # Description
                                 desc = manifest.get('description', '')
                                 if desc:
-                                    ui.label(desc).classes('text-sm text-slate-400')
+                                    ui.label(desc).classes('text-sm').style('color: var(--ink-muted) !important;')
 
                                 # Version info
                                 with ui.row().classes('items-center gap-2'):
-                                    ui.icon('label', size='16px').classes('text-slate-400')
+                                    ui.icon('label', size='16px').style('color: var(--ink-muted) !important;')
                                     if is_installed and installed_version:
                                         version_text = f'v{installed_version}'
                                         if has_update:
                                             version_text += f'  ->  v{remote_version}'
-                                        ui.label(version_text).classes('text-sm text-slate-300')
+                                        ui.label(version_text).classes('text-sm').style('color: var(--ink-muted) !important;')
                                     else:
-                                        ui.label(f'v{remote_version}').classes('text-sm text-slate-300')
+                                        ui.label(f'v{remote_version}').classes('text-sm').style('color: var(--ink-muted) !important;')
 
                                 # Supported screens
                                 screens = manifest.get('supported_screens')
                                 if screens is not None:
                                     with ui.row().classes('items-center gap-2'):
-                                        ui.icon('monitor', size='16px').classes('text-slate-400')
+                                        ui.icon('monitor', size='16px').style('color: var(--ink-muted) !important;')
                                         if isinstance(screens, list):
                                             screen_count = len(screens)
                                             screen_names = ', '.join(str(s) for s in screens)
-                                            ui.label(f'{screen_count} screen{"s" if screen_count != 1 else ""}: {screen_names}').classes('text-sm text-slate-300')
+                                            ui.label(f'{screen_count} screen{"s" if screen_count != 1 else ""}: {screen_names}').classes('text-sm').style('color: var(--ink-muted) !important;')
                                         else:
                                             screen_count = int(screens)
-                                            ui.label(f'{screen_count} screen{"s" if screen_count != 1 else ""}').classes('text-sm text-slate-300')
+                                            ui.label(f'{screen_count} screen{"s" if screen_count != 1 else ""}').classes('text-sm').style('color: var(--ink-muted) !important;')
 
                                 # Action buttons
                                 with ui.row().classes('gap-2 mt-2 items-center'):
@@ -324,9 +319,9 @@ def render_panel(tab=None):
                                     'padding: 12px;'
                                 ):
                                     with ui.row().classes('items-center gap-2'):
-                                        ui.icon('new_releases', size='16px').classes('text-yellow-400')
-                                        ui.label('What\'s new:').classes('text-sm font-semibold text-yellow-300')
-                                    ui.label(change_log).classes('text-sm text-slate-300')
+                                        ui.icon('new_releases', size='16px').style('color: var(--neon-yellow) !important;')
+                                        ui.label('What\'s new:').classes('text-sm font-semibold').style('color: var(--neon-yellow) !important;')
+                                    ui.label(change_log).classes('text-sm').style('color: var(--ink-muted) !important;')
 
     def _make_install_btn(theme_key: str, label: str, icon: str):
         """Create an install/update button for a theme."""
@@ -342,7 +337,7 @@ def render_panel(tab=None):
             finally:
                 btn.enable()
 
-        btn = ui.button(label, icon=icon, on_click=do_install).props('color=primary rounded no-wrap').style('padding: 6px 20px;')
+        btn = ui.button(label, icon=icon, on_click=do_install).props('no-wrap').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
 
     def _make_activate_btn(theme_key: str):
         """Create a 'Set as Active' button for a theme."""
@@ -358,20 +353,16 @@ def render_panel(tab=None):
                 btn.enable()
 
         with ui.dialog() as confirm_dlg, ui.card().style(
-            'background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); '
-            'border: 1px solid #334155; min-width: 350px;'
+            'background: var(--surface-2); '
+            'border: 1px solid var(--line); min-width: 350px;'
         ):
-            ui.label(f'Set "{theme_key}" as active theme?').classes('text-lg font-bold text-white')
-            ui.label('VPinFE will restart to apply the new theme.').classes('text-sm text-slate-400 mt-1')
+            ui.label(f'Set "{theme_key}" as active theme?').classes('text-lg font-bold').style('color: var(--ink) !important;')
+            ui.label('VPinFE will restart to apply the new theme.').classes('text-sm mt-1').style('color: var(--ink-muted) !important;')
             with ui.row().classes('w-full justify-end gap-2 mt-4'):
-                ui.button('Cancel', on_click=confirm_dlg.close).props('flat')
-                ui.button('Set & Restart', icon='restart_alt', on_click=do_activate).props(
-                    'color=purple rounded'
-                )
+                ui.button('Cancel', on_click=confirm_dlg.close).props('flat').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                ui.button('Set & Restart', icon='restart_alt', on_click=do_activate).style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
 
-        btn = ui.button('Set as Active', icon='check_circle', on_click=confirm_dlg.open).props(
-            'color=purple rounded no-wrap'
-        ).style('padding: 6px 20px;')
+        btn = ui.button('Set as Active', icon='check_circle', on_click=confirm_dlg.open).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
 
     def _make_delete_btn(theme_key: str):
         """Create a delete button with confirmation for a theme."""
@@ -393,20 +384,16 @@ def render_panel(tab=None):
             await do_delete()
 
         with ui.dialog() as confirm_dlg, ui.card().style(
-            'background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%); '
-            'border: 1px solid #334155; min-width: 350px;'
+            'background: var(--surface-2);'
+            'border: 1px solid var(--line); min-width: 350px;'
         ):
-            ui.label(f'Delete "{theme_key}"?').classes('text-lg font-bold text-white')
-            ui.label('This will remove the theme files from your system.').classes('text-sm text-slate-400 mt-1')
+            ui.label(f'Delete "{theme_key}"?').classes('text-lg font-bold').style('color: var(--ink) !important;')
+            ui.label('This will remove the theme files from your system.').classes('text-sm mt-1').style('color: var(--ink-muted) !important;')
             with ui.row().classes('w-full justify-end gap-2 mt-4'):
-                ui.button('Cancel', on_click=confirm_dlg.close).props('flat')
-                ui.button('Delete', icon='delete', on_click=confirm_and_delete).props(
-                    'color=negative rounded'
-                )
+                ui.button('Cancel', on_click=confirm_dlg.close).props('flat').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                ui.button('Delete', icon='delete', on_click=confirm_and_delete).style('color: var(--bad) !important; background: var(--surface) !important; border: 1px solid var(--bad); border-radius: 18px; padding: 4px 10px;')
 
-        btn = ui.button('Delete', icon='delete', on_click=confirm_dlg.open).props(
-            'color=negative rounded outline no-wrap'
-        ).style('padding: 6px 20px;')
+        btn = ui.button('Delete', icon='delete', on_click=confirm_dlg.open).props('no-wrap').style('color: var(--bad) !important; background: var(--surface) !important; border: 1px solid var(--bad); border-radius: 18px; padding: 4px 10px;')
 
     async def do_refresh():
         """Refresh the theme registry from remote."""
@@ -425,8 +412,8 @@ def render_panel(tab=None):
                 cards_container.clear()
                 with ui.card().classes('theme-card w-full p-6'):
                     with ui.row().classes('items-center gap-3'):
-                        ui.icon('cloud_off', size='24px').classes('text-red-400')
-                        ui.label(f'Could not load theme registry: {e}').classes('text-slate-400')
+                        ui.icon('cloud_off', size='24px').style('color: var(--bad) !important;')
+                        ui.label(f'Could not load theme registry: {e}').style('color: var(--ink-muted) !important;')
         finally:
             loading_container.visible = False
             cards_container.visible = True
