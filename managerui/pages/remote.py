@@ -713,20 +713,20 @@ def show_vpx_controls():
             ui.button(
                 "Toggle Stereo",
                 on_click=lambda: handle_button("vpx", "Toggle Stereo")
-            ).classes("remote-button text-white px-4 md:px-6 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium")
+            ).classes("remote-button px-4 md:px-6 py-1.5 md:py-2 text-xs md:text-sm font-medium").style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px;')
 
     # In-Game UI Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
         # Title row with menu button
         with ui.row().classes("items-start justify-between w-full"):
             # Title (left aligned)
-            ui.label("In Game UI").classes("text-xs md:text-sm font-semibold text-gray-300")
+            ui.label("In Game UI").classes("text-xs md:text-sm font-semibold").style("color: var(--ink-muted) !important;")
 
             # Menu button (right aligned with circle)
             with ui.button(
                 on_click=lambda: handle_button("vpx", "Menu")
-            ).props("flat round").classes("icon-button bg-gray-800 border-2 border-blue-300"):
-                ui.icon("menu", size="sm").classes("text-blue-300")
+            ).props("flat round").classes("icon-button").style("background-color: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px;"):
+                ui.icon("menu", size="sm").style('color: var(--neon-cyan) !important;')
 
         # D-pad navigation (all centered vertically)
         with ui.column().classes("items-center gap-1 w-full"):
@@ -734,14 +734,14 @@ def show_vpx_controls():
             with ui.button(
                 on_click=lambda: handle_button("vpx", "Navigate Up")
             ).props("flat").classes("dpad-button rounded-t-xl"):
-                ui.icon("keyboard_arrow_up", size="sm").classes("text-blue-300")
+                ui.icon("keyboard_arrow_up", size="sm").style('color: var(--neon-cyan) !important;')
 
             # Left, Enter, Right row
             with ui.row().classes("gap-1"):
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Navigate Left")
                 ).props("flat").classes("dpad-button rounded-l-xl"):
-                    ui.icon("chevron_left", size="sm").classes("text-blue-300")
+                    ui.icon("chevron_left", size="sm").style('color: var(--neon-cyan) !important;')
 
                 ui.button(
                     "Enter",
@@ -751,55 +751,55 @@ def show_vpx_controls():
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Navigate Right")
                 ).props("flat").classes("dpad-button rounded-r-xl"):
-                    ui.icon("chevron_right", size="sm").classes("text-blue-300")
+                    ui.icon("chevron_right", size="sm").style('color: var(--neon-cyan) !important;')
 
             # Down arrow
             with ui.button(
                 on_click=lambda: handle_button("vpx", "Navigate Down")
             ).props("flat").classes("dpad-button rounded-b-xl"):
-                ui.icon("keyboard_arrow_down", size="sm").classes("text-blue-300")
+                ui.icon("keyboard_arrow_down", size="sm").style('color: var(--neon-cyan) !important;')
 
             # Keyboard button (below D-pad)
             ui.button(
                 "Keyboard",
                 on_click=lambda: show_virtual_keyboard()
-            ).classes("remote-button text-white px-6 md:px-8 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium mt-2")
+            ).classes("remote-button px-6 md:px-8 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium mt-2").style("color: var(--ink) !important;")
 
     # Debug Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Debug").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Debug").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
         with ui.row().classes("items-center justify-center gap-3 md:gap-4 w-full"):
             # Debugger
             with ui.column().classes("items-center gap-1"):
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Debugger")
                 ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                    ui.icon("bug_report", size="sm").classes("text-yellow-400")
-                ui.label("Debugger").classes("text-[10px] md:text-xs text-gray-400")
+                    ui.icon("bug_report", size="sm").style("color: var(--neon-yellow) !important;")
+                ui.label("Debugger").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
             # Debug Balls
             with ui.column().classes("items-center gap-1"):
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Debug Balls")
                 ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                    ui.icon("circle", size="sm").classes("text-gray-300")
-                ui.label("Debug Balls").classes("text-[10px] md:text-xs text-gray-400")
+                    ui.icon("circle", size="sm").style("color: var(--ink-muted) !important;")
+                ui.label("Debug Balls").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
             # Performance Overlay
             with ui.column().classes("items-center gap-1"):
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Performance Overlay")
                 ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                    ui.icon("speed", size="sm").classes("text-purple-400")
-                ui.label("Perf Overlay").classes("text-[10px] md:text-xs text-gray-400")
+                    ui.icon("speed", size="sm").style("color: var(--neon-purple) !important;")
+                ui.label("Perf Overlay").classes("text-[10px] md:text-xs text-gray-400").style("color: var(--ink-muted) !important;")
 
 
 def show_vpx_game_controls():
     """VPX Game control layout"""
 
     # Main Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Main").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Main").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
         with ui.column().classes("items-center gap-2 w-full"):
             # Icon buttons row: Start, Pause, and Quit
             with ui.row().classes("items-center justify-center gap-3 md:gap-4 w-full"):
@@ -808,60 +808,60 @@ def show_vpx_game_controls():
                     with ui.button(
                         on_click=lambda: handle_button("vpx game", "Start")
                     ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                        ui.icon("play_arrow", size="sm").classes("text-green-400")
-                    ui.label("Start").classes("text-[10px] md:text-xs text-gray-400")
+                        ui.icon("play_arrow", size="sm").style("color: var(--ok) !important;")
+                    ui.label("Start").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
                 # Pause
                 with ui.column().classes("items-center gap-1"):
                     with ui.button(
                         on_click=lambda: handle_button("vpx game", "Pause")
                     ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                        ui.icon("pause", size="sm").classes("text-blue-400")
-                    ui.label("Pause").classes("text-[10px] md:text-xs text-gray-400")
+                        ui.icon("pause", size="sm").style("color: var(--neon-cyan) !important;")
+                    ui.label("Pause").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
                 # Quit
                 with ui.column().classes("items-center gap-1"):
                     with ui.button(
                         on_click=lambda: handle_button("vpx game", "Quit")
                     ).props("flat round").classes("icon-button").style("font-size: 18px;"):
-                        ui.icon("power_settings_new", size="sm").classes("text-red-400")
-                    ui.label("Quit").classes("text-[10px] md:text-xs text-gray-400")
+                        ui.icon("power_settings_new", size="sm").style("color: var(--bad) !important;")
+                    ui.label("Quit").classes("text-[10px] md:text-xs").style("color: var(--ink-muted) !important;")
 
             # Row with ShowRules, ExtraBall, Lockbar
             with ui.row().classes("items-center justify-center gap-2 w-full"):
                 with ui.button(
                     on_click=lambda: handle_button("vpx game", "ShowRules")
-                ).classes("remote-button text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1"):
-                    ui.icon("description", size="xs").classes("text-cyan-400")
+                ).classes("remote-button px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1").style("color: var(--ink) !important;"):
+                    ui.icon("description", size="xs").style("color: var(--neon-cyan) !important;")
                     ui.label("Show Rules").classes("text-[10px] md:text-xs")
 
                 with ui.button(
                     on_click=lambda: handle_button("vpx game", "ExtraBall")
-                ).classes("remote-button text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1"):
-                    ui.icon("sports_baseball", size="xs").classes("text-yellow-400")
+                ).classes("remote-button px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1").style("color: var(--ink) !important;"):
+                    ui.icon("sports_baseball", size="xs").style("color: var(--neon-yellow) !important;")
                     ui.label("Extra Ball").classes("text-[10px] md:text-xs")
 
                 with ui.button(
                     on_click=lambda: handle_button("vpx game", "Lockbar")
-                ).classes("remote-button text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1"):
-                     ui.icon("fiber_manual_record", size="xs").classes("text-red-600")
+                ).classes("remote-button px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-xs font-medium flex items-center gap-1").style("color: var(--ink) !important;"):
+                     ui.icon("fiber_manual_record", size="xs").style("color: var(--bad) !important;")
                      ui.label("Fire!").classes("text-[10px] md:text-xs")
 
     # Coins Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Coins").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Coins").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
         with ui.grid(columns=2).classes("gap-2 w-full justify-items-center"):
             for i in range(1, 5):
                 with ui.button(
                     on_click=lambda num=i: handle_button("vpx game", f"Credit{num}")
-                ).classes("remote-button text-white px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center gap-1"):
-                    ui.icon("paid", size="xs").classes("text-yellow-400")
+                ).classes("remote-button px-4 md:px-6 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center gap-1").style("color: var(--ink) !important;"):
+                    ui.icon("paid", size="xs").style("color: var(--neon-yellow) !important;")
                     ui.label(f"Credit {i}").classes("text-xs md:text-sm")
 
     # Launch Table Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Launch Table").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Launch Table").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
         # State for the selection - also store UI element references
         launch_state = {'tables': [], 'all_options': {}, 'filtered_options': {}, 'collection': 'All', 'last_term': ''}
@@ -876,7 +876,7 @@ def show_vpx_game_controls():
             ).props(
                 "outlined dense options-dense dark behavior='menu' menu-anchor='top left' menu-self='bottom left'"
             ).classes("flex-grow").style(
-                "min-width: 0; background: #1f2937; border-radius: 8px;"
+                "min-width: 0; background: var(--surface) !important; border-radius: 8px;"
             )
             ui_refs['table_select'] = table_select
 
@@ -894,9 +894,9 @@ def show_vpx_game_controls():
                     ui.notify('Please select a table first', type='warning')
 
             with ui.button(on_click=do_launch).props("flat round dense").classes("icon-button").style(
-                "width: 40px !important; height: 40px !important;"
+                "width: 40px !important; height: 40px !important; background-color: var(--neon-cyan) !important; border-radius: 8px;"
             ):
-                ui.icon("play_arrow", size="sm").classes("text-green-400")
+                ui.icon("play_arrow", size="sm").style("color: var(--ok) !important;")
 
         def apply_collection_filter():
             """Apply collection filter to get base options."""
@@ -938,7 +938,7 @@ def show_vpx_game_controls():
             ui_refs['table_select'].update()
 
         # Collections dropdown (with label above)
-        ui.label("Collection").classes("text-xs text-gray-400 mb-1")
+        ui.label("Collection").classes("text-xs mb-1").style("color: var(--ink-muted) !important;")
         collection_select = ui.select(
             options=['All'],
             value='All',
@@ -946,7 +946,7 @@ def show_vpx_game_controls():
         ).props(
             "outlined dense options-dense dark behavior='menu'"
         ).classes("w-full mb-2").style(
-            "background: #1f2937; border-radius: 8px;"
+            "background: var(--surface) !important; border-radius: 8px;"
         )
         ui_refs['collection_select'] = collection_select
 
@@ -954,7 +954,7 @@ def show_vpx_game_controls():
         filter_input = ui.input(
             placeholder="Search/Filter..."
         ).props("outlined dense clearable dark").classes("w-full").style(
-            "background: #1f2937; border-radius: 8px;"
+            "background: var(--surface) !important; border-radius: 8px;"
         )
         ui_refs['filter_input'] = filter_input
 
@@ -1037,8 +1037,8 @@ def show_vpx_game_controls():
 def show_pinmame_controls():
     """PinMAME remote control layout"""
 
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Service Menu Navigation").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Service Menu Navigation").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
         # Three column layout: Coin Door | Up/Down | Enter/Cancel
         with ui.row().classes("items-center justify-center gap-4 w-full flex-nowrap"):
@@ -1047,7 +1047,7 @@ def show_pinmame_controls():
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Coin Door")
                 ).props("flat").classes("dpad-button"):
-                    ui.icon("meeting_room", size="sm").classes("text-blue-400")
+                    ui.icon("meeting_room", size="sm").style("color: var(--neon-cyan) !important;")
 
             # Middle column: Up/Down
             with ui.column().classes("items-center justify-center gap-2 flex-shrink-0"):
@@ -1055,13 +1055,13 @@ def show_pinmame_controls():
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Up")
                 ).props("flat").classes("dpad-button rounded-t-xl"):
-                    ui.icon("keyboard_arrow_up", size="sm").classes("text-green-400")
+                    ui.icon("keyboard_arrow_up", size="sm").style("color: var(--ok) !important;")
 
                 # Down
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Down")
                 ).props("flat").classes("dpad-button rounded-b-xl"):
-                    ui.icon("keyboard_arrow_down", size="sm").classes("text-green-400")
+                    ui.icon("keyboard_arrow_down", size="sm").style("color: var(--ok) !important;")
 
             # Right column: Enter/Cancel (side by side)
             with ui.column().classes("items-center justify-center gap-2 flex-shrink-0"):
@@ -1070,31 +1070,31 @@ def show_pinmame_controls():
                     ui.button(
                         "Enter",
                         on_click=lambda: handle_button("pinmame", "Enter")
-                    ).classes("dpad-button text-white font-bold text-[10px] md:text-xs px-3").style("background: linear-gradient(145deg, #10b981, #059669) !important;")
+                    ).classes("dpad-button font-bold text-[10px] md:text-xs px-3").style("color: var(--ink) !important; background: var(--ok) !important;")
 
                     # Cancel
                     with ui.button(
                         on_click=lambda: handle_button("pinmame", "Cancel")
                     ).props("flat").classes("dpad-button"):
-                        ui.icon("close", size="sm").classes("text-red-400")
+                        ui.icon("close", size="sm").style("color: var(--bad) !important;")
 
     # Services Section
-    with ui.card().classes("bg-gray-900/50 w-full p-3 md:p-4 rounded-xl border border-gray-700"):
-        ui.label("Service Buttons").classes("text-center text-xs md:text-sm font-semibold text-gray-300 mb-2 md:mb-3")
+    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("Service Buttons").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
         with ui.grid(columns=4).classes("gap-2 w-full justify-items-center"):
             for i in range(1, 9):
                 ui.button(
                     f"S{i}",
                     on_click=lambda num=i: handle_button("pinmame", f"Service {num}")
-                ).classes("remote-button text-white px-3 py-2 rounded-lg text-[10px] md:text-xs font-medium")
+                ).classes("remote-button px-3 py-2 rounded-lg text-[10px] md:text-xs font-medium").style("color: var(--ink) !important;")
 
 
 def show_other_controls():
     """Other controls layout"""
 
-    with ui.card().classes("bg-gray-900/50 w-full p-4 rounded-xl border border-gray-700"):
-        ui.label("System Controls").classes("text-center text-sm font-semibold text-gray-300 mb-4")
+    with ui.card().classes("w-full p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
+        ui.label("System Controls").classes("text-center text-sm font-semibold mb-4").style("color: var(--ink-muted) !important;")
 
         with ui.grid(columns=3).classes("gap-4 w-full justify-items-center"):
             # (label, icon, color, enabled)
@@ -1123,8 +1123,8 @@ def show_other_controls():
 
 def show_virtual_keyboard():
     """Show a virtual keyboard dialog"""
-    with ui.dialog() as keyboard_dialog, ui.card().classes("bg-gray-800 p-4 w-[90vw] max-w-[500px]"):
-        ui.label("Virtual Keyboard").classes("text-xl font-bold text-white mb-4")
+    with ui.dialog() as keyboard_dialog, ui.card().classes("p-4 w-[90vw] max-w-[500px]").style("backgroud: var(--surface) !important;"):
+        ui.label("Virtual Keyboard").classes("text-xl font-bold mb-4").style("color: var(--ink) !important;")
 
         # Common keys layout
         keyboard_layout = [
@@ -1140,31 +1140,31 @@ def show_virtual_keyboard():
                     ui.button(
                         key,
                         on_click=lambda k=key, d=keyboard_dialog: send_keyboard_key(k, d)
-                    ).classes("bg-gray-700 text-white px-3 py-2 rounded text-sm min-w-[40px] hover:bg-gray-600")
+                    ).classes("px-3 py-2 rounded text-sm min-w-[40px]").style("color: var(--ink) !important; background: var(--surface-soft) !important;")
 
         # Special keys row
         with ui.row().classes("gap-2 justify-center w-full mt-2"):
             ui.button(
                 "Space",
                 on_click=lambda d=keyboard_dialog: send_keyboard_key(Key.space, d)
-            ).classes("bg-gray-700 text-white px-6 py-2 rounded text-sm hover:bg-gray-600")
+            ).classes("px-6 py-2 rounded text-sm").style("color: var(--ink) !important; background: var(--surface-soft) !important;")
 
             ui.button(
                 "Enter",
                 on_click=lambda d=keyboard_dialog: send_keyboard_key(Key.enter, d)
-            ).classes("bg-blue-600 text-white px-6 py-2 rounded text-sm hover:bg-blue-500")
+            ).classes("px-6 py-2 rounded text-sm").style("color: var(--ink) !important; background: var(--surface-soft) !important;")
 
             ui.button(
                 "Backspace",
                 on_click=lambda d=keyboard_dialog: send_keyboard_key(Key.backspace, d)
-            ).classes("bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-500")
+            ).classes("px-4 py-2 rounded text-sm").style("color: var(--ink) !important; background: var(--surface-soft) !important;")
 
         # Close button
         with ui.row().classes("justify-center w-full mt-4"):
             ui.button(
                 "Close",
                 on_click=keyboard_dialog.close
-            ).classes("bg-gray-600 text-white px-8 py-2 rounded hover:bg-gray-500")
+            ).classes("px-8 py-2 rounded").style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
 
     keyboard_dialog.open()
 
