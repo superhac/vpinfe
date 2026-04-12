@@ -855,7 +855,49 @@ def render_panel():
 
             return target_path
 
-        def update_cache_entry(table_dir: str, media_key: str, url_path: str, thumb_url: Optional[str] = None):
+        def delete_media_file(table_path: str, table_dir: str, media_key: str) -> bool:
+            """Delete media file and remove corresponding Medias entry from .info."""
+            target_filename = MEDIA_KEY_TO_FILENAME[media_key]
+            removed_any = False
+
+            # Prefer medias/ location written by this page, but also cleanup legacy root media file.
+            media_paths = [
+                os.path.join(table_path, 'medias', target_filename),
+                os.path.join(table_path, target_filename),
+            ]
+            for path in media_paths:
+                if os.path.exists(path):
+                    try:
+                        os.remove(path)
+                        removed_any = True
+                    except Exception:
+                        logger.exception('Failed removing media file: table="%s" key=%s', table_dir, media_key)
+
+            # Remove thumb cache files for this media key.
+            thumb_dir = THUMB_CACHE_ROOT / table_dir
+            if thumb_dir.exists():
+                for old in thumb_dir.glob(f'{media_key}_*.png'):
+                    old.unlink(missing_ok=True)
+                for old in thumb_dir.glob(f'{media_key}_*.jpg'):
+                    old.unlink(missing_ok=True)
+
+            # Remove metadata entry from .info
+            info_file = os.path.join(table_path, f"{table_dir}.info")
+            removed_meta = False
+            if os.path.exists(info_file):
+                mc = MetaConfig(info_file)
+                removed_meta = mc.removeMedia(media_key)
+
+            logger.debug(
+                'Media delete complete: table="%s" key=%s removed_file=%s removed_meta=%s',
+                table_dir,
+                media_key,
+                removed_any,
+                removed_meta,
+            )
+            return removed_any or removed_meta
+
+        def update_cache_entry(table_dir: str, media_key: str, url_path: Optional[str], thumb_url: Optional[str] = None):
             """Update the in-memory cache for the replaced media."""
             if _media_cache is None:
                 logger.debug(
@@ -1039,6 +1081,48 @@ def render_panel():
 
                     confirm_btn = ui.button('Replace', icon='save', on_click=do_replace).props('color=primary')
                     confirm_btn.disable()
+
+                    async def do_delete():
+                        try:
+                            deleted = await run.io_bound(delete_media_file, table_path, table_dir, media_key)
+                            if not deleted:
+                                ui.notify(f'No {media_label} file found to delete', type='warning')
+                                return
+
+                            update_cache_entry(table_dir, media_key, None, None)
+
+                            if _has_active_filter_constraints():
+                                logger.debug(
+                                    'Media grid refresh: mode=full_filtered table="%s" key=%s',
+                                    table_dir,
+                                    media_key,
+                                )
+                                update_table_display(schedule_warm=False)
+                            else:
+                                refreshed = _refresh_visible_row(table_dir)
+                                if not refreshed:
+                                    logger.debug(
+                                        'Media grid refresh fallback: mode=full_filtered table="%s" key=%s',
+                                        table_dir,
+                                        media_key,
+                                    )
+                                    update_table_display(schedule_warm=False)
+                                else:
+                                    logger.debug(
+                                        'Media grid refresh: mode=single_row table="%s" key=%s',
+                                        table_dir,
+                                        media_key,
+                                    )
+
+                            ui.notify(f'{media_label} deleted', type='positive')
+                            dlg.close()
+                        except Exception as ex:
+                            logger.exception('Failed to delete media')
+                            ui.notify(f'Error: {ex}', type='negative')
+
+                    delete_btn = ui.button('Delete', icon='delete', on_click=do_delete).props('color=negative')
+                    if not current_url:
+                        delete_btn.disable()
 
             dlg.open()
 

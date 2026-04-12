@@ -135,6 +135,17 @@ class MetaConfig:
         }
         self.writeConfig()
 
+    def removeMedia(self, mediaType):
+        """Remove a media entry from the Medias section."""
+        medias = self.data.get("Medias", {})
+        if not isinstance(medias, dict):
+            return False
+        if mediaType not in medias:
+            return False
+        medias.pop(mediaType, None)
+        self.writeConfig()
+        return True
+
     def getMedia(self, mediaType):
         """Return the Medias entry for a given type, or None."""
         return self.data.get("Medias", {}).get(mediaType)
@@ -166,4 +177,4 @@ class MetaConfig:
             vpx[lower_key] = self._to_bool(raw_val)
             vpx.pop(mixed_key, None)
 
-        
+
