@@ -518,7 +518,7 @@ def build(parent=None):
             box-shadow: 0 6px 10px var(--neon-purple), inset 0 1px 0 var(--shadow) !important;
         }
         .icon-button:active {
-            background: linear-gradient(145deg, #1f2937, #111827) !important;
+            background: var(--surface-soft) !important;
             box-shadow: 0 2px 4px var(--shadow), inset 0 3px 6px var(--shadow-intense) !important;
             transform: translateY(2px) !important;
         }
@@ -526,7 +526,7 @@ def build(parent=None):
         /* D-pad button styling - 25% smaller */
         .dpad-button {
             background: var(--surface) !important;
-            border: 2px solid #111827 !important;
+            border: 2px solid var(--line) !important;
             width: 45px !important;
             height: 45px !important;
             display: flex !important;
@@ -551,7 +551,6 @@ def build(parent=None):
         }
         .q-field__control {
             background-color: var(--surface-soft) !important;
-            border: 2px solid var(--neon-purple) !important;
             border-radius: 8px !important;
             display: flex !important;
             align-items: center !important;
@@ -621,8 +620,8 @@ def build(parent=None):
         /* Remote control body */
         .remote-body {
             background: var(--surface-2) !important;
-            border: 3px solid var(--neon-purple) !important;
-            box-shadow: 0 10px 30px var(--neon-purple), inset 0 1px 0 var(--glow-purple) !important;
+            border: 3px solid var(--line) !important;
+            box-shadow: 0 10px 30px var(--glow-purple), inset 0 1px 0 var(--glow-purple) !important;
         }
     </style>
     """)
@@ -734,14 +733,14 @@ def show_vpx_controls():
             with ui.button(
                 on_click=lambda: handle_button("vpx", "Navigate Up")
             ).props("flat").classes("dpad-button rounded-t-xl"):
-                ui.icon("keyboard_arrow_up", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple);')
+                ui.icon("keyboard_arrow_up", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important;')
 
             # Left, Enter, Right row
             with ui.row().classes("gap-1"):
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Navigate Left")
                 ).props("flat").classes("dpad-button rounded-l-xl"):
-                    ui.icon("chevron_left", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple);')
+                    ui.icon("chevron_left", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important;')
 
                 ui.button(
                     "Enter",
@@ -751,13 +750,13 @@ def show_vpx_controls():
                 with ui.button(
                     on_click=lambda: handle_button("vpx", "Navigate Right")
                 ).props("flat").classes("dpad-button rounded-r-xl"):
-                    ui.icon("chevron_right", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple);')
+                    ui.icon("chevron_right", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important;')
 
             # Down arrow
             with ui.button(
                 on_click=lambda: handle_button("vpx", "Navigate Down")
             ).props("flat").classes("dpad-button rounded-b-xl"):
-                ui.icon("keyboard_arrow_down", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple);')
+                ui.icon("keyboard_arrow_down", size="sm").style('color: var(--neon-cyan) !important; background: var(--surface-soft) !important;')
 
             # Keyboard button (below D-pad)
             ui.button(
@@ -1046,7 +1045,7 @@ def show_pinmame_controls():
             with ui.column().classes("items-center justify-center flex-shrink-0"):
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Coin Door")
-                ).props("flat").classes("dpad-button").style("background-color: var(--surface-soft) !important; border: 1px solid var(--neon-purple) !important;"):
+                ).props("flat").classes("dpad-button").style("background-color: var(--surface-soft) !important; border: 1px solid var(--line) !important;"):
                     ui.icon("meeting_room", size="sm").style("color: var(--neon-cyan) !important;")
 
             # Middle column: Up/Down
@@ -1054,13 +1053,13 @@ def show_pinmame_controls():
                 # Up
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Up")
-                ).props("flat").classes("dpad-button rounded-t-xl").style("background-color: var(--surface-soft) !important; border: 1px solid var(--neon-purple) !important;"):
+                ).props("flat").classes("dpad-button rounded-t-xl").style("background-color: var(--surface-soft) !important; border: 1px solid var(--line) !important;"):
                     ui.icon("keyboard_arrow_up", size="sm").style("color: var(--ok) !important;")
 
                 # Down
                 with ui.button(
                     on_click=lambda: handle_button("pinmame", "Down")
-                ).props("flat").classes("dpad-button rounded-b-xl").style("background-color: var(--surface-soft) !important; border: 1px solid var(--neon-purple) !important;"):
+                ).props("flat").classes("dpad-button rounded-b-xl").style("background-color: var(--surface-soft) !important; border: 1px solid var(--line) !important;"):
                     ui.icon("keyboard_arrow_down", size="sm").style("color: var(--ok) !important;")
 
             # Right column: Enter/Cancel (side by side)
@@ -1070,12 +1069,12 @@ def show_pinmame_controls():
                     ui.button(
                         "Enter",
                         on_click=lambda: handle_button("pinmame", "Enter")
-                    ).classes("dpad-button font-bold text-[10px] md:text-xs px-3").style("color: var(--ok) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple) !important;")
+                    ).classes("dpad-button font-bold text-[10px] md:text-xs px-3").style("color: var(--ok) !important; background: var(--surface-soft) !important; border: 1px solid var(--line) !important;")
 
                     # Cancel
                     with ui.button(
                         on_click=lambda: handle_button("pinmame", "Cancel")
-                    ).props("flat").classes("dpad-button"):
+                    ).props("flat").classes("dpad-button").style("color: var(--bad) !important; background: var(--surface-soft) !important; border: 1px solid var(--line) !important;"):
                         ui.icon("close", size="sm").style("color: var(--bad) !important;")
 
     # Services Section
@@ -1087,7 +1086,7 @@ def show_pinmame_controls():
                 ui.button(
                     f"S{i}",
                     on_click=lambda num=i: handle_button("pinmame", f"Service {num}")
-                ).classes("remote-button px-3 py-2 rounded-lg text-[10px] md:text-xs font-medium").style("color: var(--ink) !important; background: var(--surface-soft) !important; border: 1px solid var(--neon-purple) !important;")
+                ).classes("remote-button px-3 py-2 rounded-lg text-[10px] md:text-xs font-medium").style("color: var(--ink) !important; background: var(--surface-soft) !important; border: 1px solid var(--line) !important;")
 
 
 def show_other_controls():
