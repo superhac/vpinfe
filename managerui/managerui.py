@@ -315,16 +315,16 @@ def build_app():
             margin: 4px 8px !important;
             max-width: calc(100% - 16px) !important;
             overflow: hidden !important;
-            color: var(--ink) !important;
+            color: var(--ink-muted) !important;
         }
         .nav-btn:hover {
-            background: rgba(0, 217, 255, 0.1) !important;
-            box-shadow: var(--glow-cyan);
+            background: var(--surface-2) !important;
+            box-shadow: var(--glow-purple) !important;
+            color: var(--ink) !important;
         }
         .nav-btn-active {
             background: var(--surface-2) !important;
             box-shadow: var(--glow-purple) !important;
-            color: var(--neon-cyan) !important;
         }
         .nav-btn .q-btn__content {
             transition: opacity 0.3s ease;
@@ -388,10 +388,10 @@ def build_app():
     with nav_panel:
         # Navigation header with hamburger menu
         with ui.row().classes('w-full items-center gap-2 p-3').style(
-            'background: var(--surface-2); border-bottom: 1px solid var(--line);'
+            'background: var(--surface) !important; border-bottom: 1px solid var(--line); margin-top: 6px;'
         ):
-            ui.button(icon='menu', on_click=toggle_nav).props('flat round dense').style('color: var(--neon-cyan);')
-            nav_state['nav_label'] = ui.label('Navigation').classes('text-lg font-bold').style('color: var(--neon-cyan); text-shadow: var(--glow-cyan);')
+            ui.button(icon='menu', on_click=toggle_nav).props('flat round dense').style('color: var(--neon-cyan) !important; background: var(--surface) !important;')
+            nav_state['nav_label'] = ui.label('Navigation').classes('text-lg font-bold').style('color: var(--neon-cyan) !important; background: var(--surface) !important;')
 
         # Navigation menu items
         nav_state['nav_content'] = ui.column().classes('w-full gap-1 mt-2')
@@ -399,43 +399,43 @@ def build_app():
             tables_btn = (
                 ui.button('Tables', icon='view_list', on_click=lambda: show_page('tables'))
                 .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
             )
             collections_btn = (
                 ui.button('Collections', icon='collections_bookmark', on_click=lambda: show_page('collections'))
                 .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
             )
             media_btn = (
                 ui.button('Media', icon='image', on_click=lambda: show_page('media'))
                 .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
             )
             themes_btn = (
                 ui.button('Themes', icon='palette', on_click=lambda: show_page('themes'))
                 .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
             )
             mobile_btn = (
                 ui.button('Mobile Uploader', icon='smartphone', on_click=lambda: show_page('mobile'))
                 .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
             )
             system_btn = (
                 ui.button('System', icon='monitor_heart', on_click=lambda: show_page('system'))
                 .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
             )
             config_btn = (
                 ui.button('Configuration', icon='tune', on_click=lambda: show_page('vpinfe'))
                 .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted);')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
                 .props('flat align=left')
             )
         # Remote control button anchored to bottom
