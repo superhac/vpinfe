@@ -10,6 +10,7 @@ DEFAULT_LOG_FILE_NAME = "vpinfe.log"
 DEFAULT_LOG_LEVEL = "INFO"
 _CONFIGURED = False
 _FILE_LOG_INITIALIZED = False
+_INCLUDE_THIRD_PARTY = False
 _THIRD_PARTY_LOGGERS = (
     "asyncio",
     "multipart",
@@ -95,7 +96,7 @@ def _normalize_third_party_loggers() -> None:
 
 
 def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = True) -> Path:
-    global _CONFIGURED, _FILE_LOG_INITIALIZED
+    global _CONFIGURED, _FILE_LOG_INITIALIZED, _INCLUDE_THIRD_PARTY
 
     config_dir = Path(config_dir)
     config_dir.mkdir(parents=True, exist_ok=True)
@@ -111,6 +112,7 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
         console_enabled = _coerce_bool(logger_cfg.get("console"), True)
 
     resolved_level, include_third_party = _parse_level_and_flags(log_level)
+    _INCLUDE_THIRD_PARTY = include_third_party
 
     root_logger = logging.getLogger()
     root_logger.setLevel(resolved_level)
@@ -153,3 +155,7 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
 
 def is_configured() -> bool:
     return _CONFIGURED
+
+
+def include_thirdparty_logs() -> bool:
+    return _INCLUDE_THIRD_PARTY

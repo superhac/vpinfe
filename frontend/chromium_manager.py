@@ -19,6 +19,8 @@ import threading
 import time
 from urllib.parse import quote
 
+from common.logging_config import include_thirdparty_logs
+
 
 logger = logging.getLogger("vpinfe.frontend.chromium_manager")
 
@@ -210,10 +212,12 @@ class ChromiumManager:
         if platform.system() != "Windows":
             popen_kwargs["start_new_session"] = True
 
-        # Keep Chromium helper process noise (updater/crashpad) out of app logs.
+        # Keep Chromium helper process noise (updater/crashpad) out of app logs
+        # unless thirdparty logging is explicitly enabled.
         popen_kwargs["stdin"] = subprocess.DEVNULL
-        popen_kwargs["stdout"] = subprocess.DEVNULL
-        popen_kwargs["stderr"] = subprocess.DEVNULL
+        if not include_thirdparty_logs():
+            popen_kwargs["stdout"] = subprocess.DEVNULL
+            popen_kwargs["stderr"] = subprocess.DEVNULL
 
         proc = subprocess.Popen(args, **popen_kwargs)
         self._processes.append((window_name, proc, user_data_dir, monitor))
