@@ -61,6 +61,7 @@ rom_aliases = {
     "twenty4_150": "twenty4_144",
     "ww_lh6": "ww_lh5",
     "wwfr_106":"wwfr_103",
+     "stk_sprs" : "evelknie",
 
 }
 
