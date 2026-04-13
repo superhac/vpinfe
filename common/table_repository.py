@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 import threading
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Dict, List, Optional
 
 from platformdirs import user_config_dir
@@ -13,6 +15,7 @@ from common.vpxcollections import VPXCollections
 
 _LOCK = threading.Lock()
 _PARSER: Optional[TableParser] = None
+logger = logging.getLogger("vpinfe.common.table_repository")
 _CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 _CONFIG_PATH = _CONFIG_DIR / "vpinfe.ini"
 _COLLECTIONS_PATH = _CONFIG_DIR / "collections.ini"
@@ -35,6 +38,7 @@ def _get_tables_root() -> str:
 
 def ensure_tables_loaded(reload: bool = False) -> List[Any]:
     global _PARSER
+    started_at = perf_counter()
     with _LOCK:
         tables_root = _get_tables_root()
         needs_new_parser = _PARSER is None or str(_PARSER.tablesRootFilePath) != tables_root
@@ -42,7 +46,16 @@ def ensure_tables_loaded(reload: bool = False) -> List[Any]:
             _PARSER = TableParser(tables_root, _get_ini_config())
         elif reload:
             _PARSER.loadTables(reload=True)
-        return list(_PARSER.getAllTables())
+        tables = list(_PARSER.getAllTables())
+
+    elapsed = perf_counter() - started_at
+    logger.debug(
+        "ensure_tables_loaded reload=%s count=%s elapsed=%.3fs",
+        reload,
+        len(tables),
+        elapsed,
+    )
+    return tables
 
 
 def refresh_tables() -> List[Any]:

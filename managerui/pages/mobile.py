@@ -20,6 +20,18 @@ CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 
 _INI_CFG = None
+_DELETED_SLOT_ERROR = 'The parent element this slot belongs to has been deleted.'
+
+
+def _safe_notify(message: str, type: str = 'info') -> None:
+    """Best-effort notify that tolerates disposed NiceGUI context."""
+    try:
+        ui.notify(message, type=type)
+    except RuntimeError as exc:
+        if str(exc) == _DELETED_SLOT_ERROR:
+            logger.debug('Skipping notify after UI context disposal: %s', message)
+            return
+        raise
 
 
 def _to_bool(value) -> bool:
@@ -567,7 +579,7 @@ def _build_web_send_panel():
         host = ip_input.value.strip()
         port = port_input.value.strip()
         if not host or not port:
-            ui.notify('Please enter IP and Port', type='warning')
+            _safe_notify('Please enter IP and Port', type='warning')
             return
         try:
             folders = await run.io_bound(lambda: _fetch_device_folders(host, port))
@@ -577,9 +589,9 @@ def _build_web_send_panel():
                 row['installed'] = row['table_dir_name'] in folders
             _apply_filter()
             installed_count = sum(1 for r in panel_state['rows'] if r.get('installed'))
-            ui.notify(f'Found {installed_count} of {len(panel_state["rows"])} tables on device', type='info')
+            _safe_notify(f'Found {installed_count} of {len(panel_state["rows"])} tables on device', type='info')
         except Exception as e:
-            ui.notify(f'Could not connect: {e}', type='negative')
+            _safe_notify(f'Could not connect: {e}', type='negative')
 
     async def _send_single_table(host, port, name, exclude_ini, masked_ini_copy_enabled, masked_ini_mask):
         """Send a single table with progress dialog. Returns True on success."""
@@ -642,12 +654,12 @@ def _build_web_send_panel():
 
     async def batch_send():
         if not panel_state['tbl'] or not panel_state['tbl'].selected:
-            ui.notify('No tables selected', type='warning')
+            _safe_notify('No tables selected', type='warning')
             return
         host = ip_input.value.strip()
         port = port_input.value.strip()
         if not host or not port:
-            ui.notify('Please enter IP and Port', type='warning')
+            _safe_notify('Please enter IP and Port', type='warning')
             return
 
         exclude_ini = exclude_ini_checkbox.value
@@ -659,7 +671,7 @@ def _build_web_send_panel():
         success = 0
         for i, row in enumerate(selected):
             name = row['table_dir_name']
-            ui.notify(f'Batch send: {i+1}/{total} - {name}', type='info')
+            _safe_notify(f'Batch send: {i+1}/{total} - {name}', type='info')
             ok = await _send_single_table(
                 host,
                 port,
@@ -670,7 +682,7 @@ def _build_web_send_panel():
             )
             if ok:
                 success += 1
-        ui.notify(f'Batch complete: {success}/{total} tables sent', type='positive')
+        _safe_notify(f'Batch complete: {success}/{total} tables sent', type='positive')
         panel_state['tbl'].selected.clear()
         panel_state['tbl'].update()
         await check_device()
@@ -717,7 +729,7 @@ def _build_web_send_panel():
                 port = port_input.value.strip()
 
                 if not host or not port:
-                    ui.notify('Please enter IP and Port', type='warning')
+                    _safe_notify('Please enter IP and Port', type='warning')
                     return
 
                 exclude_ini = exclude_ini_checkbox.value
@@ -733,7 +745,7 @@ def _build_web_send_panel():
                     masked_ini_mask=masked_ini_mask,
                 )
                 if ok:
-                    ui.notify(f'Transfer complete! All files sent to {host}:{port}', type='positive')
+                    _safe_notify(f'Transfer complete! All files sent to {host}:{port}', type='positive')
                     await check_device()
 
             tbl.on('websend', handle_send)
@@ -744,7 +756,7 @@ def _build_web_send_panel():
                 port = port_input.value.strip()
 
                 if not host or not port:
-                    ui.notify('Please enter IP and Port', type='warning')
+                    _safe_notify('Please enter IP and Port', type='warning')
                     return
 
                 with ui.dialog() as dlg, ui.card().classes('p-6').style('background: var(--surface) !important;'):
@@ -760,10 +772,10 @@ def _build_web_send_panel():
 
                 try:
                     await run.io_bound(lambda: _delete_table_from_device(host, port, name))
-                    ui.notify(f'Deleted "{name}" from device', type='positive')
+                    _safe_notify(f'Deleted "{name}" from device', type='positive')
                     await check_device()
                 except Exception as ex:
-                    ui.notify(f'Delete failed: {ex}', type='negative')
+                    _safe_notify(f'Delete failed: {ex}', type='negative')
 
             tbl.on('webdelete', handle_delete)
 
