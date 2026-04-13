@@ -55,7 +55,7 @@ class StandaloneScripts:
                                 pass
                         else:
                             self.downloadPatch(os.path.splitext(table.fullPathVPXfile)[0] + ".vbs", patch["patched"]["url"])
-                            # mark meta.ini with patch_applied = true
+                            # mark the .info file with patch_applied = true
                             try:
                                 meta.data['VPXFile']['patch_applied'] = 'true'
                                 meta.writeConfig()

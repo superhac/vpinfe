@@ -7,7 +7,9 @@ This is the offical release of vpinfe v1.1.57
 - Switch to single "tables" instance shared between the frontend and mangerui.  Speed up on tables running over NAS.  Credit to @gitfool
 - ManagerUI UI revamp. WIP.  Credit to @emb417
 - New log filters
-- add more roms
+- Add more roms
+- Code cleanup
+- New "Settings" layout tab in Configuration
 
 ### Fixes
 None

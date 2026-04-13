@@ -203,6 +203,11 @@ def _get_logger_level_options(current_value: str = ''):
     return options
 
 
+def _get_uniform_field_width_ch(values: list[str], minimum: int = 30, padding: int = 2) -> int:
+    longest = max((len(str(value or '').strip()) for value in values), default=0)
+    return max(minimum, longest + padding)
+
+
 def _split_logger_level_value(raw_value: str | None) -> tuple[str, bool, bool]:
     include_thirdparty = False
     include_windows = False
@@ -445,6 +450,32 @@ def render_panel(tab=None):
             gap: 1rem;
             align-content: start;
         }
+        .config-paths-list {
+            display: grid;
+            gap: 1rem;
+            align-content: start;
+            width: 100%;
+        }
+        .config-path-field-shell {
+            width: min(100%, var(--path-field-width, 30ch));
+            max-width: 100%;
+            display: block;
+        }
+        .config-paths-list .config-field-card,
+        .config-paths-list .config-input,
+        .config-paths-list .q-field,
+        .config-paths-list .q-field__control {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        .config-paths-list .q-field__native,
+        .config-paths-list input,
+        .config-paths-list textarea {
+            min-width: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            font-family: monospace !important;
+        }
         .config-main-grid {
             display: grid;
             grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
@@ -456,6 +487,20 @@ def render_panel(tab=None):
             grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.6fr);
             gap: 0.75rem;
             align-items: start;
+        }
+        .config-launch-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 1rem;
+            align-items: start;
+        }
+        .config-launch-preview-box {
+            display: grid;
+            gap: 0.75rem;
+            align-content: start;
+        }
+        .config-launch-preview-full {
+            grid-column: 1 / -1;
         }
         .config-field-card {
             padding: 0.95rem 1rem;
@@ -539,6 +584,12 @@ def render_panel(tab=None):
             }
             .config-inline-pair {
                 grid-template-columns: 1fr;
+            }
+            .config-launch-layout {
+                grid-template-columns: 1fr;
+            }
+            .config-launch-preview-full {
+                grid-column: auto;
             }
             .config-display-form-grid {
                 grid-template-columns: 1fr;
@@ -1066,255 +1117,339 @@ def render_panel(tab=None):
 
                         content_classes = 'config-main-grid' if section == 'Displays' else 'w-full'
                         with ui.element('div').classes(content_classes):
-                            with ui.card().classes('config-card w-full p-4'):
-                                if section == 'Settings':
-                                    env_key = 'vpxlaunchenv'
-                                    ini_override_key = 'globalinioverride'
-                                    tableini_enabled_key = 'globaltableinioverrideenabled'
-                                    tableini_mask_key = 'globaltableinioverridemask'
-                                    normal_options = [
-                                        key for key in options
-                                        if key not in (
-                                            env_key,
-                                            ini_override_key,
-                                            tableini_enabled_key,
-                                            tableini_mask_key,
-                                        )
-                                    ]
-                                    split_index = (len(normal_options) + 1) // 2
-                                    first_column_keys = normal_options[:split_index]
-                                    second_column_keys = normal_options[split_index:]
-
-                                    with ui.element('div').classes('config-settings-form-grid'):
-                                        with ui.element('div').classes('config-display-column'):
-                                            for key in first_column_keys:
-                                                value = config.config.get(section, key, fallback='')
-                                                build_config_input(section, key, value)
-                                        with ui.element('div').classes('config-display-column'):
-                                            for key in second_column_keys:
-                                                value = config.config.get(section, key, fallback='')
-                                                build_config_input(section, key, value)
-                                        with ui.element('div').classes('config-display-column'):
-                                            if env_key in options:
-                                                value = config.config.get(section, env_key, fallback='')
-                                                build_config_input(section, env_key, value)
-                                            if ini_override_key in options:
-                                                value = config.config.get(section, ini_override_key, fallback='')
-                                                build_config_input(section, ini_override_key, value)
-                                            if tableini_enabled_key in options or tableini_mask_key in options:
-                                                with ui.element('div').classes('w-full config-inline-pair'):
-                                                    if tableini_enabled_key in options:
-                                                        value = config.config.get(section, tableini_enabled_key, fallback='false')
-                                                        with ui.element('div').classes('w-full'):
-                                                            build_config_input(section, tableini_enabled_key, value)
-                                                    if tableini_mask_key in options:
-                                                        value = config.config.get(section, tableini_mask_key, fallback='')
-                                                        with ui.element('div').classes('w-full'):
-                                                            build_config_input(section, tableini_mask_key, value)
-                                elif section == 'Displays':
-                                    split_key = 'tableorientation' if section == 'Displays' else 'theme'
-                                    split_index = options.index(split_key) if split_key in options else len(options)
-                                    first_column_keys = options[:split_index]
-                                    second_column_keys = options[split_index:]
-                                    override_keys = ['bgwindowoverride', 'dmdwindowoverride']
-                                    present_override_keys = []
-
-                                    for override_key in override_keys:
-                                        if override_key in first_column_keys:
-                                            first_column_keys.remove(override_key)
-                                            present_override_keys.append(override_key)
-                                        elif override_key in second_column_keys:
-                                            second_column_keys.remove(override_key)
-                                            present_override_keys.append(override_key)
-
-                                    monitor_anchor_keys = ['tablescreenid', 'bgscreenid', 'dmdscreenid']
-                                    insert_after = max(
-                                        (first_column_keys.index(key) for key in monitor_anchor_keys if key in first_column_keys),
-                                        default=-1,
+                            if section == 'Settings':
+                                path_keys = [
+                                    key for key in ('vpxbinpath', 'tablerootdir', 'vpxinipath')
+                                    if key in options
+                                ]
+                                launch_keys = [
+                                    key for key in (
+                                        'vpxlaunchenv',
+                                        'globalinioverride',
+                                        'globaltableinioverrideenabled',
+                                        'globaltableinioverridemask',
                                     )
-                                    first_column_keys[insert_after + 1:insert_after + 1] = present_override_keys
+                                    if key in options
+                                ]
+                                general_keys = [
+                                    key for key in options
+                                    if key not in set(path_keys + launch_keys)
+                                ]
+                                frontend_toggle_keys = [
+                                    key for key in general_keys
+                                    if key in ('autoupdatemediaonstartup', 'splashscreen', 'muteaudio')
+                                ]
+                                frontend_primary_keys = [
+                                    key for key in general_keys
+                                    if key not in frontend_toggle_keys
+                                ]
+                                path_field_width_ch = _get_uniform_field_width_ch([
+                                    config.config.get(section, key, fallback='')
+                                    for key in path_keys
+                                ])
 
-                                    with ui.element('div').classes('config-display-form-grid'):
-                                        with ui.element('div').classes('config-display-column'):
-                                            for key in first_column_keys:
-                                                value = config.config.get(section, key, fallback='')
-                                                build_config_input(section, key, value)
-                                        with ui.element('div').classes('config-display-column'):
-                                            for key in second_column_keys:
-                                                value = config.config.get(section, key, fallback='')
-                                                build_config_input(section, key, value)
-                                elif section == 'Input':
-                                    with ui.element('div').classes('config-three-column-grid'):
-                                        for column_keys in split_evenly(options, 3):
-                                            with ui.element('div').classes('config-display-column'):
-                                                for key in column_keys:
+                                with ui.column().classes('w-full gap-4'):
+                                    if path_keys:
+                                        with ui.card().classes('config-side-card w-full p-4'):
+                                            ui.label('Paths').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                            ui.label(
+                                                'Set the main Visual Pinball executable, table location, and ini file.'
+                                            ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                            with ui.element('div').classes('config-paths-list mt-3').style(
+                                                f'--path-field-width: {path_field_width_ch}ch;'
+                                            ):
+                                                for key in path_keys:
                                                     value = config.config.get(section, key, fallback='')
-                                                    build_config_input(section, key, value)
-                                elif section == 'Mobile':
-                                    rename_enabled_key = 'renamemasktodefaultini'
-                                    rename_mask_key = 'renamemasktodefaultinimask'
-                                    normal_mobile_options = [
-                                        key for key in options
-                                        if key not in (rename_enabled_key, rename_mask_key)
-                                    ]
-                                    with ui.element('div').classes('config-form-grid'):
-                                        for key in normal_mobile_options:
-                                            value = config.config.get(section, key, fallback='')
-                                            build_config_input(section, key, value)
-                                    if rename_enabled_key in options or rename_mask_key in options:
-                                        with ui.element('div').classes('config-field-card mt-3'):
-                                            with ui.column().classes('w-full gap-3'):
-                                                if rename_enabled_key in options:
-                                                    value = config.config.get(section, rename_enabled_key, fallback='false')
-                                                    inp = ui.checkbox(
-                                                        text=get_friendly_name(rename_enabled_key),
-                                                        value=(value == "true")
-                                                    ).classes('config-input')
-                                                    inputs[section][rename_enabled_key] = inp
-                                                if rename_mask_key in options:
-                                                    value = config.config.get(section, rename_mask_key, fallback='')
-                                                    ui.label(get_friendly_name(rename_mask_key)).classes('config-field-label')
-                                                    inp = ui.input(value=value).props('outlined dense').classes('config-input')
-                                                    inputs[section][rename_mask_key] = inp
-                                elif section == 'vpinplay':
-                                    sync_key = 'synconexit'
-                                    endpoint_key = 'apiendpoint'
-                                    user_key = 'userid'
-                                    initials_key = 'initials'
-                                    machine_key = 'machineid'
-                                    with ui.element('div').classes('config-vpinplay-pair'):
-                                        with ui.column().classes('w-full gap-3'):
-                                            with ui.element('div').classes('w-full config-field-card'):
-                                                with ui.element('div').classes('w-full config-vpinplay-links'):
-                                                    ui.image('/static/img/VPinPlay_Logo_1.0.png').style(
-                                                        'width: 200px; height: 200px; object-fit: contain;'
-                                                    )
-                                                    with ui.column().classes('config-vpinplay-links-copy'):
-                                                        ui.link(
-                                                            'VPinPlay Home',
-                                                            VPINPLAY_BASE_URL,
-                                                            new_tab=True,
-                                                        ).style('color: var(--neon-cyan) !important;')
-                                                        vpinplay_user_link = ui.link(
-                                                            '',
-                                                            _build_vpinplay_user_url(
-                                                                config.config.get(section, user_key, fallback='')
-                                                            ),
-                                                            new_tab=True,
-                                                        ).style('color: var(--neon-cyan) !important;')
-                                                    update_vpinplay_user_link()
+                                                    with ui.element('div').classes('config-path-field-shell'):
+                                                        build_config_input(section, key, value)
 
-                                            if endpoint_key in options:
-                                                with ui.element('div').classes('w-full'):
-                                                    value = config.config.get(section, endpoint_key, fallback='')
-                                                    build_config_input(section, endpoint_key, value)
-
-                                            with ui.element('div').classes('config-vpinplay-pair'):
-                                                if user_key in options:
-                                                    with ui.element('div').classes('w-full'):
-                                                        value = config.config.get(section, user_key, fallback='')
-                                                        build_config_input(section, user_key, value)
-                                                        user_input = inputs.get(section, {}).get(user_key)
-                                                        if user_input is not None:
-                                                            user_input.on_value_change(lambda _: update_vpinplay_user_link())
-                                                if initials_key in options:
-                                                    with ui.element('div').classes('w-full'):
-                                                        value = config.config.get(section, initials_key, fallback='')
-                                                        build_config_input(section, initials_key, value)
-
-                                            with ui.element('div').classes('config-vpinplay-pair'):
-                                                if machine_key in options:
-                                                    with ui.element('div').classes('w-full'):
-                                                        value = config.config.get(section, machine_key, fallback='')
-                                                        build_config_input(section, machine_key, value)
-
-                                            for key in options:
-                                                if key in (sync_key, endpoint_key, user_key, initials_key, machine_key):
-                                                    continue
-                                                value = config.config.get(section, key, fallback='')
-                                                build_config_input(section, key, value)
-
-                                        with ui.column().classes('w-full gap-3'):
-                                            with ui.card().classes('config-side-card w-full p-4'):
-                                                ui.label('Table Metadata Sync').classes('text-lg font-semibold').style('color: var(--ink) !important;')
-                                                ui.label(
-                                                    'Sends installed table metadata to the configured VPinPlay service endpoint.'
-                                                ).classes('text-sm text-slate-300')
-                                                sync_vpinplay_button = ui.button(
-                                                    'Sync Installed Tables',
-                                                    icon='sync',
-                                                    on_click=run_vpinplay_sync,
-                                                ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
-                                                update_vpinplay_sync_button_state()
-                                            if sync_key in options:
-                                                with ui.element('div').classes('w-full'):
-                                                    value = config.config.get(section, sync_key, fallback='false')
-                                                    build_config_input(section, sync_key, value)
-                                elif section == 'DOF':
-                                    with ui.element('div').classes('config-vpinplay-pair'):
-                                        with ui.column().classes('w-full gap-3'):
-                                            with ui.card().classes('config-side-card w-full p-4'):
-                                                ui.label('DOF Settings').classes('text-lg font-semibold').style('color: var(--ink) !important;')
-                                                ui.label(
-                                                    'Configure frontend DOF support and the online config tool API key.'
-                                                ).classes('text-sm').style('color: var(--ink-muted) !important;')
-                                                with ui.element('div').classes('config-form-grid mt-3'):
-                                                    for key in options:
+                                    if general_keys:
+                                        with ui.card().classes('config-side-card w-full p-4'):
+                                            ui.label('Frontend').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                            ui.label(
+                                                'Configure startup behavior and frontend defaults.'
+                                            ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                            with ui.element('div').classes('config-display-form-grid mt-3'):
+                                                with ui.element('div').classes('config-display-column'):
+                                                    for key in frontend_primary_keys:
                                                         value = config.config.get(section, key, fallback='')
                                                         build_config_input(section, key, value)
-                                        with ui.column().classes('w-full gap-3'):
-                                            with ui.card().classes('config-side-card w-full p-4'):
-                                                ui.label('DOF Event Test').classes('text-lg font-semibold').style('color: var(--ink) !important;')
-                                                ui.label(
-                                                    'Enter an event token like E900 or S27, then start or stop it for testing.'
-                                                ).classes('text-sm').style('color: var(--ink-muted) !important;')
-                                                dof_test_event_input = ui.input(
-                                                    label='Test Event',
-                                                    value='E900',
-                                                    placeholder='E900',
-                                                ).props('outlined').classes('w-full mt-2')
-                                                with ui.row().classes('items-center gap-3 mt-3'):
-                                                    ui.button(
-                                                        'Start Event',
-                                                        icon='play_arrow',
-                                                        on_click=run_dof_test_event_start,
-                                                    ).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
-                                                    ui.button(
-                                                        'Stop Event',
-                                                        icon='stop',
-                                                        on_click=run_dof_test_event_stop,
-                                                    ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
-                                elif section == 'libdmdutil':
-                                    service_key = 'enabled'
-                                    zedmd_keys = ['zedmddevice', 'zedmdwifiaddr']
-                                    trailing_keys = [
-                                        key for key in options
-                                        if key not in ([service_key] + zedmd_keys)
-                                    ]
+                                                with ui.element('div').classes('config-display-column'):
+                                                    for key in frontend_toggle_keys:
+                                                        value = config.config.get(section, key, fallback='')
+                                                        build_config_input(section, key, value)
 
-                                    with ui.element('div').classes('config-form-grid'):
-                                        if service_key in options:
-                                            value = config.config.get(section, service_key, fallback='false')
-                                            build_config_input(section, service_key, value)
+                                    if launch_keys:
+                                        with ui.card().classes('config-side-card w-full p-4'):
+                                            ui.label('Launch Overrides').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                            ui.label(
+                                                'Optional launch-time environment and ini overrides for VPX startup.'
+                                            ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                            with ui.element('div').classes('config-launch-layout mt-3'):
+                                                with ui.element('div').classes('config-display-column'):
+                                                    if 'vpxlaunchenv' in launch_keys:
+                                                        value = config.config.get(section, 'vpxlaunchenv', fallback='')
+                                                        build_config_input(section, 'vpxlaunchenv', value)
 
-                                    present_zedmd_keys = [key for key in zedmd_keys if key in options]
-                                    if present_zedmd_keys:
-                                        with ui.element('div').classes('config-field-card mt-3'):
+                                                    if 'globalinioverride' in launch_keys:
+                                                        value = config.config.get(section, 'globalinioverride', fallback='')
+                                                        build_config_input(section, 'globalinioverride', value)
+
+                                                    if (
+                                                        'globaltableinioverrideenabled' in launch_keys
+                                                        or 'globaltableinioverridemask' in launch_keys
+                                                    ):
+                                                        with ui.element('div').classes('w-full config-inline-pair'):
+                                                            if 'globaltableinioverrideenabled' in launch_keys:
+                                                                value = config.config.get(
+                                                                    section,
+                                                                    'globaltableinioverrideenabled',
+                                                                    fallback='false',
+                                                                )
+                                                                with ui.element('div').classes('w-full'):
+                                                                    build_config_input(
+                                                                        section,
+                                                                        'globaltableinioverrideenabled',
+                                                                        value,
+                                                                    )
+                                                            if 'globaltableinioverridemask' in launch_keys:
+                                                                value = config.config.get(
+                                                                    section,
+                                                                    'globaltableinioverridemask',
+                                                                    fallback='',
+                                                                )
+                                                                with ui.element('div').classes('w-full'):
+                                                                    build_config_input(
+                                                                        section,
+                                                                        'globaltableinioverridemask',
+                                                                        value,
+                                                                    )
+
+                                                with ui.element('div').classes('config-launch-preview-box'):
+                                                    ui.label('VPinball Launch Comand w/Options').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                    ui.label(
+                                                        'Preview uses sample table: A-Go-Go (Williams 1966).vpx'
+                                                    ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                                    launch_command_preview = ui.textarea(
+                                                        value='',
+                                                    ).props('readonly outlined autogrow').classes('w-full').style(
+                                                        'font-family: monospace;'
+                                                    )
+
+                                                with ui.element('div').classes('config-launch-preview-box config-launch-preview-full'):
+                                                    ui.label('Launch environment overrides').classes('text-sm font-semibold').style('color: var(--ink-muted) !important;')
+                                                    launch_env_preview = ui.textarea(
+                                                        value='',
+                                                    ).props('readonly outlined autogrow').classes('w-full').style(
+                                                        'font-family: monospace;'
+                                                    )
+                                                    update_launch_preview()
+                            else:
+                                with ui.card().classes('config-card w-full p-4'):
+                                    if section == 'Displays':
+                                        split_key = 'tableorientation' if section == 'Displays' else 'theme'
+                                        split_index = options.index(split_key) if split_key in options else len(options)
+                                        first_column_keys = options[:split_index]
+                                        second_column_keys = options[split_index:]
+                                        override_keys = ['bgwindowoverride', 'dmdwindowoverride']
+                                        present_override_keys = []
+
+                                        for override_key in override_keys:
+                                            if override_key in first_column_keys:
+                                                first_column_keys.remove(override_key)
+                                                present_override_keys.append(override_key)
+                                            elif override_key in second_column_keys:
+                                                second_column_keys.remove(override_key)
+                                                present_override_keys.append(override_key)
+
+                                        monitor_anchor_keys = ['tablescreenid', 'bgscreenid', 'dmdscreenid']
+                                        insert_after = max(
+                                            (first_column_keys.index(key) for key in monitor_anchor_keys if key in first_column_keys),
+                                            default=-1,
+                                        )
+                                        first_column_keys[insert_after + 1:insert_after + 1] = present_override_keys
+
+                                        with ui.element('div').classes('config-display-form-grid'):
+                                            with ui.element('div').classes('config-display-column'):
+                                                for key in first_column_keys:
+                                                    value = config.config.get(section, key, fallback='')
+                                                    build_config_input(section, key, value)
+                                            with ui.element('div').classes('config-display-column'):
+                                                for key in second_column_keys:
+                                                    value = config.config.get(section, key, fallback='')
+                                                    build_config_input(section, key, value)
+                                    elif section == 'Input':
+                                        with ui.element('div').classes('config-three-column-grid'):
+                                            for column_keys in split_evenly(options, 3):
+                                                with ui.element('div').classes('config-display-column'):
+                                                    for key in column_keys:
+                                                        value = config.config.get(section, key, fallback='')
+                                                        build_config_input(section, key, value)
+                                    elif section == 'Mobile':
+                                        rename_enabled_key = 'renamemasktodefaultini'
+                                        rename_mask_key = 'renamemasktodefaultinimask'
+                                        normal_mobile_options = [
+                                            key for key in options
+                                            if key not in (rename_enabled_key, rename_mask_key)
+                                        ]
+                                        with ui.element('div').classes('config-form-grid'):
+                                            for key in normal_mobile_options:
+                                                value = config.config.get(section, key, fallback='')
+                                                build_config_input(section, key, value)
+                                        if rename_enabled_key in options or rename_mask_key in options:
+                                            with ui.element('div').classes('config-field-card mt-3'):
+                                                with ui.column().classes('w-full gap-3'):
+                                                    if rename_enabled_key in options:
+                                                        value = config.config.get(section, rename_enabled_key, fallback='false')
+                                                        inp = ui.checkbox(
+                                                            text=get_friendly_name(rename_enabled_key),
+                                                            value=(value == "true")
+                                                        ).classes('config-input')
+                                                        inputs[section][rename_enabled_key] = inp
+                                                    if rename_mask_key in options:
+                                                        value = config.config.get(section, rename_mask_key, fallback='')
+                                                        ui.label(get_friendly_name(rename_mask_key)).classes('config-field-label')
+                                                        inp = ui.input(value=value).props('outlined dense').classes('config-input')
+                                                        inputs[section][rename_mask_key] = inp
+                                    elif section == 'vpinplay':
+                                        sync_key = 'synconexit'
+                                        endpoint_key = 'apiendpoint'
+                                        user_key = 'userid'
+                                        initials_key = 'initials'
+                                        machine_key = 'machineid'
+                                        with ui.element('div').classes('config-vpinplay-pair'):
                                             with ui.column().classes('w-full gap-3'):
-                                                ui.label('ZeDMD').classes('config-field-label')
-                                                for key in present_zedmd_keys:
+                                                with ui.element('div').classes('w-full config-field-card'):
+                                                    with ui.element('div').classes('w-full config-vpinplay-links'):
+                                                        ui.image('/static/img/VPinPlay_Logo_1.0.png').style(
+                                                            'width: 200px; height: 200px; object-fit: contain;'
+                                                        )
+                                                        with ui.column().classes('config-vpinplay-links-copy'):
+                                                            ui.link(
+                                                                'VPinPlay Home',
+                                                                VPINPLAY_BASE_URL,
+                                                                new_tab=True,
+                                                            ).style('color: var(--neon-cyan) !important;')
+                                                            vpinplay_user_link = ui.link(
+                                                                '',
+                                                                _build_vpinplay_user_url(
+                                                                    config.config.get(section, user_key, fallback='')
+                                                                ),
+                                                                new_tab=True,
+                                                            ).style('color: var(--neon-cyan) !important;')
+                                                        update_vpinplay_user_link()
+
+                                                if endpoint_key in options:
+                                                    with ui.element('div').classes('w-full'):
+                                                        value = config.config.get(section, endpoint_key, fallback='')
+                                                        build_config_input(section, endpoint_key, value)
+
+                                                with ui.element('div').classes('config-vpinplay-pair'):
+                                                    if user_key in options:
+                                                        with ui.element('div').classes('w-full'):
+                                                            value = config.config.get(section, user_key, fallback='')
+                                                            build_config_input(section, user_key, value)
+                                                            user_input = inputs.get(section, {}).get(user_key)
+                                                            if user_input is not None:
+                                                                user_input.on_value_change(lambda _: update_vpinplay_user_link())
+                                                    if initials_key in options:
+                                                        with ui.element('div').classes('w-full'):
+                                                            value = config.config.get(section, initials_key, fallback='')
+                                                            build_config_input(section, initials_key, value)
+
+                                                with ui.element('div').classes('config-vpinplay-pair'):
+                                                    if machine_key in options:
+                                                        with ui.element('div').classes('w-full'):
+                                                            value = config.config.get(section, machine_key, fallback='')
+                                                            build_config_input(section, machine_key, value)
+
+                                                for key in options:
+                                                    if key in (sync_key, endpoint_key, user_key, initials_key, machine_key):
+                                                        continue
                                                     value = config.config.get(section, key, fallback='')
                                                     build_config_input(section, key, value)
 
-                                    with ui.element('div').classes('config-form-grid mt-3'):
-                                        for key in trailing_keys:
-                                            value = config.config.get(section, key, fallback='')
-                                            build_config_input(section, key, value)
-                                else:
-                                    with ui.element('div').classes('config-form-grid'):
-                                        for key in options:
-                                            value = config.config.get(section, key, fallback='')
-                                            build_config_input(section, key, value)
+                                            with ui.column().classes('w-full gap-3'):
+                                                with ui.card().classes('config-side-card w-full p-4'):
+                                                    ui.label('Table Metadata Sync').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                    ui.label(
+                                                        'Sends installed table metadata to the configured VPinPlay service endpoint.'
+                                                    ).classes('text-sm text-slate-300')
+                                                    sync_vpinplay_button = ui.button(
+                                                        'Sync Installed Tables',
+                                                        icon='sync',
+                                                        on_click=run_vpinplay_sync,
+                                                    ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                                                    update_vpinplay_sync_button_state()
+                                                if sync_key in options:
+                                                    with ui.element('div').classes('w-full'):
+                                                        value = config.config.get(section, sync_key, fallback='false')
+                                                        build_config_input(section, sync_key, value)
+                                    elif section == 'DOF':
+                                        with ui.element('div').classes('config-vpinplay-pair'):
+                                            with ui.column().classes('w-full gap-3'):
+                                                with ui.card().classes('config-side-card w-full p-4'):
+                                                    ui.label('DOF Settings').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                    ui.label(
+                                                        'Configure frontend DOF support and the online config tool API key.'
+                                                    ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                                    with ui.element('div').classes('config-form-grid mt-3'):
+                                                        for key in options:
+                                                            value = config.config.get(section, key, fallback='')
+                                                            build_config_input(section, key, value)
+                                            with ui.column().classes('w-full gap-3'):
+                                                with ui.card().classes('config-side-card w-full p-4'):
+                                                    ui.label('DOF Event Test').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                    ui.label(
+                                                        'Enter an event token like E900 or S27, then start or stop it for testing.'
+                                                    ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                                    dof_test_event_input = ui.input(
+                                                        label='Test Event',
+                                                        value='E900',
+                                                        placeholder='E900',
+                                                    ).props('outlined').classes('w-full mt-2')
+                                                    with ui.row().classes('items-center gap-3 mt-3'):
+                                                        ui.button(
+                                                            'Start Event',
+                                                            icon='play_arrow',
+                                                            on_click=run_dof_test_event_start,
+                                                        ).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                                                        ui.button(
+                                                            'Stop Event',
+                                                            icon='stop',
+                                                            on_click=run_dof_test_event_stop,
+                                                        ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                                    elif section == 'libdmdutil':
+                                        service_key = 'enabled'
+                                        zedmd_keys = ['zedmddevice', 'zedmdwifiaddr']
+                                        trailing_keys = [
+                                            key for key in options
+                                            if key not in ([service_key] + zedmd_keys)
+                                        ]
+
+                                        with ui.element('div').classes('config-form-grid'):
+                                            if service_key in options:
+                                                value = config.config.get(section, service_key, fallback='false')
+                                                build_config_input(section, service_key, value)
+
+                                        present_zedmd_keys = [key for key in zedmd_keys if key in options]
+                                        if present_zedmd_keys:
+                                            with ui.element('div').classes('config-field-card mt-3'):
+                                                with ui.column().classes('w-full gap-3'):
+                                                    ui.label('ZeDMD').classes('config-field-label')
+                                                    for key in present_zedmd_keys:
+                                                        value = config.config.get(section, key, fallback='')
+                                                        build_config_input(section, key, value)
+
+                                        with ui.element('div').classes('config-form-grid mt-3'):
+                                            for key in trailing_keys:
+                                                value = config.config.get(section, key, fallback='')
+                                                build_config_input(section, key, value)
+                                    else:
+                                        with ui.element('div').classes('config-form-grid'):
+                                            for key in options:
+                                                value = config.config.get(section, key, fallback='')
+                                                build_config_input(section, key, value)
 
                             if section == 'Displays':
                                 with ui.card().classes('config-side-card w-full p-4 gap-3'):
@@ -1365,25 +1500,6 @@ def render_panel(tab=None):
                                     icon='cloud_download',
                                     on_click=run_dof_online_update,
                                 ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
-
-                        if section == 'Settings':
-                            with ui.card().classes('config-side-card w-full mt-4 p-4'):
-                                ui.label('VPinball Launch Comand w/Options').classes('text-lg font-semibold').style('color: var(--ink) !important;')
-                                ui.label(
-                                    'Preview uses sample table: A-Go-Go (Williams 1966).vpx'
-                                ).classes('text-sm').style('color: var(--ink-muted) !important;')
-                                launch_command_preview = ui.textarea(
-                                    value='',
-                                ).props('readonly outlined autogrow').classes('w-full mt-2').style(
-                                    'font-family: monospace;'
-                                )
-                                ui.label('Launch environment overrides').classes('text-sm font-semibold mt-2').style('color: var(--ink-muted) !important;')
-                                launch_env_preview = ui.textarea(
-                                    value='',
-                                ).props('readonly outlined autogrow').classes('w-full').style(
-                                    'font-family: monospace;'
-                                )
-                                update_launch_preview()
 
                         if section == 'Logger':
                             with ui.card().classes('config-side-card w-full mt-4 p-4'):

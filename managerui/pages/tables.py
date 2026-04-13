@@ -251,11 +251,11 @@ def save_upload_bytes(dest_file: Path, content: bytes) -> None:
         f.write(content)
 
 
-# --- helper to create meta.ini with a chosen VPS record for ONE folder ---
+# --- helper to create a .info file with a chosen VPS record for one folder ---
 
 def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media: bool = False, user_media: bool = False) -> None:
     """
-    Creates meta.ini inside `table_folder` using the selected vps_entry and the VPX metadata.
+    Creates a `.info` file inside `table_folder` using the selected vps_entry and the VPX metadata.
     """
     from common.tableparser import TableParser  # if you want to reuse Table object for media step
     from common.iniconfig import IniConfig
@@ -1921,7 +1921,7 @@ def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Call
             title.set_text(f'Missing Tables ({len(items)})')
             if not items:
                 with container:
-                    ui.label('No tables without meta.ini.').classes('q-my-md')
+                    ui.label('No tables without .info metadata.').classes('q-my-md')
                 return
             for r in items:
                 with container, ui.row().classes('justify-between items-center w-full q-py-xs border-b'):
@@ -2309,7 +2309,7 @@ def open_match_vps_dialog(
             ui.icon('info', size='sm').style('color: var(--neon-purple);')
             ui.label(
                 'Clicking "Associate" will: optionally rename the folder to "TABLE NAME (MANUFACTURER YEAR)" format, '
-                'create a metadata file (.info), and download media images from vpinmediadb.'
+                'create a `.info` metadata file, and download media images from vpinmediadb.'
             ).classes('text-sm').style('color: var(--ink-muted);')
         rename_folder_switch = ui.switch('Rename folder to VPS format', value=True)
         rename_folder_switch.props('dense')
