@@ -34,6 +34,26 @@ def _config_truthy(value: str | None, default: bool = False) -> bool:
     return normalized in {"1", "true", "yes", "on"}
 
 
+def _build_window_url(
+    base_url: str,
+    theme_assets_port: int,
+    theme_name: str,
+    window_name: str,
+    splash_enabled: bool,
+) -> str:
+    if platform.system() == "Linux":
+        return f"{base_url}:{theme_assets_port}/app/{window_name}"
+
+    if splash_enabled:
+        return f"{base_url}:{theme_assets_port}/web/splash.html?window={window_name}"
+
+    encoded_theme = quote(theme_name, safe="")
+    return (
+        f"{base_url}:{theme_assets_port}/themes/"
+        f"{encoded_theme}/index_{window_name}.html?window={window_name}"
+    )
+
+
 def resource_path(relative_path):
     """Get absolute path to resource, works for both dev and PyInstaller bundle."""
     if getattr(sys, "frozen", False):
@@ -273,14 +293,13 @@ class ChromiumManager:
                 continue
 
             monitor = monitors[screen_id]
-            if splash_enabled:
-                url = f"{base_url}:{theme_assets_port}/web/splash.html?window={window_name}"
-            else:
-                encoded_theme = quote(theme_name, safe="")
-                url = (
-                    f"{base_url}:{theme_assets_port}/themes/"
-                    f"{encoded_theme}/index_{window_name}.html?window={window_name}"
-                )
+            url = _build_window_url(
+                base_url=base_url,
+                theme_assets_port=theme_assets_port,
+                theme_name=theme_name,
+                window_name=window_name,
+                splash_enabled=splash_enabled,
+            )
 
             override_key = f"{window_name}windowoverride"
             logger.debug("Found override key: '%s' in [Displays] section", override_key)
@@ -291,7 +310,8 @@ class ChromiumManager:
             )
 
             if override_str:
-                url += f"&override={override_str}"
+                separator = "&" if "?" in url else "?"
+                url += f"{separator}override={override_str}"
                 logger.info("Override applied - Final URL: %s", url)
 
             # Brief delay before launching the table window to ensure bg/dmd

@@ -5,7 +5,7 @@ from socketserver import ThreadingTCPServer
 import threading
 import os
 import mimetypes
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 from functools import partial
 import posixpath
 
@@ -108,8 +108,71 @@ class CustomHTTPServer:
             self.send_header("Access-Control-Expose-Headers", "Content-Length, Content-Range")
             super().end_headers()
 
+        def _serve_app_bootstrap(self, window_name):
+            window_labels = {
+                "bg": "BG",
+                "dmd": "DMD",
+                "table": "Table",
+            }
+            window_label = window_labels.get(window_name)
+            if window_label is None:
+                self.send_error(404, "Unknown app window")
+                return
+
+            html = f"""<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>VPinFE {window_label}</title>
+    <script src="/web/common/vpinfe-core.js"></script>
+    <script>
+      const vpin = new VPinFECore();
+      vpin.init();
+
+      vpin.ready.then(async () => {{
+        const params = window.location.search;
+        const splashEnabledRaw = await vpin.call("get_splashscreen_enabled");
+        const splashEnabledNormalized = String(splashEnabledRaw).trim().toLowerCase();
+        const splashDisabled = ["false", "0", "no", "off"].includes(splashEnabledNormalized);
+
+        let location = await vpin.call("get_theme_index_page");
+        if (!splashDisabled) {{
+          location = `/web/splash.html?window={window_name}`;
+        }}
+
+        if (params) {{
+          const separator = location.includes("?") ? "&" : "?";
+          const extraParams = params.substring(1);
+          if (extraParams) {{
+            location += separator + extraParams;
+          }}
+        }}
+
+        window.location.replace(location);
+      }});
+    </script>
+  </head>
+  <body style="margin: 0; background: black;"></body>
+</html>
+"""
+            body = html.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            try:
+                self.wfile.write(body)
+            except (ConnectionResetError, BrokenPipeError):
+                return
+
         def do_GET(self):
             """Override to handle Range requests for video streaming."""
+            request_path = urlsplit(self.path).path
+            if request_path.startswith("/app/"):
+                window_name = request_path[len("/app/"):].strip("/")
+                self._serve_app_bootstrap(window_name)
+                return
+
             range_header = self.headers.get('Range')
             if not range_header:
                 # No Range header — use default behavior

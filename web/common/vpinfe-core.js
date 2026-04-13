@@ -59,9 +59,19 @@ class VPinFECore {
     this._ws = null;
     this._pendingCalls = {}; // {callId: {resolve, reject}}
     this._callIdCounter = 0;
-    this._windowName = new URLSearchParams(window.location.search).get('window') || 'unknown';
+    this._windowName = this.#detectWindowName();
     this.#applyWindowIdentity();
 
+  }
+
+  #detectWindowName() {
+    const queryWindow = new URLSearchParams(window.location.search).get('window');
+    if (queryWindow) return queryWindow;
+
+    const match = window.location.pathname.match(/^\/app\/(bg|dmd|table)\/?$/);
+    if (match) return match[1];
+
+    return 'unknown';
   }
 
   // ***********************************
