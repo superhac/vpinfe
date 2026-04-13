@@ -197,22 +197,26 @@ def _get_display_id_options(detected_displays, current_value: str = ''):
 
 def _get_logger_level_options(current_value: str = ''):
     options = ['debug', 'info', 'warning', 'error', 'critical']
-    current, _ = _split_logger_level_value(current_value)
+    current, _, _ = _split_logger_level_value(current_value)
     if current and current not in options:
         options.append(current)
     return options
 
 
-def _split_logger_level_value(raw_value: str | None) -> tuple[str, bool]:
+def _split_logger_level_value(raw_value: str | None) -> tuple[str, bool, bool]:
     include_thirdparty = False
+    include_windows = False
     level = 'info'
     tokens = [token.strip().lower() for token in re.split(r"[|,]", str(raw_value or '')) if token.strip()]
     for token in tokens:
         if token == 'thirdparty':
             include_thirdparty = True
             continue
+        if token == 'windows':
+            include_windows = True
+            continue
         level = token
-    return level, include_thirdparty
+    return level, include_thirdparty, include_windows
 
 
 def _get_ledcontrol_command(script_path: Path, api_key: str, force: bool) -> list[str]:
@@ -711,7 +715,7 @@ def render_panel(tab=None):
                 ).props('outlined dense options-dense').classes('config-input')
             elif section == 'Logger' and key == 'level':
                 level_options = _get_logger_level_options(value)
-                normalized, include_thirdparty = _split_logger_level_value(value)
+                normalized, include_thirdparty, include_windows = _split_logger_level_value(value)
                 inp = ui.select(
                     options=level_options,
                     value=normalized
@@ -720,7 +724,12 @@ def render_panel(tab=None):
                     text='Include thirdparty logs',
                     value=include_thirdparty,
                 ).classes('config-input')
+                windows_inp = ui.checkbox(
+                    text='Include Windows logs',
+                    value=include_windows,
+                ).classes('config-input')
                 inputs[section]['__thirdparty_included'] = thirdparty_inp
+                inputs[section]['__windows_included'] = windows_inp
             else:
                 inp = ui.input(value=value).props('outlined dense').classes('config-input')
                 if section == 'vpinplay' and key == 'machineid':
@@ -761,13 +770,19 @@ def render_panel(tab=None):
     def save_config():
         for section, keys in inputs.items():
             for key, inp in keys.items():
-                if key == '__thirdparty_included':
+                if key == '__thirdparty_included' or key == '__windows_included':
                     continue
                 if section == 'Logger' and key == 'level':
                     level_value = str(inp.value or 'info').strip().lower() or 'info'
                     include_thirdparty = bool(getattr(inputs.get('Logger', {}).get('__thirdparty_included'), 'value', False))
+                    include_windows = bool(getattr(inputs.get('Logger', {}).get('__windows_included'), 'value', False))
+                    flags = []
                     if include_thirdparty:
-                        level_value = f"{level_value} | thirdparty"
+                        flags.append('thirdparty')
+                    if include_windows:
+                        flags.append('windows')
+                    if flags:
+                        level_value = f"{level_value} | {' | '.join(flags)}"
                     config.config.set(section, key, level_value)
                     continue
                 if type(inp.value) is bool:
