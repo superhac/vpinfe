@@ -4,7 +4,7 @@
 This is the offical release of vpinfe v1.1.58
 
 ### What's New
-None
+- Add support for Hyperland rules (Linux)
 
 ### Fixes
 None
