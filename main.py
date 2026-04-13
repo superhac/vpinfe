@@ -25,7 +25,7 @@ if platform.system() == "Windows" and getattr(sys, 'frozen', False):
 from pathlib import Path
 from platformdirs import user_config_dir
 
-from common.logging_config import configure_logging, get_logger
+from common.logging_config import configure_logging, get_logger, include_windows_logs
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.libdmdutil_service import (
@@ -231,6 +231,7 @@ http_server.start_file_server(port=theme_assets_port)
 # silently drops those and forwards everything else to the default handler.
 if sys.platform == "win32":
     import asyncio as _asyncio
+    _windows_logger = get_logger("vpinfe.windows")
 
     @nicegui_app.on_startup
     async def _suppress_proactor_connection_reset() -> None:
@@ -240,6 +241,7 @@ if sys.platform == "win32":
         def _handler(loop: _asyncio.AbstractEventLoop, ctx: dict) -> None:
             exc = ctx.get("exception")
             if isinstance(exc, ConnectionResetError):
+                _windows_logger.debug(str(exc))
                 return  # swallow WinError 10054 noise from browser disconnects
             if _default is not None:
                 _default(loop, ctx)

@@ -11,6 +11,7 @@ DEFAULT_LOG_LEVEL = "INFO"
 _CONFIGURED = False
 _FILE_LOG_INITIALIZED = False
 _INCLUDE_THIRD_PARTY = False
+_INCLUDE_WINDOWS = False
 _THIRD_PARTY_LOGGERS = (
     "asyncio",
     "multipart",
@@ -46,11 +47,12 @@ def _resolve_level(value: str | None) -> int:
     return getattr(logging, str(value).strip().upper(), logging.INFO)
 
 
-def _parse_level_and_flags(value: str | None) -> tuple[int, bool]:
+def _parse_level_and_flags(value: str | None) -> tuple[int, bool, bool]:
     if not value:
-        return logging.INFO, False
+        return logging.INFO, False, False
 
     include_third_party = False
+    include_windows = False
     level_token = None
     tokens = [token.strip().lower() for token in re.split(r"[|,]", str(value)) if token.strip()]
 
@@ -58,9 +60,12 @@ def _parse_level_and_flags(value: str | None) -> tuple[int, bool]:
         if token == "thirdparty":
             include_third_party = True
             continue
+        if token == "windows":
+            include_windows = True
+            continue
         level_token = token
 
-    return _resolve_level(level_token), include_third_party
+    return _resolve_level(level_token), include_third_party, include_windows
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -87,6 +92,19 @@ class _ThirdPartyFilter(logging.Filter):
         return record.levelno >= logging.WARNING
 
 
+class _WindowsFilter(logging.Filter):
+    def __init__(self, include_windows: bool):
+        super().__init__()
+        self.include_windows = include_windows
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if "windows" not in record.name:
+            return True
+        if self.include_windows:
+            return True
+        return record.levelno >= logging.WARNING
+
+
 def _normalize_third_party_loggers() -> None:
     for name in _THIRD_PARTY_LOGGERS:
         logger = logging.getLogger(name)
@@ -96,7 +114,7 @@ def _normalize_third_party_loggers() -> None:
 
 
 def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = True) -> Path:
-    global _CONFIGURED, _FILE_LOG_INITIALIZED, _INCLUDE_THIRD_PARTY
+    global _CONFIGURED, _FILE_LOG_INITIALIZED, _INCLUDE_THIRD_PARTY, _INCLUDE_WINDOWS
 
     config_dir = Path(config_dir)
     config_dir.mkdir(parents=True, exist_ok=True)
@@ -111,8 +129,9 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
         log_level = logger_cfg.get("level", DEFAULT_LOG_LEVEL)
         console_enabled = _coerce_bool(logger_cfg.get("console"), True)
 
-    resolved_level, include_third_party = _parse_level_and_flags(log_level)
+    resolved_level, include_third_party, include_windows = _parse_level_and_flags(log_level)
     _INCLUDE_THIRD_PARTY = include_third_party
+    _INCLUDE_WINDOWS = include_windows
 
     root_logger = logging.getLogger()
     root_logger.setLevel(resolved_level)
@@ -133,6 +152,7 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setFormatter(formatter)
         console_handler.addFilter(_ThirdPartyFilter(include_third_party))
+        console_handler.addFilter(_WindowsFilter(include_windows))
         root_logger.addHandler(console_handler)
 
     if file_enabled:
@@ -144,6 +164,7 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
         )
         file_handler.setFormatter(formatter)
         file_handler.addFilter(_ThirdPartyFilter(include_third_party))
+        file_handler.addFilter(_WindowsFilter(include_windows))
         root_logger.addHandler(file_handler)
         _FILE_LOG_INITIALIZED = True
 
@@ -159,3 +180,7 @@ def is_configured() -> bool:
 
 def include_thirdparty_logs() -> bool:
     return _INCLUDE_THIRD_PARTY
+
+
+def include_windows_logs() -> bool:
+    return _INCLUDE_WINDOWS
