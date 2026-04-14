@@ -75,7 +75,6 @@ class TableParser:
                     'folder': table.tableDirName,
                     'path': str(table_dir),
                 })
-                continue
 
             # check for addons
             if "pupvideos" in table_subdirs:
