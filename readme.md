@@ -510,6 +510,46 @@ Remote table launch behavior:
 
 The page also includes a **Virtual Keyboard** dialog for sending manual key presses.
 
+#### Wayland / Hyprland remote setup
+
+On X11, the remote page can inject keys using the existing keyboard backend. On Wayland compositors such as Hyprland, synthetic key input usually requires `ydotool`.
+
+VPinFE will automatically detect Wayland and switch the remote key simulator to `ydotool` when it is available. For a cabinet-style setup, the most reliable approach is to run `ydotoold` as a system service with a shared socket path.
+
+1. Install `ydotool`.
+2. Create `/etc/systemd/system/ydotoold.service` with:
+
+```ini
+[Unit]
+Description=ydotool daemon
+After=systemd-udevd.service
+Wants=systemd-udevd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ydotoold --socket-path=/run/ydotool/socket --socket-own=0:0 --socket-perm=0666
+Restart=always
+RestartSec=1
+RuntimeDirectory=ydotool
+
+[Install]
+WantedBy=multi-user.target
+```
+
+3. Reload systemd and start the service:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now ydotoold.service
+sudo systemctl status ydotoold.service
+```
+
+Notes:
+
+- The `input` group is not required for the user running VPinFE when `ydotoold` is running as `root` and owns `/dev/uinput`.
+- `0666` on the socket is convenient for a dedicated pinball cabinet, but it allows any local process to inject input through `ydotool`.
+- If you prefer tighter security, reduce the socket permissions and grant access only to the user or group that launches VPinFE.
+
 
 ## Default Keyboard Controls
 

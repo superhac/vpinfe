@@ -1,11 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.58
+This is the offical release of vpinfe v1.1.59
 
 ### What's New
-- Add support for Hyperland rules (Linux)
-- Fix CLI "--buildmeta" option on table dir's missing the .info
+- Added pure Wayland Support for the remote control.  
 
 ### Fixes
 None

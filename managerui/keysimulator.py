@@ -2,6 +2,9 @@ from pynput.keyboard import Key
 import logging
 import time
 import re
+import shutil
+import subprocess
+import os
 from platformdirs import user_config_dir
 from pathlib import Path
 from common.iniconfig import IniConfig
@@ -51,13 +54,124 @@ else:
     from pynput.keyboard import Controller as QuartzKeyboardController
 
 
+class PynputKeyboardBackend:
+    def __init__(self, key_map):
+        self.key_map = key_map
+        self._keyboard = None
+
+    @property
+    def keyboard(self):
+        if self._keyboard is None:
+            self._keyboard = QuartzKeyboardController()
+        return self._keyboard
+
+    def _translate(self, key_id):
+        return self.key_map.get(key_id)
+
+    def press(self, key_id):
+        key = self._translate(key_id)
+        if key is None:
+            return False
+        self.keyboard.press(key)
+        self.keyboard.release(key)
+        return True
+
+    def hold(self, key_id, seconds=1):
+        key = self._translate(key_id)
+        if key is None:
+            return False
+        self.keyboard.press(key)
+        time.sleep(seconds)
+        self.keyboard.release(key)
+        return True
+
+    def combo(self, *key_ids):
+        translated = [self._translate(key_id) for key_id in key_ids]
+        if any(key is None for key in translated):
+            return False
+        for key in translated:
+            self.keyboard.press(key)
+        for key in reversed(translated):
+            self.keyboard.release(key)
+        return True
+
+
+class YdotoolKeyboardBackend:
+    def __init__(self, key_map, debug=False):
+        self.key_map = key_map
+        self.debug = debug
+        self.socket_path = self._resolve_socket_path()
+
+    def _translate(self, key_id):
+        return self.key_map.get(key_id)
+
+    def _run_key_sequence(self, key_args):
+        cmd = ["ydotool", "key", *key_args]
+        env = os.environ.copy()
+        if self.socket_path:
+            env["YDOTOOL_SOCKET"] = self.socket_path
+        if self.debug:
+            logger.debug("Using ydotool socket: %s", self.socket_path or "<default>")
+            logger.debug("Running ydotool command: %s", cmd)
+        try:
+            subprocess.run(cmd, check=True, capture_output=not self.debug, text=True, env=env)
+            return True
+        except FileNotFoundError:
+            logger.warning("ydotool is not installed or not on PATH")
+        except subprocess.CalledProcessError as exc:
+            stderr = exc.stderr.strip() if exc.stderr else ""
+            if stderr:
+                logger.warning("ydotool failed: %s", stderr)
+            else:
+                logger.warning("ydotool failed with exit code %s", exc.returncode)
+        return False
+
+    def _resolve_socket_path(self):
+        configured = os.environ.get("YDOTOOL_SOCKET", "").strip()
+        if configured:
+            return configured
+
+        candidates = [
+            f"/run/user/{os.getuid()}/.ydotool_socket",
+            "/run/ydotool/socket",
+            "/tmp/.ydotool_socket",
+        ]
+        for candidate in candidates:
+            if Path(candidate).exists():
+                return candidate
+        return None
+
+    def press(self, key_id):
+        code = self._translate(key_id)
+        if code is None:
+            return False
+        return self._run_key_sequence([f"{code}:1", f"{code}:0"])
+
+    def hold(self, key_id, seconds=1):
+        code = self._translate(key_id)
+        if code is None:
+            return False
+        if not self._run_key_sequence([f"{code}:1"]):
+            return False
+        time.sleep(seconds)
+        return self._run_key_sequence([f"{code}:0"])
+
+    def combo(self, *key_ids):
+        codes = [self._translate(key_id) for key_id in key_ids]
+        if any(code is None for code in codes):
+            return False
+        key_args = [f"{code}:1" for code in codes]
+        key_args.extend(f"{code}:0" for code in reversed(codes))
+        return self._run_key_sequence(key_args)
+
+
 class KeySimulator:
 
     # ------------------------------------------------------------------
-    # SDL scancode → pynput mapping table
+    # SDL scancode -> internal key id mapping
     # ------------------------------------------------------------------
 
-    SDL_TO_PYNPUT = {
+    SDL_TO_KEY_ID = {
         # Letters A–Z
         **{code: chr(ord('a') + code - 4) for code in range(4, 30)},
 
@@ -66,11 +180,11 @@ class KeySimulator:
         35: '6', 36: '7', 37: '8', 38: '9', 39: '0',
 
         # Control
-        40: Key.enter,
-        41: Key.esc,
-        42: Key.backspace,
-        43: Key.tab,
-        44: Key.space,
+        40: "enter",
+        41: "esc",
+        42: "backspace",
+        43: "tab",
+        44: "space",
 
         # Symbols
         45: '-',
@@ -86,51 +200,182 @@ class KeySimulator:
         56: '/',
 
         # Function keys
-        58: Key.f1,
-        59: Key.f2,
-        60: Key.f3,
-        61: Key.f4,
-        62: Key.f5,
-        63: Key.f6,
-        64: Key.f7,
-        65: Key.f8,
-        66: Key.f9,
-        67: Key.f10,
-        68: Key.f11,
-        69: Key.f12,
+        58: "f1",
+        59: "f2",
+        60: "f3",
+        61: "f4",
+        62: "f5",
+        63: "f6",
+        64: "f7",
+        65: "f8",
+        66: "f9",
+        67: "f10",
+        68: "f11",
+        69: "f12",
 
         # Navigation        
-        74: Key.home,
-        75: Key.page_up,
-        76: Key.delete,
-        77: Key.end,
-        78: Key.page_down,
-        79: Key.right,
-        80: Key.left,
-        81: Key.down,
-        82: Key.up,
+        74: "home",
+        75: "page_up",
+        76: "delete",
+        77: "end",
+        78: "page_down",
+        79: "right",
+        80: "left",
+        81: "down",
+        82: "up",
 
         # Modifiers
-        224: Key.ctrl_l,
-        225: Key.shift_l,
-        226: Key.alt_l,
-        227: Key.cmd,
-        228: Key.ctrl_r,
-        229: Key.shift_r,
-        230: Key.alt_r,
-        231: Key.cmd,
+        224: "ctrl_l",
+        225: "shift_l",
+        226: "alt_l",
+        227: "cmd",
+        228: "ctrl_r",
+        229: "shift_r",
+        230: "alt_r",
+        231: "cmd_r",
     }
-    
+
     # navigation: not on mac,  but other platforms get these keys
     if sys.platform != "darwin":  # macOS
-            SDL_TO_PYNPUT.update({
-                70: Key.print_screen,
-                72: Key.pause,
-                73: Key.insert,
+        SDL_TO_KEY_ID.update({
+            70: "print_screen",
+            72: "pause",
+            73: "insert",
         })
-    
-    # Pinmame 
-    PINMAME_OPEN_COIN_DOOR = Key.end
+
+    KEY_ID_TO_PYNPUT = {
+        "enter": Key.enter,
+        "esc": Key.esc,
+        "backspace": Key.backspace,
+        "tab": Key.tab,
+        "space": Key.space,
+        "f1": Key.f1,
+        "f2": Key.f2,
+        "f3": Key.f3,
+        "f4": Key.f4,
+        "f5": Key.f5,
+        "f6": Key.f6,
+        "f7": Key.f7,
+        "f8": Key.f8,
+        "f9": Key.f9,
+        "f10": Key.f10,
+        "f11": Key.f11,
+        "f12": Key.f12,
+        "home": Key.home,
+        "page_up": Key.page_up,
+        "delete": Key.delete,
+        "end": Key.end,
+        "page_down": Key.page_down,
+        "right": Key.right,
+        "left": Key.left,
+        "down": Key.down,
+        "up": Key.up,
+        "ctrl_l": Key.ctrl_l,
+        "shift_l": Key.shift_l,
+        "alt_l": Key.alt_l,
+        "cmd": Key.cmd,
+        "ctrl_r": Key.ctrl_r,
+        "shift_r": Key.shift_r,
+        "alt_r": Key.alt_r,
+        "cmd_r": Key.cmd,
+    }
+
+    if sys.platform != "darwin":
+        KEY_ID_TO_PYNPUT.update({
+            "print_screen": Key.print_screen,
+            "pause": Key.pause,
+            "insert": Key.insert,
+        })
+
+    KEY_ID_TO_YDOTOOL = {
+        "1": 2,
+        "2": 3,
+        "3": 4,
+        "4": 5,
+        "5": 6,
+        "6": 7,
+        "7": 8,
+        "8": 9,
+        "9": 10,
+        "0": 11,
+        "-": 12,
+        "=": 13,
+        "backspace": 14,
+        "tab": 15,
+        "q": 16,
+        "w": 17,
+        "e": 18,
+        "r": 19,
+        "t": 20,
+        "y": 21,
+        "u": 22,
+        "i": 23,
+        "o": 24,
+        "p": 25,
+        "[": 26,
+        "]": 27,
+        "enter": 28,
+        "ctrl_l": 29,
+        "a": 30,
+        "s": 31,
+        "d": 32,
+        "f": 33,
+        "g": 34,
+        "h": 35,
+        "j": 36,
+        "k": 37,
+        "l": 38,
+        ";": 39,
+        "'": 40,
+        "`": 41,
+        "shift_l": 42,
+        "\\": 43,
+        "z": 44,
+        "x": 45,
+        "c": 46,
+        "v": 47,
+        "b": 48,
+        "n": 49,
+        "m": 50,
+        ",": 51,
+        ".": 52,
+        "/": 53,
+        "shift_r": 54,
+        "alt_l": 56,
+        "space": 57,
+        "f1": 59,
+        "f2": 60,
+        "f3": 61,
+        "f4": 62,
+        "f5": 63,
+        "f6": 64,
+        "f7": 65,
+        "f8": 66,
+        "f9": 67,
+        "f10": 68,
+        "pause": 119,
+        "print_screen": 99,
+        "home": 102,
+        "up": 103,
+        "page_up": 104,
+        "left": 105,
+        "right": 106,
+        "end": 107,
+        "down": 108,
+        "page_down": 109,
+        "insert": 110,
+        "delete": 111,
+        "cmd": 125,
+        "cmd_r": 126,
+        "ctrl_r": 97,
+        "alt_r": 100,
+        "esc": 1,
+        "f11": 87,
+        "f12": 88,
+    }
+
+    # Pinmame
+    PINMAME_OPEN_COIN_DOOR = "end"
     PINMAME_CANCEL = '7'
     PINMAME_DOWN = '8'
     PINMAME_UP = '9'
@@ -142,7 +387,6 @@ class KeySimulator:
 
     def __init__(self, debug=False):
         self.debug = debug
-        self._keyboard = None
 
         config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
         config_path = config_dir / "vpinfe.ini"
@@ -159,28 +403,25 @@ class KeySimulator:
             logger.debug("VPinballX.ini exists: %s", Path(vpinball_ini_path).exists())
 
         self.raw_mappings = self.parse_vpinball_key_mappings(vpinball_ini_path)
-        self.pynput_mappings = self.convert_to_pynput_keys(self.raw_mappings)
+        self.key_mappings = self.convert_to_key_ids(self.raw_mappings)
+        self.backend_name = self.detect_backend()
+        self.backend = self.create_backend()
 
         if self.debug:
             logger.debug("Raw SDL mappings found: %s", len(self.raw_mappings))
             for name, scancode in self.raw_mappings.items():
                 logger.debug("  %s: SDL scancode %s", name, scancode)
-            logger.debug("Converted pynput mappings: %s", len(self.pynput_mappings))
-            for name, key in self.pynput_mappings.items():
-                logger.debug("  %s: %s", name, key)
-
-    @property
-    def keyboard(self):
-        if self._keyboard is None:
-            self._keyboard = QuartzKeyboardController()
-        return self._keyboard
+            logger.debug("Input backend: %s", self.backend_name)
+            logger.debug("Converted key mappings: %s", len(self.key_mappings))
+            for name, key_id in self.key_mappings.items():
+                logger.debug("  %s: %s", name, key_id)
 
     # ------------------------------------------------------------------
     # Public helpers
     # ------------------------------------------------------------------
 
     def press_mapping(self, name, seconds=0):
-        key = self.pynput_mappings.get(name)
+        key = self.key_mappings.get(name)
         if self.debug:
             logger.debug("press_mapping('%s'): key=%s, found=%s", name, key, key is not None)
         time.sleep(seconds)
@@ -191,7 +432,7 @@ class KeySimulator:
 
     def hold_mapping(self, name, seconds=0.1):
         """Hold a mapped key for the specified duration"""
-        key = self.pynput_mappings.get(name)
+        key = self.key_mappings.get(name)
         if self.debug:
             logger.debug("hold_mapping('%s'): key=%s, found=%s", name, key, key is not None)
         if key is not None:
@@ -199,20 +440,17 @@ class KeySimulator:
         elif self.debug:
             logger.warning("No mapping found for '%s'", name)
 
-    def press(self, key):
-        self.keyboard.press(key)
-        self.keyboard.release(key)
+    def press(self, key_id):
+        if not self.backend.press(key_id) and self.debug:
+            logger.warning("Unable to press key '%s' using backend '%s'", key_id, self.backend_name)
 
-    def hold(self, key, seconds=1):
-        self.keyboard.press(key)
-        time.sleep(seconds)
-        self.keyboard.release(key)
+    def hold(self, key_id, seconds=1):
+        if not self.backend.hold(key_id, seconds) and self.debug:
+            logger.warning("Unable to hold key '%s' using backend '%s'", key_id, self.backend_name)
 
-    def combo(self, *keys):
-        for key in keys:
-            self.keyboard.press(key)
-        for key in reversed(keys):
-            self.keyboard.release(key)
+    def combo(self, *key_ids):
+        if not self.backend.combo(*key_ids) and self.debug:
+            logger.warning("Unable to send combo %s using backend '%s'", key_ids, self.backend_name)
 
     # ------------------------------------------------------------------
     # Parsing
@@ -268,15 +506,39 @@ class KeySimulator:
     # Conversion
     # ------------------------------------------------------------------
 
-    def convert_to_pynput_keys(self, sdl_mappings: dict) -> dict:
+    def convert_to_key_ids(self, sdl_mappings: dict) -> dict:
         result = {}
 
         for name, scancode in sdl_mappings.items():
             if scancode is None:
                 continue
 
-            pynput_key = self.SDL_TO_PYNPUT.get(scancode)
-            if pynput_key is not None:
-                result[name] = pynput_key
+            key_id = self.SDL_TO_KEY_ID.get(scancode)
+            if key_id is not None:
+                result[name] = key_id
 
         return result
+
+    def detect_backend(self) -> str:
+        if sys.platform == "darwin":
+            return "pynput"
+
+        session_type = os.environ.get("XDG_SESSION_TYPE", "").strip().lower()
+        wayland_display = os.environ.get("WAYLAND_DISPLAY")
+        display = os.environ.get("DISPLAY")
+
+        if wayland_display or session_type == "wayland":
+            if shutil.which("ydotool"):
+                return "ydotool"
+            logger.warning("Wayland session detected but ydotool is not available; falling back to pynput")
+            return "pynput"
+
+        if display or session_type == "x11":
+            return "pynput"
+
+        return "pynput"
+
+    def create_backend(self):
+        if self.backend_name == "ydotool":
+            return YdotoolKeyboardBackend(self.KEY_ID_TO_YDOTOOL, debug=self.debug)
+        return PynputKeyboardBackend(self.KEY_ID_TO_PYNPUT)
