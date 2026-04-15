@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.59
+This is the offical release of vpinfe v1.1.60
 
 ### What's New
-- Added pure Wayland Support for the remote control.  
+None
 
 ### Fixes
-None
+- Fix media page hover over
 
 ### Notes
 None

@@ -304,10 +304,6 @@ def build_app():
             z-index: 0;
         }
         
-        body:not(.nav-is-collapsed) .q-tooltip {
-            display: none !important;
-        }
-        
         .nicegui-content {
             overflow-x: hidden !important;
             max-width: 100vw !important;
