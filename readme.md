@@ -26,11 +26,13 @@ Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 - A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (**@Dux, @Fraesh and @Studlygoorite**) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
 
 ## See it in action
-![carousel-desktop-Trim-clean-ezgif com-video-to-gif-converter](https://github.com/user-attachments/assets/6f2d2b6d-652a-47c6-8e8e-a84b6aa461ee)
 
-[Youtube: Cab Demo](https://www.youtube.com/shorts/49oEZKm6TGE)
+<img width="1296" height="546" alt="themes" src="https://github.com/user-attachments/assets/57f3ee83-d45f-4bb0-be12-bbbcb69317da" />
 
-[YouTube: Desktop](https://www.youtube.com/watch?v=YXK53rmKRfI)
+<img width="1610" height="1223" alt="managerui" src="https://github.com/user-attachments/assets/d299e47c-90bd-4e01-8719-999fbf12d8a5" />
+
+Youtube Playlist
+https://www.youtube.com/playlist?list=PLMRebAANedgX9YDbl0gte_ZgoYU9VQF8j
 
 # Installing (First time Setup)
 
