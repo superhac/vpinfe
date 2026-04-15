@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.60
+This is the offical release of vpinfe v1.1.61
 
 ### What's New
-None
+- Inital VPX config editor to the managerUI
 
 ### Fixes
-- Fix media page hover over
+None
 
 ### Notes
 None

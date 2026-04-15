@@ -4,6 +4,7 @@ from nicegui import ui, app, context
 from fastapi.responses import JSONResponse
 from .pages import tables as tab_tables
 from .pages import vpinfe_config as tab_vpinfe
+from .pages import vpx_config as tab_vpx_config
 from .pages import collections as tab_collections
 from .pages import media as tab_media
 from .pages import themes as tab_themes
@@ -446,6 +447,13 @@ def build_app():
                 .props('flat align=left')
                 .tooltip('Configuration')
             )
+            vpx_config_btn = (
+                ui.button('VPX Config', icon='settings_applications', on_click=lambda: show_page('vpx_config'))
+                .classes('w-full nav-btn')
+                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
+                .props('flat align=left')
+                .tooltip('VPX Config')
+            )
         # Remote control button anchored to bottom
         nav_state['remote_container'] = ui.column().classes('w-full gap-1 mt-auto').style('margin-top: auto; padding-bottom: 16px;')
         with nav_state['remote_container']:
@@ -471,6 +479,7 @@ def build_app():
         mobile_btn.classes(remove='nav-btn-active')
         system_btn.classes(remove='nav-btn-active')
         config_btn.classes(remove='nav-btn-active')
+        vpx_config_btn.classes(remove='nav-btn-active')
 
         # Set active button
         if page_key == 'tables':
@@ -487,6 +496,8 @@ def build_app():
             system_btn.classes(add='nav-btn-active')
         elif page_key == 'vpinfe':
             config_btn.classes(add='nav-btn-active')
+        elif page_key == 'vpx_config':
+            vpx_config_btn.classes(add='nav-btn-active')
 
         # Only re-render if page changed
         if current_page['value'] == page_key:
@@ -510,6 +521,8 @@ def build_app():
                 tab_system.render_panel()
             elif page_key == 'vpinfe':
                 tab_vpinfe.render_panel()
+            elif page_key == 'vpx_config':
+                tab_vpx_config.render_panel()
 
     # Determine initial page: URL ?page= param takes priority, then first-run, then saved page
     global _first_run
@@ -550,6 +563,9 @@ _PAGE_ALIASES = {
     'vpinfe_config': 'vpinfe',
     'configuration': 'vpinfe',
     'config': 'vpinfe',
+    'vpx_config': 'vpx_config',
+    'vpx': 'vpx_config',
+    'vpinballx': 'vpx_config',
 }
 
 def _dialog_test():
