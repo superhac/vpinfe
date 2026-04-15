@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime
 import logging
 import os
 import re
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -16,6 +18,7 @@ logger = logging.getLogger("vpinfe.manager.vpx_config")
 
 CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 VPINFE_INI_PATH = CONFIG_DIR / "vpinfe.ini"
+VPX_BACKUP_DIR = CONFIG_DIR / "backups" / "vpx_ini"
 
 EDITOR_INCLUDED_KEYS = [
     "EnableLog",
@@ -319,6 +322,39 @@ def _write_updated_ini(
     ini_path.write_text("".join(lines), encoding="utf-8")
 
 
+def _backup_filename(ini_path: Path, reason: str = "manual") -> str:
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    return f"{ini_path.stem}-{reason}-{timestamp}{ini_path.suffix}"
+
+
+def _sanitize_backup_label(label: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", str(label or "").strip())
+    cleaned = cleaned.strip("-.")
+    return cleaned[:64]
+
+
+def _create_backup(ini_path: Path, reason: str = "manual", label: str = "") -> Path:
+    VPX_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    filename = _backup_filename(ini_path, reason=reason)
+    safe_label = _sanitize_backup_label(label)
+    if safe_label:
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        filename = f"{ini_path.stem}-{reason}-{safe_label}-{timestamp}{ini_path.suffix}"
+    backup_path = VPX_BACKUP_DIR / filename
+    shutil.copy2(ini_path, backup_path)
+    return backup_path
+
+
+def _list_backups() -> list[Path]:
+    if not VPX_BACKUP_DIR.exists():
+        return []
+    return sorted(
+        (path for path in VPX_BACKUP_DIR.iterdir() if path.is_file() and path.suffix.lower() == ".ini"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+
+
 def render_panel() -> None:
     ini_path = _load_vpx_ini_path()
 
@@ -515,6 +551,117 @@ def render_panel() -> None:
         inputs: dict[str, dict[str, ui.input]] = {}
         search_state = {"query": "", "only_non_default": False}
 
+        def create_backup() -> None:
+            with ui.dialog() as dialog, ui.card().classes("w-full").style(
+                "background: var(--surface); border: 1px solid var(--line); min-width: min(92vw, 520px);"
+            ):
+                with ui.column().classes("w-full gap-4"):
+                    ui.label("Create VPinballX.ini Backup").classes("text-xl font-bold").style(
+                        "color: var(--ink) !important;"
+                    )
+                    ui.label(
+                        "Give this backup an optional name. It will be added to the filename with a timestamp."
+                    ).classes("text-sm").style("color: var(--ink-muted) !important;")
+                    backup_name_input = ui.input(
+                        label="Backup Name",
+                        placeholder="Example: before-audio-tuning"
+                    ).props("outlined clearable").classes("w-full")
+
+                def _confirm_backup() -> None:
+                    try:
+                        backup_path = _create_backup(
+                            ini_path,
+                            reason="manual",
+                            label=str(backup_name_input.value or ""),
+                        )
+                        dialog.close()
+                        ui.notify(f"Backup created: {backup_path.name}", type="positive")
+                    except Exception as exc:
+                        logger.exception("Failed to create backup for %s", ini_path)
+                        ui.notify(f"Failed to create backup: {exc}", type="negative")
+
+                with ui.row().classes("w-full justify-end gap-2"):
+                    ui.button("Cancel", on_click=dialog.close).style(
+                        "color: var(--ink-muted) !important; background: var(--surface) !important; "
+                        "border: 1px solid var(--line); border-radius: 18px; padding: 4px 10px;"
+                    )
+                    ui.button("Create Backup", icon="archive", on_click=_confirm_backup).style(
+                        "color: var(--neon-cyan) !important; background: var(--surface) !important; "
+                        "border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;"
+                    )
+
+            dialog.open()
+
+        def restore_backup_dialog() -> None:
+            backups = _list_backups()
+
+            with ui.dialog() as dialog, ui.card().classes("w-full").style(
+                "background: var(--surface); border: 1px solid var(--line); min-width: min(92vw, 900px);"
+            ):
+                with ui.column().classes("w-full gap-4"):
+                    ui.label("Restore VPinballX.ini Backup").classes("text-xl font-bold").style(
+                        "color: var(--ink) !important;"
+                    )
+                    ui.label(str(VPX_BACKUP_DIR)).classes("text-xs break-all").style(
+                        "color: var(--ink-muted) !important;"
+                    )
+
+                    if not backups:
+                        ui.label("No backups are available yet.").classes("text-sm").style(
+                            "color: var(--ink-muted) !important;"
+                        )
+                    else:
+                        with ui.scroll_area().classes("w-full").style("max-height: 28rem;"):
+                            with ui.column().classes("w-full gap-3"):
+                                for backup in backups:
+                                    stat = backup.stat()
+                                    modified = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+                                    size_kb = max(1, round(stat.st_size / 1024))
+                                    with ui.card().classes("w-full p-4").style(
+                                        "background: var(--surface-soft); border: 1px solid var(--line);"
+                                    ):
+                                        with ui.row().classes("w-full items-center justify-between gap-4"):
+                                            with ui.column().classes("gap-1"):
+                                                ui.label(backup.name).classes("text-sm font-semibold").style(
+                                                    "color: var(--ink) !important;"
+                                                )
+                                                ui.label(
+                                                    f"Modified: {modified} | Size: {size_kb} KB"
+                                                ).classes("text-xs").style(
+                                                    "color: var(--ink-muted) !important;"
+                                                )
+
+                                            def _restore(path: Path = backup) -> None:
+                                                try:
+                                                    safety_backup = _create_backup(ini_path, reason="pre-restore")
+                                                    shutil.copy2(path, ini_path)
+                                                    dialog.close()
+                                                    ui.notify(
+                                                        f"Restored {path.name}. Safety backup created: {safety_backup.name}",
+                                                        type="positive",
+                                                    )
+                                                    ui.navigate.to("/?page=vpx_config")
+                                                except Exception as exc:
+                                                    logger.exception("Failed to restore backup %s", path)
+                                                    ui.notify(f"Failed to restore backup: {exc}", type="negative")
+
+                                            ui.button(
+                                                "Restore",
+                                                icon="history",
+                                                on_click=_restore,
+                                            ).style(
+                                                "color: var(--neon-cyan) !important; background: var(--surface) !important; "
+                                                "border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;"
+                                            )
+
+                with ui.row().classes("w-full justify-end"):
+                    ui.button("Close", on_click=dialog.close).style(
+                        "color: var(--ink-muted) !important; background: var(--surface) !important; "
+                        "border: 1px solid var(--line); border-radius: 18px; padding: 4px 10px;"
+                    )
+
+            dialog.open()
+
         def save_config() -> None:
             try:
                 _write_updated_ini(ini_path, displayed_sections, inputs)
@@ -522,6 +669,25 @@ def render_panel() -> None:
             except Exception as exc:
                 logger.exception("Failed to save %s", ini_path)
                 ui.notify(f"Failed to save VPinballX.ini: {exc}", type="negative")
+
+        with ui.card().classes("w-full p-4").style(
+            "background: var(--surface); border: 1px solid var(--line);"
+        ):
+            with ui.row().classes("w-full items-center justify-between gap-4"):
+                with ui.column().classes("gap-1"):
+                    ui.label("Backup and Restore").classes("text-sm font-semibold").style(
+                        "color: var(--ink) !important;"
+                    )
+                    ui.label(
+                        f"Backups are stored in {VPX_BACKUP_DIR}"
+                    ).classes("text-xs break-all").style("color: var(--ink-muted) !important;")
+                with ui.row().classes("gap-2"):
+                    ui.button("Backup", icon="archive", on_click=create_backup).props("outline").style(
+                        "color: var(--neon-cyan) !important; border: 1px solid var(--neon-cyan);"
+                    )
+                    ui.button("Restore", icon="restore", on_click=restore_backup_dialog).props("outline").style(
+                        "color: var(--neon-yellow) !important; border: 1px solid var(--neon-yellow);"
+                    )
 
         if not displayed_sections:
             with ui.card().classes("w-full p-5").style(
