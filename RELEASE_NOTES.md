@@ -1,10 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.61
+This is the offical release of vpinfe v1.1.62
 
 ### What's New
-- Inital VPX config editor to the managerUI
+- VPX config editor filter by non-defaults
 
 ### Fixes
 None

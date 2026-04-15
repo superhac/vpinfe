@@ -246,19 +246,20 @@ def _build_display_sections(parsed: ParsedIni) -> list[dict]:
     return display_sections
 
 
-def _filter_sections(sections: list[dict], query: str) -> list[dict]:
+def _filter_sections(sections: list[dict], query: str, only_non_default: bool = False) -> list[dict]:
     search = (query or "").strip().lower()
-    if not search:
-        return sections
-
     filtered: list[dict] = []
     for section in sections:
         matching_fields = [
             field
             for field in section["fields"]
-            if search in field.key.lower()
-            or search in field.original_key.lower()
-            or search in field.label.lower()
+            if (
+                (not search
+                 or search in field.key.lower()
+                 or search in field.original_key.lower()
+                 or search in field.label.lower())
+                and (not only_non_default or bool((field.value or "").strip()))
+            )
         ]
         if matching_fields:
             filtered.append({"name": section["name"], "fields": matching_fields})
@@ -512,7 +513,7 @@ def render_panel() -> None:
 
         displayed_sections = _build_display_sections(parsed)
         inputs: dict[str, dict[str, ui.input]] = {}
-        search_state = {"query": ""}
+        search_state = {"query": "", "only_non_default": False}
 
         def save_config() -> None:
             try:
@@ -539,13 +540,21 @@ def render_panel() -> None:
                     label="Filter by key name",
                     placeholder="Example: MusicVolume, EnableLog, Dmd..."
                 ).props("outlined clearable").classes("w-full")
-                ui.label(
-                    "Shows only sections and keys that match the search."
-                ).classes("text-sm").style("color: var(--ink-muted) !important;")
+                non_default_only = ui.checkbox(
+                    "Only show non-default values",
+                    value=False,
+                ).classes("shrink-0")
+            ui.label(
+                "Search narrows by key name. The non-default filter shows only settings with an explicit value instead of a blank/default entry."
+            ).classes("text-sm").style("color: var(--ink-muted) !important;")
 
         @ui.refreshable
         def render_filtered_sections() -> None:
-            filtered_sections = _filter_sections(displayed_sections, search_state["query"])
+            filtered_sections = _filter_sections(
+                displayed_sections,
+                search_state["query"],
+                search_state["only_non_default"],
+            )
 
             if not filtered_sections:
                 with ui.card().classes("w-full p-5").style(
@@ -555,7 +564,7 @@ def render_panel() -> None:
                         "text-lg font-semibold"
                     ).style("color: var(--warn) !important;")
                     ui.label(
-                        "Try a partial key name like `volume`, `window`, or `plugin`."
+                        "Try a partial key name like `volume`, `window`, or `plugin`, or turn off the non-default filter."
                     ).classes("text-sm").style("color: var(--ink-muted) !important;")
                 return
 
@@ -616,7 +625,12 @@ def render_panel() -> None:
             search_state["query"] = str(search_input.value or "")
             render_filtered_sections.refresh()
 
+        def on_non_default_change() -> None:
+            search_state["only_non_default"] = bool(non_default_only.value)
+            render_filtered_sections.refresh()
+
         search_input.on_value_change(lambda _: on_search_change())
+        non_default_only.on_value_change(lambda _: on_non_default_change())
         render_filtered_sections()
 
         with ui.element("div").classes("w-full vpx-config-footer"):
