@@ -60,7 +60,6 @@ rom_aliases = {
     "ss_15":"ss_14",
     "twenty4_150": "twenty4_144",
     "ww_lh6": "ww_lh5",
-    "wwfr_106":"wwfr_103",
      "stk_sprs" : "evelknie",
 
 }
@@ -196,10 +195,10 @@ special_text_score_files = {
     },
 }
 
-def get_roms_path() -> Path:
+def get_roms_candidate_paths() -> list[Path]:
     candidate_paths: list[Path] = [
-        USER_ROMS_PATH,
         Path(__file__).with_name("resources") / "roms.json",
+        USER_ROMS_PATH,
     ]
 
     meipass = getattr(sys, "_MEIPASS", None)
@@ -217,19 +216,33 @@ def get_roms_path() -> Path:
 
     candidates = list(dict.fromkeys(candidate_paths))
 
-    for path in candidates:
+    return candidates
+
+
+def get_roms_path() -> Path:
+    for path in get_roms_candidate_paths():
         if path.exists():
             return path
 
     raise FileNotFoundError(
         "Could not find roms.json. Checked: "
-        + ", ".join(str(path) for path in candidates)
+        + ", ".join(str(path) for path in get_roms_candidate_paths())
     )
 
 def load_roms() -> dict:
-    roms_path = get_roms_path()
-    with roms_path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    merged_roms: dict = {}
+    existing_paths = [path for path in get_roms_candidate_paths() if path.exists()]
+    if not existing_paths:
+        raise FileNotFoundError(
+            "Could not find roms.json. Checked: "
+            + ", ".join(str(path) for path in get_roms_candidate_paths())
+        )
+
+    for roms_path in existing_paths:
+        with roms_path.open("r", encoding="utf-8") as f:
+            merged_roms.update(json.load(f))
+
+    return merged_roms
 
 
 roms = load_roms()
@@ -1571,7 +1584,6 @@ if __name__ == "__main__":
     rom_files = {       
         "twenty4_150": "/home/superhac/tables/24 (Stern 2009)/pinmame/nvram/twenty4_150.nv",
         "ww_lh6": "/home/superhac/tables/White Water (Williams 1993)/pinmame/nvram/ww_lh6.nv",
-        "wwfr_106":"/home/superhac/tables/WWF Royal Rumble (Data East 1994)/pinmame/nvram/wwfr_106.nv",
         "dvlsdre":"/home/superhac/tables/Devils Dare (Gottlieb 1982)/pinmame/nvram/dvlsdre.nv",
         "dollyptb": "/home/superhac/tables/Dolly Parton (Bally 1979)/pinmame/nvram/dollyptb.nv",
         "comet_l5":"/home/superhac/tables/Miami Vice (Original 2020)/pinmame/nvram/comet_l5.nv",
@@ -1607,6 +1619,7 @@ if __name__ == "__main__":
         "volley_1976": "/home/superhac/tables/Volley (Gottlieb 1976)",
         "TlD_123": "/home/superhac/tables/1-2-3 (Automaticos 1973)",
         "AliceInWonderland": "/home/superhac/tables/Alice in Wonderland (Gottlieb 1948)",
+        "wwfr_106":"/home/superhac/tables/WWF Royal Rumble (Data East 1994)/pinmame/nvram/wwfr_106.nv",
     }
 
     for rom_name, filename in rom_files.items():
@@ -1626,3 +1639,4 @@ if __name__ == "__main__":
         print()
         print(json.dumps(result_to_jsonable(rom_name, result, filename), indent=2))
         print()
+
