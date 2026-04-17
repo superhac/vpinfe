@@ -28,7 +28,12 @@ from common.launcher import (
     resolve_launch_tableini_override,
 )
 from common.metaconfig import MetaConfig
-from common.score_parser import read_rom, result_to_jsonable
+from common.score_parser import (
+    read_rom,
+    resolve_score_input_path,
+    result_to_jsonable,
+    uses_special_text_score_file,
+)
 from platformdirs import user_config_dir
 
 
@@ -772,6 +777,23 @@ class API:
                     table.tableDirName,
                     score_path,
                 )
+            elif uses_special_text_score_file(rom):
+                try:
+                    score_path = Path(resolve_score_input_path(rom, table.fullPathTable))
+                    logger.debug(
+                        "No NVRAM or VPReg.ini found for %s, falling back to text score file %s",
+                        table.tableDirName,
+                        score_path,
+                    )
+                except FileNotFoundError:
+                    logger.debug(
+                        "No score source found for %s. Checked %s, %s, and special text score file mapping for ROM %s",
+                        table.tableDirName,
+                        primary_score_path,
+                        fallback_score_path,
+                        rom,
+                    )
+                    return
             else:
                 logger.debug(
                     "No score source found for %s. Checked %s and %s",

@@ -65,6 +65,137 @@ rom_aliases = {
 
 }
 
+special_text_score_files = {
+    "OKIES_TornadoRally": {
+        "filename": "OKIES.txt",
+        "parser": "smart_numeric",
+    },
+    "zissou": {
+        "filename": "Zissou.txt",
+        "parser": "smart_numeric",
+    },
+    "GrandSlam_1972": {
+        "filename": "GrandSlam_72VPX.txt",
+        "parser": "smart_numeric",
+    },
+    "simp": {
+        "filename": "SIMPDE.txt",
+        "parser": "smart_numeric",
+    },
+    "Aspen": {
+        "filename": "Aspenjp.txt",
+        "parser": "smart_numeric",
+    },
+    "AmericanGraffiti_1962": {
+        "filename": "American_Graffiti_v1.3.txt",
+        "parser": "smart_numeric",
+    },
+    "centigrade": {
+        "filename": "Centigrade37.txt",
+        "parser": "smart_numeric",
+    },
+    "HokusPokus_1976": {
+        "filename": "HokusPokus_76VPX.txt",
+        "parser": "smart_numeric",
+    },
+    "fouraces": {
+        "filename": "fouraces.txt",
+        "parser": "smart_numeric",
+    },
+    "starwarsbh": {
+        "filename": "BountyHunter.txt",
+        "parser": "smart_numeric",
+    },
+    "bigbrave": {
+        "filename": "bigbrave.txt",
+        "parser": "smart_numeric",
+    },
+    "Gottlieb300_1975": {
+        "filename": "300_75VPX.txt",
+        "parser": "smart_numeric",
+    },
+    "SuperSpin_1977": {
+        "filename": "NightOfTheLivingDead_77VPX.txt",
+        "parser": "smart_numeric",
+    },
+    "GTB_4Square_1971": {
+        "filename": "4Square_71VPX.txt",
+        "parser": "smart_numeric",
+    },
+    "ogaucho": {
+        "filename": "ogaucho.txt",
+        "parser": "smart_numeric",
+    },
+    "dragoninterflip": {
+        "filename": "IFDragon_77VPX.txt",
+        "parser": "smart_numeric",
+    },
+    "ElToro": {
+        "filename": "ElToro.txt",
+        "parser": "score_key_value",
+    },
+    "jacksopen": {
+        "filename": "JacksOpen.txt",
+        "parser": "smart_numeric",
+    },
+    "Clown": {
+        "filename": "Clown.txt",
+        "parser": "smart_numeric",
+    },
+    "Fast Times": {
+        "filename": "Fast Times.txt",
+        "parser": "smart_numeric",
+    },
+    "HangGlider_1976": {
+        "filename": "HangGlider_76VPX.txt",
+        "parser": "smart_numeric",
+    },
+    "alaska": {
+        "filename": "alaska.txt",
+        "parser": "smart_numeric",
+    },
+    "Carnival Games": {
+        "filename": "Carnival Games.txt",
+        "parser": "smart_numeric",
+    },
+    "NOTLD68": {
+        "filename": "NOTLD68VPX.txt",
+        "parser": "smart_numeric",
+    },
+    "AirborneEM": {
+        "filename": "AirborneEM.txt",
+        "parser": "smart_numeric",
+    },
+    "TeamOne_77VPX": {
+        "filename": "TeamOne_77VPX.txt",
+        "parser": "smart_numeric",
+    },
+    "CharlieAngelsEM": {
+        "filename": "CharlieAngelsEM.txt",
+        "parser": "smart_numeric",
+    },
+    "Bally4Queens_1970": {
+        "filename": "Bally4Queens_1970.txt",
+        "parser": "smart_numeric",
+    },
+    "HumptyDumpty": {
+        "filename": "HumptyDumpty.txt",
+        "parser": "smart_numeric",
+    },
+    "volley_1976": {
+        "filename": "volley_gottlieb_1976.txt",
+        "parser": "smart_numeric",
+    },
+    "TlD_123": {
+        "filename": "TlD_123.txt",
+        "parser": "smart_numeric",
+    },
+    "AliceInWonderland": {
+        "filename": "AliceInWonderland.txt",
+        "parser": "smart_numeric",
+    },
+}
+
 def get_roms_path() -> Path:
     candidate_paths: list[Path] = [
         USER_ROMS_PATH,
@@ -127,6 +258,192 @@ def apply_default_initials(result: int | list[ParsedEntry]) -> int | list[Parsed
             continue
         normalized_entries.append(replace(entry, initials=default_initials))
     return normalized_entries
+
+
+def resolve_special_text_score_file(rom_name: str, filename: str) -> tuple[dict, Path] | None:
+    config = special_text_score_files.get(rom_name)
+    if config is None:
+        return None
+
+    target_name = config["filename"]
+    source_path = Path(filename).expanduser()
+    candidates: list[Path] = []
+
+    if source_path.is_dir():
+        candidates.append(source_path / "user" / target_name)
+    else:
+        if source_path.name == target_name:
+            candidates.append(source_path)
+        candidates.append(source_path.parent / "user" / target_name)
+        for parent in source_path.parents:
+            candidates.append(parent / "user" / target_name)
+
+    deduped_candidates = list(dict.fromkeys(candidates))
+    for candidate in deduped_candidates:
+        if candidate.exists():
+            return config, candidate
+
+    raise FileNotFoundError(
+        f"Could not find special score file for ROM '{rom_name}'. Checked: "
+        + ", ".join(str(path) for path in deduped_candidates)
+    )
+
+
+def uses_special_text_score_file(rom_name: str) -> bool:
+    return rom_name in special_text_score_files
+
+
+def get_special_text_score_filename(rom_name: str) -> str | None:
+    config = special_text_score_files.get(rom_name)
+    if config is None:
+        return None
+    return config["filename"]
+
+
+def resolve_score_input_path(rom_name: str, filename: str) -> str:
+    if uses_special_text_score_file(rom_name):
+        resolved = resolve_special_text_score_file(rom_name, filename)
+        if resolved is None:
+            raise KeyError(f"Unknown special text score ROM: {rom_name}")
+        _, resolved_filename = resolved
+        return str(resolved_filename)
+    return filename
+
+
+def is_multi_digit_integer(value: str) -> bool:
+    stripped = value.strip()
+    if not re.fullmatch(r"[+-]?\d+", stripped):
+        return False
+    return len(stripped.lstrip("+-")) > 1
+
+
+def _build_entries_from_scores_and_initials(
+    scores: list[int],
+    initials: list[str] | None = None,
+) -> list[ParsedEntry]:
+    if not scores:
+        return []
+
+    initials = initials or []
+    use_ranks = len(scores) > 1
+    entries: list[ParsedEntry] = []
+    for index, score in enumerate(scores):
+        entries.append(
+            ParsedEntry(
+                section="",
+                rank=index + 1 if use_ranks else None,
+                initials=initials[index] if index < len(initials) else "",
+                score=score,
+            )
+        )
+    return entries
+
+
+def decode_smart_numeric_text_file(filename: str) -> list[ParsedEntry]:
+    raw_lines = Path(filename).read_text(encoding="utf-8").splitlines()
+    lines = [line.strip() for line in raw_lines if line.strip()]
+
+    classified_lines: list[tuple[str, str | int]] = []
+    for line in lines:
+        if re.fullmatch(r"[+-]?\d+", line):
+            value = int(line)
+            if abs(value) >= 100:
+                classified_lines.append(("score", value))
+            else:
+                classified_lines.append(("control", value))
+            continue
+        classified_lines.append(("text", clean_text(line)))
+
+    runs: list[dict] = []
+    for kind, value in classified_lines:
+        if runs and runs[-1]["kind"] == kind:
+            runs[-1]["values"].append(value)
+            continue
+        runs.append({"kind": kind, "values": [value]})
+
+    best_pair: tuple[list[int], list[str]] | None = None
+    best_pair_score = 0
+    for score_run in runs:
+        if score_run["kind"] != "score":
+            continue
+        for text_run in runs:
+            if text_run["kind"] != "text":
+                continue
+            pair_count = min(len(score_run["values"]), len(text_run["values"]))
+            if pair_count < 2:
+                continue
+            if pair_count > best_pair_score:
+                best_pair_score = pair_count
+                best_pair = (
+                    [int(value) for value in score_run["values"][:pair_count]],
+                    [str(value) for value in text_run["values"][:pair_count]],
+                )
+
+    if best_pair is not None:
+        scores, initials = best_pair
+        return _build_entries_from_scores_and_initials(scores, initials)
+
+    all_scores = [int(value) for kind, value in classified_lines if kind == "score"]
+    if not all_scores:
+        return []
+
+    score_runs = [run["values"] for run in runs if run["kind"] == "score"]
+    longest_score_run = max(score_runs, key=len)
+    if len(longest_score_run) >= 4:
+        scores = [int(value) for value in longest_score_run]
+        return _build_entries_from_scores_and_initials(scores)
+
+    best_score = max(all_scores)
+    trailing_ascii_codes: list[int] = []
+    score_index = next(
+        index
+        for index, (kind, value) in enumerate(classified_lines)
+        if kind == "score" and int(value) == best_score
+    )
+    for kind, value in classified_lines[score_index + 1:]:
+        if kind != "control":
+            continue
+        int_value = int(value)
+        if 65 <= int_value <= 90:
+            trailing_ascii_codes.append(int_value)
+
+    initials = ""
+    if 2 <= len(trailing_ascii_codes) <= 4:
+        initials = "".join(chr(value) for value in trailing_ascii_codes)
+
+    return _build_entries_from_scores_and_initials([best_score], [initials])
+
+
+def decode_score_key_value_text_file(filename: str) -> list[ParsedEntry]:
+    lines = [
+        line.strip()
+        for line in Path(filename).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    score_pattern = re.compile(r"^[A-Za-z0-9_]+\s+([+-]?\d+)$")
+
+    for line in lines:
+        match = score_pattern.match(line)
+        if match:
+            return _build_entries_from_scores_and_initials([int(match.group(1))])
+
+    raise ValueError(f"Could not find score in key/value text file '{filename}'")
+
+
+def decode_special_text_score_file(rom_name: str, filename: str) -> list[ParsedEntry]:
+    resolved = resolve_special_text_score_file(rom_name, filename)
+    if resolved is None:
+        raise KeyError(f"Unknown special text score ROM: {rom_name}")
+
+    config, resolved_filename = resolved
+    parser_name = config["parser"]
+
+    if parser_name == "smart_numeric":
+        return decode_smart_numeric_text_file(str(resolved_filename))
+    if parser_name == "score_key_value":
+        return decode_score_key_value_text_file(str(resolved_filename))
+
+    raise ValueError(f"Unknown special text parser '{parser_name}' for ROM '{rom_name}'")
 
 
 def bcd_to_int(byte_vals: list[int]) -> int:
@@ -1183,6 +1500,8 @@ def format_result(rom_name: str, result: int | list[ParsedEntry]) -> list[str]:
     return lines
 
 def detect_score_type(rom_name: str, filename: str | None = None) -> str:
+    if rom_name in special_text_score_files:
+        return "txt"
     if filename and Path(filename).suffix.lower() == ".ini":
         return "ini"
 
@@ -1230,6 +1549,9 @@ def read_rom(
     filename: str,
     settings: dict | None = None,
 ) -> int | list[ParsedEntry]:
+    if rom_name in special_text_score_files:
+        return decode_special_text_score_file(rom_name, filename)
+
     if Path(filename).suffix.lower() == ".ini":
         return decode_ini_file(filename)
 
@@ -1253,6 +1575,38 @@ if __name__ == "__main__":
         "dvlsdre":"/home/superhac/tables/Devils Dare (Gottlieb 1982)/pinmame/nvram/dvlsdre.nv",
         "dollyptb": "/home/superhac/tables/Dolly Parton (Bally 1979)/pinmame/nvram/dollyptb.nv",
         "comet_l5":"/home/superhac/tables/Miami Vice (Original 2020)/pinmame/nvram/comet_l5.nv",
+        "OKIES_TornadoRally": "/home/superhac/tables/Tornado Rally (Original 2024)",
+        "zissou": "/home/superhac/tables/Zissou - The Life Aquatic (Original 2022)",
+        "GrandSlam_1972": "/home/superhac/tables/Grand Slam (Gottlieb 1972)",
+        "simp": "/home/superhac/tables/The Simpsons (Data East 1990)",
+        "Aspen": "/home/superhac/tables/Aspen (Brunswick 1979)",
+        "AmericanGraffiti_1962": "/home/superhac/tables/American Graffiti (Original 2024)",
+        "centigrade": "/home/superhac/tables/Centigrade 37 (Gottlieb 1977)",
+        "HokusPokus_1976": "/home/superhac/tables/Hokus Pokus (Bally 1976)",
+        "fouraces": "/home/superhac/tables/4 Aces (Williams 1970)",
+        "starwarsbh": "/home/superhac/tables/Star Wars - Bounty Hunter (Original 2021)",
+        "bigbrave": "/home/superhac/tables/Big Brave (Maresa 1974)",
+        "Gottlieb300_1975": "/home/superhac/tables/'300' (Gottlieb 1975)",
+        "SuperSpin_1977": "/home/superhac/tables/Night of the Living Dead (Pinventions 2014)",
+        "GTB_4Square_1971": "/home/superhac/tables/4 Square (Gottlieb 1971)",
+        "ogaucho": "/home/superhac/tables/O Gaucho (LTD do Brasil 1975)",
+        "dragoninterflip": "/home/superhac/tables/Dragon (Interflip 1977)",
+        "ElToro": "/home/superhac/tables/El Toro (Bally 1972)",
+        "jacksopen": "/home/superhac/tables/Jacks Open (Gottlieb 1977)",
+        "Clown": "/home/superhac/tables/Clown (Playmatic 1971)",
+        "Fast Times": "/home/superhac/tables/Fast Times (Original 2026)",
+        "HangGlider_1976": "/home/superhac/tables/Hang Glider (Bally 1976)",
+        "alaska": "/home/superhac/tables/Alaska (Interflip 1978)",
+        "Carnival Games": "/home/superhac/tables/Carnival Games (Original 2025)",
+        "NOTLD68": "/home/superhac/tables/Night of the Living Dead '68 (Original 2018)",
+        "AirborneEM": "/home/superhac/tables/Airborne (J. Esteban 1979)",
+        "TeamOne_77VPX": "/home/superhac/tables/Team One (Gottlieb 1977)",
+        "CharlieAngelsEM": "/home/superhac/tables/Charlies Angels (Gottlieb 1979)",
+        "Bally4Queens_1970": "/home/superhac/tables/4 Queens (Bally 1970)",
+        "HumptyDumpty": "/home/superhac/tables/Humpty Dumpty (Gottlieb 1947)",
+        "volley_1976": "/home/superhac/tables/Volley (Gottlieb 1976)",
+        "TlD_123": "/home/superhac/tables/1-2-3 (Automaticos 1973)",
+        "AliceInWonderland": "/home/superhac/tables/Alice in Wonderland (Gottlieb 1948)",
     }
 
     for rom_name, filename in rom_files.items():
