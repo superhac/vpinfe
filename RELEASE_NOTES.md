@@ -1,11 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.62
+This is the offical release of vpinfe v1.1.63
 
 ### What's New
-- VPX config editor filter by non-defaults
-- VPX config editor add backup/restore
+- Added Pinball Primer instruction/strategy links to the tables page in the managerUI
 
 ### Fixes
 None

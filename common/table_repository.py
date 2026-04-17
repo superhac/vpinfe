@@ -138,6 +138,7 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "vpsid": vpsid,
         "id": effective_id or vpsid,
         "ipdb_id": _get_meta_value(info, vpx, user, vpinfe, ("Info", "IPDBId")),
+        "pinball_primer_tut": _get_meta_value(info, vpx, user, vpinfe, ("Info", "PinballPrimerTut")),
         "manufacturer": _get_meta_value(info, vpx, user, vpinfe, ("Info", "Manufacturer"), ("VPXFile", "manufacturer")),
         "year": _get_meta_value(info, vpx, user, vpinfe, ("Info", "Year"), ("VPXFile", "year")),
         "type": _get_meta_value(info, vpx, user, vpinfe, ("Info", "Type"), ("VPXFile", "type")),

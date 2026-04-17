@@ -375,6 +375,7 @@ def parse_table_info(info_path):
             "vpsid": get(("Info", "VPSId"), ("root", "id")),
             "id": get(("VPinFE", "altvpsid"), ("Info", "VPSId"), ("root", "id")),
             "ipdb_id": get(("Info", "IPDBId")),
+            "pinball_primer_tut": get(("Info", "PinballPrimerTut")),
 
             # Metadata
             "manufacturer": get(("Info", "Manufacturer"), ("VPXFile", "manufacturer")),
@@ -1148,6 +1149,13 @@ def render_panel(tab=None):
                                @click.stop
                                style="text-decoration: none;">
                                 <q-badge color="blue-8" text-color="white" label="VPS" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
+                            </a>
+                            <a v-if="props.row.pinball_primer_tut"
+                               :href="props.row.pinball_primer_tut"
+                               target="_blank"
+                               @click.stop
+                               style="text-decoration: none;">
+                                <q-badge color="green-8" text-color="white" label="PP" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
                             </a>
                         </div>
                         <div v-if="props.row.collections && props.row.collections.length > 0" style="display: flex; flex-wrap: wrap; gap: 4px;">

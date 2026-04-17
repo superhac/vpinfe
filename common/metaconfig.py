@@ -3,6 +3,7 @@ import os
 from urllib.parse import urlparse, parse_qs
 
 class MetaConfig:
+    PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
     DETECT_KEY_MAP = {
         "detectNfozzy": "detectnfozzy",
         "detectFleep": "detectfleep",
@@ -33,6 +34,9 @@ class MetaConfig:
             existing_vpxfile = {}
         existing_filehash = str(existing_vpxfile.get("filehash", "") or "").strip()
         new_filehash = str(configdata.get("vpxdata", {}).get("fileHash", "") or "").strip()
+        pinball_primer_tutorial = self._find_pinball_primer_tutorial(
+            configdata.get("vpsdata", {})
+        )
 
         info = {
             "IPDBId": parse_qs(urlparse(configdata.get("vpsdata", {}).get("ipdbUrl", "")).query).get("id", [""])[0],
@@ -46,10 +50,9 @@ class MetaConfig:
                 configdata.get("vpxdata", {}).get("authorName", "")
             ),
             "Rom": configdata.get("vpxdata", {}).get("rom", ""),
-            "Description": self.strip_all_newlines(
-                configdata.get("vpxdata", {}).get("tableBlurb", "")
-            )
         }
+        if pinball_primer_tutorial:
+            info["PinballPrimerTut"] = pinball_primer_tutorial
 
         vpxfile = {
             "filename": configdata["vpxdata"]["filename"],
@@ -154,6 +157,27 @@ class MetaConfig:
         if not value:
             return []
         return [a.strip() for a in value.split(",") if a.strip()]
+
+    def _find_pinball_primer_tutorial(self, vpsdata):
+        if not isinstance(vpsdata, dict):
+            return ""
+
+        for tutorial in vpsdata.get("tutorialFiles", []):
+            if not isinstance(tutorial, dict):
+                continue
+
+            direct_url = tutorial.get("url")
+            if isinstance(direct_url, str) and direct_url.startswith(self.PINBALL_PRIMER_PREFIX):
+                return direct_url
+
+            for entry in tutorial.get("urls", []):
+                if not isinstance(entry, dict):
+                    continue
+                nested_url = entry.get("url")
+                if isinstance(nested_url, str) and nested_url.startswith(self.PINBALL_PRIMER_PREFIX):
+                    return nested_url
+
+        return ""
 
     def _to_bool(self, val):
         if isinstance(val, bool):
