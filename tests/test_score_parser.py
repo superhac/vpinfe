@@ -166,6 +166,45 @@ class TestScoreParser(unittest.TestCase):
 
         self.assertEqual(result["entries"][0]["initials"], "")
 
+    def test_resolve_score_input_path_prefers_nvram_for_table_directory(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            table_dir = Path(temp_dir)
+            nvram_path = table_dir / "pinmame" / "nvram" / "agent777.nv"
+            vpreg_path = table_dir / "user" / "VPReg.ini"
+            nvram_path.parent.mkdir(parents=True)
+            vpreg_path.parent.mkdir(parents=True)
+            nvram_path.write_bytes(b"nv")
+            vpreg_path.write_text("[Dummy]\n", encoding="utf-8")
+
+            resolved = score_parser.resolve_score_input_path("agent777", str(table_dir))
+
+        self.assertEqual(resolved, str(nvram_path))
+
+    def test_resolve_score_input_path_falls_back_to_vpreg_ini(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            table_dir = Path(temp_dir)
+            vpreg_path = table_dir / "user" / "VPReg.ini"
+            vpreg_path.parent.mkdir(parents=True)
+            vpreg_path.write_text("[Dummy]\n", encoding="utf-8")
+
+            resolved = score_parser.resolve_score_input_path("agent777", str(table_dir))
+
+        self.assertEqual(resolved, str(vpreg_path))
+
+    def test_read_rom_with_source_returns_resolved_special_text_path(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            table_dir = Path(temp_dir)
+            text_path = table_dir / "user" / "OKIES.txt"
+            text_path.parent.mkdir(parents=True)
+            text_path.write_text("123456\n", encoding="utf-8")
+
+            with mock.patch.object(score_parser, "decode_special_text_score_file", return_value=123456) as decoder:
+                result, resolved = score_parser.read_rom_with_source("OKIES_TornadoRally", str(table_dir))
+
+        decoder.assert_called_once_with("OKIES_TornadoRally", str(text_path))
+        self.assertEqual(result, 123456)
+        self.assertEqual(resolved, str(text_path))
+
 
 if __name__ == "__main__":
     unittest.main()

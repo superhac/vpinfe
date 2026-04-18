@@ -60,7 +60,8 @@ rom_aliases = {
     "ss_15":"ss_14",
     "twenty4_150": "twenty4_144",
     "ww_lh6": "ww_lh5",
-     "stk_sprs" : "evelknie",
+    "stk_sprs" : "evelknie",
+    "simp" :"simp_a27",
 
 }
 
@@ -75,10 +76,6 @@ special_text_score_files = {
     },
     "GrandSlam_1972": {
         "filename": "GrandSlam_72VPX.txt",
-        "parser": "smart_numeric",
-    },
-    "simp": {
-        "filename": "SIMPDE.txt",
         "parser": "smart_numeric",
     },
     "Aspen": {
@@ -313,14 +310,41 @@ def get_special_text_score_filename(rom_name: str) -> str | None:
     return config["filename"]
 
 
-def resolve_score_input_path(rom_name: str, filename: str) -> str:
+def resolve_score_input_path(rom_name: str, source_path: str) -> str:
+    source = Path(source_path).expanduser()
+    checked_paths: list[Path] = []
+    resolved_rom_name = resolve_rom_name(rom_name)
+
+    if source.exists() and source.is_file():
+        return str(source)
+
+    table_dir = source if source.is_dir() else source.parent
+
+    primary_score_path = table_dir / "pinmame" / "nvram" / f"{rom_name}.nv"
+    alias_score_path = table_dir / "pinmame" / "nvram" / f"{resolved_rom_name}.nv"
+    fallback_score_path = table_dir / "user" / "VPReg.ini"
+    checked_paths.extend([primary_score_path, alias_score_path, fallback_score_path])
+
+    if primary_score_path.exists():
+        return str(primary_score_path)
+
+    if alias_score_path.exists():
+        return str(alias_score_path)
+
+    if fallback_score_path.exists():
+        return str(fallback_score_path)
+
     if uses_special_text_score_file(rom_name):
-        resolved = resolve_special_text_score_file(rom_name, filename)
+        resolved = resolve_special_text_score_file(rom_name, str(table_dir))
         if resolved is None:
             raise KeyError(f"Unknown special text score ROM: {rom_name}")
         _, resolved_filename = resolved
         return str(resolved_filename)
-    return filename
+
+    raise FileNotFoundError(
+        f"Could not find score file for ROM '{rom_name}'. Checked: "
+        + ", ".join(str(path) for path in checked_paths)
+    )
 
 
 def is_multi_digit_integer(value: str) -> bool:
@@ -1562,11 +1586,13 @@ def read_rom(
     filename: str,
     settings: dict | None = None,
 ) -> int | list[ParsedEntry]:
-    if rom_name in special_text_score_files:
-        return decode_special_text_score_file(rom_name, filename)
+    resolved_filename = resolve_score_input_path(rom_name, filename)
 
-    if Path(filename).suffix.lower() == ".ini":
-        return decode_ini_file(filename)
+    if rom_name in special_text_score_files and Path(resolved_filename).suffix.lower() != ".ini":
+        return decode_special_text_score_file(rom_name, resolved_filename)
+
+    if Path(resolved_filename).suffix.lower() == ".ini":
+        return decode_ini_file(resolved_filename)
 
     resolved_rom_name = resolve_rom_name(rom_name)
     rom_config = roms.get(resolved_rom_name)
@@ -1578,19 +1604,27 @@ def read_rom(
     if decoder is None:
         raise ValueError(f"No decoder registered for ROM '{resolved_rom_name}': {decoder_name}")
 
-    return decoder(filename, rom_config, settings) if settings is not None else decoder(filename, rom_config)
+    return decoder(resolved_filename, rom_config, settings) if settings is not None else decoder(resolved_filename, rom_config)
+
+
+def read_rom_with_source(
+    rom_name: str,
+    source_path: str,
+    settings: dict | None = None,
+) -> tuple[int | list[ParsedEntry], str]:
+    resolved_filename = resolve_score_input_path(rom_name, source_path)
+    return read_rom(rom_name, resolved_filename, settings), resolved_filename
     
 if __name__ == "__main__":
     rom_files = {       
-        "twenty4_150": "/home/superhac/tables/24 (Stern 2009)/pinmame/nvram/twenty4_150.nv",
-        "ww_lh6": "/home/superhac/tables/White Water (Williams 1993)/pinmame/nvram/ww_lh6.nv",
-        "dvlsdre":"/home/superhac/tables/Devils Dare (Gottlieb 1982)/pinmame/nvram/dvlsdre.nv",
-        "dollyptb": "/home/superhac/tables/Dolly Parton (Bally 1979)/pinmame/nvram/dollyptb.nv",
-        "comet_l5":"/home/superhac/tables/Miami Vice (Original 2020)/pinmame/nvram/comet_l5.nv",
+        "twenty4_150": "/home/superhac/tables/24 (Stern 2009)",
+        "ww_lh6": "/home/superhac/tables/White Water (Williams 1993)",
+        "dvlsdre": "/home/superhac/tables/Devils Dare (Gottlieb 1982)",
+        "dollyptb": "/home/superhac/tables/Dolly Parton (Bally 1979)",
+        "comet_l5": "/home/superhac/tables/Miami Vice (Original 2020)",
         "OKIES_TornadoRally": "/home/superhac/tables/Tornado Rally (Original 2024)",
         "zissou": "/home/superhac/tables/Zissou - The Life Aquatic (Original 2022)",
         "GrandSlam_1972": "/home/superhac/tables/Grand Slam (Gottlieb 1972)",
-        "simp": "/home/superhac/tables/The Simpsons (Data East 1990)",
         "Aspen": "/home/superhac/tables/Aspen (Brunswick 1979)",
         "AmericanGraffiti_1962": "/home/superhac/tables/American Graffiti (Original 2024)",
         "centigrade": "/home/superhac/tables/Centigrade 37 (Gottlieb 1977)",
@@ -1619,24 +1653,25 @@ if __name__ == "__main__":
         "volley_1976": "/home/superhac/tables/Volley (Gottlieb 1976)",
         "TlD_123": "/home/superhac/tables/1-2-3 (Automaticos 1973)",
         "AliceInWonderland": "/home/superhac/tables/Alice in Wonderland (Gottlieb 1948)",
-        "wwfr_106":"/home/superhac/tables/WWF Royal Rumble (Data East 1994)/pinmame/nvram/wwfr_106.nv",
+        "wwfr_106": "/home/superhac/tables/WWF Royal Rumble (Data East 1994)",
+        "simp": "/home/superhac/tables/The Simpsons (Data East 1990)",
     }
 
-    for rom_name, filename in rom_files.items():
+    for rom_name, table_dir in rom_files.items():
         try:
-            result = read_rom(rom_name, filename)
+            result, resolved_path = read_rom_with_source(rom_name, table_dir)
         except FileNotFoundError:
             print(f"{rom_name}: file not found, skipping")
             print()
             continue
         except Exception as exc:
-            logging.error("Failed to parse ROM '%s' from '%s': %s", rom_name, filename, exc)
+            logging.error("Failed to parse ROM '%s' from '%s': %s", rom_name, table_dir, exc)
             sys.exit(1)
 
+        print(f"Using score source: {resolved_path}")
         for line in format_result(rom_name, result):
             print(line)
 
         print()
-        print(json.dumps(result_to_jsonable(rom_name, result, filename), indent=2))
+        print(json.dumps(result_to_jsonable(rom_name, result, resolved_path), indent=2))
         print()
-

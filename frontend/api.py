@@ -29,10 +29,8 @@ from common.launcher import (
 )
 from common.metaconfig import MetaConfig
 from common.score_parser import (
-    read_rom,
-    resolve_score_input_path,
+    read_rom_with_source,
     result_to_jsonable,
-    uses_special_text_score_file,
 )
 from platformdirs import user_config_dir
 
@@ -765,47 +763,12 @@ class API:
             logger.debug("No ROM name found for %s, skipping score update", table.tableDirName)
             return
 
-        primary_score_path = Path(table.fullPathTable) / "pinmame" / "nvram" / f"{rom}.nv"
-        fallback_score_path = Path(table.fullPathTable) / "user" / "VPReg.ini"
-
-        score_path = primary_score_path
-        if not score_path.exists():
-            if fallback_score_path.exists():
-                score_path = fallback_score_path
-                logger.debug(
-                    "NVRAM file not found for %s, falling back to %s",
-                    table.tableDirName,
-                    score_path,
-                )
-            elif uses_special_text_score_file(rom):
-                try:
-                    score_path = Path(resolve_score_input_path(rom, table.fullPathTable))
-                    logger.debug(
-                        "No NVRAM or VPReg.ini found for %s, falling back to text score file %s",
-                        table.tableDirName,
-                        score_path,
-                    )
-                except FileNotFoundError:
-                    logger.debug(
-                        "No score source found for %s. Checked %s, %s, and special text score file mapping for ROM %s",
-                        table.tableDirName,
-                        primary_score_path,
-                        fallback_score_path,
-                        rom,
-                    )
-                    return
-            else:
-                logger.debug(
-                    "No score source found for %s. Checked %s and %s",
-                    table.tableDirName,
-                    primary_score_path,
-                    fallback_score_path,
-                )
-                return
-
         try:
-            parsed_result = read_rom(rom, str(score_path))
-            score_data = result_to_jsonable(rom, parsed_result, str(score_path))
+            parsed_result, score_path = read_rom_with_source(rom, table.fullPathTable)
+            score_data = result_to_jsonable(rom, parsed_result, score_path)
+        except FileNotFoundError:
+            logger.debug("No score source found for %s and ROM %s", table.tableDirName, rom)
+            return
         except KeyError:
             logger.debug("ROM %s is not supported for score parsing", rom)
             return
