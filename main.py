@@ -22,6 +22,10 @@ if platform.system() == "Windows" and getattr(sys, 'frozen', False):
         if pid.value == os.getpid():
             ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
 
+if "--dof-helper" in sys.argv[1:]:
+    from common.dof_service_worker import main as _dof_helper_main
+    raise SystemExit(_dof_helper_main())
+
 from pathlib import Path
 from platformdirs import user_config_dir
 

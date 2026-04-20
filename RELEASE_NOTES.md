@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.66
+This is the offical release of vpinfe v1.1.67
 
 ### What's New
-- libdof and libdmdutil update
+None
 
 ### Fixes
-None
+- Fix segfault on libdof after upgraming the library. 
 
 ### Notes
 None
