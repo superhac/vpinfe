@@ -105,6 +105,8 @@ FRIENDLY_NAMES = {
     'chunksize': 'Mobile Chunk Size',
     'renamemasktodefaultini': 'Enable Rename Mask To Default INI',
     'renamemasktodefaultinimask': 'Rename Mask To Default INI Mask',
+    # [Input]
+    'joytutorial': 'Open Tutorial Overlay',
     # [vpinplay]
     'synconexit': 'Sync on Exit',
     'apiendpoint': 'API Endpoint',

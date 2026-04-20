@@ -536,6 +536,7 @@ class API:
             'joyselect': self._iniConfig.config['Input'].get('joyselect', '0'),
             'joymenu': self._iniConfig.config['Input'].get('joymenu', '0'),
             'joyback': self._iniConfig.config['Input'].get('joyback', '0'),
+            'joytutorial': self._iniConfig.config['Input'].get('joytutorial', '0'),
             'joyexit': self._iniConfig.config['Input'].get('joyexit', '0'),
             'joycollectionmenu': self._iniConfig.config['Input'].get('joycollectionmenu', '0')
         }
@@ -544,7 +545,7 @@ class API:
         """Set a gamepad button mapping and save to config."""
         valid_buttons = [
             'joyleft', 'joyright', 'joyup', 'joydown',
-            'joyselect', 'joymenu', 'joyback', 'joyexit', 'joycollectionmenu'
+            'joyselect', 'joymenu', 'joyback', 'joytutorial', 'joyexit', 'joycollectionmenu'
         ]
 
         if button_name not in valid_buttons:

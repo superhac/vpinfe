@@ -27,6 +27,14 @@
   background: transparent;
 }
 
+#tutorial-frame {
+  width: 94vw;
+  height: 94vh;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
 #overlay-root {
   display: none;
   opacity: 0;
@@ -37,4 +45,3 @@
   display: flex;
   opacity: 1;
 }
-

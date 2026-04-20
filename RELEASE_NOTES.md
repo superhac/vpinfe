@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.67
+This is the offical release of vpinfe v1.1.68
 
 ### What's New
-None
+- Added the Pinball Primer tutorials to the frontend.  Press "t" or your mapped joytutorial button to popup a dialog.  scroll joyleft and joyright.
 
 ### Fixes
-- Fix segfault on libdof after upgraming the library. 
+None
 
 ### Notes
-None
+

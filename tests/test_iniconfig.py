@@ -33,6 +33,15 @@ class TestIniConfig(unittest.TestCase):
             self.assertEqual(config.config.get("libdmdutil", "zedmddevice"), "")
             self.assertEqual(config.config.get("libdmdutil", "zedmdwifiaddr"), "")
 
+    def test_adds_joytutorial_default_input_mapping(self) -> None:
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+
+            config = IniConfig(str(ini_path))
+
+            self.assertTrue(config.config.has_section("Input"))
+            self.assertEqual(config.config.get("Input", "joytutorial"), "")
+
 
 if __name__ == "__main__":
     unittest.main()

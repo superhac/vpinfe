@@ -30,6 +30,7 @@ VPinFE uses a platform-specific configuration directory to store its settings. O
 | joyselect         | Select button / Launch. Button mapping ids from `--gamepadtest`.        |
 | joymenu           | Pop Menu. Button mapping ids from `--gamepadtest`.                       |
 | joyback           | Go Back. Button mapping ids from `--gamepadtest`.                        |
+| joytutorial       | Open the Pinball Primer tutorial overlay. Button mapping ids from `--gamepadtest`. |
 | joyexit           | Exit VpinFE. Button mapping ids from `--gamepadtest`.                   |
 | joycollectionmenu | Open collection menu in the Theme UI. Button mapping ids from `--gamepadtest`. |
 

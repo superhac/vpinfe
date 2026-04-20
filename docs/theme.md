@@ -518,6 +518,7 @@ The following input actions are passed to your `handleInput` function (table win
 | `joydown` | Mapped button | — |
 | `joyselect` | Mapped button | Enter |
 | `joyback` | Mapped button | — |
+| `joytutorial` | Mapped button | — |
 
 The following actions are handled internally by VPinFECore and do **not** reach your handler:
 
@@ -525,6 +526,7 @@ The following actions are handled internally by VPinFECore and do **not** reach 
 |--------|---------|----------|--------|
 | `joymenu` | Mapped button | `m` | Toggles the main menu overlay |
 | `joycollectionmenu` | Mapped button | `c` | Toggles the collection menu overlay |
+| `joytutorial` | Mapped button | `t` | Toggles the Pinball Primer tutorial overlay |
 | `joyexit` | Mapped button | `Escape` / `q` | Closes the application |
 
 ---
@@ -628,7 +630,7 @@ The following methods are available via `vpin.call()`:
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `get_joymaping` | — | `object` | Returns the gamepad button mapping from `vpinfe.ini`. Keys: `joyleft`, `joyright`, `joyup`, `joydown`, `joyselect`, `joymenu`, `joyback`, `joyexit`, `joycollectionmenu`. Values are button index strings. |
+| `get_joymaping` | — | `object` | Returns the gamepad button mapping from `vpinfe.ini`. Keys: `joyleft`, `joyright`, `joyup`, `joydown`, `joyselect`, `joymenu`, `joyback`, `joytutorial`, `joyexit`, `joycollectionmenu`. Values are button index strings. |
 | `set_button_mapping` | `button_name`, `button_index` | `object` | Sets a gamepad button mapping and saves to config. Returns `{success, message}`. |
 
 ##### Theme & Display Config

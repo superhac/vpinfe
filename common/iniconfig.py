@@ -49,6 +49,7 @@ class IniConfig:
 				'joyselect': '',
 				'joymenu': '',
 				'joyback': '',
+				'joytutorial': '',
 				'joyexit': '',
 				'joycollectionmenu': '',
 				},

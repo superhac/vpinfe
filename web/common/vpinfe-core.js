@@ -17,6 +17,7 @@ class VPinFECore {
     this.inputHandlers = []; // gamepad and joystick input handlers for theme
     this.inputHandlerMenu = []; // gamepad and joystick input handlers for menu
     this.inputHandlerCollectionMenu = []; // gamepad and joystick input handlers for collection menu
+    this.inputHandlerTutorial = []; // gamepad and joystick input handlers for tutorial overlay
 
     // Gamepad mapping
     this.joyButtonMap = {}
@@ -26,6 +27,7 @@ class VPinFECore {
     // menu is up?
     this.menuUP = false;
     this.collectionMenuUP = false;
+    this.tutorialUP = false;
 
     // Event handling
     this.eventHandlers = {}; // Custom event handlers registered by themes
@@ -111,6 +113,13 @@ class VPinFECore {
     if (typeof handler === 'function') {
       this.call("console_out", "registered collection menu gamepad handler");
       this.inputHandlerCollectionMenu.push(handler);
+    }
+  }
+
+  async registerInputHandlerTutorial(handler) {
+    if (typeof handler === 'function') {
+      this.call("console_out", "registered tutorial gamepad handler");
+      this.inputHandlerTutorial.push(handler);
     }
   }
 
@@ -317,6 +326,10 @@ class VPinFECore {
   // Toggle main menu (public method callable from main menu)
   toggleMenu() {
     this.#showmenu();
+  }
+
+  toggleTutorial() {
+    this.#showtutorial();
   }
 
   // launch a table
@@ -705,7 +718,10 @@ class VPinFECore {
   }
 
   async #triggerInputAction(action) {
-    if(this.collectionMenuUP) {
+    if(this.tutorialUP) {
+      this.inputHandlerTutorial.forEach(handler => handler(action));
+    }
+    else if(this.collectionMenuUP) {
       // Collection menu is up, route to its handler
       this.inputHandlerCollectionMenu.forEach(handler => handler(action));
     }
@@ -726,9 +742,12 @@ class VPinFECore {
       if (e.key === "Escape" || e.key === 'q') this.call("close_app");
       else if (e.key === 'ArrowLeft' || e.code === 'ShiftLeft') this.#triggerInputAction("joyleft");
       else if (e.key === 'ArrowRight' || e.code === 'ShiftRight') this.#triggerInputAction("joyright");
+      else if (e.key === 'ArrowUp') this.#triggerInputAction("joyup");
+      else if (e.key === 'ArrowDown') this.#triggerInputAction("joydown");
       else if (e.key === 'Enter') this.#triggerInputAction("joyselect");
       else if (e.key === 'm') this.#showmenu();
       else if (e.key === 'c') this.#showcollectionmenu();
+      else if (e.key === 't') this.#showtutorial();
     }
   }
 
@@ -768,6 +787,9 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     else if (action === "joycollectionmenu" && windowName == "table") {
       this.call("console_out", "Triggering collection menu");
       this.#showcollectionmenu();
+    }
+    else if (action === "joytutorial" && windowName == "table") {
+      this.#showtutorial();
     }
     else {
       this.#triggerInputAction(action);
@@ -831,6 +853,9 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     if (this.collectionMenuUP) {
       await this.#showcollectionmenu();
     }
+    if (this.tutorialUP) {
+      await this.#showtutorial();
+    }
 
     if (!this.menuUP) {
       this.menuUP = true;
@@ -873,6 +898,9 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     if (this.menuUP) {
       await this.#showmenu();
     }
+    if (this.tutorialUP) {
+      await this.#showtutorial();
+    }
 
     if (!this.collectionMenuUP) {
       this.collectionMenuUP = true;
@@ -895,6 +923,76 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
 
       if (iframe) {
         iframe.style.display = "none"; // just hide, don't remove
+        iframe.contentWindow.postMessage({ event: "reset state" }, "*");
+      }
+    }
+  }
+
+  #getCurrentPinballPrimerTutorialUrl() {
+    const index = Math.floor(this._currentTableIndex);
+    if (!Array.isArray(this.tableData) || index < 0 || index >= this.tableData.length) {
+      return "";
+    }
+
+    const table = this.tableData[index];
+    const meta = (table && typeof table === "object") ? table.meta : null;
+    const info = (meta && typeof meta === "object" && meta.Info && typeof meta.Info === "object")
+      ? meta.Info
+      : null;
+    const tutorialUrl = info ? info.PinballPrimerTut : "";
+    return (typeof tutorialUrl === "string") ? tutorialUrl.trim() : "";
+  }
+
+  #buildTutorialProxyUrl(tutorialUrl) {
+    if (!tutorialUrl) return "";
+    return `/proxy/pinballprimer?url=${encodeURIComponent(tutorialUrl)}`;
+  }
+
+  async #showtutorial() {
+    const overlayRoot = document.getElementById('overlay-root');
+    let iframe = document.getElementById("tutorial-frame");
+
+    if (!this.tutorialUP) {
+      const tutorialUrl = this.#getCurrentPinballPrimerTutorialUrl();
+      if (!tutorialUrl) {
+        return;
+      }
+
+      if (this.menuUP) {
+        await this.#showmenu();
+      }
+      if (this.collectionMenuUP) {
+        await this.#showcollectionmenu();
+      }
+
+      this.tutorialUP = true;
+      overlayRoot.classList.add("active");
+
+      if (!iframe) {
+        iframe = document.createElement("iframe");
+        iframe.src = "/web/tutorial/tutorial.html";
+        iframe.id = "tutorial-frame";
+        iframe.setAttribute("allowTransparency", "true");
+        iframe.style.display = "none";
+        overlayRoot.appendChild(iframe);
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+
+      iframe.style.display = "block";
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          event: "tutorial_open",
+          tutorial_url: tutorialUrl,
+          tutorial_proxy_url: this.#buildTutorialProxyUrl(tutorialUrl),
+          table_rotation: this.tableRotation,
+        }, "*");
+      }
+    } else {
+      this.tutorialUP = false;
+      overlayRoot.classList.remove("active");
+
+      if (iframe) {
+        iframe.style.display = "none";
         iframe.contentWindow.postMessage({ event: "reset state" }, "*");
       }
     }
