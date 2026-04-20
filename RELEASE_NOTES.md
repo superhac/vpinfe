@@ -1,13 +1,13 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.64
+This is the offical release of vpinfe v1.1.65
 
 ### What's New
-None
+- libdof update
 
 ### Fixes
-- fix simp rom
+None
 
 ### Notes
 None
