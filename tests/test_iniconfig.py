@@ -42,6 +42,17 @@ class TestIniConfig(unittest.TestCase):
             self.assertTrue(config.config.has_section("Input"))
             self.assertEqual(config.config.get("Input", "joytutorial"), "")
 
+    def test_adds_keyboard_defaults_to_input_mapping(self) -> None:
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+
+            config = IniConfig(str(ini_path))
+
+            self.assertTrue(config.config.has_section("Input"))
+            self.assertEqual(config.config.get("Input", "keyleft"), "ArrowLeft,ShiftLeft")
+            self.assertEqual(config.config.get("Input", "keyback"), "b")
+            self.assertEqual(config.config.get("Input", "keyexit"), "Escape,q")
+
 
 if __name__ == "__main__":
     unittest.main()

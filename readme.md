@@ -27,6 +27,7 @@ Join us on VPC discord channel @ [vpinfe](https://discord.gg/SFBfA6Te2A)
 - Huge thanks to **@Gonzonia** for all his work on the Mac app bundle. This simply wouldn’t have happened without his knowledge and contributions.
 - A big high five to @evilwraith for making the ARM build! 
 - A big thank you to all the hard work and dedication the [VPS Team](https://virtualpinballspreadsheet.github.io/): (**@Dux, @Fraesh and @Studlygoorite**) has put into creating this great table finding resource! And they made it "open" so others can leverage it as they want.
+- A big thank you to [Pinball Primer](https://pinballprimer.github.io/) for creating and sharing such a great rules and tutorial resource for the pinball community.
 
 ## See it in action
 
@@ -211,8 +212,24 @@ Gamepad button mappings stored in `vpinfe.ini`:
 - **Select**
 - **Menu**
 - **Back**
+- **Tutorial**
 - **Exit**
 - **Collection Menu**
+
+Keyboard mappings are also stored in the same `[Input]` section using matching `key*` entries:
+
+- `keyleft`
+- `keyright`
+- `keyup`
+- `keydown`
+- `keyselect`
+- `keymenu`
+- `keyback`
+- `keytutorial`
+- `keyexit`
+- `keycollectionmenu`
+
+These keyboard values apply only to the VPinFE frontend. They do not affect the Remote Control page. Each entry accepts a comma-separated list of browser key values or key codes such as `ArrowLeft,ShiftLeft` or `Escape,q`.
 
 You normally set these from `./vpinfe --gamepadtest`, but the values are visible and editable here.
 
@@ -302,6 +319,7 @@ The **Tables** page scans your tables root for folders that contain both a `.vpx
 - Multi-select with **Select Page**
 - Batch **Add to Collection**
 - Links to **IPDB** and **VPS**
+- A **PP** pill that opens the Pinball Primer tutorial when the table has a `PinballPrimerTut` link
 - Badges for rating, collection membership, and per-table overrides
 
 Header actions:
@@ -315,6 +333,8 @@ Build Metadata options:
 
 - **Update All Tables** reparses tables even if `.info` already exists
 - **Download Media** downloads media from VPinMediaDB while building metadata
+
+When a matching `https://pinballprimer.github.io/` tutorial exists in VPSdb, VPinFE also writes `Info.PinballPrimerTut` into the table's `.info` file during metadata generation.
 
 Clicking a table opens a detail dialog with:
 
@@ -349,6 +369,23 @@ The **Import Table** dialog lets you:
 - Upload a required `.vpx`
 - Optionally upload `.directb2s`, ROM `.zip`, PUP pack `.zip`, and music `.zip`
 - Create the table folder, generate metadata, copy/extract uploaded files, and download media
+
+### Pinball Primer tutorial overlay
+
+VPinFE includes a built-in Pinball Primer tutorial overlay for tables that have `Info.PinballPrimerTut` in their `.info` metadata.
+
+- Press **`t`** on the keyboard to open or close the tutorial overlay
+- The keyboard defaults come from `[Input]` `key*` mappings in `vpinfe.ini`
+- You can also map a controller button to **Tutorial** / `joytutorial`
+- The overlay uses the built-in `#overlay-root` system, so it does not require any theme changes
+- Tutorials are loaded through a local Pinball Primer proxy so they can be displayed inside VPinFE reliably
+
+Tutorial overlay controls:
+
+- **Up** or **Left** scroll up
+- **Down** or **Right** scroll down
+- **Back** closes the overlay
+- **t** closes the overlay
 
 ### Collections page
 
@@ -582,7 +619,7 @@ The gamepad configuration interface provides:
 
 **Button Tester** - Real-time visual feedback showing which buttons are being pressed on your gamepad (numbered 0-16)
 
-**Interactive Button Mapping** - Click on any mapping card (Left, Right, Up, Down, Select, Menu, Back, Exit, Collection Menu), then press the corresponding gamepad button to assign it. The mapping is automatically saved to your `vpinfe.ini` file.
+**Interactive Button Mapping** - Click on any mapping card (Left, Right, Up, Down, Select, Menu, Back, Tutorial, Exit, Collection Menu), then press the corresponding gamepad button to assign it. The mapping is automatically saved to your `vpinfe.ini` file.
 
 **Visual Workflow:**
 1. Click a mapping card (e.g., "Left") - it will highlight with an orange pulsing glow

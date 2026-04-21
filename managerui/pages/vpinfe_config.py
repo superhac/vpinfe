@@ -106,7 +106,26 @@ FRIENDLY_NAMES = {
     'renamemasktodefaultini': 'Enable Rename Mask To Default INI',
     'renamemasktodefaultinimask': 'Rename Mask To Default INI Mask',
     # [Input]
-    'joytutorial': 'Open Tutorial Overlay',
+    'keyleft': 'Keyboard Left',
+    'keyright': 'Keyboard Right',
+    'keyup': 'Keyboard Up',
+    'keydown': 'Keyboard Down',
+    'keyselect': 'Keyboard Select',
+    'keymenu': 'Keyboard Menu',
+    'keyback': 'Keyboard Back',
+    'joyleft': 'Gamepad Left',
+    'joyright': 'Gamepad Right',
+    'joyup': 'Gamepad Up',
+    'joydown': 'Gamepad Down',
+    'joyselect': 'Gamepad Select',
+    'joymenu': 'Gamepad Menu',
+    'joyback': 'Gamepad Back',
+    'joytutorial': 'Gamepad Tutorial',
+    'keytutorial': 'Keyboard Tutorial',
+    'joyexit': 'Gamepad Exit',
+    'keyexit': 'Keyboard Exit',
+    'joycollectionmenu': 'Gamepad Collection Menu',
+    'keycollectionmenu': 'Keyboard Collection Menu',
     # [vpinplay]
     'synconexit': 'Sync on Exit',
     'apiendpoint': 'API Endpoint',
@@ -447,6 +466,12 @@ def render_panel(tab=None):
             gap: 1rem;
             align-items: start;
         }
+        .config-input-panel-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1rem;
+            align-items: start;
+        }
         .config-display-column {
             display: grid;
             gap: 1rem;
@@ -600,6 +625,9 @@ def render_panel(tab=None):
                 grid-template-columns: 1fr;
             }
             .config-three-column-grid {
+                grid-template-columns: 1fr;
+            }
+            .config-input-panel-grid {
                 grid-template-columns: 1fr;
             }
             .config-vpinplay-pair {
@@ -1281,10 +1309,39 @@ def render_panel(tab=None):
                                                     value = config.config.get(section, key, fallback='')
                                                     build_config_input(section, key, value)
                                     elif section == 'Input':
-                                        with ui.element('div').classes('config-three-column-grid'):
-                                            for column_keys in split_evenly(options, 3):
-                                                with ui.element('div').classes('config-display-column'):
-                                                    for key in column_keys:
+                                        controller_keys = [key for key in options if key.startswith('joy')]
+                                        keyboard_keys = [key for key in options if key.startswith('key')]
+                                        other_input_keys = [
+                                            key for key in options
+                                            if key not in set(controller_keys + keyboard_keys)
+                                        ]
+
+                                        with ui.column().classes('w-full gap-4'):
+                                            with ui.card().classes('config-side-card w-full p-4'):
+                                                ui.label('Controller Mappings').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                ui.label(
+                                                    'Assign gamepad button indexes for each frontend action.'
+                                                ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                                with ui.element('div').classes('config-input-panel-grid mt-3'):
+                                                    for key in controller_keys:
+                                                        value = config.config.get(section, key, fallback='')
+                                                        build_config_input(section, key, value)
+
+                                            with ui.card().classes('config-side-card w-full p-4'):
+                                                ui.label('Keyboard Mappings').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                ui.label(
+                                                    'Set comma-separated keyboard bindings used only by the VPinFE frontend.'
+                                                ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                                with ui.element('div').classes('config-input-panel-grid mt-3'):
+                                                    for key in keyboard_keys:
+                                                        value = config.config.get(section, key, fallback='')
+                                                        build_config_input(section, key, value)
+
+                                        if other_input_keys:
+                                            with ui.card().classes('config-side-card w-full mt-4 p-4'):
+                                                ui.label('Additional Input Settings').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                with ui.element('div').classes('config-form-grid mt-3'):
+                                                    for key in other_input_keys:
                                                         value = config.config.get(section, key, fallback='')
                                                         build_config_input(section, key, value)
                                     elif section == 'Mobile':

@@ -51,15 +51,25 @@ class TestApiInputMapping(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser.add_section("Input")
         parser.set("Input", "joyleft", "1")
+        parser.set("Input", "keyleft", "ArrowLeft,ShiftLeft")
         parser.set("Input", "joyright", "2")
+        parser.set("Input", "keyright", "ArrowRight,ShiftRight")
         parser.set("Input", "joyup", "3")
+        parser.set("Input", "keyup", "ArrowUp")
         parser.set("Input", "joydown", "4")
+        parser.set("Input", "keydown", "ArrowDown")
         parser.set("Input", "joyselect", "5")
+        parser.set("Input", "keyselect", "Enter")
         parser.set("Input", "joymenu", "6")
+        parser.set("Input", "keymenu", "m")
         parser.set("Input", "joyback", "7")
+        parser.set("Input", "keyback", "b")
         parser.set("Input", "joytutorial", "8")
+        parser.set("Input", "keytutorial", "t")
         parser.set("Input", "joyexit", "9")
+        parser.set("Input", "keyexit", "Escape,q")
         parser.set("Input", "joycollectionmenu", "10")
+        parser.set("Input", "keycollectionmenu", "c")
         parser.add_section("Settings")
         parser.set("Settings", "startup_collection", "")
 
@@ -92,3 +102,12 @@ class TestApiInputMapping(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(ini.config.get("Input", "joytutorial"), "15")
         self.assertTrue(ini.saved)
+
+    @patch("frontend.api.ensure_tables_loaded", return_value=[])
+    def test_get_keymapping_includes_keytutorial(self, _mock_tables) -> None:
+        ini = self._build_ini()
+        api = API(ini)
+
+        mapping = api.get_keymapping()
+
+        self.assertEqual(mapping["keytutorial"], "t")

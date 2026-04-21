@@ -21,6 +21,18 @@ class VPinFECore {
 
     // Gamepad mapping
     this.joyButtonMap = {}
+    this.keyActionMap = {
+      joyleft: ['arrowleft', 'shiftleft'],
+      joyright: ['arrowright', 'shiftright'],
+      joyup: ['arrowup'],
+      joydown: ['arrowdown'],
+      joyselect: ['enter'],
+      joymenu: ['m'],
+      joyback: [],
+      joytutorial: ['t'],
+      joyexit: ['escape', 'q'],
+      joycollectionmenu: ['c'],
+    };
     this.previousButtonStates = {};
     this.gamepadEnabled = true;
 
@@ -676,6 +688,7 @@ class VPinFECore {
 
     // only run on the table window.. Its the master controller for all screens/windows
     if (this._windowName == "table") {
+      await this.#initKeyboardMapping();
       await this.#initGamepadMapping();
       this.#setupGamepadListeners();
       this.#updateGamepads();           // No await needed here — runs loop
@@ -735,19 +748,53 @@ class VPinFECore {
     }
   }
 
+  #normalizeKeyboardToken(token) {
+    const normalized = String(token || '').trim().toLowerCase();
+    const aliases = {
+      esc: 'escape',
+      return: 'enter',
+      ' ': 'space',
+      spacebar: 'space',
+    };
+    return aliases[normalized] || normalized;
+  }
+
+  #parseKeyboardBinding(value) {
+    if (typeof value !== 'string') return [];
+    return value
+      .split(',')
+      .map(token => this.#normalizeKeyboardToken(token))
+      .filter(Boolean);
+  }
+
+  #eventKeyboardTokens(e) {
+    return new Set([
+      this.#normalizeKeyboardToken(e.key),
+      this.#normalizeKeyboardToken(e.code),
+    ].filter(Boolean));
+  }
+
+  #actionForKeyboardEvent(e) {
+    const eventTokens = this.#eventKeyboardTokens(e);
+    for (const [action, bindings] of Object.entries(this.keyActionMap)) {
+      if (bindings.some(binding => eventTokens.has(binding))) {
+        return action;
+      }
+    }
+    return null;
+  }
+
   // Keybaord input processing to handlers
   async #onKeyDown(e) {
-    windowName = await this.call("get_my_window_name");
-    if (windowName == "table") {
-      if (e.key === "Escape" || e.key === 'q') this.call("close_app");
-      else if (e.key === 'ArrowLeft' || e.code === 'ShiftLeft') this.#triggerInputAction("joyleft");
-      else if (e.key === 'ArrowRight' || e.code === 'ShiftRight') this.#triggerInputAction("joyright");
-      else if (e.key === 'ArrowUp') this.#triggerInputAction("joyup");
-      else if (e.key === 'ArrowDown') this.#triggerInputAction("joydown");
-      else if (e.key === 'Enter') this.#triggerInputAction("joyselect");
-      else if (e.key === 'm') this.#showmenu();
-      else if (e.key === 'c') this.#showcollectionmenu();
-      else if (e.key === 't') this.#showtutorial();
+    if (this._windowName == "table") {
+      const action = this.#actionForKeyboardEvent(e);
+      if (!action) return;
+
+      if (action === "joyexit") this.call("close_app");
+      else if (action === "joymenu") this.#showmenu();
+      else if (action === "joycollectionmenu") this.#showcollectionmenu();
+      else if (action === "joytutorial") this.#showtutorial();
+      else this.#triggerInputAction(action);
     }
   }
 
@@ -756,6 +803,26 @@ class VPinFECore {
   }
 
   // Gamepad handling
+ async #initKeyboardMapping() {
+  const keymap = await this.call("get_keymapping");
+  const actionMap = {
+    keyleft: 'joyleft',
+    keyright: 'joyright',
+    keyup: 'joyup',
+    keydown: 'joydown',
+    keyselect: 'joyselect',
+    keymenu: 'joymenu',
+    keyback: 'joyback',
+    keytutorial: 'joytutorial',
+    keyexit: 'joyexit',
+    keycollectionmenu: 'joycollectionmenu',
+  };
+
+  for (const [configKey, action] of Object.entries(actionMap)) {
+    this.keyActionMap[action] = this.#parseKeyboardBinding(keymap[configKey] || '');
+  }
+}
+
  async #initGamepadMapping() {
   const joymap = await this.call("get_joymaping");
 

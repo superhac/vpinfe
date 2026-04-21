@@ -47,6 +47,7 @@ class WebSocketBridge:
         'reset_filters',
         'console_out',
         'get_joymaping',
+        'get_keymapping',
         'set_button_mapping',
         'launch_table',
         'update_frontend_dof_for_table',

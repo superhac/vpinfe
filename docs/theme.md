@@ -512,22 +512,22 @@ The following input actions are passed to your `handleInput` function (table win
 
 | Action | Gamepad | Keyboard |
 |--------|---------|----------|
-| `joyleft` | Mapped button | Left Arrow / Left Shift |
-| `joyright` | Mapped button | Right Arrow / Right Shift |
-| `joyup` | Mapped button | — |
-| `joydown` | Mapped button | — |
-| `joyselect` | Mapped button | Enter |
-| `joyback` | Mapped button | — |
-| `joytutorial` | Mapped button | — |
+| `joyleft` | Mapped button | `[Input] keyleft` (default `ArrowLeft,ShiftLeft`) |
+| `joyright` | Mapped button | `[Input] keyright` (default `ArrowRight,ShiftRight`) |
+| `joyup` | Mapped button | `[Input] keyup` (default `ArrowUp`) |
+| `joydown` | Mapped button | `[Input] keydown` (default `ArrowDown`) |
+| `joyselect` | Mapped button | `[Input] keyselect` (default `Enter`) |
+| `joyback` | Mapped button | `[Input] keyback` |
+| `joytutorial` | Mapped button | `[Input] keytutorial` when routed to handlers |
 
 The following actions are handled internally by VPinFECore and do **not** reach your handler:
 
 | Action | Gamepad | Keyboard | Effect |
 |--------|---------|----------|--------|
-| `joymenu` | Mapped button | `m` | Toggles the main menu overlay |
-| `joycollectionmenu` | Mapped button | `c` | Toggles the collection menu overlay |
-| `joytutorial` | Mapped button | `t` | Toggles the Pinball Primer tutorial overlay |
-| `joyexit` | Mapped button | `Escape` / `q` | Closes the application |
+| `joymenu` | Mapped button | `[Input] keymenu` (default `m`) | Toggles the main menu overlay |
+| `joycollectionmenu` | Mapped button | `[Input] keycollectionmenu` (default `c`) | Toggles the collection menu overlay |
+| `joytutorial` | Mapped button | `[Input] keytutorial` (default `t`) | Toggles the Pinball Primer tutorial overlay |
+| `joyexit` | Mapped button | `[Input] keyexit` (default `Escape,q`) | Closes the application |
 
 ---
 
@@ -631,6 +631,7 @@ The following methods are available via `vpin.call()`:
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
 | `get_joymaping` | — | `object` | Returns the gamepad button mapping from `vpinfe.ini`. Keys: `joyleft`, `joyright`, `joyup`, `joydown`, `joyselect`, `joymenu`, `joyback`, `joytutorial`, `joyexit`, `joycollectionmenu`. Values are button index strings. |
+| `get_keymapping` | — | `object` | Returns the keyboard mapping from `vpinfe.ini`. Keys: `keyleft`, `keyright`, `keyup`, `keydown`, `keyselect`, `keymenu`, `keyback`, `keytutorial`, `keyexit`, `keycollectionmenu`. Values are comma-separated browser key names or key codes. |
 | `set_button_mapping` | `button_name`, `button_index` | `object` | Sets a gamepad button mapping and saves to config. Returns `{success, message}`. |
 
 ##### Theme & Display Config

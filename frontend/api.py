@@ -541,6 +541,20 @@ class API:
             'joycollectionmenu': self._iniConfig.config['Input'].get('joycollectionmenu', '0')
         }
 
+    def get_keymapping(self):
+        return {
+            'keyleft': self._iniConfig.config['Input'].get('keyleft', 'ArrowLeft,ShiftLeft'),
+            'keyright': self._iniConfig.config['Input'].get('keyright', 'ArrowRight,ShiftRight'),
+            'keyup': self._iniConfig.config['Input'].get('keyup', 'ArrowUp'),
+            'keydown': self._iniConfig.config['Input'].get('keydown', 'ArrowDown'),
+            'keyselect': self._iniConfig.config['Input'].get('keyselect', 'Enter'),
+            'keymenu': self._iniConfig.config['Input'].get('keymenu', 'm'),
+            'keyback': self._iniConfig.config['Input'].get('keyback', 'b'),
+            'keytutorial': self._iniConfig.config['Input'].get('keytutorial', 't'),
+            'keyexit': self._iniConfig.config['Input'].get('keyexit', 'Escape,q'),
+            'keycollectionmenu': self._iniConfig.config['Input'].get('keycollectionmenu', 'c'),
+        }
+
     def set_button_mapping(self, button_name, button_index):
         """Set a gamepad button mapping and save to config."""
         valid_buttons = [
