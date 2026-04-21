@@ -94,7 +94,7 @@ Put that URL in a browser and your in the ManagerUI.
 
 ### Enabling the shutdown feature
 
-If you plan on using the **Shutdown** or **Reboot** option in the frontend or the remote page, some Linux systems need an explicit polkit rule so the VPinFE user can power off the machine without an interactive prompt.
+If you plan on using the **Shutdown** or **Reboot** option in the frontend or the remote page, some Linux systems need an explicit polkit rule so the VPinFE user can power off or reboot the machine without an interactive prompt.
 
 #### Linux
 
@@ -103,8 +103,14 @@ Create `/etc/polkit-1/rules.d/49-allow-poweroff.rules`:
 ```javascript
 polkit.addRule(function(action, subject) {
     if (
-        (action.id == "org.freedesktop.login1.power-off" ||
-         action.id == "org.freedesktop.login1.power-off-ignore-inhibit") &&
+        (
+            action.id == "org.freedesktop.login1.power-off" ||
+            action.id == "org.freedesktop.login1.power-off-multiple-sessions" ||
+            action.id == "org.freedesktop.login1.power-off-ignore-inhibit" ||
+            action.id == "org.freedesktop.login1.reboot" ||
+            action.id == "org.freedesktop.login1.reboot-multiple-sessions" ||
+            action.id == "org.freedesktop.login1.reboot-ignore-inhibit"
+        ) &&
         subject.user == "superhac"
     ) {
         return polkit.Result.YES;
@@ -117,6 +123,8 @@ Then restart polkit:
 ```bash
 sudo systemctl restart polkit
 ```
+
+On Kubuntu/KDE you may see journal lines about `/run/polkit-1/rules.d` or `/usr/local/share/polkit-1/rules.d` not existing right after the restart. Those are normal informational messages, not a shutdown failure by themselves.
 
 ## Setup your tables
 

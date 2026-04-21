@@ -281,8 +281,14 @@ If you plan on using the Shutdown/Reboot option in the frontend or in the remote
 ```
 polkit.addRule(function(action, subject) {
     if (
-        (action.id == "org.freedesktop.login1.power-off" ||
-         action.id == "org.freedesktop.login1.power-off-ignore-inhibit") &&
+        (
+            action.id == "org.freedesktop.login1.power-off" ||
+            action.id == "org.freedesktop.login1.power-off-multiple-sessions" ||
+            action.id == "org.freedesktop.login1.power-off-ignore-inhibit" ||
+            action.id == "org.freedesktop.login1.reboot" ||
+            action.id == "org.freedesktop.login1.reboot-multiple-sessions" ||
+            action.id == "org.freedesktop.login1.reboot-ignore-inhibit"
+        ) &&
         subject.user == "superhac"
     ) {
         return polkit.Result.YES;
@@ -291,3 +297,5 @@ polkit.addRule(function(action, subject) {
 ```
 
 `sudo systemctl restart polkit`
+
+On Kubuntu/KDE, journal entries about `/run/polkit-1/rules.d` or `/usr/local/share/polkit-1/rules.d` not existing after the restart are normal and can be ignored.
