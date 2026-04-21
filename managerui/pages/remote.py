@@ -34,6 +34,14 @@ _INI_CFG = None
 logger = logging.getLogger("vpinfe.manager.remote")
 
 
+def _system_command_env() -> dict[str, str]:
+    """Return a clean env for OS tools that must not inherit bundled runtime libs."""
+    env = os.environ.copy()
+    for key in ("LD_LIBRARY_PATH", "LD_PRELOAD", "PYTHONHOME", "PYTHONPATH", "_MEIPASS2"):
+        env.pop(key, None)
+    return env
+
+
 def _get_collections():
     """Get list of collection names."""
     try:
@@ -347,7 +355,7 @@ def _shutdown_system():
         subprocess.Popen(['osascript', '-e', 'tell app "System Events" to shut down'])
     else:
         # Linux: use systemctl with -i flag to ignore inhibitors (like GNOME session)
-        subprocess.Popen(["systemctl", "poweroff", "-i"])
+        subprocess.Popen(["systemctl", "poweroff", "-i"], env=_system_command_env())
 
     # Terminate Chromium windows after issuing shutdown
     main_module = sys.modules['__main__']
@@ -369,7 +377,7 @@ def _reboot_system():
         subprocess.Popen(['osascript', '-e', 'tell app "System Events" to restart'])
     else:
         # Linux: use systemctl reboot
-        subprocess.Popen(['systemctl', 'reboot'])
+        subprocess.Popen(['systemctl', 'reboot'], env=_system_command_env())
 
     # Terminate Chromium windows after issuing reboot
     main_module = sys.modules['__main__']

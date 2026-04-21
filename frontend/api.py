@@ -38,6 +38,14 @@ from platformdirs import user_config_dir
 logger = logging.getLogger("vpinfe.frontend.api")
 
 
+def _system_command_env() -> dict[str, str]:
+    """Return a clean env for OS tools that must not inherit bundled runtime libs."""
+    env = os.environ.copy()
+    for key in ("LD_LIBRARY_PATH", "LD_PRELOAD", "PYTHONHOME", "PYTHONPATH", "_MEIPASS2"):
+        env.pop(key, None)
+    return env
+
+
 class API:
     def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None):
         self._iniConfig = iniConfig
@@ -174,7 +182,7 @@ class API:
             subprocess.Popen(['osascript', '-e', 'tell app "System Events" to shut down'])
         else:
             # Linux: ignore desktop/session inhibitors.
-            subprocess.Popen(["systemctl", "poweroff", "-i"])
+            subprocess.Popen(["systemctl", "poweroff", "-i"], env=_system_command_env())
 
         if self.frontend_browser:
             self.frontend_browser.terminate_all()

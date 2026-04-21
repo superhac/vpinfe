@@ -7,7 +7,7 @@ This is the offical release of vpinfe v1.1.70
 - added notes to readme for shutdown config and Kbuntu ydtoold setup.  
 
 ### Fixes
-None
+- fix shutdown path/env in _internal pyinstaller. 
 
 ### Notes
 
