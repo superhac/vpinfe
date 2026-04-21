@@ -1,10 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.69
+This is the offical release of vpinfe v1.1.70
 
 ### What's New
-- Added ability override the default keyboard mappings.  Managerui->configuration->input 
+- added notes to readme for shutdown config and Kbuntu ydtoold setup.  
 
 ### Fixes
 None

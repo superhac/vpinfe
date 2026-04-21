@@ -92,6 +92,32 @@ NiceGUI ready to go on http://localhost:8001, and http://192.168.1.228:8001
 
 Put that URL in a browser and your in the ManagerUI.
 
+### Enabling the shutdown feature
+
+If you plan on using the **Shutdown** or **Reboot** option in the frontend or the remote page, some Linux systems need an explicit polkit rule so the VPinFE user can power off the machine without an interactive prompt.
+
+#### Linux
+
+Create `/etc/polkit-1/rules.d/49-allow-poweroff.rules`:
+
+```javascript
+polkit.addRule(function(action, subject) {
+    if (
+        (action.id == "org.freedesktop.login1.power-off" ||
+         action.id == "org.freedesktop.login1.power-off-ignore-inhibit") &&
+        subject.user == "superhac"
+    ) {
+        return polkit.Result.YES;
+    }
+});
+```
+
+Then restart polkit:
+
+```bash
+sudo systemctl restart polkit
+```
+
 ## Setup your tables
 
 Now that your `vpinfe.ini` file has the basics you need build the metadata.  Your table folder names and layouts should follow the [VPinball table organization standard](https://github.com/vpinball/vpinball/blob/master/docs/FileLayout.md).
@@ -591,6 +617,42 @@ Notes:
 - The `input` group is not required for the user running VPinFE when `ydotoold` is running as `root` and owns `/dev/uinput`.
 - `0666` on the socket is convenient for a dedicated pinball cabinet, but it allows any local process to inject input through `ydotool`.
 - If you prefer tighter security, reduce the socket permissions and grant access only to the user or group that launches VPinFE.
+- VPinFE looks for `YDOTOOL_SOCKET` first, then checks `/run/user/<uid>/.ydotool_socket`, `/run/ydotool/socket`, and `/tmp/.ydotool_socket`.
+
+#### Kubuntu / KDE Wayland note
+
+On some Kubuntu / KDE Wayland systems, `ydotoold` may work more reliably when bound directly to `/tmp/.ydotool_socket`. If `ydotoold` starts but `ydotool key ...` still fails until you point it at `/tmp/.ydotool_socket`, use this service instead:
+
+```ini
+[Unit]
+Description=ydotool daemon
+After=systemd-udevd.service
+Wants=systemd-udevd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ydotoold --socket-path=/tmp/.ydotool_socket --socket-own=0:0 --socket-perm=0666
+ExecStartPost=/usr/bin/chmod 666 /tmp/.ydotool_socket
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target
+```
+
+After changing the unit, reload and restart it:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart ydotoold.service
+sudo journalctl -u ydotoold.service -b
+```
+
+You can then verify the socket manually with:
+
+```bash
+YDOTOOL_SOCKET=/tmp/.ydotool_socket ydotool key 28:1 28:0
+```
 
 
 ## Default Keyboard Controls
