@@ -323,7 +323,7 @@ class VPinFECore {
     const table = this.#getTableByIndex(index);
     if (!table) return null;
 
-    const vpsId = this.#getTableVpsId(table);
+    const vpsId = this.#getTableVPinPlayVpsId(table);
     if (!vpsId) return null;
 
     const cached = this._vpinplayRatingCache.get(vpsId);
@@ -576,12 +576,11 @@ class VPinFECore {
     return this.tableData[normalized];
   }
 
-  #getTableVpsId(table) {
+  #getTableVPinPlayVpsId(table) {
     if (!table || typeof table !== "object") return "";
     const meta = (table.meta && typeof table.meta === "object") ? table.meta : {};
-    const vpinfe = (meta.VPinFE && typeof meta.VPinFE === "object") ? meta.VPinFE : {};
     const info = (meta.Info && typeof meta.Info === "object") ? meta.Info : {};
-    return String(vpinfe.altvpsid || info.VPSId || "").trim();
+    return String(info.VPSId || "").trim();
   }
 
   #getVPinPlayUrl(vpsId) {
@@ -621,7 +620,7 @@ class VPinFECore {
   #setCachedVPinPlayRatingForCurrentTables(vpsId, payload) {
     if (!Array.isArray(this.tableData)) return;
     this.tableData.forEach((table) => {
-      if (this.#getTableVpsId(table) === vpsId) {
+      if (this.#getTableVPinPlayVpsId(table) === vpsId) {
         this.#setTableVPinPlayRating(table, payload);
       }
     });
@@ -630,7 +629,7 @@ class VPinFECore {
   #attachCachedVPinPlayRatings() {
     if (!Array.isArray(this.tableData)) return;
     this.tableData.forEach((table) => {
-      const vpsId = this.#getTableVpsId(table);
+      const vpsId = this.#getTableVPinPlayVpsId(table);
       if (!vpsId) {
         this.#setTableVPinPlayRating(table, null);
         return;
@@ -644,7 +643,7 @@ class VPinFECore {
     const table = this.#getTableByIndex(index);
     if (!table) return null;
 
-    const vpsId = this.#getTableVpsId(table);
+    const vpsId = this.#getTableVPinPlayVpsId(table);
     if (!vpsId) {
       this.#setTableVPinPlayRating(table, null);
       return null;
@@ -656,14 +655,14 @@ class VPinFECore {
       return cached.data;
     }
 
-    if (!this.vpinplayEndpoint) {
-      this.#setTableVPinPlayRating(table, null);
-      return null;
-    }
-
     const existingRequest = this._vpinplayRatingRequests.get(vpsId);
     if (!forceRefresh && existingRequest) {
       return existingRequest;
+    }
+
+    if (!this.vpinplayEndpoint) {
+      this.#setTableVPinPlayRating(table, null);
+      return null;
     }
 
     const request = this.#fetchVPinPlayRating(vpsId)
