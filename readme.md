@@ -217,6 +217,7 @@ Core startup and launch behavior:
 - **Auto Update Media On Startup**: enables startup media refresh behavior
 - **Enable splashscreen**: shows the frontend splash screen during startup
 - **Mute Frontend Audio**: mutes frontend audio playback
+- **Hide Quit from MainMenu**: hides the **Quit** item from the frontend main menu; saved as `Settings.MMhideQuitButton` in `vpinfe.ini`
 
 The page also shows a **VPinball Launch Command w/Options** preview so you can verify the exact launch command and launch environment before saving.
 
