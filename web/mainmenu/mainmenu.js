@@ -9,6 +9,7 @@ let ratingTableIndex = 0;
 let currentTableIndex = 0;
 let ratingLabelRequestSeq = 0;
 let audioMuted = false;
+let menuConfigLoaded = false;
 
 window.parent.vpin.registerInputHandlerMenu(handleInput);
 
@@ -28,7 +29,7 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-window.addEventListener('message', (event) => {
+window.addEventListener('message', async (event) => {
   const message = event.data;
   if (!message) return;
 
@@ -39,6 +40,7 @@ window.addEventListener('message', (event) => {
       currentTableIndex = resolveCurrentTableIndex();
     }
     selectedIndex = 0;
+    await applyMainMenuConfig();
     updateMenu();
     refreshRatingMenuLabel(currentTableIndex);
     refreshAudioMenuLabel();
@@ -47,6 +49,7 @@ window.addEventListener('message', (event) => {
 
   if (message.event === 'reset state') {
     selectedIndex = 0;
+    await applyMainMenuConfig();
     updateMenu();
     refreshRatingMenuLabel(resolveCurrentTableIndex());
     refreshAudioMenuLabel();
@@ -70,6 +73,40 @@ window.addEventListener('message', (event) => {
 window.addEventListener('DOMContentLoaded', () => {
   rotateMenu(rotationAngle);
 });
+
+async function applyMainMenuConfig() {
+  const quitItem = document.getElementById('quit-item');
+  if (!quitItem) {
+    menuConfigLoaded = true;
+    return;
+  }
+
+  try {
+    const config = await window.parent.vpin.call('get_mainmenu_config');
+    quitItem.style.display = config && config.hideQuitButton ? 'none' : '';
+  } catch (_e) {
+    quitItem.style.display = '';
+  }
+
+  menuConfigLoaded = true;
+}
+
+function rebuildMenuItems() {
+  items = Array.from(document.querySelectorAll('.menu-item')).filter(
+    (item) => getComputedStyle(item).display !== 'none'
+  );
+
+  if (items.length === 0) {
+    selectedIndex = 0;
+    return;
+  }
+
+  if (selectedIndex < 0) {
+    selectedIndex = 0;
+  } else if (selectedIndex >= items.length) {
+    selectedIndex = items.length - 1;
+  }
+}
 
 function rotateMenu(degrees) {
   rotationAngle = degrees;
@@ -128,7 +165,9 @@ function syncMenuWidthFromLongestLabel() {
   if (!menu) return;
   if (!container) return;
 
-  const menuItems = Array.from(menu.querySelectorAll('.menu-item'));
+  const menuItems = Array.from(menu.querySelectorAll('.menu-item')).filter(
+    (item) => getComputedStyle(item).display !== 'none'
+  );
   if (menuItems.length === 0) return;
 
   // Reserve left/right "cap" space in the button image so labels stay centered.
@@ -199,6 +238,8 @@ async function refreshRatingMenuLabel(indexHint = null) {
 }
 
 function handleInput(input) {
+  if (!menuConfigLoaded || items.length === 0) return;
+
   if (dialogState === 'options' || dialogState === 'rating') {
     handleDialogInput(input);
     return;
@@ -428,9 +469,13 @@ window.receiveEvent = function(event) {
 };
 
 function updateMenu() {
+  rebuildMenuItems();
+  if (items.length === 0) return;
+
   items.forEach((item, i) => {
     item.classList.toggle('selected', i === selectedIndex);
   });
+  syncMenuWidthFromLongestLabel();
 }
 
 function audioMenuLabel(muted) {
@@ -473,7 +518,8 @@ async function toggleAudioMute() {
 
 window.onload = async () => {
   currentTableIndex = resolveCurrentTableIndex();
-  items = Array.from(document.querySelectorAll('.menu-item'));
+  await applyMainMenuConfig();
+  rebuildMenuItems();
   syncMenuWidthFromLongestLabel();
   await refreshRatingMenuLabel(currentTableIndex);
   await refreshAudioMenuLabel();

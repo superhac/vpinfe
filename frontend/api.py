@@ -563,6 +563,15 @@ class API:
             'keycollectionmenu': self._iniConfig.config['Input'].get('keycollectionmenu', 'c'),
         }
 
+    def get_mainmenu_config(self):
+        try:
+            self._iniConfig.config.read(self._iniConfig.configfilepath)
+        except Exception:
+            logger.exception("Failed to reload ini before get_mainmenu_config")
+        return {
+            'hideQuitButton': self._iniConfig.config.getboolean('Settings', 'MMhideQuitButton', fallback=False),
+        }
+
     def set_button_mapping(self, button_name, button_index):
         """Set a gamepad button mapping and save to config."""
         valid_buttons = [

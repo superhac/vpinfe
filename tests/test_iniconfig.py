@@ -53,6 +53,15 @@ class TestIniConfig(unittest.TestCase):
             self.assertEqual(config.config.get("Input", "keyback"), "b")
             self.assertEqual(config.config.get("Input", "keyexit"), "Escape,q")
 
+    def test_adds_mainmenu_hide_quit_button_setting_default(self) -> None:
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+
+            config = IniConfig(str(ini_path))
+
+            self.assertTrue(config.config.has_section("Settings"))
+            self.assertEqual(config.config.get("Settings", "MMhideQuitButton"), "false")
+
 
 if __name__ == "__main__":
     unittest.main()

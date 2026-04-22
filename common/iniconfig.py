@@ -40,6 +40,7 @@ class IniConfig:
 				'autoupdatemediaonstartup': 'false',
 				'splashscreen': 'true',
 				'muteaudio': 'false',
+				'MMhideQuitButton': 'false',
 				},
 			'Input': {
 				'joyleft': '',

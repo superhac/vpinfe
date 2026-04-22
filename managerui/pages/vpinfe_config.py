@@ -72,6 +72,7 @@ FRIENDLY_NAMES = {
     'autoupdatemediaonstartup': 'Auto Update Media On Startup',
     'splashscreen': 'Enable splashscreen',
     'muteaudio': 'Mute Frontend Audio',
+    'mmhidequitbutton': 'Hide Quit from MainMenu',
     'enabledof': 'Enable DOF',
     'dofconfigtoolapikey': 'DOF Config Tool API Key',
     'enabled': 'Enabled',
@@ -735,6 +736,7 @@ def render_panel(tab=None):
             or (section == 'Logger' and key == 'console')
             or (section == 'Settings' and key == 'splashscreen')
             or (section == 'Settings' and key == 'muteaudio')
+            or (section == 'Settings' and key == 'mmhidequitbutton')
             or (section == 'DOF' and key == 'enabledof')
             or (section == 'libdmdutil' and key == 'enabled')
             or (section == 'libdmdutil' and key == 'pin2dmdenabled')
@@ -1167,7 +1169,7 @@ def render_panel(tab=None):
                                 ]
                                 frontend_toggle_keys = [
                                     key for key in general_keys
-                                    if key in ('autoupdatemediaonstartup', 'splashscreen', 'muteaudio')
+                                    if key in ('autoupdatemediaonstartup', 'splashscreen', 'muteaudio', 'mmhidequitbutton')
                                 ]
                                 frontend_primary_keys = [
                                     key for key in general_keys
