@@ -191,6 +191,20 @@ class TestScoreParser(unittest.TestCase):
 
         self.assertEqual(resolved, str(vpreg_path))
 
+    def test_resolve_rom_name_matches_rom_entries_case_insensitively(self) -> None:
+        self.assertEqual(score_parser.resolve_rom_name("matrix"), "Matrix")
+
+    def test_resolve_score_input_path_matches_nvram_case_insensitively(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            table_dir = Path(temp_dir)
+            nvram_path = table_dir / "pinmame" / "nvram" / "Matrix.nv"
+            nvram_path.parent.mkdir(parents=True)
+            nvram_path.write_bytes(b"nv")
+
+            resolved = score_parser.resolve_score_input_path("matrix", str(table_dir))
+
+        self.assertEqual(resolved, str(nvram_path))
+
     def test_read_rom_with_source_returns_resolved_special_text_path(self) -> None:
         with TemporaryDirectory() as temp_dir:
             table_dir = Path(temp_dir)

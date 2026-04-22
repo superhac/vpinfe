@@ -45,7 +45,6 @@ rom_aliases = {
     "fg_1200af":"fg_1200al",
     "eightbll": "evelknie",
     "frpwr_b7": "frpwr_b6",
-    "hook_501":"hook_408",
     "im_185ve": "im_185",
     "im_183ve": "im_185",
     "jd_l1": "jd_l7",
@@ -1483,8 +1482,28 @@ DECODERS = {
     "mixed_leaderboard": decode_mixed_leaderboard,
 }
 
+def _lookup_case_insensitive(mapping: dict, key: str) -> str | None:
+    if key in mapping:
+        return key
+
+    lowered_key = key.lower()
+    for existing_key in mapping:
+        if existing_key.lower() == lowered_key:
+            return existing_key
+
+    return None
+
+
 def resolve_rom_name(rom_name: str) -> str:
-    return rom_aliases.get(rom_name, rom_name)
+    alias_key = _lookup_case_insensitive(rom_aliases, rom_name)
+    if alias_key is not None:
+        return rom_aliases[alias_key]
+
+    rom_key = _lookup_case_insensitive(roms, rom_name)
+    if rom_key is not None:
+        return rom_key
+
+    return rom_name
 
 def format_entry(entry: ParsedEntry) -> list[str]:
     rank_text = f"{entry.rank} " if entry.rank is not None else ""
@@ -1655,6 +1674,7 @@ if __name__ == "__main__":
         "AliceInWonderland": "/home/superhac/tables/Alice in Wonderland (Gottlieb 1948)",
         "wwfr_106": "/home/superhac/tables/WWF Royal Rumble (Data East 1994)",
         "simp": "/home/superhac/tables/The Simpsons (Data East 1990)",
+        "hook_501":"/home/superhac/tables/Hook (Data East 1992)/pinmame/nvram/hook_501.nv",
     }
 
     for rom_name, table_dir in rom_files.items():
@@ -1675,3 +1695,4 @@ if __name__ == "__main__":
         print()
         print(json.dumps(result_to_jsonable(rom_name, result, resolved_path), indent=2))
         print()
+        

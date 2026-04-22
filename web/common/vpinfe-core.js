@@ -48,6 +48,7 @@ class VPinFECore {
     this.themeAssetsPort = 8000; // default, will be updated from config
     this.managerUiPort = 8001; // default manager UI port
     this.wsPort = 8002; // default WebSocket bridge port
+    this.vpinplayEndpoint = '';
 
     // Display config
     this.tableOrientation = 'landscape'; // default, will be updated from config
@@ -68,6 +69,8 @@ class VPinFECore {
     this._audioCurrentUrl = null;
     this._audioRetries = 0;
     this._lastFrontendDofIndex = null;
+    this._vpinplayRatingCache = new Map();
+    this._vpinplayRatingRequests = new Map();
 
     // WebSocket bridge
     this._ws = null;
@@ -316,6 +319,25 @@ class VPinFECore {
     return this._currentTableIndex;
   }
 
+  getCachedVPinPlayRating(index = this._currentTableIndex) {
+    const table = this.#getTableByIndex(index);
+    if (!table) return null;
+
+    const vpsId = this.#getTableVpsId(table);
+    if (!vpsId) return null;
+
+    const cached = this._vpinplayRatingCache.get(vpsId);
+    return cached && cached.data ? cached.data : null;
+  }
+
+  async getVPinPlayRating(index = this._currentTableIndex, options = {}) {
+    return this.#loadVPinPlayRating(index, !!(options && options.forceRefresh));
+  }
+
+  async refreshVPinPlayRating(index = this._currentTableIndex) {
+    return this.#loadVPinPlayRating(index, true);
+  }
+
   // send a message to all windows except "self"
   sendMessageToAllWindows(message) {
     this.#syncLocalIndexFromOutgoingMessage(message);
@@ -359,10 +381,12 @@ class VPinFECore {
 
   async getTableData(reset=false) {
     this.tableData = JSON.parse(await this.call("get_tables", reset));
+    this.#attachCachedVPinPlayRatings();
     if (this._windowName === "table") {
       const maxIndex = Math.max(0, this.tableData.length - 1);
       if (this._currentTableIndex > maxIndex) this._currentTableIndex = maxIndex;
       if (this.tableData.length > 0) {
+        this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
         this.#updateFrontendDofForCurrentTable().catch(() => {});
       } else {
         this._lastFrontendDofIndex = null;
@@ -507,11 +531,13 @@ class VPinFECore {
     if (this._windowName !== "table") return;
 
     if (message.type === "TableIndexUpdate") {
+      this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
       this.#updateFrontendDofForCurrentTable().catch(() => {});
       return;
     }
     if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
       this._lastFrontendDofIndex = null;
+      this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
       this.#updateFrontendDofForCurrentTable().catch(() => {});
     }
   }
@@ -540,6 +566,146 @@ class VPinFECore {
       if (!Number.isNaN(numeric) && Number.isFinite(numeric)) return numeric;
     }
     return null;
+  }
+
+  #getTableByIndex(index) {
+    const numeric = Number(index);
+    if (!Number.isFinite(numeric)) return null;
+    const normalized = Math.floor(numeric);
+    if (!Array.isArray(this.tableData) || normalized < 0 || normalized >= this.tableData.length) return null;
+    return this.tableData[normalized];
+  }
+
+  #getTableVpsId(table) {
+    if (!table || typeof table !== "object") return "";
+    const meta = (table.meta && typeof table.meta === "object") ? table.meta : {};
+    const vpinfe = (meta.VPinFE && typeof meta.VPinFE === "object") ? meta.VPinFE : {};
+    const info = (meta.Info && typeof meta.Info === "object") ? meta.Info : {};
+    return String(vpinfe.altvpsid || info.VPSId || "").trim();
+  }
+
+  #getVPinPlayUrl(vpsId) {
+    const endpoint = String(this.vpinplayEndpoint || "").trim().replace(/\/+$/, "");
+    if (!endpoint || !vpsId) return "";
+    return `${endpoint}/api/v1/tables/${encodeURIComponent(vpsId)}/cumulative-rating`;
+  }
+
+  #normalizeVPinPlayRatingPayload(vpsId, payload) {
+    if (!payload || typeof payload !== "object") return null;
+
+    const resolvedVpsId = String(payload.vpsId || vpsId || "").trim();
+    const cumulativeRating = this.#coerceNumber(payload.cumulativeRating);
+    const ratingCount = this.#coerceNumber(payload.ratingCount);
+    const vpsdb = (payload.vpsdb && typeof payload.vpsdb === "object") ? payload.vpsdb : {};
+    const normalizedYear = this.#coerceNumber(vpsdb.year, vpsdb.year === "" ? null : vpsdb.year);
+
+    return {
+      vpsId: resolvedVpsId,
+      cumulativeRating: cumulativeRating === null ? null : cumulativeRating,
+      ratingCount: ratingCount === null ? 0 : Math.max(0, Math.floor(ratingCount)),
+      vpsdb: {
+        name: typeof vpsdb.name === "string" ? vpsdb.name : "",
+        authors: Array.isArray(vpsdb.authors) ? vpsdb.authors : [],
+        manufacturer: typeof vpsdb.manufacturer === "string" ? vpsdb.manufacturer : "",
+        year: normalizedYear !== null ? normalizedYear : (vpsdb.year || ""),
+      },
+      fetchedAt: new Date().toISOString(),
+    };
+  }
+
+  #setTableVPinPlayRating(table, payload) {
+    if (!table || typeof table !== "object") return;
+    table.vpinplay = payload ? { ...payload } : null;
+  }
+
+  #setCachedVPinPlayRatingForCurrentTables(vpsId, payload) {
+    if (!Array.isArray(this.tableData)) return;
+    this.tableData.forEach((table) => {
+      if (this.#getTableVpsId(table) === vpsId) {
+        this.#setTableVPinPlayRating(table, payload);
+      }
+    });
+  }
+
+  #attachCachedVPinPlayRatings() {
+    if (!Array.isArray(this.tableData)) return;
+    this.tableData.forEach((table) => {
+      const vpsId = this.#getTableVpsId(table);
+      if (!vpsId) {
+        this.#setTableVPinPlayRating(table, null);
+        return;
+      }
+      const cached = this._vpinplayRatingCache.get(vpsId);
+      this.#setTableVPinPlayRating(table, cached && cached.data ? cached.data : null);
+    });
+  }
+
+  async #loadVPinPlayRating(index, forceRefresh = false) {
+    const table = this.#getTableByIndex(index);
+    if (!table) return null;
+
+    const vpsId = this.#getTableVpsId(table);
+    if (!vpsId) {
+      this.#setTableVPinPlayRating(table, null);
+      return null;
+    }
+
+    const cached = this._vpinplayRatingCache.get(vpsId);
+    if (!forceRefresh && cached && cached.data) {
+      this.#setTableVPinPlayRating(table, cached.data);
+      return cached.data;
+    }
+
+    if (!this.vpinplayEndpoint) {
+      this.#setTableVPinPlayRating(table, null);
+      return null;
+    }
+
+    const existingRequest = this._vpinplayRatingRequests.get(vpsId);
+    if (!forceRefresh && existingRequest) {
+      return existingRequest;
+    }
+
+    const request = this.#fetchVPinPlayRating(vpsId)
+      .then((payload) => {
+        const data = this.#normalizeVPinPlayRatingPayload(vpsId, payload);
+        if (!data) {
+          this._vpinplayRatingCache.delete(vpsId);
+          this.#setCachedVPinPlayRatingForCurrentTables(vpsId, null);
+          return null;
+        }
+        this._vpinplayRatingCache.set(vpsId, { data });
+        this.#setCachedVPinPlayRatingForCurrentTables(vpsId, data);
+        return data;
+      })
+      .catch((error) => {
+        this.call("console_out", `VPinPlay rating fetch failed for ${vpsId}: ${error.message}`).catch(() => {});
+        this.#setCachedVPinPlayRatingForCurrentTables(vpsId, null);
+        return null;
+      })
+      .finally(() => {
+        this._vpinplayRatingRequests.delete(vpsId);
+      });
+
+    this._vpinplayRatingRequests.set(vpsId, request);
+    return request;
+  }
+
+  async #fetchVPinPlayRating(vpsId) {
+    const url = this.#getVPinPlayUrl(vpsId);
+    if (!url) return null;
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "Accept": "application/json" },
+    });
+
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return response.json();
   }
 
   #fadeAudio(from, to, onComplete) {
@@ -679,6 +845,11 @@ class VPinFECore {
 
     // Load network config
     this.themeAssetsPort = await this.call("get_theme_assets_port");
+    try {
+      this.vpinplayEndpoint = await this.call("get_vpinplay_endpoint");
+    } catch (_e) {
+      this.vpinplayEndpoint = "";
+    }
     // Load display config
     this.tableOrientation = await this.call("get_table_orientation");
     this.tableRotation = await this.call("get_table_rotation");

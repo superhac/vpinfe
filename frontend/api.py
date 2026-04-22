@@ -1014,6 +1014,9 @@ class API:
         theme_name = str(self._iniConfig.config['Settings'].get('theme', 'Revolution')).strip()
         return theme_name or 'Revolution'
 
+    def get_vpinplay_endpoint(self):
+        return str(self._iniConfig.config['vpinplay'].get('apiendpoint', '')).strip()
+
     def get_table_orientation(self):
         return self._iniConfig.config['Displays'].get('tableorientation', 'landscape')
 

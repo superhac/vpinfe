@@ -1,13 +1,14 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.70
+This is the offical release of vpinfe v1.1.71
 
 ### What's New
-- added notes to readme for shutdown config and Kbuntu ydtoold setup.  
+- add hook rom / fix upper/lower case rom bug.
+- add vpinplay calls to vpinfe-core.js
 
 ### Fixes
-- fix shutdown path/env in _internal pyinstaller. 
+None
 
 ### Notes
 

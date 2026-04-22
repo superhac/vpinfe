@@ -56,6 +56,7 @@ class WebSocketBridge:
         'build_metadata',
         'get_theme_config',
         'get_theme_name',
+        'get_vpinplay_endpoint',
         'get_table_orientation',
         'get_table_rotation',
         'get_splashscreen_enabled',

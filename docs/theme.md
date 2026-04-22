@@ -763,6 +763,7 @@ Each element in `vpin.tableData` (and the return of `vpin.getTableMeta(index)`) 
 | `DMDVideoPath` | `string\|null` | Local path to the DMD video (`dmd.mp4`). |
 | `AudioPath` | `string\|null` | Local path to the audio file (`audio.mp3`). |
 | `meta` | `object` | Nested metadata object (see below). |
+| `vpinplay` | `object\|null` | Cached VPinPlay cumulative rating payload for the table, or `null` until fetched/unavailable. |
 
 > **Note:** You typically don't use the path properties directly. Use `vpin.getImageURL()`, `vpin.getVideoURL()`, and `vpin.getAudioURL()` which convert these paths to HTTP URLs. Direct access to path properties is useful for checking existence (e.g., `if (table.TableVideoPath)` to decide whether to show video or image).
 
@@ -860,6 +861,28 @@ const year = info.Year || vpx.year || '';
 const authors = Array.isArray(info.Authors) ? info.Authors.join(', ') : 'Unknown';
 const rating = Number(user.Rating || 0);
 const plays = Number(user.StartCount || 0);
+
+const vpinplay = await vpin.getVPinPlayRating(currentTableIndex);
+const cumulativeRating = vpinplay?.cumulativeRating ?? null;
+const ratingCount = vpinplay?.ratingCount ?? 0;
+```
+
+### VPinPlay Rating
+
+`vpinfe-core.js` can fetch the selected table's VPinPlay cumulative rating from the configured `vpinplay.apiendpoint`.
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `await vpin.getVPinPlayRating(index?)` | `object\|null` | Returns the cached rating for the table or fetches it from VPinPlay. |
+| `await vpin.refreshVPinPlayRating(index?)` | `object\|null` | Forces a fresh fetch from VPinPlay. |
+| `vpin.getCachedVPinPlayRating(index?)` | `object\|null` | Returns only the cached value already attached to the table. |
+
+The returned object matches the API payload shape and is also stored on the table entry as `table.vpinplay`:
+
+```javascript
+const table = vpin.getTableMeta(currentTableIndex);
+const rating = table.vpinplay?.cumulativeRating ?? null;
+const votes = table.vpinplay?.ratingCount ?? 0;
 ```
 
 ---
