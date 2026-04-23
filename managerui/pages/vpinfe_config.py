@@ -150,6 +150,36 @@ def get_friendly_name(key: str) -> str:
     # Fallback: 'my_raw_key' becomes 'My Raw Key'
     return key.replace('_', ' ').title()
 
+
+INPUT_MAPPING_ACTION_ORDER = [
+    'left',
+    'right',
+    'up',
+    'down',
+    'select',
+    'menu',
+    'back',
+    'exit',
+    'collectionmenu',
+    'tutorial',
+]
+
+
+def _sort_input_mapping_keys(keys: list[str], prefix: str) -> list[str]:
+    ordered_keys: list[str] = []
+    present_keys = set(keys)
+
+    for action in INPUT_MAPPING_ACTION_ORDER:
+        mapping_key = f'{prefix}{action}'
+        if mapping_key in present_keys:
+            ordered_keys.append(mapping_key)
+
+    for key in keys:
+        if key not in ordered_keys:
+            ordered_keys.append(key)
+
+    return ordered_keys
+
 def _get_collection_names():
     """Get list of collection names for the dropdown."""
     try:
@@ -1311,8 +1341,14 @@ def render_panel(tab=None):
                                                     value = config.config.get(section, key, fallback='')
                                                     build_config_input(section, key, value)
                                     elif section == 'Input':
-                                        controller_keys = [key for key in options if key.startswith('joy')]
-                                        keyboard_keys = [key for key in options if key.startswith('key')]
+                                        controller_keys = _sort_input_mapping_keys(
+                                            [key for key in options if key.startswith('joy')],
+                                            'joy',
+                                        )
+                                        keyboard_keys = _sort_input_mapping_keys(
+                                            [key for key in options if key.startswith('key')],
+                                            'key',
+                                        )
                                         other_input_keys = [
                                             key for key in options
                                             if key not in set(controller_keys + keyboard_keys)
