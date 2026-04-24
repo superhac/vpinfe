@@ -6,9 +6,9 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from clioptions import buildMetaData, vpxPatches
 from common.iniconfig import IniConfig
 from common.table_repository import get_missing_tables, get_table_rows, refresh_table
+from common import metadata_service
 from common.vpxcollections import VPXCollections
 from common.vpxparser import VPXParser
 
@@ -222,8 +222,8 @@ def scan_missing_table_rows(reload: bool = False) -> List[Dict]:
 
 
 def build_metadata(*args, **kwargs):
-    return buildMetaData(*args, **kwargs)
+    return metadata_service.build_metadata(*args, iniconfig=_INI_CFG, **kwargs)
 
 
 def apply_vpx_patches(*args, **kwargs):
-    return vpxPatches(*args, **kwargs)
+    return metadata_service.apply_vpx_patches(*args, iniconfig=_INI_CFG, **kwargs)

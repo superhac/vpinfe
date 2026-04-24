@@ -7,11 +7,7 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import BinaryIO
 
-try:
-    from platformdirs import user_config_dir
-except ImportError:
-    def user_config_dir(appname: str, appauthor: str | None = None) -> str:
-        return str(Path.home() / ".config" / appname)
+from common.paths import USER_CONFIG_PATH, USER_ROMS_PATH
 
 
 @dataclass
@@ -28,9 +24,6 @@ class ParsedEntry:
 
 
 logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
-
-USER_ROMS_PATH = Path(user_config_dir("vpinfe", "vpinfe")) / "roms.json"
-USER_CONFIG_PATH = Path(user_config_dir("vpinfe", "vpinfe")) / "vpinfe.ini"
 
 # alias, rom name in roms.json 
 rom_aliases = {

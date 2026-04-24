@@ -12,6 +12,8 @@ CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 VPINFE_INI_PATH = CONFIG_DIR / "vpinfe.ini"
 COLLECTIONS_PATH = CONFIG_DIR / "collections.ini"
 THEMES_DIR = CONFIG_DIR / "themes"
+USER_CONFIG_PATH = VPINFE_INI_PATH
+USER_ROMS_PATH = CONFIG_DIR / "roms.json"
 
 
 def ensure_config_dir() -> Path:

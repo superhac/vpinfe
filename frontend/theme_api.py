@@ -25,10 +25,17 @@ def get_theme_config(config):
     theme_dir = resolve_theme_dir(get_theme_name(config))
     if not theme_dir:
         return None
+    config_path = theme_dir / "config.json"
+    if not config_path.exists():
+        logger.debug("Theme config not found: %s", config_path)
+        return None
     try:
-        return json.loads((theme_dir / "config.json").read_text(encoding="utf-8"))
-    except Exception:
-        logger.debug("Could not read theme config for %s", theme_dir, exc_info=True)
+        return json.loads(config_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        logger.warning("Theme config is invalid JSON: %s", config_path, exc_info=True)
+        return None
+    except OSError:
+        logger.warning("Could not read theme config: %s", config_path, exc_info=True)
         return None
 
 

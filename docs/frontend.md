@@ -19,6 +19,8 @@ The frontend starts at `main.py`, but most runtime responsibilities now live in 
 - `common/collections_service.py`: shared collection manager access and filter-collection helpers.
 - `common/table_play_service.py`: Last Played tracking, start count, runtime, score update, and NVRAM cleanup.
 - `common/display_service.py`: shared monitor discovery.
+- `common/metadata_service.py`: build metadata, VPX patch orchestration, and user-media claiming shared by CLI, frontend, and Manager UI.
+- `common/system_actions.py`: shared app restart sentinel, clean OS command environment, shutdown, and reboot commands.
 - `frontend/table_state.py`: table JSON serialization, filtering, sorting, collections, and rating mutations for the JS API.
 - `frontend/launch_service.py`: VPX launch lifecycle, DOF/DMD stop-start, and frontend launch events.
 - `frontend/input_api.py`: input mapping reads/writes.
@@ -39,3 +41,4 @@ The frontend starts at `main.py`, but most runtime responsibilities now live in 
 - Use `common/paths.py` instead of calling `user_config_dir("vpinfe", "vpinfe")` directly in new code.
 - Use `common/table_metadata.py` for metadata reads/writes instead of repeating `Info`/`VPinFE`/`User` normalization.
 - Use service modules for behavior shared by Manager UI and the frontend.
+- Keep `clioptions.py` as CLI dispatch and compatibility wrappers; put reusable app behavior in `common/`.

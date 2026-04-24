@@ -1,20 +1,16 @@
 from __future__ import annotations
 
-import os
-import subprocess
 import sys
 
 from nicegui import ui
 
 from managerui.paths import CONFIG_DIR
+from common import system_actions
 
 
 def system_command_env() -> dict[str, str]:
     """Return a clean env for OS tools that must not inherit bundled runtime libs."""
-    env = os.environ.copy()
-    for key in ("LD_LIBRARY_PATH", "LD_PRELOAD", "PYTHONHOME", "PYTHONPATH", "_MEIPASS2"):
-        env.pop(key, None)
-    return env
+    return system_actions.system_command_env()
 
 
 def _terminate_frontend_browser() -> None:
@@ -27,8 +23,7 @@ def _terminate_frontend_browser() -> None:
 def restart_app() -> None:
     """Restart the VPinFE application by signaling main.py to re-exec itself."""
     ui.notify("Restarting VPinFE...", type="info")
-    restart_flag = CONFIG_DIR / ".restart"
-    restart_flag.touch()
+    system_actions.request_app_restart(CONFIG_DIR)
     _terminate_frontend_browser()
 
 
@@ -44,26 +39,12 @@ def quit_app() -> None:
 def shutdown_system() -> None:
     """Shutdown the system."""
     ui.notify("Shutting down system...", type="warning")
-
-    if sys.platform == "win32":
-        subprocess.Popen(["shutdown", "/s", "/t", "1"], shell=True)
-    elif sys.platform == "darwin":
-        subprocess.Popen(["osascript", "-e", 'tell app "System Events" to shut down'])
-    else:
-        subprocess.Popen(["systemctl", "poweroff", "-i"], env=system_command_env())
-
+    system_actions.shutdown_system()
     _terminate_frontend_browser()
 
 
 def reboot_system() -> None:
     """Reboot the system."""
     ui.notify("Rebooting system...", type="warning")
-
-    if sys.platform == "win32":
-        subprocess.Popen(["shutdown", "/r", "/t", "1"], shell=True)
-    elif sys.platform == "darwin":
-        subprocess.Popen(["osascript", "-e", 'tell app "System Events" to restart'])
-    else:
-        subprocess.Popen(["systemctl", "reboot"], env=system_command_env())
-
+    system_actions.reboot_system()
     _terminate_frontend_browser()

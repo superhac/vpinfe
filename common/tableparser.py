@@ -14,13 +14,11 @@ class TableParser:
     RED_CONSOLE_TEXT = '\033[31m'
     RESET_CONSOLE_TEXT = '\033[0m'
 
-    # Shared class variable - single instance across all TableParser instances
-    tables: list[Table] = []
-    missing_tables: list[dict] = []
-
     def __init__(self, tablesRootFilePath, iniConfig=None):
         self.tablesRootFilePath = Path(tablesRootFilePath)
         self.tabletype = "table"
+        self.tables: list[Table] = []
+        self.missing_tables: list[dict] = []
         if iniConfig:
             self.tabletype = iniConfig.config['Media'].get('tabletype', 'table').lower()
         self.loadTables()

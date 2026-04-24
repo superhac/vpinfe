@@ -6,14 +6,13 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import requests
-from platformdirs import user_config_dir
+from common.paths import CONFIG_DIR, USER_ROMS_PATH
 
 
 logger = logging.getLogger("vpinfe.common.pinmame_score_parser_updater")
 
 
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
-ROMS_JSON_PATH = CONFIG_DIR / "roms.json"
+ROMS_JSON_PATH = USER_ROMS_PATH
 LATEST_RELEASE_URL = "https://api.github.com/repos/superhac/pinmame-score-parser/releases/latest"
 USER_AGENT = "VPinFE-pinmame-score-parser-updater"
 RELEASE_SECTION = "pinmame-score-parser"

@@ -4,8 +4,8 @@ import logging
 from difflib import SequenceMatcher
 import os
 import re
-from pathlib import Path
-from platformdirs import user_config_dir
+
+from common.paths import CONFIG_DIR
 
 
 logger = logging.getLogger("vpinfe.common.vpsdb")
@@ -29,7 +29,7 @@ class VPSdb:
         logger.info("Initializing VPSdb")
 
         self._vpinfeIniConfig = vpinfeIniConfig
-        self._config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
+        self._config_dir = CONFIG_DIR
         self._config_dir.mkdir(parents=True, exist_ok=True)
         self._vpsdb_path = self._config_dir / "vpsdb.json"
         version = self.downloadLastUpdate()

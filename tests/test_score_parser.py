@@ -1,16 +1,9 @@
 import unittest
-import sys
-import types
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 import json
 import tempfile
-
-if "platformdirs" not in sys.modules:
-    platformdirs = types.ModuleType("platformdirs")
-    platformdirs.user_config_dir = lambda *args, **kwargs: "/tmp"
-    sys.modules["platformdirs"] = platformdirs
 
 _test_config_dir = Path(tempfile.mkdtemp(prefix="vpinfe-score-parser-test-"))
 (_test_config_dir / "roms.json").write_text(
@@ -23,8 +16,10 @@ _test_config_dir = Path(tempfile.mkdtemp(prefix="vpinfe-score-parser-test-"))
     ),
     encoding="utf-8",
 )
-sys.modules["platformdirs"].user_config_dir = lambda *args, **kwargs: str(_test_config_dir)
 
+from common import paths
+paths.USER_ROMS_PATH = _test_config_dir / "roms.json"
+paths.USER_CONFIG_PATH = _test_config_dir / "vpinfe.ini"
 from common import score_parser
 from common.score_parser import ParsedEntry, result_to_jsonable
 

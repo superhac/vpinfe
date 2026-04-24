@@ -8,7 +8,8 @@ import shutil
 import concurrent.futures
 from io import BytesIO
 from typing import Dict, Any
-from platformdirs import user_config_dir
+
+from common.paths import CONFIG_DIR
 
 
 logger = logging.getLogger("vpinfe.common.themes")
@@ -25,8 +26,7 @@ class ThemeRegistry:
         self.themes_index: Dict[str, Any] = {}
         self.themes: Dict[str, Any] = {}
 
-        # Correct platform dir usage (two args to match rest of codebase)
-        self.base_dir = user_config_dir("vpinfe", "vpinfe")
+        self.base_dir = str(CONFIG_DIR)
         self.themes_dir = os.path.join(self.base_dir, "themes")
         os.makedirs(self.themes_dir, exist_ok=True)
 

@@ -1,9 +1,8 @@
-import sys
-import os
 import logging
 from pathlib import Path
 import subprocess
 import threading
+from common import system_actions
 from common.table_repository import ensure_tables_loaded
 from common.collections_service import get_collection_names
 from common.display_service import monitors_as_dicts
@@ -80,14 +79,6 @@ API_ALLOWED_METHODS = {
     'send_event_all_windows',
     'send_event_all_windows_incself',
 }
-
-
-def _system_command_env() -> dict[str, str]:
-    """Return a clean env for OS tools that must not inherit bundled runtime libs."""
-    env = os.environ.copy()
-    for key in ("LD_LIBRARY_PATH", "LD_PRELOAD", "PYTHONHOME", "PYTHONPATH", "_MEIPASS2"):
-        env.pop(key, None)
-    return env
 
 
 class API:
@@ -204,17 +195,7 @@ class API:
     def shutdown_system(self):
         """Shutdown the host system (cross-platform) and close frontend windows."""
         logger.info("shutdown_system called from window '%s'", self.window_name)
-
-        # Match managerui/pages/remote.py behavior for platform shutdown commands.
-        if sys.platform == 'win32':
-            # 1 second delay gives the app a moment to tear down cleanly.
-            subprocess.Popen(['shutdown', '/s', '/t', '1'], shell=True)
-        elif sys.platform == 'darwin':
-            subprocess.Popen(['osascript', '-e', 'tell app "System Events" to shut down'])
-        else:
-            # Linux: ignore desktop/session inhibitors.
-            subprocess.Popen(["systemctl", "poweroff", "-i"], env=_system_command_env())
-
+        system_actions.shutdown_system()
         if self.frontend_browser:
             self.frontend_browser.terminate_all()
 
@@ -452,11 +433,11 @@ class API:
         Returns:
             dict with success status and message
         """
-        from clioptions import buildMetaData
+        from common.metadata_service import build_metadata
 
         return metadata_build_service.start_build(
             self,
-            build_metadata_func=buildMetaData,
+            build_metadata_func=lambda **kwargs: build_metadata(iniconfig=self._iniConfig, **kwargs),
             ensure_tables_loaded_func=ensure_tables_loaded,
             download_media=download_media,
             update_all=update_all,

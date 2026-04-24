@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 import os
 import platform
@@ -13,15 +12,13 @@ import sys
 from pathlib import Path
 import requests
 
-from platformdirs import user_config_dir
-
 from common.app_version import get_version
+from common.paths import CONFIG_DIR
 
 
 logger = logging.getLogger("vpinfe.common.app_updater")
 
 
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
 UPDATES_DIR = CONFIG_DIR / "updates"
 LAST_UPDATE_LOG = CONFIG_DIR / "last_update.log"
 LATEST_RELEASE_URL = "https://api.github.com/repos/superhac/vpinfe/releases/latest"

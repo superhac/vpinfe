@@ -3,22 +3,10 @@ from __future__ import annotations
 import configparser
 import importlib
 import json
-import sys
 import tempfile
-import types
 import unittest
 from pathlib import Path
 from unittest import mock
-
-
-if "platformdirs" not in sys.modules:
-    platformdirs = types.ModuleType("platformdirs")
-    platformdirs.user_config_dir = lambda *args, **kwargs: "/tmp"
-    sys.modules["platformdirs"] = platformdirs
-
-if "requests" not in sys.modules:
-    requests = types.ModuleType("requests")
-    sys.modules["requests"] = requests
 
 
 updater = importlib.import_module("common.pinmame_score_parser_updater")

@@ -36,6 +36,7 @@ from common.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdow
 from common.app_version import get_version
 from common.themes import ThemeRegistry
 from common.paths import VPINFE_INI_PATH, ensure_config_dir
+from common.metadata_service import build_metadata
 
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -65,7 +66,7 @@ def reconfigure_app_logging() -> None:
 
 # Now safe to import modules that create their own IniConfig at import time
 from frontend import runtime
-from clioptions import parseArgs, buildMetaData
+from clioptions import parseArgs
 from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run, _shutdown_event
 from nicegui import app as nicegui_app
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -105,7 +106,7 @@ def _start_startup_media_sync():
     _startup_media_sync_started = runtime.start_startup_media_sync(
         iniconfig,
         logger,
-        buildMetaData,
+        lambda **kwargs: build_metadata(iniconfig=iniconfig, **kwargs),
         started=_startup_media_sync_started,
     )
 

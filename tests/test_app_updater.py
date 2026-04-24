@@ -1,16 +1,5 @@
 from pathlib import Path
-import sys
-import types
 import unittest
-
-if "platformdirs" not in sys.modules:
-    platformdirs = types.ModuleType("platformdirs")
-    platformdirs.user_config_dir = lambda *args, **kwargs: "/tmp"
-    sys.modules["platformdirs"] = platformdirs
-
-if "requests" not in sys.modules:
-    requests = types.ModuleType("requests")
-    sys.modules["requests"] = requests
 
 from common.app_updater import _build_posix_update_script
 

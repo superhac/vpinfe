@@ -1,4 +1,3 @@
-import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -6,8 +5,6 @@ from types import SimpleNamespace
 
 from common.vpxcollections import VPXCollections
 
-sys.modules.setdefault("screeninfo", SimpleNamespace(get_monitors=lambda: []))
-sys.modules.setdefault("platformdirs", SimpleNamespace(user_config_dir=lambda *_args, **_kwargs: "/tmp"))
 from frontend.api import API
 
 
