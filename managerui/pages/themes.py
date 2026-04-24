@@ -1,9 +1,9 @@
 from nicegui import ui, run, context
 from common.themes import ThemeRegistry, ThemeRegistryError
-from common.iniconfig import IniConfig
 from pathlib import Path
-from managerui.pages.remote import _restart_app
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
+from managerui.services import app_control
+from managerui.services import theme_service
 from managerui.ui_helpers import load_page_style
 
 INI_PATH = VPINFE_INI_PATH
@@ -14,38 +14,27 @@ _registry: ThemeRegistry | None = None
 
 def _get_active_theme() -> str:
     """Get the currently active theme name from config."""
-    try:
-        config = IniConfig(str(INI_PATH))
-        theme_name = config.config.get('Settings', 'theme', fallback='Revolution').strip()
-        return theme_name or 'Revolution'
-    except Exception:
-        return 'Revolution'
+    return theme_service.get_active_theme()
 
 
 def _set_active_theme(theme_key: str):
     """Set the active theme in config (blocking)."""
-    config = IniConfig(str(INI_PATH))
-    config.config.set('Settings', 'theme', theme_key)
-    with open(INI_PATH, 'w') as f:
-        config.config.write(f)
+    theme_service.set_active_theme(theme_key)
 
 
 def _load_registry() -> ThemeRegistry:
     """Load or reload the theme registry (blocking)."""
-    reg = ThemeRegistry()
-    reg.load_registry()
-    reg.load_theme_manifests()
-    return reg
+    return theme_service.load_registry()
 
 
 def _install_theme(registry: ThemeRegistry, theme_key: str):
     """Install a theme (blocking)."""
-    registry.install_theme(theme_key, force=True)
+    theme_service.install_theme(registry, theme_key)
 
 
 def _delete_theme(registry: ThemeRegistry, theme_key: str):
     """Delete a theme (blocking)."""
-    registry.delete_theme(theme_key)
+    theme_service.delete_theme(registry, theme_key)
 
 
 def render_panel(tab=None):
@@ -278,7 +267,7 @@ def render_panel(tab=None):
             try:
                 await run.io_bound(_set_active_theme, theme_key)
                 ui.notify(f'Theme "{theme_key}" set as active — restarting...', type='positive')
-                _restart_app()
+                app_control.restart_app()
             except Exception as e:
                 ui.notify(f'Failed to set theme: {e}', type='negative')
                 btn.enable()

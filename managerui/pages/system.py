@@ -15,6 +15,7 @@ from common.iniconfig import IniConfig
 from common.app_updater import get_install_context
 from frontend.chromium_manager import get_chromium_path
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
+from managerui.services import system_service
 from managerui.ui_helpers import load_page_style
 
 try:
@@ -37,42 +38,21 @@ _GPU_FIELD_LABELS = {
 
 
 def _gpu_monitoring_supported() -> bool:
-    return platform.system() in {"Linux", "Darwin"}
+    return system_service.gpu_monitoring_supported()
 
 
 def _resolve_usage_path() -> Path:
     """Choose an existing path on the filesystem whose volume we want to monitor."""
-    candidate = Path.home()
-    try:
-        config = IniConfig(str(INI_PATH))
-        tableroot = config.config.get("Settings", "tablerootdir", fallback="").strip()
-        if tableroot:
-            candidate = Path(tableroot).expanduser()
-    except Exception:
-        pass
-
-    current = candidate
-    while not current.exists() and current != current.parent:
-        current = current.parent
-
-    return current if current.exists() else Path.home()
+    return system_service.resolve_usage_path()
 
 
 def _format_bytes(value: int) -> str:
-    units = ["B", "KB", "MB", "GB", "TB", "PB"]
-    size = float(value)
-    for unit in units:
-        if size < 1024 or unit == units[-1]:
-            if unit == "B":
-                return f"{int(size)} {unit}"
-            return f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size:.1f} PB"
+    return system_service.format_bytes(value)
 
 
 def _get_system_metrics(include_gpu: bool = False) -> dict:
     usage_path = _resolve_usage_path()
-    total, used, free = shutil.disk_usage(usage_path)
+    total, used, free = system_service.disk_usage(usage_path)
     disk_percent = (used / total * 100) if total else 0.0
     static_details = _get_static_system_details()
 
@@ -211,19 +191,11 @@ def _parse_percent_value(value: str | None) -> float | None:
 
 
 def _metric_color(value: float, warn: float, critical: float) -> str:
-    if value >= critical:
-        return "text-red-400"
-    if value >= warn:
-        return "text-amber-400"
-    return "text-emerald-400"
+    return system_service.metric_color(value, warn, critical)
 
 
 def _metric_tone(value: float, warn: float, critical: float) -> str:
-    if value >= critical:
-        return "critical"
-    if value >= warn:
-        return "warn"
-    return "ok"
+    return system_service.metric_tone(value, warn, critical)
 
 
 def _get_static_system_details() -> dict:
@@ -246,22 +218,7 @@ def _get_static_system_details() -> dict:
 
 
 def _get_windowing_system() -> str:
-    if platform.system() == "Windows":
-        return "Windows"
-    if platform.system() == "Darwin":
-        return "macOS"
-
-    session_type = os.environ.get("XDG_SESSION_TYPE", "").strip().lower()
-    wayland_display = os.environ.get("WAYLAND_DISPLAY", "").strip()
-    display = os.environ.get("DISPLAY", "").strip()
-
-    if wayland_display or session_type == "wayland":
-        return "Wayland"
-    if display or session_type == "x11":
-        return "X11"
-    if session_type:
-        return session_type.capitalize()
-    return "Unknown"
+    return system_service.windowing_system()
 
 
 def _get_build_flavor(install_context: dict) -> str:

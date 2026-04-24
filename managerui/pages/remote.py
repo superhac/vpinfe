@@ -1,14 +1,11 @@
 import subprocess
-import sys
 import os
 import logging
-from dataclasses import dataclass
-from pathlib import Path
 from nicegui import ui, run
-from managerui.keysimulator import KeySimulator
-from pynput.keyboard import Key
-from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, get_tables_path as resolve_tables_path
-from managerui.services import table_catalog
+from managerui.paths import VPINFE_INI_PATH
+from managerui.remote_actions import PINMAME_SERVICE_CONTROLS, SYSTEM_CONTROLS, RemoteAction
+from managerui import remote_launch
+from managerui.services import app_control
 
 ks = None
 content_area = None
@@ -21,7 +18,6 @@ from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.libdmdutil_service import (
     stop_libdmdutil_service,
 )
-from common.vpxcollections import VPXCollections
 from managerui.ui_helpers import load_page_style
 from common.launcher import (
     build_vpx_launch_command,
@@ -33,28 +29,21 @@ _INI_CFG = None
 logger = logging.getLogger("vpinfe.manager.remote")
 
 
-@dataclass(frozen=True)
-class RemoteAction:
-    label: str
-    command: str
-    icon: str | None = None
-    color_class: str = "text-cyan-400"
-    enabled: bool = True
+def _get_keysimulator_class():
+    from managerui.keysimulator import KeySimulator
+    return KeySimulator
 
 
-SYSTEM_CONTROLS = (
-    RemoteAction("Restart VPinFE", "Restart VPinFE", "restart_alt", "text-green-400"),
-    RemoteAction("Reboot", "Reboot", "replay", "text-orange-400"),
-    RemoteAction("Shutdown", "Shutdown", "power_off", "text-red-400"),
-    RemoteAction("Help", "Help", "help", "text-purple-400", False),
-    RemoteAction("Update", "Update", "system_update", "text-yellow-400", False),
-    RemoteAction("Settings", "Settings", "settings", "text-blue-400", False),
-    RemoteAction("Info", "Info", "info", "text-cyan-400", False),
-)
+def _get_key_class():
+    from pynput.keyboard import Key
+    return Key
 
-PINMAME_SERVICE_CONTROLS = tuple(
-    RemoteAction(f"S{i}", f"Service {i}") for i in range(1, 9)
-)
+
+def _get_keysimulator():
+    global ks
+    if ks is None:
+        ks = _get_keysimulator_class()(debug=True)
+    return ks
 
 
 def _remote_section(title: str):
@@ -87,117 +76,29 @@ def _labeled_icon_action(category: str, action: RemoteAction):
         )
 
 
-def _system_command_env() -> dict[str, str]:
-    """Return a clean env for OS tools that must not inherit bundled runtime libs."""
-    env = os.environ.copy()
-    for key in ("LD_LIBRARY_PATH", "LD_PRELOAD", "PYTHONHOME", "PYTHONPATH", "_MEIPASS2"):
-        env.pop(key, None)
-    return env
-
-
 def _get_collections():
     """Get list of collection names."""
-    try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        names = collections.get_collections_name()
-        logger.debug("Loaded collections: %s", names)
-        return names
-    except Exception as e:
-        logger.warning("Error loading collections: %s", e)
-        return []
+    return remote_launch.get_collections()
 
 
 def _get_collection_vpsids(collection_name):
     """Get VPSIds for a specific collection (vpsid-based only)."""
-    try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        return set(collections.get_vpsids(collection_name))
-    except Exception:
-        return set()
+    return remote_launch.get_collection_vpsids(collection_name)
 
 
 def _is_filter_collection(collection_name):
     """Check if a collection is filter-based."""
-    try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        return collections.is_filter_based(collection_name)
-    except Exception:
-        return False
+    return remote_launch.is_filter_collection(collection_name)
 
 
 def _get_collection_filters(collection_name):
     """Get filters for a filter-based collection."""
-    try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        return collections.get_filters(collection_name)
-    except Exception:
-        return None
+    return remote_launch.get_collection_filters(collection_name)
 
 
 def _table_matches_filters(table, filters):
     """Check if a table matches the given filter criteria."""
-    if not filters:
-        return False
-
-    def _normalize_rating(value):
-        try:
-            normalized = int(float(value))
-        except (TypeError, ValueError):
-            normalized = 0
-        return max(0, min(5, normalized))
-
-    def _is_truthy(value):
-        return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
-
-    # Check letter filter
-    letter = filters.get('letter', 'All')
-    if letter != 'All':
-        table_name = table.get('name', '')
-        if table_name and table_name[0].upper() != letter.upper():
-            return False
-
-    # Check manufacturer filter
-    manufacturer = filters.get('manufacturer', 'All')
-    if manufacturer != 'All':
-        if table.get('manufacturer', '') != manufacturer:
-            return False
-
-    # Check year filter
-    year = filters.get('year', 'All')
-    if year != 'All':
-        if str(table.get('year', '')) != str(year):
-            return False
-
-    # Check type filter
-    table_type = filters.get('table_type', 'All')
-    if table_type != 'All':
-        if table.get('type', '') != table_type:
-            return False
-
-    # Check theme filter
-    theme = filters.get('theme', 'All')
-    if theme != 'All':
-        if table.get('theme', '') != theme:
-            return False
-
-    # Check rating filter
-    rating = filters.get('rating', 'All')
-    if rating != 'All':
-        selected = []
-        for r in str(rating).split(','):
-            try:
-                selected.append(_normalize_rating(r.strip()))
-            except Exception:
-                continue
-        table_rating = _normalize_rating(table.get('rating', 0))
-        if _is_truthy(filters.get('rating_or_higher', 'false')):
-            if not selected or table_rating < min(selected):
-                return False
-        else:
-            if table_rating not in set(selected):
-                return False
-
-    return True
+    return remote_launch.table_matches_filters(table, filters)
 
 
 def _get_ini_config():
@@ -210,12 +111,13 @@ def _get_ini_config():
 
 def _get_tables_path() -> str:
     """Get the tables root directory from config."""
-    return resolve_tables_path()
+    from managerui.paths import get_tables_path
+    return get_tables_path()
 
 
 def _scan_tables_for_launch():
     """Scan for tables that can be launched (have .info and .vpx files)."""
-    return table_catalog.scan_launchable_tables(_get_tables_path())
+    return remote_launch.scan_tables_for_launch()
 
 
 def _launch_table(table: dict):
@@ -296,81 +198,19 @@ def _launch_table(table: dict):
 
 
 def _restart_app():
-    """Restart the VPinFE application by signaling main.py to re-exec itself."""
-    ui.notify('Restarting VPinFE...', type='info')
-
-    # Write a restart sentinel file that main.py checks after cleanup
-    restart_flag = CONFIG_DIR / '.restart'
-    restart_flag.touch()
-
-    # Terminate all Chromium windows to trigger clean shutdown
-    # main.py will detect the sentinel and os.execvp itself
-    # NOTE: Use sys.modules['__main__'] because main.py runs as __main__,
-    # and "import main" would re-execute the entire module (rebinding ports, etc.)
-    main_module = sys.modules['__main__']
-    frontend_browser = getattr(main_module, 'frontend_browser', None)
-    if frontend_browser:
-        frontend_browser.terminate_all()
+    app_control.restart_app()
 
 
 def _quit_app():
-    """Quit VPinFE by closing all Chromium windows (or signaling shutdown in headless mode)."""
-    from managerui.managerui import _shutdown_event
-
-    ui.notify('Quitting VPinFE...', type='info')
-
-    # Signal the shutdown event (unblocks headless mode)
-    _shutdown_event.set()
-
-    # Terminate all Chromium windows to trigger clean shutdown (no restart sentinel)
-    main_module = sys.modules['__main__']
-    frontend_browser = getattr(main_module, 'frontend_browser', None)
-    if frontend_browser:
-        frontend_browser.terminate_all()
+    app_control.quit_app()
 
 
 def _shutdown_system():
-    """Shutdown the system (cross-platform)."""
-    ui.notify('Shutting down system...', type='warning')
-
-    # Issue shutdown command based on platform (before closing windows)
-    if sys.platform == 'win32':
-        # Windows: shutdown /s /t 1 (1 second delay to allow cleanup)
-        subprocess.Popen(['shutdown', '/s', '/t', '1'], shell=True)
-    elif sys.platform == 'darwin':
-        # macOS: use osascript to trigger shutdown
-        subprocess.Popen(['osascript', '-e', 'tell app "System Events" to shut down'])
-    else:
-        # Linux: use systemctl with -i flag to ignore inhibitors (like GNOME session)
-        subprocess.Popen(["systemctl", "poweroff", "-i"], env=_system_command_env())
-
-    # Terminate Chromium windows after issuing shutdown
-    main_module = sys.modules['__main__']
-    frontend_browser = getattr(main_module, 'frontend_browser', None)
-    if frontend_browser:
-        frontend_browser.terminate_all()
+    app_control.shutdown_system()
 
 
 def _reboot_system():
-    """Reboot the system (cross-platform)."""
-    ui.notify('Rebooting system...', type='warning')
-
-    # Issue reboot command based on platform (before closing windows)
-    if sys.platform == 'win32':
-        # Windows: shutdown /r /t 1 (reboot with 1 second delay)
-        subprocess.Popen(['shutdown', '/r', '/t', '1'], shell=True)
-    elif sys.platform == 'darwin':
-        # macOS: use osascript to trigger restart
-        subprocess.Popen(['osascript', '-e', 'tell app "System Events" to restart'])
-    else:
-        # Linux: use systemctl reboot
-        subprocess.Popen(['systemctl', 'reboot'], env=_system_command_env())
-
-    # Terminate Chromium windows after issuing reboot
-    main_module = sys.modules['__main__']
-    frontend_browser = getattr(main_module, 'frontend_browser', None)
-    if frontend_browser:
-        frontend_browser.terminate_all()
+    app_control.reboot_system()
 
 
 def _show_reboot_confirmation():
@@ -413,8 +253,7 @@ def _show_shutdown_confirmation():
 
 def build(parent=None):
     global content_area, category_select, ks
-    if ks is None:
-        ks = KeySimulator(debug=True)
+    _get_keysimulator()
 
     target = parent or ui
 
@@ -893,6 +732,7 @@ def show_other_controls():
 
 def show_virtual_keyboard():
     """Show a virtual keyboard dialog"""
+    Key = _get_key_class()
     with ui.dialog() as keyboard_dialog, ui.card().classes("p-4 w-[90vw] max-w-[500px]").style("background: var(--surface) !important;"):
         ui.label("Virtual Keyboard").classes("text-xl font-bold mb-4").style("color: var(--ink) !important;")
 
@@ -941,6 +781,7 @@ def show_virtual_keyboard():
 
 def send_keyboard_key(key, dialog):
     """Send a keyboard key press through KeySimulator"""
+    Key = _get_key_class()
     # Handle Key objects vs strings
     if isinstance(key, Key):
         key_name = key.name
@@ -948,7 +789,7 @@ def send_keyboard_key(key, dialog):
         key_name = key
 
     logger.info("Virtual keyboard: Pressing key '%s'", key_name)
-    ks.press(key)
+    _get_keysimulator().press(key)
     # Keep dialog open for multiple key presses
     # If you want to close after each key, uncomment the next line:
     # dialog.close()
@@ -956,52 +797,55 @@ def send_keyboard_key(key, dialog):
 
 def handle_button(category: str, button: str):
     logger.info("[%s] Button pressed: %s", category, button)
+    sim = _get_keysimulator()
+    Key = _get_key_class()
+    KeySimulator = _get_keysimulator_class()
     match category:
         case 'vpx maintenance' | 'vpx':
             match button:
-                case 'Performance Overlay': ks.press_mapping("PerfOverlay")
-                case 'Volume Up': ks.press_mapping("VolumeUp", seconds=0.1)
-                case 'Volume Down': ks.press_mapping("VolumeDown", seconds=0.1)
-                case 'Toggle Stereo': ks.press_mapping("ToggleStereo")
-                case 'Menu': ks.press_mapping("InGameUI")
-                case 'Table Reset': ks.press_mapping("Reset")
-                case 'Quit': ks.press_mapping("ExitGame")
-                case 'Pause': ks.press_mapping("Pause")
-                case 'Extra Ball': ks.press_mapping("ExtraBall")
-                case 'Debugger': ks.press_mapping("Debugger")
-                case 'Debug Balls': ks.press_mapping("DebugBalls")
-                case 'Navigate Up': ks.hold_mapping("LeftMagna", seconds=0.1)
-                case 'Navigate Down': ks.hold_mapping("RightMagna", seconds=0.1)
-                case 'Navigate Left': ks.hold_mapping("LeftFlipper", seconds=0.1)
-                case 'Navigate Right': ks.hold_mapping("RightFlipper", seconds=0.1)
-                case 'Enter': ks.hold(Key.enter, seconds=0.1)
+                case 'Performance Overlay': sim.press_mapping("PerfOverlay")
+                case 'Volume Up': sim.press_mapping("VolumeUp", seconds=0.1)
+                case 'Volume Down': sim.press_mapping("VolumeDown", seconds=0.1)
+                case 'Toggle Stereo': sim.press_mapping("ToggleStereo")
+                case 'Menu': sim.press_mapping("InGameUI")
+                case 'Table Reset': sim.press_mapping("Reset")
+                case 'Quit': sim.press_mapping("ExitGame")
+                case 'Pause': sim.press_mapping("Pause")
+                case 'Extra Ball': sim.press_mapping("ExtraBall")
+                case 'Debugger': sim.press_mapping("Debugger")
+                case 'Debug Balls': sim.press_mapping("DebugBalls")
+                case 'Navigate Up': sim.hold_mapping("LeftMagna", seconds=0.1)
+                case 'Navigate Down': sim.hold_mapping("RightMagna", seconds=0.1)
+                case 'Navigate Left': sim.hold_mapping("LeftFlipper", seconds=0.1)
+                case 'Navigate Right': sim.hold_mapping("RightFlipper", seconds=0.1)
+                case 'Enter': sim.hold(Key.enter, seconds=0.1)
         case 'vpx game':
             match button:
-                case 'Start': ks.hold_mapping("Start")
-                case 'Pause': ks.press_mapping("Pause")
-                case 'Quit': ks.press_mapping("ExitGame")
-                case 'ShowRules': ks.press_mapping("ShowRules")
-                case 'ExtraBall': ks.press_mapping("ExtraBall")
-                case 'Lockbar': ks.press_mapping("Lockbar")
-                case 'Credit1': ks.press_mapping("Credit1")
-                case 'Credit2': ks.press_mapping("Credit2")
-                case 'Credit3': ks.press_mapping("Credit3")
-                case 'Credit4': ks.press_mapping("Credit4")
+                case 'Start': sim.hold_mapping("Start")
+                case 'Pause': sim.press_mapping("Pause")
+                case 'Quit': sim.press_mapping("ExitGame")
+                case 'ShowRules': sim.press_mapping("ShowRules")
+                case 'ExtraBall': sim.press_mapping("ExtraBall")
+                case 'Lockbar': sim.press_mapping("Lockbar")
+                case 'Credit1': sim.press_mapping("Credit1")
+                case 'Credit2': sim.press_mapping("Credit2")
+                case 'Credit3': sim.press_mapping("Credit3")
+                case 'Credit4': sim.press_mapping("Credit4")
         case 'pinmame':
             match button:
-                case 'Coin Door': ks.press(KeySimulator.PINMAME_OPEN_COIN_DOOR)
-                case 'Cancel': ks.hold(KeySimulator.PINMAME_CANCEL)
-                case 'Down': ks.hold(KeySimulator.PINMAME_DOWN, seconds=0.1)
-                case 'Up': ks.hold(KeySimulator.PINMAME_UP, seconds=0.1)
-                case 'Enter': ks.hold(KeySimulator.PINMAME_ENTER, seconds=0.1)
-                case 'Service 1': ks.press_mapping("Service1")
-                case 'Service 2': ks.press_mapping("Service2")
-                case 'Service 3': ks.press_mapping("Service3")
-                case 'Service 4': ks.press_mapping("Service4")
-                case 'Service 5': ks.press_mapping("Service5")
-                case 'Service 6': ks.press_mapping("Service6")
-                case 'Service 7': ks.press_mapping("Service7")
-                case 'Service 8': ks.press_mapping("Service8")
+                case 'Coin Door': sim.press(KeySimulator.PINMAME_OPEN_COIN_DOOR)
+                case 'Cancel': sim.hold(KeySimulator.PINMAME_CANCEL)
+                case 'Down': sim.hold(KeySimulator.PINMAME_DOWN, seconds=0.1)
+                case 'Up': sim.hold(KeySimulator.PINMAME_UP, seconds=0.1)
+                case 'Enter': sim.hold(KeySimulator.PINMAME_ENTER, seconds=0.1)
+                case 'Service 1': sim.press_mapping("Service1")
+                case 'Service 2': sim.press_mapping("Service2")
+                case 'Service 3': sim.press_mapping("Service3")
+                case 'Service 4': sim.press_mapping("Service4")
+                case 'Service 5': sim.press_mapping("Service5")
+                case 'Service 6': sim.press_mapping("Service6")
+                case 'Service 7': sim.press_mapping("Service7")
+                case 'Service 8': sim.press_mapping("Service8")
         case 'other':
             match button:
                 case 'Restart VPinFE': _restart_app()

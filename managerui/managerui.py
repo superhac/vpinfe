@@ -9,10 +9,9 @@ from .pages import collections as tab_collections
 from .pages import media as tab_media
 from .pages import themes as tab_themes
 from .pages import system as tab_system
-from .pages import remote
-from .pages.remote import _restart_app, _quit_app
 from .pages import mobile as tab_mobile
 from .page_registry import NAV_PAGES, PAGE_ALIASES
+from .services import app_control
 from .services.archive_service import cleanup_archive, create_vpxz_archive
 from .ui_helpers import load_manager_styles, nav_button
 import asyncio
@@ -126,10 +125,10 @@ def header():
         with ui.row().classes('gap-3 items-center'):
             ui.image('/static/img/vpinfe-logo.png').classes('manager-header-logo')
             ui.label('VPinFE Manager').classes('text-xl manager-title')
-            ui.button(icon='restart_alt', on_click=lambda: _restart_app()) \
+            ui.button(icon='restart_alt', on_click=lambda: app_control.restart_app()) \
                 .props('flat round dense').classes('text-green-400') \
                 .tooltip('Restart VPinFE')
-            ui.button(icon='power_settings_new', on_click=lambda: _quit_app()) \
+            ui.button(icon='power_settings_new', on_click=lambda: app_control.quit_app()) \
                 .props('flat round dense').classes('text-red-400') \
                 .tooltip('Quit VPinFE')
 
@@ -157,7 +156,7 @@ def header():
                     with page_client:
                         ui.notify('Update staged. Restarting VPinFE...', type='positive')
                         _force_exit_after_update()
-                        _quit_app()
+                        app_control.quit_app()
                 except Exception as e:
                     with page_client:
                         ui.notify(f'Update failed: {e}', type='negative')
@@ -374,6 +373,7 @@ def index(page: str = '', dialog: str = ''):
 @ui.page('/remote')
 def remote_page():
     load_manager_styles()
+    from .pages import remote
     remote.build()
 
 @ui.page('/mobile')

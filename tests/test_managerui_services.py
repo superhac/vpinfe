@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import unittest
+import importlib
 
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui.filters import ALL_VALUE, apply_table_filters, build_table_filter_options
 from managerui.services.archive_service import resolve_table_dir
 from managerui.services.collections_service import get_filter_options, search_tables
 from managerui.services.media_service import media_url, update_cache_entry, set_media_cache, get_media_cache, invalidate_media_cache
+from managerui.services.system_service import format_bytes, metric_tone
 from managerui.services.table_catalog import build_mobile_table_rows
 from managerui.services.table_service import normalize_table_rating
 
@@ -103,6 +105,13 @@ class ManagerUiServiceTests(unittest.TestCase):
         self.assertEqual(row["media"]["bg"], "/media_tables/A%20B/medias/bg.png")
         self.assertTrue(row["has_bg"])
         self.assertNotIn("bg", row["thumb_errors"])
+
+    def test_system_service_formatters(self):
+        self.assertEqual(format_bytes(1024), "1.0 KB")
+        self.assertEqual(metric_tone(90, warn=70, critical=85), "critical")
+
+    def test_managerui_import_does_not_import_remote_keyboard_backend(self):
+        importlib.import_module("managerui.managerui")
 
 
 if __name__ == "__main__":

@@ -11,6 +11,8 @@ The Manager UI is a NiceGUI application under `managerui/`. Its current refactor
 - `managerui/filters.py`: shared filter option building and filtering for table-shaped rows.
 - `managerui/config_fields.py`: declarative config field metadata such as checkbox fields and input ordering.
 - `managerui/config_support.py`: non-UI support helpers for config pages such as display detection and field option shaping.
+- `managerui/remote_actions.py`: declarative remote control button definitions.
+- `managerui/remote_launch.py`: remote launch table scanning and collection filter matching.
 - `managerui/services/`: non-UI behavior shared by routes and pages.
 - `managerui/static/manager.css`: shared Manager UI theme variables, shell layout, and nav styling.
 - `managerui/static/<page>.css`: page-specific CSS that has been moved out of Python modules.
@@ -63,10 +65,14 @@ Service modules live under `managerui/services/` and should not depend on page l
 Current services:
 
 - `archive_service.py`: validates table folders and creates temporary `.vpxz` archives.
+- `app_control.py`: restart, quit, reboot, and shutdown actions that can be used without importing the remote page.
 - `collections_service.py`: collection manager access, table search, filter option building, and collection mutations.
 - `media_service.py`: media scanning, thumbnail cache paths, media replacement, and media cache invalidation.
+- `system_service.py`: reusable system-page formatters, disk target resolution, and platform helpers.
 - `table_catalog.py`: shared table scanning and row shaping for mobile transfers and remote launching.
 - `table_service.py`: shared table metadata, VPSdb, collection, upload, and table-association operations.
+- `theme_service.py`: active theme, theme registry, install, and delete operations.
+- `vpx_config_service.py`: VPX config path lookup and backup management.
 
 Use services from page event handlers instead of reaching into another page module. For example, use `create_vpxz_archive()` instead of calling a helper from `pages/mobile.py`.
 
@@ -140,6 +146,12 @@ Large table dialogs are exposed through thin dialog modules:
 - `pages/table_match_dialog.py`
 
 These modules are the public import points for dialog entry functions. During the transition, they delegate to private implementations in `pages/tables.py`; new dialog work should grow inside the dialog module instead of adding more public surface to `tables.py`.
+
+`pages/table_dialog_context.py` provides a small context object for refresh callbacks while dialog bodies continue moving out of `tables.py`.
+
+## Remote Imports
+
+Do not import `pages/remote.py` from the shell or unrelated pages just to restart or quit the app. Use `managerui.services.app_control` instead. The remote page lazy-loads `KeySimulator`/`pynput` only when the remote UI is opened so headless imports and tests do not require an active display server.
 
 ## Cache Ownership
 

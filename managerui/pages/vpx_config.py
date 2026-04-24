@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 import logging
 import os
 import re
@@ -12,12 +11,13 @@ from nicegui import ui
 
 from common.iniconfig import IniConfig
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
+from managerui.services import vpx_config_service
 from managerui.ui_helpers import load_page_style
 
 
 logger = logging.getLogger("vpinfe.manager.vpx_config")
 
-VPX_BACKUP_DIR = CONFIG_DIR / "backups" / "vpx_ini"
+VPX_BACKUP_DIR = vpx_config_service.VPX_BACKUP_DIR
 
 EDITOR_INCLUDED_KEYS = [
     "EnableLog",
@@ -109,16 +109,10 @@ class ParsedIni:
 
 def _load_vpx_ini_path() -> Path | None:
     try:
-        config = IniConfig(str(VPINFE_INI_PATH))
-        raw_path = config.config.get("Settings", "vpxinipath", fallback="").strip()
+        return vpx_config_service.load_vpx_ini_path()
     except Exception:
         logger.exception("Failed to read vpxinipath from vpinfe.ini")
         return None
-
-    if not raw_path:
-        return None
-
-    return Path(os.path.expanduser(raw_path))
 
 
 def _parse_comment_details(comment_lines: list[str]) -> tuple[str, str, str]:
@@ -322,36 +316,19 @@ def _write_updated_ini(
 
 
 def _backup_filename(ini_path: Path, reason: str = "manual") -> str:
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    return f"{ini_path.stem}-{reason}-{timestamp}{ini_path.suffix}"
+    return vpx_config_service.backup_filename(ini_path, reason)
 
 
 def _sanitize_backup_label(label: str) -> str:
-    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", str(label or "").strip())
-    cleaned = cleaned.strip("-.")
-    return cleaned[:64]
+    return vpx_config_service.sanitize_backup_label(label)
 
 
 def _create_backup(ini_path: Path, reason: str = "manual", label: str = "") -> Path:
-    VPX_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-    filename = _backup_filename(ini_path, reason=reason)
-    safe_label = _sanitize_backup_label(label)
-    if safe_label:
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        filename = f"{ini_path.stem}-{reason}-{safe_label}-{timestamp}{ini_path.suffix}"
-    backup_path = VPX_BACKUP_DIR / filename
-    shutil.copy2(ini_path, backup_path)
-    return backup_path
+    return vpx_config_service.create_backup(ini_path, reason, label)
 
 
 def _list_backups() -> list[Path]:
-    if not VPX_BACKUP_DIR.exists():
-        return []
-    return sorted(
-        (path for path in VPX_BACKUP_DIR.iterdir() if path.is_file() and path.suffix.lower() == ".ini"),
-        key=lambda path: path.stat().st_mtime,
-        reverse=True,
-    )
+    return vpx_config_service.list_backups()
 
 
 def render_panel() -> None:

@@ -2,10 +2,10 @@ name: Build VPinFE (Cross-Platform)
 
 on:
   push:
-    branches: [ master, vpinfe-chromium, arm-linux ]
+    branches: [ master, vpinfe-2.0 ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ master, vpinfe-chromium ]
+    branches: [ master, vpinfe-2.0 ]
 
 permissions:
   contents: write
