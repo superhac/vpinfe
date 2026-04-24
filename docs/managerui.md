@@ -140,15 +140,22 @@ For a new special field renderer, keep the NiceGUI component creation in `pages/
 
 ## Adding Table Dialogs
 
-Large table dialogs are exposed through thin dialog modules:
+Large table dialogs live outside the table-list page:
 
 - `pages/table_detail_dialog.py`
 - `pages/table_import_dialog.py`
 - `pages/table_match_dialog.py`
 
-These modules are the public import points for dialog entry functions. During the transition, they delegate to private implementations in `pages/tables.py`; new dialog work should grow inside the dialog module instead of adding more public surface to `tables.py`.
+These modules are the public import points for dialog entry functions and own the dialog bodies. `pages/tables.py` owns table scanning/list rendering and keeps only compatibility wrappers for older private dialog names.
 
-`pages/table_dialog_context.py` provides a small context object for refresh callbacks while dialog bodies continue moving out of `tables.py`.
+`pages/table_dialog_context.py` provides a small context object for refresh callbacks. New table dialog code should accept callbacks through this context or explicit function parameters instead of importing another page to trigger refreshes.
+
+When changing table dialogs:
+
+- keep NiceGUI layout and event wiring in the dialog module
+- put filesystem, metadata, VPSdb, and cache behavior in `services/table_service.py` or `services/table_index_service.py`
+- use `services/media_service.invalidate_media_cache()` after changes that affect media listings
+- avoid adding more dialog body code to `pages/tables.py`
 
 ## Remote Imports
 
