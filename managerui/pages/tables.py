@@ -12,7 +12,11 @@ from common.table_repository import get_table_rows, get_missing_tables
 from queue import Queue
 from managerui.filters import apply_table_filters, build_table_filter_options
 from managerui.paths import VPINFE_INI_PATH, get_tables_path as resolve_tables_path
+from managerui.pages.table_detail_dialog import open_table_dialog
+from managerui.pages.table_import_dialog import open_import_table_dialog
+from managerui.pages.table_match_dialog import open_match_vps_dialog, open_missing_tables_dialog
 from managerui.services import table_service
+from managerui.ui_helpers import dialog_card, load_page_style
 
 VPSDB_JSON_PATH = table_service.VPSDB_JSON_PATH
 
@@ -247,59 +251,7 @@ def load_metadata_from_ini():
 
 def render_panel(tab=None):
     with ui.column().classes('w-full'):
-        # Hide Quasar's built-in numeric overlay inside linear progress bars (prevents 0..1 decimals)
-        ui.add_head_html('<style>.q-linear-progress__info{display:none!important}</style>')
-        # Style table header and alternate row colors - modern look
-        ui.add_head_html('''
-        <style>
-            .q-table {
-                border-radius: var(--radius) !important;
-                overflow: hidden !important;
-                box-shadow: var(--shadow-intense) !important;
-                background: var(--surface) !important;
-            }
-            .q-table thead tr {
-                background: var(--header-gradient) !important;
-            }
-            .q-table thead tr th {
-                background: transparent !important;
-                color: var(--ink) !important;
-                font-weight: 600 !important;
-                text-transform: uppercase !important;
-                font-size: 0.75rem !important;
-                padding: 16px 12px !important;
-            }
-            .q-table tbody tr:nth-child(odd) {
-                background-color: var(--table-row) !important;
-            }
-            .q-table tbody tr:nth-child(even) {
-                background-color: var(--table-row-alt) !important;
-            }
-            .q-table tbody tr td {
-                color: var(--ink-muted) !important;
-                padding: 12px !important;
-                border-bottom: 1px solid var(--line) !important;
-            }
-            .q-table tbody tr:hover {
-                background-color: var(--table-hover) !important;
-                transition: background-color 0.2s ease !important;
-            }
-            .q-table tbody tr:hover td {
-                color: var(--neon-cyan) !important;
-            }
-            .q-table__top {
-                padding: 0 !important;
-                background-color: var(--surface-2) !important;
-                border-bottom: 1px solid var(--line) !important;
-            }
-            .q-table__bottom {
-                background-color: var(--surface-2) !important;
-                color: var(--ink-muted) !important;
-                border-top: 1px solid var(--line) !important;
-                padding: 0 !important;
-            }
-        </style>
-        ''')
+        load_page_style("tables.css")
         # Define columns for the table
         columns = [
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
@@ -420,7 +372,7 @@ def render_panel(tab=None):
                 'log_q': Queue(),
             }
 
-            with dlg, ui.card().classes('w-[650px]').style('background: var(--surface);'):
+            with dlg, dialog_card("650px"):
                 ui.label('Build Metadata').classes('text-xl font-bold').style('color: var(--ink);')
                 ui.separator()
 
@@ -551,7 +503,7 @@ def render_panel(tab=None):
 
         # --- UI Layout ---
         # Header section with page title and action buttons
-        with ui.card().classes('w-full mb-4').style('background: var(--surface); border-radius: 12px;'):
+        with ui.card().classes('w-full mb-4 manager-page-header'):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
                 ui.label('Tables Management').classes('text-2xl font-bold').style('color: var(--ink);').style('flex-shrink: 0;')
                 with ui.row().classes('gap-3 items-center flex-wrap'):
@@ -576,7 +528,7 @@ def render_panel(tab=None):
                             'client': context.client,  # Capture client while in UI context
                         }
 
-                        with dlg, ui.card().classes('w-[550px]').style('background: var(--surface); border-radius: var(--radius);'):
+                        with dlg, dialog_card("550px"):
                             ui.label('Apply VPX Patches').classes('text-xl font-bold').style('color: var(--ink);')
                             ui.separator()
 
@@ -1072,7 +1024,7 @@ def render_panel(tab=None):
 
         ui.timer(0.1, lambda: asyncio.create_task(startup_refresh()), once=True)
 
-def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = None):
+def _open_table_dialog_impl(row_data: dict, on_close: Optional[Callable[[], None]] = None):
     # Add dialog styles
     ui.add_head_html('''
     <style>
@@ -1646,7 +1598,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
             ui.button('Close', icon='close', on_click=close_dialog).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
     dlg.open()
 
-def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Callable[[], None]] = None):
+def _open_missing_tables_dialog_impl(missing_rows: list[dict], on_close: Optional[Callable[[], None]] = None):
     global _missing_tables_dialog
     # Close any previous dialog to avoid stacking
     try:
@@ -1702,7 +1654,7 @@ def open_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Call
             ui.button('Close', on_click=_close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
     dlg.open()
 
-def open_import_table_dialog(perform_scan_cb=None):
+def _open_import_table_dialog_impl(perform_scan_cb=None):
     """Top-level dialog for importing a new table with associated files."""
     dlg = ui.dialog().props('persistent max-width=900px')
     import_state = {
@@ -2038,7 +1990,7 @@ def open_import_table_dialog(perform_scan_cb=None):
     dlg.open()
 
 
-def open_match_vps_dialog(
+def _open_match_vps_dialog_impl(
     missing_row: dict,
     refresh_missing: Optional[Callable[[], None]] = None,
     refresh_installed: Optional[Callable[[], None]] = None,

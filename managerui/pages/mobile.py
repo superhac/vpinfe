@@ -4,13 +4,12 @@ import logging
 import urllib.request
 import urllib.parse
 import urllib.error
-from pathlib import Path
 from nicegui import ui, run
 
 from common.iniconfig import IniConfig
-from common.table_repository import get_table_rows
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_tables_path
 from managerui.services.archive_service import cleanup_archive, create_vpxz_archive
+from managerui.services import table_catalog
 
 
 logger = logging.getLogger("vpinfe.manager.mobile")
@@ -48,30 +47,12 @@ def _get_tables_path() -> str:
 
 
 def _scan_tables():
-    tables = []
-    for row in get_table_rows(reload=False):
-        table_path = row.get('table_path', '')
-        tables.append({
-            'name': row.get('name', ''),
-            'manufacturer': row.get('manufacturer', ''),
-            'year': str(row.get('year', '') or ''),
-            'table_dir_name': Path(table_path).name if table_path else '',
-            'table_path': table_path,
-        })
-    return tables
+    return table_catalog.scan_mobile_tables(reload=False)
 
 
 def _build_table_rows(tables):
     """Build display rows from scanned tables."""
-    rows = []
-    for t in tables:
-        parts = [p for p in [t['manufacturer'], t['year']] if p]
-        display = f"{t['name']} ({' '.join(parts)})" if parts else t['name']
-        rows.append({
-            'display_name': display,
-            'table_dir_name': t['table_dir_name'],
-        })
-    return rows
+    return table_catalog.build_mobile_table_rows(tables)
 
 
 def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=None):

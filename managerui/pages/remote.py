@@ -2,11 +2,13 @@ import subprocess
 import sys
 import os
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from nicegui import ui, run
 from managerui.keysimulator import KeySimulator
 from pynput.keyboard import Key
 from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, get_tables_path as resolve_tables_path
+from managerui.services import table_catalog
 
 ks = None
 content_area = None
@@ -28,6 +30,60 @@ from common.launcher import (
 )
 _INI_CFG = None
 logger = logging.getLogger("vpinfe.manager.remote")
+
+
+@dataclass(frozen=True)
+class RemoteAction:
+    label: str
+    command: str
+    icon: str | None = None
+    color_class: str = "text-cyan-400"
+    enabled: bool = True
+
+
+SYSTEM_CONTROLS = (
+    RemoteAction("Restart VPinFE", "Restart VPinFE", "restart_alt", "text-green-400"),
+    RemoteAction("Reboot", "Reboot", "replay", "text-orange-400"),
+    RemoteAction("Shutdown", "Shutdown", "power_off", "text-red-400"),
+    RemoteAction("Help", "Help", "help", "text-purple-400", False),
+    RemoteAction("Update", "Update", "system_update", "text-yellow-400", False),
+    RemoteAction("Settings", "Settings", "settings", "text-blue-400", False),
+    RemoteAction("Info", "Info", "info", "text-cyan-400", False),
+)
+
+PINMAME_SERVICE_CONTROLS = tuple(
+    RemoteAction(f"S{i}", f"Service {i}") for i in range(1, 9)
+)
+
+
+def _remote_section(title: str):
+    card = ui.card().classes("w-full p-3 md:p-4").style(
+        "background-color: var(--surface) !important; "
+        "border: 1px solid var(--neon-purple); "
+        "border-radius: 18px;"
+    )
+    with card:
+        ui.label(title).classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style(
+            "color: var(--ink-muted) !important;"
+        )
+    return card
+
+
+def _labeled_icon_action(category: str, action: RemoteAction):
+    with ui.column().classes("items-center gap-2"):
+        btn = ui.button(
+            on_click=lambda a=action: handle_button(category, a.command) if a.enabled else None
+        ).props("flat round").classes("icon-button")
+        if not action.enabled:
+            btn.props("disable")
+            btn.style("opacity: 0.4; cursor: not-allowed;")
+        with btn:
+            ui.icon(action.icon or "radio_button_checked", size="md").classes(
+                action.color_class if action.enabled else "text-gray-600"
+            )
+        ui.label(action.label).classes(
+            f"text-xs font-medium {'text-gray-400' if action.enabled else 'text-gray-600'}"
+        )
 
 
 def _system_command_env() -> dict[str, str]:
@@ -158,64 +214,7 @@ def _get_tables_path() -> str:
 
 def _scan_tables_for_launch():
     """Scan for tables that can be launched (have .info and .vpx files)."""
-    import os
-    import json
-    tables_path = _get_tables_path()
-    tables = []
-
-    if not os.path.exists(tables_path):
-        return tables
-
-    for root, _, files in os.walk(tables_path):
-        current_dir = os.path.basename(root)
-        info_file = f"{current_dir}.info"
-
-        if info_file in files:
-            # Find the .vpx file
-            vpx_files = [f for f in files if f.lower().endswith('.vpx')]
-            if not vpx_files:
-                continue
-
-            meta_path = os.path.join(root, info_file)
-            try:
-                with open(meta_path, "r", encoding="utf-8") as f:
-                    raw = json.load(f)
-
-                info = raw.get("Info", {})
-                user = raw.get("User", {})
-                vpinfe = raw.get("VPinFE", {})
-                name = (info.get("Title") or current_dir).strip()
-                manufacturer = info.get("Manufacturer", "")
-                year = info.get("Year", "")
-
-                # Build display name
-                display_name = name
-                if manufacturer and year:
-                    display_name = f"{name} ({manufacturer} {year})"
-                elif manufacturer:
-                    display_name = f"{name} ({manufacturer})"
-                elif year:
-                    display_name = f"{name} ({year})"
-
-                tables.append({
-                    'name': name,
-                    'display_name': display_name,
-                    'vpx_path': os.path.join(root, vpx_files[0]),
-                    'table_path': root,
-                    'vpsid': info.get('VPSId', ''),
-                    'manufacturer': manufacturer,
-                    'year': str(year) if year else '',
-                    'type': info.get('Type', ''),
-                    'theme': info.get('Theme', ''),
-                    'rating': user.get('Rating', 0),
-                    'meta': {'VPinFE': vpinfe},
-                })
-            except Exception:
-                pass
-
-    # Sort by name
-    tables.sort(key=lambda t: t['name'].lower())
-    return tables
+    return table_catalog.scan_launchable_tables(_get_tables_path())
 
 
 def _launch_table(table: dict):
@@ -1073,46 +1072,22 @@ def show_pinmame_controls():
                         ui.icon("close", size="sm").style("color: var(--bad) !important;")
 
     # Services Section
-    with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
-        ui.label("Service Buttons").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
-
+    with _remote_section("Service Buttons"):
         with ui.grid(columns=4).classes("gap-2 w-full justify-items-center"):
-            for i in range(1, 9):
+            for action in PINMAME_SERVICE_CONTROLS:
                 ui.button(
-                    f"S{i}",
-                    on_click=lambda num=i: handle_button("pinmame", f"Service {num}")
+                    action.label,
+                    on_click=lambda a=action: handle_button("pinmame", a.command)
                 ).classes("remote-button px-3 py-2 rounded-lg text-[10px] md:text-xs font-medium").style("color: var(--ink) !important; background: var(--surface-soft) !important; border: 1px solid var(--line) !important;")
 
 
 def show_other_controls():
     """Other controls layout"""
 
-    with ui.card().classes("w-full p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
-        ui.label("System Controls").classes("text-center text-sm font-semibold mb-4").style("color: var(--ink-muted) !important;")
-
+    with _remote_section("System Controls"):
         with ui.grid(columns=3).classes("gap-4 w-full justify-items-center"):
-            # (label, icon, color, enabled)
-            controls = [
-                ("Restart VPinFE", "restart_alt", "text-green-400", True),
-                ("Reboot", "replay", "text-orange-400", True),
-                ("Shutdown", "power_off", "text-red-400", True),
-                ("Help", "help", "text-purple-400", False),
-                ("Update", "system_update", "text-yellow-400", False),
-                ("Settings", "settings", "text-blue-400", False),
-                ("Info", "info", "text-cyan-400", False),
-            ]
-
-            for label, icon, color, enabled in controls:
-                with ui.column().classes("items-center gap-2"):
-                    btn = ui.button(
-                        on_click=lambda l=label, e=enabled: handle_button("other", l) if e else None
-                    ).props("flat round").classes("icon-button")
-                    if not enabled:
-                        btn.props("disable")
-                        btn.style("opacity: 0.4; cursor: not-allowed;")
-                    with btn:
-                        ui.icon(icon, size="md").classes(color if enabled else "text-gray-600")
-                    ui.label(label).classes(f"text-xs font-medium {'text-gray-400' if enabled else 'text-gray-600'}")
+            for action in SYSTEM_CONTROLS:
+                _labeled_icon_action("other", action)
 
 
 def show_virtual_keyboard():

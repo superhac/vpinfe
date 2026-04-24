@@ -1,0 +1,87 @@
+from __future__ import annotations
+
+import unittest
+
+from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
+from managerui.filters import ALL_VALUE, apply_table_filters, build_table_filter_options
+from managerui.services.archive_service import resolve_table_dir
+from managerui.services.table_catalog import build_mobile_table_rows
+from managerui.services.table_service import normalize_table_rating
+
+
+class ManagerUiServiceTests(unittest.TestCase):
+    def test_table_filter_options_and_apply_filters(self):
+        rows = [
+            {
+                "name": "Attack From Mars",
+                "filename": "afm.vpx",
+                "manufacturer": "Bally",
+                "year": "1995",
+                "themes": ["Sci-Fi"],
+                "type": "SS",
+            },
+            {
+                "name": "Medieval Madness",
+                "filename": "mm.vpx",
+                "manufacturer": "Williams",
+                "year": "1997",
+                "themes": ["Fantasy"],
+                "type": "SS",
+            },
+        ]
+
+        options = build_table_filter_options(rows)
+        self.assertEqual(options["manufacturers"], [ALL_VALUE, "Bally", "Williams"])
+        self.assertEqual(options["themes"], [ALL_VALUE, "Fantasy", "Sci-Fi"])
+
+        filtered = apply_table_filters(
+            rows,
+            {"search": "mars", "manufacturer": "Bally", "year": ALL_VALUE},
+            search_fields=("name", "filename"),
+        )
+        self.assertEqual([row["name"] for row in filtered], ["Attack From Mars"])
+
+    def test_normalize_table_rating(self):
+        cases = [(None, 0), ("bad", 0), ("2.8", 2), (8, 5), (-1, 0)]
+        for raw, expected in cases:
+            with self.subTest(raw=raw):
+                self.assertEqual(normalize_table_rating(raw), expected)
+
+    def test_resolve_table_dir_rejects_path_traversal(self):
+        with self.subTest("valid table"):
+            from tempfile import TemporaryDirectory
+            from pathlib import Path
+
+            with TemporaryDirectory() as temp_dir:
+                tables_root = Path(temp_dir) / "tables"
+                good_table = tables_root / "Good Table"
+                good_table.mkdir(parents=True)
+
+                self.assertEqual(resolve_table_dir("Good Table", str(tables_root)), good_table.resolve())
+
+                with self.assertRaises(ValueError):
+                    resolve_table_dir("../outside", str(tables_root))
+
+    def test_mobile_table_rows_format_display_names(self):
+        rows = build_mobile_table_rows([
+            {"name": "Centaur", "manufacturer": "Bally", "year": "1981", "table_dir_name": "Centaur"},
+            {"name": "No Frills", "manufacturer": "", "year": "", "table_dir_name": "No Frills"},
+        ])
+
+        self.assertEqual(rows, [
+            {"display_name": "Centaur (Bally 1981)", "table_dir_name": "Centaur"},
+            {"display_name": "No Frills", "table_dir_name": "No Frills"},
+        ])
+
+    def test_config_field_metadata(self):
+        self.assertTrue(is_checkbox_field("Settings", "muteaudio"))
+        self.assertFalse(is_checkbox_field("Settings", "tablerootdir"))
+        self.assertEqual(sort_input_mapping_keys(["keyback", "keyleft", "keycustom"], "key"), [
+            "keyleft",
+            "keyback",
+            "keycustom",
+        ])
+
+
+if __name__ == "__main__":
+    unittest.main()

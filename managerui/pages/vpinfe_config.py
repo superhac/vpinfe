@@ -15,6 +15,7 @@ from common.vpinplay_service import sync_installed_tables
 from common.launcher import build_masked_tableini_path, build_vpx_launch_command
 from common.vpxcollections import VPXCollections
 from pathlib import Path
+from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, THEMES_DIR
 from screeninfo import get_monitors
 
@@ -147,35 +148,6 @@ def get_friendly_name(key: str) -> str:
     # Fallback: 'my_raw_key' becomes 'My Raw Key'
     return key.replace('_', ' ').title()
 
-
-INPUT_MAPPING_ACTION_ORDER = [
-    'left',
-    'right',
-    'up',
-    'down',
-    'select',
-    'menu',
-    'back',
-    'exit',
-    'collectionmenu',
-    'tutorial',
-]
-
-
-def _sort_input_mapping_keys(keys: list[str], prefix: str) -> list[str]:
-    ordered_keys: list[str] = []
-    present_keys = set(keys)
-
-    for action in INPUT_MAPPING_ACTION_ORDER:
-        mapping_key = f'{prefix}{action}'
-        if mapping_key in present_keys:
-            ordered_keys.append(mapping_key)
-
-    for key in keys:
-        if key not in ordered_keys:
-            ordered_keys.append(key)
-
-    return ordered_keys
 
 def _get_collection_names():
     """Get list of collection names for the dropdown."""
@@ -757,20 +729,7 @@ def render_panel(tab=None):
             (section == 'libdmdutil' and key == 'enabled')
             or (section == 'libdmdutil' and key == 'pin2dmdenabled')
         )
-        is_checkbox = (
-            (section == 'Settings' and key == 'autoupdatemediaonstartup')
-            or (section == 'Displays' and key == 'cabmode')
-            or (section == 'Logger' and key == 'console')
-            or (section == 'Settings' and key == 'splashscreen')
-            or (section == 'Settings' and key == 'muteaudio')
-            or (section == 'Settings' and key == 'mmhidequitbutton')
-            or (section == 'DOF' and key == 'enabledof')
-            or (section == 'libdmdutil' and key == 'enabled')
-            or (section == 'libdmdutil' and key == 'pin2dmdenabled')
-            or (section == 'Settings' and key == 'globaltableinioverrideenabled')
-            or (section == 'Mobile' and key == 'renamemasktodefaultini')
-            or (section == 'vpinplay' and key == 'synconexit')
-        )
+        is_checkbox = is_checkbox_field(section, key)
 
         with ui.element('div').classes(
             'config-field-card compact' if is_checkbox and not special_label_above else 'config-field-card'
@@ -1338,11 +1297,11 @@ def render_panel(tab=None):
                                                     value = config.config.get(section, key, fallback='')
                                                     build_config_input(section, key, value)
                                     elif section == 'Input':
-                                        controller_keys = _sort_input_mapping_keys(
+                                        controller_keys = sort_input_mapping_keys(
                                             [key for key in options if key.startswith('joy')],
                                             'joy',
                                         )
-                                        keyboard_keys = _sort_input_mapping_keys(
+                                        keyboard_keys = sort_input_mapping_keys(
                                             [key for key in options if key.startswith('key')],
                                             'key',
                                         )

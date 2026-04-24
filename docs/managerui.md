@@ -9,8 +9,10 @@ The Manager UI is a NiceGUI application under `managerui/`. Its current refactor
 - `managerui/paths.py`: shared config paths and path helpers such as `get_tables_path()`.
 - `managerui/ui_helpers.py`: reusable UI helpers such as shared style loading and standard nav/action buttons.
 - `managerui/filters.py`: shared filter option building and filtering for table-shaped rows.
+- `managerui/config_fields.py`: declarative config field metadata such as checkbox fields and input ordering.
 - `managerui/services/`: non-UI behavior shared by routes and pages.
 - `managerui/static/manager.css`: shared Manager UI theme variables, shell layout, and nav styling.
+- `managerui/static/<page>.css`: page-specific CSS that has been moved out of Python modules.
 - `managerui/pages/`: feature pages. Each page should expose a `render_panel()` function, except standalone pages that intentionally expose a different entry point such as `mobile.build()`.
 
 ## Shell Flow
@@ -29,10 +31,18 @@ Shared shell styling belongs in `managerui/static/manager.css`.
 
 Use CSS classes for repeated styles instead of long inline `.style(...)` strings. Inline styles are still fine for one-off layout values or values that are easier to compute in Python.
 
-Page-specific styles can remain in page modules during the transition, but the target architecture is:
+Page-specific styles should move into `managerui/static/<page>.css` and be loaded with:
+
+```python
+from managerui.ui_helpers import load_page_style
+
+load_page_style("tables.css")
+```
+
+Some older page-specific styles can remain in page modules during the transition, but the target architecture is:
 
 - shared tokens and common components in `manager.css`
-- page-specific classes grouped by feature
+- page-specific classes grouped by feature, for example `tables.css`
 - minimal inline styles in page rendering code
 
 ## Shared Paths
@@ -52,6 +62,7 @@ Service modules live under `managerui/services/` and should not depend on page l
 Current services:
 
 - `archive_service.py`: validates table folders and creates temporary `.vpxz` archives.
+- `table_catalog.py`: shared table scanning and row shaping for mobile transfers and remote launching.
 - `table_service.py`: shared table metadata, VPSdb, collection, upload, and table-association operations.
 
 Use services from page event handlers instead of reaching into another page module. For example, use `create_vpxz_archive()` instead of calling a helper from `pages/mobile.py`.
@@ -107,6 +118,26 @@ Add small, generic helpers to `managerui/ui_helpers.py` when a pattern appears a
 
 Keep feature-specific behavior in the page or a service module instead of making `ui_helpers.py` a large mixed utility file.
 
+## Adding Or Changing Config Fields
+
+Use `managerui/config_fields.py` for field behavior that is metadata rather than page layout.
+
+- Add boolean fields to `CHECKBOX_FIELDS`.
+- Adjust controller/keyboard ordering through `INPUT_MAPPING_ACTION_ORDER`.
+- Keep labels in the page-level `FRIENDLY_NAMES` map until labels are shared by another page.
+
+For a new special field renderer, keep the NiceGUI component creation in `pages/vpinfe_config.py`, but put reusable classification rules in `config_fields.py`.
+
+## Adding Table Dialogs
+
+Large table dialogs are exposed through thin dialog modules:
+
+- `pages/table_detail_dialog.py`
+- `pages/table_import_dialog.py`
+- `pages/table_match_dialog.py`
+
+These modules are the public import points for dialog entry functions. During the transition, they delegate to private implementations in `pages/tables.py`; new dialog work should grow inside the dialog module instead of adding more public surface to `tables.py`.
+
 ## Adding Service Logic
 
 When a page function starts mixing filesystem work, config writes, data scanning, network calls, and UI rendering, split the non-UI behavior into a service module.
@@ -125,6 +156,7 @@ For example, table import and VPS matching logic should live in table-focused se
 - Use `paths.py` for shared Manager UI paths.
 - Use `services/` for behavior that is reused by multiple pages or routes.
 - Use `filters.py` for common table-shaped filtering.
+- Use `config_fields.py` for reusable config field rules.
 - Prefer classes in `manager.css` over repeated inline style strings.
 - Keep standalone routes like `/remote` and `/mobile` explicit in `managerui.py`.
 - Treat cross-page shared behavior as a service or helper only after it appears in more than one place.
