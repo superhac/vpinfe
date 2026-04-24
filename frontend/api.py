@@ -1,7 +1,5 @@
 import logging
-from pathlib import Path
 import subprocess
-import threading
 from common import system_actions
 from common.table_repository import ensure_tables_loaded
 from common.collections_service import get_collection_names
@@ -28,7 +26,7 @@ from common.table_metadata import (
     persist_table_meta,
 )
 from common import table_play_service
-from frontend import input_api, launch_service, metadata_build_service, table_state, theme_api
+from frontend import config_api, input_api, launch_service, metadata_build_service, realdmd_service, table_state, theme_api
 
 
 logger = logging.getLogger("vpinfe.frontend.api")
@@ -104,11 +102,11 @@ class API:
             except Exception:
                 logger.exception("Could not load startup collection '%s'", startup_collection)
 
-        self._realdmd_worker_lock = threading.Lock()
-        self._realdmd_worker_event = threading.Event()
-        self._realdmd_worker_image_path = None
-        self._realdmd_worker_table_name = ""
-        self._realdmd_worker_thread = None
+        self._realdmd_updater = realdmd_service.RealDmdUpdater(
+            self._iniConfig,
+            self.window_name,
+            show_libdmdutil_image,
+        )
 
     ####################
     ## Private Functions
@@ -121,63 +119,13 @@ class API:
         return normalize_meta(table.metaConfig)
 
     def _get_frontend_dof_event_for_table(self, table) -> str:
-        meta = self._normalize_table_meta(table)
-        user = meta.get("User", {}) if isinstance(meta, dict) else {}
-        if not isinstance(user, dict):
-            return ""
-        return str(user.get("FrontendDOFEvent", "") or "").strip()
+        return realdmd_service.get_frontend_dof_event_for_table(table)
 
-    def _get_realdmd_image_for_table(self, table) -> Path | None:
-        image_path = str(getattr(table, "realDMDImagePath", "") or "").strip()
-        if not image_path:
-            return None
-        path = Path(image_path).expanduser()
-        try:
-            return path.resolve()
-        except Exception:
-            return path
+    def _get_realdmd_image_for_table(self, table):
+        return realdmd_service.get_realdmd_image_for_table(table)
 
-    def _ensure_realdmd_worker(self) -> None:
-        with self._realdmd_worker_lock:
-            if self._realdmd_worker_thread is not None and self._realdmd_worker_thread.is_alive():
-                return
-
-            self._realdmd_worker_thread = threading.Thread(
-                target=self._realdmd_worker_loop,
-                name=f"realdmd-worker-{self.window_name or 'unknown'}",
-                daemon=True,
-            )
-            self._realdmd_worker_thread.start()
-
-    def _queue_realdmd_image_update(self, table_name: str, image_path: Path | None) -> None:
-        self._ensure_realdmd_worker()
-        with self._realdmd_worker_lock:
-            self._realdmd_worker_table_name = table_name
-            self._realdmd_worker_image_path = image_path
-            self._realdmd_worker_event.set()
-
-    def _realdmd_worker_loop(self) -> None:
-        while True:
-            self._realdmd_worker_event.wait()
-            with self._realdmd_worker_lock:
-                image_path = self._realdmd_worker_image_path
-                table_name = self._realdmd_worker_table_name
-                self._realdmd_worker_event.clear()
-
-            try:
-                image_sent = show_libdmdutil_image(self._iniConfig, image_path)
-                logger.debug(
-                    "Async real DMD update for %s -> sent=%s image=%s",
-                    table_name,
-                    image_sent,
-                    image_path,
-                )
-            except Exception:
-                logger.exception(
-                    "Async real DMD update failed for %s (image=%s)",
-                    table_name,
-                    image_path,
-                )
+    def _queue_realdmd_image_update(self, table_name: str, image_path) -> None:
+        self._realdmd_updater.queue_image_update(table_name, image_path)
 
 
     ###################
@@ -330,12 +278,10 @@ class API:
 
     def get_mainmenu_config(self):
         try:
-            self._iniConfig.config.read(self._iniConfig.configfilepath)
+            return config_api.get_mainmenu_config(self._iniConfig)
         except Exception:
             logger.exception("Failed to reload ini before get_mainmenu_config")
-        return {
-            'hideQuitButton': self._iniConfig.config.getboolean('Settings', 'MMhideQuitButton', fallback=False),
-        }
+            return {"hideQuitButton": False}
 
     def set_button_mapping(self, button_name, button_index):
         """Set a gamepad button mapping and save to config."""
@@ -455,50 +401,31 @@ class API:
     ###################
 
     def get_splashscreen_enabled(self):
-        return self._iniConfig.config['Settings'].get('splashscreen', 'true')
+        return config_api.get_splashscreen_enabled(self._iniConfig.config)
 
     def get_audio_muted(self):
         return theme_api.get_audio_muted(self._iniConfig.config)
 
     def set_audio_muted(self, muted):
-        if isinstance(muted, bool):
-            muted_flag = muted
-        else:
-            muted_flag = str(muted or '').strip().lower() in ('1', 'true', 'yes', 'on')
-        self._iniConfig.config.set('Settings', 'muteaudio', 'true' if muted_flag else 'false')
-        self._iniConfig.save()
-        self.send_event_all_windows_incself({
-            'type': 'AudioMuteChanged',
-            'muted': muted_flag,
-        })
-        return muted_flag
+        return config_api.set_audio_muted(self, muted)
 
     def get_theme_name(self):
         return theme_api.get_theme_name(self._iniConfig.config)
 
     def get_vpinplay_endpoint(self):
-        return str(self._iniConfig.config['vpinplay'].get('apiendpoint', '')).strip()
+        return config_api.get_vpinplay_endpoint(self._iniConfig.config)
 
     def get_table_orientation(self):
-        return self._iniConfig.config['Displays'].get('tableorientation', 'landscape')
+        return config_api.get_table_orientation(self._iniConfig.config)
 
     def get_table_rotation(self):
-        raw = str(self._iniConfig.config['Displays'].get('tablerotation', '0')).strip()
-        if raw == '':
-            return 0
-        try:
-            return int(float(raw))
-        except (ValueError, TypeError):
-            return 0
+        return config_api.get_table_rotation(self._iniConfig.config)
 
     def get_cab_mode(self):
-        raw = str(self._iniConfig.config['Displays'].get(
-            'cabmode',
-            self._iniConfig.config['Settings'].get('cabmode', 'false')
-        )).strip().lower()
-        return raw in ('1', 'true', 'yes', 'on')
+        return config_api.get_cab_mode(self._iniConfig.config)
+
     def get_theme_assets_port(self):
-        return int(self._iniConfig.config['Network'].get('themeassetsport', '8000'))
+        return config_api.get_theme_assets_port(self._iniConfig.config)
 
     def get_theme_index_page(self):
         return theme_api.get_theme_index_page(self._iniConfig.config, self.get_my_window_name())

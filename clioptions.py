@@ -5,11 +5,9 @@ import os
 from screeninfo import get_monitors
 
 from common.iniconfig import IniConfig
-from common.tableparser import TableParser
-from common.vpsdb import VPSdb
 from common.logging_config import get_logger
 from common.paths import VPINFE_INI_PATH, ensure_config_dir
-from common import metadata_service
+from common import metadata_service, table_report_service
 from frontend.customhttpserver import CustomHTTPServer
 
 logger = get_logger("vpinfe.cli")
@@ -33,68 +31,11 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName:
 
 
 def listMissingTables():
-    """List VPSdb tables that are not present locally."""
-    tp = TableParser(iniconfig.config['Settings']['tablerootdir'], iniconfig)
-    tp.loadTables(reload=True)
-    tables = tp.getAllTables()
-    logger.info("Listing tables missing from %s", iniconfig.config['Settings']['tablerootdir'])
-    total = len(tables)
-    logger.info("Found %s tables in %s", total, iniconfig.config['Settings']['tablerootdir'])
-
-    vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
-    logger.info("Found %s tables in VPSdb", len(vps))
-
-    tables_found = []
-    for table in tables:
-        vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-        vpsData = (
-            vps.lookupName(
-                vpsSearchData["name"],
-                vpsSearchData["manufacturer"],
-                vpsSearchData["year"]
-            ) if vpsSearchData else None
-        )
-        if vpsData:
-            tables_found.append(vpsData)
-
-    current = 0
-    for vpsTable in vps.tables():
-        if vpsTable not in tables_found:
-            current += 1
-            logger.info(
-                "Missing table %s: %s (%s %s)",
-                current,
-                vpsTable["name"],
-                vpsTable["manufacturer"],
-                vpsTable["year"],
-            )
+    return table_report_service.list_missing_tables(iniconfig=iniconfig, log=logger.info)
 
 
 def listUnknownTables():
-    """List local tables that could not be matched in VPSdb."""
-    tp = TableParser(iniconfig.config['Settings']['tablerootdir'], iniconfig)
-    tp.loadTables(reload=True)
-    tables = tp.getAllTables()
-    logger.info("Listing unknown tables from %s", iniconfig.config['Settings']['tablerootdir'])
-    total = len(tables)
-    logger.info("Found %s tables in %s", total, iniconfig.config['Settings']['tablerootdir'])
-
-    vps = VPSdb(iniconfig.config['Settings']['tablerootdir'], iniconfig)
-    logger.info("Found %s tables in VPSdb", len(vps))
-
-    current = 0
-    for table in tables:
-        vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
-        vpsData = (
-            vps.lookupName(
-                vpsSearchData["name"],
-                vpsSearchData["manufacturer"],
-                vpsSearchData["year"]
-            ) if vpsSearchData else None
-        )
-        if vpsData is None:
-            current += 1
-            logger.info("Unknown table %s: %s Not found in VPSdb", current, table.tableDirName)
+    return table_report_service.list_unknown_tables(iniconfig=iniconfig, log=logger.info)
 
 
 def vpxPatches(progress_cb=None):
