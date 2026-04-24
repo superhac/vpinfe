@@ -1,11 +1,9 @@
 import logging
-import asyncio
+from typing import Dict, List
+
 from nicegui import ui, events, run
-from pathlib import Path
-from typing import List, Dict, Optional
-from common.vpxcollections import VPXCollections
-from common.table_repository import get_table_rows
-from managerui.paths import COLLECTIONS_PATH
+from managerui.services import collections_service
+from managerui.ui_helpers import load_page_style
 
 logger = logging.getLogger("vpinfe.manager.collections")
 
@@ -13,134 +11,28 @@ logger = logging.getLogger("vpinfe.manager.collections")
 from . import tables as tables_module
 
 
-def get_collections_manager() -> VPXCollections:
+def get_collections_manager():
     """Get a fresh VPXCollections instance."""
-    return VPXCollections(str(COLLECTIONS_PATH))
+    return collections_service.get_collections_manager()
 
 
 def get_table_name_map() -> Dict[str, str]:
     """Build a map of VPS ID -> table name from the tables cache."""
-    tables = tables_module._tables_cache or get_table_rows(reload=False)
-    return {t.get('id'): t.get('name', t.get('id')) for t in tables if t.get('id')}
+    return collections_service.get_table_name_map(tables_module._tables_cache)
 
 
 def vpsid_to_name(vpsid: str, table_map: Dict[str, str] = None) -> str:
     """Convert a VPS ID to table name, or return the ID if not found."""
-    if table_map is None:
-        table_map = get_table_name_map()
-    return table_map.get(vpsid, vpsid)
+    return collections_service.vpsid_to_name(vpsid, table_map)
 
 
 def get_filter_options() -> Dict[str, List[str]]:
     """Get filter options (letters, themes, types, manufacturers, years, ratings) from the tables cache."""
-    tables = tables_module._tables_cache or get_table_rows(reload=False)
-
-    if not tables:
-        # Fallback to basic options if no tables
-        return {
-            'letters': ['All'],
-            'themes': ['All'],
-            'types': ['All'],
-            'manufacturers': ['All'],
-            'years': ['All'],
-            'ratings': ['All', '1', '2', '3', '4', '5'],
-            'sort_options': ['Alpha', 'Newest', 'LastRun', 'Highest StartCount'],
-        }
-
-    # Extract unique values from the cached table data
-    letters = set()
-    themes = set()
-    types = set()
-    manufacturers = set()
-    years = set()
-
-    for t in tables:
-        # Get starting letter from name
-        name = t.get('name', '')
-        if name:
-            first_char = name[0].upper()
-            if first_char.isalnum():
-                letters.add(first_char)
-
-        # Get type (EM, SS, PM, etc.)
-        table_type = t.get('type', '')
-        if table_type:
-            types.add(table_type)
-
-        # Get manufacturer
-        mfr = t.get('manufacturer', '')
-        if mfr:
-            manufacturers.add(mfr)
-
-        # Get year
-        year = t.get('year', '')
-        if year:
-            years.add(str(year))
-
-        # Get themes (stored as list in meta, but might be string in cache)
-        # Note: themes are stored in Info.Themes in the .info JSON
-        table_themes = t.get('themes', [])
-        if isinstance(table_themes, list):
-            themes.update(table_themes)
-        elif table_themes:
-            themes.add(table_themes)
-
-    return {
-        'letters': ['All'] + sorted(letters),
-        'themes': ['All'] + sorted(themes),
-        'types': ['All'] + sorted(types),
-        'manufacturers': ['All'] + sorted(manufacturers),
-        'years': ['All'] + sorted(years),
-        'ratings': ['All', '1', '2', '3', '4', '5'],
-        'sort_options': ['Alpha', 'Newest', 'LastRun', 'Highest StartCount'],
-    }
+    return collections_service.get_filter_options(tables_module._tables_cache)
 
 
 def render_panel(tab=None):
-    # Add custom styles
-    ui.add_head_html('''
-    <style>
-        .collection-card {
-            background: var(--surface) !important;
-            border: 1px solid var(--line) !important;
-            border-radius: var(--radius) !important;
-            transition: all 0.2s ease !important;
-            box-shadow: var(--shadow);
-        }
-        .collection-card:hover {
-            border-color: var(--neon-cyan) !important;
-            box-shadow: var(--glow-cyan) !important;
-            transform: translateY(-2px);
-        }
-        .collection-item {
-            background: var(--surface-2);
-            border: 1px solid var(--line);
-            border-radius: calc(var(--radius) / 1.5);
-            padding: 12px 16px;
-            transition: all 0.2s ease;
-        }
-        .collection-item:hover {
-            background: var(--surface-soft);
-            border-color: var(--neon-purple);
-        }
-        .filter-badge {
-            background: linear-gradient(135deg, var(--neon-purple) 0%, var(--neon-pink) 100%);
-            padding: 2px 10px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: bold;
-            box-shadow: var(--glow-purple);
-        }
-        .vpsid-badge {
-            background: linear-gradient(135deg, var(--neon-cyan) 0%, #06b6d4 100%);
-            padding: 2px 10px;
-            border-radius: 999px;
-            font-size: 11px;
-            font-weight: bold;
-            box-shadow: var(--glow-cyan);
-        }
-    </style>
-    ''')
+    load_page_style("collections.css")
 
     with ui.column().classes('w-full'):
         # Header card
@@ -266,9 +158,7 @@ def render_panel(tab=None):
                     ui.button('Cancel', on_click=dlg.close).props('flat')
                     def do_delete():
                         try:
-                            manager = get_collections_manager()
-                            manager.delete_collection(name)
-                            manager.save()
+                            collections_service.delete_collection(name)
                             # Sync the tables cache with updated collection memberships
                             tables_module.sync_collections_to_cache()
                             ui.notify(f'Collection "{name}" deleted', type='positive')
@@ -300,9 +190,7 @@ def render_panel(tab=None):
                             dlg.close()
                             return
                         try:
-                            manager = get_collections_manager()
-                            manager.rename_collection(name, new_name)
-                            manager.save()
+                            collections_service.rename_collection(name, new_name)
                             # Sync the tables cache with updated collection memberships
                             tables_module.sync_collections_to_cache()
                             ui.notify(f'Renamed to "{new_name}"', type='positive')
@@ -355,16 +243,11 @@ def render_panel(tab=None):
                     term = (e.value or '').strip().lower()
                     search_results.clear()
 
-                    # Get tables from cache or scan
-                    tables = tables_module._tables_cache
-                    if tables is None:
-                        tables = await run.io_bound(get_table_rows, False)
-
                     if not term:
                         return
 
                     with search_results:
-                        matches = [t for t in tables if term in (t.get('name') or '').lower()][:20]
+                        matches = await run.io_bound(collections_service.search_tables, term, tables_module._tables_cache)
                         if not matches:
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
@@ -398,10 +281,8 @@ def render_panel(tab=None):
                             ui.notify('Please enter a collection name', type='warning')
                             return
                         try:
-                            manager = get_collections_manager()
                             vpsids = [t['id'] for t in selected_tables['items']]
-                            manager.add_collection(name, vpsids)
-                            manager.save()
+                            collections_service.create_vpsid_collection(name, vpsids)
                             # Sync the tables cache with updated collection memberships
                             tables_module.sync_collections_to_cache()
                             ui.notify(f'Collection "{name}" created', type='positive')
@@ -476,10 +357,9 @@ def render_panel(tab=None):
                             ui.notify('Please enter a collection name', type='warning')
                             return
                         try:
-                            manager = get_collections_manager()
                             selected_rating = rating_input.value or 'All'
                             selected_rating_or_higher = 'true' if (selected_rating != 'All' and rating_or_higher_input.value) else 'false'
-                            manager.add_filter_collection(
+                            collections_service.create_filter_collection(
                                 name,
                                 letter=_join_or_all(letter_input.value),
                                 theme=_join_or_all(theme_input.value),
@@ -490,7 +370,6 @@ def render_panel(tab=None):
                                 rating_or_higher=selected_rating_or_higher,
                                 sort_by=sort_input.value or 'Alpha',
                             )
-                            manager.save()
                             ui.notify(f'Filter collection "{name}" created', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -603,17 +482,18 @@ def render_panel(tab=None):
 
                     def save_changes():
                         try:
-                            m = get_collections_manager()
-                            m.config[name]['letter'] = _join_or_all(letter_input.value)
-                            m.config[name]['theme'] = _join_or_all(theme_input.value)
-                            m.config[name]['table_type'] = _join_or_all(type_input.value)
-                            m.config[name]['manufacturer'] = _join_or_all(manufacturer_input.value)
-                            m.config[name]['year'] = _join_or_all(year_input.value)
                             selected_rating = rating_input.value or 'All'
-                            m.config[name]['rating'] = selected_rating
-                            m.config[name]['rating_or_higher'] = 'true' if (selected_rating != 'All' and rating_or_higher_input.value) else 'false'
-                            m.config[name]['sort_by'] = sort_input.value or 'Alpha'
-                            m.save()
+                            collections_service.update_filter_collection(
+                                name,
+                                letter=_join_or_all(letter_input.value),
+                                theme=_join_or_all(theme_input.value),
+                                table_type=_join_or_all(type_input.value),
+                                manufacturer=_join_or_all(manufacturer_input.value),
+                                year=_join_or_all(year_input.value),
+                                rating=selected_rating,
+                                rating_or_higher='true' if (selected_rating != 'All' and rating_or_higher_input.value) else 'false',
+                                sort_by=sort_input.value or 'Alpha',
+                            )
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -675,15 +555,11 @@ def render_panel(tab=None):
                     term = (e.value or '').strip().lower()
                     search_results.clear()
 
-                    tables = tables_module._tables_cache
-                    if tables is None:
-                        tables = await run.io_bound(get_table_rows, False)
-
                     if not term:
                         return
 
                     with search_results:
-                        matches = [t for t in tables if term in (t.get('name') or '').lower()][:20]
+                        matches = await run.io_bound(collections_service.search_tables, term, tables_module._tables_cache)
                         if not matches:
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
@@ -712,10 +588,8 @@ def render_panel(tab=None):
 
                     def save_changes():
                         try:
-                            m = get_collections_manager()
                             vpsids = [t['id'] for t in selected_tables['items']]
-                            m.config[name]['vpsids'] = ','.join(vpsids)
-                            m.save()
+                            collections_service.update_vpsid_collection(name, vpsids)
                             # Sync the tables cache with updated collection memberships
                             tables_module.sync_collections_to_cache()
                             ui.notify(f'Collection "{name}" updated', type='positive')

@@ -15,6 +15,7 @@ from common.iniconfig import IniConfig
 from common.app_updater import get_install_context
 from frontend.chromium_manager import get_chromium_path
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
+from managerui.ui_helpers import load_page_style
 
 try:
     import psutil
@@ -339,72 +340,7 @@ def _get_windows_file_version(browser_path: str) -> str | None:
 
 
 def render_panel(tab=None):
-    ui.add_head_html(
-        '''
-        <style>
-            .system-hero {
-                background: var(--surface) !important;
-                border-radius: 12px;
-            }
-            .system-card {
-                background: var(--surface) !important;
-                border: 1px solid var(--line) !important;
-                border-radius: 12px !important;
-                box-shadow: var(--shadow) !important;
-            }
-            .system-value {
-                font-size: 2rem;
-                font-weight: 700;
-                line-height: 1;
-            }
-            .system-subtle {
-                color: #94a3b8;
-                font-size: 0.875rem;
-            }
-            .gpu-pill {
-                background: rgba(15, 23, 42, 0.82);
-                border: 1px solid rgba(71, 85, 105, 0.9);
-                border-radius: 999px;
-                padding: 0.55rem 0.9rem;
-                min-height: 3.1rem;
-            }
-            .gpu-pill-ok {
-                border-color: rgba(16, 185, 129, 0.55);
-                box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.12);
-            }
-            .gpu-pill-warn {
-                border-color: rgba(251, 191, 36, 0.6);
-                box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.14);
-            }
-            .gpu-pill-critical {
-                border-color: rgba(248, 113, 113, 0.65);
-                box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.16);
-            }
-            .gpu-pill-label {
-                color: #94a3b8;
-                font-size: 0.72rem;
-                text-transform: uppercase;
-                letter-spacing: 0.08em;
-                line-height: 1;
-            }
-            .gpu-pill-label-ok {
-                color: #6ee7b7;
-            }
-            .gpu-pill-label-warn {
-                color: #fcd34d;
-            }
-            .gpu-pill-label-critical {
-                color: #fca5a5;
-            }
-            .gpu-pill-value {
-                color: #e2e8f0;
-                font-size: 0.95rem;
-                font-weight: 600;
-                line-height: 1.2;
-            }
-        </style>
-        '''
-    )
+    load_page_style("system.css")
 
     page_client = context.client
     refresh_state = {"busy": False}

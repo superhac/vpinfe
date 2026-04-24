@@ -16,8 +16,9 @@ from common.launcher import build_masked_tableini_path, build_vpx_launch_command
 from common.vpxcollections import VPXCollections
 from pathlib import Path
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
+from managerui import config_support
 from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, THEMES_DIR
-from screeninfo import get_monitors
+from managerui.ui_helpers import load_page_style
 
 
 logger = logging.getLogger("vpinfe.manager.vpinfe_config")
@@ -169,80 +170,23 @@ def _get_installed_theme_names():
 
 def _get_detected_displays():
     """Return monitor info in the same shape/IDs as the --listres CLI output."""
-    detected = {
-        'screeninfo': [],
-        'nsscreen': [],
-        'error': '',
-    }
-
-    try:
-        monitors = get_monitors()
-        detected['screeninfo'] = [{
-            'id': f'Monitor {i}',
-            'output': m.name,
-            'x': m.x,
-            'y': m.y,
-            'width': m.width,
-            'height': m.height,
-        } for i, m in enumerate(monitors)]
-    except Exception as e:
-        detected['error'] = str(e)
-        return detected
-
-    if sys.platform == 'darwin':
-        try:
-            from frontend.chromium_manager import get_mac_screens
-            detected['nsscreen'] = [{
-                'id': f'Screen {i}',
-                'x': s.x,
-                'y': s.y,
-                'width': s.width,
-                'height': s.height,
-            } for i, s in enumerate(get_mac_screens())]
-        except Exception:
-            pass
-
-    return detected
+    return config_support.get_detected_displays()
 
 def _get_display_id_options(detected_displays, current_value: str = ''):
     """Build dropdown options for monitor ID fields: empty + 0..(max detected-1)."""
-    options = ['']
-    count = len(detected_displays.get('screeninfo', []))
-    options.extend(str(i) for i in range(count))
-
-    current = (current_value or '').strip()
-    if current and current not in options:
-        options.append(current)
-    return options
+    return config_support.get_display_id_options(detected_displays, current_value)
 
 
 def _get_logger_level_options(current_value: str = ''):
-    options = ['debug', 'info', 'warning', 'error', 'critical']
-    current, _, _ = _split_logger_level_value(current_value)
-    if current and current not in options:
-        options.append(current)
-    return options
+    return config_support.get_logger_level_options(current_value)
 
 
 def _get_uniform_field_width_ch(values: list[str], minimum: int = 30, padding: int = 2) -> int:
-    longest = max((len(str(value or '').strip()) for value in values), default=0)
-    return max(minimum, longest + padding)
+    return config_support.get_uniform_field_width_ch(values, minimum, padding)
 
 
 def _split_logger_level_value(raw_value: str | None) -> tuple[str, bool, bool]:
-    include_thirdparty = False
-    include_windows = False
-    level = 'info'
-    tokens = [token.strip().lower() for token in re.split(r"[|,]", str(raw_value or '')) if token.strip()]
-    for token in tokens:
-        if token == 'thirdparty':
-            include_thirdparty = True
-            continue
-        if token == 'windows':
-            include_windows = True
-            continue
-        level = token
-    return level, include_thirdparty, include_windows
+    return config_support.split_logger_level_value(raw_value)
 
 
 def _get_ledcontrol_command(script_path: Path, api_key: str, force: bool) -> list[str]:
@@ -342,311 +286,7 @@ def render_panel(tab=None):
     detected_displays = _get_detected_displays()
 
     # Add custom styles for config page
-    ui.add_head_html('''
-    <style>
-        .config-page-shell {
-            gap: 1.25rem;
-        }
-        .config-hero {
-            background: var(--surface);
-            border: 1px solid var(--line);
-            border-radius: var(--radius);
-            box-shadow: 0 18px 40px var(--shadow);
-        }
-        .config-hero-kicker {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            color: var(--ink);
-            font-weight: 700;
-        }
-        .config-uppercase-input input {
-            text-transform: uppercase !important;
-        }
-        .config-tabs {
-            gap: 0.6rem;
-            padding: 0.3rem 0.2rem 0.2rem;
-        }
-        .config-tabs .q-tabs__content {
-            gap: 0.6rem;
-            flex-wrap: wrap;
-        }
-        .config-tabs .q-tab {
-            min-height: 46px;
-            border-radius: 999px;
-            padding: 0 16px;
-            background: var(--surface-soft);
-            border: 1px solid var(--line);
-            color: var(--ink);
-            transition: all 0.2s ease;
-        }
-        .config-tabs .q-tab--active {
-            background: var(--surface);
-            border-color: var(--neon-purple);
-            box-shadow: 0 8px 20px var(--shadow);
-        }
-        .config-tabs .q-tab__label {
-            font-weight: 700;
-        }
-        .config-panel-shell {
-            background: var(--surface);
-            border: 1px solid var(--line);
-            border-radius: var(--radius);
-            padding: 1.2rem;
-        }
-        .config-section-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            margin-bottom: 1rem;
-            padding: 1rem 1.1rem;
-            border-radius: 14px;
-            background: var(--surface-2);
-            border: 1px solid var(--line);
-        }
-        .config-section-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--ink);
-        }
-        .config-section-description {
-            font-size: 0.9rem;
-            color: var(--ink-muted);
-        }
-        .config-card {
-            background: var(--surface-2) !important;
-            border: 1px solid var(--line) !important;
-            border-radius: var(--radius) !important;
-            box-shadow: 0 12px 30px var(--glow-purple) !important;
-            transition: all 0.2s ease !important;
-        }
-        .config-card:hover {
-            border-color: var(--neon-purple) !important;
-            box-shadow: 0 8px 12px -2px var(--glow-purple) !important;
-        }
-        .config-form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 1rem;
-            align-items: start;
-        }
-        .config-display-form-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-            gap: 1rem;
-            align-items: start;
-        }
-        .config-settings-form-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 3fr);
-            gap: 1rem;
-            align-items: start;
-        }
-        .config-vpinplay-pair {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-            gap: 1rem;
-            align-items: start;
-        }
-        .config-vpinplay-links {
-            display: flex;
-            align-items: center;
-            gap: 1.25rem;
-            flex-wrap: wrap;
-        }
-        .config-vpinplay-links-copy {
-            display: flex;
-            flex-direction: column;
-            gap: 0.45rem;
-            min-width: 180px;
-        }
-        .config-three-column-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 1rem;
-            align-items: start;
-        }
-        .config-input-panel-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 1rem;
-            align-items: start;
-        }
-        .config-display-column {
-            display: grid;
-            gap: 1rem;
-            align-content: start;
-        }
-        .config-paths-list {
-            display: grid;
-            gap: 1rem;
-            align-content: start;
-            width: 100%;
-        }
-        .config-path-field-shell {
-            width: min(100%, var(--path-field-width, 30ch));
-            max-width: 100%;
-            display: block;
-        }
-        .config-paths-list .config-field-card,
-        .config-paths-list .config-input,
-        .config-paths-list .q-field,
-        .config-paths-list .q-field__control {
-            width: 100% !important;
-            max-width: 100% !important;
-        }
-        .config-paths-list .q-field__native,
-        .config-paths-list input,
-        .config-paths-list textarea {
-            min-width: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            font-family: monospace !important;
-        }
-        .config-main-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
-            gap: 1rem;
-            align-items: start;
-        }
-        .config-inline-pair {
-            display: grid;
-            grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.6fr);
-            gap: 0.75rem;
-            align-items: start;
-        }
-        .config-launch-layout {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-            gap: 1rem;
-            align-items: start;
-        }
-        .config-launch-preview-box {
-            display: grid;
-            gap: 0.75rem;
-            align-content: start;
-        }
-        .config-launch-preview-full {
-            grid-column: 1 / -1;
-        }
-        .config-field-card {
-            padding: 0.95rem 1rem;
-            border-radius: 14px;
-            background: var(--surface-soft);
-            border: 1px solid var(--line);
-        }
-        .config-field-card.compact {
-            display: flex;
-            align-items: center;
-            min-height: 76px;
-        }
-        .config-field-label {
-            margin-bottom: 0.45rem;
-            font-size: 0.82rem;
-            font-weight: 700;
-            letter-spacing: 0.01em;
-            color: var(--ink);
-        }
-        .config-input {
-            width: 100%;
-        }
-        .config-input .q-field__control {
-            background: var(--surface) !important;
-            border-radius: 8px !important;
-        }
-        .config-input .q-field__native,
-        .config-input input,
-        .config-input .q-field__input {
-            color: var(--ink-muted) !important;
-        }
-        .config-input .q-field__label {
-            color: var(--ink) !important;
-        }
-        .config-input-env {
-            width: 100%;
-        }
-        .config-input-env .q-field__control,
-        .config-input-env .q-field__native,
-        .config-input-env textarea {
-            min-height: 12rem !important;
-        }
-        .config-input .q-checkbox__label {
-            color: var(--ink) !important;
-            font-weight: 600;
-        }
-        .config-side-card {
-            border-radius: 16px;
-            background: var(--surface-2);
-            border: 1px solid var(--line);
-            box-shadow: inset 0 1px 0 var(--glow-purple), 0 10px 30px var(--shadow);
-        }
-        .config-display-item {
-            padding: 0.75rem 0.85rem;
-            border-radius: 12px;
-            background: var(--surface-soft);
-            border: 1px solid var(--neon-purple);
-            color: var(--ink-muted);
-        }
-        .config-display-item strong {
-            color: var(--ink);
-        }
-        .config-footer-bar {
-            position: sticky;
-            bottom: 0.75rem;
-            z-index: 5;
-            display: flex;
-            justify-content: flex-end;
-            padding-top: 0.25rem;
-        }
-        .q-tab-panels {
-            background: transparent !important;
-        }
-        .q-tab-panel {
-            background: transparent !important;
-            padding: 0 !important;
-        }
-        @media (max-width: 960px) {
-            .config-main-grid {
-                grid-template-columns: 1fr;
-            }
-            .config-inline-pair {
-                grid-template-columns: 1fr;
-            }
-            .config-launch-layout {
-                grid-template-columns: 1fr;
-            }
-            .config-launch-preview-full {
-                grid-column: auto;
-            }
-            .config-display-form-grid {
-                grid-template-columns: 1fr;
-            }
-            .config-settings-form-grid {
-                grid-template-columns: 1fr;
-            }
-            .config-three-column-grid {
-                grid-template-columns: 1fr;
-            }
-            .config-input-panel-grid {
-                grid-template-columns: 1fr;
-            }
-            .config-vpinplay-pair {
-                grid-template-columns: 1fr;
-            }
-            .config-vpinplay-links {
-                justify-content: center;
-            }
-            .config-vpinplay-links-copy {
-                align-items: center;
-                text-align: center;
-            }
-            .config-section-header {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-        }
-    </style>
-    ''')
+    load_page_style("vpinfe_config.css")
 
     # Dictionary to store all input references: {section: {key: input_element}}
     inputs = {}

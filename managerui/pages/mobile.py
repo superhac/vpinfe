@@ -10,6 +10,7 @@ from common.iniconfig import IniConfig
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_tables_path
 from managerui.services.archive_service import cleanup_archive, create_vpxz_archive
 from managerui.services import table_catalog
+from managerui.ui_helpers import load_page_style
 
 
 logger = logging.getLogger("vpinfe.manager.mobile")
@@ -337,15 +338,7 @@ def build(standalone=True):
     ui.dark_mode(value=True)
 
     if standalone:
-        ui.add_head_html('''
-        <style>
-            body {
-                margin: 0 !important;
-                padding: 0 !important;
-                background-color: var(--surface) !important;
-            }
-        </style>
-        ''')
+        load_page_style("mobile.css")
 
     with ui.column().classes('w-full items-center p-4'):
         ui.label('VPinFE Mobile').classes('text-2xl font-bold mb-4').style('color: var(--ink) !important;')

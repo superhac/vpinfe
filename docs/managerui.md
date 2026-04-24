@@ -10,6 +10,7 @@ The Manager UI is a NiceGUI application under `managerui/`. Its current refactor
 - `managerui/ui_helpers.py`: reusable UI helpers such as shared style loading and standard nav/action buttons.
 - `managerui/filters.py`: shared filter option building and filtering for table-shaped rows.
 - `managerui/config_fields.py`: declarative config field metadata such as checkbox fields and input ordering.
+- `managerui/config_support.py`: non-UI support helpers for config pages such as display detection and field option shaping.
 - `managerui/services/`: non-UI behavior shared by routes and pages.
 - `managerui/static/manager.css`: shared Manager UI theme variables, shell layout, and nav styling.
 - `managerui/static/<page>.css`: page-specific CSS that has been moved out of Python modules.
@@ -62,6 +63,8 @@ Service modules live under `managerui/services/` and should not depend on page l
 Current services:
 
 - `archive_service.py`: validates table folders and creates temporary `.vpxz` archives.
+- `collections_service.py`: collection manager access, table search, filter option building, and collection mutations.
+- `media_service.py`: media scanning, thumbnail cache paths, media replacement, and media cache invalidation.
 - `table_catalog.py`: shared table scanning and row shaping for mobile transfers and remote launching.
 - `table_service.py`: shared table metadata, VPSdb, collection, upload, and table-association operations.
 
@@ -137,6 +140,16 @@ Large table dialogs are exposed through thin dialog modules:
 - `pages/table_match_dialog.py`
 
 These modules are the public import points for dialog entry functions. During the transition, they delegate to private implementations in `pages/tables.py`; new dialog work should grow inside the dialog module instead of adding more public surface to `tables.py`.
+
+## Cache Ownership
+
+Cache ownership should live with services, not page modules. For example, media cache invalidation is exposed by `managerui.services.media_service.invalidate_media_cache()`, so table services and dialogs do not need to import `pages/media.py`.
+
+When adding a new cache:
+
+- keep the cache and invalidation function in the service that owns the data
+- have pages read/update through that service
+- avoid page-to-page imports for cache refreshes
 
 ## Adding Service Logic
 

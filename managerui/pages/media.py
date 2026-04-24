@@ -2,248 +2,36 @@ import os
 import logging
 import asyncio
 import shutil
-from urllib.parse import quote
 from nicegui import ui, events, run, app, context
-from pathlib import Path
-import json
 from typing import List, Dict, Optional
 
-# Resolve project root and important paths explicitly
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
 from managerui.filters import apply_table_filters, build_table_filter_options
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_tables_path as resolve_tables_path
+from managerui.services import media_service
+from managerui.ui_helpers import load_page_style
 
-from common.iniconfig import IniConfig
-from common.metaconfig import MetaConfig
-from common.table_repository import ensure_tables_loaded
-_INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 logger = logging.getLogger("vpinfe.manager.media")
 
-# Cache for scanned media data (persists across page visits)
-_media_cache: Optional[List[Dict]] = None
-_thumb_route_registered = False
-
-CACHE_DIR = CONFIG_DIR / "cache"
-THUMB_CACHE_ROOT = CACHE_DIR / "media_thumbs"
-THUMB_SIZE = (512, 512)
-THUMB_WARM_ROW_BATCH_SIZE = 25
-THUMB_WARM_CHUNK_SIZE = 8
+THUMB_CACHE_ROOT = media_service.THUMB_CACHE_ROOT
+THUMB_WARM_ROW_BATCH_SIZE = media_service.THUMB_WARM_ROW_BATCH_SIZE
+THUMB_WARM_CHUNK_SIZE = media_service.THUMB_WARM_CHUNK_SIZE
+MEDIA_TYPES = media_service.MEDIA_TYPES
+MEDIA_KEY_TO_FILENAME = media_service.MEDIA_KEY_TO_FILENAME
+IMAGE_MEDIA_KEYS = media_service.IMAGE_MEDIA_KEYS
 
 
 def invalidate_media_cache():
     """Reset the media cache so the next page visit triggers a fresh scan."""
-    global _media_cache
-    _media_cache = None
+    media_service.invalidate_media_cache()
+
+
+def _media_cache():
+    return media_service.get_media_cache()
+
+
 # Track whether we've registered the media files route
 _media_route_registered = False
-
-# Media types and their display info
-MEDIA_TYPES = [
-    ('bg', 'BG', 'bg.png'),
-    ('dmd', 'DMD', 'dmd.png'),
-    ('table', 'Table', 'table.png'),
-    ('fss', 'FSS', 'fss.png'),
-    ('wheel', 'Wheel', 'wheel.png'),
-    ('cab', 'Cab', 'cab.png'),
-    ('realdmd', 'Real DMD', 'realdmd.png'),
-    ('realdmd_color', 'Real DMD Color', 'realdmd-color.png'),
-    ('flyer', 'Flyer', 'flyer.png'),
-    ('table_video', 'Table Video', 'table.mp4'),
-    ('bg_video', 'BG Video', 'bg.mp4'),
-    ('dmd_video', 'DMD Video', 'dmd.mp4'),
-    ('audio', 'Audio', 'audio.mp3'),
-]
-MEDIA_KEY_TO_FILENAME = {key: fname for key, _, fname in MEDIA_TYPES}
-IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif'}
-IMAGE_MEDIA_KEYS = [
-    key for key, _, filename in MEDIA_TYPES
-    if Path(filename).suffix.lower() in IMAGE_EXTENSIONS
-]
-
-
-def _media_url(*parts: str) -> str:
-    encoded = [quote(p.strip('/')) for p in parts if p]
-    return '/' + '/'.join(encoded)
-
-
-def _is_image_media_key(media_key: str) -> bool:
-    filename = MEDIA_KEY_TO_FILENAME.get(media_key, '')
-    return Path(filename).suffix.lower() in IMAGE_EXTENSIONS
-
-
-def _source_media_path(table_path: str, media_key: str) -> Optional[str]:
-    filename = MEDIA_KEY_TO_FILENAME.get(media_key)
-    if not filename:
-        return None
-    medias_path = os.path.join(table_path, 'medias', filename)
-    if os.path.exists(medias_path):
-        return medias_path
-    root_path = os.path.join(table_path, filename)
-    if os.path.exists(root_path):
-        return root_path
-    return None
-
-
-def _build_thumb_sig(source_path: str) -> str:
-    st = os.stat(source_path)
-    return f'{st.st_mtime_ns}_{st.st_size}'
-
-
-def _thumb_file_path(table_dir: str, media_key: str, source_path: str) -> Path:
-    return THUMB_CACHE_ROOT / table_dir / f'{media_key}_{_build_thumb_sig(source_path)}.png'
-
-
-def _thumb_url(path: Path) -> str:
-    rel = path.relative_to(THUMB_CACHE_ROOT).as_posix()
-    return f'/media_thumbs/{rel}'
-
-
-def _get_cached_thumb_url(table_dir: str, media_key: str, source_path: str) -> Optional[str]:
-    if not _is_image_media_key(media_key) or not os.path.exists(source_path):
-        return None
-    try:
-        path = _thumb_file_path(table_dir, media_key, source_path)
-        if path.exists():
-            os.utime(path, None)
-            return _thumb_url(path)
-    except Exception:
-        return None
-    return None
-
-
-def _ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[str]:
-    if not _is_image_media_key(media_key) or not os.path.exists(source_path):
-        return None
-    try:
-        from PIL import Image, ImageOps
-    except Exception:
-        return None
-
-    try:
-        path = _thumb_file_path(table_dir, media_key, source_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if path.exists():
-            os.utime(path, None)
-            return _thumb_url(path)
-
-        for old in path.parent.glob(f'{media_key}_*.png'):
-            if old != path:
-                old.unlink(missing_ok=True)
-        for old in path.parent.glob(f'{media_key}_*.jpg'):
-            if old != path:
-                old.unlink(missing_ok=True)
-
-        with Image.open(source_path) as img:
-            img = ImageOps.exif_transpose(img)
-            has_alpha = (
-                img.mode in ('RGBA', 'LA')
-                or (img.mode == 'P' and 'transparency' in img.info)
-            )
-            img = img.convert('RGBA' if has_alpha else 'RGB')
-            img.thumbnail(THUMB_SIZE, Image.Resampling.LANCZOS)
-            img.save(path, format='PNG', optimize=True)
-        os.utime(path, None)
-        return _thumb_url(path)
-    except Exception:
-        return None
-
-
-def get_tables_path() -> str:
-    return resolve_tables_path()
-
-
-TABLE_ATTR_TO_MEDIA_KEY = {
-    'BGImagePath': 'bg',
-    'DMDImagePath': 'dmd',
-    'TableImagePath': 'table',
-    'FSSImagePath': 'fss',
-    'WheelImagePath': 'wheel',
-    'CabImagePath': 'cab',
-    'realDMDImagePath': 'realdmd',
-    'realDMDColorImagePath': 'realdmd_color',
-    'FlyerImagePath': 'flyer',
-    'TableVideoPath': 'table_video',
-    'BGVideoPath': 'bg_video',
-    'DMDVideoPath': 'dmd_video',
-    'AudioPath': 'audio',
-}
-
-
-def _table_meta_sections(table):
-    raw = table.metaConfig or {}
-    if not isinstance(raw, dict):
-        raw = {}
-    info = raw.get("Info", {}) if isinstance(raw.get("Info", {}), dict) else {}
-    vpinfe = raw.get("VPinFE", {}) if isinstance(raw.get("VPinFE", {}), dict) else {}
-    return info, vpinfe
-
-
-def _media_url_from_path(table_dir: str, source_path: str) -> Optional[str]:
-    if not source_path:
-        return None
-    source = Path(source_path)
-    if source.parent.name == 'medias':
-        return _media_url('media_tables', table_dir, 'medias', source.name)
-    return _media_url('media_tables', table_dir, source.name)
-
-
-def scan_media_tables(silent: bool = False, reload: bool = False):
-    """Scan table directories and collect media file info."""
-    tables_path = get_tables_path()
-    rows = []
-    if not os.path.exists(tables_path):
-        logger.warning(f"Tables path does not exist: {tables_path}. Skipping scan.")
-        if not silent:
-            ui.notify("Tables path does not exist. Please verify your vpinfe.ini settings", type="negative")
-        return []
-
-    for table in ensure_tables_loaded(reload=reload):
-        root = getattr(table, 'fullPathTable', '') or ''
-        if not root:
-            continue
-        current_dir = Path(root).name
-        info, vpinfe = _table_meta_sections(table)
-        name = ((vpinfe.get("alttitle") or info.get("Title") or current_dir) or "").strip()
-
-        media_info = {}
-        thumb_info = {}
-        for attr_name, media_key in TABLE_ATTR_TO_MEDIA_KEY.items():
-            source_path = getattr(table, attr_name, None)
-            if source_path:
-                media_info[media_key] = _media_url_from_path(current_dir, source_path)
-                thumb_info[media_key] = _get_cached_thumb_url(current_dir, media_key, source_path)
-            else:
-                media_info[media_key] = None
-                thumb_info[media_key] = None
-
-        rows.append({
-            'name': name,
-            'table_dir': current_dir,
-            'table_path': root,
-            'manufacturer': info.get("Manufacturer", ""),
-            'year': info.get("Year", ""),
-            'type': info.get("Type", ""),
-            'themes': info.get("Themes", []),
-            'media': media_info,
-            'thumbs': thumb_info,
-            'thumb_errors': {},
-            'has_bg': media_info.get('bg') is not None,
-            'has_dmd': media_info.get('dmd') is not None,
-            'has_table': media_info.get('table') is not None,
-            'has_fss': media_info.get('fss') is not None,
-            'has_wheel': media_info.get('wheel') is not None,
-            'has_cab': media_info.get('cab') is not None,
-            'has_realdmd': media_info.get('realdmd') is not None,
-            'has_realdmd_color': media_info.get('realdmd_color') is not None,
-            'has_flyer': media_info.get('flyer') is not None,
-            'has_table_video': media_info.get('table_video') is not None,
-            'has_bg_video': media_info.get('bg_video') is not None,
-            'has_dmd_video': media_info.get('dmd_video') is not None,
-            'has_audio': media_info.get('audio') is not None,
-        })
-
-    return rows
+_thumb_route_registered = False
 
 
 def render_panel():
@@ -276,7 +64,7 @@ def render_panel():
 
     # Register media files route once
     if not _media_route_registered:
-        tables_path = get_tables_path()
+        tables_path = media_service.get_tables_path()
         if os.path.exists(tables_path):
             app.add_media_files('/media_tables', tables_path)
             _media_route_registered = True
@@ -286,95 +74,7 @@ def render_panel():
         _thumb_route_registered = True
 
     with ui.column().classes('w-full'):
-        # Table styles (same as tables page for consistency)
-        ui.add_head_html('''
-        <style>
-            .media-table .q-table {
-                border-radius: var(--radius) !important;
-                overflow: hidden !important;
-                box-shadow: var(--shadow) !important;
-                border: 1px solid var(--line) !important;
-            }
-            .media-table .q-table thead tr {
-                background: var(--header-gradient) !important;
-            }
-            .media-table .q-table thead tr th {
-                background: transparent !important;
-                color: var(--ink) !important;
-                font-weight: 600 !important;
-                text-transform: uppercase !important;
-                font-size: 0.75rem !important;
-                letter-spacing: 0.05em !important;
-                padding: 16px 12px !important;
-                text-shadow: var(--glow-purple);
-            }
-            .media-table .q-table tbody tr:nth-child(odd) {
-                background-color: var(--table-row) !important;
-            }
-            .media-table .q-table tbody tr:nth-child(even) {
-                background-color: var(--table-row-alt) !important;
-            }
-            .media-table .q-table tbody tr td {
-                color: var(--ink) !important;
-                padding: 8px 12px !important;
-                border-bottom: 1px solid var(--line) !important;
-            }
-            .media-table .q-table tbody tr:hover {
-                background-color: var(--table-hover) !important;
-                transition: background-color 0.2s ease !important;
-            }
-            .media-table .q-table tbody tr:hover td {
-                color: var(--ink) !important;
-            }
-            .media-table .q-table__bottom {
-                background-color: var(--surface) !important;
-                color: var(--ink-muted) !important;
-                border-top: 1px solid var(--line) !important;
-            }
-            .media-thumb-wrapper {
-                width: 50px;
-                height: 50px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin: 0 auto;
-            }
-            .media-thumb {
-                width: 48px;
-                height: 48px;
-                object-fit: cover;
-                border-radius: 4px;
-                border: 1px solid var(--line);
-                cursor: pointer;
-                display: block;
-                transition: transform 0.2s ease, border-color 0.2s ease;
-            }
-            .media-thumb:hover {
-                transform: scale(1.1);
-                border-color: var(--neon-cyan);
-                box-shadow: var(--glow-cyan);
-            }
-            .media-missing {
-                width: 50px;
-                height: 50px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 4px;
-                border: 1px dashed var(--line);
-                color: var(--ink-muted);
-                font-size: 10px;
-                margin: 0 auto;
-                cursor: pointer;
-                opacity: 0.6;
-            }
-            .media-missing:hover {
-                opacity: 1;
-                border-color: var(--neon-pink);
-                color: var(--neon-pink);
-            }
-        </style>
-        ''')
+        load_page_style("media.css")
 
         columns = [
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
@@ -417,7 +117,7 @@ def render_panel():
         }
 
         def get_filter_options_from_cache():
-            return build_table_filter_options(_media_cache or [])
+            return build_table_filter_options(_media_cache() or [])
 
         def apply_filters():
             missing_predicates = [
@@ -425,7 +125,7 @@ def render_panel():
                 for media_key, _, _ in MEDIA_TYPES
                 if filter_state.get(f'missing_{media_key}')
             ]
-            return apply_table_filters(_media_cache or [], filter_state, extra_predicates=missing_predicates)
+            return apply_table_filters(_media_cache() or [], filter_state, extra_predicates=missing_predicates)
 
         def _visible_rows(rows: List[Dict]) -> List[Dict]:
             try:
@@ -490,7 +190,7 @@ def render_panel():
                             continue
                         if thumbs.get(media_key) or errors.get(media_key):
                             continue
-                        source_path = _source_media_path(row.get('table_path', ''), media_key)
+                        source_path = media_service.source_media_path(row.get('table_path', ''), media_key)
                         if source_path:
                             pending.append((row, media_key, source_path))
 
@@ -505,7 +205,7 @@ def render_panel():
                     changed = False
                     try:
                         async with sem:
-                            thumb = await run.io_bound(_ensure_thumb, row.get('table_dir', ''), media_key, source_path)
+                            thumb = await run.io_bound(media_service.ensure_thumb, row.get('table_dir', ''), media_key, source_path)
                         if thumb:
                             if row['thumbs'].get(media_key) != thumb:
                                 row['thumbs'][media_key] = thumb
@@ -542,7 +242,7 @@ def render_panel():
             media_table._props['rows'] = filtered
             media_table.update()
             media_table.run_method('setPagination', dict(pagination_state))
-            total = len(_media_cache or [])
+            total = len(_media_cache() or [])
             shown = len(filtered)
             if shown == total:
                 count_label.set_text(f"Tables ({total})")
@@ -617,7 +317,6 @@ def render_panel():
             table_type_select.update()
 
         async def perform_scan(*_, silent: bool = False):
-            global _media_cache
             if page_state['scan_in_progress']:
                 return
             page_state['scan_in_progress'] = True
@@ -632,13 +331,11 @@ def render_panel():
                     with page_client:
                         scan_btn.disable()
 
-                media_rows = await run.io_bound(scan_media_tables, silent, True)
+                media_rows = await run.io_bound(media_service.scan_media_tables, True)
                 try:
                     media_rows.sort(key=lambda r: (r.get('name') or '').lower())
                 except Exception:
                     pass
-
-                _media_cache = media_rows
 
                 if can_update_ui():
                     with page_client:
@@ -675,36 +372,6 @@ def render_panel():
 
         # --- Media replacement logic ---
 
-        def replace_media_file(table_path: str, table_dir: str, media_key: str, uploaded_path: str):
-            """Copy uploaded file to medias/ subfolder with standard name, update .info."""
-            target_filename = MEDIA_KEY_TO_FILENAME[media_key]
-            medias_dir = os.path.join(table_path, "medias")
-            os.makedirs(medias_dir, exist_ok=True)
-            target_path = os.path.join(medias_dir, target_filename)
-
-            # Copy the uploaded file (overwrite if exists)
-            shutil.copy2(uploaded_path, target_path)
-
-            # Update the .info file
-            info_file = os.path.join(table_path, f"{table_dir}.info")
-            if os.path.exists(info_file):
-                mc = MetaConfig(info_file)
-                mc.addMedia(media_key, "user", target_path, "")
-
-            return target_path
-
-        def update_cache_entry(table_dir: str, media_key: str, url_path: str, thumb_url: Optional[str] = None):
-            """Update the in-memory cache for the replaced media."""
-            if _media_cache is None:
-                return
-            for row in _media_cache:
-                if row['table_dir'] == table_dir:
-                    row['media'][media_key] = url_path
-                    row.setdefault('thumbs', {})[media_key] = thumb_url
-                    row.setdefault('thumb_errors', {}).pop(media_key, None)
-                    row[f'has_{media_key}'] = url_path is not None
-                    break
-
         def open_replace_dialog(table_dir: str, table_path: str, table_name: str, media_key: str, media_label: str):
             """Open a dialog to replace a media file for a table."""
             target_filename = MEDIA_KEY_TO_FILENAME[media_key]
@@ -714,8 +381,8 @@ def render_panel():
             accept_type = '.mp3,audio/*' if is_audio else ('.mp4' if is_video else 'image/*')
             current_url = None
             # Find current media URL from cache
-            if _media_cache:
-                for row in _media_cache:
+            if _media_cache():
+                for row in _media_cache():
                     if row['table_dir'] == table_dir:
                         current_url = row['media'].get(media_key)
                         break
@@ -766,12 +433,12 @@ def render_panel():
                             return
                         try:
                             src = upload_state['path']
-                            target_path = await run.io_bound(replace_media_file, table_path, table_dir, media_key, src)
+                            target_path = await run.io_bound(media_service.replace_media_file, table_path, table_dir, media_key, src)
 
                             # Build the URL for the new media (now in medias/ subfolder)
-                            new_url = _media_url('media_tables', table_dir, 'medias', target_filename)
-                            new_thumb = await run.io_bound(_ensure_thumb, table_dir, media_key, target_path)
-                            update_cache_entry(table_dir, media_key, new_url, new_thumb)
+                            new_url = media_service.media_url('media_tables', table_dir, 'medias', target_filename)
+                            new_thumb = await run.io_bound(media_service.ensure_thumb, table_dir, media_key, target_path)
+                            media_service.update_cache_entry(table_dir, media_key, new_url, new_thumb)
                             update_table_display()
 
                             # Cleanup temp
@@ -799,7 +466,7 @@ def render_panel():
                     scan_btn = ui.button("Scan Media", icon="refresh", on_click=lambda: asyncio.create_task(perform_scan())).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
 
         # Use cached data if available
-        initial_rows = _media_cache if _media_cache is not None else []
+        initial_rows = _media_cache() if _media_cache() is not None else []
 
         # Filter UI
         with ui.card().classes('w-full mb-4').style('border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line);'):
@@ -1011,7 +678,7 @@ def render_panel():
         async def refresh_on_startup():
             if not is_page_active():
                 return
-            if _media_cache is not None:
+            if _media_cache() is not None:
                 if can_update_ui():
                     refresh_filter_options()
                     update_table_display()

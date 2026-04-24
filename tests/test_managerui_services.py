@@ -5,6 +5,8 @@ import unittest
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui.filters import ALL_VALUE, apply_table_filters, build_table_filter_options
 from managerui.services.archive_service import resolve_table_dir
+from managerui.services.collections_service import get_filter_options, search_tables
+from managerui.services.media_service import media_url, update_cache_entry, set_media_cache, get_media_cache, invalidate_media_cache
 from managerui.services.table_catalog import build_mobile_table_rows
 from managerui.services.table_service import normalize_table_rating
 
@@ -81,6 +83,26 @@ class ManagerUiServiceTests(unittest.TestCase):
             "keyback",
             "keycustom",
         ])
+
+    def test_collections_service_filter_options_and_search(self):
+        rows = [
+            {"id": "a", "name": "Attack From Mars", "manufacturer": "Bally", "year": "1995", "type": "SS", "themes": ["Sci-Fi"]},
+            {"id": "m", "name": "Medieval Madness", "manufacturer": "Williams", "year": "1997", "type": "SS", "themes": ["Fantasy"]},
+        ]
+        options = get_filter_options(rows)
+        self.assertEqual(options["letters"], ["All", "A", "M"])
+        self.assertEqual(options["manufacturers"], ["All", "Bally", "Williams"])
+        self.assertEqual([row["id"] for row in search_tables("mars", rows)], ["a"])
+
+    def test_media_service_url_and_cache_update(self):
+        invalidate_media_cache()
+        self.assertEqual(media_url("media_tables", "A B", "medias", "bg.png"), "/media_tables/A%20B/medias/bg.png")
+        set_media_cache([{"table_dir": "A B", "media": {}, "thumbs": {}, "thumb_errors": {"bg": True}}])
+        update_cache_entry("A B", "bg", "/media_tables/A%20B/medias/bg.png", "/media_thumbs/A%20B/bg.png")
+        row = get_media_cache()[0]
+        self.assertEqual(row["media"]["bg"], "/media_tables/A%20B/medias/bg.png")
+        self.assertTrue(row["has_bg"])
+        self.assertNotIn("bg", row["thumb_errors"])
 
 
 if __name__ == "__main__":

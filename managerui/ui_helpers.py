@@ -35,6 +35,14 @@ def outline_action_button(label: str, icon: str | None = None, *, color_var: str
     )
 
 
+def danger_action_button(label: str, icon: str | None = None, *, on_click=None):
+    return outline_action_button(label, icon, color_var="--bad", on_click=on_click)
+
+
+def primary_action_button(label: str, icon: str | None = None, *, on_click=None):
+    return outline_action_button(label, icon, color_var="--neon-cyan", on_click=on_click)
+
+
 def dialog_card(width: str = "650px", *, classes: str = "", style: str = ""):
     """Create the standard dark Manager UI dialog card."""
     merged_classes = f"w-[{width}] manager-dialog-card {classes}".strip()
@@ -50,3 +58,10 @@ def page_header(title: str):
         with ui.row().classes("w-full justify-between items-center p-4 gap-4") as row:
             ui.label(title).classes("text-2xl font-bold").style("color: var(--ink); flex-shrink: 0;")
             return row
+
+
+def section_card(*, classes: str = "w-full p-4", style: str = ""):
+    base_style = "background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);"
+    if style:
+        base_style = f"{base_style} {style}"
+    return ui.card().classes(classes).style(base_style)

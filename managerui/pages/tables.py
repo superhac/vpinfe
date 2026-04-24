@@ -16,6 +16,7 @@ from managerui.pages.table_detail_dialog import open_table_dialog
 from managerui.pages.table_import_dialog import open_import_table_dialog
 from managerui.pages.table_match_dialog import open_match_vps_dialog, open_missing_tables_dialog
 from managerui.services import table_service
+from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import dialog_card, load_page_style
 
 VPSDB_JSON_PATH = table_service.VPSDB_JSON_PATH
@@ -478,7 +479,6 @@ def render_panel(tab=None):
                                 ui.label(m).classes("text-white text-xs whitespace-pre-wrap")
 
                         # Invalidate media cache so media page shows fresh data
-                        from managerui.pages.media import invalidate_media_cache
                         invalidate_media_cache()
 
                         # Refresh table list after completion
@@ -1026,43 +1026,7 @@ def render_panel(tab=None):
 
 def _open_table_dialog_impl(row_data: dict, on_close: Optional[Callable[[], None]] = None):
     # Add dialog styles
-    ui.add_head_html('''
-    <style>
-        .table-dialog-card {
-            background: var(--surface) !important;
-            border: 1px solid var(--line) !important;
-        }
-        .table-dialog-header {
-            background: var(--header-gradient);
-            margin: -16px -16px 0 -16px;
-            padding: 16px 20px;
-            border-radius: 4px 4px 0 0;
-        }
-        .detail-row {
-            padding: 8px 12px;
-            border-radius: 6px;
-            background: var(--table-row);
-        }
-        .detail-row:hover {
-            background: var(--table-row-alt);
-        }
-        .detail-label {
-            color: var(--ink-muted);
-            font-size: 0.85rem;
-            min-width: 120px;
-        }
-        .detail-value {
-            color: var(--ink);
-            font-weight: 500;
-        }
-        .addon-card {
-            background: var(--surface);
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 12px 16px;
-        }
-    </style>
-    ''')
+    load_page_style("table_dialog.css")
 
     dlg = ui.dialog()
     with dlg, ui.card().classes('table-dialog-card').style('width: 1000px; max-width: 85vw;'):
@@ -1114,7 +1078,6 @@ def _open_table_dialog_impl(row_data: dict, on_close: Optional[Callable[[], None
                                 rebuild_status.visible = False
                                 ui.notify('Metadata rebuilt successfully', type='positive')
                             # Invalidate media cache so media page shows fresh data
-                            from managerui.pages.media import invalidate_media_cache
                             invalidate_media_cache()
                     except Exception as ex:
                         with client:
@@ -1377,7 +1340,6 @@ def _open_table_dialog_impl(row_data: dict, on_close: Optional[Callable[[], None
                             row_data['name'] = effective_name
                             title_label.set_text(effective_name)
                             # Keep media list in sync on next visit
-                            from managerui.pages.media import invalidate_media_cache
                             invalidate_media_cache()
                             if on_close:
                                 on_close()
@@ -1965,7 +1927,6 @@ def _open_import_table_dialog_impl(perform_scan_cb=None):
                 )
 
                 # Invalidate media cache
-                from managerui.pages.media import invalidate_media_cache
                 invalidate_media_cache()
 
                 with client:

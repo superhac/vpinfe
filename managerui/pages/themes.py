@@ -4,6 +4,7 @@ from common.iniconfig import IniConfig
 from pathlib import Path
 from managerui.pages.remote import _restart_app
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
+from managerui.ui_helpers import load_page_style
 
 INI_PATH = VPINFE_INI_PATH
 
@@ -50,76 +51,7 @@ def _delete_theme(registry: ThemeRegistry, theme_key: str):
 def render_panel(tab=None):
     global _registry
 
-    ui.add_head_html('''
-    <style>
-        .theme-card {
-            background: var(--surface) !important;
-            border: 1px solid var(--line) !important;
-            border-radius: 12px !important;
-            transition: all 0.2s ease !important;
-        }
-        .theme-card:hover {
-            border-color: var(--neon-purple) !important;
-            box-shadow: var(--glow-purple) !important;
-        }
-        .theme-card-active {
-            border: 2px solid var(--neon-cyan) !important;
-            box-shadow: var(--glow-cyan) !important;
-        }
-        .theme-card-active:hover {
-            border-color: var(--neon-purple) !important;
-            box-shadow: var(--glow-purple) !important;
-        }
-        .theme-preview-wrap {
-            position: relative;
-            overflow: visible;
-            z-index: 1;
-        }
-        .theme-preview-wrap:hover {
-            z-index: 100;
-        }
-        .theme-preview {
-            width: 100%;
-            max-height: 180px;
-            object-fit: cover;
-            border-radius: 8px;
-            border: 1px solid var(--line);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            transform-origin: left center;
-        }
-        .theme-preview:hover {
-            transform: scale(2);
-            box-shadow: var(--shadow);
-            z-index: 100;
-        }
-        .theme-badge {
-            padding: 2px 10px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .badge-installed {
-            background: #065f46;
-            color: #6ee7b7;
-        }
-        .badge-update {
-            background: #78350f;
-            color: #fcd34d;
-        }
-        .badge-available {
-            background: #1e3a5f;
-            color: #93c5fd;
-        }
-        .badge-active {
-            background: #4c1d95;
-            color: #c4b5fd;
-        }
-        .badge-type {
-            background: #374151;
-            color: #d1d5db;
-        }
-    </style>
-    ''')
+    load_page_style("themes.css")
 
     # Container references
     cards_container = None

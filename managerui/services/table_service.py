@@ -207,7 +207,7 @@ def associate_vps_to_folder(
 
         vps.downloadMediaForTable(_LightTable(table_folder, vpx_file), vps_entry.get("id"), metaConfig=meta)
 
-    from managerui.pages.media import invalidate_media_cache
+    from managerui.services.media_service import invalidate_media_cache
     invalidate_media_cache()
     refresh_table(str(table_folder))
 
