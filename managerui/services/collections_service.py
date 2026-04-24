@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-from common.table_repository import get_table_rows
 from common.vpxcollections import VPXCollections
 
 from managerui.paths import COLLECTIONS_PATH
+from managerui.services import table_index_service
 
 
 def get_collections_manager() -> VPXCollections:
@@ -13,12 +13,26 @@ def get_collections_manager() -> VPXCollections:
 
 
 def get_table_rows_for_collections(cached_tables: list[dict] | None = None) -> list[dict]:
-    return cached_tables if cached_tables is not None else get_table_rows(reload=False)
+    return cached_tables if cached_tables is not None else table_index_service.scan_rows(reload=False)
 
 
 def get_table_name_map(cached_tables: list[dict] | None = None) -> Dict[str, str]:
     tables = get_table_rows_for_collections(cached_tables)
     return {table.get("id"): table.get("name", table.get("id")) for table in tables if table.get("id")}
+
+
+def get_vpsid_collections_map() -> Dict[str, List[str]]:
+    mapping: Dict[str, List[str]] = {}
+    try:
+        collections = get_collections_manager()
+        for collection_name in collections.get_collections_name():
+            if collections.is_filter_based(collection_name):
+                continue
+            for vpsid in collections.get_vpsids(collection_name):
+                mapping.setdefault(vpsid, []).append(collection_name)
+    except Exception:
+        pass
+    return mapping
 
 
 def vpsid_to_name(vpsid: str, table_map: Dict[str, str] | None = None) -> str:

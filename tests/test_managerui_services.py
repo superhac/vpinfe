@@ -10,6 +10,14 @@ from managerui.services.collections_service import get_filter_options, search_ta
 from managerui.services.media_service import media_url, update_cache_entry, set_media_cache, get_media_cache, invalidate_media_cache
 from managerui.services.system_service import format_bytes, metric_tone
 from managerui.services.table_catalog import build_mobile_table_rows
+from managerui.services.table_index_service import (
+    add_collection_membership,
+    find_by_path,
+    search_rows,
+    set_missing_rows,
+    set_rows,
+    update_row_by_path,
+)
 from managerui.services.table_service import normalize_table_rating
 
 
@@ -112,6 +120,20 @@ class ManagerUiServiceTests(unittest.TestCase):
 
     def test_managerui_import_does_not_import_remote_keyboard_backend(self):
         importlib.import_module("managerui.managerui")
+
+    def test_table_index_lookup_update_and_search(self):
+        rows = set_rows([
+            {"id": "afm", "name": "Attack From Mars", "filename": "afm.vpx", "table_path": "/tmp/tables/Attack", "collections": []},
+            {"id": "mm", "name": "Medieval Madness", "filename": "mm.vpx", "table_path": "/tmp/tables/MM", "collections": []},
+        ])
+        set_missing_rows([{"folder": "Loose"}])
+
+        self.assertEqual(find_by_path("/tmp/tables/Attack")["id"], "afm")
+        self.assertEqual(search_rows("medieval")[0]["id"], "mm")
+        update_row_by_path("/tmp/tables/MM", {"rating": 5})
+        self.assertEqual(rows[1]["rating"], 5)
+        add_collection_membership("afm", "Favorites")
+        self.assertEqual(rows[0]["collections"], ["Favorites"])
 
 
 if __name__ == "__main__":

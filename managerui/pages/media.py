@@ -7,7 +7,7 @@ from typing import List, Dict, Optional
 
 from managerui.filters import apply_table_filters, build_table_filter_options
 from managerui.services import media_service
-from managerui.ui_helpers import load_page_style
+from managerui.ui_helpers import debounced_input, load_page_style
 
 
 logger = logging.getLogger("vpinfe.manager.media")
@@ -191,7 +191,7 @@ def render_panel():
                         if thumbs.get(media_key) or errors.get(media_key):
                             continue
                         source_path = media_service.source_media_path(row.get('table_path', ''), media_key)
-                        if source_path:
+                        if source_path and media_service.mark_thumb_requested(row.get('table_dir', ''), media_key, source_path):
                             pending.append((row, media_key, source_path))
 
                 if not pending:
@@ -215,6 +215,8 @@ def render_panel():
                             row.setdefault('thumb_errors', {})[media_key] = True
                     except Exception:
                         row.setdefault('thumb_errors', {})[media_key] = True
+                    finally:
+                        media_service.clear_thumb_request(row.get('table_dir', ''), media_key, source_path)
                     return changed
 
                 for i in range(0, len(pending), THUMB_WARM_CHUNK_SIZE):
@@ -471,7 +473,7 @@ def render_panel():
         # Filter UI
         with ui.card().classes('w-full mb-4').style('border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line);'):
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
-                search_input = ui.input(placeholder='Search tables...').props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
+                search_input = debounced_input(ui.input(placeholder='Search tables...')).props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
                 search_input.on_value_change(on_search_change)
 
                 filter_opts = get_filter_options_from_cache()

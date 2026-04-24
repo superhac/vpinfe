@@ -1,20 +1,15 @@
 from __future__ import annotations
 
-import json
-import os
 from pathlib import Path
 from typing import Dict, List
 
-from common.table_repository import get_table_rows
-
-from managerui.paths import get_tables_path
-from managerui.services.table_service import normalize_table_rating
+from managerui.services import table_index_service
 
 
 def scan_mobile_tables(reload: bool = False) -> List[Dict]:
     """Return the compact table shape used by the mobile transfer page."""
     tables = []
-    for row in get_table_rows(reload=reload):
+    for row in table_index_service.scan_rows(reload=reload):
         table_path = row.get("table_path", "")
         tables.append({
             "name": row.get("name", ""),
@@ -41,37 +36,17 @@ def build_mobile_table_rows(tables: List[Dict]) -> List[Dict]:
 
 
 def scan_launchable_tables(tables_path: str | None = None) -> List[Dict]:
-    """Scan table folders for entries with both .info metadata and a .vpx file."""
-    root_path = Path(tables_path or get_tables_path()).expanduser()
+    """Return launchable table rows from the shared table index."""
     tables = []
-
-    if not root_path.exists():
-        return tables
-
-    for root_name, _, files in os.walk(root_path):
-        root = Path(root_name)
-        current_dir = root.name
-        info_file = f"{current_dir}.info"
-
-        if info_file not in files:
+    for row in table_index_service.scan_rows(reload=False):
+        table_path = row.get("table_path", "")
+        filename = row.get("filename", "")
+        if not table_path or not filename:
             continue
-
-        vpx_files = [filename for filename in files if filename.lower().endswith(".vpx")]
-        if not vpx_files:
-            continue
-
-        meta_path = root / info_file
-        try:
-            raw = json.loads(meta_path.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-
-        info = raw.get("Info", {})
-        user = raw.get("User", {})
-        vpinfe = raw.get("VPinFE", {})
-        name = (info.get("Title") or current_dir).strip()
-        manufacturer = info.get("Manufacturer", "")
-        year = info.get("Year", "")
+        vpx_path = str(Path(table_path) / filename)
+        name = row.get("name", "")
+        manufacturer = row.get("manufacturer", "")
+        year = row.get("year", "")
 
         display_name = name
         if manufacturer and year:
@@ -84,15 +59,15 @@ def scan_launchable_tables(tables_path: str | None = None) -> List[Dict]:
         tables.append({
             "name": name,
             "display_name": display_name,
-            "vpx_path": str(root / vpx_files[0]),
-            "table_path": str(root),
-            "vpsid": info.get("VPSId", ""),
+            "vpx_path": vpx_path,
+            "table_path": table_path,
+            "vpsid": row.get("id") or row.get("vpsid", ""),
             "manufacturer": manufacturer,
             "year": str(year) if year else "",
-            "type": info.get("Type", ""),
-            "theme": info.get("Theme", ""),
-            "rating": normalize_table_rating(user.get("Rating", 0)),
-            "meta": {"VPinFE": vpinfe},
+            "type": row.get("type", ""),
+            "theme": row.get("theme") or row.get("themes", ""),
+            "rating": row.get("rating", 0),
+            "meta": {"VPinFE": {"altlauncher": row.get("altlauncher", "")}},
         })
 
     tables.sort(key=lambda table: table["name"].lower())

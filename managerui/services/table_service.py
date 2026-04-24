@@ -13,6 +13,7 @@ from common.vpxcollections import VPXCollections
 from common.vpxparser import VPXParser
 
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_tables_path
+from managerui.services import table_index_service
 
 
 logger = logging.getLogger("vpinfe.manager.table_service")
@@ -213,11 +214,11 @@ def associate_vps_to_folder(
 
 
 def scan_table_rows(reload: bool = False) -> List[Dict]:
-    return get_table_rows(reload=reload)
+    return table_index_service.scan_rows(reload=reload)
 
 
 def scan_missing_table_rows(reload: bool = False) -> List[Dict]:
-    return get_missing_tables(reload=reload)
+    return table_index_service.scan_missing_rows(reload=reload)
 
 
 def build_metadata(*args, **kwargs):

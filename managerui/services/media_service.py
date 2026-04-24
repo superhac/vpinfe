@@ -16,6 +16,7 @@ from managerui.paths import CONFIG_DIR, get_tables_path
 logger = logging.getLogger("vpinfe.manager.media_service")
 
 _media_cache: Optional[List[Dict]] = None
+_thumb_request_state: set[tuple[str, str, str]] = set()
 
 CACHE_DIR = CONFIG_DIR / "cache"
 THUMB_CACHE_ROOT = CACHE_DIR / "media_thumbs"
@@ -124,6 +125,27 @@ def get_cached_thumb_url(table_dir: str, media_key: str, source_path: str) -> Op
     except Exception:
         return None
     return None
+
+
+def thumb_request_key(table_dir: str, media_key: str, source_path: str) -> tuple[str, str, str]:
+    try:
+        signature = _build_thumb_sig(source_path)
+    except Exception:
+        signature = ""
+    return table_dir, media_key, signature
+
+
+def mark_thumb_requested(table_dir: str, media_key: str, source_path: str) -> bool:
+    """Return True if this thumbnail request is new."""
+    key = thumb_request_key(table_dir, media_key, source_path)
+    if key in _thumb_request_state:
+        return False
+    _thumb_request_state.add(key)
+    return True
+
+
+def clear_thumb_request(table_dir: str, media_key: str, source_path: str) -> None:
+    _thumb_request_state.discard(thumb_request_key(table_dir, media_key, source_path))
 
 
 def ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[str]:

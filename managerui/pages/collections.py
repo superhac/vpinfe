@@ -3,13 +3,10 @@ from typing import Dict, List
 
 from nicegui import ui, events, run
 from managerui.services import collections_service
-from managerui.ui_helpers import load_page_style
+from managerui.services import table_index_service
+from managerui.ui_helpers import debounced_input, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.collections")
-
-# Import tables module to access cache (import module, not variable, to get live values)
-from . import tables as tables_module
-
 
 def get_collections_manager():
     """Get a fresh VPXCollections instance."""
@@ -18,7 +15,7 @@ def get_collections_manager():
 
 def get_table_name_map() -> Dict[str, str]:
     """Build a map of VPS ID -> table name from the tables cache."""
-    return collections_service.get_table_name_map(tables_module._tables_cache)
+    return collections_service.get_table_name_map()
 
 
 def vpsid_to_name(vpsid: str, table_map: Dict[str, str] = None) -> str:
@@ -28,7 +25,7 @@ def vpsid_to_name(vpsid: str, table_map: Dict[str, str] = None) -> str:
 
 def get_filter_options() -> Dict[str, List[str]]:
     """Get filter options (letters, themes, types, manufacturers, years, ratings) from the tables cache."""
-    return collections_service.get_filter_options(tables_module._tables_cache)
+    return collections_service.get_filter_options()
 
 
 def render_panel(tab=None):
@@ -160,7 +157,7 @@ def render_panel(tab=None):
                         try:
                             collections_service.delete_collection(name)
                             # Sync the tables cache with updated collection memberships
-                            tables_module.sync_collections_to_cache()
+                            table_index_service.sync_collection_memberships(collections_service.get_vpsid_collections_map())
                             ui.notify(f'Collection "{name}" deleted', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -192,7 +189,7 @@ def render_panel(tab=None):
                         try:
                             collections_service.rename_collection(name, new_name)
                             # Sync the tables cache with updated collection memberships
-                            tables_module.sync_collections_to_cache()
+                            table_index_service.sync_collection_memberships(collections_service.get_vpsid_collections_map())
                             ui.notify(f'Renamed to "{new_name}"', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -236,7 +233,7 @@ def render_panel(tab=None):
 
                 # Table search and selection
                 ui.label('Search installed tables:').classes('text-sm text-gray-400 mt-4')
-                search_input = ui.input('Search...', placeholder='Type to search tables').classes('w-full')
+                search_input = debounced_input(ui.input('Search...', placeholder='Type to search tables')).classes('w-full')
                 search_results = ui.column().classes('w-full gap-1 mt-2').style('max-height: 200px; overflow-y: auto;')
 
                 async def do_search(e: events.ValueChangeEventArguments):
@@ -247,7 +244,7 @@ def render_panel(tab=None):
                         return
 
                     with search_results:
-                        matches = await run.io_bound(collections_service.search_tables, term, tables_module._tables_cache)
+                        matches = await run.io_bound(collections_service.search_tables, term)
                         if not matches:
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
@@ -284,7 +281,7 @@ def render_panel(tab=None):
                             vpsids = [t['id'] for t in selected_tables['items']]
                             collections_service.create_vpsid_collection(name, vpsids)
                             # Sync the tables cache with updated collection memberships
-                            tables_module.sync_collections_to_cache()
+                            table_index_service.sync_collection_memberships(collections_service.get_vpsid_collections_map())
                             ui.notify(f'Collection "{name}" created', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -548,7 +545,7 @@ def render_panel(tab=None):
 
                 # Table search and add
                 ui.label('Add more tables:').classes('text-sm text-gray-400 mt-4')
-                search_input = ui.input('Search...', placeholder='Type to search tables').classes('w-full')
+                search_input = debounced_input(ui.input('Search...', placeholder='Type to search tables')).classes('w-full')
                 search_results = ui.column().classes('w-full gap-1 mt-2').style('max-height: 150px; overflow-y: auto;')
 
                 async def do_search(e: events.ValueChangeEventArguments):
@@ -559,7 +556,7 @@ def render_panel(tab=None):
                         return
 
                     with search_results:
-                        matches = await run.io_bound(collections_service.search_tables, term, tables_module._tables_cache)
+                        matches = await run.io_bound(collections_service.search_tables, term)
                         if not matches:
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
@@ -591,7 +588,7 @@ def render_panel(tab=None):
                             vpsids = [t['id'] for t in selected_tables['items']]
                             collections_service.update_vpsid_collection(name, vpsids)
                             # Sync the tables cache with updated collection memberships
-                            tables_module.sync_collections_to_cache()
+                            table_index_service.sync_collection_memberships(collections_service.get_vpsid_collections_map())
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
                             refresh_collections()

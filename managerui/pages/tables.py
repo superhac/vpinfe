@@ -8,7 +8,6 @@ from nicegui import ui, events, run, context
 from pathlib import Path
 import json
 from typing import List, Dict, Optional, Callable
-from common.table_repository import get_table_rows, get_missing_tables
 from queue import Queue
 from managerui.filters import apply_table_filters, build_table_filter_options
 from managerui.paths import VPINFE_INI_PATH, get_tables_path as resolve_tables_path
@@ -16,8 +15,9 @@ from managerui.pages.table_detail_dialog import open_table_dialog
 from managerui.pages.table_import_dialog import open_import_table_dialog
 from managerui.pages.table_match_dialog import open_match_vps_dialog, open_missing_tables_dialog
 from managerui.services import table_service
+from managerui.services import table_index_service
 from managerui.services.media_service import invalidate_media_cache
-from managerui.ui_helpers import dialog_card, load_page_style
+from managerui.ui_helpers import debounced_input, dialog_card, load_page_style
 
 VPSDB_JSON_PATH = table_service.VPSDB_JSON_PATH
 
@@ -40,9 +40,13 @@ def ensure_vpsdb_downloaded() -> bool:
     return ok
 # Ensure only one Missing Tables dialog at a time
 _missing_tables_dialog: Optional[ui.dialog] = None
-# Cache for scanned tables data (persists across page visits)
-_tables_cache: Optional[List[Dict]] = None
-_missing_cache: Optional[List[Dict]] = None
+# Cache compatibility helpers. Ownership lives in table_index_service.
+def _tables_cache() -> Optional[List[Dict]]:
+    return table_index_service.get_rows()
+
+
+def _missing_cache() -> Optional[List[Dict]]:
+    return table_index_service.get_missing_rows()
 
 
 def normalize_table_rating(value) -> int:
@@ -62,19 +66,10 @@ def get_vpsid_collections() -> List[str]:
 
 def add_table_to_collection(vpsid: str, collection_name: str) -> bool:
     """Add a table (by VPS ID) to a collection. Returns True on success."""
-    global _tables_cache
     try:
         if not table_service.add_table_to_collection(vpsid, collection_name):
             return False
-        # Update the cache so the table list reflects the change
-        if _tables_cache is not None:
-            for row in _tables_cache:
-                if row.get('id') == vpsid:
-                    if 'collections' not in row:
-                        row['collections'] = []
-                    if collection_name not in row['collections']:
-                        row['collections'].append(collection_name)
-                    break
+        table_index_service.add_collection_membership(vpsid, collection_name)
         return True
     except Exception as e:
         logger.error(f"Failed to add table to collection: {e}")
@@ -87,17 +82,7 @@ def sync_collections_to_cache():
     Call this after modifying collections outside of add_table_to_collection(),
     such as when removing tables from collections or deleting/renaming collections.
     """
-    global _tables_cache
-    if _tables_cache is None:
-        return
-
-    # Rebuild the VPS ID to collections map from disk
-    vpsid_collections_map = get_vpsid_collections_map()
-
-    # Update each cached row with current collection memberships
-    for row in _tables_cache:
-        vpsid = row.get('id', '')
-        row['collections'] = vpsid_collections_map.get(vpsid, [])
+    table_index_service.sync_collection_memberships(get_vpsid_collections_map())
 
 
 def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
@@ -241,10 +226,10 @@ def scan_tables(silent: bool = False):
         if not silent:
             ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
         return []
-    return get_table_rows(reload=False)
+    return table_service.scan_table_rows(reload=False)
 
 def scan_missing_tables():
-    return get_missing_tables(reload=False)
+    return table_service.scan_missing_table_rows(reload=False)
 
 
 def load_metadata_from_ini():
@@ -270,11 +255,9 @@ def render_panel(tab=None):
                 # (the clicked row from Quasar is a copy that may be stale)
                 table_path = clicked_row.get('table_path', '')
                 row_data = clicked_row
-                if _tables_cache is not None and table_path:
-                    for cached_row in _tables_cache:
-                        if cached_row.get('table_path') == table_path:
-                            row_data = cached_row
-                            break
+                cached_row = table_index_service.find_by_path(table_path) if table_path else None
+                if cached_row is not None:
+                    row_data = cached_row
                 # Pass update_table_display as callback to refresh table when dialog closes
                 open_table_dialog(row_data, on_close=lambda: update_table_display())
             else:
@@ -284,7 +267,6 @@ def render_panel(tab=None):
             """Scans for tables asynchronously and updates the UI.
             If silent=True, suppress user notifications.
             """
-            global _tables_cache, _missing_cache
             logger.info("Scanning tables...")
             # Keep UX simple: disable the Scan button during work, no pre-notify
             try:
@@ -299,18 +281,13 @@ def render_panel(tab=None):
                     await run.io_bound(ensure_vpsdb_downloaded)
 
                 # Pull rows from the shared startup-backed repository
-                table_rows = await run.io_bound(get_table_rows, True)
-                missing_rows = await run.io_bound(get_missing_tables, False)
+                table_rows, missing_rows = await run.io_bound(table_index_service.scan_table_data, True)
 
                 # Update UI components (default sort by Name; force refresh by reassigning rows)
                 try:
                     table_rows.sort(key=lambda r: (r.get('name') or '').lower())
                 except Exception:
                     pass
-
-                # Cache the results
-                _tables_cache = table_rows
-                _missing_cache = missing_rows
 
                 # Refresh filter options and apply current filters
                 try:
@@ -510,7 +487,8 @@ def render_panel(tab=None):
                     scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).style('color: var(--ink) !important; background: var(--neon-purple) !important; border-radius: 18px;')
                     patch_btn = ui.button("Apply Patches", icon="construction").props("color=secondary rounded")
                     # Start with green if no cached missing, will update after scan
-                    initial_missing_count = len(_missing_cache) if _missing_cache else 0
+                    cached_missing = _missing_cache()
+                    initial_missing_count = len(cached_missing) if cached_missing else 0
                     initial_color = "positive" if initial_missing_count == 0 else "negative"
                     missing_button = ui.button("Unmatched", icon="warning").props(f"color={initial_color} rounded")
 
@@ -623,8 +601,8 @@ def render_panel(tab=None):
                     import_btn.on_click(lambda: open_import_table_dialog(perform_scan))
 
         # Use cached data if available, otherwise start with empty
-        initial_rows = _tables_cache if _tables_cache is not None else []
-        initial_missing = _missing_cache if _missing_cache is not None else []
+        initial_rows = _tables_cache() if _tables_cache() is not None else []
+        initial_missing = _missing_cache() if _missing_cache() is not None else []
 
         # --- Filter state and functions ---
         filter_state = {
@@ -638,7 +616,7 @@ def render_panel(tab=None):
 
         def get_filter_options_from_cache():
             """Extract unique filter values from cached tables."""
-            return build_table_filter_options(_tables_cache or [])
+            return build_table_filter_options(_tables_cache() or [])
 
         def apply_filters():
             """Filter the cached tables based on current filter state."""
@@ -646,7 +624,7 @@ def render_panel(tab=None):
             if filter_state['has_pup_pack']:
                 extra_predicates.append(lambda row: row.get('pup_pack_exists', False))
             return apply_table_filters(
-                _tables_cache or [],
+                _tables_cache() or [],
                 filter_state,
                 search_fields=('name', 'filename'),
                 extra_predicates=extra_predicates,
@@ -658,7 +636,7 @@ def render_panel(tab=None):
             table._props['rows'] = filtered
             table.update()
             # Update title with filtered count
-            total = len(_tables_cache or [])
+            total = len(_tables_cache() or [])
             shown = len(filtered)
             if shown == total:
                 title_label.set_text(f"Installed Tables ({total})")
@@ -724,7 +702,7 @@ def render_panel(tab=None):
         with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: var(--surface); border: 1px solid var(--line);'):
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
                 # Search input
-                search_input = ui.input(placeholder='Search tables...').props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
+                search_input = debounced_input(ui.input(placeholder='Search tables...')).props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
                 search_input.on_value_change(on_search_change)
 
                 # Filter dropdowns
@@ -992,19 +970,20 @@ def render_panel(tab=None):
         table.on('toggle_select_all', on_toggle_select_all)
 
         # Update missing button if we have cached data
-        if _missing_cache is not None:
-            missing_button.text = f"Unmatched Tables ({len(_missing_cache)})"
+        cached_missing = _missing_cache()
+        if cached_missing is not None:
+            missing_button.text = f"Unmatched Tables ({len(cached_missing)})"
             # Update button color: green if 0, red if > 0
-            btn_color = "positive" if len(_missing_cache) == 0 else "negative"
+            btn_color = "positive" if len(cached_missing) == 0 else "negative"
             missing_button._props['color'] = btn_color
             missing_button.on('click', lambda: open_missing_tables_dialog(
-                _missing_cache,
+                cached_missing,
                 on_close=lambda: asyncio.create_task(perform_scan(silent=True))
             ))
 
         # Function to refresh the table display
         async def refresh_table_on_startup():
-            if _tables_cache is not None:
+            if _tables_cache() is not None:
                 # Refresh filter options and apply filters from cache
                 refresh_filter_options()
                 update_table_display()
@@ -1227,11 +1206,7 @@ def _open_table_dialog_impl(row_data: dict, on_close: Optional[Callable[[], None
                             if update_user_setting(table_path_str, 'Rating', clamped):
                                 rating_state['value'] = clamped
                                 row_data['rating'] = clamped
-                                if _tables_cache is not None:
-                                    for cached_row in _tables_cache:
-                                        if cached_row.get('table_path') == table_path_str:
-                                            cached_row['rating'] = clamped
-                                            break
+                                table_index_service.update_row_by_path(table_path_str, {'rating': clamped})
                                 refresh_rating_ui()
                                 if on_close:
                                     on_close()
@@ -1331,12 +1306,10 @@ def _open_table_dialog_impl(row_data: dict, on_close: Optional[Callable[[], None
                             except Exception:
                                 pass
                             effective_name = new_value or fallback_name
-                            if _tables_cache is not None:
-                                for cached_row in _tables_cache:
-                                    if cached_row.get('table_path') == table_path_str:
-                                        cached_row['alttitle'] = new_value
-                                        cached_row['name'] = effective_name
-                                        break
+                            table_index_service.update_row_by_path(table_path_str, {
+                                'alttitle': new_value,
+                                'name': effective_name,
+                            })
                             row_data['name'] = effective_name
                             title_label.set_text(effective_name)
                             # Keep media list in sync on next visit
@@ -1371,14 +1344,12 @@ def _open_table_dialog_impl(row_data: dict, on_close: Optional[Callable[[], None
                             except Exception:
                                 pass
                             effective_id = new_value or fallback_id
-                            if _tables_cache is not None:
-                                vpsid_collections_map = get_vpsid_collections_map()
-                                for cached_row in _tables_cache:
-                                    if cached_row.get('table_path') == table_path_str:
-                                        cached_row['altvpsid'] = new_value
-                                        cached_row['id'] = effective_id
-                                        cached_row['collections'] = vpsid_collections_map.get(effective_id, [])
-                                        break
+                            vpsid_collections_map = get_vpsid_collections_map()
+                            table_index_service.update_row_by_path(table_path_str, {
+                                'altvpsid': new_value,
+                                'id': effective_id,
+                                'collections': vpsid_collections_map.get(effective_id, []),
+                            })
                             row_data['id'] = effective_id
                             row_data['collections'] = get_vpsid_collections_map().get(effective_id, [])
                             if on_close:
@@ -1401,11 +1372,7 @@ def _open_table_dialog_impl(row_data: dict, on_close: Optional[Callable[[], None
                         new_value = (altlauncher_input.value or '').strip()
                         if update_vpinfe_setting(table_path_str, 'altlauncher', new_value):
                             row_data['altlauncher'] = new_value
-                            if _tables_cache is not None:
-                                for cached_row in _tables_cache:
-                                    if cached_row.get('table_path') == table_path_str:
-                                        cached_row['altlauncher'] = new_value
-                                        break
+                            table_index_service.update_row_by_path(table_path_str, {'altlauncher': new_value})
                             ui.notify('Alt launcher saved', type='positive')
                         else:
                             ui.notify('Failed to save alt launcher', type='negative')
@@ -1424,11 +1391,7 @@ def _open_table_dialog_impl(row_data: dict, on_close: Optional[Callable[[], None
                         new_value = (frontend_dof_event_input.value or '').strip()
                         if update_user_setting(table_path_str, 'FrontendDOFEvent', new_value):
                             row_data['frontend_dof_event'] = new_value
-                            if _tables_cache is not None:
-                                for cached_row in _tables_cache:
-                                    if cached_row.get('table_path') == table_path_str:
-                                        cached_row['frontend_dof_event'] = new_value
-                                        break
+                            table_index_service.update_row_by_path(table_path_str, {'frontend_dof_event': new_value})
                             ui.notify('Frontend DOF event saved', type='positive')
                         else:
                             ui.notify('Failed to save Frontend DOF event', type='negative')
@@ -1442,11 +1405,7 @@ def _open_table_dialog_impl(row_data: dict, on_close: Optional[Callable[[], None
                         if update_vpinfe_setting(table_path_str, 'deletedNVRamOnClose', new_value):
                             row_data['delete_nvram_on_close'] = new_value
                             # Also update the cache so the value persists across dialog opens
-                            if _tables_cache is not None:
-                                for cached_row in _tables_cache:
-                                    if cached_row.get('table_path') == table_path_str:
-                                        cached_row['delete_nvram_on_close'] = new_value
-                                        break
+                            table_index_service.update_row_by_path(table_path_str, {'delete_nvram_on_close': new_value})
                             ui.notify('Setting saved', type='positive')
                         else:
                             ui.notify('Failed to save setting', type='negative')
@@ -1690,7 +1649,7 @@ def _open_import_table_dialog_impl(perform_scan_cb=None):
 
                                     ui.button('Select', on_click=_on_pick).style('flex-shrink: 0; color: var(--neon-pink); background: var(--surface); border: 1px solid var(--neon-pink); border-radius: var(--radius);')
 
-                    search_input = ui.input('Search VPS…', value='').classes('w-full')
+                    search_input = debounced_input(ui.input('Search VPS…', value='')).classes('w-full')
 
                     def on_search_change(e: events.ValueChangeEventArguments):
                         term = e.value or ''
@@ -2077,7 +2036,7 @@ def _open_match_vps_dialog_impl(
 
         # Pre-fill the search with folder name for convenience
         initial_term = missing_row['folder']
-        search_input = ui.input('Search VPS…', value=initial_term).classes('w-full')
+        search_input = debounced_input(ui.input('Search VPS…', value=initial_term)).classes('w-full')
 
         def on_search_change(e: events.ValueChangeEventArguments):
             term = e.value or ''

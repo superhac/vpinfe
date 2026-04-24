@@ -65,3 +65,8 @@ def section_card(*, classes: str = "w-full p-4", style: str = ""):
     if style:
         base_style = f"{base_style} {style}"
     return ui.card().classes(classes).style(base_style)
+
+
+def debounced_input(element, milliseconds: int = 250):
+    """Apply client-side debounce to NiceGUI/Quasar input-like elements."""
+    return element.props(f"debounce={milliseconds}")

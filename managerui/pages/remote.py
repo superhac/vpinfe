@@ -18,7 +18,7 @@ from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.libdmdutil_service import (
     stop_libdmdutil_service,
 )
-from managerui.ui_helpers import load_page_style
+from managerui.ui_helpers import debounced_input, load_page_style
 from common.launcher import (
     build_vpx_launch_command,
     get_effective_launcher,
@@ -584,9 +584,9 @@ def show_vpx_game_controls():
         ui_refs['collection_select'] = collection_select
 
         # Search/filter input (below collections dropdown)
-        filter_input = ui.input(
+        filter_input = debounced_input(ui.input(
             placeholder="Search/Filter..."
-        ).props("outlined dense clearable dark").classes("w-full").style(
+        )).props("outlined dense clearable dark").classes("w-full").style(
             "background: var(--surface) !important; border-radius: 8px;"
         )
         ui_refs['filter_input'] = filter_input

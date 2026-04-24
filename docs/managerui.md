@@ -70,6 +70,7 @@ Current services:
 - `media_service.py`: media scanning, thumbnail cache paths, media replacement, and media cache invalidation.
 - `system_service.py`: reusable system-page formatters, disk target resolution, and platform helpers.
 - `table_catalog.py`: shared table scanning and row shaping for mobile transfers and remote launching.
+- `table_index_service.py`: shared Manager UI table cache and lookup indexes (`table_path`, folder, VPS ID, search blobs, missing rows).
 - `table_service.py`: shared table metadata, VPSdb, collection, upload, and table-association operations.
 - `theme_service.py`: active theme, theme registry, install, and delete operations.
 - `vpx_config_service.py`: VPX config path lookup and backup management.
@@ -162,6 +163,20 @@ When adding a new cache:
 - keep the cache and invalidation function in the service that owns the data
 - have pages read/update through that service
 - avoid page-to-page imports for cache refreshes
+
+## Table Index
+
+Use `managerui.services.table_index_service` for table rows that need to be reused across pages. It owns the Manager UI table cache and derived lookup maps, so pages should avoid keeping their own long-lived table lists.
+
+Good uses:
+
+- table list rows and missing rows after a scan
+- table lookups by path, folder name, or VPS ID
+- collection membership updates
+- lightweight search against already-loaded table rows
+- remote-launch dropdown rows
+
+When a page performs a full table scan, call `scan_table_data(reload=True)` so rows and missing rows are refreshed together.
 
 ## Adding Service Logic
 

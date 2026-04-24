@@ -4,7 +4,7 @@ import logging
 
 from common.vpxcollections import VPXCollections
 
-from managerui.paths import COLLECTIONS_PATH, get_tables_path
+from managerui.paths import COLLECTIONS_PATH
 from managerui.services import table_catalog
 
 
@@ -81,8 +81,13 @@ def table_matches_filters(table: dict, filters) -> bool:
         return False
 
     theme = filters.get("theme", "All")
-    if theme != "All" and table.get("theme", "") != theme:
-        return False
+    if theme != "All":
+        table_theme = table.get("theme", "")
+        if isinstance(table_theme, list):
+            if theme not in table_theme:
+                return False
+        elif table_theme != theme:
+            return False
 
     rating = filters.get("rating", "All")
     if rating != "All":
@@ -103,4 +108,4 @@ def table_matches_filters(table: dict, filters) -> bool:
 
 
 def scan_tables_for_launch() -> list[dict]:
-    return table_catalog.scan_launchable_tables(get_tables_path())
+    return table_catalog.scan_launchable_tables()
