@@ -2,6 +2,8 @@ import configparser
 import sys
 import types
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 sys.modules.setdefault("screeninfo", types.SimpleNamespace(get_monitors=lambda: []))
@@ -111,3 +113,56 @@ class TestApiInputMapping(unittest.TestCase):
         mapping = api.get_keymapping()
 
         self.assertEqual(mapping["keytutorial"], "t")
+
+    @patch("frontend.api.start_dof_service_if_enabled")
+    @patch("frontend.api.stop_libdmdutil_service")
+    @patch("frontend.api.stop_dof_service")
+    @patch("frontend.api.subprocess.Popen")
+    @patch("frontend.api.build_vpx_launch_command", return_value=["/tmp/fake-launcher", "-play", "/tmp/table.vpx"])
+    @patch("frontend.api.get_effective_launcher")
+    @patch("frontend.api.ensure_tables_loaded")
+    def test_launch_table_emits_launching_and_complete_events(
+        self,
+        mock_tables,
+        mock_get_launcher,
+        _mock_build_cmd,
+        mock_popen,
+        _mock_stop_dof,
+        _mock_stop_dmd,
+        _mock_start_dof,
+    ) -> None:
+        with TemporaryDirectory() as tmp:
+            launcher = Path(tmp) / "VPinballX"
+            launcher.write_text("", encoding="utf-8")
+            table_path = Path(tmp) / "Example.vpx"
+            table_path.write_text("", encoding="utf-8")
+
+            table = types.SimpleNamespace(
+                fullPathVPXfile=str(table_path),
+                metaConfig={},
+                tableDirName="Example",
+                fullPathTable=str(Path(tmp)),
+            )
+            mock_tables.return_value = [table]
+            mock_get_launcher.return_value = (launcher, "Settings", None)
+
+            process = types.SimpleNamespace(stdout=[], wait=lambda: 0)
+            mock_popen.return_value = process
+
+            events = []
+            ws_bridge = types.SimpleNamespace(
+                send_event_all_with_iframe=lambda message: events.append(message)
+            )
+
+            ini = self._build_ini()
+            api = API(ini, ws_bridge=ws_bridge)
+            api._track_table_play = lambda _table: None
+            api._increment_user_start_count = lambda _table: None
+            api._add_user_runtime_minutes = lambda _table, _elapsed: None
+            api._update_user_score_from_nvram = lambda _table: None
+            api._delete_nvram_if_configured = lambda _table: None
+
+            api.launch_table(0)
+
+            self.assertEqual(events[0]["type"], "TableLaunching")
+            self.assertEqual(events[-1]["type"], "TableLaunchComplete")

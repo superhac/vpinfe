@@ -591,7 +591,7 @@ The following methods are available via `vpin.call()`:
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
 | `get_tables` | `reset=false` | `string` (JSON) | Returns JSON string of the current (filtered) table list. Pass `true` to reset to the full unfiltered list. Each table object includes paths, media paths, addon flags, and metadata. |
-| `launch_table` | `index` | — | Launches the VPX table at the given index. Blocks until the table exits. Automatically tracks play in the "Last Played" collection. Sends `TableRunning` when the table finishes loading and `TableLaunchComplete` when it exits. |
+| `launch_table` | `index` | — | Launches the VPX table at the given index. Blocks until the table exits. Automatically tracks play in the "Last Played" collection. Sends `TableLaunching` before launch, `TableRunning` when the table finishes loading, and `TableLaunchComplete` when it exits. |
 | `build_metadata` | `download_media=true`, `update_all=false` | `object` | Triggers a background metadata build/refresh. Sends progress events (`buildmeta_progress`, `buildmeta_log`, `buildmeta_complete`, `buildmeta_error`) to all windows. Returns `{success, message}`. |
 
 ##### Collections
@@ -727,7 +727,7 @@ Sends an event to all windows except the current one. Convenience wrapper around
 Sends an event to all windows including the current one and forwarding to iframes.
 
 #### launchTable(index)
-Disables gamepad input, calls backend to launch the selected table, then re-enables gamepad input. Sends `TableRunning` when the table finishes loading and `TableLaunchComplete` when it exits.
+Disables gamepad input, calls backend to launch the selected table, then re-enables gamepad input. The launch lifecycle is `TableLaunching` before the process starts, `TableRunning` when the table finishes loading, and `TableLaunchComplete` when it exits.
 
 #### getTableData(reset=false)
 Loads table data from the backend into `vpin.tableData`. Pass `reset=true` to reload from the full unfiltered table list.
@@ -1021,7 +1021,7 @@ When enabled, these transitions are handled automatically:
 
 ### Practical Note: Self-Event Caveat
 
-`vpin.sendMessageToAllWindows(...)` excludes the sender. If your `table` window sends `TableLaunching`, it might not receive that same event back.
+`vpin.sendMessageToAllWindows(...)` excludes the sender. If your `table` window sends `TableLaunching`, it might not receive that same event back, so backend-emitted lifecycle events are the reliable source of truth for launch state.
 
 For robust behavior, it is valid to also call:
 - `vpin.stopTableAudio()` directly in your local `joyselect`/launch path

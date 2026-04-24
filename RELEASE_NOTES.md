@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.74
+This is the offical release of vpinfe v1.1.75
 
 ### What's New
-None
+- add attract mode event.
 
 ### Fixes
-- Fixed order of fields to match in "input" between controller and keyboard.
+- fix mainmenu sizing when rotated.
 
 ### Notes

@@ -605,6 +605,8 @@ class API:
         # Track the table play
         self._track_table_play(table)
 
+        self.send_event_all_windows_incself({"type": "TableLaunching"})
+
         stop_dof_service()
         stop_libdmdutil_service(clear=False)
         launch_started_at = None

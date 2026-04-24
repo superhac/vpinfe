@@ -10,6 +10,7 @@ let currentTableIndex = 0;
 let ratingLabelRequestSeq = 0;
 let audioMuted = false;
 let menuConfigLoaded = false;
+let relayoutTimer = null;
 
 window.parent.vpin.registerInputHandlerMenu(handleInput);
 
@@ -44,6 +45,7 @@ window.addEventListener('message', async (event) => {
     updateMenu();
     refreshRatingMenuLabel(currentTableIndex);
     refreshAudioMenuLabel();
+    scheduleMenuRelayout();
     return;
   }
 
@@ -53,6 +55,7 @@ window.addEventListener('message', async (event) => {
     updateMenu();
     refreshRatingMenuLabel(resolveCurrentTableIndex());
     refreshAudioMenuLabel();
+    scheduleMenuRelayout();
     return;
   }
 
@@ -209,6 +212,24 @@ function syncMenuWidthFromLongestLabel() {
   menuItems.forEach((item) => {
     item.style.whiteSpace = 'nowrap';
     item.style.width = '100%';
+  });
+}
+
+function scheduleMenuRelayout() {
+  if (relayoutTimer) {
+    clearTimeout(relayoutTimer);
+    relayoutTimer = null;
+  }
+
+  requestAnimationFrame(() => {
+    syncMenuWidthFromLongestLabel();
+    requestAnimationFrame(() => {
+      syncMenuWidthFromLongestLabel();
+      relayoutTimer = setTimeout(() => {
+        syncMenuWidthFromLongestLabel();
+        relayoutTimer = null;
+      }, 120);
+    });
   });
 }
 
@@ -524,6 +545,7 @@ window.onload = async () => {
   await refreshRatingMenuLabel(currentTableIndex);
   await refreshAudioMenuLabel();
   updateMenu();
+  scheduleMenuRelayout();
 
   document.getElementById('buildmeta-cancel').addEventListener('click', hideBuildMetaDialog);
   document.getElementById('buildmeta-start').addEventListener('click', startBuildMeta);
