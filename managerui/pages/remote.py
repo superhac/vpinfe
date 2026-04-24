@@ -6,17 +6,13 @@ from pathlib import Path
 from nicegui import ui, run
 from managerui.keysimulator import KeySimulator
 from pynput.keyboard import Key
-from platformdirs import user_config_dir
+from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, get_tables_path as resolve_tables_path
 
 ks = None
 content_area = None
 category_select = None
 
 # Config for launching tables
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
-VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
-COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
-
 # Import config
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
@@ -157,16 +153,7 @@ def _get_ini_config():
 
 def _get_tables_path() -> str:
     """Get the tables root directory from config."""
-    try:
-        cfg = _get_ini_config()
-        tableroot = cfg.config.get('Settings', 'tablerootdir', fallback='').strip()
-        if tableroot:
-            import os
-            return os.path.expanduser(tableroot)
-    except Exception:
-        pass
-    import os
-    return os.path.expanduser('~/tables')
+    return resolve_tables_path()
 
 
 def _scan_tables_for_launch():
@@ -1130,7 +1117,7 @@ def show_other_controls():
 
 def show_virtual_keyboard():
     """Show a virtual keyboard dialog"""
-    with ui.dialog() as keyboard_dialog, ui.card().classes("p-4 w-[90vw] max-w-[500px]").style("backgroud: var(--surface) !important;"):
+    with ui.dialog() as keyboard_dialog, ui.card().classes("p-4 w-[90vw] max-w-[500px]").style("background: var(--surface) !important;"):
         ui.label("Virtual Keyboard").classes("text-xl font-bold mb-4").style("color: var(--ink) !important;")
 
         # Common keys layout
@@ -1171,7 +1158,7 @@ def show_virtual_keyboard():
             ui.button(
                 "Close",
                 on_click=keyboard_dialog.close
-            ).classes("px-8 py-2 rounded").style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+            ).classes("px-8 py-2 rounded").style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
 
     keyboard_dialog.open()
 

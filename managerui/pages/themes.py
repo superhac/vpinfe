@@ -2,11 +2,10 @@ from nicegui import ui, run, context
 from common.themes import ThemeRegistry, ThemeRegistryError
 from common.iniconfig import IniConfig
 from pathlib import Path
-from platformdirs import user_config_dir
 from managerui.pages.remote import _restart_app
+from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
-INI_PATH = CONFIG_DIR / 'vpinfe.ini'
+INI_PATH = VPINFE_INI_PATH
 
 # Module-level registry cache
 _registry: ThemeRegistry | None = None

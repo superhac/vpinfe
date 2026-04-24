@@ -5,9 +5,9 @@ import re
 import shutil
 import subprocess
 import os
-from platformdirs import user_config_dir
 from pathlib import Path
 from common.iniconfig import IniConfig
+from managerui.paths import VPINFE_INI_PATH
 import sys
 
 
@@ -388,8 +388,7 @@ class KeySimulator:
     def __init__(self, debug=False):
         self.debug = debug
 
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
-        config_path = config_dir / "vpinfe.ini"
+        config_path = VPINFE_INI_PATH
 
         if self.debug:
             logger.debug("Looking for vpinfe.ini at: %s", config_path)

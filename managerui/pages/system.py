@@ -10,11 +10,11 @@ from datetime import datetime
 from pathlib import Path
 
 from nicegui import context, run, ui
-from platformdirs import user_config_dir
 
 from common.iniconfig import IniConfig
 from common.app_updater import get_install_context
 from frontend.chromium_manager import get_chromium_path
+from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 
 try:
     import psutil
@@ -22,8 +22,7 @@ except ImportError:  # pragma: no cover - handled gracefully in UI
     psutil = None
 
 
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
-INI_PATH = CONFIG_DIR / "vpinfe.ini"
+INI_PATH = VPINFE_INI_PATH
 _STATIC_DETAILS_CACHE: dict | None = None
 _GPU_FIELD_LABELS = {
     "gpu_clock": "GPU Clock",

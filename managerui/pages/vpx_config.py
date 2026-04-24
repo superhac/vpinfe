@@ -9,15 +9,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from nicegui import ui
-from platformdirs import user_config_dir
 
 from common.iniconfig import IniConfig
+from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 
 
 logger = logging.getLogger("vpinfe.manager.vpx_config")
 
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
-VPINFE_INI_PATH = CONFIG_DIR / "vpinfe.ini"
 VPX_BACKUP_DIR = CONFIG_DIR / "backups" / "vpx_ini"
 
 EDITOR_INCLUDED_KEYS = [

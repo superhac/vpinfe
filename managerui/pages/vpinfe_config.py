@@ -15,16 +15,13 @@ from common.vpinplay_service import sync_installed_tables
 from common.launcher import build_masked_tableini_path, build_vpx_launch_command
 from common.vpxcollections import VPXCollections
 from pathlib import Path
-from platformdirs import user_config_dir
+from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, THEMES_DIR
 from screeninfo import get_monitors
 
 
 logger = logging.getLogger("vpinfe.manager.vpinfe_config")
 
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
-CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-INI_PATH = CONFIG_DIR / 'vpinfe.ini'
-COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
+INI_PATH = VPINFE_INI_PATH
 VPINPLAY_BASE_URL = 'https://www.vpinplay.com/'
 
 # Sections to ignore
@@ -191,7 +188,7 @@ def _get_collection_names():
 def _get_installed_theme_names():
     """Get list of installed theme names."""
     themes = []
-    themes_dir = CONFIG_DIR / 'themes'
+    themes_dir = THEMES_DIR
     if themes_dir.is_dir():
         for entry in os.scandir(themes_dir):
             if entry.is_dir():
@@ -1288,7 +1285,7 @@ def render_panel(tab=None):
                                                                     )
 
                                                 with ui.element('div').classes('config-launch-preview-box'):
-                                                    ui.label('VPinball Launch Comand w/Options').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                    ui.label('VPinball Launch Command w/Options').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                                     ui.label(
                                                         'Preview uses sample table: A-Go-Go (Williams 1966).vpx'
                                                     ).classes('text-sm').style('color: var(--ink-muted) !important;')

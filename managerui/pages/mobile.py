@@ -1,23 +1,19 @@
 import os
 import json
 import logging
-import shutil
-import tempfile
 import urllib.request
 import urllib.parse
 import urllib.error
 from pathlib import Path
 from nicegui import ui, run
-from platformdirs import user_config_dir
 
 from common.iniconfig import IniConfig
 from common.table_repository import get_table_rows
+from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_tables_path
+from managerui.services.archive_service import cleanup_archive, create_vpxz_archive
 
 
 logger = logging.getLogger("vpinfe.manager.mobile")
-
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
-VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
 
 _INI_CFG = None
 _DELETED_SLOT_ERROR = 'The parent element this slot belongs to has been deleted.'
@@ -48,14 +44,7 @@ def _get_ini_config():
 
 
 def _get_tables_path() -> str:
-    try:
-        cfg = _get_ini_config()
-        tableroot = cfg.config.get('Settings', 'tablerootdir', fallback='').strip()
-        if tableroot:
-            return os.path.expanduser(tableroot)
-    except Exception:
-        pass
-    return os.path.expanduser('~/tables')
+    return get_tables_path()
 
 
 def _scan_tables():
@@ -434,18 +423,14 @@ def _build_vpxz_download_panel():
                 dlg.open()
 
                 def create_zip():
-                    tables_path = _get_tables_path()
-                    tmp_dir = tempfile.mkdtemp()
-                    zip_base = os.path.join(tmp_dir, name)
-                    zip_path = shutil.make_archive(zip_base, 'zip', root_dir=tables_path, base_dir=name)
-                    vpxz_path = zip_base + '.vpxz'
-                    os.rename(zip_path, vpxz_path)
-                    logger.info("Created download archive: %s", vpxz_path)
-                    with open(vpxz_path, 'rb') as f:
-                        data = f.read()
-                    shutil.rmtree(tmp_dir, ignore_errors=True)
-                    logger.info("Cleaned up temp archive: %s", tmp_dir)
-                    return data
+                    archive = create_vpxz_archive(name)
+                    try:
+                        logger.info("Created download archive: %s", archive.path)
+                        with open(archive.path, 'rb') as f:
+                            return f.read()
+                    finally:
+                        cleanup_archive(archive)
+                        logger.info("Cleaned up temp archive: %s", archive.temp_dir)
 
                 zip_bytes = await run.io_bound(create_zip)
                 dlg.close()
@@ -515,7 +500,7 @@ def _build_web_send_panel():
                 .props('dense outline').style('color: var(--ink) !important;')
 
     # Send Options
-    with ui.card().classes('w-fullp-4 mb-4').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);'):
+    with ui.card().classes('w-full p-4 mb-4').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);'):
         ui.label('Send Options').classes('font-bold mb-2').style('color: var(--ink) !important;')
         exclude_ini_checkbox = ui.checkbox('Exclude {VPX_FILENAME}.ini files', value=True).props('dark')
         ui.label("Prevents sending the table-specific configuration file, e.g. 'tablename.ini'.").classes('text-xs ml-8 -mt-2').style('color: var(--ink-muted) !important;')
@@ -763,7 +748,7 @@ def _build_web_send_panel():
                     ui.label(f'Delete "{name}" from device?').classes('font-bold').style('color: var(--ink) !important;')
                     ui.label('This will permanently remove the table from the mobile device.').classes('text-sm').style('color: var(--ink-muted) !important;')
                     with ui.row().classes('w-full justify-end gap-2 mt-4'):
-                        ui.button('Cancel', on_click=dlg.close).props('flat').style('color: var(--ink-) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                        ui.button('Cancel', on_click=dlg.close).props('flat').style('color: var(--ink-muted) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                         ui.button('Delete', on_click=lambda: dlg.submit(True)).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 dlg.open()
                 result = await dlg

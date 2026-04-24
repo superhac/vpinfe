@@ -8,20 +8,13 @@ from nicegui import ui, events, run, context
 from pathlib import Path
 import json
 from typing import List, Dict, Optional, Callable
-from common.vpxparser import VPXParser
-from common.vpxcollections import VPXCollections
 from common.table_repository import get_table_rows, get_missing_tables
-from common.table_repository import refresh_table
-from clioptions import buildMetaData, vpxPatches
 from queue import Queue
-from platformdirs import user_config_dir
+from managerui.filters import apply_table_filters, build_table_filter_options
+from managerui.paths import VPINFE_INI_PATH, get_tables_path as resolve_tables_path
+from managerui.services import table_service
 
-# Resolve project root and important paths explicitly
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
-VPSDB_JSON_PATH = CONFIG_DIR / 'vpsdb.json'
-VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
-COLLECTIONS_PATH = CONFIG_DIR / 'collections.ini'
+VPSDB_JSON_PATH = table_service.VPSDB_JSON_PATH
 
 # Load vpinfe.ini once to avoid repeated parsing
 from common.iniconfig import IniConfig
@@ -37,16 +30,9 @@ def ensure_vpsdb_downloaded() -> bool:
     Returns True if vpsdb is available, False otherwise.
     """
     global _vpsdb_cache
-    from common.vpsdb import VPSdb
-    try:
-        # This will automatically download if missing or outdated
-        vps = VPSdb(_INI_CFG.config['Settings']['tablerootdir'], _INI_CFG)
-        # Clear cache so it reloads fresh data
-        _vpsdb_cache = None
-        return VPSDB_JSON_PATH.exists()
-    except Exception as e:
-        logger.error(f'Failed to ensure vpsdb: {e}')
-        return VPSDB_JSON_PATH.exists()
+    ok = table_service.ensure_vpsdb_downloaded()
+    _vpsdb_cache = None
+    return ok
 # Ensure only one Missing Tables dialog at a time
 _missing_tables_dialog: Optional[ui.dialog] = None
 # Cache for scanned tables data (persists across page visits)
@@ -56,55 +42,25 @@ _missing_cache: Optional[List[Dict]] = None
 
 def normalize_table_rating(value) -> int:
     """Normalize rating values to an integer in the range 0..5."""
-    try:
-        normalized = int(float(value))
-    except (TypeError, ValueError):
-        normalized = 0
-    return max(0, min(5, normalized))
+    return table_service.normalize_table_rating(value)
 
 
 def get_vpsid_collections_map() -> Dict[str, List[str]]:
     """Build a map of VPS ID -> list of collection names (only vpsid type collections)."""
-    vpsid_to_collections: Dict[str, List[str]] = {}
-    try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        for collection_name in collections.get_collections_name():
-            # Only consider vpsid type collections
-            if collections.is_filter_based(collection_name):
-                continue
-            try:
-                vpsids = collections.get_vpsids(collection_name)
-                for vpsid in vpsids:
-                    if vpsid not in vpsid_to_collections:
-                        vpsid_to_collections[vpsid] = []
-                    vpsid_to_collections[vpsid].append(collection_name)
-            except Exception:
-                pass
-    except Exception:
-        pass
-    return vpsid_to_collections
+    return table_service.get_vpsid_collections_map()
 
 
 def get_vpsid_collections() -> List[str]:
     """Get list of all vpsid-type collection names."""
-    result = []
-    try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        for collection_name in collections.get_collections_name():
-            if not collections.is_filter_based(collection_name):
-                result.append(collection_name)
-    except Exception:
-        pass
-    return result
+    return table_service.get_vpsid_collections()
 
 
 def add_table_to_collection(vpsid: str, collection_name: str) -> bool:
     """Add a table (by VPS ID) to a collection. Returns True on success."""
     global _tables_cache
     try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        collections.add_vpsid(collection_name, vpsid)
-        collections.save()
+        if not table_service.add_table_to_collection(vpsid, collection_name):
+            return False
         # Update the cache so the table list reflects the change
         if _tables_cache is not None:
             for row in _tables_cache:
@@ -150,105 +106,30 @@ def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
     Returns:
         True on success, False on failure
     """
-    try:
-        table_dir = Path(table_path)
-        info_file = table_dir / f"{table_dir.name}.info"
-
-        if not info_file.exists():
-            logger.error(f"Info file not found: {info_file}")
-            return False
-
-        # Read current data
-        with open(info_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-
-        # Ensure VPinFE section exists
-        if 'VPinFE' not in data:
-            data['VPinFE'] = {}
-
-        # Update the setting
-        data['VPinFE'][key] = value
-
-        # Write back
-        with open(info_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-
-        refresh_table(table_path)
-        return True
-    except Exception as e:
-        logger.error(f"Failed to update VPinFE setting: {e}")
-        return False
+    return table_service.update_vpinfe_setting(table_path, key, value)
 
 
 def update_user_setting(table_path: str, key: str, value) -> bool:
     """Update a User setting in the table's .info file."""
-    try:
-        table_dir = Path(table_path)
-        info_file = table_dir / f"{table_dir.name}.info"
-
-        if not info_file.exists():
-            logger.error(f"Info file not found: {info_file}")
-            return False
-
-        with open(info_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-
-        if 'User' not in data:
-            data['User'] = {}
-
-        data['User'][key] = value
-
-        with open(info_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-
-        refresh_table(table_path)
-        return True
-    except Exception as e:
-        logger.error(f"Failed to update User setting: {e}")
-        return False
+    return table_service.update_user_setting(table_path, key, value)
 
 
 def load_vpsdb() -> List[Dict]:
     global _vpsdb_cache
-    if _vpsdb_cache is not None:
-        return _vpsdb_cache
-    try:
-        with open(VPSDB_JSON_PATH, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            if isinstance(data, list):
-                _vpsdb_cache = data
-            else:
-                _vpsdb_cache = data.get('tables') or data.get('items') or []
-    except Exception as e:
-        logger.error(f'Failed to load vpsdb.json: {e}')
-        _vpsdb_cache = []
+    _vpsdb_cache = table_service.load_vpsdb()
     return _vpsdb_cache
 
 def search_vpsdb(term: str, limit: int = 50) -> List[Dict]:
-    term = (term or '').strip().lower()
-    if not term:
-        return []
-    items = load_vpsdb()
-    def _key(s): return (s or '').lower()
-    results = []
-    for it in items:
-        name = _key(it.get('name'))
-        if term in name:
-            results.append(it)
-        if len(results) >= limit:
-            break
-    return results
+    return table_service.search_vpsdb(term, limit)
 
 ACCEPT_CRZ = ['.crz', '.cRZ', '.CRZ']  # altcolor accepted extensions (case-insensitive)
 ACCEPT_VNI = ['.vni', '.VNI', '.pal', '.PAL']  # vni accepted extensions (case-insensitive)
 
 def ensure_dir(p: Path) -> None:
-    p.mkdir(parents=True, exist_ok=True)
+    table_service.ensure_dir(p)
 
 def save_upload_bytes(dest_file: Path, content: bytes) -> None:
-    ensure_dir(dest_file.parent)
-    with open(dest_file, 'wb') as f:
-        f.write(content)
+    table_service.save_upload_bytes(dest_file, content)
 
 
 # --- helper to create a .info file with a chosen VPS record for one folder ---
@@ -257,90 +138,14 @@ def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media:
     """
     Creates a `.info` file inside `table_folder` using the selected vps_entry and the VPX metadata.
     """
-    from common.tableparser import TableParser  # if you want to reuse Table object for media step
-    from common.iniconfig import IniConfig
-    from common.metaconfig import MetaConfig
-    # If your class names/paths differ, adjust the imports above.
-
-    if not table_folder.exists():
-        raise FileNotFoundError(f"Folder not found: {table_folder}")
-
-    # Find a VPX file in the folder (pick the first, deterministic by sort)
-    vpx_files = sorted([p for p in table_folder.glob('*.vpx')])
-    if not vpx_files:
-        # Also scan one-level deep (many layouts keep the .vpx inside the folder)
-        vpx_files = sorted([p for p in table_folder.rglob('*.vpx') if p.parent == table_folder])
-    if not vpx_files:
-        raise FileNotFoundError(f"No .vpx found in {table_folder}")
-
-    vpx_file = vpx_files[0]
-
-    # Parse VPX data exactly as in buildMetaData
-    parser = VPXParser()
-    vpxdata = parser.singleFileExtract(str(vpx_file))
-
-    finalini = {
-        'vpsdata': vps_entry,
-        'vpxdata': vpxdata,
-    }
-
-    meta_path = table_folder / f"{table_folder.name}.info"
-    meta = MetaConfig(str(meta_path))
-    meta.writeConfigMeta(finalini)
-
-    if user_media:
-        # First, claim any existing local media as user-sourced
-        from clioptions import _claimMediaForTable
-        from common.table import Table
-        tabletype = _INI_CFG.config['Media'].get('tabletype', 'table').lower()
-        pseudo = Table()
-        pseudo.tableDirName = table_folder.name
-        pseudo.fullPathTable = str(table_folder)
-        _claimMediaForTable(pseudo, tabletype)
-        # Re-read meta so downloadMediaForTable sees the freshly claimed user entries
-        meta = MetaConfig(str(meta_path))
-
-    if download_media or user_media:
-        # Download missing media from vpinmediadb (skips user-sourced entries)
-        from common.vpsdb import VPSdb
-        vps = VPSdb(_INI_CFG.config['Settings']['tablerootdir'], _INI_CFG)
-        class _LightTable:
-            def __init__(self, folder: Path, vpx: Path):
-                self.tableDirName = folder.name
-                self.fullPathTable = str(folder)
-                self.fullPathVPXfile = str(vpx)
-                self.BGImagePath = None
-                self.DMDImagePath = None
-                self.TableImagePath = None
-                self.WheelImagePath = None
-                self.CabImagePath = None
-                self.realDMDImagePath = None
-                self.realDMDColorImagePath = None
-                self.FlyerImagePath = None
-                self.TableVideoPath = None
-                self.BGVideoPath = None
-                self.DMDVideoPath = None
-                self.AudioPath = None
-        pseudo_table = _LightTable(table_folder, vpx_file)
-        vps.downloadMediaForTable(pseudo_table, vps_entry.get('id'), metaConfig=meta)
-
-    # Invalidate the media page cache so next visit shows fresh data
-    from managerui.pages.media import invalidate_media_cache
-    invalidate_media_cache()
-    refresh_table(str(table_folder))
+    table_service.associate_vps_to_folder(table_folder, vps_entry, download_media, user_media)
 
 
 logger = logging.getLogger("vpinfe.manager.tables")
 
 def get_tables_path() -> str:
     """Resolve tables path from vpinfe.ini [Settings] tablerootdir, fallback to ~/tables."""
-    try:
-        tableroot = _INI_CFG.config.get('Settings', 'tablerootdir', fallback='').strip()
-        if tableroot:
-            return os.path.expanduser(tableroot)
-    except Exception as e:
-        logger.debug(f'Could not read tablerootdir from vpinfe.ini: {e}')
-    return os.path.expanduser('~/tables')
+    return resolve_tables_path()
 
 def parse_table_info(info_path):
     import os
@@ -644,7 +449,7 @@ def render_panel(tab=None):
                 with buttons_container:
                     cancel_btn = ui.button('Cancel', on_click=dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                     start_btn = ui.button('Start Build', icon='build').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
-                    close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) important; background: var(--surface) important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                    close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                     close_btn.visible = False
 
                 def pump_progress():
@@ -703,7 +508,7 @@ def render_panel(tab=None):
 
                     try:
                         result = await run.io_bound(
-                            buildMetaData,
+                            table_service.build_metadata,
                             downloadMedia=bool(download_media_switch.value),
                             updateAll=bool(update_all_switch.value),
                             progress_cb=progress_cb,
@@ -793,7 +598,7 @@ def render_panel(tab=None):
                             with buttons_container:
                                 cancel_btn = ui.button('Cancel', on_click=dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                                 start_btn = ui.button('Start Build', icon='build').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border-radius: 18px; padding: 4px 10px;')
-                                close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) important; background: var(--surface) important; border-radius: 18px; padding: 4px 10px;')
+                                close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border-radius: 18px; padding: 4px 10px;')
                                 close_btn.visible = False
 
                             def pump_patch_progress():
@@ -835,7 +640,7 @@ def render_panel(tab=None):
                                     patch_progress_timer.active = True
 
                                 try:
-                                    await run.io_bound(vpxPatches, progress_cb=patch_progress_cb)
+                                    await run.io_bound(table_service.apply_vpx_patches, progress_cb=patch_progress_cb)
                                     with client:
                                         patch_status_label.text = "Completed!"
                                         patch_progressbar.value = 1.0
@@ -881,79 +686,19 @@ def render_panel(tab=None):
 
         def get_filter_options_from_cache():
             """Extract unique filter values from cached tables."""
-            tables = _tables_cache or []
-            manufacturers = set()
-            years = set()
-            themes = set()
-            table_types = set()
-
-            for t in tables:
-                mfr = t.get('manufacturer', '')
-                if mfr:
-                    manufacturers.add(mfr)
-
-                year = t.get('year', '')
-                if year:
-                    years.add(str(year))
-
-                table_themes = t.get('themes', [])
-                if isinstance(table_themes, list):
-                    themes.update(table_themes)
-                elif table_themes:
-                    themes.add(table_themes)
-
-                ttype = t.get('type', '')
-                if ttype:
-                    table_types.add(ttype)
-
-            return {
-                'manufacturers': ['All'] + sorted(manufacturers),
-                'years': ['All'] + sorted(years),
-                'themes': ['All'] + sorted(themes),
-                'table_types': ['All'] + sorted(table_types),
-            }
+            return build_table_filter_options(_tables_cache or [])
 
         def apply_filters():
             """Filter the cached tables based on current filter state."""
-            tables = _tables_cache or []
-            result = tables
-
-            # Search filter (name or filename)
-            search_term = filter_state['search'].lower().strip()
-            if search_term:
-                result = [
-                    t for t in result
-                    if search_term in (t.get('name') or '').lower()
-                    or search_term in (t.get('filename') or '').lower()
-                ]
-
-            # Manufacturer filter
-            if filter_state['manufacturer'] != 'All':
-                result = [t for t in result if t.get('manufacturer') == filter_state['manufacturer']]
-
-            # Year filter
-            if filter_state['year'] != 'All':
-                result = [t for t in result if str(t.get('year', '')) == filter_state['year']]
-
-            # Theme filter
-            if filter_state['theme'] != 'All':
-                result = [
-                    t for t in result
-                    if filter_state['theme'] in (t.get('themes') or [])
-                    or t.get('themes') == filter_state['theme']
-                ]
-
-            # Table type filter
-            if filter_state['table_type'] != 'All':
-                result = [t for t in result if t.get('type') == filter_state['table_type']]
-
-            # PUP Pack filter
+            extra_predicates = []
             if filter_state['has_pup_pack']:
-                result = [t for t in result if t.get('pup_pack_exists', False)]
-
-            # Sort by name
-            result.sort(key=lambda r: (r.get('name') or '').lower())
-            return result
+                extra_predicates.append(lambda row: row.get('pup_pack_exists', False))
+            return apply_table_filters(
+                _tables_cache or [],
+                filter_state,
+                search_fields=('name', 'filename'),
+                extra_predicates=extra_predicates,
+            )
 
         def update_table_display():
             """Update the table with filtered results."""
@@ -1403,7 +1148,7 @@ def open_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = N
                         rebuild_status.set_text('Rebuilding...')
                     try:
                         result = await run.io_bound(
-                            buildMetaData,
+                            table_service.build_metadata,
                             downloadMedia=True,
                             updateAll=True,
                             tableName=table_dir_name,
@@ -2261,7 +2006,7 @@ def open_import_table_dialog(perform_scan_cb=None):
                 with client:
                     import_loading_label.set_text('Rebuilding metadata...')
                 await run.io_bound(
-                    buildMetaData,
+                    table_service.build_metadata,
                     downloadMedia=True,
                     updateAll=True,
                     tableName=table_dir_name,

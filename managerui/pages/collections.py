@@ -3,14 +3,11 @@ import asyncio
 from nicegui import ui, events, run
 from pathlib import Path
 from typing import List, Dict, Optional
-from platformdirs import user_config_dir
 from common.vpxcollections import VPXCollections
 from common.table_repository import get_table_rows
+from managerui.paths import COLLECTIONS_PATH
 
 logger = logging.getLogger("vpinfe.manager.collections")
-
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
-COLLECTIONS_PATH = CONFIG_DIR / "collections.ini"
 
 # Import tables module to access cache (import module, not variable, to get live values)
 from . import tables as tables_module

@@ -12,6 +12,9 @@ from .pages import system as tab_system
 from .pages import remote
 from .pages.remote import _restart_app, _quit_app
 from .pages import mobile as tab_mobile
+from .page_registry import NAV_PAGES, PAGE_ALIASES
+from .services.archive_service import cleanup_archive, create_vpxz_archive
+from .ui_helpers import load_manager_styles, nav_button
 import asyncio
 import threading
 import os
@@ -100,6 +103,19 @@ def check_for_updates() -> dict:
     )
     return _update_check_cache
 
+
+_PAGE_RENDERERS = {
+    'tables': tab_tables.render_panel,
+    'collections': tab_collections.render_panel,
+    'media': tab_media.render_panel,
+    'themes': tab_themes.render_panel,
+    'mobile': lambda: tab_mobile.build(standalone=False),
+    'system': tab_system.render_panel,
+    'vpinfe': tab_vpinfe.render_panel,
+    'vpx_config': tab_vpx_config.render_panel,
+}
+
+
 def header():
     # Enable dark mode by default
     ui.dark_mode(value=True)
@@ -108,8 +124,8 @@ def header():
         'box-shadow: var(--shadow);'
     ):
         with ui.row().classes('gap-3 items-center'):
-            ui.image('/static/img/vpinfe-logo.png').style('height: 60px; width: 75px; filter: drop-shadow(var(--glow-cyan));margin: -10px;')
-            ui.label('VPinFE Manager').classes('text-xl').style('color: var(--ink); text-shadow: var(--glow-cyan); font-weigth: 900;')
+            ui.image('/static/img/vpinfe-logo.png').classes('manager-header-logo')
+            ui.label('VPinFE Manager').classes('text-xl manager-title')
             ui.button(icon='restart_alt', on_click=lambda: _restart_app()) \
                 .props('flat round dense').classes('text-green-400') \
                 .tooltip('Restart VPinFE')
@@ -209,261 +225,62 @@ def header():
             ui.timer(0.5, check_updates_async, once=True)
 
 def build_app():
-    # Add global styles for modern look
-    ui.add_head_html('''
-    <style>
-        :root {
-          --bg: #0a0518;
-          --bg-secondary: #150a2e;
-          --surface: #1a0f35;
-          --surface-2: #251447;
-          --surface-soft: #2a1a4a;
-          --ink: #e8d5ff;
-          --ink-muted: #b89dd9;
-          --line: #3d2461;
-          --neon-pink: #ff0a78;
-          --neon-cyan: #00d9ff;
-          --neon-purple: #b429f9;
-          --neon-orange: #ff6b35;
-          --neon-yellow: #ffd93d;
-          --header-gradient: linear-gradient(135deg, #b429f9 0%, #4a1e7c 50%, #0a0518 100%);
-          --sunset-gradient: linear-gradient(180deg, #ff6b35 0%, #ff0a78 25%, #b429f9 50%, #4a1e7c 100%);
-          --link: #00d9ff;
-          --ok: #00ff9f;
-          --warn: #ffd93d;
-          --bad: #ff0a78;
-          --table-row: #1a0f35;
-          --table-row-alt: #251447;
-          --table-hover: #3d2461;
-          --glow-pink: 0 0 4px rgba(255, 10, 120, 0.5), 0 0 8px rgba(255, 10, 120, 0.3);
-          --glow-cyan: 0 0 4px rgba(0, 217, 255, 0.5), 0 0 8px rgba(0, 217, 255, 0.3);
-          --glow-purple: 0 0 4px rgba(180, 41, 249, 0.5), 0 0 8px rgba(180, 41, 249, 0.3);
-          --glow-yellow: 0 0 2px rgba(255, 217, 61, 0.4);
-          --shadow: 0 2px 8px rgba(180, 41, 249, 0.2);
-          --shadow-intense: 0 2px 8px rgba(180, 41, 249, 0.35);
-          --radius: 12px;
-          --grid-color: rgba(0, 217, 255, 0.2);
-        }
-
-        [data-theme="light"] {
-          --bg: #fef3ff;
-          --bg-secondary: #f5e6ff;
-          --surface: #ffffff;
-          --surface-2: #f0e0ff;
-          --surface-soft: #faf5ff;
-          --ink: #2d1b3d;
-          --ink-muted: #6b4c7d;
-          --line: #e0c9f0;
-          --neon-pink: #d4006d;
-          --neon-cyan: #0099cc;
-          --neon-purple: #8e24c7;
-          --neon-orange: #e65528;
-          --neon-yellow: #d4a500;
-          --header-gradient: linear-gradient(135deg, #fef3ff 0%, #f0e0ff 50%, #0099cc 100%);
-          --sunset-gradient: linear-gradient(180deg, #e65528 0%, #d4006d 25%, #8e24c7 50%, #6b4c7d 100%);
-          --link: #0099cc;
-          --ok: #00a876;
-          --warn: #d4a500;
-          --bad: #c7004f;
-          --table-row: #ffffff;
-          --table-row-alt: #faf5ff;
-          --table-hover: #f0e0ff;
-          --glow-pink: 0 4px 16px rgba(212, 0, 109, 0.25);
-          --glow-cyan: 0 4px 16px rgba(0, 153, 204, 0.25);
-          --glow-purple: 0 4px 16px rgba(142, 36, 199, 0.25);
-          --glow-yellow: 0 2px 10px rgba(212, 165, 0, 0.2);
-          --shadow: 0 4px 24px rgba(142, 36, 199, 0.2);
-          --shadow-intense: 0 8px 32px rgba(142, 36, 199, 0.2);
-          --radius: 12px;
-          --grid-color: rgba(0, 153, 204, 0.2);
-        }
-
-        * { box-sizing: border-box; }
-
-        body {
-            background: var(--bg) !important;
-            color: var(--ink);
-            font-family: sans-serif;
-            min-height: 100vh;
-            overflow-x: hidden;
-            transition: background 300ms ease, color 300ms ease;
-        }
-        
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image:
-                linear-gradient(0deg, var(--grid-color) 1px, transparent 1px),
-                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
-            background-size: 40px 40px;
-            pointer-events: none;
-            opacity: 0.3;
-            z-index: 0;
-        }
-        
-        .nicegui-content {
-            overflow-x: hidden !important;
-            max-width: 100vw !important;
-        }
-        
-        .nav-btn {
-            transition: all 0.2s ease !important;
-            border-radius: var(--radius) !important;
-            margin: 4px 8px !important;
-            max-width: calc(100% - 16px) !important;
-            overflow: hidden !important;
-            color: var(--ink-muted) !important;
-        }
-        .nav-btn:hover {
-            background: var(--surface-2) !important;
-            box-shadow: var(--glow-purple) !important;
-            color: var(--ink) !important;
-        }
-        .nav-btn-active {
-            background: var(--surface-2) !important;
-            box-shadow: var(--glow-purple) !important;
-        }
-        .nav-btn .q-btn__content {
-            transition: opacity 0.3s ease;
-        }
-        .nav-collapsed .nav-btn .q-btn__content > :not(.q-icon) {
-            opacity: 0;
-            width: 0;
-            height: 0;
-            overflow: hidden;
-            position: absolute;
-        }
-        .nav-collapsed .nav-btn {
-            padding: 12px 8px !important;
-        }
-        .version-link {
-            color: var(--ink) !important;
-            text-shadow: var(--glow-cyan);
-        }        
-        .version-link:hover {
-            color: var(--neon-cyan) !important;
-        }
-    </style>
-    ''')
+    load_manager_styles()
 
     header()
 
     # Main content area - offset by nav panel width (create first so toggle_nav can reference it)
-    content_container = ui.column().classes('p-6').style('margin-left: 206px; transition: margin-left 0.3s ease; width: calc(100vw - 220px); max-width: calc(100vw - 220px); box-sizing: border-box;')
+    content_container = ui.column().classes('p-6 manager-content nav-expanded')
 
     # Navigation panel container (fixed position on left side)
-    nav_panel = ui.column().classes('fixed left-0 top-16 bottom-0').style(
-        'background: var(--bg-secondary); '
-        'border-right: 1px solid var(--line); '
-        'z-index: 100; '
-        'transition: width 0.3s ease; '
-        'width: 220px; '
-        'overflow: hidden; '
-        'display: flex; '
-        'flex-direction: column;'
-    )
+    nav_panel = ui.column().classes('fixed left-0 top-16 bottom-0 manager-nav-panel')
 
     # Track expanded/collapsed state and UI element references
     nav_state = {'expanded': True, 'nav_content': None, 'nav_label': None, 'remote_container': None}
+    nav_buttons = {}
 
     def toggle_nav():
         nav_state['expanded'] = not nav_state['expanded']
         if nav_state['expanded']:
-            nav_panel.style(add='width: 220px;', remove='width: 56px;')
+            nav_panel.classes(remove='nav-panel-collapsed')
             nav_state['nav_content'].classes(remove='nav-collapsed')
             nav_state['remote_container'].classes(remove='nav-collapsed')
             ui.query('body').classes(remove='nav-is-collapsed')
             nav_state['nav_label'].set_visibility(True)
-            content_container.style(add='margin-left: 206px; width: calc(100vw - 220px); max-width: calc(100vw - 220px);', remove='margin-left: 56px; width: calc(100vw - 56px); max-width: calc(100vw - 56px);')
+            content_container.classes(add='nav-expanded', remove='nav-collapsed-content')
         else:
-            nav_panel.style(add='width: 56px;', remove='width: 220px;')
+            nav_panel.classes(add='nav-panel-collapsed')
             nav_state['nav_content'].classes(add='nav-collapsed')
             nav_state['remote_container'].classes(add='nav-collapsed')
             ui.query('body').classes(add='nav-is-collapsed') 
             nav_state['nav_label'].set_visibility(False)
-            content_container.style(add='margin-left: 40px; width: calc(100vw - 56px); max-width: calc(100vw - 56px);', remove='margin-left: 220px; width: calc(100vw - 220px); max-width: calc(100vw - 220px);')
+            content_container.classes(add='nav-collapsed-content', remove='nav-expanded')
 
     with nav_panel:
         # Navigation header with hamburger menu
-        with ui.row().classes('w-full items-center gap-2 p-3').style(
-            'background: var(--surface) !important; border-bottom: 1px solid var(--line); margin-top: 6px;'
-        ):
-            ui.button(icon='menu', on_click=toggle_nav).props('flat round dense').style('color: var(--neon-cyan) !important; background: var(--surface) !important;')
-            nav_state['nav_label'] = ui.label('Navigation').classes('text-lg font-bold').style('color: var(--neon-cyan) !important; background: var(--surface) !important;')
+        with ui.row().classes('w-full items-center gap-2 p-3 manager-nav-header'):
+            ui.button(icon='menu', on_click=toggle_nav).props('flat round dense').classes('manager-nav-header-button')
+            nav_state['nav_label'] = ui.label('Navigation').classes('text-lg font-bold manager-nav-label')
 
         # Navigation menu items
         nav_state['nav_content'] = ui.column().classes('w-full gap-1 mt-2')
         with nav_state['nav_content']:
-            tables_btn = (
-                ui.button('Tables', icon='view_list', on_click=lambda: show_page('tables'))
-                .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
-                .props('flat align=left')
-                .tooltip('Tables')
-            )
-            collections_btn = (
-                ui.button('Collections', icon='collections_bookmark', on_click=lambda: show_page('collections'))
-                .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
-                .props('flat align=left')
-                .tooltip('Collections')
-            )
-            media_btn = (
-                ui.button('Media', icon='image', on_click=lambda: show_page('media'))
-                .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
-                .props('flat align=left')
-                .tooltip('Media')
-            )
-            themes_btn = (
-                ui.button('Themes', icon='palette', on_click=lambda: show_page('themes'))
-                .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
-                .props('flat align=left')
-                .tooltip('Themes')
-            )
-            mobile_btn = (
-                ui.button('Mobile Uploader', icon='smartphone', on_click=lambda: show_page('mobile'))
-                .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
-                .props('flat align=left')
-                .tooltip('Mobile Uploader')
-            )
-            system_btn = (
-                ui.button('System', icon='monitor_heart', on_click=lambda: show_page('system'))
-                .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
-                .props('flat align=left')
-                .tooltip('System')
-            )
-            config_btn = (
-                ui.button('Configuration', icon='tune', on_click=lambda: show_page('vpinfe'))
-                .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
-                .props('flat align=left')
-                .tooltip('Configuration')
-            )
-            vpx_config_btn = (
-                ui.button('VPX Config', icon='settings_applications', on_click=lambda: show_page('vpx_config'))
-                .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
-                .props('flat align=left')
-                .tooltip('VPX Config')
-            )
+            for page in NAV_PAGES:
+                nav_buttons[page.key] = nav_button(
+                    page.label,
+                    page.icon,
+                    on_click=lambda key=page.key: show_page(key),
+                    tooltip=page.tooltip,
+                )
         # Remote control button anchored to bottom
         nav_state['remote_container'] = ui.column().classes('w-full gap-1 mt-auto').style('margin-top: auto; padding-bottom: 16px;')
         with nav_state['remote_container']:
             ui.separator().style('background: var(--surface-2);')
-            (
-                ui.button('Remote Control', icon='settings_remote', on_click=lambda: ui.navigate.to('/remote', new_tab=True))
-                .classes('w-full nav-btn')
-                .style('justify-content: flex-start; padding: 12px 16px; color: var(--ink-muted) !important;')
-                .props('flat align=left')
-                .tooltip('Remote')
+            nav_button(
+                'Remote Control',
+                'settings_remote',
+                on_click=lambda: ui.navigate.to('/remote', new_tab=True),
+                tooltip='Remote',
             )
 
     current_page = {'value': None}
@@ -471,33 +288,11 @@ def build_app():
     def show_page(page_key: str):
         app.storage.user['active_page'] = page_key
 
-        # Update button styles - reset all first
-        tables_btn.classes(remove='nav-btn-active')
-        collections_btn.classes(remove='nav-btn-active')
-        media_btn.classes(remove='nav-btn-active')
-        themes_btn.classes(remove='nav-btn-active')
-        mobile_btn.classes(remove='nav-btn-active')
-        system_btn.classes(remove='nav-btn-active')
-        config_btn.classes(remove='nav-btn-active')
-        vpx_config_btn.classes(remove='nav-btn-active')
-
-        # Set active button
-        if page_key == 'tables':
-            tables_btn.classes(add='nav-btn-active')
-        elif page_key == 'collections':
-            collections_btn.classes(add='nav-btn-active')
-        elif page_key == 'media':
-            media_btn.classes(add='nav-btn-active')
-        elif page_key == 'themes':
-            themes_btn.classes(add='nav-btn-active')
-        elif page_key == 'mobile':
-            mobile_btn.classes(add='nav-btn-active')
-        elif page_key == 'system':
-            system_btn.classes(add='nav-btn-active')
-        elif page_key == 'vpinfe':
-            config_btn.classes(add='nav-btn-active')
-        elif page_key == 'vpx_config':
-            vpx_config_btn.classes(add='nav-btn-active')
+        for key, button in nav_buttons.items():
+            if key == page_key:
+                button.classes(add='nav-btn-active')
+            else:
+                button.classes(remove='nav-btn-active')
 
         # Only re-render if page changed
         if current_page['value'] == page_key:
@@ -507,22 +302,9 @@ def build_app():
         content_container.clear()
 
         with content_container:
-            if page_key == 'tables':
-                tab_tables.render_panel()
-            elif page_key == 'collections':
-                tab_collections.render_panel()
-            elif page_key == 'media':
-                tab_media.render_panel()
-            elif page_key == 'themes':
-                tab_themes.render_panel()
-            elif page_key == 'mobile':
-                tab_mobile.build(standalone=False)
-            elif page_key == 'system':
-                tab_system.render_panel()
-            elif page_key == 'vpinfe':
-                tab_vpinfe.render_panel()
-            elif page_key == 'vpx_config':
-                tab_vpx_config.render_panel()
+            render_page = _PAGE_RENDERERS.get(page_key)
+            if render_page is not None:
+                render_page()
 
     # Determine initial page: URL ?page= param takes priority, then first-run, then saved page
     global _first_run
@@ -550,23 +332,6 @@ def build_app():
         handler = _DIALOG_HANDLERS.get(dialog_param)
         if handler:
             handler()
-
-# Map of friendly URL param values to internal page keys
-_PAGE_ALIASES = {
-    'tables': 'tables',
-    'collections': 'collections',
-    'media': 'media',
-    'themes': 'themes',
-    'mobile': 'mobile',
-    'system': 'system',
-    'vpinfe': 'vpinfe',
-    'vpinfe_config': 'vpinfe',
-    'configuration': 'vpinfe',
-    'config': 'vpinfe',
-    'vpx_config': 'vpx_config',
-    'vpx': 'vpx_config',
-    'vpinballx': 'vpx_config',
-}
 
 def _dialog_test():
     """Test dialog triggered by ?dialog=test."""
@@ -597,7 +362,7 @@ _DIALOG_HANDLERS = {
 @ui.page('/')
 def index(page: str = '', dialog: str = ''):
     if page:
-        resolved = _PAGE_ALIASES.get(page.lower())
+        resolved = PAGE_ALIASES.get(page.lower())
         if resolved:
             app.storage.user['_page_param'] = resolved
     if dialog:
@@ -608,10 +373,12 @@ def index(page: str = '', dialog: str = ''):
 
 @ui.page('/remote')
 def remote_page():
+    load_manager_styles()
     remote.build()
 
 @ui.page('/mobile')
 def mobile_page():
+    load_manager_styles()
     tab_mobile.build()
 
 
@@ -632,40 +399,26 @@ def get_remote_launch_state():
 @app.get('/api/download-table-vpxz')
 def download_table_vpxz(name: str):
     """Zip a table folder and serve it as a .vpxz download, then clean up."""
-    import tempfile
-    import shutil
     from starlette.responses import FileResponse
     from starlette.background import BackgroundTask
 
-    tables_path = tab_mobile._get_tables_path()
-    table_dir = os.path.join(tables_path, name)
-
-    # Validate the path exists and is under tables root
-    real_table = os.path.realpath(table_dir)
-    real_root = os.path.realpath(tables_path)
-    if not real_table.startswith(real_root + os.sep):
+    try:
+        archive = create_vpxz_archive(name)
+    except ValueError:
         return JSONResponse(content={"error": "Invalid table path"}, status_code=400)
-    if not os.path.isdir(table_dir):
+    except FileNotFoundError:
         return JSONResponse(content={"error": "Table not found"}, status_code=404)
 
-    # Create zip in a temp directory
-    tmp_dir = tempfile.mkdtemp()
-    zip_base = os.path.join(tmp_dir, name)
-    zip_path = shutil.make_archive(zip_base, 'zip', root_dir=tables_path, base_dir=name)
-    # Rename .zip to .vpxz
-    vpxz_path = zip_base + '.vpxz'
-    os.rename(zip_path, vpxz_path)
-
-    logger.info("Created download archive: %s", vpxz_path)
+    logger.info("Created download archive: %s", archive.path)
 
     def cleanup():
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        logger.info("Cleaned up temp archive: %s", tmp_dir)
+        cleanup_archive(archive)
+        logger.info("Cleaned up temp archive: %s", archive.temp_dir)
 
     return FileResponse(
-        vpxz_path,
+        archive.path,
         media_type='application/octet-stream',
-        filename=f"{name}.vpxz",
+        filename=archive.filename,
         background=BackgroundTask(cleanup),
     )
 
@@ -722,7 +475,7 @@ def _manager_ui_urls(port: int) -> list[str]:
     return urls
 
 def _run_ui():
-    STORAGE_SECRET = "verysecret" # The storatage is just to keep the active tab between sessions. Nothing sensitive.
+    STORAGE_SECRET = "verysecret" # The storage is just to keep the active tab between sessions. Nothing sensitive.
     nicegui_storage_dir = UPDATER_CONFIG_DIR / ".nicegui"
     nicegui_storage_dir.mkdir(parents=True, exist_ok=True)
     os.environ["NICEGUI_STORAGE_PATH"] = str(nicegui_storage_dir)

@@ -7,12 +7,11 @@ from nicegui import ui, events, run, app, context
 from pathlib import Path
 import json
 from typing import List, Dict, Optional
-from platformdirs import user_config_dir
 
 # Resolve project root and important paths explicitly
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
-VPINFE_INI_PATH = CONFIG_DIR / 'vpinfe.ini'
+from managerui.filters import apply_table_filters, build_table_filter_options
+from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_tables_path as resolve_tables_path
 
 from common.iniconfig import IniConfig
 from common.metaconfig import MetaConfig
@@ -151,13 +150,7 @@ def _ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[
 
 
 def get_tables_path() -> str:
-    try:
-        tableroot = _INI_CFG.config.get('Settings', 'tablerootdir', fallback='').strip()
-        if tableroot:
-            return os.path.expanduser(tableroot)
-    except Exception as e:
-        logger.debug(f'Could not read tablerootdir from vpinfe.ini: {e}')
-    return os.path.expanduser('~/tables')
+    return resolve_tables_path()
 
 
 TABLE_ATTR_TO_MEDIA_KEY = {
@@ -331,7 +324,7 @@ def render_panel():
                 transition: background-color 0.2s ease !important;
             }
             .media-table .q-table tbody tr:hover td {
-                color: var(--ink-) !important;
+                color: var(--ink) !important;
             }
             .media-table .q-table__bottom {
                 background-color: var(--surface) !important;
@@ -424,69 +417,15 @@ def render_panel():
         }
 
         def get_filter_options_from_cache():
-            tables = _media_cache or []
-            manufacturers = set()
-            years = set()
-            themes = set()
-            table_types = set()
-
-            for t in tables:
-                mfr = t.get('manufacturer', '')
-                if mfr:
-                    manufacturers.add(mfr)
-                year = t.get('year', '')
-                if year:
-                    years.add(str(year))
-                table_themes = t.get('themes', [])
-                if isinstance(table_themes, list):
-                    themes.update(table_themes)
-                elif table_themes:
-                    themes.add(table_themes)
-                ttype = t.get('type', '')
-                if ttype:
-                    table_types.add(ttype)
-
-            return {
-                'manufacturers': ['All'] + sorted(manufacturers),
-                'years': ['All'] + sorted(years),
-                'themes': ['All'] + sorted(themes),
-                'table_types': ['All'] + sorted(table_types),
-            }
+            return build_table_filter_options(_media_cache or [])
 
         def apply_filters():
-            tables = _media_cache or []
-            result = tables
-
-            search_term = filter_state['search'].lower().strip()
-            if search_term:
-                result = [
-                    t for t in result
-                    if search_term in (t.get('name') or '').lower()
-                ]
-
-            if filter_state['manufacturer'] != 'All':
-                result = [t for t in result if t.get('manufacturer') == filter_state['manufacturer']]
-
-            if filter_state['year'] != 'All':
-                result = [t for t in result if str(t.get('year', '')) == filter_state['year']]
-
-            if filter_state['theme'] != 'All':
-                result = [
-                    t for t in result
-                    if filter_state['theme'] in (t.get('themes') or [])
-                    or t.get('themes') == filter_state['theme']
-                ]
-
-            if filter_state['table_type'] != 'All':
-                result = [t for t in result if t.get('type') == filter_state['table_type']]
-
-            # Missing media filters — show only tables missing the checked media types
-            for media_key, _, _ in MEDIA_TYPES:
-                if filter_state.get(f'missing_{media_key}'):
-                    result = [t for t in result if t.get('media', {}).get(media_key) is None]
-
-            result.sort(key=lambda r: (r.get('name') or '').lower())
-            return result
+            missing_predicates = [
+                (lambda key: lambda row: row.get('media', {}).get(key) is None)(media_key)
+                for media_key, _, _ in MEDIA_TYPES
+                if filter_state.get(f'missing_{media_key}')
+            ]
+            return apply_table_filters(_media_cache or [], filter_state, extra_predicates=missing_predicates)
 
         def _visible_rows(rows: List[Dict]) -> List[Dict]:
             try:
