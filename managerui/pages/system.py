@@ -5,6 +5,7 @@ import socket
 import platform
 import subprocess
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -84,6 +85,7 @@ def _get_system_metrics(include_gpu: bool = False) -> dict:
         "browser_name": static_details["browser_name"],
         "browser_path": static_details["browser_path"],
         "browser_version": static_details["browser_version"],
+        "windowing_system": static_details["windowing_system"],
         "usage_path": str(usage_path),
         "disk_total": total,
         "disk_used": used,
@@ -238,8 +240,28 @@ def _get_static_system_details() -> dict:
         "browser_name": _get_frontend_browser_name(browser_path),
         "browser_path": browser_path or "Unavailable",
         "browser_version": _get_frontend_browser_version(browser_path) or "Unknown",
+        "windowing_system": _get_windowing_system(),
     }
     return _STATIC_DETAILS_CACHE
+
+
+def _get_windowing_system() -> str:
+    if platform.system() == "Windows":
+        return "Windows"
+    if platform.system() == "Darwin":
+        return "macOS"
+
+    session_type = os.environ.get("XDG_SESSION_TYPE", "").strip().lower()
+    wayland_display = os.environ.get("WAYLAND_DISPLAY", "").strip()
+    display = os.environ.get("DISPLAY", "").strip()
+
+    if wayland_display or session_type == "wayland":
+        return "Wayland"
+    if display or session_type == "x11":
+        return "X11"
+    if session_type:
+        return session_type.capitalize()
+    return "Unknown"
 
 
 def _get_build_flavor(install_context: dict) -> str:
@@ -464,6 +486,7 @@ def render_panel(tab=None):
                 os_label = ui.label("Operating system: --").style("color: var(--ink-muted) !important;")
                 build_label = ui.label("VPinFE build: --").style("color: var(--ink-muted) !important;")
                 release_label = ui.label("Release target: --").style("color: var(--ink-muted) !important;")
+                windowing_label = ui.label("Windowing system: --").style("color: var(--ink-muted) !important;")
                 browser_label = ui.label("Frontend browser: --").style("color: var(--ink-muted) !important;")
                 browser_version_label = ui.label("Browser version: --").style("color: var(--ink-muted) !important;")
                 browser_path_label = ui.label("Browser path: --").classes("break-all").style("color: var(--ink-muted) !important;")
@@ -600,6 +623,7 @@ def render_panel(tab=None):
                 os_label.set_text(f"Operating system: {metrics['os_name']} {metrics['os_version']}")
                 build_label.set_text(f"VPinFE build: {metrics['build_flavor']}")
                 release_label.set_text(f"Release target: {metrics['release_target']}")
+                windowing_label.set_text(f"Windowing system: {metrics['windowing_system']}")
                 browser_label.set_text(f"Frontend browser: {metrics['browser_name']}")
                 browser_version_label.set_text(f"Browser version: {metrics['browser_version']}")
                 browser_path_label.set_text(f"Browser path: {metrics['browser_path']}")

@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v1.1.75
+This is the offical release of vpinfe v1.1.76
 
 ### What's New
-- add attract mode event.
+None
 
 ### Fixes
-- fix mainmenu sizing when rotated.
+None
 
 ### Notes
