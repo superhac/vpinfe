@@ -3,23 +3,17 @@ import configparser
 import logging
 from pathlib import Path
 
+from common.table_metadata import base_table_vps_id, section, table_title
 
 logger = logging.getLogger("vpinfe.common.vpxcollections")
 
 
 def _get_display_title(table):
-    meta = table.metaConfig if isinstance(table.metaConfig, dict) else {}
-    vpinfe = meta.get("VPinFE", {}) if isinstance(meta.get("VPinFE"), dict) else {}
-    info = meta.get("Info", {}) if isinstance(meta.get("Info"), dict) else {}
-
-    if str(vpinfe.get("altvpsid", "") or "").strip():
-        return str(vpinfe.get("alttitle", "") or "").strip()
-    return str(info.get("Title", "") or "").strip()
+    return table_title(table)
 
 
 def _get_last_run_value(table):
-    meta = table.metaConfig if isinstance(table.metaConfig, dict) else {}
-    user = meta.get("User", {}) if isinstance(meta.get("User"), dict) else {}
+    user = section(getattr(table, "metaConfig", {}), "User")
     raw = user.get("LastRun")
     try:
         return int(raw)
@@ -177,13 +171,9 @@ class VPXCollections:
         result = []
 
         for table in tables:
-            meta = table.metaConfig or {}
-            info = meta.get("Info", {})
-            vpinfe = meta.get("VPinFE", {})
-            base_vpsid = str(info.get("VPSId", "") or "").strip()
-            alt_vpsid = ""
-            if isinstance(vpinfe, dict):
-                alt_vpsid = str(vpinfe.get("altvpsid", "") or "").strip()
+            vpinfe = section(getattr(table, "metaConfig", {}), "VPinFE")
+            base_vpsid = base_table_vps_id(table)
+            alt_vpsid = str(vpinfe.get("altvpsid", "") or "").strip()
 
             # Collections may contain either the base VPS ID or an overridden altvpsid.
             if (

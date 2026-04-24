@@ -1,52 +1,18 @@
 import ast
-from typing import List, Optional
+
+from common.table_metadata import get_meta_value, is_truthy, normalize_rating
 
 
 class TableListFilters:
-    """Filter tables by various criteria: starting letter, theme, and type.
-
-    Singleton pattern - shares cached filter data across all instances.
-    """
-
-    # Singleton instance
-    _instance: Optional['TableListFilters'] = None
-    _tables: list = []
-
-    def __new__(cls, tables=None):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        if tables is not None:
-            cls._tables = tables
-        return cls._instance
+    """Filter tables by various criteria: starting letter, theme, type, and rating."""
 
     def __init__(self, tables=None):
-        """Initialize with a list of tables (updates shared tables if provided)."""
-        if tables is not None:
-            TableListFilters._tables = tables
+        self.tables = list(tables or [])
 
-    @property
-    def tables(self):
-        return TableListFilters._tables
-
-    @tables.setter
-    def tables(self, value):
-        TableListFilters._tables = value
-
-    def _get_meta_value(self, table, section, key, fallback=""):
+    @staticmethod
+    def _get_meta_value(table, section, key, fallback=""):
         """Helper to safely extract metadata values."""
-        meta = table.metaConfig
-        cfg = meta.config if hasattr(meta, "config") else meta
-
-        # Handle both dicts and objects that might mimic configparser
-        if isinstance(cfg, dict):
-            section_dict = cfg.get(section, {})
-            return section_dict.get(key, fallback)
-        else:
-            # fallback for objects that behave like configparser
-            try:
-                return cfg.get(section, key)
-            except Exception:
-                return fallback
+        return get_meta_value(getattr(table, "metaConfig", {}), section, key, fallback)
 
     def get_available_letters(self):
         """Return sorted list of unique starting letters from table names."""
@@ -172,20 +138,12 @@ class TableListFilters:
     @staticmethod
     def _normalize_rating(value):
         """Normalize rating values to an integer in the range 0..5."""
-        try:
-            normalized = int(float(value))
-        except (TypeError, ValueError):
-            normalized = 0
-        return max(0, min(5, normalized))
+        return normalize_rating(value)
 
     @staticmethod
     def _is_truthy(value):
         """Convert common string/bool truthy values to bool."""
-        if isinstance(value, bool):
-            return value
-        if value is None:
-            return False
-        return str(value).strip().lower() in {"1", "true", "yes", "on"}
+        return is_truthy(value)
 
     def _get_table_rating(self, table):
         """Get table rating from User.Rating metadata."""

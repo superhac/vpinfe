@@ -1,0 +1,130 @@
+from __future__ import annotations
+
+import logging
+import time
+from pathlib import Path
+
+from common.collections_service import get_collections_manager
+from common.table_metadata import (
+    get_or_create_user_meta,
+    normalize_meta,
+    persist_table_meta,
+    section,
+)
+
+
+logger = logging.getLogger("vpinfe.common.table_play_service")
+
+
+def track_table_play(table, collection_name: str = "Last Played", max_items: int = 30) -> None:
+    meta = normalize_meta(getattr(table, "metaConfig", {}))
+    vpsid = section(meta, "Info").get("VPSId")
+    if not vpsid:
+        logger.debug("Table has no VPSId, cannot track play")
+        return
+
+    collections = get_collections_manager()
+    if collection_name not in collections.get_collections_name():
+        logger.info("Creating '%s' collection", collection_name)
+        collections.add_collection(collection_name, vpsids=[])
+
+    ids = collections.get_vpsids(collection_name)
+    if vpsid in ids:
+        ids.remove(vpsid)
+    ids.insert(0, vpsid)
+    collections.config[collection_name]["vpsids"] = ",".join(ids[:max_items])
+    collections.save()
+    logger.info("Tracked table play: %s (now %s in %s)", vpsid, len(ids[:max_items]), collection_name)
+
+
+def increment_start_count(table) -> None:
+    config = normalize_meta(getattr(table, "metaConfig", {}))
+    if not isinstance(config, dict):
+        logger.warning("Could not increment StartCount: invalid table metadata for %s", table.tableDirName)
+        return
+
+    user = get_or_create_user_meta(config)
+    try:
+        user["StartCount"] = int(user.get("StartCount", 0)) + 1
+    except (TypeError, ValueError):
+        user["StartCount"] = 1
+    user["LastRun"] = int(time.time())
+    persist_table_meta(table, config)
+    logger.info("Updated User.StartCount for %s -> %s", table.tableDirName, user["StartCount"])
+
+
+def add_runtime_minutes(table, elapsed_seconds: float) -> None:
+    config = normalize_meta(getattr(table, "metaConfig", {}))
+    if not isinstance(config, dict):
+        logger.warning("Could not update RunTime: invalid table metadata for %s", table.tableDirName)
+        return
+
+    session_minutes = int((elapsed_seconds + 59) // 60)
+    user = get_or_create_user_meta(config)
+    try:
+        prior_runtime = int(user.get("RunTime", 0))
+    except (TypeError, ValueError):
+        prior_runtime = 0
+    user["RunTime"] = prior_runtime + session_minutes
+    persist_table_meta(table, config)
+    logger.info(
+        "Updated User.RunTime for %s: +%s min (total=%s)",
+        table.tableDirName,
+        session_minutes,
+        user["RunTime"],
+    )
+
+
+def update_score_from_nvram(table) -> None:
+    config = normalize_meta(getattr(table, "metaConfig", {}))
+    if not isinstance(config, dict):
+        logger.warning("Could not update Score: invalid table metadata for %s", table.tableDirName)
+        return
+
+    rom = str(section(config, "Info").get("Rom", "") or "").strip()
+    if not rom:
+        logger.debug("No ROM name found for %s, skipping score update", table.tableDirName)
+        return
+
+    try:
+        from common.score_parser import read_rom_with_source, result_to_jsonable
+
+        parsed_result, score_path = read_rom_with_source(rom, table.fullPathTable)
+        score_data = result_to_jsonable(rom, parsed_result, score_path)
+    except FileNotFoundError:
+        logger.debug("No score source found for %s and ROM %s", table.tableDirName, rom)
+        return
+    except KeyError:
+        logger.debug("ROM %s is not supported for score parsing", rom)
+        return
+    except Exception:
+        logger.exception("Failed to parse score data for %s", table.tableDirName)
+        return
+
+    if not score_data:
+        logger.debug("Parsed score data for %s was empty, skipping metadata update", table.tableDirName)
+        return
+
+    user = get_or_create_user_meta(config)
+    user["Score"] = score_data
+    persist_table_meta(table, config)
+    logger.info("Updated User.Score for %s from %s", table.tableDirName, score_path)
+
+
+def delete_nvram_if_configured(table) -> None:
+    config = normalize_meta(getattr(table, "metaConfig", {}))
+    vpinfe = section(config, "VPinFE")
+    if not vpinfe.get("deletedNVRamOnClose", False):
+        return
+
+    rom = section(config, "Info").get("Rom", "")
+    if not rom:
+        logger.warning("No ROM name found for table, skipping NVRAM deletion")
+        return
+
+    nvram_path = Path(table.fullPathTable) / "pinmame" / "nvram" / f"{rom}.nv"
+    if nvram_path.exists():
+        nvram_path.unlink()
+        logger.info("Deleted NVRAM file: %s", nvram_path)
+    else:
+        logger.info("NVRAM file not found (nothing to delete): %s", nvram_path)

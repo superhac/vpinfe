@@ -1,28 +1,35 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any
+
+
+@dataclass
 class Table:
-    tableDirName = None
-    fullPathTable = None
-    fullPathVPXfile = None
-    creation_time = None
+    tableDirName: str | None = None
+    fullPathTable: str | None = None
+    fullPathVPXfile: str | None = None
+    creation_time: float | None = None
 
-    pupPackExists = False
-    altColorExists = False
-    altSoundExists = False
-    vniExists = False
+    pupPackExists: bool = False
+    altColorExists: bool = False
+    altSoundExists: bool = False
+    vniExists: bool = False
 
-    BGImagePath = None
-    DMDImagePath = None
-    TableImagePath = None
-    FSSImagePath = None
-    WheelImagePath = None
-    CabImagePath = None
-    realDMDImagePath = None
-    realDMDColorImagePath = None
-    FlyerImagePath = None
+    BGImagePath: str | None = None
+    DMDImagePath: str | None = None
+    TableImagePath: str | None = None
+    FSSImagePath: str | None = None
+    WheelImagePath: str | None = None
+    CabImagePath: str | None = None
+    realDMDImagePath: str | None = None
+    realDMDColorImagePath: str | None = None
+    FlyerImagePath: str | None = None
 
-    TableVideoPath = None
-    BGVideoPath = None
-    DMDVideoPath = None
+    TableVideoPath: str | None = None
+    BGVideoPath: str | None = None
+    DMDVideoPath: str | None = None
 
-    AudioPath = None
+    AudioPath: str | None = None
 
-    metaConfig = None
+    metaConfig: dict[str, Any] | None = None

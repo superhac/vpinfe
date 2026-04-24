@@ -17,6 +17,8 @@ from urllib.parse import urlparse, parse_qs
 
 import websockets
 
+from frontend.api import API_ALLOWED_METHODS
+
 
 logger = logging.getLogger("vpinfe.frontend.ws_bridge")
 
@@ -25,51 +27,7 @@ class WebSocketBridge:
     """WebSocket server that bridges JavaScript ↔ Python API calls."""
 
     # Public API methods that JS is allowed to call
-    ALLOWED_METHODS = {
-        'get_my_window_name',
-        'close_app',
-        'shutdown_system',
-        'get_monitors',
-        'get_tables',
-        'get_collections',
-        'set_tables_by_collection',
-        'save_filter_collection',
-        'get_current_filter_state',
-        'get_current_sort_state',
-        'get_current_collection',
-        'get_filter_letters',
-        'get_filter_themes',
-        'get_filter_types',
-        'get_filter_manufacturers',
-        'get_filter_years',
-        'apply_filters',
-        'apply_sort',
-        'reset_filters',
-        'console_out',
-        'get_joymaping',
-        'get_keymapping',
-        'get_mainmenu_config',
-        'set_button_mapping',
-        'launch_table',
-        'update_frontend_dof_for_table',
-        'get_table_rating',
-        'set_table_rating',
-        'build_metadata',
-        'get_theme_config',
-        'get_theme_name',
-        'get_vpinplay_endpoint',
-        'get_table_orientation',
-        'get_table_rotation',
-        'get_splashscreen_enabled',
-        'get_audio_muted',
-        'set_audio_muted',
-        'get_cab_mode',
-        'get_theme_assets_port',
-        'get_theme_index_page',
-        'send_event',
-        'send_event_all_windows',
-        'send_event_all_windows_incself',
-    }
+    ALLOWED_METHODS = API_ALLOWED_METHODS
 
     def __init__(self, port=8002):
         self.port = port

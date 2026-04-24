@@ -1,17 +1,12 @@
 import sys
 import os
-import platform
 import logging
 from pathlib import Path
-from screeninfo import get_monitors
-from common.table import Table
-import json
-import time
 import subprocess
 import threading
 from common.table_repository import ensure_tables_loaded
-from common.vpxcollections import VPXCollections
-from common.tablelistfilters import TableListFilters
+from common.collections_service import get_collection_names
+from common.display_service import monitors_as_dicts
 from common.dof_service import (
     send_frontend_dof_event,
     start_dof_service_if_enabled,
@@ -27,15 +22,64 @@ from common.launcher import (
     parse_launch_env_overrides,
     resolve_launch_tableini_override,
 )
-from common.metaconfig import MetaConfig
-from common.score_parser import (
-    read_rom_with_source,
-    result_to_jsonable,
+from common.table_metadata import (
+    get_or_create_user_meta,
+    meta_file_path,
+    normalize_meta,
+    persist_table_meta,
 )
-from platformdirs import user_config_dir
+from common import table_play_service
+from frontend import input_api, launch_service, metadata_build_service, table_state, theme_api
 
 
 logger = logging.getLogger("vpinfe.frontend.api")
+
+
+API_ALLOWED_METHODS = {
+    'get_my_window_name',
+    'close_app',
+    'shutdown_system',
+    'get_monitors',
+    'get_tables',
+    'get_collections',
+    'set_tables_by_collection',
+    'save_filter_collection',
+    'get_current_filter_state',
+    'get_current_sort_state',
+    'get_current_collection',
+    'get_filter_letters',
+    'get_filter_themes',
+    'get_filter_types',
+    'get_filter_manufacturers',
+    'get_filter_years',
+    'apply_filters',
+    'apply_sort',
+    'reset_filters',
+    'console_out',
+    'get_joymaping',
+    'get_keymapping',
+    'get_mainmenu_config',
+    'set_button_mapping',
+    'launch_table',
+    'update_frontend_dof_for_table',
+    'get_table_rating',
+    'set_table_rating',
+    'build_metadata',
+    'get_theme_config',
+    'get_theme_name',
+    'get_vpinplay_endpoint',
+    'get_table_orientation',
+    'get_table_rotation',
+    'get_splashscreen_enabled',
+    'get_audio_muted',
+    'set_audio_muted',
+    'get_cab_mode',
+    'get_theme_assets_port',
+    'get_theme_index_page',
+    'send_event',
+    'send_event_all_windows',
+    'send_event_all_windows_incself',
+}
 
 
 def _system_command_env() -> dict[str, str]:
@@ -56,15 +100,7 @@ class API:
         self.filteredTables = self.allTables
         self.jsTableDictData = None
         # Track current filter state
-        self.current_filters = {
-            'letter': None,
-            'theme': None,
-            'type': None,
-            'manufacturer': None,
-            'year': None,
-            'rating': None,
-            'rating_or_higher': False,
-        }
+        self.current_filters = table_state.default_filter_state()
         # Track current sort state
         self.current_sort = 'Alpha'
         # Track current collection
@@ -91,12 +127,7 @@ class API:
         pass
 
     def _normalize_table_meta(self, table):
-        meta = table.metaConfig or {}
-        if isinstance(meta, dict):
-            return meta
-        if hasattr(meta, "getConfig"):
-            return meta.getConfig()
-        return {}
+        return normalize_meta(table.metaConfig)
 
     def _get_frontend_dof_event_for_table(self, table) -> str:
         meta = self._normalize_table_meta(table)
@@ -188,15 +219,7 @@ class API:
             self.frontend_browser.terminate_all()
 
     def get_monitors(self):
-        monitors = get_monitors()
-        # Return a list of dicts with relevant info
-        return [{
-            'name': f'Monitor {i}',
-            'x': m.x,
-            'y': m.y,
-            'width': m.width,
-            'height': m.height
-        } for i, m in enumerate(monitors)]
+        return monitors_as_dicts()
 
     def send_event_all_windows(self, message):
         if self.ws_bridge:
@@ -213,134 +236,16 @@ class API:
     def get_tables(self, reset=False):
         if reset:
             self.filteredTables = self.allTables
-
-        tables = []
-        for table in self.filteredTables:
-            # Normalize metaConfig
-            meta = {}
-            if table.metaConfig:
-                if isinstance(table.metaConfig, dict):
-                    meta = table.metaConfig
-                elif hasattr(table.metaConfig, "getConfig"):
-                    meta = table.metaConfig.getConfig()
-
-            # If altvpsid is used for this table, prefer alttitle for frontend display.
-            vpinfe_meta = meta.get("VPinFE", {}) if isinstance(meta, dict) else {}
-            info_meta = meta.get("Info", {}) if isinstance(meta, dict) else {}
-            if isinstance(vpinfe_meta, dict) and isinstance(info_meta, dict):
-                alt_vpsid = str(vpinfe_meta.get("altvpsid", "") or "").strip()
-                alt_title = str(vpinfe_meta.get("alttitle", "") or "").strip()
-                if alt_vpsid and alt_title:
-                    info_meta["Title"] = alt_title
-                    meta["Info"] = info_meta
-
-            # Ensure detection flags are booleans
-            vpx = meta.get("VPXFile", {})
-            detect_key_map = {
-                "detectnfozzy",
-                "detectfleep",
-                "detectssf",
-                "detectlut",
-                "detectscorebit",
-                "detectfastflips",
-                "detectflex",
-            }
-
-            def _to_bool(val):
-                if isinstance(val, bool):
-                    return val
-                if isinstance(val, str):
-                    return val.lower() == "true"
-                return val == 1
-
-            # Normalize to lowercase-only detection keys.
-            for key in detect_key_map:
-                vpx[key] = _to_bool(vpx.get(key, False))
-
-            # Addon flags live on the Table object, but mirror them into VPX metadata for theme compatibility.
-            vpx["altSoundExists"] = bool(table.altSoundExists)
-            vpx["altColorExists"] = bool(table.altColorExists)
-            vpx["pupPackExists"] = bool(table.pupPackExists)
-
-            table_data = {
-                "tableDirName": table.tableDirName,
-                "fullPathTable": table.fullPathTable,
-                "fullPathVPXfile": table.fullPathVPXfile,
-                "BGImagePath": table.BGImagePath,
-                "DMDImagePath": table.DMDImagePath,
-                "TableImagePath": table.TableImagePath,
-                "FSSImagePath": table.FSSImagePath,
-                "WheelImagePath": table.WheelImagePath,
-                "CabImagePath": table.CabImagePath,
-                "realDMDImagePath": table.realDMDImagePath,
-                "realDMDColorImagePath": table.realDMDColorImagePath,
-                "FlyerImagePath": table.FlyerImagePath,
-                "TableVideoPath": table.TableVideoPath,
-                "BGVideoPath": table.BGVideoPath,
-                "DMDVideoPath": table.DMDVideoPath,
-                "AudioPath": table.AudioPath,
-                "pupPackExists": table.pupPackExists,
-                "altColorExists": table.altColorExists,
-                "altSoundExists": table.altSoundExists,
-                "meta": meta
-            }
-            tables.append(table_data)
-
-        self.jsTableDictData = json.dumps(tables)
+        self.jsTableDictData = table_state.tables_json(self.filteredTables)
         return self.jsTableDictData
 
 
     def get_collections(self):
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
-        c = VPXCollections(config_dir / "collections.ini")
-        return c.get_collections_name()
+        return get_collection_names()
 
     def set_tables_by_collection(self, collection):
         """Set filtered tables based on collection from collections.ini."""
-        self.current_collection = collection
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
-        c = VPXCollections(config_dir / "collections.ini")
-
-        # Check if this is a filter-based collection
-        if c.is_filter_based(collection):
-            # Get the filter parameters and apply them
-            filters = c.get_filters(collection)
-            table_filters = TableListFilters(self.allTables)
-            self.filteredTables = table_filters.apply_filters(
-                letter=filters['letter'],
-                theme=filters['theme'],
-                table_type=filters['table_type'],
-                manufacturer=filters['manufacturer'],
-                year=filters['year'],
-                rating=filters.get('rating', 'All'),
-                rating_or_higher=filters.get('rating_or_higher', 'false'),
-            )
-            # Update current filter state to match the collection
-            self.current_filters = {
-                'letter': filters['letter'],
-                'theme': filters['theme'],
-                'type': filters['table_type'],
-                'manufacturer': filters['manufacturer'],
-                'year': filters['year'],
-                'rating': filters.get('rating', 'All'),
-                'rating_or_higher': str(filters.get('rating_or_higher', 'false')).lower() in ('1', 'true', 'yes', 'on'),
-            }
-            # Apply the sort order
-            self.current_sort = filters['sort_by']
-            self.apply_sort(filters['sort_by'])
-        else:
-            # VPS ID-based collection
-            self.filteredTables = c.filter_tables(self.allTables, collection)
-            # Reset filter state since we're using VPS IDs
-            self.current_filters = {
-                'letter': None,
-                'theme': None,
-                'type': None,
-                'manufacturer': None,
-                'year': None,
-                'rating': None,
-                'rating_or_higher': False,
-            }
+        table_state.apply_collection(self, collection)
 
     def save_filter_collection(
         self,
@@ -355,23 +260,10 @@ class API:
         rating_or_higher=False,
     ):
         """Save current filter settings as a named collection."""
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
-        c = VPXCollections(config_dir / "collections.ini")
-        rating_or_higher_flag = str(rating_or_higher).strip().lower() in ('1', 'true', 'yes', 'on')
         try:
-            c.add_filter_collection(
-                name,
-                letter,
-                theme,
-                table_type,
-                manufacturer,
-                year,
-                rating,
-                'true' if rating_or_higher_flag else 'false',
-                sort_by,
+            return table_state.save_current_filter_collection(
+                self, name, letter, theme, table_type, manufacturer, year, sort_by, rating, rating_or_higher
             )
-            c.save()
-            return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
         except ValueError as e:
             return {"success": False, "message": str(e)}
 
@@ -389,28 +281,23 @@ class API:
 
     def get_filter_letters(self):
         """Get available starting letters from ALL tables."""
-        filters = TableListFilters(self.allTables)
-        return filters.get_available_letters()
+        return table_state.filter_options(self.allTables)["letters"]
 
     def get_filter_themes(self):
         """Get available themes from ALL tables."""
-        filters = TableListFilters(self.allTables)
-        return filters.get_available_themes()
+        return table_state.filter_options(self.allTables)["themes"]
 
     def get_filter_types(self):
         """Get available table types from ALL tables."""
-        filters = TableListFilters(self.allTables)
-        return filters.get_available_types()
+        return table_state.filter_options(self.allTables)["types"]
 
     def get_filter_manufacturers(self):
         """Get available manufacturers from ALL tables."""
-        filters = TableListFilters(self.allTables)
-        return filters.get_available_manufacturers()
+        return table_state.filter_options(self.allTables)["manufacturers"]
 
     def get_filter_years(self):
         """Get available years from ALL tables."""
-        filters = TableListFilters(self.allTables)
-        return filters.get_available_years()
+        return table_state.filter_options(self.allTables)["years"]
 
     def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
         """
@@ -418,62 +305,24 @@ class API:
         These filters work independently of collections.
         Returns the count of filtered tables.
         """
-        self.current_collection = None
-        # Update filter state
-        if letter is not None:
-            self.current_filters['letter'] = letter
-        if theme is not None:
-            self.current_filters['theme'] = theme
-        if table_type is not None:
-            self.current_filters['type'] = table_type
-        if manufacturer is not None:
-            self.current_filters['manufacturer'] = manufacturer
-        if year is not None:
-            self.current_filters['year'] = year
-        if rating is not None:
-            self.current_filters['rating'] = rating
-        if rating_or_higher is not None:
-            self.current_filters['rating_or_higher'] = str(rating_or_higher).strip().lower() in ('1', 'true', 'yes', 'on')
-
         logger.debug(
             "Applying filters: letter=%s, theme=%s, type=%s, manufacturer=%s, year=%s, rating=%s, rating_or_higher=%s",
-            self.current_filters['letter'],
-            self.current_filters['theme'],
-            self.current_filters['type'],
-            self.current_filters['manufacturer'],
-            self.current_filters['year'],
-            self.current_filters['rating'],
-            self.current_filters['rating_or_higher'],
+            letter,
+            theme,
+            table_type,
+            manufacturer,
+            year,
+            rating,
+            rating_or_higher,
         )
-
-        # Always start from the full table list
-        filters = TableListFilters(self.allTables)
-        self.filteredTables = filters.apply_filters(
-            letter=self.current_filters['letter'],
-            theme=self.current_filters['theme'],
-            table_type=self.current_filters['type'],
-            manufacturer=self.current_filters['manufacturer'],
-            year=self.current_filters['year'],
-            rating=self.current_filters['rating'],
-            rating_or_higher=self.current_filters['rating_or_higher'],
-        )
-
-        count = len(self.filteredTables)
+        count = table_state.apply_filters(self, letter, theme, table_type, manufacturer, year, rating, rating_or_higher)
         logger.debug("Filtered tables count: %s", count)
         return count
 
     def reset_filters(self):
         """Reset all VPSdb filters back to full table list."""
         self.filteredTables = self.allTables
-        self.current_filters = {
-            'letter': None,
-            'theme': None,
-            'manufacturer': None,
-            'type': None,
-            'year': None,
-            'rating': None,
-            'rating_or_higher': False,
-        }
+        self.current_filters = table_state.default_filter_state()
 
     def apply_sort(self, sort_type):
         """
@@ -484,50 +333,7 @@ class API:
         self.current_sort = sort_type
         logger.debug("Applying sort: %s", sort_type)
 
-        if sort_type == 'Alpha':
-            # Sort alphabetically by VPSdb.name
-            self.filteredTables.sort(
-                key=lambda t: (
-                    (t.metaConfig or {})
-                    .get("VPSdb", {})
-                    .get("name", "")
-                    .lower()
-                )
-            )
-        elif sort_type == 'Newest':
-            # Sort by creation_time (newest first)
-            self.filteredTables.sort(
-                key=lambda t: t.creation_time if t.creation_time is not None else 0,
-                reverse=True
-            )
-        elif sort_type == 'LastRun':
-            # Sort by User.LastRun (most recent first), then title for deterministic ties.
-            def _sort_key(t):
-                meta = t.metaConfig if isinstance(t.metaConfig, dict) else {}
-                user = meta.get("User", {}) if isinstance(meta.get("User"), dict) else {}
-                try:
-                    last_run = int(user.get("LastRun", -1)) if isinstance(user, dict) else -1
-                except (TypeError, ValueError):
-                    last_run = -1
-                title = str((meta.get("Info", {}) if isinstance(meta, dict) else {}).get("Title", "")).lower()
-                return (-last_run, title)
-
-            self.filteredTables.sort(key=_sort_key)
-        elif sort_type == 'Highest StartCount':
-            # Sort by User.StartCount (highest first), then title for deterministic ties.
-            def _sort_key(t):
-                meta = t.metaConfig if isinstance(t.metaConfig, dict) else {}
-                user = meta.get("User", {}) if isinstance(meta, dict) else {}
-                try:
-                    start_count = int(user.get("StartCount", 0)) if isinstance(user, dict) else 0
-                except (TypeError, ValueError):
-                    start_count = 0
-                title = str((meta.get("Info", {}) if isinstance(meta, dict) else {}).get("Title", "")).lower()
-                return (-start_count, title)
-
-            self.filteredTables.sort(key=_sort_key)
-
-        count = len(self.filteredTables)
+        count = table_state.apply_sort(self.filteredTables, sort_type)
         logger.debug("Sorted %s tables by %s", count, sort_type)
         return count
 
@@ -536,32 +342,10 @@ class API:
         return output
 
     def get_joymaping(self):
-        return {
-            'joyleft': self._iniConfig.config['Input'].get('joyleft', '0'),
-            'joyright': self._iniConfig.config['Input'].get('joyright', '0'),
-            'joyup': self._iniConfig.config['Input'].get('joyup', '0'),
-            'joydown': self._iniConfig.config['Input'].get('joydown', '0'),
-            'joyselect': self._iniConfig.config['Input'].get('joyselect', '0'),
-            'joymenu': self._iniConfig.config['Input'].get('joymenu', '0'),
-            'joyback': self._iniConfig.config['Input'].get('joyback', '0'),
-            'joytutorial': self._iniConfig.config['Input'].get('joytutorial', '0'),
-            'joyexit': self._iniConfig.config['Input'].get('joyexit', '0'),
-            'joycollectionmenu': self._iniConfig.config['Input'].get('joycollectionmenu', '0')
-        }
+        return input_api.get_joymapping(self._iniConfig.config)
 
     def get_keymapping(self):
-        return {
-            'keyleft': self._iniConfig.config['Input'].get('keyleft', 'ArrowLeft,ShiftLeft'),
-            'keyright': self._iniConfig.config['Input'].get('keyright', 'ArrowRight,ShiftRight'),
-            'keyup': self._iniConfig.config['Input'].get('keyup', 'ArrowUp'),
-            'keydown': self._iniConfig.config['Input'].get('keydown', 'ArrowDown'),
-            'keyselect': self._iniConfig.config['Input'].get('keyselect', 'Enter'),
-            'keymenu': self._iniConfig.config['Input'].get('keymenu', 'm'),
-            'keyback': self._iniConfig.config['Input'].get('keyback', 'b'),
-            'keytutorial': self._iniConfig.config['Input'].get('keytutorial', 't'),
-            'keyexit': self._iniConfig.config['Input'].get('keyexit', 'Escape,q'),
-            'keycollectionmenu': self._iniConfig.config['Input'].get('keycollectionmenu', 'c'),
-        }
+        return input_api.get_keymapping(self._iniConfig.config)
 
     def get_mainmenu_config(self):
         try:
@@ -574,96 +358,21 @@ class API:
 
     def set_button_mapping(self, button_name, button_index):
         """Set a gamepad button mapping and save to config."""
-        valid_buttons = [
-            'joyleft', 'joyright', 'joyup', 'joydown',
-            'joyselect', 'joymenu', 'joyback', 'joytutorial', 'joyexit', 'joycollectionmenu'
-        ]
-
-        if button_name not in valid_buttons:
-            return {"success": False, "message": f"Invalid button name: {button_name}"}
-
-        try:
-            # Set the value in the config
-            self._iniConfig.config.set('Input', button_name, str(button_index))
-            # Save to file
-            self._iniConfig.save()
-            return {"success": True, "message": f"Mapped {button_name} to button {button_index}"}
-        except Exception as e:
-            return {"success": False, "message": f"Error saving mapping: {str(e)}"}
+        return input_api.set_button_mapping(self._iniConfig, button_name, button_index)
 
     def launch_table(self, index):
-        table = self.filteredTables[index]
-        vpx = table.fullPathVPXfile
-        vpxbin = self._iniConfig.config['Settings'].get('vpxbinpath', '')
-        vpxbin_path, source_key, _ = get_effective_launcher(vpxbin, table.metaConfig)
-        if not vpxbin_path:
-            logger.warning("No launcher configured (checked VPinFE.%s and Settings.vpxbinpath)", source_key)
-            return
-        if not vpxbin_path.exists():
-            logger.warning("Launcher not found (%s): %s", source_key, vpxbin_path)
-            return
-        # Track the table play
-        self._track_table_play(table)
-
-        self.send_event_all_windows_incself({"type": "TableLaunching"})
-
-        stop_dof_service()
-        stop_libdmdutil_service(clear=False)
-        launch_started_at = None
-        try:
-            global_ini_override = self._iniConfig.config['Settings'].get('globalinioverride', '').strip()
-            tableini_override = resolve_launch_tableini_override(
-                vpx,
-                self._iniConfig.config['Settings'].get('globaltableinioverrideenabled', 'false'),
-                self._iniConfig.config['Settings'].get('globaltableinioverridemask', ''),
-            )
-            cmd = build_vpx_launch_command(
-                launcher_path=str(vpxbin_path),
-                vpx_table_path=vpx,
-                global_ini_override=global_ini_override,
-                tableini_override=tableini_override,
-            )
-            logger.info("Launching: %s", cmd)
-            launch_env = os.environ.copy()
-            launch_env.update(
-                parse_launch_env_overrides(
-                    self._iniConfig.config['Settings'].get('vpxlaunchenv', '')
-                )
-            )
-
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                stdin=subprocess.DEVNULL,
-                text=True,
-                env=launch_env)
-            launch_started_at = time.time()
-            self._increment_user_start_count(table)
-
-            startup_detected = False
-            for line in process.stdout:
-                if not startup_detected and "Startup done" in line:
-                    startup_detected = True
-                    self.send_event_all_windows_incself({"type": "TableRunning"})
-                    logger.info("table running")
-
-            process.wait()
-        finally:
-            start_dof_service_if_enabled(self._iniConfig)
-
-        if launch_started_at is not None:
-            elapsed_seconds = max(0.0, time.time() - launch_started_at)
-            self._add_user_runtime_minutes(table, elapsed_seconds)
-            self._update_user_score_from_nvram(table)
-
-        # macOS: re-activate Chromium windows so they return to foreground
-        # after VPX exits (kiosk windows don't auto-regain focus on macOS)
-        if sys.platform == "darwin" and self.frontend_browser:
-            self.frontend_browser.activate_all_mac()
-
-        # Delete NVRAM file if configured for this table
-        self._delete_nvram_if_configured(table)
-
-        self.send_event_all_windows_incself({"type": "TableLaunchComplete"})
+        return launch_service.launch_table(
+            self,
+            index,
+            get_effective_launcher=get_effective_launcher,
+            build_vpx_launch_command=build_vpx_launch_command,
+            parse_launch_env_overrides=parse_launch_env_overrides,
+            resolve_launch_tableini_override=resolve_launch_tableini_override,
+            stop_dof_service=stop_dof_service,
+            stop_libdmdutil_service=stop_libdmdutil_service,
+            start_dof_service_if_enabled=start_dof_service_if_enabled,
+            popen=subprocess.Popen,
+        )
 
     def update_frontend_dof_for_table(self, index):
         """Send the configured frontend DOF event for the selected table."""
@@ -697,187 +406,39 @@ class API:
 
     def get_table_rating(self, index):
         """Get User.Rating for a table index in the current filtered list."""
-        try:
-            table = self.filteredTables[index]
-        except Exception:
-            return 0
-
-        config = self._normalize_table_meta(table)
-        if not isinstance(config, dict):
-            return 0
-
-        user = config.get("User", {})
-        raw = user.get("Rating", 0) if isinstance(user, dict) else 0
-        try:
-            rating = int(raw)
-        except (TypeError, ValueError):
-            rating = 0
-        return max(0, min(5, rating))
+        return table_state.get_table_rating(self.filteredTables, index)
 
     def set_table_rating(self, index, rating):
         """Set User.Rating (0-5) for a table index in the current filtered list."""
-        table = self.filteredTables[index]
-        config = self._normalize_table_meta(table)
-        if not isinstance(config, dict):
-            config = {}
-
-        user = self._get_or_create_user_meta(config)
-        try:
-            normalized = int(rating)
-        except (TypeError, ValueError):
-            normalized = 0
-        normalized = max(0, min(5, normalized))
-
-        user["Rating"] = normalized
-        self._persist_table_meta(table, config)
-        logger.info("Updated User.Rating for %s -> %s", table.tableDirName, normalized)
-        return {"success": True, "rating": normalized}
+        result = table_state.set_table_rating(self.filteredTables, index, rating)
+        logger.info("Updated User.Rating for %s -> %s", self.filteredTables[index].tableDirName, result["rating"])
+        return result
 
     def _track_table_play(self, table):
         """Track a table play by adding it to the Last Played collection."""
-
-        meta = self._normalize_table_meta(table)
-        info = meta.get("Info", {})
-        vpsid = info.get("VPSId")
-
-        if not vpsid:
-            logger.debug("Table has no VPSId, cannot track play")
-            return
-
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
-        c = VPXCollections(config_dir / "collections.ini")
-
-        # Create Last Played collection if it doesn't exist
-        if "Last Played" not in c.get_collections_name():
-            logger.info("Creating 'Last Played' collection")
-            c.add_collection("Last Played", vpsids=[])
-
-        last_played_ids = c.get_vpsids("Last Played")
-
-        if vpsid in last_played_ids:
-            last_played_ids.remove(vpsid)
-
-        last_played_ids.insert(0, vpsid)
-        last_played_ids = last_played_ids[:30]
-
-        c.config["Last Played"]["vpsids"] = ",".join(last_played_ids)
-        c.save()
-
-        logger.info("Tracked table play: %s (now %s in Last Played)", vpsid, len(last_played_ids))
+        table_play_service.track_table_play(table)
 
     def _get_meta_file_path(self, table):
-        return Path(table.fullPathTable) / f"{table.tableDirName}.info"
+        return meta_file_path(table)
 
     def _persist_table_meta(self, table, config):
-        meta_file_path = self._get_meta_file_path(table)
-        meta_file = MetaConfig(str(meta_file_path))
-        meta_file.data = config
-        meta_file.writeConfig()
-        table.metaConfig = config
+        persist_table_meta(table, config)
 
     def _get_or_create_user_meta(self, config):
-        user = config.setdefault("User", {})
-        user.setdefault("Rating", 0)
-        user.setdefault("Favorite", 0)
-        user.setdefault("LastRun", None)
-        user.setdefault("StartCount", 0)
-        user.setdefault("RunTime", 0)
-        user.setdefault("Tags", [])
-        user.setdefault("FrontendDOFEvent", "")
-        return user
+        return get_or_create_user_meta(config)
 
     def _update_user_score_from_nvram(self, table):
-        config = self._normalize_table_meta(table)
-        if not isinstance(config, dict):
-            logger.warning("Could not update Score: invalid table metadata for %s", table.tableDirName)
-            return
-
-        rom = str(config.get("Info", {}).get("Rom", "") or "").strip()
-        if not rom:
-            logger.debug("No ROM name found for %s, skipping score update", table.tableDirName)
-            return
-
-        try:
-            parsed_result, score_path = read_rom_with_source(rom, table.fullPathTable)
-            score_data = result_to_jsonable(rom, parsed_result, score_path)
-        except FileNotFoundError:
-            logger.debug("No score source found for %s and ROM %s", table.tableDirName, rom)
-            return
-        except KeyError:
-            logger.debug("ROM %s is not supported for score parsing", rom)
-            return
-
-        except Exception:
-            logger.exception("Failed to parse score data for %s from %s", table.tableDirName, score_path)
-            return
-
-        if not score_data:
-            logger.debug("Parsed score data for %s was empty, skipping metadata update", table.tableDirName)
-            return
-
-        user = self._get_or_create_user_meta(config)
-        user["Score"] = score_data
-        self._persist_table_meta(table, config)
-        logger.info("Updated User.Score for %s from %s", table.tableDirName, score_path)
+        table_play_service.update_score_from_nvram(table)
 
     def _increment_user_start_count(self, table):
-        config = self._normalize_table_meta(table)
-        if not isinstance(config, dict):
-            logger.warning("Could not increment StartCount: invalid table metadata for %s", table.tableDirName)
-            return
-
-        user = self._get_or_create_user_meta(config)
-        try:
-            user["StartCount"] = int(user.get("StartCount", 0)) + 1
-        except (TypeError, ValueError):
-            user["StartCount"] = 1
-        user["LastRun"] = int(time.time())
-        self._persist_table_meta(table, config)
-        logger.info("Updated User.StartCount for %s -> %s", table.tableDirName, user["StartCount"])
+        table_play_service.increment_start_count(table)
 
     def _add_user_runtime_minutes(self, table, elapsed_seconds):
-        config = self._normalize_table_meta(table)
-        if not isinstance(config, dict):
-            logger.warning("Could not update RunTime: invalid table metadata for %s", table.tableDirName)
-            return
-
-        # Round up partial minutes so short plays are still counted.
-        session_minutes = int((elapsed_seconds + 59) // 60)
-        user = self._get_or_create_user_meta(config)
-        try:
-            prior_runtime = int(user.get("RunTime", 0))
-        except (TypeError, ValueError):
-            prior_runtime = 0
-        user["RunTime"] = prior_runtime + session_minutes
-        self._persist_table_meta(table, config)
-        logger.info(
-            "Updated User.RunTime for %s: +%s min (total=%s)",
-            table.tableDirName,
-            session_minutes,
-            user["RunTime"],
-        )
+        table_play_service.add_runtime_minutes(table, elapsed_seconds)
 
     def _delete_nvram_if_configured(self, table):
         """Delete the NVRAM .nv file if deletedNVRamOnClose is enabled for this table."""
-        config = self._normalize_table_meta(table)
-        if not isinstance(config, dict):
-            return
-
-        vpinfe = config.get("VPinFE", {})
-        if not vpinfe.get("deletedNVRamOnClose", False):
-            return
-
-        rom = config.get("Info", {}).get("Rom", "")
-        if not rom:
-            logger.warning("No ROM name found for table, skipping NVRAM deletion")
-            return
-
-        nvram_path = Path(table.fullPathTable) / "pinmame" / "nvram" / f"{rom}.nv"
-        if nvram_path.exists():
-            nvram_path.unlink()
-            logger.info("Deleted NVRAM file: %s", nvram_path)
-        else:
-            logger.info("NVRAM file not found (nothing to delete): %s", nvram_path)
+        table_play_service.delete_nvram_if_configured(table)
 
     def build_metadata(self, download_media=True, update_all=False):
         """
@@ -892,110 +453,21 @@ class API:
             dict with success status and message
         """
         from clioptions import buildMetaData
-        import threading
-        from queue import Queue
 
-        # Use a queue to safely pass events from background thread
-        event_queue = Queue()
-
-        def progress_callback(current, total, message):
-            """Queue progress updates."""
-            logger.debug("[buildmeta] Progress: %s/%s - %s", current, total, message)
-            event_queue.put({
-                'type': 'buildmeta_progress',
-                'current': current,
-                'total': total,
-                'message': message
-            })
-
-        def log_callback(message):
-            """Queue log messages."""
-            logger.info("[buildmeta] %s", message)
-            event_queue.put({
-                'type': 'buildmeta_log',
-                'message': message
-            })
-
-        def run_build():
-            """Run buildMetaData in background thread."""
-            try:
-                result = buildMetaData(
-                    downloadMedia=download_media,
-                    updateAll=update_all,
-                    progress_cb=progress_callback,
-                    log_cb=log_callback
-                )
-                # Queue completion event
-                event_queue.put({
-                    'type': 'buildmeta_complete',
-                    'result': result
-                })
-                # Refresh table list after completion
-                self.allTables = ensure_tables_loaded(reload=True)
-                self.filteredTables = self.allTables
-            except Exception as e:
-                # Queue error event
-                event_queue.put({
-                    'type': 'buildmeta_error',
-                    'error': str(e)
-                })
-                logger.exception("buildMetaData failed")
-            finally:
-                # Signal completion
-                event_queue.put({'type': 'buildmeta_done'})
-
-        def process_events():
-            """Process queued events and send to windows."""
-            try:
-                logger.debug("[buildmeta] Event processor started")
-                while True:
-                    # Block until we get an event
-                    event = event_queue.get(timeout=30)
-                    logger.debug("[buildmeta] Processing event: %s", event['type'])
-                    if event['type'] == 'buildmeta_done':
-                        logger.debug("[buildmeta] Build complete, stopping event processor")
-                        break
-                    # Send event to all windows
-                    try:
-                        self.send_event_all_windows_incself(event)
-                        logger.debug("[buildmeta] Sent event to windows: %s", event['type'])
-                    except Exception:
-                        logger.exception("Error sending event to windows")
-            except Exception:
-                logger.exception("Error processing buildmeta events")
-
-        # Start build in background thread
-        build_thread = threading.Thread(target=run_build, daemon=True)
-        build_thread.start()
-
-        # Start event processor in another background thread
-        event_thread = threading.Thread(target=process_events, daemon=True)
-        event_thread.start()
-
-        return {'success': True, 'message': 'Build metadata started'}
+        return metadata_build_service.start_build(
+            self,
+            build_metadata_func=buildMetaData,
+            ensure_tables_loaded_func=ensure_tables_loaded,
+            download_media=download_media,
+            update_all=update_all,
+        )
 
     def _resolve_theme_dir(self, theme_name):
         """Returns the filesystem path to the theme directory."""
-        config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
-        theme_dir = config_dir / "themes" / theme_name
-        if theme_dir.is_dir():
-            return theme_dir
-        return None
+        return theme_api.resolve_theme_dir(theme_name)
 
     def get_theme_config(self):
-        theme_name = self.get_theme_name()
-        theme_dir = self._resolve_theme_dir(theme_name)
-        if not theme_dir:
-            return None
-
-        theme_path = theme_dir / "config.json"
-        logger.debug("theme config path: %s", theme_path)
-        try:
-            with open(theme_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-            return config
-        except Exception:
-            return None
+        return theme_api.get_theme_config(self._iniConfig.config)
 
     ###################
     ### For splash page
@@ -1005,8 +477,7 @@ class API:
         return self._iniConfig.config['Settings'].get('splashscreen', 'true')
 
     def get_audio_muted(self):
-        raw = str(self._iniConfig.config['Settings'].get('muteaudio', 'false')).strip().lower()
-        return raw in ('1', 'true', 'yes', 'on')
+        return theme_api.get_audio_muted(self._iniConfig.config)
 
     def set_audio_muted(self, muted):
         if isinstance(muted, bool):
@@ -1022,8 +493,7 @@ class API:
         return muted_flag
 
     def get_theme_name(self):
-        theme_name = str(self._iniConfig.config['Settings'].get('theme', 'Revolution')).strip()
-        return theme_name or 'Revolution'
+        return theme_api.get_theme_name(self._iniConfig.config)
 
     def get_vpinplay_endpoint(self):
         return str(self._iniConfig.config['vpinplay'].get('apiendpoint', '')).strip()
@@ -1050,8 +520,4 @@ class API:
         return int(self._iniConfig.config['Network'].get('themeassetsport', '8000'))
 
     def get_theme_index_page(self):
-        theme_name = self.get_theme_name()
-        port = self.get_theme_assets_port()
-        window_name = self.get_my_window_name()
-        url = f'http://127.0.0.1:{port}/themes/{theme_name}/index_{window_name}.html?window={window_name}'
-        return url
+        return theme_api.get_theme_index_page(self._iniConfig.config, self.get_my_window_name())

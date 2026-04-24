@@ -402,7 +402,7 @@ def render_panel():
                     elif is_video:
                         ui.html(f'<video src="{current_url}" style="max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid var(--line);" autoplay loop muted></video>').classes('mb-4')
                     else:
-                        ui.image(current_url).style('max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid var(--line;').classes('mb-4')
+                        ui.image(current_url).style('max-width: 240px; max-height: 240px; border-radius: 6px; border: 1px solid var(--line);').classes('mb-4')
                 else:
                     ui.label(f'No current {media_type_label.lower()}').classes('italic mb-4').style('color: var(--ink-muted)')
 

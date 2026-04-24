@@ -5,7 +5,6 @@ from __future__ import annotations
 import sys
 import os
 import platform
-import threading
 import multiprocessing
 multiprocessing.freeze_support()
 
@@ -26,10 +25,7 @@ if "--dof-helper" in sys.argv[1:]:
     from common.dof_service_worker import main as _dof_helper_main
     raise SystemExit(_dof_helper_main())
 
-from pathlib import Path
-from platformdirs import user_config_dir
-
-from common.logging_config import configure_logging, get_logger, include_windows_logs
+from common.logging_config import configure_logging, get_logger
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.libdmdutil_service import (
@@ -39,16 +35,15 @@ from common.pinmame_score_parser_updater import ensure_latest_roms_json
 from common.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
 from common.app_version import get_version
 from common.themes import ThemeRegistry
+from common.paths import VPINFE_INI_PATH, ensure_config_dir
 
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
 
 # Load config BEFORE importing clioptions/managerui (they create IniConfig at import time)
-config_dir = Path(user_config_dir("vpinfe", "vpinfe"))
-config_dir.mkdir(parents=True, exist_ok=True)
+config_dir = ensure_config_dir()
 log_path = configure_logging(config_dir, enable_file=False)
-config_path = config_dir / "vpinfe.ini"
-iniconfig = IniConfig(str(config_path))
+iniconfig = IniConfig(str(VPINFE_INI_PATH))
 log_path = configure_logging(config_dir, iniconfig)
 logger = get_logger("vpinfe.main")
 logger.info("Logging to %s", log_path)
@@ -69,10 +64,7 @@ def reconfigure_app_logging() -> None:
     configure_logging(config_dir, iniconfig)
 
 # Now safe to import modules that create their own IniConfig at import time
-from frontend.customhttpserver import CustomHTTPServer
-from frontend.api import API
-from frontend.ws_bridge import WebSocketBridge
-from frontend.chromium_manager import ChromiumManager
+from frontend import runtime
 from clioptions import parseArgs, buildMetaData
 from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run, _shutdown_event
 from nicegui import app as nicegui_app
@@ -104,78 +96,18 @@ _startup_media_sync_started = False
 def create_api_instances():
     """Create API instances for each configured display window."""
     global ws_bridge, frontend_browser
-
-    ws_bridge = WebSocketBridge(
-        port=int(iniconfig.config['Network'].get('wsport', '8002'))
-    )
-    frontend_browser = ChromiumManager()
-
-    # Window configs: (window_name, config_key)
-    window_configs = [
-        ('bg', 'bgscreenid'),
-        ('dmd', 'dmdscreenid'),
-        ('table', 'tablescreenid'),
-    ]
-
-    for window_name, config_key in window_configs:
-        screen_id_str = iniconfig.config['Displays'].get(config_key, '').strip()
-        if not screen_id_str:
-            continue
-
-        api = API(
-            iniConfig=iniconfig,
-            window_name=window_name,
-            ws_bridge=ws_bridge,
-            frontend_browser=frontend_browser,
-        )
-        api._finish_setup()
-        ws_bridge.register_api(window_name, api)
-        logger.info("Registered API for window '%s'", window_name)
+    ws_bridge, frontend_browser = runtime.create_api_instances(iniconfig, logger)
 
 
 def _start_startup_media_sync():
     """Optionally sync media from VPinMediaDB on startup in a background thread."""
     global _startup_media_sync_started
-    if _startup_media_sync_started:
-        return
-
-    if iniconfig.is_new:
-        logger.info("Skipping startup media sync on first run.")
-        return
-
-    try:
-        enabled = iniconfig.config.getboolean('Settings', 'autoupdatemediaonstartup', fallback=False)
-    except Exception:
-        enabled = str(iniconfig.config['Settings'].get('autoupdatemediaonstartup', 'false')).strip().lower() in ('1', 'true', 'yes', 'on')
-
-    if not enabled:
-        return
-
-    table_root = iniconfig.config['Settings'].get('tablerootdir', '').strip()
-    if not table_root:
-        logger.info("Startup media sync enabled, but tablerootdir is empty. Skipping.")
-        return
-
-    _startup_media_sync_started = True
-
-    def _worker():
-        logger.info("Startup media sync enabled. Checking VPinMediaDB for missing/updated media...")
-        try:
-            result = buildMetaData(downloadMedia=True, updateAll=True, userMedia=False)
-            if isinstance(result, dict):
-                found = result.get('found', 0)
-                not_found = result.get('not_found', 0)
-                logger.info(
-                    "Startup media sync complete. Scanned %s table(s); %s not found in VPSdb.",
-                    found,
-                    not_found,
-                )
-            else:
-                logger.info("Startup media sync complete.")
-        except Exception:
-            logger.exception("Startup media sync failed")
-
-    threading.Thread(target=_worker, daemon=True, name="startup-media-sync").start()
+    _startup_media_sync_started = runtime.start_startup_media_sync(
+        iniconfig,
+        logger,
+        buildMetaData,
+        started=_startup_media_sync_started,
+    )
 
 
 cli_args = parseArgs() if len(sys.argv) > 0 else None
@@ -183,19 +115,12 @@ headless = cli_args and cli_args.headless
 
 # On first run, start the manager UI early so chromium can load it
 if iniconfig.is_new:
-    import time
     set_first_run(True)
     manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
     start_manager_ui(port=manager_ui_port)
     reconfigure_app_logging()
     # Wait for the NiceGUI server to be ready before chromium tries to load it
-    for _attempt in range(30):
-        try:
-            import urllib.request as _ur
-            _ur.urlopen(f'http://localhost:{manager_ui_port}/api/remote-launch', timeout=1)
-            break
-        except Exception:
-            time.sleep(0.5)
+    runtime.wait_for_manager_ui_ready(manager_ui_port)
     logger.info("First run: Manager UI ready on port %s", manager_ui_port)
 
 # Initialize theme registry and auto-install default themes
@@ -215,20 +140,9 @@ start_dof_service_if_enabled(iniconfig)
 create_api_instances()
 
 # Start the HTTP server to serve images from the "tables" directory
-themes_dir = str(config_dir / "themes")
-os.makedirs(themes_dir, exist_ok=True)
+MOUNT_POINTS, themes_dir = runtime.build_mount_points(base_path, config_dir, iniconfig)
 nicegui_app.add_static_files('/themes', themes_dir)
-
-MOUNT_POINTS = {
-        '/web/': os.path.join(base_path, 'web'),
-        '/themes/': themes_dir,
-        }
-table_root = iniconfig.config['Settings']['tablerootdir']
-if table_root:
-    MOUNT_POINTS['/tables/'] = os.path.abspath(table_root)
-http_server = CustomHTTPServer(MOUNT_POINTS)
-theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
-http_server.start_file_server(port=theme_assets_port)
+http_server = runtime.start_asset_server(MOUNT_POINTS, iniconfig)
 
 # On Windows, the Proactor event loop logs a noisy ConnectionResetError (WinError 10054)
 # whenever a browser tab is closed mid-connection. Install a startup handler that
@@ -262,99 +176,20 @@ reconfigure_app_logging()
 # Start the WebSocket bridge
 ws_bridge.start()
 
-if headless:
-    import signal
-
-    def _request_shutdown(_signum, _frame):
-        _shutdown_event.set()
-
-    logger.info("Headless mode: servers running without Chromium frontend")
-    logger.info("Press Ctrl+C to stop...")
-    signal.signal(signal.SIGTERM, _request_shutdown)
-    if hasattr(signal, "SIGBREAK"):
-        signal.signal(signal.SIGBREAK, _request_shutdown)
-
-    try:
-        # Use a short timeout loop so signal handling remains responsive on all platforms.
-        while not _shutdown_event.is_set():
-            _shutdown_event.wait(0.2)
-    except KeyboardInterrupt:
-        _shutdown_event.set()
-
-    logger.info("Shutting down...")
-elif iniconfig.is_new:
-    # First-run: show manager UI config page in a chromium window instead of theme
-    manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
-    setup_url = f'http://localhost:{manager_ui_port}/'
-    screen_id = int(iniconfig.config['Displays'].get('tablescreenid', '0'))
-    if sys.platform == "darwin":
-        from frontend.chromium_manager import get_mac_screens
-        monitors = get_mac_screens()
-    else:
-        from screeninfo import get_monitors
-        monitors = get_monitors()
-    monitor = monitors[screen_id] if screen_id < len(monitors) else monitors[0]
-    logger.info("First run: loading Manager UI in chromium window for initial configuration.")
-    frontend_browser.launch_window(
-        window_name='table',
-        url=setup_url,
-        monitor=monitor,
-        index=0,
-    )
-    # Block until the setup chromium window exits
-    frontend_browser.wait_for_exit()
-else:
-    # Launch Chromium windows on configured monitors
-    frontend_browser.launch_all_windows(iniconfig)
-
-    # Block until Chromium windows exit (replaces the legacy UI main loop)
-    frontend_browser.wait_for_exit()
+runtime.run_frontend_loop(headless, iniconfig, frontend_browser, _shutdown_event, logger)
 
 # Shutdown items - wrap each in try/except so restart check always runs
-logger.info("Shutting down services...")
-try:
-    vpinplay_sync_on_shutdown(iniconfig)
-except Exception:
-    logger.exception("vpinplay_sync_on_shutdown() error")
-try:
-    ws_bridge.stop()
-except Exception:
-    logger.exception("ws_bridge.stop() error")
-try:
-    stop_dof_service()
-except Exception:
-    logger.exception("stop_dof_service() error")
-try:
-    stop_libdmdutil_service(clear=False)
-except Exception:
-    logger.exception("stop_libdmdutil_service() error")
-try:
-    http_server.on_closed()
-except Exception:
-    logger.exception("http_server.on_closed() error")
-try:
-    nicegui_app.shutdown()
-except Exception:
-    logger.exception("nicegui_app.shutdown() error")
-try:
-    stop_manager_ui()
-except Exception:
-    logger.exception("stop_manager_ui() error")
-logger.info("All services stopped.")
+runtime.shutdown_services(
+    logger,
+    vpinplay_sync=vpinplay_sync_on_shutdown,
+    iniconfig=iniconfig,
+    ws_bridge=ws_bridge,
+    stop_dof=stop_dof_service,
+    stop_dmd=stop_libdmdutil_service,
+    http_server=http_server,
+    nicegui_app=nicegui_app,
+    stop_manager_ui=stop_manager_ui,
+)
 
 # Check for restart sentinel
-restart_flag = config_dir / '.restart'
-if restart_flag.exists():
-    restart_flag.unlink()
-    logger.info("Restart requested, re-launching...")
-    import time
-    time.sleep(1)  # Allow OS to release sockets before rebinding
-    if getattr(sys, 'frozen', False):
-        # PyInstaller bundle: just re-exec the bundled executable
-        os.execvp(sys.executable, [sys.executable])
-    else:
-        # Dev mode: re-exec with Python + script
-        main_script = os.path.abspath(__file__)
-        os.execvp(sys.executable, [sys.executable, main_script])
-else:
-    logger.info("No restart requested, exiting.")
+runtime.restart_if_requested(config_dir, logger)

@@ -6,7 +6,8 @@ The Manager UI is a NiceGUI application under `managerui/`. Its current refactor
 
 - `managerui/managerui.py`: application shell, header, navigation, page routing, Manager UI API endpoints, and NiceGUI startup/shutdown.
 - `managerui/page_registry.py`: the canonical list of shell navigation pages and URL aliases.
-- `managerui/paths.py`: shared config paths and path helpers such as `get_tables_path()`.
+- `common/paths.py`: shared config paths and path helpers used across Manager UI, frontend, and common services.
+- `managerui/paths.py`: Manager UI-specific path exports such as static asset paths, backed by `common.paths`.
 - `managerui/ui_helpers.py`: reusable UI helpers such as shared style loading and standard nav/action buttons.
 - `managerui/filters.py`: shared filter option building and filtering for table-shaped rows.
 - `managerui/config_fields.py`: declarative config field metadata such as checkbox fields and input ordering.
@@ -50,10 +51,10 @@ Some older page-specific styles can remain in page modules during the transition
 
 ## Shared Paths
 
-Use `managerui.paths` for Manager UI config paths:
+Use `common.paths` for shared app config paths, or `managerui.paths` when Manager UI-specific exports are needed:
 
 ```python
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, COLLECTIONS_PATH, get_tables_path
+from common.paths import CONFIG_DIR, VPINFE_INI_PATH, COLLECTIONS_PATH, get_tables_path
 ```
 
 Avoid redefining `Path(user_config_dir("vpinfe", "vpinfe"))` in new Manager UI code.
