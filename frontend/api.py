@@ -19,17 +19,19 @@ from common.launcher import (
     parse_launch_env_overrides,
     resolve_launch_tableini_override,
 )
-from common.table_metadata import (
-    get_or_create_user_meta,
-    meta_file_path,
-    normalize_meta,
-    persist_table_meta,
-)
-from common import table_play_service
+from common.table_metadata import normalize_meta
 from frontend import config_api, input_api, launch_service, metadata_build_service, realdmd_service, table_state, theme_api
 
 
 logger = logging.getLogger("vpinfe.frontend.api")
+
+_FILTER_OPTION_KEYS = {
+    "letters": "letters",
+    "themes": "themes",
+    "types": "types",
+    "manufacturers": "manufacturers",
+    "years": "years",
+}
 
 
 API_ALLOWED_METHODS = {
@@ -208,25 +210,23 @@ class API:
         """Return current collection name for UI synchronization."""
         return self.current_collection or 'None'
 
+    def _filter_option(self, key: str):
+        return table_state.filter_options(self.allTables)[key]
+
     def get_filter_letters(self):
-        """Get available starting letters from ALL tables."""
-        return table_state.filter_options(self.allTables)["letters"]
+        return self._filter_option(_FILTER_OPTION_KEYS["letters"])
 
     def get_filter_themes(self):
-        """Get available themes from ALL tables."""
-        return table_state.filter_options(self.allTables)["themes"]
+        return self._filter_option(_FILTER_OPTION_KEYS["themes"])
 
     def get_filter_types(self):
-        """Get available table types from ALL tables."""
-        return table_state.filter_options(self.allTables)["types"]
+        return self._filter_option(_FILTER_OPTION_KEYS["types"])
 
     def get_filter_manufacturers(self):
-        """Get available manufacturers from ALL tables."""
-        return table_state.filter_options(self.allTables)["manufacturers"]
+        return self._filter_option(_FILTER_OPTION_KEYS["manufacturers"])
 
     def get_filter_years(self):
-        """Get available years from ALL tables."""
-        return table_state.filter_options(self.allTables)["years"]
+        return self._filter_option(_FILTER_OPTION_KEYS["years"])
 
     def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
         """
@@ -341,32 +341,6 @@ class API:
         logger.info("Updated User.Rating for %s -> %s", self.filteredTables[index].tableDirName, result["rating"])
         return result
 
-    def _track_table_play(self, table):
-        """Track a table play by adding it to the Last Played collection."""
-        table_play_service.track_table_play(table)
-
-    def _get_meta_file_path(self, table):
-        return meta_file_path(table)
-
-    def _persist_table_meta(self, table, config):
-        persist_table_meta(table, config)
-
-    def _get_or_create_user_meta(self, config):
-        return get_or_create_user_meta(config)
-
-    def _update_user_score_from_nvram(self, table):
-        table_play_service.update_score_from_nvram(table)
-
-    def _increment_user_start_count(self, table):
-        table_play_service.increment_start_count(table)
-
-    def _add_user_runtime_minutes(self, table, elapsed_seconds):
-        table_play_service.add_runtime_minutes(table, elapsed_seconds)
-
-    def _delete_nvram_if_configured(self, table):
-        """Delete the NVRAM .nv file if deletedNVRamOnClose is enabled for this table."""
-        table_play_service.delete_nvram_if_configured(table)
-
     def build_metadata(self, download_media=True, update_all=False):
         """
         Trigger buildMetaData from the frontend.
@@ -388,10 +362,6 @@ class API:
             download_media=download_media,
             update_all=update_all,
         )
-
-    def _resolve_theme_dir(self, theme_name):
-        """Returns the filesystem path to the theme directory."""
-        return theme_api.resolve_theme_dir(theme_name)
 
     def get_theme_config(self):
         return theme_api.get_theme_config(self._iniConfig.config)

@@ -61,22 +61,25 @@ class RealDmdUpdater:
     def _worker_loop(self) -> None:
         while True:
             self._event.wait()
-            with self._lock:
-                image_path = self._image_path
-                table_name = self._table_name
-                self._event.clear()
+            self._process_pending()
 
-            try:
-                image_sent = self._show_image(self._iniconfig, image_path)
-                logger.debug(
-                    "Async real DMD update for %s -> sent=%s image=%s",
-                    table_name,
-                    image_sent,
-                    image_path,
-                )
-            except Exception:
-                logger.exception(
-                    "Async real DMD update failed for %s (image=%s)",
-                    table_name,
-                    image_path,
-                )
+    def _process_pending(self) -> None:
+        with self._lock:
+            image_path = self._image_path
+            table_name = self._table_name
+            self._event.clear()
+
+        try:
+            image_sent = self._show_image(self._iniconfig, image_path)
+            logger.debug(
+                "Async real DMD update for %s -> sent=%s image=%s",
+                table_name,
+                image_sent,
+                image_path,
+            )
+        except Exception:
+            logger.exception(
+                "Async real DMD update failed for %s (image=%s)",
+                table_name,
+                image_path,
+            )

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import signal
-import sys
 import threading
 import time
 from pathlib import Path
@@ -11,6 +10,7 @@ from frontend.api import API
 from frontend.chromium_manager import ChromiumManager
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.ws_bridge import WebSocketBridge
+from common import system_actions
 from common.display_service import get_display_monitors
 
 
@@ -173,15 +173,4 @@ def shutdown_services(logger, *, vpinplay_sync, iniconfig, ws_bridge, stop_dof, 
 
 
 def restart_if_requested(config_dir: Path, logger) -> None:
-    restart_flag = config_dir / ".restart"
-    if not restart_flag.exists():
-        logger.info("No restart requested, exiting.")
-        return
-
-    restart_flag.unlink()
-    logger.info("Restart requested, re-launching...")
-    time.sleep(1)
-    if getattr(sys, "frozen", False):
-        os.execvp(sys.executable, [sys.executable])
-    main_script = os.path.abspath(Path(__file__).resolve().parent.parent / "main.py")
-    os.execvp(sys.executable, [sys.executable, main_script])
+    system_actions.restart_if_requested(config_dir, logger)

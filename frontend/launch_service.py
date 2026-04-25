@@ -6,6 +6,8 @@ import subprocess
 import sys
 import time
 
+from common import table_play_service
+
 
 logger = logging.getLogger("vpinfe.frontend.launch_service")
 
@@ -34,7 +36,7 @@ def launch_table(
         logger.warning("Launcher not found (%s): %s", source_key, vpxbin_path)
         return
 
-    api._track_table_play(table)
+    table_play_service.track_table_play(table)
     api.send_event_all_windows_incself({"type": "TableLaunching"})
 
     stop_dof_service()
@@ -66,7 +68,7 @@ def launch_table(
             env=launch_env,
         )
         launch_started_at = time.time()
-        api._increment_user_start_count(table)
+        table_play_service.increment_start_count(table)
 
         startup_detected = False
         for line in process.stdout:
@@ -81,11 +83,11 @@ def launch_table(
 
     if launch_started_at is not None:
         elapsed_seconds = max(0.0, time.time() - launch_started_at)
-        api._add_user_runtime_minutes(table, elapsed_seconds)
-        api._update_user_score_from_nvram(table)
+        table_play_service.add_runtime_minutes(table, elapsed_seconds)
+        table_play_service.update_score_from_nvram(table)
 
     if sys.platform == "darwin" and api.frontend_browser:
         api.frontend_browser.activate_all_mac()
 
-    api._delete_nvram_if_configured(table)
+    table_play_service.delete_nvram_if_configured(table)
     api.send_event_all_windows_incself({"type": "TableLaunchComplete"})

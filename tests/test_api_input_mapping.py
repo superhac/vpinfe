@@ -116,13 +116,13 @@ class TestApiInputMapping(unittest.TestCase):
 
             ini = self._build_ini()
             api = API(ini, ws_bridge=ws_bridge)
-            api._track_table_play = lambda _table: None
-            api._increment_user_start_count = lambda _table: None
-            api._add_user_runtime_minutes = lambda _table, _elapsed: None
-            api._update_user_score_from_nvram = lambda _table: None
-            api._delete_nvram_if_configured = lambda _table: None
 
-            api.launch_table(0)
+            with patch("frontend.launch_service.table_play_service.track_table_play"), \
+                patch("frontend.launch_service.table_play_service.increment_start_count"), \
+                patch("frontend.launch_service.table_play_service.add_runtime_minutes"), \
+                patch("frontend.launch_service.table_play_service.update_score_from_nvram"), \
+                patch("frontend.launch_service.table_play_service.delete_nvram_if_configured"):
+                api.launch_table(0)
 
             self.assertEqual(events[0]["type"], "TableLaunching")
             self.assertEqual(events[-1]["type"], "TableLaunchComplete")
