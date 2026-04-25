@@ -1,7 +1,11 @@
-import requests
 import logging
 from common.metaconfig import MetaConfig
 import os
+from pathlib import Path
+
+import requests
+
+from common.http_client import download_file, get_json
 
 
 logger = logging.getLogger("vpinfe.common.standalonescripts")
@@ -10,23 +14,33 @@ class StandaloneScripts:
 
     hashsUrl = "https://raw.githubusercontent.com/jsm174/vpx-standalone-scripts/refs/heads/master/hashes.json"
     
-    def __init__(self, tables, progress_cb=None):
+    def __init__(self, tables, progress_cb=None, auto_run: bool = True):
         self.hashes = None
         self.tables = tables
         self.progress_cb = progress_cb
         logger.info("VPX-Standalone-Scripts Patching System initialized.")
-        self.downloadHashes()
-        self.checkForPatches()
+        if auto_run:
+            self.apply_patches()
         
     def downloadHashes(self):
-        response = requests.get(StandaloneScripts.hashsUrl)
-        if response.status_code == 200:
-            self.hashes = response.json()
+        try:
+            self.hashes = get_json(StandaloneScripts.hashsUrl)
             logger.info("Retrieved hash file from VPX-Standalone-Scripts with %s patched tables.", len(self.hashes))
-        else:
+        except (requests.RequestException, ValueError):
+            self.hashes = []
             logger.warning("Failed to download hash file from VPX-Standalone-Scripts")
+        return self.hashes
+
+    def download_hashes(self):
+        return self.downloadHashes()
+
+    def apply_patches(self):
+        self.downloadHashes()
+        self.checkForPatches()
             
     def checkForPatches(self):
+         if not self.hashes:
+             return
          total = len(self.tables) if self.tables else 0
          current = 0
          for table in self.tables:
@@ -72,11 +86,8 @@ class StandaloneScripts:
             
     def downloadPatch(self, filename, url):
         #logger.debug(f"Patched file installed: {filename}")
-        response = requests.get(url, stream=True)
-        if response.status_code == 200:
-            with open(filename, "wb") as file:
-                for chunk in response.iter_content(chunk_size=1024):
-                    file.write(chunk)
+        try:
+            download_file(url, Path(filename), chunk_size=1024)
             logger.info("File downloaded successfully: %s", filename)
             # also set patch_applied in .info if possible (derive from filename)
             try:
@@ -87,5 +98,5 @@ class StandaloneScripts:
                 meta.writeConfig()
             except Exception:
                 pass
-        else:
-            logger.warning("Failed to download %s. Status code: %s", filename, response.status_code)
+        except requests.RequestException as exc:
+            logger.warning("Failed to download %s: %s", filename, exc)

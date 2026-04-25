@@ -1,65 +1,38 @@
-import requests
-import json
 import logging
 import os
-import time
-import zipfile
-import shutil
 import concurrent.futures
 from io import BytesIO
 from typing import Dict, Any
 
 from common.paths import CONFIG_DIR
+from common.theme_installer import ThemeInstallStore
+from common.theme_registry_client import ThemeRegistryClient, ThemeRegistryError
 
 
 logger = logging.getLogger("vpinfe.common.themes")
-
-
-class ThemeRegistryError(Exception):
-    pass
 
 
 class ThemeRegistry:
     def __init__(self, timeout: int = 10):
         self.registry_url = "https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json"
         self.timeout = timeout
+        self.client = ThemeRegistryClient(timeout=timeout)
         self.themes_index: Dict[str, Any] = {}
         self.themes: Dict[str, Any] = {}
 
         self.base_dir = str(CONFIG_DIR)
         self.themes_dir = os.path.join(self.base_dir, "themes")
-        os.makedirs(self.themes_dir, exist_ok=True)
+        self.store = ThemeInstallStore(self.themes_dir)
 
     # =========================================================
     # NETWORK
     # =========================================================
 
     def _fetch_json(self, url: str) -> dict:
-        try:
-            response = requests.get(url, timeout=self.timeout)
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            raise ThemeRegistryError(f"Failed to fetch JSON from {url}: {e}")
-        except json.JSONDecodeError:
-            raise ThemeRegistryError(f"Invalid JSON returned from {url}")
+        return self.client.fetch_json(url)
 
     def _download_zip(self, url: str, max_retries: int = 3) -> BytesIO:
-        for attempt in range(max_retries):
-            response = requests.get(url, timeout=60)
-            if response.status_code == 429:
-                wait = int(response.headers.get('Retry-After', 5 * (attempt + 1)))
-                logger.warning(
-                    "429 on zip download, waiting %ss (attempt %s/%s)",
-                    wait,
-                    attempt + 1,
-                    max_retries,
-                )
-                time.sleep(wait)
-                continue
-            response.raise_for_status()
-            return BytesIO(response.content)
-        raise ThemeRegistryError(f"Failed to download {url} after {max_retries} retries (rate limited)")
+        return self.client.download_zip(url, max_retries=max_retries)
 
     # =========================================================
     # REGISTRY
@@ -141,7 +114,7 @@ class ThemeRegistry:
     # =========================================================
 
     def _get_repo_name(self, base_url: str) -> str:
-        return base_url.rstrip("/").split("/")[-1]
+        return self.store.repo_name(base_url)
 
     def _get_installed_version(self, theme_key: str) -> str | None:
         theme_data = self.themes.get(theme_key)
@@ -152,27 +125,17 @@ class ThemeRegistry:
         if not folder_name:
             return None
 
-        manifest_path = os.path.join(self.themes_dir, folder_name, "manifest.json")
-        if os.path.exists(manifest_path):
-            with open(manifest_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return data.get("version")
-        return None
+        base_url = theme_data["registry_info"].get("theme_base_url")
+        return self.store.installed_version(theme_key, base_url)
 
     def _remove_existing_install(self, base_url: str):
-        repo_name = self._get_repo_name(base_url)
-
-        for folder in os.listdir(self.themes_dir):
-            if folder.startswith(repo_name):
-                shutil.rmtree(os.path.join(self.themes_dir, folder))
+        self.store.remove_existing_install(base_url)
 
     def _is_version_newer(self, remote: str, local: str) -> bool:
-        def parse(v):
-            return [int(x) for x in v.split(".")]
-        return parse(remote) > parse(local)
+        return self.store.is_version_newer(remote, local)
 
     def _build_zip_url(self, base_url: str) -> str:
-        return f"{base_url}/archive/refs/heads/master.zip"
+        return self.store.build_zip_url(base_url)
 
     # =========================================================
     # INSTALLATION
@@ -206,21 +169,7 @@ class ThemeRegistry:
         zip_url = self._build_zip_url(base_url)
         zip_data = self._download_zip(zip_url)
 
-        self._remove_existing_install(base_url)
-
-        with zipfile.ZipFile(zip_data) as z:
-            z.extractall(self.themes_dir)
-
-        # Rename extracted folder (e.g. "repo-name-master") to the theme_key
-        repo_name = self._get_repo_name(base_url)
-        for folder in os.listdir(self.themes_dir):
-            if folder.startswith(repo_name) and folder != theme_key:
-                src = os.path.join(self.themes_dir, folder)
-                dst = os.path.join(self.themes_dir, theme_key)
-                if os.path.exists(dst):
-                    shutil.rmtree(dst)
-                os.rename(src, dst)
-                break
+        self.store.install_zip(theme_key, base_url, zip_data)
 
         logger.info("Installed %s", theme_key)
 
@@ -260,20 +209,9 @@ class ThemeRegistry:
         None if theme is not installed.
         """
         # Check for exact theme_key match first (post-rename)
-        if os.path.isdir(os.path.join(self.themes_dir, theme_key)):
-            return theme_key
-
-        # Fallback: scan for repo-name prefix (pre-rename installs)
         theme_data = self.themes.get(theme_key)
-        if not theme_data:
-            return None
-
-        repo_name = self._get_repo_name(theme_data["registry_info"]["theme_base_url"])
-
-        for folder in os.listdir(self.themes_dir):
-            if folder.startswith(repo_name):
-                return folder
-        return None
+        base_url = theme_data["registry_info"].get("theme_base_url") if theme_data else None
+        return self.store.installed_folder(theme_key, base_url)
 
     # =========================================================
     # DELETE
@@ -287,7 +225,7 @@ class ThemeRegistry:
 
         folder = self.get_installed_folder(theme_key)
         if folder:
-            shutil.rmtree(os.path.join(self.themes_dir, folder))
+            self.store.delete(folder)
         else:
             raise ThemeRegistryError(f"Theme '{theme_key}' is not installed")
 

@@ -1,4 +1,3 @@
-import importlib.util
 import json
 import logging
 import os
@@ -9,6 +8,8 @@ import sys
 import threading
 from pathlib import Path
 from typing import Any
+
+from common.external_service import find_named_path, import_module_from_path, third_party_base_candidates
 
 _LOCK = threading.Lock()
 _HELPER = None
@@ -29,21 +30,7 @@ def _is_enabled(iniconfig) -> bool:
 
 
 def _find_named_path(base: Path, names: tuple[str, ...]) -> Path | None:
-    if base.is_file() and base.name in names:
-        return base
-    if not base.exists() or not base.is_dir():
-        return None
-
-    for name in names:
-        direct = base / name
-        if direct.exists():
-            return direct
-
-    for name in names:
-        hits = sorted(base.rglob(name))
-        if hits:
-            return hits[0]
-    return None
+    return find_named_path(base, names)
 
 
 def _find_runner_path(base: Path) -> Path | None:
@@ -51,23 +38,7 @@ def _find_runner_path(base: Path) -> Path | None:
 
 
 def _get_dof_base_candidates() -> list[Path]:
-    env_override = os.environ.get('VPINFE_DOF_DIR', '').strip()
-    candidates = []
-    if env_override:
-        candidates.append(Path(env_override).expanduser())
-
-    project_root = Path(__file__).resolve().parents[1]
-    candidates.append(project_root / 'third-party' / 'dof')
-
-    meipass = getattr(sys, '_MEIPASS', None)
-    if meipass:
-        candidates.append(Path(meipass) / 'third-party' / 'dof')
-
-    exe_dir = Path(sys.executable).resolve().parent
-    candidates.append(exe_dir / 'third-party' / 'dof')
-    candidates.append(exe_dir.parent / 'Resources' / 'third-party' / 'dof')
-
-    return candidates
+    return third_party_base_candidates('VPINFE_DOF_DIR', 'dof')
 
 
 def _load_runner_class():
@@ -88,29 +59,11 @@ def _load_runner_class():
 
     dof_dir = runner_path.parent
 
-    module_name = f"_vpinfe_{runner_path.stem}"
-    spec = importlib.util.spec_from_file_location(module_name, runner_path)
-    if spec is None or spec.loader is None:
-        logger.error("Failed to load module spec from: %s", runner_path)
-        return None, dof_dir
-
-    module = importlib.util.module_from_spec(spec)
-    dof_dir_str = str(dof_dir)
-    restore_path = False
-    if dof_dir_str not in sys.path:
-        sys.path.insert(0, dof_dir_str)
-        restore_path = True
     try:
-        spec.loader.exec_module(module)
+        module = import_module_from_path(runner_path)
     except Exception as e:
         logger.error("Failed importing dof_runner.py: %s", e)
         return None, dof_dir
-    finally:
-        if restore_path:
-            try:
-                sys.path.remove(dof_dir_str)
-            except ValueError:
-                pass
 
     runner_class = getattr(module, 'SingleEventDofRunner', None)
     if runner_class is None:

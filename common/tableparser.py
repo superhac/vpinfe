@@ -156,10 +156,10 @@ class TableParser:
         return len(self.tables)
 
     def getAllTables(self):
-        return self.tables
+        return list(self.tables)
 
     def getMissingTables(self):
-        return self.missing_tables
+        return [dict(row) for row in self.missing_tables]
 
     def isFavorite(self, Table):
         return Table.metaConfig.get("VPinFE", {}).get("favorite", "").lower() == "true"

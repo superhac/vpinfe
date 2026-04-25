@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 from typing import Any, Dict
 
@@ -76,6 +77,47 @@ def table_title(table) -> str:
         if alt_title:
             return alt_title
     return str(info.get("Title", "") or get_meta_value(meta, "VPSdb", "name", "") or getattr(table, "tableDirName", "") or "").strip()
+
+
+def table_themes(table) -> list[str]:
+    meta = normalize_meta(getattr(table, "metaConfig", {}))
+    value = get_meta_value(meta, "Info", "Themes", None)
+    if value:
+        return value if isinstance(value, list) else [value]
+
+    legacy = get_meta_value(meta, "VPSdb", "theme", "")
+    if not legacy:
+        return []
+    if isinstance(legacy, list):
+        return legacy
+    try:
+        parsed = ast.literal_eval(str(legacy))
+        if isinstance(parsed, list):
+            return parsed
+    except (ValueError, SyntaxError):
+        pass
+    return [legacy]
+
+
+def table_type(table) -> str:
+    meta = normalize_meta(getattr(table, "metaConfig", {}))
+    return str(first_meta_value(meta, ("Info", "Type"), ("VPSdb", "type"), default="") or "")
+
+
+def table_manufacturer(table) -> str:
+    meta = normalize_meta(getattr(table, "metaConfig", {}))
+    return str(first_meta_value(meta, ("Info", "Manufacturer"), ("VPSdb", "manufacturer"), default="") or "")
+
+
+def table_year(table) -> str:
+    meta = normalize_meta(getattr(table, "metaConfig", {}))
+    value = first_meta_value(meta, ("Info", "Year"), ("VPSdb", "year"), default="")
+    return str(value) if value else ""
+
+
+def table_rating(table) -> int:
+    meta = normalize_meta(getattr(table, "metaConfig", {}))
+    return normalize_rating(get_meta_value(meta, "User", "Rating", 0))
 
 
 def table_vps_id(table) -> str:

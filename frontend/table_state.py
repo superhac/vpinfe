@@ -5,7 +5,7 @@ import logging
 
 from common.collections_service import filter_tables_by_collection, get_collection_names, save_filter_collection
 from common.tablelistfilters import TableListFilters
-from common.table_metadata import DETECTION_KEYS, get_or_create_user_meta, normalize_meta, normalize_rating, persist_table_meta, section
+from common.table_metadata import DETECTION_KEYS, get_or_create_user_meta, normalize_meta, normalize_rating, persist_table_meta, section, table_title
 
 
 logger = logging.getLogger("vpinfe.frontend.table_state")
@@ -141,7 +141,7 @@ def apply_filters(api, letter=None, theme=None, table_type=None, manufacturer=No
 
 def apply_sort(tables, sort_type):
     if sort_type == "Alpha":
-        tables.sort(key=lambda table: str(section(table.metaConfig, "Info").get("Title", "") or section(table.metaConfig, "VPSdb").get("name", "")).lower())
+        tables.sort(key=lambda table: table_title(table).lower())
     elif sort_type == "Newest":
         tables.sort(key=lambda table: table.creation_time if table.creation_time is not None else 0, reverse=True)
     elif sort_type == "LastRun":

@@ -1,11 +1,10 @@
-import requests
-import json
 import logging
 from difflib import SequenceMatcher
-import os
 import re
 
 from common.paths import CONFIG_DIR
+from common.vpsdb_cache import VPinMediaDatabase, VPSDatabaseCache
+from common.vpsdb_media import VPSMediaDownloader
 
 
 logger = logging.getLogger("vpinfe.common.vpsdb")
@@ -31,37 +30,16 @@ class VPSdb:
         self._vpinfeIniConfig = vpinfeIniConfig
         self._config_dir = CONFIG_DIR
         self._config_dir.mkdir(parents=True, exist_ok=True)
-        self._vpsdb_path = self._config_dir / "vpsdb.json"
-        version = self.downloadLastUpdate()
-
-        if version:
-            logger.info("Current VPSdb version @ VPSdb: %s", version)
-            try:
-                # Download DB if newer than local version
-                if self._vpinfeIniConfig.config['VPSdb']['last'] < version:
-                    self.downloadDB()
-                else:
-                    logger.info("VPSdb currently at latest revision.")
-            except KeyError:  # No entry for VPSdb version in config
-                self.downloadDB()
-                self._vpinfeIniConfig.config.setdefault('VPSdb', {})['last'] = version
-
-            # Always update the version in config
-            self._vpinfeIniConfig.config['VPSdb']['last'] = version
-            self._vpinfeIniConfig.save()
-
-            self.rootTableDir = rootTableDir
-
-            # Load database from local file
-            if self._vpsdb_path.exists():
-                try:
-                    with open(self._vpsdb_path, 'r', encoding="utf-8") as file:
-                        self.data = json.load(file)
-                        logger.info("Total VPSdb entries: %s", len(self.data))
-                except json.JSONDecodeError:
-                    logger.error("Invalid JSON format in %s", self._vpsdb_path)
-            else:
-                logger.warning("JSON file %s not found.", self._vpsdb_path)
+        self._cache = VPSDatabaseCache(
+            self._config_dir,
+            self._vpinfeIniConfig,
+            db_url=VPSdb.vpsUrldb,
+            last_update_url=VPSdb.vpsUrlLastUpdate,
+        )
+        self._vpsdb_path = self._cache.path
+        self.rootTableDir = rootTableDir
+        self.data = self._cache.ensure_current()
+        logger.info("Total VPSdb entries: %s", len(self.data))
 
         # Setup preferences
         self.tabletype = self._vpinfeIniConfig.config['Media']["tabletype"].lower()
@@ -74,8 +52,13 @@ class VPSdb:
             self.tablevideoresolution,
         )
 
-        # Load additional media DB
         self.vpinmediadbjson = self.downloadMediaJson()
+        self._media_downloader = VPSMediaDownloader(
+            self.vpinmediadbjson,
+            tabletype=self.tabletype,
+            tableresolution=self.tableresolution,
+            tablevideoresolution=self.tablevideoresolution,
+        )
 
     # ----------------------------------------------------------------------
     # Python container magic methods
@@ -131,51 +114,24 @@ class VPSdb:
     # Remote content handling
     def downloadMediaJson(self):
         """Downloads the VPinMediaDB JSON index."""
-        try:
-            response = requests.get(self.vpinmdbUrl)
-            response.raise_for_status()
-            return response.json()
-        except requests.RequestException as e:
-            logger.warning("Failed to retrieve vpinmdb.json: %s", e)
-            return None
+        return VPinMediaDatabase(self.vpinmdbUrl).load()
 
     def downloadDB(self):
         """Downloads the VPS database JSON."""
-        try:
-            response = requests.get(VPSdb.vpsUrldb)
-            response.raise_for_status()
-            with open(self._vpsdb_path, 'wb') as file:
-                file.write(response.content)
-            logger.info("Successfully downloaded vpsdb.json from VPSdb")
-        except requests.RequestException as e:
-            logger.warning("Failed to download vpsdb.json: %s", e)
+        self._cache.download_db()
 
     def downloadLastUpdate(self):
         """Fetches the last update version string from VPSdb."""
-        try:
-            response = requests.get(VPSdb.vpsUrlLastUpdate)
-            response.raise_for_status()
-            return response.text.strip()
-        except requests.RequestException as e:
-            logger.warning("Failed to retrieve lastUpdate.json: %s", e)
-            return None
+        return self._cache.fetch_last_update()
 
     def downloadMediaFile(self, tableId, url, filename):
         """Downloads a single media file by URL."""
-        logger.info("Downloading %s from %s", filename, url)
-        try:
-            response = requests.get(url)
-            response.raise_for_status()
-            with open(filename, 'wb') as file:
-                file.write(response.content)
-            logger.info("Successfully downloaded %s from VPinMedia", filename)
-        except requests.RequestException as e:
-            logger.warning("Failed to download %s for table %s: %s", filename, tableId, e)
+        self._media_downloader.download_media_file(tableId, url, filename)
 
     # ----------------------------------------------------------------------
     # Local file helpers
     def fileExists(self, path):
-        return bool(path and os.path.exists(path))
+        return self._media_downloader.file_exists(path)
 
     def downloadMedia(self, tableId, metadata, key, filename, defaultFilename, metaConfig=None, mediaType=None):
         """
@@ -190,88 +146,19 @@ class VPSdb:
         :param mediaType: media type key used in the Medias section
         :returns: (downloaded_path, md5hash) if downloaded or already exists, else None
         """
-        if not metadata or key not in metadata:
-            return None
-
-        remoteMd5 = metadata.get(f"{key}_md5", "")
-
-        # Check the explicit path first, then fall back to the default path
-        actual_path = filename if self.fileExists(filename) else (defaultFilename if self.fileExists(defaultFilename) else None)
-
-        if actual_path:
-            # Check if the remote hash changed compared to what we stored
-            if metaConfig and mediaType and remoteMd5:
-                existing = metaConfig.getMedia(mediaType)
-                if existing and existing.get("Source") == "vpinmediadb":
-                    storedMd5 = existing.get("MD5Hash", "")
-                    if storedMd5 and storedMd5 != remoteMd5:
-                        logger.info(
-                            "MD5 changed for %s (%s -> %s), re-downloading",
-                            mediaType,
-                            storedMd5,
-                            remoteMd5,
-                        )
-                        self.downloadMediaFile(tableId, metadata[key], actual_path)
-            return (actual_path, remoteMd5)
-
-        self.downloadMediaFile(tableId, metadata[key], defaultFilename)
-        if self.fileExists(defaultFilename):
-            return (defaultFilename, remoteMd5)
-        return None
+        return self._media_downloader.download_media(
+            tableId,
+            metadata,
+            key,
+            filename,
+            defaultFilename,
+            metaConfig,
+            mediaType,
+        )
 
     def downloadMediaForTable(self, table, id, metaConfig=None):
         """Download all associated media for a given table."""
-        if id not in self.vpinmediadbjson:
-            logger.info("No media exists for %s (ID %s).", table.fullPathTable, id)
-            return
-
-        tablemediajson = self.vpinmediadbjson[id]
-
-        # Ensure medias directory exists
-        medias_dir = os.path.join(table.fullPathTable, "medias")
-        os.makedirs(medias_dir, exist_ok=True)
-
-        def _isUserMedia(mediaType):
-            """Check if the existing media entry is user-provided."""
-            if not metaConfig:
-                return False
-            existing = metaConfig.getMedia(mediaType)
-            return existing is not None and existing.get("Source") != "vpinmediadb"
-
-        def _record(mediaType, result):
-            if result and metaConfig:
-                path, md5hash = result
-                metaConfig.addMedia(mediaType, "vpinmediadb", path, md5hash)
-
-        def _process(mediaType, metadata, key, filename, defaultFilename):
-            """Skip download and record if the media is user-provided."""
-            if _isUserMedia(mediaType):
-                logger.debug("Skipping %s: user-provided media", mediaType)
-                return
-            result = self.downloadMedia(id, metadata, key, filename, defaultFilename, metaConfig, mediaType)
-            _record(mediaType, result)
-
-        # Background & DMD (within '1k' key)
-        _process('bg', tablemediajson.get('1k'), 'bg', table.BGImagePath, f"{table.fullPathTable}/medias/bg.png")
-        _process('dmd', tablemediajson.get('1k'), 'dmd', table.DMDImagePath, f"{table.fullPathTable}/medias/dmd.png")
-
-        # Other assets
-        _process('wheel', tablemediajson, 'wheel', table.WheelImagePath, f"{table.fullPathTable}/medias/wheel.png")
-        _process('cab', tablemediajson, 'cab', table.CabImagePath, f"{table.fullPathTable}/medias/cab.png")
-        _process('realdmd', tablemediajson, 'realdmd', table.realDMDImagePath, f"{table.fullPathTable}/medias/realdmd.png")
-        _process('realdmd_color', tablemediajson, 'realdmd_color', table.realDMDColorImagePath, f"{table.fullPathTable}/medias/realdmd-color.png")
-        _process('flyer', tablemediajson, 'flyer', table.FlyerImagePath, f"{table.fullPathTable}/medias/flyer.png")
-
-        # Table image depends on resolution/type
-        _process(self.tabletype, tablemediajson.get(self.tableresolution), self.tabletype, table.TableImagePath, f"{table.fullPathTable}/medias/{self.tabletype}.png")
-
-        # Video assets
-        _process('bg_video', tablemediajson.get(self.tablevideoresolution), 'bg_video', table.BGVideoPath, f"{table.fullPathTable}/medias/bg.mp4")
-        _process('dmd_video', tablemediajson.get(self.tablevideoresolution), 'dmd_video', table.DMDVideoPath, f"{table.fullPathTable}/medias/dmd.mp4")
-        _process(f'{self.tabletype}_video', tablemediajson.get(self.tablevideoresolution), f'{self.tabletype}_video', table.TableVideoPath, f"{table.fullPathTable}/medias/{self.tabletype}.mp4")
-
-        # Audio
-        _process('audio', tablemediajson, 'audio', table.AudioPath, f"{table.fullPathTable}/medias/audio.mp3")
+        self._media_downloader.download_media_for_table(table, id, metaConfig)
 
     # ----------------------------------------------------------------------
     def updateTable(self, name, manufacturer, year):

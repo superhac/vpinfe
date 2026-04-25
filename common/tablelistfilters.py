@@ -1,6 +1,14 @@
-import ast
-
-from common.table_metadata import get_meta_value, is_truthy, normalize_rating
+from common.table_metadata import (
+    get_meta_value,
+    is_truthy,
+    normalize_rating,
+    table_manufacturer,
+    table_rating,
+    table_themes,
+    table_title,
+    table_type,
+    table_year,
+)
 
 
 class TableListFilters:
@@ -19,9 +27,7 @@ class TableListFilters:
         letters = set()
         for table in self.tables:
             # Try Info.Title first (JSON format), then VPSdb.name (legacy)
-            name = self._get_meta_value(table, "Info", "Title", fallback="")
-            if not name:
-                name = self._get_meta_value(table, "VPSdb", "name", fallback="")
+            name = table_title(table)
             if name:
                 first_char = name[0].upper()
                 # Only include alphanumeric characters
@@ -33,47 +39,23 @@ class TableListFilters:
         """Return sorted list of unique themes from all tables."""
         themes = set()
         for table in self.tables:
-            # Try Info.Themes first (JSON format - already a list), then VPSdb.theme (legacy string)
-            theme_val = self._get_meta_value(table, "Info", "Themes", fallback=None)
-            if theme_val:
-                if isinstance(theme_val, list):
-                    themes.update(theme_val)
-                else:
-                    themes.add(theme_val)
-            else:
-                # Legacy format
-                theme_str = self._get_meta_value(table, "VPSdb", "theme", fallback="")
-                if theme_str:
-                    try:
-                        # Parse the string representation of list
-                        theme_list = ast.literal_eval(theme_str)
-                        if isinstance(theme_list, list):
-                            themes.update(theme_list)
-                    except (ValueError, SyntaxError):
-                        # If it's not a list format, treat as single theme
-                        themes.add(theme_str)
+            themes.update(table_themes(table))
         return sorted(themes)
 
     def get_available_types(self):
         """Return sorted list of unique table types."""
         types = set()
         for table in self.tables:
-            # Try Info.Type first (JSON format), then VPSdb.type (legacy)
-            table_type = self._get_meta_value(table, "Info", "Type", fallback="")
-            if not table_type:
-                table_type = self._get_meta_value(table, "VPSdb", "type", fallback="")
-            if table_type:
-                types.add(table_type)
+            current_type = table_type(table)
+            if current_type:
+                types.add(current_type)
         return sorted(types)
 
     def get_available_manufacturers(self):
         """Return sorted list of unique manufacturers."""
         manufacturers = set()
         for table in self.tables:
-            # Try Info.Manufacturer first (JSON format), then VPSdb.manufacturer (legacy)
-            manufacturer = self._get_meta_value(table, "Info", "Manufacturer", fallback="")
-            if not manufacturer:
-                manufacturer = self._get_meta_value(table, "VPSdb", "manufacturer", fallback="")
+            manufacturer = table_manufacturer(table)
             if manufacturer:
                 manufacturers.add(manufacturer)
         return sorted(manufacturers)
@@ -82,58 +64,30 @@ class TableListFilters:
         """Return sorted list of unique years."""
         years = set()
         for table in self.tables:
-            # Try Info.Year first (JSON format), then VPSdb.year (legacy)
-            year = self._get_meta_value(table, "Info", "Year", fallback="")
-            if not year:
-                year = self._get_meta_value(table, "VPSdb", "year", fallback="")
+            year = table_year(table)
             if year:
                 years.add(str(year))
         return sorted(years)
 
     def _get_table_name(self, table):
         """Get table name from either JSON or legacy format."""
-        name = self._get_meta_value(table, "Info", "Title", fallback="")
-        if not name:
-            name = self._get_meta_value(table, "VPSdb", "name", fallback="")
-        return name
+        return table_title(table)
 
     def _get_table_theme(self, table):
         """Get table theme(s) from either JSON or legacy format."""
-        theme_val = self._get_meta_value(table, "Info", "Themes", fallback=None)
-        if theme_val:
-            return theme_val if isinstance(theme_val, list) else [theme_val]
-        # Legacy format
-        theme_str = self._get_meta_value(table, "VPSdb", "theme", fallback="")
-        if theme_str:
-            try:
-                theme_list = ast.literal_eval(theme_str)
-                if isinstance(theme_list, list):
-                    return theme_list
-            except (ValueError, SyntaxError):
-                pass
-            return [theme_str]
-        return []
+        return table_themes(table)
 
     def _get_table_type(self, table):
         """Get table type from either JSON or legacy format."""
-        table_type = self._get_meta_value(table, "Info", "Type", fallback="")
-        if not table_type:
-            table_type = self._get_meta_value(table, "VPSdb", "type", fallback="")
-        return table_type
+        return table_type(table)
 
     def _get_table_manufacturer(self, table):
         """Get table manufacturer from either JSON or legacy format."""
-        mfr = self._get_meta_value(table, "Info", "Manufacturer", fallback="")
-        if not mfr:
-            mfr = self._get_meta_value(table, "VPSdb", "manufacturer", fallback="")
-        return mfr
+        return table_manufacturer(table)
 
     def _get_table_year(self, table):
         """Get table year from either JSON or legacy format."""
-        year = self._get_meta_value(table, "Info", "Year", fallback="")
-        if not year:
-            year = self._get_meta_value(table, "VPSdb", "year", fallback="")
-        return str(year) if year else ""
+        return table_year(table)
 
     @staticmethod
     def _normalize_rating(value):
@@ -147,8 +101,7 @@ class TableListFilters:
 
     def _get_table_rating(self, table):
         """Get table rating from User.Rating metadata."""
-        rating = self._get_meta_value(table, "User", "Rating", fallback=0)
-        return self._normalize_rating(rating)
+        return table_rating(table)
 
     def filter_by_letter(self, tables, letter):
         """Filter tables by starting letter of name. Supports comma-separated values."""
