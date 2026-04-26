@@ -8,8 +8,11 @@ small facade classes for older call sites.
 ## Layout
 
 - `paths.py`: canonical user config, themes, collections, and table-root paths.
+- `config_access.py`: typed, UI-independent accessors for common INI sections.
 - `table.py`, `tableparser.py`, `table_repository.py`: table discovery and cached table rows.
 - `table_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence.
+- `media_paths.py`: canonical media keys, filenames, table attributes, and path resolution.
+- `jobs.py`: callback-friendly progress/log reporting for long-running workflows.
 - `metadata_service.py`, `table_report_service.py`, `table_play_service.py`: workflows that operate on tables and metadata.
 - `collections_service.py`, `vpxcollections.py`, `tablelistfilters.py`: collection and filter logic.
 - `vpsdb.py`: compatibility facade for VPS database lookup and media download.
@@ -38,6 +41,17 @@ sorting, or row-building code should use helpers like `table_title`,
 `table_themes`, `table_type`, `table_manufacturer`, `table_year`, and
 `table_rating` instead of repeating `Info`/legacy `VPSdb` fallback logic.
 
+Use `config_access.py` when reading common INI values from code outside the
+configuration editor itself. This keeps defaults and bool/int coercion in one
+place while preserving `IniConfig.config` for compatibility.
+
+Use `media_paths.py` for media keys, filenames, and table path attributes.
+Frontend payloads, parser discovery, media claiming, and VPS media downloads
+should not each carry their own filename table.
+
+Use `jobs.JobReporter` for long-running workflows that need both logs and UI
+progress callbacks.
+
 Use `http_client.py` for common network GET/download behavior unless a service
 needs a special request shape such as POST.
 
@@ -62,6 +76,13 @@ module loading. DOF and libdmdutil should not grow separate copies of that logic
 3. Update row builders or filters to consume the helper rather than reading raw
    JSON directly.
 4. Add a test covering both current `Info` fields and any legacy fallback.
+
+## Adding Media Types
+
+1. Add the media key, table attribute, and filename template to
+   `common.media_paths.MEDIA_SPECS`.
+2. Use the shared filename/key maps in manager UI, parser, and download code.
+3. Update theme documentation if the media becomes part of the frontend API.
 
 ## Adding Networked Services
 

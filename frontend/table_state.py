@@ -4,6 +4,7 @@ import json
 import logging
 
 from common.collections_service import filter_tables_by_collection, get_collection_names, save_filter_collection
+from common.media_paths import table_media_payload
 from common.tablelistfilters import TableListFilters
 from common.table_metadata import DETECTION_KEYS, get_or_create_user_meta, normalize_meta, normalize_rating, persist_table_meta, section, table_title
 
@@ -49,28 +50,17 @@ def tables_json(tables) -> str:
         vpx["altColorExists"] = bool(table.altColorExists)
         vpx["pupPackExists"] = bool(table.pupPackExists)
 
-        result.append({
+        row = {
             "tableDirName": table.tableDirName,
             "fullPathTable": table.fullPathTable,
             "fullPathVPXfile": table.fullPathVPXfile,
-            "BGImagePath": table.BGImagePath,
-            "DMDImagePath": table.DMDImagePath,
-            "TableImagePath": table.TableImagePath,
-            "FSSImagePath": table.FSSImagePath,
-            "WheelImagePath": table.WheelImagePath,
-            "CabImagePath": table.CabImagePath,
-            "realDMDImagePath": table.realDMDImagePath,
-            "realDMDColorImagePath": table.realDMDColorImagePath,
-            "FlyerImagePath": table.FlyerImagePath,
-            "TableVideoPath": table.TableVideoPath,
-            "BGVideoPath": table.BGVideoPath,
-            "DMDVideoPath": table.DMDVideoPath,
-            "AudioPath": table.AudioPath,
             "pupPackExists": table.pupPackExists,
             "altColorExists": table.altColorExists,
             "altSoundExists": table.altSoundExists,
             "meta": meta,
-        })
+        }
+        row.update(table_media_payload(table))
+        result.append(row)
     return json.dumps(result)
 
 

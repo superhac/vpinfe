@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, VPinPlayConfig
 from common.table_metadata import is_truthy
 
 
@@ -9,12 +10,12 @@ def get_mainmenu_config(iniconfig):
     except Exception:
         raise
     return {
-        "hideQuitButton": iniconfig.config.getboolean("Settings", "MMhideQuitButton", fallback=False),
+        "hideQuitButton": SettingsConfig.from_config(iniconfig).hide_quit_button,
     }
 
 
 def get_splashscreen_enabled(config):
-    return config["Settings"].get("splashscreen", "true")
+    return "true" if SettingsConfig.from_config(config).splashscreen else "false"
 
 
 def set_audio_muted(api, muted):
@@ -29,30 +30,20 @@ def set_audio_muted(api, muted):
 
 
 def get_vpinplay_endpoint(config):
-    return str(config["vpinplay"].get("apiendpoint", "")).strip()
+    return VPinPlayConfig.from_config(config).api_endpoint
 
 
 def get_table_orientation(config):
-    return config["Displays"].get("tableorientation", "landscape")
+    return DisplayConfig.from_config(config).table_orientation
 
 
 def get_table_rotation(config):
-    raw = str(config["Displays"].get("tablerotation", "0")).strip()
-    if raw == "":
-        return 0
-    try:
-        return int(float(raw))
-    except (ValueError, TypeError):
-        return 0
+    return DisplayConfig.from_config(config).table_rotation
 
 
 def get_cab_mode(config):
-    raw = str(config["Displays"].get(
-        "cabmode",
-        config["Settings"].get("cabmode", "false"),
-    )).strip().lower()
-    return raw in ("1", "true", "yes", "on")
+    return DisplayConfig.from_config(config).cab_mode
 
 
 def get_theme_assets_port(config):
-    return int(config["Network"].get("themeassetsport", "8000"))
+    return NetworkConfig.from_config(config).theme_assets_port

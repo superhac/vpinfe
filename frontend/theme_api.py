@@ -4,16 +4,15 @@ import json
 import logging
 from urllib.parse import quote
 
+from common.config_access import NetworkConfig, SettingsConfig
 from common.paths import THEMES_DIR
-from common.table_metadata import is_truthy
 
 
 logger = logging.getLogger("vpinfe.frontend.theme_api")
 
 
 def get_theme_name(config) -> str:
-    theme_name = str(config["Settings"].get("theme", "Revolution")).strip()
-    return theme_name or "Revolution"
+    return SettingsConfig.from_config(config).theme
 
 
 def resolve_theme_dir(theme_name: str):
@@ -40,10 +39,10 @@ def get_theme_config(config):
 
 
 def get_audio_muted(config) -> bool:
-    return is_truthy(config["Settings"].get("muteaudio", "false"))
+    return SettingsConfig.from_config(config).mute_audio
 
 
 def get_theme_index_page(config, window_name: str) -> str:
-    port = int(config["Network"].get("themeassetsport", "8000"))
+    port = NetworkConfig.from_config(config).theme_assets_port
     theme_name = quote(get_theme_name(config), safe="")
     return f"http://127.0.0.1:{port}/themes/{theme_name}/index_{window_name}.html?window={window_name}"

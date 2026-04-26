@@ -3,6 +3,7 @@ from difflib import SequenceMatcher
 import re
 
 from common.paths import CONFIG_DIR
+from common.config_access import MediaConfig
 from common.vpsdb_cache import VPinMediaDatabase, VPSDatabaseCache
 from common.vpsdb_media import VPSMediaDownloader
 
@@ -42,9 +43,10 @@ class VPSdb:
         logger.info("Total VPSdb entries: %s", len(self.data))
 
         # Setup preferences
-        self.tabletype = self._vpinfeIniConfig.config['Media']["tabletype"].lower()
-        self.tableresolution = self._vpinfeIniConfig.config['Media']["tableresolution"].lower()
-        self.tablevideoresolution = self._vpinfeIniConfig.config['Media']["tablevideoresolution"].lower()
+        media_config = MediaConfig.from_config(self._vpinfeIniConfig)
+        self.tabletype = media_config.table_type
+        self.tableresolution = media_config.table_resolution
+        self.tablevideoresolution = media_config.table_video_resolution
         logger.info(
             "Using %s/%s tables (video: %s)",
             self.tableresolution,

@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 import requests
 
 from common.app_version import get_version
+from common.config_access import SettingsConfig, VPinPlayConfig
 from common.tableparser import TableParser
 
 
@@ -190,20 +191,21 @@ def _as_bool(value) -> bool:
 
 def sync_on_shutdown(iniconfig, timeout_seconds: int = 10) -> dict | None:
     section = "vpinplay"
-    if not iniconfig.config.has_section(section):
+    if not iniconfig.config.has_section("vpinplay"):
         logger.info("Skipping VPinPlay shutdown sync: [%s] section not found.", section)
         return None
 
-    enabled = _as_bool(iniconfig.config.get(section, "synconexit", fallback="false"))
-    if not enabled:
+    vpinplay = VPinPlayConfig.from_config(iniconfig)
+    settings = SettingsConfig.from_config(iniconfig)
+    if not vpinplay.sync_on_exit:
         logger.info("Skipping VPinPlay shutdown sync: vpinplay.synconexit is false.")
         return None
 
-    service_ip = iniconfig.config.get(section, "apiendpoint", fallback="").strip()
-    user_id = iniconfig.config.get(section, "userid", fallback="").strip()
-    initials = iniconfig.config.get(section, "initials", fallback="").strip()
-    machine_id = iniconfig.config.get(section, "machineid", fallback="").strip()
-    table_root_dir = iniconfig.config.get("Settings", "tablerootdir", fallback="").strip()
+    service_ip = vpinplay.api_endpoint
+    user_id = vpinplay.user_id
+    initials = vpinplay.initials
+    machine_id = vpinplay.machine_id
+    table_root_dir = settings.table_root_dir
 
     if not service_ip or not user_id or not initials or not machine_id or not table_root_dir:
         logger.warning(

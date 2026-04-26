@@ -19,19 +19,11 @@ import threading
 import time
 from urllib.parse import quote
 
+from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, cfg_get
 from common.logging_config import include_thirdparty_logs
 
 
 logger = logging.getLogger("vpinfe.frontend.chromium_manager")
-
-
-def _config_truthy(value: str | None, default: bool = False) -> bool:
-    if value is None:
-        return default
-    normalized = str(value).strip().lower()
-    if normalized == "":
-        return default
-    return normalized in {"1", "true", "yes", "on"}
 
 
 def _build_window_url(
@@ -261,14 +253,12 @@ class ChromiumManager:
             monitors = get_monitors()
             logger.info("Detected %s monitors: %s", len(monitors), monitors)
 
-        theme_assets_port = int(
-            iniconfig.config["Network"].get("themeassetsport", "8000")
-        )
-        theme_name = iniconfig.config["Settings"].get("theme", "Revolution").strip() or "Revolution"
-        splash_enabled = _config_truthy(
-            iniconfig.config["Settings"].get("splashscreen", "true"),
-            default=True,
-        )
+        network = NetworkConfig.from_config(iniconfig)
+        displays = DisplayConfig.from_config(iniconfig)
+        settings = SettingsConfig.from_config(iniconfig)
+        theme_assets_port = network.theme_assets_port
+        theme_name = settings.theme
+        splash_enabled = settings.splashscreen
 
         # Launch windows in order: bg, dmd, table (table last so it gets focus)
         window_configs = [
@@ -278,7 +268,7 @@ class ChromiumManager:
         ]
 
         for window_name, config_key in window_configs:
-            screen_id_str = iniconfig.config["Displays"].get(config_key, "").strip()
+            screen_id_str = displays.window_screen_id(config_key).strip()
             if not screen_id_str:
                 continue
 
@@ -304,7 +294,7 @@ class ChromiumManager:
             override_key = f"{window_name}windowoverride"
             logger.debug("Found override key: '%s' in [Displays] section", override_key)
 
-            override_str = iniconfig.config["Displays"].get(override_key, "").strip()
+            override_str = cfg_get(iniconfig, "Displays", override_key, "").strip()
             logger.debug(
                 "Retrieved value: '%s' (empty=%s)", override_str, len(override_str) == 0
             )

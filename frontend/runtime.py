@@ -11,6 +11,7 @@ from frontend.chromium_manager import ChromiumManager
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.ws_bridge import WebSocketBridge
 from common import system_actions
+from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
 from common.display_service import get_display_monitors
 
 
@@ -22,11 +23,13 @@ WINDOW_CONFIGS = (
 
 
 def create_api_instances(iniconfig, logger):
-    ws_bridge = WebSocketBridge(port=int(iniconfig.config["Network"].get("wsport", "8002")))
+    network = NetworkConfig.from_config(iniconfig)
+    displays = DisplayConfig.from_config(iniconfig)
+    ws_bridge = WebSocketBridge(port=network.ws_port)
     frontend_browser = ChromiumManager()
 
     for window_name, config_key in WINDOW_CONFIGS:
-        screen_id_str = iniconfig.config["Displays"].get(config_key, "").strip()
+        screen_id_str = displays.window_screen_id(config_key).strip()
         if not screen_id_str:
             continue
 
@@ -51,15 +54,13 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
         logger.info("Skipping startup media sync on first run.")
         return False
 
-    try:
-        enabled = iniconfig.config.getboolean("Settings", "autoupdatemediaonstartup", fallback=False)
-    except Exception:
-        enabled = str(iniconfig.config["Settings"].get("autoupdatemediaonstartup", "false")).strip().lower() in ("1", "true", "yes", "on")
+    settings = SettingsConfig.from_config(iniconfig)
+    enabled = settings.auto_update_media_on_startup
 
     if not enabled:
         return False
 
-    table_root = iniconfig.config["Settings"].get("tablerootdir", "").strip()
+    table_root = settings.table_root_dir
     if not table_root:
         logger.info("Startup media sync enabled, but tablerootdir is empty. Skipping.")
         return False
@@ -90,7 +91,7 @@ def build_mount_points(base_path: str, config_dir: Path, iniconfig):
         "/web/": os.path.join(base_path, "web"),
         "/themes/": themes_dir,
     }
-    table_root = iniconfig.config["Settings"]["tablerootdir"]
+    table_root = SettingsConfig.from_config(iniconfig).table_root_dir
     if table_root:
         mount_points["/tables/"] = os.path.abspath(table_root)
     return mount_points, themes_dir
@@ -98,7 +99,7 @@ def build_mount_points(base_path: str, config_dir: Path, iniconfig):
 
 def start_asset_server(mount_points, iniconfig):
     http_server = CustomHTTPServer(mount_points)
-    theme_assets_port = int(iniconfig.config["Network"].get("themeassetsport", "8000"))
+    theme_assets_port = NetworkConfig.from_config(iniconfig).theme_assets_port
     http_server.start_file_server(port=theme_assets_port)
     return http_server
 
@@ -135,9 +136,11 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
         return
 
     if iniconfig.is_new:
-        manager_ui_port = int(iniconfig.config["Network"].get("manageruiport", "8001"))
+        network = NetworkConfig.from_config(iniconfig)
+        displays = DisplayConfig.from_config(iniconfig)
+        manager_ui_port = network.manager_ui_port
         setup_url = f"http://localhost:{manager_ui_port}/"
-        screen_id = int(iniconfig.config["Displays"].get("tablescreenid", "0"))
+        screen_id = displays.table_screen_id
         monitors = get_display_monitors()
         monitor = monitors[screen_id] if screen_id < len(monitors) else monitors[0]
         logger.info("First run: loading Manager UI in chromium window for initial configuration.")

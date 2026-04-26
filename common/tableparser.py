@@ -2,6 +2,8 @@ import os
 from pathlib import Path
 import logging
 from time import perf_counter
+from common.config_access import MediaConfig
+from common.media_paths import apply_media_paths
 from common.table import Table
 from common.metaconfig import MetaConfig
 
@@ -20,7 +22,7 @@ class TableParser:
         self.tables: list[Table] = []
         self.missing_tables: list[dict] = []
         if iniConfig:
-            self.tabletype = iniConfig.config['Media'].get('tabletype', 'table').lower()
+            self.tabletype = MediaConfig.from_config(iniConfig).table_type
         self.loadTables()
 
     def loadTables(self, reload=False):  # reload if you want to rescan the tables
@@ -116,33 +118,7 @@ class TableParser:
             medias_contents = set(os.listdir(str(medias_dir))) if (has_medias_dir if has_medias_dir is not None else medias_dir.is_dir()) else set()
         except Exception:
             medias_contents = set()
-        images = {
-            "BGImagePath": "bg.png",
-            "DMDImagePath": "dmd.png",
-            "TableImagePath": f"{self.tabletype}.png",
-            "FSSImagePath": "fss.png",
-            "WheelImagePath": "wheel.png",
-            "CabImagePath": "cab.png",
-            "realDMDImagePath": "realdmd.png",
-            "realDMDColorImagePath": "realdmd-color.png",
-            "FlyerImagePath": "flyer.png",
-        }
-
-        videos = {
-            "TableVideoPath": f"{self.tabletype}.mp4",
-            "BGVideoPath": "bg.mp4",
-            "DMDVideoPath": "dmd.mp4",
-        }
-
-        audio = {
-            "AudioPath": "audio.mp3",
-        }
-
-        for attr, fname in {**images, **videos, **audio}.items():
-            if fname in medias_contents:
-                setattr(Table, attr, str(medias_dir / fname))
-            elif fname in table_contents:
-                setattr(Table, attr, str(table_dir / fname))
+        apply_media_paths(Table, table_contents, medias_contents, self.tabletype)
 
     def loadMetaData(self, Table):
         meta_path = Path(Table.fullPathTable) / f"{Table.tableDirName}.info"

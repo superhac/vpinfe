@@ -7,6 +7,7 @@ import sys
 import time
 
 from common import table_play_service
+from common.config_access import SettingsConfig
 
 
 logger = logging.getLogger("vpinfe.frontend.launch_service")
@@ -27,7 +28,8 @@ def launch_table(
 ) -> None:
     table = api.filteredTables[index]
     vpx = table.fullPathVPXfile
-    vpxbin = api._iniConfig.config["Settings"].get("vpxbinpath", "")
+    settings = SettingsConfig.from_config(api._iniConfig)
+    vpxbin = settings.vpx_bin_path
     vpxbin_path, source_key, _ = get_effective_launcher(vpxbin, table.metaConfig)
     if not vpxbin_path:
         logger.warning("No launcher configured (checked VPinFE.%s and Settings.vpxbinpath)", source_key)
@@ -43,11 +45,11 @@ def launch_table(
     stop_libdmdutil_service(clear=False)
     launch_started_at = None
     try:
-        global_ini_override = api._iniConfig.config["Settings"].get("globalinioverride", "").strip()
+        global_ini_override = settings.global_ini_override
         tableini_override = resolve_launch_tableini_override(
             vpx,
-            api._iniConfig.config["Settings"].get("globaltableinioverrideenabled", "false"),
-            api._iniConfig.config["Settings"].get("globaltableinioverridemask", ""),
+            settings.global_table_ini_override_enabled,
+            settings.global_table_ini_override_mask,
         )
         cmd = build_vpx_launch_command(
             launcher_path=str(vpxbin_path),
@@ -57,7 +59,7 @@ def launch_table(
         )
         logger.info("Launching: %s", cmd)
         launch_env = os.environ.copy()
-        launch_env.update(parse_launch_env_overrides(api._iniConfig.config["Settings"].get("vpxlaunchenv", "")))
+        launch_env.update(parse_launch_env_overrides(settings.vpx_launch_env))
 
         process = popen(
             cmd,

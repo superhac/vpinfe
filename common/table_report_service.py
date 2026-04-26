@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from common.iniconfig import IniConfig
+from common.config_access import SettingsConfig
 from common.paths import get_ini_config
 from common.tableparser import TableParser
 from common.vpsdb import VPSdb
@@ -18,7 +19,7 @@ def _config(config: IniConfig | None = None) -> IniConfig:
 def list_missing_tables(iniconfig: IniConfig | None = None, log=None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
-    table_root = config.config["Settings"]["tablerootdir"]
+    table_root = SettingsConfig.from_config(config).table_root_dir
     tp = TableParser(table_root, config)
     tp.loadTables(reload=True)
     tables = tp.getAllTables()
@@ -59,7 +60,7 @@ def list_missing_tables(iniconfig: IniConfig | None = None, log=None) -> None:
 def list_unknown_tables(iniconfig: IniConfig | None = None, log=None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
-    table_root = config.config["Settings"]["tablerootdir"]
+    table_root = SettingsConfig.from_config(config).table_root_dir
     tp = TableParser(table_root, config)
     tp.loadTables(reload=True)
     tables = tp.getAllTables()

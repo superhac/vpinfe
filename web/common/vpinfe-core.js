@@ -7,6 +7,19 @@ const originalConsole = {
   debug: console.debug,
 };
 
+const MEDIA_PATH_FIELDS = {
+  table: "TableImagePath",
+  fss: "FSSImagePath",
+  bg: "BGImagePath",
+  dmd: "DMDImagePath",
+  wheel: "WheelImagePath",
+  cab: "CabImagePath",
+  realdmd: "realDMDImagePath",
+  "realdmd-color": "realDMDColorImagePath",
+  realdmd_color: "realDMDColorImagePath",
+  flyer: "FlyerImagePath",
+};
+
 
 class VPinFECore {
   constructor() {
@@ -157,40 +170,9 @@ class VPinFECore {
   // get table image url paths
   getImageURL(index, type) {
     const table = this.tableData[index];
-    if (type == "table") {
-      //this.call("console_out", this.#convertPathToURL(table.TableImagePath))
-      return this.#convertPathToURL(table.TableImagePath);
-    }
-    else if (type == "fss") {
-      return this.#convertPathToURL(table.FSSImagePath);
-    }
-    else if (type == "bg") {
-      //this.call("console_out", this.#convertPathToURL(table.BGImagePath))
-      return this.#convertPathToURL(table.BGImagePath);
-
-    }
-    else if (type == "dmd") {
-      //this.call("console_out", this.#convertPathToURL(table.DMDImagePath))
-      return this.#convertPathToURL(table.DMDImagePath);
-
-    }
-    else if (type == "wheel") {
-      //this.call("console_out", this.#convertPathToURL(table.WheelImagePath))
-      return this.#convertPathToURL(table.WheelImagePath);
-    }
-    else if (type == "cab") {
-      //this.call("console_out", this.#convertPathToURL(table.CabImagePath))
-      return this.#convertPathToURL(table.CabImagePath);
-    }
-    else if (type == "realdmd") {
-      return this.#convertPathToURL(table.realDMDImagePath);
-    }
-    else if (type == "realdmd-color") {
-      return this.#convertPathToURL(table.realDMDColorImagePath);
-    }
-    else if (type == "flyer") {
-      return this.#convertPathToURL(table.FlyerImagePath);
-    }
+    if (!table) return null;
+    const field = MEDIA_PATH_FIELDS[type];
+    return field ? this.#convertPathToURL(table[field]) : null;
   }
 
   // get table audio url path (returns null if no audio exists)

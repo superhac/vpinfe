@@ -13,6 +13,7 @@ from pathlib import Path
 import requests
 
 from common.app_version import get_version
+from common.http_client import download_file, get_json
 from common.paths import CONFIG_DIR
 
 
@@ -69,9 +70,7 @@ def _parse_tag_version(tag: str) -> tuple[int, int, int] | None:
 
 def _request_json(url: str) -> dict:
     logger.info("Fetching JSON from %s", url)
-    response = requests.get(url, timeout=15, headers={"User-Agent": USER_AGENT})
-    response.raise_for_status()
-    payload = response.json()
+    payload = get_json(url, timeout=15, headers={"User-Agent": USER_AGENT})
     if isinstance(payload, dict):
         logger.info("Fetched JSON from %s with keys=%s", url, sorted(payload.keys()))
     else:
@@ -80,13 +79,7 @@ def _request_json(url: str) -> dict:
 
 
 def _download_file(url: str, dest: Path) -> None:
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    with requests.get(url, timeout=60, headers={"User-Agent": USER_AGENT}, stream=True) as response:
-        response.raise_for_status()
-        with open(dest, "wb") as fh:
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    fh.write(chunk)
+    download_file(url, dest, timeout=60, headers={"User-Agent": USER_AGENT})
 
 
 def _append_log_line(path: Path, message: str) -> None:

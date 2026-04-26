@@ -7,6 +7,7 @@ from pathlib import Path
 import requests
 
 from common.http_client import download_file
+from common.media_paths import default_media_path
 
 
 logger = logging.getLogger("vpinfe.common.vpsdb_media")
@@ -84,15 +85,15 @@ class VPSMediaDownloader:
             result = self.download_media(table_id, metadata, key, filename, default_filename, meta_config, media_type)
             record(media_type, result)
 
-        process("bg", table_media.get("1k"), "bg", table.BGImagePath, f"{table.fullPathTable}/medias/bg.png")
-        process("dmd", table_media.get("1k"), "dmd", table.DMDImagePath, f"{table.fullPathTable}/medias/dmd.png")
-        process("wheel", table_media, "wheel", table.WheelImagePath, f"{table.fullPathTable}/medias/wheel.png")
-        process("cab", table_media, "cab", table.CabImagePath, f"{table.fullPathTable}/medias/cab.png")
-        process("realdmd", table_media, "realdmd", table.realDMDImagePath, f"{table.fullPathTable}/medias/realdmd.png")
-        process("realdmd_color", table_media, "realdmd_color", table.realDMDColorImagePath, f"{table.fullPathTable}/medias/realdmd-color.png")
-        process("flyer", table_media, "flyer", table.FlyerImagePath, f"{table.fullPathTable}/medias/flyer.png")
-        process(self.tabletype, table_media.get(self.tableresolution), self.tabletype, table.TableImagePath, f"{table.fullPathTable}/medias/{self.tabletype}.png")
-        process("bg_video", table_media.get(self.tablevideoresolution), "bg_video", table.BGVideoPath, f"{table.fullPathTable}/medias/bg.mp4")
-        process("dmd_video", table_media.get(self.tablevideoresolution), "dmd_video", table.DMDVideoPath, f"{table.fullPathTable}/medias/dmd.mp4")
-        process(f"{self.tabletype}_video", table_media.get(self.tablevideoresolution), f"{self.tabletype}_video", table.TableVideoPath, f"{table.fullPathTable}/medias/{self.tabletype}.mp4")
-        process("audio", table_media, "audio", table.AudioPath, f"{table.fullPathTable}/medias/audio.mp3")
+        process("bg", table_media.get("1k"), "bg", table.BGImagePath, str(default_media_path(table.fullPathTable, "bg", self.tabletype)))
+        process("dmd", table_media.get("1k"), "dmd", table.DMDImagePath, str(default_media_path(table.fullPathTable, "dmd", self.tabletype)))
+        process("wheel", table_media, "wheel", table.WheelImagePath, str(default_media_path(table.fullPathTable, "wheel", self.tabletype)))
+        process("cab", table_media, "cab", table.CabImagePath, str(default_media_path(table.fullPathTable, "cab", self.tabletype)))
+        process("realdmd", table_media, "realdmd", table.realDMDImagePath, str(default_media_path(table.fullPathTable, "realdmd", self.tabletype)))
+        process("realdmd_color", table_media, "realdmd_color", table.realDMDColorImagePath, str(default_media_path(table.fullPathTable, "realdmd_color", self.tabletype)))
+        process("flyer", table_media, "flyer", table.FlyerImagePath, str(default_media_path(table.fullPathTable, "flyer", self.tabletype)))
+        process(self.tabletype, table_media.get(self.tableresolution), self.tabletype, table.TableImagePath, str(default_media_path(table.fullPathTable, self.tabletype, self.tabletype)))
+        process("bg_video", table_media.get(self.tablevideoresolution), "bg_video", table.BGVideoPath, str(default_media_path(table.fullPathTable, "bg_video", self.tabletype)))
+        process("dmd_video", table_media.get(self.tablevideoresolution), "dmd_video", table.DMDVideoPath, str(default_media_path(table.fullPathTable, "dmd_video", self.tabletype)))
+        process(f"{self.tabletype}_video", table_media.get(self.tablevideoresolution), f"{self.tabletype}_video", table.TableVideoPath, str(default_media_path(table.fullPathTable, f"{self.tabletype}_video", self.tabletype)))
+        process("audio", table_media, "audio", table.AudioPath, str(default_media_path(table.fullPathTable, "audio", self.tabletype)))

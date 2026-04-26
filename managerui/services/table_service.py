@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from common.iniconfig import IniConfig
+from common.config_access import MediaConfig, SettingsConfig
 from common.table_repository import get_missing_tables, get_table_rows, refresh_table
 from common import metadata_service
 from common.vpxcollections import VPXCollections
@@ -35,7 +36,7 @@ def ensure_vpsdb_downloaded() -> bool:
     global _vpsdb_cache
     from common.vpsdb import VPSdb
     try:
-        VPSdb(_INI_CFG.config["Settings"]["tablerootdir"], _INI_CFG)
+        VPSdb(SettingsConfig.from_config(_INI_CFG).table_root_dir, _INI_CFG)
         _vpsdb_cache = None
         return VPSDB_JSON_PATH.exists()
     except Exception as e:
@@ -176,7 +177,7 @@ def associate_vps_to_folder(
         from clioptions import _claimMediaForTable
         from common.table import Table
 
-        tabletype = _INI_CFG.config["Media"].get("tabletype", "table").lower()
+        tabletype = MediaConfig.from_config(_INI_CFG).table_type
         pseudo = Table()
         pseudo.tableDirName = table_folder.name
         pseudo.fullPathTable = str(table_folder)
@@ -186,7 +187,7 @@ def associate_vps_to_folder(
     if download_media or user_media:
         from common.vpsdb import VPSdb
 
-        vps = VPSdb(_INI_CFG.config["Settings"]["tablerootdir"], _INI_CFG)
+        vps = VPSdb(SettingsConfig.from_config(_INI_CFG).table_root_dir, _INI_CFG)
 
         class _LightTable:
             def __init__(self, folder: Path, vpx: Path):

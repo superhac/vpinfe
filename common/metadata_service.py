@@ -3,7 +3,10 @@ from __future__ import annotations
 import logging
 import os
 
+from common.config_access import MediaConfig, SettingsConfig
 from common.iniconfig import IniConfig
+from common.jobs import JobReporter
+from common.media_paths import media_filename_map
 from common.metaconfig import MetaConfig
 from common.paths import get_ini_config
 from common.standalonescripts import StandaloneScripts
@@ -30,15 +33,16 @@ def build_metadata(
 ):
     config = _config(iniconfig)
 
-    def log(msg):
-        logger.info(msg)
-        if log_cb:
-            log_cb(msg)
+    reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
+    log = reporter.log
 
     not_found_tables = 0
     parservpx = VPXParser()
 
-    tp = TableParser(config.config["Settings"]["tablerootdir"], config)
+    settings = SettingsConfig.from_config(config)
+    media_config = MediaConfig.from_config(config)
+
+    tp = TableParser(settings.table_root_dir, config)
     tp.loadTables(reload=True)
     tables = tp.getAllTables()
 
@@ -51,25 +55,25 @@ def build_metadata(
 
     total = len(tables)
 
-    vps = VPSdb(config.config["Settings"]["tablerootdir"], config)
+    vps = VPSdb(settings.table_root_dir, config)
     log(f"Found {len(vps)} tables in VPSdb")
 
     if progress_cb:
-        progress_cb(0, total, "Starting")
+        reporter.progress(0, total, "Starting")
 
     for current, table in enumerate(tables, 1):
         info_path = os.path.join(table.fullPathTable, f"{table.tableDirName}.info")
 
         if os.path.exists(info_path) and not updateAll:
             if progress_cb:
-                progress_cb(current, total, f"Skipping {table.tableDirName}")
+                reporter.progress(current, total, f"Skipping {table.tableDirName}")
             continue
 
         meta = MetaConfig(info_path)
 
         log(f"Checking VPSdb for {table.tableDirName}")
         if progress_cb:
-            progress_cb(current, total, f"Processing {table.tableDirName}")
+            reporter.progress(current, total, f"Processing {table.tableDirName}")
 
         vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
         vpsData = (
@@ -103,8 +107,7 @@ def build_metadata(
         log(f"Created {table.tableDirName}.info")
 
         if userMedia:
-            tabletype = config.config["Media"].get("tabletype", "table").lower()
-            claimed = claim_media_for_table(table, tabletype, log)
+            claimed = claim_media_for_table(table, media_config.table_type, log)
             if claimed:
                 log(f"  Claimed {claimed} media file(s) as user-sourced")
         elif downloadMedia:
@@ -115,14 +118,15 @@ def build_metadata(
                 log("No media found")
 
     if progress_cb:
-        progress_cb(total, total, "Complete")
+        reporter.progress(total, total, "Complete")
 
     return {"found": total, "not_found": not_found_tables}
 
 
 def apply_vpx_patches(progress_cb=None, iniconfig: IniConfig | None = None):
     config = _config(iniconfig)
-    tp = TableParser(config.config["Settings"]["tablerootdir"], config)
+    settings = SettingsConfig.from_config(config)
+    tp = TableParser(settings.table_root_dir, config)
     tp.loadTables(reload=True)
     tables = tp.getAllTables()
     StandaloneScripts(tables, progress_cb=progress_cb)
@@ -136,17 +140,9 @@ def claim_media_for_table(table, tabletype, log=None):
         return 0
 
     media_files = {
-        "bg": "bg.png",
-        "dmd": "dmd.png",
-        tabletype: f"{tabletype}.png",
-        "wheel": "wheel.png",
-        "cab": "cab.png",
-        "realdmd": "realdmd.png",
-        "realdmd_color": "realdmd-color.png",
-        "flyer": "flyer.png",
-        f"{tabletype}_video": f"{tabletype}.mp4",
-        "bg_video": "bg.mp4",
-        "dmd_video": "dmd.mp4",
+        key: filename
+        for key, filename in media_filename_map(tabletype).items()
+        if key != "audio" and (key != "fss" or tabletype == "fss")
     }
 
     medias_dir = os.path.join(table.fullPathTable, "medias")
@@ -169,16 +165,15 @@ def claim_media_for_table(table, tabletype, log=None):
 def claim_user_media(tableName=None, progress_cb=None, log_cb=None, iniconfig: IniConfig | None = None):
     config = _config(iniconfig)
 
-    def log(msg):
-        logger.info(msg)
-        if log_cb:
-            log_cb(msg)
+    reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
+    log = reporter.log
 
-    tp = TableParser(config.config["Settings"]["tablerootdir"], config)
+    settings = SettingsConfig.from_config(config)
+    media_config = MediaConfig.from_config(config)
+
+    tp = TableParser(settings.table_root_dir, config)
     tp.loadTables(reload=True)
     tables = tp.getAllTables()
-
-    tabletype = config.config["Media"].get("tabletype", "table").lower()
 
     if tableName:
         tables = [table for table in tables if table.tableDirName == tableName]
@@ -191,16 +186,16 @@ def claim_user_media(tableName=None, progress_cb=None, log_cb=None, iniconfig: I
     total_claimed = 0
 
     if progress_cb:
-        progress_cb(0, total, "Starting")
+        reporter.progress(0, total, "Starting")
 
     for current, table in enumerate(tables, 1):
         log(f"Scanning {table.tableDirName}")
         if progress_cb:
-            progress_cb(current, total, f"Scanning {table.tableDirName}")
-        total_claimed += claim_media_for_table(table, tabletype, log)
+            reporter.progress(current, total, f"Scanning {table.tableDirName}")
+        total_claimed += claim_media_for_table(table, media_config.table_type, log)
 
     if progress_cb:
-        progress_cb(total, total, "Complete")
+        reporter.progress(total, total, "Complete")
 
     log(f"\nDone. Scanned {total} tables, claimed {total_claimed} media files as user-sourced.")
     return {"tables_processed": total, "media_claimed": total_claimed}

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import quote
 
+from common.media_paths import media_attr_key_map, media_filename_map
 from common.metaconfig import MetaConfig
 from common.table_repository import ensure_tables_loaded
 
@@ -39,28 +40,14 @@ MEDIA_TYPES = [
     ("dmd_video", "DMD Video", "dmd.mp4"),
     ("audio", "Audio", "audio.mp3"),
 ]
-MEDIA_KEY_TO_FILENAME = {key: filename for key, _, filename in MEDIA_TYPES}
+MEDIA_KEY_TO_FILENAME = media_filename_map("table")
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 IMAGE_MEDIA_KEYS = [
     key for key, _, filename in MEDIA_TYPES
     if Path(filename).suffix.lower() in IMAGE_EXTENSIONS
 ]
 
-TABLE_ATTR_TO_MEDIA_KEY = {
-    "BGImagePath": "bg",
-    "DMDImagePath": "dmd",
-    "TableImagePath": "table",
-    "FSSImagePath": "fss",
-    "WheelImagePath": "wheel",
-    "CabImagePath": "cab",
-    "realDMDImagePath": "realdmd",
-    "realDMDColorImagePath": "realdmd_color",
-    "FlyerImagePath": "flyer",
-    "TableVideoPath": "table_video",
-    "BGVideoPath": "bg_video",
-    "DMDVideoPath": "dmd_video",
-    "AudioPath": "audio",
-}
+TABLE_ATTR_TO_MEDIA_KEY = media_attr_key_map("table")
 
 
 def get_media_cache() -> Optional[List[Dict]]:
