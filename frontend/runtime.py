@@ -86,10 +86,13 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
 
 def build_mount_points(base_path: str, config_dir: Path, iniconfig):
     themes_dir = str(config_dir / "themes")
+    collection_icons_dir = str(config_dir / "collection_icons")
     os.makedirs(themes_dir, exist_ok=True)
+    os.makedirs(collection_icons_dir, exist_ok=True)
     mount_points = {
         "/web/": os.path.join(base_path, "web"),
         "/themes/": themes_dir,
+        "/collection_icons/": collection_icons_dir,
     }
     table_root = SettingsConfig.from_config(iniconfig).table_root_dir
     if table_root:

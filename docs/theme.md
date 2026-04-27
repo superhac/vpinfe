@@ -599,6 +599,8 @@ The following methods are available via `vpin.call()`:
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
 | `get_collections` | — | `array` | Returns list of collection names from `collections.ini`. |
+| `get_collections_metadata` | — | `array` | Returns collection objects with `name`, `type`, `is_filter`, `image`, `image_url`, and `table_count`. `image_url` is a theme-server URL such as `/collection_icons/favorites.png`, or an empty string when no image is set. |
+| `get_collection_image_url` | `collection` | `string` | Returns the image URL for one collection, or an empty string when no image is set. |
 | `set_tables_by_collection` | `collection` | — | Filters the table list by the named collection. Supports both VPS ID-based and filter-based collections. |
 | `save_filter_collection` | `name`, `letter`, `theme`, `table_type`, `manufacturer`, `year`, `sort_by` | `object` | Saves the current filter settings as a named collection. Returns `{success, message}`. |
 | `get_current_collection` | — | `string` | Returns the name of the currently active collection, or `"None"`. |

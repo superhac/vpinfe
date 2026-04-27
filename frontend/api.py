@@ -2,7 +2,7 @@ import logging
 import subprocess
 from common import system_actions
 from common.table_repository import ensure_tables_loaded
-from common.collections_service import get_collection_names
+from common.collections_service import get_collection_image_url, get_collection_names, get_collections_metadata
 from common.display_service import monitors_as_dicts
 from common.dof_service import (
     send_frontend_dof_event,
@@ -41,6 +41,8 @@ API_ALLOWED_METHODS = {
     'get_monitors',
     'get_tables',
     'get_collections',
+    'get_collections_metadata',
+    'get_collection_image_url',
     'set_tables_by_collection',
     'save_filter_collection',
     'get_current_filter_state',
@@ -173,6 +175,12 @@ class API:
 
     def get_collections(self):
         return get_collection_names()
+
+    def get_collections_metadata(self):
+        return get_collections_metadata()
+
+    def get_collection_image_url(self, collection):
+        return get_collection_image_url(collection)
 
     def set_tables_by_collection(self, collection):
         """Set filtered tables based on collection from collections.ini."""

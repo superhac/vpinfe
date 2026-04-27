@@ -104,6 +104,34 @@ class ManagerUiServiceTests(unittest.TestCase):
         self.assertEqual(options["manufacturers"], ["All", "Bally", "Williams"])
         self.assertEqual([row["id"] for row in search_tables("mars", rows)], ["a"])
 
+    def test_common_collections_metadata_includes_image_urls(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from unittest import mock
+        import common.collections_service as common_collections
+
+        with TemporaryDirectory() as temp_dir:
+            collections_ini = Path(temp_dir) / "collections.ini"
+            collections_ini.write_text(
+                "[Favorites]\n"
+                "type = vpsid\n"
+                "vpsids = a,b\n"
+                "image = favorites.png\n"
+                "\n"
+                "[Bally]\n"
+                "type = filter\n"
+                "manufacturer = Bally\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(common_collections, "COLLECTIONS_PATH", collections_ini):
+                metadata = common_collections.get_collections_metadata()
+
+        self.assertEqual(metadata[0]["name"], "Favorites")
+        self.assertEqual(metadata[0]["image_url"], "/collection_icons/favorites.png")
+        self.assertEqual(metadata[0]["table_count"], 2)
+        self.assertTrue(metadata[1]["is_filter"])
+        self.assertEqual(metadata[1]["image_url"], "")
+
     def test_media_service_url_and_cache_update(self):
         invalidate_media_cache()
         self.assertEqual(media_url("media_tables", "A B", "medias", "bg.png"), "/media_tables/A%20B/medias/bg.png")

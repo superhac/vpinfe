@@ -1,17 +1,63 @@
 from __future__ import annotations
 
+from pathlib import Path
+from urllib.parse import quote
+
 from common.paths import COLLECTIONS_PATH
 from common.tablelistfilters import TableListFilters
 from common.table_metadata import is_truthy
 from common.vpxcollections import VPXCollections
+
+COLLECTION_ICONS_DIR = COLLECTIONS_PATH.parent / "collection_icons"
+COLLECTION_IMAGE_KEY = "image"
 
 
 def get_collections_manager() -> VPXCollections:
     return VPXCollections(str(COLLECTIONS_PATH))
 
 
+def ensure_collection_icons_dir() -> Path:
+    COLLECTION_ICONS_DIR.mkdir(parents=True, exist_ok=True)
+    return COLLECTION_ICONS_DIR
+
+
 def get_collection_names() -> list[str]:
     return get_collections_manager().get_collections_name()
+
+
+def collection_icon_url(filename: str | None) -> str:
+    filename = Path(filename or "").name.strip()
+    if not filename:
+        return ""
+    return f"/collection_icons/{quote(filename)}"
+
+
+def get_collection_image(collection: str) -> str:
+    manager = get_collections_manager()
+    if collection not in manager.config:
+        return ""
+    return manager.config[collection].get(COLLECTION_IMAGE_KEY, "").strip()
+
+
+def get_collection_image_url(collection: str) -> str:
+    return collection_icon_url(get_collection_image(collection))
+
+
+def get_collections_metadata() -> list[dict]:
+    manager = get_collections_manager()
+    rows = []
+    for name in manager.get_collections_name():
+        is_filter = manager.is_filter_based(name)
+        image = manager.config[name].get(COLLECTION_IMAGE_KEY, "").strip()
+        rows.append({
+            "name": name,
+            "type": "filter" if is_filter else "vpsid",
+            "is_filter": is_filter,
+            "image": image,
+            "image_url": collection_icon_url(image),
+            "table_count": None if is_filter else len(manager.get_vpsids(name)),
+        })
+    return rows
 
 
 def filter_tables_by_collection(tables, collection: str):

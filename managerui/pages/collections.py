@@ -1,12 +1,13 @@
 import logging
 from typing import Dict, List
 
-from nicegui import ui, events, run
+from nicegui import ui, events, run, app
 from managerui.services import collections_service
 from managerui.services import table_index_service
 from managerui.ui_helpers import debounced_input, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.collections")
+_collection_icons_route_registered = False
 
 def get_collections_manager():
     """Get a fresh VPXCollections instance."""
@@ -29,7 +30,12 @@ def get_filter_options() -> Dict[str, List[str]]:
 
 
 def render_panel(tab=None):
+    global _collection_icons_route_registered
     load_page_style("collections.css")
+    if not _collection_icons_route_registered:
+        icon_dir = collections_service.ensure_collection_icons_dir()
+        app.add_media_files('/collection_icons', str(icon_dir))
+        _collection_icons_route_registered = True
 
     with ui.column().classes('w-full'):
         # Header card
@@ -46,6 +52,46 @@ def render_panel(tab=None):
 
         # Collections list container
         collections_container = ui.column().classes('w-full gap-3')
+
+        def create_image_picker(initial_image: str = "") -> dict:
+            """Create upload/select controls and return mutable state with selected filename."""
+            state = {'filename': initial_image or ''}
+            preview_container = ui.column().classes('mt-2')
+
+            def render_preview():
+                preview_container.clear()
+                with preview_container:
+                    if state['filename']:
+                        url = collections_service.collection_icon_url(state['filename'])
+                        with ui.row().classes('items-center gap-3'):
+                            ui.image(url).classes('collection-icon-preview')
+                            ui.label(state['filename']).classes('text-sm text-gray-300')
+                            ui.button(icon='close', on_click=clear_image).props('flat round dense color=negative').tooltip('Clear image')
+                    else:
+                        ui.label('No collection image set').classes('text-gray-500 text-sm')
+
+            def clear_image():
+                state['filename'] = ''
+                render_preview()
+
+            async def handle_upload(e: events.UploadEventArguments):
+                try:
+                    content = await e.file.read()
+                    filename = await run.io_bound(collections_service.save_collection_icon, e.file.name, content)
+                    state['filename'] = filename
+                    render_preview()
+                    ui.notify(f'Collection image uploaded: {filename}', type='positive')
+                except Exception as ex:
+                    ui.notify(f'Image upload failed: {ex}', type='negative')
+
+            ui.upload(
+                label='Upload Collection Image',
+                on_upload=handle_upload,
+                auto_upload=True,
+                max_files=1,
+            ).props('accept="image/*" flat bordered').classes('w-full').style('background: var(--bg); border: 1px dashed var(--line);')
+            render_preview()
+            return state
 
         def refresh_collections():
             """Refresh the collections list display."""
@@ -69,19 +115,38 @@ def render_panel(tab=None):
             with collections_container:
                 for name in collection_names:
                     is_filter = manager.is_filter_based(name)
+                    collection_image = collections_service.get_collection_image(name)
 
                     with ui.card().classes('collection-card w-full p-4'):
                         with ui.row().classes('w-full justify-between items-center'):
-                            with ui.row().classes('items-center gap-3'):
-                                ui.icon('filter_list' if is_filter else 'list', size='24px').classes(
-                                    'text-purple-400' if is_filter else 'text-cyan-400'
-                                )
-                                ui.label(name).classes('text-lg font-medium text-white')
-                                if is_filter:
-                                    ui.label('Filter').classes('filter-badge text-white')
+                            with ui.row().classes('items-center gap-3 min-w-0 flex-nowrap collection-card-heading'):
+                                icon_url = collections_service.collection_icon_url(collection_image)
+                                if icon_url:
+                                    with ui.element('div').classes('collection-list-icon-wrap flex-none'):
+                                        ui.element('img').props(
+                                            f'src="{icon_url}" alt="" '
+                                            'onmouseenter="const c=this.closest(\'.collection-card\');'
+                                            'if(c){c.style.position=\'relative\';c.style.zIndex=\'2147483000\';}'
+                                            'this.parentElement.style.zIndex=\'2147483001\';'
+                                            'this.style.transform=\'scale(3)\';this.style.zIndex=\'2147483002\';" '
+                                            'onmouseleave="const c=this.closest(\'.collection-card\');'
+                                            'if(c){c.style.zIndex=\'\';}'
+                                            'this.parentElement.style.zIndex=\'\';'
+                                            'this.style.transform=\'scale(1)\';this.style.zIndex=\'1\';"'
+                                        ).classes('collection-list-icon').style(
+                                            'width: 72px; height: 72px; max-width: 72px; max-height: 72px; display: block;'
+                                        )
                                 else:
-                                    vpsids = manager.get_vpsids(name)
-                                    ui.label(f'{len(vpsids)} Tables').classes('vpsid-badge text-white')
+                                    ui.icon('filter_list' if is_filter else 'list', size='24px').classes(
+                                        ('text-purple-400' if is_filter else 'text-cyan-400') + ' collection-list-fallback-icon flex-none'
+                                    )
+                                with ui.column().classes('gap-1 min-w-0'):
+                                    ui.label(name).classes('text-lg font-medium text-white collection-card-title')
+                                    if is_filter:
+                                        ui.label('Filter').classes('filter-badge text-white self-start')
+                                    else:
+                                        vpsids = manager.get_vpsids(name)
+                                        ui.label(f'{len(vpsids)}\u00a0Tables').classes('vpsid-badge text-white self-start')
 
                             with ui.row().classes('gap-2'):
                                 ui.button(icon='drive_file_rename_outline', on_click=lambda n=name: open_rename_dialog(n)).props('flat round color=white').tooltip('Rename')
@@ -207,6 +272,7 @@ def render_panel(tab=None):
                 ui.separator()
 
                 name_input = ui.input('Collection Name', placeholder='My Favorites').classes('w-full mt-4')
+                image_state = create_image_picker()
 
                 ui.label('Add tables to this collection:').classes('text-sm text-gray-400 mt-4')
 
@@ -279,7 +345,7 @@ def render_panel(tab=None):
                             return
                         try:
                             vpsids = [t['id'] for t in selected_tables['items']]
-                            collections_service.create_vpsid_collection(name, vpsids)
+                            collections_service.create_vpsid_collection(name, vpsids, image=image_state['filename'])
                             # Sync the tables cache with updated collection memberships
                             table_index_service.sync_collection_memberships(collections_service.get_vpsid_collections_map())
                             ui.notify(f'Collection "{name}" created', type='positive')
@@ -303,6 +369,7 @@ def render_panel(tab=None):
                 ui.separator()
 
                 name_input = ui.input('Collection Name', placeholder='80s Tables').classes('w-full mt-4')
+                image_state = create_image_picker()
 
                 ui.label('Filter Criteria:').classes('text-sm text-gray-400 mt-4 mb-2')
 
@@ -366,6 +433,7 @@ def render_panel(tab=None):
                                 rating=selected_rating,
                                 rating_or_higher=selected_rating_or_higher,
                                 sort_by=sort_input.value or 'Alpha',
+                                image=image_state['filename'],
                             )
                             ui.notify(f'Filter collection "{name}" created', type='positive')
                             dlg.close()
@@ -388,6 +456,7 @@ def render_panel(tab=None):
             """Dialog to edit a filter-based collection."""
             manager = get_collections_manager()
             filters = manager.get_filters(name)
+            image_state_value = collections_service.get_collection_image(name)
 
             # Get filter options from tables
             filter_opts = get_filter_options()
@@ -428,6 +497,7 @@ def render_panel(tab=None):
             with dlg, ui.card().classes('w-[550px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
                 ui.label(f'Edit Filter: {name}').classes('text-xl font-bold text-white')
                 ui.separator()
+                image_state = create_image_picker(image_state_value)
 
                 ui.label('Filter Criteria:').classes('text-sm text-gray-400 mt-4 mb-2')
 
@@ -490,6 +560,7 @@ def render_panel(tab=None):
                                 rating=selected_rating,
                                 rating_or_higher='true' if (selected_rating != 'All' and rating_or_higher_input.value) else 'false',
                                 sort_by=sort_input.value or 'Alpha',
+                                image=image_state['filename'],
                             )
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
@@ -505,11 +576,13 @@ def render_panel(tab=None):
             """Dialog to edit a VPS ID-based collection."""
             manager = get_collections_manager()
             current_vpsids = manager.get_vpsids(name)
+            image_state_value = collections_service.get_collection_image(name)
 
             dlg = ui.dialog().props('persistent max-width=800px')
             with dlg, ui.card().classes('w-[750px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
                 ui.label(f'Edit Collection: {name}').classes('text-xl font-bold text-white')
                 ui.separator()
+                image_state = create_image_picker(image_state_value)
 
                 # Track current tables in collection
                 selected_tables = {'items': []}
@@ -586,7 +659,7 @@ def render_panel(tab=None):
                     def save_changes():
                         try:
                             vpsids = [t['id'] for t in selected_tables['items']]
-                            collections_service.update_vpsid_collection(name, vpsids)
+                            collections_service.update_vpsid_collection(name, vpsids, image=image_state['filename'])
                             # Sync the tables cache with updated collection memberships
                             table_index_service.sync_collection_memberships(collections_service.get_vpsid_collections_map())
                             ui.notify(f'Collection "{name}" updated', type='positive')
