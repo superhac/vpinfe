@@ -50,6 +50,8 @@ class TestIniConfig(unittest.TestCase):
 
             self.assertTrue(config.config.has_section("Input"))
             self.assertEqual(config.config.get("Input", "keyleft"), "ArrowLeft,ShiftLeft")
+            self.assertEqual(config.config.get("Input", "keypageup"), "PageUp")
+            self.assertEqual(config.config.get("Input", "keypagedown"), "PageDown")
             self.assertEqual(config.config.get("Input", "keyback"), "b")
             self.assertEqual(config.config.get("Input", "keyexit"), "Escape,q")
 
