@@ -7,10 +7,65 @@ import sys
 import time
 
 from common import table_play_service
-from common.config_access import SettingsConfig
+from common.config_access import SettingsConfig, VPinPlayConfig
+from common.vpinplay_runtime import (
+    add_table_runtime,
+    get_active_profile,
+    get_table_user_state,
+    record_table_start,
+    set_table_score,
+)
+from common.vpinplay_service import sync_single_table_meta
 
 
 logger = logging.getLogger("vpinfe.frontend.launch_service")
+
+
+def _submit_alternate_vpinplay_result(api, table, elapsed_seconds: float, profile) -> None:
+    if profile is None:
+        return
+
+    table_key = str(table.fullPathTable or table.tableDirName or "")
+    if not table_key:
+        logger.warning("Skipping alternate VPinPlay submission: missing table key")
+        return
+
+    add_table_runtime(table_key, elapsed_seconds, profile.profile_key)
+    score_data, score_path = table_play_service.parse_score_from_nvram(table)
+    if score_data:
+        set_table_score(table_key, score_data, profile.profile_key)
+        logger.info("Captured alternate User.Score for %s from %s", table.tableDirName, score_path)
+
+    table_meta = table_play_service.build_runtime_submission_meta(
+        table,
+        get_table_user_state(table_key, profile.profile_key),
+    )
+    if not table_meta:
+        return
+
+    vpinplay = VPinPlayConfig.from_config(api._iniConfig)
+    if not vpinplay.api_endpoint:
+        logger.warning("Skipping alternate VPinPlay submission: API endpoint is not configured.")
+        return
+
+    try:
+        result = sync_single_table_meta(
+            service_ip=vpinplay.api_endpoint,
+            user_id=profile.user_id,
+            initials=profile.initials,
+            machine_id=profile.machine_id,
+            table_meta=table_meta,
+        )
+        logger.info(
+            "Alternate VPinPlay submit complete for %s: status=%s ok=%s",
+            table.tableDirName,
+            result.get("status_code"),
+            result.get("ok"),
+        )
+        if not result.get("ok"):
+            logger.warning("Alternate VPinPlay submit failed response: %s", result.get("response_body"))
+    except Exception:
+        logger.exception("Alternate VPinPlay submit failed for %s", table.tableDirName)
 
 
 def launch_table(
@@ -44,6 +99,7 @@ def launch_table(
     stop_dof_service()
     stop_libdmdutil_service(clear=False)
     launch_started_at = None
+    launch_profile = None
     try:
         global_ini_override = settings.global_ini_override
         tableini_override = resolve_launch_tableini_override(
@@ -70,7 +126,11 @@ def launch_table(
             env=launch_env,
         )
         launch_started_at = time.time()
-        table_play_service.increment_start_count(table)
+        launch_profile = get_active_profile()
+        if launch_profile is not None:
+            record_table_start(str(table.fullPathTable or table.tableDirName or ""))
+        else:
+            table_play_service.increment_start_count(table)
 
         startup_detected = False
         for line in process.stdout:
@@ -85,8 +145,11 @@ def launch_table(
 
     if launch_started_at is not None:
         elapsed_seconds = max(0.0, time.time() - launch_started_at)
-        table_play_service.add_runtime_minutes(table, elapsed_seconds)
-        table_play_service.update_score_from_nvram(table)
+        if launch_profile is not None:
+            _submit_alternate_vpinplay_result(api, table, elapsed_seconds, launch_profile)
+        else:
+            table_play_service.add_runtime_minutes(table, elapsed_seconds)
+            table_play_service.update_score_from_nvram(table)
 
     if sys.platform == "darwin" and api.frontend_browser:
         api.frontend_browser.activate_all_mac()

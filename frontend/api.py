@@ -20,6 +20,11 @@ from common.launcher import (
     resolve_launch_tableini_override,
 )
 from common.table_metadata import normalize_meta
+from common.vpinplay_runtime import (
+    activate_alternate_profile,
+    clear_alternate_profile,
+    get_alternate_profile_state,
+)
 from frontend import config_api, input_api, launch_service, metadata_build_service, realdmd_service, table_state, theme_api
 
 
@@ -69,6 +74,9 @@ API_ALLOWED_METHODS = {
     'get_theme_config',
     'get_theme_name',
     'get_vpinplay_endpoint',
+    'get_temporary_vpinplay_profile',
+    'set_temporary_vpinplay_profile',
+    'clear_temporary_vpinplay_profile',
     'get_table_orientation',
     'get_table_rotation',
     'get_splashscreen_enabled',
@@ -393,6 +401,25 @@ class API:
 
     def get_vpinplay_endpoint(self):
         return config_api.get_vpinplay_endpoint(self._iniConfig.config)
+
+    def get_temporary_vpinplay_profile(self):
+        return get_alternate_profile_state()
+
+    def set_temporary_vpinplay_profile(self, payload, source_name=""):
+        result = activate_alternate_profile(payload, source_name=source_name)
+        self.send_event_all_windows_incself({
+            "type": "VPinPlayAlternateProfileChanged",
+            "profile": result,
+        })
+        return result
+
+    def clear_temporary_vpinplay_profile(self):
+        result = clear_alternate_profile()
+        self.send_event_all_windows_incself({
+            "type": "VPinPlayAlternateProfileChanged",
+            "profile": result,
+        })
+        return result
 
     def get_table_orientation(self):
         return config_api.get_table_orientation(self._iniConfig.config)

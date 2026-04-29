@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import shlex
+from html import escape
 from io import BytesIO
 from urllib.parse import quote
 
@@ -70,6 +71,27 @@ def _build_qr_svg(value: str) -> str:
                 f"{svg[svg_tag_end + 1:]}"
             )
     return svg
+
+
+def _embed_payload_in_svg(svg: str, payload: str) -> str:
+    svg_tag_start = svg.find("<svg")
+    if svg_tag_start == -1:
+        return svg
+
+    svg_tag_end = svg.find(">", svg_tag_start)
+    if svg_tag_end == -1:
+        return svg
+
+    escaped_payload = escape(payload)
+    comment_payload = payload.replace("--", r"\u002d\u002d")
+    embedded = (
+        f"{svg[:svg_tag_end + 1]}"
+        f"<!--VPINPLAY_PAYLOAD:{comment_payload}-->"
+        f'<metadata id="vpinplay-payload" data-type="application/json">{escaped_payload}</metadata>'
+        f'<desc id="vpinplay-payload-desc">{escaped_payload}</desc>'
+        f"{svg[svg_tag_end + 1:]}"
+    )
+    return embedded
 
 
 def _build_qr_filename(user_id: str) -> str:
@@ -150,7 +172,7 @@ def render_panel():
             return
 
         payload = _build_vpinplay_qr_payload(user_id, initials, machine_id)
-        svg = _build_qr_svg(payload)
+        svg = _embed_payload_in_svg(_build_qr_svg(payload), payload)
         if not svg:
             ui.notify("Unable to generate QR code.", type="negative")
             return

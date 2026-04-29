@@ -11,6 +11,7 @@ from .pages import themes as tab_themes
 from .pages import system as tab_system
 from .pages import mobile as tab_mobile
 from .pages import vpinplay as tab_vpinplay
+from .pages import vpinplay_player as tab_vpinplay_player
 from .pages import logs as tab_logs
 from .page_registry import NAV_PAGES, PAGE_ALIASES
 from .services import app_control
@@ -115,6 +116,7 @@ _PAGE_RENDERERS = {
     'logs': tab_logs.render_panel,
     'vpinfe': tab_vpinfe.render_panel,
     'vpinplay': tab_vpinplay.render_panel,
+    'vpinplay_player': tab_vpinplay_player.render_panel,
     'vpx_config': tab_vpx_config.render_panel,
 }
 
@@ -288,8 +290,9 @@ def build_app():
 
     current_page = {'value': None}
 
-    def show_page(page_key: str):
-        app.storage.user['active_page'] = page_key
+    def show_page(page_key: str, *, persist: bool = True):
+        if persist:
+            app.storage.user['active_page'] = page_key
 
         for key, button in nav_buttons.items():
             if key == page_key:
@@ -321,7 +324,7 @@ def build_app():
         initial_page = page_param
     else:
         initial_page = app.storage.user.get('active_page', 'tables')
-    show_page(initial_page)
+    show_page(initial_page, persist=not bool(page_param))
 
     # Show dialog if requested via URL param, or first-run dialog
     dialog_param = app.storage.user.get('_dialog_param')

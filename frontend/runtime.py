@@ -13,6 +13,7 @@ from frontend.ws_bridge import WebSocketBridge
 from common import system_actions
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
 from common.display_service import get_display_monitors
+from common.vpinplay_runtime import clear_alternate_profile
 
 
 WINDOW_CONFIGS = (
@@ -164,6 +165,7 @@ def shutdown_services(logger, *, vpinplay_sync, iniconfig, ws_bridge, stop_dof, 
     logger.info("Shutting down services...")
     for label, action in (
         ("vpinplay_sync_on_shutdown", lambda: vpinplay_sync(iniconfig)),
+        ("clear_alternate_vpinplay_profile", clear_alternate_profile),
         ("ws_bridge.stop", ws_bridge.stop),
         ("stop_dof_service", stop_dof),
         ("stop_libdmdutil_service", lambda: stop_dmd(clear=False)),

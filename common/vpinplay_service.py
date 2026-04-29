@@ -51,6 +51,10 @@ def _normalize_service_endpoint(service_ip: str) -> str:
     return f"{base}/api/v1/sync"
 
 
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
 def _build_table_payload(meta: dict) -> dict | None:
     info = meta.get("Info", {}) if isinstance(meta.get("Info"), dict) else {}
     user = meta.get("User", {}) if isinstance(meta.get("User"), dict) else {}
@@ -100,6 +104,41 @@ def _build_table_payload(meta: dict) -> dict | None:
     }
 
 
+def _build_sync_payload(user_id: str, initials: str, machine_id: str, tables: list[dict]) -> dict:
+    return {
+        "source": {
+            "program": "VPinFE",
+            "programVersion": get_version(),
+        },
+        "client": {
+            "userId": user_id,
+            "initials": initials,
+            "machineId": machine_id,
+        },
+        "sentAt": _utc_now_iso(),
+        "tables": tables,
+    }
+
+
+def _post_sync_payload(endpoint: str, payload: dict, timeout_seconds: int) -> dict:
+    response = requests.post(endpoint, json=payload, timeout=timeout_seconds)
+    response_body = response.text
+    try:
+        response_json = response.json()
+        response_body = json.dumps(response_json, indent=2)
+    except Exception:
+        response_json = None
+
+    return {
+        "endpoint": endpoint,
+        "status_code": response.status_code,
+        "ok": response.ok,
+        "response_body": response_body,
+        "response_json": response_json,
+        "payload": payload,
+    }
+
+
 def sync_installed_tables(
     service_ip: str,
     user_id: str,
@@ -141,19 +180,7 @@ def sync_installed_tables(
             continue
         payload_tables.append(table_payload)
 
-    payload = {
-        "source": {
-            "program": "VPinFE",
-            "programVersion": get_version(),
-        },
-        "client": {
-            "userId": user_id,
-            "initials": initials,
-            "machineId": machine_id,
-        },
-        "sentAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
-        "tables": payload_tables,
-    }
+    payload = _build_sync_payload(user_id, initials, machine_id, payload_tables)
 
     logger.info(
         "Syncing %s table(s) to %s for user=%s (skipped=%s)",
@@ -163,23 +190,50 @@ def sync_installed_tables(
         skipped,
     )
 
-    response = requests.post(endpoint, json=payload, timeout=timeout_seconds)
-    response_body = response.text
-    try:
-        response_json = response.json()
-        response_body = json.dumps(response_json, indent=2)
-    except Exception:
-        response_json = None
+    post_result = _post_sync_payload(endpoint, payload, timeout_seconds)
 
     return {
-        "endpoint": endpoint,
         "tables_scanned": len(tables),
         "tables_sent": len(payload_tables),
         "tables_skipped": skipped,
-        "status_code": response.status_code,
-        "ok": response.ok,
-        "response_body": response_body,
-        "response_json": response_json,
+        **post_result,
+    }
+
+
+def sync_single_table_meta(
+    service_ip: str,
+    user_id: str,
+    initials: str,
+    machine_id: str,
+    table_meta: dict,
+    timeout_seconds: int = 30,
+) -> dict:
+    endpoint = _normalize_service_endpoint(service_ip)
+    user_id = str(user_id or "").strip()
+    initials = str(initials or "").strip()
+    machine_id = str(machine_id or "").strip()
+
+    if not user_id:
+        raise ValueError("User ID is required.")
+    if not initials:
+        raise ValueError("Initials is required.")
+    if not machine_id:
+        raise ValueError("Machine ID is required.")
+    if not isinstance(table_meta, dict):
+        raise ValueError("Table metadata is required.")
+
+    table_payload = _build_table_payload(table_meta)
+    if table_payload is None:
+        raise ValueError("Table metadata is missing VPSId.")
+
+    payload = _build_sync_payload(user_id, initials, machine_id, [table_payload])
+    logger.info("Syncing alternate VPinPlay payload for user=%s to %s", user_id, endpoint)
+    result = _post_sync_payload(endpoint, payload, timeout_seconds)
+    return {
+        "tables_scanned": 1,
+        "tables_sent": 1,
+        "tables_skipped": 0,
+        **result,
     }
 
 

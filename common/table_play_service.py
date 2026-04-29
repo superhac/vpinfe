@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from copy import deepcopy
 from pathlib import Path
 
 from common.collections_service import get_collections_manager
@@ -38,27 +39,48 @@ def track_table_play(table, collection_name: str = "Last Played", max_items: int
 
 
 def increment_start_count(table) -> None:
-    config = normalize_meta(getattr(table, "metaConfig", {}))
-    if not isinstance(config, dict):
+    config = clone_table_meta(table)
+    if not config:
         logger.warning("Could not increment StartCount: invalid table metadata for %s", table.tableDirName)
         return
 
-    user = get_or_create_user_meta(config)
-    try:
-        user["StartCount"] = int(user.get("StartCount", 0)) + 1
-    except (TypeError, ValueError):
-        user["StartCount"] = 1
-    user["LastRun"] = int(time.time())
+    user = apply_start_count_update(config)
     persist_table_meta(table, config)
     logger.info("Updated User.StartCount for %s -> %s", table.tableDirName, user["StartCount"])
 
 
 def add_runtime_minutes(table, elapsed_seconds: float) -> None:
-    config = normalize_meta(getattr(table, "metaConfig", {}))
-    if not isinstance(config, dict):
+    config = clone_table_meta(table)
+    if not config:
         logger.warning("Could not update RunTime: invalid table metadata for %s", table.tableDirName)
         return
 
+    user = apply_runtime_update(config, elapsed_seconds)
+    persist_table_meta(table, config)
+    logger.info(
+        "Updated User.RunTime for %s: +%s min (total=%s)",
+        table.tableDirName,
+        int((elapsed_seconds + 59) // 60),
+        user["RunTime"],
+    )
+
+
+def clone_table_meta(table) -> dict:
+    config = normalize_meta(getattr(table, "metaConfig", {}))
+    return deepcopy(config) if isinstance(config, dict) else {}
+
+
+def apply_start_count_update(config: dict, played_at: int | None = None) -> dict:
+    user = get_or_create_user_meta(config)
+    try:
+        user["StartCount"] = int(user.get("StartCount", 0)) + 1
+    except (TypeError, ValueError):
+        user["StartCount"] = 1
+    user["LastRun"] = int(played_at or time.time())
+    return user
+
+
+def apply_runtime_update(config: dict, elapsed_seconds: float) -> dict:
     session_minutes = int((elapsed_seconds + 59) // 60)
     user = get_or_create_user_meta(config)
     try:
@@ -66,25 +88,19 @@ def add_runtime_minutes(table, elapsed_seconds: float) -> None:
     except (TypeError, ValueError):
         prior_runtime = 0
     user["RunTime"] = prior_runtime + session_minutes
-    persist_table_meta(table, config)
-    logger.info(
-        "Updated User.RunTime for %s: +%s min (total=%s)",
-        table.tableDirName,
-        session_minutes,
-        user["RunTime"],
-    )
+    return user
 
 
-def update_score_from_nvram(table) -> None:
-    config = normalize_meta(getattr(table, "metaConfig", {}))
-    if not isinstance(config, dict):
-        logger.warning("Could not update Score: invalid table metadata for %s", table.tableDirName)
-        return
+def parse_score_from_nvram(table) -> tuple[dict | None, str | None]:
+    config = clone_table_meta(table)
+    if not config:
+        logger.warning("Could not parse Score: invalid table metadata for %s", table.tableDirName)
+        return None, None
 
     rom = str(section(config, "Info").get("Rom", "") or "").strip()
     if not rom:
         logger.debug("No ROM name found for %s, skipping score update", table.tableDirName)
-        return
+        return None, None
 
     try:
         from common.score_parser import read_rom_with_source, result_to_jsonable
@@ -93,20 +109,62 @@ def update_score_from_nvram(table) -> None:
         score_data = result_to_jsonable(rom, parsed_result, score_path)
     except FileNotFoundError:
         logger.debug("No score source found for %s and ROM %s", table.tableDirName, rom)
-        return
+        return None, None
     except KeyError:
         logger.debug("ROM %s is not supported for score parsing", rom)
-        return
+        return None, None
     except Exception:
         logger.exception("Failed to parse score data for %s", table.tableDirName)
-        return
+        return None, None
 
     if not score_data:
         logger.debug("Parsed score data for %s was empty, skipping metadata update", table.tableDirName)
-        return
+        return None, None
 
+    return score_data, score_path
+
+
+def apply_score_update(config: dict, score_data: dict) -> dict:
     user = get_or_create_user_meta(config)
     user["Score"] = score_data
+    return user
+
+
+def build_runtime_submission_meta(table, user_state: dict) -> dict:
+    config = clone_table_meta(table)
+    if not config:
+        logger.warning("Could not build runtime submission metadata for %s", table.tableDirName)
+        return {}
+
+    user = get_or_create_user_meta(config)
+    user.clear()
+    user.update(
+        {
+            "Rating": 0,
+            "Favorite": 0,
+            "LastRun": user_state.get("LastRun"),
+            "StartCount": user_state.get("StartCount", 0),
+            "RunTime": user_state.get("RunTime", 0),
+            "Tags": [],
+            "FrontendDOFEvent": "",
+        }
+    )
+    if user_state.get("Score") is not None:
+        user["Score"] = user_state.get("Score")
+    return config
+
+
+def update_score_from_nvram(table) -> None:
+    config = clone_table_meta(table)
+    if not config:
+        logger.warning("Could not update Score: invalid table metadata for %s", table.tableDirName)
+        return
+
+    score_data, score_path = parse_score_from_nvram(table)
+    if not score_data:
+        return
+
+    apply_score_update(config, score_data)
     persist_table_meta(table, config)
     logger.info("Updated User.Score for %s from %s", table.tableDirName, score_path)
 
