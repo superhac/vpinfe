@@ -1,14 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.0.2
+This is the offical release of vpinfe v2.0.3
 
 ### What's New
-- Misc managerui layout changes.
-- VPinPLay now its own config page. 
+- More managerUI clearing.  Logs now on its own page.  added vpx logs
 
 ### Fixes
-- Fix vpx_config "Restore" import bug.
-- Remove underlining from vpx config section selection
+None
 
 ### Notes

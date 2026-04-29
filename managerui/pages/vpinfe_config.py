@@ -1,7 +1,6 @@
 import os
 import io
 import contextlib
-import html
 import logging
 import re
 import runpy
@@ -248,33 +247,6 @@ def _run_ledcontrol_pull(script_path: Path, api_key: str, force: bool) -> tuple[
         output += stderr_output
     return exit_code, output.strip() or '(no output)', command
 
-
-def show_log_file_dialog() -> None:
-    log_path = CONFIG_DIR / 'vpinfe.log'
-    try:
-        content = log_path.read_text(encoding='utf-8')
-    except FileNotFoundError:
-        content = '(log file not found)'
-    except Exception as exc:
-        content = f'Failed to read log file: {exc}'
-    escaped_content = html.escape(content)
-
-    with ui.dialog().props('persistent max-width=1100px') as dlg, ui.card().classes('w-full').style(
-        'background: var(--surface); border: 1px solid var(--line); min-width: min(92vw, 1000px); height: 82vh;'
-    ):
-        with ui.column().classes('w-full h-full gap-3'):
-            ui.label('VPinFE Log').classes('text-xl font-bold').style('color: var(--ink) !important;')
-            ui.label(str(log_path)).classes('text-xs break-all').style('color: var(--ink-muted) !important;')
-            with ui.scroll_area().classes('w-full').style(
-                'flex: 1 1 auto; min-height: 0; border: 1px solid var(--neon-purple); border-radius: 8px; background: var(--surface);'
-            ):
-                ui.html(
-                    f'<pre style="margin:0; padding:12px; white-space:pre-wrap; word-break:break-word; '
-                    f'font-family:monospace; font-size:12px; color:var(--ink);">{escaped_content}</pre>'
-                ).classes('w-full')
-        with ui.row().classes('w-full justify-end mt-2'):
-            ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
-    dlg.open()
 
 def render_panel(tab=None):
     # Re-read config from disk each time the page is opened
@@ -987,19 +959,5 @@ def render_panel(tab=None):
                                         icon='stop',
                                         on_click=run_dof_test_event_stop,
                                     ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
-
-                        if section == 'Logger':
-                            with ui.card().classes('config-side-card w-full mt-4 p-4'):
-                                ui.label('Log File').classes('text-lg font-semibold').style('color: var(--ink) !important;')
-                                ui.label(
-                                    f'VPinFE always writes logs to {CONFIG_DIR / "vpinfe.log"}. '
-                                    'Each app launch starts a fresh log file.'
-                                ).classes('text-sm').style('color: var(--ink-muted) !important;')
-                                ui.button(
-                                    'View Log',
-                                    icon='article',
-                                    on_click=show_log_file_dialog,
-                                ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
-
         with ui.element('div').classes('w-full config-footer-bar'):
             ui.button('Save Changes', icon='save', on_click=save_config).classes('px-6 py-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')

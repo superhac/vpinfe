@@ -294,7 +294,7 @@ def render_panel(tab=None):
                     # Filters not yet created, just show all rows
                     table._props['rows'] = table_rows
                     table.update()
-                    title_label.set_text(f"Installed Tables ({len(table_rows)})")
+                    title_label.set_text(f"Tables ({len(table_rows)})")
 
                 # Force browser layout recalculation to ensure table rows display properly
                 await asyncio.sleep(0.05)
@@ -481,13 +481,13 @@ def render_panel(tab=None):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
                 ui.label('Tables Management').classes('text-2xl font-bold').style('color: var(--ink);').style('flex-shrink: 0;')
                 with ui.row().classes('gap-3 items-center flex-wrap'):
-                    scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).style('color: var(--ink) !important; background: var(--neon-purple) !important; border-radius: 18px;')
-                    patch_btn = ui.button("Apply Patches", icon="construction").props("color=secondary rounded")
+                    scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).style('color: var(--ink) !important; background: var(--neon-purple) !important; border-radius: 0;')
+                    patch_btn = ui.button("Apply Patches", icon="construction").props("color=secondary").style('border-radius: 0;')
                     # Start with green if no cached missing, will update after scan
                     cached_missing = _missing_cache()
                     initial_missing_count = len(cached_missing) if cached_missing else 0
                     initial_color = "positive" if initial_missing_count == 0 else "negative"
-                    missing_button = ui.button("Unmatched", icon="warning").props(f"color={initial_color} rounded")
+                    missing_button = ui.button("Unmatched", icon="warning").props(f"color={initial_color}").style('border-radius: 0;')
 
                     def open_patch_dialog():
                         """Show dialog for applying VPX patches with progress display."""
@@ -593,7 +593,7 @@ def render_panel(tab=None):
 
                     patch_btn.on_click(open_patch_dialog)
 
-                    import_btn = ui.button("Import Table", icon="upload").props("color=accent rounded")
+                    import_btn = ui.button("Import Table", icon="upload").props("color=accent").style('border-radius: 0;')
 
                     import_btn.on_click(lambda: open_import_table_dialog(perform_scan))
 
@@ -636,9 +636,9 @@ def render_panel(tab=None):
             total = len(_tables_cache() or [])
             shown = len(filtered)
             if shown == total:
-                title_label.set_text(f"Installed Tables ({total})")
+                title_label.set_text(f"Tables ({total})")
             else:
-                title_label.set_text(f"Installed Tables ({shown} of {total})")
+                title_label.set_text(f"Tables ({shown} of {total})")
 
         def on_search_change(e: events.ValueChangeEventArguments):
             filter_state['search'] = e.value or ''
@@ -692,11 +692,9 @@ def render_panel(tab=None):
             theme_select.update()
             table_type_select.update()
 
-        # Table title - centered above the filters
-        title_label = ui.label("Installed Tables").classes('text-xl font-semibold text-center w-full py-2')
-
         # --- Search and Filter UI ---
         with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: var(--surface); border: 1px solid var(--line);'):
+            ui.label('Filtering').classes('text-lg font-semibold px-4 pt-4').style('color: var(--ink);')
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
                 # Search input
                 search_input = debounced_input(ui.input(placeholder='Search tables...')).props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
@@ -739,6 +737,9 @@ def render_panel(tab=None):
 
                 # Clear filters button
                 ui.button(icon='clear_all', on_click=clear_filters).props('flat round').tooltip('Clear all filters')
+
+        # Table title - centered below the filters
+        title_label = ui.label("Tables").classes('text-xl font-semibold text-center w-full py-2')
 
         # Batch action bar for adding multiple tables to a collection at once
         batch_bar = ui.card().classes('w-full mb-2').style(
@@ -821,6 +822,13 @@ def render_panel(tab=None):
                                @click.stop
                                style="text-decoration: none;">
                                 <q-badge color="blue-8" text-color="white" label="VPS" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
+                            </a>
+                            <a v-if="props.row.vpsid"
+                               :href="'https://www.vpinplay.com/tables?vpsid=' + encodeURIComponent(props.row.vpsid)"
+                               target="_blank"
+                               @click.stop
+                               style="text-decoration: none;">
+                                <q-badge color="purple-8" text-color="white" label="VPinPlay" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
                             </a>
                             <a v-if="props.row.pinball_primer_tut"
                                :href="props.row.pinball_primer_tut"
