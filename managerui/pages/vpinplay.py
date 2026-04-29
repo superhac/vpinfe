@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import logging
 import shlex
+from io import BytesIO
 from urllib.parse import quote
 
 from nicegui import run, ui
@@ -28,6 +30,53 @@ def _build_vpinplay_user_url(user_id: str) -> str:
     return f"{VPINPLAY_BASE_URL}players.html?userid={quote(uid)}"
 
 
+def _build_vpinplay_qr_payload(user_id: str, initials: str, machine_id: str) -> str:
+    payload = {
+        "type": "vpinplay_identity",
+        "version": 1,
+        "userId": (user_id or "").strip(),
+        "initials": (initials or "").strip().upper(),
+        "machineId": (machine_id or "").strip(),
+    }
+    return json.dumps(payload, separators=(",", ":"), sort_keys=True)
+
+
+def _build_qr_svg(value: str) -> str:
+    try:
+        import qrcode
+        from qrcode.image.svg import SvgPathImage
+    except Exception:
+        return ""
+
+    stream = BytesIO()
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=8,
+        border=2,
+    )
+    qr.add_data(value)
+    qr.make(fit=True)
+    image = qr.make_image(image_factory=SvgPathImage)
+    image.save(stream)
+    svg = stream.getvalue().decode("utf-8")
+    svg_tag_start = svg.find("<svg")
+    if svg_tag_start != -1 and "<rect" not in svg:
+        svg_tag_end = svg.find(">", svg_tag_start)
+        if svg_tag_end != -1:
+            svg = (
+                f"{svg[:svg_tag_end + 1]}"
+                '<rect width="100%" height="100%" fill="white"/>'
+                f"{svg[svg_tag_end + 1:]}"
+            )
+    return svg
+
+
+def _build_qr_filename(user_id: str) -> str:
+    safe_user_id = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in (user_id or "").strip()) or "user"
+    return f"vpinplay-{safe_user_id}.svg"
+
+
 def render_panel():
     config = IniConfig(str(INI_PATH))
     load_page_style("vpinfe_config.css")
@@ -38,6 +87,8 @@ def render_panel():
     inputs = {SECTION: {}}
     sync_vpinplay_button = None
     vpinplay_user_link = None
+    qr_preview = None
+    qr_download_button = None
 
     def _input_value(key: str, fallback: str = "") -> str:
         return str(
@@ -58,6 +109,53 @@ def render_panel():
             sync_vpinplay_button.enable()
         else:
             sync_vpinplay_button.disable()
+
+    def update_vpinplay_qr():
+        if qr_preview is None or qr_download_button is None:
+            return
+
+        user_id = _input_value("userid")
+        initials = _input_value("initials")
+        machine_id = _input_value("machineid")
+
+        if not user_id or not initials or not machine_id:
+            qr_preview.set_content(
+                '<div class="config-vpinplay-qr-empty">'
+                'Enter a User ID and Initials to generate your cabinet QR code.'
+                '</div>'
+            )
+            qr_download_button.disable()
+            return
+
+        payload = _build_vpinplay_qr_payload(user_id, initials, machine_id)
+        svg = _build_qr_svg(payload)
+        if not svg:
+            qr_preview.set_content(
+                '<div class="config-vpinplay-qr-empty">'
+                'Unable to generate QR code. Check the Python qrcode installation.'
+                '</div>'
+            )
+            qr_download_button.disable()
+            return
+
+        qr_preview.set_content(svg)
+        qr_download_button.enable()
+
+    def download_vpinplay_qr():
+        user_id = _input_value("userid")
+        initials = _input_value("initials")
+        machine_id = _input_value("machineid")
+        if not user_id or not initials or not machine_id:
+            ui.notify("User ID, Initials, and Machine ID are required.", type="warning")
+            return
+
+        payload = _build_vpinplay_qr_payload(user_id, initials, machine_id)
+        svg = _build_qr_svg(payload)
+        if not svg:
+            ui.notify("Unable to generate QR code.", type="negative")
+            return
+
+        ui.download(svg.encode("utf-8"), _build_qr_filename(user_id))
 
     def build_config_input(key: str, value: str):
         friendly_label = get_friendly_name(key)
@@ -81,13 +179,16 @@ def render_panel():
                         if inp.value != normalized:
                             inp.value = normalized
                         update_vpinplay_sync_button_state()
+                        update_vpinplay_qr()
 
                     inp.on("input", on_initials_change)
                     inp.on_value_change(on_initials_change)
 
             inputs[SECTION][key] = inp
             if key == "userid":
-                inp.on_value_change(lambda _: (update_vpinplay_user_link(), update_vpinplay_sync_button_state()))
+                inp.on_value_change(
+                    lambda _: (update_vpinplay_user_link(), update_vpinplay_sync_button_state(), update_vpinplay_qr())
+                )
 
     def save_config():
         for key, inp in inputs[SECTION].items():
@@ -252,6 +353,21 @@ def render_panel():
                                 "border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;"
                             )
                             update_vpinplay_sync_button_state()
+
+                        with ui.card().classes("config-side-card w-full p-4"):
+                            ui.label("My QR Code").classes("text-lg font-semibold").style(
+                                "color: var(--ink) !important;"
+                            )
+                            qr_preview = ui.html("").classes("config-vpinplay-qr-preview mt-3")
+                            qr_download_button = ui.button(
+                                "Download QR Code",
+                                icon="download",
+                                on_click=download_vpinplay_qr,
+                            ).classes("mt-3").style(
+                                "color: var(--neon-purple) !important; background: var(--surface) !important; "
+                                "border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;"
+                            )
+                            update_vpinplay_qr()
 
         with ui.element("div").classes("w-full config-footer-bar"):
             ui.button("Save Changes", icon="save", on_click=save_config).classes("px-6 py-3").style(
