@@ -506,6 +506,84 @@ Events are sent between windows via `receiveEvent()`. These are the built-in eve
 
 You can also define custom event types and send them with `vpin.sendMessageToAllWindows()`.
 
+### Loading Overlay During Table Launch
+
+Themes can show a loading image or animation while VPX is starting. Use the built-in launch lifecycle instead of guessing with timers:
+
+- show the overlay on `TableLaunching`
+- hide it on `TableRunning`
+- also hide it on `TableLaunchComplete` as a cleanup fallback
+
+Add the overlay markup to every theme page that should show it (`index_table.html`, `index_bg.html`, and/or `index_dmd.html`):
+
+```html
+<div id="table-loading-overlay" aria-hidden="true">
+  <img src="img/loading.gif" alt="" class="table-loading-spinner">
+</div>
+```
+
+Keep the overlay transparent if you want the normal screen fade to remain visible underneath:
+
+```css
+#table-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+#table-loading-overlay.is-visible {
+  opacity: 1;
+}
+
+.table-loading-spinner {
+  width: min(34vw, 34vh, 500px);
+  height: min(34vw, 34vh, 500px);
+  object-fit: contain;
+}
+```
+
+Then drive it from `receiveEvent(message)`:
+
+```js
+function showTableLoadingOverlay() {
+  const overlay = document.getElementById("table-loading-overlay");
+  if (!overlay) return;
+
+  overlay.classList.add("is-visible");
+  overlay.setAttribute("aria-hidden", "false");
+}
+
+function hideTableLoadingOverlay() {
+  const overlay = document.getElementById("table-loading-overlay");
+  if (!overlay) return;
+
+  overlay.classList.remove("is-visible");
+  overlay.setAttribute("aria-hidden", "true");
+}
+
+async function receiveEvent(message) {
+  await vpin.handleEvent(message);
+
+  if (message.type === "TableLaunching") {
+    showTableLoadingOverlay();
+    await fadeOut();
+  } else if (message.type === "TableRunning") {
+    hideTableLoadingOverlay();
+  } else if (message.type === "TableLaunchComplete") {
+    hideTableLoadingOverlay();
+    fadeIn();
+  }
+}
+```
+
+If the table window launches the table from local input, remember that `vpin.sendMessageToAllWindows(...)` excludes the sender. Call `showTableLoadingOverlay()` directly in the local `joyselect` path before `await vpin.launchTable(...)`, or send the event with `vpin.sendMessageToAllWindowsIncSelf(...)`.
+
 ### Input Actions
 
 The following input actions are passed to your `handleInput` function (table window only):

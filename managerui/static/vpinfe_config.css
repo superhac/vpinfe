@@ -137,6 +137,15 @@
             align-content: start;
             width: 100%;
         }
+        .config-paths-panel-grid {
+            display: grid !important;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+            gap: 1rem;
+            align-items: stretch;
+        }
+        .config-paths-panel-grid > .config-equal-height-card {
+            height: 100%;
+        }
         .config-path-field-shell {
             width: min(100%, var(--path-field-width, 30ch));
             max-width: 100%;
@@ -264,6 +273,9 @@
                 grid-template-columns: 1fr;
             }
             .config-inline-pair {
+                grid-template-columns: 1fr;
+            }
+            .config-paths-panel-grid {
                 grid-template-columns: 1fr;
             }
             .config-launch-layout {

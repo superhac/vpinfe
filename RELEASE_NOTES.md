@@ -1,12 +1,14 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.0.1
+This is the offical release of vpinfe v2.0.2
 
 ### What's New
-- Added support for pageup and pagedown controller and key mapping.
+- Misc managerui layout changes.
+- VPinPLay now its own config page. 
 
 ### Fixes
-None
+- Fix vpx_config "Restore" import bug.
+- Remove underlining from vpx config section selection
 
 ### Notes

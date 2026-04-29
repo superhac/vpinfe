@@ -10,6 +10,7 @@ from .pages import media as tab_media
 from .pages import themes as tab_themes
 from .pages import system as tab_system
 from .pages import mobile as tab_mobile
+from .pages import vpinplay as tab_vpinplay
 from .page_registry import NAV_PAGES, PAGE_ALIASES
 from .services import app_control
 from .services.archive_service import cleanup_archive, create_vpxz_archive
@@ -111,6 +112,7 @@ _PAGE_RENDERERS = {
     'mobile': lambda: tab_mobile.build(standalone=False),
     'system': tab_system.render_panel,
     'vpinfe': tab_vpinfe.render_panel,
+    'vpinplay': tab_vpinplay.render_panel,
     'vpx_config': tab_vpx_config.render_panel,
 }
 

@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 from nicegui import ui
@@ -584,7 +585,7 @@ def render_panel() -> None:
                 return
 
             with ui.tabs().classes("w-full vpx-config-tabs").props(
-                "inline-label active-color=cyan indicator-color=cyan"
+                "inline-label active-color=cyan indicator-color=transparent"
             ) as tabs:
                 for section in filtered_sections:
                     name = section["name"]

@@ -7,11 +7,9 @@ import re
 import runpy
 import shlex
 import sys
-from urllib.parse import quote
 from nicegui import ui, run
 from common.iniconfig import IniConfig
 from common.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
-from common.vpinplay_service import sync_installed_tables
 from common.launcher import build_masked_tableini_path, build_vpx_launch_command
 from common.vpxcollections import VPXCollections
 from pathlib import Path
@@ -24,12 +22,12 @@ from managerui.ui_helpers import load_page_style
 logger = logging.getLogger("vpinfe.manager.vpinfe_config")
 
 INI_PATH = VPINFE_INI_PATH
-VPINPLAY_BASE_URL = 'https://www.vpinplay.com/'
 
 # Sections to ignore
 IGNORED_SECTIONS = {
     'VPSdb',
     'pinmame-score-parser',
+    'vpinplay',
 }
 
 # Icons for each section (fallback to 'settings' if not defined)
@@ -41,7 +39,6 @@ SECTION_ICONS = {
     'Displays': 'monitor',
     'DOF': 'key',
     'libdmdutil': 'developer_board',
-    'vpinplay': 'science',
 }
 
 SECTION_DESCRIPTIONS = {
@@ -54,7 +51,6 @@ SECTION_DESCRIPTIONS = {
     'Mobile': 'Connection details for external mobile devices.',
     'DOF': 'Direct Output Framework integration and sync tools.',
     'libdmdutil': 'libdmdutil integration settings for DMD device support.',
-    'VPinPlay': 'VPinPlay Experimental',
 }
 
 # Dictionary for explicit user-friendly name mappings
@@ -293,10 +289,8 @@ def render_panel(tab=None):
     dof_force_checkbox = None
     update_dof_button = None
     dof_test_event_input = None
-    sync_vpinplay_button = None
     launch_command_preview = None
     launch_env_preview = None
-    vpinplay_user_link = None
 
     # Get all sections, filter out ignored ones
     sections = [s for s in config.config.sections() if s not in IGNORED_SECTIONS]
@@ -441,8 +435,6 @@ def render_panel(tab=None):
                 inputs[section]['__windows_included'] = windows_inp
             else:
                 inp = ui.input(value=value).props('outlined dense').classes('config-input')
-                if section == 'vpinplay' and key == 'machineid':
-                    inp.props('readonly disable')
                 if section == 'Displays' and key in ('bgwindowoverride', 'dmdwindowoverride'):
                     inp.props('hint="Format: x,y,width,height"')
                     inp.tooltip(
@@ -458,23 +450,10 @@ def render_panel(tab=None):
                         else:
                             label_widget.text = friendly_label
                     inp.on_value_change(on_mask_change)
-                if section == 'vpinplay' and key == 'initials':
-                    inp.props('maxlength=3').classes('config-uppercase-input')
-
-                    def on_initials_change(e):
-                        normalized = str(e.value or '').upper()
-                        if inp.value != normalized:
-                            inp.value = normalized
-                        update_vpinplay_sync_button_state()
-
-                    inp.on('input', on_initials_change)
-                    inp.on_value_change(on_initials_change)
 
             inputs[section][key] = inp
             if (section, key) in launch_preview_keys:
                 inp.on_value_change(lambda _: update_launch_preview())
-            if section == 'vpinplay' and key == 'userid':
-                inp.on_value_change(lambda _: update_vpinplay_sync_button_state())
 
     def save_config():
         for section, keys in inputs.items():
@@ -498,20 +477,10 @@ def render_panel(tab=None):
                     config.config.set(section, key, str(inp.value).lower())
                 else:
                     value = inp.value
-                    if section == 'vpinplay' and key == 'initials':
-                        value = str(value or '').upper()
-                        inp.value = value
                     config.config.set(section, key, value)
         with open(INI_PATH, 'w') as f:
             config.config.write(f)
-        update_vpinplay_sync_button_state()
         ui.notify('Configuration Saved', type='positive')
-
-    def split_evenly(items: list[str], columns: int) -> list[list[str]]:
-        if columns <= 1:
-            return [items]
-        size = (len(items) + columns - 1) // columns
-        return [items[i * size:(i + 1) * size] for i in range(columns)]
 
     def show_command_output_dialog(title: str, command: list[str], output: str, exit_code: int | None):
         with ui.dialog().props('persistent max-width=1000px') as dlg, ui.card().classes('w-full').style(
@@ -528,22 +497,6 @@ def render_panel(tab=None):
             with ui.row().classes('w-full justify-end mt-2'):
                 ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
         dlg.open()
-
-    def show_live_command_dialog(title: str, command: list[str]):
-        with ui.dialog().props('persistent max-width=1000px') as dlg, ui.card().classes('w-full').style(
-            'background: var(--surface); border: 1px solid var(--line); min-width: min(92vw, 900px);'
-        ):
-            ui.label(title).classes('text-xl font-bold').style('color: var(--ink) !important;')
-            command_label = ui.label(shlex.join(command)).classes('text-xs break-all').style('color: var(--ink-muted) !important;')
-            status_label = ui.label('Running...').classes('text-sm').style('color: var(--neon-yellow) !important;')
-            output_area = ui.textarea(value='Starting sync...').props('readonly outlined').classes('w-full').style(
-                'height: 420px; font-family: monospace;'
-            )
-            with ui.row().classes('w-full justify-end mt-2'):
-                close_button = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
-                close_button.disable()
-        dlg.open()
-        return command_label, status_label, output_area, close_button
 
     async def run_dof_online_update():
         api_key = str(
@@ -618,123 +571,6 @@ def render_panel(tab=None):
             logger.exception("Failed to stop DOF test event")
             ui.notify(f'Failed to stop DOF event: {e}', type='negative')
 
-    async def run_vpinplay_sync():
-        vpinplay_inputs = inputs.get('vpinplay', {})
-        settings_inputs = inputs.get('Settings', {})
-
-        service_ip = str(
-            getattr(vpinplay_inputs.get('apiendpoint'), 'value', config.config.get('vpinplay', 'apiendpoint', fallback=''))
-            or ''
-        ).strip()
-        user_id = str(
-            getattr(vpinplay_inputs.get('userid'), 'value', config.config.get('vpinplay', 'userid', fallback=''))
-            or ''
-        ).strip()
-        initials = str(
-            getattr(vpinplay_inputs.get('initials'), 'value', config.config.get('vpinplay', 'initials', fallback=''))
-            or ''
-        ).strip()
-        machine_id = str(
-            getattr(vpinplay_inputs.get('machineid'), 'value', config.config.get('vpinplay', 'machineid', fallback=''))
-            or ''
-        ).strip()
-        tables_dir = str(
-            getattr(settings_inputs.get('tablerootdir'), 'value', config.config.get('Settings', 'tablerootdir', fallback=''))
-            or ''
-        ).strip()
-
-        if not service_ip:
-            ui.notify('API Endpoint is required.', type='warning')
-            return
-        if not user_id:
-            ui.notify('User ID is required.', type='warning')
-            return
-        if not initials:
-            ui.notify('Initials is required.', type='warning')
-            return
-        if not machine_id:
-            ui.notify('Machine ID is required.', type='warning')
-            return
-        if not tables_dir:
-            ui.notify('Tables Directory is required in Settings.', type='warning')
-            return
-
-        command_label, status_label, output_area, close_button = show_live_command_dialog(
-            'VPinPlay Sync',
-            ['POST', service_ip],
-        )
-        sync_vpinplay_button.disable()
-        sync_vpinplay_button.text = 'Syncing...'
-        try:
-            result = await run.io_bound(
-                sync_installed_tables,
-                service_ip,
-                user_id,
-                initials,
-                machine_id,
-                tables_dir,
-            )
-            summary = (
-                f"Scanned: {result['tables_scanned']}\n"
-                f"Sent: {result['tables_sent']}\n"
-                f"Skipped (missing VPSId): {result['tables_skipped']}\n\n"
-                f"HTTP status: {result['status_code']}\n\n"
-                f"{result['response_body']}"
-            )
-            command_label.text = shlex.join(['POST', result['endpoint']])
-            status_label.text = f"Exit code: {0 if result['ok'] else 1}"
-            output_area.value = summary
-            if result['ok']:
-                ui.notify('Sync completed.', type='positive')
-            else:
-                ui.notify('Sync failed. See output for details.', type='negative')
-        except Exception as e:
-            status_label.text = 'Failed to start sync.'
-            output_area.value = str(e)
-            ui.notify('Failed to start sync.', type='negative')
-        finally:
-            close_button.enable()
-            sync_vpinplay_button.text = 'Sync Installed Tables'
-            update_vpinplay_sync_button_state()
-
-    def _get_vpinplay_user_id_value() -> str:
-        vpinplay_inputs = inputs.get('vpinplay', {})
-        return str(
-            getattr(vpinplay_inputs.get('userid'), 'value', config.config.get('vpinplay', 'userid', fallback=''))
-            or ''
-        ).strip()
-
-    def _build_vpinplay_user_url(user_id: str) -> str:
-        uid = (user_id or '').strip()
-        if not uid:
-            return f'{VPINPLAY_BASE_URL}players.html'
-        return f'{VPINPLAY_BASE_URL}players.html?userid={quote(uid)}'
-
-    def update_vpinplay_user_link():
-        if vpinplay_user_link is None:
-            return
-        user_id = _get_vpinplay_user_id_value()
-        user_url = _build_vpinplay_user_url(user_id)
-        vpinplay_user_link.text = 'Your Stats'
-        vpinplay_user_link.props(f'href={user_url}')
-
-    def update_vpinplay_sync_button_state():
-        if sync_vpinplay_button is None:
-            return
-        vpinplay_inputs = inputs.get('vpinplay', {})
-        user_id = str(
-            getattr(vpinplay_inputs.get('userid'), 'value', config.config.get('vpinplay', 'userid', fallback=''))
-            or ''
-        ).strip()
-        initials = str(
-            getattr(vpinplay_inputs.get('initials'), 'value', config.config.get('vpinplay', 'initials', fallback=''))
-            or ''
-        ).strip()
-        if user_id and initials:
-            sync_vpinplay_button.enable()
-        else:
-            sync_vpinplay_button.disable()
-
     with ui.column().classes('w-full config-page-shell'):
         with ui.card().classes('w-full config-hero').style('overflow: hidden;'):
             with ui.row().classes('w-full items-center justify-between p-6 gap-6'):
@@ -807,35 +643,44 @@ def render_panel(tab=None):
                                 ])
 
                                 with ui.column().classes('w-full gap-4'):
-                                    if path_keys:
-                                        with ui.card().classes('config-side-card w-full p-4'):
-                                            ui.label('Paths').classes('text-lg font-semibold').style('color: var(--ink) !important;')
-                                            ui.label(
-                                                'Set the main Visual Pinball executable, table location, and ini file.'
-                                            ).classes('text-sm').style('color: var(--ink-muted) !important;')
-                                            with ui.element('div').classes('config-paths-list mt-3').style(
-                                                f'--path-field-width: {path_field_width_ch}ch;'
-                                            ):
-                                                for key in path_keys:
-                                                    value = config.config.get(section, key, fallback='')
-                                                    with ui.element('div').classes('config-path-field-shell'):
-                                                        build_config_input(section, key, value)
+                                    if path_keys or general_keys:
+                                        with ui.element('div').classes('config-paths-panel-grid').style(
+                                            'display: grid !important; '
+                                            'grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; '
+                                            'gap: 1rem; '
+                                            'align-items: stretch;'
+                                        ):
+                                            if path_keys:
+                                                with ui.card().classes('config-side-card config-equal-height-card w-full p-4'):
+                                                    with ui.element('div').classes('config-display-column'):
+                                                        ui.label('Paths').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                        ui.label(
+                                                            'Set the main Visual Pinball executable, table location, and ini file.'
+                                                        ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                                        with ui.element('div').classes('config-paths-list mt-3').style(
+                                                            f'--path-field-width: {path_field_width_ch}ch;'
+                                                        ):
+                                                            for key in path_keys:
+                                                                value = config.config.get(section, key, fallback='')
+                                                                with ui.element('div').classes('config-path-field-shell'):
+                                                                    build_config_input(section, key, value)
 
-                                    if general_keys:
-                                        with ui.card().classes('config-side-card w-full p-4'):
-                                            ui.label('Frontend').classes('text-lg font-semibold').style('color: var(--ink) !important;')
-                                            ui.label(
-                                                'Configure startup behavior and frontend defaults.'
-                                            ).classes('text-sm').style('color: var(--ink-muted) !important;')
-                                            with ui.element('div').classes('config-display-form-grid mt-3'):
-                                                with ui.element('div').classes('config-display-column'):
-                                                    for key in frontend_primary_keys:
-                                                        value = config.config.get(section, key, fallback='')
-                                                        build_config_input(section, key, value)
-                                                with ui.element('div').classes('config-display-column'):
-                                                    for key in frontend_toggle_keys:
-                                                        value = config.config.get(section, key, fallback='')
-                                                        build_config_input(section, key, value)
+                                            if general_keys:
+                                                with ui.card().classes('config-side-card config-equal-height-card w-full p-4'):
+                                                    with ui.element('div').classes('config-display-column'):
+                                                        ui.label('Frontend').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                        ui.label(
+                                                            'Configure startup behavior and frontend defaults.'
+                                                        ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                                        with ui.element('div').classes('config-display-form-grid mt-3'):
+                                                            with ui.element('div').classes('config-display-column'):
+                                                                for key in frontend_primary_keys:
+                                                                    value = config.config.get(section, key, fallback='')
+                                                                    build_config_input(section, key, value)
+                                                            with ui.element('div').classes('config-display-column'):
+                                                                for key in frontend_toggle_keys:
+                                                                    value = config.config.get(section, key, fallback='')
+                                                                    build_config_input(section, key, value)
 
                                     if launch_keys:
                                         with ui.card().classes('config-side-card w-full p-4'):
@@ -1004,80 +849,6 @@ def render_panel(tab=None):
                                                         ui.label(get_friendly_name(rename_mask_key)).classes('config-field-label')
                                                         inp = ui.input(value=value).props('outlined dense').classes('config-input')
                                                         inputs[section][rename_mask_key] = inp
-                                    elif section == 'vpinplay':
-                                        sync_key = 'synconexit'
-                                        endpoint_key = 'apiendpoint'
-                                        user_key = 'userid'
-                                        initials_key = 'initials'
-                                        machine_key = 'machineid'
-                                        with ui.element('div').classes('config-vpinplay-pair'):
-                                            with ui.column().classes('w-full gap-3'):
-                                                with ui.element('div').classes('w-full config-field-card'):
-                                                    with ui.element('div').classes('w-full config-vpinplay-links'):
-                                                        ui.image('/static/img/VPinPlay_Logo_1.0.png').style(
-                                                            'width: 200px; height: 200px; object-fit: contain;'
-                                                        )
-                                                        with ui.column().classes('config-vpinplay-links-copy'):
-                                                            ui.link(
-                                                                'VPinPlay Home',
-                                                                VPINPLAY_BASE_URL,
-                                                                new_tab=True,
-                                                            ).style('color: var(--neon-cyan) !important;')
-                                                            vpinplay_user_link = ui.link(
-                                                                '',
-                                                                _build_vpinplay_user_url(
-                                                                    config.config.get(section, user_key, fallback='')
-                                                                ),
-                                                                new_tab=True,
-                                                            ).style('color: var(--neon-cyan) !important;')
-                                                        update_vpinplay_user_link()
-
-                                                if endpoint_key in options:
-                                                    with ui.element('div').classes('w-full'):
-                                                        value = config.config.get(section, endpoint_key, fallback='')
-                                                        build_config_input(section, endpoint_key, value)
-
-                                                with ui.element('div').classes('config-vpinplay-pair'):
-                                                    if user_key in options:
-                                                        with ui.element('div').classes('w-full'):
-                                                            value = config.config.get(section, user_key, fallback='')
-                                                            build_config_input(section, user_key, value)
-                                                            user_input = inputs.get(section, {}).get(user_key)
-                                                            if user_input is not None:
-                                                                user_input.on_value_change(lambda _: update_vpinplay_user_link())
-                                                    if initials_key in options:
-                                                        with ui.element('div').classes('w-full'):
-                                                            value = config.config.get(section, initials_key, fallback='')
-                                                            build_config_input(section, initials_key, value)
-
-                                                with ui.element('div').classes('config-vpinplay-pair'):
-                                                    if machine_key in options:
-                                                        with ui.element('div').classes('w-full'):
-                                                            value = config.config.get(section, machine_key, fallback='')
-                                                            build_config_input(section, machine_key, value)
-
-                                                for key in options:
-                                                    if key in (sync_key, endpoint_key, user_key, initials_key, machine_key):
-                                                        continue
-                                                    value = config.config.get(section, key, fallback='')
-                                                    build_config_input(section, key, value)
-
-                                            with ui.column().classes('w-full gap-3'):
-                                                with ui.card().classes('config-side-card w-full p-4'):
-                                                    ui.label('Table Metadata Sync').classes('text-lg font-semibold').style('color: var(--ink) !important;')
-                                                    ui.label(
-                                                        'Sends installed table metadata to the configured VPinPlay service endpoint.'
-                                                    ).classes('text-sm text-slate-300')
-                                                    sync_vpinplay_button = ui.button(
-                                                        'Sync Installed Tables',
-                                                        icon='sync',
-                                                        on_click=run_vpinplay_sync,
-                                                    ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
-                                                    update_vpinplay_sync_button_state()
-                                                if sync_key in options:
-                                                    with ui.element('div').classes('w-full'):
-                                                        value = config.config.get(section, sync_key, fallback='false')
-                                                        build_config_input(section, sync_key, value)
                                     elif section == 'DOF':
                                         with ui.element('div').classes('config-vpinplay-pair'):
                                             with ui.column().classes('w-full gap-3'):
@@ -1092,32 +863,31 @@ def render_panel(tab=None):
                                                             build_config_input(section, key, value)
                                             with ui.column().classes('w-full gap-3'):
                                                 with ui.card().classes('config-side-card w-full p-4'):
-                                                    ui.label('DOF Event Test').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                    with ui.row().classes('items-center gap-3'):
+                                                        ui.label('Online Config Tool').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                        ui.link(
+                                                            '(DOF Config Online Tool)',
+                                                            'https://configtool.vpuniverse.com/app/home',
+                                                            new_tab=True,
+                                                        ).style('color: var(--neon-cyan) !important;')
                                                     ui.label(
-                                                        'Enter an event token like E900 or S27, then start or stop it for testing.'
+                                                        'Downloads updated DOF config using ledcontrol_pull.py and the API key above.'
                                                     ).classes('text-sm').style('color: var(--ink-muted) !important;')
-                                                    dof_test_event_input = ui.input(
-                                                        label='Test Event',
-                                                        value='E900',
-                                                        placeholder='E900',
-                                                    ).props('outlined').classes('w-full mt-2')
-                                                    with ui.row().classes('items-center gap-3 mt-3'):
-                                                        ui.button(
-                                                            'Start Event',
-                                                            icon='play_arrow',
-                                                            on_click=run_dof_test_event_start,
-                                                        ).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
-                                                        ui.button(
-                                                            'Stop Event',
-                                                            icon='stop',
-                                                            on_click=run_dof_test_event_stop,
-                                                        ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                                                    dof_force_checkbox = ui.checkbox('Force update').classes('mt-2').style('color: var(--ink) !important;')
+                                                    update_dof_button = ui.button(
+                                                        'Update DOF via Online Config Tool',
+                                                        icon='cloud_download',
+                                                        on_click=run_dof_online_update,
+                                                    ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
                                     elif section == 'libdmdutil':
                                         service_key = 'enabled'
                                         zedmd_keys = ['zedmddevice', 'zedmdwifiaddr']
+                                        pin2dmd_keys = ['pin2dmdenabled']
+                                        pixelcade_keys = ['pixelcadedevice']
+                                        device_keys = zedmd_keys + pin2dmd_keys + pixelcade_keys
                                         trailing_keys = [
                                             key for key in options
-                                            if key not in ([service_key] + zedmd_keys)
+                                            if key not in ([service_key] + device_keys)
                                         ]
 
                                         with ui.element('div').classes('config-form-grid'):
@@ -1126,13 +896,33 @@ def render_panel(tab=None):
                                                 build_config_input(section, service_key, value)
 
                                         present_zedmd_keys = [key for key in zedmd_keys if key in options]
-                                        if present_zedmd_keys:
-                                            with ui.element('div').classes('config-field-card mt-3'):
-                                                with ui.column().classes('w-full gap-3'):
-                                                    ui.label('ZeDMD').classes('config-field-label')
-                                                    for key in present_zedmd_keys:
-                                                        value = config.config.get(section, key, fallback='')
-                                                        build_config_input(section, key, value)
+                                        present_pin2dmd_keys = [key for key in pin2dmd_keys if key in options]
+                                        present_pixelcade_keys = [key for key in pixelcade_keys if key in options]
+                                        if present_zedmd_keys or present_pin2dmd_keys or present_pixelcade_keys:
+                                            with ui.element('div').classes('config-three-column-grid mt-3'):
+                                                if present_zedmd_keys:
+                                                    with ui.element('div').classes('config-field-card'):
+                                                        with ui.column().classes('w-full gap-3'):
+                                                            ui.label('ZeDMD').classes('config-field-label')
+                                                            for key in present_zedmd_keys:
+                                                                value = config.config.get(section, key, fallback='')
+                                                                build_config_input(section, key, value)
+
+                                                if present_pin2dmd_keys:
+                                                    with ui.element('div').classes('config-field-card'):
+                                                        with ui.column().classes('w-full gap-3'):
+                                                            ui.label('PIN2DMD').classes('config-field-label')
+                                                            for key in present_pin2dmd_keys:
+                                                                value = config.config.get(section, key, fallback='')
+                                                                build_config_input(section, key, value)
+
+                                                if present_pixelcade_keys:
+                                                    with ui.element('div').classes('config-field-card'):
+                                                        with ui.column().classes('w-full gap-3'):
+                                                            ui.label('PixelcadeDevice').classes('config-field-label')
+                                                            for key in present_pixelcade_keys:
+                                                                value = config.config.get(section, key, fallback='')
+                                                                build_config_input(section, key, value)
 
                                         with ui.element('div').classes('config-form-grid mt-3'):
                                             for key in trailing_keys:
@@ -1177,22 +967,26 @@ def render_panel(tab=None):
 
                         if section == 'DOF':
                             with ui.card().classes('config-side-card w-full mt-4 p-4'):
-                                with ui.row().classes('items-center gap-3'):
-                                    ui.label('Online Config Tool').classes('text-lg font-semibold').style('color: var(--ink) !important;')
-                                    ui.link(
-                                        '(DOF Config Online Tool)',
-                                        'https://configtool.vpuniverse.com/app/home',
-                                        new_tab=True,
-                                    ).style('color: var(--neon-cyan) !important;')
+                                ui.label('DOF Event Test').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                 ui.label(
-                                    'Downloads updated DOF config using ledcontrol_pull.py and the API key above.'
+                                    'Enter an event token like E900 or S27, then start or stop it for testing.'
                                 ).classes('text-sm').style('color: var(--ink-muted) !important;')
-                                dof_force_checkbox = ui.checkbox('Force update').classes('mt-2').style('color: var(--ink) !important;')
-                                update_dof_button = ui.button(
-                                    'Update DOF via Online Config Tool',
-                                    icon='cloud_download',
-                                    on_click=run_dof_online_update,
-                                ).classes('mt-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                                dof_test_event_input = ui.input(
+                                    label='Test Event',
+                                    value='E900',
+                                    placeholder='E900',
+                                ).props('outlined').classes('w-full mt-2')
+                                with ui.row().classes('items-center gap-3 mt-3'):
+                                    ui.button(
+                                        'Start Event',
+                                        icon='play_arrow',
+                                        on_click=run_dof_test_event_start,
+                                    ).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                                    ui.button(
+                                        'Stop Event',
+                                        icon='stop',
+                                        on_click=run_dof_test_event_stop,
+                                    ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
 
                         if section == 'Logger':
                             with ui.card().classes('config-side-card w-full mt-4 p-4'):
