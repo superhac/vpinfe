@@ -11,6 +11,7 @@ let ratingLabelRequestSeq = 0;
 let audioMuted = false;
 let menuConfigLoaded = false;
 let relayoutTimer = null;
+let remoteQrLoaded = false;
 
 window.parent.vpin.registerInputHandlerMenu(handleInput);
 
@@ -76,6 +77,28 @@ window.addEventListener('message', async (event) => {
 window.addEventListener('DOMContentLoaded', () => {
   rotateMenu(rotationAngle);
 });
+
+async function loadRemoteQrPanel() {
+  if (remoteQrLoaded) return;
+
+  const panel = document.getElementById('remote-qr-panel');
+  const code = document.getElementById('remote-qr-code');
+  if (!panel || !code) return;
+
+  try {
+    const remoteLink = await window.parent.vpin.call('get_managerui_remote_link');
+    const rawUrl = remoteLink && typeof remoteLink.url === 'string' ? remoteLink.url.trim() : '';
+    const qrSvg = remoteLink && typeof remoteLink.qr_svg === 'string' ? remoteLink.qr_svg.trim() : '';
+    if (!rawUrl || !qrSvg) return;
+
+    code.innerHTML = qrSvg;
+    panel.hidden = false;
+    remoteQrLoaded = true;
+  } catch (_e) {
+    code.innerHTML = '';
+    panel.hidden = true;
+  }
+}
 
 async function applyMainMenuConfig() {
   const quitItem = document.getElementById('quit-item');
@@ -540,6 +563,7 @@ async function toggleAudioMute() {
 window.onload = async () => {
   currentTableIndex = resolveCurrentTableIndex();
   await applyMainMenuConfig();
+  await loadRemoteQrPanel();
   rebuildMenuItems();
   syncMenuWidthFromLongestLabel();
   await refreshRatingMenuLabel(currentTableIndex);

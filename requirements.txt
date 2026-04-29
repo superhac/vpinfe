@@ -7,6 +7,7 @@ pynput
 nicegui
 platformdirs
 pillow
+qrcode
 psutil
 
 # Platform-specific dependencies (installed conditionally)
