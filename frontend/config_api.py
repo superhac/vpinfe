@@ -93,6 +93,67 @@ def _build_remote_qr_svg(url: str) -> str:
     return stream.getvalue().decode("utf-8")
 
 
+def _managerui_page_urls(config, page: str) -> list[str]:
+    port = NetworkConfig.from_config(config).manager_ui_port
+    hostname = socket.gethostname().strip()
+    urls: list[str] = []
+    seen_hosts: set[str] = set()
+
+    def is_usable_ipv4(value: str) -> bool:
+        try:
+            ip = ipaddress.ip_address((value or "").strip())
+        except ValueError:
+            return False
+        return ip.version == 4 and not ip.is_loopback and not ip.is_unspecified and not ip.is_link_local
+
+    def detect_primary_ipv4() -> str:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.connect(("8.8.8.8", 80))
+                candidate = str(sock.getsockname()[0]).strip()
+                return candidate if is_usable_ipv4(candidate) else ""
+        except Exception:
+            return ""
+
+    def add_host(host: str) -> None:
+        normalized = (host or "").strip()
+        if not normalized:
+            return
+        key = normalized.lower()
+        if key in seen_hosts:
+            return
+        seen_hosts.add(key)
+        urls.append(f"http://{normalized}:{port}/?page={page}")
+
+    primary_ip = detect_primary_ipv4()
+    if primary_ip:
+        add_host(primary_ip)
+
+    if hostname and hostname.lower() not in {"localhost", "ip6-localhost"}:
+        add_host(hostname)
+
+        try:
+            for family, _, _, _, sockaddr in socket.getaddrinfo(hostname, None, socket.AF_INET):
+                if family != socket.AF_INET:
+                    continue
+                ip = str(sockaddr[0]).strip()
+                if not is_usable_ipv4(ip):
+                    continue
+                add_host(ip)
+        except Exception:
+            pass
+
+    add_host("localhost")
+    return urls
+
+
+def _preferred_managerui_url(urls: list[str]) -> str:
+    return next(
+        (url for url in urls if url.startswith("http://") and url.split("://", 1)[1].split(":", 1)[0].count(".") == 3),
+        next((url for url in urls if "://localhost:" not in url.lower()), urls[0] if urls else ""),
+    )
+
+
 def get_splashscreen_enabled(config):
     return "true" if SettingsConfig.from_config(config).splashscreen else "false"
 
@@ -130,10 +191,17 @@ def get_theme_assets_port(config):
 
 def get_managerui_remote_link(config):
     urls = _managerui_remote_urls(config)
-    preferred_url = next(
-        (url for url in urls if url.startswith("http://") and url.split("://", 1)[1].split(":", 1)[0].count(".") == 3),
-        next((url for url in urls if "://localhost:" not in url.lower()), urls[0] if urls else ""),
-    )
+    preferred_url = _preferred_managerui_url(urls)
+    return {
+        "url": preferred_url,
+        "urls": urls,
+        "qr_svg": _build_remote_qr_svg(preferred_url) if preferred_url else "",
+    }
+
+
+def get_managerui_vpinplay_multi_link(config):
+    urls = _managerui_page_urls(config, "vpinplay_player")
+    preferred_url = _preferred_managerui_url(urls)
     return {
         "url": preferred_url,
         "urls": urls,

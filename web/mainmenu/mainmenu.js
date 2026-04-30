@@ -12,6 +12,7 @@ let audioMuted = false;
 let menuConfigLoaded = false;
 let relayoutTimer = null;
 let remoteQrLoaded = false;
+let vpinplayMultiQrLoaded = false;
 
 window.parent.vpin.registerInputHandlerMenu(handleInput);
 
@@ -81,7 +82,7 @@ window.addEventListener('DOMContentLoaded', () => {
 async function loadRemoteQrPanel() {
   if (remoteQrLoaded) return;
 
-  const panel = document.getElementById('remote-qr-panel');
+  const panel = document.getElementById('menu-qr-panels');
   const code = document.getElementById('remote-qr-code');
   if (!panel || !code) return;
 
@@ -96,7 +97,27 @@ async function loadRemoteQrPanel() {
     remoteQrLoaded = true;
   } catch (_e) {
     code.innerHTML = '';
-    panel.hidden = true;
+  }
+}
+
+async function loadVPinPlayMultiQrPanel() {
+  if (vpinplayMultiQrLoaded) return;
+
+  const panel = document.getElementById('menu-qr-panels');
+  const code = document.getElementById('vpinplay-multi-qr-code');
+  if (!panel || !code) return;
+
+  try {
+    const multiLink = await window.parent.vpin.call('get_managerui_vpinplay_multi_link');
+    const rawUrl = multiLink && typeof multiLink.url === 'string' ? multiLink.url.trim() : '';
+    const qrSvg = multiLink && typeof multiLink.qr_svg === 'string' ? multiLink.qr_svg.trim() : '';
+    if (!rawUrl || !qrSvg) return;
+
+    code.innerHTML = qrSvg;
+    panel.hidden = false;
+    vpinplayMultiQrLoaded = true;
+  } catch (_e) {
+    code.innerHTML = '';
   }
 }
 
@@ -115,6 +136,7 @@ async function applyMainMenuConfig() {
   }
 
   menuConfigLoaded = true;
+  await Promise.all([loadRemoteQrPanel(), loadVPinPlayMultiQrPanel()]);
 }
 
 function rebuildMenuItems() {

@@ -84,11 +84,18 @@ ul.menu {
   z-index: 1;
 }
 
-#remote-qr-panel {
+#menu-qr-panels {
   position: absolute;
   left: 50%;
   bottom: 6%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: stretch;
+  gap: clamp(10px, 1.2vh, 18px);
+  z-index: 1;
+}
+
+.menu-qr-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -100,10 +107,9 @@ ul.menu {
   box-shadow:
     0 0.8vh 1.8vh rgba(0, 0, 0, 0.45),
     inset 0 0.1vh 0.2vh rgba(255, 255, 255, 0.08);
-  z-index: 1;
 }
 
-#remote-qr-code {
+.menu-qr-code {
   flex: 0 0 auto;
   width: clamp(72px, 8.5vh, 120px);
   height: clamp(72px, 8.5vh, 120px);
@@ -113,13 +119,13 @@ ul.menu {
   box-shadow: 0 0.2vh 0.5vh rgba(0, 0, 0, 0.32);
 }
 
-#remote-qr-code svg {
+.menu-qr-code svg {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-#remote-qr-label {
+.menu-qr-label {
   font-size: clamp(14px, 1.6vh, 24px);
   font-weight: bold;
   letter-spacing: 0.12vh;

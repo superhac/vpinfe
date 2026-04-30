@@ -6,7 +6,16 @@ import logging
 from common.collections_service import filter_tables_by_collection, get_collection_names, save_filter_collection
 from common.media_paths import table_media_payload
 from common.tablelistfilters import TableListFilters
-from common.table_metadata import DETECTION_KEYS, get_or_create_user_meta, normalize_meta, normalize_rating, persist_table_meta, section, table_title
+from common.table_metadata import (
+    DETECTION_KEYS,
+    get_or_create_user_meta,
+    load_table_meta,
+    normalize_meta,
+    normalize_rating,
+    persist_table_meta,
+    section,
+    table_title,
+)
 
 
 logger = logging.getLogger("vpinfe.frontend.table_state")
@@ -157,12 +166,12 @@ def get_table_rating(tables, index):
         table = tables[index]
     except Exception:
         return 0
-    return normalize_rating(section(table.metaConfig, "User").get("Rating", 0))
+    return normalize_rating(section(load_table_meta(table), "User").get("Rating", 0))
 
 
 def set_table_rating(tables, index, rating):
     table = tables[index]
-    config = normalize_meta(table.metaConfig)
+    config = load_table_meta(table)
     user = get_or_create_user_meta(config)
     normalized = normalize_rating(rating)
     user["Rating"] = normalized

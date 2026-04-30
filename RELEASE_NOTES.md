@@ -1,15 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.0.3
+This is the offical release of vpinfe v2.0.4
 
 ### What's New
-- More managerUI clearing/seperation.  Logs now on its own page.  added vpx logs
-- QRCode in the mainmenu for linking to remote.
-- VPinPlay Player QR code.
-- VPinPlay Multiple player profiles
+None
 
 ### Fixes
-None
+- fix state metadata rating data conflicting with scoring.
 
 ### Notes

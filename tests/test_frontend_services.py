@@ -8,8 +8,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from common import metadata_service, system_actions, table_report_service
-from frontend import config_api, realdmd_service, theme_api
+from common import metadata_service, system_actions, table_play_service, table_report_service
+from frontend import config_api, realdmd_service, table_state, theme_api
 
 
 class FrontendServiceTests(unittest.TestCase):
@@ -108,6 +108,88 @@ class FrontendServiceTests(unittest.TestCase):
             table_report_service.list_unknown_tables(iniconfig=ini, log=lambda msg, *args: logs.append(msg % args if args else msg))
 
         self.assertTrue(any("Unknown table 1: Unknown" in line for line in logs))
+
+    def test_frontend_rating_write_preserves_newer_on_disk_stats(self):
+        with TemporaryDirectory() as temp_dir:
+            table_dir = Path(temp_dir) / "Example"
+            table_dir.mkdir()
+            info_path = table_dir / "Example.info"
+            info_path.write_text(
+                json.dumps(
+                    {
+                        "Info": {"Title": "Example", "VPSId": "vps-1"},
+                        "User": {"Rating": 0, "StartCount": 0, "RunTime": 0},
+                        "VPXFile": {},
+                        "VPinFE": {},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            table = types.SimpleNamespace(
+                fullPathTable=str(table_dir),
+                tableDirName="Example",
+                metaConfig=json.loads(info_path.read_text(encoding="utf-8")),
+            )
+
+            info_path.write_text(
+                json.dumps(
+                    {
+                        "Info": {"Title": "Example", "VPSId": "vps-1"},
+                        "User": {"Rating": 0, "StartCount": 7, "RunTime": 15},
+                        "VPXFile": {},
+                        "VPinFE": {},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = table_state.set_table_rating([table], 0, 5)
+
+            self.assertEqual(result, {"success": True, "rating": 5})
+            saved = json.loads(info_path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["User"]["Rating"], 5)
+            self.assertEqual(saved["User"]["StartCount"], 7)
+            self.assertEqual(saved["User"]["RunTime"], 15)
+
+    def test_play_tracking_preserves_newer_on_disk_rating(self):
+        with TemporaryDirectory() as temp_dir:
+            table_dir = Path(temp_dir) / "Example"
+            table_dir.mkdir()
+            info_path = table_dir / "Example.info"
+            info_path.write_text(
+                json.dumps(
+                    {
+                        "Info": {"Title": "Example", "VPSId": "vps-1"},
+                        "User": {"Rating": 0, "StartCount": 0, "RunTime": 0},
+                        "VPXFile": {},
+                        "VPinFE": {},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            table = types.SimpleNamespace(
+                fullPathTable=str(table_dir),
+                tableDirName="Example",
+                metaConfig=json.loads(info_path.read_text(encoding="utf-8")),
+            )
+
+            info_path.write_text(
+                json.dumps(
+                    {
+                        "Info": {"Title": "Example", "VPSId": "vps-1"},
+                        "User": {"Rating": 4, "StartCount": 0, "RunTime": 0},
+                        "VPXFile": {},
+                        "VPinFE": {},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            table_play_service.increment_start_count(table)
+
+            saved = json.loads(info_path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["User"]["Rating"], 4)
+            self.assertEqual(saved["User"]["StartCount"], 1)
 
 
 if __name__ == "__main__":

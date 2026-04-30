@@ -148,6 +148,13 @@ def meta_file_path(table) -> Path:
     return Path(table.fullPathTable) / f"{table.tableDirName}.info"
 
 
+def load_table_meta(table) -> Dict[str, Any]:
+    meta_path = meta_file_path(table)
+    if meta_path.exists():
+        return normalize_meta(MetaConfig(str(meta_path)).data)
+    return normalize_meta(getattr(table, "metaConfig", {}))
+
+
 def persist_table_meta(table, config: Dict[str, Any]) -> None:
     meta_file = MetaConfig(str(meta_file_path(table)))
     meta_file.data = config

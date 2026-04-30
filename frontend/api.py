@@ -85,6 +85,7 @@ API_ALLOWED_METHODS = {
     'get_cab_mode',
     'get_theme_assets_port',
     'get_managerui_remote_link',
+    'get_managerui_vpinplay_multi_link',
     'get_theme_index_page',
     'send_event',
     'send_event_all_windows',
@@ -435,6 +436,9 @@ class API:
 
     def get_managerui_remote_link(self):
         return config_api.get_managerui_remote_link(self._iniConfig.config)
+
+    def get_managerui_vpinplay_multi_link(self):
+        return config_api.get_managerui_vpinplay_multi_link(self._iniConfig.config)
 
     def get_theme_index_page(self):
         return theme_api.get_theme_index_page(self._iniConfig.config, self.get_my_window_name())

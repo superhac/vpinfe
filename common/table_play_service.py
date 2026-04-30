@@ -8,6 +8,7 @@ from pathlib import Path
 from common.collections_service import get_collections_manager
 from common.table_metadata import (
     get_or_create_user_meta,
+    load_table_meta,
     normalize_meta,
     persist_table_meta,
     section,
@@ -66,7 +67,7 @@ def add_runtime_minutes(table, elapsed_seconds: float) -> None:
 
 
 def clone_table_meta(table) -> dict:
-    config = normalize_meta(getattr(table, "metaConfig", {}))
+    config = load_table_meta(table)
     return deepcopy(config) if isinstance(config, dict) else {}
 
 

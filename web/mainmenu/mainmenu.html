@@ -16,9 +16,15 @@
       <li class="menu-item" id="shutdown-item">Shutdown</li>
       <li class="menu-item" id="quit-item">Quit</li>
     </ul>
-    <div id="remote-qr-panel" aria-live="polite" hidden>
-      <div id="remote-qr-label">Remote</div>
-      <div id="remote-qr-code" aria-label="QR code for Manager UI remote control"></div>
+    <div id="menu-qr-panels" aria-live="polite" hidden>
+      <div class="menu-qr-panel" id="remote-qr-panel">
+        <div class="menu-qr-label">Remote</div>
+        <div class="menu-qr-code" id="remote-qr-code" aria-label="QR code for Manager UI remote control"></div>
+      </div>
+      <div class="menu-qr-panel" id="vpinplay-multi-qr-panel">
+        <div class="menu-qr-label">VPinPlay Multi</div>
+        <div class="menu-qr-code" id="vpinplay-multi-qr-code" aria-label="QR code for VPinPlay Multi page"></div>
+      </div>
     </div>
   </div>
 
