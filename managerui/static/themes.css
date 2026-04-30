@@ -64,3 +64,29 @@
             background: #374151;
             color: #d1d5db;
         }
+        .badge-config {
+            background: #1f2937;
+            color: #fcd34d;
+        }
+        .theme-config-dialog {
+            background: var(--surface) !important;
+            border: 1px solid var(--line) !important;
+            min-width: min(92vw, 860px);
+            max-width: min(92vw, 860px);
+            padding: 1.25rem;
+        }
+        .theme-config-options {
+            max-height: 62vh;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+        .theme-config-option-card {
+            background: var(--surface-2) !important;
+            border: 1px solid var(--line) !important;
+            border-radius: 10px !important;
+            padding: 0.9rem !important;
+        }
+        .theme-config-json textarea {
+            min-height: 10rem !important;
+            font-family: monospace !important;
+        }

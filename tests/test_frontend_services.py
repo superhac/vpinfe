@@ -38,6 +38,37 @@ class FrontendServiceTests(unittest.TestCase):
             (Path(temp_dir) / "Example").mkdir()
             self.assertIsNone(theme_api.get_theme_config(parser))
 
+    def test_theme_config_flattens_values_from_theme_json(self):
+        parser = configparser.ConfigParser()
+        parser["Settings"] = {"theme": "Example"}
+        with TemporaryDirectory() as temp_dir, mock.patch("frontend.theme_api.THEMES_DIR", Path(temp_dir)):
+            theme_dir = Path(temp_dir) / "Example"
+            theme_dir.mkdir()
+            (theme_dir / "theme.json").write_text(
+                json.dumps(
+                    {
+                        "title": "Example Options",
+                        "options": [
+                            {"key": "showClock", "type": "boolean", "value": True},
+                            {"key": "wheel.scale", "type": "number", "value": 1.25},
+                            {"key": "audio.maxVolume", "type": "number", "default": 0.8},
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = theme_api.get_theme_config(parser)
+
+        self.assertEqual(
+            result,
+            {
+                "showClock": True,
+                "wheel": {"scale": 1.25},
+                "audio": {"maxVolume": 0.8},
+            },
+        )
+
     def test_config_api_set_audio_mute_saves_and_broadcasts(self):
         parser = configparser.ConfigParser()
         parser["Settings"] = {"muteaudio": "false"}

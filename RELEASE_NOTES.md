@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.0.4
+This is the offical release of vpinfe v2.0.5
 
 ### What's New
-None
+- Configurable theme options.  Example set Selectable collection carousel instead of the default collection or all tables.
 
 ### Fixes
-- fix state metadata rating data conflicting with scoring.
+None
 
 ### Notes

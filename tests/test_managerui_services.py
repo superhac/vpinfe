@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 import importlib
+from unittest import mock
 
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui.filters import ALL_VALUE, apply_table_filters, build_table_filter_options
@@ -10,6 +11,7 @@ from managerui.services.collections_service import get_filter_options, search_ta
 from managerui.services.media_service import media_url, update_cache_entry, set_media_cache, get_media_cache, invalidate_media_cache
 from managerui.services.system_service import format_bytes, metric_tone
 from managerui.services.table_catalog import build_mobile_table_rows
+from managerui.services import theme_service
 from managerui.services.table_index_service import (
     add_collection_membership,
     find_by_path,
@@ -162,6 +164,61 @@ class ManagerUiServiceTests(unittest.TestCase):
         self.assertEqual(rows[1]["rating"], 5)
         add_collection_membership("afm", "Favorites")
         self.assertEqual(rows[0]["collections"], ["Favorites"])
+
+    def test_theme_service_reads_schema_and_writes_values_into_theme_json(self):
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        import json
+
+        with TemporaryDirectory() as temp_dir:
+            themes_dir = Path(temp_dir)
+            theme_dir = themes_dir / "Example"
+            theme_dir.mkdir()
+            (theme_dir / "theme.json").write_text(
+                json.dumps(
+                    {
+                        "title": "Example Options",
+                        "options": [
+                            {
+                                "key": "audio.enabled",
+                                "name": "Audio Enabled",
+                                "description": "Turn table audio on or off.",
+                                "type": "boolean",
+                                "value": True,
+                            },
+                            {
+                                "key": "layout.mode",
+                                "name": "Layout Mode",
+                                "type": "select",
+                                "value": "wide",
+                                "options": ["compact", "wide"],
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with mock.patch.object(theme_service, "THEMES_DIR", themes_dir):
+                schema = theme_service.load_theme_option_schema("Example")
+                values = theme_service.get_theme_option_values("Example")
+                saved_path = theme_service.save_theme_option_values(
+                    "Example",
+                    {
+                        "audio.enabled": False,
+                        "layout.mode": "compact",
+                    },
+                )
+
+            self.assertEqual(schema["title"], "Example Options")
+            self.assertEqual(values["audio.enabled"], True)
+            self.assertEqual(values["layout.mode"], "wide")
+            self.assertEqual(saved_path, theme_dir / "theme.json")
+
+            saved = json.loads(saved_path.read_text(encoding="utf-8"))
+            options_by_key = {item["key"]: item for item in saved["options"]}
+            self.assertEqual(options_by_key["audio.enabled"]["value"], False)
+            self.assertEqual(options_by_key["layout.mode"]["value"], "compact")
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ Themes are installed in the user config directory: `~/.config/vpinfe/themes/<THE
 ```
 <THEME NAME>
 ├── manifest.json
-├── config.json          (optional - user-customizable theme options)
+├── theme.json           (optional - schema plus saved Manager UI theme options)
 ├── preview.png          (optional - shown in manager UI, can be .png or .gif)
 ├── index_table.html
 ├── index_bg.html
@@ -324,7 +324,7 @@ vpin.ready.then(async () => {
     // register your input handler
     vpin.registerInputHandler(handleInput);
 
-    // optional: load a config.json from your theme dir for user-customizable options
+    // optional: load values from theme.json in your theme dir
     config = await vpin.call("get_theme_config");
 
     // Initialize the display
@@ -719,7 +719,7 @@ The following methods are available via `vpin.call()`:
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
 | `get_theme_name` | — | `string` | Returns the active theme name from `vpinfe.ini`. |
-| `get_theme_config` | — | `object\|null` | Loads and returns the theme's `config.json` file, or `null` if not found. Use this for user-customizable theme options. |
+| `get_theme_config` | — | `object\|null` | Loads and returns the theme's current configuration values. When a theme provides `theme.json`, VPinFE flattens the option `value` fields into the object returned to theme code. |
 | `get_theme_assets_port` | — | `number` | Returns the HTTP server port (default `8000`). |
 | `get_theme_index_page` | — | `string` | Returns the full URL for this window's theme index page. |
 | `get_table_orientation` | — | `string` | Returns the table orientation from config (`"landscape"` or `"portrait"`). |
@@ -1134,7 +1134,184 @@ async function receiveEvent(message) {
 // vpin.stopTableAudio({ immediate: true });
 ```
 
-### Configuration (theme `config.json`)
+### Configuration Schema (theme `theme.json`)
+
+If your theme wants Manager UI-editable options, add a `theme.json` file to the theme root.
+
+`theme.json` now serves as both the option schema and the saved value store. VPinFE Manager UI reads this file to build the configuration dialog and writes the selected values back into each option's `value` field.
+
+Example:
+
+```json
+{
+  "title": "Carousel Desktop Options",
+  "description": "These options control layout and audio behavior.",
+  "options": [
+    {
+      "key": "wheel.scale",
+      "name": "Wheel Scale",
+      "description": "Controls the wheel image scale multiplier.",
+      "type": "number",
+      "value": 1,
+      "min": 0.5,
+      "max": 2,
+      "step": 0.1
+    },
+    {
+      "key": "showClock",
+      "name": "Show Clock",
+      "description": "Show the clock overlay in the table window.",
+      "type": "boolean",
+      "value": true
+    },
+    {
+      "key": "audio.mode",
+      "name": "Audio Mode",
+      "description": "Select how the theme should handle table audio.",
+      "type": "select",
+      "value": "core",
+      "options": ["off", "core", "theme"]
+    }
+  ]
+}
+```
+
+Full sample `theme.json` for quick testing:
+
+```json
+{
+  "title": "Sample Theme Options",
+  "description": "Example configurable options exposed through the VPinFE Themes page.",
+  "options": [
+    {
+      "key": "showClock",
+      "name": "Show Clock",
+      "description": "Show a clock overlay on the table screen.",
+      "type": "boolean",
+      "value": true
+    },
+    {
+      "key": "headerTitle",
+      "name": "Header Title",
+      "description": "Text displayed in the theme header.",
+      "type": "text",
+      "value": "My Custom Theme"
+    },
+    {
+      "key": "footerMessage",
+      "name": "Footer Message",
+      "description": "Multi-line text shown at the bottom of the screen.",
+      "type": "textarea",
+      "value": "Welcome to VPinFE\nPress Start to Play"
+    },
+    {
+      "key": "wheel.scale",
+      "name": "Wheel Scale",
+      "description": "Scale multiplier for wheel art.",
+      "type": "number",
+      "value": 1,
+      "min": 0.5,
+      "max": 2,
+      "step": 0.1
+    },
+    {
+      "key": "themeMode",
+      "name": "Theme Mode",
+      "description": "Choose the overall layout style.",
+      "type": "select",
+      "value": "arcade",
+      "options": [
+        "minimal",
+        "arcade",
+        "modern"
+      ]
+    },
+    {
+      "key": "accentColor",
+      "name": "Accent Color",
+      "description": "Hex color used for highlights.",
+      "type": "text",
+      "value": "#ffd84d"
+    },
+    {
+      "key": "audio.enabled",
+      "name": "Enable Audio",
+      "description": "Turn theme-controlled audio behavior on or off.",
+      "type": "boolean",
+      "value": true
+    },
+    {
+      "key": "audio.maxVolume",
+      "name": "Audio Max Volume",
+      "description": "Maximum playback volume for theme audio.",
+      "type": "number",
+      "value": 0.8,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    {
+      "key": "advancedRules",
+      "name": "Advanced Rules JSON",
+      "description": "Raw JSON for advanced theme behavior.",
+      "type": "json",
+      "value": {
+        "showTop10": true,
+        "animateWheel": false,
+        "videoFadeMs": 750
+      }
+    }
+  ]
+}
+```
+
+Supported field types in `theme.json`:
+
+- `text`
+- `textarea`
+- `number`
+- `boolean`
+- `select`
+- `json`
+
+Notes:
+
+- `key` is required and identifies the value returned through `get_theme_config()`. Dot notation such as `audio.enabled` creates nested objects in the returned config.
+- `name` is the display label shown in Manager UI. If omitted, the `key` is shown.
+- `description` is shown as help text in the dialog.
+- `value` is the current saved value edited by the user.
+- `default` is optional and is used as a fallback if `value` is omitted.
+- `select` options may be simple scalar values or `{label, value}` objects.
+
+### Values Returned To Theme Code
+
+Themes should continue reading user configuration through `get_theme_config()`, which returns a plain values object derived from `theme.json`.
+
+For compatibility, if `theme.json` is missing, VPinFE still falls back to a legacy `config.json` file when present.
+
+For the sample schema above, `get_theme_config()` would return an object like this:
+
+```json
+{
+  "showClock": true,
+  "headerTitle": "My Custom Theme",
+  "footerMessage": "Welcome to VPinFE\nPress Start to Play",
+  "wheel": {
+    "scale": 1
+  },
+  "themeMode": "arcade",
+  "accentColor": "#ffd84d",
+  "audio": {
+    "enabled": true,
+    "maxVolume": 0.8
+  },
+  "advancedRules": {
+    "showTop10": true,
+    "animateWheel": false,
+    "videoFadeMs": 750
+  }
+}
+```
 
 Core audio can be configured from theme config:
 

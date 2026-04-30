@@ -1,3 +1,5 @@
+import json
+
 from nicegui import ui, run, context
 from common.themes import ThemeRegistry, ThemeRegistryError
 from pathlib import Path
@@ -105,6 +107,8 @@ def render_panel(tab=None):
                 manifest = theme_data.get('manifest', {})
                 registry_info = theme_data.get('registry_info', {})
                 is_installed = _registry.is_installed(theme_key)
+                option_schema = theme_service.load_theme_option_schema(theme_key, _registry) if is_installed else None
+                has_config_options = bool(option_schema and option_schema.get('options'))
                 is_default = registry_info.get('default_install', False)
                 update_info = updates.get(theme_key, {})
                 has_update = update_info.get('update_available', False) and is_installed
@@ -184,6 +188,8 @@ def render_panel(tab=None):
                                     # Built-in badge
                                     if is_default:
                                         ui.html('<span class="theme-badge badge-type">Built-in</span>')
+                                    if has_config_options:
+                                        ui.html('<span class="theme-badge badge-config">Configurable</span>')
 
                                 # Author
                                 with ui.row().classes('items-center gap-2'):
@@ -225,6 +231,8 @@ def render_panel(tab=None):
                                         _make_install_btn(theme_key, 'Install', 'download')
                                     elif has_update:
                                         _make_install_btn(theme_key, 'Update', 'system_update_alt')
+                                    if has_config_options:
+                                        _make_configure_btn(theme_key, manifest.get('name', theme_key), is_active)
                                     if is_installed and not is_active:
                                         _make_activate_btn(theme_key)
                                     if is_installed and not is_default:
@@ -283,6 +291,121 @@ def render_panel(tab=None):
                 ui.button('Set & Restart', icon='restart_alt', on_click=do_activate).style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
 
         btn = ui.button('Set as Active', icon='check_circle', on_click=confirm_dlg.open).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+
+    def _make_configure_btn(theme_key: str, theme_label: str, is_active: bool):
+        """Create a configurable-options dialog button for a theme."""
+        option_schema = theme_service.load_theme_option_schema(theme_key, _registry)
+        if not option_schema:
+            return
+
+        option_values = theme_service.get_theme_option_values(theme_key, _registry)
+        controls: dict[str, tuple[dict, object]] = {}
+
+        def _display_value(value):
+            if value is None:
+                return ''
+            if isinstance(value, (dict, list)):
+                return json.dumps(value, indent=2)
+            return str(value)
+
+        def _options_for_select(option: dict):
+            normalized = {}
+            for item in option.get('options', []):
+                if isinstance(item, dict):
+                    normalized[str(item.get('label', item.get('value')))] = item.get('value')
+                else:
+                    normalized[str(item)] = item
+            return normalized
+
+        def _expected_input_text(option: dict) -> str:
+            option_type = option.get('type', 'text')
+            if option_type == 'boolean':
+                return 'Expected input: toggle on or off.'
+            if option_type == 'number':
+                details = []
+                if option.get('min') is not None:
+                    details.append(f'min {option.get("min")}')
+                if option.get('max') is not None:
+                    details.append(f'max {option.get("max")}')
+                if option.get('step') is not None:
+                    details.append(f'step {option.get("step")}')
+                suffix = f' ({", ".join(details)})' if details else ''
+                return f'Expected input: number{suffix}.'
+            if option_type == 'select':
+                option_count = len(option.get('options', []))
+                return f'Expected input: choose one of {option_count} configured options.'
+            if option_type == 'textarea':
+                return 'Expected input: multi-line text.'
+            if option_type == 'json':
+                return 'Expected input: valid JSON object, array, or scalar.'
+            return 'Expected input: text.'
+
+        with ui.dialog().props('max-width=900px') as config_dlg, ui.card().classes('w-full theme-config-dialog'):
+            ui.label(option_schema.get('title') or f'{theme_label} Options').classes('text-xl font-bold').style('color: var(--ink) !important;')
+            if option_schema.get('description'):
+                ui.label(option_schema['description']).classes('text-sm').style('color: var(--ink-muted) !important;')
+            ui.label('Values are saved directly into `theme.json` and are available through `get_theme_config()` in theme code.').classes('text-sm').style('color: var(--ink-muted) !important;')
+            if is_active:
+                ui.label('If the active theme does not hot-reload config, restart VPinFE after saving.').classes('text-sm').style('color: var(--neon-yellow) !important;')
+
+            with ui.column().classes('w-full gap-3 theme-config-options'):
+                for option in option_schema.get('options', []):
+                    key = option['key']
+                    current_value = option_values.get(key, option.get('default'))
+                    with ui.card().classes('w-full theme-config-option-card'):
+                        ui.label(option.get('name', key)).classes('text-base font-semibold').style('color: var(--ink) !important;')
+                        ui.label(f'Key: {key}').classes('text-xs').style('color: var(--ink-muted) !important;')
+                        if option.get('description'):
+                            ui.label(option['description']).classes('text-sm').style('color: var(--ink-muted) !important;')
+                        ui.label(_expected_input_text(option)).classes('text-xs').style('color: var(--ink-muted) !important;')
+
+                        option_type = option.get('type', 'text')
+                        if option_type == 'boolean':
+                            control = ui.checkbox('Enabled', value=bool(current_value))
+                        elif option_type == 'number':
+                            control = ui.number(
+                                value=current_value,
+                                min=option.get('min'),
+                                max=option.get('max'),
+                                step=option.get('step'),
+                            ).props('outlined dense').classes('w-full')
+                        elif option_type == 'select':
+                            control = ui.select(
+                                options=_options_for_select(option),
+                                value=current_value,
+                                with_input=False,
+                            ).props('outlined dense').classes('w-full')
+                        elif option_type == 'textarea':
+                            control = ui.textarea(value=_display_value(current_value)).props('outlined').classes('w-full')
+                        elif option_type == 'json':
+                            control = ui.textarea(value=_display_value(current_value)).props('outlined').classes('w-full theme-config-json')
+                        else:
+                            control = ui.input(value=_display_value(current_value)).props('outlined dense').classes('w-full')
+
+                        controls[key] = (option, control)
+
+            async def do_save():
+                save_button.disable()
+                try:
+                    values_to_save = {}
+                    for option_key, (option, control) in controls.items():
+                        raw_value = getattr(control, 'value', None)
+                        values_to_save[option_key] = raw_value
+                    await run.io_bound(theme_service.save_theme_option_values, theme_key, values_to_save, _registry)
+                    ui.notify(f'Saved theme options for "{theme_label}"', type='positive')
+                    config_dlg.close()
+                except ValueError as exc:
+                    ui.notify(str(exc), type='warning')
+                except Exception as exc:
+                    ui.notify(f'Failed to save theme options: {exc}', type='negative')
+                finally:
+                    save_button.enable()
+
+            with ui.row().classes('w-full justify-end gap-2 mt-4'):
+                ui.button('Close', on_click=config_dlg.close).props('flat').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                save_button = ui.button('Save', icon='save', on_click=do_save).style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
+
+        ui.button('Configure', icon='tune', on_click=config_dlg.open).style('color: var(--neon-yellow) !important; background: var(--surface) !important; border: 1px solid var(--neon-yellow); border-radius: 18px; padding: 4px 10px;')
 
     def _make_delete_btn(theme_key: str):
         """Create a delete button with confirmation for a theme."""
