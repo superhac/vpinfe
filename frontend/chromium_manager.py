@@ -62,7 +62,13 @@ def get_chromium_path():
     system = platform.system()
 
     if system == "Windows":
-        # Check common system Chrome/Chromium install paths first
+        bundled_path = resource_path("chromium/windows/chrome-win/chrome.exe")
+        if os.path.isfile(bundled_path):
+            return bundled_path
+
+        # Slim builds do not include Chromium, so fall back to Chrome/Chromium.
+        # Do not use Edge: it can hand off to an existing browser process and
+        # exit immediately, which is a poor fit for kiosk process ownership.
         common_paths = [
             os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(
@@ -71,14 +77,11 @@ def get_chromium_path():
             os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%ProgramFiles%\Chromium\Application\chrome.exe"),
             os.path.expandvars(r"%LocalAppData%\Chromium\Application\chrome.exe"),
-            os.path.expandvars(
-                r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
-            ),
         ]
         for path in common_paths:
             if os.path.isfile(path):
                 return path
-        return resource_path("chromium/windows/chrome-win/chrome.exe")
+        return bundled_path
     elif system == "Darwin":
         # Check common system Chrome/Chromium install paths first
         common_paths = [
@@ -455,14 +458,21 @@ class ChromiumManager:
                 for window_name, proc, temp_dir, _ in list(self._processes):
                     if proc.poll() is not None:
                         if is_window_connected and is_window_connected(window_name):
-                            logger.debug(
+                            logger.info(
                                 "Window '%s' launcher process exited (code %s) "
-                                "but frontend is still connected; continuing.",
+                                "but frontend is still connected; waiting for disconnect.",
                                 window_name,
                                 proc.returncode,
                             )
+                            while (
+                                self._processes
+                                and not self._exit_event.is_set()
+                                and is_window_connected(window_name)
+                            ):
+                                self._exit_event.wait(timeout=0.5)
                             self._exit_event.wait(timeout=0.5)
-                            continue
+                            if self._exit_event.is_set():
+                                return
                         logger.info(
                             "Window '%s' exited (code %s)", window_name, proc.returncode
                         )
