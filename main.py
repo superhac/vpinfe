@@ -88,6 +88,30 @@ class _SuppressNoResponseReturnedMiddleware(BaseHTTPMiddleware):
 
 nicegui_app.add_middleware(_SuppressNoResponseReturnedMiddleware)
 
+# On Windows, the Proactor event loop logs a noisy ConnectionResetError (WinError 10054)
+# whenever a browser tab is closed mid-connection. Install a startup handler that
+# silently drops those and forwards everything else to the default handler.
+if sys.platform == "win32":
+    import asyncio as _asyncio
+    _windows_logger = get_logger("vpinfe.windows")
+
+    @nicegui_app.on_startup
+    async def _suppress_proactor_connection_reset() -> None:
+        loop = _asyncio.get_running_loop()
+        _default = loop.get_exception_handler()
+
+        def _handler(loop: _asyncio.AbstractEventLoop, ctx: dict) -> None:
+            exc = ctx.get("exception")
+            if isinstance(exc, ConnectionResetError):
+                _windows_logger.debug(str(exc))
+                return  # swallow WinError 10054 noise from browser disconnects
+            if _default is not None:
+                _default(loop, ctx)
+            else:
+                loop.default_exception_handler(ctx)
+
+        loop.set_exception_handler(_handler)
+
 # Shared instances accessible from other modules (e.g. remote.py)
 ws_bridge = None
 frontend_browser = None
@@ -113,6 +137,10 @@ def _start_startup_media_sync():
 
 cli_args = parseArgs() if len(sys.argv) > 0 else None
 headless = cli_args and cli_args.headless
+
+# Register frontend theme assets before NiceGUI can start on the first-run path.
+MOUNT_POINTS, themes_dir = runtime.build_mount_points(base_path, config_dir, iniconfig)
+nicegui_app.add_static_files('/themes', themes_dir)
 
 # On first run, start the manager UI early so chromium can load it
 if iniconfig.is_new:
@@ -141,33 +169,7 @@ start_dof_service_if_enabled(iniconfig)
 create_api_instances()
 
 # Start the HTTP server to serve images from the "tables" directory
-MOUNT_POINTS, themes_dir = runtime.build_mount_points(base_path, config_dir, iniconfig)
-nicegui_app.add_static_files('/themes', themes_dir)
 http_server = runtime.start_asset_server(MOUNT_POINTS, iniconfig)
-
-# On Windows, the Proactor event loop logs a noisy ConnectionResetError (WinError 10054)
-# whenever a browser tab is closed mid-connection. Install a startup handler that
-# silently drops those and forwards everything else to the default handler.
-if sys.platform == "win32":
-    import asyncio as _asyncio
-    _windows_logger = get_logger("vpinfe.windows")
-
-    @nicegui_app.on_startup
-    async def _suppress_proactor_connection_reset() -> None:
-        loop = _asyncio.get_running_loop()
-        _default = loop.get_exception_handler()
-
-        def _handler(loop: _asyncio.AbstractEventLoop, ctx: dict) -> None:
-            exc = ctx.get("exception")
-            if isinstance(exc, ConnectionResetError):
-                _windows_logger.debug(str(exc))
-                return  # swallow WinError 10054 noise from browser disconnects
-            if _default is not None:
-                _default(loop, ctx)
-            else:
-                loop.default_exception_handler(ctx)
-
-        loop.set_exception_handler(_handler)
 
 # Start the NiceGUI HTTP server
 manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))

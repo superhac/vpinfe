@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.0.5
+This is the offical release of vpinfe v2.0.6
 
 ### What's New
-- Configurable theme options.  Example set Selectable collection carousel instead of the default collection or all tables.
+None
 
 ### Fixes
-None
+- fix contention bug when the condition is a new install. 
 
 ### Notes
