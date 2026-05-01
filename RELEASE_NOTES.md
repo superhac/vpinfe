@@ -1,7 +1,7 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.0.6
+This is the offical release of vpinfe v2.0.7
 
 ### What's New
 None

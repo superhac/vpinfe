@@ -1000,18 +1000,18 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
 
   // Handle all actions mapped to this button
   for (const action of actions) {
-    //this.call("console_out", `Button action: ${action}, windowName: ${windowName}`);
-    if (action === "joyexit" && windowName == "table") {
+    //this.call("console_out", `Button action: ${action}, windowName: ${this._windowName}`);
+    if (action === "joyexit" && this._windowName == "table") {
       this.call("close_app");
     }
-    else if (action === "joymenu" && windowName == "table") {
+    else if (action === "joymenu" && this._windowName == "table") {
       this.#showmenu();
     }
-    else if (action === "joycollectionmenu" && windowName == "table") {
+    else if (action === "joycollectionmenu" && this._windowName == "table") {
       this.call("console_out", "Triggering collection menu");
       this.#showcollectionmenu();
     }
-    else if (action === "joytutorial" && windowName == "table") {
+    else if (action === "joytutorial" && this._windowName == "table") {
       this.#showtutorial();
     }
     else {

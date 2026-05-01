@@ -153,6 +153,7 @@ class ChromiumManager:
         chrome_path = get_chromium_path()
         if not os.path.exists(chrome_path):
             raise FileNotFoundError(f"Chromium binary not found: {chrome_path}")
+        logger.info("Using Chromium executable for '%s': %s", window_name, chrome_path)
 
         user_data_dir = tempfile.mkdtemp(
             prefix=f"vpinfe_chromium_{window_name}_{index}_"
@@ -438,7 +439,7 @@ class ChromiumManager:
         self._exit_event.set()
         logger.info("All browser windows closed.")
 
-    def wait_for_exit(self):
+    def wait_for_exit(self, is_window_connected=None):
         """Block until all Chromium processes have exited.
 
         This replaces the legacy UI main loop as the main blocking call.
@@ -453,6 +454,15 @@ class ChromiumManager:
             while self._processes and not self._exit_event.is_set():
                 for window_name, proc, temp_dir, _ in list(self._processes):
                     if proc.poll() is not None:
+                        if is_window_connected and is_window_connected(window_name):
+                            logger.debug(
+                                "Window '%s' launcher process exited (code %s) "
+                                "but frontend is still connected; continuing.",
+                                window_name,
+                                proc.returncode,
+                            )
+                            self._exit_event.wait(timeout=0.5)
+                            continue
                         logger.info(
                             "Window '%s' exited (code %s)", window_name, proc.returncode
                         )

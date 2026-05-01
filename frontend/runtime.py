@@ -120,7 +120,7 @@ def wait_for_manager_ui_ready(port: int, timeout_seconds: float = 15.0) -> None:
             time.sleep(0.5)
 
 
-def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, logger):
+def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, logger, is_window_connected=None):
     if headless:
         def _request_shutdown(_signum, _frame):
             shutdown_event.set()
@@ -158,7 +158,7 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
         return
 
     frontend_browser.launch_all_windows(iniconfig)
-    frontend_browser.wait_for_exit()
+    frontend_browser.wait_for_exit(is_window_connected=is_window_connected)
 
 
 def shutdown_services(logger, *, vpinplay_sync, iniconfig, ws_bridge, stop_dof, stop_dmd, http_server, nicegui_app, stop_manager_ui):

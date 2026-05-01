@@ -179,7 +179,14 @@ reconfigure_app_logging()
 # Start the WebSocket bridge
 ws_bridge.start()
 
-runtime.run_frontend_loop(headless, iniconfig, frontend_browser, _shutdown_event, logger)
+runtime.run_frontend_loop(
+    headless,
+    iniconfig,
+    frontend_browser,
+    _shutdown_event,
+    logger,
+    is_window_connected=ws_bridge.is_window_connected,
+)
 
 # Shutdown items - wrap each in try/except so restart check always runs
 runtime.shutdown_services(

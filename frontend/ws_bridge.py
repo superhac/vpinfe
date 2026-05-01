@@ -42,6 +42,10 @@ class WebSocketBridge:
         """Register an API instance for a window name."""
         self._api_instances[window_name] = api_instance
 
+    def is_window_connected(self, window_name: str) -> bool:
+        """Return whether a frontend window currently has an active websocket."""
+        return window_name in self._connections
+
     def start(self):
         """Start the WebSocket server in a daemon thread."""
         self._thread = threading.Thread(target=self._run_server, daemon=True)
