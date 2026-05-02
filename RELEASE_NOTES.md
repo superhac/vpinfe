@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.0.7
+This is the offical release of vpinfe v2.0.8
 
 ### What's New
-None
+- update score_parser.py
 
 ### Fixes
--  remove Edge browser choice and fat builds use the embeded chromium only!
+None
 
 ### Notes

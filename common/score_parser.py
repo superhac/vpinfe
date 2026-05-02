@@ -7,7 +7,11 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import BinaryIO
 
-from common.paths import USER_CONFIG_PATH, USER_ROMS_PATH
+try:
+    from platformdirs import user_config_dir
+except ImportError:
+    def user_config_dir(appname: str, appauthor: str | None = None) -> str:
+        return str(Path.home() / ".config" / appname)
 
 
 @dataclass
@@ -25,6 +29,9 @@ class ParsedEntry:
 
 logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
 
+USER_ROMS_PATH = Path(user_config_dir("vpinfe", "vpinfe")) / "roms.json"
+USER_CONFIG_PATH = Path(user_config_dir("vpinfe", "vpinfe")) / "vpinfe.ini"
+
 # alias, rom name in roms.json 
 rom_aliases = {
     "alpok_b6": "alpok_l2",
@@ -32,9 +39,13 @@ rom_aliases = {
     "bcats_l5": "bcats_l2",
     "afm_113b": "afm_113",
     "btmn_106": "btmn_101",
+    "bttf_a28": "bttf_a27",
+    "bttf_g27": "bttf_a27",
     "cftbl_l4": "cftbl_l3",
     "cp_16": "cp_15",
     "eatpm_l4": "eatpm_l1",
+    "eballd14": "eballdlx",
+    "eballdld": "eballdlx",
     "fg_1200af":"fg_1200al",
     "eightbll": "evelknie",
     "frpwr_b7": "frpwr_b6",
@@ -54,6 +65,7 @@ rom_aliases = {
     "ww_lh6": "ww_lh5",
     "stk_sprs" : "evelknie",
     "simp" :"simp_a27",
+    "mtl_180hc": "mtl_180h",
 
 }
 
@@ -1668,6 +1680,9 @@ if __name__ == "__main__":
         "wwfr_106": "/home/superhac/tables/WWF Royal Rumble (Data East 1994)",
         "simp": "/home/superhac/tables/The Simpsons (Data East 1990)",
         "hook_501":"/home/superhac/tables/Hook (Data East 1992)/pinmame/nvram/hook_501.nv",
+        "eballdlx":"/home/superhac/tables/Eight Ball Deluxe (Bally 1981)/pinmame/nvram/eballdlx.nv",
+        "bttf_a27": "/home/superhac/tables/Back To The Future (Data East 1990)/pinmame/nvram/bttf_a27.nv",
+        "mtl_180hc": "/home/superhac/tables/Metallica Premium Monsters (Stern 2013)/pinmame/nvram/mtl_180h.nv",
     }
 
     for rom_name, table_dir in rom_files.items():
