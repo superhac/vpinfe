@@ -171,6 +171,10 @@
         <span class="dropdown-label">Sort By:</span>
         <span class="dropdown-value" id="sortby-value">Alpha</span>
       </li>
+      <li class="menu-item" id="orderby-item">
+        <span class="dropdown-label">Order By:</span>
+        <span class="dropdown-value" id="orderby-value">Descending</span>
+      </li>
       <li class="menu-item action-separator" id="save-filter-item">Save Filter...</li>
       <li class="menu-item" id="close-item">Close</li>
     </ul>
@@ -209,7 +213,8 @@
     let years = ['All'];
     let ratings = ['All', '1', '2', '3', '4', '5'];
     let ratingModes = ['Exact', 'Or Higher'];
-    let sortOptions = ['Alpha', 'Newest', 'LastRun', 'Highest StartCount'];
+    let sortOptions = ['Alpha', 'Newest', 'LastRun', 'Highest StartCount', 'RunTime'];
+    let orderOptions = ['Descending', 'Ascending'];
 
     // Current selections
     let collectionIndex = 0;
@@ -221,6 +226,7 @@
     let ratingIndex = 0;
     let ratingModeIndex = 0;
     let sortByIndex = 0;
+    let orderByIndex = 0;
     let filterDisplayOverrides = {};
 
     function setFilterDisplayOverrides(filterState = {}) {
@@ -233,6 +239,7 @@
         rating: String(filterState.rating || 'All'),
         ratingmode: filterState.rating_or_higher ? 'Or Higher' : 'Exact',
         sortby: filterState.sort || sortOptions[sortByIndex] || 'Alpha',
+        orderby: filterState.order || orderOptions[orderByIndex] || 'Descending',
       };
     }
 
@@ -274,11 +281,15 @@
       const currentSort = await window.parent.vpin.call('get_current_sort_state');
       sortByIndex = sortOptions.indexOf(currentSort);
       if (sortByIndex === -1) sortByIndex = 0;
+      const currentOrder = await window.parent.vpin.call('get_current_order_state');
+      orderByIndex = orderOptions.indexOf(currentOrder);
+      if (orderByIndex === -1) orderByIndex = 0;
 
       if (currentCollection && currentCollection !== 'None') {
         setFilterDisplayOverrides({
           ...currentFilters,
           sort: currentSort || 'Alpha',
+          order: currentOrder || 'Descending',
         });
       }
 
@@ -378,6 +389,8 @@
             openDropdown(selectedItem, 'ratingmode');
           } else if (selectedItem.id === 'sortby-item') {
             openDropdown(selectedItem, 'sortby');
+          } else if (selectedItem.id === 'orderby-item') {
+            openDropdown(selectedItem, 'orderby');
           } else if (selectedItem.id === 'save-filter-item') {
             openSaveFilterDialog();
           } else if (selectedItem.id === 'close-item') {
@@ -412,6 +425,7 @@
       document.getElementById('rating-value').textContent = filterDisplayOverrides.rating || ratings[ratingIndex];
       document.getElementById('ratingmode-value').textContent = filterDisplayOverrides.ratingmode || ratingModes[ratingModeIndex];
       document.getElementById('sortby-value').textContent = filterDisplayOverrides.sortby || sortOptions[sortByIndex];
+      document.getElementById('orderby-value').textContent = filterDisplayOverrides.orderby || orderOptions[orderByIndex];
 
       updateTableCount();
     }
@@ -450,10 +464,13 @@
         filters.rating,
         filters.rating_or_higher
       );
+      await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
       window.parent.vpin.sendMessageToAllWindowsIncSelf({
         type: "TableDataChange",
         index: 0,
-        filters
+        filters,
+        sort: sortOptions[sortByIndex],
+        order: orderOptions[orderByIndex]
       });
       return count;
     }
@@ -469,6 +486,7 @@
         case 'rating': return ratings;
         case 'ratingmode': return ratingModes;
         case 'sortby': return sortOptions;
+        case 'orderby': return orderOptions;
         default: return [];
       }
     }
@@ -484,6 +502,7 @@
         case 'rating': return ratingIndex;
         case 'ratingmode': return ratingModeIndex;
         case 'sortby': return sortByIndex;
+        case 'orderby': return orderByIndex;
         default: return 0;
       }
     }
@@ -537,6 +556,8 @@
             yearIndex = 0;
             ratingIndex = 0;
             ratingModeIndex = 0;
+            sortByIndex = 0;
+            orderByIndex = 0;
 
             await window.parent.vpin.call("get_tables", true);
             window.parent.vpin.sendMessageToAllWindowsIncSelf({
@@ -550,6 +571,7 @@
 
             const filterState = await window.parent.vpin.call("get_current_filter_state");
             const sortState = await window.parent.vpin.call("get_current_sort_state");
+            const orderState = await window.parent.vpin.call("get_current_order_state");
 
             if (filterState && filterState.letter !== null) {
               letterIndex = letters.indexOf(filterState.letter);
@@ -573,9 +595,16 @@
                   sortByIndex = sortIdx;
                 }
               }
+              if (orderState) {
+                const orderIdx = orderOptions.indexOf(orderState);
+                if (orderIdx !== -1) {
+                  orderByIndex = orderIdx;
+                }
+              }
               setFilterDisplayOverrides({
                 ...filterState,
                 sort: sortState || 'Alpha',
+                order: orderState || 'Descending',
               });
               window.parent.vpin.sendMessageToAllWindowsIncSelf({
                 type: "TableDataChange",
@@ -590,6 +619,8 @@
               yearIndex = 0;
               ratingIndex = 0;
               ratingModeIndex = 0;
+              sortByIndex = 0;
+              orderByIndex = 0;
 
               window.parent.vpin.sendMessageToAllWindowsIncSelf({
                 type: "TableDataChange",
@@ -651,13 +682,29 @@
           if (collectionIndex !== 0) {
             filterDisplayOverrides.sortby = sortOptions[sortByIndex];
           }
-          const sortCount = await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex]);
+          const sortCount = await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
           window.parent.vpin.sendMessageToAllWindowsIncSelf({
             type: "TableDataChange",
             index: 0,
-            sort: sortOptions[sortByIndex]
+            sort: sortOptions[sortByIndex],
+            order: orderOptions[orderByIndex]
           });
           document.getElementById('table-count').textContent = `Table Count: ${sortCount}`;
+          break;
+
+        case 'orderby':
+          orderByIndex = dropdownSelected;
+          if (collectionIndex !== 0) {
+            filterDisplayOverrides.orderby = orderOptions[orderByIndex];
+          }
+          const orderCount = await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
+          window.parent.vpin.sendMessageToAllWindowsIncSelf({
+            type: "TableDataChange",
+            index: 0,
+            sort: sortOptions[sortByIndex],
+            order: orderOptions[orderByIndex]
+          });
+          document.getElementById('table-count').textContent = `Table Count: ${orderCount}`;
           break;
       }
 
@@ -705,7 +752,8 @@
         (manufacturers[manufacturerIndex] !== "All") ||
         (ratings[ratingIndex] !== "All") ||
         (years[yearIndex] !== "All") ||
-        (sortOptions[sortByIndex] !== "Alpha");
+        (sortOptions[sortByIndex] !== "Alpha") ||
+        (orderOptions[orderByIndex] !== "Descending");
 
       if (!hasActiveFilters) {
         message.textContent = 'No filters or sort order active. Set at least one before saving.';
@@ -725,7 +773,8 @@
         selectedFilters.year,
         sortOptions[sortByIndex],
         selectedFilters.rating,
-        selectedFilters.rating_or_higher
+        selectedFilters.rating_or_higher,
+        orderOptions[orderByIndex]
       );
 
       if (result.success) {

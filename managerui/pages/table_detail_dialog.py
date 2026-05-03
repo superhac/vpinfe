@@ -9,7 +9,7 @@ import zipfile
 from pathlib import Path
 from typing import Callable, Optional
 
-from nicegui import context, run, ui
+from nicegui import context, events, run, ui
 
 from managerui.pages.table_dialog_context import TableDialogContext, default_context
 from managerui.services import table_index_service, table_service
@@ -75,6 +75,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
             table_dir_name = os.path.basename(row_data.get('table_path', ''))
             if table_dir_name:
                 rebuild_btn = ui.button('Rebuild Meta', icon='refresh').props('dense').classes('ml-auto').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                update_btn = ui.button('Update Table', icon='upload_file').props('dense').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 rebuild_status = ui.label('').classes('text-xs ml-2').style('color: var(--ink);')
                 rebuild_status.visible = False
                 rebuild_client = context.client
@@ -110,7 +111,90 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         with client:
                             rebuild_btn.enable()
 
+                def open_update_table_dialog():
+                    update_dlg = ui.dialog()
+                    with update_dlg, ui.card().classes('table-dialog-card').style('width: 620px; max-width: 92vw;'):
+                        ui.label('Update Table').classes('text-lg font-semibold').style('color: var(--ink);')
+                        ui.label(table_name).classes('text-sm').style('color: var(--ink-muted);')
+                        update_status = ui.label('Choose a .vpx table file or .directb2s backglass file.').classes('text-xs').style('color: var(--ink-muted);')
+
+                        async def handle_table_update(e: events.UploadEventArguments, file_type: str):
+                            upload_name = e.file.name
+                            data = await e.file.read()
+                            client = context.client
+                            with client:
+                                update_btn.disable()
+                                rebuild_btn.disable()
+                                update_status.set_text(f'Updating {upload_name}...')
+                            try:
+                                result = await run.io_bound(
+                                    table_service.replace_table_file,
+                                    table_path_str,
+                                    upload_name,
+                                    data,
+                                    file_type,
+                                    row_data.get('filename', ''),
+                                )
+                                if result.get('file_type') == 'vpx':
+                                    row_data['filename'] = result.get('filename', row_data.get('filename', ''))
+                                    table_index_service.update_row_by_path(table_path_str, {'filename': row_data['filename']})
+                                    with client:
+                                        update_status.set_text('Table file updated. Rebuilding metadata...')
+                                        ui.notify('Table file updated', type='positive')
+                                    await on_rebuild_meta()
+                                else:
+                                    with client:
+                                        update_status.set_text(f'Backglass updated: {result.get("filename", "")}')
+                                        ui.notify('Backglass updated', type='positive')
+
+                                invalidate_media_cache()
+                                if on_close:
+                                    on_close()
+                            except Exception as ex:
+                                logger.exception('Table update failed')
+                                with client:
+                                    update_status.set_text('Update failed')
+                                    ui.notify(f'Update failed: {ex}', type='negative')
+                            finally:
+                                with client:
+                                    update_btn.enable()
+                                    rebuild_btn.enable()
+
+                        ui.separator()
+                        with ui.column().classes('w-full gap-3'):
+                            with ui.column().classes('w-full gap-1'):
+                                ui.label('Replace table file (.vpx)').classes('text-sm').style('color: var(--ink);')
+                                ui.upload(
+                                    on_upload=lambda e: asyncio.create_task(handle_table_update(e, 'vpx')),
+                                    auto_upload=True,
+                                    max_files=1,
+                                ).props('accept=".vpx" flat bordered').classes('w-full').style(
+                                    'background: var(--bg); border: 1px dashed var(--line);'
+                                )
+                            with ui.column().classes('w-full gap-1'):
+                                ui.label('Replace backglass (.directb2s)').classes('text-sm').style('color: var(--ink);')
+                                ui.upload(
+                                    on_upload=lambda e: asyncio.create_task(handle_table_update(e, 'directb2s')),
+                                    auto_upload=True,
+                                    max_files=1,
+                                ).props('accept=".directb2s" flat bordered').classes('w-full').style(
+                                    'background: var(--bg); border: 1px dashed var(--line);'
+                                )
+
+                        with ui.column().classes('w-full gap-1 q-mt-sm').style(
+                            'background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px;'
+                        ):
+                            ui.label('How updates work').classes('text-sm font-semibold').style('color: var(--ink);')
+                            ui.label('.vpx: deletes the old table file, saves the uploaded table file, renames any existing .directb2s to match the new table filename, then rebuilds metadata.').classes('text-xs').style('color: var(--ink-muted);')
+                            ui.label('.directb2s: saves the uploaded backglass using the existing .directb2s filename. If none exists, it uses the current .vpx filename with a .directb2s extension.').classes('text-xs').style('color: var(--ink-muted);')
+
+                        with ui.row().classes('w-full justify-end'):
+                            ui.button('Close', icon='close', on_click=update_dlg.close).props('flat').style('color: var(--ink-muted);')
+
+                    update_dlg.open()
+
                 rebuild_btn.on_click(lambda: asyncio.create_task(on_rebuild_meta()))
+                update_btn.on_click(open_update_table_dialog)
 
         # Main info section
         with ui.column().classes('w-full gap-4 p-4'):

@@ -61,6 +61,7 @@ class VPXCollections:
             "rating": sec.get("rating", "All"),
             "rating_or_higher": sec.get("rating_or_higher", "false"),
             "sort_by": sec.get("sort_by", "Alpha"),
+            "order_by": sec.get("order_by", "Descending"),
         }
 
     def get_vpsids(self, section: str):
@@ -95,6 +96,7 @@ class VPXCollections:
         rating="All",
         rating_or_higher="false",
         sort_by="Alpha",
+        order_by="Descending",
     ):
         """Add a filter-based collection."""
         if self.config.has_section(section):
@@ -111,6 +113,7 @@ class VPXCollections:
         sec["rating"] = rating
         sec["rating_or_higher"] = rating_or_higher
         sec["sort_by"] = sort_by
+        sec["order_by"] = order_by or "Descending"
 
     def delete_collection(self, section: str):
         """Delete a collection."""

@@ -52,6 +52,7 @@ API_ALLOWED_METHODS = {
     'save_filter_collection',
     'get_current_filter_state',
     'get_current_sort_state',
+    'get_current_order_state',
     'get_current_collection',
     'get_filter_letters',
     'get_filter_themes',
@@ -106,6 +107,7 @@ class API:
         self.current_filters = table_state.default_filter_state()
         # Track current sort state
         self.current_sort = 'Alpha'
+        self.current_order = 'Descending'
         # Track current collection
         self.current_collection = None
         # Check for startup collection
@@ -207,11 +209,12 @@ class API:
         sort_by="Alpha",
         rating="All",
         rating_or_higher=False,
+        order_by="Descending",
     ):
         """Save current filter settings as a named collection."""
         try:
             return table_state.save_current_filter_collection(
-                self, name, letter, theme, table_type, manufacturer, year, sort_by, rating, rating_or_higher
+                self, name, letter, theme, table_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by
             )
         except ValueError as e:
             return {"success": False, "message": str(e)}
@@ -223,6 +226,10 @@ class API:
     def get_current_sort_state(self):
         """Return current sort state for UI synchronization."""
         return self.current_sort
+
+    def get_current_order_state(self):
+        """Return current sort order for UI synchronization."""
+        return self.current_order
 
     def get_current_collection(self):
         """Return current collection name for UI synchronization."""
@@ -270,18 +277,22 @@ class API:
         """Reset all VPSdb filters back to full table list."""
         self.filteredTables = self.allTables
         self.current_filters = table_state.default_filter_state()
+        self.current_sort = 'Alpha'
+        self.current_order = 'Descending'
 
-    def apply_sort(self, sort_type):
+    def apply_sort(self, sort_type, order_by=None):
         """
         Sort the current filtered tables.
-        sort_type: 'Alpha', 'Newest', 'LastRun', or 'Highest StartCount'
+        sort_type: 'Alpha', 'Newest', 'LastRun', 'Highest StartCount', or 'RunTime'
+        order_by: 'Ascending' or 'Descending'
         Returns the count of sorted tables.
         """
         self.current_sort = sort_type
-        logger.debug("Applying sort: %s", sort_type)
+        self.current_order = table_state.normalize_sort_order(order_by, sort_type)
+        logger.debug("Applying sort: %s %s", sort_type, self.current_order)
 
-        count = table_state.apply_sort(self.filteredTables, sort_type)
-        logger.debug("Sorted %s tables by %s", count, sort_type)
+        count = table_state.apply_sort(self.filteredTables, sort_type, self.current_order)
+        logger.debug("Sorted %s tables by %s %s", count, sort_type, self.current_order)
         return count
 
     def console_out(self, output):

@@ -166,8 +166,9 @@ def render_panel(tab=None):
                                     'manufacturer': 'mfr',
                                     'year': 'year',
                                     'sort_by': 'sort',
+                                    'order_by': 'order',
                                 }
-                                for key in ('letter', 'theme', 'table_type', 'manufacturer', 'year', 'sort_by'):
+                                for key in ('letter', 'theme', 'table_type', 'manufacturer', 'year', 'sort_by', 'order_by'):
                                     value = (filters or {}).get(key, '')
                                     if value and value != 'All':
                                         for v in str(value).split(','):
@@ -405,6 +406,7 @@ def render_panel(tab=None):
 
                 rating_input.on_value_change(_on_new_rating_change)
                 sort_input = ui.select(label='Sort By', options=filter_opts['sort_options'], value='Alpha').classes('w-full')
+                order_input = ui.select(label='Order By', options=filter_opts['order_options'], value='Descending').classes('w-full')
 
                 def _join_or_all(values):
                     """Join selected values with comma, or return 'All' if none selected."""
@@ -433,6 +435,7 @@ def render_panel(tab=None):
                                 rating=selected_rating,
                                 rating_or_higher=selected_rating_or_higher,
                                 sort_by=sort_input.value or 'Alpha',
+                                order_by=order_input.value or 'Descending',
                                 image=image_state['filename'],
                             )
                             ui.notify(f'Filter collection "{name}" created', type='positive')
@@ -537,7 +540,11 @@ def render_panel(tab=None):
                         rating_or_higher_input.enable()
 
                 rating_input.on_value_change(_on_edit_rating_change)
+                saved_order = filters.get('order_by') or 'Descending'
+                if saved_order not in filter_opts['order_options']:
+                    saved_order = 'Descending'
                 sort_input = ui.select(label='Sort By', options=filter_opts['sort_options'], value=filters.get('sort_by', 'Alpha')).classes('w-full')
+                order_input = ui.select(label='Order By', options=filter_opts['order_options'], value=saved_order).classes('w-full')
 
                 def _join_or_all(values):
                     if not values:
@@ -560,6 +567,7 @@ def render_panel(tab=None):
                                 rating=selected_rating,
                                 rating_or_higher='true' if (selected_rating != 'All' and rating_or_higher_input.value) else 'false',
                                 sort_by=sort_input.value or 'Alpha',
+                                order_by=order_input.value or 'Descending',
                                 image=image_state['filename'],
                             )
                             ui.notify(f'Collection "{name}" updated', type='positive')

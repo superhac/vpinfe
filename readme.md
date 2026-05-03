@@ -438,7 +438,8 @@ Supported collection filters:
 - Year
 - Rating
 - Rating or higher
-- Sort order
+- Sort by alpha, newest, last run, start count, or runtime
+- Order by descending or ascending
 
 From this page you can:
 

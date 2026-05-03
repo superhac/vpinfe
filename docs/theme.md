@@ -680,18 +680,19 @@ The following methods are available via `vpin.call()`:
 | `get_collections_metadata` | — | `array` | Returns collection objects with `name`, `type`, `is_filter`, `image`, `image_url`, and `table_count`. `image_url` is a theme-server URL such as `/collection_icons/favorites.png`, or an empty string when no image is set. |
 | `get_collection_image_url` | `collection` | `string` | Returns the image URL for one collection, or an empty string when no image is set. |
 | `set_tables_by_collection` | `collection` | — | Filters the table list by the named collection. Supports both VPS ID-based and filter-based collections. |
-| `save_filter_collection` | `name`, `letter`, `theme`, `table_type`, `manufacturer`, `year`, `sort_by` | `object` | Saves the current filter settings as a named collection. Returns `{success, message}`. |
+| `save_filter_collection` | `name`, `letter`, `theme`, `table_type`, `manufacturer`, `year`, `sort_by`, `rating`, `rating_or_higher`, `order_by` | `object` | Saves the current filter settings as a named collection. `order_by` is `"Descending"` or `"Ascending"` and defaults to `"Descending"`. Returns `{success, message}`. |
 | `get_current_collection` | — | `string` | Returns the name of the currently active collection, or `"None"`. |
 
 ##### Filters & Sorting
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `apply_filters` | `letter`, `theme`, `table_type`, `manufacturer`, `year` | `number` | Applies VPSdb filters to the full table list. Each arg is optional (pass `null` to keep current). Returns the filtered count. |
+| `apply_filters` | `letter`, `theme`, `table_type`, `manufacturer`, `year`, `rating`, `rating_or_higher` | `number` | Applies VPSdb filters to the full table list. Each arg is optional (pass `null` to keep current). Returns the filtered count. |
 | `reset_filters` | — | — | Resets all filters back to the full table list. |
-| `apply_sort` | `sort_type` | `number` | Sorts the current filtered tables. `sort_type` is `"Alpha"` or `"Newest"`. Returns the count. |
-| `get_current_filter_state` | — | `object` | Returns the current filter state: `{letter, theme, type, manufacturer, year}`. |
-| `get_current_sort_state` | — | `string` | Returns the current sort type (`"Alpha"` or `"Newest"`). |
+| `apply_sort` | `sort_type`, `order_by` | `number` | Sorts the current filtered tables. `sort_type` is `"Alpha"`, `"Newest"`, `"LastRun"`, `"Highest StartCount"`, or `"RunTime"`; `order_by` is `"Descending"` or `"Ascending"`. Returns the count. |
+| `get_current_filter_state` | — | `object` | Returns the current filter state: `{letter, theme, type, manufacturer, year, rating, rating_or_higher}`. |
+| `get_current_sort_state` | — | `string` | Returns the current sort type. |
+| `get_current_order_state` | — | `string` | Returns the current sort order (`"Descending"` or `"Ascending"`). |
 | `get_filter_letters` | — | `array` | Returns available starting letters from all tables (for filter UI). |
 | `get_filter_themes` | — | `array` | Returns available themes/categories from all tables. |
 | `get_filter_types` | — | `array` | Returns available table types (SS, EM, PM, etc.) from all tables. |

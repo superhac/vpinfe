@@ -33,6 +33,19 @@ def default_filter_state():
     }
 
 
+def default_sort_order(sort_type):
+    return "Descending"
+
+
+def normalize_sort_order(order_by, sort_type="Alpha"):
+    value = str(order_by or "").strip().lower()
+    if value in ("ascending", "asc"):
+        return "Ascending"
+    if value in ("descending", "desc"):
+        return "Descending"
+    return default_sort_order(sort_type)
+
+
 def _to_bool(value):
     if isinstance(value, bool):
         return value
@@ -91,11 +104,12 @@ def apply_collection(api, collection):
         "rating_or_higher": str(filters.get("rating_or_higher", "false")).lower() in ("1", "true", "yes", "on"),
     }
     api.current_sort = filters["sort_by"]
-    api.apply_sort(filters["sort_by"])
+    api.current_order = normalize_sort_order(filters.get("order_by"), filters["sort_by"])
+    api.apply_sort(filters["sort_by"], api.current_order)
 
 
-def save_current_filter_collection(api, name, letter, theme, table_type, manufacturer, year, sort_by, rating, rating_or_higher):
-    save_filter_collection(name, letter, theme, table_type, manufacturer, year, rating, rating_or_higher, sort_by)
+def save_current_filter_collection(api, name, letter, theme, table_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by="Descending"):
+    save_filter_collection(name, letter, theme, table_type, manufacturer, year, rating, rating_or_higher, sort_by, order_by)
     return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
 
 
@@ -138,27 +152,36 @@ def apply_filters(api, letter=None, theme=None, table_type=None, manufacturer=No
     return len(api.filteredTables)
 
 
-def apply_sort(tables, sort_type):
+def apply_sort(tables, sort_type, order_by=None):
+    reverse = normalize_sort_order(order_by, sort_type) == "Descending"
     if sort_type == "Alpha":
-        tables.sort(key=lambda table: table_title(table).lower())
+        tables.sort(key=lambda table: table_title(table).lower(), reverse=reverse)
     elif sort_type == "Newest":
-        tables.sort(key=lambda table: table.creation_time if table.creation_time is not None else 0, reverse=True)
+        tables.sort(key=lambda table: table_title(table).lower())
+        tables.sort(key=lambda table: table.creation_time if table.creation_time is not None else 0, reverse=reverse)
     elif sort_type == "LastRun":
-        tables.sort(key=lambda table: _run_sort_key(table, "LastRun"))
+        _sort_by_numeric_meta(tables, "LastRun", reverse)
     elif sort_type == "Highest StartCount":
-        tables.sort(key=lambda table: _run_sort_key(table, "StartCount"))
+        _sort_by_numeric_meta(tables, "StartCount", reverse)
+    elif sort_type == "RunTime":
+        _sort_by_numeric_meta(tables, "RunTime", reverse)
     return len(tables)
 
 
-def _run_sort_key(table, field):
+def _sort_by_numeric_meta(tables, field, reverse):
+    tables.sort(key=lambda table: table_title(table).lower())
+    tables.sort(key=lambda table: _numeric_meta_value(table, field), reverse=reverse)
+
+
+def _numeric_meta_value(table, field):
     meta = normalize_meta(getattr(table, "metaConfig", {}))
     user = section(meta, "User")
+    info = section(meta, "Info")
     try:
-        value = int(user.get(field, -1 if field == "LastRun" else 0))
+        value = int(user.get(field, info.get(field, -1 if field == "LastRun" else 0)))
     except (TypeError, ValueError):
         value = -1 if field == "LastRun" else 0
-    title = str(section(meta, "Info").get("Title", "")).lower()
-    return (-value, title)
+    return value
 
 
 def get_table_rating(tables, index):

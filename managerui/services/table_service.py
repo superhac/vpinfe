@@ -148,6 +148,106 @@ def save_upload_bytes(dest_file: Path, content: bytes) -> None:
     dest_file.write_bytes(content)
 
 
+def _safe_upload_name(filename: str) -> str:
+    safe_name = Path(filename or "").name
+    if not safe_name or safe_name in {".", ".."}:
+        raise ValueError("Invalid upload filename")
+    return safe_name
+
+
+def _find_vpx_file(table_dir: Path, preferred_filename: str = "") -> Path:
+    preferred_name = Path(preferred_filename or "").name
+    if preferred_name:
+        preferred = table_dir / preferred_name
+        if preferred.exists() and preferred.is_file() and preferred.suffix.lower() == ".vpx":
+            return preferred
+
+    vpx_files = sorted(path for path in table_dir.iterdir() if path.is_file() and path.suffix.lower() == ".vpx")
+    if not vpx_files:
+        raise FileNotFoundError(f"No .vpx found in {table_dir}")
+    return vpx_files[0]
+
+
+def _find_directb2s_file(table_dir: Path, preferred_stem: str = "") -> Optional[Path]:
+    b2s_files = sorted(path for path in table_dir.iterdir() if path.is_file() and path.suffix.lower() == ".directb2s")
+    if not b2s_files:
+        return None
+
+    preferred_stem_lower = preferred_stem.lower()
+    if preferred_stem_lower:
+        for path in b2s_files:
+            if path.stem.lower() == preferred_stem_lower:
+                return path
+    return b2s_files[0]
+
+
+def _write_replace(dest_file: Path, content: bytes) -> None:
+    ensure_dir(dest_file.parent)
+    tmp_file = dest_file.with_name(f".{dest_file.name}.uploading")
+    tmp_file.write_bytes(content)
+    os.replace(tmp_file, dest_file)
+
+
+def replace_table_file(table_path: str, filename: str, content: bytes, file_type: str, current_vpx_filename: str = "") -> Dict[str, str]:
+    table_dir = Path(table_path).expanduser()
+    if not table_dir.exists() or not table_dir.is_dir():
+        raise FileNotFoundError(f"Table folder not found: {table_dir}")
+
+    safe_name = _safe_upload_name(filename)
+    ext = Path(safe_name).suffix.lower()
+
+    if file_type == "vpx":
+        if ext != ".vpx":
+            raise ValueError("Only .vpx files can update the table file")
+
+        old_vpx = _find_vpx_file(table_dir, current_vpx_filename)
+        new_vpx = table_dir / safe_name
+        old_b2s = _find_directb2s_file(table_dir, old_vpx.stem)
+
+        if old_vpx.resolve() == new_vpx.resolve():
+            _write_replace(new_vpx, content)
+        else:
+            tmp_file = new_vpx.with_name(f".{new_vpx.name}.uploading")
+            tmp_file.write_bytes(content)
+            old_vpx.unlink()
+            os.replace(tmp_file, new_vpx)
+
+        renamed_b2s = ""
+        if old_b2s and old_b2s.exists():
+            new_b2s = table_dir / f"{new_vpx.stem}.directb2s"
+            if old_b2s.resolve() != new_b2s.resolve():
+                if new_b2s.exists():
+                    new_b2s.unlink()
+                os.replace(old_b2s, new_b2s)
+            renamed_b2s = new_b2s.name
+
+        refresh_table(str(table_dir))
+        return {
+            "file_type": "vpx",
+            "filename": new_vpx.name,
+            "table_path": str(table_dir),
+            "directb2s_filename": renamed_b2s,
+        }
+
+    if file_type == "directb2s":
+        if ext != ".directb2s":
+            raise ValueError("Only .directb2s files can update the backglass file")
+
+        current_vpx = _find_vpx_file(table_dir, current_vpx_filename)
+        old_b2s = _find_directb2s_file(table_dir, current_vpx.stem)
+        target_b2s = old_b2s if old_b2s else table_dir / f"{current_vpx.stem}.directb2s"
+        _write_replace(target_b2s, content)
+
+        refresh_table(str(table_dir))
+        return {
+            "file_type": "directb2s",
+            "filename": target_b2s.name,
+            "table_path": str(table_dir),
+        }
+
+    raise ValueError("Unsupported table update type")
+
+
 def associate_vps_to_folder(
     table_folder: Path,
     vps_entry: Dict,

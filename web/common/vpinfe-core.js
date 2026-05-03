@@ -455,16 +455,18 @@ class VPinFECore {
         message.filters.theme,
         message.filters.type,
         message.filters.manufacturer,
-        message.filters.year
+        message.filters.year,
+        message.filters.rating,
+        message.filters.rating_or_higher
       );
       // If a sort order is also specified, apply it after filters
       if (message.sort) {
-        await this.call("apply_sort", message.sort);
+        await this.call("apply_sort", message.sort, message.order);
       }
       await this.getTableData();
     } else if (message.sort) {
       // Sort order change - apply it to this window's API instance
-      await this.call("apply_sort", message.sort);
+      await this.call("apply_sort", message.sort, message.order);
       await this.getTableData();
     } else {
       // No filters specified - just refresh table data

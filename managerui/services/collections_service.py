@@ -138,7 +138,8 @@ def get_filter_options(cached_tables: list[dict] | None = None) -> Dict[str, Lis
             "manufacturers": ["All"],
             "years": ["All"],
             "ratings": ["All", "1", "2", "3", "4", "5"],
-            "sort_options": ["Alpha", "Newest", "LastRun", "Highest StartCount"],
+            "sort_options": ["Alpha", "Newest", "LastRun", "Highest StartCount", "RunTime"],
+            "order_options": ["Descending", "Ascending"],
         }
 
     letters = set()
@@ -179,7 +180,8 @@ def get_filter_options(cached_tables: list[dict] | None = None) -> Dict[str, Lis
         "manufacturers": ["All"] + sorted(manufacturers),
         "years": ["All"] + sorted(years),
         "ratings": ["All", "1", "2", "3", "4", "5"],
-        "sort_options": ["Alpha", "Newest", "LastRun", "Highest StartCount"],
+        "sort_options": ["Alpha", "Newest", "LastRun", "Highest StartCount", "RunTime"],
+        "order_options": ["Descending", "Ascending"],
     }
 
 

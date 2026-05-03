@@ -20,7 +20,7 @@ from managerui.services.table_index_service import (
     set_rows,
     update_row_by_path,
 )
-from managerui.services.table_service import normalize_table_rating
+from managerui.services.table_service import normalize_table_rating, replace_table_file
 
 
 class ManagerUiServiceTests(unittest.TestCase):
@@ -60,6 +60,75 @@ class ManagerUiServiceTests(unittest.TestCase):
         for raw, expected in cases:
             with self.subTest(raw=raw):
                 self.assertEqual(normalize_table_rating(raw), expected)
+
+    def test_replace_table_file_replaces_vpx_and_renames_directb2s(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+
+        with TemporaryDirectory() as temp_dir:
+            table_dir = Path(temp_dir) / "Example"
+            table_dir.mkdir()
+            old_vpx = table_dir / "Old Table.vpx"
+            old_b2s = table_dir / "Old Table.directb2s"
+            old_vpx.write_bytes(b"old vpx")
+            old_b2s.write_bytes(b"old b2s")
+
+            with mock.patch("managerui.services.table_service.refresh_table"):
+                result = replace_table_file(
+                    str(table_dir),
+                    "New Table.vpx",
+                    b"new vpx",
+                    "vpx",
+                    "Old Table.vpx",
+                )
+
+            self.assertFalse(old_vpx.exists())
+            self.assertEqual((table_dir / "New Table.vpx").read_bytes(), b"new vpx")
+            self.assertFalse(old_b2s.exists())
+            self.assertEqual((table_dir / "New Table.directb2s").read_bytes(), b"old b2s")
+            self.assertEqual(result["filename"], "New Table.vpx")
+            self.assertEqual(result["directb2s_filename"], "New Table.directb2s")
+
+    def test_replace_table_file_directb2s_uses_existing_name_or_vpx_stem(self):
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+
+        with TemporaryDirectory() as temp_dir:
+            table_dir = Path(temp_dir) / "Example"
+            table_dir.mkdir()
+            (table_dir / "Example.vpx").write_bytes(b"vpx")
+            existing_b2s = table_dir / "Custom Backglass.directb2s"
+            existing_b2s.write_bytes(b"old b2s")
+
+            with mock.patch("managerui.services.table_service.refresh_table"):
+                result = replace_table_file(
+                    str(table_dir),
+                    "Uploaded.directb2s",
+                    b"new b2s",
+                    "directb2s",
+                    "Example.vpx",
+                )
+
+            self.assertEqual(existing_b2s.read_bytes(), b"new b2s")
+            self.assertFalse((table_dir / "Uploaded.directb2s").exists())
+            self.assertEqual(result["filename"], "Custom Backglass.directb2s")
+
+        with TemporaryDirectory() as temp_dir:
+            table_dir = Path(temp_dir) / "Example"
+            table_dir.mkdir()
+            (table_dir / "Example.vpx").write_bytes(b"vpx")
+
+            with mock.patch("managerui.services.table_service.refresh_table"):
+                result = replace_table_file(
+                    str(table_dir),
+                    "Uploaded.directb2s",
+                    b"new b2s",
+                    "directb2s",
+                    "Example.vpx",
+                )
+
+            self.assertEqual((table_dir / "Example.directb2s").read_bytes(), b"new b2s")
+            self.assertEqual(result["filename"], "Example.directb2s")
 
     def test_resolve_table_dir_rejects_path_traversal(self):
         with self.subTest("valid table"):
