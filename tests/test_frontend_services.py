@@ -222,6 +222,85 @@ class FrontendServiceTests(unittest.TestCase):
             self.assertEqual(saved["User"]["Rating"], 4)
             self.assertEqual(saved["User"]["StartCount"], 1)
 
+    def test_parse_score_from_nvram_prefers_vpxfile_rom(self) -> None:
+        with TemporaryDirectory() as tmp:
+            table_dir = Path(tmp) / "Example"
+            table_dir.mkdir()
+            info_path = table_dir / "Example.info"
+            info_path.write_text(
+                json.dumps(
+                    {
+                        "Info": {"Rom": "info_rom"},
+                        "VPXFile": {"rom": "vpx_rom"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            table = types.SimpleNamespace(
+                fullPathTable=str(table_dir),
+                tableDirName="Example",
+                metaConfig={},
+            )
+
+            with mock.patch("common.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
+                    mock.patch("common.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}) as to_json:
+                score_data, score_path = table_play_service.parse_score_from_nvram(table)
+
+            read_rom.assert_called_once_with("vpx_rom", str(table_dir))
+            to_json.assert_called_once_with("vpx_rom", 123, "/scores/vpx_rom.nv")
+            self.assertEqual(score_data, {"rom": "vpx_rom"})
+            self.assertEqual(score_path, "/scores/vpx_rom.nv")
+
+    def test_parse_score_from_nvram_falls_back_to_info_rom(self) -> None:
+        with TemporaryDirectory() as tmp:
+            table_dir = Path(tmp) / "Example"
+            table_dir.mkdir()
+            info_path = table_dir / "Example.info"
+            info_path.write_text(
+                json.dumps(
+                    {
+                        "Info": {"Rom": "info_rom"},
+                        "VPXFile": {"rom": ""},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            table = types.SimpleNamespace(
+                fullPathTable=str(table_dir),
+                tableDirName="Example",
+                metaConfig={},
+            )
+
+            with mock.patch("common.score_parser.read_rom_with_source", return_value=(123, "/scores/info_rom.nv")) as read_rom, \
+                    mock.patch("common.score_parser.result_to_jsonable", return_value={"rom": "info_rom"}):
+                table_play_service.parse_score_from_nvram(table)
+
+            read_rom.assert_called_once_with("info_rom", str(table_dir))
+
+    def test_delete_nvram_if_configured_prefers_vpxfile_rom(self) -> None:
+        with TemporaryDirectory() as tmp:
+            table_dir = Path(tmp) / "Example"
+            nvram_dir = table_dir / "pinmame" / "nvram"
+            nvram_dir.mkdir(parents=True)
+            vpx_nvram = nvram_dir / "vpx_rom.nv"
+            info_nvram = nvram_dir / "info_rom.nv"
+            vpx_nvram.write_bytes(b"vpx")
+            info_nvram.write_bytes(b"info")
+            table = types.SimpleNamespace(
+                fullPathTable=str(table_dir),
+                tableDirName="Example",
+                metaConfig={
+                    "Info": {"Rom": "info_rom"},
+                    "VPXFile": {"rom": "vpx_rom"},
+                    "VPinFE": {"deletedNVRamOnClose": True},
+                },
+            )
+
+            table_play_service.delete_nvram_if_configured(table)
+
+            self.assertFalse(vpx_nvram.exists())
+            self.assertTrue(info_nvram.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

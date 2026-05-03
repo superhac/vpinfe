@@ -92,13 +92,20 @@ def apply_runtime_update(config: dict, elapsed_seconds: float) -> dict:
     return user
 
 
+def score_rom_from_meta(config: dict) -> str:
+    vpx_rom = str(section(config, "VPXFile").get("rom", "") or "").strip()
+    if vpx_rom:
+        return vpx_rom
+    return str(section(config, "Info").get("Rom", "") or "").strip()
+
+
 def parse_score_from_nvram(table) -> tuple[dict | None, str | None]:
     config = clone_table_meta(table)
     if not config:
         logger.warning("Could not parse Score: invalid table metadata for %s", table.tableDirName)
         return None, None
 
-    rom = str(section(config, "Info").get("Rom", "") or "").strip()
+    rom = score_rom_from_meta(config)
     if not rom:
         logger.debug("No ROM name found for %s, skipping score update", table.tableDirName)
         return None, None
@@ -176,7 +183,7 @@ def delete_nvram_if_configured(table) -> None:
     if not vpinfe.get("deletedNVRamOnClose", False):
         return
 
-    rom = section(config, "Info").get("Rom", "")
+    rom = score_rom_from_meta(config)
     if not rom:
         logger.warning("No ROM name found for table, skipping NVRAM deletion")
         return
