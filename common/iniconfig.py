@@ -38,7 +38,7 @@ class IniConfig:
 				'theme': 'Revolution',
 				'startup_collection': '',
 				'autoupdatemediaonstartup': 'false',
-				'splashscreen': 'true',
+				'splashscreen': 'false',
 				'muteaudio': 'false',
 				'MMhideQuitButton': 'false',
 				},

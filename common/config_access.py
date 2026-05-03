@@ -52,7 +52,7 @@ class SettingsConfig:
     global_table_ini_override_mask: str = ""
     vpx_launch_env: str = ""
     mute_audio: bool = False
-    splashscreen: bool = True
+    splashscreen: bool = False
     cab_mode: bool = False
     hide_quit_button: bool = False
 
@@ -71,7 +71,7 @@ class SettingsConfig:
             global_table_ini_override_mask=cfg_get(source, "Settings", "globaltableinioverridemask", ""),
             vpx_launch_env=cfg_get(source, "Settings", "vpxlaunchenv", ""),
             mute_audio=cfg_bool(source, "Settings", "muteaudio", False),
-            splashscreen=cfg_bool(source, "Settings", "splashscreen", True),
+            splashscreen=cfg_bool(source, "Settings", "splashscreen", False),
             cab_mode=cfg_bool(source, "Settings", "cabmode", False),
             hide_quit_button=cfg_bool(source, "Settings", "MMhideQuitButton", False),
         )

@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.1.0
+This is the offical release of vpinfe v2.1.1
 
 ### What's New
 None
 
 ### Fixes
-- Fix VPXZ download failing from memory on large files. 
+- fix fat build splash screen default.
 
 ### Notes

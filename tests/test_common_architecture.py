@@ -163,6 +163,11 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertEqual(display.table_screen_id, 0)
         self.assertEqual(display.window_screen_id("tablescreenid"), "")
 
+    def test_settings_config_defaults_splashscreen_off(self) -> None:
+        parser = configparser.ConfigParser()
+
+        self.assertFalse(SettingsConfig.from_config(parser).splashscreen)
+
     def test_media_paths_apply_and_payload_use_shared_specs(self) -> None:
         table = SimpleNamespace(fullPathTable="/tmp/Table", TableImagePath=None, BGImagePath=None)
 

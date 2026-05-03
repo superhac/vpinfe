@@ -64,6 +64,24 @@ class TestIniConfig(unittest.TestCase):
             self.assertTrue(config.config.has_section("Settings"))
             self.assertEqual(config.config.get("Settings", "MMhideQuitButton"), "false")
 
+    def test_splashscreen_defaults_off(self) -> None:
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+
+            config = IniConfig(str(ini_path))
+
+            self.assertTrue(config.config.has_section("Settings"))
+            self.assertEqual(config.config.get("Settings", "splashscreen"), "false")
+
+    def test_existing_splashscreen_setting_is_preserved(self) -> None:
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+            ini_path.write_text("[Settings]\nsplashscreen = true\n", encoding="utf-8")
+
+            config = IniConfig(str(ini_path))
+
+            self.assertEqual(config.config.get("Settings", "splashscreen"), "true")
+
 
 if __name__ == "__main__":
     unittest.main()

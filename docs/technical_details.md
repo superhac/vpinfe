@@ -18,7 +18,7 @@ VPinFE uses a platform-specific configuration directory to store its settings. O
 | vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
 | tablerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
 | startup_collection| Set the collection VPinFE starts up with.  Case sensitive, match collection name. |
-| splashscreen      | Enable or disable the splash screen at startup. Default is `true`. |
+| splashscreen      | Enable or disable the splash screen at startup. Default is `false`. |
 
 ### [Input]
 | Key               | Description |
