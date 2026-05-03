@@ -1,13 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.0.9
+This is the offical release of vpinfe v2.1.0
 
 ### What's New
-- Collections now have a filter for sort by runtime and order by
-- add updating .vpx and directb2s files on the fly in the managerui
+None
 
 ### Fixes
-None
+- Fix VPXZ download failing from memory on large files. 
 
 ### Notes

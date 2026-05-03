@@ -404,7 +404,7 @@ def get_remote_launch_state():
 
 
 @app.get('/api/download-table-vpxz')
-def download_table_vpxz(name: str):
+def download_table_vpxz(name: str, download_token: str | None = None):
     """Zip a table folder and serve it as a .vpxz download, then clean up."""
     from starlette.responses import FileResponse
     from starlette.background import BackgroundTask
@@ -422,10 +422,15 @@ def download_table_vpxz(name: str):
         cleanup_archive(archive)
         logger.info("Cleaned up temp archive: %s", archive.temp_dir)
 
+    headers = {}
+    if download_token and download_token.isalnum():
+        headers["Set-Cookie"] = f"vpinfe_vpxz_download_{download_token}=1; Max-Age=60; Path=/; SameSite=Lax"
+
     return FileResponse(
         archive.path,
         media_type='application/octet-stream',
         filename=archive.filename,
+        headers=headers,
         background=BackgroundTask(cleanup),
     )
 

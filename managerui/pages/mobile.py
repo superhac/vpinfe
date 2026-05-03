@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import uuid
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -8,7 +9,6 @@ from nicegui import ui, run
 
 from common.iniconfig import IniConfig
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_tables_path
-from managerui.services.archive_service import cleanup_archive, create_vpxz_archive
 from managerui.services import table_catalog
 from managerui.ui_helpers import load_page_style
 
@@ -366,6 +366,8 @@ def _build_vpxz_download_panel():
         tables = await run.io_bound(_scan_tables)
         loading.set_visibility(False)
         rows = _build_table_rows(tables)
+        for row in rows:
+            row['download_token'] = uuid.uuid4().hex
 
         columns = [
             {'name': 'display_name', 'label': 'Table', 'field': 'display_name', 'align': 'left', 'sortable': True},
@@ -381,34 +383,50 @@ def _build_vpxz_download_panel():
 
             tbl.add_slot('body-cell-display_name', '''
                 <q-td :props="props">
-                    <q-btn flat dense icon="download" class="q-mr-sm" style="color: var(--neon-cyan) !important;"
-                        @click.stop="$parent.$emit('download', props.row)" />
+                    <q-btn
+                        flat
+                        dense
+                        icon="download"
+                        class="q-mr-sm"
+                        style="color: var(--neon-cyan) !important;"
+                        :href="'/api/download-table-vpxz?name=' + encodeURIComponent(props.row.table_dir_name) + '&download_token=' + encodeURIComponent(props.row.download_token)"
+                        :download="props.row.table_dir_name + '.vpxz'"
+                        @click.stop="$parent.$emit('download', props.row)"
+                    />
                     {{ props.row.display_name }}
                 </q-td>
             ''')
 
             async def handle_download(e):
                 name = e.args['table_dir_name']
+                filename = f'{name}.vpxz'
+                cookie_name = f"vpinfe_vpxz_download_{e.args.get('download_token', '')}"
 
-                with ui.dialog() as dlg, ui.card().classes('p-6').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);'):
+                with ui.dialog().props('persistent') as dlg, ui.card().classes('p-6').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);'):
                     with ui.row().classes('items-center gap-3'):
                         ui.spinner(size='lg')
-                        ui.label(f'Preparing {name}.vpxz ...').style('color: var(--ink) !important;')
+                        ui.label(f'Creating {filename} ...').style('color: var(--ink) !important;')
                 dlg.open()
-
-                def create_zip():
-                    archive = create_vpxz_archive(name)
-                    try:
-                        logger.info("Created download archive: %s", archive.path)
-                        with open(archive.path, 'rb') as f:
-                            return f.read()
-                    finally:
-                        cleanup_archive(archive)
-                        logger.info("Cleaned up temp archive: %s", archive.temp_dir)
-
-                zip_bytes = await run.io_bound(create_zip)
+                await ui.run_javascript(f'''
+                    await new Promise((resolve) => {{
+                        const cookieName = {json.dumps(cookie_name)};
+                        const startedAt = Date.now();
+                        const timer = setInterval(() => {{
+                            const found = document.cookie
+                                .split('; ')
+                                .some((cookie) => cookie.startsWith(`${{cookieName}}=`));
+                            if (found) {{
+                                document.cookie = `${{cookieName}}=; Max-Age=0; Path=/; SameSite=Lax`;
+                                clearInterval(timer);
+                                resolve(true);
+                            }} else if (Date.now() - startedAt > 120000) {{
+                                clearInterval(timer);
+                                resolve(false);
+                            }}
+                        }}, 250);
+                    }});
+                ''', timeout=125.0)
                 dlg.close()
-                ui.download(zip_bytes, f'{name}.vpxz')
 
             tbl.on('download', handle_download)
 
