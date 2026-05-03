@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.1.1
+This is the offical release of vpinfe v2.1.2
 
 ### What's New
 None
 
 ### Fixes
-- fix fat build splash screen default.
+- fix vpxparser to ignore commented out cgamenames
 
 ### Notes

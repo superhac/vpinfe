@@ -151,8 +151,32 @@ class VPXParser:
     # -------------------------------
     # Extraction helpers
     # -------------------------------
+    @staticmethod
+    def stripVBScriptComments(script):
+        lines = []
+        for line in script.splitlines():
+            code = []
+            in_string = False
+            i = 0
+            while i < len(line):
+                char = line[i]
+                if char == '"':
+                    code.append(char)
+                    if in_string and i + 1 < len(line) and line[i + 1] == '"':
+                        code.append(line[i + 1])
+                        i += 2
+                        continue
+                    in_string = not in_string
+                elif char == "'" and not in_string:
+                    break
+                else:
+                    code.append(char)
+                i += 1
+            lines.append("".join(code))
+        return "\n".join(lines)
+
     def extractRomName(self, vpxFileValues):
-        game_data = vpxFileValues['gameData']
+        game_data = self.stripVBScriptComments(vpxFileValues['gameData'])
         m = re.search(r'(?i)c?gamename\s*=\s*"([^"]+)"', game_data)
         m_opt = re.search(r'(?i)c?OptRom\s*=\s*"([^\s]+)"', game_data)
 
