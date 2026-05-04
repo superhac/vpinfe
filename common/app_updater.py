@@ -524,6 +524,18 @@ echo "[Updater] Moved current install to backup: $BACKUP_ROOT"
 if mv "$NEW_ROOT" "$INSTALL_ROOT"; then
     echo "[Updater] Installed new version into $INSTALL_ROOT"
     chmod +x "$LAUNCH_TARGET" 2>/dev/null || true
+    if [ "$(uname -s)" = "Linux" ]; then
+        CHROMIUM_ROOT="$INSTALL_ROOT/_internal/chromium/linux/chrome"
+        if [ -d "$CHROMIUM_ROOT" ]; then
+            echo "[Updater] Repairing bundled Chromium permissions at $CHROMIUM_ROOT"
+            find "$CHROMIUM_ROOT" -type d -exec chmod a+rx {{}} +
+            for helper in chrome chrome_crashpad_handler chrome-sandbox nacl_helper nacl_helper_bootstrap; do
+                if [ -e "$CHROMIUM_ROOT/$helper" ]; then
+                    chmod a+x "$CHROMIUM_ROOT/$helper" 2>/dev/null || true
+                fi
+            done
+        fi
+    fi
     cd "$INSTALL_ROOT"
     echo "[Updater] Relaunch environment: DISPLAY=${{DISPLAY:-<unset>}} WAYLAND_DISPLAY=${{WAYLAND_DISPLAY:-<unset>}} XDG_RUNTIME_DIR=${{XDG_RUNTIME_DIR:-<unset>}}"
     # Relaunch with a clean runtime env so we don't inherit stale PyInstaller

@@ -8,5 +8,6 @@ This is the offical release of vpinfe v2.1.6
 
 ### Fixes
 - fix libdmdiutil collection selection frontend refresh on exit.
+- force fat builds to set exec perms on chromium. 
 
 ### Notes
