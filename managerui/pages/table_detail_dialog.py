@@ -112,6 +112,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             rebuild_btn.enable()
 
                 def open_update_table_dialog():
+                    update_client = context.client
                     update_dlg = ui.dialog()
                     with update_dlg, ui.card().classes('table-dialog-card').style('width: 620px; max-width: 92vw;'):
                         ui.label('Update Table').classes('text-lg font-semibold').style('color: var(--ink);')
@@ -121,7 +122,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         async def handle_table_update(e: events.UploadEventArguments, file_type: str):
                             upload_name = e.file.name
                             data = await e.file.read()
-                            client = context.client
+                            client = update_client
                             with client:
                                 update_btn.disable()
                                 rebuild_btn.disable()
@@ -160,12 +161,18 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                     update_btn.enable()
                                     rebuild_btn.enable()
 
+                        async def on_vpx_update(e: events.UploadEventArguments):
+                            await handle_table_update(e, 'vpx')
+
+                        async def on_directb2s_update(e: events.UploadEventArguments):
+                            await handle_table_update(e, 'directb2s')
+
                         ui.separator()
                         with ui.column().classes('w-full gap-3'):
                             with ui.column().classes('w-full gap-1'):
                                 ui.label('Replace table file (.vpx)').classes('text-sm').style('color: var(--ink);')
                                 ui.upload(
-                                    on_upload=lambda e: asyncio.create_task(handle_table_update(e, 'vpx')),
+                                    on_upload=on_vpx_update,
                                     auto_upload=True,
                                     max_files=1,
                                 ).props('accept=".vpx" flat bordered').classes('w-full').style(
@@ -174,7 +181,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             with ui.column().classes('w-full gap-1'):
                                 ui.label('Replace backglass (.directb2s)').classes('text-sm').style('color: var(--ink);')
                                 ui.upload(
-                                    on_upload=lambda e: asyncio.create_task(handle_table_update(e, 'directb2s')),
+                                    on_upload=on_directb2s_update,
                                     auto_upload=True,
                                     max_files=1,
                                 ).props('accept=".directb2s" flat bordered').classes('w-full').style(

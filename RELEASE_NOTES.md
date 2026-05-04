@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.1.4
+This is the offical release of vpinfe v2.1.5
 
 ### What's New
 None
 
 ### Fixes
-- sidecar vbs for vpxparser now takes priority if present.
+- fix bug in table update
 
 ### Notes

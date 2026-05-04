@@ -66,6 +66,7 @@ rom_aliases = {
     "stk_sprs" : "evelknie",
     "simp" :"simp_a27",
     "mtl_180hc": "mtl_180h",
+    "shaqatt2": "shaqattq",
 
 }
 
