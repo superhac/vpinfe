@@ -8,6 +8,7 @@ _LOCK = threading.Lock()
 _CONTROLLER = None
 _CURRENT_IMAGE = None
 _WRAPPER_NAMES = ('libdmdutil_wrapper.py',)
+_DEFAULT_REALDMD_IMAGE = Path(__file__).resolve().parents[1] / "web" / "images" / "vpinfe_realdmd.png"
 logger = logging.getLogger("vpinfe.common.libdmdutil_service")
 
 
@@ -92,6 +93,15 @@ def _build_controller_kwargs(iniconfig) -> dict[str, str]:
     return {}
 
 
+def _resolve_display_image_path(image_path: str | Path | None) -> Path | None:
+    resolved_path = Path(image_path).expanduser().resolve() if image_path else None
+    if resolved_path is not None and resolved_path.exists():
+        return resolved_path
+    if _DEFAULT_REALDMD_IMAGE.exists():
+        return _DEFAULT_REALDMD_IMAGE
+    return None
+
+
 def is_running() -> bool:
     with _LOCK:
         return _CONTROLLER is not None
@@ -167,7 +177,7 @@ def show_image(iniconfig, image_path: str | Path | None) -> bool:
     if not _is_enabled(iniconfig):
         return False
 
-    resolved_path = Path(image_path).expanduser().resolve() if image_path else None
+    resolved_path = _resolve_display_image_path(image_path)
 
     with _LOCK:
         controller = _CONTROLLER
@@ -185,7 +195,7 @@ def show_image(iniconfig, image_path: str | Path | None) -> bool:
         return False
 
     try:
-        if resolved_path is None or not resolved_path.exists():
+        if resolved_path is None:
             controller.clear()
             with _LOCK:
                 _CURRENT_IMAGE = None

@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.1.5
+This is the offical release of vpinfe v2.1.6
 
 ### What's New
-None
+- add expressway rom, fix shaq attq
 
 ### Fixes
-- fix bug in table update
+- fix libdmdiutil collection selection frontend refresh on exit.
 
 ### Notes

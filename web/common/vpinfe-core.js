@@ -521,6 +521,12 @@ class VPinFECore {
       this.#updateFrontendDofForCurrentTable().catch(() => {});
       return;
     }
+    if (message.type === "TableDataChange") {
+      this._lastFrontendDofIndex = null;
+      this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
+      this.#updateFrontendDofForCurrentTable().catch(() => {});
+      return;
+    }
     if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
       this._lastFrontendDofIndex = null;
       this.getVPinPlayRating(this._currentTableIndex).catch(() => {});

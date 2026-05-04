@@ -135,6 +135,10 @@ special_text_score_files = {
         "filename": "ElToro.txt",
         "parser": "score_key_value",
     },
+    "Expressway": {
+        "filename": "Expressway.txt",
+        "parser": "score_key_value",
+    },
     "jacksopen": {
         "filename": "JacksOpen.txt",
         "parser": "smart_numeric",

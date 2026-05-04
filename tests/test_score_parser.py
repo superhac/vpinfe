@@ -214,6 +214,18 @@ class TestScoreParser(unittest.TestCase):
         self.assertEqual(result, 123456)
         self.assertEqual(resolved, str(text_path))
 
+    def test_read_rom_with_source_parses_expressway_score_text(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            table_dir = Path(temp_dir)
+            text_path = table_dir / "user" / "Expressway.txt"
+            text_path.parent.mkdir(parents=True)
+            text_path.write_text("playerscore1    10100\n", encoding="utf-8")
+
+            result, resolved = score_parser.read_rom_with_source("Expressway", str(table_dir))
+
+        self.assertEqual(resolved, str(text_path))
+        self.assertEqual(result, [ParsedEntry(section="", rank=None, initials="", score=10100)])
+
 
 if __name__ == "__main__":
     unittest.main()
