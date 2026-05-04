@@ -113,6 +113,14 @@ class VPXParser:
         vbscript = data[offset + 4:offset + 4 + length].decode("utf-8", errors="ignore")
         vpxFileValues['gameData'] = self.ensure_msdos_line_endings(vbscript)
 
+    def loadSidecarVBCode(self, vpxFile, vpxFileValues):
+        vbs_path = pathlib.Path(vpxFile).with_suffix(".vbs")
+        if not vbs_path.exists():
+            return
+
+        vbscript = vbs_path.read_bytes().decode("utf-8-sig", errors="ignore")
+        vpxFileValues['gameData'] = self.ensure_msdos_line_endings(vbscript)
+
     def calcCodeHash(self, vpxFileValues):
         vpxFileValues['codeSha256Hash'] = hashlib.sha256(
             vpxFileValues['gameData'].encode("utf-8")
@@ -131,6 +139,7 @@ class VPXParser:
             self.loadTableValues(vpxFileValues, ole)
             self.loadVBCode(ole, vpxFileValues)
 
+        self.loadSidecarVBCode(file, vpxFileValues)
         self.calcCodeHash(vpxFileValues)
         self.extractRomName(vpxFileValues)
         self.runDetectors(vpxFileValues)

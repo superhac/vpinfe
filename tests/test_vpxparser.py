@@ -1,4 +1,6 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from common.vpxparser import VPXParser
 
@@ -59,6 +61,24 @@ class TestVPXParser(unittest.TestCase):
         parser.extractRomName(values)
 
         self.assertEqual(values["rom"], "fallback_rom")
+
+    def test_sidecar_vbs_overrides_embedded_game_data(self) -> None:
+        parser = VPXParser()
+        with TemporaryDirectory() as tmp:
+            vpx_path = Path(tmp) / "Example.vpx"
+            vbs_path = Path(tmp) / "Example.vbs"
+            vpx_path.write_bytes(b"")
+            vbs_path.write_text(
+                "'Const cGameName=\"embedded_active\"\n"
+                "Const cGameName=\"sidecar_active\"\n",
+                encoding="utf-8",
+            )
+            values = {"gameData": "Const cGameName=\"embedded_active\""}
+
+            parser.loadSidecarVBCode(str(vpx_path), values)
+            parser.extractRomName(values)
+
+            self.assertEqual(values["rom"], "sidecar_active")
 
 
 if __name__ == "__main__":
