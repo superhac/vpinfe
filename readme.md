@@ -275,7 +275,7 @@ Logging behavior:
 - **Log Verbosity**: debug/info/warning/error/critical
 - **Console Logging**: enables console log output
 
-The page also has a **View Log** button that opens the current `vpinfe.log`. VPinFE writes logs to the standard config directory and starts a fresh log file on each launch.
+The Logs page also opens the current `vpinfe.log` and `vpinball.log`. VPinFE writes its own logs to the standard config directory and starts a fresh log file on each launch. The VPinball Log card can enable `Settings.vpxlogdeleteonstart`, which deletes `vpinball.log` before each frontend table launch. VPinFE resolves that log path from `Settings.vpxinipath` by using the directory that contains `VPinballX.ini`.
 
 #### Media section
 

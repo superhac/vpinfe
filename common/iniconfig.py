@@ -35,6 +35,7 @@ class IniConfig:
 				'globaltableinioverridemask': '',
 				'tablerootdir': '',
 				'vpxinipath': '',
+				'vpxlogdeleteonstart': 'false',
 				'theme': 'Revolution',
 				'startup_collection': '',
 				'autoupdatemediaonstartup': 'false',

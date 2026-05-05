@@ -119,6 +119,8 @@ class TestCommonArchitecture(unittest.TestCase):
         parser.read_dict({
             "Settings": {
                 "tablerootdir": "/tables",
+                "vpxinipath": "/home/player/.vpinball/VPinballX.ini",
+                "vpxlogdeleteonstart": "yes",
                 "theme": "",
                 "autoupdatemediaonstartup": "yes",
                 "cabmode": "true",
@@ -143,8 +145,10 @@ class TestCommonArchitecture(unittest.TestCase):
         })
 
         self.assertEqual(SettingsConfig.from_config(parser).table_root_dir, "/tables")
+        self.assertEqual(SettingsConfig.from_config(parser).vpx_ini_path, "/home/player/.vpinball/VPinballX.ini")
         self.assertEqual(SettingsConfig.from_config(parser).theme, "Revolution")
         self.assertTrue(SettingsConfig.from_config(parser).auto_update_media_on_startup)
+        self.assertTrue(SettingsConfig.from_config(parser).vpx_log_delete_on_start)
         self.assertEqual(MediaConfig.from_config(parser).table_type, "fss")
         self.assertEqual(NetworkConfig.from_config(parser).ws_port, 9002)
         self.assertEqual(NetworkConfig.from_config(parser).theme_assets_port, 8000)

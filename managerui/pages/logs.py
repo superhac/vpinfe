@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import html
-import os
 from pathlib import Path
 
 from nicegui import ui
 
+from common.config_access import SettingsConfig
 from common.iniconfig import IniConfig
+from common.vpx_log import resolve_vpinball_log_path
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 from managerui.ui_helpers import load_page_style
 
@@ -28,14 +29,25 @@ def _get_vpinfe_log_path() -> Path:
 def _get_vpinball_log_path() -> Path | None:
     try:
         config = IniConfig(str(VPINFE_INI_PATH))
-        vpx_ini_path = config.config.get("Settings", "vpxinipath", fallback="").strip()
+        settings = SettingsConfig.from_config(config)
     except Exception:
-        vpx_ini_path = ""
-
-    if not vpx_ini_path:
         return None
 
-    return Path(os.path.expanduser(vpx_ini_path)).parent / "vpinball.log"
+    return resolve_vpinball_log_path(settings.vpx_ini_path)
+
+
+def _get_delete_on_start_enabled() -> bool:
+    try:
+        config = IniConfig(str(VPINFE_INI_PATH))
+        return SettingsConfig.from_config(config).vpx_log_delete_on_start
+    except Exception:
+        return False
+
+
+def _set_delete_on_start_enabled(value: bool) -> None:
+    config = IniConfig(str(VPINFE_INI_PATH))
+    config.config.set("Settings", "vpxlogdeleteonstart", "true" if value else "false")
+    config.save()
 
 
 def render_panel():
@@ -130,6 +142,16 @@ def render_panel():
         if vpinball_log_path is not None
         else "Set Settings.vpxinipath in vpinfe.ini so VPinball log location can be found."
     )
+    delete_on_start_enabled = _get_delete_on_start_enabled()
+
+    def update_delete_on_start(event):
+        try:
+            _set_delete_on_start_enabled(bool(event.value))
+        except Exception as exc:
+            ui.notify(f"Failed to save vpxlogdeleteonstart: {exc}", type="negative")
+        else:
+            state = "enabled" if event.value else "disabled"
+            ui.notify(f"Delete VPinball Log on table start {state}.", type="positive")
 
     with ui.column().classes("w-full config-page-shell"):
         with ui.card().classes("w-full config-hero").style("overflow: hidden;"):
@@ -157,6 +179,11 @@ def render_panel():
                 with ui.card().classes("config-side-card w-full p-4"):
                     ui.label("VPinball Log").classes("text-lg font-semibold").style("color: var(--ink) !important;")
                     ui.label(vpinball_log_description).classes("text-sm").style("color: var(--ink-muted) !important;")
+                    ui.switch(
+                        "Delete VPinball Log before each table start",
+                        value=delete_on_start_enabled,
+                        on_change=update_delete_on_start,
+                    ).props("color=cyan").classes("mt-3").style("color: var(--ink) !important;")
                     with ui.row().classes("items-center gap-3 mt-3"):
                         ui.button("View VPinball Log", icon="sports_esports", on_click=show_vpinball_log).style(
                             "color: var(--neon-purple) !important; background: var(--surface) !important; "

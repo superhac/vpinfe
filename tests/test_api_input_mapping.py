@@ -110,6 +110,7 @@ class TestApiInputMapping(unittest.TestCase):
             mock_popen.return_value = process
 
             events = []
+            call_order = []
             ws_bridge = types.SimpleNamespace(
                 send_event_all_with_iframe=lambda message: events.append(message)
             )
@@ -117,12 +118,20 @@ class TestApiInputMapping(unittest.TestCase):
             ini = self._build_ini()
             api = API(ini, ws_bridge=ws_bridge)
 
-            with patch("frontend.launch_service.table_play_service.track_table_play"), \
+            def popen_side_effect(*args, **kwargs):
+                call_order.append("popen")
+                return process
+
+            mock_popen.side_effect = popen_side_effect
+
+            with patch("frontend.launch_service.delete_vpinball_log_on_start_if_configured", side_effect=lambda _settings: call_order.append("delete_log")), \
+                patch("frontend.launch_service.table_play_service.track_table_play"), \
                 patch("frontend.launch_service.table_play_service.increment_start_count"), \
                 patch("frontend.launch_service.table_play_service.add_runtime_minutes"), \
                 patch("frontend.launch_service.table_play_service.update_score_from_nvram"), \
                 patch("frontend.launch_service.table_play_service.delete_nvram_if_configured"):
                 api.launch_table(0)
 
+            self.assertEqual(call_order[:2], ["delete_log", "popen"])
             self.assertEqual(events[0]["type"], "TableLaunching")
             self.assertEqual(events[-1]["type"], "TableLaunchComplete")

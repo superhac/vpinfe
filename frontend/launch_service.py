@@ -8,6 +8,7 @@ import time
 
 from common import table_play_service
 from common.config_access import SettingsConfig, VPinPlayConfig
+from common.vpx_log import delete_vpinball_log_on_start_if_configured
 from common.vpinplay_runtime import (
     add_table_runtime,
     get_active_profile,
@@ -93,6 +94,7 @@ def launch_table(
         logger.warning("Launcher not found (%s): %s", source_key, vpxbin_path)
         return
 
+    delete_vpinball_log_on_start_if_configured(settings)
     table_play_service.track_table_play(table)
     api.send_event_all_windows_incself({"type": "TableLaunching"})
 

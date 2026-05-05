@@ -14,7 +14,9 @@ category_select = None
 # Config for launching tables
 # Import config
 from common.iniconfig import IniConfig
+from common.config_access import SettingsConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
+from common.vpx_log import delete_vpinball_log_on_start_if_configured
 from common.libdmdutil_service import (
     stop_libdmdutil_service,
 )
@@ -144,6 +146,7 @@ def _launch_table(table: dict):
         logger.info("Remote launching table: %s", vpx_path)
         ui.notify(f'Remote Launching {table_name}...', type='info')
 
+        delete_vpinball_log_on_start_if_configured(SettingsConfig.from_config(cfg))
         stop_dof_service()
         stop_libdmdutil_service(clear=False)
 

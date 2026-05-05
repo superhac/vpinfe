@@ -1,10 +1,10 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.1.8
+This is the offical release of vpinfe v2.1.9
 
 ### What's New
-- Clean up tables breaking single line of titles, links, and collections.
+- Add option to wipe VPinballX.log before each table start.
 
 ### Fixes
 None

@@ -20,6 +20,7 @@ CHECKBOX_FIELDS = {
     ("Settings", "muteaudio"),
     ("Settings", "mmhidequitbutton"),
     ("Settings", "globaltableinioverrideenabled"),
+    ("Settings", "vpxlogdeleteonstart"),
     ("Displays", "cabmode"),
     ("Logger", "console"),
     ("DOF", "enabledof"),

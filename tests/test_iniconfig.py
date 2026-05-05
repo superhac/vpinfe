@@ -73,6 +73,15 @@ class TestIniConfig(unittest.TestCase):
             self.assertTrue(config.config.has_section("Settings"))
             self.assertEqual(config.config.get("Settings", "splashscreen"), "false")
 
+    def test_vpx_log_delete_on_start_defaults_off(self) -> None:
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+
+            config = IniConfig(str(ini_path))
+
+            self.assertTrue(config.config.has_section("Settings"))
+            self.assertEqual(config.config.get("Settings", "vpxlogdeleteonstart"), "false")
+
     def test_existing_splashscreen_setting_is_preserved(self) -> None:
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
