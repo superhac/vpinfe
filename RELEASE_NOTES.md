@@ -1,13 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.1.6
+This is the offical release of vpinfe v2.1.7
 
 ### What's New
-- add expressway rom, fix shaq attq
+None
 
 ### Fixes
-- fix libdmdiutil collection selection frontend refresh on exit.
-- force fat builds to set exec perms on chromium. 
+- fix mainmenu scaling
 
 ### Notes
