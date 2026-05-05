@@ -17,17 +17,17 @@ body {
   display: inline-block;
   transition: transform 0.3s ease;
   transform-origin: center center;
-  width: min(90vw, calc(90vh * 1.5), 1500px);
+  width: min(94vw, calc(88vh * 1.5), 1800px);
   aspect-ratio: 3 / 2;
   box-sizing: border-box;
   background-color: #1a1e2a;
-  border-radius: 2vh;
-  padding: 17% 10% 22%;
+  border-radius: min(2vh, 2vw);
+  padding: 16.5% 10% 21%;
   box-shadow:
-    0 1vh 2vh rgba(0,0,0,0.8),
-    inset 0 0.2vh 0.5vh rgba(255,255,255,0.1),
-    inset 0 -0.2vh 0.5vh rgba(0,0,0,0.5);
-  border: 0.3vh solid #1a1e2a;
+    0 1vmin 2vmin rgba(0,0,0,0.8),
+    inset 0 0.2vmin 0.5vmin rgba(255,255,255,0.1),
+    inset 0 -0.2vmin 0.5vmin rgba(0,0,0,0.5);
+  border: min(0.3vh, 0.3vw) solid #1a1e2a;
   position: relative;
   overflow: visible;
 }
@@ -87,11 +87,11 @@ ul.menu {
 #menu-qr-panels {
   position: absolute;
   left: 50%;
-  bottom: 6%;
+  bottom: 7%;
   transform: translateX(-50%);
   display: flex;
   align-items: stretch;
-  gap: clamp(10px, 1.2vh, 18px);
+  gap: clamp(8px, 1.6vmin, 24px);
   z-index: 1;
 }
 
@@ -99,9 +99,9 @@ ul.menu {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(6px, 0.8vh, 12px);
-  padding: clamp(8px, 1vh, 16px) clamp(12px, 1.4vh, 20px);
-  border-radius: 1.2vh;
+  gap: clamp(5px, 1vmin, 14px);
+  padding: clamp(7px, 1.2vmin, 18px) clamp(10px, 1.8vmin, 24px);
+  border-radius: clamp(6px, 1.2vmin, 16px);
   background: linear-gradient(180deg, rgba(15, 19, 28, 0.94) 0%, rgba(8, 10, 16, 0.94) 100%);
   border: 0.16vh solid rgba(255, 216, 77, 0.28);
   box-shadow:
@@ -111,9 +111,9 @@ ul.menu {
 
 .menu-qr-code {
   flex: 0 0 auto;
-  width: clamp(72px, 8.5vh, 120px);
-  height: clamp(72px, 8.5vh, 120px);
-  padding: clamp(5px, 0.55vh, 8px);
+  width: clamp(66px, 10vmin, 150px);
+  height: clamp(66px, 10vmin, 150px);
+  padding: clamp(5px, 0.8vmin, 10px);
   background: #fff;
   border-radius: 0.7vh;
   box-shadow: 0 0.2vh 0.5vh rgba(0, 0, 0, 0.32);
@@ -126,7 +126,7 @@ ul.menu {
 }
 
 .menu-qr-label {
-  font-size: clamp(14px, 1.6vh, 24px);
+  font-size: clamp(12px, 1.8vh, 26px);
   font-weight: bold;
   letter-spacing: 0.12vh;
   text-transform: uppercase;
@@ -138,8 +138,8 @@ ul.menu {
 li.menu-item {
   width: 100%;
   box-sizing: border-box;
-  padding: clamp(10px, 1.8vh, 24px) var(--menu-item-side-inset, 6vh);
-  margin-bottom: clamp(6px, 1.1vh, 16px);
+  padding: clamp(8px, 1.8vmin, 26px) var(--menu-item-side-inset, 6vmin);
+  margin-bottom: clamp(5px, 1.1vmin, 16px);
   background-image: url('./menubutton.png');
   background-size: 100% 100%;
   background-repeat: no-repeat;
@@ -148,7 +148,7 @@ li.menu-item {
   border-radius: 0;
   cursor: pointer;
   position: relative;
-  font-size: clamp(16px, 2.1vh, 36px);
+  font-size: clamp(15px, 2.4vh, 38px);
   font-weight: bold;
   text-align: center;
   text-transform: uppercase;

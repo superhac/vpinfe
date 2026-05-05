@@ -219,8 +219,9 @@ function syncMenuWidthFromLongestLabel() {
   if (menuItems.length === 0) return;
 
   // Reserve left/right "cap" space in the button image so labels stay centered.
-  const sideInsetPx = Math.max(32, Math.round(container.clientHeight * 0.09));
-  const edgeBufferPx = Math.max(5, Math.round(container.clientHeight * 0.01));
+  const sizingBasis = Math.min(container.clientWidth, container.clientHeight);
+  const sideInsetPx = Math.max(28, Math.round(sizingBasis * 0.09));
+  const edgeBufferPx = Math.max(5, Math.round(sizingBasis * 0.01));
   menu.style.setProperty('--menu-item-side-inset', `${sideInsetPx}px`);
 
   const styleProbe = getComputedStyle(menuItems[0]);
