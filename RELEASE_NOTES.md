@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.1.7
+This is the offical release of vpinfe v2.1.8
 
 ### What's New
-None
+- Clean up tables breaking single line of titles, links, and collections.
 
 ### Fixes
-- fix mainmenu scaling
+None
 
 ### Notes

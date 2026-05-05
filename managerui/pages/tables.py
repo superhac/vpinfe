@@ -777,14 +777,12 @@ def render_panel(tab=None):
                   .classes("w-full cursor-pointer")
                   .style("flex: 1; overflow: auto;")
             )
-            # Add custom slot for name column to include IPDB, VPS links, and collections
-            # Define colors for collections - will cycle through these
-            collection_colors = ['purple-8', 'teal-8', 'pink-8', 'cyan-8', 'amber-8', 'lime-8', 'indigo-8', 'orange-8']
+            # Add custom slot for name column to include status badges, links, and collections
             table.add_slot('body-cell-name', '''
                 <q-td :props="props">
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <span>{{ props.value }}</span>
+                            <span style="font-size: 1.08rem; font-weight: 600; line-height: 1.25; color: var(--ink);">{{ props.value }}</span>
                             <span v-if="Number(props.row.rating || 0) > 0" style="font-size: 0.9em; white-space: nowrap;">
                                 <span style="color: #facc15;">{{ '★'.repeat(Math.max(0, Math.min(5, Number(props.row.rating || 0)))) }}</span><span style="color: #64748b;">{{ '☆'.repeat(5 - Math.max(0, Math.min(5, Number(props.row.rating || 0)))) }}</span>
                             </span>
@@ -809,6 +807,11 @@ def render_panel(tab=None):
                                 label="ALT-VPS"
                                 style="font-size: 10px; padding: 2px 6px;"
                             />
+                        </div>
+                        <div
+                            v-if="props.row.ipdb_id || props.row.vpsid || props.row.pinball_primer_tut"
+                            style="display: flex; flex-wrap: wrap; gap: 4px;"
+                        >
                             <a v-if="props.row.ipdb_id"
                                :href="'https://www.ipdb.org/machine.cgi?id=' + props.row.ipdb_id"
                                target="_blank"
@@ -838,10 +841,13 @@ def render_panel(tab=None):
                                 <q-badge color="green-8" text-color="white" label="PP" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
                             </a>
                         </div>
-                        <div v-if="props.row.collections && props.row.collections.length > 0" style="display: flex; flex-wrap: wrap; gap: 4px;">
-                            <q-badge v-for="(col, index) in props.row.collections" :key="col"
-                                     :color="['purple-8', 'teal-8', 'pink-8', 'cyan-8', 'amber-8', 'lime-8', 'indigo-8', 'orange-8'][index % 8]"
-                                     text-color="white" :label="col" style="font-size: 9px; padding: 2px 6px;" />
+                        <div
+                            v-if="props.row.collections && props.row.collections.length > 0"
+                            style="display: flex; flex-wrap: wrap; gap: 4px;"
+                        >
+                            <q-badge v-for="col in props.row.collections" :key="col"
+                                     text-color="white" :label="col"
+                                     style="background: rgba(148, 163, 184, 0.16); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.45); border-radius: 999px; font-size: 9px; font-weight: 500; padding: 2px 7px;" />
                         </div>
                     </div>
                 </q-td>
