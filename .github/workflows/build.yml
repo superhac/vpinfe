@@ -378,8 +378,16 @@ jobs:
         run: |
           mkdir -p release
           if [[ "${{ matrix.triplet }}" == linux-* ]]; then
-            # Artifact download/extract can lose executable bits; restore Linux launch binary.
+            # Artifact download/extract can lose executable bits; restore Linux launch binaries.
             find "staging/${{ matrix.triplet }}" -type f -name vpinfe -exec chmod 755 {} +
+            while IFS= read -r chrome_root; do
+              find "$chrome_root" -type d -exec chmod 755 {} +
+              for helper in chrome chrome_crashpad_handler chrome-sandbox nacl_helper nacl_helper_bootstrap; do
+                if [[ -e "$chrome_root/$helper" ]]; then
+                  chmod 755 "$chrome_root/$helper"
+                fi
+              done
+            done < <(find "staging/${{ matrix.triplet }}" -type d -path '*/_internal/chromium/linux/chrome')
           fi
           cd staging/${{ matrix.triplet }}
           zip -r ../../release/vpinfe-${GITHUB_REF_NAME}-${{ matrix.triplet }}.zip .

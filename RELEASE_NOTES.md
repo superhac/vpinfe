@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.1.9
+This is the offical release of vpinfe v2.2.0
 
 ### What's New
-- Add option to wipe VPinballX.log before each table start.
+None
 
 ### Fixes
-None
+- Harden Linux release zips so the `vpinfe` launcher and bundled Chromium helpers keep executable permissions after packaging.
 
 ### Notes
