@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.3.2
+This is the offical release of vpinfe v2.3.4
 
 ### What's New
-- Reverted "Added option to disable Default Chrome options #2"
+- Add priorities configuration on media.
 
 ### Fixes
-None
+- Fix MAc remote for numeric translation to scancodes.
 
 ### Notes

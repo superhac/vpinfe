@@ -220,6 +220,63 @@ class ManagerUiServiceTests(unittest.TestCase):
     def test_managerui_import_does_not_import_remote_keyboard_backend(self):
         importlib.import_module("managerui.managerui")
 
+    def test_keysimulator_pynput_backend_includes_printable_keys(self):
+        import sys
+        import types
+
+        class FakeKey:
+            enter = "enter"
+            esc = "esc"
+            backspace = "backspace"
+            tab = "tab"
+            space = "space"
+            f1 = "f1"
+            f2 = "f2"
+            f3 = "f3"
+            f4 = "f4"
+            f5 = "f5"
+            f6 = "f6"
+            f7 = "f7"
+            f8 = "f8"
+            f9 = "f9"
+            f10 = "f10"
+            f11 = "f11"
+            f12 = "f12"
+            home = "home"
+            page_up = "page_up"
+            delete = "delete"
+            end = "end"
+            page_down = "page_down"
+            right = "right"
+            left = "left"
+            down = "down"
+            up = "up"
+            ctrl_l = "ctrl_l"
+            shift_l = "shift_l"
+            alt_l = "alt_l"
+            cmd = "cmd"
+            ctrl_r = "ctrl_r"
+            shift_r = "shift_r"
+            alt_r = "alt_r"
+            print_screen = "print_screen"
+            pause = "pause"
+            insert = "insert"
+
+        fake_keyboard = types.SimpleNamespace(Key=FakeKey, Controller=object)
+        fake_pynput = types.SimpleNamespace(keyboard=fake_keyboard)
+        original = sys.modules.pop("managerui.keysimulator", None)
+        try:
+            with mock.patch.dict(sys.modules, {"pynput": fake_pynput, "pynput.keyboard": fake_keyboard}):
+                from managerui.keysimulator import KeySimulator
+        finally:
+            sys.modules.pop("managerui.keysimulator", None)
+            if original is not None:
+                sys.modules["managerui.keysimulator"] = original
+
+        for key_id in ("0", "1", "5", "9", "a", "z", "-", "=", "[", "]", "\\", ";", "'", "`", ",", ".", "/"):
+            with self.subTest(key_id=key_id):
+                self.assertEqual(KeySimulator.KEY_ID_TO_PYNPUT[key_id], key_id)
+
     def test_table_index_lookup_update_and_search(self):
         rows = set_rows([
             {"id": "afm", "name": "Attack From Mars", "filename": "afm.vpx", "table_path": "/tmp/tables/Attack", "collections": []},

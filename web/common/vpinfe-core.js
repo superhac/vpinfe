@@ -20,6 +20,21 @@ const MEDIA_PATH_FIELDS = {
   flyer: "FlyerImagePath",
 };
 
+const MEDIA_VIDEO_PATH_FIELDS = {
+  table: "TableVideoPath",
+  bg: "BGVideoPath",
+  dmd: "DMDVideoPath",
+};
+
+const DEFAULT_MEDIA_PRIORITIES = {
+  table: "video",
+  bg: "video",
+  dmd: "video",
+  realdmd: "color",
+};
+
+const MISSING_MEDIA_URL = "/web/images/file_missing.png";
+
 
 class VPinFECore {
   constructor() {
@@ -76,6 +91,7 @@ class VPinFECore {
 
     // Theme config and centralized audio state
     this.themeConfig = {};
+    this.mediaPriorities = Object.assign({}, DEFAULT_MEDIA_PRIORITIES);
     this._currentTableIndex = 0;
     this._coreAudioEnabled = true;
     this._audioMuted = false;
@@ -177,6 +193,36 @@ class VPinFECore {
     if (!table) return null;
     const field = MEDIA_PATH_FIELDS[type];
     return field ? this.#convertPathToURL(table[field]) : null;
+  }
+
+  getMediaURL(index, type) {
+    return this.getMedia(index, type).url;
+  }
+
+  getPreferredMediaURL(index, type) {
+    return this.getMediaURL(index, type);
+  }
+
+  getMedia(index, type) {
+    const table = this.tableData[index];
+    if (!table) return { url: null, kind: null, priority: null, path: null };
+
+    const normalizedType = this.#normalizeMediaType(type);
+    if (normalizedType === "realdmd") {
+      return this.#resolveRealDmdMedia(table);
+    }
+    if (["table", "bg", "dmd"].includes(normalizedType)) {
+      return this.#resolveImageVideoMedia(table, normalizedType);
+    }
+
+    const imageField = MEDIA_PATH_FIELDS[normalizedType];
+    const imagePath = imageField ? table[imageField] : null;
+    return {
+      url: this.#pathToURLOrMissing(imagePath),
+      kind: imagePath ? "image" : "missing",
+      priority: null,
+      path: imagePath || null,
+    };
   }
 
   // get table audio url path (returns null if no audio exists)
@@ -282,15 +328,9 @@ class VPinFECore {
   // get table video url paths
   getVideoURL(index, type) {
     const table = this.tableData[index];
-    if (type == "table") {
-      return this.#convertPathToURL(table.TableVideoPath);
-    }
-    else if (type == "bg") {
-      return this.#convertPathToURL(table.BGVideoPath);
-    }
-    else if (type == "dmd") {
-      return this.#convertPathToURL(table.DMDVideoPath);
-    }
+    if (!table) return null;
+    const field = MEDIA_VIDEO_PATH_FIELDS[type];
+    return field ? this.#convertPathToURL(table[field]) : null;
   }
 
   getTableMeta(index) {
@@ -843,6 +883,11 @@ class VPinFECore {
     // Load network config
     this.themeAssetsPort = await this.call("get_theme_assets_port");
     try {
+      this.mediaPriorities = this.#normalizeMediaPriorities(await this.call("get_media_priorities"));
+    } catch (_e) {
+      this.mediaPriorities = Object.assign({}, DEFAULT_MEDIA_PRIORITIES);
+    }
+    try {
       this.vpinplayEndpoint = await this.call("get_vpinplay_endpoint");
     } catch (_e) {
       this.vpinplayEndpoint = "";
@@ -991,6 +1036,77 @@ class VPinFECore {
     this.monitors = await this.call("get_monitors");
   }
 
+  #normalizeMediaType(type) {
+    const value = String(type || "").trim().toLowerCase().replace(/_/g, "-");
+    if (value === "realdmd-color") return "realdmd";
+    return value;
+  }
+
+  #normalizeMediaPriorities(priorities) {
+    const normalized = Object.assign({}, DEFAULT_MEDIA_PRIORITIES);
+    if (!priorities || typeof priorities !== "object") return normalized;
+
+    for (const key of ["table", "bg", "dmd"]) {
+      const value = String(priorities[key] || "").trim().toLowerCase();
+      if (value === "image" || value === "video") normalized[key] = value;
+    }
+
+    const realdmd = String(priorities.realdmd || "").trim().toLowerCase();
+    if (["standard", "color"].includes(realdmd)) normalized.realdmd = realdmd;
+    return normalized;
+  }
+
+  #resolveImageVideoMedia(table, type) {
+    const priority = this.mediaPriorities[type] || DEFAULT_MEDIA_PRIORITIES[type] || "video";
+    const imageField = MEDIA_PATH_FIELDS[type];
+    const videoField = MEDIA_VIDEO_PATH_FIELDS[type];
+    const imagePath = type === "table"
+      ? (table[imageField] || table.FSSImagePath)
+      : table[imageField];
+    const candidates = priority === "image"
+      ? [
+          { kind: "image", path: imagePath },
+          { kind: "video", path: table[videoField] },
+        ]
+      : [
+          { kind: "video", path: table[videoField] },
+          { kind: "image", path: imagePath },
+        ];
+
+    const selected = candidates.find(candidate => !!candidate.path) || { kind: "missing", path: null };
+    return {
+      url: this.#pathToURLOrMissing(selected.path),
+      kind: selected.kind,
+      priority: priority,
+      path: selected.path || null,
+    };
+  }
+
+  #resolveRealDmdMedia(table) {
+    const priority = this.mediaPriorities.realdmd || DEFAULT_MEDIA_PRIORITIES.realdmd;
+    const candidates = priority === "standard"
+      ? [
+          { variant: "standard", path: table.realDMDImagePath },
+          { variant: "color", path: table.realDMDColorImagePath },
+        ]
+      : [
+          { variant: "color", path: table.realDMDColorImagePath },
+          { variant: "standard", path: table.realDMDImagePath },
+        ];
+    const selected = candidates.find(candidate => !!candidate.path) || { variant: "missing", path: null };
+    return {
+      url: this.#pathToURLOrMissing(selected.path),
+      kind: selected.variant === "missing" ? "missing" : "image",
+      priority: priority,
+      variant: selected.variant,
+      path: selected.path || null,
+    };
+  }
+
+  #pathToURLOrMissing(localPath) {
+    return localPath ? this.#convertPathToURL(localPath) : MISSING_MEDIA_URL;
+  }
+
   // Gamepad handling
  async #initKeyboardMapping() {
   const keymap = await this.call("get_keymapping");
@@ -1084,7 +1200,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
   // convert the hard full local path to the web servers url map
   #convertPathToURL(localPath) {
     if (!localPath || typeof localPath !== 'string') {
-      return "/web/images/file_missing.png";  // fallback default
+      return MISSING_MEDIA_URL;  // fallback default
     }
     // Normalize Windows backslashes to forward slashes
     const normalized = localPath.replace(/\\/g, '/');

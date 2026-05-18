@@ -4,6 +4,7 @@ import logging
 import threading
 from pathlib import Path
 
+from common.config_access import MediaConfig
 from common.table_metadata import normalize_meta
 
 
@@ -18,8 +19,19 @@ def get_frontend_dof_event_for_table(table) -> str:
     return str(user.get("FrontendDOFEvent", "") or "").strip()
 
 
-def get_realdmd_image_for_table(table) -> Path | None:
-    image_path = str(getattr(table, "realDMDImagePath", "") or "").strip()
+def get_realdmd_image_for_table(table, iniconfig=None) -> Path | None:
+    priority = "color"
+    if iniconfig is not None:
+        priority = MediaConfig.from_config(iniconfig).realdmd_media_priority
+
+    standard_path = str(getattr(table, "realDMDImagePath", "") or "").strip()
+    color_path = str(getattr(table, "realDMDColorImagePath", "") or "").strip()
+    candidates = (
+        (standard_path, color_path)
+        if priority == "standard"
+        else (color_path, standard_path)
+    )
+    image_path = next((candidate for candidate in candidates if candidate), "")
     if not image_path:
         return None
     path = Path(image_path).expanduser()

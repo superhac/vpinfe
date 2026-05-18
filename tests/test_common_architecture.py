@@ -129,6 +129,10 @@ class TestCommonArchitecture(unittest.TestCase):
                 "tabletype": "FSS",
                 "tableresolution": "4K",
                 "tablevideoresolution": "1080p",
+                "tablemediapriority": "image",
+                "bgmediapriority": "mp4",
+                "dmdmediapriority": "invalid",
+                "realdmdmediapriority": "realdmd.png",
             },
             "Network": {
                 "wsport": "9002",
@@ -150,7 +154,16 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertTrue(SettingsConfig.from_config(parser).auto_update_media_on_startup)
         self.assertTrue(SettingsConfig.from_config(parser).vpx_log_delete_on_start)
         self.assertFalse(SettingsConfig.from_config(parser).disable_default_chrome_options)
-        self.assertEqual(MediaConfig.from_config(parser).table_type, "fss")
+        media_config = MediaConfig.from_config(parser)
+        self.assertEqual(media_config.table_type, "fss")
+        self.assertEqual(media_config.table_media_priority, "image")
+        self.assertEqual(media_config.bg_media_priority, "video")
+        self.assertEqual(media_config.dmd_media_priority, "video")
+        self.assertEqual(media_config.realdmd_media_priority, "standard")
+        self.assertEqual(
+            media_config.priority_payload(),
+            {"table": "image", "bg": "video", "dmd": "video", "realdmd": "standard"},
+        )
         self.assertEqual(NetworkConfig.from_config(parser).ws_port, 9002)
         self.assertEqual(NetworkConfig.from_config(parser).theme_assets_port, 8000)
         self.assertEqual(DisplayConfig.from_config(parser).table_screen_id, 2)

@@ -96,10 +96,21 @@ class FrontendServiceTests(unittest.TestCase):
         table = types.SimpleNamespace(
             tableDirName="Example",
             realDMDImagePath="/tmp/realdmd.png",
+            realDMDColorImagePath="/tmp/realdmd-color.png",
             metaConfig={"User": {"FrontendDOFEvent": "E901"}},
         )
+        color_config = configparser.ConfigParser()
+        color_config.read_dict({"Media": {"realdmdmediapriority": "color"}})
+        standard_config = configparser.ConfigParser()
+        standard_config.read_dict({"Media": {"realdmdmediapriority": "standard"}})
+
         self.assertEqual(realdmd_service.get_frontend_dof_event_for_table(table), "E901")
-        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table), Path("/tmp/realdmd.png"))
+        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table), Path("/tmp/realdmd-color.png"))
+        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, color_config), Path("/tmp/realdmd-color.png"))
+        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, standard_config), Path("/tmp/realdmd.png"))
+
+        table.realDMDColorImagePath = ""
+        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, color_config), Path("/tmp/realdmd.png"))
 
         calls = []
         updater = realdmd_service.RealDmdUpdater("ini", "table", lambda ini, image: calls.append((ini, image)) or True)

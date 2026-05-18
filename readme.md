@@ -286,6 +286,7 @@ Default metadata/media behavior:
 - **Default Table Video Resolution**
 - **Default Missing Media Image**
 - **Thumbnail Cache Max (MB)**: cap for generated media thumbnails used by ManagerUI
+- **Media Priorities**: choose image vs video preference for table, backglass, and DMD media, plus standard vs colorized Real DMD frames. Defaults prefer videos and `realdmd-color.png`.
 
 #### Network section
 

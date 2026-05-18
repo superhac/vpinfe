@@ -4,7 +4,7 @@ import ipaddress
 import socket
 from io import BytesIO
 
-from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, VPinPlayConfig
+from common.config_access import DisplayConfig, MediaConfig, NetworkConfig, SettingsConfig, VPinPlayConfig
 from common.table_metadata import is_truthy
 
 
@@ -171,6 +171,10 @@ def set_audio_muted(api, muted):
 
 def get_vpinplay_endpoint(config):
     return VPinPlayConfig.from_config(config).api_endpoint
+
+
+def get_media_priorities(config):
+    return MediaConfig.from_config(config).priority_payload()
 
 
 def get_table_orientation(config):

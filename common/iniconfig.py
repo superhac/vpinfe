@@ -81,6 +81,10 @@ class IniConfig:
 					'tablevideoresolution': '1k',
 					'defaultmissingmediaimg': '',
 					'thumbcachemaxmb': '500',
+					'tablemediapriority': 'video',
+					'bgmediapriority': 'video',
+					'dmdmediapriority': 'video',
+					'realdmdmediapriority': 'color',
 					},
 			'VPSdb': {'last': ''},
 			'pinmame-score-parser': {

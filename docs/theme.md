@@ -159,11 +159,45 @@ vpin.tableOrientation; // "landscape" or "portrait"
 vpin.tableRotation;    // degrees, default 0
 ```
 
+Do not infer cabinet Portrait mode from `window.innerWidth` and `window.innerHeight`. VPinFE can run through the bundled embedded Chromium build or through a user-installed Chrome, and desktop window bounds can be affected by OS display orientation, monitor placement, DPI behavior, and theme transforms. Treat viewport dimensions as layout measurements only. Use VPinFE's display config as the source of truth:
+
+```javascript
+const tableOrientation = String(await vpin.call("get_table_orientation") || "").toLowerCase();
+const tableRotation = Number(await vpin.call("get_table_rotation")) || 0;
+const tableDisplayPortrait = tableOrientation === "portrait";
+const normalizedRotation = ((tableRotation % 360) + 360) % 360;
+```
+
+When adapting an existing landscape theme to OS-level Portrait mode, decide separately how each layer should behave:
+
+- The page/layout surface may need to rotate as a whole, like Basic Cab.
+- A portrait-aware layout may stay upright while only table media is corrected.
+- Table media (`table.png` / `table.mp4`) may need its own per-theme correction even when the surrounding page is right. Do this in the table media element only, not in `bg` or `dmd`.
+- Avoid guessing from screenshots alone whether the media needs a mirror. If table text is backwards, that is a flip/mirror problem. If the apron/top are on the wrong end but text is still readable, that is a rotation problem.
+
+For themes that correct table media separately, keep the media transform isolated and size rotated media from the untransformed layout box, not from `getBoundingClientRect()` after parent transforms:
+
+```javascript
+function sizeRotatedTableMedia(mediaEl) {
+  const frame = mediaEl.closest(".hero-media-frame") || mediaEl.parentElement;
+  const frameWidth = frame?.clientWidth || frame?.offsetWidth || 0;
+  const frameHeight = frame?.clientHeight || frame?.offsetHeight || 0;
+
+  if (frameWidth > 0 && frameHeight > 0) {
+    mediaEl.style.width = `${frameHeight}px`;
+    mediaEl.style.height = `${frameWidth}px`;
+  }
+}
+```
+
+`getBoundingClientRect()` includes CSS transforms from rotated parents. That makes it easy to feed already-rotated visual dimensions back into your media sizing and produce narrow, clipped, or badly scaled table images.
+
 Good questions to answer up front when starting a new theme:
 
 - Should the theme declare `type: "cab"` or `type: "both"`?
 - Should portrait mode use a different layout, or just rotate the landscape one?
 - Should only the main table UI rotate, or should table-only overlays rotate too?
+- Is the table media orientation tied to the whole page surface, or does it need a theme-specific correction?
 
 #### Basic Cab portrait pattern
 
@@ -979,6 +1013,12 @@ Returns an HTTP URL for a table's image. `type` can be `"table"`, `"bg"`, `"dmd"
 #### getVideoURL(index, type)
 Returns an HTTP URL for a table's video. `type` can be `"table"`, `"bg"`, or `"dmd"`. Returns a fallback `/web/images/file_missing.png` URL if no video exists. See [Video Support](#video-support).
 
+#### getMediaURL(index, type)
+Returns an HTTP URL using the user's configured media priority from Manager UI > Configuration > Media > Media Priorities. For `"table"`, `"bg"`, and `"dmd"`, VPinFE chooses image or video first based on the setting and falls back to the alternate when the preferred file is missing. For `"realdmd"`, VPinFE chooses `realdmd-color.png` or `realdmd.png` first based on the setting and falls back to the other frame.
+
+#### getMedia(index, type)
+Returns the same priority-aware selection with metadata: `{ url, kind, priority, path }`. Real DMD selections also include `variant` with `"color"` or `"standard"`.
+
 #### getAudioURL(index)
 Returns an HTTP URL for a table's audio file, or `null` if no audio exists. See [Audio Support](#audio-support).
 
@@ -1224,6 +1264,25 @@ Use `vpin.getAudioURL(index)` to get the URL. Returns `null` if no audio file ex
 ## Video Support
 
 Themes can display looping videos for table, backglass, and DMD screens in addition to (or instead of) static images.
+
+For new themes, prefer `vpin.getMedia(index, type)` or `vpin.getMediaURL(index, type)` when you want to honor the user's Manager UI media priority. The default priority is video for table, backglass, and DMD media, and colorized for Real DMD frames. If the preferred file is missing, VPinFE automatically falls back to the available alternate.
+
+Priority-aware example:
+```javascript
+const media = vpin.getMedia(currentTableIndex, 'bg');
+const preview = document.createElement(media.kind === 'video' ? 'video' : 'img');
+preview.className = 'preview';
+preview.src = media.url;
+
+if (media.kind === 'video') {
+    preview.autoplay = true;
+    preview.loop = true;
+    preview.muted = true;
+    preview.playsInline = true;
+}
+
+container.appendChild(preview);
+```
 
 Use `vpin.getVideoURL(index, type)` to get the video URL. The method returns a fallback `file_missing` URL if no video file exists, so check for this before creating a `<video>` element.
 

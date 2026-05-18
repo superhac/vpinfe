@@ -137,9 +137,20 @@ FRIENDLY_NAMES = {
     'tablevideoresolution': 'Default Table Video Resolution',
     'defaultmissingmediaimg': 'Default Missing Media Image',
     'thumbcachemaxmb': 'Thumbnail Cache Max (MB)',
+    'tablemediapriority': 'Table Media Priority',
+    'bgmediapriority': 'Backglass Media Priority',
+    'dmdmediapriority': 'DMD Media Priority',
+    'realdmdmediapriority': 'Real DMD Priority',
 
 
 }
+
+MEDIA_PRIORITY_KEYS = (
+    'tablemediapriority',
+    'bgmediapriority',
+    'dmdmediapriority',
+    'realdmdmediapriority',
+)
 
 def get_friendly_name(key: str) -> str:
     """Return an explicitly mapped friendly name, or cleanly format the raw key."""
@@ -402,6 +413,18 @@ def render_panel(tab=None):
                     options=theme_options,
                     value=value
                 ).props('outlined dense options-dense').classes('config-input')
+            elif section == 'Media' and key in MEDIA_PRIORITY_KEYS:
+                normalized_priority = str(value or '').strip().lower()
+                if key == 'realdmdmediapriority':
+                    priority_options = {'color': 'Colorized frame', 'standard': 'Standard frame'}
+                    priority_value = normalized_priority if normalized_priority in priority_options else 'color'
+                else:
+                    priority_options = {'video': 'Video', 'image': 'Image'}
+                    priority_value = normalized_priority if normalized_priority in priority_options else 'video'
+                inp = ui.select(
+                    options=priority_options,
+                    value=priority_value
+                ).props('outlined dense options-dense emit-value map-options').classes('config-input')
             elif is_checkbox:
                 inp = ui.checkbox(
                     text='Enable' if special_label_above else friendly_label,
@@ -867,6 +890,32 @@ def render_panel(tab=None):
                                                     for key in other_input_keys:
                                                         value = config.config.get(section, key, fallback='')
                                                         build_config_input(section, key, value)
+                                    elif section == 'Media':
+                                        priority_keys = [key for key in MEDIA_PRIORITY_KEYS if key in options]
+                                        default_keys = [key for key in options if key not in set(priority_keys)]
+
+                                        with ui.column().classes('w-full gap-4'):
+                                            if default_keys:
+                                                with ui.card().classes('config-side-card w-full p-4'):
+                                                    ui.label('Media Defaults').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                    ui.label(
+                                                        'Set default download preferences and Manager UI media cache limits.'
+                                                    ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                                    with ui.element('div').classes('config-form-grid mt-3'):
+                                                        for key in default_keys:
+                                                            value = config.config.get(section, key, fallback='')
+                                                            build_config_input(section, key, value)
+
+                                            if priority_keys:
+                                                with ui.card().classes('config-side-card w-full p-4'):
+                                                    ui.label('Media Priorities').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                                    ui.label(
+                                                        'Choose the preferred asset when both matching image and video media exist. Missing preferred assets automatically fall back to the available alternate.'
+                                                    ).classes('text-sm').style('color: var(--ink-muted) !important;')
+                                                    with ui.element('div').classes('config-form-grid mt-3'):
+                                                        for key in priority_keys:
+                                                            value = config.config.get(section, key, fallback='')
+                                                            build_config_input(section, key, value)
                                     elif section == 'Mobile':
                                         rename_enabled_key = 'renamemasktodefaultini'
                                         rename_mask_key = 'renamemasktodefaultinimask'

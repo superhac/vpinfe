@@ -88,6 +88,10 @@ class MediaConfig:
     table_type: str = "table"
     table_resolution: str = "4k"
     table_video_resolution: str = "1k"
+    table_media_priority: str = "video"
+    bg_media_priority: str = "video"
+    dmd_media_priority: str = "video"
+    realdmd_media_priority: str = "color"
 
     @classmethod
     def from_config(cls, source: Any) -> "MediaConfig":
@@ -95,7 +99,35 @@ class MediaConfig:
             table_type=cfg_get(source, "Media", "tabletype", "table").strip().lower() or "table",
             table_resolution=cfg_get(source, "Media", "tableresolution", "4k").strip().lower() or "4k",
             table_video_resolution=cfg_get(source, "Media", "tablevideoresolution", "1k").strip().lower() or "1k",
+            table_media_priority=_media_priority(source, "tablemediapriority", ("image", "video"), "video"),
+            bg_media_priority=_media_priority(source, "bgmediapriority", ("image", "video"), "video"),
+            dmd_media_priority=_media_priority(source, "dmdmediapriority", ("image", "video"), "video"),
+            realdmd_media_priority=_media_priority(source, "realdmdmediapriority", ("standard", "color"), "color"),
         )
+
+    def priority_payload(self) -> dict[str, str]:
+        return {
+            "table": self.table_media_priority,
+            "bg": self.bg_media_priority,
+            "dmd": self.dmd_media_priority,
+            "realdmd": self.realdmd_media_priority,
+        }
+
+
+def _media_priority(source: Any, key: str, allowed: tuple[str, ...], fallback: str) -> str:
+    value = cfg_get(source, "Media", key, fallback).strip().lower()
+    aliases = {
+        "png": "image",
+        "mp4": "video",
+        "realdmd": "standard",
+        "realdmd.png": "standard",
+        "realdmd-color": "color",
+        "realdmd-color.png": "color",
+        "colour": "color",
+        "colorized": "color",
+    }
+    normalized = aliases.get(value, value)
+    return normalized if normalized in allowed else fallback
 
 
 @dataclass(frozen=True)

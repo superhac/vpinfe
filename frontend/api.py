@@ -74,6 +74,7 @@ API_ALLOWED_METHODS = {
     'build_metadata',
     'get_theme_config',
     'get_theme_name',
+    'get_media_priorities',
     'get_vpinplay_endpoint',
     'get_temporary_vpinplay_profile',
     'set_temporary_vpinplay_profile',
@@ -138,7 +139,7 @@ class API:
         return realdmd_service.get_frontend_dof_event_for_table(table)
 
     def _get_realdmd_image_for_table(self, table):
-        return realdmd_service.get_realdmd_image_for_table(table)
+        return realdmd_service.get_realdmd_image_for_table(table, self._iniConfig)
 
     def _queue_realdmd_image_update(self, table_name: str, image_path) -> None:
         self._realdmd_updater.queue_image_update(table_name, image_path)
@@ -410,6 +411,9 @@ class API:
 
     def get_theme_name(self):
         return theme_api.get_theme_name(self._iniConfig.config)
+
+    def get_media_priorities(self):
+        return config_api.get_media_priorities(self._iniConfig.config)
 
     def get_vpinplay_endpoint(self):
         return config_api.get_vpinplay_endpoint(self._iniConfig.config)

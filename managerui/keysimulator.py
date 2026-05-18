@@ -244,6 +244,19 @@ class KeySimulator:
         })
 
     KEY_ID_TO_PYNPUT = {
+        **{str(n): str(n) for n in range(10)},
+        **{chr(c): chr(c) for c in range(ord('a'), ord('z') + 1)},
+        "-": "-",
+        "=": "=",
+        "[": "[",
+        "]": "]",
+        "\\": "\\",
+        ";": ";",
+        "'": "'",
+        "`": "`",
+        ",": ",",
+        ".": ".",
+        "/": "/",
         "enter": Key.enter,
         "esc": Key.esc,
         "backspace": Key.backspace,
