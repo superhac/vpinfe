@@ -589,6 +589,19 @@ Remote table launch behavior:
 
 The page also includes a **Virtual Keyboard** dialog for sending manual key presses.
 
+#### macOS remote input permissions
+
+On macOS, the remote page needs permission to inject keyboard input. Enable the app or launcher you use for VPinFE in **System Settings > Privacy & Security > Accessibility**. Depending on how VPinFE is launched, macOS may also require **Input Monitoring** permission.
+
+If those permissions appear to be enabled but remote buttons still do not reach VPX, the macOS privacy database may have stale entries for the old app path, terminal, or launcher. Reset the permissions and grant them again:
+
+```bash
+tccutil reset Accessibility
+tccutil reset ListenEvent
+```
+
+After running the reset, reopen VPinFE using the same app, terminal, or launcher you normally use, then re-enable the prompts in **System Settings > Privacy & Security**.
+
 #### Wayland / Hyprland remote setup
 
 On X11, the remote page can inject keys using the existing keyboard backend. On Wayland compositors such as Hyprland, synthetic key input usually requires `ydotool`.

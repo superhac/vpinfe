@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.3.4
+This is the offical release of vpinfe v2.3.5
 
 ### What's New
-- Add priorities configuration on media.
+- update readme for troubleshooting MAC remote issues.
 
 ### Fixes
-- Fix MAc remote for numeric translation to scancodes.
+None
 
 ### Notes
