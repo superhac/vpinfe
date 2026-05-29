@@ -25,7 +25,7 @@ def vpsid_to_name(vpsid: str, table_map: Dict[str, str] = None) -> str:
 
 
 def get_filter_options() -> Dict[str, List[str]]:
-    """Get filter options (letters, themes, types, manufacturers, years, ratings) from the tables cache."""
+    """Get filter options (letters, themes, types, manufacturers, years, ratings) from VPSDB."""
     return collections_service.get_filter_options()
 
 
@@ -361,7 +361,7 @@ def render_panel(tab=None):
 
         def open_new_filter_dialog():
             """Dialog to create a new filter-based collection."""
-            # Get filter options from tables
+            # Get filter options from VPSDB
             filter_opts = get_filter_options()
 
             dlg = ui.dialog().props('persistent max-width=600px')
@@ -461,7 +461,7 @@ def render_panel(tab=None):
             filters = manager.get_filters(name)
             image_state_value = collections_service.get_collection_image(name)
 
-            # Get filter options from tables
+            # Get filter options from VPSDB
             filter_opts = get_filter_options()
 
             def _parse_csv_to_list(value):

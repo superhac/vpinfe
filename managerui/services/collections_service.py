@@ -102,6 +102,18 @@ def get_table_rows_for_collections(cached_tables: list[dict] | None = None) -> l
     return cached_tables if cached_tables is not None else table_index_service.scan_rows(reload=False)
 
 
+def get_vpsdb_rows_for_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> list[dict]:
+    if cached_vpsdb_rows is not None:
+        return cached_vpsdb_rows
+
+    from managerui.services import table_service
+
+    rows = table_service.load_vpsdb()
+    if not rows and table_service.ensure_vpsdb_downloaded():
+        rows = table_service.load_vpsdb()
+    return rows
+
+
 def get_table_name_map(cached_tables: list[dict] | None = None) -> Dict[str, str]:
     tables = get_table_rows_for_collections(cached_tables)
     return {table.get("id"): table.get("name", table.get("id")) for table in tables if table.get("id")}
@@ -127,8 +139,18 @@ def vpsid_to_name(vpsid: str, table_map: Dict[str, str] | None = None) -> str:
     return table_map.get(vpsid, vpsid)
 
 
-def get_filter_options(cached_tables: list[dict] | None = None) -> Dict[str, List[str]]:
-    tables = get_table_rows_for_collections(cached_tables)
+def _as_values(value) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if isinstance(value, tuple) or isinstance(value, set):
+        return [str(item).strip() for item in value if str(item).strip()]
+    return [part.strip() for part in str(value).split(",") if part.strip()]
+
+
+def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> Dict[str, List[str]]:
+    tables = get_vpsdb_rows_for_filter_options(cached_vpsdb_rows)
 
     if not tables:
         return {
@@ -155,23 +177,19 @@ def get_filter_options(cached_tables: list[dict] | None = None) -> Dict[str, Lis
             if first_char.isalnum():
                 letters.add(first_char)
 
-        table_type = table.get("type", "")
+        table_type = table.get("type", "") or table.get("tableType", "")
         if table_type:
-            types.add(table_type)
+            types.add(str(table_type).strip())
 
-        manufacturer = table.get("manufacturer", "")
+        manufacturer = table.get("manufacturer", "") or table.get("mfg", "")
         if manufacturer:
-            manufacturers.add(manufacturer)
+            manufacturers.add(str(manufacturer).strip())
 
         year = table.get("year", "")
         if year:
             years.add(str(year))
 
-        table_themes = table.get("themes", [])
-        if isinstance(table_themes, list):
-            themes.update(table_themes)
-        elif table_themes:
-            themes.add(table_themes)
+        themes.update(_as_values(table.get("theme", table.get("themes", []))))
 
     return {
         "letters": ["All"] + sorted(letters),

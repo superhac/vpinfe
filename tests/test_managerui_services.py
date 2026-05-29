@@ -175,6 +175,24 @@ class ManagerUiServiceTests(unittest.TestCase):
         self.assertEqual(options["manufacturers"], ["All", "Bally", "Williams"])
         self.assertEqual([row["id"] for row in search_tables("mars", rows)], ["a"])
 
+    def test_collections_filter_options_default_to_vpsdb(self):
+        vpsdb_rows = [
+            {"id": "a", "name": "Attack From Mars", "manufacturer": "Bally", "year": 1995, "type": "SS", "theme": ["Sci-Fi"]},
+            {"id": "m", "name": "Medieval Madness", "manufacturer": "Williams", "year": 1997, "type": "SS", "theme": ["Fantasy"]},
+        ]
+
+        with mock.patch("managerui.services.table_service.load_vpsdb", return_value=vpsdb_rows), \
+                mock.patch("managerui.services.table_service.ensure_vpsdb_downloaded") as ensure_vpsdb, \
+                mock.patch("managerui.services.table_index_service.scan_rows") as scan_rows:
+            options = get_filter_options()
+
+        self.assertEqual(options["letters"], ["All", "A", "M"])
+        self.assertEqual(options["themes"], ["All", "Fantasy", "Sci-Fi"])
+        self.assertEqual(options["manufacturers"], ["All", "Bally", "Williams"])
+        self.assertEqual(options["years"], ["All", "1995", "1997"])
+        ensure_vpsdb.assert_not_called()
+        scan_rows.assert_not_called()
+
     def test_common_collections_metadata_includes_image_urls(self):
         from tempfile import TemporaryDirectory
         from pathlib import Path
