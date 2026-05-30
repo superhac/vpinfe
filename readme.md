@@ -56,6 +56,11 @@ cd vpinfe
 ./vpinfe
 ```
 
+If your on Arch or an Arch based disto (like Cachyos) then @superrob has created a distro [package](https://aur.archlinux.org/packages/vpinfe) for you.  
+```
+sudo pacman -S vpinfe
+```
+
 ### MAC
 This is unsigned APP bundle so you need to do a few things to get VPinFE running.  @MajorFrenchy has put together an excellent video on setting this up for the MAC [here](https://www.youtube.com/watch?v=YD4eZIqHypw).  He also has a written tutorial available at his site @  [Major Frenchy's VPinFE on MacOS](https://www.majorfrenchy.com/blog/2026/03/05/vpinfe-macos/).  If you are a MAC user this is best route to take.  Watch the video and/or read the tutorial, and you'll be running quick.   
 
