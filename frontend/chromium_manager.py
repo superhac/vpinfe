@@ -134,7 +134,7 @@ def get_chromium_path():
     if system == "Windows":
         bundled_path = resource_path("chromium/windows/chrome-win/chrome.exe")
         if os.path.isfile(bundled_path):
-            return bundled_path
+            return [bundled_path, False]
 
         # Slim builds do not include Chromium, so fall back to Chrome/Chromium.
         # Do not use Edge: it can hand off to an existing browser process and
@@ -150,8 +150,8 @@ def get_chromium_path():
         ]
         for path in common_paths:
             if os.path.isfile(path):
-                return path
-        return bundled_path
+                return [path, True]
+        return [bundled_path, False]
     elif system == "Darwin":
         # Check common system Chrome/Chromium install paths first
         common_paths = [
@@ -164,8 +164,8 @@ def get_chromium_path():
         ]
         for path in common_paths:
             if os.path.isfile(path):
-                return path
-        return resource_path("chromium/Chromium.app/Contents/MacOS/Chromium")
+                return [path, True]
+        return [resource_path("chromium/Chromium.app/Contents/MacOS/Chromium"), False]
     elif system == "Linux":
         # Check if chromium is locally available on the system.
         # If so use that instead of bundled chromium.
@@ -177,8 +177,8 @@ def get_chromium_path():
         ):
             chromium_path = which(binary_name)
             if chromium_path is not None:
-                return chromium_path
-        return resource_path("chromium/linux/chrome/chrome")
+                return [chromium_path, True]
+        return [resource_path("chromium/linux/chrome/chrome"), False]
     else:
         raise RuntimeError(f"Unsupported OS: {system}")
 
@@ -237,7 +237,7 @@ class ChromiumManager:
             monitor: screeninfo Monitor object with x, y, width, height
             index: Unique index for temp profile directory
         """
-        chrome_path = get_chromium_path()
+        chrome_path, using_local_install = get_chromium_path()
         if not os.path.exists(chrome_path):
             raise FileNotFoundError(f"Chromium binary not found: {chrome_path}")
         logger.info("Using Chromium executable for '%s': %s", window_name, chrome_path)
@@ -251,6 +251,17 @@ class ChromiumManager:
         env["GOOGLE_API_KEY"] = "no"
         env["GOOGLE_DEFAULT_CLIENT_ID"] = "no"
         env["GOOGLE_DEFAULT_CLIENT_SECRET"] = "no"
+
+        # Prevent usage of bundled libaries when using a local Chromium install on Linux
+        # PyInstaller bundles libaries which might be incompatible with the local files.
+        system = platform.system()
+        if (system == "Linux"):
+            if using_local_install and getattr(sys, "frozen", False): 
+                logger.info("Using local Chromium on Linux")
+                lp_key = 'LD_LIBRARY_PATH'
+                lp_orig = env.get(lp_key + '_ORIG')
+                if lp_orig is not None:
+                    env[lp_key] = lp_orig  # restore the original, unmodified value
 
         args = [
             chrome_path,
