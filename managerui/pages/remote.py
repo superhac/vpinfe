@@ -1,3 +1,4 @@
+import platform
 import subprocess
 import os
 import logging
@@ -170,6 +171,15 @@ def _launch_table(table: dict):
         launch_env.update(
             parse_launch_env_overrides(cfg.config['Settings'].get('vpxlaunchenv', ''))
         )
+
+        # Prevent usage of bundled libaries on Linux
+        # PyInstaller bundles libaries which might be incompatible with the local files.
+        system = platform.system()
+        if system == "Linux" and getattr(sys, "frozen", False): 
+            lp_key = 'LD_LIBRARY_PATH'
+            lp_orig = launch_env.get(lp_key + '_ORIG')
+            if lp_orig is not None:
+                launch_env[lp_key] = lp_orig  # restore the original, unmodified value
 
         def run_and_wait():
             try:
