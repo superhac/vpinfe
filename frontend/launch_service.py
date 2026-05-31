@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import platform
 import subprocess
 import sys
 import time
@@ -118,6 +119,15 @@ def launch_table(
         logger.info("Launching: %s", cmd)
         launch_env = os.environ.copy()
         launch_env.update(parse_launch_env_overrides(settings.vpx_launch_env))
+        
+        # Prevent usage of bundled libaries on Linux
+        # PyInstaller bundles libaries which might be incompatible with the local files.
+        system = platform.system()
+        if system == "Linux" and getattr(sys, "frozen", False): 
+            lp_key = 'LD_LIBRARY_PATH'
+            lp_orig = launch_env.get(lp_key + '_ORIG')
+            if lp_orig is not None:
+                launch_env[lp_key] = lp_orig  # restore the original, unmodified value
 
         process = popen(
             cmd,
