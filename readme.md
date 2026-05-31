@@ -47,6 +47,11 @@ The install is the same for all platforms you need to download the right release
 
 The latest version can be downloaded from [Releases](https://github.com/superhac/vpinfe/releases).
 
+### AUR (Arch Linux & Derivatives)
+VpinFE can also be downloaded from the AUR [vpinfe](https://aur.archlinux.org/packages/vpinfe) package maintained by @superrob
+
+The package handles installing and setups desktop entries for easy launching and updating.
+
 ## Running
 
 ### Linux (X64 & ARM)
@@ -54,11 +59,6 @@ Download the latest release and unzip it and then run:
 ```
 cd vpinfe
 ./vpinfe
-```
-
-If your on Arch or an Arch based disto (like Cachyos) then @superrob has created a distro [package](https://aur.archlinux.org/packages/vpinfe) for you.  
-```
-sudo pacman -S vpinfe
 ```
 
 ### MAC
