@@ -21,8 +21,9 @@
 }
 
 #collection-menu-frame {
-  width: 20vw;
-  height: 40vh;
+  width: min(82vw, calc(88vh * 1.5), 1400px);
+  height: auto;
+  aspect-ratio: 3 / 2;
   border: none;
   box-shadow: none;
   background: transparent;
