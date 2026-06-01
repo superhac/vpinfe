@@ -59,7 +59,7 @@
 
     li.menu-item {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) minmax(9ch, 34%);
       align-items: center;
       column-gap: clamp(6px, 1.2em, 18px);
       min-height: 0;
@@ -98,10 +98,11 @@
       font-weight: bold;
       color: #b8e0ff;
       min-width: 0;
-      max-width: 45%;
+      max-width: none;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      text-align: right;
     }
 
     .popup {
