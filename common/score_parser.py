@@ -500,8 +500,8 @@ def bcd_to_int(byte_vals: list[int]) -> int:
         high = (byte_val >> 4) & 0xF
         low = byte_val & 0xF
 
-        if high > 9 or low > 9:
-            raise ValueError(f"Invalid BCD byte: 0x{byte_val:02X}")
+        high = 0 if high > 9 else high
+        low = 0 if low > 9 else low
 
         score = score * 100 + (high * 10 + low)
 

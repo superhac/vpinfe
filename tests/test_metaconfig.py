@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.metaconfig import MetaConfig
+from common.metaconfig import InvalidMetaConfigError, MetaConfig
 
 
 class TestMetaConfig(unittest.TestCase):
@@ -166,6 +166,30 @@ class TestMetaConfig(unittest.TestCase):
                 saved["Info"]["PinballPrimerTut"],
                 "https://pinballprimer.github.io/from_nested.html",
             )
+
+    def test_empty_info_file_reports_path(self) -> None:
+        with TemporaryDirectory() as tmp:
+            info_path = Path(tmp) / "Empty Table.info"
+            info_path.write_text("", encoding="utf-8")
+
+            with self.assertRaises(InvalidMetaConfigError) as ctx:
+                MetaConfig(str(info_path))
+
+            self.assertEqual(ctx.exception.path, str(info_path))
+            self.assertIn(str(info_path), str(ctx.exception))
+            self.assertIn("file is empty", str(ctx.exception))
+
+    def test_invalid_json_info_file_reports_path_and_location(self) -> None:
+        with TemporaryDirectory() as tmp:
+            info_path = Path(tmp) / "Broken Table.info"
+            info_path.write_text("{not json", encoding="utf-8")
+
+            with self.assertRaises(InvalidMetaConfigError) as ctx:
+                MetaConfig(str(info_path))
+
+            self.assertEqual(ctx.exception.path, str(info_path))
+            self.assertIn(str(info_path), str(ctx.exception))
+            self.assertIn("invalid JSON at line 1 column 2", str(ctx.exception))
 
 
 if __name__ == "__main__":

@@ -2,6 +2,16 @@ import json
 import os
 from urllib.parse import urlparse, parse_qs
 
+
+class InvalidMetaConfigError(ValueError):
+    """Raised when a table .info file exists but cannot be read as metadata."""
+
+    def __init__(self, path, reason):
+        self.path = path
+        self.reason = reason
+        super().__init__(f"Invalid table metadata file: {path} ({reason})")
+
+
 class MetaConfig:
     PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
     DETECT_KEY_MAP = {
@@ -19,8 +29,14 @@ class MetaConfig:
         self.data = {}
 
         if os.path.exists(configfilepath):
-            with open(configfilepath, "r", encoding="utf-8") as f:
-                self.data = json.load(f)
+            try:
+                if os.path.getsize(configfilepath) == 0:
+                    raise InvalidMetaConfigError(configfilepath, "file is empty")
+                with open(configfilepath, "r", encoding="utf-8") as f:
+                    self.data = json.load(f)
+            except json.JSONDecodeError as exc:
+                reason = f"invalid JSON at line {exc.lineno} column {exc.colno}: {exc.msg}"
+                raise InvalidMetaConfigError(configfilepath, reason) from exc
         else:
             self.data = {}
         self._normalize_detection_flags()

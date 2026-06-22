@@ -5,7 +5,7 @@ from time import perf_counter
 from common.config_access import MediaConfig
 from common.media_paths import apply_media_paths
 from common.table import Table
-from common.metaconfig import MetaConfig
+from common.metaconfig import InvalidMetaConfigError, MetaConfig
 
 
 logger = logging.getLogger("vpinfe.common.tableparser")
@@ -122,7 +122,11 @@ class TableParser:
 
     def loadMetaData(self, Table):
         meta_path = Path(Table.fullPathTable) / f"{Table.tableDirName}.info"
-        meta = MetaConfig(str(meta_path))
+        try:
+            meta = MetaConfig(str(meta_path))
+        except InvalidMetaConfigError as exc:
+            logger.error("Invalid metadata for table '%s': %s", Table.tableDirName, exc)
+            raise
         Table.metaConfig = meta.data
 
     def getTable(self, index):

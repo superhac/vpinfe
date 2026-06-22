@@ -185,6 +185,19 @@ def _find_directb2s_file(table_dir: Path, preferred_stem: str = "") -> Optional[
     return b2s_files[0]
 
 
+def _find_ini_file(table_dir: Path, preferred_stem: str = "") -> Optional[Path]:
+    ini_files = sorted(path for path in table_dir.iterdir() if path.is_file() and path.suffix.lower() == ".ini")
+    if not ini_files:
+        return None
+
+    preferred_stem_lower = preferred_stem.lower()
+    if preferred_stem_lower:
+        for path in ini_files:
+            if path.stem.lower() == preferred_stem_lower:
+                return path
+    return ini_files[0]
+
+
 def _write_replace(dest_file: Path, content: bytes) -> None:
     ensure_dir(dest_file.parent)
     tmp_file = dest_file.with_name(f".{dest_file.name}.uploading")
@@ -207,6 +220,7 @@ def replace_table_file(table_path: str, filename: str, content: bytes, file_type
         old_vpx = _find_vpx_file(table_dir, current_vpx_filename)
         new_vpx = table_dir / safe_name
         old_b2s = _find_directb2s_file(table_dir, old_vpx.stem)
+        old_ini = _find_ini_file(table_dir, old_vpx.stem)
 
         if old_vpx.resolve() == new_vpx.resolve():
             _write_replace(new_vpx, content)
@@ -225,12 +239,22 @@ def replace_table_file(table_path: str, filename: str, content: bytes, file_type
                 os.replace(old_b2s, new_b2s)
             renamed_b2s = new_b2s.name
 
+        renamed_ini = ""
+        if old_ini and old_ini.exists():
+            new_ini = table_dir / f"{new_vpx.stem}.ini"
+            if old_ini.resolve() != new_ini.resolve():
+                if new_ini.exists():
+                    new_ini.unlink()
+                os.replace(old_ini, new_ini)
+            renamed_ini = new_ini.name
+
         refresh_table(str(table_dir))
         return {
             "file_type": "vpx",
             "filename": new_vpx.name,
             "table_path": str(table_dir),
             "directb2s_filename": renamed_b2s,
+            "ini_filename": renamed_ini,
         }
 
     if file_type == "directb2s":

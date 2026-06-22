@@ -192,7 +192,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             'background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px;'
                         ):
                             ui.label('How updates work').classes('text-sm font-semibold').style('color: var(--ink);')
-                            ui.label('.vpx: deletes the old table file, saves the uploaded table file, renames any existing .directb2s to match the new table filename, then rebuilds metadata.').classes('text-xs').style('color: var(--ink-muted);')
+                            ui.label('.vpx: deletes the old table file, saves the uploaded table file, renames any existing .directb2s and .ini to match the new table filename, then rebuilds metadata.').classes('text-xs').style('color: var(--ink-muted);')
                             ui.label('.directb2s: saves the uploaded backglass using the existing .directb2s filename. If none exists, it uses the current .vpx filename with a .directb2s extension.').classes('text-xs').style('color: var(--ink-muted);')
 
                         with ui.row().classes('w-full justify-end'):
@@ -465,33 +465,45 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         placeholder='Optional VPS ID override'
                     ).props('outlined dense clearable').classes('flex-grow')
 
-                    def on_altvpsid_save():
+                    async def on_altvpsid_save():
                         new_value = (altvpsid_input.value or '').strip()
-                        if update_vpinfe_setting(table_path_str, 'altvpsid', new_value):
-                            row_data['altvpsid'] = new_value
-                            fallback_id = (row_data.get('id') or '').strip()
-                            try:
-                                info_path = Path(table_path_str) / f"{Path(table_path_str).name}.info"
-                                with open(info_path, 'r', encoding='utf-8') as f:
-                                    raw = json.load(f)
-                                info = raw.get("Info", {})
-                                fallback_id = (info.get("VPSId") or raw.get("id") or fallback_id).strip()
-                            except Exception:
-                                pass
-                            effective_id = new_value or fallback_id
-                            vpsid_collections_map = get_vpsid_collections_map()
-                            table_index_service.update_row_by_path(table_path_str, {
-                                'altvpsid': new_value,
-                                'id': effective_id,
-                                'collections': vpsid_collections_map.get(effective_id, []),
-                            })
-                            row_data['id'] = effective_id
-                            row_data['collections'] = get_vpsid_collections_map().get(effective_id, [])
-                            if on_close:
-                                on_close()
-                            ui.notify('Alt VPS ID saved', type='positive')
-                        else:
-                            ui.notify('Failed to save alt VPS ID', type='negative')
+                        # Capture the client now: NiceGUI loses the slot/client context
+                        # across an await, so any ui.notify after on_rebuild_meta() must
+                        # run inside `with save_client:` to actually render.
+                        save_client = context.client
+                        # The user has likely swapped their .vpx file, so reparse the
+                        # VPX-sourced metadata first. We rebuild *before* persisting the
+                        # Alt VPS ID because build_metadata clears altvpsid whenever the
+                        # VPX file hash changed (see metaconfig.writeConfigMeta); saving
+                        # afterwards ensures the value the user entered survives.
+                        if table_dir_name:
+                            await on_rebuild_meta()
+                        with save_client:
+                            if update_vpinfe_setting(table_path_str, 'altvpsid', new_value):
+                                row_data['altvpsid'] = new_value
+                                fallback_id = (row_data.get('id') or '').strip()
+                                try:
+                                    info_path = Path(table_path_str) / f"{Path(table_path_str).name}.info"
+                                    with open(info_path, 'r', encoding='utf-8') as f:
+                                        raw = json.load(f)
+                                    info = raw.get("Info", {})
+                                    fallback_id = (info.get("VPSId") or raw.get("id") or fallback_id).strip()
+                                except Exception:
+                                    pass
+                                effective_id = new_value or fallback_id
+                                vpsid_collections_map = get_vpsid_collections_map()
+                                table_index_service.update_row_by_path(table_path_str, {
+                                    'altvpsid': new_value,
+                                    'id': effective_id,
+                                    'collections': vpsid_collections_map.get(effective_id, []),
+                                })
+                                row_data['id'] = effective_id
+                                row_data['collections'] = get_vpsid_collections_map().get(effective_id, [])
+                                ui.notify('Alt VPS ID saved', type='positive')
+                                if on_close:
+                                    on_close()
+                            else:
+                                ui.notify('Failed to save alt VPS ID', type='negative')
 
                     ui.button('Save', icon='save', on_click=on_altvpsid_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 ui.label('When set, this overrides the VPS ID shown/used in Manager UI').classes('text-xs').style('color: var(--ink-muted);')
