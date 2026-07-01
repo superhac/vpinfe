@@ -1,14 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.3.9
+This is the offical release of vpinfe v2.4.0
 
 ### What's New
-- rebuild meta on any alt VPS_ID set.
-- rename ".ini" if it exists when a table is updated in update table workflow.
+None
 
 ### Fixes
-- Fix empty but there .info file
-- Fix score parser high /low bcd to int
+- If you edited the settings in VPX the mangerui would not reflect those changes in the managerui page for editting the VPinballX.ini file.  Now on table exit it will refresh those settings.
 
 ### Notes

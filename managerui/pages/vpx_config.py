@@ -347,6 +347,13 @@ def _list_backups() -> list[Path]:
     return vpx_config_service.list_backups()
 
 
+def _safe_mtime(path: Path) -> int | None:
+    try:
+        return path.stat().st_mtime_ns
+    except OSError:
+        return None
+
+
 def render_panel() -> None:
     ini_path = _load_vpx_ini_path()
 
@@ -415,6 +422,85 @@ def render_panel() -> None:
         displayed_sections = _build_display_sections(parsed)
         inputs: dict[str, dict[str, ui.input]] = {}
         search_state = {"query": "", "only_non_default": False}
+
+        # Track the on-disk mtime so we can reload when VPX (or anything else)
+        # rewrites VPinballX.ini while this page is open. Without this, the input
+        # fields keep the values loaded at render time and Save would clobber the
+        # changes VPX wrote when the table exited.
+        disk_state = {"mtime": _safe_mtime(ini_path)}
+        pending_reload = {"value": False}
+
+        def _has_unsaved_edits() -> bool:
+            for section in displayed_sections:
+                name = section["name"]
+                for field in section["fields"]:
+                    inp = inputs.get(name, {}).get(field.key)
+                    if inp is None:
+                        continue
+                    typed = "" if inp.value is None else str(inp.value)
+                    if typed.strip() != (field.value or "").strip():
+                        return True
+            return False
+
+        def reload_from_disk() -> None:
+            nonlocal displayed_sections
+            try:
+                reloaded = _parse_ini(ini_path)
+            except Exception as exc:
+                logger.exception("Failed to reload %s", ini_path)
+                ui.notify(f"Failed to reload VPinballX.ini: {exc}", type="negative")
+                return
+            displayed_sections = _build_display_sections(reloaded)
+            inputs.clear()
+            disk_state["mtime"] = _safe_mtime(ini_path)
+            pending_reload["value"] = False
+            reload_banner.refresh()
+            render_filtered_sections.refresh()
+            ui.notify("VPinballX.ini reloaded from disk", type="info")
+
+        def dismiss_reload() -> None:
+            pending_reload["value"] = False
+            reload_banner.refresh()
+
+        def check_disk_changes() -> None:
+            current = _safe_mtime(ini_path)
+            if current is None or current == disk_state["mtime"]:
+                return
+            disk_state["mtime"] = current
+            # If the user has typed changes, don't discard them silently; prompt
+            # instead. Otherwise reload the fresh values immediately.
+            if _has_unsaved_edits():
+                pending_reload["value"] = True
+                reload_banner.refresh()
+            else:
+                reload_from_disk()
+
+        @ui.refreshable
+        def reload_banner() -> None:
+            if not pending_reload["value"]:
+                return
+            with ui.card().classes("w-full p-4").style(
+                "background: var(--surface); border: 1px solid var(--neon-yellow);"
+            ):
+                with ui.row().classes("w-full items-center justify-between gap-4"):
+                    with ui.row().classes("items-center gap-3"):
+                        ui.icon("sync_problem", size="24px").style(
+                            "color: var(--neon-yellow) !important;"
+                        )
+                        with ui.column().classes("gap-0"):
+                            ui.label("VPinballX.ini changed on disk").classes(
+                                "text-sm font-semibold"
+                            ).style("color: var(--ink) !important;")
+                            ui.label(
+                                "VPX updated the file. Reload to load the new values, or keep your unsaved edits."
+                            ).classes("text-xs").style("color: var(--ink-muted) !important;")
+                    with ui.row().classes("gap-2"):
+                        ui.button("Reload", icon="sync", on_click=reload_from_disk).props("outline").style(
+                            "color: var(--neon-cyan) !important; border: 1px solid var(--neon-cyan);"
+                        )
+                        ui.button("Keep my edits", on_click=dismiss_reload).props("flat").style(
+                            "color: var(--ink-muted) !important;"
+                        )
 
         def create_backup() -> None:
             with ui.dialog() as dialog, ui.card().classes("w-full").style(
@@ -528,12 +614,19 @@ def render_panel() -> None:
             dialog.open()
 
         def save_config() -> None:
+            nonlocal displayed_sections
             try:
                 _write_updated_ini(ini_path, displayed_sections, inputs)
+                # Re-sync so our own write isn't mistaken for an external VPX change
+                # by the disk watcher (and so unsaved-edit detection stays accurate).
+                displayed_sections = _build_display_sections(_parse_ini(ini_path))
+                disk_state["mtime"] = _safe_mtime(ini_path)
                 ui.notify("VPinballX.ini saved", type="positive")
             except Exception as exc:
                 logger.exception("Failed to save %s", ini_path)
                 ui.notify(f"Failed to save VPinballX.ini: {exc}", type="negative")
+
+        reload_banner()
 
         with ui.card().classes("w-full p-4").style(
             "background: var(--surface); border: 1px solid var(--line);"
@@ -663,6 +756,10 @@ def render_panel() -> None:
         search_input.on_value_change(lambda _: on_search_change())
         non_default_only.on_value_change(lambda _: on_non_default_change())
         render_filtered_sections()
+
+        # Watch VPinballX.ini for external changes (e.g. VPX rewriting it when a
+        # table exits) and reload so stale values can't be saved back over them.
+        ui.timer(0.5, check_disk_changes)
 
         with ui.element("div").classes("w-full vpx-config-footer"):
             ui.button("Save Changes", icon="save", on_click=save_config).classes("px-6 py-3").style(
