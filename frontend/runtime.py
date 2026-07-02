@@ -157,6 +157,12 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
         frontend_browser.wait_for_exit()
         return
 
+    # Prime the monitor cache on the main thread before any windows spawn. Each
+    # window's JS calls api.get_monitors() on its own pywebview worker thread;
+    # opening X11 display connections concurrently races in libXau and aborts the
+    # process. Doing the one real X query here keeps those calls served from cache.
+    get_display_monitors()
+
     frontend_browser.launch_all_windows(iniconfig)
     frontend_browser.wait_for_exit(is_window_connected=is_window_connected)
 

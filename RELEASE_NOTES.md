@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.4.0
+This is the offical release of vpinfe v2.4.1
 
 ### What's New
 None
 
 ### Fixes
-- If you edited the settings in VPX the mangerui would not reflect those changes in the managerui page for editting the VPinballX.ini file.  Now on table exit it will refresh those settings.
+- There is a race condition that causes a heap corruption in glibc when multiple callers get monitor specs in the screeninfo python module.  For whatever reason when multiple requests like this occor at the same time or very close this condition happens.  If someone has multiple monitors its more likely occor because of how vpinfe starts multiple screen setups.  Thanks to @Smitty2k1 for reporting!
 
 ### Notes
