@@ -56,6 +56,9 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
         table_name = row_data.get('name') or row_data.get('filename') or 'Table'
         table_path_str = row_data.get('table_path', '')
         row_data['rating'] = normalize_table_rating(row_data.get('rating', 0))
+        # Holds the VBS-indicator refresh callback (assigned when the panel below
+        # is built) so the Extract VBS handler in the header can refresh it live.
+        vbs_refresh_holder = {'fn': None}
 
         # Header
         with ui.row().classes('table-dialog-header w-full items-center gap-3'):
@@ -76,6 +79,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
             if table_dir_name:
                 rebuild_btn = ui.button('Rebuild Meta', icon='refresh').props('dense').classes('ml-auto').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 update_btn = ui.button('Update Table', icon='upload_file').props('dense').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                extract_vbs_btn = ui.button('Extract VBS', icon='code').props('dense').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 rebuild_status = ui.label('').classes('text-xs ml-2').style('color: var(--ink);')
                 rebuild_status.visible = False
                 rebuild_client = context.client
@@ -110,6 +114,39 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                     finally:
                         with client:
                             rebuild_btn.enable()
+
+                async def on_extract_vbs():
+                    client = rebuild_client
+                    filename = row_data.get('filename', '')
+                    if not filename:
+                        with client:
+                            ui.notify('No table file to extract VBS from', type='warning')
+                        return
+                    with client:
+                        extract_vbs_btn.disable()
+                        rebuild_status.visible = True
+                        rebuild_status.set_text('Extracting VBS...')
+                    try:
+                        result = await run.io_bound(
+                            table_service.extract_vbs,
+                            table_path_str,
+                            filename,
+                            row_data.get('altlauncher', ''),
+                        )
+                        with client:
+                            rebuild_status.visible = False
+                            vbs_name = os.path.basename(result.get('vbs_path', ''))
+                            ui.notify(f'Extracted {vbs_name}', type='positive')
+                            if vbs_refresh_holder['fn']:
+                                vbs_refresh_holder['fn']()
+                    except Exception as ex:
+                        logger.exception('Extract VBS failed')
+                        with client:
+                            rebuild_status.set_text('Error')
+                            ui.notify(f'Extract VBS failed: {ex}', type='negative')
+                    finally:
+                        with client:
+                            extract_vbs_btn.enable()
 
                 def open_update_table_dialog():
                     update_client = context.client
@@ -167,6 +204,35 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         async def on_directb2s_update(e: events.UploadEventArguments):
                             await handle_table_update(e, 'directb2s')
 
+                        async def on_rom_update(e: events.UploadEventArguments):
+                            upload_name = e.file.name
+                            if Path(upload_name).suffix.lower() != '.zip':
+                                with update_client:
+                                    update_status.set_text('ROM must be a .zip file')
+                                    ui.notify('Only .zip ROM files accepted', type='negative')
+                                return
+                            data = await e.file.read()
+                            client = update_client
+                            with client:
+                                update_btn.disable()
+                                rebuild_btn.disable()
+                                update_status.set_text(f'Uploading ROM {upload_name}...')
+                            try:
+                                dest = Path(table_path_str) / 'pinmame' / 'roms' / Path(upload_name).name
+                                await run.io_bound(save_upload_bytes, dest, data)
+                                with client:
+                                    update_status.set_text(f'ROM uploaded: {upload_name}')
+                                    ui.notify('ROM uploaded', type='positive')
+                            except Exception as ex:
+                                logger.exception('ROM upload failed')
+                                with client:
+                                    update_status.set_text('ROM upload failed')
+                                    ui.notify(f'ROM upload failed: {ex}', type='negative')
+                            finally:
+                                with client:
+                                    update_btn.enable()
+                                    rebuild_btn.enable()
+
                         ui.separator()
                         with ui.column().classes('w-full gap-3'):
                             with ui.column().classes('w-full gap-1'):
@@ -187,6 +253,15 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 ).props('accept=".directb2s" flat bordered').classes('w-full').style(
                                     'background: var(--bg); border: 1px dashed var(--line);'
                                 )
+                            with ui.column().classes('w-full gap-1'):
+                                ui.label('Add/replace ROM (.zip)').classes('text-sm').style('color: var(--ink);')
+                                ui.upload(
+                                    on_upload=on_rom_update,
+                                    auto_upload=True,
+                                    max_files=1,
+                                ).props('accept=".zip" flat bordered').classes('w-full').style(
+                                    'background: var(--bg); border: 1px dashed var(--line);'
+                                )
 
                         with ui.column().classes('w-full gap-1 q-mt-sm').style(
                             'background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px;'
@@ -194,6 +269,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             ui.label('How updates work').classes('text-sm font-semibold').style('color: var(--ink);')
                             ui.label('.vpx: deletes the old table file, saves the uploaded table file, renames any existing .directb2s and .ini to match the new table filename, then rebuilds metadata.').classes('text-xs').style('color: var(--ink-muted);')
                             ui.label('.directb2s: saves the uploaded backglass using the existing .directb2s filename. If none exists, it uses the current .vpx filename with a .directb2s extension.').classes('text-xs').style('color: var(--ink-muted);')
+                            ui.label('.zip (ROM): saves the uploaded ROM into pinmame/roms. If a ROM with the same filename already exists it is replaced, otherwise it is added.').classes('text-xs').style('color: var(--ink-muted);')
 
                         with ui.row().classes('w-full justify-end'):
                             ui.button('Close', icon='close', on_click=update_dlg.close).props('flat').style('color: var(--ink-muted);')
@@ -202,6 +278,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                 rebuild_btn.on_click(lambda: asyncio.create_task(on_rebuild_meta()))
                 update_btn.on_click(open_update_table_dialog)
+                extract_vbs_btn.on_click(lambda: asyncio.create_task(on_extract_vbs()))
 
         # Main info section
         with ui.column().classes('w-full gap-4 p-4'):
@@ -229,6 +306,12 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                     ('vbshash', 'VBS Hash', 'code'),
                 ]
 
+                def vbs_is_present() -> bool:
+                    filename_for_vbs = (row_data.get('filename') or '').strip()
+                    if table_path_str and filename_for_vbs:
+                        return (Path(table_path_str) / (Path(filename_for_vbs).stem + '.vbs')).is_file()
+                    return False
+
                 with ui.grid(columns=2).classes('w-full gap-3'):
                     for key, label, icon in display_fields:
                         value = row_data.get(key, '')
@@ -238,6 +321,26 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 ui.icon(icon, size='18px').style('color: var(--neon-purple);')
                                 ui.label(label).classes('detail-label')
                                 ui.label(display_value).classes('detail-value')
+
+                    # VBS script presence - green when an extracted .vbs exists, red when not.
+                    # Wrapped in a refreshable container so Extract VBS updates it live.
+                    with ui.row().classes('detail-row items-center gap-2 w-full'):
+                        ui.icon('code', size='18px').style('color: var(--neon-purple);')
+                        ui.label('VBS Script').classes('detail-label')
+                        vbs_indicator = ui.row().classes('items-center gap-1')
+
+                        def refresh_vbs_indicator():
+                            vbs_indicator.clear()
+                            with vbs_indicator:
+                                if vbs_is_present():
+                                    ui.icon('check_circle', size='16px').classes('text-green-400')
+                                    ui.badge('Present', color='positive').props('rounded')
+                                else:
+                                    ui.icon('cancel', size='16px').classes('text-red-400')
+                                    ui.badge('Not Present', color='negative').props('rounded')
+
+                        refresh_vbs_indicator()
+                        vbs_refresh_holder['fn'] = refresh_vbs_indicator
 
                     # Render list fields (authors, themes) - join lists with comma
                     for key, label, icon in list_fields:

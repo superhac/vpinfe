@@ -352,6 +352,56 @@ def scan_missing_table_rows(reload: bool = False) -> List[Dict]:
     return table_index_service.scan_missing_rows(reload=reload)
 
 
+def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> dict:
+    """Run the VPX binary with -extractvbs to extract a table's .vbs script.
+
+    VPX writes the extracted .vbs next to the .vpx file (the table's root dir)
+    automatically, so we only need to invoke the binary and report the result.
+
+    Returns {'vbs_path': str} on success. Raises on failure.
+    """
+    import subprocess
+    import sys as _sys
+    import platform as _platform
+    from common.launcher import get_effective_launcher
+
+    cfg = _fresh_config()
+    vpxbin = cfg.config['Settings'].get('vpxbinpath', '')
+    meta = {"VPinFE": {"altlauncher": (altlauncher or "").strip()}}
+    vpxbin_path, source_key, _configured = get_effective_launcher(vpxbin, meta)
+    if not vpxbin_path:
+        raise RuntimeError("No launcher configured (set Settings.vpxbinpath or VPinFE.altlauncher)")
+    if not vpxbin_path.exists():
+        raise FileNotFoundError(f"Launcher not found ({source_key}): {vpxbin_path}")
+
+    vpx_file = Path(table_path) / vpx_filename
+    if not vpx_file.is_file():
+        raise FileNotFoundError(f"Table file not found: {vpx_file}")
+
+    # Match the launch env handling: on frozen Linux builds, restore the
+    # original LD_LIBRARY_PATH so VPX does not pick up incompatible bundled libs.
+    launch_env = os.environ.copy()
+    if _platform.system() == "Linux" and getattr(_sys, "frozen", False):
+        lp_orig = launch_env.get('LD_LIBRARY_PATH_ORIG')
+        if lp_orig is not None:
+            launch_env['LD_LIBRARY_PATH'] = lp_orig
+
+    cmd = [str(vpxbin_path), "-extractvbs", str(vpx_file)]
+    logger.info("Extracting VBS: %s", cmd)
+    result = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        env=launch_env,
+    )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(f"VPX exited with code {result.returncode}: {detail}")
+
+    vbs_file = vpx_file.with_suffix('.vbs')
+    return {'vbs_path': str(vbs_file), 'vbs_exists': vbs_file.is_file()}
+
+
 def build_metadata(*args, **kwargs):
     return metadata_service.build_metadata(*args, iniconfig=_fresh_config(), **kwargs)
 
