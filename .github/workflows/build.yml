@@ -205,6 +205,8 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install create-dmg
         shell: bash
+        env:
+          HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
 
       - name: Package as DMG (macOS)
         if: runner.os == 'macOS'
