@@ -8,5 +8,6 @@ None
 
 ### Fixes
 - github warnings from mac build about homebrew tap.
+- Do not remove unknown .info config attributes when rebuilding meta.  Thanks @MizterB
 
 ### Notes
