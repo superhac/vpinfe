@@ -123,12 +123,21 @@ class MetaConfig:
 
         medias = self.data.get("Medias", {})
 
+        # Preserve any top-level sections we don't manage (e.g. metadata written by
+        # other tools sharing the .info file) instead of dropping them on rebuild.
+        preserved = {
+            k: v
+            for k, v in self.data.items()
+            if k not in ("Info", "User", "VPXFile", "VPinFE", "Medias")
+        }
+
         self.data = {
             "Info": info,
             "User": user,
             "VPXFile": vpxfile,
             "VPinFE": vpinfe,
-            "Medias": medias
+            "Medias": medias,
+            **preserved
         }
 
         self.writeConfig()

@@ -167,6 +167,29 @@ class TestMetaConfig(unittest.TestCase):
                 "https://pinballprimer.github.io/from_nested.html",
             )
 
+    def test_write_config_meta_preserves_unknown_top_level_sections(self) -> None:
+        with TemporaryDirectory() as tmp:
+            info_path = Path(tmp) / "Example Table.info"
+            info_path.write_text(
+                json.dumps(
+                    {
+                        "VPXFile": {
+                            "filehash": "old-filehash",
+                        },
+                        "ThirdParty": {
+                            "source": "vpforums",
+                            "fileId": "12210",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            saved = self._write_meta(info_path)
+
+            self.assertEqual(saved["ThirdParty"], {"source": "vpforums", "fileId": "12210"})
+            self.assertEqual(saved["Info"]["Title"], "Example Table")
+
     def test_empty_info_file_reports_path(self) -> None:
         with TemporaryDirectory() as tmp:
             info_path = Path(tmp) / "Empty Table.info"
