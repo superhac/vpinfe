@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from .pages import tables as tab_tables
 from .pages import vpinfe_config as tab_vpinfe
 from .pages import vpx_config as tab_vpx_config
+from .pages import vpx_plugins as tab_vpx_plugins
 from .pages import collections as tab_collections
 from .pages import media as tab_media
 from .pages import themes as tab_themes
@@ -123,6 +124,7 @@ _PAGE_RENDERERS = {
     'vpinplay': tab_vpinplay.render_panel,
     'vpinplay_player': tab_vpinplay_player.render_panel,
     'vpx_config': tab_vpx_config.render_panel,
+    'vpx_plugins': tab_vpx_plugins.render_panel,
 }
 
 

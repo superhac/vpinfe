@@ -49,6 +49,30 @@ class VpxConfigPageTests(unittest.TestCase):
         self.assertIn("RenderingModeOverride", by_section["Standalone"])
         self.assertNotIn("Version", by_section)
 
+    def test_plugin_sections_are_excluded(self):
+        # Plugin.* is owned by the VPX-Plugins page; showing it here too would
+        # give two editors for the same keys.
+        with TemporaryDirectory() as temp_dir:
+            ini_path = Path(temp_dir) / "VPinballX.ini"
+            ini_path.write_text(
+                "[Editor]\n"
+                "EnableLog = 1\n"
+                "\n"
+                "[Plugin.AltSound]\n"
+                "Enable = 1\n"
+                "\n"
+                "[Plugin.DOF]\n"
+                "Enable = 1\n",
+                encoding="utf-8",
+            )
+
+            parsed = vpx_config._parse_ini(ini_path)
+            sections = vpx_config._build_display_sections(parsed)
+
+        names = [section["name"] for section in sections]
+        self.assertIn("Editor", names)
+        self.assertEqual([name for name in names if name.startswith("Plugin.")], [])
+
 
 if __name__ == "__main__":
     unittest.main()

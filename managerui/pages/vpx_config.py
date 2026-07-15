@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import shutil
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
@@ -13,6 +11,7 @@ from nicegui import ui
 from common.iniconfig import IniConfig
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 from managerui.services import vpx_config_service
+from managerui.services.vpx_config_service import FieldMeta, ParsedIni, SectionMeta
 from managerui.ui_helpers import load_page_style
 
 
@@ -86,44 +85,6 @@ SECTION_ICONS = {
 }
 
 
-@dataclass
-class FieldMeta:
-    section: str
-    key: str
-    original_key: str
-    value: str
-    line_index: int | None
-    comment_lines: list[str] = field(default_factory=list)
-    label: str = ""
-    description: str = ""
-    default_text: str = ""
-
-
-@dataclass
-class SectionMeta:
-    name: str
-    header_index: int
-    fields: dict[str, FieldMeta] = field(default_factory=dict)
-
-
-@dataclass
-class ParsedIni:
-    path: Path
-    lines: list[str]
-    sections: dict[str, SectionMeta]
-    section_order: list[str]
-
-    def section_insert_index(self, section_name: str) -> int:
-        try:
-            index = self.section_order.index(section_name)
-        except ValueError:
-            return len(self.lines)
-        if index + 1 < len(self.section_order):
-            next_section = self.sections[self.section_order[index + 1]]
-            return next_section.header_index
-        return len(self.lines)
-
-
 def _load_vpx_ini_path() -> Path | None:
     try:
         return vpx_config_service.load_vpx_ini_path()
@@ -132,79 +93,8 @@ def _load_vpx_ini_path() -> Path | None:
         return None
 
 
-def _parse_comment_details(comment_lines: list[str]) -> tuple[str, str, str]:
-    text = " ".join(line.strip() for line in comment_lines if line.strip()).strip()
-    if not text:
-        return "", "", ""
-
-    default_text = ""
-    default_match = re.search(r"(\[Default:.*\])", text)
-    if default_match:
-        default_text = default_match.group(1)
-        text = text.replace(default_text, "").strip()
-
-    if ":" in text:
-        label, description = text.split(":", 1)
-        return label.strip(), description.strip(), default_text
-
-    return text.strip(), "", default_text
-
-
-def _parse_ini(path: Path) -> ParsedIni:
-    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
-    sections: dict[str, SectionMeta] = {}
-    section_order: list[str] = []
-    current_section: str | None = None
-    pending_comments: list[str] = []
-
-    section_pattern = re.compile(r"^\[(.+)\]\s*$")
-    key_pattern = re.compile(r"^([^=]+?)=(.*)$")
-
-    for index, line in enumerate(lines):
-        stripped = line.strip()
-
-        section_match = section_pattern.match(stripped)
-        if section_match:
-            current_section = section_match.group(1).strip()
-            sections[current_section] = SectionMeta(name=current_section, header_index=index)
-            section_order.append(current_section)
-            pending_comments = []
-            continue
-
-        if stripped.startswith(";"):
-            pending_comments.append(stripped[1:].strip())
-            continue
-
-        if not stripped:
-            pending_comments = []
-            continue
-
-        if current_section is None:
-            pending_comments = []
-            continue
-
-        key_match = key_pattern.match(line.rstrip("\n"))
-        if not key_match:
-            pending_comments = []
-            continue
-
-        original_key = key_match.group(1).strip()
-        value = key_match.group(2).strip()
-        label, description, default_text = _parse_comment_details(pending_comments)
-        sections[current_section].fields[original_key.lower()] = FieldMeta(
-            section=current_section,
-            key=original_key,
-            original_key=original_key,
-            value=value,
-            line_index=index,
-            comment_lines=pending_comments[:],
-            label=label or original_key,
-            description=description,
-            default_text=default_text,
-        )
-        pending_comments = []
-
-    return ParsedIni(path=path, lines=lines, sections=sections, section_order=section_order)
+_parse_comment_details = vpx_config_service.parse_comment_details
+_parse_ini = vpx_config_service.parse_ini
 
 
 def _build_display_sections(parsed: ParsedIni) -> list[dict]:
@@ -247,13 +137,8 @@ def _build_display_sections(parsed: ParsedIni) -> list[dict]:
             )
             continue
 
-        if section_name.startswith("Plugin."):
-            display_sections.append(
-                {
-                    "name": section_name,
-                    "fields": list(section_meta.fields.values()),
-                }
-            )
+        # Plugin.* sections are edited on the VPX-Plugins page, which supports
+        # per-profile overrides. Everything else is left out of this editor.
 
     return display_sections
 
@@ -283,52 +168,11 @@ def _write_updated_ini(
     displayed_sections: list[dict],
     inputs: dict[str, dict[str, ui.input]],
 ) -> None:
-    parsed = _parse_ini(ini_path)
-    lines = parsed.lines[:]
-    pending_insertions: dict[str, list[FieldMeta]] = {}
-
-    for section in displayed_sections:
-        section_name = section["name"]
-        for field in section["fields"]:
-            value = getattr(inputs.get(section_name, {}).get(field.key), "value", "")
-            value = "" if value is None else str(value).strip()
-
-            current_section = parsed.sections.get(section_name)
-            existing = current_section.fields.get(field.key.lower()) if current_section else None
-            if existing and existing.line_index is not None:
-                lines[existing.line_index] = f"{existing.original_key} = {value}\n"
-            else:
-                pending_insertions.setdefault(section_name, []).append(
-                    FieldMeta(
-                        section=section_name,
-                        key=field.key,
-                        original_key=field.original_key,
-                        value=value,
-                        line_index=None,
-                        comment_lines=field.comment_lines[:],
-                    )
-                )
-
-    for section_name in reversed(parsed.section_order):
-        additions = pending_insertions.get(section_name, [])
-        if not additions:
-            continue
-
-        insert_at = parsed.section_insert_index(section_name)
-        block: list[str] = []
-
-        if insert_at > 0 and lines[insert_at - 1].strip():
-            block.append("\n")
-
-        for field in additions:
-            for comment_line in field.comment_lines:
-                block.append(f"; {comment_line}\n")
-            block.append(f"{field.original_key} = {field.value}\n")
-            block.append("\n")
-
-        lines[insert_at:insert_at] = block
-
-    ini_path.write_text("".join(lines), encoding="utf-8")
+    values = {
+        section: {key: getattr(inp, "value", "") for key, inp in section_inputs.items()}
+        for section, section_inputs in inputs.items()
+    }
+    vpx_config_service.write_updated_ini(ini_path, displayed_sections, values)
 
 
 def _backup_filename(ini_path: Path, reason: str = "manual") -> str:
@@ -688,7 +532,7 @@ def render_panel() -> None:
                         "text-lg font-semibold"
                     ).style("color: var(--warn) !important;")
                     ui.label(
-                        "Try a partial key name like `volume`, `window`, or `plugin`, or turn off the non-default filter."
+                        "Try a partial key name like `volume`, `window`, or `dmd`, or turn off the non-default filter."
                     ).classes("text-sm").style("color: var(--ink-muted) !important;")
                 return
 
@@ -697,8 +541,7 @@ def render_panel() -> None:
             ) as tabs:
                 for section in filtered_sections:
                     name = section["name"]
-                    icon = "extension" if name.startswith("Plugin.") else SECTION_ICONS.get(name, "settings")
-                    ui.tab(name, label=name, icon=icon)
+                    ui.tab(name, label=name, icon=SECTION_ICONS.get(name, "settings"))
 
             with ui.tab_panels(tabs, value=filtered_sections[0]["name"]).classes("w-full"):
                 for section in filtered_sections:
@@ -709,7 +552,7 @@ def render_panel() -> None:
                             with ui.element("div").classes("vpx-config-header"):
                                 with ui.row().classes("items-center gap-3"):
                                     ui.icon(
-                                        "extension" if name.startswith("Plugin.") else SECTION_ICONS.get(name, "settings"),
+                                        SECTION_ICONS.get(name, "settings"),
                                         size="24px",
                                     ).style("color: var(--neon-cyan) !important;")
                                     with ui.column().classes("gap-0"):
@@ -717,9 +560,7 @@ def render_panel() -> None:
                                         ui.label(
                                             SECTION_DESCRIPTIONS.get(
                                                 name,
-                                                "Plugin-specific VPX settings loaded from the VPinballX.ini file."
-                                                if name.startswith("Plugin.")
-                                                else "VPX settings loaded from the VPinballX.ini file.",
+                                                "VPX settings loaded from the VPinballX.ini file.",
                                             )
                                         ).classes("vpx-config-section-description")
                                 ui.label(

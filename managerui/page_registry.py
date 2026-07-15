@@ -20,6 +20,7 @@ NAV_PAGES: tuple[ManagerPage, ...] = (
     ManagerPage("system", "System", "monitor_heart"),
     ManagerPage("vpinfe", "Configuration", "tune"),
     ManagerPage("vpx_config", "VPX Config", "settings_applications"),
+    ManagerPage("vpx_plugins", "VPX-Plugins", "extension"),
     ManagerPage("vpinplay", "VPinPlay", "science"),
     ManagerPage("vpinplay_player", "VPinPlay Multi", "badge"),
     ManagerPage("logs", "Logs", "article"),
@@ -39,4 +40,6 @@ PAGE_ALIASES = {
     "vpinplay_player": "vpinplay_player",
     "vpx": "vpx_config",
     "vpinballx": "vpx_config",
+    "plugins": "vpx_plugins",
+    "vpx-plugins": "vpx_plugins",
 }
