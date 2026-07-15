@@ -9,6 +9,7 @@ import time
 
 from common import table_play_service
 from common.config_access import SettingsConfig, VPinPlayConfig
+from common.launcher import get_plugin_profile_from_meta, resolve_launch_plugin_profile
 from common.vpx_log import delete_vpinball_log_on_start_if_configured
 from common.vpinplay_runtime import (
     add_table_runtime,
@@ -81,6 +82,8 @@ def launch_table(
     stop_dof_service,
     stop_libdmdutil_service,
     start_dof_service_if_enabled,
+    get_plugin_profile_from_meta=get_plugin_profile_from_meta,
+    resolve_launch_plugin_profile=resolve_launch_plugin_profile,
     popen=subprocess.Popen,
 ) -> None:
     table = api.filteredTables[index]
@@ -110,11 +113,15 @@ def launch_table(
             settings.global_table_ini_override_enabled,
             settings.global_table_ini_override_mask,
         )
+        plugin_profile_override = resolve_launch_plugin_profile(
+            get_plugin_profile_from_meta(table.metaConfig)
+        )
         cmd = build_vpx_launch_command(
             launcher_path=str(vpxbin_path),
             vpx_table_path=vpx,
             global_ini_override=global_ini_override,
             tableini_override=tableini_override,
+            plugin_profile_override=plugin_profile_override,
         )
         logger.info("Launching: %s", cmd)
         launch_env = os.environ.copy()

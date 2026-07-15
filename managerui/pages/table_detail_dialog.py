@@ -12,7 +12,7 @@ from typing import Callable, Optional
 from nicegui import context, events, run, ui
 
 from managerui.pages.table_dialog_context import TableDialogContext, default_context
-from managerui.services import table_index_service, table_service
+from managerui.services import plugin_profile_service, table_index_service, table_service
 from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import load_page_style
 
@@ -522,6 +522,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                 alttitle_value = row_data.get('alttitle', '')
                 altvpsid_value = row_data.get('altvpsid', '')
                 frontend_dof_event_value = row_data.get('frontend_dof_event', '')
+                pluginprofile_value = row_data.get('pluginprofile', '')
 
                 with ui.row().classes('items-center gap-3 w-full'):
                     alttitle_input = ui.input(
@@ -629,6 +630,34 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                     ui.button('Save', icon='save', on_click=on_altlauncher_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 ui.label('When set, this overrides Settings.vpxbinpath for this table only').classes('text-xs').style('color: var(--ink-muted);')
+
+                with ui.row().classes('items-center gap-3 w-full'):
+                    # A profile the user deleted would otherwise vanish from the
+                    # dropdown with no sign it is still saved on this table.
+                    profile_options = plugin_profile_service.list_profiles()
+                    if pluginprofile_value and pluginprofile_value not in profile_options:
+                        profile_options = profile_options + [pluginprofile_value]
+
+                    pluginprofile_select = ui.select(
+                        profile_options,
+                        label='Plugin Profile',
+                        value=pluginprofile_value or plugin_profile_service.DEFAULT_PROFILE_NAME,
+                    ).props('outlined dense options-dense').classes('flex-grow')
+
+                    def on_pluginprofile_save():
+                        selected = str(pluginprofile_select.value or '').strip()
+                        # Default means "use the live VPinballX.ini", which is the
+                        # same as having no override, so store it as empty.
+                        new_value = '' if plugin_profile_service.is_default_profile(selected) else selected
+                        if update_vpinfe_setting(table_path_str, 'pluginprofile', new_value):
+                            row_data['pluginprofile'] = new_value
+                            table_index_service.update_row_by_path(table_path_str, {'pluginprofile': new_value})
+                            ui.notify('Plugin profile saved', type='positive')
+                        else:
+                            ui.notify('Failed to save plugin profile', type='negative')
+
+                    ui.button('Save', icon='save', on_click=on_pluginprofile_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                ui.label('When set, this table launches with -ini pointed at that plugin profile instead of VPinballX.ini').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 w-full'):
                     frontend_dof_event_input = ui.input(

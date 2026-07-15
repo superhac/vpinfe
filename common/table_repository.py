@@ -114,6 +114,7 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "alt_sound_exists": bool(getattr(table, "altSoundExists", False)),
         "delete_nvram_on_close": vpinfe.get("deletedNVRamOnClose", False),
         "altlauncher": str(vpinfe.get("altlauncher", "") or "").strip(),
+        "pluginprofile": str(vpinfe.get("pluginprofile", "") or "").strip(),
         "alttitle": str(vpinfe.get("alttitle", "") or "").strip(),
         "altvpsid": str(vpinfe.get("altvpsid", "") or "").strip(),
         "frontend_dof_event": str(user.get("FrontendDOFEvent", "") or "").strip(),

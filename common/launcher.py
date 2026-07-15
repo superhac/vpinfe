@@ -4,8 +4,14 @@ import re
 import shlex
 from pathlib import Path
 
+from common.paths import PLUGIN_PROFILES_DIR
+
 logger = logging.getLogger("vpinfe.common.launcher")
 _ENV_KEY_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+
+# The built-in plugin profile means "use the live VPinballX.ini", so it adds no
+# -ini of its own and leaves whatever VPX would normally read in place.
+DEFAULT_PROFILE_NAME = "Default"
 
 
 def get_altlauncher_from_meta(meta_config) -> str:
@@ -16,6 +22,52 @@ def get_altlauncher_from_meta(meta_config) -> str:
     if not isinstance(vpinfe, dict):
         return ""
     return str(vpinfe.get("altlauncher", "") or "").strip()
+
+
+def get_plugin_profile_from_meta(meta_config) -> str:
+    """Read VPinFE.pluginprofile from table metadata, normalized as a stripped string."""
+    if not isinstance(meta_config, dict):
+        return ""
+    vpinfe = meta_config.get("VPinFE", {})
+    if not isinstance(vpinfe, dict):
+        return ""
+    return str(vpinfe.get("pluginprofile", "") or "").strip()
+
+
+def is_default_plugin_profile(profile_name: str) -> bool:
+    return str(profile_name or "").strip().lower() == DEFAULT_PROFILE_NAME.lower()
+
+
+def plugin_profile_ini_path(profile_name: str) -> Path | None:
+    """Resolve a plugin profile name to its .ini path in the profiles folder.
+
+    Returns None for the built-in Default profile and for blank names, since
+    neither maps to a file of its own.
+    """
+    name = str(profile_name or "").strip()
+    if not name or is_default_plugin_profile(name):
+        return None
+    return PLUGIN_PROFILES_DIR / f"{name}.ini"
+
+
+def resolve_launch_plugin_profile(profile_name: str) -> str:
+    """
+    Resolve a table's plugin profile to an ini path for launch-time use.
+
+    Returns empty string when unset, when set to Default, or when the profile
+    file has been deleted — in each case VPX falls back to its normal ini.
+    """
+    profile_path = plugin_profile_ini_path(profile_name)
+    if profile_path is None:
+        return ""
+
+    if not profile_path.is_file():
+        logger.warning(
+            "Plugin profile '%s' not found; skipping -ini: %s", profile_name, profile_path
+        )
+        return ""
+
+    return str(profile_path)
 
 
 def get_effective_launcher(default_launcher: str, meta_config=None):
@@ -135,12 +187,23 @@ def build_vpx_launch_command(
     vpx_table_path: str,
     global_ini_override: str = "",
     tableini_override: str = "",
+    plugin_profile_override: str = "",
 ) -> list[str]:
     """
     Build VPX launch command and guarantee '-play <table>' is the last argument pair.
+
+    A table's plugin profile and the global ini override both drive VPX's single
+    -ini argument, so they cannot both be passed. The per-table profile wins when
+    set, mirroring how VPinFE.altlauncher takes precedence over Settings.vpxbinpath.
     """
     cmd = [str(launcher_path)]
-    ini_override = str(global_ini_override or "").strip()
+    profile_override = str(plugin_profile_override or "").strip()
+    ini_override = profile_override or str(global_ini_override or "").strip()
+    if profile_override and str(global_ini_override or "").strip():
+        logger.info(
+            "Plugin profile ini takes precedence over Settings.globalinioverride: %s",
+            profile_override,
+        )
     if ini_override:
         cmd.extend(["-ini", ini_override])
 

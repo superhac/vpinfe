@@ -16,6 +16,28 @@ from managerui.ui_helpers import load_page_style
 logger = logging.getLogger("vpinfe.manager.vpx_plugins")
 
 
+def _plugin_store_dialog() -> None:
+    with ui.dialog() as dialog, ui.card().classes("w-full").style(
+        "background: var(--surface); border: 1px solid var(--line); min-width: min(92vw, 460px);"
+    ):
+        with ui.column().classes("w-full items-center gap-4 p-2"):
+            ui.icon("storefront", size="46px").style("color: var(--neon-pink) !important;")
+            ui.label("Plugin Store").classes("text-xl font-bold").style(
+                "color: var(--ink) !important;"
+            )
+            ui.label("Coming Soon....").classes("text-base").style(
+                "color: var(--ink-muted) !important;"
+            )
+
+        with ui.row().classes("w-full justify-end"):
+            ui.button("Close", on_click=dialog.close).style(
+                "color: var(--ink-muted) !important; background: var(--surface) !important; "
+                "border: 1px solid var(--line); border-radius: 18px; padding: 4px 10px;"
+            )
+
+    dialog.open()
+
+
 def _error_card(title: str, detail: str) -> None:
     with ui.card().classes("w-full p-5").style(
         "background: var(--surface); border: 1px solid var(--line);"
@@ -55,6 +77,12 @@ def render_panel() -> None:
                     )
                     target_label = ui.label("").classes("text-sm text-right break-all").style(
                         "color: var(--ink) !important;"
+                    )
+                    ui.button(
+                        "Plugin Store", icon="storefront", on_click=_plugin_store_dialog
+                    ).classes("mt-2").style(
+                        "color: var(--neon-pink) !important; background: var(--surface) !important; "
+                        "border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 14px;"
                     )
 
         if vpx_ini_path is None:

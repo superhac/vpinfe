@@ -115,6 +115,7 @@ class MetaConfig:
             vpinfe = {}
         vpinfe.setdefault("deletedNVRamOnClose", False)
         vpinfe.setdefault("altlauncher", "")
+        vpinfe.setdefault("pluginprofile", "")
         vpinfe.setdefault("alttitle", "")
         if existing_filehash and new_filehash and existing_filehash != new_filehash:
             vpinfe["altvpsid"] = ""

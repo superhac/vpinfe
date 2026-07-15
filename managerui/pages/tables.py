@@ -204,6 +204,7 @@ def parse_table_info(info_path):
             # VPinFE settings
             "delete_nvram_on_close": vpinfe.get("deletedNVRamOnClose", False),
             "altlauncher": (vpinfe.get("altlauncher", "") or "").strip(),
+            "pluginprofile": (vpinfe.get("pluginprofile", "") or "").strip(),
             "alttitle": (vpinfe.get("alttitle", "") or "").strip(),
             "altvpsid": (vpinfe.get("altvpsid", "") or "").strip(),
             "frontend_dof_event": (user.get("FrontendDOFEvent", "") or "").strip(),

@@ -4,15 +4,10 @@ import re
 import shutil
 from pathlib import Path
 
-from managerui.paths import CONFIG_DIR
+from common.launcher import DEFAULT_PROFILE_NAME
+from common.paths import PLUGIN_PROFILES_DIR
 from managerui.services import vpx_config_service
 
-
-PLUGIN_PROFILES_DIR = CONFIG_DIR / "plugin_profiles"
-
-# The built-in profile is not a file in PLUGIN_PROFILES_DIR — it points straight
-# at the live VPinballX.ini, which is what VPX reads for every table.
-DEFAULT_PROFILE_NAME = "Default"
 
 PLUGIN_SECTION_PREFIX = "Plugin."
 

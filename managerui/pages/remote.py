@@ -25,7 +25,9 @@ from managerui.ui_helpers import debounced_input, load_page_style
 from common.launcher import (
     build_vpx_launch_command,
     get_effective_launcher,
+    get_plugin_profile_from_meta,
     parse_launch_env_overrides,
+    resolve_launch_plugin_profile,
     resolve_launch_tableini_override,
 )
 _INI_CFG = None
@@ -161,11 +163,15 @@ def _launch_table(table: dict):
             cfg.config['Settings'].get('globaltableinioverrideenabled', 'false'),
             cfg.config['Settings'].get('globaltableinioverridemask', ''),
         )
+        plugin_profile_override = resolve_launch_plugin_profile(
+            get_plugin_profile_from_meta(table_meta)
+        )
         cmd = build_vpx_launch_command(
             launcher_path=str(vpxbin_path),
             vpx_table_path=vpx_path,
             global_ini_override=global_ini_override,
             tableini_override=tableini_override,
+            plugin_profile_override=plugin_profile_override,
         )
         launch_env = os.environ.copy()
         launch_env.update(

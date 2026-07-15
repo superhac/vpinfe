@@ -67,7 +67,12 @@ def scan_launchable_tables(tables_path: str | None = None) -> List[Dict]:
             "type": row.get("type", ""),
             "theme": row.get("theme") or row.get("themes", ""),
             "rating": row.get("rating", 0),
-            "meta": {"VPinFE": {"altlauncher": row.get("altlauncher", "")}},
+            "meta": {
+                "VPinFE": {
+                    "altlauncher": row.get("altlauncher", ""),
+                    "pluginprofile": row.get("pluginprofile", ""),
+                }
+            },
         })
 
     tables.sort(key=lambda table: table["name"].lower())
