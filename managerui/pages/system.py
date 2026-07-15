@@ -235,7 +235,7 @@ def _get_build_flavor(install_context: dict) -> str:
 
 def _get_frontend_browser_path() -> str | None:
     try:
-        return get_chromium_path()
+        return get_chromium_path().path
     except Exception:
         return None
 

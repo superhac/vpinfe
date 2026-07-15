@@ -127,14 +127,21 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
+ChromiumPath = namedtuple("ChromiumPath", ["path", "using_local_install"])
+
+
 def get_chromium_path():
-    """Get the platform-specific path to the Chromium binary."""
+    """Get the platform-specific path to the Chromium binary.
+
+    Returns a ChromiumPath(path, using_local_install); using_local_install is
+    True when the binary came from the system rather than the bundled copy.
+    """
     system = platform.system()
 
     if system == "Windows":
         bundled_path = resource_path("chromium/windows/chrome-win/chrome.exe")
         if os.path.isfile(bundled_path):
-            return [bundled_path, False]
+            return ChromiumPath(bundled_path, False)
 
         # Slim builds do not include Chromium, so fall back to Chrome/Chromium.
         # Do not use Edge: it can hand off to an existing browser process and
@@ -150,8 +157,8 @@ def get_chromium_path():
         ]
         for path in common_paths:
             if os.path.isfile(path):
-                return [path, True]
-        return [bundled_path, False]
+                return ChromiumPath(path, True)
+        return ChromiumPath(bundled_path, False)
     elif system == "Darwin":
         # Check common system Chrome/Chromium install paths first
         common_paths = [
@@ -164,8 +171,10 @@ def get_chromium_path():
         ]
         for path in common_paths:
             if os.path.isfile(path):
-                return [path, True]
-        return [resource_path("chromium/Chromium.app/Contents/MacOS/Chromium"), False]
+                return ChromiumPath(path, True)
+        return ChromiumPath(
+            resource_path("chromium/Chromium.app/Contents/MacOS/Chromium"), False
+        )
     elif system == "Linux":
         # Check if chromium is locally available on the system.
         # If so use that instead of bundled chromium.
@@ -177,8 +186,8 @@ def get_chromium_path():
         ):
             chromium_path = which(binary_name)
             if chromium_path is not None:
-                return [chromium_path, True]
-        return [resource_path("chromium/linux/chrome/chrome"), False]
+                return ChromiumPath(chromium_path, True)
+        return ChromiumPath(resource_path("chromium/linux/chrome/chrome"), False)
     else:
         raise RuntimeError(f"Unsupported OS: {system}")
 
