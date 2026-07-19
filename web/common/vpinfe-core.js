@@ -801,7 +801,7 @@ class VPinFECore {
   // **********************************************
 
   #connectWebSocket() {
-    const wsUrl = `ws://127.0.0.1:${this.wsPort}?window=${this._windowName}`;
+    const wsUrl = `ws://${window.location.hostname}:${this.wsPort}?window=${this._windowName}`;
     console.log(`[WS] Connecting to ${wsUrl}`);
     this._ws = new WebSocket(wsUrl);
 
@@ -1211,12 +1211,12 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     // Check if the path includes a medias/ subfolder
     if (parts.length >= 3 && parts[parts.length - 2] === 'medias') {
       const tableDir = parts[parts.length - 3];  // table folder is 3rd from end
-      return `http://127.0.0.1:${port}/tables/${encodeURIComponent(tableDir)}/medias/${encodeURIComponent(file)}`;
+      return `http://${window.location.hostname}:${port}/tables/${encodeURIComponent(tableDir)}/medias/${encodeURIComponent(file)}`;
     }
 
     // Fallback: image is directly in table folder
     const dir = parts[parts.length - 2];     // second-to-last part = folder
-    return `http://127.0.0.1:${port}/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
+    return `http://${window.location.hostname}:${port}/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
   }
 
   async #showmenu() {
@@ -1385,7 +1385,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     if (window.location.protocol === 'file:') return;
 
     const pollInterval = 1000; // Poll every 1 second
-    const managerUrl = `http://127.0.0.1:${this.managerUiPort}/api/remote-launch`;
+    const managerUrl = `http://${window.location.hostname}:${this.managerUiPort}/api/remote-launch`;
 
     console.log("[RemoteLaunch] Starting poll to:", managerUrl);
 
