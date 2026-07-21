@@ -1,12 +1,12 @@
 ## VPinFE Release Notes
 
 ### Summary
-This is the offical release of vpinfe v2.4.5
+This is the offical release of vpinfe v2.4.6
 
 ### What's New
-None
+- Add chromeoptionsexclude: drop individual default Chromium flags. Thanks @MizterB
 
 ### Fixes
-- Commit 6116c3ee9 ("Fix Chrome crashing on Linux with release builds", May 30) changed get_chromium_path() to return [path, using_local_install] instead of a bare string. It has two callers, and only one was updated.  Thanks @phil-gb!
+None
 
 ### Notes
