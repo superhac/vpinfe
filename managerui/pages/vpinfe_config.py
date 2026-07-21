@@ -11,7 +11,7 @@ from common.iniconfig import IniConfig
 from common.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
 from common.launcher import build_masked_tableini_path, build_vpx_launch_command
 from common.vpxcollections import VPXCollections
-from frontend.chromium_manager import get_builtin_chromium_options
+from frontend.chromium_manager import get_builtin_chromium_options, parse_additional_chromium_options
 from pathlib import Path
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui import config_support
@@ -356,8 +356,32 @@ def render_panel(tab=None):
                 config.config.get('Settings', 'disabledefaultchromeoptions', fallback='false'),
             )
         )
+        exclude_raw = str(
+            getattr(
+                settings_inputs.get('chromeoptionsexclude'),
+                'value',
+                config.config.get('Settings', 'chromeoptionsexclude', fallback=''),
+            )
+            or ''
+        ).strip()
+        additional_raw = str(
+            getattr(
+                settings_inputs.get('chromeoptions'),
+                'value',
+                config.config.get('Settings', 'chromeoptions', fallback=''),
+            )
+            or ''
+        ).strip()
+        try:
+            additional_opts = parse_additional_chromium_options(additional_raw)
+        except ValueError:
+            additional_opts = []
         chrome_options_preview.value = '\n'.join(
-            get_builtin_chromium_options(include_default_options=not disable_defaults)
+            get_builtin_chromium_options(
+                include_default_options=not disable_defaults,
+                exclude_options=parse_additional_chromium_options(exclude_raw),
+            )
+            + additional_opts
         )
 
     def build_config_input(section: str, key: str, value: str):
@@ -474,7 +498,7 @@ def render_panel(tab=None):
             inputs[section][key] = inp
             if (section, key) in launch_preview_keys:
                 inp.on_value_change(lambda _: update_launch_preview())
-            if section == 'Settings' and key == 'disabledefaultchromeoptions':
+            if section == 'Settings' and key == 'chromeoptions':
                 inp.on_value_change(lambda _: update_chrome_options_preview())
 
     def save_config():
@@ -664,7 +688,7 @@ def render_panel(tab=None):
                                     if key in options
                                 ]
                                 chrome_option_keys = [
-                                    key for key in ('disabledefaultchromeoptions', 'chromeoptions')
+                                    key for key in ('disabledefaultchromeoptions', 'chromeoptions', 'chromeoptionsexclude')
                                     if key in options
                                 ]
                                 general_keys = [
@@ -791,23 +815,36 @@ def render_panel(tab=None):
                                                     update_launch_preview()
                                     if chrome_option_keys:
                                         with ui.card().classes('config-side-card w-full p-4'):
-                                            ui.label('Additional Chrome Options').classes('text-lg font-semibold').style('color: var(--ink) !important;')
+                                            ui.label('Chrome Options').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                             ui.label(
-                                                'Append extra flags to each Chromium or Chrome frontend window.'
+                                                'Modify the default flags applied to each Chromium or Chrome frontend window.'
                                             ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                             with ui.element('div').classes('config-launch-layout mt-3'):
                                                 with ui.element('div').classes('config-display-column'):
-                                                    if 'disabledefaultchromeoptions' in chrome_option_keys:
-                                                        value = config.config.get(
-                                                            section,
-                                                            'disabledefaultchromeoptions',
-                                                            fallback='false',
-                                                        )
-                                                        build_config_input(section, 'disabledefaultchromeoptions', value)
                                                     value = config.config.get(section, 'chromeoptions', fallback='')
                                                     build_config_input(section, 'chromeoptions', value)
+                                                    if 'disabledefaultchromeoptions' in chrome_option_keys:
+                                                        with ui.element('div').classes('config-field-card'):
+                                                            ui.label('Disabled Default Options').classes('config-field-label')
+                                                            disable_all_inp = ui.checkbox(
+                                                                text='Disable All',
+                                                                value=(config.config.get(section, 'disabledefaultchromeoptions', fallback='false') == 'true'),
+                                                            ).classes('config-input')
+                                                            exclude_inp = ui.textarea(
+                                                                value=config.config.get(section, 'chromeoptionsexclude', fallback=''),
+                                                                placeholder='--kiosk\n--start-maximized'
+                                                            ).props('outlined autogrow').classes('config-input config-input-env')
+                                                            inputs.setdefault(section, {})['disabledefaultchromeoptions'] = disable_all_inp
+                                                            inputs[section]['chromeoptionsexclude'] = exclude_inp
+
+                                                            def _sync_exclude_enabled():
+                                                                (exclude_inp.disable if bool(disable_all_inp.value) else exclude_inp.enable)()
+
+                                                            _sync_exclude_enabled()
+                                                            disable_all_inp.on_value_change(lambda _: (_sync_exclude_enabled(), update_chrome_options_preview()))
+                                                            exclude_inp.on_value_change(lambda _: update_chrome_options_preview())
                                                 with ui.element('div').classes('config-launch-preview-box'):
-                                                    ui.label('VPinFE-managed Chrome options').classes('text-sm font-semibold').style('color: var(--ink-muted) !important;')
+                                                    ui.label('Effective Chrome Options').classes('text-sm font-semibold').style('color: var(--ink-muted) !important;')
                                                     chrome_options_preview = ui.textarea(
                                                         value='',
                                                     ).props('readonly outlined autogrow').classes('w-full').style(

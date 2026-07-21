@@ -76,6 +76,7 @@ def get_builtin_chromium_options(
     user_data_dir: str = "<temp profile dir>",
     mute_audio: bool = False,
     include_default_options: bool = True,
+    exclude_options=None,
 ) -> list[str]:
     """Return VPinFE-managed Chromium flags without the executable path."""
     x = getattr(monitor, "x", "<x>")
@@ -90,7 +91,11 @@ def get_builtin_chromium_options(
         f"--user-data-dir={user_data_dir}",
     ]
     if include_default_options:
-        options.extend(CHROMIUM_BASE_FLAGS)
+        excluded = {str(opt).split("=")[0] for opt in (exclude_options or [])}
+        options.extend(
+            flag for flag in CHROMIUM_BASE_FLAGS
+            if flag.split("=")[0] not in excluded
+        )
     if mute_audio:
         options.append("--mute-audio")
     return options
@@ -237,6 +242,7 @@ class ChromiumManager:
         mute_audio=False,
         additional_options: str = "",
         include_default_options: bool = True,
+        exclude_options: str = "",
     ):
         """Launch one Chromium instance for a given monitor.
 
@@ -281,6 +287,7 @@ class ChromiumManager:
                 user_data_dir=user_data_dir,
                 mute_audio=mute_audio,
                 include_default_options=include_default_options,
+                exclude_options=parse_additional_chromium_options(exclude_options),
             ),
         ]
         try:
@@ -401,6 +408,7 @@ class ChromiumManager:
                 mute_audio=(window_name != "table"),
                 additional_options=settings.chrome_options,
                 include_default_options=not settings.disable_default_chrome_options,
+                exclude_options=cfg_get(iniconfig, "Settings", "chromeoptionsexclude", ""),
             )
 
         logger.info("Launched %s browser windows", len(self._processes))
