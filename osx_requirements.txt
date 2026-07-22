@@ -7,4 +7,6 @@ nicegui
 platformdirs
 pillow
 psutil
+rarfile
+py7zr
 pyobjc; sys_platform == "darwin"

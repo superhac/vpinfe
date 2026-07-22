@@ -9,6 +9,8 @@ platformdirs
 pillow
 qrcode
 psutil
+rarfile
+py7zr
 
 # Platform-specific dependencies (installed conditionally)
 # pyobjc; sys_platform == "darwin"
