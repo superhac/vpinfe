@@ -10,6 +10,7 @@ from managerui.filters import apply_table_filters, build_table_filter_options
 from managerui.paths import VPINFE_INI_PATH, get_tables_path as resolve_tables_path
 from managerui.pages.table_detail_dialog import open_table_dialog
 from managerui.pages.table_import_dialog import open_import_table_dialog
+from managerui.pages.dnd_drop_zone import create_drop_zone, enable_row_drops, DropContext
 from managerui.pages.table_match_dialog import open_match_vps_dialog, open_missing_tables_dialog
 from managerui.services import table_service
 from managerui.services import table_index_service
@@ -598,6 +599,27 @@ def render_panel(tab=None):
 
                     import_btn.on_click(lambda: open_import_table_dialog(perform_scan))
 
+        def _dnd_context() -> DropContext:
+            selected = table.selected or []
+            if len(selected) == 1:
+                row = selected[0]
+                return DropContext(table_path=row.get('table_path', ''), table_row=row,
+                                   rom_name=(row.get('rom') or '').strip(), allow_new_table=True)
+            return DropContext(allow_new_table=True)
+
+        def _dnd_row_context(row_key: str) -> DropContext | None:
+            row = next((r for r in (_tables_cache() or []) if r.get('filename') == row_key), None)
+            if not row:
+                return None
+            return DropContext(table_path=row.get('table_path', ''), table_row=row,
+                               rom_name=(row.get('rom') or '').strip())
+
+        drop_zone = create_drop_zone(
+            label='Drop a table archive, folder, or asset file here to import',
+            get_context=_dnd_context,
+            on_imported=lambda _report: asyncio.create_task(perform_scan(silent=True)),
+        )
+
         # Use cached data if available, otherwise start with empty
         initial_rows = _tables_cache() if _tables_cache() is not None else []
         initial_missing = _missing_cache() if _missing_cache() is not None else []
@@ -780,7 +802,7 @@ def render_panel(tab=None):
             )
             # Add custom slot for name column to include status badges, links, and collections
             table.add_slot('body-cell-name', '''
-                <q-td :props="props">
+                <q-td :props="props" :data-drop-filename="props.row.filename">
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 1.08rem; font-weight: 600; line-height: 1.25; color: var(--ink);">{{ props.value }}</span>
@@ -912,6 +934,8 @@ def render_panel(tab=None):
                     <q-btn flat round dense icon="last_page" :disable="props.isLastPage" @click="props.lastPage" size="sm" style="color: var(--ink-muted);" />
                 </div>
             ''')
+
+            enable_row_drops(drop_zone, table, _dnd_row_context)
 
         # Wire up batch add-to-collection button
         def on_batch_add():
