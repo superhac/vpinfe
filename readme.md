@@ -16,6 +16,7 @@
 - Mobile transfer support for VPinball on Android and iOS (Web Send & VPXZ Download)
 - VPinballX.ini config editor with backup/restore for multi-config enviroments
 - Importing roms, pupacks, altcolor, and altsound.
+- Drag and drop importing of tables, assets, and media — drop files, zip/rar/7z archives, or whole table folders
 - Optional online ratings, scoring and play tracking via [VPin Play](https://www.vpinplay.com/). The [GitHub Project](https://github.com/superhac/vpinplay)
 
 ### Support/Feedback
@@ -217,6 +218,7 @@ Core startup and launch behavior:
 - **Global tableini Override Mask**: builds `{TableName}.{mask}.ini` beside the `.vpx` and uses it only when the file exists
 - **Tables Directory**: root folder scanned for tables, metadata, media, mobile transfer, and VPinPlay sync
 - **VPX Ini Path**: path to your VPinballX ini file
+- **RAR Tool Path (unar/unrar, blank = auto-detect)**: path to the RAR extraction tool used by drag-and-drop import for `.rar` archives, for when the tool is not on your PATH
 - **Active Theme**: currently selected frontend theme
 - **Startup Collection**: collection opened when VPinFE starts
 - **Auto Update Media On Startup**: enables startup media refresh behavior
@@ -411,6 +413,20 @@ The **Import Table** dialog lets you:
 - Upload a required `.vpx`
 - Optionally upload `.directb2s`, ROM `.zip`, PUP pack `.zip`, and music `.zip`
 - Create the table folder, generate metadata, copy/extract uploaded files, and download media
+
+### Drag and drop imports
+
+Along with the upload dialogs above, the ManagerUI accepts **drag and drop**. Drop a single file, an archive (`.zip`, `.rar`, or `.7z`), or a whole table folder, and VPinFE works out what it is and imports it to the right place. It looks inside archives and folders and detects tables, backglasses, ROMs, Serum/VNI color files, AltSound, PUP packs, music, and media, so you do not have to sort files into the right upload button first. Anything it does not recognize is listed so you can see what was skipped.
+
+There are three places to drop:
+
+- **Tables page** — drop a table or archive onto the drop zone to create a new table, or drop straight onto a table row to import into that table. When the drop creates a new table you can match it to VPS right in the confirmation dialog.
+- **Table detail dialog** — drop assets (backglass, ROM, Serum/VNI, AltSound, PUP pack, media) for the table you have open.
+- **Media page** — drop an image, video, or audio file onto any media cell to fill that slot. The cell decides the media type and filename, so a wheel image you drop becomes that table's `wheel.png`.
+
+A confirmation dialog always shows what was detected and where each piece will go before anything is written. Files keep their original names; only a new table's folder is named (from VPS when matched). If you drop a whole table folder copied from another machine, its `.info` comes along too — for a new table it is used as-is, and for a table you already have, your play stats and per-table settings are kept and merged, never overwritten.
+
+`.zip` and `.7z` work out of the box. `.rar` needs an `unrar`, `unar`, or `bsdtar` tool installed (macOS already ships `bsdtar`); on Linux install `unar` or `unrar` with your package manager. If the tool is not on your PATH, set **RAR Tool Path** on the Configuration page.
 
 ### Pinball Primer tutorial overlay
 

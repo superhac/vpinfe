@@ -197,6 +197,26 @@ Suggested pattern:
 
 For example, table import and VPS matching logic should live in table-focused service/dialog modules instead of growing `pages/tables.py`.
 
+## Drag And Drop Imports
+
+Dropping a file, archive, or folder onto the Tables page, a table row, the table detail dialog, or a Media cell imports assets without the per-asset upload buttons. The pipeline is transport-neutral and layered so the UI, the HTTP API, and any non-browser caller share one engine.
+
+Layers, bottom up:
+
+- `services/asset_registry.py` owns the asset-kind registry (`AssetSpec`): extensions, whether a kind needs a target table or ROM name, and media-slot matching. Add a new asset kind here first.
+- `services/asset_analyzer_service.py` opens a source (zip/rar/7z/directory/single file) behind one listing API and detects what it holds without extracting. It returns an `AnalysisResult` (detected assets, unrecognized paths, and a parsed bundle `.info`). It also owns the RAR-tool helpers (`configure_rar_tool`, `rar_tool_available`, `rar_tool_hint`).
+- `services/asset_import_service.py` turns an `AnalysisResult` plus a target context into an `ImportPlan` (`build_import_plan`), then runs it (`execute_import_plan`) by delegating to the existing `table_service`/`media_service` write primitives. It owns the `.info` merge (`merge_info`) and the media-slot plan (`build_media_slot_plan`).
+- `services/upload_session_service.py` provides streaming, sanitized temp-file sessions with a size cap and TTL sweep. It is transport-agnostic: anything that can stage files can drive an import.
+- `upload_api.py` is an `APIRouter` mounted from `managerui.py` via `register_routes(app)`, exposing `/api/asset-upload/*` (begin/file/finish/abort, analyze/plan/import, vps-search). The UI and any non-browser caller use the same routes.
+
+UI pieces:
+
+- `static/dnd_upload.js` and `dnd_upload.css` are the browser drop target. The script auto-attaches via a MutationObserver so it survives re-renders and reconnects, walks dropped folders, uploads files with their relative paths, and reports back through the `vpinfe_dnd` global event. It is loaded with an mtime cache-buster.
+- `pages/dnd_drop_zone.py` exposes `create_drop_zone(...)` plus `enable_row_drops` and `enable_cell_drops` to make table rows and media cells targets. Pages pass a context resolver so a drop knows its target table.
+- `pages/import_confirm_dialog.py` is the confirm dialog: detected assets and destinations, VPS association for new tables, and the selection/rename that produces the final plan.
+
+To add a new asset kind: register it in `asset_registry.py`, add a detection rule in `asset_analyzer_service.py`, and a destination plus import action in `asset_import_service.py`. The UI and API pick it up with no changes. Drop targets are opt-in per page — only the Tables page, `table_detail_dialog.py`, and the Media view call the drop-zone helpers.
+
 ## Guidelines
 
 - Keep `managerui.py` focused on shell, routes, and lifecycle.
