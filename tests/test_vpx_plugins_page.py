@@ -9,10 +9,16 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 
-sys.modules.setdefault(
-    "nicegui",
-    types.SimpleNamespace(ui=types.SimpleNamespace(input=object)),
-)
+try:
+    # Prefer the real framework when it's installed. Installing an incomplete
+    # stub via setdefault would leak into sys.modules and break later tests that
+    # import the full managerui UI (which needs nicegui.app / nicegui.context).
+    import nicegui  # noqa: F401
+except ImportError:
+    sys.modules.setdefault(
+        "nicegui",
+        types.SimpleNamespace(ui=types.SimpleNamespace(input=object)),
+    )
 sys.modules.setdefault(
     "platformdirs",
     types.SimpleNamespace(user_config_dir=lambda *args, **kwargs: "/tmp/vpinfe-test"),
