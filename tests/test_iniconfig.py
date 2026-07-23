@@ -100,6 +100,24 @@ class TestIniConfig(unittest.TestCase):
             self.assertTrue(config.config.has_section("Settings"))
             self.assertEqual(config.config.get("Settings", "vpxlogdeleteonstart"), "false")
 
+    def test_restore_last_table_defaults_on(self) -> None:
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+
+            config = IniConfig(str(ini_path))
+
+            self.assertTrue(config.config.has_section("Settings"))
+            self.assertEqual(config.config.get("Settings", "restorelasttable"), "true")
+
+    def test_state_section_lasttable_defaults_empty(self) -> None:
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+
+            config = IniConfig(str(ini_path))
+
+            self.assertTrue(config.config.has_section("State"))
+            self.assertEqual(config.config.get("State", "lasttable"), "")
+
     def test_existing_splashscreen_setting_is_preserved(self) -> None:
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"

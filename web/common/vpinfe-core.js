@@ -93,6 +93,7 @@ class VPinFECore {
     this.themeConfig = {};
     this.mediaPriorities = Object.assign({}, DEFAULT_MEDIA_PRIORITIES);
     this._currentTableIndex = 0;
+    this._initialTableRestored = false;
     this._coreAudioEnabled = true;
     this._audioMuted = false;
     this._audio = Object.assign(new Audio(), { loop: true });
@@ -414,11 +415,31 @@ class VPinFECore {
       const maxIndex = Math.max(0, this.tableData.length - 1);
       if (this._currentTableIndex > maxIndex) this._currentTableIndex = maxIndex;
       if (this.tableData.length > 0) {
+        if (!this._initialTableRestored) {
+          this._initialTableRestored = true;
+          await this.#restoreInitialTable();
+        }
         this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
         this.#updateFrontendDofForCurrentTable().catch(() => {});
       } else {
         this._lastFrontendDofIndex = null;
       }
+    }
+  }
+
+  // On first table-data load, ask the backend for the last-launched table's
+  // index and, if it isn't already first, move the wheel there. Sending a
+  // TableIndexUpdate (inc self) drives the theme through the same path its own
+  // input uses, so no theme changes are needed to honor the restored position.
+  async #restoreInitialTable() {
+    try {
+      const index = await this.call("get_initial_table_index");
+      if (typeof index === "number" && index > 0 && index < this.tableData.length) {
+        this._currentTableIndex = index;
+        this.sendMessageToAllWindowsIncSelf({ type: "TableIndexUpdate", index });
+      }
+    } catch (e) {
+      this.call("console_out", `restoreInitialTable failed: ${e.message}`);
     }
   }
 

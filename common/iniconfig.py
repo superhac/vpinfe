@@ -46,6 +46,7 @@ class IniConfig:
 				'chromeoptionsexclude': '',
 				'disabledefaultchromeoptions': 'false',
 				'MMhideQuitButton': 'false',
+				'restorelasttable': 'true',
 				},
 			'Input': {
 				'joyleft': '',
@@ -89,6 +90,7 @@ class IniConfig:
 					'realdmdmediapriority': 'color',
 					},
 			'VPSdb': {'last': ''},
+			'State': {'lasttable': ''},
 			'pinmame-score-parser': {
 				'romsupdatesha': '',
 				},

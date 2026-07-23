@@ -19,6 +19,7 @@ from common.vpinplay_runtime import (
     set_table_score,
 )
 from common.vpinplay_service import sync_single_table_meta
+from frontend.last_table import save_last_table
 
 
 logger = logging.getLogger("vpinfe.frontend.launch_service")
@@ -100,6 +101,7 @@ def launch_table(
 
     delete_vpinball_log_on_start_if_configured(settings)
     table_play_service.track_table_play(table)
+    save_last_table(api._iniConfig, table)
     api.send_event_all_windows_incself({"type": "TableLaunching"})
 
     stop_dof_service()

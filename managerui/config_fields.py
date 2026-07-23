@@ -16,6 +16,7 @@ INPUT_MAPPING_ACTION_ORDER = [
 
 CHECKBOX_FIELDS = {
     ("Settings", "autoupdatemediaonstartup"),
+    ("Settings", "restorelasttable"),
     ("Settings", "splashscreen"),
     ("Settings", "muteaudio"),
     ("Settings", "mmhidequitbutton"),
