@@ -44,6 +44,7 @@ class SettingsConfig:
     table_root_dir: str = ""
     vpx_bin_path: str = ""
     vpx_ini_path: str = ""
+    rar_tool_path: str = ""
     vpx_log_delete_on_start: bool = False
     theme: str = "Revolution"
     startup_collection: str = ""
@@ -66,6 +67,7 @@ class SettingsConfig:
             table_root_dir=cfg_get(source, "Settings", "tablerootdir", "").strip(),
             vpx_bin_path=cfg_get(source, "Settings", "vpxbinpath", "").strip(),
             vpx_ini_path=cfg_get(source, "Settings", "vpxinipath", "").strip(),
+            rar_tool_path=cfg_get(source, "Settings", "rartoolpath", "").strip(),
             vpx_log_delete_on_start=cfg_bool(source, "Settings", "vpxlogdeleteonstart", False),
             theme=theme,
             startup_collection=cfg_get(source, "Settings", "startup_collection", "").strip(),

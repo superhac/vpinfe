@@ -167,6 +167,10 @@ except Exception:
 _start_startup_media_sync()
 start_dof_service_if_enabled(iniconfig)
 
+# Point the archive analyzer at a configured RAR tool (blank = auto-detect from PATH)
+from managerui.services.asset_analyzer_service import configure_rar_tool
+configure_rar_tool(iniconfig.config.get('Settings', 'rartoolpath', fallback='').strip())
+
 # Create API instances and register with WebSocket bridge
 create_api_instances()
 

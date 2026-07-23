@@ -24,6 +24,7 @@ from .page_registry import NAV_PAGES, PAGE_ALIASES
 from .services import app_control
 from .services.archive_service import cleanup_archive, create_vpxz_archive
 from .ui_helpers import load_manager_styles, nav_button
+from . import upload_api
 import asyncio
 import threading
 import os
@@ -385,6 +386,10 @@ def remote_page():
 def mobile_page():
     load_manager_styles()
     tab_mobile.build()
+
+
+# Asset upload/import API — routes defined in their own module.
+upload_api.register_routes(app)
 
 
 # API endpoint for remote launch state (polled by frontend themes)

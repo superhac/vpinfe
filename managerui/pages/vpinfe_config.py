@@ -62,6 +62,7 @@ FRIENDLY_NAMES = {
     'globaltableinioverrideenabled': 'Global tableini Override Enabled',
     'globaltableinioverridemask': 'Global tableini Override Mask',
     'vpxinipath' : 'VPX Ini Path',
+    'rartoolpath': 'RAR Tool Path (unar/unrar, blank = auto-detect)',
     'vpxlogdeleteonstart': 'Delete VPinball Log On Table Start',
     'tablerootdir': 'Tables Directory',
     'startup_collection': 'Startup Collection',

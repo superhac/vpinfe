@@ -6,6 +6,7 @@ from nicegui import ui, events, run, app, context
 from typing import List, Dict, Optional
 
 from managerui.filters import apply_table_filters, build_table_filter_options
+from managerui.pages.dnd_drop_zone import create_drop_zone, enable_cell_drops, DropContext
 from managerui.services import media_service
 from managerui.ui_helpers import debounced_input, load_page_style
 
@@ -550,9 +551,11 @@ def render_panel():
                 is_video = media_filename.endswith('.mp4')
                 is_audio = media_filename.endswith('.mp3')
 
+                cell_td = ('<q-td :props="props" data-drop-media-key="' + media_key
+                           + '" :data-drop-media-row="props.row.table_dir">')
+
                 if is_audio:
-                    media_table.add_slot(f'body-cell-{col_name}', '''
-                        <q-td :props="props">
+                    media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
                             <div v-if="props.row.media.''' + media_key + '''"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
@@ -565,8 +568,7 @@ def render_panel():
                         </q-td>
                     ''')
                 elif is_video:
-                    media_table.add_slot(f'body-cell-{col_name}', '''
-                        <q-td :props="props">
+                    media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
                             <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
@@ -590,8 +592,7 @@ def render_panel():
                         </q-td>
                     ''')
                 else:
-                    media_table.add_slot(f'body-cell-{col_name}', '''
-                        <q-td :props="props">
+                    media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
                             <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
@@ -632,6 +633,31 @@ def render_panel():
                     media_label=media_label,
                 )
             media_table.on('media_click', on_media_click)
+
+            def _cell_table_path(table_dir: str):
+                return next((r.get('table_path') for r in (_media_cache() or [])
+                             if r.get('table_dir') == table_dir), None)
+
+            def _on_cell_imported(report):
+                async def _refresh():
+                    table_path = report.get('table_path', '')
+                    table_dir = os.path.basename(table_path.rstrip('/'))
+                    for media_key in report.get('media_keys', []):
+                        target_filename = MEDIA_KEY_TO_FILENAME[media_key]
+                        target_path = os.path.join(table_path, 'medias', target_filename)
+                        new_url = media_service.media_url('media_tables', table_dir, 'medias', target_filename)
+                        new_thumb = await run.io_bound(media_service.ensure_thumb, table_dir, media_key, target_path)
+                        media_service.update_cache_entry(table_dir, media_key, new_url, new_thumb)
+                    update_table_display()
+                asyncio.create_task(_refresh())
+
+            media_drop_zone = create_drop_zone(
+                label='',
+                get_context=lambda: DropContext(),
+                on_imported=_on_cell_imported,
+                visible=False,
+            )
+            enable_cell_drops(media_drop_zone, media_table, _cell_table_path)
 
             media_table.add_slot('bottom', '''
                 <div class="row full-width items-center q-pa-sm"

@@ -12,6 +12,7 @@ from typing import Callable, Optional
 from nicegui import context, events, run, ui
 
 from managerui.pages.table_dialog_context import TableDialogContext, default_context
+from managerui.pages.dnd_drop_zone import create_drop_zone, DropContext
 from managerui.services import plugin_profile_service, table_index_service, table_service
 from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import load_page_style
@@ -701,6 +702,13 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                 rom_name = (row_data.get('rom') or '').strip()
 
                 with ui.column().classes('gap-4 p-2').style('background: var(--surface); border-radius: 8px;'):
+                    create_drop_zone(
+                        label='Drop asset files or archives for this table',
+                        get_context=lambda: DropContext(table_path=str(table_path), table_row=row_data,
+                                                        rom_name=rom_name),
+                        on_imported=lambda _report: (on_close() if on_close else None),
+                    )
+
                     # Pupvideos uploader (zip file)
                     with ui.row().classes('addon-card w-full items-center justify-between'):
                         with ui.row().classes('items-center gap-3'):
