@@ -632,6 +632,7 @@ def render_panel(tab=None):
             'theme': 'All',
             'table_type': 'All',
             'has_pup_pack': False,
+            'has_b2s': False,
         }
 
         def get_filter_options_from_cache():
@@ -643,6 +644,8 @@ def render_panel(tab=None):
             extra_predicates = []
             if filter_state['has_pup_pack']:
                 extra_predicates.append(lambda row: row.get('pup_pack_exists', False))
+            if filter_state['has_b2s']:
+                extra_predicates.append(lambda row: row.get('b2s_exists', False))
             return apply_table_filters(
                 _tables_cache() or [],
                 filter_state,
@@ -687,6 +690,10 @@ def render_panel(tab=None):
             filter_state['has_pup_pack'] = e.value or False
             update_table_display()
 
+        def on_b2s_change(e: events.ValueChangeEventArguments):
+            filter_state['has_b2s'] = e.value or False
+            update_table_display()
+
         def clear_filters():
             filter_state['search'] = ''
             filter_state['manufacturer'] = 'All'
@@ -694,12 +701,14 @@ def render_panel(tab=None):
             filter_state['theme'] = 'All'
             filter_state['table_type'] = 'All'
             filter_state['has_pup_pack'] = False
+            filter_state['has_b2s'] = False
             search_input.value = ''
             manufacturer_select.value = 'All'
             year_select.value = 'All'
             theme_select.value = 'All'
             table_type_select.value = 'All'
             pup_pack_checkbox.value = False
+            b2s_checkbox.value = False
             table._props['pagination']['page'] = 1
             update_table_display()
 
@@ -757,6 +766,10 @@ def render_panel(tab=None):
                 # PUP Pack checkbox
                 pup_pack_checkbox = ui.checkbox('PUP Pack', value=False).style('color: var(--ink);')
                 pup_pack_checkbox.on_value_change(on_pup_pack_change)
+
+                # Backglass (B2S) checkbox
+                b2s_checkbox = ui.checkbox('Backglass (B2S)', value=False).style('color: var(--ink);')
+                b2s_checkbox.on_value_change(on_b2s_change)
 
                 # Clear filters button
                 ui.button(icon='clear_all', on_click=clear_filters).props('flat round').tooltip('Clear all filters')

@@ -394,6 +394,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                 # Detected Addons row
                 addon_fields = [
+                    ('b2s_exists', 'B2S', None, None),
                     ('pup_pack_exists', 'PUP Pack', 'video_library', 'purple'),
                     ('serum_exists', 'Serum', 'palette', 'orange'),
                     ('vni_exists', 'VNI', 'palette', 'cyan'),
@@ -408,7 +409,8 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             exists = row_data.get(key, False)
                             if exists:
                                 with ui.row().classes('items-center gap-1'):
-                                    ui.icon(icon, size='16px').classes(f'text-{color}-400')
+                                    if icon:
+                                        ui.icon(icon, size='16px').classes(f'text-{color}-400')
                                     ui.badge(label, color='positive').props('rounded')
                             else:
                                 ui.badge(label, color='grey').props('rounded outline')

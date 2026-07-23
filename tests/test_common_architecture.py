@@ -13,6 +13,7 @@ from common.media_paths import apply_media_paths, media_filename_map, table_medi
 from common.metadata_service import claim_media_for_table
 from common.standalonescripts import StandaloneScripts
 from common.table_metadata import table_themes, table_title, table_type
+from common.table_repository import table_to_row
 from common.tableparser import TableParser
 from common.theme_installer import ThemeInstallStore
 from common.vpsdb_cache import VPSDatabaseCache
@@ -237,6 +238,29 @@ class TestCommonArchitecture(unittest.TestCase):
 
         self.assertEqual(messages, ["hello"])
         self.assertEqual(progress, [(1, 2, "half")])
+
+    def test_tableparser_detects_directb2s_case_insensitively(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with_b2s = root / "With B2S (Bally 1990)"
+            with_b2s.mkdir()
+            (with_b2s / "With B2S (Bally 1990).vpx").write_text("")
+            (with_b2s / "With B2S (Bally 1990).DirectB2S").write_text("")
+
+            without_b2s = root / "No B2S (Bally 1991)"
+            without_b2s.mkdir()
+            (without_b2s / "No B2S (Bally 1991).vpx").write_text("")
+
+            parser = TableParser(root)
+            parser.loadTables()
+            by_name = {t.tableDirName: t for t in parser.getAllTables()}
+
+            self.assertTrue(by_name["With B2S (Bally 1990)"].b2sExists)
+            self.assertFalse(by_name["No B2S (Bally 1991)"].b2sExists)
+
+            # table_to_row mirrors the flag for the UI
+            self.assertTrue(table_to_row(by_name["With B2S (Bally 1990)"])["b2s_exists"])
+            self.assertFalse(table_to_row(by_name["No B2S (Bally 1991)"])["b2s_exists"])
 
 
 if __name__ == "__main__":
