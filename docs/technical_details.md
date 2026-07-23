@@ -19,6 +19,7 @@ VPinFE uses a platform-specific configuration directory to store its settings. O
 | tablerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
 | startup_collection| Set the collection VPinFE starts up with.  Case sensitive, match collection name. |
 | splashscreen      | Enable or disable the splash screen at startup. Default is `false`. |
+| restorelasttable  | Open the wheel on the last table you launched instead of the first. Default is `true`. |
 
 ### [Input]
 | Key               | Description |
@@ -38,6 +39,12 @@ VPinFE uses a platform-specific configuration directory to store its settings. O
 | Key               | Description |
 | ----------------- | ------------------------------------------------------------------------- |
 | last              | Rev of VPSDB that was last pulled.                                        |
+
+### [State]
+Internal state written by VPinFE, not shown in the Manager UI.
+| Key               | Description |
+| ----------------- | ------------------------------------------------------------------------- |
+| lasttable         | Path of the last table you launched. Used by `restorelasttable` to reopen on that table. |
 
 ### [Media]
 | Key               | Description |

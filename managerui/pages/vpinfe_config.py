@@ -28,6 +28,7 @@ IGNORED_SECTIONS = {
     'VPSdb',
     'pinmame-score-parser',
     'vpinplay',
+    'State',
 }
 
 # Icons for each section (fallback to 'settings' if not defined)
@@ -67,6 +68,7 @@ FRIENDLY_NAMES = {
     'tablerootdir': 'Tables Directory',
     'startup_collection': 'Startup Collection',
     'autoupdatemediaonstartup': 'Auto Update Media On Startup',
+    'restorelasttable': 'Restore Last Table',
     'splashscreen': 'Enable splashscreen',
     'muteaudio': 'Mute Frontend Audio',
     'chromeoptions': 'Additional Chrome Options',

@@ -220,6 +220,7 @@ Core startup and launch behavior:
 - **Active Theme**: currently selected frontend theme
 - **Startup Collection**: collection opened when VPinFE starts
 - **Auto Update Media On Startup**: enables startup media refresh behavior
+- **Restore Last Table**: opens the wheel on the last table you launched instead of the first; on by default, saved as `Settings.restorelasttable`
 - **Enable splashscreen**: shows the frontend splash screen during startup
 - **Mute Frontend Audio**: mutes frontend audio playback
 - **Hide Quit from MainMenu**: hides the **Quit** item from the frontend main menu; saved as `Settings.MMhideQuitButton` in `vpinfe.ini`

@@ -59,6 +59,7 @@ class SettingsConfig:
     disable_default_chrome_options: bool = False
     cab_mode: bool = False
     hide_quit_button: bool = False
+    restore_last_table: bool = True
 
     @classmethod
     def from_config(cls, source: Any) -> "SettingsConfig":
@@ -82,6 +83,7 @@ class SettingsConfig:
             disable_default_chrome_options=cfg_bool(source, "Settings", "disabledefaultchromeoptions", False),
             cab_mode=cfg_bool(source, "Settings", "cabmode", False),
             hide_quit_button=cfg_bool(source, "Settings", "MMhideQuitButton", False),
+            restore_last_table=cfg_bool(source, "Settings", "restorelasttable", True),
         )
 
 

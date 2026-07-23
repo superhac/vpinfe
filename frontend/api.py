@@ -25,7 +25,7 @@ from common.vpinplay_runtime import (
     clear_alternate_profile,
     get_alternate_profile_state,
 )
-from frontend import config_api, input_api, launch_service, metadata_build_service, realdmd_service, table_state, theme_api
+from frontend import config_api, input_api, last_table, launch_service, metadata_build_service, realdmd_service, table_state, theme_api
 
 
 logger = logging.getLogger("vpinfe.frontend.api")
@@ -45,6 +45,7 @@ API_ALLOWED_METHODS = {
     'shutdown_system',
     'get_monitors',
     'get_tables',
+    'get_initial_table_index',
     'get_collections',
     'get_collections_metadata',
     'get_collection_image_url',
@@ -184,6 +185,11 @@ class API:
             self.filteredTables = self.allTables
         self.jsTableDictData = table_state.tables_json(self.filteredTables)
         return self.jsTableDictData
+
+    def get_initial_table_index(self):
+        # Position the wheel on the last-launched table at startup. Resolved
+        # against the current (possibly filtered) view; 0 when disabled or unfound.
+        return last_table.resolve_last_table_index(self._iniConfig, self.filteredTables)
 
 
     def get_collections(self):
