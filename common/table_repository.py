@@ -108,6 +108,7 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "detectflex": first_meta_value(meta, ("VPXFile", "detectflex")),
         "patch_applied": first_meta_value(meta, ("VPXFile", "patch_applied"), default=False),
         "table_path": table.fullPathTable,
+        "b2s_exists": bool(getattr(table, "b2sExists", False)),
         "pup_pack_exists": bool(getattr(table, "pupPackExists", False)),
         "serum_exists": bool(getattr(table, "altColorExists", False)),
         "vni_exists": bool(getattr(table, "vniExists", False)),

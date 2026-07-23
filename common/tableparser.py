@@ -77,6 +77,8 @@ class TableParser:
                 })
 
             # check for addons
+            if any(name.lower().endswith(".directb2s") for name in table_contents):
+                table.b2sExists = True
             if "pupvideos" in table_subdirs:
                 table.pupPackExists = True
             if "serum" in table_subdirs:

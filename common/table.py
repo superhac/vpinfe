@@ -15,6 +15,7 @@ class Table:
     altColorExists: bool = False
     altSoundExists: bool = False
     vniExists: bool = False
+    b2sExists: bool = False
 
     BGImagePath: str | None = None
     DMDImagePath: str | None = None
