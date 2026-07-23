@@ -7,11 +7,7 @@ from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import BinaryIO
 
-try:
-    from platformdirs import user_config_dir
-except ImportError:
-    def user_config_dir(appname: str, appauthor: str | None = None) -> str:
-        return str(Path.home() / ".config" / appname)
+from common.paths import USER_CONFIG_PATH, USER_ROMS_PATH
 
 
 @dataclass
@@ -29,10 +25,7 @@ class ParsedEntry:
 
 logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
 
-USER_ROMS_PATH = Path(user_config_dir("vpinfe", "vpinfe")) / "roms.json"
-USER_CONFIG_PATH = Path(user_config_dir("vpinfe", "vpinfe")) / "vpinfe.ini"
-
-# alias, rom name in roms.json 
+# alias, rom name in roms.json
 rom_aliases = {
     "alpok_b6": "alpok_l2",
     "arena": "amazon3a",
@@ -329,16 +322,23 @@ def resolve_score_input_path(rom_name: str, source_path: str) -> str:
 
     table_dir = source if source.is_dir() else source.parent
 
-    primary_score_path = table_dir / "pinmame" / "nvram" / f"{rom_name}.nv"
-    alias_score_path = table_dir / "pinmame" / "nvram" / f"{resolved_rom_name}.nv"
+    nvram_dir = table_dir / "pinmame" / "nvram"
+    # Check the resolved (canonical-cased) ROM name before the raw input. On a
+    # case-insensitive filesystem (macOS/APFS) a probe for "matrix.nv" matches a
+    # "Matrix.nv" file, so checking the raw name first would return the wrong
+    # casing; the canonical name gives the real on-disk filename. Dedupe when the
+    # two are identical so we don't stat the same path twice.
+    score_names = [resolved_rom_name]
+    if rom_name != resolved_rom_name:
+        score_names.append(rom_name)
+    score_candidates = [nvram_dir / f"{name}.nv" for name in score_names]
     fallback_score_path = table_dir / "user" / "VPReg.ini"
-    checked_paths.extend([primary_score_path, alias_score_path, fallback_score_path])
+    checked_paths.extend(score_candidates)
+    checked_paths.append(fallback_score_path)
 
-    if primary_score_path.exists():
-        return str(primary_score_path)
-
-    if alias_score_path.exists():
-        return str(alias_score_path)
+    for candidate in score_candidates:
+        if candidate.exists():
+            return str(candidate)
 
     if fallback_score_path.exists():
         return str(fallback_score_path)

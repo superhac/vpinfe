@@ -104,13 +104,17 @@ class FrontendServiceTests(unittest.TestCase):
         standard_config = configparser.ConfigParser()
         standard_config.read_dict({"Media": {"realdmdmediapriority": "standard"}})
 
+        # get_realdmd_image_for_table returns path.resolve(); on macOS /tmp is a
+        # symlink to /private/tmp, so compare against the resolved expectation.
+        color_expected = Path("/tmp/realdmd-color.png").resolve()
+        standard_expected = Path("/tmp/realdmd.png").resolve()
         self.assertEqual(realdmd_service.get_frontend_dof_event_for_table(table), "E901")
-        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table), Path("/tmp/realdmd-color.png"))
-        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, color_config), Path("/tmp/realdmd-color.png"))
-        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, standard_config), Path("/tmp/realdmd.png"))
+        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table), color_expected)
+        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, color_config), color_expected)
+        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, standard_config), standard_expected)
 
         table.realDMDColorImagePath = ""
-        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, color_config), Path("/tmp/realdmd.png"))
+        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, color_config), standard_expected)
 
         calls = []
         updater = realdmd_service.RealDmdUpdater("ini", "table", lambda ini, image: calls.append((ini, image)) or True)
