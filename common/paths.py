@@ -8,7 +8,18 @@ from platformdirs import user_config_dir
 from common.iniconfig import IniConfig
 
 
-CONFIG_DIR = Path(user_config_dir("vpinfe", "vpinfe"))
+def _resolve_config_dir() -> Path:
+    # VPINFE_CONFIG_DIR lets you point the whole config directory (vpinfe.ini,
+    # themes/, caches, logs, .nicegui storage) somewhere other than the OS
+    # default. Read at import time so it also applies to frozen PyInstaller
+    # builds. Falls back to the platformdirs location when unset.
+    override = os.environ.get("VPINFE_CONFIG_DIR", "").strip()
+    if override:
+        return Path(override).expanduser()
+    return Path(user_config_dir("vpinfe", "vpinfe"))
+
+
+CONFIG_DIR = _resolve_config_dir()
 VPINFE_INI_PATH = CONFIG_DIR / "vpinfe.ini"
 COLLECTIONS_PATH = CONFIG_DIR / "collections.ini"
 THEMES_DIR = CONFIG_DIR / "themes"

@@ -99,7 +99,7 @@ def parseArgs():
     parser.add_argument("--listres", action="store_true", help="ID and list your screens")
     parser.add_argument("--listmissing", action="store_true", help="List the tables from VPSdb")
     parser.add_argument("--listunknown", action="store_true", help="List the tables we can't match in VPSdb")
-    parser.add_argument("--configfile", help="Configure the location of your vpinfe.ini file. Default is cwd.")
+    parser.add_argument("--configdir", metavar="DIR", help="Use DIR as the config directory (vpinfe.ini, themes, caches, logs) instead of the OS default. Same as the VPINFE_CONFIG_DIR env var; applied at startup in main.py.")
     parser.add_argument("--buildmeta", action="store_true", help="Builds the meta.ini file in each table dir")
     parser.add_argument("--vpxpatch", action="store_true", help="Attempt to apply patches automatically")
     parser.add_argument("--gamepadtest", action="store_true", help="Test and map your gamepad via JS API")
@@ -152,9 +152,6 @@ def parseArgs():
     if args.listunknown:
         listUnknownTables()
         sys.exit()
-
-    if args.configfile:
-        configfile = args.configfile  # TODO: wire into IniConfig if needed
 
     if args.claim_user_media:
         claimUserMedia(tableName=args.table)
