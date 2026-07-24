@@ -112,6 +112,8 @@ FRIENDLY_NAMES = {
     'keyright': 'Keyboard Right',
     'keyup': 'Keyboard Up',
     'keydown': 'Keyboard Down',
+    'keypageup': 'Keyboard Page Up',
+    'keypagedown': 'Keyboard Page Down',
     'keyselect': 'Keyboard Select',
     'keymenu': 'Keyboard Menu',
     'keyback': 'Keyboard Back',
@@ -119,7 +121,11 @@ FRIENDLY_NAMES = {
     'joyright': 'Gamepad Right',
     'joyup': 'Gamepad Up',
     'joydown': 'Gamepad Down',
+    'joypageup': 'Gamepad Page Up',
+    'joypagedown': 'Gamepad Page Down',
     'joyselect': 'Gamepad Select',
+    'pagingtype': 'Paging Type',
+    'pagingsize': 'Paging Size',
     'joymenu': 'Gamepad Menu',
     'joyback': 'Gamepad Back',
     'joytutorial': 'Gamepad Tutorial',
@@ -451,6 +457,14 @@ def render_panel(tab=None):
                 inp = ui.select(
                     options=priority_options,
                     value=priority_value
+                ).props('outlined dense options-dense emit-value map-options').classes('config-input')
+            elif section == 'Input' and key == 'pagingtype':
+                normalized_paging = str(value or '').strip().lower()
+                paging_options = {'alpha': 'Alphabetic (jump by letter)', 'numeric': 'Numeric (jump by page size)'}
+                paging_value = normalized_paging if normalized_paging in paging_options else 'alpha'
+                inp = ui.select(
+                    options=paging_options,
+                    value=paging_value
                 ).props('outlined dense options-dense emit-value map-options').classes('config-input')
             elif is_checkbox:
                 inp = ui.checkbox(

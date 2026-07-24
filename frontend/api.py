@@ -62,6 +62,7 @@ API_ALLOWED_METHODS = {
     'get_filter_years',
     'apply_filters',
     'apply_sort',
+    'get_page_index',
     'reset_filters',
     'console_out',
     'get_joymaping',
@@ -301,6 +302,21 @@ class API:
         count = table_state.apply_sort(self.filteredTables, sort_type, self.current_order)
         logger.debug("Sorted %s tables by %s %s", count, sort_type, self.current_order)
         return count
+
+    def get_page_index(self, index, direction):
+        """
+        Compute the target wheel index for a page next/prev request.
+        Paging behavior comes from [Input] pagingtype/pagingsize and the
+        current sort; see table_state.page_jump_index.
+        """
+        try:
+            index = int(index)
+        except (TypeError, ValueError):
+            index = 0
+        paging_type, page_size = input_api.get_paging_config(self._iniConfig.config)
+        return table_state.page_jump_index(
+            self.filteredTables, index, direction, self.current_sort, paging_type, page_size
+        )
 
     def console_out(self, output):
         logger.info("Win: %s - %s", self.window_name, output)

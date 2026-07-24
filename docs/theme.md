@@ -842,6 +842,30 @@ The following actions are handled internally by VPinFECore and do **not** reach 
 | `joycollectionmenu` | Mapped button | `[Input] keycollectionmenu` (default `c`) | Toggles the collection menu overlay |
 | `joytutorial` | Mapped button | `[Input] keytutorial` (default `t`) | Toggles the Pinball Primer tutorial overlay |
 | `joyexit` | Mapped button | `[Input] keyexit` (default `Escape,q`) | Closes the application |
+| `joypageup` / `joypagedown` | Mapped button | `[Input] keypageup`/`keypagedown` (defaults `PageUp`/`PageDown`) | Pages the table wheel (see below) |
+
+#### Wheel Paging
+
+By default the core handles `joypageup`/`joypagedown` itself: it asks the backend
+where the press should land (`get_page_index`) and broadcasts a `TableIndexUpdate`
+to every window. Your theme moves its wheel through the same `receiveEvent` path it
+already uses for external index updates, so paging works with no theme changes.
+
+The user controls the behavior with two `[Input]` settings in `vpinfe.ini`:
+
+- `pagingtype` — `alpha` (default) jumps to the next/previous letter of the current
+  Alpha sort (numbers and symbols share one `#` group); `numeric` jumps by a fixed
+  number of tables. Alpha paging falls back to numeric when the active sort isn't
+  `Alpha` or the list is all one letter.
+- `pagingsize` — how many tables a numeric jump moves (default `10`). All paging wraps
+  around.
+
+A theme that wants its own paging behavior calls `vpin.enableCorePaging(false)`;
+the actions are then routed to `handleInput` like any other, and
+`vpin.getPageIndex(direction)` is available if you want the config-aware target
+index while animating the move yourself. While a core overlay (menu, collection
+menu, tutorial) is up, these actions bypass core paging and go to the overlay's
+handler regardless.
 
 ---
 
@@ -947,9 +971,10 @@ The following methods are available via `vpin.call()`:
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `get_joymaping` | — | `object` | Returns the gamepad button mapping from `vpinfe.ini`. Keys: `joyleft`, `joyright`, `joyup`, `joydown`, `joyselect`, `joymenu`, `joyback`, `joytutorial`, `joyexit`, `joycollectionmenu`. Values are button index strings. |
-| `get_keymapping` | — | `object` | Returns the keyboard mapping from `vpinfe.ini`. Keys: `keyleft`, `keyright`, `keyup`, `keydown`, `keyselect`, `keymenu`, `keyback`, `keytutorial`, `keyexit`, `keycollectionmenu`. Values are comma-separated browser key names or key codes. |
+| `get_joymaping` | — | `object` | Returns the gamepad button mapping from `vpinfe.ini`. Keys: `joyleft`, `joyright`, `joyup`, `joydown`, `joypageup`, `joypagedown`, `joyselect`, `joymenu`, `joyback`, `joytutorial`, `joyexit`, `joycollectionmenu`. Values are button index strings. |
+| `get_keymapping` | — | `object` | Returns the keyboard mapping from `vpinfe.ini`. Keys: `keyleft`, `keyright`, `keyup`, `keydown`, `keypageup`, `keypagedown`, `keyselect`, `keymenu`, `keyback`, `keytutorial`, `keyexit`, `keycollectionmenu`. Values are comma-separated browser key names or key codes. |
 | `set_button_mapping` | `button_name`, `button_index` | `object` | Sets a gamepad button mapping and saves to config. Returns `{success, message}`. |
+| `get_page_index` | `index`, `direction` | `number` | Returns the wheel index a page press should land on, from `index` in the given `direction` (`"next"` or `"prev"`). Honors `[Input] pagingtype`/`pagingsize` and the current sort. See [Wheel Paging](#wheel-paging). |
 
 ##### Theme & Display Config
 
@@ -1036,6 +1061,15 @@ Returns `true` when centralized core audio handling is enabled.
 
 #### setAudioOptions(options)
 Updates centralized audio options at runtime: volume (`maxVolume`, `max_volume`, or `volume`), fade duration (`fadeDuration`, `fade_duration_ms`, or `fadeMs`), and `loop`.
+
+#### enableCorePaging(enabled=true)
+Turns core-handled wheel paging (`joypageup`/`joypagedown`) on or off. Disable it if your theme does its own paging; the actions then arrive in `handleInput`. See [Wheel Paging](#wheel-paging).
+
+#### isCorePagingEnabled()
+Returns `true` when core-handled wheel paging is enabled.
+
+#### getPageIndex(direction="next", index=current)
+Asks the backend where a page press should land and returns the target index. Convenience wrapper around the `get_page_index` API method for themes doing their own paging animation.
 
 #### getTableMeta(index)
 Returns the full table object for a given table index. This is the same object as `vpin.tableData[index]`. See [Table Data Object](#table-data-object).

@@ -252,6 +252,8 @@ Gamepad button mappings stored in `vpinfe.ini`:
 - **Right**
 - **Up**
 - **Down**
+- **Page Up**
+- **Page Down**
 - **Select**
 - **Menu**
 - **Back**
@@ -265,6 +267,8 @@ Keyboard mappings are also stored in the same `[Input]` section using matching `
 - `keyright`
 - `keyup`
 - `keydown`
+- `keypageup`
+- `keypagedown`
 - `keyselect`
 - `keymenu`
 - `keyback`
@@ -275,6 +279,13 @@ Keyboard mappings are also stored in the same `[Input]` section using matching `
 These keyboard values apply only to the VPinFE frontend. They do not affect the Remote Control page. Each entry accepts a comma-separated list of browser key values or key codes such as `ArrowLeft,ShiftLeft` or `Escape,q`.
 
 You normally set these from `./vpinfe --gamepadtest`, but the values are visible and editable here.
+
+The Page Up/Page Down actions page the table wheel. Two additional `[Input]` settings control the behavior:
+
+- **Paging Type**: `alpha` (default) jumps to the next/previous letter of the alphabetically sorted wheel; `numeric` jumps by a fixed number of tables. Alpha paging falls back to numeric when the wheel isn't sorted alphabetically.
+- **Paging Size**: how many tables a numeric jump moves (default 10).
+
+The gamepad buttons are unmapped by default — map your second (magna-save) flipper buttons to Page Up/Page Down for quick wheel navigation on a cabinet.
 
 #### Logger section
 

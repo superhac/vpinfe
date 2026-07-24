@@ -28,6 +28,10 @@ VPinFE uses a platform-specific configuration directory to store its settings. O
 | joyright          | Move right. Button mapping ids from `--gamepadtest`.                     |
 | joyup             | Move up. Button mapping ids from `--gamepadtest`.                        |
 | joydown           | Move down. Button mapping ids from `--gamepadtest`.                      |
+| joypageup         | Page the wheel forward. Button mapping ids from `--gamepadtest`.         |
+| joypagedown       | Page the wheel backward. Button mapping ids from `--gamepadtest`.        |
+| pagingtype        | `alpha` (default) pages by letter; `numeric` pages by `pagingsize` tables. Alpha falls back to numeric on non-Alpha sorts. |
+| pagingsize        | Tables per numeric page jump. Default is `10`.                           |
 | joyselect         | Select button / Launch. Button mapping ids from `--gamepadtest`.        |
 | joymenu           | Pop Menu. Button mapping ids from `--gamepadtest`.                       |
 | joyback           | Go Back. Button mapping ids from `--gamepadtest`.                        |
