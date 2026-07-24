@@ -436,11 +436,25 @@ class VPinFECore {
       const index = await this.call("get_initial_table_index");
       if (typeof index === "number" && index > 0 && index < this.tableData.length) {
         this._currentTableIndex = index;
+        // Themes register window.receiveEvent at varying points in their startup
+        // (some only after a couple of awaits inside vpin.ready.then). Wait for it
+        // so the restore broadcast isn't dropped by the guard in #connectWebSocket.
+        await this.#waitForReceiveEvent();
         this.sendMessageToAllWindowsIncSelf({ type: "TableIndexUpdate", index });
       }
     } catch (e) {
       this.call("console_out", `restoreInitialTable failed: ${e.message}`);
     }
+  }
+
+  // Resolve once window.receiveEvent is a function, or after the timeout so a
+  // theme that never registers one can't hang startup.
+  async #waitForReceiveEvent(timeoutMs = 2000, intervalMs = 25) {
+    const deadline = Date.now() + timeoutMs;
+    while (typeof window.receiveEvent !== "function" && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+    return typeof window.receiveEvent === "function";
   }
 
   // Register an event handler for a specific event type
