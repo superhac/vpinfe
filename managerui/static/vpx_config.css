@@ -104,14 +104,6 @@
                 color: var(--ink) !important;
                 font-family: monospace !important;
             }
-            .vpx-config-footer {
-                position: sticky;
-                bottom: 0.75rem;
-                z-index: 5;
-                display: flex;
-                justify-content: flex-end;
-                padding-top: 0.25rem;
-            }
             .q-tab-panels,
             .q-tab-panel {
                 background: transparent !important;
