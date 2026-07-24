@@ -12,7 +12,7 @@ from common.iniconfig import IniConfig
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 from managerui.services import vpx_config_service
 from managerui.services.vpx_config_service import FieldMeta, ParsedIni, SectionMeta
-from managerui.ui_helpers import load_page_style
+from managerui.ui_helpers import load_page_style, attach_shell_save_bar
 
 
 logger = logging.getLogger("vpinfe.manager.vpx_config")
@@ -300,6 +300,7 @@ def render_panel() -> None:
             pending_reload["value"] = False
             reload_banner.refresh()
             render_filtered_sections.refresh()
+            update_save_bar()
             ui.notify("VPinballX.ini reloaded from disk", type="info")
 
         def dismiss_reload() -> None:
@@ -585,6 +586,7 @@ def render_panel() -> None:
                                             placeholder="Blank = VPX default",
                                         ).props("outlined dense").classes("w-full vpx-config-input")
                                         inputs[name][field.key] = inp
+                                        inp.on_value_change(lambda _: update_save_bar())
 
         def on_search_change() -> None:
             search_state["query"] = str(search_input.value or "")
@@ -596,14 +598,40 @@ def render_panel() -> None:
 
         search_input.on_value_change(lambda _: on_search_change())
         non_default_only.on_value_change(lambda _: on_non_default_change())
+
+        # --- Save bar (shared shell footer) --------------------------------
+        # Reuse the existing baseline (each field's loaded value) as the dirty
+        # source, so this coexists with the disk-reload watcher.
+        def _norm(value):
+            return "" if value is None else str(value)
+
+        def changed_count():
+            count = 0
+            for section in displayed_sections:
+                name = section["name"]
+                for field in section["fields"]:
+                    inp = inputs.get(name, {}).get(field.key)
+                    if inp is None:
+                        continue
+                    if _norm(inp.value).strip() != _norm(field.value).strip():
+                        count += 1
+            return count
+
+        def on_discard():
+            for section in displayed_sections:
+                name = section["name"]
+                for field in section["fields"]:
+                    inp = inputs.get(name, {}).get(field.key)
+                    if inp is not None:
+                        inp.value = field.value
+
+        update_save_bar = attach_shell_save_bar(
+            count=changed_count, on_save=save_config, on_discard=on_discard
+        )
+
         render_filtered_sections()
+        update_save_bar()
 
         # Watch VPinballX.ini for external changes (e.g. VPX rewriting it when a
         # table exits) and reload so stale values can't be saved back over them.
         ui.timer(0.5, check_disk_changes)
-
-        with ui.element("div").classes("w-full vpx-config-footer"):
-            ui.button("Save Changes", icon="save", on_click=save_config).classes("px-6 py-3").style(
-                "color: var(--neon-cyan) !important; background: var(--surface) !important; "
-                "border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;"
-            )

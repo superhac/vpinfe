@@ -23,7 +23,7 @@ from .pages import logs as tab_logs
 from .page_registry import NAV_PAGES, PAGE_ALIASES
 from .services import app_control
 from .services.archive_service import cleanup_archive, create_vpxz_archive
-from .ui_helpers import load_manager_styles, nav_button
+from .ui_helpers import load_manager_styles, nav_button, run_page_teardowns, set_shell_save_bar
 from . import upload_api
 import asyncio
 import threading
@@ -245,6 +245,12 @@ def build_app(page_param: str = '', dialog_param: str = ''):
     # Main content area - offset by nav panel width (create first so toggle_nav can reference it)
     content_container = ui.column().classes('p-6 manager-content nav-expanded')
 
+    # Shell-owned native footer (Quasar QFooter). Top-level layout elements must
+    # be direct children of the page, so it's created here and hidden by default;
+    # pages that want a sticky save bar borrow it via get_shell_save_bar().
+    shell_save_bar = ui.footer(value=False, fixed=True).classes('save-shell-footer')
+    set_shell_save_bar(shell_save_bar)
+
     # Navigation panel container (fixed position on left side)
     nav_panel = ui.column().classes('fixed left-0 top-16 bottom-0 manager-nav-panel')
 
@@ -310,6 +316,9 @@ def build_app(page_param: str = '', dialog_param: str = ''):
             return
 
         current_page['value'] = page_key
+        # Tear down page-scoped elements that live outside content_container
+        # (e.g. a native ui.footer) before swapping pages.
+        run_page_teardowns()
         content_container.clear()
 
         with content_container:

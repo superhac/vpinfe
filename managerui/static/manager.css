@@ -205,3 +205,46 @@ body::before {
 .version-link:hover {
   color: var(--neon-cyan) !important;
 }
+
+/* Shared sticky save bar (native QFooter, borrowed by config pages) */
+.q-footer.save-shell-footer {
+  left: 206px;
+  right: 14px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 0.5rem 1.5rem;
+  transition: left 0.3s ease;
+}
+body.nav-is-collapsed .q-footer.save-shell-footer {
+  left: 40px;
+}
+.save-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.save-bar-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: auto;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+.save-bar-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.save-bar.is-dirty .save-bar-status {
+  color: var(--ink);
+}
+.save-bar.is-dirty .save-bar-pip {
+  background: var(--neon-purple);
+  box-shadow: 0 0 4px rgba(180, 41, 249, 0.55), 0 0 12px rgba(180, 41, 249, 0.35);
+}
+.save-bar.is-clean .save-bar-save {
+  opacity: 0.5;
+}

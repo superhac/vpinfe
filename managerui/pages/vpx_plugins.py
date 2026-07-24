@@ -10,7 +10,7 @@ from managerui.services.plugin_profile_service import (
     DEFAULT_PROFILE_NAME,
     PLUGIN_PROFILES_DIR,
 )
-from managerui.ui_helpers import load_page_style
+from managerui.ui_helpers import load_page_style, attach_shell_save_bar
 
 
 logger = logging.getLogger("vpinfe.manager.vpx_plugins")
@@ -127,6 +127,7 @@ def render_panel() -> None:
             inputs.clear()
             target_label.set_text(str(path))
             render_plugins.refresh()
+            update_save_bar()
             return True
 
         def on_profile_change(event) -> None:
@@ -220,10 +221,6 @@ def render_panel() -> None:
                     .classes("vpx-plugins-profile-select")
                 )
                 ui.space()
-                ui.button("Save", icon="save", on_click=save_profile).style(
-                    "color: var(--neon-cyan) !important; background: var(--surface) !important; "
-                    "border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 14px;"
-                )
                 ui.button("New", icon="add", on_click=new_profile_dialog).style(
                     "color: var(--neon-purple) !important; background: var(--surface) !important; "
                     "border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 14px;"
@@ -282,6 +279,41 @@ def render_panel() -> None:
                                         placeholder="Blank = VPX default",
                                     ).props("outlined dense").classes("w-full vpx-config-input")
                                     inputs[name][plugin_field.key] = inp
+                                    inp.on_value_change(lambda _: update_save_bar())
+
+        # --- Save bar (shared shell footer) --------------------------------
+        # Baseline is each field's loaded value; the status names the profile so
+        # it's clear which profile a save writes to.
+        def _norm(value):
+            return "" if value is None else str(value)
+
+        def changed_count():
+            count = 0
+            for section in state["sections"]:
+                name = section["name"]
+                for field in section["fields"]:
+                    inp = inputs.get(name, {}).get(field.key)
+                    if inp is None:
+                        continue
+                    if _norm(inp.value).strip() != _norm(field.value).strip():
+                        count += 1
+            return count
+
+        def on_discard():
+            for section in state["sections"]:
+                name = section["name"]
+                for field in section["fields"]:
+                    inp = inputs.get(name, {}).get(field.key)
+                    if inp is not None:
+                        inp.value = field.value
+
+        update_save_bar = attach_shell_save_bar(
+            count=changed_count,
+            on_save=save_profile,
+            on_discard=on_discard,
+            target_label=lambda: state["profile"],
+        )
 
         load_profile(DEFAULT_PROFILE_NAME)
         render_plugins()
+        update_save_bar()

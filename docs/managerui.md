@@ -129,6 +129,30 @@ Add small, generic helpers to `managerui/ui_helpers.py` when a pattern appears a
 
 Keep feature-specific behavior in the page or a service module instead of making `ui_helpers.py` a large mixed utility file.
 
+## Config Page Save Bar
+
+Long config pages share one sticky save bar instead of a per-page footer button. The shell creates a single native `ui.footer` in `build_app()` (hidden by default, offset for the nav); pages borrow it through `attach_shell_save_bar()`:
+
+```python
+from managerui.ui_helpers import attach_shell_save_bar
+
+update_save_bar = attach_shell_save_bar(
+    count=changed_count,      # number of unsaved edits (0 = clean)
+    on_save=save_config,      # persist, then re-baseline
+    on_discard=revert_inputs, # restore the last-saved values
+    target_label=None,        # optional text after the count, e.g. a profile name
+)
+```
+
+The bar slides in only when `count()` is non-zero, so a clean page shows nothing. The page owns dirty detection; the helper owns the bar UI, the Save and Discard buttons, and cleanup. Call the returned `update()` whenever an edit may have changed, wiring it to each input:
+
+```python
+for inp in inputs.values():
+    inp.on_value_change(lambda _: update_save_bar())
+```
+
+For pages that rebuild inputs (search/filter or profile switches), wire `update_save_bar` on the newly created inputs and call `update_save_bar()` after the re-render. `ui.footer` is a top-level layout element, so the shell creates it once and hands it out with `get_shell_save_bar()`; the helper clears and hides it on navigation through `register_page_teardown()`.
+
 ## Adding Or Changing Config Fields
 
 Use `managerui/config_fields.py` for field behavior that is metadata rather than page layout.

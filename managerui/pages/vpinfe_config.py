@@ -16,7 +16,7 @@ from pathlib import Path
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui import config_support
 from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, THEMES_DIR
-from managerui.ui_helpers import load_page_style
+from managerui.ui_helpers import load_page_style, attach_shell_save_bar
 
 
 logger = logging.getLogger("vpinfe.manager.vpinfe_config")
@@ -1120,5 +1120,44 @@ def render_panel(tab=None):
                                         icon='stop',
                                         on_click=run_dof_test_event_stop,
                                     ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
-        with ui.element('div').classes('w-full config-footer-bar'):
-            ui.button('Save Changes', icon='save', on_click=save_config).classes('px-6 py-3').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+        # --- Save bar with unsaved-change tracking --------------------------
+        # Snapshot the loaded values so we can tell when the user has edits.
+        # save_config() is left as-is; the shared footer drives the UI.
+        def _norm(value):
+            return '' if value is None else str(value)
+
+        initial_raw = {
+            (section, key): inp.value
+            for section, keys in inputs.items()
+            for key, inp in keys.items()
+        }
+
+        def changed_count():
+            return sum(
+                1
+                for section, keys in inputs.items()
+                for key, inp in keys.items()
+                if _norm(inp.value) != _norm(initial_raw.get((section, key)))
+            )
+
+        def on_save():
+            save_config()
+            for section, keys in inputs.items():
+                for key, inp in keys.items():
+                    initial_raw[(section, key)] = inp.value
+
+        def on_discard():
+            for (section, key), value in initial_raw.items():
+                inp = inputs.get(section, {}).get(key)
+                if inp is not None:
+                    inp.value = value
+
+        update_save_bar = attach_shell_save_bar(
+            count=changed_count, on_save=on_save, on_discard=on_discard
+        )
+
+        for section, keys in inputs.items():
+            for key, inp in keys.items():
+                inp.on_value_change(lambda _: update_save_bar())
+
+        update_save_bar()
