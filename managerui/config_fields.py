@@ -6,6 +6,8 @@ INPUT_MAPPING_ACTION_ORDER = [
     "right",
     "up",
     "down",
+    "pageup",
+    "pagedown",
     "select",
     "menu",
     "back",

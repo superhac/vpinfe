@@ -61,6 +61,8 @@ class IniConfig:
 				'keypageup': 'PageUp',
 				'joypagedown': '',
 				'keypagedown': 'PageDown',
+				'pagingtype': 'alpha',
+				'pagingsize': '10',
 				'joyselect': '',
 				'keyselect': 'Enter',
 				'joymenu': '',

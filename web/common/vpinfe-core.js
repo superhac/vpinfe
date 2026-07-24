@@ -68,6 +68,10 @@ class VPinFECore {
     this.frontendInputEnabled = true;
     this._launchInputSuppressedByLifecycle = false;
 
+    // Core-handled wheel paging (joypageup/joypagedown)
+    this._corePagingEnabled = true;
+    this._pagingInFlight = false;
+
     // menu is up?
     this.menuUP = false;
     this.collectionMenuUP = false;
@@ -232,6 +236,24 @@ class VPinFECore {
     if (!table) return null;
     if (!table.AudioPath) return null;
     return this.#convertPathToURL(table.AudioPath);
+  }
+
+  // Core handles joypageup/joypagedown by default: it asks the backend for the
+  // target index ([Input] pagingtype/pagingsize + current sort) and broadcasts a
+  // TableIndexUpdate. Themes that implement their own paging call
+  // enableCorePaging(false) and receive the actions in handleInput instead.
+  enableCorePaging(enabled = true) {
+    this._corePagingEnabled = !!enabled;
+  }
+
+  isCorePagingEnabled() {
+    return !!this._corePagingEnabled;
+  }
+
+  // Ask the backend where a page next/prev press should land. Available to
+  // themes doing their own paging animation.
+  async getPageIndex(direction = "next", index = this._currentTableIndex) {
+    return await this.call("get_page_index", index, direction);
   }
 
   enableCoreAudio(enabled = true) {
@@ -981,6 +1003,37 @@ class VPinFECore {
     }
   }
 
+  // True when core should consume a paging action itself: paging enabled, table
+  // window, and no overlay up (overlays keep receiving the raw action).
+  #shouldHandleCorePaging(action) {
+    if (action !== "joypageup" && action !== "joypagedown") return false;
+    if (!this._corePagingEnabled) return false;
+    if (this._windowName !== "table") return false;
+    if (this.menuUP || this.collectionMenuUP || this.tutorialUP) return false;
+    return true;
+  }
+
+  async #handleCorePaging(action) {
+    // One page request in flight at a time; presses during the round trip are
+    // dropped rather than queued against a stale index.
+    if (this._pagingInFlight) return;
+    this._pagingInFlight = true;
+    try {
+      // pageup advances (next letter / forward), pagedown goes back.
+      const direction = action === "joypageup" ? "next" : "prev";
+      const index = await this.call("get_page_index", this._currentTableIndex, direction);
+      if (typeof index === "number" && index >= 0 && index !== this._currentTableIndex) {
+        // Same path restorelasttable uses: themes move their wheel on the
+        // incoming TableIndexUpdate, so no theme changes are needed.
+        this.sendMessageToAllWindowsIncSelf({ type: "TableIndexUpdate", index });
+      }
+    } catch (e) {
+      this.call("console_out", `Core paging failed: ${e.message}`);
+    } finally {
+      this._pagingInFlight = false;
+    }
+  }
+
   async #triggerInputAction(action) {
     if (!this.frontendInputEnabled) return;
 
@@ -1049,6 +1102,7 @@ class VPinFECore {
       else if (action === "joymenu") this.#showmenu();
       else if (action === "joycollectionmenu") this.#showcollectionmenu();
       else if (action === "joytutorial") this.#showtutorial();
+      else if (this.#shouldHandleCorePaging(action)) this.#handleCorePaging(action);
       else this.#triggerInputAction(action);
     }
   }
@@ -1187,6 +1241,9 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     }
     else if (action === "joytutorial" && this._windowName == "table") {
       this.#showtutorial();
+    }
+    else if (this.#shouldHandleCorePaging(action)) {
+      this.#handleCorePaging(action);
     }
     else {
       this.#triggerInputAction(action);

@@ -168,6 +168,48 @@ def apply_sort(tables, sort_type, order_by=None):
     return len(tables)
 
 
+def _paging_group_key(table):
+    # Letter groups for alpha paging. Titles starting with a digit or symbol all
+    # land in one '#' bucket so a big collection doesn't take several presses to
+    # cross the numeric titles.
+    title = table_title(table).strip()
+    if title and title[0].isalpha():
+        return title[0].upper()
+    return "#"
+
+
+def page_jump_index(tables, index, direction, sort_type="Alpha", paging_type="alpha", page_size=10):
+    """Return the target wheel index for a joypageup/joypagedown press.
+
+    Alpha paging jumps to the first table of the adjacent letter group in the
+    current list order. It only applies when the list is title-ordered (Alpha
+    sort); otherwise, or when the whole list is one letter group, it falls back
+    to numeric paging. Numeric paging steps by pagingsize, capped at half the
+    list so a press never wraps past the starting point. All paging is circular.
+    """
+    count = len(tables)
+    if count <= 1:
+        return 0 if count else index
+    index = index % count
+    forward = direction != "prev"
+
+    if paging_type == "alpha" and sort_type == "Alpha":
+        keys = [_paging_group_key(table) for table in tables]
+        if len(set(keys)) > 1:
+            step = 1 if forward else -1
+            pos = (index + step) % count
+            while keys[pos] == keys[index]:
+                pos = (pos + step) % count
+            if not forward:
+                # Walked back onto the previous group's last entry; rewind to its first.
+                while keys[(pos - 1) % count] == keys[pos] and (pos - 1) % count != index:
+                    pos = (pos - 1) % count
+            return pos
+
+    step = min(page_size, max(1, count // 2))
+    return (index + step) % count if forward else (index - step) % count
+
+
 def _sort_by_numeric_meta(tables, field, reverse):
     tables.sort(key=lambda table: table_title(table).lower())
     tables.sort(key=lambda table: _numeric_meta_value(table, field), reverse=reverse)
