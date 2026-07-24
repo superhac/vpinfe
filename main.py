@@ -79,6 +79,7 @@ from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run
 from nicegui import app as nicegui_app
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+import httpapi
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
 
@@ -95,6 +96,10 @@ class _SuppressNoResponseReturnedMiddleware(BaseHTTPMiddleware):
 
 
 nicegui_app.add_middleware(_SuppressNoResponseReturnedMiddleware)
+
+# Mount the HTTP API. Has to happen before any ui.run(), including the early
+# first-run start below.
+httpapi.register(nicegui_app)
 
 # On Windows, the Proactor event loop logs a noisy ConnectionResetError (WinError 10054)
 # whenever a browser tab is closed mid-connection. Install a startup handler that
