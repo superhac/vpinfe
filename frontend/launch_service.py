@@ -104,76 +104,84 @@ def launch_table(
     save_last_table(api._iniConfig, table)
     api.send_event_all_windows_incself({"type": "TableLaunching"})
 
-    stop_dof_service()
-    stop_libdmdutil_service(clear=False)
-    launch_started_at = None
-    launch_profile = None
+    # TableLaunching suppresses frontend input; TableLaunchComplete restores it.
+    # Once we've fired Launching we must fire Complete no matter what, or a
+    # failure anywhere below (bad launch command, a raising popen, post-launch
+    # bookkeeping) leaves the frontend with input suppressed for the life of the
+    # process. Wrap the whole body so Complete always goes out, then let any real
+    # failure keep propagating so it still gets logged.
     try:
-        global_ini_override = settings.global_ini_override
-        tableini_override = resolve_launch_tableini_override(
-            vpx,
-            settings.global_table_ini_override_enabled,
-            settings.global_table_ini_override_mask,
-        )
-        plugin_profile_override = resolve_launch_plugin_profile(
-            get_plugin_profile_from_meta(table.metaConfig)
-        )
-        cmd = build_vpx_launch_command(
-            launcher_path=str(vpxbin_path),
-            vpx_table_path=vpx,
-            global_ini_override=global_ini_override,
-            tableini_override=tableini_override,
-            plugin_profile_override=plugin_profile_override,
-        )
-        logger.info("Launching: %s", cmd)
-        launch_env = os.environ.copy()
-        launch_env.update(parse_launch_env_overrides(settings.vpx_launch_env))
-        
-        # Prevent usage of bundled libaries on Linux
-        # PyInstaller bundles libaries which might be incompatible with the local files.
-        system = platform.system()
-        if system == "Linux" and getattr(sys, "frozen", False): 
-            lp_key = 'LD_LIBRARY_PATH'
-            lp_orig = launch_env.get(lp_key + '_ORIG')
-            if lp_orig is not None:
-                launch_env[lp_key] = lp_orig  # restore the original, unmodified value
+        stop_dof_service()
+        stop_libdmdutil_service(clear=False)
+        launch_started_at = None
+        launch_profile = None
+        try:
+            global_ini_override = settings.global_ini_override
+            tableini_override = resolve_launch_tableini_override(
+                vpx,
+                settings.global_table_ini_override_enabled,
+                settings.global_table_ini_override_mask,
+            )
+            plugin_profile_override = resolve_launch_plugin_profile(
+                get_plugin_profile_from_meta(table.metaConfig)
+            )
+            cmd = build_vpx_launch_command(
+                launcher_path=str(vpxbin_path),
+                vpx_table_path=vpx,
+                global_ini_override=global_ini_override,
+                tableini_override=tableini_override,
+                plugin_profile_override=plugin_profile_override,
+            )
+            logger.info("Launching: %s", cmd)
+            launch_env = os.environ.copy()
+            launch_env.update(parse_launch_env_overrides(settings.vpx_launch_env))
 
-        process = popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            text=True,
-            env=launch_env,
-        )
-        launch_started_at = time.time()
-        launch_profile = get_active_profile()
-        if launch_profile is not None:
-            record_table_start(str(table.fullPathTable or table.tableDirName or ""))
-        else:
-            table_play_service.increment_start_count(table)
+            # Prevent usage of bundled libaries on Linux
+            # PyInstaller bundles libaries which might be incompatible with the local files.
+            system = platform.system()
+            if system == "Linux" and getattr(sys, "frozen", False):
+                lp_key = 'LD_LIBRARY_PATH'
+                lp_orig = launch_env.get(lp_key + '_ORIG')
+                if lp_orig is not None:
+                    launch_env[lp_key] = lp_orig  # restore the original, unmodified value
 
-        startup_detected = False
-        for line in process.stdout:
-            if not startup_detected and "Startup done" in line:
-                startup_detected = True
-                api.send_event_all_windows_incself({"type": "TableRunning"})
-                logger.info("table running")
+            process = popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                text=True,
+                env=launch_env,
+            )
+            launch_started_at = time.time()
+            launch_profile = get_active_profile()
+            if launch_profile is not None:
+                record_table_start(str(table.fullPathTable or table.tableDirName or ""))
+            else:
+                table_play_service.increment_start_count(table)
 
-        process.wait()
+            startup_detected = False
+            for line in process.stdout:
+                if not startup_detected and "Startup done" in line:
+                    startup_detected = True
+                    api.send_event_all_windows_incself({"type": "TableRunning"})
+                    logger.info("table running")
+
+            process.wait()
+        finally:
+            start_dof_service_if_enabled(api._iniConfig)
+
+        if launch_started_at is not None:
+            elapsed_seconds = max(0.0, time.time() - launch_started_at)
+            if launch_profile is not None:
+                _submit_alternate_vpinplay_result(api, table, elapsed_seconds, launch_profile)
+            else:
+                table_play_service.add_runtime_minutes(table, elapsed_seconds)
+                table_play_service.update_score_from_nvram(table)
+
+        if sys.platform == "darwin" and api.frontend_browser:
+            api.frontend_browser.activate_all_mac()
+
+        table_play_service.delete_nvram_if_configured(table)
     finally:
-        start_dof_service_if_enabled(api._iniConfig)
-
-    if launch_started_at is not None:
-        elapsed_seconds = max(0.0, time.time() - launch_started_at)
-        if launch_profile is not None:
-            _submit_alternate_vpinplay_result(api, table, elapsed_seconds, launch_profile)
-        else:
-            table_play_service.add_runtime_minutes(table, elapsed_seconds)
-            table_play_service.update_score_from_nvram(table)
-
-    if sys.platform == "darwin" and api.frontend_browser:
-        api.frontend_browser.activate_all_mac()
-
-    table_play_service.delete_nvram_if_configured(table)
-    api.send_event_all_windows_incself({"type": "TableLaunchComplete"})
+        api.send_event_all_windows_incself({"type": "TableLaunchComplete"})
