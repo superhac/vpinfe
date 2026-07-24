@@ -133,6 +133,7 @@ class WebSocketBridge:
         args = data.get('args', [])
 
         if method not in self.ALLOWED_METHODS:
+            logger.warning("Window '%s' called disallowed/unknown API method: %s", window_name, method)
             await websocket.send(json.dumps({
                 'type': 'api_response',
                 'id': call_id,
