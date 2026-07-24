@@ -25,6 +25,12 @@ if "--dof-helper" in sys.argv[1:]:
     from common.dof_service_worker import main as _dof_helper_main
     raise SystemExit(_dof_helper_main())
 
+
+# common.paths resolves CONFIG_DIR at import time, so --configdir has to reach
+# the environment before anything under common/ is imported. Do it first.
+from common.config_bootstrap import apply_configdir_override
+apply_configdir_override(sys.argv[1:])
+
 from common.logging_config import configure_logging, get_logger
 from common.iniconfig import IniConfig
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service

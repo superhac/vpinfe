@@ -98,6 +98,8 @@ NiceGUI ready to go on http://localhost:8001, and http://192.168.1.228:8001
 
 Put that URL in a browser and your in the ManagerUI.
 
+By default VPinFE keeps `vpinfe.ini`, `themes/`, caches, and logs in the OS config directory (`~/.config/vpinfe` on Linux, `~/Library/Application Support/vpinfe` on macOS, `%LOCALAPPDATA%\vpinfe` on Windows). To keep everything somewhere else — a portable install, or separate config profiles — set the `VPINFE_CONFIG_DIR` environment variable or pass `--configdir DIR`. Both point the whole config directory at `DIR`; the environment variable wins if you set both.
+
 ### Enabling the shutdown feature
 
 If you plan on using the **Shutdown** or **Reboot** option in the frontend or the remote page, some Linux systems need an explicit polkit rule so the VPinFE user can power off or reboot the machine without an interactive prompt.
@@ -808,8 +810,9 @@ options:
   --listres             ID and list your screens
   --listmissing         List the tables from VPSdb
   --listunknown         List the tables we can't match in VPSdb
-  --configfile CONFIGFILE
-                        Configure the location of your vpinfe.ini file. Default is cwd.
+  --configdir DIR       Use DIR as the config directory (vpinfe.ini, themes,
+                        caches, logs) instead of the OS default. Same as the
+                        VPINFE_CONFIG_DIR env var; applied at startup in main.py.
   --buildmeta           Builds the meta.ini file in each table dir
   --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
   --gamepadtest         Testing and mapping your gamepad via js api

@@ -7,7 +7,7 @@ small facade classes for older call sites.
 
 ## Layout
 
-- `paths.py`: canonical user config, themes, collections, and table-root paths.
+- `paths.py`: canonical user config, themes, collections, and table-root paths. `CONFIG_DIR` is resolved once at import time; set `VPINFE_CONFIG_DIR` before import (main.py maps the `--configdir` flag onto it) to relocate the whole config directory.
 - `config_access.py`: typed, UI-independent accessors for common INI sections.
 - `table.py`, `tableparser.py`, `table_repository.py`: table discovery and cached table rows.
 - `table_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence.
