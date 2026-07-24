@@ -14,7 +14,7 @@ from common.vpinplay_service import sync_installed_tables
 from managerui.config_fields import is_checkbox_field
 from managerui.pages.vpinfe_config import get_friendly_name
 from managerui.paths import VPINFE_INI_PATH
-from managerui.ui_helpers import load_page_style
+from managerui.ui_helpers import load_page_style, attach_shell_save_bar
 
 
 logger = logging.getLogger("vpinfe.manager.vpinplay")
@@ -391,8 +391,33 @@ def render_panel():
                             )
                             update_vpinplay_qr()
 
-        with ui.element("div").classes("w-full config-footer-bar"):
-            ui.button("Save Changes", icon="save", on_click=save_config).classes("px-6 py-3").style(
-                "color: var(--neon-purple) !important; background: var(--surface) !important; "
-                "border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;"
+        # --- Save bar (shared shell footer) --------------------------------
+        def _norm(value):
+            return "" if value is None else str(value)
+
+        initial_raw = {key: inp.value for key, inp in inputs[SECTION].items()}
+
+        def changed_count():
+            return sum(
+                1
+                for key, inp in inputs[SECTION].items()
+                if _norm(inp.value) != _norm(initial_raw.get(key))
             )
+
+        def on_save():
+            save_config()
+            for key, inp in inputs[SECTION].items():
+                initial_raw[key] = inp.value
+
+        def on_discard():
+            for key, value in initial_raw.items():
+                inp = inputs[SECTION].get(key)
+                if inp is not None:
+                    inp.value = value
+
+        update_save_bar = attach_shell_save_bar(
+            count=changed_count, on_save=on_save, on_discard=on_discard
+        )
+        for inp in inputs[SECTION].values():
+            inp.on_value_change(lambda _: update_save_bar())
+        update_save_bar()
