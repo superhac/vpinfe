@@ -2,6 +2,7 @@ import platform
 import subprocess
 import os
 import logging
+import sys
 from nicegui import ui, run
 from managerui.paths import VPINFE_INI_PATH
 from managerui.remote_actions import PINMAME_SERVICE_CONTROLS, SYSTEM_CONTROLS, RemoteAction
@@ -207,11 +208,12 @@ def _launch_table(table: dict):
         thread.start()
         return True
     except Exception as e:
+        logger.exception("Remote launch failed")
         set_remote_launch_state(False, None)
         try:
             start_dof_service_if_enabled(_get_ini_config())
         except Exception:
-            pass
+            logger.exception("Could not restart DOF after a failed remote launch")
         ui.notify(f'Failed to launch: {e}', type='negative')
         return False
 

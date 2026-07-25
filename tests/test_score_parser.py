@@ -25,12 +25,22 @@ from common.score_parser import ParsedEntry, result_to_jsonable
 
 
 class TestScoreParser(unittest.TestCase):
-    def test_get_roms_path_prefers_user_config_copy(self) -> None:
+    def test_get_roms_path_resolves_to_the_user_config_copy(self) -> None:
         with TemporaryDirectory() as temp_dir:
             roms_path = Path(temp_dir) / "roms.json"
             roms_path.write_text('{"foo": {"scoretype": "HIGH SCORE"}}', encoding="utf-8")
             with mock.patch.object(score_parser, "USER_ROMS_PATH", roms_path):
+                self.assertEqual(score_parser.get_roms_candidate_paths(), [roms_path])
                 self.assertEqual(score_parser.get_roms_path(), roms_path)
+
+    def test_get_roms_path_error_names_the_path_it_checked(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            missing_path = Path(temp_dir) / "roms.json"
+            with mock.patch.object(score_parser, "USER_ROMS_PATH", missing_path):
+                with self.assertRaises(FileNotFoundError) as ctx:
+                    score_parser.get_roms_path()
+
+        self.assertIn(str(missing_path), str(ctx.exception))
 
     def test_result_to_jsonable_returns_direct_score_payload_for_scalar_scores(self) -> None:
         result = result_to_jsonable("agent777", 123456)

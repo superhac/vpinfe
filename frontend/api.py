@@ -104,15 +104,16 @@ class API:
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
         self.frontend_browser = frontend_browser  # ChromiumManager instance
         self.allTables = ensure_tables_loaded()
-        self.filteredTables = self.allTables
         self.jsTableDictData = None
         # Track current filter state
         self.current_filters = table_state.default_filter_state()
-        # Track current sort state
-        self.current_sort = 'Alpha'
-        self.current_order = 'Descending'
         # Track current collection
         self.current_collection = None
+        # Establish the default view: alphabetical by (article-reordered) title,
+        # ascending. Also sets current_sort/current_order. Done here so the
+        # initial wheel matches the displayed titles instead of on-disk folder
+        # order (which ignores the "The"-moved-to-end renaming).
+        self._reset_to_default_view()
         # Check for startup collection
         startup_collection = self._iniConfig.config['Settings'].get('startup_collection', '').strip()
         if startup_collection:
@@ -145,6 +146,20 @@ class API:
 
     def _queue_realdmd_image_update(self, table_name: str, image_path) -> None:
         self._realdmd_updater.queue_image_update(table_name, image_path)
+
+    def _reset_to_default_view(self):
+        """Reset the current view to the default order: alphabetical by the
+        (article-reordered) title, ascending.
+
+        filteredTables is a fresh shallow copy of allTables so later in-place
+        sorts never disturb the master list (the Table objects stay shared, so
+        rating/meta updates still propagate). Shared by startup and every reset
+        path so they all agree on the default order.
+        """
+        self.filteredTables = list(self.allTables)
+        self.current_sort = 'Alpha'
+        self.current_order = 'Ascending'
+        table_state.apply_sort(self.filteredTables, self.current_sort, self.current_order)
 
 
     ###################
@@ -183,7 +198,7 @@ class API:
 
     def get_tables(self, reset=False):
         if reset:
-            self.filteredTables = self.allTables
+            self._reset_to_default_view()
         self.jsTableDictData = table_state.tables_json(self.filteredTables)
         return self.jsTableDictData
 
@@ -283,10 +298,8 @@ class API:
 
     def reset_filters(self):
         """Reset all VPSdb filters back to full table list."""
-        self.filteredTables = self.allTables
         self.current_filters = table_state.default_filter_state()
-        self.current_sort = 'Alpha'
-        self.current_order = 'Descending'
+        self._reset_to_default_view()
 
     def apply_sort(self, sort_type, order_by=None):
         """
