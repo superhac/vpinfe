@@ -40,6 +40,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/health` | Liveness |
 | GET | `/api/v1/openapi.json` | Generated OpenAPI spec |
 | GET | `/api/v1/docs` | Swagger UI |
+| GET | `/api/v1/play/state` | What this play host is doing (interim; the event stream replaces it) |
 | GET | `/api/v1/tables` | List tables (`q`, `limit`, `offset`) |
 | GET | `/api/v1/tables/{id}` | One table |
 | GET | `/api/v1/tables/{id}/files` | The table's game files |

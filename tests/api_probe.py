@@ -40,7 +40,18 @@ def probe() -> dict:
                 entry["json"] = None
         result[name] = entry
 
-    record("remote_launch", client.get("/api/remote-launch"))
+    # With an Origin header, as a theme's fetch from the asset server sends it.
+    record("play_state", client.get("/api/v1/play/state",
+                                    headers={"Origin": "http://127.0.0.1:8000"}))
+    record("play_state_same_origin", client.get("/api/v1/play/state"))
+
+    # The Remote Control page writes through the service; the endpoint must report it.
+    from common import launch_state
+    launch_state.set_launching("Medieval Madness (Williams 1997)")
+    record("play_state_launching", client.get("/api/v1/play/state"))
+    launch_state.clear()
+    record("play_state_cleared", client.get("/api/v1/play/state"))
+    record("legacy_remote_launch_gone", client.get("/api/remote-launch"))
 
     # Tables, and the sub-resources that used to be /api/download-table-vpxz.
     listing = client.get("/api/v1/tables")

@@ -1477,7 +1477,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     if (window.location.protocol === 'file:') return;
 
     const pollInterval = 1000; // Poll every 1 second
-    const managerUrl = `http://127.0.0.1:${this.managerUiPort}/api/remote-launch`;
+    const managerUrl = `http://127.0.0.1:${this.managerUiPort}/api/v1/play/state`;
 
     console.log("[RemoteLaunch] Starting poll to:", managerUrl);
 

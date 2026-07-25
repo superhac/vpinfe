@@ -114,7 +114,7 @@ def wait_for_manager_ui_ready(port: int, timeout_seconds: float = 15.0) -> None:
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         try:
-            _ur.urlopen(f"http://localhost:{port}/api/remote-launch", timeout=1)
+            _ur.urlopen(f"http://localhost:{port}/api/v1/health", timeout=1)
             return
         except Exception:
             time.sleep(0.5)

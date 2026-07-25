@@ -11,7 +11,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import capabilities, meta, tables, uploads
+from . import capabilities, meta, play, tables, uploads
 from .errors import (
     ApiError,
     FeatureUnavailableError,
@@ -63,6 +63,7 @@ def create_api_app() -> FastAPI:
 
     install_error_handlers(api)
     api.include_router(meta.build_router(API_PREFIX, API_VERSION))
+    api.include_router(play.router)
     api.include_router(tables.router)
     api.include_router(uploads.router)
     api.include_router(uploads.vps_router)

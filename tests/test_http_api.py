@@ -183,7 +183,7 @@ class RegistrationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.parent = FastAPI()
 
-        @self.parent.get("/api/remote-launch")
+        @self.parent.get("/api/host-owned")
         def _legacy():
             return {"launching": False, "table_name": None}
 
@@ -214,7 +214,7 @@ class RegistrationTests(unittest.TestCase):
     def test_existing_routes_are_untouched(self) -> None:
         self.assertEqual(self.client.get("/existing").json(), {"ok": True})
         self.assertEqual(
-            self.client.get("/api/remote-launch").json(),
+            self.client.get("/api/host-owned").json(),
             {"launching": False, "table_name": None},
         )
 
@@ -226,7 +226,7 @@ class RegistrationTests(unittest.TestCase):
         self.assertEqual(allowed.headers["access-control-allow-origin"], "*")
 
         # The host app keeps whatever CORS behaviour it had, which is none.
-        untouched = self.client.options("/api/remote-launch", headers=preflight)
+        untouched = self.client.options("/api/host-owned", headers=preflight)
         self.assertNotIn("access-control-allow-origin", untouched.headers)
 
     def test_the_envelope_does_not_apply_outside_the_api(self) -> None:

@@ -7,7 +7,6 @@ from common.paths import configure_nicegui_storage
 _NICEGUI_STORAGE_PATH = configure_nicegui_storage()
 
 from nicegui import ui, app, context
-from fastapi.responses import JSONResponse
 from .pages import tables as tab_tables
 from .pages import vpinfe_config as tab_vpinfe
 from .pages import vpx_config as tab_vpx_config
@@ -47,12 +46,6 @@ _first_run = False
 def set_first_run(value: bool = True):
     global _first_run
     _first_run = value
-
-# Shared state for remote launch notifications
-_remote_launch_state = {
-    'launching': False,
-    'table_name': None,
-}
 
 # Cache for release check result (check once per session)
 _update_check_cache = {
@@ -394,26 +387,6 @@ def mobile_page():
     load_manager_styles()
     tab_mobile.build()
 
-
-# API endpoint for remote launch state (polled by frontend themes)
-@app.get('/api/remote-launch')
-def get_remote_launch_state():
-    """Returns current remote launch state for frontend to poll."""
-    return JSONResponse(
-        content=_remote_launch_state,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
-
-
-def set_remote_launch_state(launching: bool, table_name: str = None):
-    """Set the remote launch state (called by remote.py)."""
-    global _remote_launch_state
-    _remote_launch_state['launching'] = launching
-    _remote_launch_state['table_name'] = table_name
 
 # keep a reference to the running thread
 _ui_thread = None

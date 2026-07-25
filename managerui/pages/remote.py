@@ -128,7 +128,7 @@ def _scan_tables_for_launch():
 def _launch_table(table: dict):
     """Launch a table using the VPX binary."""
     import threading
-    from managerui.managerui import set_remote_launch_state
+    from common import launch_state
 
     try:
         vpx_path = table.get('vpx_path', '')
@@ -154,7 +154,7 @@ def _launch_table(table: dict):
         stop_libdmdutil_service(clear=False)
 
         # Signal to frontend that we're launching
-        set_remote_launch_state(True, table_name)
+        launch_state.set_launching(table_name)
 
         # Run the launch in a background thread so UI stays responsive
         global_ini_override = cfg.config['Settings'].get('globalinioverride', '').strip()
@@ -199,7 +199,7 @@ def _launch_table(table: dict):
                 process.wait()
             finally:
                 # Clear the launch state when done
-                set_remote_launch_state(False, None)
+                launch_state.clear()
                 start_dof_service_if_enabled(cfg)
 
         # Run in background thread
@@ -207,7 +207,7 @@ def _launch_table(table: dict):
         thread.start()
         return True
     except Exception as e:
-        set_remote_launch_state(False, None)
+        launch_state.clear()
         try:
             start_dof_service_if_enabled(_get_ini_config())
         except Exception:

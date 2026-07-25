@@ -13,6 +13,7 @@ small facade classes for older call sites.
 - `table_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
 - `table_identity.py`: the stable per-install table id used to address a table in the HTTP API.
 - `game_files.py`: which .vpx in a table folder is the table. Every caller resolves through it.
+- `launch_state.py`: whether a launch has been requested from outside the frontend.
 - `media_paths.py`: canonical media keys, filenames, table attributes, and path resolution.
 - `jobs.py`: callback-friendly progress/log reporting for long-running workflows.
 - `metadata_service.py`, `table_report_service.py`, `table_play_service.py`: workflows that operate on tables and metadata.

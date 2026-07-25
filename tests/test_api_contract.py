@@ -86,15 +86,29 @@ class ApiContractTests(unittest.TestCase):
         # when it cannot run is not a safety net.
         cls.probe = _run_probe()
 
-    # --- not yet moved -------------------------------------------------------
-
-    def test_remote_launch_shape_and_cors(self) -> None:
-        """Themes poll this at 1 Hz cross-origin from the asset server."""
-        entry = self.probe["remote_launch"]
+    def test_play_state_shape_and_cors(self) -> None:
+        """Themes poll this at 1 Hz cross-origin from the asset server, so losing
+        the CORS header would silently break every theme's launch overlay."""
+        entry = self.probe["play_state"]
 
         self.assertEqual(entry["status"], 200)
         self.assertEqual(entry["json"], {"launching": False, "table_name": None})
         self.assertEqual(entry["cors"], "*", "themes call this from another origin")
+        # Same-origin callers get no CORS header, which is correct and not a regression:
+        # the header only has meaning in a cross-origin response.
+        self.assertEqual(self.probe["play_state_same_origin"]["json"], entry["json"])
+
+    def test_play_state_reports_a_launch_in_progress(self) -> None:
+        """What the frontend polls for: the overlay goes up on this transition."""
+        launching = self.probe["play_state_launching"]["json"]
+        cleared = self.probe["play_state_cleared"]["json"]
+
+        self.assertEqual(launching, {"launching": True,
+                                     "table_name": "Medieval Madness (Williams 1997)"})
+        self.assertEqual(cleared, {"launching": False, "table_name": None})
+
+    def test_the_old_remote_launch_route_is_gone(self) -> None:
+        self.assertGreaterEqual(self.probe["legacy_remote_launch_gone"]["status"], 400)
 
     # --- tables, and the archive that used to be /api/download-table-vpxz -----
 
@@ -215,7 +229,8 @@ class ApiContractTests(unittest.TestCase):
 
     def test_every_live_endpoint_answers_as_json(self) -> None:
         for name, entry in self.probe.items():
-            if name in ("legacy_upload_gone", "legacy_archive_gone", "table_archive"):
+            if name in ("legacy_upload_gone", "legacy_archive_gone",
+                        "legacy_remote_launch_gone", "table_archive"):
                 continue  # NiceGUI's own 404s, and the archive is a file download
             with self.subTest(endpoint=name):
                 self.assertEqual(entry["content_type"], "application/json")
