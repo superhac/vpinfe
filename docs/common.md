@@ -106,10 +106,17 @@ indefinitely. `VPXCollections.is_member` covers the frontend;
 `table_repository._collections_for` covers the manager UI row. If only one of them
 did, a table would show its collections in one place and not the other.
 
-Announce table lifecycle through `events.py` rather than calling the affected
-services directly. Both launch paths - the frontend wheel and the Remote Control
-page - emit the same events, so behavior that has to happen around a launch is
-written once.
+Launch tables through `host/launch.py`. It is the only place that starts a game
+file, and it is what makes a launch mean the same thing wherever it came from -
+the wheel, the Remote Control page and the HTTP API all call it. When there were
+two implementations they drifted, and only one of them recorded that a table had
+been played.
+
+Anything a particular caller needs around a launch is a subscriber, not an
+argument. The frontend's window messages and its last-table record live in
+`frontend/play_events.py`; the peripherals live in `host/peripherals.py`. Nothing
+about a specific caller belongs inside the launch itself, which is how the window
+messages ended up firing only for launches the wheel started.
 
 Choose the right kind of handler. A **hook** is part of the operation: it runs in
 priority order, the publisher waits, and raising stops the operation. A

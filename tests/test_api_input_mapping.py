@@ -5,6 +5,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
+from common import events
+from frontend import play_events
 from frontend.api import API
 
 
@@ -74,9 +76,10 @@ class TestApiInputMapping(unittest.TestCase):
 
         self.assertEqual(mapping["keytutorial"], "t")
 
-    @patch("frontend.api.subprocess.Popen")
-    @patch("frontend.api.build_vpx_launch_command", return_value=["/tmp/fake-launcher", "-play", "/tmp/table.vpx"])
-    @patch("frontend.api.get_effective_launcher")
+    @patch("common.host.launch.subprocess.Popen")
+    @patch("common.host.launch.build_vpx_launch_command",
+           return_value=["/tmp/fake-launcher", "-play", "/tmp/table.vpx"])
+    @patch("common.host.launch.get_effective_launcher")
     @patch("frontend.api.ensure_tables_loaded")
     def test_launch_table_emits_launching_and_complete_events(
         self,
@@ -85,6 +88,8 @@ class TestApiInputMapping(unittest.TestCase):
         _mock_build_cmd,
         mock_popen,
     ) -> None:
+        """The wheel launches through the shared service; the windows hear about it
+        as subscribers rather than from the launch itself."""
         with TemporaryDirectory() as tmp:
             launcher = Path(tmp) / "VPinballX"
             launcher.write_text("", encoding="utf-8")
@@ -103,10 +108,10 @@ class TestApiInputMapping(unittest.TestCase):
             process = types.SimpleNamespace(stdout=[], wait=lambda: 0)
             mock_popen.return_value = process
 
-            events = []
+            window_messages = []
             call_order = []
             ws_bridge = types.SimpleNamespace(
-                send_event_all_with_iframe=lambda message: events.append(message)
+                send_event_all_with_iframe=lambda message: window_messages.append(message)
             )
 
             ini = self._build_ini()
@@ -118,14 +123,15 @@ class TestApiInputMapping(unittest.TestCase):
 
             mock_popen.side_effect = popen_side_effect
 
-            with patch("frontend.launch_service.delete_vpinball_log_on_start_if_configured", side_effect=lambda _settings: call_order.append("delete_log")), \
-                patch("frontend.launch_service.table_play_service.track_table_play"), \
-                patch("frontend.launch_service.table_play_service.increment_start_count"), \
-                patch("frontend.launch_service.table_play_service.add_runtime_minutes"), \
-                patch("frontend.launch_service.table_play_service.update_score_from_nvram"), \
-                patch("frontend.launch_service.table_play_service.delete_nvram_if_configured"):
+            play_events.reset_for_tests()
+            self.addCleanup(play_events.reset_for_tests)
+            self.addCleanup(events.clear)
+            with patch("common.host.launch.delete_vpinball_log_on_start_if_configured", side_effect=lambda _settings: call_order.append("delete_log")), \
+                patch("common.host.launch.table_play_service"), \
+                patch("frontend.play_events.save_last_table"):
+                play_events.register(ws_bridge)
                 api.launch_table(0)
 
             self.assertEqual(call_order[:2], ["delete_log", "popen"])
-            self.assertEqual(events[0]["type"], "TableLaunching")
-            self.assertEqual(events[-1]["type"], "TableLaunchComplete")
+            self.assertEqual(window_messages[0]["type"], "TableLaunching")
+            self.assertEqual(window_messages[-1]["type"], "TableLaunchComplete")

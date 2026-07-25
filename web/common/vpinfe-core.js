@@ -1486,6 +1486,10 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
       reportedOffline = false;
       const state = JSON.parse(message.data).state || {};
 
+      // Our own launches arrive as TableLaunching over the bridge. Acting on them
+      // here as well would raise the remote overlay on a launch from the wheel.
+      if (state.source === "frontend") return;
+
       if (state.launching && !this.remoteLaunchActive) {
         this.remoteLaunchActive = true;
         console.log("[RemoteLaunch] Launch detected:", state.table_name);
