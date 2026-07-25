@@ -9,7 +9,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from common.external_service import find_named_path, import_module_from_path, third_party_base_candidates
+from common.third_party import find_named_path, import_module_from_path, third_party_base_candidates
 from common.paths import APP_ROOT
 
 _LOCK = threading.Lock()

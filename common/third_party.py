@@ -1,3 +1,11 @@
+"""Finding and loading the third-party libraries the app ships with.
+
+DOF and libdmdutil are not packaged as Python dependencies - they are dropped into
+`third-party/` by the build and imported from a path at runtime, so where they live
+depends on whether this is a source checkout or a frozen build. Nothing here is
+specific to them; the extension host will want the same primitives.
+"""
+
 from __future__ import annotations
 
 import importlib.util

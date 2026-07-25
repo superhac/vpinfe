@@ -24,7 +24,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `media_paths.py`: canonical media keys, filenames, table attributes, and path resolution.
 - `jobs.py`: callback-friendly progress/log reporting for long-running workflows.
 - `http_client.py`: shared request/download helpers.
-- `external_service.py`: third-party path discovery and dynamic import helpers.
+- `third_party.py`: finding and loading the third-party libraries the build bundles.
 - `logging_config.py`, `app_version.py`.
 
 **`common/tables/`** - tables, their metadata, and the collections built from them.
@@ -135,8 +135,9 @@ progress callbacks.
 Use `http_client.py` for common network GET/download behavior unless a service
 needs a special request shape such as POST.
 
-Use `external_service.py` for third-party service path discovery and dynamic
-module loading. DOF and libdmdutil should not grow separate copies of that logic.
+Use `third_party.py` to locate and load a bundled third-party library. Where one
+lives depends on whether this is a source checkout or a frozen build, and DOF and
+libdmdutil should not each carry their own copy of that reasoning.
 
 ## Adding A Shared Workflow
 

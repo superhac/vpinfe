@@ -99,6 +99,11 @@ caller cannot infer from the name and signature, which is worth keeping.
 - **Theme** — a player-facing frontend package.
 - **Extension** — a feature extending VPinFE under a manifest. Never "plugin", which is
   reserved for VPX standalone plugins.
+- **Third-party** — a library VPinFE bundles and loads at runtime, written by someone else
+  and not installed by the user: DOF and libdmdutil today. They ship in `third-party/` and
+  are loaded through `common/third_party.py`. They are neither extensions (no manifest,
+  nothing declared) nor plugins (that word belongs to VPX standalone), so say "third-party"
+  and not "integration" or "external service".
 
 A table is not permanently one `.vpx`; prefer "game file" when that is what is meant.
 

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from common.config_access import DisplayConfig, MediaConfig, NetworkConfig, SettingsConfig, VPinPlayConfig
-from common.external_service import find_named_path, import_module_from_path
+from common.third_party import find_named_path, import_module_from_path
 from common.jobs import JobReporter
 from common.media_paths import apply_media_paths, media_filename_map, table_media_payload
 from common.tables.metadata_service import claim_media_for_table
@@ -29,7 +29,7 @@ class _FakeIni:
 
 
 class TestCommonArchitecture(unittest.TestCase):
-    def test_external_service_helpers_find_and_import_module(self) -> None:
+    def test_third_party_helpers_find_and_import_module(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             nested = root / "nested"
