@@ -15,8 +15,8 @@ from common.tables.standalonescripts import StandaloneScripts
 from common.tables.table_metadata import table_themes, table_title, table_type
 from common.tables.table_repository import table_to_row
 from common.tables.tableparser import TableParser
-from common.external.theme_installer import ThemeInstallStore
-from common.external.vpsdb_cache import VPSDatabaseCache
+from common.online.theme_installer import ThemeInstallStore
+from common.online.vpsdb_cache import VPSDatabaseCache
 
 
 class _FakeIni:

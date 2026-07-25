@@ -37,10 +37,10 @@ from common.host.dof_service import start_dof_service_if_enabled, stop_dof_servi
 from common.host.libdmdutil_service import (
     stop_libdmdutil_service,
 )
-from common.external.pinmame_score_parser_updater import ensure_latest_roms_json
-from common.external.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
+from common.online.pinmame_score_parser_updater import ensure_latest_roms_json
+from common.online.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
 from common.app_version import get_version
-from common.external.themes import ThemeRegistry
+from common.online.themes import ThemeRegistry
 from common.paths import VPINFE_INI_PATH, configure_nicegui_storage, ensure_config_dir
 from common.tables.metadata_service import build_metadata
 

@@ -9,7 +9,7 @@ import requests
 from common.http_client import get_bytes, get_json, get_text
 
 
-logger = logging.getLogger("vpinfe.common.external.vpsdb_cache")
+logger = logging.getLogger("vpinfe.common.online.vpsdb_cache")
 
 
 class VPSDatabaseCache:

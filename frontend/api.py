@@ -17,7 +17,7 @@ from common.host.launcher import (
     resolve_launch_tableini_override,
 )
 from common.tables.table_metadata import normalize_meta
-from common.external.vpinplay_runtime import (
+from common.online.vpinplay_runtime import (
     activate_alternate_profile,
     clear_alternate_profile,
     get_alternate_profile_state,

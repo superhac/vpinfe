@@ -38,7 +38,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `vpxparser.py`, `standalonescripts.py`: reading and patching the .vpx itself.
 - `score_parser.py`: PinMAME NVRAM score extraction.
 
-**`common/external/`** - services that live outside this machine.
+**`common/online/`** - services reached over the internet.
 
 - `vpsdb.py`: compatibility facade for VPS database lookup and media download.
 - `vpsdb_cache.py`, `vpsdb_media.py`: VPS database cache/update and VPinMediaDB download helpers.
@@ -54,8 +54,8 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `launcher.py`, `launch_state.py`: starting a table, and whether a launch was requested from outside the frontend.
 - `display_service.py`, `system_actions.py`, `vpx_log.py`.
 
-Three cross-package edges are deliberate: `tables` reads VPSdb through `external`
-when building metadata, and `external`'s VPinPlay client reaches into `tables` to
+Three cross-package edges are deliberate: `tables` reads VPSdb through `online`
+when building metadata, and `online`'s VPinPlay client reaches into `tables` to
 enumerate the library. That last one is the wrong direction; VPinPlay predates the
 extension model and is expected to become a plugin.
 

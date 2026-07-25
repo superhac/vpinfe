@@ -17,7 +17,7 @@ from common.http_client import download_file, get_json
 from common.paths import CONFIG_DIR
 
 
-logger = logging.getLogger("vpinfe.common.external.app_updater")
+logger = logging.getLogger("vpinfe.common.online.app_updater")
 
 
 UPDATES_DIR = CONFIG_DIR / "updates"

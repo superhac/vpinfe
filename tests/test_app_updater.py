@@ -1,7 +1,7 @@
 from pathlib import Path
 import unittest
 
-from common.external.app_updater import _build_posix_update_script
+from common.online.app_updater import _build_posix_update_script
 
 
 class TestAppUpdaterScripts(unittest.TestCase):

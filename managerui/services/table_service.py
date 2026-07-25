@@ -40,7 +40,7 @@ def normalize_table_rating(value) -> int:
 
 def ensure_vpsdb_downloaded() -> bool:
     global _vpsdb_cache
-    from common.external.vpsdb import VPSdb
+    from common.online.vpsdb import VPSdb
     try:
         config = _fresh_config()
         VPSdb(SettingsConfig.from_config(config).table_root_dir, config)
@@ -300,7 +300,7 @@ def associate_vps_to_folder(
         meta = MetaConfig(str(meta_path))
 
     if download_media or user_media:
-        from common.external.vpsdb import VPSdb
+        from common.online.vpsdb import VPSdb
 
         config = _fresh_config()
         vps = VPSdb(SettingsConfig.from_config(config).table_root_dir, config)

@@ -6,7 +6,7 @@ from common.iniconfig import IniConfig
 from common.config_access import SettingsConfig
 from common.paths import get_ini_config
 from common.tables.tableparser import TableParser
-from common.external.vpsdb import VPSdb
+from common.online.vpsdb import VPSdb
 
 
 logger = logging.getLogger("vpinfe.common.tables.table_report_service")

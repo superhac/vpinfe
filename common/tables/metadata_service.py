@@ -11,7 +11,7 @@ from common.tables.metaconfig import MetaConfig
 from common.paths import get_ini_config
 from common.tables.standalonescripts import StandaloneScripts
 from common.tables.tableparser import TableParser
-from common.external.vpsdb import VPSdb
+from common.online.vpsdb import VPSdb
 from common.tables.vpxparser import VPXParser
 
 

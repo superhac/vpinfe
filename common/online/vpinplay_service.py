@@ -11,7 +11,7 @@ from common.config_access import SettingsConfig, VPinPlayConfig
 from common.tables.tableparser import TableParser
 
 
-logger = logging.getLogger("vpinfe.common.external.vpinplay_service")
+logger = logging.getLogger("vpinfe.common.online.vpinplay_service")
 
 
 def _to_int(value, default: int = 0) -> int:
