@@ -3,6 +3,8 @@ from pathlib import Path
 import logging
 from time import perf_counter
 from common.config_access import MediaConfig
+from common.game_files import default_game_file, game_file_names
+from common.table_metadata import section
 from common.media_paths import apply_media_paths
 from common.table import Table
 from common.metaconfig import InvalidMetaConfigError, MetaConfig
@@ -57,15 +59,10 @@ class TableParser:
                             table_subdirs.add(entry.name)
                             continue
                         table_contents.add(entry.name)
-                        if getattr(table, "fullPathVPXfile", None) or not entry.name.lower().endswith('.vpx'):
-                            continue
-                        table.fullPathVPXfile = entry.path
-                        stat = entry.stat()
-                        table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
             except OSError:
                 logger.exception("Failed to enumerate table directory: %s", table_dir)
 
-            if not getattr(table, "fullPathVPXfile", None):
+            if not game_file_names(table_contents):
                 logger.warning("No .vpx found in %s directory.", table.tableDirName)
                 continue
 
@@ -94,6 +91,17 @@ class TableParser:
                 has_medias_dir="medias" in table_subdirs,
             )
             self.loadMetaData(table)
+
+            # After the metadata, so a folder with several .vpx launches the one its
+            # metadata describes rather than whichever the filesystem listed first.
+            recorded = section(table.metaConfig, "VPXFile").get("filename", "")
+            chosen = default_game_file(table_contents, table_dir.name, recorded)
+            table.fullPathVPXfile = str(table_dir / chosen)
+            try:
+                stat = os.stat(table.fullPathVPXfile)
+                table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
+            except OSError:
+                logger.warning("Could not stat game file: %s", table.fullPathVPXfile)
 
             self.tables.append(table)
 

@@ -11,6 +11,8 @@ from common.config_access import MediaConfig, SettingsConfig
 from common.table_repository import get_missing_tables, get_table_rows, refresh_table
 from common import metadata_service
 from common.vpxcollections import VPXCollections
+from common.game_files import default_game_file
+from common.table_metadata import section as meta_section
 from common.vpxparser import VPXParser
 
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_tables_path
@@ -160,16 +162,11 @@ def _safe_upload_name(filename: str) -> str:
 
 
 def _find_vpx_file(table_dir: Path, preferred_filename: str = "") -> Path:
-    preferred_name = Path(preferred_filename or "").name
-    if preferred_name:
-        preferred = table_dir / preferred_name
-        if preferred.exists() and preferred.is_file() and preferred.suffix.lower() == ".vpx":
-            return preferred
-
-    vpx_files = sorted(path for path in table_dir.iterdir() if path.is_file() and path.suffix.lower() == ".vpx")
-    if not vpx_files:
+    names = [path.name for path in table_dir.iterdir() if path.is_file()]
+    chosen = default_game_file(names, table_dir.name, Path(preferred_filename or "").name)
+    if not chosen:
         raise FileNotFoundError(f"No .vpx found in {table_dir}")
-    return vpx_files[0]
+    return table_dir / chosen
 
 
 def _find_directb2s_file(table_dir: Path, preferred_stem: str = "") -> Optional[Path]:
@@ -287,17 +284,18 @@ def associate_vps_to_folder(
     if not table_folder.exists():
         raise FileNotFoundError(f"Folder not found: {table_folder}")
 
-    vpx_files = sorted([path for path in table_folder.glob("*.vpx")])
-    if not vpx_files:
-        vpx_files = sorted([path for path in table_folder.rglob("*.vpx") if path.parent == table_folder])
-    if not vpx_files:
-        raise FileNotFoundError(f"No .vpx found in {table_folder}")
+    meta_path = table_folder / f"{table_folder.name}.info"
+    recorded = ""
+    if meta_path.exists():
+        try:
+            recorded = meta_section(MetaConfig(str(meta_path)).data, "VPXFile").get("filename", "")
+        except Exception:
+            recorded = ""
 
-    vpx_file = vpx_files[0]
+    vpx_file = _find_vpx_file(table_folder, recorded)
     parser = VPXParser()
     vpxdata = parser.singleFileExtract(str(vpx_file))
 
-    meta_path = table_folder / f"{table_folder.name}.info"
     meta = MetaConfig(str(meta_path))
     meta.writeConfigMeta({"vpsdata": vps_entry, "vpxdata": vpxdata})
 

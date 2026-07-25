@@ -15,6 +15,7 @@ from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
 from common import table_identity
+from common.game_files import default_game_file, game_file_names
 from common.table_repository import collections_map, ensure_tables_loaded, table_to_row
 
 from .errors import InvalidRequestError, NotFoundError
@@ -86,13 +87,10 @@ def _game_files(table, row: dict) -> list[dict]:
     table_dir = Path(row.get("table_path", ""))
     recorded = (row.get("filename") or "").strip()
 
-    on_disk = []
+    listing = []
     if table_dir.is_dir():
-        on_disk = sorted(
-            (p.name for p in table_dir.iterdir()
-             if p.is_file() and p.suffix.lower() == ".vpx"),
-            key=str.lower,
-        )
+        listing = [p.name for p in table_dir.iterdir() if p.is_file()]
+    on_disk = game_file_names(listing)
 
     names = list(on_disk)
     if recorded and recorded not in names:
@@ -100,7 +98,8 @@ def _game_files(table, row: dict) -> list[dict]:
     if not names:
         return []
 
-    default = recorded if recorded in on_disk else (on_disk[0] if on_disk else recorded)
+    # Same resolver the launcher and the metadata build use, so all three agree.
+    default = default_game_file(listing, table_dir.name, recorded) or recorded
     return [
         {
             "format": "vpx",

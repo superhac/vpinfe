@@ -12,6 +12,7 @@ small facade classes for older call sites.
 - `table.py`, `tableparser.py`, `table_repository.py`: table discovery and cached table rows.
 - `table_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
 - `table_identity.py`: the stable per-install table id used to address a table in the HTTP API.
+- `game_files.py`: which .vpx in a table folder is the table. Every caller resolves through it.
 - `media_paths.py`: canonical media keys, filenames, table attributes, and path resolution.
 - `jobs.py`: callback-friendly progress/log reporting for long-running workflows.
 - `metadata_service.py`, `table_report_service.py`, `table_play_service.py`: workflows that operate on tables and metadata.
@@ -55,6 +56,10 @@ interchangeable:
 
 Use `table_identity.table_id()` to read one, `ensure_id()` when you need a table
 to have one. Reading never mints, so table scans stay a read path.
+
+Never pick a table's `.vpx` yourself. A folder can hold several, and picking
+differently from everyone else means the metadata a user sees describes a different
+file than the one that launches. Use `game_files.default_game_file()`.
 
 Use `config_access.py` when reading common INI values from code outside the
 configuration editor itself. This keeps defaults and bool/int coercion in one
