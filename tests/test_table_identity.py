@@ -41,7 +41,8 @@ class TableIdTests(unittest.TestCase):
         table = _table(self.root, meta={"Info": {"VPSId": "vps-1"}})
 
         minted = table_identity.ensure_id(table)
-        on_disk = json.loads((Path(table.fullPathTable) / "Example.info").read_text(encoding="utf-8"))
+        info = Path(table.fullPathTable) / "Example.info"
+        on_disk = json.loads(info.read_text(encoding="utf-8"))
 
         self.assertTrue(minted)
         self.assertEqual(on_disk["VPinFE"]["id"], minted)
@@ -72,7 +73,8 @@ class TableIdTests(unittest.TestCase):
         })
 
         table_identity.ensure_id(table)
-        on_disk = json.loads((Path(table.fullPathTable) / "Example.info").read_text(encoding="utf-8"))
+        info = Path(table.fullPathTable) / "Example.info"
+        on_disk = json.loads(info.read_text(encoding="utf-8"))
 
         self.assertEqual(on_disk["User"]["Rating"], 4)
         self.assertEqual(on_disk["VPinFE"]["alttitle"], "My Example")

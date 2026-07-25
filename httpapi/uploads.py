@@ -25,7 +25,7 @@ from managerui.services.asset_import_service import (
 from managerui.services.asset_registry import spec_for
 from managerui.services.upload_session_service import UnknownSession, UnsafePath, UploadTooLarge
 
-from .errors import ApiError, InvalidRequest, NotFound
+from .errors import ApiError, InvalidRequestError, NotFoundError
 
 logger = logging.getLogger("vpinfe.httpapi.uploads")
 
@@ -84,7 +84,7 @@ def _session_dir(upload_id: str):
     try:
         return upload_session_service.get_session_dir(upload_id)
     except UnknownSession as exc:
-        raise NotFound(str(exc)) from exc
+        raise NotFoundError(str(exc)) from exc
 
 
 def _analysis_for(upload_id: str):
@@ -100,7 +100,7 @@ def _vps_entry(vps_id: str):
         return None
     entry = find_vps_entry(vps_id)
     if entry is None:
-        raise InvalidRequest(f"Unknown vps_id: {vps_id}")
+        raise InvalidRequestError(f"Unknown vps_id: {vps_id}")
     return entry
 
 
@@ -114,7 +114,7 @@ def get_upload(upload_id: str) -> dict:
     try:
         return upload_session_service.finish_session(upload_id)
     except UnknownSession as exc:
-        raise NotFound(str(exc)) from exc
+        raise NotFoundError(str(exc)) from exc
 
 
 @router.delete("/{upload_id}", summary="Abort an upload session")
@@ -132,9 +132,9 @@ async def add_upload_file(upload_id: str, relpath: str = Form(...),
     except UploadTooLarge as exc:
         raise ApiError("payload_too_large", str(exc), status_code=413) from exc
     except UnknownSession as exc:
-        raise NotFound(str(exc)) from exc
+        raise NotFoundError(str(exc)) from exc
     except UnsafePath as exc:
-        raise InvalidRequest(str(exc)) from exc
+        raise InvalidRequestError(str(exc)) from exc
     return {"bytes": written}
 
 
@@ -170,7 +170,7 @@ def import_upload(upload_id: str, payload: dict = Body(default={})) -> dict:
         allow_new_table=bool(payload.get("allow_new_table", False)),
     )
     if vps_entry is not None and not plan.new_table_dir_name:
-        raise InvalidRequest("vps_id only applies to new-table imports")
+        raise InvalidRequestError("vps_id only applies to new-table imports")
 
     # Folder naming precedence: explicit new_table_dir_name > VPS-derived > vpx stem.
     new_name = payload.get("new_table_dir_name")
@@ -179,7 +179,7 @@ def import_upload(upload_id: str, payload: dict = Body(default={})) -> dict:
     try:
         plan = select_plan_items(plan, payload.get("selected"), new_name)
     except ValueError as exc:
-        raise InvalidRequest(str(exc)) from exc
+        raise InvalidRequestError(str(exc)) from exc
 
     blocked = [{"kind": b.asset.kind, "reason": b.reason} for b in plan.blocked]
     if not plan.items:
@@ -188,7 +188,7 @@ def import_upload(upload_id: str, payload: dict = Body(default={})) -> dict:
     try:
         report = execute_import_plan(plan, source_path)
     except (ValueError, FileNotFoundError) as exc:
-        raise InvalidRequest(str(exc)) from exc
+        raise InvalidRequestError(str(exc)) from exc
     upload_session_service.cleanup_session(upload_id)
     report["blocked"] = blocked
 

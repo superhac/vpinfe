@@ -17,7 +17,7 @@ from starlette.responses import FileResponse
 from common import table_identity
 from common.table_repository import collections_map, ensure_tables_loaded, table_to_row
 
-from .errors import InvalidRequest, NotFound
+from .errors import InvalidRequestError, NotFoundError
 
 logger = logging.getLogger("vpinfe.httpapi.tables")
 
@@ -37,7 +37,7 @@ def _catalog() -> dict:
 def _table_or_404(table_id: str):
     table = _catalog().get(table_id)
     if table is None:
-        raise NotFound(f"No table with id {table_id}")
+        raise NotFoundError(f"No table with id {table_id}")
     return table
 
 
@@ -144,9 +144,9 @@ def get_table_archive(table_id: str, download_token: str = ""):
     try:
         archive = create_vpxz_archive(table_dir_name)
     except ValueError as exc:
-        raise InvalidRequest("Invalid table path") from exc
+        raise InvalidRequestError("Invalid table path") from exc
     except FileNotFoundError as exc:
-        raise NotFound("Table not found") from exc
+        raise NotFoundError("Table not found") from exc
 
     logger.info("Created download archive: %s", archive.path)
 

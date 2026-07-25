@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Any, Dict, Iterable, Optional
+from collections.abc import Iterable
+from typing import Any
 
 from common.table_metadata import (
     load_table_meta,
@@ -34,7 +35,7 @@ def table_id(table) -> str:
     return str(section(meta, ID_SECTION).get(ID_KEY, "") or "").strip()
 
 
-def _vpinfe_section(config: Dict[str, Any]) -> Dict[str, Any]:
+def _vpinfe_section(config: dict[str, Any]) -> dict[str, Any]:
     existing = config.get(ID_SECTION)
     if not isinstance(existing, dict):
         existing = {}
@@ -68,12 +69,12 @@ def ensure_id(table, *, force_new: bool = False) -> str:
     return minted
 
 
-def ensure_unique_ids(tables: Iterable[Any]) -> Dict[str, Any]:
+def ensure_unique_ids(tables: Iterable[Any]) -> dict[str, Any]:
     """Give every table an id, re-minting collisions so an id addresses one table.
 
     Two tables share an id when a table folder was copied.
     """
-    by_id: Dict[str, Any] = {}
+    by_id: dict[str, Any] = {}
     for table in tables:
         current = table_id(table) or ensure_id(table)
         if current in by_id:
@@ -88,7 +89,7 @@ def ensure_unique_ids(tables: Iterable[Any]) -> Dict[str, Any]:
     return by_id
 
 
-def find_by_id(tables: Iterable[Any], wanted: str) -> Optional[Any]:
+def find_by_id(tables: Iterable[Any], wanted: str) -> Any | None:
     """The table with this id, or None. A table with no id can't match."""
     wanted = (wanted or "").strip()
     if not wanted:

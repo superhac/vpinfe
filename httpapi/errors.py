@@ -50,17 +50,17 @@ class ApiError(Exception):
         self.details = details
 
 
-class NotFound(ApiError):
+class NotFoundError(ApiError):
     def __init__(self, message: str = "Not found", *, details: Any = None) -> None:
         super().__init__(CODE_NOT_FOUND, message, status_code=404, details=details)
 
 
-class InvalidRequest(ApiError):
+class InvalidRequestError(ApiError):
     def __init__(self, message: str = "Invalid request", *, details: Any = None) -> None:
         super().__init__(CODE_INVALID_REQUEST, message, status_code=400, details=details)
 
 
-class FeatureUnavailable(ApiError):
+class FeatureUnavailableError(ApiError):
     """Exists, but not available here. The message is user-facing: say how to enable it."""
 
     def __init__(self, message: str = "Feature unavailable", *, details: Any = None) -> None:

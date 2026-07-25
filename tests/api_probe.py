@@ -15,11 +15,12 @@ warnings.filterwarnings("ignore")
 
 
 def probe() -> dict:
-    import managerui.managerui  # registers the Manager UI routes on the nicegui app
     from nicegui import app as nicegui_app
     from starlette.testclient import TestClient
 
+    # managerui.managerui is imported for the side effect of registering its routes.
     import httpapi
+    import managerui.managerui  # noqa: F401
     if not any(getattr(r, "path", "") == httpapi.API_PREFIX for r in nicegui_app.routes):
         httpapi.register(nicegui_app)
 

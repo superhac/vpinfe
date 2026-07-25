@@ -6,8 +6,9 @@ Nothing is declared until the endpoints backing it land. See docs/http_api.md.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from typing import Any
 
 # Residency: where a capability has to run. Clients hold neither.
 RESIDENCY_CATALOG = "catalog"
@@ -22,7 +23,7 @@ class Capability:
     name: str
     residency: str
     description: str = ""
-    is_available: Optional[Callable[[], "bool | tuple[bool, str]"]] = None
+    is_available: Callable[[], bool | tuple[bool, str]] | None = None
 
     def resolve(self) -> dict[str, Any]:
         available, reason = True, None

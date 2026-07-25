@@ -5,7 +5,7 @@ from starlette.testclient import TestClient
 
 import httpapi
 from httpapi import capabilities
-from httpapi.errors import ApiError, FeatureUnavailable, NotFound
+from httpapi.errors import ApiError, FeatureUnavailableError, NotFoundError
 
 
 def _client() -> TestClient:
@@ -120,11 +120,11 @@ class ErrorEnvelopeTests(unittest.TestCase):
 
         @api.get("/missing")
         def _missing():
-            raise NotFound("No such table")
+            raise NotFoundError("No such table")
 
         @api.get("/unavailable")
         def _unavailable():
-            raise FeatureUnavailable("DOF is not configured on this instance")
+            raise FeatureUnavailableError("DOF is not configured on this instance")
 
         client = TestClient(api, raise_server_exceptions=False)
 

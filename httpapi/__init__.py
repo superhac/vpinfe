@@ -14,9 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import capabilities, meta, tables, uploads
 from .errors import (
     ApiError,
-    FeatureUnavailable,
-    InvalidRequest,
-    NotFound,
+    FeatureUnavailableError,
+    InvalidRequestError,
+    NotFoundError,
     error_response,
     install_error_handlers,
 )
@@ -30,9 +30,9 @@ __all__ = [
     "API_PREFIX",
     "API_VERSION",
     "ApiError",
-    "FeatureUnavailable",
-    "InvalidRequest",
-    "NotFound",
+    "FeatureUnavailableError",
+    "InvalidRequestError",
+    "NotFoundError",
     "capabilities",
     "create_api_app",
     "error_response",

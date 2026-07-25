@@ -79,7 +79,7 @@ branch on that rather than on its absence.
 
 ## Conventions
 
-Field names are `snake_case`, matching Python's own convention (PEP 8) so nothing has to be
+Field names are `snake_case` (see `docs/conventions.md`), matching Python's own convention (PEP 8) so nothing has to be
 translated on the way out, and matching the repo's existing JSON. Plenty of JSON APIs use
 snake_case for the same reason — GitHub's and Stripe's among them.
 
@@ -101,11 +101,11 @@ carries the offending fields.
 Raise, don't build responses by hand:
 
 ```python
-from httpapi.errors import NotFound, InvalidRequest, FeatureUnavailable
+from httpapi.errors import NotFoundError, InvalidRequestError, FeatureUnavailableError
 
-raise NotFound(f"No table with id {table_id}")
-raise InvalidRequest("sort must be one of: name, year", details={"got": sort})
-raise FeatureUnavailable("DOF is not configured on this instance")
+raise NotFoundError(f"No table with id {table_id}")
+raise InvalidRequestError("sort must be one of: name, year", details={"got": sort})
+raise FeatureUnavailableError("DOF is not configured on this instance")
 ```
 
 For anything else, `ApiError(code, message, status_code=..., details=...)`. Uncaught
@@ -191,7 +191,7 @@ Build an `APIRouter`, include it in `create_api_app()`, and let the envelope han
 
 ```python
 from fastapi import APIRouter
-from httpapi.errors import NotFound
+from httpapi.errors import NotFoundError
 
 router = APIRouter(prefix="/tables", tags=["tables"])
 
@@ -199,7 +199,7 @@ router = APIRouter(prefix="/tables", tags=["tables"])
 def get_table(table_id: str) -> dict:
     table = table_repository.find(table_id)
     if table is None:
-        raise NotFound(f"No table with id {table_id}")
+        raise NotFoundError(f"No table with id {table_id}")
     return table
 ```
 
