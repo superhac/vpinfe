@@ -179,8 +179,36 @@ a problem no longer destroys the log of the run that showed it.
 
 ## Vocabulary
 
-- **Table** — the pinball-machine concept: folder, identity, metadata, media.
+- **Table** — the pinball-machine concept: folder, identity, metadata, media, assets.
 - **Game file** — a launchable artifact for a specific app (`.vpx` today).
+- **Media** — artwork VPinFE shows *about* a table while you browse: playfield, backglass,
+  DMD, wheel, cab, FSS, flyer, their video variants, audio. This is `common/media_paths.py`
+  and nothing else.
+- **Asset** — content a table needs to *play* as intended, beyond its game file:
+  `.directb2s`, ROM, alt colour, alt sound, PUP pack, music, the per-table `.ini`.
+  The per-table `.ini` is config-shaped but is still an asset: without it the table
+  plays differently than intended, which is the whole definition.
+
+A **declared ROM name is not a ROM asset.** A table's script sets `cGameName`, and
+`vpxparser` records it, but that name means one of two different things:
+
+- **A PinMAME dependency (hard).** The script drives the emulator, and without the ROM
+  set in `<table>/pinmame/roms` the table does not run.
+- **A DOF key (soft).** The table needs no emulator — EM tables have no ROM to have —
+  and the name exists only so DOF can map feedback effects to it.
+
+Nothing recorded today tells the two apart, and the shape of the name is a hint rather
+than a rule: PinMAME sets look like `mm_109c`, DOF keys like `GTB2001_1971`. Measured
+against a 653-table library, **244 of the 579 tables that declare a name have no ROM
+file, and they are overwhelmingly EM tables that never needed one.** So "declares a ROM,
+has no ROM file" is a normal, healthy state for most of the library, and reporting ROM
+presence as a plain missing/present flag would call hundreds of working tables broken.
+
+That is why the table resource carries the declared name as metadata (`rom`) but no ROM
+entry under `assets`. **Trigger for revisiting:** a detector for whether the script
+actually instantiates the PinMAME controller — `runDetectors` in `vpxparser` already
+greps the script for exactly this kind of thing. Once the dependency's kind is known,
+ROM can be reported honestly.
 - **App** — the application that plays a format (VPX standalone today).
 - **Theme** — a player-facing frontend package.
 - **Extension** — a feature extending VPinFE under a manifest. Never "plugin", which is
@@ -192,6 +220,17 @@ a problem no longer destroys the log of the run that showed it.
   and not "integration" or "external service".
 
 A table is not permanently one `.vpx`; prefer "game file" when that is what is meant.
+
+Media and assets are not the same thing, and the line is what each is *for*: media is what
+you look at while browsing, assets are what the table consumes while playing. A backglass is
+the case worth knowing — the `.directb2s` is an asset, because the B2S server runs it, while
+the backglass *art* the wheel renders is media. Do not call an asset "media" because it
+happens to be a file in the table folder.
+
+`asset_registry.ASSET_SPECS` uses "asset" more broadly, as the lifecycle role of anything
+being imported — including the game file and media. That is the import pipeline's word for
+"a thing being added", not a content category, and it never reaches the HTTP contract, whose
+endpoints are `/uploads/*`. Prefer the definitions above anywhere the distinction matters.
 
 Two table identifiers exist and are not interchangeable:
 

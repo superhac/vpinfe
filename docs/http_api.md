@@ -45,8 +45,9 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/play/state` | What this play host is doing. The snapshot you take once; `play.state_changed` on the stream is how you hear about it after that |
 | GET | `/api/v1/tables` | List tables (`q`, `limit`, `offset`) |
 | GET | `/api/v1/tables/{id}` | One table |
-| GET | `/api/v1/tables/{id}/files` | The table's game files |
+| GET | `/api/v1/tables/{id}/game-files` | The table's game files |
 | GET | `/api/v1/tables/{id}/archive` | Download the table folder as `.vpxz` |
+| POST | `/api/v1/tables/{id}/launch` | Launch a table here. Optional `{"file": "..."}` picks a game file |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
 | GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count", "total_bytes"}` |
@@ -89,6 +90,21 @@ snake_case for the same reason — GitHub's and Stripe's among them.
 A table resource carries `id` (this install's id) and `vps_id` (correlation with VPSdb and
 friends). Sub-resources are linked from `links` rather than assembled by the client.
 
+Path segments are hyphenated (`/game-files`); JSON field names are `snake_case`
+(`links.game_files`). Different namespaces, different conventions — hyphens read better in a
+URL and nothing has to be translated on the way into Python.
+
+**Media and assets are not the same thing** (`docs/conventions.md`). Media is the artwork
+VPinFE shows you while browsing — playfield, backglass art, DMD, wheel, flyer, video, audio.
+Assets are what the table needs to *play* as intended: the `.directb2s`, ROM, alt colour, alt
+sound, PUP pack, music, per-table `.ini`. A table resource reports `assets` as presence flags
+for all seven; the media sub-resource is not built yet.
+
+`rom` on the table resource is the **declared** ROM name, not a statement that a ROM is
+installed. It can be a PinMAME dependency the table cannot run without, or just a key DOF
+maps effects to — and most of the library is the latter. `assets` deliberately has no ROM
+entry until those can be told apart; see `docs/conventions.md`.
+
 ## Errors
 
 Every failure under `/api/v1` comes back in one shape, with a real HTTP status:
@@ -115,7 +131,7 @@ For anything else, `ApiError(code, message, status_code=..., details=...)`. Unca
 exceptions become a logged `internal_error` with no detail in the response — put anything the
 user needs into an explicit `ApiError`.
 
-Codes defined so far: `not_found`, `invalid_request`, `method_not_allowed`,
+Codes defined so far: `not_found`, `invalid_request`, `method_not_allowed`, `conflict`,
 `feature_unavailable`, `internal_error`, plus `unauthorized` and `forbidden` reserved for the
 authorization boundary. Add new codes to `httpapi/errors.py` rather than inventing them at a call site.
 
@@ -180,6 +196,42 @@ capability spans the two: if the catalog and the play host are ever separate mac
 each have an event stream, carrying their own events. Test for a role with
 `"play_host" in residency`, which reads the same whether a capability has one or two.
 
+## Launching
+
+`POST /api/v1/tables/{id}/launch` starts a table on this play host. It returns `202` as soon
+as the launch is under way — not when the table exits, which can be hours later. Watch
+`/api/v1/events` to find out what happens next.
+
+```
+POST /api/v1/tables/6f1c9a4e.../launch
+{"file": "Table Name VPW Mod.vpx"}
+```
+
+`file` is optional and names one of the table's game files (`GET .../files` lists them);
+leave it out for the table's default. A name that isn't in the table's own folder is refused,
+so this can't be talked into running something else.
+
+Every refusal happens before anything starts, and comes back synchronously:
+
+| Status | Code | Means |
+|--------|------|-------|
+| 404 | `not_found` | no table with that id |
+| 400 | `invalid_request` | the named `file` isn't one of this table's game files |
+| 409 | `conflict` | something is already playing — two VPX processes would fight over the same hardware |
+| 501 | `feature_unavailable` | this machine can't launch at all, e.g. no `vpxbinpath` configured |
+
+The endpoint carries `launch:invoke`, which is deliberately not `tables:write`: reading the
+library, changing it, and making the machine do something are three different permissions.
+
+Discovery declares a `launch` capability separately from `play`, because reading what's
+playing works on a machine that can't start anything. Check it before offering a Play button
+rather than finding out from a 501.
+
+This is the same launch the wheel and the Remote Control page use. That matters more than it
+sounds — it means a launch from the API counts as a play, updates Last Played, reads the
+score back out of NVRAM, and hands the peripherals over before VPX starts, because all of
+that lives in the one path rather than in whichever caller remembered it.
+
 ## Event stream
 
 `GET /api/v1/events` is the internal bus (`common/events.py`) on the wire, as Server-Sent
@@ -201,11 +253,16 @@ What's on it:
 
 | Event | Payload |
 |-------|---------|
-| `table.launching` / `table.launched` / `table.exited` / `table.selected` | `{"table": {"id", "name"}}`, or `{"table": null}` when the launch didn't come from the wheel |
-| `play.state_changed` | `{"state": {"launching", "table_name"}}` |
+| `table.launching` / `table.launched` / `table.exited` / `table.selected` | `{"table": {"id", "name", "links"}}`, or `{"table": null}` when the launch didn't come from the wheel |
+| `play.state_changed` | `{"state": {"launching", "table_name", "source"}}` |
 | `job.progress` | `{"job_id", "pct", "message"}` |
 | `job.done` | `{"job_id"}` |
 | `job.failed` | `{"job_id", "error"}` |
+
+A table on the stream is a *reference*, not a resource: an id, a name to show, and
+`links.self` to fetch the rest. Events stay small and there is one answer to what a table
+looks like, at `GET /api/v1/tables/{id}`. A table that hasn't been assigned an id yet carries
+an empty one and no link rather than a broken one.
 
 The bus carries more than that per event — `table.launching` hands its handlers the whole
 `Table` object and the ini config, because its handlers are in-process. The stream projects
@@ -218,6 +275,10 @@ The stream is always a subscriber and never a hook. A hook can stop the operatio
 of, and nothing on the far end of a socket may do that.
 
 ### Connecting, and reconnecting
+
+`play.state_changed` carries a `source` of `frontend`, `remote` or `api` — who asked for the
+launch. The frontend uses it to ignore its own; everything else can treat the state as a fact
+about the machine regardless of who caused it.
 
 On connect the stream sends a `stream.hello` frame, then the current value of any
 state-carrying event it's declared for — today `play.state_changed`. So a client that

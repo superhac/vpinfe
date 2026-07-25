@@ -1,6 +1,7 @@
 """The table catalog.
 
-A table is the pinball-machine concept - folder, identity, metadata, media. The
+A table is the pinball-machine concept - folder, identity, metadata, media and
+assets. The
 launchable artifact is a game file, exposed as a sub-resource, because a table is
 not permanently one .vpx.
 """
@@ -8,12 +9,15 @@ not permanently one .vpx.
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Body, Query
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
+from common.host import launch, launch_state
+from common.paths import get_ini_config
 from common.tables import table_identity
 from common.tables.game_files import default_game_file, game_file_names
 from common.tables.table_repository import (
@@ -24,7 +28,7 @@ from common.tables.table_repository import (
 
 from . import scopes
 from .auth import requires
-from .errors import InvalidRequestError, NotFoundError
+from .errors import ConflictError, FeatureUnavailableError, InvalidRequestError, NotFoundError
 
 logger = logging.getLogger("vpinfe.httpapi.tables")
 
@@ -64,16 +68,21 @@ def _resource(row: dict, table_id: str) -> dict:
         "version": row.get("version", ""),
         "rating": row.get("rating", 0),
         "collections": row.get("collections") or [],
-        "media": {
-            "b2s": row.get("b2s_exists", False),
+        # Assets, not media: these are what the table needs to play as intended.
+        # Media is the artwork VPinFE shows while browsing - see docs/conventions.md.
+        "assets": {
+            "backglass": row.get("b2s_exists", False),
             "pup_pack": row.get("pup_pack_exists", False),
             "alt_color": row.get("serum_exists", False) or row.get("vni_exists", False),
             "alt_sound": row.get("alt_sound_exists", False),
+            "ini": row.get("ini_exists", False),
+            "music": row.get("music_exists", False),
         },
         "links": {
             "self": prefix,
-            "files": f"{prefix}/files",
+            "game_files": f"{prefix}/game-files",
             "archive": f"{prefix}/archive",
+            "launch": f"{prefix}/launch",
         },
     }
 
@@ -157,11 +166,46 @@ def get_table(table_id: str) -> dict:
     return _resource(table_to_row(table, collections_by_table_id()), table_id)
 
 
-@router.get("/{table_id}/files", summary="A table's game files",
+@router.get("/{table_id}/game-files", summary="A table's game files",
             dependencies=[requires(scopes.TABLES_READ)])
-def get_table_files(table_id: str) -> dict:
+def get_game_files(table_id: str) -> dict:
     table = _table_or_404(table_id)
-    return {"files": _game_files(table, table_to_row(table))}
+    return {"game_files": _game_files(table, table_to_row(table))}
+
+
+@router.post("/{table_id}/launch", summary="Launch a table on this play host",
+             status_code=202, dependencies=[requires(scopes.LAUNCH_INVOKE)])
+def launch_table(table_id: str, payload: dict = Body(default={})) -> dict:
+    """Start a table and return once it is starting, not once it is over.
+
+    The same service the wheel and the Remote Control page use, so a launch from
+    here counts as a play and releases the peripherals like any other.
+    """
+    table = _table_or_404(table_id)
+    game_file = payload.get("file") or None
+    ini_config = get_ini_config()
+
+    try:
+        resolved = launch.check_launchable(table, ini_config, game_file)
+    except launch.LaunchBusyError as exc:
+        raise ConflictError(str(exc)) from exc
+    except launch.UnknownGameFileError as exc:
+        raise InvalidRequestError(str(exc), details={"file": game_file}) from exc
+    except launch.LaunchUnavailableError as exc:
+        raise FeatureUnavailableError(str(exc)) from exc
+
+    def run():
+        try:
+            launch.launch_table(table, ini_config, source=launch_state.SOURCE_API,
+                                game_file=game_file)
+        except Exception:
+            logger.exception("Launch of %s failed", table_id)
+
+    threading.Thread(target=run, daemon=True,
+                     name=f"api-launch-{table_id[:8]}").start()
+    return {"launching": True, "table_id": table_id,
+            "file": Path(resolved).name,
+            "links": {"state": "/api/v1/play/state", "events": "/api/v1/events"}}
 
 
 @router.get("/{table_id}/archive", summary="Download the table folder as an archive",

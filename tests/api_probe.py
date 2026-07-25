@@ -47,7 +47,8 @@ def probe() -> dict:
 
     # The Remote Control page writes through the service; the endpoint must report it.
     from common.host import launch_state
-    launch_state.set_launching("Medieval Madness (Williams 1997)")
+    launch_state.set_launching("Medieval Madness (Williams 1997)",
+                               source=launch_state.SOURCE_REMOTE)
     record("play_state_launching", client.get("/api/v1/play/state"))
     launch_state.clear()
     record("play_state_cleared", client.get("/api/v1/play/state"))
@@ -60,7 +61,7 @@ def probe() -> dict:
     table_id = tables[0]["id"] if tables else ""
 
     record("table_get", client.get(f"/api/v1/tables/{table_id}"))
-    record("table_files", client.get(f"/api/v1/tables/{table_id}/files"))
+    record("table_files", client.get(f"/api/v1/tables/{table_id}/game-files"))
     archive = client.get(f"/api/v1/tables/{table_id}/archive?download_token=abc123")
     result["table_archive"] = {
         "status": archive.status_code,
@@ -71,7 +72,7 @@ def probe() -> dict:
     }
     def files_for(name):
         hit = [t for t in tables if t["name"] == name]
-        return client.get(f"/api/v1/tables/{hit[0]['id']}/files") if hit else None
+        return client.get(f"/api/v1/tables/{hit[0]['id']}/game-files") if hit else None
 
     multi = files_for("Multi File")
     if multi is not None:
@@ -79,6 +80,16 @@ def probe() -> dict:
     mismatch = files_for("Mismatch")
     if mismatch is not None:
         record("mismatch_files", mismatch)
+
+    # Launch, without ever starting anything: the probe's config has no launcher,
+    # which is the same refusal a machine without VPX installed would give.
+    record("launch_no_launcher", client.post(f"/api/v1/tables/{table_id}/launch"))
+    record("launch_unknown_file",
+           client.post(f"/api/v1/tables/{table_id}/launch", json={"file": "nope.vpx"}))
+    launch_state.set_launching("Something Else", source=launch_state.SOURCE_FRONTEND)
+    record("launch_while_busy", client.post(f"/api/v1/tables/{table_id}/launch"))
+    launch_state.clear()
+    record("launch_unknown_table", client.post("/api/v1/tables/no-such-id/launch"))
 
     record("table_unknown", client.get("/api/v1/tables/no-such-id"))
     record("archive_unknown", client.get("/api/v1/tables/no-such-id/archive"))

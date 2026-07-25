@@ -55,17 +55,19 @@ def _table_event(table=None, **_) -> dict:
     """The wire shape of a table lifecycle event.
 
     The bus carries the Table object and the whole ini config because its handlers
-    are in-process. Neither belongs on a socket, so the stream sends the identity
-    and the name and nothing else.
+    are in-process. Neither belongs on a socket, so the stream sends a reference to
+    the table rather than the table: an id, a name to show, and the link to fetch
+    the rest. That link is what keeps this a pointer instead of a second, thinner
+    answer to "what does a table look like".
     """
     if table is None:
         return {"table": None}
-    return {
-        "table": {
-            "id": table_identity.table_id(table),
-            "name": getattr(table, "tableDirName", ""),
-        }
-    }
+
+    table_id = table_identity.table_id(table)
+    reference = {"id": table_id, "name": getattr(table, "tableDirName", "")}
+    if table_id:
+        reference["links"] = {"self": f"/api/v1/tables/{table_id}"}
+    return {"table": reference}
 
 
 def _job_event(**payload) -> dict:

@@ -97,6 +97,15 @@ class DiscoveryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             capabilities.Capability(name="library", residency=[])
 
+    def test_launch_declares_whether_this_machine_can_do_it(self) -> None:
+        """Reading play state works without a launcher; starting a table does not.
+        Discovery has to say so, or a client shows a Play button that always 501s."""
+        declared = {c["name"]: c for c in self.client.get("/").json()["capabilities"]}
+
+        self.assertIn("launch", declared)
+        self.assertEqual(declared["launch"]["residency"], ["play_host"])
+        self.assertIsNotNone(declared["launch"].get("available"))
+
     def test_a_broken_availability_probe_does_not_break_discovery(self) -> None:
         def _explode():
             raise RuntimeError("probe blew up")

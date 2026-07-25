@@ -123,9 +123,27 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         frame = await self._next(stream)
 
         self.assertEqual(_payload(frame), {
-            "table": {"id": "6f1c9a4e", "name": "Medieval Madness (Williams 1997)"},
+            "table": {
+                "id": "6f1c9a4e",
+                "name": "Medieval Madness (Williams 1997)",
+                # A pointer to the table, not a second answer to what a table is.
+                "links": {"self": "/api/v1/tables/6f1c9a4e"},
+            },
         })
         self.assertNotIn("secret-ini-config", frame)
+
+    async def test_a_table_with_no_id_yet_is_referenced_without_a_broken_link(self) -> None:
+        """Ids are minted on a write path, so a scan can hand us a table without one."""
+        stream = self._open()
+        await self._hello(stream)
+
+        events.emit(events.TABLE_SELECTED,
+                    table=SimpleNamespace(tableDirName="Unidentified", metaConfig={}),
+                    ini_config=None)
+        frame = await self._next(stream)
+
+        self.assertEqual(_payload(frame)["table"],
+                         {"id": "", "name": "Unidentified"})
 
     async def test_a_table_event_without_a_table_still_streams(self) -> None:
         """The Remote Control page launches without one."""

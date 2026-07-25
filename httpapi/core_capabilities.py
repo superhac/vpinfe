@@ -7,6 +7,7 @@ would make discovery a wish list. See docs/http_api.md.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from . import capabilities
 
@@ -30,6 +31,27 @@ def _peripherals_available() -> bool | tuple[bool, str]:
         return False, f"Could not determine peripheral state: {exc}"
 
 
+def _launch_available() -> bool | tuple[bool, str]:
+    """Whether this machine can actually start a table.
+
+    Reading play state works without a launcher; starting one does not. Discovery
+    has to say so, or an instance advertises a Play button that always fails.
+    """
+    try:
+        from common.config_access import SettingsConfig
+        from common.paths import get_ini_config
+
+        configured = (SettingsConfig.from_config(get_ini_config()).vpx_bin_path or "").strip()
+        if not configured:
+            return False, ("No launcher configured. Set Settings.vpxbinpath, or "
+                           "VPinFE.altlauncher on individual tables.")
+        if not Path(configured).exists():
+            return False, f"Configured launcher does not exist: {configured}"
+        return True
+    except Exception as exc:
+        return False, f"Could not determine launcher state: {exc}"
+
+
 def declare_core() -> None:
     """Declare the capabilities this build actually serves."""
     capabilities.declare(capabilities.Capability(
@@ -46,6 +68,12 @@ def declare_core() -> None:
         name="play",
         residency=[capabilities.RESIDENCY_PLAY_HOST],
         description="Launch lifecycle state for this machine",
+    ))
+    capabilities.declare(capabilities.Capability(
+        name="launch",
+        residency=[capabilities.RESIDENCY_PLAY_HOST],
+        description="Starting a table on this machine",
+        is_available=_launch_available,
     ))
     capabilities.declare(capabilities.Capability(
         name="peripherals",
