@@ -1,3 +1,10 @@
+"""Showing a table's art on a real DMD panel.
+
+Nothing here draws anything itself - it resolves which image a table should
+show and hands it to libdmdutil on a worker thread, because the panel is slow
+enough that the wheel would stutter waiting for it.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -5,18 +12,8 @@ import threading
 from pathlib import Path
 
 from common.config_access import MediaConfig
-from common.tables.table_metadata import normalize_meta
 
-
-logger = logging.getLogger("vpinfe.frontend.realdmd_service")
-
-
-def get_frontend_dof_event_for_table(table) -> str:
-    meta = normalize_meta(getattr(table, "metaConfig", {}))
-    user = meta.get("User", {}) if isinstance(meta, dict) else {}
-    if not isinstance(user, dict):
-        return ""
-    return str(user.get("FrontendDOFEvent", "") or "").strip()
+logger = logging.getLogger("vpinfe.common.host.realdmd")
 
 
 def get_realdmd_image_for_table(table, iniconfig=None) -> Path | None:

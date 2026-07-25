@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 from common import events
@@ -98,7 +99,7 @@ class BusTests(unittest.TestCase):
         self.assertEqual(events.registered("t.e"), (0, 0))
 
 
-class FeedbackHardwareTests(unittest.TestCase):
+class PeripheralLaunchTests(unittest.TestCase):
     """DOF and real-DMD are the bus's first consumers, and the reason hooks exist."""
 
     def setUp(self) -> None:
@@ -151,6 +152,74 @@ class FeedbackHardwareTests(unittest.TestCase):
             events.emit(events.TABLE_EXITED, table=None, ini_config="the-config")
 
         self.assertEqual(taken_back, ["the-config"])
+
+
+class TableSelectionTests(unittest.TestCase):
+    """Selecting a table drives two devices that must not be able to break each other."""
+
+    def setUp(self) -> None:
+        events.clear()
+        peripherals.reset_for_tests()
+        self.addCleanup(events.clear)
+        self.addCleanup(peripherals.reset_for_tests)
+
+    @staticmethod
+    def _table(name="Medieval Madness"):
+        return SimpleNamespace(tableDirName=name, metaConfig={"User": {"FrontendDOFEvent": "E901"}})
+
+    def test_selection_is_subscribers_only(self) -> None:
+        """A hook could abandon a selection. Nothing may stop the wheel moving."""
+        peripherals.register()
+
+        hooks, subscribers = events.registered(events.TABLE_SELECTED)
+
+        self.assertEqual(hooks, 0)
+        self.assertEqual(subscribers, 2)
+
+    def test_both_devices_react_to_one_selection(self) -> None:
+        sent, shown = [], []
+        with mock.patch.object(peripherals, "send_frontend_dof_event",
+                               side_effect=lambda cfg, token: sent.append(token)), \
+                mock.patch.object(peripherals, "_updater") as updater:
+            updater.return_value.queue_image_update.side_effect = (
+                lambda name, path: shown.append(name))
+            peripherals.register()
+            events.emit(events.TABLE_SELECTED, table=self._table(), ini_config="cfg")
+
+        self.assertEqual(sent, ["E901"], "the table's own effect, not the default")
+        self.assertEqual(shown, ["Medieval Madness"])
+
+    def test_a_dead_dof_still_leaves_the_art_on_the_panel(self) -> None:
+        shown = []
+        with mock.patch.object(peripherals, "send_frontend_dof_event",
+                               side_effect=RuntimeError("dof is not running")), \
+                mock.patch.object(peripherals, "_updater") as updater:
+            updater.return_value.queue_image_update.side_effect = (
+                lambda name, path: shown.append(name))
+            peripherals.register()
+            events.emit(events.TABLE_SELECTED, table=self._table(), ini_config="cfg")
+
+        self.assertEqual(shown, ["Medieval Madness"])
+
+    def test_a_dead_panel_still_fires_the_dof_effect(self) -> None:
+        sent = []
+        with mock.patch.object(peripherals, "send_frontend_dof_event",
+                               side_effect=lambda cfg, token: sent.append(token)), \
+                mock.patch.object(peripherals, "_updater",
+                                  side_effect=RuntimeError("no panel attached")):
+            peripherals.register()
+            events.emit(events.TABLE_SELECTED, table=self._table(), ini_config="cfg")
+
+        self.assertEqual(sent, ["E901"])
+
+    def test_one_updater_is_shared_across_frontend_windows(self) -> None:
+        """Three windows hold an API instance; the panel must not be written three times."""
+        with mock.patch.object(peripherals.realdmd, "RealDmdUpdater") as updater_class:
+            first = peripherals._updater("cfg")
+            second = peripherals._updater("cfg")
+
+        self.assertIs(first, second)
+        self.assertEqual(updater_class.call_count, 1)
 
 
 if __name__ == "__main__":

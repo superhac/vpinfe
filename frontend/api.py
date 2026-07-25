@@ -1,29 +1,36 @@
 import logging
 import subprocess
+
+from common import events
 from common.host import system_actions
-from common.tables.table_repository import ensure_tables_loaded
-from common.tables.collections_service import get_collection_image_url, get_collection_names, get_collections_metadata
 from common.host.display_service import monitors_as_dicts
-from common.host.dof_service import (
-    send_frontend_dof_event,
-)
-from common.host.libdmdutil_service import (
-    show_image as show_libdmdutil_image,
-)
 from common.host.launcher import (
     build_vpx_launch_command,
     get_effective_launcher,
     parse_launch_env_overrides,
     resolve_launch_tableini_override,
 )
-from common.tables.table_metadata import normalize_meta
 from common.online.vpinplay_runtime import (
     activate_alternate_profile,
     clear_alternate_profile,
     get_alternate_profile_state,
 )
-from frontend import config_api, input_api, last_table, launch_service, metadata_build_service, realdmd_service, table_state, theme_api
-
+from common.tables.collections_service import (
+    get_collection_image_url,
+    get_collection_names,
+    get_collections_metadata,
+)
+from common.tables.table_metadata import normalize_meta
+from common.tables.table_repository import ensure_tables_loaded
+from frontend import (
+    config_api,
+    input_api,
+    last_table,
+    launch_service,
+    metadata_build_service,
+    table_state,
+    theme_api,
+)
 
 logger = logging.getLogger("vpinfe.frontend.api")
 
@@ -67,7 +74,7 @@ API_ALLOWED_METHODS = {
     'get_mainmenu_config',
     'set_button_mapping',
     'launch_table',
-    'update_frontend_dof_for_table',
+    'notify_table_selected',
     'get_table_rating',
     'set_table_rating',
     'build_metadata',
@@ -118,12 +125,6 @@ class API:
             except Exception:
                 logger.exception("Could not load startup collection '%s'", startup_collection)
 
-        self._realdmd_updater = realdmd_service.RealDmdUpdater(
-            self._iniConfig,
-            self.window_name,
-            show_libdmdutil_image,
-        )
-
     ####################
     ## Private Functions
     ####################
@@ -133,15 +134,6 @@ class API:
 
     def _normalize_table_meta(self, table):
         return normalize_meta(table.metaConfig)
-
-    def _get_frontend_dof_event_for_table(self, table) -> str:
-        return realdmd_service.get_frontend_dof_event_for_table(table)
-
-    def _get_realdmd_image_for_table(self, table):
-        return realdmd_service.get_realdmd_image_for_table(table, self._iniConfig)
-
-    def _queue_realdmd_image_update(self, table_name: str, image_path) -> None:
-        self._realdmd_updater.queue_image_update(table_name, image_path)
 
 
     ###################
@@ -347,35 +339,21 @@ class API:
             popen=subprocess.Popen,
         )
 
-    def update_frontend_dof_for_table(self, index):
-        """Send the configured frontend DOF event for the selected table."""
+    def notify_table_selected(self, index):
+        """Announce that the player moved to this table.
+
+        Whatever reacts - a DOF effect, the real DMD, something not written yet -
+        subscribes to the event. Nothing is reported back, because none of it can
+        fail in a way the wheel should care about.
+        """
         try:
             table = self.filteredTables[int(index)]
         except Exception:
-            logger.debug("Skipping frontend DOF update for invalid table index: %s", index)
+            logger.debug("Ignoring table selection for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
 
-        event_token = self._get_frontend_dof_event_for_table(table)
-        event_sent = send_frontend_dof_event(self._iniConfig, event_token)
-        realdmd_path = self._get_realdmd_image_for_table(table)
-        self._queue_realdmd_image_update(table.tableDirName, realdmd_path)
-        resolved_event = event_token if event_token else "random:E900-E990"
-        logger.debug(
-            "Frontend media update for %s -> event=%s (dof_sent=%s, dmd_queued=%s, image=%s)",
-            table.tableDirName,
-            resolved_event,
-            event_sent,
-            True,
-            realdmd_path,
-        )
-        return {
-            "success": True,
-            "event": resolved_event,
-            "sent": event_sent,
-            "realdmd_image": str(realdmd_path) if realdmd_path else "",
-            "realdmd_sent": False,
-            "realdmd_queued": True,
-        }
+        events.emit(events.TABLE_SELECTED, table=table, ini_config=self._iniConfig)
+        return {"success": True}
 
     def get_table_rating(self, index):
         """Get User.Rating for a table index in the current filtered list."""

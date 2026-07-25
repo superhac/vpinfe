@@ -50,7 +50,8 @@ import from a domain package. That rule is the point of the layer; breaking it i
 **`common/host/`** - this machine: attached hardware, the launcher, the running session.
 
 - `dof_service.py`, `dof_service_worker.py`, `libdmdutil_service.py`: hardware service facades.
-- `peripherals.py`: DOF and real-DMD, driven by table lifecycle events.
+- `peripherals.py`: DOF and real-DMD, driven by table lifecycle events. Each device is its own handler, so a new one is a new subscriber rather than an edit.
+- `realdmd.py`: which image a table shows on a real DMD panel, sent on a worker thread.
 - `launcher.py`, `launch_state.py`: starting a table, and whether a launch was requested from outside the frontend.
 - `display_service.py`, `system_actions.py`, `vpx_log.py`.
 
@@ -113,9 +114,14 @@ written once.
 Choose the right kind of handler. A **hook** is part of the operation: it runs in
 priority order, the publisher waits, and raising stops the operation. A
 **subscriber** is only told what happened; order is not promised and a failure is
-logged and contained. Releasing the feedback hardware is a hook because launching
-with it still held would be wrong; anything that merely wants to know about a
-launch is a subscriber and must not be able to prevent one.
+logged and contained. Releasing the peripherals is a hook because launching with
+them still held would be wrong; anything that merely wants to know about a launch
+is a subscriber and must not be able to prevent one.
+
+`table.selected` is deliberately subscribers-only. It fires once per wheel stop and
+drives decoration - a DOF effect, the art on a DMD panel - so a handler that raises
+has failed to decorate a selection, not failed to select. Registering a hook on it
+would let a dead device stop the wheel.
 
 Never pick a table's `.vpx` yourself. A folder can hold several, and picking
 differently from everyone else means the metadata a user sees describes a different

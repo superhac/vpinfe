@@ -128,6 +128,12 @@ def table_rating(table) -> int:
     return normalize_rating(get_meta_value(meta, "User", "Rating", 0))
 
 
+def table_frontend_dof_event(table) -> str:
+    """The DOF effect a table asks for when selected, or "" to use the default."""
+    meta = normalize_meta(getattr(table, "metaConfig", {}))
+    return str(get_meta_value(meta, "User", "FrontendDOFEvent", "") or "").strip()
+
+
 def table_vps_id(table) -> str:
     meta = normalize_meta(getattr(table, "metaConfig", {}))
     alt_vpsid = str(section(meta, "VPinFE").get("altvpsid", "") or "").strip()

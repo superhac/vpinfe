@@ -19,6 +19,11 @@ TABLE_LAUNCHING = "table.launching"
 TABLE_LAUNCHED = "table.launched"
 TABLE_EXITED = "table.exited"
 
+# The player moved to a table in the wheel. Fires often - once per wheel stop -
+# and nothing may block on it, so this one is for subscribers only. A handler that
+# raises has failed to decorate a selection; it has not failed to select.
+TABLE_SELECTED = "table.selected"
+
 # Play-host state changed - today that is the remote-launch overlay. Carries the
 # whole new state, so a consumer that missed one is still correct after the next.
 PLAY_STATE_CHANGED = "play.state_changed"

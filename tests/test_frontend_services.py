@@ -8,9 +8,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from common.host import system_actions
+from common.host import realdmd, system_actions
 from common.tables import metadata_service, table_play_service, table_report_service
-from frontend import config_api, realdmd_service, table_state, theme_api
+from common.tables.table_metadata import table_frontend_dof_event
+from frontend import config_api, table_state, theme_api
 
 
 class FrontendServiceTests(unittest.TestCase):
@@ -109,16 +110,16 @@ class FrontendServiceTests(unittest.TestCase):
         # symlink to /private/tmp, so compare against the resolved expectation.
         color_expected = Path("/tmp/realdmd-color.png").resolve()
         standard_expected = Path("/tmp/realdmd.png").resolve()
-        self.assertEqual(realdmd_service.get_frontend_dof_event_for_table(table), "E901")
-        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table), color_expected)
-        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, color_config), color_expected)
-        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, standard_config), standard_expected)
+        self.assertEqual(table_frontend_dof_event(table), "E901")
+        self.assertEqual(realdmd.get_realdmd_image_for_table(table), color_expected)
+        self.assertEqual(realdmd.get_realdmd_image_for_table(table, color_config), color_expected)
+        self.assertEqual(realdmd.get_realdmd_image_for_table(table, standard_config), standard_expected)
 
         table.realDMDColorImagePath = ""
-        self.assertEqual(realdmd_service.get_realdmd_image_for_table(table, color_config), standard_expected)
+        self.assertEqual(realdmd.get_realdmd_image_for_table(table, color_config), standard_expected)
 
         calls = []
-        updater = realdmd_service.RealDmdUpdater("ini", "table", lambda ini, image: calls.append((ini, image)) or True)
+        updater = realdmd.RealDmdUpdater("ini", "table", lambda ini, image: calls.append((ini, image)) or True)
         updater._table_name = "Example"
         updater._image_path = Path("/tmp/realdmd.png")
         updater._process_pending()

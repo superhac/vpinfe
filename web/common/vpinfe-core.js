@@ -106,7 +106,7 @@ class VPinFECore {
     this._audioMaxVolume = 0.8;
     this._audioCurrentUrl = null;
     this._audioRetries = 0;
-    this._lastFrontendDofIndex = null;
+    this._lastSelectedIndex = null;
     this._vpinplayRatingCache = new Map();
     this._vpinplayRatingRequests = new Map();
 
@@ -390,14 +390,14 @@ class VPinFECore {
   // send a message to all windows except "self"
   sendMessageToAllWindows(message) {
     this.#syncLocalIndexFromOutgoingMessage(message);
-    this.#syncFrontendDofFromMessage(message);
+    this.#syncSelectionFromMessage(message);
     this.call("send_event_all_windows", message);
   }
 
   // send a message to all windows including "self"
   sendMessageToAllWindowsIncSelf(message) {
     this.#syncLocalIndexFromOutgoingMessage(message);
-    this.#syncFrontendDofFromMessage(message);
+    this.#syncSelectionFromMessage(message);
     this.call("send_event_all_windows_incself", message);
   }
 
@@ -442,9 +442,9 @@ class VPinFECore {
           await this.#restoreInitialTable();
         }
         this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
-        this.#updateFrontendDofForCurrentTable().catch(() => {});
+        this.#notifySelectedTable().catch(() => {});
       } else {
-        this._lastFrontendDofIndex = null;
+        this._lastSelectedIndex = null;
       }
     }
   }
@@ -504,10 +504,10 @@ class VPinFECore {
 
     // Default handling for TableDataChange
     if (message.type === "TableDataChange") {
-      if (this._windowName === "table") this._lastFrontendDofIndex = null;
+      if (this._windowName === "table") this._lastSelectedIndex = null;
       await this.#handleTableDataChange(message);
     }
-    this.#syncFrontendDofFromMessage(message);
+    this.#syncSelectionFromMessage(message);
     await this.#handleCoreAudioEvent(message);
 
     // Call any custom handlers registered by the theme
@@ -614,42 +614,42 @@ class VPinFECore {
     }
   }
 
-  #syncFrontendDofFromMessage(message) {
+  #syncSelectionFromMessage(message) {
     if (!message || typeof message !== "object") return;
     if (this._windowName !== "table") return;
 
     if (message.type === "TableIndexUpdate") {
       this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
-      this.#updateFrontendDofForCurrentTable().catch(() => {});
+      this.#notifySelectedTable().catch(() => {});
       return;
     }
     if (message.type === "TableDataChange") {
-      this._lastFrontendDofIndex = null;
+      this._lastSelectedIndex = null;
       this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
-      this.#updateFrontendDofForCurrentTable().catch(() => {});
+      this.#notifySelectedTable().catch(() => {});
       return;
     }
     if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
-      this._lastFrontendDofIndex = null;
+      this._lastSelectedIndex = null;
       this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
-      this.#updateFrontendDofForCurrentTable().catch(() => {});
+      this.#notifySelectedTable().catch(() => {});
     }
   }
 
-  async #updateFrontendDofForCurrentTable() {
+  async #notifySelectedTable() {
     if (this._windowName !== "table") return;
     if (!Array.isArray(this.tableData) || this.tableData.length === 0) return;
 
     const index = Math.floor(this._currentTableIndex);
     if (!Number.isFinite(index) || index < 0 || index >= this.tableData.length) return;
-    if (this._lastFrontendDofIndex === index) return;
+    if (this._lastSelectedIndex === index) return;
 
-    this._lastFrontendDofIndex = index;
+    this._lastSelectedIndex = index;
     try {
-      await this.call("update_frontend_dof_for_table", index);
+      await this.call("notify_table_selected", index);
     } catch (e) {
-      this._lastFrontendDofIndex = null;
-      this.call("console_out", `update_frontend_dof_for_table failed: ${e.message}`);
+      this._lastSelectedIndex = null;
+      this.call("console_out", `notify_table_selected failed: ${e.message}`);
     }
   }
 
