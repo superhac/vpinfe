@@ -196,8 +196,8 @@ except Exception:
 _start_startup_media_sync()
 # Feedback hardware follows table lifecycle events from here on, so both launch
 # paths get the same behaviour without either of them knowing about DOF.
-from common import feedback_hardware
-feedback_hardware.register()
+from common import peripherals
+peripherals.register()
 
 start_dof_service_if_enabled(iniconfig)
 

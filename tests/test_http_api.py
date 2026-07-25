@@ -59,19 +59,22 @@ class DiscoveryTests(unittest.TestCase):
             description="Table inventory",
         ))
         capabilities.declare(capabilities.Capability(
-            name="feedback_hardware",
+            name="peripherals",
             residency=capabilities.RESIDENCY_PLAY_HOST,
             is_available=lambda: (False, "No DOF hardware detected"),
         ))
 
         declared = self.client.get("/").json()["capabilities"]
 
-        self.assertEqual([c["name"] for c in declared], ["feedback_hardware", "library"])
-        self.assertEqual(declared[1]["residency"], "catalog")
-        self.assertTrue(declared[1]["available"])
-        self.assertIsNone(declared[1]["reason"])
-        self.assertFalse(declared[0]["available"])
-        self.assertEqual(declared[0]["reason"], "No DOF hardware detected")
+        names = [c["name"] for c in declared]
+        self.assertEqual(names, sorted(names), "sorted by name for a stable payload")
+
+        by_name = {c["name"]: c for c in declared}
+        self.assertEqual(by_name["library"]["residency"], "catalog")
+        self.assertTrue(by_name["library"]["available"])
+        self.assertIsNone(by_name["library"]["reason"])
+        self.assertFalse(by_name["peripherals"]["available"])
+        self.assertEqual(by_name["peripherals"]["reason"], "No DOF hardware detected")
 
     def test_a_broken_availability_probe_does_not_break_discovery(self) -> None:
         def _explode():

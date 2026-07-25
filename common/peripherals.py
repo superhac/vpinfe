@@ -12,7 +12,7 @@ from common import events
 from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.libdmdutil_service import stop_libdmdutil_service
 
-logger = logging.getLogger("vpinfe.common.feedback_hardware")
+logger = logging.getLogger("vpinfe.common.peripherals")
 
 # Ahead of anything else that hooks a launch: the devices come first.
 PRIORITY = 10

@@ -155,7 +155,7 @@ class CapabilityTests(unittest.TestCase):
     def test_an_unavailable_capability_says_why(self) -> None:
         """The reason is shown to users, so 'no' on its own is not good enough."""
         declared = {c["name"]: c for c in _client().get("/").json()["capabilities"]}
-        hardware = declared["feedback_hardware"]
+        hardware = declared["peripherals"]
 
         if not hardware["available"]:
             self.assertTrue(hardware["reason"])

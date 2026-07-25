@@ -157,7 +157,7 @@ configuration it doesn't have isn't advertised as if it worked:
 from httpapi import capabilities
 
 capabilities.declare(capabilities.Capability(
-    name="feedback_hardware",
+    name="peripherals",
     residency=capabilities.RESIDENCY_PLAY_HOST,
     description="DOF and real-DMD output",
     is_available=lambda: (dof_configured(), "DOF is not configured"),

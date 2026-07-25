@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from common import events, feedback_hardware
+from common import events, peripherals
 
 
 class BusTests(unittest.TestCase):
@@ -102,19 +102,19 @@ class FeedbackHardwareTests(unittest.TestCase):
 
     def setUp(self) -> None:
         events.clear()
-        feedback_hardware.reset_for_tests()
+        peripherals.reset_for_tests()
         self.addCleanup(events.clear)
-        self.addCleanup(feedback_hardware.reset_for_tests)
+        self.addCleanup(peripherals.reset_for_tests)
 
     def test_register_attaches_to_both_lifecycle_events(self) -> None:
-        feedback_hardware.register()
+        peripherals.register()
 
         self.assertEqual(events.registered(events.TABLE_LAUNCHING)[0], 1)
         self.assertEqual(events.registered(events.TABLE_EXITED)[0], 1)
 
     def test_register_is_idempotent(self) -> None:
-        feedback_hardware.register()
-        feedback_hardware.register()
+        peripherals.register()
+        peripherals.register()
 
         self.assertEqual(events.registered(events.TABLE_LAUNCHING)[0], 1)
 
@@ -124,29 +124,29 @@ class FeedbackHardwareTests(unittest.TestCase):
         order = []
         events.hook(events.TABLE_LAUNCHING, lambda **_: order.append("other"), priority=50)
 
-        with mock.patch.object(feedback_hardware, "stop_dof_service",
+        with mock.patch.object(peripherals, "stop_dof_service",
                                side_effect=lambda: order.append("dof released")), \
-                mock.patch.object(feedback_hardware, "stop_libdmdutil_service",
+                mock.patch.object(peripherals, "stop_libdmdutil_service",
                                   side_effect=lambda clear=False: order.append("dmd released")):
-            feedback_hardware.register()
+            peripherals.register()
             events.emit(events.TABLE_LAUNCHING, table=None, ini_config=None)
 
         self.assertEqual(order, ["dof released", "dmd released", "other"])
 
     def test_a_launch_is_abandoned_if_the_hardware_will_not_release(self) -> None:
         """Launching anyway would hand VPX a device DOF still holds."""
-        with mock.patch.object(feedback_hardware, "stop_dof_service",
+        with mock.patch.object(peripherals, "stop_dof_service",
                                side_effect=RuntimeError("device busy")):
-            feedback_hardware.register()
+            peripherals.register()
 
             with self.assertRaises(RuntimeError):
                 events.emit(events.TABLE_LAUNCHING, table=None, ini_config=None)
 
     def test_the_hardware_is_taken_back_when_the_table_exits(self) -> None:
         taken_back = []
-        with mock.patch.object(feedback_hardware, "start_dof_service_if_enabled",
+        with mock.patch.object(peripherals, "start_dof_service_if_enabled",
                                side_effect=lambda cfg: taken_back.append(cfg)):
-            feedback_hardware.register()
+            peripherals.register()
             events.emit(events.TABLE_EXITED, table=None, ini_config="the-config")
 
         self.assertEqual(taken_back, ["the-config"])

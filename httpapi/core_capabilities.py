@@ -13,17 +13,21 @@ from . import capabilities
 logger = logging.getLogger("vpinfe.httpapi.core_capabilities")
 
 
-def _feedback_hardware_available() -> bool | tuple[bool, str]:
-    """DOF is a config switch plus a working runner, not an assumption."""
+def _peripherals_available() -> bool | tuple[bool, str]:
+    """Available if any peripheral is switched on, not only DOF."""
     try:
-        from common.dof_service import _is_enabled
+        from common.dof_service import _is_enabled as dof_enabled
+        from common.libdmdutil_service import _is_enabled as dmd_enabled
         from common.paths import get_ini_config
 
-        if not _is_enabled(get_ini_config()):
-            return False, "DOF is turned off in configuration"
+        config = get_ini_config()
+        enabled = [name for name, check in (("DOF", dof_enabled), ("real-DMD", dmd_enabled))
+                   if check(config)]
+        if not enabled:
+            return False, "No peripherals are turned on in configuration"
         return True
     except Exception as exc:
-        return False, f"Could not determine DOF state: {exc}"
+        return False, f"Could not determine peripheral state: {exc}"
 
 
 def declare_core() -> None:
@@ -44,8 +48,8 @@ def declare_core() -> None:
         description="Launch lifecycle state for this machine",
     ))
     capabilities.declare(capabilities.Capability(
-        name="feedback_hardware",
+        name="peripherals",
         residency=capabilities.RESIDENCY_PLAY_HOST,
-        description="DOF and real-DMD output",
-        is_available=_feedback_hardware_available,
+        description="DOF, real-DMD and other attached devices",
+        is_available=_peripherals_available,
     ))

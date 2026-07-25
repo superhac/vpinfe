@@ -15,7 +15,7 @@ small facade classes for older call sites.
 - `game_files.py`: which .vpx in a table folder is the table. Every caller resolves through it.
 - `launch_state.py`: whether a launch has been requested from outside the frontend.
 - `events.py`: the in-process event bus. Hooks are part of an operation; subscribers are told about it.
-- `feedback_hardware.py`: DOF and real-DMD, driven by table lifecycle events.
+- `peripherals.py`: DOF and real-DMD, driven by table lifecycle events.
 - `media_paths.py`: canonical media keys, filenames, table attributes, and path resolution.
 - `jobs.py`: callback-friendly progress/log reporting for long-running workflows.
 - `metadata_service.py`, `table_report_service.py`, `table_play_service.py`: workflows that operate on tables and metadata.
