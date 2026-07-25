@@ -195,27 +195,11 @@ special_text_score_files = {
 }
 
 def get_roms_candidate_paths() -> list[Path]:
-    candidate_paths: list[Path] = [
-        Path(__file__).with_name("resources") / "roms.json",
-        USER_ROMS_PATH,
-    ]
-
-    meipass = getattr(sys, "_MEIPASS", None)
-    if meipass:
-        candidate_paths.append(Path(meipass) / "common" / "resources" / "roms.json")
-
-    exe_dir = Path(sys.executable).resolve().parent
-    candidate_paths.extend(
-        [
-            exe_dir / "common" / "resources" / "roms.json",
-            exe_dir / "_internal" / "common" / "resources" / "roms.json",
-            exe_dir.parent / "Resources" / "common" / "resources" / "roms.json",
-        ]
-    )
-
-    candidates = list(dict.fromkeys(candidate_paths))
-
-    return candidates
+    # roms.json is not shipped with the build. It is downloaded into the user
+    # config dir at startup by common/pinmame_score_parser_updater.py, so that
+    # is the only place it can be. Don't add paths under the source tree or the
+    # frozen bundle back here without also adding them to build.yml.
+    return [USER_ROMS_PATH]
 
 
 def get_roms_path() -> Path:
@@ -229,19 +213,8 @@ def get_roms_path() -> Path:
     )
 
 def load_roms() -> dict:
-    merged_roms: dict = {}
-    existing_paths = [path for path in get_roms_candidate_paths() if path.exists()]
-    if not existing_paths:
-        raise FileNotFoundError(
-            "Could not find roms.json. Checked: "
-            + ", ".join(str(path) for path in get_roms_candidate_paths())
-        )
-
-    for roms_path in existing_paths:
-        with roms_path.open("r", encoding="utf-8") as f:
-            merged_roms.update(json.load(f))
-
-    return merged_roms
+    with get_roms_path().open("r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 roms = load_roms()
