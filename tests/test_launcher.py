@@ -1,3 +1,4 @@
+import os
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -15,12 +16,10 @@ from common.launcher import (
 
 class TestLauncherTableIniOverride(unittest.TestCase):
     def test_build_masked_tableini_path_enabled_builds_expected_name(self) -> None:
-        vpx = "/tables/300 (Gottlieb 1975) team scampa123 mod v1.1.vpx"
+        stem = "300 (Gottlieb 1975) team scampa123 mod v1.1"
+        vpx = os.path.join(os.sep, "tables", f"{stem}.vpx")
         got = build_masked_tableini_path(vpx, True, "windows")
-        self.assertEqual(
-            got,
-            "/tables/300 (Gottlieb 1975) team scampa123 mod v1.1.windows.ini",
-        )
+        self.assertEqual(got, os.path.join(os.sep, "tables", f"{stem}.windows.ini"))
 
     def test_build_masked_tableini_path_disabled_returns_empty(self) -> None:
         vpx = "/tables/example.vpx"

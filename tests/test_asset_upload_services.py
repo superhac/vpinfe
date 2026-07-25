@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 import unittest
 from unittest import mock
 
@@ -262,6 +264,8 @@ class AssetAnalyzerTests(unittest.TestCase):
     def test_missing_rar_tool_reported_before_dialog(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
+
+        from managerui.services.asset_analyzer_service import rar_tool_hint
         with TemporaryDirectory() as tmp:
             fake_rar = Path(tmp) / "x.rar"
             fake_rar.write_bytes(b"x")
@@ -270,7 +274,7 @@ class AssetAnalyzerTests(unittest.TestCase):
                 fake_open.return_value = mock.Mock(kind="rar", name="x.rar")
                 result = analyze_path(fake_rar)
             self.assertEqual(result.assets, ())
-            self.assertIn("unar", result.error)
+            self.assertIn(rar_tool_hint(), result.error)
 
     def test_rar_backend_missing_is_graceful(self):
         from pathlib import Path
@@ -388,7 +392,7 @@ class SelectPlanItemsTests(unittest.TestCase):
             renamed = select_plan_items(plan, new_table_dir_name="Renamed MM")
             self.assertEqual(renamed.new_table_dir_name, "Renamed MM")
             for item in renamed.items:
-                self.assertIn("/Renamed MM/", item.destination)
+                self.assertIn(f"{os.sep}Renamed MM{os.sep}", item.destination)
 
     def test_blank_rename_raises(self):
         from tempfile import TemporaryDirectory

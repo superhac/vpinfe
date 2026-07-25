@@ -3,6 +3,7 @@ from __future__ import annotations
 import configparser
 import json
 import types
+import os
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -29,7 +30,14 @@ class FrontendServiceTests(unittest.TestCase):
                 )
 
             self.assertFalse((config_dir / ".restart").exists())
-            self.assertEqual(calls, [(system_actions.sys.executable, [system_actions.sys.executable, "/app/main.py"])])
+            # The code passes main_script through os.path.abspath, which on Windows
+            # prefixes the current drive. Expect what it actually builds.
+            main_script = os.path.abspath(Path("/app/main.py"))
+            self.assertEqual(
+                calls,
+                [(system_actions.sys.executable,
+                  [system_actions.sys.executable, main_script])],
+            )
 
     def test_theme_config_missing_file_is_optional(self):
         parser = configparser.ConfigParser()
