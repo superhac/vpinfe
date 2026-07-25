@@ -1,12 +1,14 @@
 import threading
 import unittest
 
-from common import launch_state
+from common import events, launch_state
 
 
 class LaunchStateTests(unittest.TestCase):
     def setUp(self) -> None:
         launch_state.clear()
+        events.clear()
+        self.addCleanup(events.clear)
         self.addCleanup(launch_state.clear)
 
     def test_starts_idle(self) -> None:
@@ -69,6 +71,64 @@ class LaunchStateTests(unittest.TestCase):
             t.join()
 
         self.assertEqual(errors, [])
+
+
+class LaunchStateEventTests(unittest.TestCase):
+    """Every change is announced, so a consumer can be told instead of polling."""
+
+    def setUp(self) -> None:
+        launch_state.clear()
+        events.clear()
+        self.addCleanup(events.clear)
+        self.addCleanup(launch_state.clear)
+        self.seen = []
+        events.subscribe(events.PLAY_STATE_CHANGED, lambda **p: self.seen.append(p["state"]))
+
+    def test_a_launch_is_announced(self) -> None:
+        launch_state.set_launching("Medieval Madness")
+
+        self.assertEqual(self.seen, [{"launching": True, "table_name": "Medieval Madness"}])
+
+    def test_clearing_is_announced(self) -> None:
+        launch_state.set_launching("Medieval Madness")
+        launch_state.clear()
+
+        self.assertEqual(self.seen[-1], {"launching": False, "table_name": None})
+
+    def test_an_unchanged_state_is_not_announced(self) -> None:
+        """The remote page clears in both a finally and an except; both can run."""
+        launch_state.clear()
+        launch_state.clear()
+
+        self.assertEqual(self.seen, [], "nothing changed, so nothing to say")
+
+    def test_each_event_carries_the_whole_state(self) -> None:
+        """A consumer that missed one is still correct after the next."""
+        launch_state.set_launching("A")
+        launch_state.set_launching("B")
+
+        self.assertEqual(self.seen[-1], {"launching": True, "table_name": "B"})
+
+    def test_a_handler_may_read_the_state_back(self) -> None:
+        """The event goes out after the lock is released, so this cannot deadlock."""
+        read_back = []
+        events.subscribe(events.PLAY_STATE_CHANGED,
+                         lambda **_: read_back.append(launch_state.current().table_name))
+
+        launch_state.set_launching("Medieval Madness")
+
+        self.assertEqual(read_back, ["Medieval Madness"])
+
+    def test_a_broken_listener_cannot_break_a_launch(self) -> None:
+        def explode(**_):
+            raise RuntimeError("bad listener")
+
+        events.subscribe(events.PLAY_STATE_CHANGED, explode)
+
+        with self.assertLogs("vpinfe.common.events", level="ERROR"):
+            launch_state.set_launching("Medieval Madness")
+
+        self.assertTrue(launch_state.current().launching)
 
 
 if __name__ == "__main__":

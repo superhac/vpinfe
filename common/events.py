@@ -33,6 +33,10 @@ TABLE_LAUNCHING = "table.launching"
 TABLE_LAUNCHED = "table.launched"
 TABLE_EXITED = "table.exited"
 
+# Play-host state changed - today that is the remote-launch overlay. Carries the
+# whole new state, so a consumer that missed one is still correct after the next.
+PLAY_STATE_CHANGED = "play.state_changed"
+
 # Slow work. One shape everywhere, whether the work runs in this process or not:
 #   job.progress  {job_id, pct, message}
 #   job.done      {job_id}
