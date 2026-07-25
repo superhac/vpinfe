@@ -962,7 +962,7 @@ class VPinFECore {
       await this.#initGamepadMapping();
       this.#setupGamepadListeners();
       this.#updateGamepads();           // No await needed here — runs loop
-      this.#pollRemoteLaunch();         // Poll for remote launch events
+      this.#watchPlayState();           // Subscribe to remote launch events
     }
   }
 
@@ -1470,57 +1470,48 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     this.call("console_out", "cleared the menu gamepad handler. aka menu closed");
   }
 
-  // Poll the manager UI for remote launch events
-  #pollRemoteLaunch() {
-    // Don't poll from file:// origin - CORS blocks it on Chromium/QWebEngine.
-    // Polling will start correctly once the theme page loads over http://.
+  // Subscribe to play state on the manager UI's event stream
+  #watchPlayState() {
+    // Don't subscribe from a file:// origin - CORS blocks it on Chromium/QWebEngine.
+    // The theme page loads over http://, where this works.
     if (window.location.protocol === 'file:') return;
 
-    const pollInterval = 1000; // Poll every 1 second
-    const managerUrl = `http://127.0.0.1:${this.managerUiPort}/api/v1/play/state`;
+    const streamUrl = `http://127.0.0.1:${this.managerUiPort}/api/v1/events?events=play.state_changed`;
+    console.log("[RemoteLaunch] Subscribing to:", streamUrl);
 
-    console.log("[RemoteLaunch] Starting poll to:", managerUrl);
+    const source = new EventSource(streamUrl);
+    let reportedOffline = false;
 
-    const poll = async () => {
-      try {
-        const response = await fetch(managerUrl);
-        if (response.ok) {
-          const data = await response.json();
+    source.addEventListener("play.state_changed", (message) => {
+      reportedOffline = false;
+      const state = JSON.parse(message.data).state || {};
 
-          // Check if launch state changed
-          if (data.launching && !this.remoteLaunchActive) {
-            // Remote launch started
-            this.remoteLaunchActive = true;
-            console.log("[RemoteLaunch] Launch detected:", data.table_name);
-            this.call("console_out", `Remote launching: ${data.table_name}`);
-            // Send TableLaunching event to all windows with the table name
-            this.sendMessageToAllWindowsIncSelf({
-              type: "RemoteLaunching",
-              table_name: data.table_name
-            });
-          } else if (!data.launching && this.remoteLaunchActive) {
-            // Remote launch completed
-            this.remoteLaunchActive = false;
-            console.log("[RemoteLaunch] Launch completed");
-            this.call("console_out", "Remote launch completed");
-            // Send completion event
-            this.sendMessageToAllWindowsIncSelf({
-              type: "RemoteLaunchComplete"
-            });
-          }
-        }
-      } catch (e) {
-        // Manager UI might not be running, that's OK - silently ignore
-        // But log first few failures for debugging
-        console.log("[RemoteLaunch] Poll error (manager UI may not be running):", e.message);
+      if (state.launching && !this.remoteLaunchActive) {
+        this.remoteLaunchActive = true;
+        console.log("[RemoteLaunch] Launch detected:", state.table_name);
+        this.call("console_out", `Remote launching: ${state.table_name}`);
+        this.sendMessageToAllWindowsIncSelf({
+          type: "RemoteLaunching",
+          table_name: state.table_name
+        });
+      } else if (!state.launching && this.remoteLaunchActive) {
+        this.remoteLaunchActive = false;
+        console.log("[RemoteLaunch] Launch completed");
+        this.call("console_out", "Remote launch completed");
+        this.sendMessageToAllWindowsIncSelf({
+          type: "RemoteLaunchComplete"
+        });
       }
+    });
 
-      // Continue polling
-      setTimeout(poll, pollInterval);
+    // EventSource reconnects on its own, and the stream sends the current state on
+    // connect, so a manager UI that is down or restarting needs nothing here beyond
+    // not filling the log with it.
+    source.onerror = () => {
+      if (reportedOffline) return;
+      reportedOffline = true;
+      console.log("[RemoteLaunch] Event stream unavailable (manager UI may not be running)");
     };
-
-    // Start polling
-    poll();
   }
 
   // override console and send them to the python console instead
