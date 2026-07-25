@@ -74,6 +74,92 @@ that.
 - Reference data — a schema version history beside its constant, a lookup table — is fine.
   That is data, not prose.
 
+## Logging
+
+Logs are read by one person trying to work out what happened, usually from the Logs page in
+the Manager UI. Everything below serves that.
+
+### Levels
+
+The level is a promise about who needs to read the line.
+
+- **ERROR** — the operation failed and the user is affected. Always actionable.
+- **WARNING** — degraded, unavailable, or ignored, but we carried on. A configured feature
+  that silently does nothing belongs here, not at INFO.
+- **INFO** — state changes worth having in a timeline afterwards: startup and shutdown, a
+  table launched or exited, an import finished, an extension loaded, config changed.
+- **DEBUG** — everything else, including per-item detail and progress narration.
+
+**Summarise bulk work at INFO, never one line per item.** Assigning ids to a library once
+wrote a line per table and buried the rest of the log; it is one line with a count now, and
+the per-table detail is DEBUG.
+
+The bar to hold: an idle startup produces tens of INFO lines, not hundreds. Measure it rather
+than guess — start the app and count.
+
+### Logger names
+
+`vpinfe.<area>.<module>`, matching where the code lives:
+
+```python
+logger = logging.getLogger("vpinfe.common.table_identity")
+logger = logging.getLogger("vpinfe.httpapi.tables")
+```
+
+Areas are `common`, `frontend`, `manager`, `httpapi`. Extensions get `vpinfe.ext.<name>`,
+issued by the extension context — an extension never logs into a core namespace, because the
+namespace is how "which extension did this?" stays answerable.
+
+### Exceptions
+
+Use `logger.exception` inside an `except` block. It keeps the traceback;
+`logger.error(str(exc))` throws away the only part that locates the fault.
+
+```python
+except OSError:
+    logger.exception("Failed to enumerate table directory: %s", table_dir)
+```
+
+### Say which thing
+
+When a message is about one unit of work, name it — table id, job id, upload id. Someone
+reporting "my import failed" has to be findable in the file.
+
+### Never log secrets
+
+No tokens, API keys, or raw config dumps, at any level. Configuration holds an API key once
+the auth seam exists, and a log is the easiest way to leak one.
+
+### Formatting
+
+Pass arguments to the logger rather than formatting into it, so the work is skipped when the
+level is off:
+
+```python
+logger.debug("Assigned table id %s to %s", minted, table.tableDirName)   # yes
+logger.debug(f"Assigned table id {minted} to {table.tableDirName}")      # no
+```
+
+### What we deliberately do not do
+
+**Structured (JSON) logging.** This is a single-user appliance whose Logs page reads a text
+file. JSON would break that page and serve nobody. Revisit only if remote diagnostics becomes
+a goal.
+
+**Per-request access logs.** `uvicorn.access` is filtered to warnings and above. A theme
+polling once a second would drown the file. The API logs failures; successes are the caller's
+business.
+
+Worth knowing when moving an endpoint: NiceGUI logs every unmatched URL as a warning, so a
+client still polling a path that has moved writes one warning per poll. Retiring a polled
+endpoint means moving its callers in the same change, not leaving them to 404.
+
+### Files
+
+One `vpinfe.log` in the config directory, rotated at 2 MB with 3 backups, and rolled once at
+startup so each run begins in a fresh file with the previous run kept. Restarting to reproduce
+a problem no longer destroys the log of the run that showed it.
+
 ## Vocabulary
 
 - **Table** — the pinball-machine concept: folder, identity, metadata, media.

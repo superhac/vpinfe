@@ -161,7 +161,7 @@ class ThemeRegistry:
 
         if not force and local_version:
             if not self._is_version_newer(remote_version, local_version):
-                logger.info("%s already up to date (%s)", theme_key, local_version)
+                logger.debug("%s already up to date (%s)", theme_key, local_version)
                 return
 
         logger.info("Installing %s v%s", theme_key, remote_version)
@@ -242,25 +242,25 @@ class ThemeRegistry:
 # =============================================================
 
 def main():
-    logger.info("Initializing Theme Manager...")
+    logger.debug("Initializing Theme Manager...")
 
     registry = ThemeRegistry()
 
     registry.load_registry()
     registry.load_theme_manifests()
 
-    logger.info("Themes directory: %s", registry.themes_dir)
+    logger.debug("Themes directory: %s", registry.themes_dir)
 
-    logger.info("Loaded Themes and Installation Status:")
+    logger.debug("Loaded Themes and Installation Status:")
     for key in registry.get_themes():
         installed_status = "Installed" if registry.is_installed(key) else "Not installed"
         folder_name = registry.get_installed_folder(key)
-        logger.info(" - %s (%s) -> folder: %s", key, installed_status, folder_name)
+        logger.debug(" - %s (%s) -> folder: %s", key, installed_status, folder_name)
 
-    logger.info("Auto installing default themes...")
+    logger.debug("Auto installing default themes...")
     registry.auto_install_defaults()
 
-    logger.info("Checking for updates...")
+    logger.debug("Checking for updates...")
     updates = registry.check_for_updates()
     for key, info in updates.items():
         status = "UPDATE AVAILABLE" if info["update_available"] else "Up to date"
@@ -272,11 +272,11 @@ def main():
             info['remote_version'],
         )
 
-    logger.info("After Loaded Themes and Installation Status:")
+    logger.debug("After Loaded Themes and Installation Status:")
     for key in registry.get_themes():
         installed_status = "Installed" if registry.is_installed(key) else "Not installed"
         folder_name = registry.get_installed_folder(key)
-        logger.info(" - %s (%s) -> folder: %s", key, installed_status, folder_name)
+        logger.debug(" - %s (%s) -> folder: %s", key, installed_status, folder_name)
              
     logger.info("Done.")
 
