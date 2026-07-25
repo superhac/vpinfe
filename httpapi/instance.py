@@ -1,4 +1,9 @@
-"""Discovery and health."""
+"""What this instance is: discovery and health.
+
+Not "meta" - every endpoint is metadata about something. These answer "what am I
+talking to", which is the question discovery exists for. Table metadata is a
+different thing entirely and lives under common/.
+"""
 
 from __future__ import annotations
 
@@ -30,7 +35,7 @@ def discovery_payload(prefix: str, api_version: str) -> dict:
 
 
 def build_router(prefix: str, api_version: str) -> APIRouter:
-    router = APIRouter(tags=["meta"])
+    router = APIRouter(tags=["instance"])
 
     @router.get("/", summary="API discovery", dependencies=[requires(scopes.INSTANCE_READ)])
     def discovery() -> dict:

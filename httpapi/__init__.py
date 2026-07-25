@@ -11,7 +11,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import auth, capabilities, core_capabilities, meta, play, scopes, tables, uploads
+from . import auth, capabilities, core_capabilities, instance, play, scopes, tables, uploads
 from .errors import (
     ApiError,
     FeatureUnavailableError,
@@ -67,7 +67,7 @@ def create_api_app() -> FastAPI:
     )
 
     install_error_handlers(api)
-    api.include_router(meta.build_router(API_PREFIX, API_VERSION))
+    api.include_router(instance.build_router(API_PREFIX, API_VERSION))
     api.include_router(play.router)
     api.include_router(tables.router)
     api.include_router(uploads.router)
@@ -86,7 +86,7 @@ def register(app) -> None:
     # win the route match.
     app.add_api_route(
         API_PREFIX,
-        lambda: meta.discovery_payload(API_PREFIX, API_VERSION),
+        lambda: instance.discovery_payload(API_PREFIX, API_VERSION),
         methods=["GET"],
         include_in_schema=False,
     )

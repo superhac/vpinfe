@@ -10,7 +10,7 @@ VPinFE serves a versioned HTTP API at `/api/v1`, on the same port as the Manager
 
 - `httpapi/__init__.py`: the app factory (`create_api_app()`) and the mount (`register(app)`).
 - `httpapi/errors.py`: the error envelope — `ApiError` and the handlers that shape it.
-- `httpapi/meta.py`: discovery and health.
+- `httpapi/instance.py`: discovery and health — what this instance is.
 - `httpapi/capabilities.py`: the capability registry discovery reads from.
 
 The API is not part of the Manager UI. It's served by the same process today, but it belongs
