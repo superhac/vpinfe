@@ -47,7 +47,7 @@ def increment_start_count(table) -> None:
 
     user = apply_start_count_update(config)
     persist_table_meta(table, config)
-    logger.info("Updated User.StartCount for %s -> %s", table.tableDirName, user["StartCount"])
+    logger.debug("Updated User.StartCount for %s -> %s", table.tableDirName, user["StartCount"])
 
 
 def add_runtime_minutes(table, elapsed_seconds: float) -> None:

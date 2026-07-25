@@ -255,7 +255,7 @@ class ChromiumManager:
         chrome_path, using_local_install = get_chromium_path()
         if not os.path.exists(chrome_path):
             raise FileNotFoundError(f"Chromium binary not found: {chrome_path}")
-        logger.info("Using Chromium executable for '%s': %s", window_name, chrome_path)
+        logger.debug("Using Chromium executable for '%s': %s", window_name, chrome_path)
 
         user_data_dir = tempfile.mkdtemp(
             prefix=f"vpinfe_chromium_{window_name}_{index}_"
@@ -272,7 +272,7 @@ class ChromiumManager:
         system = platform.system()
         if (system == "Linux"):
             if using_local_install and getattr(sys, "frozen", False): 
-                logger.info("Using local Chromium on Linux")
+                logger.debug("Using local Chromium on Linux")
                 lp_key = 'LD_LIBRARY_PATH'
                 lp_orig = env.get(lp_key + '_ORIG')
                 if lp_orig is not None:
@@ -296,7 +296,7 @@ class ChromiumManager:
             logger.warning("Ignoring invalid Settings.chromeoptions value: %s", exc)
             extra_args = []
         if extra_args:
-            logger.info("Adding Chromium options for '%s': %s", window_name, extra_args)
+            logger.debug("Adding Chromium options for '%s': %s", window_name, extra_args)
             args.extend(extra_args)
 
         logger.info(
@@ -393,7 +393,7 @@ class ChromiumManager:
             if override_str:
                 separator = "&" if "?" in url else "?"
                 url += f"{separator}override={override_str}"
-                logger.info("Override applied - Final URL: %s", url)
+                logger.debug("Override applied - Final URL: %s", url)
 
             # Brief delay before launching the table window to ensure bg/dmd
             # are initialized first, so table gets focus as the last window
@@ -437,7 +437,7 @@ class ChromiumManager:
                     ns_app.activateWithOptions_(
                         AppKit.NSApplicationActivateIgnoringOtherApps
                     )
-                    logger.info("macOS: activating table window focus")
+                    logger.debug("macOS: activating table window focus")
                     return
 
             logger.debug("macOS: table app process not available for focus activation")
@@ -512,7 +512,7 @@ class ChromiumManager:
 
     def terminate_all(self):
         """Terminate all Chromium processes immediately."""
-        logger.info("Terminating all browser windows...")
+        logger.debug("Terminating all browser windows...")
         for window_name, proc, temp_dir, _ in self._processes:
             try:
                 if proc.poll() is None:  # still running

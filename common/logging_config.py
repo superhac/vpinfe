@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 import logging
+import logging.handlers
 import re
 import sys
 from pathlib import Path
 
-
 DEFAULT_LOG_FILE_NAME = "vpinfe.log"
 DEFAULT_LOG_LEVEL = "INFO"
+# Rotate rather than grow without bound: a cab can run for days, and the Logs page
+# reads the whole file. Keeping backups also means restarting to reproduce a problem
+# no longer destroys the log of the run that showed it.
+LOG_MAX_BYTES = 2 * 1024 * 1024
+LOG_BACKUP_COUNT = 3
 _CONFIGURED = False
 _FILE_LOG_INITIALIZED = False
 _INCLUDE_THIRD_PARTY = False
@@ -15,6 +20,7 @@ _INCLUDE_WINDOWS = False
 _THIRD_PARTY_LOGGERS = (
     "asyncio",
     "multipart",
+    "nicegui",
     "PIL",
     "PIL.Image",
     "PIL.PngImagePlugin",
@@ -157,11 +163,15 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
 
     if file_enabled:
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        file_handler = logging.FileHandler(
+        file_handler = logging.handlers.RotatingFileHandler(
             log_path,
-            mode="w" if not _FILE_LOG_INITIALIZED else "a",
+            maxBytes=LOG_MAX_BYTES,
+            backupCount=LOG_BACKUP_COUNT,
             encoding="utf-8",
         )
+        if not _FILE_LOG_INITIALIZED and log_path.exists() and log_path.stat().st_size:
+            # Start each run in a fresh file, with the previous run kept as a backup.
+            file_handler.doRollover()
         file_handler.setFormatter(formatter)
         file_handler.addFilter(_ThirdPartyFilter(include_third_party))
         file_handler.addFilter(_WindowsFilter(include_windows))

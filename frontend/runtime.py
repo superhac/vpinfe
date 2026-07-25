@@ -42,7 +42,7 @@ def create_api_instances(iniconfig, logger):
         )
         api._finish_setup()
         ws_bridge.register_api(window_name, api)
-        logger.info("Registered API for window '%s'", window_name)
+        logger.debug("Registered API for window '%s'", window_name)
 
     return ws_bridge, frontend_browser
 
@@ -52,7 +52,7 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
         return True
 
     if iniconfig.is_new:
-        logger.info("Skipping startup media sync on first run.")
+        logger.debug("Skipping startup media sync on first run.")
         return False
 
     settings = SettingsConfig.from_config(iniconfig)
@@ -63,7 +63,7 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
 
     table_root = settings.table_root_dir
     if not table_root:
-        logger.info("Startup media sync enabled, but tablerootdir is empty. Skipping.")
+        logger.warning("Startup media sync enabled, but tablerootdir is empty. Skipping.")
         return False
 
     def _worker():

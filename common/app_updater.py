@@ -69,12 +69,12 @@ def _parse_tag_version(tag: str) -> tuple[int, int, int] | None:
 
 
 def _request_json(url: str) -> dict:
-    logger.info("Fetching JSON from %s", url)
+    logger.debug("Fetching JSON from %s", url)
     payload = get_json(url, timeout=15, headers={"User-Agent": USER_AGENT})
     if isinstance(payload, dict):
-        logger.info("Fetched JSON from %s with keys=%s", url, sorted(payload.keys()))
+        logger.debug("Fetched JSON from %s with keys=%s", url, sorted(payload.keys()))
     else:
-        logger.info("Fetched JSON from %s with type=%s", url, type(payload).__name__)
+        logger.debug("Fetched JSON from %s with type=%s", url, type(payload).__name__)
     return payload
 
 
@@ -248,7 +248,7 @@ def get_install_context() -> dict:
 
 def _get_release_payload() -> dict:
     payload = _request_json(LATEST_RELEASE_URL)
-    logger.info("Latest release payload tag_name=%s", payload.get("tag_name"))
+    logger.debug("Latest release payload tag_name=%s", payload.get("tag_name"))
     return payload
 
 
@@ -260,7 +260,7 @@ def _get_release_manifest(release_payload: dict) -> dict:
     if not manifest_url:
         raise UpdateError("Release manifest download URL is missing")
     manifest = _request_json(manifest_url)
-    logger.info("Release manifest version=%s assets=%s", manifest.get("version"), sorted((manifest.get("assets") or {}).keys()))
+    logger.debug("Release manifest version=%s assets=%s", manifest.get("version"), sorted((manifest.get("assets") or {}).keys()))
     return manifest
 
 
