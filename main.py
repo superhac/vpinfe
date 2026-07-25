@@ -182,6 +182,16 @@ try:
 except Exception:
     logger.exception("Table id backfill failed; tables without an id are not addressable")
 
+# Collection membership moves onto table ids once the ids exist. Resolvable entries
+# are rewritten; anything that does not resolve is left alone rather than dropped.
+try:
+    from common.paths import COLLECTIONS_PATH
+    from common.vpxcollections import VPXCollections
+    _collections = VPXCollections(str(COLLECTIONS_PATH))
+    _collections.migrate_membership_to_table_ids(ensure_tables_loaded())
+except Exception:
+    logger.exception("Collection membership migration failed; memberships left as they were")
+
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
 # Feedback hardware follows table lifecycle events from here on, so both launch

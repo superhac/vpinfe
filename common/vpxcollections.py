@@ -3,9 +3,21 @@ import configparser
 import logging
 from pathlib import Path
 
+from common.table_identity import table_id
 from common.table_metadata import base_table_vps_id, section, table_title
 
 logger = logging.getLogger("vpinfe.common.vpxcollections")
+
+# collections.ini is entirely ours, so it carries a version like the VPinFE section
+# of a table's .info does. In an ini the sections are collection names, so the
+# version lives in a reserved section that is filtered out of the collection list.
+SCHEMA_SECTION = "VPinFE"
+SCHEMA_KEY = "schema"
+#   0  membership keyed by VPS id. Implied when no version is recorded.
+#   1  membership keyed by the table's own id (common/table_identity.py).
+CURRENT_SCHEMA = 1
+
+_warned_newer_schema = set()
 
 
 def _get_display_title(table):
@@ -38,7 +50,20 @@ class VPXCollections:
 
     def get_collections_name(self):
         """Return a list of collection names."""
-        return self.config.sections()
+        return [s for s in self.config.sections() if s != SCHEMA_SECTION]
+
+    def schema_version(self) -> int:
+        if SCHEMA_SECTION not in self.config:
+            return 0
+        try:
+            return int(self.config[SCHEMA_SECTION].get(SCHEMA_KEY, 0) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    def _stamp_schema(self, version: int = CURRENT_SCHEMA) -> None:
+        if SCHEMA_SECTION not in self.config:
+            self.config[SCHEMA_SECTION] = {}
+        self.config[SCHEMA_SECTION][SCHEMA_KEY] = str(version)
 
     def is_filter_based(self, section: str):
         """Check if a collection is filter-based."""
@@ -152,6 +177,67 @@ class VPXCollections:
         vpsids.remove(vpsid)
         self.config[section]["vpsids"] = ",".join(vpsids)
 
+    def migrate_membership_to_table_ids(self, tables) -> int:
+        """Move VPS-keyed membership onto table ids. Returns how many entries moved.
+
+        Runs once: the file records that it has been through this, so later startups
+        do not rescan. A file written by a newer VPinFE is left alone - an older
+        build must not rewrite membership it does not understand.
+
+        Entries that resolve to a table are rewritten; entries that do not are kept
+        as they are, because the table may simply not be present right now and
+        dropping it would lose that membership for good. The file converges as
+        tables are seen.
+        """
+        version = self.schema_version()
+        if version >= CURRENT_SCHEMA:
+            if version > CURRENT_SCHEMA and version not in _warned_newer_schema:
+                _warned_newer_schema.add(version)
+                logger.warning(
+                    "collections.ini uses schema %s, newer than this build's %s. "
+                    "Leaving membership untouched.", version, CURRENT_SCHEMA)
+            return 0
+
+        names = self.get_collections_name()
+        if not names:
+            return 0
+
+        by_vps: dict[str, str] = {}
+        for table in tables:
+            tid = table_id(table)
+            if not tid:
+                continue
+            vpinfe = section(getattr(table, "metaConfig", {}), "VPinFE")
+            for candidate in (base_table_vps_id(table),
+                              str(vpinfe.get("altvpsid", "") or "").strip()):
+                if candidate:
+                    by_vps.setdefault(candidate, tid)
+
+        known_ids = set(by_vps.values())
+        moved = unresolved = 0
+        for name in names:
+            if self.is_filter_based(name):
+                continue
+            members = self.get_vpsids(name)
+            rewritten = []
+            for member in members:
+                if member in known_ids:
+                    rewritten.append(member)
+                elif member in by_vps:
+                    rewritten.append(by_vps[member])
+                    moved += 1
+                else:
+                    rewritten.append(member)
+                    unresolved += 1
+            if rewritten != members:
+                self.config[name]["vpsids"] = ",".join(rewritten)
+
+        self._stamp_schema()
+        self.save()
+        logger.info("Collection membership moved onto table ids: %s moved, %s left "
+                    "as VPS ids because no table matched", moved, unresolved)
+        return moved
+
     def save(self):
         """Write collections back to disk."""
         with self.ini_path.open("w") as f:
@@ -161,29 +247,29 @@ class VPXCollections:
     # NEW JSON METADATA AWARE FILTERING
     # ------------------------------------------------------------------
 
+    def is_member(self, table, member_ids) -> bool:
+        """Whether a table belongs to a collection whose membership is `member_ids`.
+
+        Membership is the table's own id. VPS ids are still accepted because a file
+        written before the migration, or an entry for a table that was not present
+        when it ran, still holds one - and because a table with no VPSdb match has
+        no VPS id at all, which is one of the reasons membership moved off it.
+        """
+        if table_id(table) and table_id(table) in member_ids:
+            return True
+
+        vpinfe = section(getattr(table, "metaConfig", {}), "VPinFE")
+        base_vpsid = base_table_vps_id(table)
+        alt_vpsid = str(vpinfe.get("altvpsid", "") or "").strip()
+        return bool(
+            (base_vpsid and base_vpsid in member_ids)
+            or (alt_vpsid and alt_vpsid in member_ids)
+        )
+
     def filter_tables(self, tables, collection):
-        """
-        Filter tables by VPSId collection.
-
-        Assumes:
-        table.metaConfig is a DICT
-        Base VPSId lives at metaConfig["Info"]["VPSId"]
-        Optional override lives at metaConfig["VPinFE"]["altvpsid"]
-        """
+        """Tables belonging to a collection, ordered for display."""
         filter_ids = set(self.get_vpsids(collection))
-        result = []
-
-        for table in tables:
-            vpinfe = section(getattr(table, "metaConfig", {}), "VPinFE")
-            base_vpsid = base_table_vps_id(table)
-            alt_vpsid = str(vpinfe.get("altvpsid", "") or "").strip()
-
-            # Collections may contain either the base VPS ID or an overridden altvpsid.
-            if (
-                (base_vpsid and base_vpsid in filter_ids)
-                or (alt_vpsid and alt_vpsid in filter_ids)
-            ):
-                result.append(table)
+        result = [t for t in tables if self.is_member(t, filter_ids)]
 
         if collection == "Last Played":
             # Automatic recents collection should surface the most recently run tables first.

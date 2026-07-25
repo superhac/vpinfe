@@ -470,7 +470,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         refresh_rating_ui()
 
             # Collections section - add table to collection
-            vpsid = row_data.get('id', '')
+            vpsid = row_data.get('vpinfe_id', '') or row_data.get('id', '')
             current_collections = row_data.get('collections', [])
             available_collections = get_vpsid_collections()
 

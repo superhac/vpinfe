@@ -965,7 +965,7 @@ def render_panel(tab=None):
             added = 0
             skipped = 0
             for row in selected:
-                vpsid = row.get('id', '')
+                vpsid = row.get('vpinfe_id', '') or row.get('id', '')
                 if vpsid:
                     if add_table_to_collection(vpsid, collection):
                         added += 1

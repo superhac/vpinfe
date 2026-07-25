@@ -6,6 +6,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from common.collections_service import get_collections_manager
+from common import table_identity
 from common.table_metadata import (
     get_or_create_user_meta,
     load_table_meta,
@@ -20,7 +21,9 @@ logger = logging.getLogger("vpinfe.common.table_play_service")
 
 def track_table_play(table, collection_name: str = "Last Played", max_items: int = 30) -> None:
     meta = normalize_meta(getattr(table, "metaConfig", {}))
-    vpsid = section(meta, "Info").get("VPSId")
+    # Membership is the table's own id; VPSId is a fallback for a table that has
+    # not been assigned one yet.
+    vpsid = table_identity.table_id(table) or section(meta, "Info").get("VPSId")
     if not vpsid:
         logger.debug("Table has no VPSId, cannot track play")
         return

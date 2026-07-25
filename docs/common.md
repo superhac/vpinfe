@@ -20,6 +20,7 @@ small facade classes for older call sites.
 - `jobs.py`: callback-friendly progress/log reporting for long-running workflows.
 - `metadata_service.py`, `table_report_service.py`, `table_play_service.py`: workflows that operate on tables and metadata.
 - `collections_service.py`, `vpxcollections.py`, `tablelistfilters.py`: collection and filter logic.
+  `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
 - `vpsdb.py`: compatibility facade for VPS database lookup and media download.
 - `vpsdb_cache.py`, `vpsdb_media.py`: VPS database cache/update and VPinMediaDB download helpers.
 - `themes.py`: compatibility facade for manager UI theme registry operations.
@@ -51,14 +52,20 @@ sorting, or row-building code should use helpers like `table_title`,
 Know which table id you want. A table row carries two, and they are not
 interchangeable:
 
-- `id` is VPS-derived (`VPinFE.altvpsid` or `Info.VPSId`). Collection membership
-  is keyed by it and it is what gets written into `collections.ini`, so changing
-  what goes in it breaks collections.
+- `id` is VPS-derived (`VPinFE.altvpsid` or `Info.VPSId`). It is for correlating
+  with VPSdb, VPinPlay and other services keyed by it - not for identifying a
+  table here.
 - `vpinfe_id` is this install's stable local id from `table_identity.py`. It is
   what addresses a table in the HTTP API, in events, and in jobs.
 
 Use `table_identity.table_id()` to read one, `ensure_id()` when you need a table
 to have one. Reading never mints, so table scans stay a read path.
+
+Collection membership is keyed by `vpinfe_id`. A VPS id could not do the job: it is
+empty for a table VPSdb never matched, it is not unique, and it is cleared when the
+.vpx changes - so membership recorded under one was orphaned by an ordinary table
+update. Entries written before the migration are still matched, so a file part-way
+through converting still works.
 
 Announce table lifecycle through `events.py` rather than calling the affected
 services directly. Both launch paths - the frontend wheel and the Remote Control
