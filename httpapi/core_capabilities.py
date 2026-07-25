@@ -34,22 +34,22 @@ def declare_core() -> None:
     """Declare the capabilities this build actually serves."""
     capabilities.declare(capabilities.Capability(
         name="library",
-        residency=capabilities.RESIDENCY_CATALOG,
+        residency=[capabilities.RESIDENCY_CATALOG],
         description="Table inventory, identity, metadata and media",
     ))
     capabilities.declare(capabilities.Capability(
         name="acquisition",
-        residency=capabilities.RESIDENCY_CATALOG,
+        residency=[capabilities.RESIDENCY_CATALOG],
         description="Upload sessions and the asset import pipeline",
     ))
     capabilities.declare(capabilities.Capability(
         name="play",
-        residency=capabilities.RESIDENCY_PLAY_HOST,
+        residency=[capabilities.RESIDENCY_PLAY_HOST],
         description="Launch lifecycle state for this machine",
     ))
     capabilities.declare(capabilities.Capability(
         name="peripherals",
-        residency=capabilities.RESIDENCY_PLAY_HOST,
+        residency=[capabilities.RESIDENCY_PLAY_HOST],
         description="DOF, real-DMD and other attached devices",
         is_available=_peripherals_available,
     ))

@@ -158,7 +158,7 @@ from httpapi import capabilities
 
 capabilities.declare(capabilities.Capability(
     name="peripherals",
-    residency=capabilities.RESIDENCY_PLAY_HOST,
+    residency=[capabilities.RESIDENCY_PLAY_HOST],
     description="DOF and real-DMD output",
     is_available=lambda: (dof_configured(), "DOF is not configured"),
 ))
@@ -168,9 +168,15 @@ capabilities.declare(capabilities.Capability(
 user changes a setting. Return `(False, reason)` rather than a bare `False` — the reason is
 shown to users, so say what's missing and how to fix it.
 
-`residency` records where a capability has to run: `catalog` for things that only need the
-library (location-independent, cacheable) and `play_host` for things tied to the machine
+`residency` records which roles a capability lives in: `catalog` for things that only need
+the library (location-independent, cacheable) and `play_host` for things tied to the machine
 where tables launch and hardware lives.
+
+It's a list because some capabilities belong to both — the event stream carries library
+events and launch events alike. Listing both means each role serves its own, not that one
+capability spans the two: if the catalog and the play host are ever separate machines, they
+each have an event stream, carrying their own events. Test for a role with
+`"play_host" in residency`, which reads the same whether a capability has one or two.
 
 ## Table identity
 
