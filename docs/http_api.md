@@ -22,7 +22,7 @@ integration are all just clients of it.
 `register()` mounts a separate `FastAPI` app at `/api/v1` rather than adding routes to the
 NiceGUI app directly. That boundary does real work:
 
-- The error envelope, CORS, and eventually the auth seam apply to `/api/v1` and to nothing
+- The error envelope, CORS, and eventually the authorization boundary apply to `/api/v1` and to nothing
   else. The Manager UI's pages can't be affected by an API-level change, by construction.
 - NiceGUI disables OpenAPI on its own app and installs 404/500 handlers that render HTML
   pages. Routes added there get no generated spec and no JSON errors; a mounted app gets
@@ -49,7 +49,7 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
 | GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count", "total_bytes"}` |
 | DELETE | `/api/v1/uploads/{id}` | Abort a session |
-| GET | `/api/v1/uploads/{id}/analysis` | Analyse what was uploaded |
+| GET | `/api/v1/uploads/{id}/analysis` | Analyze what was uploaded |
 | POST | `/api/v1/uploads/{id}/plan` | Build an import plan |
 | POST | `/api/v1/uploads/{id}/import` | Execute the plan |
 | GET | `/api/v1/vps/search?q=&limit=` | VPSdb lookup |
@@ -115,7 +115,38 @@ user needs into an explicit `ApiError`.
 
 Codes defined so far: `not_found`, `invalid_request`, `method_not_allowed`,
 `feature_unavailable`, `internal_error`, plus `unauthorized` and `forbidden` reserved for the
-auth seam. Add new codes to `httpapi/errors.py` rather than inventing them at a call site.
+authorization boundary. Add new codes to `httpapi/errors.py` rather than inventing them at a call site.
+
+## Authorization
+
+Every request into `/api/v1` passes one middleware that stamps an identity on it, and every
+route declares the scope it needs:
+
+```python
+@router.get("/tables", dependencies=[requires(scopes.TABLES_READ)])
+```
+
+**The policy is dormant.** Today whoever can reach the instance is granted every scope, which
+is exactly how the app has always behaved — this changes nothing for anyone. What exists now
+is the mechanism, so tightening later is a policy change rather than a retrofit across every
+endpoint. Replacing `LocalTrustPolicy` is the whole of it.
+
+Three properties keep it honest:
+
+- The middleware runs before any route, so no route is reachable without passing it.
+- **Startup fails if a route declares no scope.** A boundary you can forget to use is not a
+  boundary, so forgetting is made impossible rather than discouraged.
+- Core services never learn about any of this. Authorization stays at the edge; nothing under
+  `common/` takes an identity argument.
+
+"Public" is not something a route asserts about itself. Discovery and health carry
+`instance:read` like everything else, and a policy decides whether to grant it to a caller who
+presented nothing.
+
+Scopes are `<resource>:<action>`. Extensions get `ext:<name>:<action>`, which is what stops an
+extension ever claiming a core scope. The vocabulary is in `httpapi/scopes.py`; most entries
+are reserved for endpoints that don't exist yet, because settling a name is cheap and renaming
+one after callers depend on it is not.
 
 ## Capabilities
 
@@ -184,7 +215,7 @@ sections stay shape-driven and tolerant.
 Migration runs on read, in memory, and never writes — the stamp reaches disk on the next real
 write. A section written by a *newer* VPinFE is left exactly as it is: downgrading someone's
 data because they ran an older build once is worse than not understanding it. A version we
-don't recognise is never a reason to refuse to read a file.
+don't recognize is never a reason to refuse to read a file.
 
 ## Adding routes
 

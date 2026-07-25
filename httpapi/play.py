@@ -10,9 +10,13 @@ from fastapi import APIRouter
 
 from common import launch_state
 
+from . import scopes
+from .auth import requires
+
 router = APIRouter(prefix="/play", tags=["play"])
 
 
-@router.get("/state", summary="What this play host is doing")
+@router.get("/state", summary="What this play host is doing",
+            dependencies=[requires(scopes.PLAY_READ)])
 def get_play_state() -> dict:
     return launch_state.current().as_dict()

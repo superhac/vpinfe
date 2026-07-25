@@ -6,7 +6,8 @@ from fastapi import APIRouter
 
 from common.app_version import get_version
 
-from . import capabilities
+from . import capabilities, scopes
+from .auth import requires
 
 
 def discovery_payload(prefix: str, api_version: str) -> dict:
@@ -31,11 +32,11 @@ def discovery_payload(prefix: str, api_version: str) -> dict:
 def build_router(prefix: str, api_version: str) -> APIRouter:
     router = APIRouter(tags=["meta"])
 
-    @router.get("/", summary="API discovery")
+    @router.get("/", summary="API discovery", dependencies=[requires(scopes.INSTANCE_READ)])
     def discovery() -> dict:
         return discovery_payload(prefix, api_version)
 
-    @router.get("/health", summary="Liveness check")
+    @router.get("/health", summary="Liveness check", dependencies=[requires(scopes.INSTANCE_READ)])
     def health() -> dict:
         return {"status": "ok"}
 

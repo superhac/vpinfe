@@ -14,20 +14,28 @@ def _client() -> TestClient:
 
 class DiscoveryTests(unittest.TestCase):
     def setUp(self) -> None:
-        capabilities.clear()
+        # create_api_app() declares the core capabilities, so a test that wants a
+        # known registry has to build the app first and clear afterwards.
+        self.app = httpapi.create_api_app()
+        self.client = TestClient(self.app, raise_server_exceptions=False)
         self.addCleanup(capabilities.clear)
 
+    def _isolated(self) -> TestClient:
+        capabilities.clear()
+        return self.client
+
     def test_discovery_describes_the_instance(self) -> None:
-        body = _client().get("/").json()
+        body = self.client.get("/").json()
 
         self.assertEqual(body["name"], "VPinFE")
         self.assertEqual(body["api_version"], "v1")
         self.assertTrue(body["app_version"])
-        self.assertEqual(body["capabilities"], [])
         self.assertEqual(body["extensions"], [])
+        declared = {c["name"] for c in body["capabilities"]}
+        self.assertIn("library", declared, "the shipped capabilities are declared")
 
     def test_discovery_links_point_under_the_api_prefix(self) -> None:
-        links = _client().get("/").json()["links"]
+        links = self.client.get("/").json()["links"]
 
         self.assertEqual(links["self"], "/api/v1")
         self.assertEqual(links["health"], "/api/v1/health")
@@ -38,12 +46,13 @@ class DiscoveryTests(unittest.TestCase):
         self.assertIsNone(links["events"])
 
     def test_health_reports_ok(self) -> None:
-        response = _client().get("/health")
+        response = self.client.get("/health")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok"})
 
     def test_declared_capabilities_appear_in_discovery(self) -> None:
+        self._isolated()
         capabilities.declare(capabilities.Capability(
             name="library",
             residency=capabilities.RESIDENCY_CATALOG,
@@ -55,7 +64,7 @@ class DiscoveryTests(unittest.TestCase):
             is_available=lambda: (False, "No DOF hardware detected"),
         ))
 
-        declared = _client().get("/").json()["capabilities"]
+        declared = self.client.get("/").json()["capabilities"]
 
         self.assertEqual([c["name"] for c in declared], ["feedback_hardware", "library"])
         self.assertEqual(declared[1]["residency"], "catalog")
@@ -68,10 +77,11 @@ class DiscoveryTests(unittest.TestCase):
         def _explode():
             raise RuntimeError("probe blew up")
 
+        self._isolated()
         capabilities.declare(capabilities.Capability(
             name="flaky", residency=capabilities.RESIDENCY_PLAY_HOST, is_available=_explode))
 
-        response = _client().get("/")
+        response = self.client.get("/")
         declared = response.json()["capabilities"]
 
         self.assertEqual(response.status_code, 200)

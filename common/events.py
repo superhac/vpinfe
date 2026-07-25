@@ -67,7 +67,7 @@ def hook(name: str, handler: Callable, *, priority: int = DEFAULT_PRIORITY) -> C
     """Register a handler that the operation waits for. Lower priority runs first.
 
     Raising from a hook stops the operation. Register one only when that is the
-    behaviour you want.
+    behavior you want.
     """
     global _sequence
     with _lock:

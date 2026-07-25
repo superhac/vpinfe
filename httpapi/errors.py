@@ -22,7 +22,7 @@ CODE_INVALID_REQUEST = "invalid_request"
 CODE_METHOD_NOT_ALLOWED = "method_not_allowed"
 CODE_FEATURE_UNAVAILABLE = "feature_unavailable"
 CODE_INTERNAL_ERROR = "internal_error"
-# Reserved for the auth seam; nothing raises these yet.
+# Reserved for the authorization boundary; nothing raises these yet.
 CODE_UNAUTHORIZED = "unauthorized"
 CODE_FORBIDDEN = "forbidden"
 

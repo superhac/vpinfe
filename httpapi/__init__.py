@@ -1,7 +1,7 @@
 """VPinFE's HTTP API: a FastAPI app mounted at /api/v1.
 
 Mounted rather than added to the NiceGUI app so the envelope, CORS and the auth
-seam apply here and nowhere else. Rationale in docs/http_api.md.
+boundary apply here and nowhere else. Rationale in docs/http_api.md.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import capabilities, meta, play, tables, uploads
+from . import auth, capabilities, core_capabilities, meta, play, scopes, tables, uploads
 from .errors import (
     ApiError,
     FeatureUnavailableError,
@@ -33,10 +33,12 @@ __all__ = [
     "FeatureUnavailableError",
     "InvalidRequestError",
     "NotFoundError",
+    "auth",
     "capabilities",
     "create_api_app",
     "error_response",
     "register",
+    "scopes",
 ]
 
 
@@ -52,7 +54,10 @@ def create_api_app() -> FastAPI:
     )
 
     # Matches what the endpoints this will absorb already allow. Tightening it is
-    # a policy decision for the auth seam.
+    # a policy decision for the authorization boundary.
+    # Auth first so CORS ends up outermost: a preflight OPTIONS has no identity to
+    # stamp and CORSMiddleware answers it before anything else sees it.
+    api.add_middleware(auth.ScopeMiddleware)
     api.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -67,6 +72,9 @@ def create_api_app() -> FastAPI:
     api.include_router(tables.router)
     api.include_router(uploads.router)
     api.include_router(uploads.vps_router)
+
+    core_capabilities.declare_core()
+    auth.assert_every_route_declares_a_scope(api)
     return api
 
 

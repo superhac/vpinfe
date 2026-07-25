@@ -18,6 +18,8 @@ from common import table_identity
 from common.game_files import default_game_file, game_file_names
 from common.table_repository import collections_map, ensure_tables_loaded, table_to_row
 
+from . import scopes
+from .auth import requires
 from .errors import InvalidRequestError, NotFoundError
 
 logger = logging.getLogger("vpinfe.httpapi.tables")
@@ -61,7 +63,7 @@ def _resource(row: dict, table_id: str) -> dict:
         "media": {
             "b2s": row.get("b2s_exists", False),
             "pup_pack": row.get("pup_pack_exists", False),
-            "alt_colour": row.get("serum_exists", False) or row.get("vni_exists", False),
+            "alt_color": row.get("serum_exists", False) or row.get("vni_exists", False),
             "alt_sound": row.get("alt_sound_exists", False),
         },
         "links": {
@@ -112,7 +114,7 @@ def _game_files(table, row: dict) -> list[dict]:
     ]
 
 
-@router.get("", summary="List tables")
+@router.get("", summary="List tables", dependencies=[requires(scopes.TABLES_READ)])
 def list_tables(
     q: str = Query("", description="Match against name, manufacturer or rom"),
     limit: int = Query(0, ge=0, description="0 returns everything"),
@@ -145,19 +147,21 @@ def list_tables(
     return {"total": total, "offset": offset, "count": len(resources), "tables": resources}
 
 
-@router.get("/{table_id}", summary="One table")
+@router.get("/{table_id}", summary="One table", dependencies=[requires(scopes.TABLES_READ)])
 def get_table(table_id: str) -> dict:
     table = _table_or_404(table_id)
     return _resource(table_to_row(table, collections_map()), table_id)
 
 
-@router.get("/{table_id}/files", summary="A table's game files")
+@router.get("/{table_id}/files", summary="A table's game files",
+            dependencies=[requires(scopes.TABLES_READ)])
 def get_table_files(table_id: str) -> dict:
     table = _table_or_404(table_id)
     return {"files": _game_files(table, table_to_row(table))}
 
 
-@router.get("/{table_id}/archive", summary="Download the table folder as an archive")
+@router.get("/{table_id}/archive", summary="Download the table folder as an archive",
+            dependencies=[requires(scopes.TABLES_READ)])
 def get_table_archive(table_id: str, download_token: str = ""):
     from managerui.services.archive_service import cleanup_archive, create_vpxz_archive
 

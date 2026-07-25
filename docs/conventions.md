@@ -42,6 +42,15 @@ JavaScript-facing APIs, and snake_case is equally standard (GitHub, Stripe and S
 it). snake_case wins for this codebase because it matches Python, so nothing is translated at
 the boundary, and it matches the JSON the app already returned.
 
+### Spelling
+
+US English, in identifiers, comments and docs alike — `color`, `analyze`, `behavior`,
+`authorization`. The codebase is already consistent about it, and `config_access.py` even
+maps `colour` → `color` on the way in, so the choice is settled rather than open.
+
+It matters most in a field name: `alt_color` is part of the API contract, and a spelling
+change there would be a breaking change for a caller.
+
 ### Config keys
 
 `vpinfe.ini` keys are lowercase and unseparated (`tablerootdir`, `manageruiport`). That is

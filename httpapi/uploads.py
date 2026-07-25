@@ -1,7 +1,7 @@
 """Upload sessions and the asset import pipeline.
 
 Services still live under managerui/ for now; they are not UI code and move in the
-package reorganisation.
+package reorganization.
 """
 
 from __future__ import annotations
@@ -13,7 +13,11 @@ from fastapi import APIRouter, Body, File, Form, UploadFile
 from starlette.concurrency import run_in_threadpool
 
 from managerui.services import upload_session_service
-from managerui.services.asset_analyzer_service import AnalysisResult, DetectedAsset, analyze_upload_session
+from managerui.services.asset_analyzer_service import (
+    AnalysisResult,
+    DetectedAsset,
+    analyze_upload_session,
+)
 from managerui.services.asset_import_service import (
     ImportPlan,
     build_import_plan,
@@ -25,6 +29,8 @@ from managerui.services.asset_import_service import (
 from managerui.services.asset_registry import spec_for
 from managerui.services.upload_session_service import UnknownSession, UnsafePath, UploadTooLarge
 
+from . import scopes
+from .auth import requires
 from .errors import ApiError, InvalidRequestError, NotFoundError
 
 logger = logging.getLogger("vpinfe.httpapi.uploads")
@@ -104,12 +110,13 @@ def _vps_entry(vps_id: str):
     return entry
 
 
-@router.post("", summary="Begin an upload session")
+@router.post("", summary="Begin an upload session", dependencies=[requires(scopes.UPLOADS_WRITE)])
 def begin_upload() -> dict:
     return {"id": upload_session_service.begin_session().upload_id}
 
 
-@router.get("/{upload_id}", summary="Upload session summary")
+@router.get("/{upload_id}", summary="Upload session summary",
+             dependencies=[requires(scopes.UPLOADS_WRITE)])
 def get_upload(upload_id: str) -> dict:
     try:
         return upload_session_service.finish_session(upload_id)
@@ -117,13 +124,15 @@ def get_upload(upload_id: str) -> dict:
         raise NotFoundError(str(exc)) from exc
 
 
-@router.delete("/{upload_id}", summary="Abort an upload session")
+@router.delete("/{upload_id}", summary="Abort an upload session",
+             dependencies=[requires(scopes.UPLOADS_WRITE)])
 def abort_upload(upload_id: str) -> dict:
     upload_session_service.cleanup_session(upload_id)
     return {"ok": True}
 
 
-@router.post("/{upload_id}/files", summary="Add a file to an upload session")
+@router.post("/{upload_id}/files", summary="Add a file to an upload session",
+             dependencies=[requires(scopes.UPLOADS_WRITE)])
 async def add_upload_file(upload_id: str, relpath: str = Form(...),
                           file: UploadFile = File(...)) -> dict:
     try:
@@ -138,13 +147,15 @@ async def add_upload_file(upload_id: str, relpath: str = Form(...),
     return {"bytes": written}
 
 
-@router.get("/{upload_id}/analysis", summary="Analyse an upload session")
-def analyse_upload(upload_id: str) -> dict:
+@router.get("/{upload_id}/analysis", summary="Analyze an upload session",
+             dependencies=[requires(scopes.UPLOADS_WRITE)])
+def analyze_upload(upload_id: str) -> dict:
     analysis, _source = analyze_upload_session(_session_dir(upload_id))
     return _analysis_to_dict(analysis)
 
 
-@router.post("/{upload_id}/plan", summary="Build an import plan")
+@router.post("/{upload_id}/plan", summary="Build an import plan",
+             dependencies=[requires(scopes.UPLOADS_WRITE)])
 def plan_upload(upload_id: str, payload: dict = Body(default={})) -> dict:
     analysis, _source = _analysis_for(upload_id)
     vps_entry = _vps_entry(payload.get("vps_id", ""))
@@ -159,7 +170,8 @@ def plan_upload(upload_id: str, payload: dict = Body(default={})) -> dict:
     return _plan_to_dict(plan)
 
 
-@router.post("/{upload_id}/import", summary="Execute an import plan")
+@router.post("/{upload_id}/import", summary="Execute an import plan",
+             dependencies=[requires(scopes.UPLOADS_WRITE)])
 def import_upload(upload_id: str, payload: dict = Body(default={})) -> dict:
     analysis, source_path = _analysis_for(upload_id)
     vps_entry = _vps_entry(payload.get("vps_id", ""))
@@ -208,7 +220,7 @@ def import_upload(upload_id: str, payload: dict = Body(default={})) -> dict:
     return report
 
 
-@vps_router.get("/search", summary="Search VPSdb")
+@vps_router.get("/search", summary="Search VPSdb", dependencies=[requires(scopes.VPS_READ)])
 def search_vps(q: str = "", limit: int = 20) -> dict:
     from managerui.services.table_service import search_vpsdb
 

@@ -3,7 +3,7 @@
 These are hooks rather than subscribers on purpose. VPX talks to the same devices,
 so the hardware has to be released before it starts and reacquired after it exits -
 if releasing fails, launching anyway would hand VPX a device something else still
-holds. A hook that raises stops the launch, which is the wanted behaviour.
+holds. A hook that raises stops the launch, which is the wanted behavior.
 
 Both launch paths - the frontend wheel and the Remote Control page - announce the
 same events, so this protocol lives in one place instead of being repeated by
