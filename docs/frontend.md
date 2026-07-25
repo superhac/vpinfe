@@ -27,7 +27,6 @@ The frontend starts at `main.py`, but most runtime responsibilities now live in 
 - `frontend/input_api.py`: input mapping reads/writes.
 - `frontend/theme_api.py`: theme name/config/index URL and audio-muted helpers.
 - `frontend/metadata_build_service.py`: asynchronous build metadata orchestration and progress event forwarding.
-- `frontend/realdmd_service.py`: frontend DOF event metadata lookup and asynchronous real-DMD image updates.
 - `frontend/config_api.py`: small config getters/setters exposed through the JS API.
 
 ## Adding API Methods

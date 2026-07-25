@@ -5,7 +5,8 @@ from typing import Dict, List
 from pathlib import Path
 from urllib.parse import quote
 
-from common.vpxcollections import VPXCollections
+from common.tables import table_repository
+from common.tables.vpxcollections import MEMBERS_KEY, VPXCollections
 
 from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR
 from managerui.services import table_index_service
@@ -116,27 +117,26 @@ def get_vpsdb_rows_for_filter_options(cached_vpsdb_rows: list[dict] | None = Non
 
 def get_table_name_map(cached_tables: list[dict] | None = None) -> Dict[str, str]:
     tables = get_table_rows_for_collections(cached_tables)
-    return {table.get("id"): table.get("name", table.get("id")) for table in tables if table.get("id")}
+    return {
+        table["vpinfe_id"]: table.get("name") or table["vpinfe_id"]
+        for table in tables
+        if table.get("vpinfe_id")
+    }
 
 
-def get_vpsid_collections_map() -> Dict[str, List[str]]:
-    mapping: Dict[str, List[str]] = {}
-    try:
-        collections = get_collections_manager()
-        for collection_name in collections.get_collections_name():
-            if collections.is_filter_based(collection_name):
-                continue
-            for vpsid in collections.get_vpsids(collection_name):
-                mapping.setdefault(vpsid, []).append(collection_name)
-    except Exception:
-        pass
-    return mapping
+def get_table_collections_map() -> Dict[str, List[str]]:
+    return table_repository.collections_by_table_id()
 
 
-def vpsid_to_name(vpsid: str, table_map: Dict[str, str] | None = None) -> str:
+def member_to_name(member_id: str, table_map: Dict[str, str] | None = None) -> str:
+    """Display name for a collection member, falling back to the raw id.
+
+    An entry that has not been migrated yet, or points at a table that is not
+    installed, has no name to show - so show what is recorded rather than nothing.
+    """
     if table_map is None:
         table_map = get_table_name_map()
-    return table_map.get(vpsid, vpsid)
+    return table_map.get(member_id, member_id)
 
 
 def _as_values(value) -> list[str]:
@@ -215,9 +215,9 @@ def rename_collection(name: str, new_name: str) -> None:
     manager.save()
 
 
-def create_vpsid_collection(name: str, vpsids: list[str], image: str | None = None) -> None:
+def create_table_collection(name: str, table_ids: list[str], image: str | None = None) -> None:
     manager = get_collections_manager()
-    manager.add_collection(name, vpsids)
+    manager.add_collection(name, table_ids)
     if image:
         _set_section_image(manager.config[name], image)
     manager.save()
@@ -242,9 +242,9 @@ def update_filter_collection(name: str, **filters) -> None:
     manager.save()
 
 
-def update_vpsid_collection(name: str, vpsids: list[str], image: str | None = None) -> None:
+def update_table_collection(name: str, table_ids: list[str], image: str | None = None) -> None:
     manager = get_collections_manager()
-    manager.config[name]["vpsids"] = ",".join(vpsids)
+    manager.config[name][MEMBERS_KEY] = ",".join(table_ids)
     if image is not None:
         _set_section_image(manager.config[name], image)
     manager.save()

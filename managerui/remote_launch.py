@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import logging
 
-from common.vpxcollections import VPXCollections
+from common.values import is_truthy
+from common.tables.vpxcollections import VPXCollections
 
 from managerui.paths import COLLECTIONS_PATH
 from managerui.services import table_catalog
@@ -22,10 +23,10 @@ def get_collections() -> list[str]:
         return []
 
 
-def get_collection_vpsids(collection_name: str) -> set[str]:
+def get_collection_members(collection_name: str) -> set[str]:
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
-        return set(collections.get_vpsids(collection_name))
+        return set(collections.get_members(collection_name))
     except Exception:
         return set()
 
@@ -52,10 +53,6 @@ def _normalize_rating(value) -> int:
     except (TypeError, ValueError):
         normalized = 0
     return max(0, min(5, normalized))
-
-
-def _is_truthy(value) -> bool:
-    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def table_matches_filters(table: dict, filters) -> bool:
@@ -98,7 +95,7 @@ def table_matches_filters(table: dict, filters) -> bool:
             except Exception:
                 continue
         table_rating = _normalize_rating(table.get("rating", 0))
-        if _is_truthy(filters.get("rating_or_higher", "false")):
+        if is_truthy(filters.get("rating_or_higher", "false")):
             if not selected or table_rating < min(selected):
                 return False
         elif table_rating not in set(selected):

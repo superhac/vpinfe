@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 from typing import Callable
 
 from common.media_paths import media_filename_map
-from common.table_repository import refresh_table
+from common.tables.table_repository import refresh_table
 from managerui.paths import get_tables_path
 from managerui.services.asset_analyzer_service import (
     AnalysisResult,

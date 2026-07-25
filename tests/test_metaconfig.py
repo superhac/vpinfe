@@ -3,7 +3,12 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.metaconfig import InvalidMetaConfigError, MetaConfig
+from common.tables.metaconfig import (
+    CURRENT_VPINFE_SCHEMA,
+    InvalidMetaConfigError,
+    MetaConfig,
+    migrate_vpinfe_section,
+)
 
 
 class TestMetaConfig(unittest.TestCase):
@@ -217,3 +222,68 @@ class TestMetaConfig(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class VPinFESchemaTests(unittest.TestCase):
+    """The VPinFE section carries a schema version; the rest of the file does not."""
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+
+    def test_an_unversioned_section_migrates_to_current(self) -> None:
+        migrated = migrate_vpinfe_section({"alttitle": "Example"})
+
+        self.assertEqual(migrated["schema"], CURRENT_VPINFE_SCHEMA)
+        self.assertEqual(migrated["alttitle"], "Example", "existing settings survive")
+        self.assertIn("id", migrated, "v2 declares the local id key")
+        self.assertEqual(migrated["id"], "", "declaring is not minting")
+
+    def test_migration_is_idempotent(self) -> None:
+        once = migrate_vpinfe_section({"alttitle": "Example"})
+        twice = migrate_vpinfe_section(dict(once))
+
+        self.assertEqual(once, twice)
+
+    def test_a_newer_schema_is_left_untouched(self) -> None:
+        """Running an older build must not downgrade or strip a newer file."""
+        future = {"schema": CURRENT_VPINFE_SCHEMA + 5, "somethingNew": "keep me"}
+
+        with self.assertLogs("vpinfe.common.tables.metaconfig", level="WARNING"):
+            migrated = migrate_vpinfe_section(dict(future))
+
+        self.assertEqual(migrated, future)
+
+    def test_a_corrupt_schema_value_is_treated_as_oldest(self) -> None:
+        migrated = migrate_vpinfe_section({"schema": "not-a-number"})
+
+        self.assertEqual(migrated["schema"], CURRENT_VPINFE_SCHEMA)
+
+    def test_reading_migrates_in_memory_without_writing(self) -> None:
+        info = self.root / "Example.info"
+        info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "VPinFE": {"alttitle": "x"}}),
+                        encoding="utf-8")
+        before = info.read_text(encoding="utf-8")
+
+        meta = MetaConfig(str(info))
+
+        self.assertEqual(meta.data["VPinFE"]["schema"], CURRENT_VPINFE_SCHEMA)
+        self.assertEqual(info.read_text(encoding="utf-8"), before, "reading must not write")
+
+    def test_writing_persists_the_stamp_and_mints_an_id(self) -> None:
+        info = self.root / "Example.info"
+        TestMetaConfig()._write_meta(info)
+        saved = json.loads(info.read_text(encoding="utf-8"))
+
+        self.assertEqual(saved["VPinFE"]["schema"], CURRENT_VPINFE_SCHEMA)
+        self.assertTrue(saved["VPinFE"]["id"])
+
+    def test_other_sections_are_not_versioned(self) -> None:
+        info = self.root / "Example.info"
+        TestMetaConfig()._write_meta(info)
+        saved = json.loads(info.read_text(encoding="utf-8"))
+
+        for name in ("Info", "User", "VPXFile", "Medias"):
+            self.assertNotIn("schema", saved.get(name, {}),
+                             f"{name} is not ours alone; it stays shape-driven")

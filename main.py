@@ -22,7 +22,7 @@ if platform.system() == "Windows" and getattr(sys, 'frozen', False):
             ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
 
 if "--dof-helper" in sys.argv[1:]:
-    from common.dof_service_worker import main as _dof_helper_main
+    from common.host.dof_service_worker import main as _dof_helper_main
     raise SystemExit(_dof_helper_main())
 
 
@@ -33,16 +33,16 @@ apply_configdir_override(sys.argv[1:])
 
 from common.logging_config import configure_logging, get_logger
 from common.iniconfig import IniConfig
-from common.dof_service import start_dof_service_if_enabled, stop_dof_service
-from common.libdmdutil_service import (
+from common.host.dof_service import start_dof_service_if_enabled, stop_dof_service
+from common.host.libdmdutil_service import (
     stop_libdmdutil_service,
 )
-from common.pinmame_score_parser_updater import ensure_latest_roms_json
-from common.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
+from common.online.pinmame_score_parser_updater import ensure_latest_roms_json
+from common.online.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
 from common.app_version import get_version
-from common.themes import ThemeRegistry
+from common.online.themes import ThemeRegistry
 from common.paths import VPINFE_INI_PATH, configure_nicegui_storage, ensure_config_dir
-from common.metadata_service import build_metadata
+from common.tables.metadata_service import build_metadata
 
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -79,6 +79,7 @@ from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run
 from nicegui import app as nicegui_app
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+import httpapi
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
 
@@ -95,6 +96,10 @@ class _SuppressNoResponseReturnedMiddleware(BaseHTTPMiddleware):
 
 
 nicegui_app.add_middleware(_SuppressNoResponseReturnedMiddleware)
+
+# Mount the HTTP API. Has to happen before any ui.run(), including the early
+# first-run start below.
+httpapi.register(nicegui_app)
 
 # On Windows, the Proactor event loop logs a noisy ConnectionResetError (WinError 10054)
 # whenever a browser tab is closed mid-connection. Install a startup handler that
@@ -169,8 +174,31 @@ try:
 except Exception:
     logger.exception("Theme registry initialization failed")
 
+# Give every table a stable id. One-time cost per library; a no-op afterwards.
+try:
+    from common.tables.table_identity import ensure_unique_ids
+    from common.tables.table_repository import ensure_tables_loaded
+    ensure_unique_ids(ensure_tables_loaded())
+except Exception:
+    logger.exception("Table id backfill failed; tables without an id are not addressable")
+
+# Collection membership moves onto table ids once the ids exist. Resolvable entries
+# are rewritten; anything that does not resolve is left alone rather than dropped.
+try:
+    from common.paths import COLLECTIONS_PATH
+    from common.tables.vpxcollections import VPXCollections
+    _collections = VPXCollections(str(COLLECTIONS_PATH))
+    _collections.migrate_membership_to_table_ids(ensure_tables_loaded())
+except Exception:
+    logger.exception("Collection membership migration failed; memberships left as they were")
+
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
+# Feedback hardware follows table lifecycle events from here on, so both launch
+# paths get the same behaviour without either of them knowing about DOF.
+from common.host import peripherals
+peripherals.register()
+
 start_dof_service_if_enabled(iniconfig)
 
 # Point the archive analyzer at a configured RAR tool (blank = auto-detect from PATH)

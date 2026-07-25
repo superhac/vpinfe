@@ -5,7 +5,7 @@ import sys
 from nicegui import ui
 
 from managerui.paths import CONFIG_DIR
-from common import system_actions
+from common.host import system_actions
 
 
 def system_command_env() -> dict[str, str]:

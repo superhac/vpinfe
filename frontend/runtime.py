@@ -10,10 +10,10 @@ from frontend.api import API
 from frontend.chromium_manager import ChromiumManager
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.ws_bridge import WebSocketBridge
-from common import system_actions
+from common.host import system_actions
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
-from common.display_service import get_display_monitors
-from common.vpinplay_runtime import clear_alternate_profile
+from common.host.display_service import get_display_monitors
+from common.online.vpinplay_runtime import clear_alternate_profile
 
 
 WINDOW_CONFIGS = (
@@ -114,7 +114,7 @@ def wait_for_manager_ui_ready(port: int, timeout_seconds: float = 15.0) -> None:
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         try:
-            _ur.urlopen(f"http://localhost:{port}/api/remote-launch", timeout=1)
+            _ur.urlopen(f"http://localhost:{port}/api/v1/health", timeout=1)
             return
         except Exception:
             time.sleep(0.5)

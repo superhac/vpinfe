@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from common.table_metadata import is_truthy
+from common.values import is_truthy
 
 
 def _parser(source):

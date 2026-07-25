@@ -16,14 +16,11 @@ category_select = None
 # Config for launching tables
 # Import config
 from common.iniconfig import IniConfig
+from common import events
 from common.config_access import SettingsConfig
-from common.dof_service import start_dof_service_if_enabled, stop_dof_service
-from common.vpx_log import delete_vpinball_log_on_start_if_configured
-from common.libdmdutil_service import (
-    stop_libdmdutil_service,
-)
+from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
 from managerui.ui_helpers import debounced_input, load_page_style
-from common.launcher import (
+from common.host.launcher import (
     build_vpx_launch_command,
     get_effective_launcher,
     get_plugin_profile_from_meta,
@@ -87,9 +84,9 @@ def _get_collections():
     return remote_launch.get_collections()
 
 
-def _get_collection_vpsids(collection_name):
-    """Get VPSIds for a specific collection (vpsid-based only)."""
-    return remote_launch.get_collection_vpsids(collection_name)
+def _get_collection_members(collection_name):
+    """Table ids in a collection with an explicit member list."""
+    return remote_launch.get_collection_members(collection_name)
 
 
 def _is_filter_collection(collection_name):
@@ -129,7 +126,7 @@ def _scan_tables_for_launch():
 def _launch_table(table: dict):
     """Launch a table using the VPX binary."""
     import threading
-    from managerui.managerui import set_remote_launch_state
+    from common.host import launch_state
 
     try:
         vpx_path = table.get('vpx_path', '')
@@ -151,11 +148,10 @@ def _launch_table(table: dict):
         ui.notify(f'Remote Launching {table_name}...', type='info')
 
         delete_vpinball_log_on_start_if_configured(SettingsConfig.from_config(cfg))
-        stop_dof_service()
-        stop_libdmdutil_service(clear=False)
+        events.emit(events.TABLE_LAUNCHING, table=None, ini_config=cfg)
 
         # Signal to frontend that we're launching
-        set_remote_launch_state(True, table_name)
+        launch_state.set_launching(table_name)
 
         # Run the launch in a background thread so UI stays responsive
         global_ini_override = cfg.config['Settings'].get('globalinioverride', '').strip()
@@ -200,8 +196,8 @@ def _launch_table(table: dict):
                 process.wait()
             finally:
                 # Clear the launch state when done
-                set_remote_launch_state(False, None)
-                start_dof_service_if_enabled(cfg)
+                launch_state.clear()
+                events.emit(events.TABLE_EXITED, table=None, ini_config=cfg)
 
         # Run in background thread
         thread = threading.Thread(target=run_and_wait, daemon=True)
@@ -209,11 +205,11 @@ def _launch_table(table: dict):
         return True
     except Exception as e:
         logger.exception("Remote launch failed")
-        set_remote_launch_state(False, None)
+        launch_state.clear()
         try:
-            start_dof_service_if_enabled(_get_ini_config())
+            events.emit(events.TABLE_EXITED, table=None, ini_config=_get_ini_config())
         except Exception:
-            logger.exception("Could not restart DOF after a failed remote launch")
+            logger.exception("Could not restore feedback hardware after a failed launch")
         ui.notify(f'Failed to launch: {e}', type='negative')
         return False
 
@@ -569,12 +565,12 @@ def show_vpx_game_controls():
                     if _table_matches_filters(t, filters)
                 }
             else:
-                # VPSId-based collection
-                vpsids = _get_collection_vpsids(collection)
+                # Collection with an explicit member list
+                members = _get_collection_members(collection)
                 launch_state['filtered_options'] = {
                     t['vpx_path']: t['display_name']
                     for t in launch_state['tables']
-                    if t.get('vpsid') in vpsids
+                    if t.get('vpinfe_id') and t['vpinfe_id'] in members
                 }
 
         def on_collection_change(e):

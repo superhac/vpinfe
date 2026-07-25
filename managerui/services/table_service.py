@@ -8,10 +8,13 @@ from typing import Dict, List, Optional
 
 from common.iniconfig import IniConfig
 from common.config_access import MediaConfig, SettingsConfig
-from common.table_repository import get_missing_tables, get_table_rows, refresh_table
-from common import metadata_service
-from common.vpxcollections import VPXCollections
-from common.vpxparser import VPXParser
+from common.tables import table_repository
+from common.tables.table_repository import get_missing_tables, get_table_rows, refresh_table
+from common.tables import metadata_service
+from common.tables.vpxcollections import VPXCollections
+from common.tables.game_files import default_game_file
+from common.tables.table_metadata import section as meta_section
+from common.tables.vpxparser import VPXParser
 
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_tables_path
 from managerui.services import table_index_service
@@ -37,7 +40,7 @@ def normalize_table_rating(value) -> int:
 
 def ensure_vpsdb_downloaded() -> bool:
     global _vpsdb_cache
-    from common.vpsdb import VPSdb
+    from common.online.vpsdb import VPSdb
     try:
         config = _fresh_config()
         VPSdb(SettingsConfig.from_config(config).table_root_dir, config)
@@ -48,24 +51,11 @@ def ensure_vpsdb_downloaded() -> bool:
         return VPSDB_JSON_PATH.exists()
 
 
-def get_vpsid_collections_map() -> Dict[str, List[str]]:
-    vpsid_to_collections: Dict[str, List[str]] = {}
-    try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        for collection_name in collections.get_collections_name():
-            if collections.is_filter_based(collection_name):
-                continue
-            try:
-                for vpsid in collections.get_vpsids(collection_name):
-                    vpsid_to_collections.setdefault(vpsid, []).append(collection_name)
-            except Exception:
-                pass
-    except Exception:
-        pass
-    return vpsid_to_collections
+def get_table_collections_map() -> Dict[str, List[str]]:
+    return table_repository.collections_by_table_id()
 
 
-def get_vpsid_collections() -> List[str]:
+def get_table_collections() -> List[str]:
     result = []
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
@@ -77,10 +67,10 @@ def get_vpsid_collections() -> List[str]:
     return result
 
 
-def add_table_to_collection(vpsid: str, collection_name: str) -> bool:
+def add_table_to_collection(table_id: str, collection_name: str) -> bool:
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
-        collections.add_vpsid(collection_name, vpsid)
+        collections.add_member(collection_name, table_id)
         collections.save()
         return True
     except Exception as e:
@@ -160,16 +150,11 @@ def _safe_upload_name(filename: str) -> str:
 
 
 def _find_vpx_file(table_dir: Path, preferred_filename: str = "") -> Path:
-    preferred_name = Path(preferred_filename or "").name
-    if preferred_name:
-        preferred = table_dir / preferred_name
-        if preferred.exists() and preferred.is_file() and preferred.suffix.lower() == ".vpx":
-            return preferred
-
-    vpx_files = sorted(path for path in table_dir.iterdir() if path.is_file() and path.suffix.lower() == ".vpx")
-    if not vpx_files:
+    names = [path.name for path in table_dir.iterdir() if path.is_file()]
+    chosen = default_game_file(names, table_dir.name, Path(preferred_filename or "").name)
+    if not chosen:
         raise FileNotFoundError(f"No .vpx found in {table_dir}")
-    return vpx_files[0]
+    return table_dir / chosen
 
 
 def _find_directb2s_file(table_dir: Path, preferred_stem: str = "") -> Optional[Path]:
@@ -282,28 +267,29 @@ def associate_vps_to_folder(
     download_media: bool = False,
     user_media: bool = False,
 ) -> None:
-    from common.metaconfig import MetaConfig
+    from common.tables.metaconfig import MetaConfig
 
     if not table_folder.exists():
         raise FileNotFoundError(f"Folder not found: {table_folder}")
 
-    vpx_files = sorted([path for path in table_folder.glob("*.vpx")])
-    if not vpx_files:
-        vpx_files = sorted([path for path in table_folder.rglob("*.vpx") if path.parent == table_folder])
-    if not vpx_files:
-        raise FileNotFoundError(f"No .vpx found in {table_folder}")
+    meta_path = table_folder / f"{table_folder.name}.info"
+    recorded = ""
+    if meta_path.exists():
+        try:
+            recorded = meta_section(MetaConfig(str(meta_path)).data, "VPXFile").get("filename", "")
+        except Exception:
+            recorded = ""
 
-    vpx_file = vpx_files[0]
+    vpx_file = _find_vpx_file(table_folder, recorded)
     parser = VPXParser()
     vpxdata = parser.singleFileExtract(str(vpx_file))
 
-    meta_path = table_folder / f"{table_folder.name}.info"
     meta = MetaConfig(str(meta_path))
     meta.writeConfigMeta({"vpsdata": vps_entry, "vpxdata": vpxdata})
 
     if user_media:
         from clioptions import _claimMediaForTable
-        from common.table import Table
+        from common.tables.table import Table
 
         config = _fresh_config()
         tabletype = MediaConfig.from_config(config).table_type
@@ -314,7 +300,7 @@ def associate_vps_to_folder(
         meta = MetaConfig(str(meta_path))
 
     if download_media or user_media:
-        from common.vpsdb import VPSdb
+        from common.online.vpsdb import VPSdb
 
         config = _fresh_config()
         vps = VPSdb(SettingsConfig.from_config(config).table_root_dir, config)
@@ -363,7 +349,7 @@ def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> di
     import subprocess
     import sys as _sys
     import platform as _platform
-    from common.launcher import get_effective_launcher
+    from common.host.launcher import get_effective_launcher
 
     cfg = _fresh_config()
     vpxbin = cfg.config['Settings'].get('vpxbinpath', '')

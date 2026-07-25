@@ -11,7 +11,7 @@ from typing import Callable, Optional
 
 from nicegui import context, events, run, ui
 
-from common.table_metadata import reorder_leading_article
+from common.tables.table_metadata import reorder_leading_article
 from managerui.pages.table_dialog_context import TableDialogContext, default_context
 from managerui.pages.dnd_drop_zone import create_drop_zone, DropContext
 from managerui.services import plugin_profile_service, table_index_service, table_service
@@ -26,16 +26,15 @@ ACCEPT_VNI = ['.vni', '.VNI', '.pal', '.PAL']
 normalize_table_rating = table_service.normalize_table_rating
 update_vpinfe_setting = table_service.update_vpinfe_setting
 update_user_setting = table_service.update_user_setting
-get_vpsid_collections = table_service.get_vpsid_collections
-get_vpsid_collections_map = table_service.get_vpsid_collections_map
+get_table_collections = table_service.get_table_collections
 ensure_dir = table_service.ensure_dir
 save_upload_bytes = table_service.save_upload_bytes
 
 
-def add_table_to_collection(vpsid: str, collection_name: str) -> bool:
-    if not table_service.add_table_to_collection(vpsid, collection_name):
+def add_table_to_collection(table_id: str, collection_name: str) -> bool:
+    if not table_service.add_table_to_collection(table_id, collection_name):
         return False
-    table_index_service.add_collection_membership(vpsid, collection_name)
+    table_index_service.add_collection_membership(table_id, collection_name)
     return True
 
 
@@ -470,11 +469,11 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         refresh_rating_ui()
 
             # Collections section - add table to collection
-            vpsid = row_data.get('id', '')
+            table_id = row_data.get('vpinfe_id', '')
             current_collections = row_data.get('collections', [])
-            available_collections = get_vpsid_collections()
+            available_collections = get_table_collections()
 
-            if vpsid and available_collections:
+            if table_id and available_collections:
                 with ui.card().classes('w-full p-4').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);'):
                     ui.label('Collections').classes('text-lg font-semibold mb-3').style('color: var(--ink);')
 
@@ -502,7 +501,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 if not selected:
                                     ui.notify('Please select a collection', type='warning')
                                     return
-                                if add_table_to_collection(vpsid, selected):
+                                if add_table_to_collection(table_id, selected):
                                     ui.notify(f'Added to {selected}', type='positive')
                                     # add_table_to_collection already updates the cache,
                                     # just update the dropdown options
@@ -588,25 +587,12 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             await on_rebuild_meta()
                         with save_client:
                             if update_vpinfe_setting(table_path_str, 'altvpsid', new_value):
+                                # Collections do not move with this any more - membership
+                                # is the table's own id, which a VPS id change cannot touch.
                                 row_data['altvpsid'] = new_value
-                                fallback_id = (row_data.get('id') or '').strip()
-                                try:
-                                    info_path = Path(table_path_str) / f"{Path(table_path_str).name}.info"
-                                    with open(info_path, 'r', encoding='utf-8') as f:
-                                        raw = json.load(f)
-                                    info = raw.get("Info", {})
-                                    fallback_id = (info.get("VPSId") or raw.get("id") or fallback_id).strip()
-                                except Exception:
-                                    pass
-                                effective_id = new_value or fallback_id
-                                vpsid_collections_map = get_vpsid_collections_map()
                                 table_index_service.update_row_by_path(table_path_str, {
                                     'altvpsid': new_value,
-                                    'id': effective_id,
-                                    'collections': vpsid_collections_map.get(effective_id, []),
                                 })
-                                row_data['id'] = effective_id
-                                row_data['collections'] = get_vpsid_collections_map().get(effective_id, [])
                                 ui.notify('Alt VPS ID saved', type='positive')
                                 if on_close:
                                     on_close()

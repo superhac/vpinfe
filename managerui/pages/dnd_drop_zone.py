@@ -177,7 +177,7 @@ def enable_row_drops(zone: ui.element, container: ui.element,
                      resolve_row_context: Callable[[str], DropContext | None]) -> None:
     """Make rows inside container individual drop targets for an existing zone.
 
-    Rows must carry a data-drop-filename attribute; a drop on a row resolves its
+    Rows must carry a data-drop-table-id attribute; a drop on a row resolves its
     DropContext via resolve_row_context (the row under the cursor always wins over
     any checked selection).
     """

@@ -6,7 +6,7 @@ from html import unescape
 from typing import Any
 from xml.etree import ElementTree
 
-from common.vpinplay_runtime import (
+from common.online.vpinplay_runtime import (
     activate_alternate_profile,
     clear_alternate_profile,
     get_alternate_profile_state,

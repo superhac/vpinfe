@@ -20,8 +20,8 @@ _test_config_dir = Path(tempfile.mkdtemp(prefix="vpinfe-score-parser-test-"))
 from common import paths
 paths.USER_ROMS_PATH = _test_config_dir / "roms.json"
 paths.USER_CONFIG_PATH = _test_config_dir / "vpinfe.ini"
-from common import score_parser
-from common.score_parser import ParsedEntry, result_to_jsonable
+from common.tables import score_parser
+from common.tables.score_parser import ParsedEntry, result_to_jsonable
 
 
 class TestScoreParser(unittest.TestCase):

@@ -3,10 +3,10 @@ from __future__ import annotations
 import json
 import logging
 
-from common.collections_service import filter_tables_by_collection, get_collection_names, save_filter_collection
+from common.tables.collections_service import filter_tables_by_collection, get_collection_names, save_filter_collection
 from common.media_paths import table_media_payload
-from common.tablelistfilters import TableListFilters
-from common.table_metadata import (
+from common.tables.tablelistfilters import TableListFilters
+from common.tables.table_metadata import (
     DETECTION_KEYS,
     get_or_create_user_meta,
     load_table_meta,

@@ -1,5 +1,5 @@
 // Reusable drag/drop target for the manager UI. Walks dropped files and folders,
-// streams them to /api/asset-upload/* with their relative paths, and reports status
+// streams them to /api/v1/uploads/* with their relative paths, and reports status
 // back to Python via the NiceGUI global-event bridge (emitEvent -> ui.on).
 (function () {
   if (window.vpinfeDnd) return;
@@ -52,32 +52,26 @@
   }
 
   async function uploadAll(token, files) {
-    const begin = await fetch('/api/asset-upload/begin', { method: 'POST' });
-    const uploadId = (await begin.json()).upload_id;
+    const begin = await fetch('/api/v1/uploads', { method: 'POST' });
+    const uploadId = (await begin.json()).id;
     let done = 0;
     for (const item of files) {
       const form = new FormData();
-      form.append('upload_id', uploadId);
       form.append('relpath', item.relpath);
       form.append('file', item.file, item.file.name);
-      const resp = await fetch('/api/asset-upload/file', { method: 'POST', body: form });
+      const resp = await fetch(`/api/v1/uploads/${uploadId}/files`, { method: 'POST', body: form });
       if (!resp.ok) {
         let message = 'Upload failed';
-        try { message = (await resp.json()).error || message; } catch (e) { /* ignore */ }
-        await fetch('/api/asset-upload/abort', {
-          method: 'POST',
-          body: new URLSearchParams({ upload_id: uploadId }),
-        });
+        // API errors arrive as {"error": {code, message, details}}.
+        try { message = (await resp.json()).error.message || message; } catch (e) { /* ignore */ }
+        await fetch(`/api/v1/uploads/${uploadId}`, { method: 'DELETE' });
         throw new Error(message);
       }
       done += 1;
       emit({ token: token, status: 'progress', done: done, total: files.length, name: item.relpath });
     }
-    const finish = await fetch('/api/asset-upload/finish', {
-      method: 'POST',
-      body: new URLSearchParams({ upload_id: uploadId }),
-    });
-    return { uploadId: uploadId, info: await finish.json() };
+    const summary = await fetch(`/api/v1/uploads/${uploadId}`);
+    return { uploadId: uploadId, info: await summary.json() };
   }
 
   function rootName(files) {
@@ -137,7 +131,7 @@
 
     const rowOf = (target) => {
       const row = target && target.closest ? target.closest('tr') : null;
-      return row && row.querySelector('[data-drop-filename]') ? row : null;
+      return row && row.querySelector('[data-drop-table-id]') ? row : null;
     };
     const clearHighlight = () => {
       el.querySelectorAll('tr.dnd-row-active').forEach((r) => r.classList.remove('dnd-row-active'));
@@ -160,7 +154,7 @@
       clearHighlight();
       if (!row) return;
       e.preventDefault();
-      const rowKey = row.querySelector('[data-drop-filename]').getAttribute('data-drop-filename');
+      const rowKey = row.querySelector('[data-drop-table-id]').getAttribute('data-drop-table-id');
       try {
         const files = await collectFiles(e.dataTransfer);
         if (!files.length) {

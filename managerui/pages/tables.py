@@ -21,7 +21,7 @@ VPSDB_JSON_PATH = table_service.VPSDB_JSON_PATH
 
 # Load vpinfe.ini once to avoid repeated parsing
 from common.iniconfig import IniConfig
-from common.table_metadata import reorder_leading_article
+from common.tables.table_metadata import reorder_leading_article
 _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 #_vpsdb_cache: List[Dict] | None = None
@@ -53,22 +53,22 @@ def normalize_table_rating(value) -> int:
     return table_service.normalize_table_rating(value)
 
 
-def get_vpsid_collections_map() -> Dict[str, List[str]]:
-    """Build a map of VPS ID -> list of collection names (only vpsid type collections)."""
-    return table_service.get_vpsid_collections_map()
+def get_table_collections_map() -> Dict[str, List[str]]:
+    """Collection names keyed by table id, for collections with explicit members."""
+    return table_service.get_table_collections_map()
 
 
-def get_vpsid_collections() -> List[str]:
-    """Get list of all vpsid-type collection names."""
-    return table_service.get_vpsid_collections()
+def get_table_collections() -> List[str]:
+    """Names of the collections a table can be added to by hand."""
+    return table_service.get_table_collections()
 
 
-def add_table_to_collection(vpsid: str, collection_name: str) -> bool:
-    """Add a table (by VPS ID) to a collection. Returns True on success."""
+def add_table_to_collection(table_id: str, collection_name: str) -> bool:
+    """Add a table to a collection. Returns True on success."""
     try:
-        if not table_service.add_table_to_collection(vpsid, collection_name):
+        if not table_service.add_table_to_collection(table_id, collection_name):
             return False
-        table_index_service.add_collection_membership(vpsid, collection_name)
+        table_index_service.add_collection_membership(table_id, collection_name)
         return True
     except Exception as e:
         logger.error(f"Failed to add table to collection: {e}")
@@ -81,7 +81,7 @@ def sync_collections_to_cache():
     Call this after modifying collections outside of add_table_to_collection(),
     such as when removing tables from collections or deleting/renaming collections.
     """
-    table_index_service.sync_collection_memberships(get_vpsid_collections_map())
+    table_index_service.sync_collection_memberships(get_table_collections_map())
 
 
 def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
@@ -610,7 +610,7 @@ def render_panel(tab=None):
             return DropContext(allow_new_table=True)
 
         def _dnd_row_context(row_key: str) -> DropContext | None:
-            row = next((r for r in (_tables_cache() or []) if r.get('filename') == row_key), None)
+            row = next((r for r in (_tables_cache() or []) if r.get('vpinfe_id') == row_key), None)
             if not row:
                 return None
             return DropContext(table_path=row.get('table_path', ''), table_row=row,
@@ -789,7 +789,7 @@ def render_panel(tab=None):
                 batch_label = ui.label('0 tables selected').classes('font-medium').style('color: var(--ink);')
                 batch_collection_select = ui.select(
                     label='Add to Collection',
-                    options=get_vpsid_collections(),
+                    options=get_table_collections(),
                     value=None
                 ).props('dense').classes('w-48').style('color: var(--ink); border: 1px solid var(--line);')
                 batch_add_btn = ui.button('Add to Collection', icon='playlist_add').style('background: var(--neon-purple) !important; color: var(--ink) !important;')
@@ -808,7 +808,7 @@ def render_panel(tab=None):
 
         with table_container:
             table = (
-                ui.table(columns=columns, rows=initial_rows, row_key='filename', selection='multiple',
+                ui.table(columns=columns, rows=initial_rows, row_key='vpinfe_id', selection='multiple',
                          on_select=on_selection_change, pagination={'rowsPerPage': 25})
                   .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
                   .on('row-click', on_row_click)
@@ -817,7 +817,7 @@ def render_panel(tab=None):
             )
             # Add custom slot for name column to include status badges, links, and collections
             table.add_slot('body-cell-name', '''
-                <q-td :props="props" :data-drop-filename="props.row.filename">
+                <q-td :props="props" :data-drop-table-id="props.row.vpinfe_id">
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="font-size: 1.08rem; font-weight: 600; line-height: 1.25; color: var(--ink);">{{ props.value }}</span>
@@ -915,8 +915,8 @@ def render_panel(tab=None):
                             const start = (p.page - 1) * p.rowsPerPage;
                             const pageRows = rows.slice(start, start + p.rowsPerPage);
                             if (!pageRows.length) return false;
-                            const selKeys = new Set(sel.map(r => r.filename));
-                            return pageRows.every(r => selKeys.has(r.filename));
+                            const selKeys = new Set(sel.map(r => r.vpinfe_id));
+                            return pageRows.every(r => selKeys.has(r.vpinfe_id));
                         })()"
                         @update:model-value="() => $parent.$emit('toggle_select_all')"
                         label="Select Page"
@@ -965,16 +965,16 @@ def render_panel(tab=None):
             added = 0
             skipped = 0
             for row in selected:
-                vpsid = row.get('id', '')
-                if vpsid:
-                    if add_table_to_collection(vpsid, collection):
+                table_id = row.get('vpinfe_id', '')
+                if table_id:
+                    if add_table_to_collection(table_id, collection):
                         added += 1
                 else:
                     skipped += 1
             if added > 0:
                 msg = f'Added {added} table{"s" if added != 1 else ""} to {collection}'
                 if skipped > 0:
-                    msg += f' ({skipped} skipped - no VPS ID)'
+                    msg += f' ({skipped} skipped - no table id)'
                 ui.notify(msg, type='positive')
                 table.selected.clear()
                 table.update()
@@ -997,17 +997,17 @@ def render_panel(tab=None):
             page_rows = rows[start:end]
 
             # If all current page rows are already selected, deselect them; otherwise select them
-            selected_keys = {r.get('filename') for r in table.selected}
-            page_keys = {r.get('filename') for r in page_rows}
+            selected_keys = {r.get('vpinfe_id') for r in table.selected}
+            page_keys = {r.get('vpinfe_id') for r in page_rows}
             all_page_selected = page_keys.issubset(selected_keys) and len(page_keys) > 0
 
             if all_page_selected:
                 # Deselect current page rows (keep others)
-                table.selected = [r for r in table.selected if r.get('filename') not in page_keys]
+                table.selected = [r for r in table.selected if r.get('vpinfe_id') not in page_keys]
             else:
                 # Add current page rows to selection (avoid duplicates)
                 for r in page_rows:
-                    if r.get('filename') not in selected_keys:
+                    if r.get('vpinfe_id') not in selected_keys:
                         table.selected.append(r)
             table.update()
             # Update batch bar

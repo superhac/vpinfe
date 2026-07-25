@@ -42,6 +42,15 @@ JavaScript-facing APIs, and snake_case is equally standard (GitHub, Stripe and S
 it). snake_case wins for this codebase because it matches Python, so nothing is translated at
 the boundary, and it matches the JSON the app already returned.
 
+### Spelling
+
+US English, in identifiers, comments and docs alike — `color`, `analyze`, `behavior`,
+`authorization`. The codebase is already consistent about it, and `config_access.py` even
+maps `colour` → `color` on the way in, so the choice is settled rather than open.
+
+It matters most in a field name: `alt_color` is part of the API contract, and a spelling
+change there would be a breaking change for a caller.
+
 ### Config keys
 
 `vpinfe.ini` keys are lowercase and unseparated (`tablerootdir`, `manageruiport`). That is
@@ -52,12 +61,20 @@ established and user-facing; leave it alone. `.info` keys follow their existing 
 - A new subsystem gets its own top-level package, not another module in `common/`. `httpapi/`
   is the current example.
 - Keep `common/` UI-independent.
+- `common/` is a layer, not a bucket. Domain code goes in `common/tables/`, `common/online/`
+  or `common/host/`; `common/` itself holds only what knows nothing about any of them, and may
+  never import from those packages. See `docs/common.md`.
 - Route handlers stay thin. Logic belongs in a service where the other callers can reach it.
 
 ## Comments and docstrings
 
 The codebase is deliberately sparse — around 5% of lines are comments or docstrings. Match
 that.
+
+Treat the ratio as a smell test rather than a budget. It misfires on short files: a forty-line
+module whose two public functions each state a real contract can sit well above 5% and be
+right. What matters is whether the prose restates the code — cut it — or states something the
+caller cannot infer from the name and signature, which is worth keeping.
 
 - **Module docstring: one line.** A second only if the module's *existence* is non-obvious.
   Long rationale goes in `docs/` with a pointer, not in the file.
@@ -168,6 +185,11 @@ a problem no longer destroys the log of the run that showed it.
 - **Theme** — a player-facing frontend package.
 - **Extension** — a feature extending VPinFE under a manifest. Never "plugin", which is
   reserved for VPX standalone plugins.
+- **Third-party** — a library VPinFE bundles and loads at runtime, written by someone else
+  and not installed by the user: DOF and libdmdutil today. They ship in `third-party/` and
+  are loaded through `common/third_party.py`. They are neither extensions (no manifest,
+  nothing declared) nor plugins (that word belongs to VPX standalone), so say "third-party"
+  and not "integration" or "external service".
 
 A table is not permanently one `.vpx`; prefer "game file" when that is what is meant.
 

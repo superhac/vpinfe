@@ -5,7 +5,7 @@ import socket
 from io import BytesIO
 
 from common.config_access import DisplayConfig, MediaConfig, NetworkConfig, SettingsConfig, VPinPlayConfig
-from common.table_metadata import is_truthy
+from common.values import is_truthy
 
 
 def get_mainmenu_config(iniconfig):

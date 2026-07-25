@@ -4,8 +4,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from common import launcher
-from common.launcher import (
+from common.host import launcher
+from common.host.launcher import (
     build_masked_tableini_path,
     build_vpx_launch_command,
     get_plugin_profile_from_meta,

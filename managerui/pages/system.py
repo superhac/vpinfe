@@ -12,7 +12,7 @@ from pathlib import Path
 from nicegui import context, run, ui
 
 from common.iniconfig import IniConfig
-from common.app_updater import get_install_context
+from common.online.app_updater import get_install_context
 from frontend.chromium_manager import get_chromium_path
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 from managerui.services import system_service
