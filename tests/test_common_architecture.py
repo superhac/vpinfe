@@ -1,3 +1,4 @@
+import os
 import configparser
 import json
 import unittest
@@ -194,7 +195,8 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertTrue(SettingsConfig.from_config(parser).disable_default_chrome_options)
 
     def test_media_paths_apply_and_payload_use_shared_specs(self) -> None:
-        table = SimpleNamespace(fullPathTable="/tmp/Table", TableImagePath=None, BGImagePath=None)
+        root = os.path.join(os.sep, "tmp", "Table")
+        table = SimpleNamespace(fullPathTable=root, TableImagePath=None, BGImagePath=None)
 
         apply_media_paths(
             table,
@@ -203,10 +205,11 @@ class TestCommonArchitecture(unittest.TestCase):
             table_type="fss",
         )
 
-        self.assertEqual(table.BGImagePath, "/tmp/Table/bg.png")
-        self.assertEqual(table.TableImagePath, "/tmp/Table/medias/fss.png")
+        self.assertEqual(table.BGImagePath, os.path.join(root, "bg.png"))
+        self.assertEqual(table.TableImagePath, os.path.join(root, "medias", "fss.png"))
         self.assertEqual(media_filename_map("fss")["fss"], "fss.png")
-        self.assertEqual(table_media_payload(table)["TableImagePath"], "/tmp/Table/medias/fss.png")
+        self.assertEqual(table_media_payload(table)["TableImagePath"],
+                         os.path.join(root, "medias", "fss.png"))
 
     def test_claim_media_for_table_uses_dynamic_table_type_keys(self) -> None:
         with TemporaryDirectory() as tmp:
