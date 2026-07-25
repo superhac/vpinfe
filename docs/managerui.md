@@ -231,7 +231,7 @@ Layers, bottom up:
 - `services/asset_analyzer_service.py` opens a source (zip/rar/7z/directory/single file) behind one listing API and detects what it holds without extracting. It returns an `AnalysisResult` (detected assets, unrecognized paths, and a parsed bundle `.info`). It also owns the RAR-tool helpers (`configure_rar_tool`, `rar_tool_available`, `rar_tool_hint`).
 - `services/asset_import_service.py` turns an `AnalysisResult` plus a target context into an `ImportPlan` (`build_import_plan`), then runs it (`execute_import_plan`) by delegating to the existing `table_service`/`media_service` write primitives. It owns the `.info` merge (`merge_info`) and the media-slot plan (`build_media_slot_plan`).
 - `services/upload_session_service.py` provides streaming, sanitized temp-file sessions with a size cap and TTL sweep. It is transport-agnostic: anything that can stage files can drive an import.
-- `upload_api.py` is an `APIRouter` mounted from `managerui.py` via `register_routes(app)`, exposing `/api/asset-upload/*` (begin/file/finish/abort, analyze/plan/import, vps-search). The UI and any non-browser caller use the same routes.
+- Upload and import routes live in `httpapi/uploads.py` under `/api/v1/uploads/*`, not in the Manager UI. `managerui/static/dnd_upload.js` is one client of them; any non-browser caller uses the same routes. See `docs/http_api.md`.
 
 UI pieces:
 

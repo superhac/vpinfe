@@ -40,6 +40,14 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/health` | Liveness |
 | GET | `/api/v1/openapi.json` | Generated OpenAPI spec |
 | GET | `/api/v1/docs` | Swagger UI |
+| POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
+| POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
+| GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count", "total_bytes"}` |
+| DELETE | `/api/v1/uploads/{id}` | Abort a session |
+| GET | `/api/v1/uploads/{id}/analysis` | Analyse what was uploaded |
+| POST | `/api/v1/uploads/{id}/plan` | Build an import plan |
+| POST | `/api/v1/uploads/{id}/import` | Execute the plan |
+| GET | `/api/v1/vps/search?q=&limit=` | VPSdb lookup |
 
 Discovery is the entry point: an integrator learns what an instance offers by asking it,
 rather than matching a version number against a document.

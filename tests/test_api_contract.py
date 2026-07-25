@@ -1,9 +1,9 @@
-"""Pins the HTTP behaviour of the endpoints that predate /api/v1.
+"""Pins the HTTP behaviour every in-repo consumer depends on.
 
-These endpoints have live consumers - themes poll /api/remote-launch at 1 Hz, the
-mobile page links to /api/download-table-vpxz, the Manager UI drag-and-drop uses
-/api/asset-upload/* - so moving them under /api/v1 has to leave them answering
-exactly as they do now. This is the safety net for that move.
+The drag-and-drop client, the theme frontend's remote-launch poll and the mobile
+page's download link all speak to these routes, so a change here is a change a
+user can see. Endpoints keep their entry once they move under /api/v1, which is
+what makes a move provably behaviour-preserving.
 
 Runs the app in a subprocess with a throwaway config dir: common.paths resolves
 CONFIG_DIR at import time, so isolation is only reliable in a fresh interpreter.
@@ -37,7 +37,7 @@ def _run_probe() -> dict:
             f"[Settings]\ntablerootdir = {tables_dir}\n", encoding="utf-8")
 
         proc = subprocess.run(
-            [sys.executable, "-m", "tests.legacy_api_probe"],
+            [sys.executable, "-m", "tests.api_probe"],
             cwd=str(REPO_ROOT), env=env, capture_output=True, text=True, timeout=180,
         )
     stdout = proc.stdout.strip().splitlines()
@@ -47,15 +47,17 @@ def _run_probe() -> dict:
     return payload
 
 
-class LegacyApiContractTests(unittest.TestCase):
-    """Every assertion here describes today's behaviour. If one fails after a route
-    move, the move changed something a live consumer can see."""
+class ApiContractTests(unittest.TestCase):
+    """Each assertion describes behaviour a consumer relies on. A failure after a
+    route move means the move changed something visible."""
 
     @classmethod
     def setUpClass(cls) -> None:
         # Deliberately not skipped on failure: a safety net that quietly opts out
         # when it cannot run is not a safety net.
         cls.probe = _run_probe()
+
+    # --- not yet moved -------------------------------------------------------
 
     def test_remote_launch_shape_and_cors(self) -> None:
         """Themes poll this at 1 Hz cross-origin from the asset server."""
@@ -77,25 +79,32 @@ class LegacyApiContractTests(unittest.TestCase):
         self.assertEqual(entry["status"], 400)
         self.assertEqual(entry["json"], {"error": "Invalid table path"})
 
-    def test_upload_begin_returns_an_upload_id(self) -> None:
-        entry = self.probe["upload_begin"]
+    # --- uploads, now under /api/v1 ------------------------------------------
 
-        self.assertEqual(entry["status"], 200)
-        self.assertTrue(entry["json"].get("upload_id"))
+    def test_the_drag_and_drop_upload_sequence_works_end_to_end(self) -> None:
+        """begin -> add file -> summary -> delete, exactly as dnd_upload.js drives it."""
+        begin = self.probe["upload_begin"]
+        self.assertEqual(begin["status"], 200)
+        self.assertTrue(begin["json"].get("id"), "the client reads .id")
 
-    def test_upload_abort_acknowledges(self) -> None:
-        entry = self.probe["upload_abort"]
+        added = self.probe["upload_add_file"]
+        self.assertEqual(added["status"], 200)
+        self.assertEqual(added["json"], {"bytes": 5})
 
-        self.assertEqual(entry["status"], 200)
-        self.assertEqual(entry["json"], {"ok": True})
+        summary = self.probe["upload_summary"]
+        self.assertEqual(summary["status"], 200)
+        self.assertEqual(summary["json"], {"file_count": 1, "total_bytes": 5})
 
-    def test_an_unknown_upload_session_is_a_400_with_a_bare_error_string(self) -> None:
-        """Legacy shape: {"error": "..."} - not the /api/v1 envelope."""
-        for key in ("upload_unknown_session", "upload_analyze_unknown"):
+        deleted = self.probe["upload_delete"]
+        self.assertEqual(deleted["status"], 200)
+        self.assertEqual(deleted["json"], {"ok": True})
+
+    def test_an_unknown_upload_session_is_a_404_in_the_envelope(self) -> None:
+        for key in ("upload_unknown_session", "upload_analysis_unknown"):
             with self.subTest(endpoint=key):
                 entry = self.probe[key]
-                self.assertEqual(entry["status"], 400)
-                self.assertIsInstance(entry["json"].get("error"), str)
+                self.assertEqual(entry["status"], 404)
+                self.assertEqual(entry["json"]["error"]["code"], "not_found")
 
     def test_vps_search_returns_a_results_list(self) -> None:
         entry = self.probe["vps_search"]
@@ -103,8 +112,19 @@ class LegacyApiContractTests(unittest.TestCase):
         self.assertEqual(entry["status"], 200)
         self.assertIsInstance(entry["json"].get("results"), list)
 
-    def test_every_legacy_endpoint_answers_as_json(self) -> None:
+    def test_the_old_upload_routes_are_gone(self) -> None:
+        """Their only consumer was our own drag-and-drop client, which moved with them.
+
+        Not asserted as a clean 404: NiceGUI's own 404 handler renders a page and
+        needs the app config that ui.run() installs, which this harness never calls.
+        Under a real server it is a 404; here the point is only that it no longer serves.
+        """
+        self.assertGreaterEqual(self.probe["legacy_upload_gone"]["status"], 400)
+
+    def test_every_live_endpoint_answers_as_json(self) -> None:
         for name, entry in self.probe.items():
+            if name == "legacy_upload_gone":
+                continue  # handled by NiceGUI, not us - see above
             with self.subTest(endpoint=name):
                 self.assertEqual(entry["content_type"], "application/json")
 

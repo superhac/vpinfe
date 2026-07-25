@@ -1,6 +1,6 @@
 """Drives the app's HTTP surface and prints the result as JSON.
 
-Run as a subprocess by tests/test_legacy_api_contract.py, not directly. It needs a
+Run as a subprocess by tests/test_api_contract.py, not directly. It needs a
 private VPINFE_CONFIG_DIR set before any common/ import, which only a fresh
 interpreter can guarantee.
 """
@@ -43,15 +43,23 @@ def probe() -> dict:
     record("archive_missing", client.get("/api/download-table-vpxz?name=__no_such_table__"))
     record("archive_traversal", client.get("/api/download-table-vpxz?name=../../etc"))
 
-    begin = client.post("/api/asset-upload/begin")
+    # Uploads now live under /api/v1. Walk the same sequence the drag-and-drop
+    # client does, so a break in the client's flow shows up here.
+    begin = client.post("/api/v1/uploads")
     record("upload_begin", begin)
-    upload_id = (begin.json() or {}).get("upload_id", "")
-    record("upload_abort", client.post("/api/asset-upload/abort", data={"upload_id": upload_id}))
-    record("upload_unknown_session",
-           client.post("/api/asset-upload/finish", data={"upload_id": "no-such-session"}))
-    record("upload_analyze_unknown",
-           client.post("/api/asset-upload/analyze", json={"upload_id": "no-such-session"}))
-    record("vps_search", client.post("/api/asset-upload/vps-search", json={"q": "", "limit": 1}))
+    upload_id = (begin.json() or {}).get("id", "")
+
+    form = {"relpath": "Example/Example.txt"}
+    files = {"file": ("Example.txt", b"hello", "text/plain")}
+    record("upload_add_file",
+           client.post(f"/api/v1/uploads/{upload_id}/files", data=form, files=files))
+    record("upload_summary", client.get(f"/api/v1/uploads/{upload_id}"))
+    record("upload_delete", client.delete(f"/api/v1/uploads/{upload_id}"))
+
+    record("upload_unknown_session", client.get("/api/v1/uploads/no-such-session"))
+    record("upload_analysis_unknown", client.get("/api/v1/uploads/no-such-session/analysis"))
+    record("vps_search", client.get("/api/v1/vps/search?q=&limit=1"))
+    record("legacy_upload_gone", client.post("/api/asset-upload/begin"))
 
     return result
 
