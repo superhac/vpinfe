@@ -26,7 +26,15 @@ def _run_probe() -> dict:
     with TemporaryDirectory() as tmp:
         config_dir = Path(tmp) / "config"
         tables_dir = Path(tmp) / "tables"
-        tables_dir.mkdir(parents=True)
+        table = tables_dir / "Example Table (Bally 1990)"
+        table.mkdir(parents=True)
+        (table / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
+        (table / "Example Table (Bally 1990).info").write_text(json.dumps({
+            "Info": {"Title": "Example Table", "Manufacturer": "Bally", "Year": "1990",
+                     "Type": "SS", "VPSId": "vps-example"},
+            "VPXFile": {"filename": "Example Table (Bally 1990).vpx", "rom": "exmpl"},
+            "User": {"Rating": 3},
+        }), encoding="utf-8")
 
         env = dict(os.environ)
         env["VPINFE_CONFIG_DIR"] = str(config_dir)
@@ -67,17 +75,58 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(entry["json"], {"launching": False, "table_name": None})
         self.assertEqual(entry["cors"], "*", "themes call this from another origin")
 
-    def test_archive_reports_a_missing_table_as_404_json(self) -> None:
-        entry = self.probe["archive_missing"]
+    # --- tables, and the archive that used to be /api/download-table-vpxz -----
 
-        self.assertEqual(entry["status"], 404)
-        self.assertEqual(entry["json"], {"error": "Table not found"})
+    def test_listing_tables_returns_addressable_resources(self) -> None:
+        entry = self.probe["tables_list"]
 
-    def test_archive_rejects_a_path_traversal_attempt(self) -> None:
-        entry = self.probe["archive_traversal"]
+        self.assertEqual(entry["status"], 200)
+        body = entry["json"]
+        self.assertEqual(body["total"], 1)
+        table = body["tables"][0]
+        self.assertTrue(table["id"], "every listed table is addressable")
+        self.assertEqual(table["vps_id"], "vps-example", "correlation, not identity")
+        self.assertEqual(table["name"], "Example Table")
 
-        self.assertEqual(entry["status"], 400)
-        self.assertEqual(entry["json"], {"error": "Invalid table path"})
+    def test_a_table_resource_links_to_its_sub_resources(self) -> None:
+        table = self.probe["table_get"]["json"]
+
+        self.assertEqual(self.probe["table_get"]["status"], 200)
+        self.assertEqual(table["links"]["files"], f"/api/v1/tables/{table['id']}/files")
+        self.assertEqual(table["links"]["archive"], f"/api/v1/tables/{table['id']}/archive")
+
+    def test_game_files_are_a_list_even_though_there_is_one_today(self) -> None:
+        """A table is not permanently one .vpx; the shape says so now."""
+        entry = self.probe["table_files"]
+
+        self.assertEqual(entry["status"], 200)
+        files = entry["json"]["files"]
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0]["format"], "vpx")
+        self.assertTrue(files[0]["default"])
+        self.assertTrue(files[0]["available"])
+
+    def test_archive_downloads_with_the_progress_cookie_preserved(self) -> None:
+        """The mobile page watches for this cookie to know the download started."""
+        entry = self.probe["table_archive"]
+
+        self.assertEqual(entry["status"], 200)
+        self.assertEqual(entry["content_type"], "application/octet-stream")
+        self.assertIn(".vpxz", entry["disposition"])
+        self.assertIn("vpinfe_vpxz_download_abc123=1", entry["set_cookie"] or "")
+        self.assertGreater(entry["bytes"], 0)
+
+    def test_an_unknown_table_is_a_404_in_the_envelope(self) -> None:
+        for key in ("table_unknown", "archive_unknown"):
+            with self.subTest(endpoint=key):
+                entry = self.probe[key]
+                self.assertEqual(entry["status"], 404)
+                self.assertEqual(entry["json"]["error"]["code"], "not_found")
+
+    def test_the_old_archive_route_is_gone(self) -> None:
+        """Addressing by id also retires the path-traversal case the old route had
+        to guard: an id either maps to a known table or it does not exist."""
+        self.assertGreaterEqual(self.probe["legacy_archive_gone"]["status"], 400)
 
     # --- uploads, now under /api/v1 ------------------------------------------
 
@@ -123,8 +172,8 @@ class ApiContractTests(unittest.TestCase):
 
     def test_every_live_endpoint_answers_as_json(self) -> None:
         for name, entry in self.probe.items():
-            if name == "legacy_upload_gone":
-                continue  # handled by NiceGUI, not us - see above
+            if name in ("legacy_upload_gone", "legacy_archive_gone", "table_archive"):
+                continue  # NiceGUI's own 404s, and the archive is a file download
             with self.subTest(endpoint=name):
                 self.assertEqual(entry["content_type"], "application/json")
 

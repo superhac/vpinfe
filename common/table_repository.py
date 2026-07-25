@@ -76,6 +76,11 @@ def _collections_map() -> Dict[str, List[str]]:
     return mapping
 
 
+def collections_map() -> Dict[str, List[str]]:
+    """Collection names keyed by the VPS-derived id membership is stored under."""
+    return _collections_map()
+
+
 def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
     meta = table.metaConfig or {}
     info = section(meta, "Info")

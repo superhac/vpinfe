@@ -174,6 +174,14 @@ try:
 except Exception:
     logger.exception("Theme registry initialization failed")
 
+# Give every table a stable id. One-time cost per library; a no-op afterwards.
+try:
+    from common.table_identity import ensure_unique_ids
+    from common.table_repository import ensure_tables_loaded
+    ensure_unique_ids(ensure_tables_loaded())
+except Exception:
+    logger.exception("Table id backfill failed; tables without an id are not addressable")
+
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
 start_dof_service_if_enabled(iniconfig)

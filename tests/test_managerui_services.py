@@ -152,8 +152,8 @@ class ManagerUiServiceTests(unittest.TestCase):
         ])
 
         self.assertEqual(rows, [
-            {"display_name": "Centaur (Bally 1981)", "table_dir_name": "Centaur"},
-            {"display_name": "No Frills", "table_dir_name": "No Frills"},
+            {"display_name": "Centaur (Bally 1981)", "table_dir_name": "Centaur", "vpinfe_id": ""},
+            {"display_name": "No Frills", "table_dir_name": "No Frills", "vpinfe_id": ""},
         ])
 
     def test_config_field_metadata(self):

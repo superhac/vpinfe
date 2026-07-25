@@ -40,6 +40,10 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/health` | Liveness |
 | GET | `/api/v1/openapi.json` | Generated OpenAPI spec |
 | GET | `/api/v1/docs` | Swagger UI |
+| GET | `/api/v1/tables` | List tables (`q`, `limit`, `offset`) |
+| GET | `/api/v1/tables/{id}` | One table |
+| GET | `/api/v1/tables/{id}/files` | The table's game files |
+| GET | `/api/v1/tables/{id}/archive` | Download the table folder as `.vpxz` |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
 | GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count", "total_bytes"}` |
@@ -72,6 +76,15 @@ rather than matching a version number against a document.
 Links are relative so they stay correct behind a reverse proxy. A link that is present but
 `null` is a known part of the contract that this instance doesn't offer — clients should
 branch on that rather than on its absence.
+
+## Conventions
+
+Field names are `snake_case`, matching Python's own convention (PEP 8) so nothing has to be
+translated on the way out, and matching the repo's existing JSON. Plenty of JSON APIs use
+snake_case for the same reason — GitHub's and Stripe's among them.
+
+A table resource carries `id` (this install's id) and `vps_id` (correlation with VPSdb and
+friends). Sub-resources are linked from `links` rather than assembled by the client.
 
 ## Errors
 

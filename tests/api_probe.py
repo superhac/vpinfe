@@ -40,8 +40,26 @@ def probe() -> dict:
         result[name] = entry
 
     record("remote_launch", client.get("/api/remote-launch"))
-    record("archive_missing", client.get("/api/download-table-vpxz?name=__no_such_table__"))
-    record("archive_traversal", client.get("/api/download-table-vpxz?name=../../etc"))
+
+    # Tables, and the sub-resources that used to be /api/download-table-vpxz.
+    listing = client.get("/api/v1/tables")
+    record("tables_list", listing)
+    tables = (listing.json() or {}).get("tables") or []
+    table_id = tables[0]["id"] if tables else ""
+
+    record("table_get", client.get(f"/api/v1/tables/{table_id}"))
+    record("table_files", client.get(f"/api/v1/tables/{table_id}/files"))
+    archive = client.get(f"/api/v1/tables/{table_id}/archive?download_token=abc123")
+    result["table_archive"] = {
+        "status": archive.status_code,
+        "content_type": (archive.headers.get("content-type") or "").split(";")[0],
+        "disposition": archive.headers.get("content-disposition"),
+        "set_cookie": archive.headers.get("set-cookie"),
+        "bytes": len(archive.content),
+    }
+    record("table_unknown", client.get("/api/v1/tables/no-such-id"))
+    record("archive_unknown", client.get("/api/v1/tables/no-such-id/archive"))
+    record("legacy_archive_gone", client.get("/api/download-table-vpxz?name=whatever"))
 
     # Uploads now live under /api/v1. Walk the same sequence the drag-and-drop
     # client does, so a break in the client's flow shows up here.

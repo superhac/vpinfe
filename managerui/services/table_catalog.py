@@ -17,6 +17,7 @@ def scan_mobile_tables(reload: bool = False) -> List[Dict]:
             "year": str(row.get("year", "") or ""),
             "table_dir_name": Path(table_path).name if table_path else "",
             "table_path": table_path,
+            "vpinfe_id": row.get("vpinfe_id", ""),
         })
     return tables
 
@@ -31,6 +32,7 @@ def build_mobile_table_rows(tables: List[Dict]) -> List[Dict]:
         rows.append({
             "display_name": display,
             "table_dir_name": table.get("table_dir_name", ""),
+            "vpinfe_id": table.get("vpinfe_id", ""),
         })
     return rows
 
@@ -62,6 +64,7 @@ def scan_launchable_tables(tables_path: str | None = None) -> List[Dict]:
             "vpx_path": vpx_path,
             "table_path": table_path,
             "vpsid": row.get("id") or row.get("vpsid", ""),
+            "vpinfe_id": row.get("vpinfe_id", ""),
             "manufacturer": manufacturer,
             "year": str(year) if year else "",
             "type": row.get("type", ""),

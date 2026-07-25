@@ -22,7 +22,6 @@ from .pages import vpinplay_player as tab_vpinplay_player
 from .pages import logs as tab_logs
 from .page_registry import NAV_PAGES, PAGE_ALIASES
 from .services import app_control
-from .services.archive_service import cleanup_archive, create_vpxz_archive
 from .ui_helpers import load_manager_styles, nav_button, run_page_teardowns, set_shell_save_bar
 import asyncio
 import threading
@@ -407,38 +406,6 @@ def get_remote_launch_state():
             "Access-Control-Allow-Methods": "GET",
             "Access-Control-Allow-Headers": "*",
         }
-    )
-
-
-@app.get('/api/download-table-vpxz')
-def download_table_vpxz(name: str, download_token: str | None = None):
-    """Zip a table folder and serve it as a .vpxz download, then clean up."""
-    from starlette.responses import FileResponse
-    from starlette.background import BackgroundTask
-
-    try:
-        archive = create_vpxz_archive(name)
-    except ValueError:
-        return JSONResponse(content={"error": "Invalid table path"}, status_code=400)
-    except FileNotFoundError:
-        return JSONResponse(content={"error": "Table not found"}, status_code=404)
-
-    logger.info("Created download archive: %s", archive.path)
-
-    def cleanup():
-        cleanup_archive(archive)
-        logger.info("Cleaned up temp archive: %s", archive.temp_dir)
-
-    headers = {}
-    if download_token and download_token.isalnum():
-        headers["Set-Cookie"] = f"vpinfe_vpxz_download_{download_token}=1; Max-Age=60; Path=/; SameSite=Lax"
-
-    return FileResponse(
-        archive.path,
-        media_type='application/octet-stream',
-        filename=archive.filename,
-        headers=headers,
-        background=BackgroundTask(cleanup),
     )
 
 
