@@ -55,12 +55,12 @@ class DiscoveryTests(unittest.TestCase):
         self._isolated()
         capabilities.declare(capabilities.Capability(
             name="library",
-            residency=capabilities.RESIDENCY_CATALOG,
+            residency=[capabilities.RESIDENCY_CATALOG],
             description="Table inventory",
         ))
         capabilities.declare(capabilities.Capability(
             name="peripherals",
-            residency=capabilities.RESIDENCY_PLAY_HOST,
+            residency=[capabilities.RESIDENCY_PLAY_HOST],
             is_available=lambda: (False, "No DOF hardware detected"),
         ))
 
@@ -70,11 +70,34 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(names, sorted(names), "sorted by name for a stable payload")
 
         by_name = {c["name"]: c for c in declared}
-        self.assertEqual(by_name["library"]["residency"], "catalog")
+        self.assertEqual(by_name["library"]["residency"], ["catalog"])
         self.assertTrue(by_name["library"]["available"])
         self.assertIsNone(by_name["library"]["reason"])
         self.assertFalse(by_name["peripherals"]["available"])
         self.assertEqual(by_name["peripherals"]["reason"], "No DOF hardware detected")
+
+    def test_a_capability_can_live_in_both_roles(self) -> None:
+        """Both means each role serves its own, not that one spans the two."""
+        self._isolated()
+        capabilities.declare(capabilities.Capability(
+            name="events",
+            residency=[capabilities.RESIDENCY_CATALOG, capabilities.RESIDENCY_PLAY_HOST],
+        ))
+
+        declared = self.client.get("/").json()["capabilities"]
+
+        self.assertEqual(declared[0]["residency"], ["catalog", "play_host"])
+
+    def test_a_bare_string_residency_is_refused(self) -> None:
+        """It would iterate into single characters and reach discovery as seven of them."""
+        with self.assertRaises(ValueError):
+            capabilities.Capability(name="library", residency=capabilities.RESIDENCY_CATALOG)
+
+    def test_an_unknown_or_empty_residency_is_refused(self) -> None:
+        with self.assertRaises(ValueError):
+            capabilities.Capability(name="library", residency=["somewhere-else"])
+        with self.assertRaises(ValueError):
+            capabilities.Capability(name="library", residency=[])
 
     def test_a_broken_availability_probe_does_not_break_discovery(self) -> None:
         def _explode():
@@ -82,7 +105,7 @@ class DiscoveryTests(unittest.TestCase):
 
         self._isolated()
         capabilities.declare(capabilities.Capability(
-            name="flaky", residency=capabilities.RESIDENCY_PLAY_HOST, is_available=_explode))
+            name="flaky", residency=[capabilities.RESIDENCY_PLAY_HOST], is_available=_explode))
 
         response = self.client.get("/")
         declared = response.json()["capabilities"]

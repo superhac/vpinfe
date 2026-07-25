@@ -6,13 +6,17 @@ Nothing is declared until the endpoints backing it land. See docs/http_api.md.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-# Residency: where a capability has to run. Clients hold neither.
+# Residency: which roles a capability lives in. Listing both means each role serves
+# its own, not that one capability spans the two - so if the catalog and the play
+# host are ever separate machines, both have it. Clients hold no residency at all.
 RESIDENCY_CATALOG = "catalog"
 RESIDENCY_PLAY_HOST = "play_host"
+
+RESIDENCIES = frozenset({RESIDENCY_CATALOG, RESIDENCY_PLAY_HOST})
 
 
 @dataclass(frozen=True)
@@ -21,9 +25,18 @@ class Capability:
     answer stays honest after a config change; return (False, reason), not bare False."""
 
     name: str
-    residency: str
+    residency: Sequence[str]
     description: str = ""
     is_available: Callable[[], bool | tuple[bool, str]] | None = None
+
+    def __post_init__(self) -> None:
+        # A bare string would iterate into single characters and reach discovery
+        # looking like a list of nine residencies, so it is rejected by name.
+        if isinstance(self.residency, str) or not self.residency:
+            raise ValueError(f"{self.name}: residency is a non-empty list of {sorted(RESIDENCIES)}")
+        unknown = sorted(set(self.residency) - RESIDENCIES)
+        if unknown:
+            raise ValueError(f"{self.name}: unknown residency {unknown}")
 
     def resolve(self) -> dict[str, Any]:
         available, reason = True, None
@@ -39,7 +52,7 @@ class Capability:
                     available = bool(result)
         return {
             "name": self.name,
-            "residency": self.residency,
+            "residency": list(self.residency),
             "description": self.description,
             "available": available,
             "reason": reason,
