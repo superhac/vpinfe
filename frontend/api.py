@@ -6,12 +6,9 @@ from common.collections_service import get_collection_image_url, get_collection_
 from common.display_service import monitors_as_dicts
 from common.dof_service import (
     send_frontend_dof_event,
-    start_dof_service_if_enabled,
-    stop_dof_service,
 )
 from common.libdmdutil_service import (
     show_image as show_libdmdutil_image,
-    stop_libdmdutil_service,
 )
 from common.launcher import (
     build_vpx_launch_command,
@@ -347,9 +344,6 @@ class API:
             build_vpx_launch_command=build_vpx_launch_command,
             parse_launch_env_overrides=parse_launch_env_overrides,
             resolve_launch_tableini_override=resolve_launch_tableini_override,
-            stop_dof_service=stop_dof_service,
-            stop_libdmdutil_service=stop_libdmdutil_service,
-            start_dof_service_if_enabled=start_dof_service_if_enabled,
             popen=subprocess.Popen,
         )
 

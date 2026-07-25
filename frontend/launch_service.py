@@ -8,6 +8,7 @@ import sys
 import time
 
 from common import table_play_service
+from common import events
 from common.config_access import SettingsConfig, VPinPlayConfig
 from common.launcher import get_plugin_profile_from_meta, resolve_launch_plugin_profile
 from common.vpx_log import delete_vpinball_log_on_start_if_configured
@@ -80,9 +81,6 @@ def launch_table(
     build_vpx_launch_command,
     parse_launch_env_overrides,
     resolve_launch_tableini_override,
-    stop_dof_service,
-    stop_libdmdutil_service,
-    start_dof_service_if_enabled,
     get_plugin_profile_from_meta=get_plugin_profile_from_meta,
     resolve_launch_plugin_profile=resolve_launch_plugin_profile,
     popen=subprocess.Popen,
@@ -111,8 +109,7 @@ def launch_table(
     # process. Wrap the whole body so Complete always goes out, then let any real
     # failure keep propagating so it still gets logged.
     try:
-        stop_dof_service()
-        stop_libdmdutil_service(clear=False)
+        events.emit(events.TABLE_LAUNCHING, table=table, ini_config=api._iniConfig)
         launch_started_at = None
         launch_profile = None
         try:
@@ -169,7 +166,7 @@ def launch_table(
 
             process.wait()
         finally:
-            start_dof_service_if_enabled(api._iniConfig)
+            events.emit(events.TABLE_EXITED, table=table, ini_config=api._iniConfig)
 
         if launch_started_at is not None:
             elapsed_seconds = max(0.0, time.time() - launch_started_at)

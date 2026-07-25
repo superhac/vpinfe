@@ -74,9 +74,6 @@ class TestApiInputMapping(unittest.TestCase):
 
         self.assertEqual(mapping["keytutorial"], "t")
 
-    @patch("frontend.api.start_dof_service_if_enabled")
-    @patch("frontend.api.stop_libdmdutil_service")
-    @patch("frontend.api.stop_dof_service")
     @patch("frontend.api.subprocess.Popen")
     @patch("frontend.api.build_vpx_launch_command", return_value=["/tmp/fake-launcher", "-play", "/tmp/table.vpx"])
     @patch("frontend.api.get_effective_launcher")
@@ -87,9 +84,6 @@ class TestApiInputMapping(unittest.TestCase):
         mock_get_launcher,
         _mock_build_cmd,
         mock_popen,
-        _mock_stop_dof,
-        _mock_stop_dmd,
-        _mock_start_dof,
     ) -> None:
         with TemporaryDirectory() as tmp:
             launcher = Path(tmp) / "VPinballX"

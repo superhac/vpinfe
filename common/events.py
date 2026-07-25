@@ -1,0 +1,124 @@
+"""The in-process event bus.
+
+Two kinds of handler, because they answer different questions.
+
+A **hook** is part of the operation. It runs in priority order, the publisher waits
+for it, and a failure stops the operation. DOF has to release the hardware before
+VPX is allowed to start, so "release the hardware" cannot be advisory - if it
+fails, launching anyway would hand VPX a device something else still holds.
+
+A **subscriber** is told what happened. Order is not promised, and a failure is
+logged and contained: something that wanted to know about a launch must not be
+able to prevent one.
+
+Both are registered against the same event name. `emit` runs the hooks, then the
+subscribers.
+
+Handlers run on the publishing thread. Nothing here is a work queue - slow work is
+a job, and its progress is events (see the JOB_* names).
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+from collections.abc import Callable
+from dataclasses import dataclass, field
+
+logger = logging.getLogger("vpinfe.common.events")
+
+# Table lifecycle. `launching` is the one with hooks that matter: everything
+# registered against it has finished before the game file is started.
+TABLE_LAUNCHING = "table.launching"
+TABLE_LAUNCHED = "table.launched"
+TABLE_EXITED = "table.exited"
+
+# Slow work. One shape everywhere, whether the work runs in this process or not:
+#   job.progress  {job_id, pct, message}
+#   job.done      {job_id}
+#   job.failed    {job_id, error}
+JOB_PROGRESS = "job.progress"
+JOB_DONE = "job.done"
+JOB_FAILED = "job.failed"
+
+DEFAULT_PRIORITY = 100
+
+
+@dataclass
+class _Registrations:
+    hooks: list[tuple[int, int, Callable]] = field(default_factory=list)
+    subscribers: list[Callable] = field(default_factory=list)
+
+
+_lock = threading.RLock()
+_events: dict[str, _Registrations] = {}
+_sequence = 0
+
+
+def _slot(name: str) -> _Registrations:
+    return _events.setdefault(name, _Registrations())
+
+
+def hook(name: str, handler: Callable, *, priority: int = DEFAULT_PRIORITY) -> Callable:
+    """Register a handler that the operation waits for. Lower priority runs first.
+
+    Raising from a hook stops the operation. Register one only when that is the
+    behaviour you want.
+    """
+    global _sequence
+    with _lock:
+        _sequence += 1
+        # The counter keeps equal priorities in registration order rather than
+        # letting sort() compare the functions themselves.
+        _slot(name).hooks.append((priority, _sequence, handler))
+        _slot(name).hooks.sort(key=lambda entry: (entry[0], entry[1]))
+    return handler
+
+
+def subscribe(name: str, handler: Callable) -> Callable:
+    """Register a handler that is told what happened and cannot affect it."""
+    with _lock:
+        _slot(name).subscribers.append(handler)
+    return handler
+
+
+def unsubscribe(name: str, handler: Callable) -> None:
+    with _lock:
+        slot = _slot(name)
+        slot.hooks = [entry for entry in slot.hooks if entry[2] is not handler]
+        slot.subscribers = [h for h in slot.subscribers if h is not handler]
+
+
+def emit(name: str, **payload) -> None:
+    """Run the hooks in order, then notify the subscribers.
+
+    Hook failures propagate. Subscriber failures are logged and contained.
+    """
+    with _lock:
+        slot = _slot(name)
+        hooks = [entry[2] for entry in slot.hooks]
+        subscribers = list(slot.subscribers)
+
+    logger.debug("emit %s hooks=%s subscribers=%s", name, len(hooks), len(subscribers))
+
+    for handler in hooks:
+        handler(**payload)
+
+    for handler in subscribers:
+        try:
+            handler(**payload)
+        except Exception:
+            logger.exception("Subscriber to %s failed", name)
+
+
+def clear() -> None:
+    """Drop every registration. For tests."""
+    with _lock:
+        _events.clear()
+
+
+def registered(name: str) -> tuple[int, int]:
+    """(hooks, subscribers) for an event. For tests and diagnostics."""
+    with _lock:
+        slot = _slot(name)
+        return len(slot.hooks), len(slot.subscribers)

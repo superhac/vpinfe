@@ -14,6 +14,8 @@ small facade classes for older call sites.
 - `table_identity.py`: the stable per-install table id used to address a table in the HTTP API.
 - `game_files.py`: which .vpx in a table folder is the table. Every caller resolves through it.
 - `launch_state.py`: whether a launch has been requested from outside the frontend.
+- `events.py`: the in-process event bus. Hooks are part of an operation; subscribers are told about it.
+- `feedback_hardware.py`: DOF and real-DMD, driven by table lifecycle events.
 - `media_paths.py`: canonical media keys, filenames, table attributes, and path resolution.
 - `jobs.py`: callback-friendly progress/log reporting for long-running workflows.
 - `metadata_service.py`, `table_report_service.py`, `table_play_service.py`: workflows that operate on tables and metadata.
@@ -57,6 +59,18 @@ interchangeable:
 
 Use `table_identity.table_id()` to read one, `ensure_id()` when you need a table
 to have one. Reading never mints, so table scans stay a read path.
+
+Announce table lifecycle through `events.py` rather than calling the affected
+services directly. Both launch paths - the frontend wheel and the Remote Control
+page - emit the same events, so behaviour that has to happen around a launch is
+written once.
+
+Choose the right kind of handler. A **hook** is part of the operation: it runs in
+priority order, the publisher waits, and raising stops the operation. A
+**subscriber** is only told what happened; order is not promised and a failure is
+logged and contained. Releasing the feedback hardware is a hook because launching
+with it still held would be wrong; anything that merely wants to know about a
+launch is a subscriber and must not be able to prevent one.
 
 Never pick a table's `.vpx` yourself. A folder can hold several, and picking
 differently from everyone else means the metadata a user sees describes a different

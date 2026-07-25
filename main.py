@@ -184,6 +184,11 @@ except Exception:
 
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
+# Feedback hardware follows table lifecycle events from here on, so both launch
+# paths get the same behaviour without either of them knowing about DOF.
+from common import feedback_hardware
+feedback_hardware.register()
+
 start_dof_service_if_enabled(iniconfig)
 
 # Point the archive analyzer at a configured RAR tool (blank = auto-detect from PATH)

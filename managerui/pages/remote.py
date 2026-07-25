@@ -15,12 +15,9 @@ category_select = None
 # Config for launching tables
 # Import config
 from common.iniconfig import IniConfig
+from common import events
 from common.config_access import SettingsConfig
-from common.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.vpx_log import delete_vpinball_log_on_start_if_configured
-from common.libdmdutil_service import (
-    stop_libdmdutil_service,
-)
 from managerui.ui_helpers import debounced_input, load_page_style
 from common.launcher import (
     build_vpx_launch_command,
@@ -150,8 +147,7 @@ def _launch_table(table: dict):
         ui.notify(f'Remote Launching {table_name}...', type='info')
 
         delete_vpinball_log_on_start_if_configured(SettingsConfig.from_config(cfg))
-        stop_dof_service()
-        stop_libdmdutil_service(clear=False)
+        events.emit(events.TABLE_LAUNCHING, table=None, ini_config=cfg)
 
         # Signal to frontend that we're launching
         launch_state.set_launching(table_name)
@@ -200,7 +196,7 @@ def _launch_table(table: dict):
             finally:
                 # Clear the launch state when done
                 launch_state.clear()
-                start_dof_service_if_enabled(cfg)
+                events.emit(events.TABLE_EXITED, table=None, ini_config=cfg)
 
         # Run in background thread
         thread = threading.Thread(target=run_and_wait, daemon=True)
@@ -209,9 +205,9 @@ def _launch_table(table: dict):
     except Exception as e:
         launch_state.clear()
         try:
-            start_dof_service_if_enabled(_get_ini_config())
+            events.emit(events.TABLE_EXITED, table=None, ini_config=_get_ini_config())
         except Exception:
-            pass
+            logger.exception("Could not restore feedback hardware after a failed launch")
         ui.notify(f'Failed to launch: {e}', type='negative')
         return False
 
