@@ -13,7 +13,7 @@ class TableIndex:
     missing_rows: List[Dict] = field(default_factory=list)
     by_path: Dict[str, Dict] = field(default_factory=dict)
     by_dir: Dict[str, Dict] = field(default_factory=dict)
-    by_vpsid: Dict[str, Dict] = field(default_factory=dict)
+    by_table_id: Dict[str, Dict] = field(default_factory=dict)
     searchable: List[tuple[str, Dict]] = field(default_factory=list)
 
 
@@ -34,7 +34,7 @@ def _normalize_path(path: str) -> str:
 def _build_index(rows: List[Dict], missing_rows: Optional[List[Dict]] = None) -> TableIndex:
     by_path = {}
     by_dir = {}
-    by_vpsid = {}
+    by_table_id = {}
     searchable = []
 
     for row in rows:
@@ -44,9 +44,9 @@ def _build_index(rows: List[Dict], missing_rows: Optional[List[Dict]] = None) ->
             by_path[normalized_path] = row
             by_dir[Path(normalized_path).name] = row
 
-        vpsid = row.get("id") or row.get("vpsid")
-        if vpsid:
-            by_vpsid[str(vpsid)] = row
+        table_id = row.get("vpinfe_id")
+        if table_id:
+            by_table_id[str(table_id)] = row
 
         search_blob = " ".join(
             str(row.get(key, "") or "")
@@ -59,7 +59,7 @@ def _build_index(rows: List[Dict], missing_rows: Optional[List[Dict]] = None) ->
         missing_rows=list(missing_rows if missing_rows is not None else _index.missing_rows),
         by_path=by_path,
         by_dir=by_dir,
-        by_vpsid=by_vpsid,
+        by_table_id=by_table_id,
         searchable=searchable,
     )
 
@@ -127,8 +127,8 @@ def find_by_dir(table_dir: str) -> Optional[Dict]:
     return _index.by_dir.get(table_dir)
 
 
-def find_by_vpsid(vpsid: str) -> Optional[Dict]:
-    return _index.by_vpsid.get(str(vpsid))
+def find_by_table_id(table_id: str) -> Optional[Dict]:
+    return _index.by_table_id.get(str(table_id))
 
 
 def search_rows(term: str, *, limit: int = 20, rows: Optional[List[Dict]] = None) -> List[Dict]:
@@ -155,17 +155,16 @@ def update_row_by_path(table_path: str, updates: Dict) -> Optional[Dict]:
     return row
 
 
-def sync_collection_memberships(vpsid_collections_map: Dict[str, List[str]]) -> None:
+def sync_collection_memberships(collections_map: Dict[str, List[str]]) -> None:
     if not _loaded:
         return
     for row in _index.rows:
-        vpsid = row.get("id", "")
-        row["collections"] = vpsid_collections_map.get(vpsid, [])
+        row["collections"] = collections_map.get(row.get("vpinfe_id", ""), [])
     set_rows(_index.rows)
 
 
-def add_collection_membership(vpsid: str, collection_name: str) -> None:
-    row = find_by_vpsid(vpsid)
+def add_collection_membership(table_id: str, collection_name: str) -> None:
+    row = find_by_table_id(table_id)
     if row is None:
         return
     row.setdefault("collections", [])

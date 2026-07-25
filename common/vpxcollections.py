@@ -17,6 +17,10 @@ SCHEMA_KEY = "schema"
 #   1  membership keyed by the table's own id (common/table_identity.py).
 CURRENT_SCHEMA = 1
 
+# The on-disk key and the non-filter type marker both still say "vpsid". They are
+# file format, not meaning - see get_members().
+MEMBERS_KEY = "vpsids"
+
 _warned_newer_schema = set()
 
 
@@ -89,26 +93,31 @@ class VPXCollections:
             "order_by": sec.get("order_by", "Descending"),
         }
 
-    def get_vpsids(self, section: str):
-        """Return list of VPSIds for a given collection."""
+    def get_members(self, section: str):
+        """Return the member ids of a collection.
+
+        The key on disk is still `vpsids` even though the values are table ids now.
+        Renaming it would strand every file written before the migration for no gain
+        the user can see; the schema version already records which one it holds.
+        """
         if section not in self.config:
             raise KeyError(f"Section '{section}' not found")
 
-        raw = self.config[section].get("vpsids", "")
+        raw = self.config[section].get(MEMBERS_KEY, "")
         return [v.strip() for v in raw.split(",") if v.strip()]
 
     def get_all(self):
-        """Return dict of section -> list of VPSIds."""
-        return {s: self.get_vpsids(s) for s in self.get_collections_name()}
+        """Return dict of section -> member ids."""
+        return {s: self.get_members(s) for s in self.get_collections_name()}
 
-    def add_collection(self, section: str, vpsids=None):
-        """Add a VPSId-based collection."""
+    def add_collection(self, section: str, members=None):
+        """Add a collection whose membership is an explicit list of tables."""
         if self.config.has_section(section):
             raise ValueError(f"Section '{section}' already exists")
 
         self.config.add_section(section)
         self.config[section]["type"] = "vpsid"
-        self.config[section]["vpsids"] = ",".join(vpsids) if vpsids else ""
+        self.config[section][MEMBERS_KEY] = ",".join(members) if members else ""
 
     def add_filter_collection(
         self,
@@ -162,20 +171,20 @@ class VPXCollections:
         # Remove old section
         self.config.remove_section(old_name)
 
-    def add_vpsid(self, section: str, vpsid: str):
-        """Add a VPSId to a collection."""
-        vpsids = set(self.get_vpsids(section))
-        vpsids.add(vpsid.strip())
-        self.config[section]["vpsids"] = ",".join(sorted(vpsids))
+    def add_member(self, section: str, member_id: str):
+        """Add a table to a collection."""
+        members = set(self.get_members(section))
+        members.add(member_id.strip())
+        self.config[section][MEMBERS_KEY] = ",".join(sorted(members))
 
-    def remove_vpsid(self, section: str, vpsid: str):
-        """Remove a VPSId from a collection."""
-        vpsids = self.get_vpsids(section)
-        if vpsid not in vpsids:
-            raise ValueError(f"VPSId '{vpsid}' not found in section '{section}'")
+    def remove_member(self, section: str, member_id: str):
+        """Remove a table from a collection."""
+        members = self.get_members(section)
+        if member_id not in members:
+            raise ValueError(f"'{member_id}' is not in collection '{section}'")
 
-        vpsids.remove(vpsid)
-        self.config[section]["vpsids"] = ",".join(vpsids)
+        members.remove(member_id)
+        self.config[section][MEMBERS_KEY] = ",".join(members)
 
     def migrate_membership_to_table_ids(self, tables) -> int:
         """Move VPS-keyed membership onto table ids. Returns how many entries moved.
@@ -218,7 +227,7 @@ class VPXCollections:
         for name in names:
             if self.is_filter_based(name):
                 continue
-            members = self.get_vpsids(name)
+            members = self.get_members(name)
             rewritten = []
             for member in members:
                 if member in known_ids:
@@ -230,7 +239,7 @@ class VPXCollections:
                     rewritten.append(member)
                     unresolved += 1
             if rewritten != members:
-                self.config[name]["vpsids"] = ",".join(rewritten)
+                self.config[name][MEMBERS_KEY] = ",".join(rewritten)
 
         self._stamp_schema()
         self.save()
@@ -268,7 +277,7 @@ class VPXCollections:
 
     def filter_tables(self, tables, collection):
         """Tables belonging to a collection, ordered for display."""
-        filter_ids = set(self.get_vpsids(collection))
+        filter_ids = set(self.get_members(collection))
         result = [t for t in tables if self.is_member(t, filter_ids)]
 
         if collection == "Last Played":

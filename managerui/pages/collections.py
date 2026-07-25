@@ -15,13 +15,13 @@ def get_collections_manager():
 
 
 def get_table_name_map() -> Dict[str, str]:
-    """Build a map of VPS ID -> table name from the tables cache."""
+    """Table names keyed by table id, for showing what is in a collection."""
     return collections_service.get_table_name_map()
 
 
-def vpsid_to_name(vpsid: str, table_map: Dict[str, str] = None) -> str:
-    """Convert a VPS ID to table name, or return the ID if not found."""
-    return collections_service.vpsid_to_name(vpsid, table_map)
+def member_to_name(member_id: str, table_map: Dict[str, str] = None) -> str:
+    """Name of a collection member, or the raw id when no table matches."""
+    return collections_service.member_to_name(member_id, table_map)
 
 
 def get_filter_options() -> Dict[str, List[str]]:
@@ -47,7 +47,7 @@ def render_panel(tab=None):
                     ui.icon('collections_bookmark', size='32px').classes('text-white').style('filter: drop-shadow(var(--glow-purple));')
                     ui.label('Collections Manager').classes('text-2xl font-bold text-white').style('text-shadow: var(--glow-purple);')
                 with ui.row().classes('gap-3'):
-                    add_vpsid_btn = ui.button("New Table Collection", icon="add").props("color=primary rounded")
+                    add_table_collection_btn = ui.button("New Table Collection", icon="add").props("color=primary rounded")
                     add_filter_btn = ui.button("New Filter Collection", icon="filter_list").props("color=secondary rounded")
 
         # Collections list container
@@ -145,8 +145,8 @@ def render_panel(tab=None):
                                     if is_filter:
                                         ui.label('Filter').classes('filter-badge text-white self-start')
                                     else:
-                                        vpsids = manager.get_vpsids(name)
-                                        ui.label(f'{len(vpsids)}\u00a0Tables').classes('vpsid-badge text-white self-start')
+                                        members = manager.get_members(name)
+                                        ui.label(f'{len(members)}\u00a0Tables').classes('member-count-badge text-white self-start')
 
                             with ui.row().classes('gap-2'):
                                 ui.button(icon='drive_file_rename_outline', on_click=lambda n=name: open_rename_dialog(n)).props('flat round color=white').tooltip('Rename')
@@ -177,10 +177,10 @@ def render_panel(tab=None):
                                     rating_chip = f'rating: {rating_value}+ ' if rating_or_higher else f'rating: {rating_value}'
                                     ui.chip(rating_chip.strip(), icon='star').props('outline color=amber dense')
                         else:
-                            vpsids = manager.get_vpsids(name)
-                            if vpsids:
+                            members = manager.get_members(name)
+                            if members:
                                 # Create expandable chips section with isolated state
-                                create_expandable_chips(vpsids, table_map)
+                                create_expandable_chips(members, table_map)
 
         def create_expandable_chips(vps_ids: list, tbl_map: dict):
             """Factory function to create expandable chips with isolated state."""
@@ -193,7 +193,7 @@ def render_panel(tab=None):
                     with ui.row().classes('gap-2 flex-wrap'):
                         display_ids = vps_ids if state['expanded'] else vps_ids[:5]
                         for vid in display_ids:
-                            tbl_name = vpsid_to_name(vid, tbl_map)
+                            tbl_name = member_to_name(vid, tbl_map)
                             ui.chip(tbl_name, icon='sports_esports').props('outline color=cyan dense')
 
                         if len(vps_ids) > 5:
@@ -223,7 +223,7 @@ def render_panel(tab=None):
                         try:
                             collections_service.delete_collection(name)
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_vpsid_collections_map())
+                            table_index_service.sync_collection_memberships(collections_service.get_table_collections_map())
                             ui.notify(f'Collection "{name}" deleted', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -255,7 +255,7 @@ def render_panel(tab=None):
                         try:
                             collections_service.rename_collection(name, new_name)
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_vpsid_collections_map())
+                            table_index_service.sync_collection_memberships(collections_service.get_table_collections_map())
                             ui.notify(f'Renamed to "{new_name}"', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -265,7 +265,7 @@ def render_panel(tab=None):
                     ui.button('Rename', icon='check', on_click=do_rename).props('color=primary')
             dlg.open()
 
-        def open_new_vpsid_dialog():
+        def open_new_table_collection_dialog():
             """Dialog to create a new VPS ID-based collection."""
             dlg = ui.dialog().props('persistent max-width=800px')
             with dlg, ui.card().classes('w-[750px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
@@ -316,18 +316,18 @@ def render_panel(tab=None):
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
                             for t in matches:
-                                vps_id = t.get('id', '')
+                                table_id = t.get('vpinfe_id', '')
                                 name = t.get('name', 'Unknown')
-                                if not vps_id:
+                                if not table_id:
                                     continue
                                 # Check if already selected
-                                already_selected = any(s['id'] == vps_id for s in selected_tables['items'])
+                                already_selected = any(s['id'] == table_id for s in selected_tables['items'])
                                 with ui.row().classes('w-full items-center justify-between p-2 bg-gray-800 rounded hover:bg-gray-700'):
                                     ui.label(f'{name}').classes('text-white text-sm flex-grow')
                                     if already_selected:
                                         ui.icon('check', color='green')
                                     else:
-                                        def add_table(vid=vps_id, n=name):
+                                        def add_table(vid=table_id, n=name):
                                             if not any(s['id'] == vid for s in selected_tables['items']):
                                                 selected_tables['items'].append({'id': vid, 'name': n})
                                                 update_selected_display()
@@ -345,10 +345,10 @@ def render_panel(tab=None):
                             ui.notify('Please enter a collection name', type='warning')
                             return
                         try:
-                            vpsids = [t['id'] for t in selected_tables['items']]
-                            collections_service.create_vpsid_collection(name, vpsids, image=image_state['filename'])
+                            table_ids = [t['id'] for t in selected_tables['items']]
+                            collections_service.create_table_collection(name, table_ids, image=image_state['filename'])
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_vpsid_collections_map())
+                            table_index_service.sync_collection_memberships(collections_service.get_table_collections_map())
                             ui.notify(f'Collection "{name}" created', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -453,7 +453,7 @@ def render_panel(tab=None):
             if is_filter:
                 open_edit_filter_dialog(name)
             else:
-                open_edit_vpsid_dialog(name)
+                open_edit_table_collection_dialog(name)
 
         def open_edit_filter_dialog(name: str):
             """Dialog to edit a filter-based collection."""
@@ -580,10 +580,10 @@ def render_panel(tab=None):
 
             dlg.open()
 
-        def open_edit_vpsid_dialog(name: str):
+        def open_edit_table_collection_dialog(name: str):
             """Dialog to edit a VPS ID-based collection."""
             manager = get_collections_manager()
-            current_vpsids = manager.get_vpsids(name)
+            current_members = manager.get_members(name)
             image_state_value = collections_service.get_collection_image(name)
 
             dlg = ui.dialog().props('persistent max-width=800px')
@@ -598,7 +598,7 @@ def render_panel(tab=None):
                 # Try to resolve VPS IDs to names from cache
                 table_map = get_table_name_map()
 
-                for vid in current_vpsids:
+                for vid in current_members:
                     selected_tables['items'].append({
                         'id': vid,
                         'name': table_map.get(vid, vid)
@@ -642,17 +642,17 @@ def render_panel(tab=None):
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
                             for t in matches:
-                                vps_id = t.get('id', '')
+                                table_id = t.get('vpinfe_id', '')
                                 tname = t.get('name', 'Unknown')
-                                if not vps_id:
+                                if not table_id:
                                     continue
-                                already_selected = any(s['id'] == vps_id for s in selected_tables['items'])
+                                already_selected = any(s['id'] == table_id for s in selected_tables['items'])
                                 with ui.row().classes('w-full items-center justify-between p-2 bg-gray-800 rounded hover:bg-gray-700'):
                                     ui.label(f'{tname}').classes('text-white text-sm flex-grow')
                                     if already_selected:
                                         ui.icon('check', color='green')
                                     else:
-                                        def add_table(vid=vps_id, n=tname):
+                                        def add_table(vid=table_id, n=tname):
                                             if not any(s['id'] == vid for s in selected_tables['items']):
                                                 selected_tables['items'].append({'id': vid, 'name': n})
                                                 update_selected_display()
@@ -666,10 +666,10 @@ def render_panel(tab=None):
 
                     def save_changes():
                         try:
-                            vpsids = [t['id'] for t in selected_tables['items']]
-                            collections_service.update_vpsid_collection(name, vpsids, image=image_state['filename'])
+                            table_ids = [t['id'] for t in selected_tables['items']]
+                            collections_service.update_table_collection(name, table_ids, image=image_state['filename'])
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_vpsid_collections_map())
+                            table_index_service.sync_collection_memberships(collections_service.get_table_collections_map())
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -681,7 +681,7 @@ def render_panel(tab=None):
             dlg.open()
 
         # Wire up the add buttons
-        add_vpsid_btn.on_click(open_new_vpsid_dialog)
+        add_table_collection_btn.on_click(open_new_table_collection_dialog)
         add_filter_btn.on_click(open_new_filter_dialog)
 
         # Initial load

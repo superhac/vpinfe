@@ -16,7 +16,7 @@ from starlette.responses import FileResponse
 
 from common import table_identity
 from common.game_files import default_game_file, game_file_names
-from common.table_repository import collections_map, ensure_tables_loaded, table_to_row
+from common.table_repository import collections_by_table_id, ensure_tables_loaded, table_to_row
 
 from . import scopes
 from .auth import requires
@@ -121,7 +121,7 @@ def list_tables(
     offset: int = Query(0, ge=0),
 ) -> dict:
     catalog = _catalog()
-    collections = collections_map()
+    collections = collections_by_table_id()
 
     items = []
     for table_id, table in catalog.items():
@@ -150,7 +150,7 @@ def list_tables(
 @router.get("/{table_id}", summary="One table", dependencies=[requires(scopes.TABLES_READ)])
 def get_table(table_id: str) -> dict:
     table = _table_or_404(table_id)
-    return _resource(table_to_row(table, collections_map()), table_id)
+    return _resource(table_to_row(table, collections_by_table_id()), table_id)
 
 
 @router.get("/{table_id}/files", summary="A table's game files",

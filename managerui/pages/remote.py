@@ -83,9 +83,9 @@ def _get_collections():
     return remote_launch.get_collections()
 
 
-def _get_collection_vpsids(collection_name):
-    """Get VPSIds for a specific collection (vpsid-based only)."""
-    return remote_launch.get_collection_vpsids(collection_name)
+def _get_collection_members(collection_name):
+    """Table ids in a collection with an explicit member list."""
+    return remote_launch.get_collection_members(collection_name)
 
 
 def _is_filter_collection(collection_name):
@@ -563,12 +563,12 @@ def show_vpx_game_controls():
                     if _table_matches_filters(t, filters)
                 }
             else:
-                # VPSId-based collection
-                vpsids = _get_collection_vpsids(collection)
+                # Collection with an explicit member list
+                members = _get_collection_members(collection)
                 launch_state['filtered_options'] = {
                     t['vpx_path']: t['display_name']
                     for t in launch_state['tables']
-                    if t.get('vpsid') in vpsids
+                    if t.get('vpinfe_id') and t['vpinfe_id'] in members
                 }
 
         def on_collection_change(e):

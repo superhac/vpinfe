@@ -6,6 +6,7 @@ from copy import deepcopy
 from pathlib import Path
 
 from common.collections_service import get_collections_manager
+from common.vpxcollections import MEMBERS_KEY
 from common import table_identity
 from common.table_metadata import (
     get_or_create_user_meta,
@@ -23,23 +24,25 @@ def track_table_play(table, collection_name: str = "Last Played", max_items: int
     meta = normalize_meta(getattr(table, "metaConfig", {}))
     # Membership is the table's own id; VPSId is a fallback for a table that has
     # not been assigned one yet.
-    vpsid = table_identity.table_id(table) or section(meta, "Info").get("VPSId")
-    if not vpsid:
-        logger.debug("Table has no VPSId, cannot track play")
+    member_id = table_identity.table_id(table) or section(meta, "Info").get("VPSId")
+    if not member_id:
+        logger.debug("Table has no id, cannot track play")
         return
 
     collections = get_collections_manager()
     if collection_name not in collections.get_collections_name():
         logger.info("Creating '%s' collection", collection_name)
-        collections.add_collection(collection_name, vpsids=[])
+        collections.add_collection(collection_name, members=[])
 
-    ids = collections.get_vpsids(collection_name)
-    if vpsid in ids:
-        ids.remove(vpsid)
-    ids.insert(0, vpsid)
-    collections.config[collection_name]["vpsids"] = ",".join(ids[:max_items])
+    # Most-recent-first and capped, so this writes the list rather than using
+    # add_member - order carries the meaning here.
+    ids = collections.get_members(collection_name)
+    if member_id in ids:
+        ids.remove(member_id)
+    ids.insert(0, member_id)
+    collections.config[collection_name][MEMBERS_KEY] = ",".join(ids[:max_items])
     collections.save()
-    logger.info("Tracked table play: %s (now %s in %s)", vpsid, len(ids[:max_items]), collection_name)
+    logger.info("Tracked table play: %s (now %s in %s)", member_id, len(ids[:max_items]), collection_name)
 
 
 def increment_start_count(table) -> None:

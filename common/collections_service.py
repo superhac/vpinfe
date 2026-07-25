@@ -55,7 +55,7 @@ def get_collections_metadata() -> list[dict]:
             "is_filter": is_filter,
             "image": image,
             "image_url": collection_icon_url(image),
-            "table_count": None if is_filter else len(manager.get_vpsids(name)),
+            "table_count": None if is_filter else len(manager.get_members(name)),
         })
     return rows
 

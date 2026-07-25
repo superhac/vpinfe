@@ -167,13 +167,13 @@ class ManagerUiServiceTests(unittest.TestCase):
 
     def test_collections_service_filter_options_and_search(self):
         rows = [
-            {"id": "a", "name": "Attack From Mars", "manufacturer": "Bally", "year": "1995", "type": "SS", "themes": ["Sci-Fi"]},
-            {"id": "m", "name": "Medieval Madness", "manufacturer": "Williams", "year": "1997", "type": "SS", "themes": ["Fantasy"]},
+            {"vpinfe_id": "a", "name": "Attack From Mars", "manufacturer": "Bally", "year": "1995", "type": "SS", "themes": ["Sci-Fi"]},
+            {"vpinfe_id": "m", "name": "Medieval Madness", "manufacturer": "Williams", "year": "1997", "type": "SS", "themes": ["Fantasy"]},
         ]
         options = get_filter_options(rows)
         self.assertEqual(options["letters"], ["All", "A", "M"])
         self.assertEqual(options["manufacturers"], ["All", "Bally", "Williams"])
-        self.assertEqual([row["id"] for row in search_tables("mars", rows)], ["a"])
+        self.assertEqual([row["vpinfe_id"] for row in search_tables("mars", rows)], ["a"])
 
     def test_collections_filter_options_default_to_vpsdb(self):
         vpsdb_rows = [
@@ -297,13 +297,13 @@ class ManagerUiServiceTests(unittest.TestCase):
 
     def test_table_index_lookup_update_and_search(self):
         rows = set_rows([
-            {"id": "afm", "name": "Attack From Mars", "filename": "afm.vpx", "table_path": "/tmp/tables/Attack", "collections": []},
-            {"id": "mm", "name": "Medieval Madness", "filename": "mm.vpx", "table_path": "/tmp/tables/MM", "collections": []},
+            {"vpinfe_id": "afm", "name": "Attack From Mars", "filename": "afm.vpx", "table_path": "/tmp/tables/Attack", "collections": []},
+            {"vpinfe_id": "mm", "name": "Medieval Madness", "filename": "mm.vpx", "table_path": "/tmp/tables/MM", "collections": []},
         ])
         set_missing_rows([{"folder": "Loose"}])
 
-        self.assertEqual(find_by_path("/tmp/tables/Attack")["id"], "afm")
-        self.assertEqual(search_rows("medieval")[0]["id"], "mm")
+        self.assertEqual(find_by_path("/tmp/tables/Attack")["vpinfe_id"], "afm")
+        self.assertEqual(search_rows("medieval")[0]["vpinfe_id"], "mm")
         update_row_by_path("/tmp/tables/MM", {"rating": 5})
         self.assertEqual(rows[1]["rating"], 5)
         add_collection_membership("afm", "Favorites")

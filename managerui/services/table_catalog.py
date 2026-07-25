@@ -63,7 +63,7 @@ def scan_launchable_tables(tables_path: str | None = None) -> List[Dict]:
             "display_name": display_name,
             "vpx_path": vpx_path,
             "table_path": table_path,
-            "vpsid": row.get("id") or row.get("vpsid", ""),
+            "vpsid": row.get("vpsid", ""),
             "vpinfe_id": row.get("vpinfe_id", ""),
             "manufacturer": manufacturer,
             "year": str(year) if year else "",

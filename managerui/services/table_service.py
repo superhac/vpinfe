@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 
 from common.iniconfig import IniConfig
 from common.config_access import MediaConfig, SettingsConfig
+from common import table_repository
 from common.table_repository import get_missing_tables, get_table_rows, refresh_table
 from common import metadata_service
 from common.vpxcollections import VPXCollections
@@ -50,24 +51,11 @@ def ensure_vpsdb_downloaded() -> bool:
         return VPSDB_JSON_PATH.exists()
 
 
-def get_vpsid_collections_map() -> Dict[str, List[str]]:
-    vpsid_to_collections: Dict[str, List[str]] = {}
-    try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
-        for collection_name in collections.get_collections_name():
-            if collections.is_filter_based(collection_name):
-                continue
-            try:
-                for vpsid in collections.get_vpsids(collection_name):
-                    vpsid_to_collections.setdefault(vpsid, []).append(collection_name)
-            except Exception:
-                pass
-    except Exception:
-        pass
-    return vpsid_to_collections
+def get_table_collections_map() -> Dict[str, List[str]]:
+    return table_repository.collections_by_table_id()
 
 
-def get_vpsid_collections() -> List[str]:
+def get_table_collections() -> List[str]:
     result = []
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
@@ -79,10 +67,10 @@ def get_vpsid_collections() -> List[str]:
     return result
 
 
-def add_table_to_collection(vpsid: str, collection_name: str) -> bool:
+def add_table_to_collection(table_id: str, collection_name: str) -> bool:
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
-        collections.add_vpsid(collection_name, vpsid)
+        collections.add_member(collection_name, table_id)
         collections.save()
         return True
     except Exception as e:

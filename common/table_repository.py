@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from pathlib import Path
 
 from common.paths import COLLECTIONS_PATH, get_ini_config, get_tables_path
+from common.table_identity import ensure_unique_ids
 from common.table_identity import table_id as vpinfe_id
 from common.table_metadata import first_meta_value, normalize_rating, reorder_leading_article, section
 from common.tableparser import TableParser
@@ -59,7 +60,12 @@ def get_missing_tables(reload: bool = False) -> List[Dict[str, str]]:
         return [dict(row) for row in _PARSER.getMissingTables()]
 
 
-def _collections_map() -> Dict[str, List[str]]:
+def collections_by_table_id() -> Dict[str, List[str]]:
+    """Collection names keyed by the table id membership is recorded under.
+
+    Only explicit-membership collections. A filter collection has no member list to
+    key on - what belongs to it is decided per table when it is displayed.
+    """
     mapping: Dict[str, List[str]] = {}
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
@@ -67,18 +73,13 @@ def _collections_map() -> Dict[str, List[str]]:
             if collections.is_filter_based(collection_name):
                 continue
             try:
-                for vpsid in collections.get_vpsids(collection_name):
-                    mapping.setdefault(vpsid, []).append(collection_name)
+                for member_id in collections.get_members(collection_name):
+                    mapping.setdefault(member_id, []).append(collection_name)
             except Exception:
                 pass
     except Exception:
         pass
     return mapping
-
-
-def collections_map() -> Dict[str, List[str]]:
-    """Collection names keyed by the VPS-derived id membership is stored under."""
-    return _collections_map()
 
 
 def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
@@ -88,19 +89,15 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
     vpinfe = section(meta, "VPinFE")
     table_name = Path(table.fullPathTable).name
     vpsid = first_meta_value(meta, ("Info", "VPSId"), default="")
-    effective_id = first_meta_value(meta, ("VPinFE", "altvpsid"), ("Info", "VPSId"), default="")
     row = {
         "name": (str(vpinfe.get("alttitle", "") or "").strip()
                  or reorder_leading_article(first_meta_value(meta, ("Info", "Title"), default=table_name) or "")),
         "filename": first_meta_value(meta, ("VPXFile", "filename"), default=Path(table.fullPathVPXfile).name),
+        # vpsid and altvpsid correlate with VPSdb, VPinPlay and anything else keyed
+        # by them. vpinfe_id is this install's own id (common/table_identity.py) and
+        # is what identifies the table here - in the API, in events, in collection
+        # membership. Empty until the table has been assigned one; reading never mints.
         "vpsid": vpsid,
-        # Two different identifiers, deliberately:
-        #   id       - the VPS-derived id. Collection membership is keyed by this,
-        #              and it is what gets written into collections.ini.
-        #   vpinfe_id - this install's stable local id (common/table_identity.py),
-        #              used to address the table in the HTTP API. Empty until the
-        #              table has been assigned one; reading never mints.
-        "id": effective_id or vpsid,
         "vpinfe_id": vpinfe_id(table),
         "ipdb_id": first_meta_value(meta, ("Info", "IPDBId")),
         "pinball_primer_tut": first_meta_value(meta, ("Info", "PinballPrimerTut")),
@@ -137,21 +134,40 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "collections": [],
     }
     if collections_map is not None:
-        row["collections"] = collections_map.get(row.get("id", ""), [])
+        row["collections"] = _collections_for(row, collections_map)
     return row
 
 
+def _collections_for(row: Dict[str, Any], collections_map: Dict[str, List[str]]) -> List[str]:
+    """Which collections a row belongs to, tolerating entries not yet migrated.
+
+    Matches VPXCollections.is_member. The migration leaves an entry alone when no
+    table matched it - the table may simply not be installed yet - and it only runs
+    once, so an entry can stay VPS-keyed indefinitely. Without the fallbacks the
+    frontend would show that membership and the Manager UI would not.
+    """
+    for key in (row.get("vpinfe_id"), row.get("altvpsid"), row.get("vpsid")):
+        if key and key in collections_map:
+            return collections_map[key]
+    return []
+
+
 def get_table_rows(reload: bool = False) -> List[Dict[str, Any]]:
-    tables = ensure_tables_loaded(reload=reload)
-    collections_map = _collections_map()
+    # A row is addressed by its table id, so every row has to have one - a table
+    # imported since startup would otherwise carry an empty id and collide with
+    # every other table that has none. Already-assigned libraries pay nothing:
+    # this only touches disk for a table that has no id yet.
+    tables = ensure_unique_ids(ensure_tables_loaded(reload=reload)).values()
+    collections_map = collections_by_table_id()
     rows = [table_to_row(table, collections_map) for table in tables]
     rows.sort(key=lambda row: (row.get("name") or "").lower())
     return rows
 
 
 def get_table_name_map(reload: bool = False) -> Dict[str, str]:
+    """Display names keyed by table id, for showing what is in a collection."""
     return {
-        row.get("id"): row.get("name", row.get("id"))
+        row["vpinfe_id"]: row.get("name") or row["vpinfe_id"]
         for row in get_table_rows(reload=reload)
-        if row.get("id")
+        if row.get("vpinfe_id")
     }

@@ -49,23 +49,34 @@ sorting, or row-building code should use helpers like `table_title`,
 `table_themes`, `table_type`, `table_manufacturer`, `table_year`, and
 `table_rating` instead of repeating `Info`/legacy `VPSdb` fallback logic.
 
-Know which table id you want. A table row carries two, and they are not
+Know which table id you want. A table row carries several, and they are not
 interchangeable:
 
-- `id` is VPS-derived (`VPinFE.altvpsid` or `Info.VPSId`). It is for correlating
-  with VPSdb, VPinPlay and other services keyed by it - not for identifying a
-  table here.
-- `vpinfe_id` is this install's stable local id from `table_identity.py`. It is
-  what addresses a table in the HTTP API, in events, and in jobs.
+- `vpinfe_id` is this install's stable local id from `table_identity.py`. It
+  identifies the table - in the HTTP API, in events, in jobs, in collection
+  membership, and as the row key in the manager UI tables grid.
+- `vpsid` and `altvpsid` are VPS-derived (`Info.VPSId` and `VPinFE.altvpsid`).
+  They correlate with VPSdb, VPinPlay and other services keyed by them. Read the
+  one you mean; there is deliberately no combined `id` field to reach for by
+  accident.
 
 Use `table_identity.table_id()` to read one, `ensure_id()` when you need a table
 to have one. Reading never mints, so table scans stay a read path.
+`table_repository.get_table_rows()` is the exception and calls `ensure_unique_ids`:
+a row is addressed by its id, so a table imported since startup has to be given one
+rather than appear with an empty key that collides with every other such table.
 
 Collection membership is keyed by `vpinfe_id`. A VPS id could not do the job: it is
 empty for a table VPSdb never matched, it is not unique, and it is cleared when the
 .vpx changes - so membership recorded under one was orphaned by an ordinary table
-update. Entries written before the migration are still matched, so a file part-way
-through converting still works.
+update.
+
+Both membership paths tolerate VPS-keyed entries, and both have to. The migration
+leaves an entry alone when no table matched it - the table may simply not be
+installed yet - and it runs only once, so such an entry can stay VPS-keyed
+indefinitely. `VPXCollections.is_member` covers the frontend;
+`table_repository._collections_for` covers the manager UI row. If only one of them
+did, a table would show its collections in one place and not the other.
 
 Announce table lifecycle through `events.py` rather than calling the affected
 services directly. Both launch paths - the frontend wheel and the Remote Control

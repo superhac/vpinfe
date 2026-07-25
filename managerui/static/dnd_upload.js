@@ -131,7 +131,7 @@
 
     const rowOf = (target) => {
       const row = target && target.closest ? target.closest('tr') : null;
-      return row && row.querySelector('[data-drop-filename]') ? row : null;
+      return row && row.querySelector('[data-drop-table-id]') ? row : null;
     };
     const clearHighlight = () => {
       el.querySelectorAll('tr.dnd-row-active').forEach((r) => r.classList.remove('dnd-row-active'));
@@ -154,7 +154,7 @@
       clearHighlight();
       if (!row) return;
       e.preventDefault();
-      const rowKey = row.querySelector('[data-drop-filename]').getAttribute('data-drop-filename');
+      const rowKey = row.querySelector('[data-drop-table-id]').getAttribute('data-drop-table-id');
       try {
         const files = await collectFiles(e.dataTransfer);
         if (!files.length) {

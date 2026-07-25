@@ -22,10 +22,10 @@ def get_collections() -> list[str]:
         return []
 
 
-def get_collection_vpsids(collection_name: str) -> set[str]:
+def get_collection_members(collection_name: str) -> set[str]:
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
-        return set(collections.get_vpsids(collection_name))
+        return set(collections.get_members(collection_name))
     except Exception:
         return set()
 

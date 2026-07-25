@@ -143,7 +143,7 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
         row = table_to_row(table)
 
         self.assertTrue(minted)
-        self.assertEqual(row["id"], "", "precondition: no VPS-derived id")
+        self.assertEqual(row["vpsid"], "", "precondition: no VPS-derived id")
         self.assertEqual(row["vpinfe_id"], minted)
 
 
@@ -202,8 +202,8 @@ class RowFieldTests(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.root = Path(self._tmp.name)
 
-    def test_table_id_is_separate_from_the_collections_id(self) -> None:
-        """Collection membership is keyed by `id`; changing it would break collections.ini."""
+    def test_a_row_carries_correlation_ids_and_identity_separately(self) -> None:
+        """VPS ids correlate with other services; vpinfe_id is what identifies the table."""
         table = _table(self.root, meta={
             "Info": {"VPSId": "vps-1"},
             "VPinFE": {"altvpsid": "vps-override"},
@@ -213,8 +213,10 @@ class RowFieldTests(unittest.TestCase):
         row = table_to_row(table)
 
         self.assertEqual(row["vpsid"], "vps-1")
-        self.assertEqual(row["id"], "vps-override")
+        self.assertEqual(row["altvpsid"], "vps-override")
         self.assertEqual(row["vpinfe_id"], assigned)
+        # There is no derived "id" to pick up by accident.
+        self.assertNotIn("id", row)
 
     def test_row_reports_an_empty_table_id_before_one_is_assigned(self) -> None:
         table = _table(self.root, meta={"Info": {"VPSId": "vps-1"}})
