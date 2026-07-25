@@ -10,7 +10,8 @@ small facade classes for older call sites.
 - `paths.py`: canonical user config, themes, collections, and table-root paths. `CONFIG_DIR` is resolved once at import time; set `VPINFE_CONFIG_DIR` before import (main.py maps the `--configdir` flag onto it) to relocate the whole config directory.
 - `config_access.py`: typed, UI-independent accessors for common INI sections.
 - `table.py`, `tableparser.py`, `table_repository.py`: table discovery and cached table rows.
-- `table_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence.
+- `table_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
+- `table_identity.py`: the stable per-install table id used to address a table in the HTTP API.
 - `media_paths.py`: canonical media keys, filenames, table attributes, and path resolution.
 - `jobs.py`: callback-friendly progress/log reporting for long-running workflows.
 - `metadata_service.py`, `table_report_service.py`, `table_play_service.py`: workflows that operate on tables and metadata.
@@ -42,6 +43,18 @@ Use `table_metadata.py` for display and fallback accessors. New table filtering,
 sorting, or row-building code should use helpers like `table_title`,
 `table_themes`, `table_type`, `table_manufacturer`, `table_year`, and
 `table_rating` instead of repeating `Info`/legacy `VPSdb` fallback logic.
+
+Know which table id you want. A table row carries two, and they are not
+interchangeable:
+
+- `id` is VPS-derived (`VPinFE.altvpsid` or `Info.VPSId`). Collection membership
+  is keyed by it and it is what gets written into `collections.ini`, so changing
+  what goes in it breaks collections.
+- `vpinfe_id` is this install's stable local id from `table_identity.py`. It is
+  what addresses a table in the HTTP API, in events, and in jobs.
+
+Use `table_identity.table_id()` to read one, `ensure_id()` when you need a table
+to have one. Reading never mints, so table scans stay a read path.
 
 Use `config_access.py` when reading common INI values from code outside the
 configuration editor itself. This keeps defaults and bool/int coercion in one

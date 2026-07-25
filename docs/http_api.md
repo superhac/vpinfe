@@ -119,6 +119,51 @@ shown to users, so say what's missing and how to fix it.
 library (location-independent, cacheable) and `play_host` for things tied to the machine
 where tables launch and hardware lives.
 
+## Table identity
+
+Tables are addressed by an opaque local id — `common/table_identity.py`, stored per table in
+its `.info` under `VPinFE.id`:
+
+```
+GET /api/v1/tables/6f1c9a4e8b7d4f02a1c35e9d7b204c88
+```
+
+The id is minted once and then stays put. It survives renames, VPSdb re-matches, and table
+updates, which is what an id in a URL, an event, or a job has to do.
+
+`VPSId` is not that id, and can't be. It's empty for any table VPSdb hasn't matched, it isn't
+guaranteed unique, and the effective id used elsewhere (`VPinFE.altvpsid or Info.VPSId`) is
+deliberately cleared when the .vpx file changes — so updating a table would silently change
+its identity. `vpsId` is still exposed on the table resource, because correlating with VPSdb,
+VPinPlay, and other outside services is exactly what it's good for. It's an attribute, not
+the key.
+
+Two consequences worth knowing:
+
+- Copying a table folder copies its id. The duplicate is spotted and re-minted the next time
+  ids are checked across the library, so an id always addresses one table.
+- Deleting a table's `.info` loses its id, the same way it loses that table's rating and play
+  counts. A new one is minted; anything holding the old id won't resolve.
+
+Existing tables get an id on their next metadata rebuild, or on demand. Reading a table never
+mints one — a scan is a read path and stays one.
+
+In Manager UI table rows the field is `vpinfe_id`, pairing with `vpsid` so each name says who
+issued the id. The API exposes it as the resource's `id`.
+
+### Schema version
+
+The `VPinFE` section of a table's `.info` carries a `schema` number, bumped when the shape of
+that section changes. It is scoped to that section deliberately: VPinFE owns those keys
+outright, so their shape can be reasoned about from a version. `Info` and `VPXFile` are derived
+from VPSdb and the vpx file, and the `.info` is a file other tools read and write, so those
+sections stay shape-driven and tolerant.
+
+Migration runs on read, in memory, and never writes — the stamp reaches disk on the next real
+write. A section written by a *newer* VPinFE is left exactly as it is: downgrading someone's
+data because they ran an older build once is worse than not understanding it. A version we
+don't recognise is never a reason to refuse to read a file.
+
 ## Adding routes
 
 Build an `APIRouter`, include it in `create_api_app()`, and let the envelope handle failures:
