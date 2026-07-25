@@ -8,13 +8,13 @@ from typing import Dict, List, Optional
 
 from common.iniconfig import IniConfig
 from common.config_access import MediaConfig, SettingsConfig
-from common import table_repository
-from common.table_repository import get_missing_tables, get_table_rows, refresh_table
-from common import metadata_service
-from common.vpxcollections import VPXCollections
-from common.game_files import default_game_file
-from common.table_metadata import section as meta_section
-from common.vpxparser import VPXParser
+from common.tables import table_repository
+from common.tables.table_repository import get_missing_tables, get_table_rows, refresh_table
+from common.tables import metadata_service
+from common.tables.vpxcollections import VPXCollections
+from common.tables.game_files import default_game_file
+from common.tables.table_metadata import section as meta_section
+from common.tables.vpxparser import VPXParser
 
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_tables_path
 from managerui.services import table_index_service
@@ -40,7 +40,7 @@ def normalize_table_rating(value) -> int:
 
 def ensure_vpsdb_downloaded() -> bool:
     global _vpsdb_cache
-    from common.vpsdb import VPSdb
+    from common.external.vpsdb import VPSdb
     try:
         config = _fresh_config()
         VPSdb(SettingsConfig.from_config(config).table_root_dir, config)
@@ -267,7 +267,7 @@ def associate_vps_to_folder(
     download_media: bool = False,
     user_media: bool = False,
 ) -> None:
-    from common.metaconfig import MetaConfig
+    from common.tables.metaconfig import MetaConfig
 
     if not table_folder.exists():
         raise FileNotFoundError(f"Folder not found: {table_folder}")
@@ -289,7 +289,7 @@ def associate_vps_to_folder(
 
     if user_media:
         from clioptions import _claimMediaForTable
-        from common.table import Table
+        from common.tables.table import Table
 
         config = _fresh_config()
         tabletype = MediaConfig.from_config(config).table_type
@@ -300,7 +300,7 @@ def associate_vps_to_folder(
         meta = MetaConfig(str(meta_path))
 
     if download_media or user_media:
-        from common.vpsdb import VPSdb
+        from common.external.vpsdb import VPSdb
 
         config = _fresh_config()
         vps = VPSdb(SettingsConfig.from_config(config).table_root_dir, config)
@@ -349,7 +349,7 @@ def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> di
     import subprocess
     import sys as _sys
     import platform as _platform
-    from common.launcher import get_effective_launcher
+    from common.host.launcher import get_effective_launcher
 
     cfg = _fresh_config()
     vpxbin = cfg.config['Settings'].get('vpxbinpath', '')

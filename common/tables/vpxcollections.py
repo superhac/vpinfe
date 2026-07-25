@@ -3,10 +3,10 @@ import configparser
 import logging
 from pathlib import Path
 
-from common.table_identity import table_id
-from common.table_metadata import base_table_vps_id, section, table_title
+from common.tables.table_identity import table_id
+from common.tables.table_metadata import base_table_vps_id, section, table_title
 
-logger = logging.getLogger("vpinfe.common.vpxcollections")
+logger = logging.getLogger("vpinfe.common.tables.vpxcollections")
 
 # collections.ini is entirely ours, so it carries a version like the VPinFE section
 # of a table's .info does. In an ini the sections are collection names, so the

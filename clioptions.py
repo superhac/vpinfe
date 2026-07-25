@@ -7,7 +7,7 @@ from screeninfo import get_monitors
 from common.iniconfig import IniConfig
 from common.logging_config import get_logger
 from common.paths import VPINFE_INI_PATH, ensure_config_dir
-from common import metadata_service, table_report_service
+from common.tables import metadata_service, table_report_service
 from frontend.customhttpserver import CustomHTTPServer
 
 logger = get_logger("vpinfe.cli")

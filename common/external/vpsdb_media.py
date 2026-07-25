@@ -10,7 +10,7 @@ from common.http_client import download_file
 from common.media_paths import default_media_path
 
 
-logger = logging.getLogger("vpinfe.common.vpsdb_media")
+logger = logging.getLogger("vpinfe.common.external.vpsdb_media")
 
 
 class VPSMediaDownloader:

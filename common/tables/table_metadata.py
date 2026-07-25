@@ -4,7 +4,7 @@ import ast
 from pathlib import Path
 from typing import Any, Dict
 
-from common.metaconfig import MetaConfig
+from common.tables.metaconfig import MetaConfig
 
 
 DETECTION_KEYS = (

@@ -6,8 +6,8 @@ from pathlib import Path
 from nicegui import ui
 
 from common.config_access import SettingsConfig
+from common.host.vpx_log import resolve_vpinball_log_path
 from common.iniconfig import IniConfig
-from common.vpx_log import resolve_vpinball_log_path
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 from managerui.ui_helpers import load_page_style
 

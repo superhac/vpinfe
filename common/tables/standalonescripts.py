@@ -1,5 +1,5 @@
 import logging
-from common.metaconfig import MetaConfig
+from common.tables.metaconfig import MetaConfig
 import os
 from pathlib import Path
 
@@ -8,7 +8,7 @@ import requests
 from common.http_client import download_file, get_json
 
 
-logger = logging.getLogger("vpinfe.common.standalonescripts")
+logger = logging.getLogger("vpinfe.common.tables.standalonescripts")
 
 class StandaloneScripts:
 

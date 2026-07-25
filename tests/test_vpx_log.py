@@ -6,7 +6,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common.config_access import SettingsConfig
-from common.vpx_log import delete_vpinball_log_on_start_if_configured, resolve_vpinball_log_path
+from common.host.vpx_log import (
+    delete_vpinball_log_on_start_if_configured,
+    resolve_vpinball_log_path,
+)
 
 
 class VpxLogTests(unittest.TestCase):

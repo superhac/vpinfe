@@ -5,10 +5,10 @@ import logging
 import sys
 from typing import Any
 
-from common import dof_service as dof_parent
+from common.host import dof_service as dof_parent
 
 
-logger = logging.getLogger("vpinfe.common.dof_service_worker")
+logger = logging.getLogger("vpinfe.common.host.dof_service_worker")
 
 
 class _Worker:

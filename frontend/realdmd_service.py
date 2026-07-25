@@ -5,7 +5,7 @@ import threading
 from pathlib import Path
 
 from common.config_access import MediaConfig
-from common.table_metadata import normalize_meta
+from common.tables.table_metadata import normalize_meta
 
 
 logger = logging.getLogger("vpinfe.frontend.realdmd_service")

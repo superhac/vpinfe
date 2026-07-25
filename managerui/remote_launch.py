@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from common.values import is_truthy
-from common.vpxcollections import VPXCollections
+from common.tables.vpxcollections import VPXCollections
 
 from managerui.paths import COLLECTIONS_PATH
 from managerui.services import table_catalog

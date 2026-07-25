@@ -11,7 +11,7 @@ from typing import Callable, Optional
 
 from nicegui import context, events, run, ui
 
-from common.table_metadata import reorder_leading_article
+from common.tables.table_metadata import reorder_leading_article
 from managerui.pages.table_dialog_context import TableDialogContext, default_context
 from managerui.pages.dnd_drop_zone import create_drop_zone, DropContext
 from managerui.services import plugin_profile_service, table_index_service, table_service

@@ -46,7 +46,7 @@ def probe() -> dict:
     record("play_state_same_origin", client.get("/api/v1/play/state"))
 
     # The Remote Control page writes through the service; the endpoint must report it.
-    from common import launch_state
+    from common.host import launch_state
     launch_state.set_launching("Medieval Madness (Williams 1997)")
     record("play_state_launching", client.get("/api/v1/play/state"))
     launch_state.clear()

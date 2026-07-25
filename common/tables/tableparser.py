@@ -3,14 +3,14 @@ from pathlib import Path
 import logging
 from time import perf_counter
 from common.config_access import MediaConfig
-from common.game_files import default_game_file, game_file_names
-from common.table_metadata import section
+from common.tables.game_files import default_game_file, game_file_names
+from common.tables.table_metadata import section
 from common.media_paths import apply_media_paths
-from common.table import Table
-from common.metaconfig import InvalidMetaConfigError, MetaConfig
+from common.tables.table import Table
+from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
 
 
-logger = logging.getLogger("vpinfe.common.tableparser")
+logger = logging.getLogger("vpinfe.common.tables.tableparser")
 
 
 class TableParser:

@@ -7,19 +7,19 @@ import subprocess
 import sys
 import time
 
-from common import table_play_service
+from common.tables import table_play_service
 from common import events
 from common.config_access import SettingsConfig, VPinPlayConfig
-from common.launcher import get_plugin_profile_from_meta, resolve_launch_plugin_profile
-from common.vpx_log import delete_vpinball_log_on_start_if_configured
-from common.vpinplay_runtime import (
+from common.host.launcher import get_plugin_profile_from_meta, resolve_launch_plugin_profile
+from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
+from common.external.vpinplay_runtime import (
     add_table_runtime,
     get_active_profile,
     get_table_user_state,
     record_table_start,
     set_table_score,
 )
-from common.vpinplay_service import sync_single_table_meta
+from common.external.vpinplay_service import sync_single_table_meta
 from frontend.last_table import save_last_table
 
 

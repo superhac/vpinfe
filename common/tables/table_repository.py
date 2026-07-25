@@ -8,16 +8,16 @@ from typing import Any, Dict, List, Optional
 from pathlib import Path
 
 from common.paths import COLLECTIONS_PATH, get_ini_config, get_tables_path
-from common.table_identity import ensure_unique_ids
-from common.table_identity import table_id as vpinfe_id
-from common.table_metadata import first_meta_value, normalize_rating, reorder_leading_article, section
-from common.tableparser import TableParser
-from common.vpxcollections import VPXCollections
+from common.tables.table_identity import ensure_unique_ids
+from common.tables.table_identity import table_id as vpinfe_id
+from common.tables.table_metadata import first_meta_value, normalize_rating, reorder_leading_article, section
+from common.tables.tableparser import TableParser
+from common.tables.vpxcollections import VPXCollections
 
 
 _LOCK = threading.Lock()
 _PARSER: Optional[TableParser] = None
-logger = logging.getLogger("vpinfe.common.table_repository")
+logger = logging.getLogger("vpinfe.common.tables.table_repository")
 
 
 def ensure_tables_loaded(reload: bool = False) -> List[Any]:

@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.metaconfig import (
+from common.tables.metaconfig import (
     CURRENT_VPINFE_SCHEMA,
     InvalidMetaConfigError,
     MetaConfig,
@@ -250,7 +250,7 @@ class VPinFESchemaTests(unittest.TestCase):
         """Running an older build must not downgrade or strip a newer file."""
         future = {"schema": CURRENT_VPINFE_SCHEMA + 5, "somethingNew": "keep me"}
 
-        with self.assertLogs("vpinfe.common.metaconfig", level="WARNING"):
+        with self.assertLogs("vpinfe.common.tables.metaconfig", level="WARNING"):
             migrated = migrate_vpinfe_section(dict(future))
 
         self.assertEqual(migrated, future)

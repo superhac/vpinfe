@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 
-updater = importlib.import_module("common.pinmame_score_parser_updater")
+updater = importlib.import_module("common.external.pinmame_score_parser_updater")
 
 
 class _FakeIniConfig:

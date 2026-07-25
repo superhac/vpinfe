@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+from common.paths import APP_ROOT
+
 
 def find_named_path(base: Path, names: tuple[str, ...]) -> Path | None:
     if base.is_file() and base.name in names:
@@ -31,8 +33,7 @@ def third_party_base_candidates(env_var: str, package_dir: str) -> list[Path]:
     if env_override:
         candidates.append(Path(env_override).expanduser())
 
-    project_root = Path(__file__).resolve().parents[1]
-    candidates.append(project_root / "third-party" / package_dir)
+    candidates.append(APP_ROOT / "third-party" / package_dir)
 
     meipass = getattr(sys, "_MEIPASS", None)
     if meipass:

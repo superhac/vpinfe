@@ -8,9 +8,9 @@ from typing import Dict, List, Optional
 from urllib.parse import quote
 
 from common.media_paths import media_attr_key_map, media_filename_map
-from common.metaconfig import MetaConfig
-from common.table_metadata import reorder_leading_article
-from common.table_repository import ensure_tables_loaded
+from common.tables.metaconfig import MetaConfig
+from common.tables.table_metadata import reorder_leading_article
+from common.tables.table_repository import ensure_tables_loaded
 
 from managerui.paths import CONFIG_DIR, get_tables_path
 

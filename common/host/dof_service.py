@@ -10,13 +10,14 @@ from pathlib import Path
 from typing import Any
 
 from common.external_service import find_named_path, import_module_from_path, third_party_base_candidates
+from common.paths import APP_ROOT
 
 _LOCK = threading.Lock()
 _HELPER = None
 _CURRENT_EVENT = None
 _RUNNER_NAMES = ('dof_runner.py', 'runner_dof.py', 'random_dof_runner.py')
 _EVENT_TOKEN_RE = re.compile(r'^([A-Za-z])(\d+)$')
-logger = logging.getLogger("vpinfe.common.dof_service")
+logger = logging.getLogger("vpinfe.common.host.dof_service")
 
 
 def _is_enabled(iniconfig) -> bool:
@@ -85,7 +86,7 @@ class _DofHelperProcess:
     def _command(self) -> list[str]:
         if getattr(sys, 'frozen', False):
             return [sys.executable, '--dof-helper']
-        return [sys.executable, '-m', 'common.dof_service_worker']
+        return [sys.executable, '-m', 'common.host.dof_service_worker']
 
     def _ensure_started(self) -> bool:
         if self._proc is not None and self._proc.poll() is None:
@@ -94,7 +95,7 @@ class _DofHelperProcess:
         cmd = self._command()
         env = os.environ.copy()
         env['PYTHONUNBUFFERED'] = '1'
-        project_root = str(Path(__file__).resolve().parents[1])
+        project_root = str(APP_ROOT)
         try:
             self._expected_shutdown = False
             self._unexpected_exit_code = None

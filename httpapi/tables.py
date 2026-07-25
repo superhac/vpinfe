@@ -14,9 +14,13 @@ from fastapi import APIRouter, Query
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
-from common import table_identity
-from common.game_files import default_game_file, game_file_names
-from common.table_repository import collections_by_table_id, ensure_tables_loaded, table_to_row
+from common.tables import table_identity
+from common.tables.game_files import default_game_file, game_file_names
+from common.tables.table_repository import (
+    collections_by_table_id,
+    ensure_tables_loaded,
+    table_to_row,
+)
 
 from . import scopes
 from .auth import requires

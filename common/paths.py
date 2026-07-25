@@ -19,6 +19,12 @@ def _resolve_config_dir() -> Path:
     return Path(user_config_dir("vpinfe", "vpinfe"))
 
 
+# Where the app itself lives, as opposed to the user's config. Bundled assets sit
+# under it: web/, third-party/, main.py. Resolved here so no module has to count
+# its own directory levels - doing that is what broke when common/ gained
+# subpackages, and it broke silently everywhere a test did not happen to look.
+APP_ROOT = Path(__file__).resolve().parent.parent
+
 CONFIG_DIR = _resolve_config_dir()
 VPINFE_INI_PATH = CONFIG_DIR / "vpinfe.ini"
 COLLECTIONS_PATH = CONFIG_DIR / "collections.ini"

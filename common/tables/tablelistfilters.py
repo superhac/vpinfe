@@ -1,4 +1,4 @@
-from common.table_metadata import (
+from common.tables.table_metadata import (
     get_meta_value,
     normalize_rating,
     table_manufacturer,

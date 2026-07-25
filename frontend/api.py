@@ -1,23 +1,23 @@
 import logging
 import subprocess
-from common import system_actions
-from common.table_repository import ensure_tables_loaded
-from common.collections_service import get_collection_image_url, get_collection_names, get_collections_metadata
-from common.display_service import monitors_as_dicts
-from common.dof_service import (
+from common.host import system_actions
+from common.tables.table_repository import ensure_tables_loaded
+from common.tables.collections_service import get_collection_image_url, get_collection_names, get_collections_metadata
+from common.host.display_service import monitors_as_dicts
+from common.host.dof_service import (
     send_frontend_dof_event,
 )
-from common.libdmdutil_service import (
+from common.host.libdmdutil_service import (
     show_image as show_libdmdutil_image,
 )
-from common.launcher import (
+from common.host.launcher import (
     build_vpx_launch_command,
     get_effective_launcher,
     parse_launch_env_overrides,
     resolve_launch_tableini_override,
 )
-from common.table_metadata import normalize_meta
-from common.vpinplay_runtime import (
+from common.tables.table_metadata import normalize_meta
+from common.external.vpinplay_runtime import (
     activate_alternate_profile,
     clear_alternate_profile,
     get_alternate_profile_state,
@@ -399,7 +399,7 @@ class API:
         Returns:
             dict with success status and message
         """
-        from common.metadata_service import build_metadata
+        from common.tables.metadata_service import build_metadata
 
         return metadata_build_service.start_build(
             self,

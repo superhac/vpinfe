@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from common.vpinplay_service import _build_table_payload, sync_installed_tables
+from common.external.vpinplay_service import _build_table_payload, sync_installed_tables
 
 
 class TestVPinPlayService(unittest.TestCase):
@@ -55,9 +55,9 @@ class TestVPinPlayService(unittest.TestCase):
         assert payload is not None
         self.assertIsNone(payload["user"]["score"])
 
-    @patch("common.vpinplay_service.requests.post")
-    @patch("common.vpinplay_service.get_version", return_value="test-version")
-    @patch("common.vpinplay_service.TableParser")
+    @patch("common.external.vpinplay_service.requests.post")
+    @patch("common.external.vpinplay_service.get_version", return_value="test-version")
+    @patch("common.external.vpinplay_service.TableParser")
     def test_sync_installed_tables_includes_initials_in_client_payload(
         self,
         mock_table_parser,
@@ -81,8 +81,8 @@ class TestVPinPlayService(unittest.TestCase):
         response.json.return_value = {"ok": True}
         mock_post.return_value = response
 
-        with patch("common.vpinplay_service.Path.exists", return_value=True), patch(
-            "common.vpinplay_service.Path.is_dir", return_value=True
+        with patch("common.external.vpinplay_service.Path.exists", return_value=True), patch(
+            "common.external.vpinplay_service.Path.is_dir", return_value=True
         ):
             sync_installed_tables(
                 service_ip="https://api.vpinplay.com:8888",

@@ -10,7 +10,7 @@ from urllib.parse import quote
 from nicegui import run, ui
 
 from common.iniconfig import IniConfig
-from common.vpinplay_service import sync_installed_tables
+from common.external.vpinplay_service import sync_installed_tables
 from managerui.config_fields import is_checkbox_field
 from managerui.pages.vpinfe_config import get_friendly_name
 from managerui.paths import VPINFE_INI_PATH

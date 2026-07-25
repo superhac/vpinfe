@@ -6,7 +6,7 @@ from pathlib import Path
 
 from common.paths import PLUGIN_PROFILES_DIR
 
-logger = logging.getLogger("vpinfe.common.launcher")
+logger = logging.getLogger("vpinfe.common.host.launcher")
 _ENV_KEY_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
 # The built-in plugin profile means "use the live VPinballX.ini", so it adds no

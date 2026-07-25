@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from common import launch_state
+from common.host import launch_state
 
 from . import scopes
 from .auth import requires

@@ -3,13 +3,14 @@ import threading
 from pathlib import Path
 
 from common.external_service import find_named_path, import_module_from_path, third_party_base_candidates
+from common.paths import APP_ROOT
 
 _LOCK = threading.Lock()
 _CONTROLLER = None
 _CURRENT_IMAGE = None
 _WRAPPER_NAMES = ('libdmdutil_wrapper.py',)
-_DEFAULT_REALDMD_IMAGE = Path(__file__).resolve().parents[1] / "web" / "images" / "vpinfe_realdmd.png"
-logger = logging.getLogger("vpinfe.common.libdmdutil_service")
+_DEFAULT_REALDMD_IMAGE = APP_ROOT / "web" / "images" / "vpinfe_realdmd.png"
+logger = logging.getLogger("vpinfe.common.host.libdmdutil_service")
 
 
 def _is_enabled(iniconfig) -> bool:

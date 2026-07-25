@@ -10,13 +10,13 @@ from common.config_access import DisplayConfig, MediaConfig, NetworkConfig, Sett
 from common.external_service import find_named_path, import_module_from_path
 from common.jobs import JobReporter
 from common.media_paths import apply_media_paths, media_filename_map, table_media_payload
-from common.metadata_service import claim_media_for_table
-from common.standalonescripts import StandaloneScripts
-from common.table_metadata import table_themes, table_title, table_type
-from common.table_repository import table_to_row
-from common.tableparser import TableParser
-from common.theme_installer import ThemeInstallStore
-from common.vpsdb_cache import VPSDatabaseCache
+from common.tables.metadata_service import claim_media_for_table
+from common.tables.standalonescripts import StandaloneScripts
+from common.tables.table_metadata import table_themes, table_title, table_type
+from common.tables.table_repository import table_to_row
+from common.tables.tableparser import TableParser
+from common.external.theme_installer import ThemeInstallStore
+from common.external.vpsdb_cache import VPSDatabaseCache
 
 
 class _FakeIni:
@@ -109,7 +109,7 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertEqual(table_type(table), "SS")
 
     def test_standalone_scripts_can_be_constructed_without_running_network_work(self) -> None:
-        with mock.patch("common.standalonescripts.StandaloneScripts.apply_patches") as apply_patches:
+        with mock.patch("common.tables.standalonescripts.StandaloneScripts.apply_patches") as apply_patches:
             scripts = StandaloneScripts([], auto_run=False)
 
         self.assertIsNone(scripts.hashes)

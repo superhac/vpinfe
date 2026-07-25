@@ -1,7 +1,7 @@
 import json
 
 from nicegui import ui, run, context
-from common.themes import ThemeRegistry, ThemeRegistryError
+from common.external.themes import ThemeRegistry, ThemeRegistryError
 from pathlib import Path
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 from managerui.services import app_control

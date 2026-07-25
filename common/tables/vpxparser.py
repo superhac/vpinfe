@@ -12,7 +12,7 @@ import pathlib
 import sys
 
 
-logger = logging.getLogger("vpinfe.common.vpxparser")
+logger = logging.getLogger("vpinfe.common.tables.vpxparser")
 
 
 class VPXParser:

@@ -8,7 +8,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from common import metadata_service, system_actions, table_play_service, table_report_service
+from common.host import system_actions
+from common.tables import metadata_service, table_play_service, table_report_service
 from frontend import config_api, realdmd_service, table_state, theme_api
 
 
@@ -20,7 +21,7 @@ class FrontendServiceTests(unittest.TestCase):
             logger = types.SimpleNamespace(info=mock.Mock())
             calls = []
 
-            with mock.patch("common.system_actions.os.execvp", side_effect=lambda *args: calls.append(args)):
+            with mock.patch("common.host.system_actions.os.execvp", side_effect=lambda *args: calls.append(args)):
                 system_actions.restart_if_requested(
                     config_dir,
                     logger,
@@ -149,8 +150,8 @@ class FrontendServiceTests(unittest.TestCase):
         logs = []
         ini = types.SimpleNamespace(config={"Settings": {"tablerootdir": "/tables"}})
 
-        with mock.patch("common.table_report_service.TableParser", return_value=parser_instance), \
-            mock.patch("common.table_report_service.VPSdb", return_value=vps_instance):
+        with mock.patch("common.tables.table_report_service.TableParser", return_value=parser_instance), \
+            mock.patch("common.tables.table_report_service.VPSdb", return_value=vps_instance):
             table_report_service.list_unknown_tables(iniconfig=ini, log=lambda msg, *args: logs.append(msg % args if args else msg))
 
         self.assertTrue(any("Unknown table 1: Unknown" in line for line in logs))
@@ -257,8 +258,8 @@ class FrontendServiceTests(unittest.TestCase):
                 metaConfig={},
             )
 
-            with mock.patch("common.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
-                    mock.patch("common.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}) as to_json:
+            with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
+                    mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}) as to_json:
                 score_data, score_path = table_play_service.parse_score_from_nvram(table)
 
             read_rom.assert_called_once_with("vpx_rom", str(table_dir))
@@ -286,8 +287,8 @@ class FrontendServiceTests(unittest.TestCase):
                 metaConfig={},
             )
 
-            with mock.patch("common.score_parser.read_rom_with_source", return_value=(123, "/scores/info_rom.nv")) as read_rom, \
-                    mock.patch("common.score_parser.result_to_jsonable", return_value={"rom": "info_rom"}):
+            with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/info_rom.nv")) as read_rom, \
+                    mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "info_rom"}):
                 table_play_service.parse_score_from_nvram(table)
 
             read_rom.assert_called_once_with("info_rom", str(table_dir))

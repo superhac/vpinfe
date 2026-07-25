@@ -9,7 +9,7 @@ import requests
 from common.paths import CONFIG_DIR, USER_ROMS_PATH
 
 
-logger = logging.getLogger("vpinfe.common.pinmame_score_parser_updater")
+logger = logging.getLogger("vpinfe.common.external.pinmame_score_parser_updater")
 
 
 ROMS_JSON_PATH = USER_ROMS_PATH

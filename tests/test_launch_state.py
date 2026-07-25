@@ -1,7 +1,8 @@
 import threading
 import unittest
 
-from common import events, launch_state
+from common import events
+from common.host import launch_state
 
 
 class LaunchStateTests(unittest.TestCase):

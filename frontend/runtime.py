@@ -10,10 +10,10 @@ from frontend.api import API
 from frontend.chromium_manager import ChromiumManager
 from frontend.customhttpserver import CustomHTTPServer
 from frontend.ws_bridge import WebSocketBridge
-from common import system_actions
+from common.host import system_actions
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
-from common.display_service import get_display_monitors
-from common.vpinplay_runtime import clear_alternate_profile
+from common.host.display_service import get_display_monitors
+from common.external.vpinplay_runtime import clear_alternate_profile
 
 
 WINDOW_CONFIGS = (

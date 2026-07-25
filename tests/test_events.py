@@ -1,7 +1,8 @@
 import unittest
 from unittest import mock
 
-from common import events, peripherals
+from common import events
+from common.host import peripherals
 
 
 class BusTests(unittest.TestCase):

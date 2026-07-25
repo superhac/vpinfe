@@ -61,6 +61,9 @@ established and user-facing; leave it alone. `.info` keys follow their existing 
 - A new subsystem gets its own top-level package, not another module in `common/`. `httpapi/`
   is the current example.
 - Keep `common/` UI-independent.
+- `common/` is a layer, not a bucket. Domain code goes in `common/tables/`, `common/external/`
+  or `common/host/`; `common/` itself holds only what knows nothing about any of them, and may
+  never import from those packages. See `docs/common.md`.
 - Route handlers stay thin. Logic belongs in a service where the other callers can reach it.
 
 ## Comments and docstrings

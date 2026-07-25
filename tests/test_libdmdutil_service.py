@@ -6,7 +6,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from common import libdmdutil_service
+from common.host import libdmdutil_service
 
 
 class LibDmdUtilServiceTests(unittest.TestCase):

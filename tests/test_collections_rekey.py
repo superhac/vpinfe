@@ -5,9 +5,9 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import mock
 
-from common import table_repository
-from common.metaconfig import MetaConfig
-from common.vpxcollections import CURRENT_SCHEMA, SCHEMA_SECTION, VPXCollections
+from common.tables import table_repository
+from common.tables.metaconfig import MetaConfig
+from common.tables.vpxcollections import CURRENT_SCHEMA, SCHEMA_SECTION, VPXCollections
 
 
 def _table(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", table_id: str = ""):
@@ -68,7 +68,7 @@ class MigrationTests(unittest.TestCase):
         collections.save()
 
         reopened = VPXCollections(str(self.ini))
-        with self.assertLogs("vpinfe.common.vpxcollections", level="WARNING"):
+        with self.assertLogs("vpinfe.common.tables.vpxcollections", level="WARNING"):
             moved = reopened.migrate_membership_to_table_ids([table])
 
         self.assertEqual(moved, 0)

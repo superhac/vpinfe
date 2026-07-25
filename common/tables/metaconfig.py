@@ -4,7 +4,7 @@ import os
 import uuid
 from urllib.parse import urlparse, parse_qs
 
-logger = logging.getLogger("vpinfe.common.metaconfig")
+logger = logging.getLogger("vpinfe.common.tables.metaconfig")
 
 # Schema version for the VPinFE section only - we own those keys outright, so their
 # shape can be reasoned about from a version. Other sections stay shape-driven.

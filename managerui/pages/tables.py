@@ -21,7 +21,7 @@ VPSDB_JSON_PATH = table_service.VPSDB_JSON_PATH
 
 # Load vpinfe.ini once to avoid repeated parsing
 from common.iniconfig import IniConfig
-from common.table_metadata import reorder_leading_article
+from common.tables.table_metadata import reorder_leading_article
 _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 #_vpsdb_cache: List[Dict] | None = None

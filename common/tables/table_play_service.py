@@ -5,10 +5,10 @@ import time
 from copy import deepcopy
 from pathlib import Path
 
-from common.collections_service import get_collections_manager
-from common.vpxcollections import MEMBERS_KEY
-from common import table_identity
-from common.table_metadata import (
+from common.tables.collections_service import get_collections_manager
+from common.tables.vpxcollections import MEMBERS_KEY
+from common.tables import table_identity
+from common.tables.table_metadata import (
     get_or_create_user_meta,
     load_table_meta,
     normalize_meta,
@@ -17,7 +17,7 @@ from common.table_metadata import (
 )
 
 
-logger = logging.getLogger("vpinfe.common.table_play_service")
+logger = logging.getLogger("vpinfe.common.tables.table_play_service")
 
 
 def track_table_play(table, collection_name: str = "Last Played", max_items: int = 30) -> None:
@@ -117,7 +117,7 @@ def parse_score_from_nvram(table) -> tuple[dict | None, str | None]:
         return None, None
 
     try:
-        from common.score_parser import read_rom_with_source, result_to_jsonable
+        from common.tables.score_parser import read_rom_with_source, result_to_jsonable
 
         parsed_result, score_path = read_rom_with_source(rom, table.fullPathTable)
         score_data = result_to_jsonable(rom, parsed_result, score_path)

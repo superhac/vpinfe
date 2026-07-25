@@ -5,8 +5,8 @@ from typing import Dict, List
 from pathlib import Path
 from urllib.parse import quote
 
-from common import table_repository
-from common.vpxcollections import MEMBERS_KEY, VPXCollections
+from common.tables import table_repository
+from common.tables.vpxcollections import MEMBERS_KEY, VPXCollections
 
 from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR
 from managerui.services import table_index_service

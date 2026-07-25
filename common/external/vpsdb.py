@@ -4,11 +4,11 @@ import re
 
 from common.paths import CONFIG_DIR
 from common.config_access import MediaConfig
-from common.vpsdb_cache import VPinMediaDatabase, VPSDatabaseCache
-from common.vpsdb_media import VPSMediaDownloader
+from common.external.vpsdb_cache import VPinMediaDatabase, VPSDatabaseCache
+from common.external.vpsdb_media import VPSMediaDownloader
 
 
-logger = logging.getLogger("vpinfe.common.vpsdb")
+logger = logging.getLogger("vpinfe.common.external.vpsdb")
 
 
 class VPSdb:

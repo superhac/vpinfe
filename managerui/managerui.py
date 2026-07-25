@@ -28,7 +28,7 @@ import os
 import socket
 import time
 from common.app_version import get_version
-from common.app_updater import (
+from common.external.app_updater import (
     check_for_updates as check_for_app_updates,
     launch_prepared_update,
     prepare_update,

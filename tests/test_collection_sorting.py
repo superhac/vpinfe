@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
-from common.vpxcollections import VPXCollections
+from common.tables.vpxcollections import VPXCollections
 
 from frontend.api import API
 

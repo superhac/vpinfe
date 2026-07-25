@@ -197,7 +197,7 @@ class ManagerUiServiceTests(unittest.TestCase):
         from tempfile import TemporaryDirectory
         from pathlib import Path
         from unittest import mock
-        import common.collections_service as common_collections
+        import common.tables.collections_service as common_collections
 
         with TemporaryDirectory() as temp_dir:
             collections_ini = Path(temp_dir) / "collections.ini"

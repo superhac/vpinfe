@@ -4,9 +4,9 @@ from pathlib import Path
 from urllib.parse import quote
 
 from common.paths import COLLECTIONS_PATH
-from common.tablelistfilters import TableListFilters
+from common.tables.tablelistfilters import TableListFilters
+from common.tables.vpxcollections import VPXCollections
 from common.values import is_truthy
-from common.vpxcollections import VPXCollections
 
 COLLECTION_ICONS_DIR = COLLECTIONS_PATH.parent / "collection_icons"
 COLLECTION_IMAGE_KEY = "image"

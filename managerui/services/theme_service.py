@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from common.iniconfig import IniConfig
-from common.themes import ThemeRegistry
+from common.external.themes import ThemeRegistry
 
 from managerui.paths import THEMES_DIR, VPINFE_INI_PATH
 

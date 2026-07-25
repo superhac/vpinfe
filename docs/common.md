@@ -7,30 +7,57 @@ small facade classes for older call sites.
 
 ## Layout
 
-- `paths.py`: canonical user config, themes, collections, and table-root paths. `CONFIG_DIR` is resolved once at import time; set `VPINFE_CONFIG_DIR` before import (main.py maps the `--configdir` flag onto it) to relocate the whole config directory.
+Three domain packages over an infrastructure layer, grouped by what a module knows
+about. The boundaries were drawn from the import graph rather than by hand: 92% of
+the domain-to-domain edges stay inside one package.
+
+**`common/` itself is the infrastructure layer.** Nothing here knows about tables,
+hardware or any outside service, so anything may depend on it - and nothing in it may
+import from a domain package. That rule is the point of the layer; breaking it is how
+`config_access` ended up importing `table_metadata` to read a boolean.
+
+- `paths.py`: canonical user config, themes, collections, and table-root paths. `CONFIG_DIR` is resolved once at import time; set `VPINFE_CONFIG_DIR` before import (main.py maps the `--configdir` flag onto it) to relocate the whole config directory. `APP_ROOT` is where the app itself lives - use it for bundled assets instead of counting directory levels from `__file__`.
 - `config_access.py`: typed, UI-independent accessors for common INI sections.
-- `table.py`, `tableparser.py`, `table_repository.py`: table discovery and cached table rows.
-- `table_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
-- `table_identity.py`: the stable per-install table id used to address a table in the HTTP API.
-- `game_files.py`: which .vpx in a table folder is the table. Every caller resolves through it.
-- `launch_state.py`: whether a launch has been requested from outside the frontend.
+- `values.py`: value coercion (`is_truthy`) shared by config, metadata and filters.
+- `iniconfig.py`, `config_bootstrap.py`: ini reading and first-run config creation.
 - `events.py`: the in-process event bus. Hooks are part of an operation; subscribers are told about it.
-- `peripherals.py`: DOF and real-DMD, driven by table lifecycle events.
 - `media_paths.py`: canonical media keys, filenames, table attributes, and path resolution.
 - `jobs.py`: callback-friendly progress/log reporting for long-running workflows.
-- `metadata_service.py`, `table_report_service.py`, `table_play_service.py`: workflows that operate on tables and metadata.
-- `collections_service.py`, `vpxcollections.py`, `tablelistfilters.py`: collection and filter logic.
-  `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
+- `http_client.py`: shared request/download helpers.
+- `external_service.py`: third-party path discovery and dynamic import helpers.
+- `logging_config.py`, `app_version.py`.
+
+**`common/tables/`** - tables, their metadata, and the collections built from them.
+
+- `table.py`, `tableparser.py`, `table_repository.py`: table discovery and cached table rows.
+- `table_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
+- `table_identity.py`: the stable per-install table id that addresses a table everywhere.
+- `game_files.py`: which .vpx in a table folder is the table. Every caller resolves through it.
+- `metadata_service.py`, `table_report_service.py`, `table_play_service.py`: workflows over tables and metadata.
+- `collections_service.py`, `vpxcollections.py`, `tablelistfilters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
+- `vpxparser.py`, `standalonescripts.py`: reading and patching the .vpx itself.
+- `score_parser.py`: PinMAME NVRAM score extraction.
+
+**`common/external/`** - services that live outside this machine.
+
 - `vpsdb.py`: compatibility facade for VPS database lookup and media download.
 - `vpsdb_cache.py`, `vpsdb_media.py`: VPS database cache/update and VPinMediaDB download helpers.
 - `themes.py`: compatibility facade for manager UI theme registry operations.
 - `theme_registry_client.py`, `theme_installer.py`: theme registry network and local install helpers.
-- `dof_service.py`, `libdmdutil_service.py`: hardware service facades.
-- `external_service.py`: shared third-party path discovery and dynamic import helpers.
-- `http_client.py`: shared request/download helpers for common services.
-- `system_actions.py`: OS shutdown/reboot and app restart helpers.
+- `app_updater.py`, `pinmame_score_parser_updater.py`: update checks and downloads.
+- `vpinplay_service.py`, `vpinplay_runtime.py`: the VPinPlay client.
 
-`score_parser.py` is intentionally left as its own compatibility module for now.
+**`common/host/`** - this machine: attached hardware, the launcher, the running session.
+
+- `dof_service.py`, `dof_service_worker.py`, `libdmdutil_service.py`: hardware service facades.
+- `peripherals.py`: DOF and real-DMD, driven by table lifecycle events.
+- `launcher.py`, `launch_state.py`: starting a table, and whether a launch was requested from outside the frontend.
+- `display_service.py`, `system_actions.py`, `vpx_log.py`.
+
+Three cross-package edges are deliberate: `tables` reads VPSdb through `external`
+when building metadata, and `external`'s VPinPlay client reaches into `tables` to
+enumerate the library. That last one is the wrong direction; VPinPlay predates the
+extension model and is expected to become a plugin.
 
 ## Design Rules
 

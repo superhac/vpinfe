@@ -8,9 +8,9 @@ import shlex
 import sys
 from nicegui import ui, run
 from common.iniconfig import IniConfig
-from common.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
-from common.launcher import build_masked_tableini_path, build_vpx_launch_command
-from common.vpxcollections import VPXCollections
+from common.host.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
+from common.host.launcher import build_masked_tableini_path, build_vpx_launch_command
+from common.tables.vpxcollections import VPXCollections
 from frontend.chromium_manager import get_builtin_chromium_options, parse_additional_chromium_options
 from pathlib import Path
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys

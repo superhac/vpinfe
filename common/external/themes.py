@@ -5,11 +5,11 @@ from io import BytesIO
 from typing import Dict, Any
 
 from common.paths import CONFIG_DIR
-from common.theme_installer import ThemeInstallStore
-from common.theme_registry_client import ThemeRegistryClient, ThemeRegistryError
+from common.external.theme_installer import ThemeInstallStore
+from common.external.theme_registry_client import ThemeRegistryClient, ThemeRegistryError
 
 
-logger = logging.getLogger("vpinfe.common.themes")
+logger = logging.getLogger("vpinfe.common.external.themes")
 
 
 class ThemeRegistry:

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from common.table_repository import get_missing_tables, get_table_rows
+from common.tables.table_repository import get_missing_tables, get_table_rows
 
 
 @dataclass

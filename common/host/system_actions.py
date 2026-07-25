@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from common.paths import APP_ROOT
+
 
 def system_command_env() -> dict[str, str]:
     env = os.environ.copy()
@@ -32,7 +34,7 @@ def restart_if_requested(config_dir: Path, logger, main_script: Path | None = No
     sleep_func(1)
     if getattr(sys, "frozen", False):
         os.execvp(sys.executable, [sys.executable])
-    script = os.path.abspath(main_script or Path(__file__).resolve().parent.parent / "main.py")
+    script = os.path.abspath(main_script or APP_ROOT / "main.py")
     os.execvp(sys.executable, [sys.executable, script])
 
 

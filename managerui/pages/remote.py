@@ -17,9 +17,9 @@ category_select = None
 from common.iniconfig import IniConfig
 from common import events
 from common.config_access import SettingsConfig
-from common.vpx_log import delete_vpinball_log_on_start_if_configured
+from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
 from managerui.ui_helpers import debounced_input, load_page_style
-from common.launcher import (
+from common.host.launcher import (
     build_vpx_launch_command,
     get_effective_launcher,
     get_plugin_profile_from_meta,
@@ -125,7 +125,7 @@ def _scan_tables_for_launch():
 def _launch_table(table: dict):
     """Launch a table using the VPX binary."""
     import threading
-    from common import launch_state
+    from common.host import launch_state
 
     try:
         vpx_path = table.get('vpx_path', '')

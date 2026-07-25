@@ -7,15 +7,15 @@ from common.config_access import MediaConfig, SettingsConfig
 from common.iniconfig import IniConfig
 from common.jobs import JobReporter
 from common.media_paths import media_filename_map
-from common.metaconfig import MetaConfig
+from common.tables.metaconfig import MetaConfig
 from common.paths import get_ini_config
-from common.standalonescripts import StandaloneScripts
-from common.tableparser import TableParser
-from common.vpsdb import VPSdb
-from common.vpxparser import VPXParser
+from common.tables.standalonescripts import StandaloneScripts
+from common.tables.tableparser import TableParser
+from common.external.vpsdb import VPSdb
+from common.tables.vpxparser import VPXParser
 
 
-logger = logging.getLogger("vpinfe.common.metadata_service")
+logger = logging.getLogger("vpinfe.common.tables.metadata_service")
 
 
 def _config(config: IniConfig | None = None) -> IniConfig:

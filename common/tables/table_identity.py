@@ -11,14 +11,14 @@ import uuid
 from collections.abc import Iterable
 from typing import Any
 
-from common.table_metadata import (
+from common.tables.table_metadata import (
     load_table_meta,
     normalize_meta,
     persist_table_meta,
     section,
 )
 
-logger = logging.getLogger("vpinfe.common.table_identity")
+logger = logging.getLogger("vpinfe.common.tables.table_identity")
 
 # Also written by MetaConfig.writeConfigMeta, which mints during a metadata rebuild.
 ID_SECTION = "VPinFE"

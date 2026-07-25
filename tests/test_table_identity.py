@@ -4,9 +4,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
-from common import table_identity
-from common.metaconfig import MetaConfig
-from common.table_repository import table_to_row
+from common.tables import table_identity
+from common.tables.metaconfig import MetaConfig
+from common.tables.table_repository import table_to_row
 
 
 def _table(root: Path, name: str = "Example", meta: dict | None = None):
@@ -167,7 +167,7 @@ class UniquenessTests(unittest.TestCase):
         # Copying the folder copies the .info, and with it the id.
         copy = _table(self.root, "Copy", meta={"Info": {}, "VPinFE": {"id": assigned}})
 
-        with self.assertLogs("vpinfe.common.table_identity", level="WARNING"):
+        with self.assertLogs("vpinfe.common.tables.table_identity", level="WARNING"):
             by_id = table_identity.ensure_unique_ids([original, copy])
 
         self.assertNotEqual(table_identity.table_id(copy), assigned)
