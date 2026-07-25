@@ -1,6 +1,51 @@
 import json
+import logging
 import os
+import uuid
 from urllib.parse import urlparse, parse_qs
+
+logger = logging.getLogger("vpinfe.common.metaconfig")
+
+# Schema version for the VPinFE section only - we own those keys outright, so their
+# shape can be reasoned about from a version. Other sections stay shape-driven.
+#   1  original shape (deletedNVRamOnClose, altlauncher, pluginprofile, alttitle,
+#      altvpsid). Implied when no version is recorded.
+#   2  adds `id`, the stable local table id (see common/table_identity.py).
+CURRENT_VPINFE_SCHEMA = 2
+VPINFE_SCHEMA_KEY = "schema"
+
+_warned_newer_schema = set()
+
+
+def migrate_vpinfe_section(vpinfe):
+    """Bring the VPinFE section up to the current schema, in memory.
+
+    Idempotent; the stamp reaches disk on the next write. A section written by a newer
+    build is left as-is rather than downgraded.
+    """
+    if not isinstance(vpinfe, dict):
+        return {VPINFE_SCHEMA_KEY: CURRENT_VPINFE_SCHEMA}
+
+    try:
+        version = int(vpinfe.get(VPINFE_SCHEMA_KEY, 1) or 1)
+    except (TypeError, ValueError):
+        version = 1
+
+    if version > CURRENT_VPINFE_SCHEMA:
+        if version not in _warned_newer_schema:
+            _warned_newer_schema.add(version)
+            logger.warning(
+                "Table metadata uses VPinFE schema %s, newer than this build's %s. "
+                "Leaving it untouched; unknown settings are preserved.",
+                version, CURRENT_VPINFE_SCHEMA,
+            )
+        return vpinfe
+
+    if version < 2:
+        vpinfe.setdefault("id", "")  # declare only; minting is a writer's job
+
+    vpinfe[VPINFE_SCHEMA_KEY] = CURRENT_VPINFE_SCHEMA
+    return vpinfe
 
 
 class InvalidMetaConfigError(ValueError):
@@ -40,6 +85,7 @@ class MetaConfig:
         else:
             self.data = {}
         self._normalize_detection_flags()
+        self._migrate_vpinfe()
 
     def writeConfigMeta(self, configdata):
         """
@@ -113,10 +159,15 @@ class MetaConfig:
         vpinfe = self.data.get("VPinFE", {})
         if not isinstance(vpinfe, dict):
             vpinfe = {}
+        vpinfe = migrate_vpinfe_section(vpinfe)
         vpinfe.setdefault("deletedNVRamOnClose", False)
         vpinfe.setdefault("altlauncher", "")
         vpinfe.setdefault("pluginprofile", "")
         vpinfe.setdefault("alttitle", "")
+        # Outside the filehash check below on purpose: the id must survive the table
+        # file changing, which is exactly when altvpsid is cleared.
+        if not str(vpinfe.get("id", "") or "").strip():
+            vpinfe["id"] = uuid.uuid4().hex
         if existing_filehash and new_filehash and existing_filehash != new_filehash:
             vpinfe["altvpsid"] = ""
         else:
@@ -204,6 +255,14 @@ class MetaConfig:
                     return nested_url
 
         return ""
+
+    def _migrate_vpinfe(self):
+        """Apply the VPinFE section schema migration to the loaded data, in memory."""
+        if not isinstance(self.data, dict):
+            return
+        vpinfe = self.data.get("VPinFE")
+        if isinstance(vpinfe, dict):
+            self.data["VPinFE"] = migrate_vpinfe_section(vpinfe)
 
     def _to_bool(self, val):
         if isinstance(val, bool):
