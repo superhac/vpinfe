@@ -123,6 +123,12 @@ drives decoration - a DOF effect, the art on a DMD panel - so a handler that rai
 has failed to decorate a selection, not failed to select. Registering a hook on it
 would let a dead device stop the wheel.
 
+An event payload is in-process, so it can hold whatever a handler needs - a `Table`,
+the ini config. What reaches the network is a separate decision: `httpapi/events.py`
+projects each streamed event into its own shape, so adding an argument here does not
+change what an outside subscriber sees. Adding an event means deciding whether it is
+streamed at all.
+
 Never pick a table's `.vpx` yourself. A folder can hold several, and picking
 differently from everyone else means the metadata a user sees describes a different
 file than the one that launches. Use `game_files.default_game_file()`.

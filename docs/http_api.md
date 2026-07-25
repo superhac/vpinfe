@@ -12,6 +12,7 @@ VPinFE serves a versioned HTTP API at `/api/v1`, on the same port as the Manager
 - `httpapi/errors.py`: the error envelope — `ApiError` and the handlers that shape it.
 - `httpapi/instance.py`: discovery and health — what this instance is.
 - `httpapi/capabilities.py`: the capability registry discovery reads from.
+- `httpapi/events.py`: the event stream — the internal bus (`common/events.py`) on the wire.
 
 The API is not part of the Manager UI. It's served by the same process today, but it belongs
 to the platform — the Manager UI, the frontend themes, the mobile page, and any outside
@@ -40,7 +41,8 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/health` | Liveness |
 | GET | `/api/v1/openapi.json` | Generated OpenAPI spec |
 | GET | `/api/v1/docs` | Swagger UI |
-| GET | `/api/v1/play/state` | What this play host is doing. Every change also goes out as `play.state_changed`, so the poll retires once there is a stream to subscribe to |
+| GET | `/api/v1/events` | Subscribe to the event stream (SSE). `?events=` filters by name |
+| GET | `/api/v1/play/state` | What this play host is doing. The snapshot you take once; `play.state_changed` on the stream is how you hear about it after that |
 | GET | `/api/v1/tables` | List tables (`q`, `limit`, `offset`) |
 | GET | `/api/v1/tables/{id}` | One table |
 | GET | `/api/v1/tables/{id}/files` | The table's game files |
@@ -69,7 +71,7 @@ rather than matching a version number against a document.
     "health": "/api/v1/health",
     "openapi": "/api/v1/openapi.json",
     "docs": "/api/v1/docs",
-    "events": null
+    "events": "/api/v1/events"
   }
 }
 ```
@@ -177,6 +179,71 @@ events and launch events alike. Listing both means each role serves its own, not
 capability spans the two: if the catalog and the play host are ever separate machines, they
 each have an event stream, carrying their own events. Test for a role with
 `"play_host" in residency`, which reads the same whether a capability has one or two.
+
+## Event stream
+
+`GET /api/v1/events` is the internal bus (`common/events.py`) on the wire, as Server-Sent
+Events. Anything that wants to know what's happening subscribes instead of polling for it.
+
+```js
+const stream = new EventSource("/api/v1/events?events=play.state_changed");
+stream.addEventListener("play.state_changed", (message) => {
+  const { launching, table_name } = JSON.parse(message.data).state;
+});
+```
+
+Each event is a named SSE frame whose `data` is the payload; the `event` field is the bus
+event name, so a client listens for what it cares about rather than filtering a stream of
+generic messages. `?events=` is a comma-separated filter — leave it off for everything. An
+unknown name is an `invalid_request`, not a silently empty stream.
+
+What's on it:
+
+| Event | Payload |
+|-------|---------|
+| `table.launching` / `table.launched` / `table.exited` / `table.selected` | `{"table": {"id", "name"}}`, or `{"table": null}` when the launch didn't come from the wheel |
+| `play.state_changed` | `{"state": {"launching", "table_name"}}` |
+| `job.progress` | `{"job_id", "pct", "message"}` |
+| `job.done` | `{"job_id"}` |
+| `job.failed` | `{"job_id", "error"}` |
+
+The bus carries more than that per event — `table.launching` hands its handlers the whole
+`Table` object and the ini config, because its handlers are in-process. The stream projects
+each event into the shape above instead of forwarding what was published, which is what makes
+the wire shape a contract rather than a consequence: adding a keyword argument at a publisher
+doesn't change what subscribers receive, and nothing internal leaks onto a socket. Streaming a
+new event means adding it to `STREAMED_EVENTS` with the shape it takes.
+
+The stream is always a subscriber and never a hook. A hook can stop the operation it's part
+of, and nothing on the far end of a socket may do that.
+
+### Connecting, and reconnecting
+
+On connect the stream sends a `stream.hello` frame, then the current value of any
+state-carrying event it's declared for — today `play.state_changed`. So a client that
+connects mid-launch knows it, without a separate call to `/play/state` and without waiting
+for the launch to end. An event whose payload doesn't describe the whole state has no
+snapshot; there's nothing honest to send.
+
+Every real event carries an `id`, and browsers replay it as `Last-Event-ID` when they
+reconnect. Events since that point are replayed from a bounded buffer, and `stream.hello`
+reports whether that worked:
+
+```
+event: stream.hello
+data: {"seq": 118, "resumed": false}
+```
+
+`resumed: false` means the gap was too long, or the instance restarted — treat what you hold
+as stale and resync. A resumed client isn't sent snapshots, because it has them already. That
+distinction is why the buffer exists: `play.state_changed` carries the whole state and
+corrects itself on the next event, but `job.done` doesn't happen twice.
+
+A client is a bounded queue. One that falls further behind than the queue holds is sent what
+was already queued and then disconnected, rather than being allowed to grow memory or slow a
+publisher down — the bus runs its handlers on the thread that published, and a launch is one
+of the things publishing. EventSource reconnects on its own, so a client that briefly stalls
+recovers by itself.
 
 ## Table identity
 

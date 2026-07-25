@@ -29,7 +29,7 @@ def discovery_payload(prefix: str, api_version: str) -> dict:
             "health": f"{prefix}/health",
             "openapi": f"{prefix}/openapi.json",
             "docs": f"{prefix}/docs",
-            "events": None,
+            "events": f"{prefix}/events",
         },
     }
 

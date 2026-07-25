@@ -41,9 +41,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(links["health"], "/api/v1/health")
         self.assertEqual(links["openapi"], "/api/v1/openapi.json")
         self.assertEqual(links["docs"], "/api/v1/docs")
-        # Present but null: a known link this instance does not offer yet.
-        self.assertIn("events", links)
-        self.assertIsNone(links["events"])
+        self.assertEqual(links["events"], "/api/v1/events")
 
     def test_health_reports_ok(self) -> None:
         response = self.client.get("/health")
