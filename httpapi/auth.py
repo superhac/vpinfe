@@ -1,22 +1,6 @@
-"""The authorization boundary.
+"""The authorization boundary: identity in, declared scope enforced.
 
-The mechanism is here from the start; the policy it enforces is not. Today every
-caller that can reach the API is granted every scope, which is exactly how the app
-behaves now - this changes nothing for anyone. What it buys is that the boundary exists
-and cannot be routed around, so tightening later is a policy change rather than a
-retrofit across every endpoint.
-
-Three properties hold it together:
-
-- One middleware stamps an identity on every request into /api/v1. It runs before
-  any route, so no route is reachable without passing it.
-- Every route declares the scope it needs, checked at startup rather than trusted.
-  A route that forgets one stops the app rather than quietly serving unguarded.
-- Core services never learn about any of this. Authorization stays at the edge.
-
-"Public" is not something a route asserts about itself. Discovery and health carry
-`instance:read` like everything else; a policy decides whether to grant it to a caller
-who presented nothing.
+The mechanism ships; the policy it enforces is dormant. See docs/http_api.md.
 """
 
 from __future__ import annotations

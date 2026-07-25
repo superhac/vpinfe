@@ -69,7 +69,7 @@ through converting still works.
 
 Announce table lifecycle through `events.py` rather than calling the affected
 services directly. Both launch paths - the frontend wheel and the Remote Control
-page - emit the same events, so behaviour that has to happen around a launch is
+page - emit the same events, so behavior that has to happen around a launch is
 written once.
 
 Choose the right kind of handler. A **hook** is part of the operation: it runs in

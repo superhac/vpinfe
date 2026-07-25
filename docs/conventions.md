@@ -68,6 +68,11 @@ established and user-facing; leave it alone. `.info` keys follow their existing 
 The codebase is deliberately sparse — around 5% of lines are comments or docstrings. Match
 that.
 
+Treat the ratio as a smell test rather than a budget. It misfires on short files: a forty-line
+module whose two public functions each state a real contract can sit well above 5% and be
+right. What matters is whether the prose restates the code — cut it — or states something the
+caller cannot infer from the name and signature, which is worth keeping.
+
 - **Module docstring: one line.** A second only if the module's *existence* is non-obvious.
   Long rationale goes in `docs/` with a pointer, not in the file.
 - **Comment for guardrails** — where a plausible, well-meaning edit would break something.

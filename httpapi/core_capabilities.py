@@ -1,13 +1,7 @@
 """What this instance can do, declared for discovery.
 
-Residency says where a capability has to run: `catalog` for things that only need
-the library, `play_host` for things tied to the machine where tables launch and the
-hardware lives. Availability is answered per request, so a capability that depends
-on configuration or attached hardware tells the truth after the user changes
-something rather than at whatever import time happened to be.
-
-Only capabilities with endpoints behind them are declared. Advertising one that
-nothing serves would make discovery a wish list.
+Only capabilities with endpoints behind them - advertising one that nothing serves
+would make discovery a wish list. See docs/http_api.md.
 """
 
 from __future__ import annotations

@@ -1,11 +1,7 @@
 """Whether a launch has been requested from somewhere other than the frontend.
 
-The Remote Control page sets this so the frontend can put an overlay up before VPX
-takes the screen. Every change is announced as `play.state_changed`, so a consumer
-can be told instead of asking: the frontend polls today, and the poll retires once
-there is a stream to subscribe to.
-
-Play-host state: it describes what is happening on this machine.
+Every change is announced as `play.state_changed`, so a consumer can be told rather
+than having to ask.
 """
 
 from __future__ import annotations

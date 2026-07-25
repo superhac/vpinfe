@@ -1,8 +1,6 @@
 """Game files: the launchable artifacts inside a table folder.
 
-A table folder can hold several .vpx - alternate builds, mods, different editions.
-Everything that needs to know which one is "the" table asks here, so the file a
-user launches is the file its metadata, media and VPSdb match describe.
+A folder can hold several .vpx, so everything asks here which one is the table.
 """
 
 from __future__ import annotations

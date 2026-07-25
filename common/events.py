@@ -1,21 +1,7 @@
 """The in-process event bus.
 
-Two kinds of handler, because they answer different questions.
-
-A **hook** is part of the operation. It runs in priority order, the publisher waits
-for it, and a failure stops the operation. DOF has to release the hardware before
-VPX is allowed to start, so "release the hardware" cannot be advisory - if it
-fails, launching anyway would hand VPX a device something else still holds.
-
-A **subscriber** is told what happened. Order is not promised, and a failure is
-logged and contained: something that wanted to know about a launch must not be
-able to prevent one.
-
-Both are registered against the same event name. `emit` runs the hooks, then the
-subscribers.
-
-Handlers run on the publishing thread. Nothing here is a work queue - slow work is
-a job, and its progress is events (see the JOB_* names).
+A hook is part of an operation and can stop it; a subscriber is only told. Handlers
+run on the publishing thread - this is not a work queue. See docs/common.md.
 """
 
 from __future__ import annotations

@@ -1,11 +1,7 @@
-"""The scope vocabulary.
+"""The scope vocabulary: `<resource>:<action>`, extensions `ext:<name>:<action>`.
 
-Reserved now so the names are settled before anything depends on them. Most are
-not yet used by a route - they exist so that adding the endpoint later does not
-also mean inventing its scope, and renaming one afterwards is a breaking change.
-
-Shape is `<resource>:<action>`. Extensions get `ext:<name>:<action>`, which keeps
-their scopes from ever colliding with a core one.
+Most are reserved rather than used - settling a name is cheap, renaming one after
+callers depend on it is not. See docs/http_api.md.
 """
 
 from __future__ import annotations
