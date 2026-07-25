@@ -1,6 +1,5 @@
 from common.table_metadata import (
     get_meta_value,
-    is_truthy,
     normalize_rating,
     table_manufacturer,
     table_rating,
@@ -9,6 +8,7 @@ from common.table_metadata import (
     table_type,
     table_year,
 )
+from common.values import is_truthy
 
 
 class TableListFilters:
@@ -94,11 +94,6 @@ class TableListFilters:
         """Normalize rating values to an integer in the range 0..5."""
         return normalize_rating(value)
 
-    @staticmethod
-    def _is_truthy(value):
-        """Convert common string/bool truthy values to bool."""
-        return is_truthy(value)
-
     def _get_table_rating(self, table):
         """Get table rating from User.Rating metadata."""
         return table_rating(table)
@@ -183,7 +178,7 @@ class TableListFilters:
         if not selected_ratings:
             return tables
 
-        if self._is_truthy(rating_or_higher):
+        if is_truthy(rating_or_higher):
             min_rating = min(selected_ratings)
             return [table for table in tables if self._get_table_rating(table) >= min_rating]
 

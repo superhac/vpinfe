@@ -57,17 +57,6 @@ def normalize_rating(value: Any) -> int:
     return max(0, min(5, normalized))
 
 
-def is_truthy(value: Any, default: bool = False) -> bool:
-    if isinstance(value, bool):
-        return value
-    if value is None:
-        return default
-    normalized = str(value).strip().lower()
-    if normalized == "":
-        return default
-    return normalized in {"1", "true", "yes", "on"}
-
-
 def reorder_leading_article(title: Any) -> str:
     """Move a leading "The " article to the end so titles sort by their
     second word, e.g. "The Addams Family" -> "Addams Family, The".

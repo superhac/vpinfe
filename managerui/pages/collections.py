@@ -1,6 +1,8 @@
 import logging
 from typing import Dict, List
 
+from common.values import is_truthy
+
 from nicegui import ui, events, run, app
 from managerui.services import collections_service
 from managerui.services import table_index_service
@@ -100,9 +102,6 @@ def render_panel(tab=None):
             collection_names = manager.get_collections_name()
             table_map = get_table_name_map()
 
-            def _is_truthy(value) -> bool:
-                return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
-
             if not collection_names:
                 with collections_container:
                     with ui.card().classes('collection-card w-full p-8'):
@@ -158,7 +157,7 @@ def render_panel(tab=None):
                             filters = manager.get_filters(name)
                             with ui.row().classes('mt-3 gap-2 flex-wrap'):
                                 rating_value = filters.get('rating', 'All') if filters else 'All'
-                                rating_or_higher = _is_truthy(filters.get('rating_or_higher', 'false')) if filters else False
+                                rating_or_higher = is_truthy(filters.get('rating_or_higher', 'false')) if filters else False
                                 key_labels = {
                                     'letter': 'letter',
                                     'theme': 'theme',

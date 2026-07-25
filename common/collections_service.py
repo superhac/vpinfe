@@ -5,7 +5,7 @@ from urllib.parse import quote
 
 from common.paths import COLLECTIONS_PATH
 from common.tablelistfilters import TableListFilters
-from common.table_metadata import is_truthy
+from common.values import is_truthy
 from common.vpxcollections import VPXCollections
 
 COLLECTION_ICONS_DIR = COLLECTIONS_PATH.parent / "collection_icons"
