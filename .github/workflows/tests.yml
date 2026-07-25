@@ -2,9 +2,9 @@ name: Tests
 
 on:
   push:
-    branches: [ master, platform ]
+    branches: [ master, platform, feature/api-consumers ]
   pull_request:
-    branches: [ master, platform ]
+    branches: [ master, platform, feature/api-consumers ]
 
 jobs:
   test:
