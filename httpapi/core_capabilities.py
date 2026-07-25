@@ -53,3 +53,8 @@ def declare_core() -> None:
         description="DOF, real-DMD and other attached devices",
         is_available=_peripherals_available,
     ))
+    capabilities.declare(capabilities.Capability(
+        name="events",
+        residency=[capabilities.RESIDENCY_CATALOG, capabilities.RESIDENCY_PLAY_HOST],
+        description="Table lifecycle, play state and job progress as they happen",
+    ))
