@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from pathlib import Path
 
 from common.paths import COLLECTIONS_PATH, get_ini_config, get_tables_path
+from common.table_identity import table_id as vpinfe_id
 from common.table_metadata import first_meta_value, normalize_rating, reorder_leading_article, section
 from common.tableparser import TableParser
 from common.vpxcollections import VPXCollections
@@ -88,7 +89,14 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
                  or reorder_leading_article(first_meta_value(meta, ("Info", "Title"), default=table_name) or "")),
         "filename": first_meta_value(meta, ("VPXFile", "filename"), default=Path(table.fullPathVPXfile).name),
         "vpsid": vpsid,
+        # Two different identifiers, deliberately:
+        #   id       - the VPS-derived id. Collection membership is keyed by this,
+        #              and it is what gets written into collections.ini.
+        #   vpinfe_id - this install's stable local id (common/table_identity.py),
+        #              used to address the table in the HTTP API. Empty until the
+        #              table has been assigned one; reading never mints.
         "id": effective_id or vpsid,
+        "vpinfe_id": vpinfe_id(table),
         "ipdb_id": first_meta_value(meta, ("Info", "IPDBId")),
         "pinball_primer_tut": first_meta_value(meta, ("Info", "PinballPrimerTut")),
         "manufacturer": first_meta_value(meta, ("Info", "Manufacturer"), ("VPXFile", "manufacturer")),
