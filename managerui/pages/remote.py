@@ -2,6 +2,7 @@ import platform
 import subprocess
 import os
 import logging
+import sys
 from nicegui import ui, run
 from managerui.paths import VPINFE_INI_PATH
 from managerui.remote_actions import PINMAME_SERVICE_CONTROLS, SYSTEM_CONTROLS, RemoteAction
