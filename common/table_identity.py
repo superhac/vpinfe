@@ -65,7 +65,7 @@ def ensure_id(table, *, force_new: bool = False) -> str:
     minted = new_id()
     vpinfe[ID_KEY] = minted
     persist_table_meta(table, config)
-    logger.info("Assigned table id %s to %s", minted, getattr(table, "tableDirName", "?"))
+    logger.debug("Assigned table id %s to %s", minted, getattr(table, "tableDirName", "?"))
     return minted
 
 
@@ -75,8 +75,12 @@ def ensure_unique_ids(tables: Iterable[Any]) -> dict[str, Any]:
     Two tables share an id when a table folder was copied.
     """
     by_id: dict[str, Any] = {}
+    minted = 0
     for table in tables:
-        current = table_id(table) or ensure_id(table)
+        current = table_id(table)
+        if not current:
+            current = ensure_id(table)
+            minted += 1
         if current in by_id:
             logger.warning(
                 "Table id %s is used by both %s and %s; assigning a new id to the latter",
@@ -85,7 +89,10 @@ def ensure_unique_ids(tables: Iterable[Any]) -> dict[str, Any]:
                 getattr(table, "tableDirName", "?"),
             )
             current = ensure_id(table, force_new=True)
+            minted += 1
         by_id[current] = table
+    if minted:
+        logger.info("Assigned ids to %s of %s tables", minted, len(by_id))
     return by_id
 
 
