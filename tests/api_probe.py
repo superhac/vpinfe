@@ -58,6 +58,17 @@ def probe() -> dict:
         "set_cookie": archive.headers.get("set-cookie"),
         "bytes": len(archive.content),
     }
+    def files_for(name):
+        hit = [t for t in tables if t["name"] == name]
+        return client.get(f"/api/v1/tables/{hit[0]['id']}/files") if hit else None
+
+    multi = files_for("Multi File")
+    if multi is not None:
+        record("multi_file_files", multi)
+    mismatch = files_for("Mismatch")
+    if mismatch is not None:
+        record("mismatch_files", mismatch)
+
     record("table_unknown", client.get("/api/v1/tables/no-such-id"))
     record("archive_unknown", client.get("/api/v1/tables/no-such-id/archive"))
     record("legacy_archive_gone", client.get("/api/download-table-vpxz?name=whatever"))

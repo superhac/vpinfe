@@ -74,20 +74,43 @@ def _resource(row: dict, table_id: str) -> dict:
 def _game_files(table, row: dict) -> list[dict]:
     """The table's launchable artifacts.
 
-    One .vpx today. The shape is the 1-to-many one so that adding another format
-    does not change the contract.
+    Enumerates what is actually in the folder rather than trusting the single
+    filename recorded in the .info: a table folder can hold several .vpx files.
+    Sorted, so the answer does not depend on directory order.
+
+    The recorded filename is the default when it is actually present. When it is
+    not, it is still reported - a table pointing at a missing file is something
+    the caller should see - but the default falls to a file that exists, since
+    the default is what a caller would launch.
     """
-    filename = row.get("filename", "")
-    if not filename:
+    table_dir = Path(row.get("table_path", ""))
+    recorded = (row.get("filename") or "").strip()
+
+    on_disk = []
+    if table_dir.is_dir():
+        on_disk = sorted(
+            (p.name for p in table_dir.iterdir()
+             if p.is_file() and p.suffix.lower() == ".vpx"),
+            key=str.lower,
+        )
+
+    names = list(on_disk)
+    if recorded and recorded not in names:
+        names.append(recorded)
+    if not names:
         return []
-    path = Path(row.get("table_path", "")) / filename
-    return [{
-        "format": "vpx",
-        "app": "vpx",
-        "filename": filename,
-        "default": True,
-        "available": path.is_file(),
-    }]
+
+    default = recorded if recorded in on_disk else (on_disk[0] if on_disk else recorded)
+    return [
+        {
+            "format": "vpx",
+            "app": "vpx",
+            "filename": name,
+            "default": name == default,
+            "available": name in on_disk,
+        }
+        for name in names
+    ]
 
 
 @router.get("", summary="List tables")

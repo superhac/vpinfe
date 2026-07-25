@@ -36,6 +36,27 @@ def _run_probe() -> dict:
             "User": {"Rating": 3},
         }), encoding="utf-8")
 
+        # A folder holding several .vpx, plus a .vbs that is not a game file.
+        multi = tables_dir / "Multi File (Bally 1991)"
+        multi.mkdir()
+        for name in ("Multi File (Bally 1991).vpx", "Multi File (Bally 1991) - alt.vpx",
+                     "Multi File (Bally 1991) - VPW.vpx"):
+            (multi / name).write_bytes(b"vpx")
+        (multi / "Multi File (Bally 1991).vbs").write_text("' sidecar", encoding="utf-8")
+        (multi / "Multi File (Bally 1991).info").write_text(json.dumps({
+            "Info": {"Title": "Multi File", "VPSId": "vps-multi"},
+            "VPXFile": {"filename": "Multi File (Bally 1991).vpx"},
+        }), encoding="utf-8")
+
+        # .info names a .vpx that is not on disk.
+        mismatch = tables_dir / "Mismatch (Bally 1992)"
+        mismatch.mkdir()
+        (mismatch / "Mismatch (Bally 1992).vpx").write_bytes(b"vpx")
+        (mismatch / "Mismatch (Bally 1992).info").write_text(json.dumps({
+            "Info": {"Title": "Mismatch", "VPSId": "vps-mismatch"},
+            "VPXFile": {"filename": "does-not-exist.vpx"},
+        }), encoding="utf-8")
+
         env = dict(os.environ)
         env["VPINFE_CONFIG_DIR"] = str(config_dir)
         env["PYTHONPATH"] = str(REPO_ROOT) + os.pathsep + env.get("PYTHONPATH", "")
@@ -82,8 +103,8 @@ class ApiContractTests(unittest.TestCase):
 
         self.assertEqual(entry["status"], 200)
         body = entry["json"]
-        self.assertEqual(body["total"], 1)
-        table = body["tables"][0]
+        self.assertEqual(body["total"], 3)
+        table = [t for t in body["tables"] if t["name"] == "Example Table"][0]
         self.assertTrue(table["id"], "every listed table is addressable")
         self.assertEqual(table["vps_id"], "vps-example", "correlation, not identity")
         self.assertEqual(table["name"], "Example Table")
@@ -115,6 +136,28 @@ class ApiContractTests(unittest.TestCase):
         self.assertIn(".vpxz", entry["disposition"])
         self.assertIn("vpinfe_vpxz_download_abc123=1", entry["set_cookie"] or "")
         self.assertGreater(entry["bytes"], 0)
+
+    def test_a_folder_with_several_vpx_reports_all_of_them(self) -> None:
+        """A table folder can hold more than one .vpx, and .vbs is not a game file."""
+        files = self.probe["multi_file_files"]["json"]["files"]
+
+        names = [f["filename"] for f in files]
+        self.assertEqual(names, sorted(names, key=str.lower), "order must not depend on the disk")
+        self.assertEqual(len(files), 3)
+        self.assertNotIn("Multi File (Bally 1991).vbs", names)
+        self.assertEqual([f["filename"] for f in files if f["default"]],
+                         ["Multi File (Bally 1991).vpx"])
+        self.assertTrue(all(f["available"] for f in files))
+
+    def test_a_recorded_file_that_is_missing_is_reported_but_not_the_default(self) -> None:
+        """Reporting it matters; pointing a caller at it to launch does not."""
+        files = self.probe["mismatch_files"]["json"]["files"]
+
+        by_name = {f["filename"]: f for f in files}
+        self.assertFalse(by_name["does-not-exist.vpx"]["available"])
+        self.assertFalse(by_name["does-not-exist.vpx"]["default"])
+        self.assertTrue(by_name["Mismatch (Bally 1992).vpx"]["available"])
+        self.assertTrue(by_name["Mismatch (Bally 1992).vpx"]["default"])
 
     def test_an_unknown_table_is_a_404_in_the_envelope(self) -> None:
         for key in ("table_unknown", "archive_unknown"):
