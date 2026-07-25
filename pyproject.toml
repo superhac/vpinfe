@@ -1,0 +1,22 @@
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = ["third-party", "chromium", "web"]
+
+[tool.ruff.lint]
+# E/W pycodestyle, F pyflakes, I import order, N PEP 8 naming,
+# UP modern syntax, B common bugs.
+select = ["E", "W", "F", "I", "N", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Config has to be resolved before anything under common/ is imported, so these
+# files import after executing statements on purpose.
+"main.py" = ["E402"]
+"managerui/managerui.py" = ["E402"]
+"managerui/pages/remote.py" = ["E402"]
+"tests/*" = ["E402"]
+# Tab-indented throughout; converting it is a diff of its own.
+"common/iniconfig.py" = ["W191", "E101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["common", "frontend", "httpapi", "managerui"]

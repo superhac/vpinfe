@@ -1,0 +1,44 @@
+name: Lint
+
+on:
+  push:
+    branches: [ master, platform ]
+  pull_request:
+    branches: [ master, platform ]
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install ruff
+        run: pip install ruff
+
+      # Reports the existing debt without failing. See docs/conventions.md.
+      - name: Lint the whole tree (advisory)
+        continue-on-error: true
+        run: ruff check . --output-format=github --statistics
+
+      # New files must be clean, so new code is born compliant while older code
+      # is cleaned up when it is touched rather than in one enormous diff.
+      - name: Lint newly added files (blocking)
+        if: github.event_name == 'pull_request'
+        run: |
+          base="${{ github.event.pull_request.base.sha }}"
+          added=$(git diff --diff-filter=A --name-only "$base"...HEAD -- '*.py')
+          if [ -z "$added" ]; then
+            echo "No new Python files in this PR."
+            exit 0
+          fi
+          echo "Checking newly added files:"
+          echo "$added" | sed 's/^/  /'
+          ruff check --output-format=github $added

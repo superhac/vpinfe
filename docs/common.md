@@ -28,6 +28,8 @@ small facade classes for older call sites.
 
 ## Design Rules
 
+Naming, comment density and lint rules live in `docs/conventions.md`.
+
 Keep constructors cheap when adding new shared classes. If a class needs network,
 filesystem mutation, or long-running scans, expose explicit methods such as
 `ensure_current()`, `load_registry()`, or `apply_patches()`.
