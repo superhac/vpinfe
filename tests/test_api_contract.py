@@ -185,7 +185,9 @@ class ApiContractTests(unittest.TestCase):
 
         self.assertEqual(entry["assets"]["backglass"]["resolution"], "dedicated")
         self.assertEqual(entry["assets"]["settings"]["resolution"], "dedicated")
-        self.assertEqual(entry["assets"]["pov"], {"resolution": "none"})
+        # The wire model makes the shape uniform: an unresolved kind still
+        # carries file, explicitly null.
+        self.assertEqual(entry["assets"]["pov"], {"resolution": "none", "file": None})
 
         chain = entry["dependencies"]["pinmame"]
         self.assertEqual(chain["declared"], "exmpl")

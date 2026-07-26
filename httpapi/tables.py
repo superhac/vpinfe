@@ -28,7 +28,7 @@ from common.tables.table_repository import (
     table_to_row,
 )
 
-from . import scopes
+from . import models, scopes
 from .auth import requires
 from .errors import ConflictError, FeatureUnavailableError, InvalidRequestError, NotFoundError
 
@@ -206,7 +206,7 @@ def list_tables(
     q: str = Query("", description="Match against name, manufacturer or rom"),
     limit: int = Query(0, ge=0, description="0 returns everything"),
     offset: int = Query(0, ge=0),
-) -> dict:
+) -> models.TableList:
     catalog = _catalog()
     collections = collections_by_table_id()
 
@@ -235,7 +235,7 @@ def list_tables(
 
 
 @router.get("/{table_id}", summary="One table", dependencies=[requires(scopes.TABLES_READ)])
-def get_table(table_id: str) -> dict:
+def get_table(table_id: str) -> models.TableResource:
     table = _table_or_404(table_id)
     row = table_to_row(table, collections_by_table_id())
     resource = _resource(row, table_id)
@@ -245,7 +245,7 @@ def get_table(table_id: str) -> dict:
 
 @router.get("/{table_id}/game-files", summary="A table's game files",
             dependencies=[requires(scopes.TABLES_READ)])
-def get_game_files(table_id: str) -> dict:
+def get_game_files(table_id: str) -> models.GameFileList:
     table = _table_or_404(table_id)
     return {"game_files": _game_files(table, table_to_row(table))}
 
@@ -266,7 +266,7 @@ def _resolved_media(table_dir: Path) -> dict:
 
 @router.get("/{table_id}/media", summary="A table's media",
             dependencies=[requires(scopes.TABLES_READ)])
-def get_table_media(table_id: str) -> dict:
+def get_table_media(table_id: str) -> models.MediaList:
     """Media is the artwork shown about a table - every kind, present or not,
     so a client can enumerate what is possible instead of guessing."""
     table = _table_or_404(table_id)
@@ -300,14 +300,16 @@ def get_table_media_file(table_id: str, kind: str):
 
 @router.post("/{table_id}/launch", summary="Launch a table on this play host",
              status_code=202, dependencies=[requires(scopes.LAUNCH_INVOKE)])
-def launch_table(table_id: str, payload: dict = Body(default={})) -> dict:
+def launch_table(table_id: str,
+                 payload: models.LaunchRequest | None = Body(default=None),
+                 ) -> models.LaunchAccepted:
     """Start a table and return once it is starting, not once it is over.
 
     The same service the wheel and the Remote Control page use, so a launch from
     here counts as a play and releases the peripherals like any other.
     """
     table = _table_or_404(table_id)
-    game_file = payload.get("file") or None
+    game_file = (payload.file or None) if payload else None
     ini_config = get_ini_config()
 
     try:

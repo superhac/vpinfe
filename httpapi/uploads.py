@@ -29,7 +29,7 @@ from managerui.services.asset_import_service import (
 from managerui.services.asset_registry import spec_for
 from managerui.services.upload_session_service import UnknownSession, UnsafePath, UploadTooLarge
 
-from . import scopes
+from . import models, scopes
 from .auth import requires
 from .errors import ApiError, InvalidRequestError, NotFoundError
 
@@ -111,13 +111,13 @@ def _vps_entry(vps_id: str):
 
 
 @router.post("", summary="Begin an upload session", dependencies=[requires(scopes.UPLOADS_WRITE)])
-def begin_upload() -> dict:
+def begin_upload() -> models.UploadBegun:
     return {"id": upload_session_service.begin_session().upload_id}
 
 
 @router.get("/{upload_id}", summary="Upload session summary",
              dependencies=[requires(scopes.UPLOADS_WRITE)])
-def get_upload(upload_id: str) -> dict:
+def get_upload(upload_id: str) -> models.UploadSummary:
     try:
         return upload_session_service.finish_session(upload_id)
     except UnknownSession as exc:
@@ -126,7 +126,7 @@ def get_upload(upload_id: str) -> dict:
 
 @router.delete("/{upload_id}", summary="Abort an upload session",
              dependencies=[requires(scopes.UPLOADS_WRITE)])
-def abort_upload(upload_id: str) -> dict:
+def abort_upload(upload_id: str) -> models.Acknowledged:
     upload_session_service.cleanup_session(upload_id)
     return {"ok": True}
 
@@ -134,7 +134,7 @@ def abort_upload(upload_id: str) -> dict:
 @router.post("/{upload_id}/files", summary="Add a file to an upload session",
              dependencies=[requires(scopes.UPLOADS_WRITE)])
 async def add_upload_file(upload_id: str, relpath: str = Form(...),
-                          file: UploadFile = File(...)) -> dict:
+                          file: UploadFile = File(...)) -> models.FileStored:
     try:
         written = await run_in_threadpool(
             upload_session_service.store_file, upload_id, relpath, file.file)
@@ -149,21 +149,23 @@ async def add_upload_file(upload_id: str, relpath: str = Form(...),
 
 @router.get("/{upload_id}/analysis", summary="Analyze an upload session",
              dependencies=[requires(scopes.UPLOADS_WRITE)])
-def analyze_upload(upload_id: str) -> dict:
+def analyze_upload(upload_id: str) -> models.Analysis:
     analysis, _source = analyze_upload_session(_session_dir(upload_id))
     return _analysis_to_dict(analysis)
 
 
 @router.post("/{upload_id}/plan", summary="Build an import plan",
              dependencies=[requires(scopes.UPLOADS_WRITE)])
-def plan_upload(upload_id: str, payload: dict = Body(default={})) -> dict:
+def plan_upload(upload_id: str,
+                payload: models.PlanRequest = Body(default_factory=models.PlanRequest),
+                ) -> models.ImportPlanResource:
     analysis, _source = _analysis_for(upload_id)
-    vps_entry = _vps_entry(payload.get("vps_id", ""))
+    vps_entry = _vps_entry(payload.vps_id)
     plan = build_import_plan(
         analysis,
-        table_path=payload.get("table_path", ""),
-        rom_name=payload.get("rom_name", ""),
-        allow_new_table=bool(payload.get("allow_new_table", False)),
+        table_path=payload.table_path,
+        rom_name=payload.rom_name,
+        allow_new_table=payload.allow_new_table,
     )
     if vps_entry is not None and plan.new_table_dir_name:
         plan = select_plan_items(plan, None, vps_folder_name(vps_entry))
@@ -172,24 +174,26 @@ def plan_upload(upload_id: str, payload: dict = Body(default={})) -> dict:
 
 @router.post("/{upload_id}/import", summary="Execute an import plan",
              dependencies=[requires(scopes.UPLOADS_WRITE)])
-def import_upload(upload_id: str, payload: dict = Body(default={})) -> dict:
+def import_upload(upload_id: str,
+                  payload: models.ImportRequest = Body(default_factory=models.ImportRequest),
+                  ) -> models.ImportReport:
     analysis, source_path = _analysis_for(upload_id)
-    vps_entry = _vps_entry(payload.get("vps_id", ""))
+    vps_entry = _vps_entry(payload.vps_id)
     plan = build_import_plan(
         analysis,
-        table_path=payload.get("table_path", ""),
-        rom_name=payload.get("rom_name", ""),
-        allow_new_table=bool(payload.get("allow_new_table", False)),
+        table_path=payload.table_path,
+        rom_name=payload.rom_name,
+        allow_new_table=payload.allow_new_table,
     )
     if vps_entry is not None and not plan.new_table_dir_name:
         raise InvalidRequestError("vps_id only applies to new-table imports")
 
     # Folder naming precedence: explicit new_table_dir_name > VPS-derived > vpx stem.
-    new_name = payload.get("new_table_dir_name")
+    new_name = payload.new_table_dir_name
     if new_name is None and vps_entry is not None:
         new_name = vps_folder_name(vps_entry)
     try:
-        plan = select_plan_items(plan, payload.get("selected"), new_name)
+        plan = select_plan_items(plan, payload.selected, new_name)
     except ValueError as exc:
         raise InvalidRequestError(str(exc)) from exc
 
@@ -221,7 +225,7 @@ def import_upload(upload_id: str, payload: dict = Body(default={})) -> dict:
 
 
 @vps_router.get("/search", summary="Search VPSdb", dependencies=[requires(scopes.VPS_READ)])
-def search_vps(q: str = "", limit: int = 20) -> dict:
+def search_vps(q: str = "", limit: int = 20) -> models.VpsSearchResults:
     from managerui.services.table_service import search_vpsdb
 
     return {

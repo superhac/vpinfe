@@ -11,7 +11,7 @@ from fastapi import APIRouter
 from common import events
 from common.host import launch_state
 
-from . import scopes
+from . import models, scopes
 from .auth import requires
 from .events import declare_snapshot
 
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/play", tags=["play"])
 
 @router.get("/state", summary="What this play host is doing",
             dependencies=[requires(scopes.PLAY_READ)])
-def get_play_state() -> dict:
+def get_play_state() -> models.PlayState:
     return launch_state.current().as_dict()
 
 
