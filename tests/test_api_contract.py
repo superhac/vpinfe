@@ -36,6 +36,10 @@ def _run_probe() -> dict:
         (table / "pinmame" / "roms" / "exmpl.zip").write_bytes(b"rom")
         (table / "music").mkdir()
         (table / "music" / "theme.mp3").write_bytes(b"music")
+        # Media: one canonical, one root-fallback, most kinds absent.
+        (table / "medias").mkdir()
+        (table / "medias" / "wheel.png").write_bytes(b"\x89PNG wheel")
+        (table / "bg.png").write_bytes(b"\x89PNG bg at root")
         (table / "Example Table (Bally 1990).info").write_text(json.dumps({
             "Info": {"Title": "Example Table", "Manufacturer": "Bally", "Year": "1990",
                      "Type": "SS", "VPSId": "vps-example"},
@@ -207,6 +211,36 @@ class ApiContractTests(unittest.TestCase):
         self.assertNotIn("rom", table["assets"])
         self.assertIn("rom", table, "the declared name is still metadata on the table")
 
+    def test_media_lists_every_kind_present_or_not(self) -> None:
+        """Media is the artwork about a table - exactly the media_paths kinds. A
+        client enumerates what is possible instead of guessing from omissions."""
+        media = self.probe["media_list"]["json"]["media"]
+
+        self.assertTrue(media["wheel"]["present"])
+        self.assertEqual(media["wheel"]["file"], "wheel.png")
+        self.assertTrue(media["bg"]["present"], "root-level fallback is found")
+        self.assertFalse(media["flyer"]["present"])
+        self.assertIsNone(media["flyer"]["links"]["self"])
+        self.assertIn("table_video", media)
+        self.assertIn("audio", media)
+
+    def test_a_media_file_is_streamed_with_its_content_type(self) -> None:
+        entry = self.probe["media_wheel"]
+
+        self.assertEqual(entry["status"], 200)
+        self.assertEqual(entry["content_type"], "image/png")
+        self.assertGreater(entry["bytes"], 0)
+
+    def test_absent_media_is_not_found_and_unknown_kind_is_invalid(self) -> None:
+        absent = self.probe["media_absent"]
+        self.assertEqual(absent["status"], 404)
+        self.assertEqual(absent["json"]["error"]["code"], "not_found")
+
+        unknown = self.probe["media_unknown_kind"]
+        self.assertEqual(unknown["status"], 400)
+        self.assertEqual(unknown["json"]["error"]["code"], "invalid_request")
+        self.assertIn("wheel", unknown["json"]["error"]["details"]["known"])
+
     def test_the_old_remote_launch_route_is_gone(self) -> None:
         self.assertGreaterEqual(self.probe["legacy_remote_launch_gone"]["status"], 400)
 
@@ -331,8 +365,8 @@ class ApiContractTests(unittest.TestCase):
     def test_every_live_endpoint_answers_as_json(self) -> None:
         for name, entry in self.probe.items():
             if name in ("legacy_upload_gone", "legacy_archive_gone",
-                        "legacy_remote_launch_gone", "table_archive"):
-                continue  # NiceGUI's own 404s, and the archive is a file download
+                        "legacy_remote_launch_gone", "table_archive", "media_wheel"):
+                continue  # NiceGUI's own 404s, and the file downloads
             with self.subTest(endpoint=name):
                 self.assertEqual(entry["content_type"], "application/json")
 

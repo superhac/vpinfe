@@ -16,7 +16,9 @@ from fastapi import APIRouter, Body, Query
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
+from common.config_access import MediaConfig
 from common.host import launch, launch_state
+from common.media_paths import MEDIA_SPECS, resolve_media_files
 from common.paths import get_ini_config
 from common.tables import asset_resolver, table_identity
 from common.tables.game_files import default_game_file, game_file_names
@@ -75,6 +77,7 @@ def _resource(row: dict, table_id: str) -> dict:
         "links": {
             "self": prefix,
             "game_files": f"{prefix}/game-files",
+            "media": f"{prefix}/media",
             "archive": f"{prefix}/archive",
             "launch": f"{prefix}/launch",
         },
@@ -232,6 +235,54 @@ def get_table(table_id: str) -> dict:
 def get_game_files(table_id: str) -> dict:
     table = _table_or_404(table_id)
     return {"game_files": _game_files(table, table_to_row(table))}
+
+
+def _resolved_media(table_dir: Path) -> dict:
+    """Every media kind against the folder as it is right now."""
+    files, subdirs = _listing(table_dir)
+    medias: list[str] = []
+    if "medias" in {name.lower() for name in subdirs}:
+        try:
+            medias = [entry.name for entry in (table_dir / "medias").iterdir()
+                      if entry.is_file()]
+        except OSError:
+            medias = []
+    table_type = MediaConfig.from_config(get_ini_config()).table_type
+    return resolve_media_files(table_dir, set(files), set(medias), table_type)
+
+
+@router.get("/{table_id}/media", summary="A table's media",
+            dependencies=[requires(scopes.TABLES_READ)])
+def get_table_media(table_id: str) -> dict:
+    """Media is the artwork shown about a table - every kind, present or not,
+    so a client can enumerate what is possible instead of guessing."""
+    table = _table_or_404(table_id)
+    table_dir = Path(getattr(table, "fullPathTable", "") or "")
+    prefix = f"/api/v1/tables/{table_id}/media"
+    resolved = _resolved_media(table_dir)
+    return {"media": {
+        key: {
+            "present": path is not None,
+            "file": path.name if path is not None else None,
+            "links": {"self": f"{prefix}/{key}"} if path is not None else {"self": None},
+        }
+        for key, path in resolved.items()
+    }}
+
+
+@router.get("/{table_id}/media/{kind}", summary="One media file",
+            dependencies=[requires(scopes.TABLES_READ)])
+def get_table_media_file(table_id: str, kind: str):
+    table = _table_or_404(table_id)
+    known = {spec.key for spec in MEDIA_SPECS}
+    if kind not in known:
+        raise InvalidRequestError("Unknown media kind",
+                                  details={"unknown": kind, "known": sorted(known)})
+    table_dir = Path(getattr(table, "fullPathTable", "") or "")
+    path = _resolved_media(table_dir).get(kind)
+    if path is None or not path.is_file():
+        raise NotFoundError(f"This table has no {kind} media")
+    return FileResponse(path)
 
 
 @router.post("/{table_id}/launch", summary="Launch a table on this play host",

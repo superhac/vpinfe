@@ -59,14 +59,37 @@ def default_media_path(table_dir: str | Path, key: str, table_type: str = "table
     return Path(table_dir) / "medias" / filenames[key]
 
 
-def apply_media_paths(table, table_contents: set[str], medias_contents: set[str], table_type: str = "table") -> None:
-    table_dir = Path(table.fullPathTable)
+def resolve_media_files(table_dir: str | Path, table_contents: set[str],
+                        medias_contents: set[str],
+                        table_type: str = "table") -> dict[str, Path | None]:
+    """Canonical media key -> the file that serves it, or None.
+
+    Keyed by MEDIA_SPECS keys, which are stable across table types - under
+    table_type "fss" the playfield's *filename* changes but its key stays
+    "table", so "table" and "fss" remain distinct answers. One rule for
+    everyone: the medias/ folder is canonical, the folder root is the fallback.
+    """
+    table_dir = Path(table_dir)
     medias_dir = table_dir / "medias"
-    for attr, filename in media_attr_map(table_type).items():
+    resolved: dict[str, Path | None] = {}
+    for spec in MEDIA_SPECS:
+        filename = spec.filename(table_type)
         if filename in medias_contents:
-            setattr(table, attr, str(medias_dir / filename))
+            resolved[spec.key] = medias_dir / filename
         elif filename in table_contents:
-            setattr(table, attr, str(table_dir / filename))
+            resolved[spec.key] = table_dir / filename
+        else:
+            resolved[spec.key] = None
+    return resolved
+
+
+def apply_media_paths(table, table_contents: set[str], medias_contents: set[str], table_type: str = "table") -> None:
+    resolved = resolve_media_files(table.fullPathTable, table_contents,
+                                   medias_contents, table_type)
+    for spec in MEDIA_SPECS:
+        path = resolved[spec.key]
+        if path is not None:
+            setattr(table, spec.attr, str(path))
 
 
 def table_media_payload(table) -> dict[str, str | None]:

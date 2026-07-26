@@ -91,6 +91,16 @@ def probe() -> dict:
     launch_state.clear()
     record("launch_unknown_table", client.post("/api/v1/tables/no-such-id/launch"))
 
+    record("media_list", client.get(f"/api/v1/tables/{table_id}/media"))
+    wheel = client.get(f"/api/v1/tables/{table_id}/media/wheel")
+    result["media_wheel"] = {
+        "status": wheel.status_code,
+        "content_type": (wheel.headers.get("content-type") or "").split(";")[0],
+        "bytes": len(wheel.content),
+    }
+    record("media_absent", client.get(f"/api/v1/tables/{table_id}/media/flyer"))
+    record("media_unknown_kind", client.get(f"/api/v1/tables/{table_id}/media/poster"))
+
     record("table_unknown", client.get("/api/v1/tables/no-such-id"))
     record("archive_unknown", client.get("/api/v1/tables/no-such-id/archive"))
     record("legacy_archive_gone", client.get("/api/download-table-vpxz?name=whatever"))

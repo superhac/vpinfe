@@ -45,7 +45,9 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/play/state` | What this play host is doing. The snapshot you take once; `play.state_changed` on the stream is how you hear about it after that |
 | GET | `/api/v1/tables` | List tables (`q`, `limit`, `offset`) |
 | GET | `/api/v1/tables/{id}` | One table |
-| GET | `/api/v1/tables/{id}/game-files` | The table's game files |
+| GET | `/api/v1/tables/{id}/game-files` | The table's game files, with resolved assets and dependencies |
+| GET | `/api/v1/tables/{id}/media` | Every media kind, present or not |
+| GET | `/api/v1/tables/{id}/media/{kind}` | Stream one media file |
 | GET | `/api/v1/tables/{id}/archive` | Download the table folder as `.vpxz` |
 | POST | `/api/v1/tables/{id}/launch` | Launch a table here. Optional `{"file": "..."}` picks a game file |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
@@ -95,8 +97,14 @@ Path segments are hyphenated (`/game-files`); JSON field names are `snake_case`
 URL and nothing has to be translated on the way into Python.
 
 **Media and assets are not the same thing** (`docs/conventions.md`). Media is the artwork
-VPinFE shows you while browsing; assets are what the table needs to *play* as intended. The
-media sub-resource is not built yet.
+VPinFE shows you while browsing; assets are what the table needs to *play* as intended.
+
+Media is served under `GET /tables/{id}/media`: every kind from `common/media_paths.py`,
+present or not, so a client enumerates what is possible instead of guessing from omissions.
+A present kind links to `/media/{kind}`, which streams the file with its real content type.
+The `medias/` folder is canonical and the folder root is the fallback — the same rule the
+scan uses, applied to the folder as it is at request time. An unknown kind is an
+`invalid_request` naming the known kinds; a known-but-absent kind is a `not_found`.
 
 Assets come in two lenses, both computed from the folder at request time:
 
