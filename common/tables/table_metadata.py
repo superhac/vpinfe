@@ -57,6 +57,25 @@ def normalize_rating(value: Any) -> int:
     return max(0, min(5, normalized))
 
 
+def as_string_list(value: Any) -> list[str]:
+    """A list-valued metadata field, whatever the .info actually held.
+
+    These come back as lists from a normal build, but a hand-edited or
+    badly-written .info can hold a scalar - including a stringified list. One such
+    table used to be enough to make every consumer's type assumption wrong; now it
+    is contained here.
+
+    A scalar becomes a one-item list rather than being parsed. Reading
+    "['a', 'b']" back as two items would mean inventing a syntax for a file format
+    that does not have one, so the odd value stays visible instead.
+    """
+    if value in ("", None):
+        return []
+    if isinstance(value, (list, tuple)):
+        return [str(item) for item in value]
+    return [str(value)]
+
+
 def reorder_leading_article(title: Any) -> str:
     """Move a leading "The " article to the end so titles sort by their
     second word, e.g. "The Addams Family" -> "Addams Family, The".
