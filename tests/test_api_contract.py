@@ -152,24 +152,51 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(entry["json"]["error"]["code"], "not_found")
 
     def test_a_table_reports_its_assets_not_its_media(self) -> None:
-        """A backglass, a ROM, alt colour and alt sound are what the table needs to
-        play. Media is the artwork shown while browsing - see docs/conventions.md."""
+        """Assets are what the table needs to play; media is the artwork shown
+        while browsing - see docs/conventions.md. The detail endpoint is the
+        inventory lens: every kind, files attributed."""
         table = self.probe["table_get"]["json"]
 
         self.assertIn("assets", table)
         self.assertNotIn("media", table, "these were mislabelled as media")
         self.assertEqual(set(table["assets"]),
-                         {"backglass", "pup_pack", "alt_color", "alt_sound",
-                          "ini", "music"})
+                         {"backglass", "settings", "script", "pov", "scv",
+                          "pup_pack", "alt_color", "alt_sound", "music"})
 
     def test_assets_present_in_the_folder_are_reported(self) -> None:
         """The fixture table ships a backglass, a per-table ini and music."""
         assets = self.probe["table_get"]["json"]["assets"]
 
-        self.assertTrue(assets["backglass"])
-        self.assertTrue(assets["ini"])
-        self.assertTrue(assets["music"])
-        self.assertFalse(assets["pup_pack"], "the fixture has none")
+        self.assertTrue(assets["backglass"]["present"])
+        self.assertTrue(assets["settings"]["present"])
+        self.assertTrue(assets["music"]["present"])
+        self.assertFalse(assets["pup_pack"]["present"], "the fixture has none")
+        # The inventory lens attributes each file to the build it serves.
+        self.assertEqual(assets["backglass"]["files"][0]["binding"], "dedicated")
+
+    def test_a_game_file_reports_what_it_would_use_on_launch(self) -> None:
+        """The launch lens: resolved assets and the pinmame chain, per game file."""
+        entry = self.probe["table_files"]["json"]["game_files"][0]
+
+        self.assertEqual(entry["assets"]["backglass"]["resolution"], "dedicated")
+        self.assertEqual(entry["assets"]["settings"]["resolution"], "dedicated")
+        self.assertEqual(entry["assets"]["pov"], {"resolution": "none"})
+
+        chain = entry["dependencies"]["pinmame"]
+        self.assertEqual(chain["declared"], "exmpl")
+        self.assertEqual(chain["effective"], "exmpl")
+        self.assertTrue(chain["installed"], "exmpl.zip is in the fixture's roms folder")
+        self.assertFalse(chain["nvram"]["present"], "nothing has been played")
+
+    def test_a_non_recorded_game_file_gets_an_honest_unknown_rom(self) -> None:
+        """The .info describes one game file; the others must not inherit its rom."""
+        entries = self.probe["multi_file_files"]["json"]["game_files"]
+        others = [e for e in entries if not e["default"]]
+
+        self.assertTrue(others)
+        for entry in others:
+            self.assertIsNone(entry["dependencies"]["pinmame"]["declared"])
+            self.assertIn("one game file", entry["dependencies"]["pinmame"]["reason"])
 
     def test_rom_presence_is_not_reported_as_an_asset(self) -> None:
         """A declared ROM name may be a PinMAME dependency or just a DOF key. Until

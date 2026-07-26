@@ -18,7 +18,7 @@ from starlette.responses import FileResponse
 
 from common.host import launch, launch_state
 from common.paths import get_ini_config
-from common.tables import table_identity
+from common.tables import asset_resolver, table_identity
 from common.tables.game_files import default_game_file, game_file_names
 from common.tables.table_repository import (
     collections_by_table_id,
@@ -70,14 +70,8 @@ def _resource(row: dict, table_id: str) -> dict:
         "collections": row.get("collections") or [],
         # Assets, not media: these are what the table needs to play as intended.
         # Media is the artwork VPinFE shows while browsing - see docs/conventions.md.
-        "assets": {
-            "backglass": row.get("b2s_exists", False),
-            "pup_pack": row.get("pup_pack_exists", False),
-            "alt_color": row.get("serum_exists", False) or row.get("vni_exists", False),
-            "alt_sound": row.get("alt_sound_exists", False),
-            "ini": row.get("ini_exists", False),
-            "music": row.get("music_exists", False),
-        },
+        # Summary from the scan; the detail endpoint recomputes and attributes files.
+        "assets": _asset_summary(row),
         "links": {
             "self": prefix,
             "game_files": f"{prefix}/game-files",
@@ -85,6 +79,50 @@ def _resource(row: dict, table_id: str) -> dict:
             "launch": f"{prefix}/launch",
         },
     }
+
+
+def _asset_summary(row: dict) -> dict:
+    """Presence per kind, as objects so a kind can grow attributes without a
+    breaking change. alt_color keeps its formats - the flat boolean lost them."""
+    formats = [name for name, flag in (("serum", "serum_exists"), ("vni", "vni_exists"))
+               if row.get(flag)]
+    return {
+        "backglass": {"present": bool(row.get("b2s_exists"))},
+        "settings": {"present": bool(row.get("ini_exists"))},
+        "pup_pack": {"present": bool(row.get("pup_pack_exists"))},
+        "alt_color": {"present": bool(formats), "formats": formats},
+        "alt_sound": {"present": bool(row.get("alt_sound_exists"))},
+        "music": {"present": bool(row.get("music_exists"))},
+    }
+
+
+def _listing(table_dir: Path) -> tuple[list[str], list[str]]:
+    files: list[str] = []
+    subdirs: list[str] = []
+    if table_dir.is_dir():
+        for entry in table_dir.iterdir():
+            (files if entry.is_file() else subdirs).append(entry.name)
+    return files, subdirs
+
+
+def _inventory_assets(table_dir: Path) -> dict:
+    """The inventory lens: every asset file attributed, plus the folder-wide kinds.
+
+    Computed fresh per request, not from the scan - an audit that reports
+    yesterday's folder is worse than none.
+    """
+    files, subdirs = _listing(table_dir)
+    inv = asset_resolver.inventory(table_dir.name, files, game_file_names(files))
+    for entry in inv.values():
+        entry["present"] = bool(entry["files"])
+    subdir_set = {name.lower() for name in subdirs}
+    formats = [fmt for fmt, folder in (("serum", "serum"), ("vni", "vni"))
+               if folder in subdir_set]
+    inv["pup_pack"] = {"present": "pupvideos" in subdir_set}
+    inv["alt_color"] = {"present": bool(formats), "formats": formats}
+    inv["alt_sound"] = {"present": (table_dir / "pinmame" / "altsound").is_dir()}
+    inv["music"] = {"present": "music" in subdir_set}
+    return inv
 
 
 def _game_files(table, row: dict) -> list[dict]:
@@ -102,10 +140,8 @@ def _game_files(table, row: dict) -> list[dict]:
     table_dir = Path(row.get("table_path", ""))
     recorded = (row.get("filename") or "").strip()
 
-    listing = []
-    if table_dir.is_dir():
-        listing = [p.name for p in table_dir.iterdir() if p.is_file()]
-    on_disk = game_file_names(listing)
+    files, subdirs = _listing(table_dir)
+    on_disk = game_file_names(files)
 
     names = list(on_disk)
     if recorded and recorded not in names:
@@ -114,17 +150,39 @@ def _game_files(table, row: dict) -> list[dict]:
         return []
 
     # Same resolver the launcher and the metadata build use, so all three agree.
-    default = default_game_file(listing, table_dir.name, recorded) or recorded
-    return [
-        {
+    default = default_game_file(files, table_dir.name, recorded) or recorded
+
+    # Dependency context, once per request: the alias map and the rom listing are
+    # shared by every game file in the folder.
+    aliases = asset_resolver.read_alias_map(str(table_dir))
+    rom_files = asset_resolver.list_rom_files(str(table_dir))
+    flex_raw = str(row.get("detectflex") or "").strip().lower()
+    flex_detected = True if flex_raw == "true" else False if flex_raw == "false" else None
+
+    entries = []
+    for name in names:
+        entry = {
             "format": "vpx",
             "app": "vpx",
             "filename": name,
             "default": name == default,
             "available": name in on_disk,
+            "assets": asset_resolver.resolve_for_game_file(name, table_dir.name, files),
         }
-        for name in names
-    ]
+        if name == recorded:
+            # The .info describes one game file today, so the script-declared
+            # facts are only known for that one. The others get an honest unknown.
+            chain = asset_resolver.resolve_rom_chain(row.get("rom", ""), aliases, rom_files)
+            flex = asset_resolver.flexdmd_state(subdirs, flex_detected)
+        else:
+            chain = {"declared": None, "alias_of": None, "effective": None,
+                     "installed": None,
+                     "reason": "unknown: the table metadata records one game file today"}
+            flex = asset_resolver.flexdmd_state(subdirs, None)
+        chain["nvram"] = asset_resolver.nvram_state(str(table_dir), chain["effective"])
+        entry["dependencies"] = {"pinmame": chain, "flexdmd": flex}
+        entries.append(entry)
+    return entries
 
 
 @router.get("", summary="List tables", dependencies=[requires(scopes.TABLES_READ)])
@@ -163,7 +221,10 @@ def list_tables(
 @router.get("/{table_id}", summary="One table", dependencies=[requires(scopes.TABLES_READ)])
 def get_table(table_id: str) -> dict:
     table = _table_or_404(table_id)
-    return _resource(table_to_row(table, collections_by_table_id()), table_id)
+    row = table_to_row(table, collections_by_table_id())
+    resource = _resource(row, table_id)
+    resource["assets"] = _inventory_assets(Path(row.get("table_path", "")))
+    return resource
 
 
 @router.get("/{table_id}/game-files", summary="A table's game files",

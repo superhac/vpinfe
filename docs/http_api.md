@@ -95,15 +95,39 @@ Path segments are hyphenated (`/game-files`); JSON field names are `snake_case`
 URL and nothing has to be translated on the way into Python.
 
 **Media and assets are not the same thing** (`docs/conventions.md`). Media is the artwork
-VPinFE shows you while browsing — playfield, backglass art, DMD, wheel, flyer, video, audio.
-Assets are what the table needs to *play* as intended: the `.directb2s`, ROM, alt colour, alt
-sound, PUP pack, music, per-table `.ini`. A table resource reports `assets` as presence flags
-for all seven; the media sub-resource is not built yet.
+VPinFE shows you while browsing; assets are what the table needs to *play* as intended. The
+media sub-resource is not built yet.
 
-`rom` on the table resource is the **declared** ROM name, not a statement that a ROM is
-installed. It can be a PinMAME dependency the table cannot run without, or just a key DOF
-maps effects to — and most of the library is the latter. `assets` deliberately has no ROM
-entry until those can be told apart; see `docs/conventions.md`.
+Assets come in two lenses, both computed from the folder at request time:
+
+- **The launch lens** — each entry in `GET .../game-files` reports what *that* game file
+  would use on launch, mirroring VPX's own lookup order per kind: `dedicated` (a file named
+  for the game file), `shared` (the folder-named fallback), or `none` — plus the winning
+  filename. A `.pov` never falls back to the folder name, because VPX doesn't.
+- **The inventory lens** — `GET /tables/{id}` attributes every asset file in the folder:
+  `dedicated` to the game file it serves, `shared`, or `orphaned` (stem-named for a game
+  file that is no longer there — what an audit wants to see). The list endpoint carries a
+  presence summary only.
+
+Game files also carry `dependencies` — things the *script* declares and content on disk
+satisfies, which is a different mechanism from an asset found by naming rule:
+
+- `pinmame` is a chain: `declared` (the script's ROM name) → `alias_of` (rewritten by the
+  table's `pinmame/alias.txt`, the way PinMAME itself does) → `effective` → `installed`.
+  `installed` is true or null, never false: the name may be a DOF key on a ROM-less EM
+  table, an unmerged set may need a parent zip, and global ROM locations aren't searched —
+  so "not found here" is not "missing". `nvram` rides the chain (`present`, `file`,
+  `modified_at`, stat-ed live) because a competition harvester's question is "is there a
+  score newer than my last visit".
+- `flexdmd` reports whether the script uses FlexDMD and what `.UltraDMD` content exists;
+  `declared` stays null until the project-folder extraction is built.
+
+The script-declared facts are only known for the game file the table's metadata records;
+other builds report `null` with a reason rather than inheriting the wrong answer.
+
+`rom` on the table resource is the recorded game file's **declared** ROM name kept as plain
+metadata; the full chain (alias, effective, installed, nvram) lives on the game file's
+`dependencies.pinmame`.
 
 ## Errors
 

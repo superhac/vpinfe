@@ -204,11 +204,14 @@ file, and they are overwhelmingly EM tables that never needed one.** So "declare
 has no ROM file" is a normal, healthy state for most of the library, and reporting ROM
 presence as a plain missing/present flag would call hundreds of working tables broken.
 
-That is why the table resource carries the declared name as metadata (`rom`) but no ROM
-entry under `assets`. **Trigger for revisiting:** a detector for whether the script
-actually instantiates the PinMAME controller — `runDetectors` in `vpxparser` already
-greps the script for exactly this kind of thing. Once the dependency's kind is known,
-ROM can be reported honestly.
+That is why ROM is a *dependency*, not an asset: assets are found by naming rule with no
+help from the script (the way VPX finds a `.directb2s` or a table `.ini`), while a
+dependency is declared by the script and satisfied by content on disk. FlexDMD is the
+second member of that family. The API reports the chain — declared, alias-rewritten,
+effective, installed — and `installed` is true-or-null, never false, for the reasons
+above. **Trigger for `required`:** a detector for whether the script actually
+instantiates the PinMAME controller — `runDetectors` in `vpxparser` already greps the
+script for exactly this kind of thing.
 - **App** — the application that plays a format (VPX standalone today).
 - **Theme** — a player-facing frontend package.
 - **Extension** — a feature extending VPinFE under a manifest. Never "plugin", which is
