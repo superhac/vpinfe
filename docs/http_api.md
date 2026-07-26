@@ -121,7 +121,11 @@ Game files also carry `dependencies` — things the *script* declares and conten
 satisfies, which is a different mechanism from an asset found by naming rule:
 
 - `pinmame` is a chain: `declared` (the script's ROM name) → `alias_of` (rewritten by the
-  table's `pinmame/alias.txt`, the way PinMAME itself does) → `effective` → `installed`.
+  table's `pinmame/alias.txt`, the way PinMAME itself does) → `effective` → `installed`,
+  with `required` saying whether the script actually drives the emulator — measured from
+  the script, not guessed from the name's shape. `required: true` with `installed: null`
+  is the case worth surfacing; `required: false` means the declared name is a DOF key;
+  `null` means the table's metadata predates the detector and a rebuild will fill it in.
   `installed` is true or null, never false: the name may be a DOF key on a ROM-less EM
   table, an unmerged set may need a parent zip, and global ROM locations aren't searched —
   so "not found here" is not "missing". `nvram` rides the chain (`present`, `file`,

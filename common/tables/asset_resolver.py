@@ -124,8 +124,14 @@ def parse_alias_file(text: str) -> dict[str, str]:
     return aliases
 
 
-def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files) -> dict:
+def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files,
+                      required: bool | None = None) -> dict:
     """The pinmame dependency chain: declared -> alias -> effective -> installed.
+
+    `required` is whether the script actually drives the emulator - measured from
+    the script, not guessed from the name's shape. A declared name with
+    required=False is a DOF key; required=True with installed=None is the case a
+    doctor should surface. None means the table's metadata predates the detector.
 
     `installed` is deliberately True-or-None, never False: an unmerged clone set
     can need a parent zip we cannot see the need for, and global rom locations are
@@ -134,7 +140,7 @@ def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files) -> dict
     declared = (declared or "").strip()
     if not declared:
         return {"declared": None, "alias_of": None, "effective": None,
-                "installed": None, "reason": "no rom declared"}
+                "required": required, "installed": None, "reason": "no rom declared"}
 
     real = aliases.get(declared.lower())
     effective = real or declared
@@ -142,6 +148,7 @@ def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files) -> dict
         "declared": declared,
         "alias_of": real,
         "effective": effective,
+        "required": required,
         "installed": None,
         "reason": None,
     }

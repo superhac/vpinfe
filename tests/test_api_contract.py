@@ -43,7 +43,8 @@ def _run_probe() -> dict:
         (table / "Example Table (Bally 1990).info").write_text(json.dumps({
             "Info": {"Title": "Example Table", "Manufacturer": "Bally", "Year": "1990",
                      "Type": "SS", "VPSId": "vps-example"},
-            "VPXFile": {"filename": "Example Table (Bally 1990).vpx", "rom": "exmpl"},
+            "VPXFile": {"filename": "Example Table (Bally 1990).vpx", "rom": "exmpl",
+                        "detectpinmame": "true"},
             "User": {"Rating": 3},
         }), encoding="utf-8")
 
@@ -190,6 +191,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(chain["declared"], "exmpl")
         self.assertEqual(chain["effective"], "exmpl")
         self.assertTrue(chain["installed"], "exmpl.zip is in the fixture's roms folder")
+        self.assertTrue(chain["required"], "the fixture's metadata says the script drives pinmame")
         self.assertFalse(chain["nvram"]["present"], "nothing has been played")
 
     def test_a_non_recorded_game_file_gets_an_honest_unknown_rom(self) -> None:
@@ -200,6 +202,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertTrue(others)
         for entry in others:
             self.assertIsNone(entry["dependencies"]["pinmame"]["declared"])
+            self.assertIsNone(entry["dependencies"]["pinmame"]["required"])
             self.assertIn("one game file", entry["dependencies"]["pinmame"]["reason"])
 
     def test_rom_presence_is_not_reported_as_an_asset(self) -> None:

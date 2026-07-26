@@ -161,6 +161,9 @@ def _game_files(table, row: dict) -> list[dict]:
     rom_files = asset_resolver.list_rom_files(str(table_dir))
     flex_raw = str(row.get("detectflex") or "").strip().lower()
     flex_detected = True if flex_raw == "true" else False if flex_raw == "false" else None
+    pinmame_raw = str(row.get("detectpinmame") or "").strip().lower()
+    pinmame_required = (True if pinmame_raw == "true"
+                        else False if pinmame_raw == "false" else None)
 
     entries = []
     for name in names:
@@ -175,11 +178,12 @@ def _game_files(table, row: dict) -> list[dict]:
         if name == recorded:
             # The .info describes one game file today, so the script-declared
             # facts are only known for that one. The others get an honest unknown.
-            chain = asset_resolver.resolve_rom_chain(row.get("rom", ""), aliases, rom_files)
+            chain = asset_resolver.resolve_rom_chain(row.get("rom", ""), aliases,
+                                                     rom_files, pinmame_required)
             flex = asset_resolver.flexdmd_state(subdirs, flex_detected)
         else:
             chain = {"declared": None, "alias_of": None, "effective": None,
-                     "installed": None,
+                     "required": None, "installed": None,
                      "reason": "unknown: the table metadata records one game file today"}
             flex = asset_resolver.flexdmd_state(subdirs, None)
         chain["nvram"] = asset_resolver.nvram_state(str(table_dir), chain["effective"])

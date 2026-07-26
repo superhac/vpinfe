@@ -62,6 +62,31 @@ class TestVPXParser(unittest.TestCase):
 
         self.assertEqual(values["rom"], "fallback_rom")
 
+    def _detect(self, script: str) -> str:
+        parser = VPXParser()
+        values = {"gameData": script}
+        parser.runDetectors(values)
+        return values["detectpinmame"]
+
+    def test_a_script_that_loads_vpm_drives_pinmame(self) -> None:
+        self.assertEqual(self._detect(
+            'Const cGameName = "afm_113b"\nLoadVPM "01560000", "S11.vbs", 3.10\n'), "true")
+
+    def test_a_hand_rolled_controller_drives_pinmame(self) -> None:
+        """Pre-framework tables skip LoadVPM and create the controller directly."""
+        self.assertEqual(self._detect(
+            'Set Controller = CreateObject ( "VPinMAME.Controller" )\n'), "true")
+
+    def test_a_commented_out_loadvpm_does_not_count(self) -> None:
+        """EM tables commonly carry dead VPM code; a comment is not a dependency."""
+        self.assertEqual(self._detect(
+            "Const cGameName = \"GTB2001_1971\" 'for DOF\n"
+            "'LoadVPM \"01560000\", \"sys80.vbs\", 3.10\n"), "false")
+
+    def test_a_dof_only_em_script_does_not_drive_pinmame(self) -> None:
+        self.assertEqual(self._detect(
+            'Const cGameName = "Aces_and_Kings"\nSub Table1_Init()\nEnd Sub\n'), "false")
+
     def test_sidecar_vbs_overrides_embedded_game_data(self) -> None:
         parser = VPXParser()
         with TemporaryDirectory() as tmp:

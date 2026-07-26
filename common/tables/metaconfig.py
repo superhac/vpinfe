@@ -134,7 +134,8 @@ class MetaConfig:
             "detectlut": configdata["vpxdata"]["detectlut"],
             "detectscorebit": configdata["vpxdata"]["detectscorebit"],
             "detectfastflips": configdata["vpxdata"]["detectfastflips"],
-            "detectflex": configdata["vpxdata"]["detectflex"]
+            "detectflex": configdata["vpxdata"]["detectflex"],
+            "detectpinmame": configdata["vpxdata"].get("detectpinmame", "")
         }
 
         user = self.data.get("User", {

@@ -209,9 +209,15 @@ help from the script (the way VPX finds a `.directb2s` or a table `.ini`), while
 dependency is declared by the script and satisfied by content on disk. FlexDMD is the
 second member of that family. The API reports the chain — declared, alias-rewritten,
 effective, installed — and `installed` is true-or-null, never false, for the reasons
-above. **Trigger for `required`:** a detector for whether the script actually
-instantiates the PinMAME controller — `runDetectors` in `vpxparser` already greps the
-script for exactly this kind of thing.
+above. `required` on the chain comes from the `detectpinmame` flag: the script drives
+the emulator when it calls `LoadVPM`, `vpmInit`, or creates `VPinMAME.Controller`
+directly — measured on the comment-stripped script, because EM tables commonly carry
+dead VPM code, and a commented-out `LoadVPM` is not a dependency. Measured against a
+145-table validation set: every ROM-installed table hits, every DOF-key EM table
+misses. One known ambiguity: some EM/PM recreations *conditionally* drive PinMAME for
+chime sounds (the `cOptRom` pattern), and read as required when the player may run
+happily without the ROM. The flag lands in `VPXFile` on the next metadata rebuild;
+until then the chain reports `required: null`.
 - **App** — the application that plays a format (VPX standalone today).
 - **Theme** — a player-facing frontend package.
 - **Extension** — a feature extending VPinFE under a manifest. Never "plugin", which is

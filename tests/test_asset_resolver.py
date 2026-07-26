@@ -129,6 +129,19 @@ class RomChainTests(unittest.TestCase):
 
         self.assertEqual(chain["effective"], "afm_113b")
 
+    def test_required_threads_through_from_the_script_detector(self) -> None:
+        """required=True with installed=None is the case a doctor should surface;
+        required=False says the declared name is a DOF key."""
+        missing = res.resolve_rom_chain("nfl_pat", {}, [], required=True)
+        self.assertTrue(missing["required"])
+        self.assertIsNone(missing["installed"])
+
+        dof_key = res.resolve_rom_chain("GTB2001_1971", {}, [], required=False)
+        self.assertFalse(dof_key["required"])
+
+        undetected = res.resolve_rom_chain("afm_113b", {}, ["afm_113b.zip"])
+        self.assertIsNone(undetected["required"], "metadata predating the detector")
+
     def test_alias_file_parsing_skips_comments_and_junk(self) -> None:
         aliases = res.parse_alias_file(
             "# my aliases\n\nafm_ultra, afm_113b\nbad_line\nmm_x mm_109c\n")

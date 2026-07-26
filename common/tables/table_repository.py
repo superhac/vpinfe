@@ -117,6 +117,7 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "detectscorebit": first_meta_value(meta, ("VPXFile", "detectscorebit")),
         "detectfastflips": first_meta_value(meta, ("VPXFile", "detectfastflips")),
         "detectflex": first_meta_value(meta, ("VPXFile", "detectflex")),
+        "detectpinmame": first_meta_value(meta, ("VPXFile", "detectpinmame")),
         "patch_applied": first_meta_value(meta, ("VPXFile", "patch_applied"), default=False),
         "table_path": table.fullPathTable,
         "b2s_exists": bool(getattr(table, "b2sExists", False)),
