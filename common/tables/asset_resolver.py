@@ -140,7 +140,8 @@ def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files,
     declared = (declared or "").strip()
     if not declared:
         return {"declared": None, "alias_of": None, "effective": None,
-                "required": required, "installed": None, "reason": "no rom declared"}
+                "required": required, "catalog": None, "clone_of": None,
+                "audit": None, "installed": None, "reason": "no rom declared"}
 
     real = aliases.get(declared.lower())
     effective = real or declared
@@ -149,6 +150,9 @@ def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files,
         "alias_of": real,
         "effective": effective,
         "required": required,
+        "catalog": None,
+        "clone_of": None,
+        "audit": None,
         "installed": None,
         "reason": None,
     }
@@ -160,6 +164,38 @@ def resolve_rom_chain(declared: str, aliases: dict[str, str], rom_files,
             chain["installed"] = True
             return chain
     chain["reason"] = "not found in the table's roms folder; global locations not searched"
+    return chain
+
+
+def apply_audit(chain: dict, entry: dict | None) -> dict:
+    """Fold PinMAME's own answer into the chain, when there is one.
+
+    The audit outranks the name-match: `found` means the set would actually load,
+    chip CRCs and parent zips included, so it is what finally makes
+    installed=False sayable. No entry means no answer, and the chain keeps
+    whatever the name-match concluded.
+    """
+    if entry is None:
+        chain["audit"] = "unavailable"
+        return chain
+    if not entry.get("catalog"):
+        chain["catalog"] = False
+        chain["audit"] = "unknown_set"
+        chain["installed"] = None
+        chain["reason"] = ("not in this PinMAME's catalog - an alias may be "
+                           "needed, or the set is newer than the shipped library")
+        return chain
+    chain["catalog"] = True
+    chain["clone_of"] = entry.get("clone_of")
+    chain["description"] = entry.get("description")
+    if entry.get("found"):
+        chain["audit"] = "ok"
+        chain["installed"] = True
+        chain["reason"] = None
+    else:
+        chain["audit"] = "missing"
+        chain["installed"] = False
+        chain["reason"] = "PinMAME audit: romset missing or incomplete in the table's roms folder"
     return chain
 
 

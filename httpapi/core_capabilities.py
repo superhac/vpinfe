@@ -52,6 +52,19 @@ def _launch_available() -> bool | tuple[bool, str]:
         return False, f"Could not determine launcher state: {exc}"
 
 
+def _rom_audit_available() -> bool | tuple[bool, str]:
+    """Whether this machine can run PinMAME's own ROM audit."""
+    try:
+        from common.config_access import SettingsConfig
+        from common.host import pinmame_catalog
+        from common.paths import get_ini_config
+
+        vpx_bin = SettingsConfig.from_config(get_ini_config()).vpx_bin_path
+        return pinmame_catalog.availability(vpx_bin)
+    except Exception as exc:
+        return False, f"Could not determine libpinmame state: {exc}"
+
+
 def declare_core() -> None:
     """Declare the capabilities this build actually serves."""
     capabilities.declare(capabilities.Capability(
@@ -80,6 +93,12 @@ def declare_core() -> None:
         residency=[capabilities.RESIDENCY_PLAY_HOST],
         description="DOF, real-DMD and other attached devices",
         is_available=_peripherals_available,
+    ))
+    capabilities.declare(capabilities.Capability(
+        name="rom_audit",
+        residency=[capabilities.RESIDENCY_PLAY_HOST],
+        description="ROM set verification through the VPX install's own PinMAME",
+        is_available=_rom_audit_available,
     ))
     capabilities.declare(capabilities.Capability(
         name="events",

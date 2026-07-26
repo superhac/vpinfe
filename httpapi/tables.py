@@ -17,7 +17,7 @@ from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
 from common.config_access import MediaConfig
-from common.host import launch, launch_state
+from common.host import launch, launch_state, pinmame_catalog
 from common.media_paths import MEDIA_SPECS, resolve_media_files
 from common.paths import get_ini_config
 from common.tables import asset_resolver, table_identity
@@ -180,10 +180,19 @@ def _game_files(table, row: dict) -> list[dict]:
             # facts are only known for that one. The others get an honest unknown.
             chain = asset_resolver.resolve_rom_chain(row.get("rom", ""), aliases,
                                                      rom_files, pinmame_required)
+            if chain["effective"]:
+                # PinMAME's own audit, from the library the configured VPX ships.
+                # No answer leaves the name-match conclusion standing.
+                from common.config_access import SettingsConfig
+                audit = pinmame_catalog.lookup(
+                    SettingsConfig.from_config(get_ini_config()).vpx_bin_path,
+                    str(table_dir / "pinmame" / "roms"), chain["effective"])
+                asset_resolver.apply_audit(chain, audit)
             flex = asset_resolver.flexdmd_state(subdirs, flex_detected)
         else:
             chain = {"declared": None, "alias_of": None, "effective": None,
-                     "required": None, "installed": None,
+                     "required": None, "catalog": None, "clone_of": None,
+                     "audit": None, "installed": None,
                      "reason": "unknown: the table metadata records one game file today"}
             flex = asset_resolver.flexdmd_state(subdirs, None)
         chain["nvram"] = asset_resolver.nvram_state(str(table_dir), chain["effective"])

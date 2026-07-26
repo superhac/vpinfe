@@ -126,6 +126,16 @@ satisfies, which is a different mechanism from an asset found by naming rule:
   the script, not guessed from the name's shape. `required: true` with `installed: null`
   is the case worth surfacing; `required: false` means the declared name is a DOF key;
   `null` means the table's metadata predates the detector and a rebuild will fill it in.
+
+  When the machine's own VPX install ships `libpinmame` (discovery declares this as the
+  `rom_audit` capability), the chain also carries PinMAME's own answer: `catalog` (the
+  engine knows this set), `clone_of` (the parent set an unmerged clone needs),
+  `description` (the version label), and `audit` — `ok` upgrades `installed` to true with
+  chip-level certainty, `missing` finally makes `installed: false` sayable,
+  `unknown_set` means the name isn't in this PinMAME's catalog (an alias may be needed,
+  or the set is newer than the shipped library), and `unavailable` leaves the name-match
+  conclusion standing. The library is borrowed from the configured launcher's install,
+  never bundled — a machine that can't launch has no use for the audit.
   `installed` is true or null, never false: the name may be a DOF key on a ROM-less EM
   table, an unmerged set may need a parent zip, and global ROM locations aren't searched —
   so "not found here" is not "missing". `nvram` rides the chain (`present`, `file`,
