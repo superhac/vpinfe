@@ -50,6 +50,7 @@ class DiscoveryLinks(ApiModel):
     health: str
     openapi: str
     docs: str
+    collections: str | None
     events: str | None
     jobs: str | None
     manufacturers: str | None
@@ -222,6 +223,56 @@ class MediaEntry(ApiModel):
 
 class MediaList(ApiModel):
     media: dict[str, MediaEntry]
+
+
+# --- Collections -----------------------------------------------------------
+
+class CollectionFilters(ApiModel):
+    """A filter collection's criteria. "All" means unconstrained on that axis -
+    the vocabulary the filter engine already uses, kept rather than translated so
+    a client sees the same values the Manager UI shows."""
+
+    letter: str = "All"
+    theme: str = "All"
+    table_type: str = "All"
+    manufacturer: str = "All"
+    year: str = "All"
+    rating: str = "All"
+    rating_or_higher: bool = False
+    sort_by: str = "Alpha"
+    order_by: str = "Descending"
+
+
+class CollectionLinks(ApiModel):
+    self_: str = Field(alias="self")
+    tables: str
+
+
+class CollectionResource(ApiModel):
+    """`type` is `manual` (an explicit list of tables) or `filter` (criteria applied
+    at display time). `table_count` is null for a filter collection, whose membership
+    is not a stored list - ask /tables for its current members. `filters` is set only
+    for a filter collection."""
+
+    name: str
+    type: str
+    image: str | None
+    table_count: int | None
+    filters: CollectionFilters | None
+    links: CollectionLinks
+
+
+class CollectionList(ApiModel):
+    collections: list[CollectionResource]
+
+
+class CreateCollectionRequest(ApiModel):
+    """Supplying `filters` makes a filter collection; supplying `tables` (or neither)
+    makes a manual one. Sending both is refused rather than guessed at."""
+
+    name: str
+    filters: CollectionFilters | None = None
+    tables: list[str] = Field(default_factory=list)
 
 
 # --- Jobs ------------------------------------------------------------------

@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import (
     auth,
     capabilities,
+    collections,
     core_capabilities,
     events,
     instance,
@@ -83,6 +84,7 @@ def create_api_app() -> FastAPI:
     install_error_handlers(api)
     api.include_router(instance.build_router(API_PREFIX, API_VERSION))
     api.include_router(events.router)
+    api.include_router(collections.router)
     api.include_router(jobs.router)
     api.include_router(library.router)
     api.include_router(manufacturers.router)

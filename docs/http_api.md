@@ -43,6 +43,13 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/docs` | Swagger UI |
 | GET | `/api/v1/events` | Subscribe to the event stream (SSE). `?events=` filters by name |
 | GET | `/api/v1/play/state` | What this play host is doing. The snapshot you take once; `play.state_changed` on the stream is how you hear about it after that |
+| GET | `/api/v1/collections` | List collections |
+| GET | `/api/v1/collections/{name}` | One collection |
+| GET | `/api/v1/collections/{name}/tables` | Its tables, resolved — works for both kinds |
+| POST | `/api/v1/collections` | Create one. `filters` makes it filter-based, `tables` makes it manual |
+| DELETE | `/api/v1/collections/{name}` | Delete it |
+| PUT | `/api/v1/collections/{name}/tables/{id}` | Add a table (idempotent) |
+| DELETE | `/api/v1/collections/{name}/tables/{id}` | Remove a table |
 | GET | `/api/v1/jobs` | Slow work, running first. `?kind=` filters |
 | GET | `/api/v1/jobs/{id}` | One job — state, last progress, outcome |
 | POST | `/api/v1/library/scan` | Rebuild table metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
@@ -361,6 +368,26 @@ was already queued and then disconnected, rather than being allowed to grow memo
 publisher down — the bus runs its handlers on the thread that published, and a launch is one
 of the things publishing. EventSource reconnects on its own, so a client that briefly stalls
 recovers by itself.
+
+## Collections
+
+Two kinds behind one resource. A **manual** collection stores an explicit list of table
+ids; a **filter** collection stores criteria and resolves to whatever matches when you ask.
+`type` says which, and `table_count` is null for a filter collection because there is no
+stored list to count — ask `/collections/{name}/tables`, which answers the same question
+for both kinds and applies the collection's own ordering.
+
+Editing membership only makes sense for the manual kind, so `PUT`/`DELETE` on a filter
+collection's tables is a `409` rather than a silent no-op. Adding a table that is already a
+member is a success: the caller wanted it in there, and it is.
+
+Membership is the table's own id, not its VPS id — a table with no VPSdb match still
+belongs to collections, which is why membership moved off the VPS id. The key on disk is
+still `vpsids` for files written before that migration, and `type` is still `vpsid` there;
+the wire uses the honest names.
+
+Collection names are the identity, so they are URL-encoded in paths (`Last%20Played`).
+`Last Played` itself is maintained automatically as you play.
 
 ## Jobs
 
