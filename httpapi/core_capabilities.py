@@ -105,3 +105,8 @@ def declare_core() -> None:
         residency=[capabilities.RESIDENCY_CATALOG, capabilities.RESIDENCY_PLAY_HOST],
         description="Table lifecycle, play state and job progress as they happen",
     ))
+    capabilities.declare(capabilities.Capability(
+        name="jobs",
+        residency=[capabilities.RESIDENCY_CATALOG],
+        description="Slow work runs in the background and reports progress",
+    ))

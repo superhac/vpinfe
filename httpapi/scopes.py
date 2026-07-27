@@ -38,6 +38,11 @@ SYSTEM_ADMIN = "system:admin"
 
 EVENTS_SUBSCRIBE = "events:subscribe"
 
+# Asking what slow work is running. Starting it carries the scope of what it does -
+# a library scan writes table metadata, so it is tables:write - because the right to
+# watch a job is not the right to cause one.
+JOBS_READ = "jobs:read"
+
 CORE = frozenset({
     INSTANCE_READ,
     TABLES_READ, TABLES_WRITE, TABLES_EXPORT_FULL,
@@ -46,7 +51,7 @@ CORE = frozenset({
     UPLOADS_WRITE, VPS_READ,
     CONFIG_READ, CONFIG_WRITE,
     SYSTEM_READ, SYSTEM_ADMIN,
-    EVENTS_SUBSCRIBE,
+    EVENTS_SUBSCRIBE, JOBS_READ,
 })
 
 EXTENSION_PREFIX = "ext:"

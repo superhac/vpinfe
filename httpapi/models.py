@@ -51,6 +51,7 @@ class DiscoveryLinks(ApiModel):
     openapi: str
     docs: str
     events: str | None
+    jobs: str | None
     manufacturers: str | None
 
 
@@ -221,6 +222,41 @@ class MediaEntry(ApiModel):
 
 class MediaList(ApiModel):
     media: dict[str, MediaEntry]
+
+
+# --- Jobs ------------------------------------------------------------------
+
+class JobLinks(ApiModel):
+    self_: str = Field(alias="self")
+    events: str
+
+
+class JobResource(ApiModel):
+    """One run of slow work. `pct` and `message` are the last progress reported, so
+    a client that connects late is correct without having seen the events. `error`
+    is set only when state is `failed`; timestamps are epoch seconds."""
+
+    id: str
+    kind: str
+    state: str
+    pct: int
+    message: str
+    error: str | None
+    started_at: float
+    finished_at: float | None
+    links: JobLinks
+
+
+class JobList(ApiModel):
+    jobs: list[JobResource]
+
+
+class ScanRequest(ApiModel):
+    """Absent body means both default to true, which is what the Manager UI's own
+    scan does."""
+
+    download_media: bool = True
+    update_all: bool = True
 
 
 # --- Manufacturers ---------------------------------------------------------

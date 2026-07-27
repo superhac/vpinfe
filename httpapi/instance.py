@@ -30,6 +30,7 @@ def discovery_payload(prefix: str, api_version: str) -> dict:
             "openapi": f"{prefix}/openapi.json",
             "docs": f"{prefix}/docs",
             "events": f"{prefix}/events",
+            "jobs": f"{prefix}/jobs",
             "manufacturers": f"{prefix}/manufacturers",
         },
     }

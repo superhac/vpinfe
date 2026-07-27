@@ -43,6 +43,9 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/docs` | Swagger UI |
 | GET | `/api/v1/events` | Subscribe to the event stream (SSE). `?events=` filters by name |
 | GET | `/api/v1/play/state` | What this play host is doing. The snapshot you take once; `play.state_changed` on the stream is how you hear about it after that |
+| GET | `/api/v1/jobs` | Slow work, running first. `?kind=` filters |
+| GET | `/api/v1/jobs/{id}` | One job — state, last progress, outcome |
+| POST | `/api/v1/library/scan` | Rebuild table metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library table count. The reference for logo packs and alias maps |
 | GET | `/api/v1/tables` | List tables (`q`, `limit`, `offset`) |
 | GET | `/api/v1/tables/{id}` | One table |
@@ -358,6 +361,30 @@ was already queued and then disconnected, rather than being allowed to grow memo
 publisher down — the bus runs its handlers on the thread that published, and a launch is one
 of the things publishing. EventSource reconnects on its own, so a client that briefly stalls
 recovers by itself.
+
+## Jobs
+
+Work that takes minutes is a job: you ask for the work, get `202` and a job resource back,
+and follow it on the event stream. `POST /library/scan` is the first one — a metadata
+rebuild across every table folder, which is why it sits under `/library` rather than
+`/tables/{id}`; it isn't an operation on a table.
+
+The job resource exists because the stream isn't the only way in. A client that connected
+late, missed `job.done`, or simply wants to know what is running asks `GET /jobs` or
+`GET /jobs/{id}` — `pct` and `message` hold the last progress reported, so a late reader is
+correct without having seen a single event. Finished jobs stay answerable for a while
+(bounded — this is a courtesy for the client that missed the last event, not a history
+feature).
+
+Starting work is never a `POST /jobs`. The permission to run something is the permission of
+the thing itself, so a scan is `tables:write` because that is what a scan does. `jobs:read`
+covers only asking; the right to watch is not the right to cause.
+
+**One job of a kind at a time**, and the rule is shared with the rest of the app rather than
+being an API-only guard: the Manager UI's own Scan button goes through the same registry, so
+two library scans can't rewrite the same `.info` files at once, and a scan started from the
+UI shows up on the stream exactly like one started here. A second request gets `409 conflict`
+rather than being queued — queueing would mean a double-click costs two full scans.
 
 ## Table identity
 

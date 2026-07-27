@@ -17,6 +17,8 @@ from . import (
     core_capabilities,
     events,
     instance,
+    jobs,
+    library,
     manufacturers,
     play,
     scopes,
@@ -81,6 +83,8 @@ def create_api_app() -> FastAPI:
     install_error_handlers(api)
     api.include_router(instance.build_router(API_PREFIX, API_VERSION))
     api.include_router(events.router)
+    api.include_router(jobs.router)
+    api.include_router(library.router)
     api.include_router(manufacturers.router)
     api.include_router(play.router)
     api.include_router(tables.router)

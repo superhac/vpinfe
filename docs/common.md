@@ -22,7 +22,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `iniconfig.py`, `config_bootstrap.py`: ini reading and first-run config creation.
 - `events.py`: the in-process event bus. Hooks are part of an operation; subscribers are told about it.
 - `media_paths.py`: canonical media keys, filenames, table attributes, and path resolution.
-- `jobs.py`: callback-friendly progress/log reporting for long-running workflows.
+- `jobs.py`: slow work as a job — one at a time per kind, progress published on the bus, answerable by id after it finishes.
 - `http_client.py`: shared request/download helpers.
 - `third_party.py`: finding and loading the third-party libraries the build bundles.
 - `logging_config.py`, `app_version.py`.
@@ -150,6 +150,14 @@ should not each carry their own filename table.
 
 Use `jobs.JobReporter` for long-running workflows that need both logs and UI
 progress callbacks.
+
+Run anything slow through `jobs.submit` (start it on its own thread, hand the
+caller a job) or `jobs.track` (wrap work already running on the caller's thread).
+Both publish `job.progress` / `job.done` / `job.failed` in the shape `events.py`
+documents, so a workflow looks the same on the event stream whether the Manager UI
+or the HTTP API started it, and both enforce one job per kind — which is what stops
+two library scans rewriting the same `.info` files. `track` chains to whatever
+callbacks the caller already had, so an existing progress bar keeps working.
 
 Use `http_client.py` for common network GET/download behavior unless a service
 needs a special request shape such as POST.

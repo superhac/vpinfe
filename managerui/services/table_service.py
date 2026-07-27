@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from common import jobs
 from common.iniconfig import IniConfig
 from common.config_access import MediaConfig, SettingsConfig
 from common.tables import table_repository
@@ -388,8 +389,28 @@ def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> di
     return {'vbs_path': str(vbs_file), 'vbs_exists': vbs_file.is_file()}
 
 
-def build_metadata(*args, **kwargs):
-    return metadata_service.build_metadata(*args, iniconfig=_fresh_config(), **kwargs)
+def _scan(job, *args, **kwargs):
+    return metadata_service.build_metadata(
+        *args, iniconfig=_fresh_config(),
+        progress_cb=job.progress, log_cb=job.log, **kwargs)
+
+
+def build_metadata(*args, progress_cb=None, log_cb=None, job=None, **kwargs):
+    """A library scan is a job wherever it was started from.
+
+    Routing the Manager UI's own scan through the registry costs it nothing - it
+    keeps its callbacks and its return value - and buys two things: the scan reaches
+    the event stream, and it shares the one-at-a-time rule with the API instead of
+    the two paths being able to rewrite the same .info files at once.
+
+    `job` is for a caller that already registered one; without it this call owns the
+    registration, which is what makes the Manager UI's existing call site work
+    unchanged.
+    """
+    if job is not None:
+        return _scan(job, *args, **kwargs)
+    with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as tracked:
+        return _scan(tracked, *args, **kwargs)
 
 
 def apply_vpx_patches(*args, **kwargs):
