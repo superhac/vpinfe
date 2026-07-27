@@ -463,11 +463,20 @@ jobs:
             release/manifest.json
           )
 
+          # A beta or rc tag publishes as a prerelease. That is the whole beta
+          # channel: the in-app updater asks /releases/latest, which GitHub
+          # defines as the newest non-prerelease, so testers grab these from the
+          # releases page while every installed copy keeps updating to stable.
+          flags=()
+          if [[ "${GITHUB_REF_NAME}" == *-beta* || "${GITHUB_REF_NAME}" == *-rc* ]]; then
+            flags+=(--prerelease)
+          fi
+
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release edit "${GITHUB_REF_NAME}" --notes-file RELEASE_NOTES.md
+            gh release edit "${GITHUB_REF_NAME}" --notes-file RELEASE_NOTES.md "${flags[@]}"
             gh release upload "${GITHUB_REF_NAME}" "${assets[@]}" --clobber
           else
             gh release create "${GITHUB_REF_NAME}" "${assets[@]}" \
               --notes-file RELEASE_NOTES.md \
-              --verify-tag
+              --verify-tag "${flags[@]}"
           fi
