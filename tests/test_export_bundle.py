@@ -125,6 +125,19 @@ class PrunedInfoTests(unittest.TestCase):
         self.assertEqual(prune_info("not json", set()), "not json")
 
 
+class FullExportScopeTests(unittest.TestCase):
+    def test_the_full_export_scope_is_reserved_and_granted_locally(self) -> None:
+        """full=true carries its own permission, so a future token holding only
+        tables:read cannot pull whole folders. Local trust grants everything, so
+        nothing changes for anyone today."""
+        from httpapi import scopes
+        from httpapi.auth import LocalTrustPolicy
+
+        self.assertIn(scopes.TABLES_EXPORT_FULL, scopes.CORE)
+        identity = LocalTrustPolicy().identify(None)
+        self.assertTrue(identity.can(scopes.TABLES_EXPORT_FULL))
+
+
 class ArchiveTests(unittest.TestCase):
     def test_the_vpxz_holds_the_bundle_and_a_true_manifest(self) -> None:
         with TemporaryDirectory() as tmp:

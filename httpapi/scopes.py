@@ -12,6 +12,9 @@ INSTANCE_READ = "instance:read"
 
 TABLES_READ = "tables:read"
 TABLES_WRITE = "tables:write"
+# Deliberately not part of tables:read: reading the library and extracting
+# complete table folders are different permissions.
+TABLES_EXPORT_FULL = "tables:export_full"
 
 COLLECTIONS_READ = "collections:read"
 COLLECTIONS_WRITE = "collections:write"
@@ -37,7 +40,7 @@ EVENTS_SUBSCRIBE = "events:subscribe"
 
 CORE = frozenset({
     INSTANCE_READ,
-    TABLES_READ, TABLES_WRITE,
+    TABLES_READ, TABLES_WRITE, TABLES_EXPORT_FULL,
     COLLECTIONS_READ, COLLECTIONS_WRITE,
     PLAY_READ, LAUNCH_INVOKE,
     UPLOADS_WRITE, VPS_READ,

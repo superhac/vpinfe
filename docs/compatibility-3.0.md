@@ -113,8 +113,8 @@ The `.vpxz` download and the mobile Web Send used to ship everything: every alte
 build, all media, every extra. The default is now a standalone bundle for the table's
 game file — the chosen `.vpx`, its stem-matched and folder-named companions, `pinmame/`,
 `music/`, colorization and sound folders, the author's readme files, and a `.info` whose
-`Medias` section lists only what actually shipped. "Include everything" remains as an
-explicit toggle on both surfaces, and the API takes `?full=true`.
+`Medias` section lists only what actually shipped. The whole-folder form remains
+available to callers through the API (`?full=true`), under its own permission scope.
 *Why:* export a game, not a folder — transfers shrink dramatically, and a multi-`.vpx`
 folder finally exports the build you meant instead of all of them. Covered by
 `tests/test_export_bundle.py`.

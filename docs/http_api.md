@@ -48,7 +48,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/tables/{id}/game-files` | The table's game files, with resolved assets and dependencies |
 | GET | `/api/v1/tables/{id}/media` | Every media kind, present or not |
 | GET | `/api/v1/tables/{id}/media/{kind}` | Stream one media file |
-| GET | `/api/v1/tables/{id}/archive` | Download the table as `.vpxz` — one game by default; `?full=true` for the whole folder, `?file=` picks the build |
+| GET | `/api/v1/tables/{id}/archive` | Download the table as `.vpxz` — one game by default; `?file=` picks the build. `?full=true` (whole folder) carries its own scope, `tables:export_full` |
 | POST | `/api/v1/tables/{id}/launch` | Launch a table here. Optional `{"file": "..."}` picks a game file |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |

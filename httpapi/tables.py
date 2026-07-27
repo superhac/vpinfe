@@ -12,7 +12,7 @@ import logging
 import threading
 from pathlib import Path
 
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Body, Query, Request
 from starlette.background import BackgroundTask
 from starlette.responses import FileResponse
 
@@ -29,7 +29,7 @@ from common.tables.table_repository import (
 )
 
 from . import models, scopes
-from .auth import requires
+from .auth import ForbiddenError, requires
 from .errors import ConflictError, FeatureUnavailableError, InvalidRequestError, NotFoundError
 
 logger = logging.getLogger("vpinfe.httpapi.tables")
@@ -348,11 +348,17 @@ def launch_table(table_id: str,
 
 @router.get("/{table_id}/archive", summary="Download the table folder as an archive",
             dependencies=[requires(scopes.TABLES_READ)])
-def get_table_archive(table_id: str, download_token: str = "",
+def get_table_archive(request: Request, table_id: str, download_token: str = "",
                       full: bool = False, file: str = ""):
     from managerui.services.archive_service import cleanup_archive, create_vpxz_archive
 
     table = _table_or_404(table_id)
+    if full:
+        # The default bundle rides tables:read; the whole folder is its own
+        # permission. Local trust grants both today.
+        identity = getattr(request.state, "identity", None)
+        if identity is None or not identity.can(scopes.TABLES_EXPORT_FULL):
+            raise ForbiddenError(f"Requires {scopes.TABLES_EXPORT_FULL}")
     table_dir_name = getattr(table, "tableDirName", "")
     try:
         archive = create_vpxz_archive(table_dir_name, everything=full,

@@ -409,15 +409,10 @@ def build(standalone=True):
 
 
 def _build_vpxz_download_panel():
-    everything_checkbox = ui.checkbox(
-        'Include everything (all builds, media, extras)', value=False).props('dark')
     loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
     table_container = ui.column().classes('w-full')
 
     async def load_tables():
-        # Rebuilt when the toggle flips: the flag is baked into each download link.
-        table_container.clear()
-        full_param = '&full=true' if everything_checkbox.value else ''
         tables = await run.io_bound(_scan_tables)
         loading.set_visibility(False)
         rows = _build_table_rows(tables)
@@ -444,7 +439,7 @@ def _build_vpxz_download_panel():
                         icon="download"
                         class="q-mr-sm"
                         style="color: var(--neon-cyan) !important;"
-                        :href="'/api/v1/tables/' + encodeURIComponent(props.row.vpinfe_id) + '/archive?download_token=' + encodeURIComponent(props.row.download_token) + \'''' + full_param + '''\'"
+                        :href="'/api/v1/tables/' + encodeURIComponent(props.row.vpinfe_id) + '/archive?download_token=' + encodeURIComponent(props.row.download_token)"
                         :download="props.row.table_dir_name + '.vpxz'"
                         @click.stop="$parent.$emit('download', props.row)"
                     />
@@ -486,7 +481,6 @@ def _build_vpxz_download_panel():
             tbl.on('download', handle_download)
 
     ui.timer(0.1, load_tables, once=True)
-    everything_checkbox.on_value_change(lambda _e: load_tables())
 
 
 def _fetch_device_folders(host, port):
@@ -551,8 +545,6 @@ def _build_web_send_panel():
     with ui.card().classes('w-full p-4 mb-4').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);'):
         ui.label('Send Options').classes('font-bold mb-2').style('color: var(--ink) !important;')
         exclude_ini_checkbox = ui.checkbox('Exclude {VPX_FILENAME}.ini files', value=True).props('dark')
-        everything_checkbox = ui.checkbox(
-            'Include everything (all builds, media, extras)', value=False).props('dark')
         ui.label("Prevents sending the table-specific configuration file, e.g. 'tablename.ini'.").classes('text-xs ml-8 -mt-2').style('color: var(--ink-muted) !important;')
         with ui.row().classes('w-full items-end gap-3'):
             masked_ini_copy_checkbox = ui.checkbox(
@@ -715,7 +707,6 @@ def _build_web_send_panel():
                 exclude_ini=exclude_ini,
                 masked_ini_copy_enabled=masked_ini_copy_enabled,
                 masked_ini_mask=masked_ini_mask,
-                everything=_to_bool(everything_checkbox.value),
             )
             if ok:
                 success += 1
@@ -780,7 +771,6 @@ def _build_web_send_panel():
                     exclude_ini=exclude_ini,
                     masked_ini_copy_enabled=masked_ini_copy_enabled,
                     masked_ini_mask=masked_ini_mask,
-                    everything=_to_bool(everything_checkbox.value),
                 )
                 if ok:
                     _safe_notify(f'Transfer complete! All files sent to {host}:{port}', type='positive')
