@@ -18,12 +18,15 @@ const MEDIA_PATH_FIELDS = {
   "realdmd-color": "realDMDColorImagePath",
   realdmd_color: "realDMDColorImagePath",
   flyer: "FlyerImagePath",
+  rulecard: "RuleCardImagePath",
+  topper: "TopperPath",
 };
 
 const MEDIA_VIDEO_PATH_FIELDS = {
   table: "TableVideoPath",
   bg: "BGVideoPath",
   dmd: "DMDVideoPath",
+  loading: "LoadingVideoPath",
 };
 
 const DEFAULT_MEDIA_PRIORITIES = {

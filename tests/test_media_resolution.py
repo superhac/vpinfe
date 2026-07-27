@@ -101,6 +101,39 @@ class FamilyTests(unittest.TestCase):
         self.assertEqual(resolved["wheel"].parent.name, "medias")
 
 
+class NewKindTests(unittest.TestCase):
+    """The five 3.0 additions, resolving through the same chain as everyone."""
+
+    def test_each_new_kind_resolves_its_fixed_name(self) -> None:
+        resolved = _resolve(["rulecard.png", "topper.png", "loading.mp4",
+                             "audiolaunch.mp3", "rulesheet.pdf"])
+
+        for kind, name in (("rulecard", "rulecard.png"), ("topper", "topper.png"),
+                           ("loading", "loading.mp4"),
+                           ("audiolaunch", "audiolaunch.mp3"),
+                           ("rulesheet", "rulesheet.pdf")):
+            self.assertEqual(resolved[kind].name, name)
+
+    def test_topper_accepts_video_in_its_mixed_family(self) -> None:
+        resolved = _resolve(["topper.mp4"])
+
+        self.assertEqual(resolved["topper"].name, "topper.mp4")
+
+    def test_a_rulesheet_can_be_markdown(self) -> None:
+        resolved = _resolve([f"(RuleSheet) {FOLDER}.md"])
+
+        self.assertEqual(resolved["rulesheet"].name, f"(RuleSheet) {FOLDER}.md")
+
+    def test_spec_named_new_kinds_import_by_token(self) -> None:
+        from managerui.services.asset_registry import match_media_key
+
+        self.assertEqual(match_media_key(f"(Topper) {FOLDER}.mp4"), "topper")
+        self.assertEqual(match_media_key(f"(GameHelp) {FOLDER}.png"), "rulecard")
+        self.assertEqual(match_media_key("rulesheet.pdf"), "rulesheet")
+        self.assertEqual(match_media_key(f"(Loading) {FOLDER}.mp4"), "loading")
+        self.assertEqual(match_media_key("audio.ogg"), "audio")
+
+
 class ImportSideTests(unittest.TestCase):
     def _table(self, tmp, *files):
         root = Path(tmp) / FOLDER

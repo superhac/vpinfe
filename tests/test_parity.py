@@ -24,6 +24,10 @@ LEDGER_ALLOWS = {
     "PAR-03": {"remote_launch", "upload_begin", "archive_download"},
     "PAR-04": {"removed": "update_frontend_dof_for_table",
                "added": "notify_table_selected"},
+    # New media kinds add theme-payload keys. Additive only: every key master
+    # had must still be present and equal.
+    "PAR-11": {"RuleCardImagePath", "TopperPath", "LoadingVideoPath",
+               "AudioLaunchPath", "RuleSheetPath"},
 }
 
 
@@ -53,9 +57,23 @@ class ParityTests(unittest.TestCase):
             self.assertIn(f"**{par_id}", self.ledger_text,
                           f"{par_id} is enforced here but missing from the ledger")
 
-    def test_the_theme_payload_is_identical_to_master(self) -> None:
-        """No ledger entry permits this to differ: every theme reads it."""
-        self.assertEqual(self.master["theme_payload"], self.current["theme_payload"])
+    def test_the_theme_payload_only_grows_by_the_listed_keys(self) -> None:
+        """Master's keys must all survive with equal values; the only additions
+        allowed are PAR-11's new media kinds. Removing or changing a key a theme
+        already reads has no ledger entry and never will."""
+        master = self.master["theme_payload"]
+        current = self.current["theme_payload"]
+
+        self.assertEqual(master["count"], current["count"])
+        self.assertEqual(master["stable_values"], current["stable_values"])
+        self.assertEqual(master["resolved_media_fields"], current["resolved_media_fields"])
+
+        master_keys = set(master["keys"])
+        current_keys = set(current["keys"])
+        self.assertEqual(master_keys - current_keys, set(),
+                         "a key a theme may already read has vanished")
+        self.assertEqual(current_keys - master_keys, LEDGER_ALLOWS["PAR-11"],
+                         "only PAR-11's additions are permitted")
 
     def test_a_scan_never_writes_on_either_side(self) -> None:
         """Reading the library is a read. The PAR-01/02 migrations are first-run

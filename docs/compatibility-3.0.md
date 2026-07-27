@@ -88,6 +88,16 @@ shadow it.
 *Why:* the on-disk name should tell the truth; browsers sniffed past it, other tools
 won't. Covered by `tests/test_media_resolution.py`.
 
+**PAR-11 — Five new media kinds: rulecard, topper, loading, audiolaunch, rulesheet.**
+*(machine-checked)* Themes gain five payload fields (`RuleCardImagePath`, `TopperPath`,
+`LoadingVideoPath`, `AudioLaunchPath`, `RuleSheetPath`); every existing field is unchanged.
+The rule card is the apron instruction card image, distinct from the flyer (promo art) and
+the rulesheet (a document you read); topper accepts image or video; loading is the
+loading-screen video; audiolaunch plays when a table starts.
+*Why:* the spec names these and tools ship them; adopting the tokens means media that
+circulates for other frontends works here unchanged. Covered by
+`tests/test_media_resolution.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

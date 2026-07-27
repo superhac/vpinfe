@@ -9,6 +9,7 @@ from pathlib import Path
 IMAGE_FAMILY = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif")
 VIDEO_FAMILY = (".mp4",)
 AUDIO_FAMILY = (".mp3", ".ogg")
+DOC_FAMILY = (".pdf", ".md", ".txt", ".html")
 
 
 @dataclass(frozen=True)
@@ -48,6 +49,17 @@ MEDIA_SPECS = (
     MediaSpec("dmd_video", "DMDVideoPath", "dmd.mp4", "table_video_resolution",
               token="(DMD)", family=VIDEO_FAMILY),
     MediaSpec("audio", "AudioPath", "audio.mp3", token="(Audio)", family=AUDIO_FAMILY),
+    # The 3.0 additions - spec tokens except rulesheet, which the spec keeps
+    # outside its media scheme and we bring in so it gets the chain.
+    MediaSpec("rulecard", "RuleCardImagePath", "rulecard.png", token="(GameHelp)"),
+    MediaSpec("topper", "TopperPath", "topper.png", token="(Topper)",
+              family=(".png", ".jpg", ".mp4")),
+    MediaSpec("loading", "LoadingVideoPath", "loading.mp4", token="(Loading)",
+              family=VIDEO_FAMILY),
+    MediaSpec("audiolaunch", "AudioLaunchPath", "audiolaunch.mp3",
+              token="(AudioLaunch)", family=AUDIO_FAMILY),
+    MediaSpec("rulesheet", "RuleSheetPath", "rulesheet.pdf", token="(RuleSheet)",
+              family=DOC_FAMILY),
 )
 
 
