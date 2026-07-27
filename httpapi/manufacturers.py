@@ -1,0 +1,42 @@
+"""Manufacturers: the logo lookup made visible.
+
+One row per distinct manufacturer string - every name VPSdb knows plus any the
+library carries - with the slug it computes, the alias currently redirecting
+it, the logo that resolves, and how many library tables wear it. `logo: null`
+rows are the to-do list for anyone building a logo pack or migrating their
+own; `aliased_to` is the only way to see a pack alias bypassing a user file.
+"""
+
+from __future__ import annotations
+
+from collections import Counter
+
+from fastapi import APIRouter
+
+from common.paths import CONFIG_DIR
+from common.shared_assets import manufacturer_report, vps_manufacturer_names
+
+from . import models, scopes
+from .auth import requires
+from .tables import _catalog
+
+router = APIRouter(prefix="/manufacturers", tags=["manufacturers"])
+
+
+def _vps_names() -> list[str]:
+    return vps_manufacturer_names(CONFIG_DIR / "vpsdb.json")
+
+
+def _library_counts() -> Counter:
+    return Counter(str(row.get("manufacturer", "") or "").strip()
+                   for row in _catalog().values())
+
+
+@router.get("", summary="Manufacturers, their slugs and logo coverage",
+            dependencies=[requires(scopes.TABLES_READ)])
+def list_manufacturers() -> models.ManufacturerList:
+    counts = _library_counts()
+    names = set(_vps_names()) | (set(counts) - {""})
+    rows = [{**entry, "tables": counts.get(entry["name"], 0)}
+            for entry in manufacturer_report(names)]
+    return {"manufacturers": rows}

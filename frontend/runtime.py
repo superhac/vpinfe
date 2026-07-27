@@ -132,6 +132,20 @@ def build_mount_points(base_path: str, config_dir: Path, iniconfig):
         os.makedirs(assets_dir / "manufacturers" / layer, exist_ok=True)
     configure_shared_assets(assets_dir)
     mount_points["/assets/"] = os.path.abspath(assets_dir)
+
+    # Refresh the manufacturer reference from the cached VPSdb, off the boot
+    # path - it exists for people reading it between runs, so boot is the one
+    # guaranteed refresh even when no sync happens this session.
+    def _refresh_reference():
+        from common.paths import CONFIG_DIR
+        from common.shared_assets import vps_manufacturer_names, write_manufacturer_reference
+
+        names = vps_manufacturer_names(CONFIG_DIR / "vpsdb.json")
+        if names:
+            write_manufacturer_reference(names)
+
+    threading.Thread(target=_refresh_reference, daemon=True,
+                     name="manufacturer-reference").start()
     return mount_points, themes_dir
 
 

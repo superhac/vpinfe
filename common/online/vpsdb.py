@@ -41,6 +41,7 @@ class VPSdb:
         self.rootTableDir = rootTableDir
         self.data = self._cache.ensure_current()
         logger.info("Total VPSdb entries: %s", len(self.data))
+        self._write_manufacturer_reference()
 
         # Setup preferences
         media_config = MediaConfig.from_config(self._vpinfeIniConfig)
@@ -61,6 +62,20 @@ class VPSdb:
             tableresolution=self.tableresolution,
             tablevideoresolution=self.tablevideoresolution,
         )
+
+    def _write_manufacturer_reference(self):
+        """Refresh the human-readable slug/alias/logo reference after a sync.
+
+        Best-effort: a no-op when the shared assets root is not configured, and
+        never allowed to break loading the database.
+        """
+        try:
+            from common.shared_assets import write_manufacturer_reference
+            names = {str(t.get("manufacturer", "")) for t in self.data or []
+                     if isinstance(t, dict)}
+            write_manufacturer_reference(names)
+        except Exception:
+            logger.exception("Could not write the manufacturer reference")
 
     # ----------------------------------------------------------------------
     # Python container magic methods

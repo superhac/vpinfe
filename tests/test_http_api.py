@@ -12,6 +12,42 @@ def _client() -> TestClient:
     return TestClient(httpapi.create_api_app(), raise_server_exceptions=False)
 
 
+class ManufacturerEndpointTests(unittest.TestCase):
+    def test_the_logo_lookup_is_enumerable_over_the_wire(self) -> None:
+        """VPS names union library names, each with slug, resolution and count."""
+        from collections import Counter
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        from common.shared_assets import configure_shared_assets
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp) / "assets"
+            (root / "manufacturers" / "default").mkdir(parents=True)
+            (root / "manufacturers" / "default" / "bally.png").write_bytes(b"png")
+            configure_shared_assets(root)
+            self.addCleanup(configure_shared_assets, None)
+
+            with patch("httpapi.manufacturers._vps_names",
+                       return_value=["Bally Manufacturing", "Bally Wulff"]), \
+                 patch("httpapi.manufacturers._library_counts",
+                       return_value=Counter({"Bally Manufacturing": 3,
+                                             "Homebrew Works": 1})):
+                response = _client().get("/manufacturers")
+
+        self.assertEqual(response.status_code, 200)
+        rows = {row["name"]: row for row in response.json()["manufacturers"]}
+        self.assertEqual(rows["Bally Manufacturing"]["slug"], "bally")
+        self.assertEqual(rows["Bally Manufacturing"]["logo"],
+                         "/assets/manufacturers/default/bally.png")
+        self.assertEqual(rows["Bally Manufacturing"]["tables"], 3)
+        self.assertIsNone(rows["Bally Wulff"]["logo"])
+        self.assertEqual(rows["Bally Wulff"]["tables"], 0)
+        self.assertEqual(rows["Homebrew Works"]["tables"], 1,
+                         "a library-only name still gets a row")
+
+
 class DiscoveryTests(unittest.TestCase):
     def setUp(self) -> None:
         # create_api_app() declares the core capabilities, so a test that wants a

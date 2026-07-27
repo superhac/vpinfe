@@ -43,6 +43,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/docs` | Swagger UI |
 | GET | `/api/v1/events` | Subscribe to the event stream (SSE). `?events=` filters by name |
 | GET | `/api/v1/play/state` | What this play host is doing. The snapshot you take once; `play.state_changed` on the stream is how you hear about it after that |
+| GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library table count. The reference for logo packs and alias maps |
 | GET | `/api/v1/tables` | List tables (`q`, `limit`, `offset`) |
 | GET | `/api/v1/tables/{id}` | One table |
 | GET | `/api/v1/tables/{id}/game-files` | The table's game files, with resolved assets and dependencies |

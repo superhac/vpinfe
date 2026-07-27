@@ -51,6 +51,7 @@ class DiscoveryLinks(ApiModel):
     openapi: str
     docs: str
     events: str | None
+    manufacturers: str | None
 
 
 class Discovery(ApiModel):
@@ -220,6 +221,25 @@ class MediaEntry(ApiModel):
 
 class MediaList(ApiModel):
     media: dict[str, MediaEntry]
+
+
+# --- Manufacturers ---------------------------------------------------------
+
+class ManufacturerEntry(ApiModel):
+    """One manufacturer string and what the logo lookup does with it. `slug` is
+    the filename stem the name computes; `aliased_to` is the effective alias
+    redirecting it, or null; `logo` is the /assets/ web path that resolves, or
+    null; `tables` counts library tables carrying exactly this string."""
+
+    name: str
+    slug: str
+    aliased_to: str | None
+    logo: str | None
+    tables: int
+
+
+class ManufacturerList(ApiModel):
+    manufacturers: list[ManufacturerEntry]
 
 
 # --- Launch ----------------------------------------------------------------
