@@ -103,6 +103,29 @@ def _normalize_select_options(raw_options: Any) -> list[Any]:
     return normalized
 
 
+def _dynamic_select_options(source: str) -> list[dict[str, Any]] | None:
+    """Options a theme cannot know ahead of time, discovered from the library.
+
+    "wheelsets" is every wheel set folder across the tables plus the virtual
+    "logo" set. The leading Default entry saves as "" - no set, plain wheels.
+    """
+    if source != "wheelsets":
+        return None
+    from common.config_access import SettingsConfig
+    from common.media_paths import list_media_sets
+
+    names: list[str] = []
+    try:
+        config = IniConfig(str(VPINFE_INI_PATH))
+        root = SettingsConfig.from_config(config).table_root_dir
+        if root:
+            names = list_media_sets(root, "wheel")
+    except Exception:
+        pass
+    return ([{"label": "Default", "value": ""}]
+            + [{"label": name, "value": name} for name in names])
+
+
 def load_theme_option_schema(theme_key: str, registry: ThemeRegistry | None = None) -> dict[str, Any] | None:
     theme_dir = get_installed_theme_dir(theme_key, registry)
     if theme_dir is None:
@@ -131,7 +154,9 @@ def load_theme_option_schema(theme_key: str, registry: ThemeRegistry | None = No
         option["description"] = str(raw_option.get("description") or "").strip()
         option["type"] = option_type
         if option_type == "select":
-            option["options"] = _normalize_select_options(raw_option.get("options"))
+            dynamic = _dynamic_select_options(str(raw_option.get("source") or "").strip().lower())
+            option["options"] = (dynamic if dynamic is not None
+                                 else _normalize_select_options(raw_option.get("options")))
         normalized_options.append(option)
 
     if not normalized_options:

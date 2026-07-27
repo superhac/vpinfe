@@ -25,6 +25,8 @@ class MediaSpec:
     # Another kind whose resolved file serves when this kind has none - below
     # every tier of this kind, so any real file of its own outranks it.
     fallback_kind: str | None = None
+    # Whether medias/<kind>s/<set>/ folders participate in resolution.
+    supports_sets: bool = False
 
     def filename(self, table_type: str = "table") -> str:
         return self.filename_template.format(tabletype=table_type)
@@ -40,7 +42,7 @@ MEDIA_SPECS = (
               token="(Playfield)"),
     MediaSpec("fss", "FSSImagePath", "fss.png", token="(FSS)"),
     MediaSpec("wheel", "WheelImagePath", "wheel.png", token="(Wheel)",
-              fallback_kind="logo"),
+              fallback_kind="logo", supports_sets=True),
     MediaSpec("cab", "CabImagePath", "cab.png", token="(Cabinet)"),
     MediaSpec("realdmd", "realDMDImagePath", "realdmd.png", token="(RealDMD)"),
     MediaSpec("realdmd_color", "realDMDColorImagePath", "realdmd-color.png",
@@ -97,10 +99,59 @@ def default_media_path(table_dir: str | Path, key: str, table_type: str = "table
     return Path(table_dir) / "medias" / filenames[key]
 
 
+# Theme-side set overrides. common/ cannot import frontend/, so the frontend
+# pushes its active theme's choice down here at boot; the ini default applies
+# otherwise. kind -> set name.
+_set_overrides: dict[str, str] = {}
+
+
+def set_media_set_override(kind: str, set_name: str | None) -> None:
+    if set_name:
+        _set_overrides[kind] = set_name
+    else:
+        _set_overrides.pop(kind, None)
+
+
+def active_set_for(kind: str, configured: str = "") -> str | None:
+    return _set_overrides.get(kind) or (configured.strip() or None)
+
+
+def available_sets(kind: str, medias_tree: set[str]) -> list[str]:
+    """Set names present under medias/<kind>s/, from a relative-path listing."""
+    prefix = f"{kind}s/"
+    names = {rel.split("/", 2)[1] for rel in medias_tree
+             if rel.lower().startswith(prefix) and rel.count("/") >= 2}
+    return sorted(names)
+
+
+def list_media_sets(table_root: str | Path, kind: str = "wheel") -> list[str]:
+    """Every set name across the library, plus the reserved virtual ones.
+
+    "logo" is always offered for the wheel: it needs no wheels/ folder because
+    it resolves from each table's logo media directly.
+    """
+    names: set[str] = set()
+    root = Path(table_root)
+    try:
+        table_dirs = [d for d in root.iterdir() if d.is_dir()]
+    except OSError:
+        table_dirs = []
+    for table_dir in table_dirs:
+        sets_dir = table_dir / "medias" / f"{kind}s"
+        try:
+            names.update(d.name for d in sets_dir.iterdir() if d.is_dir())
+        except OSError:
+            continue
+    if kind == "wheel":
+        names.add("logo")
+    return sorted(names, key=str.lower)
+
+
 def resolve_media_files(table_dir: str | Path, table_contents: set[str],
                         medias_contents: set[str],
                         table_type: str = "table",
-                        game_file_stem: str | None = None) -> dict[str, Path | None]:
+                        game_file_stem: str | None = None,
+                        active_sets: dict[str, str] | None = None) -> dict[str, Path | None]:
     """Canonical media key -> the file that serves it, or None.
 
     Three tiers, most specific wins, per kind:
@@ -117,6 +168,13 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
 
     Keyed by MEDIA_SPECS keys, stable across table types - under table_type "fss"
     the playfield's *filename* changes but its key stays "table".
+
+    `medias_contents` may carry relative paths (wheels/tarcisio/wheel.png) for
+    set folders. For a set-supporting kind with an active set, the order is:
+    the user's own spec-named files, then the set's files (its own full chain),
+    then the plain fixed default - so activating a set never clobbers a
+    hand-made per-version file, and a media refresh never beats the set. The
+    reserved set name "logo" prefers the logo kind in that middle slot.
     """
     table_dir = Path(table_dir)
     medias_dir = table_dir / "medias"
@@ -134,17 +192,37 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
         return None
 
     resolved: dict[str, Path | None] = {}
+    virtual_pending: dict[str, Path | None] = {}
     for spec in MEDIA_SPECS:
-        candidates: list[str] = []
+        user_names: list[str] = []
         if spec.token:
             if game_file_stem:
-                candidates += [f"{spec.token} {game_file_stem}{ext}" for ext in spec.family]
-            candidates += [f"{spec.token} {folder_name}{ext}" for ext in spec.family]
+                user_names += [f"{spec.token} {game_file_stem}{ext}" for ext in spec.family]
+            user_names += [f"{spec.token} {folder_name}{ext}" for ext in spec.family]
         fixed_stem = spec.stem(table_type)
-        candidates += [f"{fixed_stem}{ext}" for ext in spec.family]
+        fixed_names = [f"{fixed_stem}{ext}" for ext in spec.family]
 
-        resolved[spec.key] = next(
-            (path for name in candidates if (path := find(name)) is not None), None)
+        active = (active_sets or {}).get(spec.key) if spec.supports_sets else None
+        set_names: list[str] = []
+        if active and active != "logo":
+            set_names = [f"{spec.key}s/{active}/{name}"
+                         for name in user_names + fixed_names]
+
+        first = lambda names: next(  # noqa: E731
+            (path for name in names if (path := find(name)) is not None), None)
+
+        if active == "logo":
+            # The reserved virtual set: prefer the logo kind between the user's
+            # own files and the plain default. Logo resolves later in the spec
+            # order, so finish this kind in the post-pass.
+            resolved[spec.key] = first(user_names)
+            virtual_pending[spec.key] = first(fixed_names)
+        else:
+            resolved[spec.key] = first(user_names) or first(set_names) or first(fixed_names)
+
+    for key, fixed_hit in virtual_pending.items():
+        if resolved[key] is None:
+            resolved[key] = resolved.get("logo") or fixed_hit
 
     # Cross-kind fallbacks, after everything: a kind with no file of its own at
     # any tier borrows its fallback kind's winner.
@@ -156,9 +234,11 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
 
 def apply_media_paths(table, table_contents: set[str], medias_contents: set[str],
                       table_type: str = "table",
-                      game_file_stem: str | None = None) -> None:
+                      game_file_stem: str | None = None,
+                      active_sets: dict[str, str] | None = None) -> None:
     resolved = resolve_media_files(table.fullPathTable, table_contents,
-                                   medias_contents, table_type, game_file_stem)
+                                   medias_contents, table_type, game_file_stem,
+                                   active_sets)
     for spec in MEDIA_SPECS:
         path = resolved[spec.key]
         if path is not None:

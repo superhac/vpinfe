@@ -25,6 +25,7 @@ WINDOW_CONFIGS = (
 
 
 def create_api_instances(iniconfig, logger):
+    _apply_theme_media_sets(iniconfig, logger)
     network = NetworkConfig.from_config(iniconfig)
     displays = DisplayConfig.from_config(iniconfig)
     ws_bridge = WebSocketBridge(port=network.ws_port)
@@ -50,6 +51,26 @@ def create_api_instances(iniconfig, logger):
     play_events.register(ws_bridge, frontend_browser, iniconfig)
 
     return ws_bridge, frontend_browser
+
+
+def _apply_theme_media_sets(iniconfig, logger) -> None:
+    """Push the active theme's set choices down to media resolution.
+
+    common/ cannot read theme.json (layering), so the frontend does it once at
+    boot, before the first scan. The ini's [Media] wheelset stays the default
+    for anything the theme does not override.
+    """
+    try:
+        from common.media_paths import set_media_set_override
+        from frontend.theme_api import get_theme_config
+
+        theme_config = get_theme_config(iniconfig) or {}
+        wheelset = str(theme_config.get("wheelSet") or "").strip()
+        if wheelset:
+            set_media_set_override("wheel", wheelset)
+            logger.info("Theme wheel set: %s", wheelset)
+    except Exception:
+        logger.exception("Could not apply the theme's media set choices")
 
 
 def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bool = False) -> bool:

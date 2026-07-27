@@ -258,17 +258,26 @@ def _default_stem(table) -> str | None:
 
 def _resolved_media(table_dir: Path, game_file_stem: str | None = None) -> dict:
     """Every media kind against the folder as it is right now."""
+    import os
+
     files, subdirs = _listing(table_dir)
-    medias: list[str] = []
+    medias: set[str] = set()
     if "medias" in {name.lower() for name in subdirs}:
+        medias_dir = table_dir / "medias"
         try:
-            medias = [entry.name for entry in (table_dir / "medias").iterdir()
-                      if entry.is_file()]
+            for dirpath, _dirs, filenames in os.walk(medias_dir):
+                rel = os.path.relpath(dirpath, medias_dir)
+                for fname in filenames:
+                    medias.add(fname if rel == "." else
+                               f"{rel}/{fname}".replace(os.sep, "/"))
         except OSError:
-            medias = []
-    table_type = MediaConfig.from_config(get_ini_config()).table_type
-    return resolve_media_files(table_dir, set(files), set(medias), table_type,
-                               game_file_stem)
+            medias = set()
+    media_cfg = MediaConfig.from_config(get_ini_config())
+    from common.media_paths import active_set_for
+    wheelset = active_set_for("wheel", media_cfg.wheelset)
+    active_sets = {"wheel": wheelset} if wheelset else None
+    return resolve_media_files(table_dir, set(files), medias, media_cfg.table_type,
+                               game_file_stem, active_sets)
 
 
 @router.get("/{table_id}/media", summary="A table's media",

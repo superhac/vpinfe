@@ -96,10 +96,12 @@ class MediaConfig:
     bg_media_priority: str = "video"
     dmd_media_priority: str = "video"
     realdmd_media_priority: str = "color"
+    wheelset: str = ""
 
     @classmethod
     def from_config(cls, source: Any) -> "MediaConfig":
         return cls(
+            wheelset=cfg_get(source, "Media", "wheelset", "").strip(),
             table_type=cfg_get(source, "Media", "tabletype", "table").strip().lower() or "table",
             table_resolution=cfg_get(source, "Media", "tableresolution", "4k").strip().lower() or "4k",
             table_video_resolution=cfg_get(source, "Media", "tablevideoresolution", "1k").strip().lower() or "1k",

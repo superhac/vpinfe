@@ -21,9 +21,16 @@ High-level flow:
 
 Standard filenames include:
 
-- Images: `table.png`, `fss.png`, `bg.png`, `dmd.png`, `wheel.png`, `cab.png`, `realdmd.png`, `realdmd-color.png`, `flyer.png`
-- Videos: `table.mp4`, `fss.mp4`, `bg.mp4`, `dmd.mp4`
-- Audio: `audio.mp3`
+- Images: `table.png`, `fss.png`, `bg.png`, `dmd.png`, `wheel.png`, `logo.png`, `cab.png`, `realdmd.png`, `realdmd-color.png`, `flyer.png`, `rulecard.png`, `topper.png`
+- Videos: `table.mp4`, `fss.mp4`, `bg.mp4`, `dmd.mp4`, `topper.mp4`, `loading.mp4`
+- Audio: `audio.mp3`, `audiolaunch.mp3`
+- Documents: `rulesheet.pdf`
+
+Each kind also accepts the rest of its extension family (for images: `.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`), and spec-named files outrank the fixed names: `(Wheel) <game file name>.png` beats `(Wheel) <folder name>.png` beats `wheel.png`. The full precedence rules live in `common/media_paths.py`.
+
+### Wheel sets
+
+A table can carry alternate wheel art in named folders under `medias/wheels/<set name>/`, each set resolving through the same precedence chain. The active set is `[Media] wheelset` in `vpinfe.ini`, which the active theme may override through a `wheelSet` option (see [theme.md](theme.md)). The reserved set name `logo` fills the wheel slot from the table's game logo instead of a wheels folder. A spec-named wheel the user placed always beats the active set, and a table with no art for the set keeps its plain wheel.
 
 Relevant code:
 

@@ -169,6 +169,100 @@ class LogoTests(unittest.TestCase):
         self.assertEqual(match_media_key("wheel.png"), "wheel")
 
 
+class WheelSetTests(unittest.TestCase):
+    """Wheel sets: user override > active set > plain default (MEDIA decisions
+    6-8), plus the reserved virtual set "logo"."""
+
+    def _resolve_sets(self, medias, active=None, root=()):
+        return resolve_media_files(f"/tables/{FOLDER}", set(root), set(medias),
+                                   "table", BUILD,
+                                   {"wheel": active} if active else None)
+
+    def test_an_active_set_beats_the_plain_default(self) -> None:
+        resolved = self._resolve_sets(["wheel.png", "wheels/tarcisio/wheel.png"],
+                                      active="tarcisio")
+
+        self.assertTrue(str(resolved["wheel"]).endswith(
+            os.path.join("medias", "wheels", "tarcisio", "wheel.png")))
+
+    def test_a_users_spec_named_file_still_beats_the_set(self) -> None:
+        """Activating a set never clobbers a hand-made per-version wheel."""
+        resolved = self._resolve_sets([f"(Wheel) {BUILD}.png",
+                                       "wheels/tarcisio/wheel.png"],
+                                      active="tarcisio")
+
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {BUILD}.png")
+
+    def test_the_set_resolves_its_own_full_chain(self) -> None:
+        resolved = self._resolve_sets([f"wheels/tarcisio/(Wheel) {FOLDER}.png",
+                                       "wheels/tarcisio/wheel.png"],
+                                      active="tarcisio")
+
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {FOLDER}.png")
+
+    def test_without_an_active_set_set_folders_are_invisible(self) -> None:
+        resolved = self._resolve_sets(["wheel.png", "wheels/tarcisio/wheel.png"])
+
+        self.assertTrue(str(resolved["wheel"]).endswith(
+            os.path.join("medias", "wheel.png")))
+
+    def test_a_missing_set_falls_through_to_the_default(self) -> None:
+        resolved = self._resolve_sets(["wheel.png"], active="tarcisio")
+
+        self.assertEqual(resolved["wheel"].name, "wheel.png")
+
+    def test_the_virtual_logo_set_prefers_the_logo_over_the_wheel(self) -> None:
+        """The whole point of choosing it: the logo shows even where a
+        vpinmediadb wheel exists."""
+        resolved = self._resolve_sets(["wheel.png", "logo.png"], active="logo")
+
+        self.assertEqual(resolved["wheel"].name, "logo.png")
+
+    def test_the_virtual_logo_set_still_loses_to_a_users_spec_file(self) -> None:
+        resolved = self._resolve_sets([f"(Wheel) {BUILD}.png", "logo.png"],
+                                      active="logo")
+
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {BUILD}.png")
+
+    def test_the_virtual_logo_set_falls_back_to_the_wheel_it_shunned(self) -> None:
+        """A logo-less table under the logo set keeps its wheel - never a
+        blank slot where art exists."""
+        resolved = self._resolve_sets(["wheel.png"], active="logo")
+
+        self.assertEqual(resolved["wheel"].name, "wheel.png")
+
+    def test_the_override_beats_the_configured_default(self) -> None:
+        from common.media_paths import active_set_for, set_media_set_override
+
+        try:
+            set_media_set_override("wheel", "tarcisio")
+            self.assertEqual(active_set_for("wheel", "colorful"), "tarcisio")
+        finally:
+            set_media_set_override("wheel", None)
+        self.assertEqual(active_set_for("wheel", "colorful"), "colorful")
+        self.assertIsNone(active_set_for("wheel", "  "))
+
+    def test_available_sets_reads_the_relative_listing(self) -> None:
+        from common.media_paths import available_sets
+
+        tree = {"wheel.png", "wheels/tarcisio/wheel.png",
+                "wheels/colorful/wheel.png", "toppers/x/topper.png"}
+
+        self.assertEqual(available_sets("wheel", tree), ["colorful", "tarcisio"])
+
+    def test_list_media_sets_unions_the_library_and_adds_logo(self) -> None:
+        from common.media_paths import list_media_sets
+
+        with TemporaryDirectory() as tmp:
+            for table, sets in (("Table A", ["tarcisio"]),
+                                ("Table B", ["tarcisio", "colorful"])):
+                for name in sets:
+                    (Path(tmp) / table / "medias" / "wheels" / name).mkdir(parents=True)
+
+            self.assertEqual(list_media_sets(tmp, "wheel"),
+                             ["colorful", "logo", "tarcisio"])
+
+
 class ImportSideTests(unittest.TestCase):
     def _table(self, tmp, *files):
         root = Path(tmp) / FOLDER

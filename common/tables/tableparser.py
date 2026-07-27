@@ -23,8 +23,14 @@ class TableParser:
         self.tabletype = "table"
         self.tables: list[Table] = []
         self.missing_tables: list[dict] = []
+        self.active_sets: dict[str, str] = {}
         if iniConfig:
-            self.tabletype = MediaConfig.from_config(iniConfig).table_type
+            media_cfg = MediaConfig.from_config(iniConfig)
+            self.tabletype = media_cfg.table_type
+            from common.media_paths import active_set_for
+            wheelset = active_set_for("wheel", media_cfg.wheelset)
+            if wheelset:
+                self.active_sets["wheel"] = wheelset
         self.loadTables()
 
     def loadTables(self, reload=False):  # reload if you want to rescan the tables
@@ -135,12 +141,18 @@ class TableParser:
             except Exception:
                 table_contents = set()
 
-        try:
-            medias_contents = set(os.listdir(str(medias_dir))) if (has_medias_dir if has_medias_dir is not None else medias_dir.is_dir()) else set()
-        except Exception:
-            medias_contents = set()
+        medias_contents: set[str] = set()
+        if has_medias_dir if has_medias_dir is not None else medias_dir.is_dir():
+            try:
+                for dirpath, _dirs, files in os.walk(str(medias_dir)):
+                    rel = os.path.relpath(dirpath, str(medias_dir))
+                    for fname in files:
+                        medias_contents.add(
+                            fname if rel == "." else f"{rel}/{fname}".replace(os.sep, "/"))
+            except Exception:
+                medias_contents = set()
         apply_media_paths(Table, table_contents, medias_contents, self.tabletype,
-                          game_file_stem)
+                          game_file_stem, self.active_sets or None)
 
     def loadMetaData(self, Table):
         meta_path = Path(Table.fullPathTable) / f"{Table.tableDirName}.info"

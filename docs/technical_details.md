@@ -55,6 +55,7 @@ Internal state written by VPinFE, not shown in the Manager UI.
 | ----------------- | ------------------------------------------------------------------------- |
 | tabletype         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait table images. |
 | tableresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
+| wheelset          | Name of the wheel set to use library-wide. A set is a folder of alternate wheel art at `medias/wheels/<set>/` inside a table folder. The reserved name `logo` shows each table's game logo in the wheel slot. Blank means plain wheels. The active theme can override this with its own `wheelSet` option. |
 
 ### [Network]
 | Key               | Description |

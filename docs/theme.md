@@ -1578,6 +1578,18 @@ Notes:
 - `value` is the current saved value edited by the user.
 - `default` is optional and is used as a fallback if `value` is omitted.
 - `select` options may be simple scalar values or `{label, value}` objects.
+- A `select` may set `"source": "wheelsets"` instead of a static `options` list. Manager UI then fills the dropdown from the library: every wheel set folder found under any table's `medias/wheels/`, plus the built-in `logo` set, plus a Default entry (saved as `""`, meaning no set). Use the key `wheelSet`; a non-empty saved value overrides the `[Media] wheelset` setting from `vpinfe.ini` while this theme is active.
+
+```json
+{
+  "key": "wheelSet",
+  "name": "Wheel Set",
+  "description": "Which wheel art set this theme uses.",
+  "type": "select",
+  "source": "wheelsets",
+  "value": ""
+}
+```
 
 ### Values Returned To Theme Code
 
