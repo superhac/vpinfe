@@ -1304,10 +1304,14 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     const file = parts[parts.length - 1];    // last part = filename
     const port = this.themeAssetsPort;
 
-    // Check if the path includes a medias/ subfolder
-    if (parts.length >= 3 && parts[parts.length - 2] === 'medias') {
-      const tableDir = parts[parts.length - 3];  // table folder is 3rd from end
-      return `http://127.0.0.1:${port}/tables/${encodeURIComponent(tableDir)}/medias/${encodeURIComponent(file)}`;
+    // Check if the path includes a medias/ subfolder. The file may sit deeper
+    // than medias/ itself (wheel sets live in medias/wheels/<set>/), so keep
+    // everything from medias/ down.
+    const mediasIndex = parts.lastIndexOf('medias');
+    if (mediasIndex > 0) {
+      const tableDir = parts[mediasIndex - 1];
+      const rest = parts.slice(mediasIndex).map(encodeURIComponent).join('/');
+      return `http://127.0.0.1:${port}/tables/${encodeURIComponent(tableDir)}/${rest}`;
     }
 
     // Fallback: image is directly in table folder
