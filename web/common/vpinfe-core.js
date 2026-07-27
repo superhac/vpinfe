@@ -208,6 +208,13 @@ class VPinFECore {
     return this.getMedia(index, type).url;
   }
 
+  // URL of the table manufacturer's logo, or null when none is installed
+  getManufacturerLogoURL(index) {
+    const table = this.tableData[index];
+    const path = table ? table.ManufacturerLogoPath : null;
+    return path ? `http://127.0.0.1:${this.themeAssetsPort}${path}` : null;
+  }
+
   getPreferredMediaURL(index, type) {
     return this.getMediaURL(index, type);
   }

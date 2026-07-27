@@ -121,9 +121,17 @@ def build_mount_points(base_path: str, config_dir: Path, iniconfig):
         "/themes/": themes_dir,
         "/collection_icons/": collection_icons_dir,
     }
-    table_root = SettingsConfig.from_config(iniconfig).table_root_dir
-    if table_root:
-        mount_points["/tables/"] = os.path.abspath(table_root)
+    settings = SettingsConfig.from_config(iniconfig)
+    if settings.table_root_dir:
+        mount_points["/tables/"] = os.path.abspath(settings.table_root_dir)
+
+    from common.shared_assets import configure_shared_assets, resolve_assets_dir
+
+    assets_dir = resolve_assets_dir(settings.assets_dir, config_dir)
+    for layer in ("default", "user"):
+        os.makedirs(assets_dir / "manufacturers" / layer, exist_ok=True)
+    configure_shared_assets(assets_dir)
+    mount_points["/assets/"] = os.path.abspath(assets_dir)
     return mount_points, themes_dir
 
 

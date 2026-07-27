@@ -5,6 +5,7 @@ import logging
 
 from common.tables.collections_service import filter_tables_by_collection, get_collection_names, save_filter_collection
 from common.media_paths import table_media_payload
+from common.shared_assets import manufacturer_logo_web_path
 from common.tables.tablelistfilters import TableListFilters
 from common.tables.table_metadata import (
     DETECTION_KEYS,
@@ -57,6 +58,7 @@ def _to_bool(value):
 
 def tables_json(tables) -> str:
     result = []
+    logo_cache: dict[str, str | None] = {}
     for table in tables:
         meta = normalize_meta(table.metaConfig)
 
@@ -93,6 +95,10 @@ def tables_json(tables) -> str:
             "meta": meta,
         }
         row.update(table_media_payload(table))
+        maker = str(info.get("Manufacturer", "") or "")
+        if maker not in logo_cache:
+            logo_cache[maker] = manufacturer_logo_web_path(maker)
+        row["ManufacturerLogoPath"] = logo_cache[maker]
         result.append(row)
     return json.dumps(result)
 

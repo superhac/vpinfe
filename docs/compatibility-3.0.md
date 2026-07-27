@@ -129,6 +129,18 @@ in the standalone export bundle. Detection is deliberately narrow — never a bl
 *Why:* whoever made the table wrote those notes for whoever installs it; now they arrive.
 Covered by `tests/test_asset_upload_services.py` and `tests/test_export_bundle.py`.
 
+**PAR-15 — Manufacturer logos, served from a shared assets root.**
+*(machine-checked)* Themes gain one payload field, `ManufacturerLogoPath`: a
+`/assets/`-relative web path to the table manufacturer's logo, or `null` when there is
+none — which is every install today, since nothing ships and nothing downloads yet. The
+assets root is `[Settings] assetsdir` (default: `assets/` under the config dir), served
+at `/assets/`, with `manufacturers/user/` overriding `manufacturers/default/`. Lookup
+normalizes the VPSdb manufacturer string ("Williams Electronics" finds `williams.png`)
+with a `manufacturers.json` alias map for the exceptions.
+*Why:* manufacturer is already a first-class metadata and filter dimension; themes just
+had nothing to render for it. A shared root exists because a manufacturer logo is neither
+per-table nor per-theme. Covered by `tests/test_shared_assets.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

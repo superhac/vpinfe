@@ -42,6 +42,7 @@ def cfg_int(source, section: str, key: str, fallback: int = 0) -> int:
 @dataclass(frozen=True)
 class SettingsConfig:
     table_root_dir: str = ""
+    assets_dir: str = ""
     vpx_bin_path: str = ""
     vpx_ini_path: str = ""
     rar_tool_path: str = ""
@@ -66,6 +67,7 @@ class SettingsConfig:
         theme = cfg_get(source, "Settings", "theme", "Revolution").strip() or "Revolution"
         return cls(
             table_root_dir=cfg_get(source, "Settings", "tablerootdir", "").strip(),
+            assets_dir=cfg_get(source, "Settings", "assetsdir", "").strip(),
             vpx_bin_path=cfg_get(source, "Settings", "vpxbinpath", "").strip(),
             vpx_ini_path=cfg_get(source, "Settings", "vpxinipath", "").strip(),
             rar_tool_path=cfg_get(source, "Settings", "rartoolpath", "").strip(),

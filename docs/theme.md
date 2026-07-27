@@ -1047,6 +1047,9 @@ Returns the same priority-aware selection with metadata: `{ url, kind, priority,
 #### getAudioURL(index)
 Returns an HTTP URL for a table's audio file, or `null` if no audio exists. See [Audio Support](#audio-support).
 
+#### getManufacturerLogoURL(index)
+Returns an HTTP URL for the table manufacturer's logo, or `null` if none is installed. Logos live in the shared assets folder (`[Settings] assetsdir`, `manufacturers/` subfolder) and are matched to the table's `Info.Manufacturer` metadata, so "Williams Electronics" and "Williams" find the same file. Always handle `null` — a fresh install has no logos.
+
 #### playTableAudio(indexOrUrl, retries=3)
 Plays table audio via VPinFECore's centralized audio manager. Normally you pass `currentTableIndex`; passing a URL string is also supported.
 
@@ -1119,6 +1122,13 @@ Each element in `vpin.tableData` (and the return of `vpin.getTableMeta(index)`) 
 | `BGVideoPath` | `string\|null` | Local path to the backglass video (`bg.mp4`). |
 | `DMDVideoPath` | `string\|null` | Local path to the DMD video (`dmd.mp4`). |
 | `AudioPath` | `string\|null` | Local path to the audio file (`audio.mp3`). |
+| `LogoImagePath` | `string\|null` | Local path to the game logo image (`logo.png`). |
+| `RuleCardImagePath` | `string\|null` | Local path to the apron rule card image (`rulecard.png`). |
+| `TopperPath` | `string\|null` | Local path to the topper image or video (`topper.png` / `topper.mp4`). |
+| `LoadingVideoPath` | `string\|null` | Local path to the loading-screen video (`loading.mp4`). |
+| `AudioLaunchPath` | `string\|null` | Local path to the launch audio file (`audiolaunch.mp3`). |
+| `RuleSheetPath` | `string\|null` | Local path to the rulesheet document (`rulesheet.pdf`). |
+| `ManufacturerLogoPath` | `string\|null` | Web path to the manufacturer's logo under `/assets/`; use `vpin.getManufacturerLogoURL(index)`. |
 | `meta` | `object` | Nested metadata object (see below). |
 | `vpinplay` | `object\|null` | Cached VPinPlay cumulative rating payload for the table, or `null` until fetched/unavailable. |
 

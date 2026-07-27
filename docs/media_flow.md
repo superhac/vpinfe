@@ -28,6 +28,10 @@ Standard filenames include:
 
 Each kind also accepts the rest of its extension family (for images: `.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`), and spec-named files outrank the fixed names: `(Wheel) <game file name>.png` beats `(Wheel) <folder name>.png` beats `wheel.png`. The full precedence rules live in `common/media_paths.py`.
 
+### Manufacturer logos
+
+Manufacturer logos are not per-table media: they live in a shared assets root (`[Settings] assetsdir`, defaulting to `assets/` under the config dir) served at `/assets/`. Files in `manufacturers/user/` win over a pack in `manufacturers/default/`; lookup normalizes the table's `Info.Manufacturer` string (so "Williams Electronics" finds `williams.png`) with a `manufacturers.json` alias map for exceptions. The table payload carries the result as `ManufacturerLogoPath`, and themes call `vpin.getManufacturerLogoURL(index)`.
+
 ### Wheel sets
 
 A table can carry alternate wheel art in named folders under `medias/wheels/<set name>/`, each set resolving through the same precedence chain. The active set is `[Media] wheelset` in `vpinfe.ini`, which the active theme may override through a `wheelSet` option (see [theme.md](theme.md)). The reserved set name `logo` fills the wheel slot from the table's game logo instead of a wheels folder. A spec-named wheel the user placed always beats the active set, and a table with no art for the set keeps its plain wheel.
