@@ -1,15 +1,8 @@
 import logging
-import subprocess
 
 from common import events
-from common.host import system_actions
+from common.host import launch, launch_state, system_actions
 from common.host.display_service import monitors_as_dicts
-from common.host.launcher import (
-    build_vpx_launch_command,
-    get_effective_launcher,
-    parse_launch_env_overrides,
-    resolve_launch_tableini_override,
-)
 from common.online.vpinplay_runtime import (
     activate_alternate_profile,
     clear_alternate_profile,
@@ -26,7 +19,6 @@ from frontend import (
     config_api,
     input_api,
     last_table,
-    launch_service,
     metadata_build_service,
     table_state,
     theme_api,
@@ -342,15 +334,24 @@ class API:
         return input_api.set_button_mapping(self._iniConfig, button_name, button_index)
 
     def launch_table(self, index):
-        return launch_service.launch_table(
-            self,
-            index,
-            get_effective_launcher=get_effective_launcher,
-            build_vpx_launch_command=build_vpx_launch_command,
-            parse_launch_env_overrides=parse_launch_env_overrides,
-            resolve_launch_tableini_override=resolve_launch_tableini_override,
-            popen=subprocess.Popen,
-        )
+        """Launch what the wheel is sitting on.
+
+        The windows hear about it through the bus like everyone else, so nothing
+        here has to tell them.
+        """
+        try:
+            table = self.filteredTables[int(index)]
+        except Exception:
+            logger.warning("Ignoring launch for invalid index: %s", index)
+            return {"success": False, "reason": "invalid_index"}
+
+        try:
+            launch.launch_table(table, self._iniConfig,
+                                source=launch_state.SOURCE_FRONTEND)
+        except launch.LaunchUnavailableError as exc:
+            logger.warning("Cannot launch %s: %s", table.tableDirName, exc)
+            return {"success": False, "reason": str(exc)}
+        return {"success": True}
 
     def notify_table_selected(self, index):
         """Announce that the player moved to this table.

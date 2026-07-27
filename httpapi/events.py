@@ -1,0 +1,331 @@
+"""The event stream: `GET /api/v1/events`, Server-Sent Events off the internal bus.
+
+The bus runs its handlers on the thread that published, so nothing here may block:
+a client gets a bounded queue, and one that cannot keep up is dropped rather than
+allowed to slow a launch down. The stream subscribes and never hooks - a client on
+the far end of a socket must not be able to stop an operation.
+
+See docs/http_api.md for the contract.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import threading
+from collections import deque
+from collections.abc import Callable
+
+from fastapi import APIRouter, Header, Query
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse
+
+from common import events
+from common.tables import table_identity
+
+from . import scopes
+from .auth import requires
+from .errors import InvalidRequestError
+
+logger = logging.getLogger("vpinfe.httpapi.events")
+
+router = APIRouter(tags=["events"])
+
+# Enough backlog for a client that reconnects promptly. Past it a resume is a gap,
+# which the hello frame reports rather than papers over.
+HISTORY_LIMIT = 256
+
+# Per-client backlog. A client this far behind is not one that wants the rest of
+# the stream, so it is dropped and left to reconnect.
+QUEUE_LIMIT = 64
+
+# Idle write. Also how a disconnect that produced no other traffic is noticed.
+KEEPALIVE_SECONDS = 15.0
+
+# How long the browser waits before reconnecting, in milliseconds.
+RETRY_MS = 3000
+
+# A transport frame, not a bus event: the stream is open, and here is whether the
+# client's resume point was still available.
+HELLO_EVENT = "stream.hello"
+
+
+def _table_event(table=None, **_) -> dict:
+    """The wire shape of a table lifecycle event.
+
+    The bus carries the Table object and the whole ini config because its handlers
+    are in-process. Neither belongs on a socket, so the stream sends a reference to
+    the table rather than the table: an id, a name to show, and the link to fetch
+    the rest. That link is what keeps this a pointer instead of a second, thinner
+    answer to "what does a table look like".
+    """
+    if table is None:
+        return {"table": None}
+
+    table_id = table_identity.table_id(table)
+    reference = {"id": table_id, "name": getattr(table, "tableDirName", "")}
+    if table_id:
+        reference["links"] = {"self": f"/api/v1/tables/{table_id}"}
+    return {"table": reference}
+
+
+def _job_event(**payload) -> dict:
+    """The job shape, kept to the fields common/events.py documents.
+
+    Picking the fields rather than forwarding the payload is what makes the shape a
+    contract: a caller adding a keyword does not change what subscribers receive.
+    """
+    return {name: payload[name] for name in ("job_id", "pct", "message", "error")
+            if name in payload}
+
+
+def _as_published(**payload) -> dict:
+    """For events whose bus payload is already wire-safe."""
+    return payload
+
+
+# Which bus events reach the network, and the shape each one takes when it does.
+# An explicit table rather than "whatever was emitted": an extension will one day
+# publish onto the same bus, and what it may broadcast is a scope question that
+# has to be answered before anything is streamed.
+STREAMED_EVENTS: dict[str, Callable[..., dict]] = {
+    events.TABLE_LAUNCHING: _table_event,
+    events.TABLE_LAUNCHED: _table_event,
+    events.TABLE_EXITED: _table_event,
+    events.TABLE_SELECTED: _table_event,
+    events.PLAY_STATE_CHANGED: _as_published,
+    events.JOB_PROGRESS: _job_event,
+    events.JOB_DONE: _job_event,
+    events.JOB_FAILED: _job_event,
+}
+
+class _Stream:
+    """One connected client.
+
+    Owned by the event loop serving its request; the publishing thread reaches it
+    only through `deliver`.
+    """
+
+    def __init__(self, loop: asyncio.AbstractEventLoop, names: frozenset[str] | None) -> None:
+        self.loop = loop
+        self.names = names
+        self.queue: asyncio.Queue[str] = asyncio.Queue(QUEUE_LIMIT)
+        self.overrun = False
+
+    def wants(self, name: str) -> bool:
+        return self.names is None or name in self.names
+
+    def deliver(self, frame: str) -> None:
+        """Hand a frame over from the publishing thread. Never blocks."""
+        try:
+            self.loop.call_soon_threadsafe(self.offer, frame)
+        except RuntimeError:
+            # The loop is gone; the generator's cleanup will drop this stream.
+            self.overrun = True
+
+    def offer(self, frame: str) -> None:
+        if self.overrun:
+            return
+        try:
+            self.queue.put_nowait(frame)
+        except asyncio.QueueFull:
+            # No sentinel to push - the queue is full by definition. The consumer
+            # drains what it has and checks this flag before waiting again.
+            self.overrun = True
+
+
+_snapshots: dict[str, Callable[[], dict]] = {}
+
+_lock = threading.Lock()
+_streams: list[_Stream] = []
+_history: deque[tuple[int, str, str]] = deque(maxlen=HISTORY_LIMIT)
+_seq = 0
+
+
+def declare_snapshot(name: str, provider: Callable[[], dict]) -> None:
+    """Register the current value of a state-carrying event.
+
+    A client connecting between two changes would otherwise learn nothing until the
+    next one. The provider returns the payload shape the event itself carries, so a
+    snapshot and a live event are the same frame to whoever reads them.
+    """
+    _snapshots[name] = provider
+
+
+def _encode(payload: dict) -> str | None:
+    """The data line's JSON, or None if the payload will not survive the trip."""
+    try:
+        return json.dumps(jsonable_encoder(payload))
+    except Exception:
+        logger.exception("Event payload will not serialize; dropping it")
+        return None
+
+
+def _frame(name: str, data: str, seq: int | None = None) -> str:
+    """One SSE frame. Without a seq it carries no id, so it is not a resume point -
+    which is right for hello and snapshot frames, neither of which is history."""
+    head = f"id: {seq}\n" if seq is not None else ""
+    return f"{head}event: {name}\ndata: {data}\n\n"
+
+
+def _dispatch(name: str, payload: dict) -> None:
+    """Bus subscriber. Runs on whichever thread published, so it only formats and hands off."""
+    global _seq
+
+    data = _encode(STREAMED_EVENTS[name](**payload))
+    if data is None:
+        return
+
+    with _lock:
+        _seq += 1
+        frame = _frame(name, data, _seq)
+        _history.append((_seq, name, frame))
+        targets = [stream for stream in _streams if stream.wants(name)]
+
+    for stream in targets:
+        stream.deliver(frame)
+
+
+def _handler_for(name: str) -> Callable[..., None]:
+    # The bus calls handlers as handler(**payload), so the event name has to be
+    # carried by the closure rather than passed.
+    def handle(**payload) -> None:
+        _dispatch(name, payload)
+
+    return handle
+
+
+_HANDLERS = {name: _handler_for(name) for name in STREAMED_EVENTS}
+
+
+def attach() -> None:
+    """Subscribe to the bus.
+
+    Idempotent by construction: building the app twice leaves one subscription, and
+    a bus that has been cleared is wired up again.
+    """
+    for name, handler in _HANDLERS.items():
+        events.unsubscribe(name, handler)
+        events.subscribe(name, handler)
+
+
+def reset() -> None:
+    """Drop every stream and the replay history. For tests."""
+    global _seq
+
+    with _lock:
+        _streams.clear()
+        _history.clear()
+        _seq = 0
+    _snapshots.clear()
+
+
+def _parse_filter(raw: str) -> frozenset[str] | None:
+    """The `events=` query parameter. Empty means everything."""
+    wanted = {name.strip() for name in raw.split(",") if name.strip()}
+    if not wanted:
+        return None
+    unknown = sorted(wanted - set(STREAMED_EVENTS))
+    if unknown:
+        raise InvalidRequestError(
+            "Unknown event name",
+            details={"unknown": unknown, "known": sorted(STREAMED_EVENTS)},
+        )
+    return frozenset(wanted)
+
+
+def _resume_point(last_event_id: str | None) -> int | None:
+    try:
+        return int(last_event_id) if last_event_id else None
+    except ValueError:
+        return None
+
+
+def _replay(resume: int | None, wanted: frozenset[str] | None) -> tuple[list[str], bool]:
+    """The frames a resuming client missed, and whether the resume was complete.
+    Call with `_lock` held, so nothing is both replayed and delivered live.
+
+    An incomplete resume is reported rather than hidden: the client is told to
+    treat what it holds as stale instead of silently missing a job that finished.
+    A resume point ahead of the sequence is one of ours from a previous run.
+    """
+    if resume is None or resume > _seq:
+        return [], False
+    if not _history:
+        return [], resume == _seq
+    if resume < _history[0][0] - 1:
+        return [], False
+    return [frame for seq, name, frame in _history
+            if seq > resume and (wanted is None or name in wanted)], True
+
+
+def _snapshot_frames(wanted: frozenset[str] | None) -> list[str]:
+    frames = []
+    for name in STREAMED_EVENTS:
+        provider = _snapshots.get(name)
+        if provider is None or (wanted is not None and name not in wanted):
+            continue
+        try:
+            data = _encode(provider())
+        except Exception:
+            logger.exception("Snapshot for %s failed", name)
+            continue
+        if data is not None:
+            frames.append(_frame(name, data))
+    return frames
+
+
+async def _stream(wanted: frozenset[str] | None, last_event_id: str | None):
+    """Serve one client until it goes away or falls too far behind."""
+    stream = _Stream(asyncio.get_running_loop(), wanted)
+    with _lock:
+        # Registering and reading the history together is what stops an event
+        # arriving in between from being both replayed and delivered live.
+        _streams.append(stream)
+        position = _seq
+        backlog, resumed = _replay(_resume_point(last_event_id), wanted)
+
+    try:
+        yield f"retry: {RETRY_MS}\n\n"
+        yield _frame(HELLO_EVENT, json.dumps({"seq": position, "resumed": resumed}))
+        for frame in backlog:
+            yield frame
+        if not resumed:
+            for frame in _snapshot_frames(wanted):
+                yield frame
+
+        # An overrun client still gets what was queued before it fell behind, so its
+        # resume point is as far along as it can be when it comes back.
+        while not (stream.overrun and stream.queue.empty()):
+            try:
+                yield await asyncio.wait_for(stream.queue.get(), KEEPALIVE_SECONDS)
+            except TimeoutError:
+                yield ": keepalive\n\n"
+        logger.warning("Event stream client fell behind by more than %s frames; closing",
+                       QUEUE_LIMIT)
+    finally:
+        with _lock:
+            if stream in _streams:
+                _streams.remove(stream)
+
+
+@router.get("/events", summary="Subscribe to the event stream",
+            response_class=StreamingResponse,
+            dependencies=[requires(scopes.EVENTS_SUBSCRIBE)])
+async def subscribe(
+    names: str = Query("", alias="events",
+                       description="Comma-separated event names. Empty means all of them."),
+    last_event_id: str | None = Header(
+        None, description="Resume point. Browsers send this on reconnect by themselves."),
+):
+    wanted = _parse_filter(names)
+    return StreamingResponse(
+        _stream(wanted, last_event_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            # Tells nginx and friends not to sit on the response waiting for a body.
+            "X-Accel-Buffering": "no",
+        },
+    )

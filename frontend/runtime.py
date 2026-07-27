@@ -6,6 +6,7 @@ import threading
 import time
 from pathlib import Path
 
+from frontend import play_events
 from frontend.api import API
 from frontend.chromium_manager import ChromiumManager
 from frontend.customhttpserver import CustomHTTPServer
@@ -43,6 +44,10 @@ def create_api_instances(iniconfig, logger):
         api._finish_setup()
         ws_bridge.register_api(window_name, api)
         logger.debug("Registered API for window '%s'", window_name)
+
+    # Once, against the shared bridge - not once per window, which would send
+    # every launch message three times.
+    play_events.register(ws_bridge, frontend_browser, iniconfig)
 
     return ws_bridge, frontend_browser
 

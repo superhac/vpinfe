@@ -1,7 +1,12 @@
-"""Whether a launch has been requested from somewhere other than the frontend.
+"""What this play host is doing, and who asked for it.
 
 Every change is announced as `play.state_changed`, so a consumer can be told rather
 than having to ask.
+
+`source` exists because one consumer - the frontend - needs to tell its own launches
+apart from everyone else's, and every other consumer needs the state to be true
+regardless of who started it. Reporting only launches the frontend did not start
+would make the state a message to one client rather than a fact about the machine.
 """
 
 from __future__ import annotations
@@ -11,6 +16,11 @@ from dataclasses import dataclass
 
 from common import events
 
+# Who asked. The frontend ignores its own; nothing else needs to care.
+SOURCE_FRONTEND = "frontend"
+SOURCE_REMOTE = "remote"
+SOURCE_API = "api"
+
 _lock = threading.Lock()
 
 
@@ -18,9 +28,11 @@ _lock = threading.Lock()
 class LaunchState:
     launching: bool = False
     table_name: str | None = None
+    source: str | None = None
 
     def as_dict(self) -> dict:
-        return {"launching": self.launching, "table_name": self.table_name}
+        return {"launching": self.launching, "table_name": self.table_name,
+                "source": self.source}
 
 
 _state = LaunchState()
@@ -48,9 +60,13 @@ def _replace(new_state: LaunchState) -> LaunchState:
     return new_state
 
 
-def set_launching(table_name: str | None) -> LaunchState:
-    """Record that a launch is starting, and for which table."""
-    return _replace(LaunchState(launching=True, table_name=table_name))
+def set_launching(table_name: str | None, *, source: str) -> LaunchState:
+    """Record that a launch is starting, for which table, and who asked.
+
+    `source` is required rather than defaulted: a caller that does not say is a
+    caller the frontend cannot tell apart from itself.
+    """
+    return _replace(LaunchState(launching=True, table_name=table_name, source=source))
 
 
 def clear() -> LaunchState:

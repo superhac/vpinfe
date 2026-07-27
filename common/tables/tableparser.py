@@ -73,7 +73,9 @@ class TableParser:
                     'path': str(table_dir),
                 })
 
-            # check for addons
+            # Assets: what this table needs to play as intended, beyond the game
+            # file. Media is a different thing and is loaded below. See
+            # docs/conventions.md.
             if any(name.lower().endswith(".directb2s") for name in table_contents):
                 table.b2sExists = True
             if "pupvideos" in table_subdirs:
@@ -82,6 +84,10 @@ class TableParser:
                 table.altColorExists = True
             if "vni" in table_subdirs:
                 table.vniExists = True
+            if "music" in table_subdirs:
+                table.musicExists = True
+            if any(name.lower().endswith(".ini") for name in table_contents):
+                table.iniExists = True
             if "pinmame" in table_subdirs and (table_dir / "pinmame" / "altsound").is_dir():
                 table.altSoundExists = True
 

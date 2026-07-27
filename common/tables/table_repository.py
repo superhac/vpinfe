@@ -10,7 +10,13 @@ from pathlib import Path
 from common.paths import COLLECTIONS_PATH, get_ini_config, get_tables_path
 from common.tables.table_identity import ensure_unique_ids
 from common.tables.table_identity import table_id as vpinfe_id
-from common.tables.table_metadata import first_meta_value, normalize_rating, reorder_leading_article, section
+from common.tables.table_metadata import (
+    as_string_list,
+    first_meta_value,
+    normalize_rating,
+    reorder_leading_article,
+    section,
+)
 from common.tables.tableparser import TableParser
 from common.tables.vpxcollections import VPXCollections
 
@@ -104,8 +110,8 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "manufacturer": first_meta_value(meta, ("Info", "Manufacturer"), ("VPXFile", "manufacturer")),
         "year": first_meta_value(meta, ("Info", "Year"), ("VPXFile", "year")),
         "type": first_meta_value(meta, ("Info", "Type"), ("VPXFile", "type")),
-        "themes": first_meta_value(meta, ("Info", "Themes"), default=[]),
-        "authors": first_meta_value(meta, ("Info", "Authors"), default=[]),
+        "themes": as_string_list(first_meta_value(meta, ("Info", "Themes"), default=[])),
+        "authors": as_string_list(first_meta_value(meta, ("Info", "Authors"), default=[])),
         "rom": first_meta_value(meta, ("VPXFile", "rom"), ("Info", "Rom")),
         "version": first_meta_value(meta, ("VPXFile", "version")),
         "filehash": first_meta_value(meta, ("VPXFile", "filehash")),
@@ -117,6 +123,7 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "detectscorebit": first_meta_value(meta, ("VPXFile", "detectscorebit")),
         "detectfastflips": first_meta_value(meta, ("VPXFile", "detectfastflips")),
         "detectflex": first_meta_value(meta, ("VPXFile", "detectflex")),
+        "detectpinmame": first_meta_value(meta, ("VPXFile", "detectpinmame")),
         "patch_applied": first_meta_value(meta, ("VPXFile", "patch_applied"), default=False),
         "table_path": table.fullPathTable,
         "b2s_exists": bool(getattr(table, "b2sExists", False)),
@@ -124,6 +131,8 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "serum_exists": bool(getattr(table, "altColorExists", False)),
         "vni_exists": bool(getattr(table, "vniExists", False)),
         "alt_sound_exists": bool(getattr(table, "altSoundExists", False)),
+        "ini_exists": bool(getattr(table, "iniExists", False)),
+        "music_exists": bool(getattr(table, "musicExists", False)),
         "delete_nvram_on_close": vpinfe.get("deletedNVRamOnClose", False),
         "altlauncher": str(vpinfe.get("altlauncher", "") or "").strip(),
         "pluginprofile": str(vpinfe.get("pluginprofile", "") or "").strip(),

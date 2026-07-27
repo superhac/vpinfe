@@ -21,6 +21,7 @@ CODE_NOT_FOUND = "not_found"
 CODE_INVALID_REQUEST = "invalid_request"
 CODE_METHOD_NOT_ALLOWED = "method_not_allowed"
 CODE_FEATURE_UNAVAILABLE = "feature_unavailable"
+CODE_CONFLICT = "conflict"
 CODE_INTERNAL_ERROR = "internal_error"
 # Reserved for the authorization boundary; nothing raises these yet.
 CODE_UNAUTHORIZED = "unauthorized"
@@ -33,6 +34,7 @@ _STATUS_CODES = {
     403: CODE_FORBIDDEN,
     404: CODE_NOT_FOUND,
     405: CODE_METHOD_NOT_ALLOWED,
+    409: CODE_CONFLICT,
     422: CODE_INVALID_REQUEST,
     501: CODE_FEATURE_UNAVAILABLE,
 }
@@ -58,6 +60,14 @@ class NotFoundError(ApiError):
 class InvalidRequestError(ApiError):
     def __init__(self, message: str = "Invalid request", *, details: Any = None) -> None:
         super().__init__(CODE_INVALID_REQUEST, message, status_code=400, details=details)
+
+
+class ConflictError(ApiError):
+    """The request is fine, but the thing it asks for cannot happen right now -
+    something is already using what it needs."""
+
+    def __init__(self, message: str = "Conflict", *, details: Any = None) -> None:
+        super().__init__(CODE_CONFLICT, message, status_code=409, details=details)
 
 
 class FeatureUnavailableError(ApiError):

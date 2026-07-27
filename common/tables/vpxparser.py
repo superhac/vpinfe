@@ -52,6 +52,7 @@ class VPXParser:
         'detectfastflips': '',
         'detectlut': '',
         'detectflex': '',
+        'detectpinmame': '',
     }
 
     def __init__(self):
@@ -209,6 +210,17 @@ class VPXParser:
         }
         for key, token in detectors.items():
             vpxFileValues[key] = "true" if token in game_data_lower else "false"
+
+        # Whether the script drives the PinMAME emulator, as opposed to declaring a
+        # rom name only as a DOF key. On the comment-stripped script, unlike the
+        # detectors above: EM tables commonly carry commented-out VPM code, and a
+        # dead LoadVPM must not read as a live dependency.
+        stripped_lower = self.stripVBScriptComments(vpxFileValues['gameData']).lower()
+        drives_pinmame = ("loadvpm" in stripped_lower
+                          or "vpminit" in stripped_lower
+                          or re.search(r'createobject\s*\(\s*"vpinmame\.controller"',
+                                       stripped_lower) is not None)
+        vpxFileValues['detectpinmame'] = "true" if drives_pinmame else "false"
 
     # -------------------------------
     # Bulk ops

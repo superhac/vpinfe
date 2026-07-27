@@ -11,7 +11,7 @@ from fastapi import APIRouter
 
 from common.app_version import get_version
 
-from . import capabilities, scopes
+from . import capabilities, models, scopes
 from .auth import requires
 
 
@@ -29,7 +29,7 @@ def discovery_payload(prefix: str, api_version: str) -> dict:
             "health": f"{prefix}/health",
             "openapi": f"{prefix}/openapi.json",
             "docs": f"{prefix}/docs",
-            "events": None,
+            "events": f"{prefix}/events",
         },
     }
 
@@ -38,11 +38,11 @@ def build_router(prefix: str, api_version: str) -> APIRouter:
     router = APIRouter(tags=["instance"])
 
     @router.get("/", summary="API discovery", dependencies=[requires(scopes.INSTANCE_READ)])
-    def discovery() -> dict:
+    def discovery() -> models.Discovery:
         return discovery_payload(prefix, api_version)
 
     @router.get("/health", summary="Liveness check", dependencies=[requires(scopes.INSTANCE_READ)])
-    def health() -> dict:
+    def health() -> models.Health:
         return {"status": "ok"}
 
     return router

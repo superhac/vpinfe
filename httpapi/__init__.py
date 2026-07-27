@@ -11,7 +11,17 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import auth, capabilities, core_capabilities, instance, play, scopes, tables, uploads
+from . import (
+    auth,
+    capabilities,
+    core_capabilities,
+    events,
+    instance,
+    play,
+    scopes,
+    tables,
+    uploads,
+)
 from .errors import (
     ApiError,
     FeatureUnavailableError,
@@ -37,6 +47,7 @@ __all__ = [
     "capabilities",
     "create_api_app",
     "error_response",
+    "events",
     "register",
     "scopes",
 ]
@@ -68,12 +79,15 @@ def create_api_app() -> FastAPI:
 
     install_error_handlers(api)
     api.include_router(instance.build_router(API_PREFIX, API_VERSION))
+    api.include_router(events.router)
     api.include_router(play.router)
     api.include_router(tables.router)
     api.include_router(uploads.router)
     api.include_router(uploads.vps_router)
 
     core_capabilities.declare_core()
+    play.declare_snapshots()
+    events.attach()
     auth.assert_every_route_declares_a_scope(api)
     return api
 

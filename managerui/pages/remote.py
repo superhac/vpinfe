@@ -1,8 +1,4 @@
-import platform
-import subprocess
-import os
 import logging
-import sys
 from nicegui import ui, run
 from managerui.paths import VPINFE_INI_PATH
 from managerui.remote_actions import PINMAME_SERVICE_CONTROLS, SYSTEM_CONTROLS, RemoteAction
@@ -16,18 +12,10 @@ category_select = None
 # Config for launching tables
 # Import config
 from common.iniconfig import IniConfig
-from common import events
-from common.config_access import SettingsConfig
-from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
+from common.host import launch, launch_state
+from common.tables import table_identity
+from common.tables.table_repository import ensure_tables_loaded
 from managerui.ui_helpers import debounced_input, load_page_style
-from common.host.launcher import (
-    build_vpx_launch_command,
-    get_effective_launcher,
-    get_plugin_profile_from_meta,
-    parse_launch_env_overrides,
-    resolve_launch_plugin_profile,
-    resolve_launch_tableini_override,
-)
 _INI_CFG = None
 logger = logging.getLogger("vpinfe.manager.remote")
 
@@ -124,94 +112,34 @@ def _scan_tables_for_launch():
 
 
 def _launch_table(table: dict):
-    """Launch a table using the VPX binary."""
+    """Hand a table to the launch service and let the bus tell everyone else."""
     import threading
-    from common.host import launch_state
 
-    try:
-        vpx_path = table.get('vpx_path', '')
-        table_name = table.get('name', 'table')
-        table_meta = table.get('meta', {})
-
-        cfg = _get_ini_config()
-        vpxbin = cfg.config['Settings'].get('vpxbinpath', '')
-        vpxbin_path, source_key, _ = get_effective_launcher(vpxbin, table_meta)
-        if not vpxbin_path:
-            ui.notify('No launcher configured (set Settings.vpxbinpath or VPinFE.altlauncher)', type='negative')
-            return False
-
-        if not vpxbin_path.exists():
-            ui.notify(f'Launcher not found ({source_key}): {vpxbin_path}', type='negative')
-            return False
-
-        logger.info("Remote launching table: %s", vpx_path)
-        ui.notify(f'Remote Launching {table_name}...', type='info')
-
-        delete_vpinball_log_on_start_if_configured(SettingsConfig.from_config(cfg))
-        events.emit(events.TABLE_LAUNCHING, table=None, ini_config=cfg)
-
-        # Signal to frontend that we're launching
-        launch_state.set_launching(table_name)
-
-        # Run the launch in a background thread so UI stays responsive
-        global_ini_override = cfg.config['Settings'].get('globalinioverride', '').strip()
-        tableini_override = resolve_launch_tableini_override(
-            vpx_path,
-            cfg.config['Settings'].get('globaltableinioverrideenabled', 'false'),
-            cfg.config['Settings'].get('globaltableinioverridemask', ''),
-        )
-        plugin_profile_override = resolve_launch_plugin_profile(
-            get_plugin_profile_from_meta(table_meta)
-        )
-        cmd = build_vpx_launch_command(
-            launcher_path=str(vpxbin_path),
-            vpx_table_path=vpx_path,
-            global_ini_override=global_ini_override,
-            tableini_override=tableini_override,
-            plugin_profile_override=plugin_profile_override,
-        )
-        launch_env = os.environ.copy()
-        launch_env.update(
-            parse_launch_env_overrides(cfg.config['Settings'].get('vpxlaunchenv', ''))
-        )
-
-        # Prevent usage of bundled libaries on Linux
-        # PyInstaller bundles libaries which might be incompatible with the local files.
-        system = platform.system()
-        if system == "Linux" and getattr(sys, "frozen", False): 
-            lp_key = 'LD_LIBRARY_PATH'
-            lp_orig = launch_env.get(lp_key + '_ORIG')
-            if lp_orig is not None:
-                launch_env[lp_key] = lp_orig  # restore the original, unmodified value
-
-        def run_and_wait():
-            try:
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    stdin=subprocess.DEVNULL,
-                    env=launch_env,
-                )
-                process.wait()
-            finally:
-                # Clear the launch state when done
-                launch_state.clear()
-                events.emit(events.TABLE_EXITED, table=None, ini_config=cfg)
-
-        # Run in background thread
-        thread = threading.Thread(target=run_and_wait, daemon=True)
-        thread.start()
-        return True
-    except Exception as e:
-        logger.exception("Remote launch failed")
-        launch_state.clear()
-        try:
-            events.emit(events.TABLE_EXITED, table=None, ini_config=_get_ini_config())
-        except Exception:
-            logger.exception("Could not restore feedback hardware after a failed launch")
-        ui.notify(f'Failed to launch: {e}', type='negative')
+    table_name = table.get('name', 'table')
+    resolved = table_identity.find_by_id(ensure_tables_loaded(), table.get('vpinfe_id', ''))
+    if resolved is None:
+        # Every launchable table has an id, so this means the library moved under us.
+        ui.notify(f'Could not find {table_name} in the library', type='negative')
         return False
+
+    cfg = _get_ini_config()
+    try:
+        launch.check_launchable(resolved, cfg)
+    except launch.LaunchUnavailableError as exc:
+        ui.notify(str(exc), type='negative')
+        return False
+
+    logger.info("Remote launching table: %s", resolved.tableDirName)
+    ui.notify(f'Remote Launching {table_name}...', type='info')
+
+    def run_and_wait():
+        try:
+            launch.launch_table(resolved, cfg, source=launch_state.SOURCE_REMOTE)
+        except Exception:
+            logger.exception("Remote launch failed")
+
+    threading.Thread(target=run_and_wait, daemon=True).start()
+    return True
 
 
 def _restart_app():

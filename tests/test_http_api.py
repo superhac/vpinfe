@@ -41,9 +41,7 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(links["health"], "/api/v1/health")
         self.assertEqual(links["openapi"], "/api/v1/openapi.json")
         self.assertEqual(links["docs"], "/api/v1/docs")
-        # Present but null: a known link this instance does not offer yet.
-        self.assertIn("events", links)
-        self.assertIsNone(links["events"])
+        self.assertEqual(links["events"], "/api/v1/events")
 
     def test_health_reports_ok(self) -> None:
         response = self.client.get("/health")
@@ -98,6 +96,15 @@ class DiscoveryTests(unittest.TestCase):
             capabilities.Capability(name="library", residency=["somewhere-else"])
         with self.assertRaises(ValueError):
             capabilities.Capability(name="library", residency=[])
+
+    def test_launch_declares_whether_this_machine_can_do_it(self) -> None:
+        """Reading play state works without a launcher; starting a table does not.
+        Discovery has to say so, or a client shows a Play button that always 501s."""
+        declared = {c["name"]: c for c in self.client.get("/").json()["capabilities"]}
+
+        self.assertIn("launch", declared)
+        self.assertEqual(declared["launch"]["residency"], ["play_host"])
+        self.assertIsNotNone(declared["launch"].get("available"))
 
     def test_a_broken_availability_probe_does_not_break_discovery(self) -> None:
         def _explode():

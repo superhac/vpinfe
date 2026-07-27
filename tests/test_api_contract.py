@@ -29,10 +29,22 @@ def _run_probe() -> dict:
         table = tables_dir / "Example Table (Bally 1990)"
         table.mkdir(parents=True)
         (table / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
+        # Assets the parser should find: a backglass, a per-table ini, a ROM and music.
+        (table / "Example Table (Bally 1990).directb2s").write_bytes(b"b2s")
+        (table / "Example Table (Bally 1990).ini").write_text("[Standalone]", encoding="utf-8")
+        (table / "pinmame" / "roms").mkdir(parents=True)
+        (table / "pinmame" / "roms" / "exmpl.zip").write_bytes(b"rom")
+        (table / "music").mkdir()
+        (table / "music" / "theme.mp3").write_bytes(b"music")
+        # Media: one canonical, one root-fallback, most kinds absent.
+        (table / "medias").mkdir()
+        (table / "medias" / "wheel.png").write_bytes(b"\x89PNG wheel")
+        (table / "bg.png").write_bytes(b"\x89PNG bg at root")
         (table / "Example Table (Bally 1990).info").write_text(json.dumps({
             "Info": {"Title": "Example Table", "Manufacturer": "Bally", "Year": "1990",
                      "Type": "SS", "VPSId": "vps-example"},
-            "VPXFile": {"filename": "Example Table (Bally 1990).vpx", "rom": "exmpl"},
+            "VPXFile": {"filename": "Example Table (Bally 1990).vpx", "rom": "exmpl",
+                        "detectpinmame": "true"},
             "User": {"Rating": 3},
         }), encoding="utf-8")
 
@@ -87,25 +99,152 @@ class ApiContractTests(unittest.TestCase):
         cls.probe = _run_probe()
 
     def test_play_state_shape_and_cors(self) -> None:
-        """Themes poll this at 1 Hz cross-origin from the asset server, so losing
-        the CORS header would silently break every theme's launch overlay."""
+        """Themes read this cross-origin from the asset server, so losing the CORS
+        header would silently break every theme's launch overlay."""
         entry = self.probe["play_state"]
 
         self.assertEqual(entry["status"], 200)
-        self.assertEqual(entry["json"], {"launching": False, "table_name": None})
+        self.assertEqual(entry["json"],
+                         {"launching": False, "table_name": None, "source": None})
         self.assertEqual(entry["cors"], "*", "themes call this from another origin")
         # Same-origin callers get no CORS header, which is correct and not a regression:
         # the header only has meaning in a cross-origin response.
         self.assertEqual(self.probe["play_state_same_origin"]["json"], entry["json"])
 
     def test_play_state_reports_a_launch_in_progress(self) -> None:
-        """What the frontend polls for: the overlay goes up on this transition."""
+        """The transition the frontend puts its overlay up on.
+
+        `source` was added when the wheel, the Remote page and the API were moved
+        onto one launch path: the state is now set for every launch rather than
+        only the ones the frontend did not start, so a consumer has to be able to
+        tell whose it is. Additive - the two fields consumers already read are
+        unchanged.
+        """
         launching = self.probe["play_state_launching"]["json"]
         cleared = self.probe["play_state_cleared"]["json"]
 
         self.assertEqual(launching, {"launching": True,
-                                     "table_name": "Medieval Madness (Williams 1997)"})
-        self.assertEqual(cleared, {"launching": False, "table_name": None})
+                                     "table_name": "Medieval Madness (Williams 1997)",
+                                     "source": "remote"})
+        self.assertEqual(cleared,
+                         {"launching": False, "table_name": None, "source": None})
+
+    def test_launch_refuses_before_it_starts_anything(self) -> None:
+        """Every refusal is answered synchronously. A launch that returns 202 and
+        then fails on its thread tells the caller nothing."""
+        no_launcher = self.probe["launch_no_launcher"]
+        self.assertEqual(no_launcher["status"], 501)
+        self.assertEqual(no_launcher["json"]["error"]["code"], "feature_unavailable")
+        self.assertIn("vpxbinpath", no_launcher["json"]["error"]["message"])
+
+    def test_launch_rejects_a_game_file_the_table_does_not_have(self) -> None:
+        entry = self.probe["launch_unknown_file"]
+
+        self.assertEqual(entry["status"], 400)
+        self.assertEqual(entry["json"]["error"]["code"], "invalid_request")
+
+    def test_launch_conflicts_while_something_is_already_playing(self) -> None:
+        """Two VPX processes would fight over the same hardware."""
+        entry = self.probe["launch_while_busy"]
+
+        self.assertEqual(entry["status"], 409)
+        self.assertEqual(entry["json"]["error"]["code"], "conflict")
+
+    def test_launch_of_an_unknown_table_is_a_not_found(self) -> None:
+        entry = self.probe["launch_unknown_table"]
+
+        self.assertEqual(entry["status"], 404)
+        self.assertEqual(entry["json"]["error"]["code"], "not_found")
+
+    def test_a_table_reports_its_assets_not_its_media(self) -> None:
+        """Assets are what the table needs to play; media is the artwork shown
+        while browsing - see docs/conventions.md. The detail endpoint is the
+        inventory lens: every kind, files attributed."""
+        table = self.probe["table_get"]["json"]
+
+        self.assertIn("assets", table)
+        self.assertNotIn("media", table, "these were mislabelled as media")
+        self.assertEqual(set(table["assets"]),
+                         {"backglass", "settings", "script", "pov", "scv",
+                          "pup_pack", "alt_color", "alt_sound", "music"})
+
+    def test_assets_present_in_the_folder_are_reported(self) -> None:
+        """The fixture table ships a backglass, a per-table ini and music."""
+        assets = self.probe["table_get"]["json"]["assets"]
+
+        self.assertTrue(assets["backglass"]["present"])
+        self.assertTrue(assets["settings"]["present"])
+        self.assertTrue(assets["music"]["present"])
+        self.assertFalse(assets["pup_pack"]["present"], "the fixture has none")
+        # The inventory lens attributes each file to the build it serves.
+        self.assertEqual(assets["backglass"]["files"][0]["binding"], "dedicated")
+
+    def test_a_game_file_reports_what_it_would_use_on_launch(self) -> None:
+        """The launch lens: resolved assets and the pinmame chain, per game file."""
+        entry = self.probe["table_files"]["json"]["game_files"][0]
+
+        self.assertEqual(entry["assets"]["backglass"]["resolution"], "dedicated")
+        self.assertEqual(entry["assets"]["settings"]["resolution"], "dedicated")
+        # The wire model makes the shape uniform: an unresolved kind still
+        # carries file, explicitly null.
+        self.assertEqual(entry["assets"]["pov"], {"resolution": "none", "file": None})
+
+        chain = entry["dependencies"]["pinmame"]
+        self.assertEqual(chain["declared"], "exmpl")
+        self.assertEqual(chain["effective"], "exmpl")
+        self.assertTrue(chain["installed"], "exmpl.zip is in the fixture's roms folder")
+        self.assertTrue(chain["required"], "the fixture's metadata says the script drives pinmame")
+        self.assertFalse(chain["nvram"]["present"], "nothing has been played")
+
+    def test_a_non_recorded_game_file_gets_an_honest_unknown_rom(self) -> None:
+        """The .info describes one game file; the others must not inherit its rom."""
+        entries = self.probe["multi_file_files"]["json"]["game_files"]
+        others = [e for e in entries if not e["default"]]
+
+        self.assertTrue(others)
+        for entry in others:
+            self.assertIsNone(entry["dependencies"]["pinmame"]["declared"])
+            self.assertIsNone(entry["dependencies"]["pinmame"]["required"])
+            self.assertIn("one game file", entry["dependencies"]["pinmame"]["reason"])
+
+    def test_rom_presence_is_not_reported_as_an_asset(self) -> None:
+        """A declared ROM name may be a PinMAME dependency or just a DOF key. Until
+        the two can be told apart, "no ROM file" would read as broken on every EM
+        table, which is most of the ones that declare a name."""
+        table = self.probe["table_get"]["json"]
+
+        self.assertNotIn("rom", table["assets"])
+        self.assertIn("rom", table, "the declared name is still metadata on the table")
+
+    def test_media_lists_every_kind_present_or_not(self) -> None:
+        """Media is the artwork about a table - exactly the media_paths kinds. A
+        client enumerates what is possible instead of guessing from omissions."""
+        media = self.probe["media_list"]["json"]["media"]
+
+        self.assertTrue(media["wheel"]["present"])
+        self.assertEqual(media["wheel"]["file"], "wheel.png")
+        self.assertTrue(media["bg"]["present"], "root-level fallback is found")
+        self.assertFalse(media["flyer"]["present"])
+        self.assertIsNone(media["flyer"]["links"]["self"])
+        self.assertIn("table_video", media)
+        self.assertIn("audio", media)
+
+    def test_a_media_file_is_streamed_with_its_content_type(self) -> None:
+        entry = self.probe["media_wheel"]
+
+        self.assertEqual(entry["status"], 200)
+        self.assertEqual(entry["content_type"], "image/png")
+        self.assertGreater(entry["bytes"], 0)
+
+    def test_absent_media_is_not_found_and_unknown_kind_is_invalid(self) -> None:
+        absent = self.probe["media_absent"]
+        self.assertEqual(absent["status"], 404)
+        self.assertEqual(absent["json"]["error"]["code"], "not_found")
+
+        unknown = self.probe["media_unknown_kind"]
+        self.assertEqual(unknown["status"], 400)
+        self.assertEqual(unknown["json"]["error"]["code"], "invalid_request")
+        self.assertIn("wheel", unknown["json"]["error"]["details"]["known"])
 
     def test_the_old_remote_launch_route_is_gone(self) -> None:
         self.assertGreaterEqual(self.probe["legacy_remote_launch_gone"]["status"], 400)
@@ -127,7 +266,8 @@ class ApiContractTests(unittest.TestCase):
         table = self.probe["table_get"]["json"]
 
         self.assertEqual(self.probe["table_get"]["status"], 200)
-        self.assertEqual(table["links"]["files"], f"/api/v1/tables/{table['id']}/files")
+        self.assertEqual(table["links"]["game_files"],
+                         f"/api/v1/tables/{table['id']}/game-files")
         self.assertEqual(table["links"]["archive"], f"/api/v1/tables/{table['id']}/archive")
 
     def test_game_files_are_a_list_even_though_there_is_one_today(self) -> None:
@@ -135,7 +275,7 @@ class ApiContractTests(unittest.TestCase):
         entry = self.probe["table_files"]
 
         self.assertEqual(entry["status"], 200)
-        files = entry["json"]["files"]
+        files = entry["json"]["game_files"]
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0]["format"], "vpx")
         self.assertTrue(files[0]["default"])
@@ -153,7 +293,7 @@ class ApiContractTests(unittest.TestCase):
 
     def test_a_folder_with_several_vpx_reports_all_of_them(self) -> None:
         """A table folder can hold more than one .vpx, and .vbs is not a game file."""
-        files = self.probe["multi_file_files"]["json"]["files"]
+        files = self.probe["multi_file_files"]["json"]["game_files"]
 
         names = [f["filename"] for f in files]
         self.assertEqual(names, sorted(names, key=str.lower), "order must not depend on the disk")
@@ -165,7 +305,7 @@ class ApiContractTests(unittest.TestCase):
 
     def test_a_recorded_file_that_is_missing_is_reported_but_not_the_default(self) -> None:
         """Reporting it matters; pointing a caller at it to launch does not."""
-        files = self.probe["mismatch_files"]["json"]["files"]
+        files = self.probe["mismatch_files"]["json"]["game_files"]
 
         by_name = {f["filename"]: f for f in files}
         self.assertFalse(by_name["does-not-exist.vpx"]["available"])
@@ -230,8 +370,8 @@ class ApiContractTests(unittest.TestCase):
     def test_every_live_endpoint_answers_as_json(self) -> None:
         for name, entry in self.probe.items():
             if name in ("legacy_upload_gone", "legacy_archive_gone",
-                        "legacy_remote_launch_gone", "table_archive"):
-                continue  # NiceGUI's own 404s, and the archive is a file download
+                        "legacy_remote_launch_gone", "table_archive", "media_wheel"):
+                continue  # NiceGUI's own 404s, and the file downloads
             with self.subTest(endpoint=name):
                 self.assertEqual(entry["content_type"], "application/json")
 
