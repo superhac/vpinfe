@@ -14,13 +14,31 @@ def _client() -> TestClient:
 
 class ManufacturerEndpointTests(unittest.TestCase):
     def test_the_logo_lookup_is_enumerable_over_the_wire(self) -> None:
-        """VPS names union library names, each with slug, resolution and count."""
-        from collections import Counter
+        """VPS names union library names, each with slug, resolution and count.
+
+        The catalog is patched with table-shaped objects, not row dicts, so the
+        count path exercises the real object-to-row conversion - the live app
+        hands _catalog() Table objects.
+        """
         from pathlib import Path
         from tempfile import TemporaryDirectory
+        from types import SimpleNamespace
         from unittest.mock import patch
 
         from common.shared_assets import configure_shared_assets
+
+        def _table(folder: str, manufacturer: str) -> SimpleNamespace:
+            return SimpleNamespace(
+                fullPathTable=f"/tables/{folder}",
+                fullPathVPXfile=f"/tables/{folder}/{folder}.vpx",
+                metaConfig={"Info": {"Manufacturer": manufacturer}},
+            )
+
+        catalog = {
+            "id-1": _table("Eight Ball (Bally 1977)", "Bally Manufacturing"),
+            "id-2": _table("Eight Ball Deluxe (Bally 1981)", "Bally Manufacturing"),
+            "id-3": _table("Garage Build (Homebrew 2020)", "Homebrew Works"),
+        }
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / "assets"
@@ -31,9 +49,7 @@ class ManufacturerEndpointTests(unittest.TestCase):
 
             with patch("httpapi.manufacturers._vps_names",
                        return_value=["Bally Manufacturing", "Bally Wulff"]), \
-                 patch("httpapi.manufacturers._library_counts",
-                       return_value=Counter({"Bally Manufacturing": 3,
-                                             "Homebrew Works": 1})):
+                 patch("httpapi.manufacturers._catalog", return_value=catalog):
                 response = _client().get("/manufacturers")
 
         self.assertEqual(response.status_code, 200)
@@ -41,7 +57,7 @@ class ManufacturerEndpointTests(unittest.TestCase):
         self.assertEqual(rows["Bally Manufacturing"]["slug"], "bally")
         self.assertEqual(rows["Bally Manufacturing"]["logo"],
                          "/assets/manufacturers/default/bally.png")
-        self.assertEqual(rows["Bally Manufacturing"]["tables"], 3)
+        self.assertEqual(rows["Bally Manufacturing"]["tables"], 2)
         self.assertIsNone(rows["Bally Wulff"]["logo"])
         self.assertEqual(rows["Bally Wulff"]["tables"], 0)
         self.assertEqual(rows["Homebrew Works"]["tables"], 1,

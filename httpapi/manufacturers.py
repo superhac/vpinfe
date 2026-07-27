@@ -15,6 +15,7 @@ from fastapi import APIRouter
 
 from common.paths import CONFIG_DIR
 from common.shared_assets import manufacturer_report, vps_manufacturer_names
+from common.tables.table_repository import table_to_row
 
 from . import models, scopes
 from .auth import requires
@@ -28,8 +29,8 @@ def _vps_names() -> list[str]:
 
 
 def _library_counts() -> Counter:
-    return Counter(str(row.get("manufacturer", "") or "").strip()
-                   for row in _catalog().values())
+    return Counter(str(table_to_row(table).get("manufacturer", "") or "").strip()
+                   for table in _catalog().values())
 
 
 @router.get("", summary="Manufacturers, their slugs and logo coverage",
