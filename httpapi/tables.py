@@ -348,13 +348,15 @@ def launch_table(table_id: str,
 
 @router.get("/{table_id}/archive", summary="Download the table folder as an archive",
             dependencies=[requires(scopes.TABLES_READ)])
-def get_table_archive(table_id: str, download_token: str = ""):
+def get_table_archive(table_id: str, download_token: str = "",
+                      full: bool = False, file: str = ""):
     from managerui.services.archive_service import cleanup_archive, create_vpxz_archive
 
     table = _table_or_404(table_id)
     table_dir_name = getattr(table, "tableDirName", "")
     try:
-        archive = create_vpxz_archive(table_dir_name)
+        archive = create_vpxz_archive(table_dir_name, everything=full,
+                                      game_file=file or None)
     except ValueError as exc:
         raise InvalidRequestError("Invalid table path") from exc
     except FileNotFoundError as exc:

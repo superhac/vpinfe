@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from pathlib import Path
 import uuid
 import urllib.request
 import urllib.parse
@@ -113,6 +114,7 @@ def _send_table_to_device(
     exclude_ini=True,
     copy_masked_tableini_as_default=False,
     masked_tableini_mask='',
+    everything=False,
 ):
     """Send all files in a table folder to the mobile device via its HTTP API.
 
@@ -170,9 +172,41 @@ def _send_table_to_device(
         if root_vpx_files:
             primary_vpx_base_name = os.path.splitext(root_vpx_files[0])[0]
 
+    # The standalone bundle for the table's game file, unless the caller asked
+    # for the whole folder - the same answer the VPXZ download gives.
+    from managerui.services.export_bundle import bundle_paths, prune_info
+    everything = _to_bool(everything)
+    allowed = None
+    pruned_info_path = None
+    if not everything:
+        contents = list(bundle_paths(Path(table_path), everything=False))
+        allowed = {arcname.replace(os.sep, '/') for _, arcname in contents}
+        bundled_names = {os.path.basename(a) for a in allowed}
+        info_name = f'{table_dir_name}.info'
+        if info_name in bundled_names:
+            source = os.path.join(table_path, info_name)
+            try:
+                import tempfile as _tempfile
+                with open(source, encoding='utf-8', errors='replace') as fh:
+                    pruned = prune_info(fh.read(), bundled_names)
+                handle = _tempfile.NamedTemporaryFile('w', suffix='.info',
+                                                      delete=False, encoding='utf-8')
+                handle.write(pruned)
+                handle.close()
+                pruned_info_path = handle.name
+            except OSError:
+                pruned_info_path = None
+
+    def _in_bundle(dirpath, fname):
+        if allowed is None:
+            return True
+        rel = os.path.relpath(os.path.join(dirpath, fname), table_path)
+        return rel.replace(os.sep, '/') in allowed
+
     # Collect all files first to calculate total count
     all_files = []
     for dirpath, dirnames, filenames in os.walk(table_path):
+        filenames = [f for f in filenames if _in_bundle(dirpath, f)]
         rel_dir = os.path.relpath(dirpath, tables_path)
 
         # For efficient lookup of corresponding .vpx files
@@ -229,6 +263,8 @@ def _send_table_to_device(
             for fname in filenames:
                 if not fname.lower().endswith('.ini'):
                     continue
+                if not _in_bundle(dirpath, fname):
+                    continue
                 key = (rel_dir, fname.lower())
                 if key in existing_keys:
                     continue
@@ -260,6 +296,15 @@ def _send_table_to_device(
                     default_ini_name_for_copy,
                 )
 
+    if pruned_info_path is not None:
+        info_name = f'{table_dir_name}.info'
+        all_files = [
+            (rel_dir, fname,
+             pruned_info_path if fname == info_name else full_path,
+             os.path.getsize(pruned_info_path) if fname == info_name else file_size)
+            for rel_dir, fname, full_path, file_size in all_files
+        ]
+
     total_files = len(all_files)
     if total_files == 0:
         return
@@ -271,6 +316,11 @@ def _send_table_to_device(
         # Collect unique directories to create
         dirs_to_create = set()
         for dirpath, _, _ in os.walk(table_path):
+            if allowed is not None:
+                rel_within = os.path.relpath(dirpath, table_path).replace(os.sep, '/')
+                if rel_within != '.' and not any(
+                        arc.startswith(rel_within + '/') for arc in allowed):
+                    continue
             rel_dir = os.path.relpath(dirpath, tables_path)
             dirs_to_create.add(rel_dir)
 
@@ -359,10 +409,15 @@ def build(standalone=True):
 
 
 def _build_vpxz_download_panel():
+    everything_checkbox = ui.checkbox(
+        'Include everything (all builds, media, extras)', value=False).props('dark')
     loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
     table_container = ui.column().classes('w-full')
 
     async def load_tables():
+        # Rebuilt when the toggle flips: the flag is baked into each download link.
+        table_container.clear()
+        full_param = '&full=true' if everything_checkbox.value else ''
         tables = await run.io_bound(_scan_tables)
         loading.set_visibility(False)
         rows = _build_table_rows(tables)
@@ -389,7 +444,7 @@ def _build_vpxz_download_panel():
                         icon="download"
                         class="q-mr-sm"
                         style="color: var(--neon-cyan) !important;"
-                        :href="'/api/v1/tables/' + encodeURIComponent(props.row.vpinfe_id) + '/archive?download_token=' + encodeURIComponent(props.row.download_token)"
+                        :href="'/api/v1/tables/' + encodeURIComponent(props.row.vpinfe_id) + '/archive?download_token=' + encodeURIComponent(props.row.download_token) + \'''' + full_param + '''\'"
                         :download="props.row.table_dir_name + '.vpxz'"
                         @click.stop="$parent.$emit('download', props.row)"
                     />
@@ -431,6 +486,7 @@ def _build_vpxz_download_panel():
             tbl.on('download', handle_download)
 
     ui.timer(0.1, load_tables, once=True)
+    everything_checkbox.on_value_change(lambda _e: load_tables())
 
 
 def _fetch_device_folders(host, port):
@@ -495,6 +551,8 @@ def _build_web_send_panel():
     with ui.card().classes('w-full p-4 mb-4').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);'):
         ui.label('Send Options').classes('font-bold mb-2').style('color: var(--ink) !important;')
         exclude_ini_checkbox = ui.checkbox('Exclude {VPX_FILENAME}.ini files', value=True).props('dark')
+        everything_checkbox = ui.checkbox(
+            'Include everything (all builds, media, extras)', value=False).props('dark')
         ui.label("Prevents sending the table-specific configuration file, e.g. 'tablename.ini'.").classes('text-xs ml-8 -mt-2').style('color: var(--ink-muted) !important;')
         with ui.row().classes('w-full items-end gap-3'):
             masked_ini_copy_checkbox = ui.checkbox(
@@ -570,7 +628,7 @@ def _build_web_send_panel():
         except Exception as e:
             _safe_notify(f'Could not connect: {e}', type='negative')
 
-    async def _send_single_table(host, port, name, exclude_ini, masked_ini_copy_enabled, masked_ini_mask):
+    async def _send_single_table(host, port, name, exclude_ini, masked_ini_copy_enabled, masked_ini_mask, everything=False):
         """Send a single table with progress dialog. Returns True on success."""
         # Progress dialog
         with ui.dialog() as dlg, ui.card().classes('p-6').style('min-width: 400px; background: var(--surface) !important;'):
@@ -601,6 +659,7 @@ def _build_web_send_panel():
                     exclude_ini=exclude_ini,
                     copy_masked_tableini_as_default=masked_ini_copy_enabled,
                     masked_tableini_mask=masked_ini_mask,
+                    everything=everything,
                 )
                 state['done'] = True
             except Exception as ex:
@@ -656,6 +715,7 @@ def _build_web_send_panel():
                 exclude_ini=exclude_ini,
                 masked_ini_copy_enabled=masked_ini_copy_enabled,
                 masked_ini_mask=masked_ini_mask,
+                everything=_to_bool(everything_checkbox.value),
             )
             if ok:
                 success += 1
@@ -720,6 +780,7 @@ def _build_web_send_panel():
                     exclude_ini=exclude_ini,
                     masked_ini_copy_enabled=masked_ini_copy_enabled,
                     masked_ini_mask=masked_ini_mask,
+                    everything=_to_bool(everything_checkbox.value),
                 )
                 if ok:
                     _safe_notify(f'Transfer complete! All files sent to {host}:{port}', type='positive')

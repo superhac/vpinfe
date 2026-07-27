@@ -108,6 +108,17 @@ API marks such a wheel `via: "logo"`. Themes gain `LogoImagePath`.
 blank slot everywhere at once; making it a kind keeps it addressable instead of buried in
 wheel semantics. Covered by `tests/test_media_resolution.py`.
 
+**PAR-13 — A table export is one game by default, not the whole folder.**
+The `.vpxz` download and the mobile Web Send used to ship everything: every alternate
+build, all media, every extra. The default is now a standalone bundle for the table's
+game file — the chosen `.vpx`, its stem-matched and folder-named companions, `pinmame/`,
+`music/`, colorization and sound folders, the author's readme files, and a `.info` whose
+`Medias` section lists only what actually shipped. "Include everything" remains as an
+explicit toggle on both surfaces, and the API takes `?full=true`.
+*Why:* export a game, not a folder — transfers shrink dramatically, and a multi-`.vpx`
+folder finally exports the build you meant instead of all of them. Covered by
+`tests/test_export_bundle.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and
