@@ -1,0 +1,90 @@
+"""The 3.0 parity gate: this tree behaves like master, except where the ledger says.
+
+Compares a live capture of this tree (tests/parity_capture.py, run in a fresh
+interpreter) against the committed master baseline. Every allowed difference is
+named by a PAR- id in docs/compatibility-3.0.md; an unlisted difference is a
+failure. That file explains how to refresh the baseline when master moves.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+import unittest
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+BASELINE = REPO_ROOT / "tests" / "parity_baseline_master.json"
+LEDGER = REPO_ROOT / "docs" / "compatibility-3.0.md"
+
+# The differences the ledger permits, keyed by the entries that permit them.
+LEDGER_ALLOWS = {
+    "PAR-03": {"remote_launch", "upload_begin", "archive_download"},
+    "PAR-04": {"removed": "update_frontend_dof_for_table",
+               "added": "notify_table_selected"},
+}
+
+
+def _capture_current() -> dict:
+    env = dict(os.environ)
+    env.pop("VPINFE_CONFIG_DIR", None)
+    proc = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "tests" / "parity_capture.py")],
+        capture_output=True, text=True, cwd=str(REPO_ROOT), env=env, timeout=300,
+    )
+    payload = json.loads(proc.stdout)
+    if "__error__" in payload:
+        raise AssertionError(f"capture failed: {payload['__error__']}\n{proc.stderr[-1500:]}")
+    return payload
+
+
+class ParityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.master = json.loads(BASELINE.read_text())
+        cls.current = _capture_current()
+        cls.ledger_text = LEDGER.read_text()
+
+    def test_every_id_this_gate_relies_on_is_in_the_ledger(self) -> None:
+        """The gate may only allow what the ledger explains."""
+        for par_id in LEDGER_ALLOWS:
+            self.assertIn(f"**{par_id}", self.ledger_text,
+                          f"{par_id} is enforced here but missing from the ledger")
+
+    def test_the_theme_payload_is_identical_to_master(self) -> None:
+        """No ledger entry permits this to differ: every theme reads it."""
+        self.assertEqual(self.master["theme_payload"], self.current["theme_payload"])
+
+    def test_a_scan_never_writes_on_either_side(self) -> None:
+        """Reading the library is a read. The PAR-01/02 migrations are first-run
+        writes through their own paths, not scan side effects."""
+        self.assertEqual(self.master["scan_writes"], [])
+        self.assertEqual(self.current["scan_writes"], [])
+
+    def test_ws_allowlist_differs_only_by_the_documented_rename(self) -> None:
+        master = set(self.master["ws_allowlist"])
+        current = set(self.current["ws_allowlist"])
+        rename = LEDGER_ALLOWS["PAR-04"]
+
+        self.assertEqual(master - current, {rename["removed"]},
+                         "only PAR-04's removal is permitted")
+        self.assertEqual(current - master, {rename["added"]},
+                         "only PAR-04's addition is permitted")
+
+    def test_legacy_endpoints_served_on_master_and_do_not_serve_here(self) -> None:
+        """PAR-03: removed, not aliased - and the removal itself is asserted, so
+        the ledger can't drift into fiction if someone quietly restores one."""
+        for name in LEDGER_ALLOWS["PAR-03"]:
+            with self.subTest(endpoint=name):
+                master_entry = self.master["legacy_endpoints"][name]
+                current_entry = self.current["legacy_endpoints"][name]
+                self.assertIsNotNone(master_entry["keys"],
+                                     "baseline shows the route answering JSON")
+                self.assertNotEqual(current_entry["keys"], master_entry["keys"],
+                                    "the route must not answer its old shape")
+
+
+if __name__ == "__main__":
+    unittest.main()

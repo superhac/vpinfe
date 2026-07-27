@@ -3,6 +3,8 @@
 *.ini
 *.log
 *.json
+# The parity gate's committed master snapshot - see docs/compatibility-3.0.md
+!tests/parity_baseline_master.json
 !common/resources/roms.json
 third-party/
 
