@@ -7,7 +7,12 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import quote
 
-from common.media_paths import media_attr_key_map, media_filename_map
+from common.media_paths import (
+    MEDIA_SPECS,
+    media_attr_key_map,
+    media_filename_map,
+    resolve_media_files,
+)
 from common.tables.metaconfig import MetaConfig
 from common.tables.table_metadata import reorder_leading_article
 from common.tables.table_repository import ensure_tables_loaded
@@ -75,17 +80,29 @@ def is_image_media_key(media_key: str) -> bool:
     return Path(filename).suffix.lower() in IMAGE_EXTENSIONS
 
 
-def source_media_path(table_path: str, media_key: str) -> Optional[str]:
-    filename = MEDIA_KEY_TO_FILENAME.get(media_key)
-    if not filename:
+_SPEC_BY_KEY = {spec.key: spec for spec in MEDIA_SPECS}
+
+
+def source_media_path(table_path: str, media_key: str,
+                      game_file_stem: str | None = None) -> str | None:
+    """The file serving a media kind, through the one resolution chain - so the
+    Manager UI and the scan can never disagree about which file that is."""
+    if media_key not in _SPEC_BY_KEY:
         return None
-    medias_path = os.path.join(table_path, "medias", filename)
-    if os.path.exists(medias_path):
-        return medias_path
-    root_path = os.path.join(table_path, filename)
-    if os.path.exists(root_path):
-        return root_path
-    return None
+    root = Path(table_path)
+    try:
+        table_contents = {e.name for e in os.scandir(root) if e.is_file()}
+    except OSError:
+        return None
+    medias_dir = root / "medias"
+    try:
+        medias_contents = {e.name for e in os.scandir(medias_dir) if e.is_file()}
+    except OSError:
+        medias_contents = set()
+    resolved = resolve_media_files(root, table_contents, medias_contents,
+                                   "table", game_file_stem)
+    path = resolved.get(media_key)
+    return str(path) if path is not None else None
 
 
 def _build_thumb_sig(source_path: str) -> str:
@@ -239,10 +256,31 @@ def scan_media_tables(reload: bool = False) -> List[Dict]:
 
 
 def replace_media_file(table_path: str, table_dir: str, media_key: str, uploaded_path: str) -> str:
-    target_filename = MEDIA_KEY_TO_FILENAME[media_key]
+    """Install an uploaded file as a table's media, keeping its real extension.
+
+    The old behavior copied bytes to the canonical name unchanged, so a .jpg
+    became JPEG bytes inside wheel.png - a file that lies. The name now keeps the
+    source extension when the kind's family accepts it, and any family sibling
+    with the same stem is removed from medias/ and the folder root, since an
+    earlier-family leftover would shadow the new file in resolution order.
+    """
+    spec = _SPEC_BY_KEY[media_key]
+    canonical = MEDIA_KEY_TO_FILENAME[media_key]
+    stem, canonical_ext = os.path.splitext(canonical)
+    ext = os.path.splitext(uploaded_path)[1].lower()
+    if ext not in spec.family:
+        ext = canonical_ext
+    target_filename = stem + ext
+
     medias_dir = os.path.join(table_path, "medias")
     os.makedirs(medias_dir, exist_ok=True)
     target_path = os.path.join(medias_dir, target_filename)
+
+    for sibling_ext in spec.family:
+        for base in (medias_dir, table_path):
+            sibling = os.path.join(base, stem + sibling_ext)
+            if sibling != target_path and os.path.exists(sibling):
+                os.remove(sibling)
 
     shutil.copy2(uploaded_path, target_path)
 

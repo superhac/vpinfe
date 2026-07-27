@@ -250,7 +250,13 @@ def get_game_files(table_id: str) -> models.GameFileList:
     return {"game_files": _game_files(table, table_to_row(table))}
 
 
-def _resolved_media(table_dir: Path) -> dict:
+def _default_stem(table) -> str | None:
+    """The stem of the build that launches - tier 1 of media resolution."""
+    vpx = str(getattr(table, "fullPathVPXfile", "") or "")
+    return Path(vpx).stem if vpx else None
+
+
+def _resolved_media(table_dir: Path, game_file_stem: str | None = None) -> dict:
     """Every media kind against the folder as it is right now."""
     files, subdirs = _listing(table_dir)
     medias: list[str] = []
@@ -261,7 +267,8 @@ def _resolved_media(table_dir: Path) -> dict:
         except OSError:
             medias = []
     table_type = MediaConfig.from_config(get_ini_config()).table_type
-    return resolve_media_files(table_dir, set(files), set(medias), table_type)
+    return resolve_media_files(table_dir, set(files), set(medias), table_type,
+                               game_file_stem)
 
 
 @router.get("/{table_id}/media", summary="A table's media",
@@ -272,7 +279,7 @@ def get_table_media(table_id: str) -> models.MediaList:
     table = _table_or_404(table_id)
     table_dir = Path(getattr(table, "fullPathTable", "") or "")
     prefix = f"/api/v1/tables/{table_id}/media"
-    resolved = _resolved_media(table_dir)
+    resolved = _resolved_media(table_dir, _default_stem(table))
     return {"media": {
         key: {
             "present": path is not None,
@@ -292,7 +299,7 @@ def get_table_media_file(table_id: str, kind: str):
         raise InvalidRequestError("Unknown media kind",
                                   details={"unknown": kind, "known": sorted(known)})
     table_dir = Path(getattr(table, "fullPathTable", "") or "")
-    path = _resolved_media(table_dir).get(kind)
+    path = _resolved_media(table_dir, _default_stem(table)).get(kind)
     if path is None or not path.is_file():
         raise NotFoundError(f"This table has no {kind} media")
     return FileResponse(path)

@@ -72,6 +72,22 @@ The logging standard moved routine chatter to DEBUG and gave each level a promis
 *Why:* INFO was unreadable on a real library; a level that promises nothing is
 noise. Not machine-checked — prose only.
 
+**PAR-09 — Media resolves through a precedence chain and accepts extension families.**
+Master resolved exactly one fixed name per kind (`wheel.png`). 3.0 resolves
+`(Wheel) <build>.png` over `(Wheel) <folder>.png` over `wheel.png`, trying each kind's
+extension family in order — so a spec-named or `.jpg` file that master silently ignored
+now displays. A library using only the fixed names behaves identically.
+*Why:* hand-placed media was invisible unless it matched one exact name, and a media
+refresh could clobber a user's own file; the tiers make "mine" and "downloaded"
+structurally distinct. Covered by `tests/test_media_resolution.py`.
+
+**PAR-10 — Imported media keeps its real file extension.**
+Importing a `.jpg` wheel used to write JPEG bytes into `medias/wheel.png` — a file that
+lies about itself. It now writes `wheel.jpg`, and removes same-kind siblings that would
+shadow it.
+*Why:* the on-disk name should tell the truth; browsers sniffed past it, other tools
+won't. Covered by `tests/test_media_resolution.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

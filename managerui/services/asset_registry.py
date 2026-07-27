@@ -4,9 +4,8 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from common.media_paths import media_filename_map
+from common.media_paths import MEDIA_SPECS, media_filename_map
 from managerui.services.media_service import IMAGE_EXTENSIONS
-
 
 logger = logging.getLogger("vpinfe.manager.asset_registry")
 
@@ -47,6 +46,16 @@ _SPECS_BY_KEY = {spec.key: spec for spec in ASSET_SPECS}
 
 # Canonical media filenames (bg.png, dmd.mp4, audio.mp3, ...) -> media key.
 _MEDIA_FILENAME_TO_KEY = {filename: key for key, filename in media_filename_map("table").items()}
+
+# Spec tokens ("(Wheel) Name.png") -> media key, image and video resolved by
+# extension. Explicit, so spec-named files import by rule rather than by the
+# keyword fallback happening to contain the right word.
+_TOKEN_TO_KEY: dict[str, dict[str, str]] = {}
+for _spec in MEDIA_SPECS:
+    if _spec.token:
+        _TOKEN_TO_KEY.setdefault(_spec.token.lower(), {})[
+            "video" if _spec.key.endswith("_video") else
+            "audio" if _spec.key == "audio" else "image"] = _spec.key
 
 # Keyword-in-stem fallbacks when a media file is not named canonically.
 # Ordered; realdmd is handled ahead of this table so "dmd" never claims a realdmd file.
@@ -90,6 +99,18 @@ def match_media_key(filename: str) -> str | None:
     name = Path(filename).name.lower()
     if name in _MEDIA_FILENAME_TO_KEY:
         return _MEDIA_FILENAME_TO_KEY[name]
+
+    # Spec naming: "(Token) Whatever.ext". The token decides the kind, the
+    # extension family decides image vs video.
+    if name.startswith("(") and ") " in name:
+        token = name.split(") ", 1)[0] + ")"
+        kinds = _TOKEN_TO_KEY.get(token)
+        if kinds:
+            family = ("video" if ext in VIDEO_EXTENSIONS
+                      else "audio" if ext in AUDIO_EXTENSIONS else "image")
+            hit = kinds.get(family)
+            if hit:
+                return hit
 
     stem = Path(filename).stem.lower()
 

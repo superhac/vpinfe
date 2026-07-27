@@ -102,8 +102,11 @@ VPinFE shows you while browsing; assets are what the table needs to *play* as in
 Media is served under `GET /tables/{id}/media`: every kind from `common/media_paths.py`,
 present or not, so a client enumerates what is possible instead of guessing from omissions.
 A present kind links to `/media/{kind}`, which streams the file with its real content type.
-The `medias/` folder is canonical and the folder root is the fallback — the same rule the
-scan uses, applied to the folder as it is at request time. An unknown kind is an
+Resolution is the same three-tier chain the scan uses, applied to the folder as it is at
+request time: a spec-named file for the launching build (`(Wheel) <build>.png`) beats a
+folder-named one (`(Wheel) <folder>.png`) beats the fixed default (`wheel.png`), each kind
+trying its extension family in order, `medias/` before the folder root throughout.
+Consumers never learn these rules — every kind still reports exactly one winning file. An unknown kind is an
 `invalid_request` naming the known kinds; a known-but-absent kind is a `not_found`.
 
 Assets come in two lenses, both computed from the folder at request time:

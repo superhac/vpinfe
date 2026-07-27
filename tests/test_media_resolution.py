@@ -1,0 +1,191 @@
+"""The media resolution chain: game-file > folder > default, families per kind.
+
+The rules under test are MEDIA.local design decisions 1-5 made concrete: spec
+naming resolves above the fixed names vpinmediadb writes, a kind accepts its
+whole extension family, and consumers only ever see one winning path.
+"""
+
+from __future__ import annotations
+
+import os
+import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from common.media_paths import resolve_media_files
+from managerui.services.media_service import replace_media_file, source_media_path
+
+FOLDER = "Cactus Canyon (Bally 1998)"
+BUILD = "Cactus Canyon (Bally 1998) - VPW 1.2"
+
+
+def _resolve(medias, root=(), stem=BUILD):
+    return resolve_media_files(f"/tables/{FOLDER}", set(root), set(medias),
+                               "table", stem)
+
+
+class TierTests(unittest.TestCase):
+    def test_the_default_tier_behaves_exactly_as_before(self) -> None:
+        resolved = _resolve(["wheel.png", "bg.png"])
+
+        self.assertEqual(resolved["wheel"].name, "wheel.png")
+        self.assertEqual(resolved["bg"].name, "bg.png")
+
+    def test_a_game_file_wheel_beats_the_folder_and_default_ones(self) -> None:
+        resolved = _resolve([f"(Wheel) {BUILD}.png", f"(Wheel) {FOLDER}.png",
+                             "wheel.png"])
+
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {BUILD}.png")
+
+    def test_a_folder_wheel_beats_the_default_one(self) -> None:
+        resolved = _resolve([f"(Wheel) {FOLDER}.png", "wheel.png"])
+
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {FOLDER}.png")
+
+    def test_without_a_game_file_stem_tier_one_is_simply_skipped(self) -> None:
+        resolved = _resolve([f"(Wheel) {BUILD}.png", "wheel.png"], stem=None)
+
+        self.assertEqual(resolved["wheel"].name, "wheel.png",
+                         "a stranger build's spec file is not this table's wheel")
+
+    def test_a_media_refresh_cannot_clobber_a_users_spec_named_file(self) -> None:
+        """The emergent property worth preserving: vpinmediadb writes tier 3 only,
+        so the user's tier-2 file keeps winning after any refresh."""
+        before = _resolve([f"(Wheel) {FOLDER}.png", "wheel.png"])
+        after = _resolve([f"(Wheel) {FOLDER}.png", "wheel.png"])  # refresh rewrote tier 3
+
+        self.assertEqual(before["wheel"].name, after["wheel"].name)
+
+
+class FamilyTests(unittest.TestCase):
+    def test_a_hand_placed_jpg_wheel_finally_resolves(self) -> None:
+        """The live bug: import accepted wheel.jpg but resolution demanded
+        wheel.png, so the file was invisible."""
+        resolved = _resolve(["wheel.jpg"])
+
+        self.assertEqual(resolved["wheel"].name, "wheel.jpg")
+
+    def test_family_order_prefers_png_over_jpg_within_a_tier(self) -> None:
+        resolved = _resolve(["wheel.jpg", "wheel.png"])
+
+        self.assertEqual(resolved["wheel"].name, "wheel.png")
+
+    def test_a_higher_tier_jpg_beats_a_lower_tier_png(self) -> None:
+        """Tiers outrank families: specificity is the design's axis, format is
+        a tie-breaker inside one tier."""
+        resolved = _resolve([f"(Wheel) {FOLDER}.jpg", "wheel.png"])
+
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {FOLDER}.jpg")
+
+    def test_matching_is_case_insensitive(self) -> None:
+        resolved = _resolve(["Wheel.PNG"])
+
+        self.assertEqual(resolved["wheel"].name, "Wheel.PNG")
+
+    def test_video_kinds_share_the_token_and_split_on_family(self) -> None:
+        """The spec keys on token + extension: (Playfield) X.png is the image,
+        (Playfield) X.mp4 is the video, one name scheme."""
+        resolved = _resolve([f"(Playfield) {FOLDER}.png", f"(Playfield) {FOLDER}.mp4"])
+
+        self.assertEqual(resolved["table"].name, f"(Playfield) {FOLDER}.png")
+        self.assertEqual(resolved["table_video"].name, f"(Playfield) {FOLDER}.mp4")
+
+    def test_audio_accepts_ogg(self) -> None:
+        resolved = _resolve(["audio.ogg"])
+
+        self.assertEqual(resolved["audio"].name, "audio.ogg")
+
+    def test_the_medias_folder_wins_over_the_root_at_every_tier(self) -> None:
+        resolved = _resolve(medias=["wheel.png"], root=["wheel.png"])
+
+        self.assertEqual(resolved["wheel"].parent.name, "medias")
+
+
+class ImportSideTests(unittest.TestCase):
+    def _table(self, tmp, *files):
+        root = Path(tmp) / FOLDER
+        (root / "medias").mkdir(parents=True)
+        for rel in files:
+            path = root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"old")
+        return root
+
+    def test_an_imported_jpg_keeps_being_a_jpg(self) -> None:
+        """The other live bug: JPEG bytes were written into wheel.png."""
+        with TemporaryDirectory() as tmp:
+            root = self._table(tmp)
+            upload = Path(tmp) / "upload.jpg"
+            upload.write_bytes(b"jpeg bytes")
+
+            target = replace_media_file(str(root), FOLDER, "wheel", str(upload))
+
+        self.assertTrue(target.endswith("wheel.jpg"))
+
+    def test_replacing_removes_the_family_siblings_that_would_shadow_it(self) -> None:
+        """wheel.png sits earlier in the family than wheel.jpg, so leaving it
+        behind would make the replacement invisible."""
+        with TemporaryDirectory() as tmp:
+            root = self._table(tmp, "medias/wheel.png", "wheel.webp")
+            upload = Path(tmp) / "upload.jpg"
+            upload.write_bytes(b"jpeg bytes")
+
+            replace_media_file(str(root), FOLDER, "wheel", str(upload))
+
+            self.assertFalse((root / "medias" / "wheel.png").exists())
+            self.assertFalse((root / "wheel.webp").exists())
+            resolved = source_media_path(str(root), "wheel")
+
+        self.assertTrue(resolved.endswith("wheel.jpg"),
+                        "the new file is what resolution now finds")
+
+    def test_an_unknown_extension_falls_back_to_the_canonical_name(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = self._table(tmp)
+            upload = Path(tmp) / "upload.tiff"
+            upload.write_bytes(b"tiff bytes")
+
+            target = replace_media_file(str(root), FOLDER, "wheel", str(upload))
+
+        self.assertTrue(target.endswith("wheel.png"))
+
+    def test_source_media_path_sees_spec_named_files(self) -> None:
+        """It used to be a second, fixed-names-only copy of the resolution rule."""
+        with TemporaryDirectory() as tmp:
+            root = self._table(tmp, f"medias/(Wheel) {FOLDER}.png")
+
+            resolved = source_media_path(str(root), "wheel")
+
+        self.assertTrue(resolved.endswith(f"(Wheel) {FOLDER}.png"))
+
+
+class ParserOrderTests(unittest.TestCase):
+    def test_media_resolves_against_the_build_that_launches(self) -> None:
+        """Tier 1 keys off the default game file, so the parser picks the default
+        before it resolves media - the same reordering the launcher needed."""
+        import json
+
+        from common.tables.tableparser import TableParser
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp) / FOLDER
+            (root / "medias").mkdir(parents=True)
+            for name in (f"{BUILD}.vpx", "some other build.vpx"):
+                (root / name).write_bytes(b"vpx")
+            (root / f"{FOLDER}.info").write_text(json.dumps({
+                "Info": {"Title": "Cactus Canyon"},
+                "VPXFile": {"filename": f"{BUILD}.vpx"},
+            }), encoding="utf-8")
+            (root / "medias" / f"(Wheel) {BUILD}.png").write_bytes(b"png")
+            (root / "medias" / "(Wheel) some other build.png").write_bytes(b"png")
+
+            parser = TableParser(tmp)
+            table = parser.getAllTables()[0]
+
+        self.assertEqual(os.path.basename(table.WheelImagePath),
+                         f"(Wheel) {BUILD}.png",
+                         "the recorded build's wheel, not the other build's")
+
+
+if __name__ == "__main__":
+    unittest.main()

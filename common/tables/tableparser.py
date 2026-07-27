@@ -1,14 +1,14 @@
+import logging
 import os
 from pathlib import Path
-import logging
 from time import perf_counter
-from common.config_access import MediaConfig
-from common.tables.game_files import default_game_file, game_file_names
-from common.tables.table_metadata import section
-from common.media_paths import apply_media_paths
-from common.tables.table import Table
-from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
 
+from common.config_access import MediaConfig
+from common.media_paths import apply_media_paths
+from common.tables.game_files import default_game_file, game_file_names
+from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
+from common.tables.table import Table
+from common.tables.table_metadata import section
 
 logger = logging.getLogger("vpinfe.common.tables.tableparser")
 
@@ -91,11 +91,6 @@ class TableParser:
             if "pinmame" in table_subdirs and (table_dir / "pinmame" / "altsound").is_dir():
                 table.altSoundExists = True
 
-            self.loadImagePaths(
-                table,
-                table_contents=table_contents,
-                has_medias_dir="medias" in table_subdirs,
-            )
             self.loadMetaData(table)
 
             # After the metadata, so a folder with several .vpx launches the one its
@@ -103,6 +98,15 @@ class TableParser:
             recorded = section(table.metaConfig, "VPXFile").get("filename", "")
             chosen = default_game_file(table_contents, table_dir.name, recorded)
             table.fullPathVPXfile = str(table_dir / chosen)
+
+            # Media after the default pick: tier 1 of the resolution chain keys off
+            # the build that actually launches.
+            self.loadImagePaths(
+                table,
+                table_contents=table_contents,
+                has_medias_dir="medias" in table_subdirs,
+                game_file_stem=Path(chosen).stem if chosen else None,
+            )
             try:
                 stat = os.stat(table.fullPathVPXfile)
                 table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
@@ -119,7 +123,8 @@ class TableParser:
             len(self.missing_tables)
         )
 
-    def loadImagePaths(self, Table, table_contents=None, has_medias_dir=None):
+    def loadImagePaths(self, Table, table_contents=None, has_medias_dir=None,
+                       game_file_stem=None):
         table_dir = Path(Table.fullPathTable)
         medias_dir = table_dir / "medias"
 
@@ -134,7 +139,8 @@ class TableParser:
             medias_contents = set(os.listdir(str(medias_dir))) if (has_medias_dir if has_medias_dir is not None else medias_dir.is_dir()) else set()
         except Exception:
             medias_contents = set()
-        apply_media_paths(Table, table_contents, medias_contents, self.tabletype)
+        apply_media_paths(Table, table_contents, medias_contents, self.tabletype,
+                          game_file_stem)
 
     def loadMetaData(self, Table):
         meta_path = Path(Table.fullPathTable) / f"{Table.tableDirName}.info"
