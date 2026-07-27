@@ -106,7 +106,10 @@ Resolution is the same three-tier chain the scan uses, applied to the folder as 
 request time: a spec-named file for the launching build (`(Wheel) <build>.png`) beats a
 folder-named one (`(Wheel) <folder>.png`) beats the fixed default (`wheel.png`), each kind
 trying its extension family in order, `medias/` before the folder root throughout.
-Consumers never learn these rules — every kind still reports exactly one winning file. An unknown kind is an
+Consumers never learn these rules — every kind still reports exactly one winning file.
+One cross-kind rule: a table with a `logo` and no wheel serves the logo in the wheel slot,
+below every real wheel tier; such an entry carries `via: "logo"` so a client that cares can
+tell a fallback from the real thing. An unknown kind is an
 `invalid_request` naming the known kinds; a known-but-absent kind is a `not_found`.
 
 Assets come in two lenses, both computed from the folder at request time:

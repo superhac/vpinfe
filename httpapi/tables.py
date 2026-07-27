@@ -280,10 +280,14 @@ def get_table_media(table_id: str) -> models.MediaList:
     table_dir = Path(getattr(table, "fullPathTable", "") or "")
     prefix = f"/api/v1/tables/{table_id}/media"
     resolved = _resolved_media(table_dir, _default_stem(table))
+    logo = resolved.get("logo")
     return {"media": {
         key: {
             "present": path is not None,
             "file": path.name if path is not None else None,
+            # A wheel served by the logo fallback says so, for clients that care.
+            "via": ("logo" if key == "wheel" and path is not None
+                    and logo is not None and path == logo else None),
             "links": {"self": f"{prefix}/{key}"} if path is not None else {"self": None},
         }
         for key, path in resolved.items()

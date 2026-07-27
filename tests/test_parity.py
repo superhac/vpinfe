@@ -28,7 +28,11 @@ LEDGER_ALLOWS = {
     # had must still be present and equal.
     "PAR-11": {"RuleCardImagePath", "TopperPath", "LoadingVideoPath",
                "AudioLaunchPath", "RuleSheetPath"},
+    "PAR-12": {"LogoImagePath"},
 }
+
+# Every theme-payload key the ledger permits adding, across entries.
+ALLOWED_NEW_PAYLOAD_KEYS = LEDGER_ALLOWS["PAR-11"] | LEDGER_ALLOWS["PAR-12"]
 
 
 def _capture_current() -> dict:
@@ -72,8 +76,8 @@ class ParityTests(unittest.TestCase):
         current_keys = set(current["keys"])
         self.assertEqual(master_keys - current_keys, set(),
                          "a key a theme may already read has vanished")
-        self.assertEqual(current_keys - master_keys, LEDGER_ALLOWS["PAR-11"],
-                         "only PAR-11's additions are permitted")
+        self.assertEqual(current_keys - master_keys, ALLOWED_NEW_PAYLOAD_KEYS,
+                         "only the ledger's listed additions are permitted")
 
     def test_a_scan_never_writes_on_either_side(self) -> None:
         """Reading the library is a read. The PAR-01/02 migrations are first-run

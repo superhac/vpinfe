@@ -20,6 +20,7 @@ const MEDIA_PATH_FIELDS = {
   flyer: "FlyerImagePath",
   rulecard: "RuleCardImagePath",
   topper: "TopperPath",
+  logo: "LogoImagePath",
 };
 
 const MEDIA_VIDEO_PATH_FIELDS = {

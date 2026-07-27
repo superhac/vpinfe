@@ -22,6 +22,9 @@ class MediaSpec:
     # their image counterpart's token; the extension family tells them apart.
     token: str | None = None
     family: tuple[str, ...] = IMAGE_FAMILY
+    # Another kind whose resolved file serves when this kind has none - below
+    # every tier of this kind, so any real file of its own outranks it.
+    fallback_kind: str | None = None
 
     def filename(self, table_type: str = "table") -> str:
         return self.filename_template.format(tabletype=table_type)
@@ -36,7 +39,8 @@ MEDIA_SPECS = (
     MediaSpec("table", "TableImagePath", "{tabletype}.png", "table_resolution",
               token="(Playfield)"),
     MediaSpec("fss", "FSSImagePath", "fss.png", token="(FSS)"),
-    MediaSpec("wheel", "WheelImagePath", "wheel.png", token="(Wheel)"),
+    MediaSpec("wheel", "WheelImagePath", "wheel.png", token="(Wheel)",
+              fallback_kind="logo"),
     MediaSpec("cab", "CabImagePath", "cab.png", token="(Cabinet)"),
     MediaSpec("realdmd", "realDMDImagePath", "realdmd.png", token="(RealDMD)"),
     MediaSpec("realdmd_color", "realDMDColorImagePath", "realdmd-color.png",
@@ -60,6 +64,9 @@ MEDIA_SPECS = (
               token="(AudioLaunch)", family=AUDIO_FAMILY),
     MediaSpec("rulesheet", "RuleSheetPath", "rulesheet.pdf", token="(RuleSheet)",
               family=DOC_FAMILY),
+    # The game's title art - usually the source a wheel is derived from, which
+    # is why the wheel falls back to it.
+    MediaSpec("logo", "LogoImagePath", "logo.png", token="(Logo)"),
 )
 
 
@@ -138,6 +145,12 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
 
         resolved[spec.key] = next(
             (path for name in candidates if (path := find(name)) is not None), None)
+
+    # Cross-kind fallbacks, after everything: a kind with no file of its own at
+    # any tier borrows its fallback kind's winner.
+    for spec in MEDIA_SPECS:
+        if spec.fallback_kind and resolved[spec.key] is None:
+            resolved[spec.key] = resolved.get(spec.fallback_kind)
     return resolved
 
 

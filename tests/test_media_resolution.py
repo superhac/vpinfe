@@ -134,6 +134,41 @@ class NewKindTests(unittest.TestCase):
         self.assertEqual(match_media_key("audio.ogg"), "audio")
 
 
+class LogoTests(unittest.TestCase):
+    """logo is its own kind; the wheel borrows it only when it has nothing."""
+
+    def test_logo_resolves_as_its_own_kind(self) -> None:
+        resolved = _resolve(["logo.png"])
+
+        self.assertEqual(resolved["logo"].name, "logo.png")
+
+    def test_a_wheel_less_table_shows_its_logo_in_the_wheel_slot(self) -> None:
+        resolved = _resolve(["logo.png"])
+
+        self.assertEqual(resolved["wheel"].name, "logo.png",
+                         "better than a blank slot, everywhere at once")
+
+    def test_any_real_wheel_outranks_the_logo_fallback(self) -> None:
+        """The fallback sits below every wheel tier - even tier 3."""
+        resolved = _resolve([f"(Logo) {BUILD}.png", "wheel.png"])
+
+        self.assertEqual(resolved["wheel"].name, "wheel.png")
+        self.assertEqual(resolved["logo"].name, f"(Logo) {BUILD}.png")
+
+    def test_the_logo_itself_resolves_through_the_full_chain(self) -> None:
+        resolved = _resolve([f"(Logo) {FOLDER}.png", "logo.png"])
+
+        self.assertEqual(resolved["logo"].name, f"(Logo) {FOLDER}.png")
+
+    def test_logo_png_imports_as_logo_not_wheel(self) -> None:
+        """The alias fix: this is the import-behavior change PAR-12 documents."""
+        from managerui.services.asset_registry import match_media_key
+
+        self.assertEqual(match_media_key("logo.png"), "logo")
+        self.assertEqual(match_media_key(f"(Logo) {FOLDER}.png"), "logo")
+        self.assertEqual(match_media_key("wheel.png"), "wheel")
+
+
 class ImportSideTests(unittest.TestCase):
     def _table(self, tmp, *files):
         root = Path(tmp) / FOLDER

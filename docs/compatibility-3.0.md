@@ -98,6 +98,16 @@ loading-screen video; audiolaunch plays when a table starts.
 circulates for other frontends works here unchanged. Covered by
 `tests/test_media_resolution.py`.
 
+**PAR-12 — `logo` is its own media kind, and the wheel falls back to it.**
+*(machine-checked)* `logo.png` used to import as a wheel; it now imports as the game's
+logo, its own slot with the full chain (token `(Logo)`). A table with a logo and no wheel
+shows the logo wherever the wheel would appear — themes, Manager UI, API — because the
+fallback lives at the bottom of the wheel's resolution, below every real wheel tier. The
+API marks such a wheel `via: "logo"`. Themes gain `LogoImagePath`.
+*Why:* the logo is usually the source a wheel is derived from, so showing it beats a
+blank slot everywhere at once; making it a kind keeps it addressable instead of buried in
+wheel semantics. Covered by `tests/test_media_resolution.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

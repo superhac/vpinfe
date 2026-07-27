@@ -182,8 +182,9 @@ a problem no longer destroys the log of the run that showed it.
 - **Table** — the pinball-machine concept: folder, identity, metadata, media, assets.
 - **Game file** — a launchable artifact for a specific app (`.vpx` today).
 - **Media** — artwork VPinFE shows *about* a table while you browse: playfield, backglass,
-  DMD, wheel, cab, FSS, flyer, rule card, topper, loading video, launch audio, rulesheet,
-  their video variants, audio. This is `common/media_paths.py` and nothing else. Rule card
+  DMD, wheel, logo, cab, FSS, flyer, rule card, topper, loading video, launch audio,
+  rulesheet, their video variants, audio. The logo is the game's title art - usually what a
+  wheel is derived from, which is why a wheel-less table shows its logo in the wheel slot. This is `common/media_paths.py` and nothing else. Rule card
   (apron instruction card image), game flyer (promo art) and rulesheet (a document you
   read) are three different things - keep the words apart.
 - **Asset** — content a table needs to *play* as intended, beyond its game file:

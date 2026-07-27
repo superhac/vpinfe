@@ -39,5 +39,6 @@ class Table:
     LoadingVideoPath: str | None = None
     AudioLaunchPath: str | None = None
     RuleSheetPath: str | None = None
+    LogoImagePath: str | None = None
 
     metaConfig: dict[str, Any] | None = None

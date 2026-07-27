@@ -209,10 +209,12 @@ class MediaEntryLinks(ApiModel):
 
 class MediaEntry(ApiModel):
     """Every kind is listed, present or not, so a client enumerates what is
-    possible instead of guessing from omissions."""
+    possible instead of guessing from omissions. `via` names the kind whose file
+    is standing in - a wheel served by the logo fallback says so."""
 
     present: bool
     file: str | None
+    via: str | None = None
     links: MediaEntryLinks
 
 

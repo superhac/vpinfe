@@ -74,7 +74,8 @@ for _spec in MEDIA_SPECS:
 # Keyword-in-stem fallbacks when a media file is not named canonically.
 # Ordered; realdmd is handled ahead of this table so "dmd" never claims a realdmd file.
 _MEDIA_KEYWORDS: tuple[tuple[tuple[str, ...], str, str | None], ...] = (
-    (("wheel", "logo"), "wheel", None),
+    (("wheel",), "wheel", None),
+    (("logo",), "logo", None),
     (("backglass", "b2s"), "bg", "bg_video"),
     (("dmd",), "dmd", "dmd_video"),
     (("playfield", "table", "pf"), "table", "table_video"),
