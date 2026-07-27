@@ -2,10 +2,10 @@ name: Build VPinFE (Cross-Platform)
 
 on:
   push:
-    branches: [ master, vpinfe-2.0, platform ]
+    branches: [ master, vpinfe-2.0, vpinfe-3.0 ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ master, vpinfe-2.0, platform ]
+    branches: [ master, vpinfe-2.0, vpinfe-3.0 ]
 
 permissions:
   contents: write
