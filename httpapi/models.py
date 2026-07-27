@@ -270,6 +270,7 @@ class DetectedAssetInfo(ApiModel):
     root: str
     size: int
     detail: str
+    preview: str = ""
 
 
 class Analysis(ApiModel):

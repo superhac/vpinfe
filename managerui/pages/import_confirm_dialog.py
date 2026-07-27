@@ -243,6 +243,14 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                         ui.label(_human_size(item.asset.size)).classes("text-xs").style(
                             "color: var(--ink-muted); flex: none;")
 
+                # The author's own words, readable before anything is written.
+                if item.asset.kind == "readme" and item.asset.preview:
+                    with ui.expansion(item.asset.detail or "README").classes("w-full").props(
+                            "dense header-class=text-caption"):
+                        ui.label(item.asset.preview).classes("text-xs w-full").style(
+                            "color: var(--ink-muted); white-space: pre-wrap; "
+                            "font-family: monospace; max-height: 220px; overflow-y: auto;")
+
             for blocked in plan.blocked:
                 with ui.row().classes("items-center gap-2 w-full no-wrap").style(
                         "border-top: 1px solid var(--line); padding: 6px 0; min-width: 0; opacity: 0.55;"):

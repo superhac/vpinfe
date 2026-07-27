@@ -47,6 +47,7 @@ def _asset_to_dict(asset: DetectedAsset) -> dict:
         "root": asset.root,
         "size": asset.size,
         "detail": asset.detail,
+        "preview": asset.preview,
     }
 
 

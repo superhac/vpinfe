@@ -119,6 +119,16 @@ available to callers through the API (`?full=true`), under its own permission sc
 folder finally exports the build you meant instead of all of them. Covered by
 `tests/test_export_bundle.py`.
 
+**PAR-14 — Readme files import, display, and travel with the table.**
+Files named `readme*` (any extension) and `.nfo` used to fall into the import dialog's
+"didn't recognize these" list and were never copied. They're now detected, shown inline in
+the import confirmation so the author's notes are readable before anything is written,
+copied to the table folder root under their original names (on by default), and included
+in the standalone export bundle. Detection is deliberately narrow — never a blanket
+`.txt`, which would misfile `alias.txt` and its kin.
+*Why:* whoever made the table wrote those notes for whoever installs it; now they arrive.
+Covered by `tests/test_asset_upload_services.py` and `tests/test_export_bundle.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

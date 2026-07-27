@@ -14,6 +14,9 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from common.tables.game_files import default_game_file, game_file_names
+from managerui.services.asset_registry import (
+    is_readme,  # noqa: F401  (one matcher, import and export)
+)
 
 # Directories a running game reads, whole. Media is browsing artwork, not part
 # of playing the game, so medias/ is deliberately absent.
@@ -22,12 +25,6 @@ BUNDLE_DIRS = ("pinmame", "music", "serum", "vni", "altsound", "pupvideos")
 # Stem-matched companions of the chosen game file, per the engine's own lookup.
 COMPANION_EXTENSIONS = (".ini", ".vbs", ".directb2s", ".pov", ".scv")
 
-
-def is_readme(name: str) -> bool:
-    """Narrow on purpose: readme* (any extension) and .nfo. Never a blanket
-    .txt - ROM and altsound archives carry alias.txt and its kin."""
-    lower = name.lower()
-    return lower.startswith("readme") or lower.endswith(".nfo")
 
 
 def choose_game_file(table_dir: Path, game_file: str | None = None) -> str | None:

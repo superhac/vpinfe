@@ -207,10 +207,27 @@ class AssetAnalyzerTests(unittest.TestCase):
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:
             zip_path = Path(tmp) / "empty.zip"
-            _make_zip(zip_path, ["readme.txt", "notes.md"])
+            # Genuinely unclaimable names - readme.txt is recognized now.
+            _make_zip(zip_path, ["notes.md", "random.xyz"])
             result = analyze_path(zip_path)
             self.assertEqual(result.assets, ())
             self.assertTrue(result.error)
+
+    def test_readme_files_are_claimed_with_a_preview(self):
+        """The author's notes reach the person installing the table."""
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            zip_path = Path(tmp) / "bundle.zip"
+            _make_zip(zip_path, ["Table X.vpx", "README.txt", "extra.nfo", "alias.txt"])
+            result = analyze_path(zip_path)
+
+        kinds = sorted(a.kind for a in result.assets)
+        self.assertEqual(kinds.count("readme"), 2, "README.txt and extra.nfo")
+        self.assertIn("alias.txt", result.unrecognized,
+                      "a bare .txt never claims as anything")
+        readme = next(a for a in result.assets if a.detail == "README.txt")
+        self.assertEqual(readme.preview, "x" * 16, "preview text extracted best-effort")
 
     def test_dir_source_parity_with_zip(self):
         from pathlib import Path

@@ -7,12 +7,13 @@ import shutil
 import sys
 import tempfile
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 
 from managerui.services.asset_registry import (
     ARCHIVE_EXTENSIONS,
+    is_readme,
     match_media_key,
     spec_for,
 )
@@ -60,6 +61,7 @@ class DetectedAsset:
     media_key: str = ""
     size: int = 0
     detail: str = ""
+    preview: str = ""       # inline text for readme kinds, shown in the confirm dialog
 
 
 @dataclass(frozen=True)
@@ -478,6 +480,15 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
             claimed.add(e.path)
             assets.append(DetectedAsset("ini", "Table INI", (e,), size=e.size, detail=_basename(e.arcname)))
 
+    # 8b. The author's own notes - readme* any extension, and .nfo. Before media,
+    # so a readme.png is the notes image, not wheel art. Narrow by design: a
+    # blanket .txt would misfile alias.txt and its kin.
+    for e in list(unclaimed()):
+        if is_readme(_basename(e.arcname)):
+            claimed.add(e.path)
+            assets.append(DetectedAsset("readme", spec_for("readme").label, (e,),
+                                        size=e.size, detail=_basename(e.arcname)))
+
     # 9. Media
     for e in list(unclaimed()):
         media_key = match_media_key(_basename(e.arcname))
@@ -559,6 +570,30 @@ def _is_rom_suffix(arcname: str) -> bool:
 _INFO_MAX_BYTES = 2 * 1024 * 1024
 
 
+_README_PREVIEW_BYTES = 64 * 1024
+_README_PREVIEW_CHARS = 4000
+
+
+def _readme_preview(source: AssetSource, asset: DetectedAsset) -> str:
+    """The text shown inline in the confirm dialog. Best-effort: an unreadable or
+    binary readme just shows no preview, never blocks the import."""
+    entry = asset.entries[0]
+    if entry.size > _README_PREVIEW_BYTES or entry.arcname.lower().endswith(
+            (".png", ".jpg", ".jpeg", ".webp", ".gif", ".pdf")):
+        return ""
+    with tempfile.TemporaryDirectory() as scratch:
+        dest = Path(scratch) / "readme"
+        try:
+            source.extract_member(entry.path, dest)
+            text = dest.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            return ""
+    text = text.strip()
+    if len(text) > _README_PREVIEW_CHARS:
+        text = text[:_README_PREVIEW_CHARS] + "\n..."
+    return text
+
+
 def _read_bundle_info(source: AssetSource, asset: DetectedAsset) -> dict | None:
     """Extract and parse a bundle's .info; None if oversized, unreadable, or not a JSON dict."""
     import json
@@ -611,6 +646,9 @@ def analyze_path(path: Path) -> AnalysisResult:
 
         # A bundle .info is read up front (it is tiny) so its content can seed the
         # import dialog and be validated before anything is written.
+        assets = [replace(a, preview=_readme_preview(source, a)) if a.kind == "readme" else a
+                  for a in assets]
+
         bundle_info = None
         info_assets = [a for a in assets if a.kind == "table_info"]
         if info_assets:

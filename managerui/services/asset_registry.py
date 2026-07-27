@@ -32,6 +32,13 @@ class AssetSpec:
     allow_multiple: bool
 
 
+def is_readme(name: str) -> bool:
+    """Narrow on purpose: readme* (any extension) and .nfo. Never a blanket
+    .txt - ROM and altsound archives carry alias.txt and its kin."""
+    lower = name.lower()
+    return lower.startswith("readme") or lower.endswith(".nfo")
+
+
 ASSET_SPECS = (
     AssetSpec("table", "Table", "casino", (".vpx",), False, False, False),
     AssetSpec("table_info", "Metadata", "description", (), True, False, False),
@@ -44,6 +51,7 @@ ASSET_SPECS = (
     AssetSpec("pup_pack", "PUP Pack", "video_library", (), True, False, False),
     AssetSpec("music", "Music", "music_note", (), True, False, False),
     AssetSpec("media", "Media", "image", tuple(sorted(MEDIA_EXTENSIONS)), True, False, True),
+    AssetSpec("readme", "Author's Notes", "description", (), True, False, True),
 )
 
 _SPECS_BY_KEY = {spec.key: spec for spec in ASSET_SPECS}

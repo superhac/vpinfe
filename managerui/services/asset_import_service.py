@@ -135,6 +135,9 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
         return PlannedItem(asset, str(base / "pupvideos"), "extract_tree"), None
     if kind == "music":
         return PlannedItem(asset, str(base / "music"), "extract_tree"), None
+    if kind == "readme":
+        name = _safe_upload_name(_basename(asset.entries[0].arcname))
+        return PlannedItem(asset, str(base / name), "copy"), None
     if kind == "media":
         filename = _MEDIA_FILENAMES.get(asset.media_key, asset.media_key)
         return PlannedItem(asset, str(base / "medias" / filename), "replace_media"), None
