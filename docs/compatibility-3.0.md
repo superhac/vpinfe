@@ -141,6 +141,26 @@ with a `manufacturers.json` alias map for the exceptions.
 had nothing to render for it. A shared root exists because a manufacturer logo is neither
 per-table nor per-theme. Covered by `tests/test_shared_assets.py`.
 
+**PAR-16 — Addon folders are detected whatever their casing.**
+The library scan matched `pupvideos`, `serum`, `vni`, `music` and `medias` against the
+folder name exactly as stored, so a folder named `PUPVideos` — the casing PinUP Popper
+itself writes — was not detected. The API had always lowercased before comparing, so the
+same table reported a PUP pack there and none in the Manager UI and themes. The scan now
+folds case too. Tables whose folders are not all-lowercase will start reporting addons
+they always had (`pupPackExists`, `altColorExists`, `vniExists`, `altSoundExists`).
+*Why:* one table cannot have two answers, and the scan was already case-insensitive about
+`.directb2s` and `.ini` three lines away. Covered by `tests/test_media_resolution.py`.
+
+**PAR-17 — Claiming user media follows the resolution chain.**
+`--claim-user-media` only ever looked for the fixed canonical name in `medias/`, so a
+hand-placed `wheel.jpg`, a spec-named `(Wheel) <folder>.png`, or a file at the folder root
+was never claimed — and therefore stayed replaceable by the next media download. It now
+claims whatever actually resolves for each kind, which is the same file the frontend
+displays.
+*Why:* the resolution chain grew in 3.0 (PAR-09/PAR-10) and the claim path didn't follow
+it, which made the feature silently miss the files it exists to protect. Covered by
+`tests/test_media_resolution.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

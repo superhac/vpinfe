@@ -62,7 +62,10 @@ class TableParser:
                 with os.scandir(table_dir) as entries:
                     for entry in entries:
                         if entry.is_dir():
-                            table_subdirs.add(entry.name)
+                            # Folded like the extension checks below, and like the
+                            # API's own listing: a folder someone named PUPVideos
+                            # holds a PUP pack whatever the shift key was doing.
+                            table_subdirs.add(entry.name.lower())
                             continue
                         table_contents.add(entry.name)
             except OSError:

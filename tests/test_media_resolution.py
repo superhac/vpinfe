@@ -263,6 +263,139 @@ class WheelSetTests(unittest.TestCase):
                              ["colorful", "logo", "tarcisio"])
 
 
+class SpecCopyTests(unittest.TestCase):
+    def test_a_table_type_copy_keeps_every_field_but_the_key(self) -> None:
+        """It used to be rebuilt from four fields, so the copies quietly reported
+        no token, no fallback, no set support, and the image family for videos."""
+        from common.media_paths import MEDIA_SPECS, specs_for_table_type
+
+        # One copy per spec, in order, so they pair up exactly.
+        for original, copy in zip(MEDIA_SPECS, specs_for_table_type("fss"), strict=True):
+            self.assertEqual(copy.token, original.token, original.key)
+            self.assertEqual(copy.family, original.family, original.key)
+            self.assertEqual(copy.fallback_kind, original.fallback_kind, original.key)
+            self.assertEqual(copy.supports_sets, original.supports_sets, original.key)
+            self.assertEqual(copy.attr, original.attr, original.key)
+
+    def test_the_fss_key_collision_stays_harmless(self) -> None:
+        """Under table type fss the playfield spec is renamed onto the fss key, so
+        two specs share it. Benign only because both resolve the same filename -
+        worth pinning, since a divergence would be silent."""
+        from common.media_paths import media_filename_map, specs_for_table_type
+
+        keyed_fss = [spec for spec in specs_for_table_type("fss") if spec.key == "fss"]
+
+        self.assertEqual(len(keyed_fss), 2)
+        self.assertEqual({spec.filename("fss") for spec in keyed_fss}, {"fss.png"})
+        self.assertEqual(media_filename_map("fss")["fss"], "fss.png")
+
+    def test_the_video_copies_keep_the_video_family(self) -> None:
+        from common.media_paths import VIDEO_FAMILY, specs_for_table_type
+
+        by_key = {spec.key: spec for spec in specs_for_table_type("table")}
+
+        self.assertEqual(by_key["table_video"].family, VIDEO_FAMILY)
+        self.assertEqual(by_key["dmd_video"].family, VIDEO_FAMILY)
+
+
+class ParserCasingTests(unittest.TestCase):
+    def test_addon_folders_are_found_whatever_their_casing(self) -> None:
+        """PUPVideos is the casing PinUP Popper writes, and the scanner used to
+        miss it while the API found it - the same table, two answers."""
+        import json
+
+        from common.tables.tableparser import TableParser
+
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp) / FOLDER
+            (root / "medias").mkdir(parents=True)
+            (root / f"{BUILD}.vpx").write_bytes(b"vpx")
+            for name in ("PUPVideos", "Serum", "VNI", "Music"):
+                (root / name).mkdir()
+            (root / f"{FOLDER}.info").write_text(json.dumps({
+                "Info": {"Title": "Cactus Canyon"},
+                "VPXFile": {"filename": f"{BUILD}.vpx"},
+            }), encoding="utf-8")
+
+            table = TableParser(tmp).getAllTables()[0]
+
+        self.assertTrue(table.pupPackExists, "PUPVideos holds a PUP pack")
+        self.assertTrue(table.altColorExists)
+        self.assertTrue(table.vniExists)
+        self.assertTrue(table.musicExists)
+
+
+class ClaimTests(unittest.TestCase):
+    """--claim-user-media marks media as the user's so a refresh cannot replace it."""
+
+    def _table(self, tmp, *files):
+        import json
+
+        root = Path(tmp) / FOLDER
+        (root / "medias").mkdir(parents=True)
+        for rel in files:
+            path = root / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b"art")
+        (root / f"{FOLDER}.info").write_text(json.dumps({
+            "Info": {"Title": "Cactus Canyon"},
+            "VPXFile": {"filename": f"{BUILD}.vpx"},
+        }), encoding="utf-8")
+        return root
+
+    def _claim(self, root):
+        from types import SimpleNamespace
+
+        from common.tables.metaconfig import MetaConfig
+        from common.tables.metadata_service import claim_media_for_table
+
+        table = SimpleNamespace(fullPathTable=str(root), tableDirName=FOLDER)
+        count = claim_media_for_table(table, "table", log=lambda _m: None)
+        return count, MetaConfig(str(root / f"{FOLDER}.info")).getConfig().get("Medias", {})
+
+    def test_a_canonical_file_is_claimed_as_before(self) -> None:
+        with TemporaryDirectory() as tmp:
+            count, medias = self._claim(self._table(tmp, "medias/wheel.png"))
+
+        self.assertEqual(count, 1)
+        self.assertEqual(medias["wheel"]["Source"], "user")
+
+    def test_a_hand_placed_jpg_is_claimed(self) -> None:
+        """The resolution chain accepts the whole family; claiming has to as well."""
+        with TemporaryDirectory() as tmp:
+            _count, medias = self._claim(self._table(tmp, "medias/wheel.jpg"))
+
+        self.assertEqual(medias["wheel"]["Source"], "user")
+        self.assertEqual(medias["wheel"]["Path"], "wheel.jpg")
+
+    def test_a_spec_named_file_is_claimed(self) -> None:
+        with TemporaryDirectory() as tmp:
+            _count, medias = self._claim(
+                self._table(tmp, f"medias/(Wheel) {FOLDER}.png"))
+
+        self.assertEqual(medias["wheel"]["Source"], "user")
+        self.assertEqual(medias["wheel"]["Path"], f"(Wheel) {FOLDER}.png")
+
+    def test_a_file_at_the_folder_root_is_claimed(self) -> None:
+        with TemporaryDirectory() as tmp:
+            _count, medias = self._claim(self._table(tmp, "bg.png"))
+
+        self.assertEqual(medias["bg"]["Source"], "user")
+
+    def test_nothing_present_claims_nothing(self) -> None:
+        with TemporaryDirectory() as tmp:
+            count, medias = self._claim(self._table(tmp))
+
+        self.assertEqual(count, 0)
+        self.assertEqual(medias, {})
+
+    def test_audio_is_still_left_alone(self) -> None:
+        with TemporaryDirectory() as tmp:
+            _count, medias = self._claim(self._table(tmp, "medias/audio.mp3"))
+
+        self.assertNotIn("audio", medias)
+
+
 class ImportSideTests(unittest.TestCase):
     def _table(self, tmp, *files):
         root = Path(tmp) / FOLDER

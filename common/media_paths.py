@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 # Extension families, ordered: resolution tries them in order and the first hit
@@ -73,10 +73,16 @@ MEDIA_SPECS = (
 
 
 def specs_for_table_type(table_type: str = "table") -> list[MediaSpec]:
+    """The spec list with the playfield keys renamed for this table type.
+
+    Only the key changes: replace() copies the rest, so a spec from here still
+    carries its token, extension family, fallback and set support. Rebuilding one
+    field by field silently handed back defaults for everything not passed.
+    """
     specs: list[MediaSpec] = []
     for spec in MEDIA_SPECS:
         key = table_type if spec.key == "table" else f"{table_type}_video" if spec.key == "table_video" else spec.key
-        specs.append(MediaSpec(key, spec.attr, spec.filename_template, spec.asset_group))
+        specs.append(replace(spec, key=key))
     return specs
 
 

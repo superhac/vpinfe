@@ -93,7 +93,11 @@ class VPSMediaDownloader:
         process("realdmd_color", table_media, "realdmd_color", table.realDMDColorImagePath, str(default_media_path(table.fullPathTable, "realdmd_color", self.tabletype)))
         process("flyer", table_media, "flyer", table.FlyerImagePath, str(default_media_path(table.fullPathTable, "flyer", self.tabletype)))
         process(self.tabletype, table_media.get(self.tableresolution), self.tabletype, table.TableImagePath, str(default_media_path(table.fullPathTable, self.tabletype, self.tabletype)))
-        process("bg_video", table_media.get(self.tablevideoresolution), "bg_video", table.BGVideoPath, str(default_media_path(table.fullPathTable, "bg_video", self.tabletype)))
+        # Videos, and only the ones the index actually carries. There has never been
+        # a bg_video at any resolution, so the backglass video is yours to supply.
+        # Nor is there an fss_video: under table type fss the playfield video is
+        # simply not offered, and asking would quietly fetch nothing.
         process("dmd_video", table_media.get(self.tablevideoresolution), "dmd_video", table.DMDVideoPath, str(default_media_path(table.fullPathTable, "dmd_video", self.tabletype)))
-        process(f"{self.tabletype}_video", table_media.get(self.tablevideoresolution), f"{self.tabletype}_video", table.TableVideoPath, str(default_media_path(table.fullPathTable, f"{self.tabletype}_video", self.tabletype)))
+        if self.tabletype == "table":
+            process("table_video", table_media.get(self.tablevideoresolution), "table_video", table.TableVideoPath, str(default_media_path(table.fullPathTable, "table_video", self.tabletype)))
         process("audio", table_media, "audio", table.AudioPath, str(default_media_path(table.fullPathTable, "audio", self.tabletype)))

@@ -6,7 +6,7 @@ import os
 from common.config_access import MediaConfig, SettingsConfig
 from common.iniconfig import IniConfig
 from common.jobs import JobReporter
-from common.media_paths import media_filename_map
+from common.media_paths import MEDIA_SPECS, resolve_media_files
 from common.tables.metaconfig import MetaConfig
 from common.paths import get_ini_config
 from common.tables.standalonescripts import StandaloneScripts
@@ -139,25 +139,45 @@ def claim_media_for_table(table, tabletype, log=None):
         log(f"  Skipping {table.tableDirName}: no .info file")
         return 0
 
-    media_files = {
-        key: filename
-        for key, filename in media_filename_map(tabletype).items()
-        if key != "audio" and (key != "fss" or tabletype == "fss")
-    }
+    # Claim whatever actually resolves, not just the canonical filename. Asking the
+    # resolver is the only way a hand-placed wheel.jpg, a spec-named
+    # "(Wheel) <build>.png" or a file at the folder root gets claimed - checking
+    # medias/wheel.png alone left every one of them unclaimed, and therefore still
+    # replaceable by the next media download.
+    table_dir = table.fullPathTable
+    medias_dir = os.path.join(table_dir, "medias")
+    try:
+        table_contents = {entry.name for entry in os.scandir(table_dir) if entry.is_file()}
+    except OSError:
+        table_contents = set()
+    medias_contents = set()
+    for root, _dirs, files in os.walk(medias_dir):
+        rel = os.path.relpath(root, medias_dir)
+        prefix = "" if rel == "." else f"{rel.replace(os.sep, '/')}/"
+        for filename in files:
+            medias_contents.add(f"{prefix}{filename}")
 
-    medias_dir = os.path.join(table.fullPathTable, "medias")
+    resolved = resolve_media_files(table_dir, table_contents, medias_contents, tabletype)
+
     meta = MetaConfig(info_path)
     claimed = 0
 
-    for media_key, filename in media_files.items():
-        filepath = os.path.join(medias_dir, filename)
-        if os.path.exists(filepath):
-            existing = meta.getMedia(media_key)
-            if existing and existing.get("Source") == "user":
-                continue
-            meta.addMedia(media_key, "user", filepath, "")
-            log(f"  Claimed {media_key} ({filename}) as user media")
-            claimed += 1
+    for spec in MEDIA_SPECS:
+        if spec.key == "audio" or (spec.key == "fss" and tabletype != "fss"):
+            continue
+        path = resolved.get(spec.key)
+        if path is None:
+            continue
+        # The key the download path checks before it skips a kind, so a claim here
+        # is a claim it will honour.
+        media_key = (tabletype if spec.key == "table"
+                     else f"{tabletype}_video" if spec.key == "table_video" else spec.key)
+        existing = meta.getMedia(media_key)
+        if existing and existing.get("Source") == "user":
+            continue
+        meta.addMedia(media_key, "user", str(path), "")
+        log(f"  Claimed {media_key} ({path.name}) as user media")
+        claimed += 1
 
     return claimed
 
