@@ -21,7 +21,7 @@ jobs:
           python-version: '3.14'
 
       - name: Install ruff
-        run: pip install ruff
+        run: pip install -r requirements-dev.txt
 
       # Reports the existing debt without failing. See docs/conventions.md.
       - name: Lint the whole tree (advisory)

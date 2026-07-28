@@ -252,9 +252,11 @@ Two table identifiers exist and are not interchangeable:
 ## Linting
 
 `ruff` handles formatting-adjacent rules, import order, PEP 8 naming and common bugs.
-Configuration is in `pyproject.toml`.
+Configuration is in `pyproject.toml`; it installs from `requirements-dev.txt`.
 
 ```bash
+pip install -r requirements-dev.txt
+
 ruff check .          # what the CI advisory run reports
 ruff check . --fix    # apply the safe fixes
 ```
