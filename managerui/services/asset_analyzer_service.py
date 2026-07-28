@@ -35,6 +35,9 @@ _CHUNK = 1024 * 1024
 
 _JUNK_COMPONENTS = {"__macosx", ".ds_store", "thumbs.db", "desktop.ini"}
 _ROM_SUFFIXES = {".bin", ".rom", ".cpu", ".snd", ".dat"}
+# Serum ships in two formats; .cROMc is as common as .cRZ. Read from the registry so the
+# archive path and the bare-file path cannot drift - they had already drifted once.
+_SERUM_SUFFIXES = frozenset(spec_for("altcolor_serum").extensions)
 _VIDEO_SUFFIXES = {".mp4", ".avi", ".mkv", ".webm"}
 _AUDIO_SUFFIXES = {".mp3", ".ogg", ".wav"}
 _ALTSOUND_MARKERS = {"altsound.csv", "g-sound.csv"}
@@ -445,7 +448,7 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
 
     # 6. AltColor
     for e in list(unclaimed()):
-        if _suffix(e.arcname) == ".crz":
+        if _suffix(e.arcname) in _SERUM_SUFFIXES:
             claimed.add(e.path)
             assets.append(DetectedAsset("altcolor_serum", "Serum Color", (e,), size=e.size, detail=_basename(e.arcname)))
     vni_by_dir: dict[str, list[SourceEntry]] = {}
@@ -563,8 +566,15 @@ def _is_rom_suffix(arcname: str) -> bool:
     suffix = _suffix(arcname)
     if suffix in _ROM_SUFFIXES:
         return True
+    # Media first: .mp3 and .mp4 would otherwise read as chip names below, and a flat
+    # archive of audio would be claimed as a ROM.
+    if suffix in _AUDIO_SUFFIXES or suffix in _VIDEO_SUFFIXES:
+        return False
+    # PinMAME chip names run to three characters - lahsnd.u21, lahdispa.106, lahcpua.112.
+    # A two-character cap accepted .u7 and rejected its siblings, and since the caller
+    # requires every member to match, one rejection sank the whole archive.
     ext = suffix.lstrip(".")
-    return 1 <= len(ext) <= 2 and ext[-1:].isdigit()
+    return 1 <= len(ext) <= 3 and ext[-1:].isdigit()
 
 
 _INFO_MAX_BYTES = 2 * 1024 * 1024

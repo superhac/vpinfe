@@ -45,7 +45,7 @@ ASSET_SPECS = (
     AssetSpec("backglass", "Backglass", "wallpaper", (".directb2s",), True, False, False),
     AssetSpec("ini", "Table INI", "tune", (".ini",), True, False, False),
     AssetSpec("rom", "ROM", "memory", (), True, False, True),
-    AssetSpec("altcolor_serum", "Serum Color", "palette", (".crz",), True, True, True),
+    AssetSpec("altcolor_serum", "Serum Color", "palette", (".crz", ".cromc"), True, True, True),
     AssetSpec("altcolor_vni", "VNI/PAL Color", "palette", (".vni", ".pal", ".pac"), True, True, True),
     AssetSpec("altsound", "AltSound", "volume_up", (), True, True, False),
     AssetSpec("pup_pack", "PUP Pack", "video_library", (), True, False, False),

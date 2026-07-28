@@ -35,6 +35,28 @@ def _kinds(result):
     return sorted(asset.kind for asset in result.assets)
 
 
+class RomArchiveTests(unittest.TestCase):
+    def test_pinmame_rom_zip_is_recognized(self):
+        """Chip names run to three characters. A two-character cap accepted .u7 and
+        rejected .u21/.106/.112, and since every member must match, one rejection sank
+        the whole archive."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "lah_112.zip")
+            _make_zip(path, ["lahsnd.u7", "lahsnd.u21", "lahsnd.u17",
+                             "lahdispa.106", "lahcpua.112"])
+            self.assertEqual(_kinds(analyze_path(path)), ["rom"])
+
+    def test_flat_audio_archive_is_not_a_rom(self):
+        """The three-character rule must not swallow .mp3: an altsound pack is a flat
+        archive of audio, and would otherwise be claimed as a ROM."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "sounds.zip")
+            _make_zip(path, ["1.mp3", "2.mp3", "3.mp3"])
+            self.assertNotIn("rom", _kinds(analyze_path(path)))
+
+
 class AssetRegistryTests(unittest.TestCase):
     def test_classify_bare_extension(self):
         cases = [
@@ -42,6 +64,7 @@ class AssetRegistryTests(unittest.TestCase):
             ("Medieval Madness.directb2s", "backglass"),
             ("mm_105b.crz", "altcolor_serum"),
             ("mm_105b.CRZ", "altcolor_serum"),
+            ("mm_105b.cROMc", "altcolor_serum"),   # Serum's other format
             ("mm_105b.vni", "altcolor_vni"),
             ("mm_105b.PAL", "altcolor_vni"),
             ("mm_105b.pac", "altcolor_vni"),
