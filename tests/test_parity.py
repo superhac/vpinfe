@@ -26,8 +26,8 @@ LEDGER_ALLOWS = {
                "added": "notify_table_selected"},
     # New media kinds add theme-payload keys. Additive only: every key master
     # had must still be present and equal.
-    "PAR-11": {"RuleCardImagePath", "TopperPath", "LoadingVideoPath",
-               "AudioLaunchPath", "RuleSheetPath"},
+    "PAR-11": {"RuleCardImagePath", "TopperPath", "TopperVideoPath",
+               "LoadingVideoPath", "AudioLaunchPath", "RuleSheetPath"},
     "PAR-12": {"LogoImagePath"},
     "PAR-15": {"ManufacturerLogoPath"},
 }

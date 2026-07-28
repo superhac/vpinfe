@@ -88,12 +88,20 @@ shadow it.
 *Why:* the on-disk name should tell the truth; browsers sniffed past it, other tools
 won't. Covered by `tests/test_media_resolution.py`.
 
-**PAR-11 — Five new media kinds: rulecard, topper, loading, audiolaunch, rulesheet.**
-*(machine-checked)* Themes gain five payload fields (`RuleCardImagePath`, `TopperPath`,
-`LoadingVideoPath`, `AudioLaunchPath`, `RuleSheetPath`); every existing field is unchanged.
-The rule card is the apron instruction card image, distinct from the flyer (promo art) and
-the rulesheet (a document you read); topper accepts image or video; loading is the
-loading-screen video; audiolaunch plays when a table starts.
+**PAR-11 — Six new media kinds: rulecard, topper, topper_video, loading, audiolaunch,
+rulesheet.**
+*(machine-checked)* Themes gain six payload fields (`RuleCardImagePath`, `TopperPath`,
+`TopperVideoPath`, `LoadingVideoPath`, `AudioLaunchPath`, `RuleSheetPath`); every existing
+field is unchanged. The rule card is the apron instruction card image, distinct from the
+flyer (promo art) and the rulesheet (a document you read); loading is the loading-screen
+video; audiolaunch plays when a table starts.
+
+Topper is two kinds, not one with a mixed extension family. `bg`, `dmd` and `table` each
+split image and video into separate specs sharing a token, and the resolver is built that
+way — the token names the kind, the extension family picks image or video. Topper was the
+exception, so `topper.png` and `topper.mp4` collapsed onto one key and a cabinet could
+hold a still or a video, never both with the video preferred. It now mirrors the others:
+`(Topper) x.png` resolves to `topper`, `(Topper) x.mp4` to `topper_video`.
 *Why:* the spec names these and tools ship them; adopting the tokens means media that
 circulates for other frontends works here unchanged. Covered by
 `tests/test_media_resolution.py`.

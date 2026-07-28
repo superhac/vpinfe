@@ -58,8 +58,9 @@ MEDIA_SPECS = (
     # The 3.0 additions - spec tokens except rulesheet, which the spec keeps
     # outside its media scheme and we bring in so it gets the chain.
     MediaSpec("rulecard", "RuleCardImagePath", "rulecard.png", token="(GameHelp)"),
-    MediaSpec("topper", "TopperPath", "topper.png", token="(Topper)",
-              family=(".png", ".jpg", ".mp4")),
+    MediaSpec("topper", "TopperPath", "topper.png", token="(Topper)"),
+    MediaSpec("topper_video", "TopperVideoPath", "topper.mp4", token="(Topper)",
+              family=VIDEO_FAMILY),
     MediaSpec("loading", "LoadingVideoPath", "loading.mp4", token="(Loading)",
               family=VIDEO_FAMILY),
     MediaSpec("audiolaunch", "AudioLaunchPath", "audiolaunch.mp3",

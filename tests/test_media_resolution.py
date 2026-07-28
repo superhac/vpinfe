@@ -114,10 +114,14 @@ class NewKindTests(unittest.TestCase):
                            ("rulesheet", "rulesheet.pdf")):
             self.assertEqual(resolved[kind].name, name)
 
-    def test_topper_accepts_video_in_its_mixed_family(self) -> None:
+    def test_topper_video_is_its_own_kind(self) -> None:
+        """Topper mirrors bg/dmd/table: the token names the kind, the extension family
+        picks image or video. One mixed kind would mean a cabinet could hold a still or
+        a video, never both with the video preferred."""
         resolved = _resolve(["topper.mp4"])
 
-        self.assertEqual(resolved["topper"].name, "topper.mp4")
+        self.assertIsNone(resolved["topper"])
+        self.assertEqual(resolved["topper_video"].name, "topper.mp4")
 
     def test_a_rulesheet_can_be_markdown(self) -> None:
         resolved = _resolve([f"(RuleSheet) {FOLDER}.md"])
@@ -127,7 +131,8 @@ class NewKindTests(unittest.TestCase):
     def test_spec_named_new_kinds_import_by_token(self) -> None:
         from managerui.services.asset_registry import match_media_key
 
-        self.assertEqual(match_media_key(f"(Topper) {FOLDER}.mp4"), "topper")
+        self.assertEqual(match_media_key(f"(Topper) {FOLDER}.mp4"), "topper_video")
+        self.assertEqual(match_media_key(f"(Topper) {FOLDER}.png"), "topper")
         self.assertEqual(match_media_key(f"(GameHelp) {FOLDER}.png"), "rulecard")
         self.assertEqual(match_media_key("rulesheet.pdf"), "rulesheet")
         self.assertEqual(match_media_key(f"(Loading) {FOLDER}.mp4"), "loading")
