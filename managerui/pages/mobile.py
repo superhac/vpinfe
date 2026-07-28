@@ -114,7 +114,6 @@ def _send_table_to_device(
     exclude_ini=True,
     copy_masked_tableini_as_default=False,
     masked_tableini_mask='',
-    everything=False,
 ):
     """Send all files in a table folder to the mobile device via its HTTP API.
 
@@ -172,30 +171,27 @@ def _send_table_to_device(
         if root_vpx_files:
             primary_vpx_base_name = os.path.splitext(root_vpx_files[0])[0]
 
-    # The standalone bundle for the table's game file, unless the caller asked
-    # for the whole folder - the same answer the VPXZ download gives.
+    # The standalone bundle for the table's game file - the same answer the VPXZ
+    # download gives. Whole-folder export is API-only, under its own scope.
     from managerui.services.export_bundle import bundle_paths, prune_info
-    everything = _to_bool(everything)
-    allowed = None
     pruned_info_path = None
-    if not everything:
-        contents = list(bundle_paths(Path(table_path), everything=False))
-        allowed = {arcname.replace(os.sep, '/') for _, arcname in contents}
-        bundled_names = {os.path.basename(a) for a in allowed}
-        info_name = f'{table_dir_name}.info'
-        if info_name in bundled_names:
-            source = os.path.join(table_path, info_name)
-            try:
-                import tempfile as _tempfile
-                with open(source, encoding='utf-8', errors='replace') as fh:
-                    pruned = prune_info(fh.read(), bundled_names)
-                handle = _tempfile.NamedTemporaryFile('w', suffix='.info',
-                                                      delete=False, encoding='utf-8')
-                handle.write(pruned)
-                handle.close()
-                pruned_info_path = handle.name
-            except OSError:
-                pruned_info_path = None
+    contents = list(bundle_paths(Path(table_path), everything=False))
+    allowed = {arcname.replace(os.sep, '/') for _, arcname in contents}
+    bundled_names = {os.path.basename(a) for a in allowed}
+    info_name = f'{table_dir_name}.info'
+    if info_name in bundled_names:
+        source = os.path.join(table_path, info_name)
+        try:
+            import tempfile as _tempfile
+            with open(source, encoding='utf-8', errors='replace') as fh:
+                pruned = prune_info(fh.read(), bundled_names)
+            handle = _tempfile.NamedTemporaryFile('w', suffix='.info',
+                                                  delete=False, encoding='utf-8')
+            handle.write(pruned)
+            handle.close()
+            pruned_info_path = handle.name
+        except OSError:
+            pruned_info_path = None
 
     def _in_bundle(dirpath, fname):
         if allowed is None:
@@ -620,7 +616,7 @@ def _build_web_send_panel():
         except Exception as e:
             _safe_notify(f'Could not connect: {e}', type='negative')
 
-    async def _send_single_table(host, port, name, exclude_ini, masked_ini_copy_enabled, masked_ini_mask, everything=False):
+    async def _send_single_table(host, port, name, exclude_ini, masked_ini_copy_enabled, masked_ini_mask):
         """Send a single table with progress dialog. Returns True on success."""
         # Progress dialog
         with ui.dialog() as dlg, ui.card().classes('p-6').style('min-width: 400px; background: var(--surface) !important;'):
@@ -651,7 +647,6 @@ def _build_web_send_panel():
                     exclude_ini=exclude_ini,
                     copy_masked_tableini_as_default=masked_ini_copy_enabled,
                     masked_tableini_mask=masked_ini_mask,
-                    everything=everything,
                 )
                 state['done'] = True
             except Exception as ex:
