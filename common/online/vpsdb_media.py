@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 from pathlib import Path
@@ -31,6 +32,31 @@ class VPSMediaDownloader:
         except requests.RequestException as exc:
             logger.warning("Failed to download %s for table %s: %s", filename, table_id, exc)
 
+    def local_md5(self, path) -> str:
+        """The file's own hash, or "" when it cannot be read."""
+        try:
+            with open(path, "rb") as handle:
+                digest = hashlib.md5()
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+                return digest.hexdigest()
+        except OSError:
+            logger.debug("Could not hash %s", path, exc_info=True)
+            return ""
+
+    def is_ours(self, path, remote_md5) -> bool:
+        """Whether a file on disk is the one vpinmediadb publishes.
+
+        Decided by comparing hashes, not by whether we have a ledger entry for it.
+        Absence proves nothing - a copied table folder, a regenerated .info or media
+        fetched with another tool all leave vpinmediadb art with no record - and
+        treating "no entry" as "the user's" would freeze that art forever with no
+        way for anyone to notice.
+
+        No remote hash means we cannot prove ownership, so the answer is no.
+        """
+        return bool(remote_md5) and self.local_md5(path) == remote_md5
+
     def download_media(self, table_id, metadata, key, filename, default_filename, meta_config=None, media_type=None):
         if not metadata or key not in metadata:
             return None
@@ -39,18 +65,12 @@ class VPSMediaDownloader:
         actual_path = filename if self.file_exists(filename) else (default_filename if self.file_exists(default_filename) else None)
 
         if actual_path:
-            if meta_config and media_type and remote_md5:
-                existing = meta_config.getMedia(media_type)
-                if existing and existing.get("Source") == "vpinmediadb":
-                    stored_md5 = existing.get("MD5Hash", "")
-                    if stored_md5 and stored_md5 != remote_md5:
-                        logger.info(
-                            "MD5 changed for %s (%s -> %s), re-downloading",
-                            media_type,
-                            stored_md5,
-                            remote_md5,
-                        )
-                        self.download_media_file(table_id, metadata[key], actual_path)
+            if not self.is_ours(actual_path, remote_md5):
+                # Either the user's own artwork, or a newer copy of ours they replaced.
+                # Both mean hands off, and neither should be recorded as ours.
+                logger.debug("Leaving %s alone: not the file vpinmediadb publishes", actual_path)
+                return None
+            # Ours and already current - the hashes match, so there is nothing to fetch.
             return actual_path, remote_md5
 
         self.download_media_file(table_id, metadata[key], default_filename)
@@ -67,23 +87,16 @@ class VPSMediaDownloader:
         medias_dir = os.path.join(table.fullPathTable, "medias")
         os.makedirs(medias_dir, exist_ok=True)
 
-        def is_user_media(media_type):
-            if not meta_config:
-                return False
-            existing = meta_config.getMedia(media_type)
-            return existing is not None and existing.get("Source") != "vpinmediadb"
-
         def record(media_type, result):
+            """Only files we actually placed. download_media returns None for anything
+            it declined to touch, so a user's artwork is never claimed as ours."""
             if result and meta_config:
                 path, md5hash = result
                 meta_config.addMedia(media_type, "vpinmediadb", path, md5hash)
 
         def process(media_type, metadata, key, filename, default_filename):
-            if is_user_media(media_type):
-                logger.debug("Skipping %s: user-provided media", media_type)
-                return
-            result = self.download_media(table_id, metadata, key, filename, default_filename, meta_config, media_type)
-            record(media_type, result)
+            record(media_type, self.download_media(table_id, metadata, key, filename,
+                                                   default_filename, meta_config, media_type))
 
         process("bg", table_media.get("1k"), "bg", table.BGImagePath, str(default_media_path(table.fullPathTable, "bg", self.tabletype)))
         process("dmd", table_media.get("1k"), "dmd", table.DMDImagePath, str(default_media_path(table.fullPathTable, "dmd", self.tabletype)))
