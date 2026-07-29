@@ -57,6 +57,39 @@ class RomArchiveTests(unittest.TestCase):
             self.assertNotIn("rom", _kinds(analyze_path(path)))
 
 
+class PatchAssetTests(unittest.TestCase):
+    def test_dif_is_claimed_as_a_patch(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "mod.zip")
+            _make_zip(path, ["CactusCanyon.dif", "CactusCanyon.ini"])
+            self.assertEqual(_kinds(analyze_path(path)), ["ini", "patch"])
+
+    def test_patch_needs_a_table_to_apply_to(self):
+        """A .dif is a delta against one exact base. Without a table there is nothing
+        to patch, and applying it to the wrong one corrupts rather than errors."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "mod.zip")
+            _make_zip(path, ["CactusCanyon.dif"])
+            plan = build_import_plan(analyze_path(path), table_path=tmp)
+            self.assertFalse(plan.items)
+            self.assertTrue(any("base table" in b.reason for b in plan.blocked))
+
+    def test_patch_writes_beside_the_base_never_over_it(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "Table.vpx").write_bytes(b"x" * 64)
+            path = os.path.join(tmp, "mod.zip")
+            _make_zip(path, ["CactusCanyon.dif"])
+            plan = build_import_plan(analyze_path(path), table_path=tmp)
+            self.assertEqual([i.action for i in plan.items], ["apply_patch"])
+            dest = Path(plan.items[0].destination)
+            self.assertTrue(dest.name.endswith("[patched].vpx"))
+            self.assertNotEqual(dest.name, "Table.vpx")
+
+
 class AssetRegistryTests(unittest.TestCase):
     def test_classify_bare_extension(self):
         cases = [

@@ -38,7 +38,8 @@ _MEDIA_FILENAMES = media_filename_map("table")
 class PlannedItem:
     asset: DetectedAsset
     destination: str        # absolute path (file target, or base dir for tree kinds)
-    action: str             # replace_vpx | replace_b2s | copy | zip_rom | extract_tree | replace_media
+    action: str             # replace_vpx | replace_b2s | copy | zip_rom | extract_tree
+                            # | replace_media | apply_patch | write_info
     default_enabled: bool = True
 
 
@@ -138,6 +139,15 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
     if kind == "readme":
         name = _safe_upload_name(_basename(asset.entries[0].arcname))
         return PlannedItem(asset, str(base / name), "copy"), None
+    if kind == "patch":
+        # The result is a NEW table beside the original. Never replace: re-applying, or
+        # taking a later patch, needs the untouched base, and the base may be gone
+        # upstream by then.
+        if not vpx_stem:
+            return None, BlockedItem(asset, "No table to patch; import the base table first")
+        name = Path(_basename(asset.entries[0].arcname)).stem
+        dest = base / f"{_safe_upload_name(name)} [patched].vpx"
+        return PlannedItem(asset, str(dest), "apply_patch"), None
     if kind == "media":
         filename = _MEDIA_FILENAMES.get(asset.media_key, asset.media_key)
         return PlannedItem(asset, str(base / "medias" / filename), "replace_media"), None
@@ -463,6 +473,48 @@ def _import_media(source, asset: DetectedAsset, table_path: Path) -> None:
         scratch.unlink(missing_ok=True)
 
 
+def _apply_patch(source, asset: DetectedAsset, base: Path, dest: Path) -> None:
+    """Apply a .dif to the table already in this folder, writing a new .vpx beside it.
+
+    The base is chosen by size: a patch is built against the real table, and a folder can
+    hold small helper .vpx files. Getting this wrong produces a corrupt result rather than
+    an error, so the base's hash is recorded for whoever has to work out what happened.
+    """
+    from common.jdiffpatch import PatchError, apply_patch
+
+    candidates = sorted(base.glob("*.vpx"), key=lambda p: p.stat().st_size, reverse=True)
+    candidates = [c for c in candidates if c != dest]
+    if not candidates:
+        raise ValueError("No table in this folder to patch")
+    original = candidates[0]
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".dif") as tmp:
+        patch_tmp = Path(tmp.name)
+    try:
+        _extract_replace(source, asset.entries[0], patch_tmp)
+        with open(original, "rb") as src, open(patch_tmp, "rb") as pat, open(dest, "wb") as out:
+            try:
+                apply_patch(src, pat, out)
+            except PatchError as exc:
+                dest.unlink(missing_ok=True)
+                raise ValueError(
+                    f"Patch does not apply to \"{original.name}\". A .dif is built against "
+                    f"one exact table; this is probably not that table. ({exc})") from exc
+        logger.info("Patched %s -> %s (base sha256 %s)", original.name, dest.name,
+                    _sha256(original)[:16])
+    finally:
+        patch_tmp.unlink(missing_ok=True)
+
+
+def _sha256(path: Path) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def execute_import_plan(plan: ImportPlan, source_path: Path,
                         *, progress_cb: Callable[[str], None] | None = None) -> dict:
     """Execute an import plan, streaming each asset from source_path to its destination."""
@@ -486,6 +538,8 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
                 _extract_replace(source, item.asset.entries[0], dest)
             elif item.action == "copy":
                 _extract_replace(source, item.asset.entries[0], dest)
+            elif item.action == "apply_patch":
+                _apply_patch(source, item.asset, base, dest)
             elif item.action == "zip_rom":
                 _build_rom_zip(source, item.asset, dest)
             elif item.action == "extract_tree":

@@ -477,6 +477,14 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
                 claimed.add(e.path)
                 assets.append(DetectedAsset("rom", "ROM", (e,), size=e.size, detail=_basename(e.arcname)))
 
+    # 7b. Patch. A .dif is a delta against one exact base table, not a table - it is
+    # claimed so the user is told what it is, never so it can be installed alone.
+    for e in list(unclaimed()):
+        if _suffix(e.arcname) == ".dif":
+            claimed.add(e.path)
+            assets.append(DetectedAsset("patch", "Table Patch", (e,), size=e.size,
+                                        detail=_basename(e.arcname)))
+
     # 8. INI
     for e in list(unclaimed()):
         if _suffix(e.arcname) == ".ini":

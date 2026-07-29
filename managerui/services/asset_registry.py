@@ -44,6 +44,10 @@ ASSET_SPECS = (
     AssetSpec("table_info", "Metadata", "description", (), True, False, False),
     AssetSpec("backglass", "Backglass", "wallpaper", (".directb2s",), True, False, False),
     AssetSpec("ini", "Table INI", "tune", (".ini",), True, False, False),
+    # A patch is a delta against one exact base table, not an installable artifact.
+    # requires_table is doing real work here: applying it without the right base
+    # produces a corrupt file rather than an error.
+    AssetSpec("patch", "Table Patch", "difference", (".dif",), True, False, True),
     AssetSpec("rom", "ROM", "memory", (), True, False, True),
     AssetSpec("altcolor_serum", "Serum Color", "palette", (".crz", ".cromc"), True, True, True),
     AssetSpec("altcolor_vni", "VNI/PAL Color", "palette", (".vni", ".pal", ".pac"), True, True, True),
