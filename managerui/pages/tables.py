@@ -92,7 +92,7 @@ def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
 
     Args:
         table_path: Path to the table directory
-        key: The setting key (e.g., 'deletedNVRamOnClose')
+        key: The setting key (e.g., 'delete_nvram_on_close')
         value: The value to set
 
     Returns:
@@ -170,11 +170,11 @@ def parse_table_info(info_path):
 
         data = {
             # Display / identity (strip whitespace from name)
-            "name": ((vpinfe.get("alttitle", "") or "").strip()
+            "name": ((vpinfe.get("alt_title", "") or "").strip()
                      or reorder_leading_article(get(("Info", "Title"), ("root", "name"), default=table_name) or "")),
             "filename": gf_name or f"{table_name}.vpx",
             "vpsid": get(("Info", "VPSId"), ("root", "id")),
-            "id": get(("VPinFE", "altvpsid"), ("Info", "VPSId"), ("root", "id")),
+            "id": get(("VPinFE", "alt_vpsid"), ("Info", "VPSId"), ("root", "id")),
             "ipdb_id": get(("Info", "IPDBId")),
             "pinball_primer_tut": get(("Info", "PinballPrimerTut")),
 
@@ -211,11 +211,11 @@ def parse_table_info(info_path):
             "alt_sound_exists": (Path(table_dir) / "pinmame" / "altsound").is_dir(),
 
             # VPinFE settings
-            "delete_nvram_on_close": vpinfe.get("deletedNVRamOnClose", False),
-            "altlauncher": (vpinfe.get("altlauncher", "") or "").strip(),
-            "pluginprofile": (vpinfe.get("pluginprofile", "") or "").strip(),
-            "alttitle": (vpinfe.get("alttitle", "") or "").strip(),
-            "altvpsid": (vpinfe.get("altvpsid", "") or "").strip(),
+            "delete_nvram_on_close": vpinfe.get("delete_nvram_on_close", False),
+            "alt_launcher": (vpinfe.get("alt_launcher", "") or "").strip(),
+            "plugin_profile": (vpinfe.get("plugin_profile", "") or "").strip(),
+            "alt_title": (vpinfe.get("alt_title", "") or "").strip(),
+            "alt_vpsid": (vpinfe.get("alt_vpsid", "") or "").strip(),
             "frontend_dof_event": (vpinfe.get("frontend_dof_event", "") or "").strip(),
             "rating": normalize_table_rating(user.get("Rating", 0)),
         }

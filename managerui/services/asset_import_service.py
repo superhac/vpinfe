@@ -300,7 +300,7 @@ def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
 
 
 _MANAGED_INFO_SECTIONS = {"Info", "User", "VPinFE", "game_files", "Medias"}
-_MACHINE_LOCAL_INFO_KEYS = {"altlauncher", "pluginprofile"}
+_MACHINE_LOCAL_INFO_KEYS = {"alt_launcher", "plugin_profile"}
 
 
 def _is_empty_value(value) -> bool:
@@ -312,9 +312,9 @@ def _resolves_locally(key: str, value) -> bool:
     text = str(value or "")
     if not text:
         return False
-    if key == "altlauncher":
+    if key == "alt_launcher":
         return Path(text).expanduser().exists()
-    if key == "pluginprofile":
+    if key == "plugin_profile":
         from managerui.paths import PLUGIN_PROFILES_DIR
 
         try:

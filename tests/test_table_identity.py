@@ -69,7 +69,7 @@ class TableIdTests(unittest.TestCase):
         table = _table(self.root, meta={
             "Info": {"VPSId": "vps-1", "Title": "Example"},
             "User": {"Rating": 4},
-            "VPinFE": {"alttitle": "My Example"},
+            "VPinFE": {"alt_title": "My Example"},
         })
 
         table_identity.ensure_id(table)
@@ -77,7 +77,7 @@ class TableIdTests(unittest.TestCase):
         on_disk = json.loads(info.read_text(encoding="utf-8"))
 
         self.assertEqual(on_disk["User"]["Rating"], 4)
-        self.assertEqual(on_disk["VPinFE"]["alttitle"], "My Example")
+        self.assertEqual(on_disk["VPinFE"]["alt_title"], "My Example")
         self.assertEqual(on_disk["Info"]["Title"], "Example")
 
 
@@ -120,11 +120,11 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
 
         # User re-points the table at different VPSdb metadata, then updates the .vpx.
         data = json.loads(info.read_text(encoding="utf-8"))
-        data["VPinFE"]["altvpsid"] = "vps-override"
+        data["VPinFE"]["alt_vpsid"] = "vps-override"
         info.write_text(json.dumps(data), encoding="utf-8")
         after = self._rebuild(info, "hash-b")
 
-        self.assertEqual(after["VPinFE"]["altvpsid"], "", "precondition: altvpsid is cleared")
+        self.assertEqual(after["VPinFE"]["alt_vpsid"], "", "precondition: altvpsid is cleared")
         self.assertEqual(after["VPinFE"]["id"], table_id)
 
     def test_the_id_survives_repeated_rebuilds(self) -> None:
@@ -206,14 +206,14 @@ class RowFieldTests(unittest.TestCase):
         """VPS ids correlate with other services; vpinfe_id is what identifies the table."""
         table = _table(self.root, meta={
             "Info": {"VPSId": "vps-1"},
-            "VPinFE": {"altvpsid": "vps-override"},
+            "VPinFE": {"alt_vpsid": "vps-override"},
         })
         assigned = table_identity.ensure_id(table)
 
         row = table_to_row(table)
 
         self.assertEqual(row["vpsid"], "vps-1")
-        self.assertEqual(row["altvpsid"], "vps-override")
+        self.assertEqual(row["alt_vpsid"], "vps-override")
         self.assertEqual(row["vpinfe_id"], assigned)
         # There is no derived "id" to pick up by accident.
         self.assertNotIn("id", row)

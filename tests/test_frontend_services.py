@@ -315,7 +315,7 @@ class FrontendServiceTests(unittest.TestCase):
                 tableDirName="Example",
                 metaConfig={
                     "game_files": {"Example.vpx": {"rom": "vpx_rom"}},
-                    "VPinFE": {"deletedNVRamOnClose": True},
+                    "VPinFE": {"delete_nvram_on_close": True},
                 },
             )
 

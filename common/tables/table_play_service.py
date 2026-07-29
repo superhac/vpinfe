@@ -186,7 +186,7 @@ def update_score_from_nvram(table) -> None:
 def delete_nvram_if_configured(table) -> None:
     config = normalize_meta(getattr(table, "metaConfig", {}))
     vpinfe = section(config, "VPinFE")
-    if not vpinfe.get("deletedNVRamOnClose", False):
+    if not vpinfe.get("delete_nvram_on_close", False):
         return
 
     rom = score_rom_from_meta(config)

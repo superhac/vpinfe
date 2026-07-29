@@ -67,9 +67,9 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
             with ui.column().classes('gap-0 flex-grow'):
                 with ui.row().classes('items-center gap-2'):
                     title_label = ui.label(table_name).classes('text-xl font-bold').style('color: var(--ink);')
-                    if (row_data.get('altlauncher', '') or '').strip():
+                    if (row_data.get('alt_launcher', '') or '').strip():
                         ui.badge('ALT-L', color='warning').props('rounded')
-                    if (row_data.get('alttitle', '') or '').strip():
+                    if (row_data.get('alt_title', '') or '').strip():
                         ui.badge('ALT-T', color='info').props('rounded')
                 manufacturer = row_data.get('manufacturer', '')
                 year = row_data.get('year', '')
@@ -132,7 +132,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             table_service.extract_vbs,
                             table_path_str,
                             filename,
-                            row_data.get('altlauncher', ''),
+                            row_data.get('alt_launcher', ''),
                         )
                         with client:
                             rebuild_status.visible = False
@@ -521,11 +521,11 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                 ui.label('Overrides').classes('text-lg font-semibold mb-3').style('color: var(--ink);')
 
                 delete_nvram_value = row_data.get('delete_nvram_on_close', False)
-                altlauncher_value = row_data.get('altlauncher', '')
-                alttitle_value = row_data.get('alttitle', '')
-                altvpsid_value = row_data.get('altvpsid', '')
+                altlauncher_value = row_data.get('alt_launcher', '')
+                alttitle_value = row_data.get('alt_title', '')
+                altvpsid_value = row_data.get('alt_vpsid', '')
                 frontend_dof_event_value = row_data.get('frontend_dof_event', '')
-                pluginprofile_value = row_data.get('pluginprofile', '')
+                pluginprofile_value = row_data.get('plugin_profile', '')
 
                 with ui.row().classes('items-center gap-3 w-full'):
                     alttitle_input = ui.input(
@@ -536,8 +536,8 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                     def on_alttitle_save():
                         new_value = (alttitle_input.value or '').strip()
-                        if update_vpinfe_setting(table_path_str, 'alttitle', new_value):
-                            row_data['alttitle'] = new_value
+                        if update_vpinfe_setting(table_path_str, 'alt_title', new_value):
+                            row_data['alt_title'] = new_value
                             fallback_name = (row_data.get('filename') or 'Table').strip()
                             try:
                                 info_path = Path(table_path_str) / f"{Path(table_path_str).name}.info"
@@ -549,7 +549,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 pass
                             effective_name = new_value or reorder_leading_article(fallback_name)
                             table_index_service.update_row_by_path(table_path_str, {
-                                'alttitle': new_value,
+                                'alt_title': new_value,
                                 'name': effective_name,
                             })
                             row_data['name'] = effective_name
@@ -586,12 +586,12 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         if table_dir_name:
                             await on_rebuild_meta()
                         with save_client:
-                            if update_vpinfe_setting(table_path_str, 'altvpsid', new_value):
+                            if update_vpinfe_setting(table_path_str, 'alt_vpsid', new_value):
                                 # Collections do not move with this any more - membership
                                 # is the table's own id, which a VPS id change cannot touch.
-                                row_data['altvpsid'] = new_value
+                                row_data['alt_vpsid'] = new_value
                                 table_index_service.update_row_by_path(table_path_str, {
-                                    'altvpsid': new_value,
+                                    'alt_vpsid': new_value,
                                 })
                                 ui.notify('Alt VPS ID saved', type='positive')
                                 if on_close:
@@ -611,9 +611,9 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                     def on_altlauncher_save():
                         new_value = (altlauncher_input.value or '').strip()
-                        if update_vpinfe_setting(table_path_str, 'altlauncher', new_value):
-                            row_data['altlauncher'] = new_value
-                            table_index_service.update_row_by_path(table_path_str, {'altlauncher': new_value})
+                        if update_vpinfe_setting(table_path_str, 'alt_launcher', new_value):
+                            row_data['alt_launcher'] = new_value
+                            table_index_service.update_row_by_path(table_path_str, {'alt_launcher': new_value})
                             ui.notify('Alt launcher saved', type='positive')
                         else:
                             ui.notify('Failed to save alt launcher', type='negative')
@@ -639,9 +639,9 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         # Default means "use the live VPinballX.ini", which is the
                         # same as having no override, so store it as empty.
                         new_value = '' if plugin_profile_service.is_default_profile(selected) else selected
-                        if update_vpinfe_setting(table_path_str, 'pluginprofile', new_value):
-                            row_data['pluginprofile'] = new_value
-                            table_index_service.update_row_by_path(table_path_str, {'pluginprofile': new_value})
+                        if update_vpinfe_setting(table_path_str, 'plugin_profile', new_value):
+                            row_data['plugin_profile'] = new_value
+                            table_index_service.update_row_by_path(table_path_str, {'plugin_profile': new_value})
                             ui.notify('Plugin profile saved', type='positive')
                         else:
                             ui.notify('Failed to save plugin profile', type='negative')
@@ -671,7 +671,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                 with ui.row().classes('items-center gap-3 mt-3'):
                     def on_delete_nvram_change(e):
                         new_value = e.value
-                        if update_vpinfe_setting(table_path_str, 'deletedNVRamOnClose', new_value):
+                        if update_vpinfe_setting(table_path_str, 'delete_nvram_on_close', new_value):
                             row_data['delete_nvram_on_close'] = new_value
                             # Also update the cache so the value persists across dialog opens
                             table_index_service.update_row_by_path(table_path_str, {'delete_nvram_on_close': new_value})

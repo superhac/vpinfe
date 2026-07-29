@@ -218,7 +218,7 @@ class VPXCollections:
                 continue
             vpinfe = section(getattr(table, "metaConfig", {}), "VPinFE")
             for candidate in (base_table_vps_id(table),
-                              str(vpinfe.get("altvpsid", "") or "").strip()):
+                              str(vpinfe.get("alt_vpsid", "") or "").strip()):
                 if candidate:
                     by_vps.setdefault(candidate, tid)
 
@@ -269,7 +269,7 @@ class VPXCollections:
 
         vpinfe = section(getattr(table, "metaConfig", {}), "VPinFE")
         base_vpsid = base_table_vps_id(table)
-        alt_vpsid = str(vpinfe.get("altvpsid", "") or "").strip()
+        alt_vpsid = str(vpinfe.get("alt_vpsid", "") or "").strip()
         return bool(
             (base_vpsid and base_vpsid in member_ids)
             or (alt_vpsid and alt_vpsid in member_ids)

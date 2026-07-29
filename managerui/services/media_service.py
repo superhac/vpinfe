@@ -221,7 +221,7 @@ def scan_media_tables(reload: bool = False) -> List[Dict]:
             continue
         current_dir = Path(root).name
         info, vpinfe = _table_meta_sections(table)
-        name = ((vpinfe.get("alttitle") or "").strip()
+        name = ((vpinfe.get("alt_title") or "").strip()
                 or reorder_leading_article(info.get("Title") or current_dir))
 
         media_info = {}

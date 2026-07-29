@@ -15,7 +15,7 @@ def _table(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", table_
     folder.mkdir(parents=True, exist_ok=True)
     meta = {"Info": {"VPSId": vpsid, "Title": name}, "VPinFE": {}}
     if altvpsid:
-        meta["VPinFE"]["altvpsid"] = altvpsid
+        meta["VPinFE"]["alt_vpsid"] = altvpsid
     if table_id:
         meta["VPinFE"]["id"] = table_id
     (folder / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
@@ -153,11 +153,11 @@ class MembershipTests(unittest.TestCase):
 
         # User re-points the table, then updates the .vpx - which clears altvpsid.
         data = json.loads(info.read_text(encoding="utf-8"))
-        data["VPinFE"]["altvpsid"] = "vps-override"
+        data["VPinFE"]["alt_vpsid"] = "vps-override"
         info.write_text(json.dumps(data), encoding="utf-8")
         after = rebuild("hash-b")
 
-        self.assertEqual(after["VPinFE"]["altvpsid"], "", "precondition: altvpsid cleared")
+        self.assertEqual(after["VPinFE"]["alt_vpsid"], "", "precondition: altvpsid cleared")
 
         table = SimpleNamespace(fullPathTable=str(self.root), tableDirName="MM",
                                 metaConfig=after)

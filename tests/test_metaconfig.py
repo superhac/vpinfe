@@ -62,10 +62,10 @@ class TestMetaConfig(unittest.TestCase):
                             "Example Table.vpx": {"file_hash": "old-filehash"},
                         },
                         "VPinFE": {
-                            "altvpsid": "12345",
-                            "altlauncher": "/custom/launcher",
-                            "alttitle": "Example Alt Title",
-                            "deletedNVRamOnClose": True,
+                            "alt_vpsid": "12345",
+                            "alt_launcher": "/custom/launcher",
+                            "alt_title": "Example Alt Title",
+                            "delete_nvram_on_close": True,
                         }
                     }
                 ),
@@ -74,10 +74,10 @@ class TestMetaConfig(unittest.TestCase):
 
             saved = self._write_meta(info_path)
 
-            self.assertEqual(saved["VPinFE"]["altvpsid"], "")
-            self.assertEqual(saved["VPinFE"]["altlauncher"], "/custom/launcher")
-            self.assertEqual(saved["VPinFE"]["alttitle"], "Example Alt Title")
-            self.assertTrue(saved["VPinFE"]["deletedNVRamOnClose"])
+            self.assertEqual(saved["VPinFE"]["alt_vpsid"], "")
+            self.assertEqual(saved["VPinFE"]["alt_launcher"], "/custom/launcher")
+            self.assertEqual(saved["VPinFE"]["alt_title"], "Example Alt Title")
+            self.assertTrue(saved["VPinFE"]["delete_nvram_on_close"])
 
     def test_write_config_meta_preserves_altvpsid_when_filehash_is_unchanged(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -89,10 +89,10 @@ class TestMetaConfig(unittest.TestCase):
                             "Example Table.vpx": {"file_hash": "same-filehash"},
                         },
                         "VPinFE": {
-                            "altvpsid": "12345",
-                            "altlauncher": "/custom/launcher",
-                            "alttitle": "Example Alt Title",
-                            "deletedNVRamOnClose": True,
+                            "alt_vpsid": "12345",
+                            "alt_launcher": "/custom/launcher",
+                            "alt_title": "Example Alt Title",
+                            "delete_nvram_on_close": True,
                         }
                     }
                 ),
@@ -101,10 +101,10 @@ class TestMetaConfig(unittest.TestCase):
 
             saved = self._write_meta(info_path, filehash="same-filehash")
 
-            self.assertEqual(saved["VPinFE"]["altvpsid"], "12345")
-            self.assertEqual(saved["VPinFE"]["altlauncher"], "/custom/launcher")
-            self.assertEqual(saved["VPinFE"]["alttitle"], "Example Alt Title")
-            self.assertTrue(saved["VPinFE"]["deletedNVRamOnClose"])
+            self.assertEqual(saved["VPinFE"]["alt_vpsid"], "12345")
+            self.assertEqual(saved["VPinFE"]["alt_launcher"], "/custom/launcher")
+            self.assertEqual(saved["VPinFE"]["alt_title"], "Example Alt Title")
+            self.assertTrue(saved["VPinFE"]["delete_nvram_on_close"])
 
     def test_write_config_meta_adds_pinball_primer_tutorial(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -233,15 +233,15 @@ class VPinFESchemaTests(unittest.TestCase):
         self.root = Path(self._tmp.name)
 
     def test_an_unversioned_section_migrates_to_current(self) -> None:
-        migrated = migrate_vpinfe_section({"alttitle": "Example"})
+        migrated = migrate_vpinfe_section({"alt_title": "Example"})
 
         self.assertEqual(migrated["schema"], CURRENT_VPINFE_SCHEMA)
-        self.assertEqual(migrated["alttitle"], "Example", "existing settings survive")
+        self.assertEqual(migrated["alt_title"], "Example", "existing settings survive")
         self.assertIn("id", migrated, "v2 declares the local id key")
         self.assertEqual(migrated["id"], "", "declaring is not minting")
 
     def test_migration_is_idempotent(self) -> None:
-        once = migrate_vpinfe_section({"alttitle": "Example"})
+        once = migrate_vpinfe_section({"alt_title": "Example"})
         twice = migrate_vpinfe_section(dict(once))
 
         self.assertEqual(once, twice)
@@ -262,7 +262,7 @@ class VPinFESchemaTests(unittest.TestCase):
 
     def test_reading_migrates_in_memory_without_writing(self) -> None:
         info = self.root / "Example.info"
-        info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "VPinFE": {"alttitle": "x"}}),
+        info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "VPinFE": {"alt_title": "x"}}),
                         encoding="utf-8")
         before = info.read_text(encoding="utf-8")
 

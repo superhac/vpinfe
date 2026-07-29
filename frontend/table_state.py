@@ -66,8 +66,8 @@ def tables_json(tables) -> str:
         vpinfe = section(meta, "VPinFE")
         info = section(meta, "Info")
         used_alttitle = False
-        if str(vpinfe.get("altvpsid", "") or "").strip() and str(vpinfe.get("alttitle", "") or "").strip():
-            info["Title"] = str(vpinfe.get("alttitle", "") or "").strip()
+        if str(vpinfe.get("alt_vpsid", "") or "").strip() and str(vpinfe.get("alt_title", "") or "").strip():
+            info["Title"] = str(vpinfe.get("alt_title", "") or "").strip()
             meta["Info"] = info
             used_alttitle = True
 
@@ -79,7 +79,9 @@ def tables_json(tables) -> str:
             info["Title"] = reorder_leading_article(info["Title"])
             meta["Info"] = info
 
-        vpx = default_game_file_entry(meta)
+        # Copied: the entry belongs to the shared meta dict, and the payload adds
+        # fields to it that have no business being written back to a .info.
+        vpx = dict(default_game_file_entry(meta))
         for key in DETECTION_KEYS:
             vpx[key] = _to_bool(vpx.get(key, False))
         vpx["altSoundExists"] = bool(table.altSoundExists)

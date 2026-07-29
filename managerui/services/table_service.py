@@ -355,7 +355,7 @@ def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> di
 
     cfg = _fresh_config()
     vpxbin = cfg.config['Settings'].get('vpxbinpath', '')
-    meta = {"VPinFE": {"altlauncher": (altlauncher or "").strip()}}
+    meta = {"VPinFE": {"alt_launcher": (altlauncher or "").strip()}}
     vpxbin_path, source_key, _configured = get_effective_launcher(vpxbin, meta)
     if not vpxbin_path:
         raise RuntimeError("No launcher configured (set Settings.vpxbinpath or VPinFE.altlauncher)")

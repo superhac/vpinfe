@@ -105,7 +105,7 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         return default if value in ("", None) else value
 
     row = {
-        "name": (str(vpinfe.get("alttitle", "") or "").strip()
+        "name": (str(vpinfe.get("alt_title", "") or "").strip()
                  or reorder_leading_article(first_meta_value(meta, ("Info", "Title"), default=table_name) or "")),
         "filename": gf_name or Path(table.fullPathVPXfile).name,
         # vpsid and altvpsid correlate with VPSdb, VPinPlay and anything else keyed
@@ -146,11 +146,11 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "alt_sound_exists": bool(getattr(table, "altSoundExists", False)),
         "ini_exists": bool(getattr(table, "iniExists", False)),
         "music_exists": bool(getattr(table, "musicExists", False)),
-        "delete_nvram_on_close": vpinfe.get("deletedNVRamOnClose", False),
-        "altlauncher": str(vpinfe.get("altlauncher", "") or "").strip(),
-        "pluginprofile": str(vpinfe.get("pluginprofile", "") or "").strip(),
-        "alttitle": str(vpinfe.get("alttitle", "") or "").strip(),
-        "altvpsid": str(vpinfe.get("altvpsid", "") or "").strip(),
+        "delete_nvram_on_close": vpinfe.get("delete_nvram_on_close", False),
+        "alt_launcher": str(vpinfe.get("alt_launcher", "") or "").strip(),
+        "plugin_profile": str(vpinfe.get("plugin_profile", "") or "").strip(),
+        "alt_title": str(vpinfe.get("alt_title", "") or "").strip(),
+        "alt_vpsid": str(vpinfe.get("alt_vpsid", "") or "").strip(),
         "frontend_dof_event": str(vpinfe.get("frontend_dof_event", "") or "").strip(),
         "rating": normalize_rating(user.get("Rating", 0)),
         "collections": [],
@@ -168,7 +168,7 @@ def _collections_for(row: Dict[str, Any], collections_map: Dict[str, List[str]])
     once, so an entry can stay VPS-keyed indefinitely. Without the fallbacks the
     frontend would show that membership and the Manager UI would not.
     """
-    for key in (row.get("vpinfe_id"), row.get("altvpsid"), row.get("vpsid")):
+    for key in (row.get("vpinfe_id"), row.get("alt_vpsid"), row.get("vpsid")):
         if key and key in collections_map:
             return collections_map[key]
     return []

@@ -21,7 +21,7 @@ def get_altlauncher_from_meta(meta_config) -> str:
     vpinfe = meta_config.get("VPinFE", {})
     if not isinstance(vpinfe, dict):
         return ""
-    return str(vpinfe.get("altlauncher", "") or "").strip()
+    return str(vpinfe.get("alt_launcher", "") or "").strip()
 
 
 def get_plugin_profile_from_meta(meta_config) -> str:
@@ -31,7 +31,7 @@ def get_plugin_profile_from_meta(meta_config) -> str:
     vpinfe = meta_config.get("VPinFE", {})
     if not isinstance(vpinfe, dict):
         return ""
-    return str(vpinfe.get("pluginprofile", "") or "").strip()
+    return str(vpinfe.get("plugin_profile", "") or "").strip()
 
 
 def is_default_plugin_profile(profile_name: str) -> bool:
@@ -80,7 +80,7 @@ def get_effective_launcher(default_launcher: str, meta_config=None):
     default_value = str(default_launcher or "").strip()
     alt_value = get_altlauncher_from_meta(meta_config)
     configured_value = alt_value or default_value
-    source_key = "altlauncher" if alt_value else "vpxbinpath"
+    source_key = "alt_launcher" if alt_value else "vpxbinpath"
 
     if not configured_value:
         return None, source_key, configured_value

@@ -99,8 +99,8 @@ def _build_table_payload(meta: dict) -> dict | None:
             "detectflex": bool(vpx.get("detect_flex", False)),
         },
         "vpinfe": {
-            "alttitle": str(vpinfe.get("alttitle", "") or ""),
-            "altvpsid": str(vpinfe.get("altvpsid", "") or ""),
+            "alt_title": str(vpinfe.get("alt_title", "") or ""),
+            "alt_vpsid": str(vpinfe.get("alt_vpsid", "") or ""),
         },
     }
 

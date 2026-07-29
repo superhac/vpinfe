@@ -596,13 +596,13 @@ class MergeInfoTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             real_launcher = Path(tmp) / "vpx-custom"
             real_launcher.write_bytes(b"x")
-            incoming = {"VPinFE": {"altlauncher": "/nonexistent/vpx", "alttitle": "Cool Name"}}
-            merged = merge_info(incoming, {"VPinFE": {"altlauncher": "", "alttitle": ""}})
-            self.assertEqual(merged["VPinFE"]["altlauncher"], "")   # dropped, does not resolve
-            self.assertEqual(merged["VPinFE"]["alttitle"], "Cool Name")
-            incoming2 = {"VPinFE": {"altlauncher": str(real_launcher)}}
-            merged2 = merge_info(incoming2, {"VPinFE": {"altlauncher": ""}})
-            self.assertEqual(merged2["VPinFE"]["altlauncher"], str(real_launcher))
+            incoming = {"VPinFE": {"alt_launcher": "/nonexistent/vpx", "alt_title": "Cool Name"}}
+            merged = merge_info(incoming, {"VPinFE": {"alt_launcher": "", "alt_title": ""}})
+            self.assertEqual(merged["VPinFE"]["alt_launcher"], "")   # dropped, does not resolve
+            self.assertEqual(merged["VPinFE"]["alt_title"], "Cool Name")
+            incoming2 = {"VPinFE": {"alt_launcher": str(real_launcher)}}
+            merged2 = merge_info(incoming2, {"VPinFE": {"alt_launcher": ""}})
+            self.assertEqual(merged2["VPinFE"]["alt_launcher"], str(real_launcher))
 
     def test_unknown_sections_added_not_replaced(self):
         incoming = {"CustomTool": {"a": 1}, "Shared": {"x": "incoming"}}

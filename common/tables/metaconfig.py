@@ -131,10 +131,10 @@ class MetaConfig:
         if not isinstance(vpinfe, dict):
             vpinfe = {}
         vpinfe = migrate_vpinfe_section(vpinfe)
-        vpinfe.setdefault("deletedNVRamOnClose", False)
-        vpinfe.setdefault("altlauncher", "")
-        vpinfe.setdefault("pluginprofile", "")
-        vpinfe.setdefault("alttitle", "")
+        vpinfe.setdefault("delete_nvram_on_close", False)
+        vpinfe.setdefault("alt_launcher", "")
+        vpinfe.setdefault("plugin_profile", "")
+        vpinfe.setdefault("alt_title", "")
         # Configuration, not a play record - see table_metadata.table_frontend_dof_event.
         vpinfe.setdefault("frontend_dof_event", "")
         # Outside the filehash check below on purpose: the id must survive the table
@@ -160,9 +160,9 @@ class MetaConfig:
         previous_hash = str(previous_files.get(chosen, {}).get("file_hash", "") or "").strip()
         new_hash = str(game_files.get(chosen, {}).get("file_hash", "") or "").strip()
         if previous_hash and new_hash and previous_hash != new_hash:
-            vpinfe["altvpsid"] = ""
+            vpinfe["alt_vpsid"] = ""
         else:
-            vpinfe.setdefault("altvpsid", "")
+            vpinfe.setdefault("alt_vpsid", "")
 
         # Preserve any top-level sections we don't manage (e.g. metadata written by
         # other tools sharing the .info file) instead of dropping them on rebuild.

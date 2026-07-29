@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from common.tables.game_files import (
+    DETECT_KEYS,
     default_game_file as _resolve_default,
     game_file_entries,
     recorded_default,
@@ -12,15 +13,11 @@ from common.tables.game_files import (
 from common.tables.metaconfig import MetaConfig
 
 
-DETECTION_KEYS = (
-    "detectnfozzy",
-    "detectfleep",
-    "detectssf",
-    "detectlut",
-    "detectscorebit",
-    "detectfastflips",
-    "detectflex",
-)
+# Re-exported so the theme payload and the Manager UI agree with storage. Sourced
+# from game_files rather than restated, since a second list drifts silently - it
+# already did: these held the pre-rename names and were writing dead `detectssf`
+# keys over the top of the real `detect_ssf` ones.
+DETECTION_KEYS = DETECT_KEYS
 
 
 def normalize_meta(meta: Any) -> Dict[str, Any]:
@@ -127,8 +124,8 @@ def table_title(table) -> str:
     meta = normalize_meta(getattr(table, "metaConfig", {}))
     vpinfe = section(meta, "VPinFE")
     info = section(meta, "Info")
-    if str(vpinfe.get("altvpsid", "") or "").strip():
-        alt_title = str(vpinfe.get("alttitle", "") or "").strip()
+    if str(vpinfe.get("alt_vpsid", "") or "").strip():
+        alt_title = str(vpinfe.get("alt_title", "") or "").strip()
         if alt_title:
             # A user-set alttitle is left exactly as entered - never reordered.
             return alt_title
@@ -185,7 +182,7 @@ def table_frontend_dof_event(table) -> str:
 
 def table_vps_id(table) -> str:
     meta = normalize_meta(getattr(table, "metaConfig", {}))
-    alt_vpsid = str(section(meta, "VPinFE").get("altvpsid", "") or "").strip()
+    alt_vpsid = str(section(meta, "VPinFE").get("alt_vpsid", "") or "").strip()
     if alt_vpsid:
         return alt_vpsid
     return str(section(meta, "Info").get("VPSId", "") or "").strip()
