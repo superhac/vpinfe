@@ -651,14 +651,14 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                 with ui.row().classes('items-center gap-3 w-full'):
                     frontend_dof_event_input = ui.input(
-                        label='FrontendDOFEvent',
+                        label='Frontend DOF event',
                         value=frontend_dof_event_value,
                         placeholder='Optional frontend DOF event override'
                     ).props('outlined dense clearable').classes('flex-grow')
 
                     def on_frontend_dof_event_save():
                         new_value = (frontend_dof_event_input.value or '').strip()
-                        if update_user_setting(table_path_str, 'FrontendDOFEvent', new_value):
+                        if update_vpinfe_setting(table_path_str, 'frontend_dof_event', new_value):
                             row_data['frontend_dof_event'] = new_value
                             table_index_service.update_row_by_path(table_path_str, {'frontend_dof_event': new_value})
                             ui.notify('Frontend DOF event saved', type='positive')
@@ -666,7 +666,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             ui.notify('Failed to save Frontend DOF event', type='negative')
 
                     ui.button('Save', icon='save', on_click=on_frontend_dof_event_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
-                ui.label('When set, this stores the per-table User.FrontendDOFEvent value').classes('text-xs').style('color: var(--ink-muted);')
+                ui.label('The DOF effect this table asks for when selected. Empty uses the default.').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 mt-3'):
                     def on_delete_nvram_change(e):

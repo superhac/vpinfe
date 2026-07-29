@@ -180,7 +180,7 @@ def table_rating(table) -> int:
 def table_frontend_dof_event(table) -> str:
     """The DOF effect a table asks for when selected, or "" to use the default."""
     meta = normalize_meta(getattr(table, "metaConfig", {}))
-    return str(get_meta_value(meta, "User", "FrontendDOFEvent", "") or "").strip()
+    return str(get_meta_value(meta, "VPinFE", "frontend_dof_event", "") or "").strip()
 
 
 def table_vps_id(table) -> str:
@@ -203,7 +203,6 @@ def get_or_create_user_meta(config: Dict[str, Any]) -> Dict[str, Any]:
     user.setdefault("StartCount", 0)
     user.setdefault("RunTime", 0)
     user.setdefault("Tags", [])
-    user.setdefault("FrontendDOFEvent", "")
     return user
 
 

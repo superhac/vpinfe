@@ -117,7 +117,6 @@ class MetaConfig:
             "StartCount": 0,
             "RunTime": 0,
             "Tags": [],
-            "FrontendDOFEvent": ""
         })
         if not isinstance(user, dict):
             user = {}
@@ -127,7 +126,6 @@ class MetaConfig:
         user.setdefault("StartCount", 0)
         user.setdefault("RunTime", 0)
         user.setdefault("Tags", [])
-        user.setdefault("FrontendDOFEvent", "")
 
         vpinfe = self.data.get("VPinFE", {})
         if not isinstance(vpinfe, dict):
@@ -137,6 +135,8 @@ class MetaConfig:
         vpinfe.setdefault("altlauncher", "")
         vpinfe.setdefault("pluginprofile", "")
         vpinfe.setdefault("alttitle", "")
+        # Configuration, not a play record - see table_metadata.table_frontend_dof_event.
+        vpinfe.setdefault("frontend_dof_event", "")
         # Outside the filehash check below on purpose: the id must survive the table
         # file changing, which is exactly when altvpsid is cleared.
         if not str(vpinfe.get("id", "") or "").strip():

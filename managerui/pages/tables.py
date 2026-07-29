@@ -216,7 +216,7 @@ def parse_table_info(info_path):
             "pluginprofile": (vpinfe.get("pluginprofile", "") or "").strip(),
             "alttitle": (vpinfe.get("alttitle", "") or "").strip(),
             "altvpsid": (vpinfe.get("altvpsid", "") or "").strip(),
-            "frontend_dof_event": (user.get("FrontendDOFEvent", "") or "").strip(),
+            "frontend_dof_event": (vpinfe.get("frontend_dof_event", "") or "").strip(),
             "rating": normalize_table_rating(user.get("Rating", 0)),
         }
 

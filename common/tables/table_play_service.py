@@ -161,7 +161,6 @@ def build_runtime_submission_meta(table, user_state: dict) -> dict:
             "StartCount": user_state.get("StartCount", 0),
             "RunTime": user_state.get("RunTime", 0),
             "Tags": [],
-            "FrontendDOFEvent": "",
         }
     )
     if user_state.get("Score") is not None:

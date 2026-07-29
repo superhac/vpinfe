@@ -151,7 +151,7 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "pluginprofile": str(vpinfe.get("pluginprofile", "") or "").strip(),
         "alttitle": str(vpinfe.get("alttitle", "") or "").strip(),
         "altvpsid": str(vpinfe.get("altvpsid", "") or "").strip(),
-        "frontend_dof_event": str(user.get("FrontendDOFEvent", "") or "").strip(),
+        "frontend_dof_event": str(vpinfe.get("frontend_dof_event", "") or "").strip(),
         "rating": normalize_rating(user.get("Rating", 0)),
         "collections": [],
     }

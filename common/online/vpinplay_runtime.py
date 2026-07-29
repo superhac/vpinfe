@@ -171,7 +171,6 @@ def _ensure_table_user_state(profile_key: str, table_key: str) -> dict[str, Any]
             "StartCount": 0,
             "RunTime": 0,
             "Tags": [],
-            "FrontendDOFEvent": "",
         },
     )
     return state

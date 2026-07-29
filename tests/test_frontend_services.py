@@ -107,7 +107,7 @@ class FrontendServiceTests(unittest.TestCase):
             tableDirName="Example",
             realDMDImagePath="/tmp/realdmd.png",
             realDMDColorImagePath="/tmp/realdmd-color.png",
-            metaConfig={"User": {"FrontendDOFEvent": "E901"}},
+            metaConfig={"VPinFE": {"frontend_dof_event": "E901"}},
         )
         color_config = configparser.ConfigParser()
         color_config.read_dict({"Media": {"realdmdmediapriority": "color"}})
