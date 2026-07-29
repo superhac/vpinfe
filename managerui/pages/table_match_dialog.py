@@ -36,7 +36,6 @@ def open_match_vps_dialog(
     missing_row: dict,
     refresh_missing: Optional[Callable[[], None]] = None,
     refresh_installed: Optional[Callable[[], None]] = None,
-    use_own_media_switch=None,
     context: TableDialogContext | None = None,
 ):
     context = context or default_context()
@@ -46,7 +45,6 @@ def open_match_vps_dialog(
         missing_row,
         refresh_missing=refresh_missing,
         refresh_installed=refresh_installed,
-        use_own_media_switch=use_own_media_switch,
     )
 
 
@@ -63,13 +61,6 @@ def _render_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[C
     with dlg, ui.card().classes('w-[960px] max-w-[95vw]'):
         title = ui.label(f'Missing Tables ({len(missing_rows)})').classes('text-lg font-bold')
         ui.separator()
-
-        # User media toggle - applies to all associations from this dialog
-        use_own_media = ui.switch('Use my own media').props('color=orange').classes('q-mt-xs')
-        ui.label(
-            'When enabled, existing media files in the table folder will be claimed as user-sourced '
-            'instead of downloading from VPinMediaDB. Missing media types will still be downloaded on the next --buildmeta run.'
-        ).classes('text-xs q-ml-lg').style('color: var(--ink-muted); margin-top: -4px;')
 
         container = ui.column().classes('w-full')
 
@@ -89,7 +80,6 @@ def _render_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[C
                             rr,
                             refresh_missing=lambda: (ui.notify('Missing list updated', type='info'), render(scan_missing_tables())),
                             refresh_installed=None,
-                            use_own_media_switch=use_own_media,
                         )
                     ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
 
@@ -111,13 +101,11 @@ def _render_match_vps_dialog(
     missing_row: dict,
     refresh_missing: Optional[Callable[[], None]] = None,
     refresh_installed: Optional[Callable[[], None]] = None,
-    use_own_media_switch=None,
 ):
     """
     missing_row: {'folder': '<name>', 'path': '<abs path>'}
     refresh_missing: callback to refresh the missing list/count after success
     refresh_installed: callback to refresh the installed tables list after success
-    use_own_media_switch: optional NiceGUI switch element from the parent dialog
     """
     dlg = ui.dialog().props('max-width=1080px persistent')
     dialog_state = {'busy': False}
@@ -207,17 +195,10 @@ def _render_match_vps_dialog(
                                         folder_path = new_path
 
                                 # Update loading message and run association in background
-                                own_media = use_own_media_switch.value if use_own_media_switch else False
-                                if own_media:
-                                    loading_label.set_text('Creating metadata and claiming user media...')
-                                else:
-                                    loading_label.set_text('Creating metadata and downloading media...')
-                                await run.io_bound(associate_vps_to_folder, folder_path, it, not own_media, own_media)
+                                loading_label.set_text('Creating metadata and downloading media...')
+                                await run.io_bound(associate_vps_to_folder, folder_path, it, True)
 
-                                if own_media:
-                                    ui.notify(f"Associated with VPS ID '{vid}' and claimed user media", type='positive')
-                                else:
-                                    ui.notify(f"Associated with VPS ID '{vid}' and downloaded media", type='positive')
+                                ui.notify(f"Associated with VPS ID '{vid}' and downloaded media", type='positive')
                                 dlg.close()
                                 if callable(refresh_missing):
                                     refresh_missing()

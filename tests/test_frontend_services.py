@@ -10,7 +10,7 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.host import realdmd, system_actions
-from common.tables import metadata_service, table_play_service, table_report_service
+from common.tables import table_play_service, table_report_service
 from common.tables.table_metadata import table_frontend_dof_event
 from frontend import config_api, table_state, theme_api
 
@@ -132,21 +132,6 @@ class FrontendServiceTests(unittest.TestCase):
         updater._image_path = Path("/tmp/realdmd.png")
         updater._process_pending()
         self.assertEqual(calls, [("ini", Path("/tmp/realdmd.png"))])
-
-    def test_claim_media_for_table_adds_user_media_entries(self):
-        with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir) / "Example"
-            medias_dir = table_dir / "medias"
-            medias_dir.mkdir(parents=True)
-            (table_dir / "Example.info").write_text("{}", encoding="utf-8")
-            (medias_dir / "bg.png").write_text("x", encoding="utf-8")
-
-            table = types.SimpleNamespace(fullPathTable=str(table_dir), tableDirName="Example")
-            claimed = metadata_service.claim_media_for_table(table, "table", log=lambda *_args: None)
-
-            self.assertEqual(claimed, 1)
-            info = json.loads((table_dir / "Example.info").read_text(encoding="utf-8"))
-            self.assertEqual(info["Medias"]["bg"]["Source"], "user")
 
     def test_table_report_service_logs_unknown_table(self):
         parser_instance = mock.Mock()

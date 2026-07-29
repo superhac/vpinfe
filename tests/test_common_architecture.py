@@ -11,7 +11,6 @@ from common.config_access import DisplayConfig, MediaConfig, NetworkConfig, Sett
 from common.third_party import find_named_path, import_module_from_path
 from common.jobs import JobReporter
 from common.media_paths import apply_media_paths, media_filename_map, table_media_payload
-from common.tables.metadata_service import claim_media_for_table
 from common.tables.standalonescripts import StandaloneScripts
 from common.tables.table_metadata import table_themes, table_title, table_type
 from common.tables.table_repository import table_to_row
@@ -210,22 +209,6 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertEqual(media_filename_map("fss")["fss"], "fss.png")
         self.assertEqual(table_media_payload(table)["TableImagePath"],
                          os.path.join(root, "medias", "fss.png"))
-
-    def test_claim_media_for_table_uses_dynamic_table_type_keys(self) -> None:
-        with TemporaryDirectory() as tmp:
-            table_dir = Path(tmp) / "Example"
-            medias_dir = table_dir / "medias"
-            medias_dir.mkdir(parents=True)
-            (medias_dir / "fss.png").write_bytes(b"image")
-            info_path = table_dir / "Example.info"
-            info_path.write_text(json.dumps({"Medias": {}}), encoding="utf-8")
-            table = SimpleNamespace(fullPathTable=str(table_dir), tableDirName="Example")
-
-            claimed = claim_media_for_table(table, "fss")
-            saved = json.loads(info_path.read_text(encoding="utf-8"))
-
-            self.assertEqual(claimed, 1)
-            self.assertEqual(saved["Medias"]["fss"]["Path"], "fss.png")
 
     def test_job_reporter_wraps_log_and_progress_callbacks(self) -> None:
         messages: list[str] = []

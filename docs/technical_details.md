@@ -232,35 +232,27 @@ Table Folder Name (Manufacturer Year)/
 
 ## Using Your Own Media (User Media)
 
-By default, `--buildmeta` downloads media artwork from [VPinMediaDB](https://github.com/superhac/vpinmediadb) and tracks updates via MD5 hashes. If you prefer to use your own media collection instead, VPinFE provides two options to mark media as "user-sourced" so it won't be pulled from or overwritten by VPinMediaDB.
+By default, `--buildmeta` downloads media artwork from [VPinMediaDB](https://github.com/superhac/vpinmediadb).
 
-### `--claim-user-media` (Standalone)
+**Your own artwork needs no protecting.** Before the downloader touches a file that already exists, it hashes it and compares that to the MD5 VPinMediaDB publishes. If they match it is demonstrably our file and stays managed. Anything else — your own artwork, or our file after you replaced it — is left alone. A file we cannot prove is ours is never overwritten, and VPinMediaDB having no hash for it counts as cannot prove.
 
-Scans all table directories for existing media files in the `medias/` subfolder and marks them as `"Source": "user"` in each table's `.info` file. Use this if you already have `.info` files and want to retroactively protect your media from being overwritten.
-
-```bash
-# Claim all existing media across all tables
-python3 main.py --claim-user-media
-
-# Claim media for a single table
-python3 main.py --claim-user-media --table "Back To The Future - The Pinball (Data East 1990)"
-```
+So drop your artwork in and run `--buildmeta` as normal. Missing kinds get filled in from VPinMediaDB; yours stay put.
 
 ### `--user-media` (With `--buildmeta`)
 
-A modifier for `--buildmeta` that skips VPinMediaDB downloads entirely and instead claims any media files found locally as user-sourced. Use this when building metadata from scratch and you never want VPinMediaDB media.
+A modifier for `--buildmeta` that skips VPinMediaDB downloads entirely. Use it when you are supplying the whole library yourself and would rather not wait on the network at all.
 
 ```bash
-# Build metadata and claim local media instead of downloading
+# Build metadata without fetching any media
 python3 main.py --buildmeta --user-media
 
-# Rebuild all metadata with user media
+# Rebuild all metadata, still fetching nothing
 python3 main.py --buildmeta --update-all --user-media
 ```
 
-Once media is marked as `"Source": "user"`, subsequent runs of `--buildmeta` will skip downloading that media type from VPinMediaDB. You can also set individual media sources to "user" via the Media Manager UI.
+### `--claim-user-media` (Deprecated)
 
-**Note:** Only media files that actually exist on disk get claimed as user-sourced. If a media type is missing (e.g., you don't have a `dmd.png`), no entry is written for it. This means the next normal `--buildmeta` run will fill in any gaps by downloading the missing media from VPinMediaDB.
+Marked existing media as `"Source": "user"` so VPinMediaDB would not overwrite it. The downloader proves ownership by hash now, so there is nothing to mark. The flag still parses and does nothing; it will be removed in a later release.
 
 ## VPX Table Patches
 VPinFE can automaticlly pull patches from [vpx-standalone-scripts](https://github.com/jsm174/vpx-standalone-scripts) via the `--vpxpatch` CLI option if a matching patch can be found.  

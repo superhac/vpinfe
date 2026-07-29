@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from common import jobs
 from common.iniconfig import IniConfig
-from common.config_access import MediaConfig, SettingsConfig
+from common.config_access import SettingsConfig
 from common.tables import table_repository
 from common.tables.game_files import recorded_default
 from common.tables.table_repository import get_missing_tables, get_table_rows, refresh_table
@@ -267,7 +267,6 @@ def associate_vps_to_folder(
     table_folder: Path,
     vps_entry: Dict,
     download_media: bool = False,
-    user_media: bool = False,
 ) -> None:
     from common.tables.metaconfig import MetaConfig
 
@@ -289,19 +288,7 @@ def associate_vps_to_folder(
     meta = MetaConfig(str(meta_path))
     meta.writeConfigMeta({"vpsdata": vps_entry, "vpxdata": vpxdata})
 
-    if user_media:
-        from clioptions import _claimMediaForTable
-        from common.tables.table import Table
-
-        config = _fresh_config()
-        tabletype = MediaConfig.from_config(config).table_type
-        pseudo = Table()
-        pseudo.tableDirName = table_folder.name
-        pseudo.fullPathTable = str(table_folder)
-        _claimMediaForTable(pseudo, tabletype)
-        meta = MetaConfig(str(meta_path))
-
-    if download_media or user_media:
+    if download_media:
         from common.online.vpsdb import VPSdb
 
         config = _fresh_config()

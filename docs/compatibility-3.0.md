@@ -173,15 +173,19 @@ they always had (`pupPackExists`, `altColorExists`, `vniExists`, `altSoundExists
 *Why:* one table cannot have two answers, and the scan was already case-insensitive about
 `.directb2s` and `.ini` three lines away. Covered by `tests/test_media_resolution.py`.
 
-**PAR-17 — Claiming user media follows the resolution chain.**
-`--claim-user-media` only ever looked for the fixed canonical name in `medias/`, so a
-hand-placed `wheel.jpg`, a spec-named `(Wheel) <folder>.png`, or a file at the folder root
-was never claimed — and therefore stayed replaceable by the next media download. It now
-claims whatever actually resolves for each kind, which is the same file the frontend
-displays.
-*Why:* the resolution chain grew in 3.0 (PAR-09/PAR-10) and the claim path didn't follow
-it, which made the feature silently miss the files it exists to protect. Covered by
-`tests/test_media_resolution.py`.
+**PAR-17 — Your own media is protected by hash, and claiming it is gone.**
+On master, artwork was protected by marking it `"Source": "user"` — something you had to
+know about and run. The downloader now hashes any file already on disk and compares it to
+the MD5 VPinMediaDB publishes: a match means it is demonstrably our file and stays
+managed, anything else is left alone. That covers every file, claimed or not, including
+the case marking could never handle — our art that you later replaced.
+So `--claim-user-media` is a no-op stub kept for scripts, the Manager UI's "Use my own
+media" toggle is gone, and `--user-media` now only means "fetch nothing". Existing
+`"Source": "user"` marks stop being consulted; nobody's artwork changes state.
+*Why:* protection that depends on the user having run a command only protects the people
+who already knew about it. One loss worth naming: a file byte-identical to VPinMediaDB's
+could previously be pinned by claiming it, and can no longer be pinned at all. Covered by
+`tests/test_vpsdb_media.py`.
 
 ## Explicitly *not* exceptions
 

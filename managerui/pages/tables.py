@@ -126,11 +126,11 @@ def save_upload_bytes(dest_file: Path, content: bytes) -> None:
 
 # --- helper to create a .info file with a chosen VPS record for one folder ---
 
-def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media: bool = False, user_media: bool = False) -> None:
+def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media: bool = False) -> None:
     """
     Creates a `.info` file inside `table_folder` using the selected vps_entry and the VPX metadata.
     """
-    table_service.associate_vps_to_folder(table_folder, vps_entry, download_media, user_media)
+    table_service.associate_vps_to_folder(table_folder, vps_entry, download_media)
 
 
 logger = logging.getLogger("vpinfe.manager.tables")

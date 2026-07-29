@@ -42,19 +42,6 @@ def vpxPatches(progress_cb=None):
     return metadata_service.apply_vpx_patches(progress_cb=progress_cb, iniconfig=iniconfig)
 
 
-def _claimMediaForTable(table, tabletype, log=None):
-    return metadata_service.claim_media_for_table(table, tabletype, log)
-
-
-def claimUserMedia(tableName=None, progress_cb=None, log_cb=None):
-    return metadata_service.claim_user_media(
-        tableName=tableName,
-        progress_cb=progress_cb,
-        log_cb=log_cb,
-        iniconfig=iniconfig,
-    )
-
-
 def gamepadtest():
     """Run the gamepad test window using Chromium and the HTTP server."""
     from frontend.chromium_manager import ChromiumManager
@@ -104,13 +91,13 @@ def parseArgs():
     parser.add_argument("--vpxpatch", action="store_true", help="Attempt to apply patches automatically")
     parser.add_argument("--gamepadtest", action="store_true", help="Test and map your gamepad via JS API")
     parser.add_argument("--headless", action="store_true", help="Run web servers/services only, skip the Chromium frontend")
-    parser.add_argument("--claim-user-media", action="store_true", help="Bulk mark existing media files as user-sourced so they won't be overwritten by vpinmediadb")
+    parser.add_argument("--claim-user-media", action="store_true", help="Deprecated and does nothing; your own media is protected automatically")
 
     # Secondary args
     parser.add_argument("--no-media", action="store_true", help="Do not download images when building meta.ini")
     parser.add_argument("--update-all", action="store_true", help="Reparse all tables when building meta.ini")
-    parser.add_argument("--user-media", action="store_true", help="With --buildmeta: skip vpinmediadb downloads and claim existing local media as user-sourced")
-    parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta or --claim-user-media")
+    parser.add_argument("--user-media", action="store_true", help="With --buildmeta: skip vpinmediadb downloads entirely and supply all media yourself")
+    parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta")
 
     args, unknown = parser.parse_known_args()  # macOS-friendly parsing
 
@@ -153,8 +140,12 @@ def parseArgs():
         listUnknownTables()
         sys.exit()
 
+    # Kept as a stub because it shipped in 2.x and somebody has it in a script. It
+    # marked media as yours so vpinmediadb would not overwrite it; the downloader now
+    # proves ownership by hash before touching anything, so there is nothing to mark.
     if args.claim_user_media:
-        claimUserMedia(tableName=args.table)
+        logger.info("--claim-user-media is deprecated and does nothing. Media that is "
+                    "not vpinmediadb's is left alone automatically; no need to claim it.")
         sys.exit()
 
     if args.buildmeta:

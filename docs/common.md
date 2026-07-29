@@ -145,8 +145,8 @@ configuration editor itself. This keeps defaults and bool/int coercion in one
 place while preserving `IniConfig.config` for compatibility.
 
 Use `media_paths.py` for media keys, filenames, and table path attributes.
-Frontend payloads, parser discovery, media claiming, and VPS media downloads
-should not each carry their own filename table.
+Frontend payloads, parser discovery, and VPS media downloads should not each
+carry their own filename table.
 
 Use `jobs.JobReporter` for long-running workflows that need both logs and UI
 progress callbacks.

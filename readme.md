@@ -418,7 +418,7 @@ The **Unmatched Tables** dialog lets you:
 - Search VPS by name
 - Associate a table folder with a VPS entry
 - Optionally rename the folder to `Table Name (Manufacturer Year)`
-- Either download media from VPinMediaDB or claim your existing local media as user-owned
+- Download media from VPinMediaDB, which fills in what you are missing and leaves your own artwork alone
 
 The **Import Table** dialog lets you:
 
@@ -828,11 +828,11 @@ options:
   --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
   --gamepadtest         Testing and mapping your gamepad via js api
   --headless            Run web servers/services only, skip the Chromium frontend
-  --claim-user-media    Bulk mark existing media files as user-sourced so they won't be overwritten by vpinmediadb
+  --claim-user-media    Deprecated and does nothing; your own media is protected automatically
   --no-media            When building meta.ini files don't download the images at the same time.
   --update-all          When building meta.ini reparse all tables to recreate the meta.ini file.
-  --user-media          With --buildmeta: skip vpinmediadb downloads and claim existing local media as user-sourced
-  --table TABLE         Specify a single table folder name to process with --buildmeta or --claim-user-media
+  --user-media          With --buildmeta: skip vpinmediadb downloads entirely and supply all media yourself
+  --table TABLE         Specify a single table folder name to process with --buildmeta
 ```
 
 ## Server Listeners
