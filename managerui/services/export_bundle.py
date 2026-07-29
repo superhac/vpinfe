@@ -18,6 +18,7 @@ from common.tables.game_files import (
     game_file_names,
     recorded_default,
 )
+from common.tables.metaconfig import ASSETS_KEY
 from managerui.services.asset_registry import (
     is_readme,  # noqa: F401  (one matcher, import and export)
 )
@@ -51,22 +52,24 @@ def choose_game_file(table_dir: Path, game_file: str | None = None) -> str | Non
     return default_game_file(listing, table_dir.name, recorded) or (names[0] if names else None)
 
 
-def prune_info(info_text: str, bundled_names: set[str]) -> str:
-    """The .info that ships: Medias entries only for files actually in the bundle.
+def prune_info(info_text: str, bundled_arcnames: set[str]) -> str:
+    """The .info that ships: assets entries only for files actually in the bundle.
 
     The manifest should describe the archive, in both modes. Everything else in
     the file - authors, VPS identity, user data - passes through untouched.
+
+    Both keys are folder-relative paths, so this is a direct comparison. It used to
+    match basenames out of the old Medias `Path` field, which could not tell
+    medias/wheel.png from a wheel.png at the folder root.
     """
     try:
         data = json.loads(info_text)
     except ValueError:
         return info_text
-    medias = data.get("Medias")
-    if isinstance(medias, dict):
-        data["Medias"] = {
-            kind: entry for kind, entry in medias.items()
-            if isinstance(entry, dict)
-            and Path(str(entry.get("Path", ""))).name in bundled_names
+    assets = data.get(ASSETS_KEY)
+    if isinstance(assets, dict):
+        data[ASSETS_KEY] = {
+            path: entry for path, entry in assets.items() if path in bundled_arcnames
         }
     return json.dumps(data, indent=2)
 

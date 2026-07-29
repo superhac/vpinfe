@@ -583,12 +583,20 @@ class MergeInfoTests(unittest.TestCase):
         self.assertEqual(merged["StartCount"], 7)    # local had history -> kept
         self.assertEqual(merged["Tags"], ["fav"])    # local empty list -> filled
 
-    def test_vpxfile_and_medias_always_local(self):
-        incoming = {"VPXFile": {"filename": "old.vpx"}, "Medias": {"wheel": "/old/path"}}
-        existing = {"VPXFile": {"filename": "local.vpx"}, "Medias": {}}
+    def test_vpxfile_and_assets_always_local(self):
+        incoming = {"VPXFile": {"filename": "old.vpx"},
+                    "assets": {"medias/wheel.png": {"source": {"host": "user"}}}}
+        existing = {"VPXFile": {"filename": "local.vpx"}, "assets": {}}
         merged = merge_info(incoming, existing)
         self.assertEqual(merged["VPXFile"]["filename"], "local.vpx")
-        self.assertEqual(merged["Medias"], {})
+        self.assertEqual(merged["assets"], {},
+                         "an imported list describes files that are not in this folder")
+
+    def test_an_imported_medias_section_does_not_come_back(self):
+        """Nothing writes Medias any more, but a .info from a 2.x build still carries
+        one. It must not slip in as an unmanaged section and be preserved forever."""
+        merged = merge_info({"Medias": {"wheel": {"Source": "user"}}}, {})
+        self.assertNotIn("Medias", merged)
 
     def test_machine_local_overrides_must_resolve(self):
         from pathlib import Path

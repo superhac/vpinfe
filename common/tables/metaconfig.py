@@ -23,6 +23,12 @@ logger = logging.getLogger("vpinfe.common.tables.metaconfig")
 CURRENT_VPINFE_SCHEMA = 2
 VPINFE_SCHEMA_KEY = "schema"
 
+# One entry per file VPinFE placed, keyed by the path it was written to. Supersedes
+# Medias, which was keyed by media kind and so held at most one entry per kind - it
+# could not say which build's wheel it meant once artwork could belong to a specific
+# build, and the same question applies to backglasses, ROMs and colorizations anyway.
+ASSETS_KEY = "assets"
+
 _warned_newer_schema = set()
 
 
@@ -142,7 +148,7 @@ class MetaConfig:
         if not str(vpinfe.get("id", "") or "").strip():
             vpinfe["id"] = uuid.uuid4().hex
 
-        medias = self.data.get("Medias", {})
+        assets = self.data.get(ASSETS_KEY, {})
         previous_files = game_file_entries(self.data)
         game_files = self._build_game_files(configdata)
 
@@ -166,12 +172,14 @@ class MetaConfig:
 
         # Preserve any top-level sections we don't manage (e.g. metadata written by
         # other tools sharing the .info file) instead of dropping them on rebuild.
-        # VPXFile is listed because it is ours and superseded - without it here the
-        # old section would survive as "unmanaged" and be written back forever.
+        # VPXFile and Medias are listed because they are ours and superseded - without
+        # them here the old sections would survive as "unmanaged" and be written back
+        # forever.
         preserved = {
             k: v
             for k, v in self.data.items()
-            if k not in ("Info", "User", "VPXFile", "VPinFE", "Medias", GAME_FILES_KEY)
+            if k not in ("Info", "User", "VPXFile", "VPinFE", "Medias",
+                         GAME_FILES_KEY, ASSETS_KEY)
         }
 
         self.data = {
@@ -179,7 +187,7 @@ class MetaConfig:
             "User": user,
             "VPinFE": vpinfe,
             GAME_FILES_KEY: game_files,
-            "Medias": medias,
+            ASSETS_KEY: assets,
             **preserved
         }
 
@@ -264,29 +272,32 @@ class MetaConfig:
         entry[key] = value
         self.writeConfig()
 
-    def addMedia(self, mediaType, source, path, md5hash):
-        """Record a downloaded media entry in the Medias section."""
-        self.data.setdefault("Medias", {})[mediaType] = {
-            "Source": source,
-             "Path": os.path.basename(path),
-            "MD5Hash": md5hash
-        }
+    def add_asset(self, path, host, md5=""):
+        """Record a file we placed, against the path we wrote it to.
+
+        Origin only. What kind of media it is and which build it belongs to are read
+        off the filename by resolve_media_files on every run, so a stored copy could
+        only ever agree with it or be wrong - and resolution wins either way.
+        """
+        source = {"host": host}
+        if md5:
+            source["hash"] = md5
+        self.data.setdefault(ASSETS_KEY, {})[self._asset_key(path)] = {"source": source}
         self.writeConfig()
 
-    def removeMedia(self, mediaType):
-        """Remove a media entry from the Medias section."""
-        medias = self.data.get("Medias", {})
-        if not isinstance(medias, dict):
-            return False
-        if mediaType not in medias:
-            return False
-        medias.pop(mediaType, None)
-        self.writeConfig()
-        return True
+    def _asset_key(self, path):
+        """A path relative to the table folder, with forward slashes.
 
-    def getMedia(self, mediaType):
-        """Return the Medias entry for a given type, or None."""
-        return self.data.get("Medias", {}).get(mediaType)
+        The .info travels with its folder, so an absolute path stops meaning anything
+        the moment the library moves. Separators are normalized because a key written
+        on Windows has to match one read on Linux.
+        """
+        try:
+            relative = os.path.relpath(str(path), os.path.dirname(self.configFilePath))
+        except ValueError:
+            # Different drive on Windows; there is nothing to record but the name.
+            relative = os.path.basename(str(path))
+        return relative.replace(os.sep, "/")
 
     def _find_pinball_primer_tutorial(self, vpsdata):
         if not isinstance(vpsdata, dict):

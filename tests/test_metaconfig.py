@@ -284,6 +284,68 @@ class VPinFESchemaTests(unittest.TestCase):
         TestMetaConfig()._write_meta(info)
         saved = json.loads(info.read_text(encoding="utf-8"))
 
-        for name in ("Info", "User", "game_files", "Medias"):
+        for name in ("Info", "User", "game_files", "assets"):
             self.assertNotIn("schema", saved.get(name, {}),
                              f"{name} is not ours alone; it stays shape-driven")
+
+
+class AssetLedgerTests(unittest.TestCase):
+    """assets records one entry per file VPinFE placed, keyed by where it went."""
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self.root = Path(self._tmp.name) / "Cactus Canyon (Bally 1998)"
+        (self.root / "medias").mkdir(parents=True)
+        self.info = self.root / "Cactus Canyon (Bally 1998).info"
+        self.info.write_text("{}", encoding="utf-8")
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _saved(self) -> dict:
+        return json.loads(self.info.read_text(encoding="utf-8"))["assets"]
+
+    def test_the_key_is_the_path_inside_the_folder(self) -> None:
+        """Not a basename: medias/wheel.png and a wheel.png at the folder root are
+        different files, and the old kind-keyed ledger could hold only one of them."""
+        meta = MetaConfig(str(self.info))
+        meta.add_asset(str(self.root / "medias" / "wheel.png"), "vpinmediadb", "d80f67")
+        meta.add_asset(str(self.root / "wheel.png"), "user")
+
+        self.assertEqual(sorted(self._saved()), ["medias/wheel.png", "wheel.png"])
+
+    def test_a_download_records_its_host_and_the_hash_it_published(self) -> None:
+        meta = MetaConfig(str(self.info))
+        meta.add_asset(str(self.root / "medias" / "bg.png"), "vpinmediadb", "d80f67")
+
+        self.assertEqual(self._saved()["medias/bg.png"],
+                         {"source": {"host": "vpinmediadb", "hash": "d80f67"}})
+
+    def test_an_upload_records_no_hash(self) -> None:
+        """A hash is only meaningful as a comparison against a remote, and a file the
+        user handed us has none."""
+        meta = MetaConfig(str(self.info))
+        meta.add_asset(str(self.root / "medias" / "bg.png"), "user")
+
+        self.assertEqual(self._saved()["medias/bg.png"], {"source": {"host": "user"}})
+
+    def test_a_per_build_asset_is_describable(self) -> None:
+        """The reason the ledger moved off media kinds: two wheels, one table."""
+        meta = MetaConfig(str(self.info))
+        meta.add_asset(str(self.root / "medias" / "(Wheel) Cactus Canyon.png"), "user")
+        meta.add_asset(str(self.root / "medias" / "(Wheel) Cactus Canyon VR.png"), "user")
+
+        self.assertEqual(len(self._saved()), 2)
+
+    def test_a_rebuild_keeps_assets_and_drops_the_old_medias_section(self) -> None:
+        meta = MetaConfig(str(self.info))
+        meta.add_asset(str(self.root / "medias" / "bg.png"), "vpinmediadb", "d80f67")
+        meta.data["Medias"] = {"bg": {"Source": "vpinmediadb"}}
+        meta.writeConfig()
+
+        TestMetaConfig()._write_meta(self.info)
+        saved = json.loads(self.info.read_text(encoding="utf-8"))
+
+        self.assertIn("medias/bg.png", saved["assets"])
+        self.assertNotIn("Medias", saved,
+                         "superseded and ours, so it must not survive as unmanaged")

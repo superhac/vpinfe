@@ -41,8 +41,8 @@ def _library(tmp) -> Path:
     (root / f"{FOLDER}.info").write_text(json.dumps({
         "Info": {"Title": "Cactus Canyon"},
         "VPinFE": {"default_game_file": CHOSEN},
-        "Medias": {"wheel": {"Source": "user", "Path": "medias/wheel.png", "MD5Hash": ""},
-                   "bg": {"Source": "vpinmediadb", "Path": "medias/bg.png", "MD5Hash": ""}},
+        "assets": {"medias/wheel.png": {"source": {"host": "user"}},
+                   "medias/bg.png": {"source": {"host": "vpinmediadb", "hash": "abc"}}},
     }), encoding="utf-8")
     return root
 
@@ -110,16 +110,26 @@ class BundleTests(unittest.TestCase):
 
 
 class PrunedInfoTests(unittest.TestCase):
-    def test_medias_entries_shrink_to_what_ships(self) -> None:
+    def test_asset_entries_shrink_to_what_ships(self) -> None:
         info = json.dumps({"Info": {"Title": "X"},
-                           "Medias": {"wheel": {"Path": "medias/wheel.png"},
-                                      "bg": {"Path": "medias/bg.png"}}})
+                           "assets": {"medias/wheel.png": {"source": {"host": "user"}},
+                                      "medias/bg.png": {"source": {"host": "user"}}}})
+
+        pruned = json.loads(prune_info(info, {"medias/wheel.png"}))
+
+        self.assertEqual(list(pruned["assets"]), ["medias/wheel.png"])
+        self.assertEqual(pruned["Info"], {"Title": "X"},
+                         "everything else passes through untouched")
+
+    def test_a_folder_root_file_is_not_confused_with_one_under_medias(self) -> None:
+        """What the old basename match could not do: both entries end in wheel.png,
+        and only one of them is in the bundle."""
+        info = json.dumps({"assets": {"medias/wheel.png": {"source": {"host": "user"}},
+                                      "wheel.png": {"source": {"host": "user"}}}})
 
         pruned = json.loads(prune_info(info, {"wheel.png"}))
 
-        self.assertEqual(list(pruned["Medias"]), ["wheel"])
-        self.assertEqual(pruned["Info"], {"Title": "X"},
-                         "everything else passes through untouched")
+        self.assertEqual(list(pruned["assets"]), ["wheel.png"])
 
     def test_a_broken_info_passes_through_rather_than_vanishing(self) -> None:
         self.assertEqual(prune_info("not json", set()), "not json")
@@ -150,7 +160,7 @@ class ArchiveTests(unittest.TestCase):
         self.assertIn(f"{FOLDER}/{CHOSEN}", names)
         self.assertNotIn(f"{FOLDER}/{OTHER}", names)
         self.assertFalse(any("/medias/" in n for n in names))
-        self.assertEqual(info["Medias"], {},
+        self.assertEqual(info["assets"], {},
                          "the manifest describes the archive, and no media shipped")
 
     def test_everything_mode_archives_the_folder(self) -> None:

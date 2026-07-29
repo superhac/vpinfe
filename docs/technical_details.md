@@ -127,26 +127,21 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
         "deletedNVRamOnClose": false,
         "altlauncher": ""
     },
-    "Medias": {
-        "bg": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/bg.png",
-            "MD5Hash": "d80f67a370ebce2edd19febdc3fd7636"
+    "assets": {
+        "medias/bg.png": {
+            "source": {
+                "host": "vpinmediadb",
+                "hash": "d80f67a370ebce2edd19febdc3fd7636"
+            }
         },
-        "wheel": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/wheel.png",
-            "MD5Hash": "a88bcaf2ade6b9614417fc18a8782f78"
+        "medias/wheel.png": {
+            "source": {
+                "host": "vpinmediadb",
+                "hash": "a88bcaf2ade6b9614417fc18a8782f78"
+            }
         },
-        "cab": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/cab.png",
-            "MD5Hash": "2df700d28fbfd88bb9a08c50da0c00ae"
-        },
-        "table": {
-            "Source": "vpinmediadb",
-            "Path": "/home/superhac/tables/1-2-3 (Automaticos 1973)/medias/table.png",
-            "MD5Hash": "ee863e38e38d8dd5552e511a15583d23"
+        "medias/cab.png": {
+            "source": {"host": "user"}
         }
     }
 }
@@ -191,12 +186,15 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   - deletedNVRamOnClose: (true/false) Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing. Default is false.
   - altlauncher: Optional executable path override used only for this table. If set, this is used instead of `vpinfe.ini` `Settings.vpxbinpath`.
 
-- Medias
+- assets
 
-  Tracks downloaded media files per table. Preserved across `--buildmeta --update-all`. Each entry is keyed by media type (bg, dmd, table, fss, wheel, cab, realdmd, realdmd_color, audio):
-  - Source: Where the media was downloaded from (e.g. "vpinmediadb" or "user" for manually uploaded)
-  - Path: Full local path to the media file
-  - MD5Hash: MD5 hash of the media from the source. On `--buildmeta`, if the remote MD5 differs from the stored hash, the image is re-downloaded automatically.
+  One entry per file VPinFE placed in the table folder, keyed by the file's path relative to that folder, with forward slashes. Preserved across `--buildmeta --update-all`. Replaces the old `Medias` section, which was keyed by media type and so could hold only one entry per type — no way to describe artwork belonging to one specific game file, and the same question applies to backglasses, ROMs and colorizations. Each entry holds a `source`:
+  - host: who supplied the bytes — a remote such as "vpinmediadb", or "user" for a file uploaded through the Manager UI
+  - hash: the MD5 the host published, when it published one. Absent for a user upload, since a hash is only meaningful compared against a remote.
+
+  Nothing else is stored. Which media kind a file is, and which game file it belongs to, are read off its name every time media resolves, so a stored copy could only agree or be wrong.
+
+  **A file with no entry is not ours.** Ownership is not decided from this section — the downloader hashes what is already on disk and compares it to the MD5 vpinmediadb publishes, so your own artwork is safe whether or not it appears here.
 
 After that file is created it then attempts to download the media artwork for that table from [VPinMediaDB](https://github.com/superhac/vpinmediadb). All media images are stored in a `medias/` subfolder within each table's directory:
 

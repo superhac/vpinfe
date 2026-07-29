@@ -177,14 +177,13 @@ def _send_table_to_device(
     pruned_info_path = None
     contents = list(bundle_paths(Path(table_path), everything=False))
     allowed = {arcname.replace(os.sep, '/') for _, arcname in contents}
-    bundled_names = {os.path.basename(a) for a in allowed}
     info_name = f'{table_dir_name}.info'
-    if info_name in bundled_names:
+    if info_name in allowed:
         source = os.path.join(table_path, info_name)
         try:
             import tempfile as _tempfile
             with open(source, encoding='utf-8', errors='replace') as fh:
-                pruned = prune_info(fh.read(), bundled_names)
+                pruned = prune_info(fh.read(), allowed)
             handle = _tempfile.NamedTemporaryFile('w', suffix='.info',
                                                   delete=False, encoding='utf-8')
             handle.write(pruned)

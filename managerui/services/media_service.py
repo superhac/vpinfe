@@ -287,7 +287,9 @@ def replace_media_file(table_path: str, table_dir: str, media_key: str, uploaded
     info_file = os.path.join(table_path, f"{table_dir}.info")
     if os.path.exists(info_file):
         mc = MetaConfig(info_file)
-        mc.addMedia(media_key, "user", target_path, "")
+        # No hash: one is only meaningful as a comparison against a remote, and there
+        # is no remote here - the user handed us the bytes.
+        mc.add_asset(target_path, "user")
 
     return target_path
 

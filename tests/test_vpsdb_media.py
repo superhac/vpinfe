@@ -2,6 +2,7 @@ import hashlib
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest import mock
 
 from common.online.vpsdb_media import VPSMediaDownloader
@@ -40,7 +41,7 @@ class OwnershipTests(unittest.TestCase):
             with mock.patch.object(dl, "download_media_file") as fetch:
                 result = dl.download_media(
                     "vps-1", dl.media_index["vps-1"], "wheel",
-                    str(wheel), str(wheel), meta_config=None, media_type="wheel")
+                    str(wheel), str(wheel))
             return result, wheel.read_bytes(), fetch.called
 
     def test_a_users_own_artwork_is_left_alone_and_never_claimed(self) -> None:
@@ -76,29 +77,62 @@ class OwnershipTests(unittest.TestCase):
             dl = self._downloader(_md5(OURS))
             with mock.patch.object(dl, "download_media_file") as fetch:
                 dl.download_media("vps-1", dl.media_index["vps-1"], "wheel",
-                                  str(wheel), str(wheel), meta_config=None,
-                                  media_type="wheel")
+                                  str(wheel), str(wheel))
             self.assertTrue(fetch.called)
 
 
 class RecordingTests(unittest.TestCase):
-    def test_only_files_we_placed_are_recorded_as_ours(self) -> None:
+    """What reaches the assets ledger, going through the real recording path."""
+
+    def _table(self, root: Path):
+        """Enough of a Table for download_media_for_table. Every media path points at
+        the canonical name; only the wheel exists on disk in these tests."""
+        paths = {"BGImagePath": "bg.png", "DMDImagePath": "dmd.png",
+                 "WheelImagePath": "wheel.png", "CabImagePath": "cab.png",
+                 "realDMDImagePath": "realdmd.png",
+                 "realDMDColorImagePath": "realdmd-color.png",
+                 "FlyerImagePath": "flyer.png", "TableImagePath": "table.png",
+                 "DMDVideoPath": "dmd.mp4", "TableVideoPath": "table.mp4",
+                 "AudioPath": "audio.mp3"}
+        table = SimpleNamespace(fullPathTable=str(root), tableDirName=root.name)
+        for attr, name in paths.items():
+            setattr(table, attr, str(root / "medias" / name))
+        return table
+
+    def _downloader(self, remote_md5: str):
+        return VPSMediaDownloader(
+            {"vps-1": {"wheel": "https://example.invalid/wheel.png",
+                       "wheel_md5": remote_md5}},
+            tabletype="table", tableresolution="1k", tablevideoresolution="1k")
+
+    def test_a_file_we_never_wrote_is_not_recorded_as_ours(self) -> None:
         """download_media returns None for anything it declined to touch, and record()
-        writes nothing for None - so the ledger cannot claim a file we never wrote."""
+        writes nothing for None - so the ledger cannot claim a user's artwork."""
         with TemporaryDirectory() as tmp:
-            wheel = Path(tmp) / "wheel.png"
-            wheel.write_bytes(THEIRS)
-            dl = VPSMediaDownloader(
-                {"vps-1": {"wheel": "https://example.invalid/wheel.png",
-                           "wheel_md5": _md5(OURS)}},
-                tabletype="table", tableresolution="1k", tablevideoresolution="1k")
+            root = Path(tmp) / "Cactus Canyon (Bally 1998)"
+            (root / "medias").mkdir(parents=True)
+            (root / "medias" / "wheel.png").write_bytes(THEIRS)
+            dl = self._downloader(_md5(OURS))
             meta = mock.Mock()
             with mock.patch.object(dl, "download_media_file"):
-                result = dl.download_media("vps-1", dl.media_index["vps-1"], "wheel",
-                                           str(wheel), str(wheel), meta_config=meta,
-                                           media_type="wheel")
-            self.assertIsNone(result)
-            meta.addMedia.assert_not_called()
+                dl.download_media_for_table(self._table(root), "vps-1", meta)
+
+            meta.add_asset.assert_not_called()
+
+    def test_a_file_we_placed_is_recorded_by_path_with_its_hash(self) -> None:
+        """The entry is keyed by where the file went, not by which kind it is - a kind
+        cannot say which build's artwork it means."""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp) / "Cactus Canyon (Bally 1998)"
+            (root / "medias").mkdir(parents=True)
+            (root / "medias" / "wheel.png").write_bytes(OURS)
+            dl = self._downloader(_md5(OURS))
+            meta = mock.Mock()
+            with mock.patch.object(dl, "download_media_file"):
+                dl.download_media_for_table(self._table(root), "vps-1", meta)
+
+            meta.add_asset.assert_called_once_with(
+                str(root / "medias" / "wheel.png"), "vpinmediadb", _md5(OURS))
 
 
 if __name__ == "__main__":

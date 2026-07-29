@@ -150,29 +150,6 @@ class VPSdb:
     def fileExists(self, path):
         return self._media_downloader.file_exists(path)
 
-    def downloadMedia(self, tableId, metadata, key, filename, defaultFilename, metaConfig=None, mediaType=None):
-        """
-        Download a media file if not already present, or re-download if the
-        remote MD5 hash differs from the locally stored hash.
-        :param tableId: VPS table ID
-        :param metadata: dict containing media info
-        :param key: which asset to download
-        :param filename: local path to check
-        :param defaultFilename: local path to save to
-        :param metaConfig: MetaConfig instance for MD5 comparison
-        :param mediaType: media type key used in the Medias section
-        :returns: (downloaded_path, md5hash) if downloaded or already exists, else None
-        """
-        return self._media_downloader.download_media(
-            tableId,
-            metadata,
-            key,
-            filename,
-            defaultFilename,
-            metaConfig,
-            mediaType,
-        )
-
     def downloadMediaForTable(self, table, id, metaConfig=None):
         """Download all associated media for a given table."""
         self._media_downloader.download_media_for_table(table, id, metaConfig)

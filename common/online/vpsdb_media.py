@@ -57,7 +57,7 @@ class VPSMediaDownloader:
         """
         return bool(remote_md5) and self.local_md5(path) == remote_md5
 
-    def download_media(self, table_id, metadata, key, filename, default_filename, meta_config=None, media_type=None):
+    def download_media(self, table_id, metadata, key, filename, default_filename):
         if not metadata or key not in metadata:
             return None
 
@@ -87,30 +87,31 @@ class VPSMediaDownloader:
         medias_dir = os.path.join(table.fullPathTable, "medias")
         os.makedirs(medias_dir, exist_ok=True)
 
-        def record(media_type, result):
+        def record(result):
             """Only files we actually placed. download_media returns None for anything
             it declined to touch, so a user's artwork is never claimed as ours."""
             if result and meta_config:
                 path, md5hash = result
-                meta_config.addMedia(media_type, "vpinmediadb", path, md5hash)
+                meta_config.add_asset(path, "vpinmediadb", md5hash)
 
-        def process(media_type, metadata, key, filename, default_filename):
-            record(media_type, self.download_media(table_id, metadata, key, filename,
-                                                   default_filename, meta_config, media_type))
+        # The ledger is keyed by path now, so the kind no longer has to be passed along
+        # to be recorded - it was the same value as `key` at every call site anyway.
+        def process(metadata, key, filename, default_filename):
+            record(self.download_media(table_id, metadata, key, filename, default_filename))
 
-        process("bg", table_media.get("1k"), "bg", table.BGImagePath, str(default_media_path(table.fullPathTable, "bg", self.tabletype)))
-        process("dmd", table_media.get("1k"), "dmd", table.DMDImagePath, str(default_media_path(table.fullPathTable, "dmd", self.tabletype)))
-        process("wheel", table_media, "wheel", table.WheelImagePath, str(default_media_path(table.fullPathTable, "wheel", self.tabletype)))
-        process("cab", table_media, "cab", table.CabImagePath, str(default_media_path(table.fullPathTable, "cab", self.tabletype)))
-        process("realdmd", table_media, "realdmd", table.realDMDImagePath, str(default_media_path(table.fullPathTable, "realdmd", self.tabletype)))
-        process("realdmd_color", table_media, "realdmd_color", table.realDMDColorImagePath, str(default_media_path(table.fullPathTable, "realdmd_color", self.tabletype)))
-        process("flyer", table_media, "flyer", table.FlyerImagePath, str(default_media_path(table.fullPathTable, "flyer", self.tabletype)))
-        process(self.tabletype, table_media.get(self.tableresolution), self.tabletype, table.TableImagePath, str(default_media_path(table.fullPathTable, self.tabletype, self.tabletype)))
+        process(table_media.get("1k"), "bg", table.BGImagePath, str(default_media_path(table.fullPathTable, "bg", self.tabletype)))
+        process(table_media.get("1k"), "dmd", table.DMDImagePath, str(default_media_path(table.fullPathTable, "dmd", self.tabletype)))
+        process(table_media, "wheel", table.WheelImagePath, str(default_media_path(table.fullPathTable, "wheel", self.tabletype)))
+        process(table_media, "cab", table.CabImagePath, str(default_media_path(table.fullPathTable, "cab", self.tabletype)))
+        process(table_media, "realdmd", table.realDMDImagePath, str(default_media_path(table.fullPathTable, "realdmd", self.tabletype)))
+        process(table_media, "realdmd_color", table.realDMDColorImagePath, str(default_media_path(table.fullPathTable, "realdmd_color", self.tabletype)))
+        process(table_media, "flyer", table.FlyerImagePath, str(default_media_path(table.fullPathTable, "flyer", self.tabletype)))
+        process(table_media.get(self.tableresolution), self.tabletype, table.TableImagePath, str(default_media_path(table.fullPathTable, self.tabletype, self.tabletype)))
         # Videos, and only the ones the index actually carries. There has never been
         # a bg_video at any resolution, so the backglass video is yours to supply.
         # Nor is there an fss_video: under table type fss the playfield video is
         # simply not offered, and asking would quietly fetch nothing.
-        process("dmd_video", table_media.get(self.tablevideoresolution), "dmd_video", table.DMDVideoPath, str(default_media_path(table.fullPathTable, "dmd_video", self.tabletype)))
+        process(table_media.get(self.tablevideoresolution), "dmd_video", table.DMDVideoPath, str(default_media_path(table.fullPathTable, "dmd_video", self.tabletype)))
         if self.tabletype == "table":
-            process("table_video", table_media.get(self.tablevideoresolution), "table_video", table.TableVideoPath, str(default_media_path(table.fullPathTable, "table_video", self.tabletype)))
-        process("audio", table_media, "audio", table.AudioPath, str(default_media_path(table.fullPathTable, "audio", self.tabletype)))
+            process(table_media.get(self.tablevideoresolution), "table_video", table.TableVideoPath, str(default_media_path(table.fullPathTable, "table_video", self.tabletype)))
+        process(table_media, "audio", table.AudioPath, str(default_media_path(table.fullPathTable, "audio", self.tabletype)))
