@@ -137,6 +137,20 @@ in the standalone export bundle. Detection is deliberately narrow — never a bl
 *Why:* whoever made the table wrote those notes for whoever installs it; now they arrive.
 Covered by `tests/test_asset_upload_services.py` and `tests/test_export_bundle.py`.
 
+**PAR-16 — Game files can be hidden, and several are peers rather than one default.**
+A table folder can hold more than one launchable `.vpx` — a desktop build and a VR build,
+or a table and a patched variant. Every visible one is independently launchable; there is
+no primary-with-alternates. The `.info` gains a `GameFiles` section keyed by filename
+(`{"hidden": true}`), absent meaning visible, so an existing library is unchanged. The
+game-files API response gains `hidden`.
+
+`default` in that response no longer means "the one to launch". It names the file the
+table's metadata was derived from, which is what export and the metadata build need when
+they have to pick one. Consumers listing what to play should filter on `hidden`.
+*Why:* applying a patch leaves the base table on disk — it has to stay, since the patched
+table cannot be rebuilt without it — but nobody wants to be offered it. Deleting it would
+be the wrong fix. Covered by `tests/test_jdiffpatch.py`.
+
 **PAR-15 — Manufacturer logos, served from a shared assets root.**
 *(machine-checked)* Themes gain one payload field, `ManufacturerLogoPath`: a
 `/assets/`-relative web path to the table manufacturer's logo, or `null` when there is

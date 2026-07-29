@@ -188,13 +188,25 @@ class Dependencies(ApiModel):
 
 
 class GameFile(ApiModel):
-    """A launchable artifact. `available` is false for a file the metadata records
-    but which is not on disk - worth reporting rather than hiding."""
+    """A launchable artifact.
+
+    `available` is false for a file the metadata records but which is not on disk -
+    worth reporting rather than hiding.
+
+    `hidden` is the user's choice not to be offered this build in the frontend; the
+    file stays on disk, because a patch base has to (the patched table cannot be
+    rebuilt without it) and a variant may be wanted back. Consumers listing what to
+    play should skip these; consumers managing a library should not.
+
+    `default` names the file the table's metadata was derived from, not the one to
+    launch - every visible game file is independently launchable.
+    """
 
     format: str
     app: str
     filename: str
     default: bool
+    hidden: bool
     available: bool
     assets: dict[str, ResolvedAsset]
     dependencies: Dependencies

@@ -21,7 +21,11 @@ from common.host import launch, launch_state, pinmame_catalog
 from common.media_paths import MEDIA_SPECS, resolve_media_files
 from common.paths import get_ini_config
 from common.tables import asset_resolver, table_identity
-from common.tables.game_files import default_game_file, game_file_names
+from common.tables.game_files import (
+    default_game_file,
+    game_file_names,
+    hidden_game_files,
+)
 from common.tables.table_repository import (
     collections_by_table_id,
     ensure_tables_loaded,
@@ -128,6 +132,22 @@ def _inventory_assets(table_dir: Path) -> dict:
     return inv
 
 
+def _game_file_settings(table_dir: Path) -> dict:
+    """Per-game-file settings from the folder's .info, or {} when unreadable.
+
+    A folder that cannot be parsed must not make its game files vanish - absent
+    settings mean everything is visible, which is what an older library looks like.
+    """
+    try:
+        from common.tables.metaconfig import MetaConfig
+        info = table_dir / f"{table_dir.name}.info"
+        if info.is_file():
+            return MetaConfig(str(info)).gameFileSettings()
+    except Exception:  # noqa: BLE001 - settings are advisory; never block the listing
+        logger.debug("Could not read game file settings for %s", table_dir, exc_info=True)
+    return {}
+
+
 def _game_files(table, row: dict) -> list[dict]:
     """The table's launchable artifacts.
 
@@ -153,7 +173,10 @@ def _game_files(table, row: dict) -> list[dict]:
         return []
 
     # Same resolver the launcher and the metadata build use, so all three agree.
+    # This names the file the table's metadata came from, NOT the one to launch -
+    # every visible game file is independently launchable.
     default = default_game_file(files, table_dir.name, recorded) or recorded
+    hidden = hidden_game_files(_game_file_settings(table_dir))
 
     # Dependency context, once per request: the alias map and the rom listing are
     # shared by every game file in the folder.
@@ -172,6 +195,7 @@ def _game_files(table, row: dict) -> list[dict]:
             "app": "vpx",
             "filename": name,
             "default": name == default,
+            "hidden": name in hidden,
             "available": name in on_disk,
             "assets": asset_resolver.resolve_for_game_file(name, table_dir.name, files),
         }

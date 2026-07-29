@@ -175,13 +175,14 @@ class MetaConfig:
             vpinfe.setdefault("altvpsid", "")
 
         medias = self.data.get("Medias", {})
+        game_files = self.data.get("GameFiles", {})
 
         # Preserve any top-level sections we don't manage (e.g. metadata written by
         # other tools sharing the .info file) instead of dropping them on rebuild.
         preserved = {
             k: v
             for k, v in self.data.items()
-            if k not in ("Info", "User", "VPXFile", "VPinFE", "Medias")
+            if k not in ("Info", "User", "VPXFile", "VPinFE", "Medias", "GameFiles")
         }
 
         self.data = {
@@ -190,6 +191,7 @@ class MetaConfig:
             "VPXFile": vpxfile,
             "VPinFE": vpinfe,
             "Medias": medias,
+            "GameFiles": game_files,
             **preserved
         }
 
@@ -206,6 +208,29 @@ class MetaConfig:
 
     def strip_all_newlines(self, text):
         return text.replace("\r\n", "").replace("\n", "")
+
+    def gameFileSettings(self):
+        """Per-game-file settings, keyed by filename. A folder can hold several builds
+        of one table - desktop, VR, a patched variant - and they are peers."""
+        settings = self.data.get("GameFiles")
+        return settings if isinstance(settings, dict) else {}
+
+    def setGameFileHidden(self, filename, hidden):
+        """Hide a game file from the frontend, or unhide it.
+
+        Hiding never deletes. A patch base has to stay on disk - the patched table
+        cannot be rebuilt without it - it just should not be offered as something to
+        play. The same applies to a variant someone may want back later.
+        """
+        settings = self.data.setdefault("GameFiles", {})
+        entry = settings.setdefault(filename, {})
+        if hidden:
+            entry["hidden"] = True
+        else:
+            entry.pop("hidden", None)
+            if not entry:
+                settings.pop(filename, None)
+        self.writeConfig()
 
     def addMedia(self, mediaType, source, path, md5hash):
         """Record a downloaded media entry in the Medias section."""
