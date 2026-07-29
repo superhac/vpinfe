@@ -9,7 +9,7 @@ class TestVPXParser(unittest.TestCase):
     def test_extract_rom_name_ignores_single_quote_commented_cgamename_lines(self) -> None:
         parser = VPXParser()
         values = {
-            "gameData": (
+            "game_data": (
                 "'Const cGameName = \"mm_10\" 'Williams official rom\n"
                 "'Const cGameName = \"mm_109\" 'free play only\n"
                 "'Const cGameName=\"mm_109b\" 'unofficial\n"
@@ -24,7 +24,7 @@ class TestVPXParser(unittest.TestCase):
     def test_extract_rom_name_uses_first_uncommented_cgamename(self) -> None:
         parser = VPXParser()
         values = {
-            "gameData": (
+            "game_data": (
                 "'Const cGameName = \"commented\"\n"
                 "Const cGameName = \"active_first\"\n"
                 "Const cGameName = \"active_second\""
@@ -38,7 +38,7 @@ class TestVPXParser(unittest.TestCase):
     def test_extract_rom_name_preserves_single_quote_inside_string_literals(self) -> None:
         parser = VPXParser()
         values = {
-            "gameData": (
+            "game_data": (
                 "Dim tableName\n"
                 "tableName = \"It' s fine\"\n"
                 "Const cGameName = \"quoted_ok\""
@@ -52,7 +52,7 @@ class TestVPXParser(unittest.TestCase):
     def test_extract_rom_name_falls_back_to_opt_rom_after_commented_cgamename(self) -> None:
         parser = VPXParser()
         values = {
-            "gameData": (
+            "game_data": (
                 "'Const cGameName = \"commented\"\n"
                 "Const cOptRom = \"fallback_rom\""
             )
@@ -64,9 +64,9 @@ class TestVPXParser(unittest.TestCase):
 
     def _detect(self, script: str) -> str:
         parser = VPXParser()
-        values = {"gameData": script}
+        values = {"game_data": script}
         parser.runDetectors(values)
-        return values["detectpinmame"]
+        return values["detect_pinmame"]
 
     def test_a_script_that_loads_vpm_drives_pinmame(self) -> None:
         self.assertEqual(self._detect(
@@ -98,7 +98,7 @@ class TestVPXParser(unittest.TestCase):
                 "Const cGameName=\"sidecar_active\"\n",
                 encoding="utf-8",
             )
-            values = {"gameData": "Const cGameName=\"embedded_active\""}
+            values = {"game_data": "Const cGameName=\"embedded_active\""}
 
             parser.loadSidecarVBCode(str(vpx_path), values)
             parser.extractRomName(values)

@@ -8,6 +8,7 @@ import requests
 
 from common.app_version import get_version
 from common.config_access import SettingsConfig, VPinPlayConfig
+from common.tables.table_metadata import default_game_file
 from common.tables.tableparser import TableParser
 
 
@@ -58,7 +59,7 @@ def _utc_now_iso() -> str:
 def _build_table_payload(meta: dict) -> dict | None:
     info = meta.get("Info", {}) if isinstance(meta.get("Info"), dict) else {}
     user = meta.get("User", {}) if isinstance(meta.get("User"), dict) else {}
-    vpx = meta.get("VPXFile", {}) if isinstance(meta.get("VPXFile"), dict) else {}
+    gf_name, vpx = default_game_file(meta)
     vpinfe = meta.get("VPinFE", {}) if isinstance(meta.get("VPinFE"), dict) else {}
 
     vps_id = str(info.get("VPSId", "") or "").strip()
@@ -68,7 +69,7 @@ def _build_table_payload(meta: dict) -> dict | None:
     return {
         "info": {
             "vpsId": vps_id,
-            "rom": str(info.get("Rom", "") or ""),
+            "rom": str(vpx.get("rom", "") or ""),
         },
         "user": {
             "rating": _to_int(user.get("Rating", 0), default=0),
@@ -78,24 +79,24 @@ def _build_table_payload(meta: dict) -> dict | None:
             "score": _normalize_score(user.get("Score")),
         },
         "vpxFile": {
-            "filename": str(vpx.get("filename", "") or ""),
-            "filehash": str(vpx.get("filehash", "") or ""),
+            "filename": gf_name,
+            "filehash": str(vpx.get("file_hash", "") or ""),
             "version": str(vpx.get("version", "") or ""),
-            "releaseDate": str(vpx.get("releaseDate", "") or ""),
-            "saveDate": str(vpx.get("saveDate", "") or ""),
-            "saveRev": str(vpx.get("saveRev", "") or ""),
+            "releaseDate": str(vpx.get("release_date", "") or ""),
+            "saveDate": str(vpx.get("save_date", "") or ""),
+            "saveRev": str(vpx.get("save_rev", "") or ""),
             "manufacturer": str(vpx.get("manufacturer", "") or ""),
             "year": str(vpx.get("year", "") or ""),
             "type": str(vpx.get("type", "") or ""),
-            "vbsHash": str(vpx.get("vbsHash", "") or ""),
+            "vbsHash": str(vpx.get("vbs_hash", "") or ""),
             "rom": str(vpx.get("rom", "") or ""),
-            "detectnfozzy": bool(vpx.get("detectnfozzy", False)),
-            "detectfleep": bool(vpx.get("detectfleep", False)),
-            "detectssf": bool(vpx.get("detectssf", False)),
-            "detectlut": bool(vpx.get("detectlut", False)),
-            "detectscorebit": bool(vpx.get("detectscorebit", False)),
-            "detectfastflips": bool(vpx.get("detectfastflips", False)),
-            "detectflex": bool(vpx.get("detectflex", False)),
+            "detectnfozzy": bool(vpx.get("detect_nfozzy", False)),
+            "detectfleep": bool(vpx.get("detect_fleep", False)),
+            "detectssf": bool(vpx.get("detect_ssf", False)),
+            "detectlut": bool(vpx.get("detect_lut", False)),
+            "detectscorebit": bool(vpx.get("detect_scorbit", False)),
+            "detectfastflips": bool(vpx.get("detect_fastflips", False)),
+            "detectflex": bool(vpx.get("detect_flex", False)),
         },
         "vpinfe": {
             "alttitle": str(vpinfe.get("alttitle", "") or ""),

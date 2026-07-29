@@ -9,6 +9,7 @@ from common.tables.collections_service import get_collections_manager
 from common.tables.vpxcollections import MEMBERS_KEY
 from common.tables import table_identity
 from common.tables.table_metadata import (
+    default_game_file_entry,
     get_or_create_user_meta,
     load_table_meta,
     normalize_meta,
@@ -99,7 +100,7 @@ def apply_runtime_update(config: dict, elapsed_seconds: float) -> dict:
 
 
 def score_rom_from_meta(config: dict) -> str:
-    vpx_rom = str(section(config, "VPXFile").get("rom", "") or "").strip()
+    vpx_rom = str(default_game_file_entry(config).get("rom", "") or "").strip()
     if vpx_rom:
         return vpx_rom
     return str(section(config, "Info").get("Rom", "") or "").strip()

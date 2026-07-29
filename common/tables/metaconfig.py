@@ -4,6 +4,15 @@ import os
 import uuid
 from urllib.parse import urlparse, parse_qs
 
+from common.tables.game_files import (
+    DETECT_KEYS,
+    GAME_FILES_KEY,
+    default_game_file,
+    entry_from_parsed,
+    game_file_entries,
+    recorded_default,
+)
+
 logger = logging.getLogger("vpinfe.common.tables.metaconfig")
 
 # Schema version for the VPinFE section only - we own those keys outright, so their
@@ -59,15 +68,6 @@ class InvalidMetaConfigError(ValueError):
 
 class MetaConfig:
     PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
-    DETECT_KEY_MAP = {
-        "detectNfozzy": "detectnfozzy",
-        "detectFleep": "detectfleep",
-        "detectSSF": "detectssf",
-        "detectLUT": "detectlut",
-        "detectScorebit": "detectscorebit",
-        "detectFastflips": "detectfastflips",
-        "detectFlex": "detectflex",
-    }
 
     def __init__(self, configfilepath):
         self.configFilePath = configfilepath
@@ -91,15 +91,13 @@ class MetaConfig:
         """
         Build the .info JSON structure
         """
-        existing_vpxfile = self.data.get("VPXFile", {})
-        if not isinstance(existing_vpxfile, dict):
-            existing_vpxfile = {}
-        existing_filehash = str(existing_vpxfile.get("filehash", "") or "").strip()
-        new_filehash = str(configdata.get("vpxdata", {}).get("fileHash", "") or "").strip()
         pinball_primer_tutorial = self._find_pinball_primer_tutorial(
             configdata.get("vpsdata", {})
         )
 
+        # Info is wholly what VPS knows about the machine. Rom and Authors used to be
+        # copied in from the parsed .vpx and were per-build values all along - they
+        # live on their own game_files entry now.
         info = {
             "IPDBId": parse_qs(urlparse(configdata.get("vpsdata", {}).get("ipdbUrl", "")).query).get("id", [""])[0],
             "Title": configdata.get("vpsdata", {}).get("name", ""),
@@ -108,35 +106,9 @@ class MetaConfig:
             "Type": configdata.get("vpsdata", {}).get("type", ""),
             "Themes": configdata.get("vpsdata", {}).get("theme", []),
             "VPSId": configdata.get("vpsdata", {}).get("id", ""),
-            "Authors": self._parse_authors(
-                configdata.get("vpxdata", {}).get("authorName", "")
-            ),
-            "Rom": configdata.get("vpxdata", {}).get("rom", ""),
         }
         if pinball_primer_tutorial:
             info["PinballPrimerTut"] = pinball_primer_tutorial
-
-        vpxfile = {
-            "filename": configdata["vpxdata"]["filename"],
-            "filehash": configdata["vpxdata"]["fileHash"],
-            "version": configdata["vpxdata"]["tableVersion"],
-            "releaseDate": configdata["vpxdata"]["releaseDate"],
-            "saveDate": configdata["vpxdata"]["tableSaveDate"],
-            "saveRev": configdata["vpxdata"]["tableSaveRev"],
-            "manufacturer": configdata["vpxdata"]["companyName"],
-            "year": configdata["vpxdata"]["companyYear"],
-            "type": configdata["vpxdata"]["tableType"],
-            "vbsHash": configdata["vpxdata"]["codeSha256Hash"],
-            "rom": configdata["vpxdata"]["rom"],
-            "detectnfozzy": configdata["vpxdata"]["detectnfozzy"],
-            "detectfleep": configdata["vpxdata"]["detectfleep"],
-            "detectssf": configdata["vpxdata"]["detectssf"],
-            "detectlut": configdata["vpxdata"]["detectlut"],
-            "detectscorebit": configdata["vpxdata"]["detectscorebit"],
-            "detectfastflips": configdata["vpxdata"]["detectfastflips"],
-            "detectflex": configdata["vpxdata"]["detectflex"],
-            "detectpinmame": configdata["vpxdata"].get("detectpinmame", "")
-        }
 
         user = self.data.get("User", {
             "Rating": 0,
@@ -169,33 +141,81 @@ class MetaConfig:
         # file changing, which is exactly when altvpsid is cleared.
         if not str(vpinfe.get("id", "") or "").strip():
             vpinfe["id"] = uuid.uuid4().hex
-        if existing_filehash and new_filehash and existing_filehash != new_filehash:
+
+        medias = self.data.get("Medias", {})
+        previous_files = game_file_entries(self.data)
+        game_files = self._build_game_files(configdata)
+
+        # Which build a single-game-file consumer gets - today's themes all assume one
+        # table means one build. Resolved fresh here and deliberately NOT written back:
+        # seeding it on every rebuild would turn an arbitrary first pick into a
+        # permanent one with nothing to change it. The key is written only when
+        # somebody chooses (and by the migration, which seeds it from VPXFile.filename
+        # so existing tables keep selecting exactly what they select today).
+        chosen = default_game_file(game_files, "", recorded_default(vpinfe))
+
+        # A manual VPS override is tied to the table file it was chosen against, so
+        # replacing that file drops it. Scoped to the default build on purpose:
+        # ADDING a second build is not a reason to discard the user's match.
+        previous_hash = str(previous_files.get(chosen, {}).get("file_hash", "") or "").strip()
+        new_hash = str(game_files.get(chosen, {}).get("file_hash", "") or "").strip()
+        if previous_hash and new_hash and previous_hash != new_hash:
             vpinfe["altvpsid"] = ""
         else:
             vpinfe.setdefault("altvpsid", "")
 
-        medias = self.data.get("Medias", {})
-        game_files = self.data.get("GameFiles", {})
-
         # Preserve any top-level sections we don't manage (e.g. metadata written by
         # other tools sharing the .info file) instead of dropping them on rebuild.
+        # VPXFile is listed because it is ours and superseded - without it here the
+        # old section would survive as "unmanaged" and be written back forever.
         preserved = {
             k: v
             for k, v in self.data.items()
-            if k not in ("Info", "User", "VPXFile", "VPinFE", "Medias", "GameFiles")
+            if k not in ("Info", "User", "VPXFile", "VPinFE", "Medias", GAME_FILES_KEY)
         }
 
         self.data = {
             "Info": info,
             "User": user,
-            "VPXFile": vpxfile,
             "VPinFE": vpinfe,
+            GAME_FILES_KEY: game_files,
             "Medias": medias,
-            "GameFiles": game_files,
             **preserved
         }
 
         self.writeConfig()
+
+    def _build_game_files(self, configdata):
+        """One entry per parsed build, keyed by filename.
+
+        Callers pass `gamefiles` as {filename: parsed}. `vpxdata` alone is still
+        accepted for the single-build case, which is most of the library.
+
+        Anything already recorded against a filename and not covered by the parse -
+        the user's `hidden`, a `patch_applied` flag, later play stats and match
+        records - survives untouched. Parsed fields are refreshed, so a stale value
+        can never outlive what the .vpx actually says.
+        """
+        parsed_files = configdata.get("gamefiles")
+        if not isinstance(parsed_files, dict) or not parsed_files:
+            single = configdata.get("vpxdata") or {}
+            name = str(single.get("filename", "") or "").strip()
+            parsed_files = {name: single} if name else {}
+
+        existing = game_file_entries(self.data)
+        built = {}
+        for filename, parsed in parsed_files.items():
+            entry = entry_from_parsed(parsed)
+            prior = existing.get(filename)
+            if isinstance(prior, dict):
+                # Refresh what the parse covers; leave everything else alone. Doing it
+                # the other way - naming the keys worth keeping - means every field we
+                # add later has to be remembered here, and forgetting one silently
+                # deletes it on the next rebuild. Play stats and match records are
+                # coming; neither should depend on somebody updating a list.
+                entry = {**prior, **entry}
+            built[filename] = entry
+        return built
 
     def writeConfig(self):
         self._normalize_detection_flags()
@@ -210,10 +230,9 @@ class MetaConfig:
         return text.replace("\r\n", "").replace("\n", "")
 
     def gameFileSettings(self):
-        """Per-game-file settings, keyed by filename. A folder can hold several builds
+        """Per-game-file entries, keyed by filename. A folder can hold several builds
         of one table - desktop, VR, a patched variant - and they are peers."""
-        settings = self.data.get("GameFiles")
-        return settings if isinstance(settings, dict) else {}
+        return game_file_entries(self.data)
 
     def setGameFileHidden(self, filename, hidden):
         """Hide a game file from the frontend, or unhide it.
@@ -222,14 +241,27 @@ class MetaConfig:
         cannot be rebuilt without it - it just should not be offered as something to
         play. The same applies to a variant someone may want back later.
         """
-        settings = self.data.setdefault("GameFiles", {})
+        settings = self.data.setdefault(GAME_FILES_KEY, {})
         entry = settings.setdefault(filename, {})
         if hidden:
             entry["hidden"] = True
         else:
             entry.pop("hidden", None)
+            # An entry that only ever carried `hidden` came from a build we never
+            # parsed; drop it rather than leave an empty record behind.
             if not entry:
                 settings.pop(filename, None)
+        self.writeConfig()
+
+    def gameFileValue(self, filename, key, default=""):
+        """One key off a specific build's entry."""
+        value = game_file_entries(self.data).get(filename, {})
+        return value.get(key, default) if isinstance(value, dict) else default
+
+    def setGameFileValue(self, filename, key, value):
+        """Record something we did to a build, against that build."""
+        entry = self.data.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
+        entry[key] = value
         self.writeConfig()
 
     def addMedia(self, mediaType, source, path, md5hash):
@@ -255,11 +287,6 @@ class MetaConfig:
     def getMedia(self, mediaType):
         """Return the Medias entry for a given type, or None."""
         return self.data.get("Medias", {}).get(mediaType)
-
-    def _parse_authors(self, value):
-        if not value:
-            return []
-        return [a.strip() for a in value.split(",") if a.strip()]
 
     def _find_pinball_primer_tutorial(self, vpsdata):
         if not isinstance(vpsdata, dict):
@@ -298,18 +325,14 @@ class MetaConfig:
         return val == 1
 
     def _normalize_detection_flags(self):
-        if not isinstance(self.data, dict):
-            return
-        vpx = self.data.get("VPXFile")
-        if not isinstance(vpx, dict):
-            return
+        """Detect flags as real booleans, on every game file entry.
 
-        for mixed_key, lower_key in self.DETECT_KEY_MAP.items():
-            if lower_key in vpx:
-                raw_val = vpx.get(lower_key)
-            else:
-                raw_val = vpx.get(mixed_key, False)
-            vpx[lower_key] = self._to_bool(raw_val)
-            vpx.pop(mixed_key, None)
-
-        
+        The parser has handed back strings at times, and a JSON "false" is truthy to
+        anything that reads it without care.
+        """
+        for entry in game_file_entries(self.data).values():
+            if not isinstance(entry, dict):
+                continue
+            for key in DETECT_KEYS:
+                if key in entry:
+                    entry[key] = self._to_bool(entry[key])

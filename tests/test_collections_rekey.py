@@ -138,13 +138,13 @@ class MembershipTests(unittest.TestCase):
             meta.writeConfigMeta({
                 "vpsdata": {"id": "vps-mm", "name": "MM", "manufacturer": "Williams",
                             "year": "1997", "type": "SS", "theme": [], "ipdbUrl": ""},
-                "vpxdata": {"filename": "MM.vpx", "fileHash": filehash, "tableVersion": "1",
-                            "releaseDate": "", "tableSaveDate": "", "tableSaveRev": "",
-                            "companyName": "", "companyYear": "", "tableType": "",
-                            "codeSha256Hash": "", "rom": "", "authorName": "",
-                            "detectnfozzy": False, "detectfleep": False, "detectssf": False,
-                            "detectlut": False, "detectscorebit": False,
-                            "detectfastflips": False, "detectflex": False},
+                "vpxdata": {"filename": "MM.vpx", "file_hash": filehash, "version": "1",
+                            "release_date": "", "save_date": "", "save_rev": "",
+                            "manufacturer": "", "year": "", "type": "",
+                            "vbs_hash": "", "rom": "", "author_name": "",
+                            "detect_nfozzy": False, "detect_fleep": False, "detect_ssf": False,
+                            "detect_lut": False, "detect_scorbit": False,
+                            "detect_fastflips": False, "detect_flex": False},
             })
             return json.loads(info.read_text(encoding="utf-8"))
 

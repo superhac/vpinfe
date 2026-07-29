@@ -25,7 +25,9 @@ from common.tables.game_files import (
     default_game_file,
     game_file_names,
     hidden_game_files,
+    recorded_default,
 )
+from common.tables.table_metadata import section
 from common.tables.table_repository import (
     collections_by_table_id,
     ensure_tables_loaded,
@@ -155,41 +157,43 @@ def _game_files(table, row: dict) -> list[dict]:
     filename recorded in the .info: a table folder can hold several .vpx files.
     Sorted, so the answer does not depend on directory order.
 
-    The recorded filename is the default when it is actually present. When it is
-    not, it is still reported - a table pointing at a missing file is something
-    the caller should see - but the default falls to a file that exists, since
-    the default is what a caller would launch.
+    A build the metadata describes but that is absent from disk is still reported - a
+    table pointing at a missing file is something the caller should see - but the
+    default falls to one that exists, since the default is what a caller would launch.
     """
     table_dir = Path(row.get("table_path", ""))
-    recorded = (row.get("filename") or "").strip()
+    described = _game_file_settings(table_dir)
 
     files, subdirs = _listing(table_dir)
     on_disk = game_file_names(files)
 
     names = list(on_disk)
-    if recorded and recorded not in names:
-        names.append(recorded)
+    for name in described:
+        if name not in names:
+            names.append(name)
     if not names:
         return []
 
     # Same resolver the launcher and the metadata build use, so all three agree.
-    # This names the file the table's metadata came from, NOT the one to launch -
-    # every visible game file is independently launchable.
-    default = default_game_file(files, table_dir.name, recorded) or recorded
-    hidden = hidden_game_files(_game_file_settings(table_dir))
+    default = default_game_file(files or names, table_dir.name,
+                                recorded_default(section(table.metaConfig, "VPinFE")))
+    hidden = hidden_game_files(described)
 
     # Dependency context, once per request: the alias map and the rom listing are
     # shared by every game file in the folder.
     aliases = asset_resolver.read_alias_map(str(table_dir))
     rom_files = asset_resolver.list_rom_files(str(table_dir))
-    flex_raw = str(row.get("detectflex") or "").strip().lower()
-    flex_detected = True if flex_raw == "true" else False if flex_raw == "false" else None
-    pinmame_raw = str(row.get("detectpinmame") or "").strip().lower()
-    pinmame_required = (True if pinmame_raw == "true"
-                        else False if pinmame_raw == "false" else None)
+
+    def _tristate(value):
+        """detect* flags are three-valued: yes, no, and never parsed."""
+        if isinstance(value, bool):
+            return value
+        raw = str(value if value is not None else "").strip().lower()
+        return True if raw in ("true", "1") else False if raw in ("false", "0") else None
 
     entries = []
     for name in names:
+        described_entry = described.get(name) if isinstance(described.get(name), dict) else {}
         entry = {
             "format": "vpx",
             "app": "vpx",
@@ -199,11 +203,13 @@ def _game_files(table, row: dict) -> list[dict]:
             "available": name in on_disk,
             "assets": asset_resolver.resolve_for_game_file(name, table_dir.name, files),
         }
-        if name == recorded:
-            # The .info describes one game file today, so the script-declared
-            # facts are only known for that one. The others get an honest unknown.
-            chain = asset_resolver.resolve_rom_chain(row.get("rom", ""), aliases,
-                                                     rom_files, pinmame_required)
+        if described_entry:
+            # Every build carries its own ROM and detect flags, so each one answers
+            # for itself. This used to be knowable only for the single file the .info
+            # described; the rest returned an honest "unknown".
+            chain = asset_resolver.resolve_rom_chain(
+                described_entry.get("rom", ""), aliases, rom_files,
+                _tristate(described_entry.get("detect_pinmame")))
             if chain["effective"]:
                 # PinMAME's own audit, from the library the configured VPX ships.
                 # No answer leaves the name-match conclusion standing.
@@ -212,12 +218,14 @@ def _game_files(table, row: dict) -> list[dict]:
                     SettingsConfig.from_config(get_ini_config()).vpx_bin_path,
                     str(table_dir / "pinmame" / "roms"), chain["effective"])
                 asset_resolver.apply_audit(chain, audit)
-            flex = asset_resolver.flexdmd_state(subdirs, flex_detected)
+            flex = asset_resolver.flexdmd_state(
+                subdirs, _tristate(described_entry.get("detect_flex")))
         else:
+            # On disk but never parsed - a build added since the last metadata build.
             chain = {"declared": None, "alias_of": None, "effective": None,
                      "required": None, "catalog": None, "clone_of": None,
                      "audit": None, "installed": None,
-                     "reason": "unknown: the table metadata records one game file today"}
+                     "reason": "unknown: this game file has not been parsed yet"}
             flex = asset_resolver.flexdmd_state(subdirs, None)
         chain["nvram"] = asset_resolver.nvram_state(str(table_dir), chain["effective"])
         entry["dependencies"] = {"pinmame": chain, "flexdmd": flex}

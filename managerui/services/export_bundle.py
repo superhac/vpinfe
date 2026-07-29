@@ -13,7 +13,11 @@ import json
 from collections.abc import Iterator
 from pathlib import Path
 
-from common.tables.game_files import default_game_file, game_file_names
+from common.tables.game_files import (
+    default_game_file,
+    game_file_names,
+    recorded_default,
+)
 from managerui.services.asset_registry import (
     is_readme,  # noqa: F401  (one matcher, import and export)
 )
@@ -40,8 +44,8 @@ def choose_game_file(table_dir: Path, game_file: str | None = None) -> str | Non
     recorded = ""
     info_path = table_dir / f"{table_dir.name}.info"
     try:
-        recorded = (json.loads(info_path.read_text(encoding="utf-8"))
-                    .get("VPXFile", {}) or {}).get("filename", "") or ""
+        recorded = recorded_default(
+            json.loads(info_path.read_text(encoding="utf-8")).get("VPinFE", {}))
     except (OSError, ValueError):
         pass
     return default_game_file(listing, table_dir.name, recorded) or (names[0] if names else None)

@@ -21,7 +21,10 @@ VPSDB_JSON_PATH = table_service.VPSDB_JSON_PATH
 
 # Load vpinfe.ini once to avoid repeated parsing
 from common.iniconfig import IniConfig
-from common.tables.table_metadata import reorder_leading_article
+from common.tables.table_metadata import (
+    default_game_file,
+    reorder_leading_article,
+)
 _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 #_vpsdb_cache: List[Dict] | None = None
@@ -148,16 +151,19 @@ def parse_table_info(info_path):
         table_name = os.path.basename(table_dir)
 
         info = raw.get("Info", {})
-        vpx = raw.get("VPXFile", {})
         user = raw.get("User", {})
         vpinfe = raw.get("VPinFE", {})
+        # This row describes the table's default build. A folder can hold several;
+        # the API lists them all, the table view shows one.
+        gf_name, vpx = default_game_file(raw, folder_name=table_name)
 
         def get(*paths, default=""):
             """
-            paths = [("VPXFile","rom"), ("Info","Rom"), ...]
+            paths = [("game_file","rom"), ("Info","Title"), ...]
             """
             for section, key in paths:
-                src = {"Info": info, "VPXFile": vpx, "User": user, "VPinFE": vpinfe, "root": raw}.get(section)
+                src = {"Info": info, "game_file": vpx, "User": user,
+                       "VPinFE": vpinfe, "root": raw}.get(section)
                 if src and key in src and src[key] not in ("", None):
                     return src[key]
             return default
@@ -166,34 +172,34 @@ def parse_table_info(info_path):
             # Display / identity (strip whitespace from name)
             "name": ((vpinfe.get("alttitle", "") or "").strip()
                      or reorder_leading_article(get(("Info", "Title"), ("root", "name"), default=table_name) or "")),
-            "filename": get(("VPXFile", "filename"), default=f"{table_name}.vpx"),
+            "filename": gf_name or f"{table_name}.vpx",
             "vpsid": get(("Info", "VPSId"), ("root", "id")),
             "id": get(("VPinFE", "altvpsid"), ("Info", "VPSId"), ("root", "id")),
             "ipdb_id": get(("Info", "IPDBId")),
             "pinball_primer_tut": get(("Info", "PinballPrimerTut")),
 
             # Metadata
-            "manufacturer": get(("Info", "Manufacturer"), ("VPXFile", "manufacturer")),
-            "year": get(("Info", "Year"), ("VPXFile", "year")),
-            "type": get(("Info", "Type"), ("VPXFile", "type")),
+            "manufacturer": get(("Info", "Manufacturer"), ("game_file", "manufacturer")),
+            "year": get(("Info", "Year"), ("game_file", "year")),
+            "type": get(("Info", "Type"), ("game_file", "type")),
             "themes": get(("Info", "Themes"), default=[]),
-            "authors": get(("Info", "Authors"), default=[]),
-            "rom": get(("VPXFile", "rom"), ("Info", "Rom")),
-            "version": get(("VPXFile", "version")),
-            "filehash": get(("VPXFile", "filehash")),
-            "vbshash": get(("VPXFile", "vbsHash")),
+            "authors": get(("game_file", "authors"), default=[]),
+            "rom": get(("game_file", "rom")),
+            "version": get(("game_file", "version")),
+            "filehash": get(("game_file", "file_hash")),
+            "vbshash": get(("game_file", "vbs_hash")),
 
             # Detection flags (canonical lowercase keys)
-            "detectnfozzy": get(("VPXFile", "detectnfozzy")),
-            "detectfleep": get(("VPXFile", "detectfleep")),
-            "detectssf": get(("VPXFile", "detectssf")),
-            "detectlut": get(("VPXFile", "detectlut")),
-            "detectscorebit": get(("VPXFile", "detectscorebit")),
-            "detectfastflips": get(("VPXFile", "detectfastflips")),
-            "detectflex": get(("VPXFile", "detectflex")),
+            "detectnfozzy": get(("game_file", "detect_nfozzy")),
+            "detectfleep": get(("game_file", "detect_fleep")),
+            "detectssf": get(("game_file", "detect_ssf")),
+            "detectlut": get(("game_file", "detect_lut")),
+            "detectscorebit": get(("game_file", "detect_scorbit")),
+            "detectfastflips": get(("game_file", "detect_fastflips")),
+            "detectflex": get(("game_file", "detect_flex")),
 
             # Patching
-            "patch_applied": get(("VPXFile", "patch_applied"), default=False),
+            "patch_applied": get(("game_file", "patch_applied"), default=False),
 
             # Internal
             "table_path": table_dir,

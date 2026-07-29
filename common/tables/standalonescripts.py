@@ -53,7 +53,10 @@ class StandaloneScripts:
              basepath = table.fullPathTable
              try:
                 meta = MetaConfig(basepath+"/"+table.tableDirName+".info")
-                vpxFileVBSHash = meta.data['VPXFile']['vbsHash']
+                vpxFileName = os.path.basename(table.fullPathVPXfile)
+                vpxFileVBSHash = meta.gameFileValue(vpxFileName, 'vbs_hash')
+                if not vpxFileVBSHash:
+                    raise KeyError('vbs_hash')
                 logger.info("Checking %s", table.tableDirName)
                 for patch in self.hashes:
                     if patch["sha256"] == vpxFileVBSHash:
@@ -63,16 +66,14 @@ class StandaloneScripts:
                             try:
                                 table_dir = os.path.dirname(table.fullPathVPXfile)
                                 meta = MetaConfig(os.path.join(table_dir, table.tableDirName + '.info'))
-                                meta.data['VPXFile']['patch_applied'] = 'true'
-                                meta.writeConfig()
+                                meta.setGameFileValue(vpxFileName, 'patch_applied', True)
                             except Exception:
                                 pass
                         else:
                             self.downloadPatch(os.path.splitext(table.fullPathVPXfile)[0] + ".vbs", patch["patched"]["url"])
                             # mark the .info file with patch_applied = true
                             try:
-                                meta.data['VPXFile']['patch_applied'] = 'true'
-                                meta.writeConfig()
+                                meta.setGameFileValue(vpxFileName, 'patch_applied', True)
                             except Exception:
                                 pass
              except KeyError:
@@ -94,8 +95,10 @@ class StandaloneScripts:
                 table_dir = os.path.dirname(filename)
                 info_filename = os.path.basename(table_dir) + '.info'
                 meta = MetaConfig(os.path.join(table_dir, info_filename))
-                meta.data['VPXFile']['patch_applied'] = 'true'
-                meta.writeConfig()
+                # The .vbs sits beside the .vpx it patches and shares its stem, so
+                # the flag lands on that build rather than on the whole table.
+                vpx_name = os.path.splitext(os.path.basename(filename))[0] + '.vpx'
+                meta.setGameFileValue(vpx_name, 'patch_applied', True)
             except Exception:
                 pass
         except requests.RequestException as exc:

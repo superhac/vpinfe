@@ -95,13 +95,13 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
         meta.writeConfigMeta({
             "vpsdata": {"id": "vps-1", "name": "Example", "manufacturer": "Bally",
                         "year": "1990", "type": "SS", "theme": [], "ipdbUrl": ""},
-            "vpxdata": {"filename": "Example.vpx", "fileHash": filehash, "tableVersion": "1.0",
-                        "releaseDate": "", "tableSaveDate": "", "tableSaveRev": "",
-                        "companyName": "Bally", "companyYear": "1990", "tableType": "SS",
-                        "codeSha256Hash": "", "rom": "", "authorName": "",
-                        "detectnfozzy": False, "detectfleep": False, "detectssf": False,
-                        "detectlut": False, "detectscorebit": False, "detectfastflips": False,
-                        "detectflex": False},
+            "vpxdata": {"filename": "Example.vpx", "file_hash": filehash, "version": "1.0",
+                        "release_date": "", "save_date": "", "save_rev": "",
+                        "manufacturer": "Bally", "year": "1990", "type": "SS",
+                        "vbs_hash": "", "rom": "", "author_name": "",
+                        "detect_nfozzy": False, "detect_fleep": False, "detect_ssf": False,
+                        "detect_lut": False, "detect_scorbit": False, "detect_fastflips": False,
+                        "detect_flex": False},
         })
         return json.loads(path.read_text(encoding="utf-8"))
 

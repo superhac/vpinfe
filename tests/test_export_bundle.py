@@ -40,7 +40,7 @@ def _library(tmp) -> Path:
     (root / "table.nfo").write_text("notes", encoding="utf-8")
     (root / f"{FOLDER}.info").write_text(json.dumps({
         "Info": {"Title": "Cactus Canyon"},
-        "VPXFile": {"filename": CHOSEN},
+        "VPinFE": {"default_game_file": CHOSEN},
         "Medias": {"wheel": {"Source": "user", "Path": "medias/wheel.png", "MD5Hash": ""},
                    "bg": {"Source": "vpinmediadb", "Path": "medias/bg.png", "MD5Hash": ""}},
     }), encoding="utf-8")

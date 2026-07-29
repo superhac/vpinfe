@@ -43,8 +43,8 @@ def _run_probe() -> dict:
         (table / "Example Table (Bally 1990).info").write_text(json.dumps({
             "Info": {"Title": "Example Table", "Manufacturer": "Bally", "Year": "1990",
                      "Type": "SS", "VPSId": "vps-example"},
-            "VPXFile": {"filename": "Example Table (Bally 1990).vpx", "rom": "exmpl",
-                        "detectpinmame": "true"},
+            "game_files": {"Example Table (Bally 1990).vpx": {"rom": "exmpl",
+                                                            "detect_pinmame": True}},
             "User": {"Rating": 3},
         }), encoding="utf-8")
 
@@ -57,7 +57,7 @@ def _run_probe() -> dict:
         (multi / "Multi File (Bally 1991).vbs").write_text("' sidecar", encoding="utf-8")
         (multi / "Multi File (Bally 1991).info").write_text(json.dumps({
             "Info": {"Title": "Multi File", "VPSId": "vps-multi"},
-            "VPXFile": {"filename": "Multi File (Bally 1991).vpx"},
+            "game_files": {"Multi File (Bally 1991).vpx": {"rom": "multi"}},
         }), encoding="utf-8")
 
         # .info names a .vpx that is not on disk.
@@ -66,7 +66,7 @@ def _run_probe() -> dict:
         (mismatch / "Mismatch (Bally 1992).vpx").write_bytes(b"vpx")
         (mismatch / "Mismatch (Bally 1992).info").write_text(json.dumps({
             "Info": {"Title": "Mismatch", "VPSId": "vps-mismatch"},
-            "VPXFile": {"filename": "does-not-exist.vpx"},
+            "game_files": {"does-not-exist.vpx": {"rom": "gone"}},
         }), encoding="utf-8")
 
         env = dict(os.environ)
@@ -196,16 +196,23 @@ class ApiContractTests(unittest.TestCase):
         self.assertTrue(chain["required"], "the fixture's metadata says the script drives pinmame")
         self.assertFalse(chain["nvram"]["present"], "nothing has been played")
 
-    def test_a_non_recorded_game_file_gets_an_honest_unknown_rom(self) -> None:
-        """The .info describes one game file; the others must not inherit its rom."""
+    def test_an_unparsed_game_file_gets_an_honest_unknown_rom(self) -> None:
+        """Every build answers for itself now. One that has not been parsed says so
+        rather than inheriting the ROM of one that has."""
         entries = self.probe["multi_file_files"]["json"]["game_files"]
-        others = [e for e in entries if not e["default"]]
+        by_name = {e["filename"]: e for e in entries}
 
-        self.assertTrue(others)
-        for entry in others:
-            self.assertIsNone(entry["dependencies"]["pinmame"]["declared"])
-            self.assertIsNone(entry["dependencies"]["pinmame"]["required"])
-            self.assertIn("one game file", entry["dependencies"]["pinmame"]["reason"])
+        described = by_name["Multi File (Bally 1991).vpx"]["dependencies"]["pinmame"]
+        self.assertEqual(described["declared"], "multi")
+
+        unparsed = [e for name, e in by_name.items()
+                    if name != "Multi File (Bally 1991).vpx"]
+        self.assertTrue(unparsed)
+        for entry in unparsed:
+            chain = entry["dependencies"]["pinmame"]
+            self.assertIsNone(chain["declared"], "must not inherit another build's rom")
+            self.assertIsNone(chain["required"])
+            self.assertIn("not been parsed", chain["reason"])
 
     def test_rom_presence_is_not_reported_as_an_asset(self) -> None:
         """A declared ROM name may be a PinMAME dependency or just a DOF key. Until

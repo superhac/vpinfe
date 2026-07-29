@@ -5,7 +5,11 @@ from time import perf_counter
 
 from common.config_access import MediaConfig
 from common.media_paths import apply_media_paths
-from common.tables.game_files import default_game_file, game_file_names
+from common.tables.game_files import (
+    default_game_file,
+    game_file_names,
+    recorded_default,
+)
 from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
 from common.tables.table import Table
 from common.tables.table_metadata import section
@@ -104,7 +108,7 @@ class TableParser:
 
             # After the metadata, so a folder with several .vpx launches the one its
             # metadata describes rather than whichever the filesystem listed first.
-            recorded = section(table.metaConfig, "VPXFile").get("filename", "")
+            recorded = recorded_default(section(table.metaConfig, "VPinFE"))
             chosen = default_game_file(table_contents, table_dir.name, recorded)
             table.fullPathVPXfile = str(table_dir / chosen)
 

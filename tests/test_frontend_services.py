@@ -247,7 +247,7 @@ class FrontendServiceTests(unittest.TestCase):
             self.assertEqual(saved["User"]["Rating"], 4)
             self.assertEqual(saved["User"]["StartCount"], 1)
 
-    def test_parse_score_from_nvram_prefers_vpxfile_rom(self) -> None:
+    def test_parse_score_from_nvram_reads_the_game_files_rom(self) -> None:
         with TemporaryDirectory() as tmp:
             table_dir = Path(tmp) / "Example"
             table_dir.mkdir()
@@ -255,8 +255,7 @@ class FrontendServiceTests(unittest.TestCase):
             info_path.write_text(
                 json.dumps(
                     {
-                        "Info": {"Rom": "info_rom"},
-                        "VPXFile": {"rom": "vpx_rom"},
+                        "game_files": {"Example.vpx": {"rom": "vpx_rom"}},
                     }
                 ),
                 encoding="utf-8",
@@ -302,7 +301,7 @@ class FrontendServiceTests(unittest.TestCase):
 
             read_rom.assert_called_once_with("info_rom", str(table_dir))
 
-    def test_delete_nvram_if_configured_prefers_vpxfile_rom(self) -> None:
+    def test_delete_nvram_if_configured_reads_the_game_files_rom(self) -> None:
         with TemporaryDirectory() as tmp:
             table_dir = Path(tmp) / "Example"
             nvram_dir = table_dir / "pinmame" / "nvram"
@@ -315,8 +314,7 @@ class FrontendServiceTests(unittest.TestCase):
                 fullPathTable=str(table_dir),
                 tableDirName="Example",
                 metaConfig={
-                    "Info": {"Rom": "info_rom"},
-                    "VPXFile": {"rom": "vpx_rom"},
+                    "game_files": {"Example.vpx": {"rom": "vpx_rom"}},
                     "VPinFE": {"deletedNVRamOnClose": True},
                 },
             )

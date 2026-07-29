@@ -4,6 +4,7 @@ import json
 import logging
 
 from common.tables.collections_service import filter_tables_by_collection, get_collection_names, save_filter_collection
+from common.tables.table_metadata import default_game_file_entry
 from common.media_paths import table_media_payload
 from common.shared_assets import manufacturer_logo_web_path
 from common.tables.tablelistfilters import TableListFilters
@@ -78,7 +79,7 @@ def tables_json(tables) -> str:
             info["Title"] = reorder_leading_article(info["Title"])
             meta["Info"] = info
 
-        vpx = section(meta, "VPXFile")
+        vpx = default_game_file_entry(meta)
         for key in DETECTION_KEYS:
             vpx[key] = _to_bool(vpx.get(key, False))
         vpx["altSoundExists"] = bool(table.altSoundExists)

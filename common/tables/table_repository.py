@@ -12,6 +12,7 @@ from common.tables.table_identity import ensure_unique_ids
 from common.tables.table_identity import table_id as vpinfe_id
 from common.tables.table_metadata import (
     as_string_list,
+    default_game_file,
     first_meta_value,
     normalize_rating,
     reorder_leading_article,
@@ -95,10 +96,18 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
     vpinfe = section(meta, "VPinFE")
     table_name = Path(table.fullPathTable).name
     vpsid = first_meta_value(meta, ("Info", "VPSId"), default="")
+    # The row describes one build - the table's default. A folder can hold several,
+    # and the API lists them all separately; this is what the table-level views show.
+    gf_name, gf = default_game_file(meta, folder_name=table_name)
+
+    def gf_value(key, default=""):
+        value = gf.get(key, None)
+        return default if value in ("", None) else value
+
     row = {
         "name": (str(vpinfe.get("alttitle", "") or "").strip()
                  or reorder_leading_article(first_meta_value(meta, ("Info", "Title"), default=table_name) or "")),
-        "filename": first_meta_value(meta, ("VPXFile", "filename"), default=Path(table.fullPathVPXfile).name),
+        "filename": gf_name or Path(table.fullPathVPXfile).name,
         # vpsid and altvpsid correlate with VPSdb, VPinPlay and anything else keyed
         # by them. vpinfe_id is this install's own id (common/table_identity.py) and
         # is what identifies the table here - in the API, in events, in collection
@@ -107,24 +116,28 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "vpinfe_id": vpinfe_id(table),
         "ipdb_id": first_meta_value(meta, ("Info", "IPDBId")),
         "pinball_primer_tut": first_meta_value(meta, ("Info", "PinballPrimerTut")),
-        "manufacturer": first_meta_value(meta, ("Info", "Manufacturer"), ("VPXFile", "manufacturer")),
-        "year": first_meta_value(meta, ("Info", "Year"), ("VPXFile", "year")),
-        "type": first_meta_value(meta, ("Info", "Type"), ("VPXFile", "type")),
+        # Info carries what VPS knows; the build's own claim is the fallback and can
+        # legitimately differ from it.
+        "manufacturer": first_meta_value(meta, ("Info", "Manufacturer")) or gf_value("manufacturer"),
+        "year": first_meta_value(meta, ("Info", "Year")) or gf_value("year"),
+        "type": first_meta_value(meta, ("Info", "Type")) or gf_value("type"),
         "themes": as_string_list(first_meta_value(meta, ("Info", "Themes"), default=[])),
-        "authors": as_string_list(first_meta_value(meta, ("Info", "Authors"), default=[])),
-        "rom": first_meta_value(meta, ("VPXFile", "rom"), ("Info", "Rom")),
-        "version": first_meta_value(meta, ("VPXFile", "version")),
-        "filehash": first_meta_value(meta, ("VPXFile", "filehash")),
-        "vbshash": first_meta_value(meta, ("VPXFile", "vbsHash")),
-        "detectnfozzy": first_meta_value(meta, ("VPXFile", "detectnfozzy")),
-        "detectfleep": first_meta_value(meta, ("VPXFile", "detectfleep")),
-        "detectssf": first_meta_value(meta, ("VPXFile", "detectssf")),
-        "detectlut": first_meta_value(meta, ("VPXFile", "detectlut")),
-        "detectscorebit": first_meta_value(meta, ("VPXFile", "detectscorebit")),
-        "detectfastflips": first_meta_value(meta, ("VPXFile", "detectfastflips")),
-        "detectflex": first_meta_value(meta, ("VPXFile", "detectflex")),
-        "detectpinmame": first_meta_value(meta, ("VPXFile", "detectpinmame")),
-        "patch_applied": first_meta_value(meta, ("VPXFile", "patch_applied"), default=False),
+        # Authors are per build, never rolled up: half the multi-build folders in the
+        # test library name different authors on different builds.
+        "authors": as_string_list(gf_value("authors", [])),
+        "rom": gf_value("rom"),
+        "version": gf_value("version"),
+        "filehash": gf_value("file_hash"),
+        "vbshash": gf_value("vbs_hash"),
+        "detectnfozzy": gf_value("detect_nfozzy"),
+        "detectfleep": gf_value("detect_fleep"),
+        "detectssf": gf_value("detect_ssf"),
+        "detectlut": gf_value("detect_lut"),
+        "detectscorebit": gf_value("detect_scorbit"),
+        "detectfastflips": gf_value("detect_fastflips"),
+        "detectflex": gf_value("detect_flex"),
+        "detectpinmame": gf_value("detect_pinmame"),
+        "patch_applied": gf_value("patch_applied", False),
         "table_path": table.fullPathTable,
         "b2s_exists": bool(getattr(table, "b2sExists", False)),
         "pup_pack_exists": bool(getattr(table, "pupPackExists", False)),

@@ -21,38 +21,38 @@ class VPXParser:
     logger = None
 
     vpxPaths = {
-        'tableName': 'tableinfo/tablename',
-        'tableVersion': 'tableinfo/tableversion',
-        'authorName': 'tableinfo/authorname',
-        'releaseDate': 'tableinfo/releasedate',
-        'tableBlurb': 'tableinfo/tableblurb',
-        'tableRules': 'tableinfo/tablerules',
-        'tableSaveDate': 'tableinfo/tablesavedate',
-        'tableSaveRev': 'tableinfo/tablesaverev',
-        'companyName': 'tableinfo/companyname',
-        'companyYear': 'tableinfo/companyyear',
-        'tableType': 'tableinfo/tabletype',
-        'tableDescription': 'tableinfo/tabledescription',
+        'table_name': 'tableinfo/tablename',
+        'version': 'tableinfo/tableversion',
+        'author_name': 'tableinfo/authorname',
+        'release_date': 'tableinfo/releasedate',
+        'table_blurb': 'tableinfo/tableblurb',
+        'table_rules': 'tableinfo/tablerules',
+        'save_date': 'tableinfo/tablesavedate',
+        'save_rev': 'tableinfo/tablesaverev',
+        'manufacturer': 'tableinfo/companyname',
+        'year': 'tableinfo/companyyear',
+        'type': 'tableinfo/tabletype',
+        'table_description': 'tableinfo/tabledescription',
     }
 
     vpxPathsBinary = {
-        'gameData': 'gamestg/gamedata',
+        'game_data': 'gamestg/gamedata',
         # 'gameStgVersion': 'gamestg/version'
     }
 
     derivedPaths = {
         'rom': '',
         'filename': '',
-        'codeSha256Hash': '',
-        'fileHash': '',
-        'detectfleep': '',
-        'detectnfozzy': '',
-        'detectscorebit': '',
-        'detectssf': '',
-        'detectfastflips': '',
-        'detectlut': '',
-        'detectflex': '',
-        'detectpinmame': '',
+        'vbs_hash': '',
+        'file_hash': '',
+        'detect_fleep': '',
+        'detect_nfozzy': '',
+        'detect_scorbit': '',
+        'detect_ssf': '',
+        'detect_fastflips': '',
+        'detect_lut': '',
+        'detect_flex': '',
+        'detect_pinmame': '',
     }
 
     def __init__(self):
@@ -62,7 +62,7 @@ class VPXParser:
             *self.derivedPaths.keys()
         ]
         # remove fields not wanted in CSV
-        for key in ("gameData", "tableRules", "tableDescription"):
+        for key in ("game_data", "table_rules", "table_description"):
             if key in self.fieldnames:
                 self.fieldnames.remove(key)
 
@@ -102,17 +102,17 @@ class VPXParser:
                 vpxFileValues[key] = ""
 
     def loadVBCode(self, ole, vpxFileValues):
-        with ole.openstream(self.vpxPathsBinary['gameData']) as file:
+        with ole.openstream(self.vpxPathsBinary['game_data']) as file:
             data = file.read()
 
         offset = self.find_code_offset_after(data)
         if offset == -1:
-            vpxFileValues['gameData'] = ""
+            vpxFileValues['game_data'] = ""
             return
 
         length = int.from_bytes(data[offset:offset + 4], "little", signed=True)
         vbscript = data[offset + 4:offset + 4 + length].decode("utf-8", errors="ignore")
-        vpxFileValues['gameData'] = self.ensure_msdos_line_endings(vbscript)
+        vpxFileValues['game_data'] = self.ensure_msdos_line_endings(vbscript)
 
     def loadSidecarVBCode(self, vpxFile, vpxFileValues):
         vbs_path = pathlib.Path(vpxFile).with_suffix(".vbs")
@@ -120,11 +120,11 @@ class VPXParser:
             return
 
         vbscript = vbs_path.read_bytes().decode("utf-8-sig", errors="ignore")
-        vpxFileValues['gameData'] = self.ensure_msdos_line_endings(vbscript)
+        vpxFileValues['game_data'] = self.ensure_msdos_line_endings(vbscript)
 
     def calcCodeHash(self, vpxFileValues):
-        vpxFileValues['codeSha256Hash'] = hashlib.sha256(
-            vpxFileValues['gameData'].encode("utf-8")
+        vpxFileValues['vbs_hash'] = hashlib.sha256(
+            vpxFileValues['game_data'].encode("utf-8")
         ).hexdigest()
 
     def getAllVpxFilesFromDir(self, directory):
@@ -133,7 +133,7 @@ class VPXParser:
     def extractFile(self, file):
         vpxFileValues = {
             'filename': os.path.basename(file),
-            'fileHash': self.sha256sum(file),
+            'file_hash': self.sha256sum(file),
         }
 
         with olefile.OleFileIO(file) as ole:
@@ -152,7 +152,7 @@ class VPXParser:
     # -------------------------------
     def printFileValues(self, vpxFileValues):
         for key, value in vpxFileValues.items():
-            if key in ('gameData', 'tableRules', 'tableDescription'):
+            if key in ('game_data', 'table_rules', 'table_description'):
                 preview = (value[:50] + "....") if value else ""
                 logger.info("%s: \"%s\"", key, preview)
             else:
@@ -186,7 +186,7 @@ class VPXParser:
         return "\n".join(lines)
 
     def extractRomName(self, vpxFileValues):
-        game_data = self.stripVBScriptComments(vpxFileValues['gameData'])
+        game_data = self.stripVBScriptComments(vpxFileValues['game_data'])
         m = re.search(r'(?i)c?gamename\s*=\s*"([^"]+)"', game_data)
         m_opt = re.search(r'(?i)c?OptRom\s*=\s*"([^\s]+)"', game_data)
 
@@ -198,15 +198,15 @@ class VPXParser:
             vpxFileValues['rom'] = ""
 
     def runDetectors(self, vpxFileValues):
-        game_data_lower = vpxFileValues['gameData'].lower()
+        game_data_lower = vpxFileValues['game_data'].lower()
         detectors = {
-            'detectnfozzy': 'class flipperpolarity',
-            'detectfleep': 'rubberstrongsoundfactor',
-            'detectssf': 'playsoundat',
-            'detectlut': 'lut',
-            'detectscorebit': 'scorebit',
-            'detectfastflips': 'fastflips',
-            'detectflex': 'flexdmd',
+            'detect_nfozzy': 'class flipperpolarity',
+            'detect_fleep': 'rubberstrongsoundfactor',
+            'detect_ssf': 'playsoundat',
+            'detect_lut': 'lut',
+            'detect_scorbit': 'scorebit',
+            'detect_fastflips': 'fastflips',
+            'detect_flex': 'flexdmd',
         }
         for key, token in detectors.items():
             vpxFileValues[key] = "true" if token in game_data_lower else "false"
@@ -215,12 +215,12 @@ class VPXParser:
         # rom name only as a DOF key. On the comment-stripped script, unlike the
         # detectors above: EM tables commonly carry commented-out VPM code, and a
         # dead LoadVPM must not read as a live dependency.
-        stripped_lower = self.stripVBScriptComments(vpxFileValues['gameData']).lower()
+        stripped_lower = self.stripVBScriptComments(vpxFileValues['game_data']).lower()
         drives_pinmame = ("loadvpm" in stripped_lower
                           or "vpminit" in stripped_lower
                           or re.search(r'createobject\s*\(\s*"vpinmame\.controller"',
                                        stripped_lower) is not None)
-        vpxFileValues['detectpinmame'] = "true" if drives_pinmame else "false"
+        vpxFileValues['detect_pinmame'] = "true" if drives_pinmame else "false"
 
     # -------------------------------
     # Bulk ops
@@ -247,7 +247,7 @@ class VPXParser:
     # CSV / DB ops
     # -------------------------------
     def writeCSV(self, vpxFileValues, writer):
-        for key in ("gameData", "tableRules", "tableDescription"):
+        for key in ("game_data", "table_rules", "table_description"):
             vpxFileValues.pop(key, None)
         writer.writerow(vpxFileValues)
 
@@ -271,14 +271,14 @@ class VPXParser:
     # -------------------------------
     def findFileSHAMatch(self, tables, vpxFileValues):
         for table in tables:
-            if vpxFileValues['fileHash'] == table['fileHash']:
+            if vpxFileValues['file_hash'] == table['file_hash']:
                 logger.info("Found FILE hash match.")
                 return table
         return None
 
     def findCodeSHAMatch(self, tables, vpxFileValues):
         for table in tables:
-            if vpxFileValues['codeSha256Hash'] == table['codeSha256Hash']:
+            if vpxFileValues['vbs_hash'] == table['vbs_hash']:
                 logger.info("Found CODE hash match.")
                 return table
         return None

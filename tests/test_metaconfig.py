@@ -28,25 +28,25 @@ class TestMetaConfig(unittest.TestCase):
                 },
                 "vpxdata": {
                     "filename": "Example Table.vpx",
-                    "fileHash": filehash,
-                    "tableVersion": "1.0",
-                    "releaseDate": "2026-01-01",
-                    "tableSaveDate": "2026-01-02",
-                    "tableSaveRev": "123",
-                    "companyName": "Bally",
-                    "companyYear": "1992",
-                    "tableType": "SS",
-                    "codeSha256Hash": "vbshash",
+                    "file_hash": filehash,
+                    "version": "1.0",
+                    "release_date": "2026-01-01",
+                    "save_date": "2026-01-02",
+                    "save_rev": "123",
+                    "manufacturer": "Bally",
+                    "year": "1992",
+                    "type": "SS",
+                    "vbs_hash": "vbshash",
                     "rom": "example",
-                    "authorName": "Author One, Author Two",
-                    "tableBlurb": "Line 1\nLine 2",
-                    "detectnfozzy": False,
-                    "detectfleep": False,
-                    "detectssf": True,
-                    "detectlut": False,
-                    "detectscorebit": False,
-                    "detectfastflips": True,
-                    "detectflex": False,
+                    "author_name": "Author One, Author Two",
+                    "table_blurb": "Line 1\nLine 2",
+                    "detect_nfozzy": False,
+                    "detect_fleep": False,
+                    "detect_ssf": True,
+                    "detect_lut": False,
+                    "detect_scorbit": False,
+                    "detect_fastflips": True,
+                    "detect_flex": False,
                 },
             }
         )
@@ -58,8 +58,8 @@ class TestMetaConfig(unittest.TestCase):
             info_path.write_text(
                 json.dumps(
                     {
-                        "VPXFile": {
-                            "filehash": "old-filehash",
+                        "game_files": {
+                            "Example Table.vpx": {"file_hash": "old-filehash"},
                         },
                         "VPinFE": {
                             "altvpsid": "12345",
@@ -85,8 +85,8 @@ class TestMetaConfig(unittest.TestCase):
             info_path.write_text(
                 json.dumps(
                     {
-                        "VPXFile": {
-                            "filehash": "same-filehash",
+                        "game_files": {
+                            "Example Table.vpx": {"file_hash": "same-filehash"},
                         },
                         "VPinFE": {
                             "altvpsid": "12345",
@@ -178,8 +178,8 @@ class TestMetaConfig(unittest.TestCase):
             info_path.write_text(
                 json.dumps(
                     {
-                        "VPXFile": {
-                            "filehash": "old-filehash",
+                        "game_files": {
+                            "Example Table.vpx": {"file_hash": "old-filehash"},
                         },
                         "ThirdParty": {
                             "source": "vpforums",
@@ -284,6 +284,6 @@ class VPinFESchemaTests(unittest.TestCase):
         TestMetaConfig()._write_meta(info)
         saved = json.loads(info.read_text(encoding="utf-8"))
 
-        for name in ("Info", "User", "VPXFile", "Medias"):
+        for name in ("Info", "User", "game_files", "Medias"):
             self.assertNotIn("schema", saved.get(name, {}),
                              f"{name} is not ours alone; it stays shape-driven")

@@ -10,6 +10,7 @@ from common import jobs
 from common.iniconfig import IniConfig
 from common.config_access import MediaConfig, SettingsConfig
 from common.tables import table_repository
+from common.tables.game_files import recorded_default
 from common.tables.table_repository import get_missing_tables, get_table_rows, refresh_table
 from common.tables import metadata_service
 from common.tables.vpxcollections import VPXCollections
@@ -277,7 +278,7 @@ def associate_vps_to_folder(
     recorded = ""
     if meta_path.exists():
         try:
-            recorded = meta_section(MetaConfig(str(meta_path)).data, "VPXFile").get("filename", "")
+            recorded = recorded_default(meta_section(MetaConfig(str(meta_path)).data, "VPinFE"))
         except Exception:
             recorded = ""
 

@@ -4,6 +4,11 @@ import ast
 from pathlib import Path
 from typing import Any, Dict
 
+from common.tables.game_files import (
+    default_game_file as _resolve_default,
+    game_file_entries,
+    recorded_default,
+)
 from common.tables.metaconfig import MetaConfig
 
 
@@ -47,6 +52,31 @@ def first_meta_value(meta: Any, *paths: tuple[str, str], default: Any = "") -> A
         if value not in ("", None):
             return value
     return default
+
+
+def default_game_file(meta: Any, names: Any = None,
+                      folder_name: str = "") -> tuple[str, Dict[str, Any]]:
+    """(filename, entry) for the build this table defaults to; ("", {}) when it has none.
+
+    Returns both because the callers that need one usually need the other - a table row
+    shows the filename and the version off the same build - and resolving twice would
+    be doing the same work to answer half the question each time.
+
+    Callers holding a folder listing should pass it, so a recorded default that is no
+    longer on disk falls through to a build that is.
+    """
+    normalized = normalize_meta(meta)
+    entries = game_file_entries(normalized)
+    candidates = list(names) if names is not None else list(entries)
+    name = _resolve_default(candidates, folder_name,
+                            recorded_default(section(normalized, "VPinFE")))
+    entry = entries.get(name)
+    return name, (entry if isinstance(entry, dict) else {})
+
+
+def default_game_file_entry(meta: Any, names: Any = None, folder_name: str = "") -> Dict[str, Any]:
+    """What the table's default build says about itself, or {}."""
+    return default_game_file(meta, names, folder_name)[1]
 
 
 def normalize_rating(value: Any) -> int:
