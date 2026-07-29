@@ -168,8 +168,10 @@ def claim_media_for_table(table, tabletype, log=None):
         path = resolved.get(spec.key)
         if path is None:
             continue
-        # The key the download path checks before it skips a kind, so a claim here
-        # is a claim it will honour.
+        # A record, not a control. The download path used to consult this before
+        # skipping a kind; it compares hashes now (common/online/vpsdb_media.py),
+        # so a user's artwork is protected whether or not it was ever claimed.
+        # What a claim still buys is a record of what came from where.
         media_key = (tabletype if spec.key == "table"
                      else f"{tabletype}_video" if spec.key == "table_video" else spec.key)
         existing = meta.getMedia(media_key)
