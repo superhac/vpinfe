@@ -54,7 +54,11 @@ change there would be a breaking change for a caller.
 ### Config keys
 
 `vpinfe.ini` keys are lowercase and unseparated (`tablerootdir`, `manageruiport`). That is
-established and user-facing; leave it alone. `.info` keys follow their existing section style.
+established and user-facing; leave it alone.
+
+`.info` keys are `snake_case` in the sections we own — `VPinFE`, `game_files`. `Info` and
+`User` keep PascalCase: other frontends read them, so their shape is a contract rather than a
+style choice.
 
 ## Layout
 
