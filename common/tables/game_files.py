@@ -74,6 +74,16 @@ def entry_from_parsed(parsed: dict | None) -> dict:
     return entry
 
 
+def is_parsed(entry: dict | None) -> bool:
+    """Whether an entry describes a build we have read, rather than one we only recorded
+    something about - hidden, or where it came from. Reading those as parsed answers "no
+    rom declared" for a file nothing has opened.
+    """
+    if not isinstance(entry, dict):
+        return False
+    return any(key in entry for key in PARSED_KEYS)
+
+
 def game_file_names(names: Iterable[str]) -> list[str]:
     """The game files in a folder listing, sorted case-insensitively."""
     return sorted((n for n in names if n.lower().endswith(VPX_SUFFIX)), key=str.lower)

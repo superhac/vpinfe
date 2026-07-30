@@ -25,6 +25,7 @@ from common.tables.game_files import (
     default_game_file,
     game_file_names,
     hidden_game_files,
+    is_parsed,
     recorded_default,
 )
 from common.tables.table_metadata import section
@@ -203,7 +204,7 @@ def _game_files(table, row: dict) -> list[dict]:
             "available": name in on_disk,
             "assets": asset_resolver.resolve_for_game_file(name, table_dir.name, files),
         }
-        if described_entry:
+        if is_parsed(described_entry):
             # Every build carries its own ROM and detect flags, so each one answers
             # for itself. This used to be knowable only for the single file the .info
             # described; the rest returned an honest "unknown".
@@ -221,7 +222,9 @@ def _game_files(table, row: dict) -> list[dict]:
             flex = asset_resolver.flexdmd_state(
                 subdirs, _tristate(described_entry.get("detect_flex")))
         else:
-            # On disk but never parsed - a build added since the last metadata build.
+            # Never parsed: a build added since the last metadata build, and the .info
+            # may already carry decisions about it - hidden, or where it came from -
+            # without anything having read the file itself.
             chain = {"declared": None, "alias_of": None, "effective": None,
                      "required": None, "catalog": None, "clone_of": None,
                      "audit": None, "installed": None,

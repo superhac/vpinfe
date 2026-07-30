@@ -1,6 +1,6 @@
 import unittest
 
-from common.tables.game_files import default_game_file, game_file_names
+from common.tables.game_files import default_game_file, game_file_names, is_parsed
 
 
 class GameFileNamesTests(unittest.TestCase):
@@ -66,6 +66,27 @@ class DefaultGameFileTests(unittest.TestCase):
         shuffled = default_game_file(list(reversed(names)), "Folder")
 
         self.assertEqual(first, shuffled)
+
+
+class IsParsedTests(unittest.TestCase):
+    """An entry exists for two different reasons: because we read the .vpx, or because
+    somebody decided something about it. Only the first says anything about the build."""
+
+    def test_a_parsed_entry_is_parsed(self) -> None:
+        self.assertTrue(is_parsed({"file_hash": "3a77427e", "rom": "afm_113b"}))
+
+    def test_an_empty_rom_still_counts_as_parsed(self) -> None:
+        """An EM table declares no ROM. That is an answer, not an absence of one."""
+        self.assertTrue(is_parsed({"file_hash": "3a77427e", "rom": ""}))
+
+    def test_a_decision_alone_is_not_a_parse(self) -> None:
+        """Hiding a build records what the user wants, not what the file says."""
+        self.assertFalse(is_parsed({"hidden": True}))
+
+    def test_junk_is_not_a_parse(self) -> None:
+        for bad in (None, {}, [], "nope"):
+            with self.subTest(entry=bad):
+                self.assertFalse(is_parsed(bad))
 
 
 if __name__ == "__main__":
