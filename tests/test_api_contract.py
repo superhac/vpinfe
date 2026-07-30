@@ -57,7 +57,17 @@ def _run_probe() -> dict:
         (multi / "Multi File (Bally 1991).vbs").write_text("' sidecar", encoding="utf-8")
         (multi / "Multi File (Bally 1991).info").write_text(json.dumps({
             "Info": {"Title": "Multi File", "VPSId": "vps-multi"},
-            "game_files": {"Multi File (Bally 1991).vpx": {"rom": "multi"}},
+            "game_files": {
+                "Multi File (Bally 1991).vpx": {"rom": "multi"},
+                # Recorded but never parsed: a patched build knows where it came from
+                # before anything has opened it.
+                "Multi File (Bally 1991) - VPW.vpx": {
+                    "source": {"base": {"file": "Multi File (Bally 1991).vpx",
+                                        "hash": "3a77427e"},
+                               "patch": {"format": "jojodiff",
+                                         "applied": "2026-07-30T15:00:18Z"}},
+                },
+            },
         }), encoding="utf-8")
 
         # .info names a .vpx that is not on disk.
@@ -198,7 +208,12 @@ class ApiContractTests(unittest.TestCase):
 
     def test_an_unparsed_game_file_gets_an_honest_unknown_rom(self) -> None:
         """Every build answers for itself now. One that has not been parsed says so
-        rather than inheriting the ROM of one that has."""
+        rather than inheriting the ROM of one that has.
+
+        Including a build the .info already describes for other reasons: the fixture's
+        VPW build records where it was patched from, and an entry existing is not the
+        same as the file having been read. "No rom declared" is a claim about the
+        build; "not parsed yet" is the truth about our knowledge of it."""
         entries = self.probe["multi_file_files"]["json"]["game_files"]
         by_name = {e["filename"]: e for e in entries}
 

@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import uuid
+from datetime import UTC, datetime
 from urllib.parse import urlparse, parse_qs
 
 from common.tables.game_files import (
@@ -270,6 +271,21 @@ class MetaConfig:
         """Record something we did to a build, against that build."""
         entry = self.data.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
         entry[key] = value
+        self.writeConfig()
+
+    def record_patch_source(self, filename, base_file, base_hash, patch_format):
+        """Record a build we made ourselves: the base it came from, and the patch that
+        made it. An ordinary .vpx has no source, which is the normal case.
+
+        The base is hashed because a .dif applies to one exact file, and the delta's
+        format is recorded rather than the code that applied it.
+        """
+        applied = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+        entry = self.data.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
+        entry["source"] = {
+            "base": {"file": base_file, "hash": base_hash},
+            "patch": {"format": patch_format, "applied": applied},
+        }
         self.writeConfig()
 
     def add_asset(self, path, host, md5=""):

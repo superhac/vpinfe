@@ -117,6 +117,59 @@ class PatchAssetTests(unittest.TestCase):
             dest = Path(plan.items[0].destination)
             self.assertEqual(dest.name, "Cactus Canyon (VR) [patched].vpx")
 
+    def test_a_patched_build_records_its_base_and_patch(self):
+        """Construction is the one origin we witness, and the result cannot be rebuilt
+        without the exact base it was made from."""
+        import hashlib
+        import json
+        import tempfile
+        import zipfile
+        from pathlib import Path
+
+        from common.jdiffpatch import EQL, ESC
+        with tempfile.TemporaryDirectory() as tmp:
+            table_dir = Path(tmp) / "Foo (Bar 1999)"
+            table_dir.mkdir()
+            base_vpx = table_dir / "Table.vpx"
+            base_vpx.write_bytes(b"ABCDEF")
+            zip_path = Path(tmp) / "mod.zip"
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                archive.writestr("Mod.dif", bytes([ESC, EQL, 5]))   # copy all six bytes
+
+            plan = build_import_plan(analyze_path(zip_path), table_path=str(table_dir))
+            execute_import_plan(plan, zip_path)
+
+            patched = table_dir / "Mod.vpx"
+            self.assertEqual(patched.read_bytes(), b"ABCDEF")
+            saved = json.loads((table_dir / "Foo (Bar 1999).info").read_text())
+            source = saved["game_files"][patched.name]["source"]
+            self.assertEqual(source["base"], {"file": "Table.vpx",
+                                              "hash": hashlib.sha256(b"ABCDEF").hexdigest()})
+            self.assertEqual(source["patch"]["format"], "jojodiff")
+
+    def test_an_unrecordable_source_does_not_fail_the_import(self):
+        """The patched table is on disk and playable by then. Losing the provenance is
+        worth a warning, not an import the user has to redo."""
+        import tempfile
+        import zipfile
+        from pathlib import Path
+
+        from common.jdiffpatch import EQL, ESC
+        with tempfile.TemporaryDirectory() as tmp:
+            table_dir = Path(tmp) / "Foo (Bar 1999)"
+            table_dir.mkdir()
+            (table_dir / "Table.vpx").write_bytes(b"ABCDEF")
+            (table_dir / "Foo (Bar 1999).info").write_text("{not json")
+            zip_path = Path(tmp) / "mod.zip"
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                archive.writestr("Mod.dif", bytes([ESC, EQL, 5]))
+
+            plan = build_import_plan(analyze_path(zip_path), table_path=str(table_dir))
+            with self.assertLogs("vpinfe.manager.asset_import", level="WARNING"):
+                execute_import_plan(plan, zip_path)
+
+            self.assertTrue((table_dir / "Mod.vpx").exists())
+
 
 class AssetRegistryTests(unittest.TestCase):
     def test_classify_bare_extension(self):

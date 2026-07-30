@@ -1,5 +1,6 @@
 import json
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -287,6 +288,55 @@ class VPinFESchemaTests(unittest.TestCase):
         for name in ("Info", "User", "game_files", "assets"):
             self.assertNotIn("schema", saved.get(name, {}),
                              f"{name} is not ours alone; it stays shape-driven")
+
+
+class PatchSourceTests(unittest.TestCase):
+    """A build we constructed records what it was made from. Nothing else does -
+    an ordinary .vpx came from wherever the user got it, which we never saw."""
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self.root = Path(self._tmp.name) / "Example Table"
+        self.root.mkdir(parents=True)
+        self.info = self.root / "Example Table.info"
+        self.info.write_text("{}", encoding="utf-8")
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _source(self, filename: str = "Example Table VPW Mod.vpx") -> dict:
+        saved = json.loads(self.info.read_text(encoding="utf-8"))
+        return saved["game_files"][filename]["source"]
+
+    def test_the_base_is_named_and_hashed(self) -> None:
+        meta = MetaConfig(str(self.info))
+        meta.record_patch_source("Example Table VPW Mod.vpx", "Example Table.vpx",
+                                 "3a77427e", "jojodiff")
+
+        source = self._source()
+        self.assertEqual(source["base"], {"file": "Example Table.vpx", "hash": "3a77427e"})
+        self.assertEqual(source["patch"]["format"], "jojodiff")
+
+    def test_applied_is_utc(self) -> None:
+        """The .info travels with its folder, so a local time says nothing once it
+        lands on another machine."""
+        meta = MetaConfig(str(self.info))
+        meta.record_patch_source("Example Table VPW Mod.vpx", "Example Table.vpx",
+                                 "3a77427e", "jojodiff")
+
+        applied = self._source()["patch"]["applied"]
+        self.assertTrue(applied.endswith("Z"), applied)
+        self.assertEqual(datetime.fromisoformat(applied).tzinfo, UTC)
+
+    def test_a_rebuild_keeps_it(self) -> None:
+        """The parse describes what a build says about itself and knows nothing about
+        how it was made, so a refresh must not take the origin with it."""
+        meta = MetaConfig(str(self.info))
+        meta.record_patch_source("Example Table.vpx", "Base.vpx", "3a77427e", "jojodiff")
+
+        TestMetaConfig()._write_meta(self.info)
+
+        self.assertEqual(self._source("Example Table.vpx")["base"]["file"], "Base.vpx")
 
 
 class AssetLedgerTests(unittest.TestCase):

@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath
 from typing import Callable
 
 from common.media_paths import media_filename_map
+from common.tables.metaconfig import MetaConfig
 from common.tables.table_repository import refresh_table
 from managerui.paths import get_tables_path
 from managerui.services.asset_analyzer_service import (
@@ -480,12 +481,29 @@ def _import_media(source, asset: DetectedAsset, table_path: Path) -> None:
         scratch.unlink(missing_ok=True)
 
 
+def _record_patch_source(table_dir: Path, filename: str, base_file: str, base_hash: str) -> None:
+    """Write the patched build's origin into the table's .info.
+
+    Best effort on purpose. The table is already on disk and playable by the time this
+    runs, so an .info we cannot read costs the provenance, not the import.
+    """
+    try:
+        meta = MetaConfig(str(table_dir / f"{table_dir.name}.info"))
+        # The format the .dif is in, not the module that read it - common/jdiffpatch.py
+        # is one implementation of JojoDiff, and the format is what outlives it.
+        meta.record_patch_source(filename, base_file, base_hash, "jojodiff")
+    except Exception:
+        logger.warning("Patched %s, but could not record where it came from", filename,
+                       exc_info=True)
+
+
 def _apply_patch(source, asset: DetectedAsset, base: Path, dest: Path) -> None:
     """Apply a .dif to the table already in this folder, writing a new .vpx beside it.
 
     The base is chosen by size: a patch is built against the real table, and a folder can
     hold small helper .vpx files. Getting this wrong produces a corrupt result rather than
-    an error, so the base's hash is recorded for whoever has to work out what happened.
+    an error, so the base is recorded by name and hash - in the log for whoever has to work
+    out what happened, and in the .info because the result cannot be rebuilt without it.
     """
     from common.jdiffpatch import PatchError, apply_patch
 
@@ -507,8 +525,10 @@ def _apply_patch(source, asset: DetectedAsset, base: Path, dest: Path) -> None:
                 raise ValueError(
                     f"Patch does not apply to \"{original.name}\". A .dif is built against "
                     f"one exact table; this is probably not that table. ({exc})") from exc
+        base_hash = _sha256(original)
         logger.info("Patched %s -> %s (base sha256 %s)", original.name, dest.name,
-                    _sha256(original)[:16])
+                    base_hash[:16])
+        _record_patch_source(base, dest.name, original.name, base_hash)
     finally:
         patch_tmp.unlink(missing_ok=True)
 
