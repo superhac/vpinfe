@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 from typing import Callable
 
 from common.media_paths import media_filename_map
-from common.tables.metaconfig import MetaConfig
+from common.tables.metaconfig import VPINFE_SECTION, MetaConfig
 from common.tables.table_repository import refresh_table
 from common.tables.vpxparser import VPXParser
 from managerui.paths import get_tables_path
@@ -329,7 +329,7 @@ def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
 # Medias stays listed although nothing writes it any more: an imported .info written by
 # a 2.x build still carries one, and dropping it from here would let it back in as an
 # unmanaged section and be preserved forever.
-_MANAGED_INFO_SECTIONS = {"Info", "User", "VPinFE", "game_files", "assets", "Medias"}
+_MANAGED_INFO_SECTIONS = {"Info", "User", VPINFE_SECTION, "game_files", "assets", "Medias"}
 _MACHINE_LOCAL_INFO_KEYS = {"alt_launcher", "plugin_profile"}
 
 
@@ -381,15 +381,15 @@ def merge_info(incoming: dict, existing: dict) -> dict:
     if local_user:
         merged["User"] = local_user
 
-    local_vpinfe = dict(existing.get("VPinFE") or {})
-    for key, value in (incoming.get("VPinFE") or {}).items():
+    local_vpinfe = dict(existing.get(VPINFE_SECTION) or {})
+    for key, value in (incoming.get(VPINFE_SECTION) or {}).items():
         if not _is_empty_value(local_vpinfe.get(key)) or _is_empty_value(value):
             continue
         if key in _MACHINE_LOCAL_INFO_KEYS and not _resolves_locally(key, value):
             continue
         local_vpinfe[key] = value
     if local_vpinfe:
-        merged["VPinFE"] = local_vpinfe
+        merged[VPINFE_SECTION] = local_vpinfe
 
     return merged
 

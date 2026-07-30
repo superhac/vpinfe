@@ -17,6 +17,7 @@ from common.tables.table_metadata import (
     normalize_meta,
     persist_table_meta,
     section,
+    vpinfe_section,
 )
 
 
@@ -205,7 +206,7 @@ def update_score_from_nvram(table) -> None:
 
 def delete_nvram_if_configured(table) -> None:
     config = normalize_meta(getattr(table, "metaConfig", {}))
-    vpinfe = section(config, "VPinFE")
+    vpinfe = vpinfe_section(config)
     if not vpinfe.get("delete_nvram_on_close", False):
         return
 

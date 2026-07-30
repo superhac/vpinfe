@@ -5,6 +5,7 @@ import shlex
 from pathlib import Path
 
 from common.paths import PLUGIN_PROFILES_DIR
+from common.tables.table_metadata import vpinfe_section
 
 logger = logging.getLogger("vpinfe.common.host.launcher")
 _ENV_KEY_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
@@ -18,7 +19,7 @@ def get_altlauncher_from_meta(meta_config) -> str:
     """Read VPinFE.altlauncher from table metadata, normalized as a stripped string."""
     if not isinstance(meta_config, dict):
         return ""
-    vpinfe = meta_config.get("VPinFE", {})
+    vpinfe = vpinfe_section(meta_config)
     if not isinstance(vpinfe, dict):
         return ""
     return str(vpinfe.get("alt_launcher", "") or "").strip()
@@ -28,7 +29,7 @@ def get_plugin_profile_from_meta(meta_config) -> str:
     """Read VPinFE.pluginprofile from table metadata, normalized as a stripped string."""
     if not isinstance(meta_config, dict):
         return ""
-    vpinfe = meta_config.get("VPinFE", {})
+    vpinfe = vpinfe_section(meta_config)
     if not isinstance(vpinfe, dict):
         return ""
     return str(vpinfe.get("plugin_profile", "") or "").strip()

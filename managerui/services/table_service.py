@@ -15,7 +15,9 @@ from common.tables.table_repository import get_missing_tables, get_table_rows, r
 from common.tables import metadata_service
 from common.tables.vpxcollections import VPXCollections
 from common.tables.game_files import default_game_file
+from common.tables.metaconfig import VPINFE_SECTION
 from common.tables.table_metadata import section as meta_section
+from common.tables.table_metadata import vpinfe_section
 from common.tables.vpxparser import VPXParser
 
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_tables_path
@@ -99,7 +101,7 @@ def update_info_section(table_path: str, section: str, key: str, value) -> bool:
 
 
 def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
-    return update_info_section(table_path, "VPinFE", key, value)
+    return update_info_section(table_path, VPINFE_SECTION, key, value)
 
 
 def update_user_setting(table_path: str, key: str, value) -> bool:
@@ -277,7 +279,7 @@ def associate_vps_to_folder(
     recorded = ""
     if meta_path.exists():
         try:
-            recorded = recorded_default(meta_section(MetaConfig(str(meta_path)).data, "VPinFE"))
+            recorded = recorded_default(vpinfe_section(MetaConfig(str(meta_path)).data))
         except Exception:
             recorded = ""
 
@@ -342,7 +344,7 @@ def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> di
 
     cfg = _fresh_config()
     vpxbin = cfg.config['Settings'].get('vpxbinpath', '')
-    meta = {"VPinFE": {"alt_launcher": (altlauncher or "").strip()}}
+    meta = {VPINFE_SECTION: {"alt_launcher": (altlauncher or "").strip()}}
     vpxbin_path, source_key, _configured = get_effective_launcher(vpxbin, meta)
     if not vpxbin_path:
         raise RuntimeError("No launcher configured (set Settings.vpxbinpath or VPinFE.altlauncher)")

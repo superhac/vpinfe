@@ -28,7 +28,7 @@ from common.tables.game_files import (
     is_parsed,
     recorded_default,
 )
-from common.tables.table_metadata import section
+from common.tables.table_metadata import section, vpinfe_section
 from common.tables.table_repository import (
     collections_by_table_id,
     ensure_tables_loaded,
@@ -177,7 +177,7 @@ def _game_files(table, row: dict) -> list[dict]:
 
     # Same resolver the launcher and the metadata build use, so all three agree.
     default = default_game_file(files or names, table_dir.name,
-                                recorded_default(section(table.metaConfig, "VPinFE")))
+                                recorded_default(vpinfe_section(table.metaConfig)))
     hidden = hidden_game_files(described)
 
     # Dependency context, once per request: the alias map and the rom listing are

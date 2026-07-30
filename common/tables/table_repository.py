@@ -17,6 +17,7 @@ from common.tables.table_metadata import (
     normalize_rating,
     reorder_leading_article,
     section,
+    vpinfe_section,
 )
 from common.tables.tableparser import TableParser
 from common.tables.vpxcollections import VPXCollections
@@ -93,7 +94,7 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
     meta = table.metaConfig or {}
     info = section(meta, "Info")
     user = section(meta, "User")
-    vpinfe = section(meta, "VPinFE")
+    vpinfe = vpinfe_section(meta)
     table_name = Path(table.fullPathTable).name
     vpsid = first_meta_value(meta, ("Info", "VPSId"), default="")
     # The row describes one game file - the table's default. A folder can hold several,

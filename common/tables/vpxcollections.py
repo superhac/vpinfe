@@ -3,15 +3,21 @@ import configparser
 import logging
 from pathlib import Path
 
+from common.tables.metaconfig import VPINFE_SECTION
 from common.tables.table_identity import table_id
-from common.tables.table_metadata import base_table_vps_id, section, table_title
+from common.tables.table_metadata import (
+    base_table_vps_id,
+    section,
+    table_title,
+    vpinfe_section,
+)
 
 logger = logging.getLogger("vpinfe.common.tables.vpxcollections")
 
 # collections.ini is entirely ours, so it carries a version like the VPinFE section
 # of a table's .info does. In an ini the sections are collection names, so the
 # version lives in a reserved section that is filtered out of the collection list.
-SCHEMA_SECTION = "VPinFE"
+SCHEMA_SECTION = VPINFE_SECTION
 SCHEMA_KEY = "schema"
 #   0  membership keyed by VPS id. Implied when no version is recorded.
 #   1  membership keyed by the table's own id (common/table_identity.py).
@@ -216,7 +222,7 @@ class VPXCollections:
             tid = table_id(table)
             if not tid:
                 continue
-            vpinfe = section(getattr(table, "metaConfig", {}), "VPinFE")
+            vpinfe = vpinfe_section(getattr(table, "metaConfig", {}))
             for candidate in (base_table_vps_id(table),
                               str(vpinfe.get("alt_vpsid", "") or "").strip()):
                 if candidate:
@@ -267,7 +273,7 @@ class VPXCollections:
         if table_id(table) and table_id(table) in member_ids:
             return True
 
-        vpinfe = section(getattr(table, "metaConfig", {}), "VPinFE")
+        vpinfe = vpinfe_section(getattr(table, "metaConfig", {}))
         base_vpsid = base_table_vps_id(table)
         alt_vpsid = str(vpinfe.get("alt_vpsid", "") or "").strip()
         return bool(

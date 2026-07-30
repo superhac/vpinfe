@@ -18,6 +18,7 @@ from common.tables.table_metadata import (
     reorder_leading_article,
     section,
     table_title,
+    vpinfe_section,
 )
 
 
@@ -63,7 +64,7 @@ def tables_json(tables) -> str:
     for table in tables:
         meta = normalize_meta(table.metaConfig)
 
-        vpinfe = section(meta, "VPinFE")
+        vpinfe = vpinfe_section(meta)
         info = section(meta, "Info")
         used_alttitle = False
         if str(vpinfe.get("alt_vpsid", "") or "").strip() and str(vpinfe.get("alt_title", "") or "").strip():

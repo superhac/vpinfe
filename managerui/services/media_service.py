@@ -14,7 +14,7 @@ from common.media_paths import (
     resolve_media_files,
 )
 from common.tables.metaconfig import MetaConfig
-from common.tables.table_metadata import reorder_leading_article
+from common.tables.table_metadata import reorder_leading_article, vpinfe_section
 from common.tables.table_repository import ensure_tables_loaded
 
 from managerui.paths import CONFIG_DIR, get_tables_path
@@ -195,7 +195,7 @@ def _table_meta_sections(table):
     if not isinstance(raw, dict):
         raw = {}
     info = raw.get("Info", {}) if isinstance(raw.get("Info", {}), dict) else {}
-    vpinfe = raw.get("VPinFE", {}) if isinstance(raw.get("VPinFE", {}), dict) else {}
+    vpinfe = vpinfe_section(raw)
     return info, vpinfe
 
 

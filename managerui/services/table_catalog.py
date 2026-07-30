@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List
 
+from common.tables.metaconfig import VPINFE_SECTION
 from managerui.services import table_index_service
 
 
@@ -71,7 +72,7 @@ def scan_launchable_tables(tables_path: str | None = None) -> List[Dict]:
             "theme": row.get("theme") or row.get("themes", ""),
             "rating": row.get("rating", 0),
             "meta": {
-                "VPinFE": {
+                VPINFE_SECTION: {
                     "alt_launcher": row.get("alt_launcher", ""),
                     "plugin_profile": row.get("plugin_profile", ""),
                 }

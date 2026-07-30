@@ -21,7 +21,9 @@ VPSDB_JSON_PATH = table_service.VPSDB_JSON_PATH
 
 # Load vpinfe.ini once to avoid repeated parsing
 from common.iniconfig import IniConfig
+from common.tables.metaconfig import VPINFE_SECTION
 from common.tables.table_metadata import (
+    vpinfe_section,
     default_game_file,
     reorder_leading_article,
 )
@@ -152,7 +154,7 @@ def parse_table_info(info_path):
 
         info = raw.get("Info", {})
         user = raw.get("User", {})
-        vpinfe = raw.get("VPinFE", {})
+        vpinfe = vpinfe_section(raw)
         # This row describes the table's default build. A folder can hold several;
         # the API lists them all, the table view shows one.
         gf_name, vpx = default_game_file(raw, folder_name=table_name)
@@ -163,7 +165,7 @@ def parse_table_info(info_path):
             """
             for section, key in paths:
                 src = {"Info": info, "game_file": vpx, "User": user,
-                       "VPinFE": vpinfe, "root": raw}.get(section)
+                       VPINFE_SECTION: vpinfe, "root": raw}.get(section)
                 if src and key in src and src[key] not in ("", None):
                     return src[key]
             return default
@@ -174,7 +176,7 @@ def parse_table_info(info_path):
                      or reorder_leading_article(get(("Info", "Title"), ("root", "name"), default=table_name) or "")),
             "filename": gf_name or f"{table_name}.vpx",
             "vpsid": get(("Info", "VPSId"), ("root", "id")),
-            "id": get(("VPinFE", "alt_vpsid"), ("Info", "VPSId"), ("root", "id")),
+            "id": get((VPINFE_SECTION, "alt_vpsid"), ("Info", "VPSId"), ("root", "id")),
             "ipdb_id": get(("Info", "IPDBId")),
             "pinball_primer_tut": get(("Info", "PinballPrimerTut")),
 

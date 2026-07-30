@@ -11,7 +11,7 @@ from common.tables.game_files import (
     game_file_entries,
     recorded_default,
 )
-from common.tables.metaconfig import MetaConfig
+from common.tables.metaconfig import VPINFE_SECTION, MetaConfig
 
 
 # Re-exported so the theme payload and the Manager UI agree with storage. Sourced
@@ -36,6 +36,12 @@ def section(meta: Any, name: str) -> Dict[str, Any]:
     normalized = normalize_meta(meta)
     value = normalized.get(name, {})
     return value if isinstance(value, dict) else {}
+
+
+def vpinfe_section(meta: Any) -> Dict[str, Any]:
+    """The section VPinFE owns. Read through here rather than by name, so the name
+    lives in one place."""
+    return section(meta, VPINFE_SECTION)
 
 
 def get_meta_value(meta: Any, section_name: str, key: str, fallback: Any = "") -> Any:
@@ -67,7 +73,7 @@ def default_game_file(meta: Any, names: Any = None,
     entries = game_file_entries(normalized)
     candidates = list(names) if names is not None else list(entries)
     name = _resolve_default(candidates, folder_name,
-                            recorded_default(section(normalized, "VPinFE")))
+                            recorded_default(vpinfe_section(normalized)))
     entry = entries.get(name)
     return name, (entry if isinstance(entry, dict) else {})
 
@@ -123,7 +129,7 @@ def reorder_leading_article(title: Any) -> str:
 
 def table_title(table) -> str:
     meta = normalize_meta(getattr(table, "metaConfig", {}))
-    vpinfe = section(meta, "VPinFE")
+    vpinfe = vpinfe_section(meta)
     info = section(meta, "Info")
     if str(vpinfe.get("alt_vpsid", "") or "").strip():
         alt_title = str(vpinfe.get("alt_title", "") or "").strip()
@@ -178,12 +184,12 @@ def table_rating(table) -> int:
 def table_frontend_dof_event(table) -> str:
     """The DOF effect a table asks for when selected, or "" to use the default."""
     meta = normalize_meta(getattr(table, "metaConfig", {}))
-    return str(get_meta_value(meta, "VPinFE", "frontend_dof_event", "") or "").strip()
+    return str(vpinfe_section(meta).get("frontend_dof_event", "") or "").strip()
 
 
 def table_vps_id(table) -> str:
     meta = normalize_meta(getattr(table, "metaConfig", {}))
-    alt_vpsid = str(section(meta, "VPinFE").get("alt_vpsid", "") or "").strip()
+    alt_vpsid = str(vpinfe_section(meta).get("alt_vpsid", "") or "").strip()
     if alt_vpsid:
         return alt_vpsid
     return str(section(meta, "Info").get("VPSId", "") or "").strip()

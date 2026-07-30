@@ -23,6 +23,12 @@ logger = logging.getLogger("vpinfe.common.tables.metaconfig")
 CURRENT_VPINFE_SCHEMA = 2
 VPINFE_SCHEMA_KEY = "schema"
 
+# The section we own outright: app configuration and table-level bookkeeping. Still
+# PascalCase because that is what 2.x wrote and what every existing file holds; the
+# migration renames it to `vpinfe`, since the sections we own are snake_case. Named
+# here so that rename is this line plus the migration, not a sweep of the tree.
+VPINFE_SECTION = "VPinFE"
+
 # One entry per file VPinFE placed, keyed by the path it was written to. Supersedes
 # Medias, which was keyed by media kind and so held at most one entry per kind - it
 # could not say which game file's wheel it meant once artwork could belong to a
@@ -145,7 +151,7 @@ class MetaConfig:
         user.setdefault("RunTime", 0)
         user.setdefault("Tags", [])
 
-        vpinfe = self.data.get("VPinFE", {})
+        vpinfe = self.data.get(VPINFE_SECTION, {})
         if not isinstance(vpinfe, dict):
             vpinfe = {}
         vpinfe = migrate_vpinfe_section(vpinfe)
@@ -189,14 +195,14 @@ class MetaConfig:
         preserved = {
             k: v
             for k, v in self.data.items()
-            if k not in ("Info", "User", "VPXFile", "VPinFE", "Medias",
+            if k not in ("Info", "User", "VPXFile", VPINFE_SECTION, "Medias",
                          GAME_FILES_KEY, ASSETS_KEY)
         }
 
         self.data = {
             "Info": info,
             "User": user,
-            "VPinFE": vpinfe,
+            VPINFE_SECTION: vpinfe,
             GAME_FILES_KEY: game_files,
             ASSETS_KEY: assets,
             **preserved
@@ -312,7 +318,7 @@ class MetaConfig:
             return      # nothing to say; do not add an empty section to the .info
 
         self.data[GAME_FILES_KEY] = entries
-        vpinfe = self.data.get("VPinFE")
+        vpinfe = self.data.get(VPINFE_SECTION)
         if isinstance(vpinfe, dict):
             chosen = default_game_file(entries, "", recorded_default(vpinfe))
             if _default_game_file_changed(chosen, previous, entries):
@@ -385,9 +391,9 @@ class MetaConfig:
         """Apply the VPinFE section schema migration to the loaded data, in memory."""
         if not isinstance(self.data, dict):
             return
-        vpinfe = self.data.get("VPinFE")
+        vpinfe = self.data.get(VPINFE_SECTION)
         if isinstance(vpinfe, dict):
-            self.data["VPinFE"] = migrate_vpinfe_section(vpinfe)
+            self.data[VPINFE_SECTION] = migrate_vpinfe_section(vpinfe)
 
     def _to_bool(self, val):
         if isinstance(val, bool):

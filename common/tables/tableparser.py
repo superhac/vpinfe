@@ -12,7 +12,7 @@ from common.tables.game_files import (
 )
 from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
 from common.tables.table import Table
-from common.tables.table_metadata import section
+from common.tables.table_metadata import section, vpinfe_section
 
 logger = logging.getLogger("vpinfe.common.tables.tableparser")
 
@@ -108,7 +108,7 @@ class TableParser:
 
             # After the metadata, so a folder with several .vpx launches the one its
             # metadata describes rather than whichever the filesystem listed first.
-            recorded = recorded_default(section(table.metaConfig, "VPinFE"))
+            recorded = recorded_default(vpinfe_section(table.metaConfig))
             chosen = default_game_file(table_contents, table_dir.name, recorded)
             table.fullPathVPXfile = str(table_dir / chosen)
 
@@ -183,4 +183,4 @@ class TableParser:
         return [dict(row) for row in self.missing_tables]
 
     def isFavorite(self, Table):
-        return Table.metaConfig.get("VPinFE", {}).get("favorite", "").lower() == "true"
+        return vpinfe_section(Table.metaConfig).get("favorite", "").lower() == "true"

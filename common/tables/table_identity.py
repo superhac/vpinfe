@@ -11,6 +11,7 @@ import secrets
 from collections.abc import Iterable
 from typing import Any
 
+from common.tables.metaconfig import VPINFE_SECTION
 from common.tables.table_metadata import (
     load_table_meta,
     normalize_meta,
@@ -21,7 +22,7 @@ from common.tables.table_metadata import (
 logger = logging.getLogger("vpinfe.common.tables.table_identity")
 
 # Also written by MetaConfig.writeConfigMeta, which mints during a metadata rebuild.
-ID_SECTION = "VPinFE"
+ID_SECTION = VPINFE_SECTION
 ID_KEY = "id"
 
 # No 0/O or I/l, so an id survives being read down a phone or retyped out of a bug

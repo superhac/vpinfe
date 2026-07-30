@@ -19,6 +19,7 @@ from common.tables.game_files import (
     recorded_default,
 )
 from common.tables.metaconfig import ASSETS_KEY
+from common.tables.table_metadata import vpinfe_section
 from managerui.services.asset_registry import (
     is_readme,  # noqa: F401  (one matcher, import and export)
 )
@@ -46,7 +47,7 @@ def choose_game_file(table_dir: Path, game_file: str | None = None) -> str | Non
     info_path = table_dir / f"{table_dir.name}.info"
     try:
         recorded = recorded_default(
-            json.loads(info_path.read_text(encoding="utf-8")).get("VPinFE", {}))
+            vpinfe_section(json.loads(info_path.read_text(encoding="utf-8"))))
     except (OSError, ValueError):
         pass
     return default_game_file(listing, table_dir.name, recorded) or (names[0] if names else None)
