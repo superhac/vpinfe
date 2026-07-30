@@ -56,9 +56,32 @@ change there would be a breaking change for a caller.
 `vpinfe.ini` keys are lowercase and unseparated (`tablerootdir`, `manageruiport`). That is
 established and user-facing; leave it alone.
 
-`.info` keys are `snake_case` in the sections we own — `VPinFE`, `game_files`, `assets`.
+`.info` keys are `snake_case` in the sections we own — `vpinfe`, `game_files`, `assets`,
+and so are those section names.
 `Info` and `User` keep PascalCase: other frontends read them, so their shape is a contract
 rather than a style choice.
+
+## Things we version
+
+Three, each versioning a different kind of thing, each with its own word:
+
+| what | versions | where |
+|---|---|---|
+| `.info` | a **file's shape** we write and read back | `vpinfe.schema` |
+| HTTP surface | a **wire protocol** we serve | `/api/v1` |
+| theme surface | an **interface handed to somebody else's code** | `contract` in a theme's `manifest.json` |
+
+They stay separate words because they answer different questions and move on different
+triggers — a `.info` reshape says nothing about the HTTP API. `schema` is deliberately not
+reused for themes: a schema describes data, and the theme surface is data plus methods plus
+events.
+
+One rule across all three, which is the consistency worth having:
+
+> **Additive changes never bump a version. Only a removal or a reshape does.**
+
+New fields, new endpoints, new methods are visible at every version and consumers
+feature-detect them. That is what keeps bumps rare enough to be worth doing properly.
 
 ## Layout
 
@@ -223,7 +246,7 @@ dead VPM code, and a commented-out `LoadVPM` is not a dependency. Measured again
 validation set covering both cases: every ROM-installed table hits, every DOF-key EM
 table misses. One known ambiguity: some EM/PM recreations *conditionally* drive PinMAME for
 chime sounds (the `cOptRom` pattern), and read as required when the player may run
-happily without the ROM. The flag lands in `VPXFile` on the next metadata rebuild;
+happily without the ROM. The flag lands on the game file on the next metadata rebuild;
 until then the chain reports `required: null`.
 - **App** — the application that plays a format (VPX standalone today).
 - **Theme** — a player-facing frontend package.

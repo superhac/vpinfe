@@ -46,7 +46,8 @@ Every theme must include a `manifest.json`:
   "preview_image": "preview.png",
   "supported_screens": 3,
   "type": "desktop",
-  "change_log": "Initial release."
+  "change_log": "Initial release.",
+  "contract": 2
 }
 ```
 
@@ -60,6 +61,34 @@ Every theme must include a `manifest.json`:
 | `supported_screens` | Number of screens the theme supports (typically `3`). |
 | `type` | Theme type: `"desktop"` for desktop/flat-screen setups, `"cab"` for cabinet setups, or `"both"` for themes that adapt to either. |
 | `change_log` | Description of changes in this version. |
+| `contract` | Which VPinFE theme contract this theme is written against. Optional; absent means `1`. See [Theme contract](#theme-contract). |
+
+`version` is your theme's own release number. `contract` is the VPinFE surface it reads.
+They are different questions and they move independently.
+
+### Theme contract
+
+VPinFE serves the table payload in the shape your theme declares, so a theme keeps working
+when the data behind it is reshaped.
+
+| Contract | What the payload looks like |
+|---|---|
+| `1` (default) | `meta.VPXFile` holds the table's game file, with `filename`, `manufacturer`, `year`, `type`, the `detect*` flags and `altSoundExists` / `altColorExists` / `pupPackExists`. `meta.Info` carries `Rom` and `Authors`. `meta.VPinFE` holds VPinFE's own settings. |
+| `2` | `meta.game_files` holds every `.vpx` in the folder, keyed by filename — a folder can hold several and each answers for itself. `meta.vpinfe` replaces `meta.VPinFE`. `Rom` and `Authors` live on the game file, not on `Info`. `meta.assets` records where files came from. |
+
+**You do not need to bump `contract` when VPinFE adds things.** New media kinds, new fields
+and new `vpin.*` methods are visible at every contract — check for what you want and use it
+if it is there:
+
+```javascript
+if (typeof vpin.someNewMethod === "function") {
+    vpin.someNewMethod();
+}
+```
+
+A contract only goes up when something a theme already reads is **removed or reshaped**, so
+bumps are rare. If you declare a contract newer than the VPinFE you are running on, you get
+the newest that build has and a warning in the log.
 
 ---
 
@@ -1160,7 +1189,10 @@ Per-user stats and preferences stored in each table's `.info` file:
 | `RunTime` | `number` | Total accumulated play time in minutes. |
 | `Tags` | `array` | User-defined tags (string list). |
 
-### meta.VPXFile
+### meta.VPXFile *(contract 1)*
+
+The table's game file. At contract 2 this section does not exist — read `meta.game_files`
+instead, which describes every `.vpx` in the folder rather than only one.
 
 Data extracted from the `.vpx` file itself:
 
@@ -1171,7 +1203,7 @@ Data extracted from the `.vpx` file itself:
 | `year` | `string` | Year from VPX metadata. |
 | `type` | `string` | Table type from VPX metadata. |
 
-### meta.VPXFile — Detection Flags
+### meta.VPXFile — Detection Flags *(contract 1)*
 
 Boolean flags indicating detected features/addons in the VPX table:
 

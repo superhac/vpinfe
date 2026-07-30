@@ -121,7 +121,7 @@ The `.vpxz` download and the mobile Web Send used to ship everything: every alte
 game file, all media, every extra. The default is now a standalone bundle for the table's
 game file — the chosen `.vpx`, its stem-matched and folder-named companions, `pinmame/`,
 `music/`, colorization and sound folders, the author's readme files, and a `.info` whose
-`Medias` section lists only what actually shipped. The whole-folder form remains
+`assets` section lists only what actually shipped. The whole-folder form remains
 available to callers through the API (`?full=true`), under its own permission scope.
 *Why:* export a game, not a folder — transfers shrink dramatically, and a multi-`.vpx`
 folder finally exports the game file you meant instead of all of them. Covered by
@@ -176,6 +176,17 @@ media" toggle is gone, and `--user-media` now only means "fetch nothing". Existi
 who already knew about it. One loss worth naming: a file byte-identical to VPinMediaDB's
 could previously be pinned by claiming it, and can no longer be pinned at all. Covered by
 `tests/test_vpsdb_media.py`.
+
+**PAR-19 — The `.info` is reshaped, and themes declare which shape they read.**
+`VPXFile` becomes `game_files` (one entry per `.vpx`, since a folder can hold several),
+`Medias` becomes `assets`, the `VPinFE` section becomes `vpinfe` with snake_case keys, and
+`Info` gives up `Rom` and `Authors` to the game file that owns them. A 2.x file is migrated
+on read, keeping the original alongside it as `<Table>.info.vpinfe-<timestamp>`.
+*Why:* the format described one game file per folder, which stopped being true the first
+time anybody patched a table. Themes are unaffected unless they opt in: the payload is
+served in the shape a theme declares as `contract` in its `manifest.json`, and absent means
+contract 1 — the 2.x shape, synthesised. Covered by `tests/test_info_migration.py` and
+`tests/test_theme_contract.py`.
 
 **PAR-18 — Addon folders are detected whatever their casing.**
 The library scan matched `pupvideos`, `serum`, `vni`, `music` and `medias` against the

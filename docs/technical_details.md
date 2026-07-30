@@ -86,14 +86,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
             "TV Show",
             "Game Show"
         ],
-        "VPSId": "HhMnyw53",
-        "Authors": [
-            "jpsalas",
-            "akiles50000",
-            "Loserman76"
-        ],
-        "Rom": "TlD_123",
-        "Description": ""
+        "VPSId": "HhMnyw53"
     },
     "User": {
         "Rating": 0,
@@ -103,29 +96,47 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
         "RunTime": 0,
         "Tags": []
     },
-    "VPXFile": {
-        "filename": "123(Talleres de Llobregat 1973) v601.vpx",
-        "filehash": "d685ce54d659fadcafd90a296473fb126754aa23b1145f457c6626aa5baa75d9",
-        "version": "6.0.1",
-        "releaseDate": "25.01.2026",
-        "saveDate": "Sun Jan 25 22:24:36 2026",
-        "saveRev": "91",
-        "manufacturer": "",
-        "year": "",
-        "type": "",
-        "vbsHash": "bd6dcb7e0c618e4553d230095e73c7ca8e17f31def4595c38a8439b279977b45",
-        "rom": "TlD_123",
-        "detectnfozzy": "false",
-        "detectfleep": "false",
-        "detectssf": "true",
-        "detectlut": "true",
-        "detectscorebit": "false",
-        "detectfastflips": "false",
-        "detectflex": "false"
+    "vpinfe": {
+        "schema": 2,
+        "id": "tuF3WogthK",
+        "default_game_file": "123(Talleres de Llobregat 1973) v601.vpx",
+        "delete_nvram_on_close": false,
+        "alt_launcher": "",
+        "plugin_profile": "",
+        "alt_title": "",
+        "alt_vpsid": "",
+        "frontend_dof_event": ""
     },
-    "VPinFE": {
-        "deletedNVRamOnClose": false,
-        "altlauncher": ""
+    "game_files": {
+        "123(Talleres de Llobregat 1973) v601.vpx": {
+            "file_hash": "d685ce54d659fadcafd90a296473fb126754aa23b1145f457c6626aa5baa75d9",
+            "vbs_hash": "bd6dcb7e0c618e4553d230095e73c7ca8e17f31def4595c38a8439b279977b45",
+            "version": "6.0.1",
+            "release_date": "2026-01-25",
+            "save_date": "2026-01-25T22:24:36",
+            "save_rev": "91",
+            "manufacturer": "",
+            "year": "",
+            "type": "",
+            "rom": "TlD_123",
+            "authors": [
+                "jpsalas",
+                "akiles50000",
+                "Loserman76"
+            ],
+            "detect_nfozzy": false,
+            "detect_fleep": false,
+            "detect_ssf": true,
+            "detect_lut": true,
+            "detect_scorbit": false,
+            "detect_fastflips": false,
+            "detect_flex": false,
+            "user": {
+                "last_run": null,
+                "start_count": 0,
+                "run_time_seconds": 0
+            }
+        }
     },
     "assets": {
         "medias/bg.png": {
@@ -156,9 +167,11 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   - Manufacturer, Year, Type (EM, SS, etc.)
   - Themes: Array of themes
   - VPSId: Internal VPS database ID
-  - Authors: Table authors
-  - Rom: Name of the ROM file
   - Description: Table description/blurb
+
+  Authors and Rom used to live here too. Both are properties of a game file rather than of
+  the machine — a folder can hold several, and they can disagree — so they moved to
+  `game_files`.
 
 - User
 
@@ -170,21 +183,40 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   - RunTime: Total playtime in minutes
   - Tags: Array of custom tags
 
-- VPXFile
+- game_files
 
-  Contains metadata extracted from the VPX file:
-  - filename, filehash, version
-  - releaseDate, saveDate, saveRev (VPX save info)
-  - manufacturer, year, type
-  - vbsHash: SHA-256 hash of table's VBS script
-  - rom: ROM name from the VPX
-  - detect* flags: Booleans indicating which features were detected (detectnfozzy, detectfleep, detectssf, detectlut, detectscorebit, detectfastflips, detectflex)
+  One entry per `.vpx` in the folder, keyed by filename. A table folder can hold a desktop
+  build, a VR build and a patched one, and every visible entry is independently launchable —
+  they are peers, not a primary with alternates. Each entry holds what that file says about
+  itself:
+  - file_hash, vbs_hash, version
+  - release_date, save_date, save_rev — normalised to ISO 8601, at whatever precision the
+    author actually gave. An unreadable or ambiguous date degrades to the year rather than
+    being guessed at.
+  - manufacturer, year, type — the `.vpx`'s own claim, which can differ from what VPS says
+    in `Info`. Both are kept: the disagreement is a signal.
+  - rom, authors
+  - detect_* flags: what was found in the table's script
+  - hidden: set to keep a game file out of the frontend without deleting it — a patch base
+    has to stay on disk, but should not be offered
+  - user: play history for this game file alone (last_run, start_count, run_time_seconds).
+    It accumulates separately from `User`, which is the table's own history.
 
-- VPinFE
+- vpinfe
 
-  VPinFE-specific settings for the table. Preserved across `--buildmeta --update-all`, except `altvpsid` which is cleared when the table's stored `VPXFile.filehash` changes during a rebuild:
-  - deletedNVRamOnClose: (true/false) Some tables, like Taito machines, retain the game state when you quit. Enabling this option deletes the NVRAM file upon closing. Default is false.
-  - altlauncher: Optional executable path override used only for this table. If set, this is used instead of `vpinfe.ini` `Settings.vpxbinpath`.
+  VPinFE-specific settings for the table, preserved across `--buildmeta --update-all`:
+  - schema: the version of this file's shape. Absent means a 2.x file, which is migrated on
+    first read — see below.
+  - id: the table's stable local identity, used in the API, in events and in collections
+  - default_game_file: which game file a consumer that can only take one should get
+  - delete_nvram_on_close: (true/false) Some tables, like Taito machines, retain the game
+    state when you quit. Enabling this deletes the NVRAM file on close. Default is false.
+  - alt_launcher: Optional executable path override for this table alone. If set, it is used
+    instead of `vpinfe.ini` `Settings.vpxbinpath`.
+  - plugin_profile, alt_title, alt_vpsid, frontend_dof_event
+
+  `alt_vpsid` is cleared when the default game file's hash changes during a rebuild, since a
+  manual VPS match was chosen against the file that was there.
 
 - assets
 
@@ -195,6 +227,20 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   Nothing else is stored. Which media kind a file is, and which game file it belongs to, are read off its name every time media resolves, so a stored copy could only agree or be wrong.
 
   **A file with no entry is not ours.** Ownership is not decided from this section — the downloader hashes what is already on disk and compares it to the MD5 vpinmediadb publishes, so your own artwork is safe whether or not it appears here.
+
+#### Upgrading from a 2.x file
+
+Files written before schema 2 have no `schema` key, and are migrated the first time VPinFE
+reads them: `VPXFile` becomes the first `game_files` entry, `VPinFE` becomes `vpinfe` with
+snake_case keys, `User.FrontendDOFEvent` moves to `vpinfe.frontend_dof_event`, and `Medias`
+is dropped.
+
+Nothing is written until something would have written anyway, and when it does, the original
+is kept first as `<Table>.info.vpinfe-<timestamp>` — for example
+`Table Name (Bally 1995).info.vpinfe-20260729T143022Z`. The timestamp is UTC, so restore
+points sort and accumulate rather than overwriting each other. **To go back, rename one over
+the `.info`.** Which schema a backup holds is read from its contents, not its name: no
+`schema` key means it is a 2.x file.
 
 After that file is created it then attempts to download the media artwork for that table from [VPinMediaDB](https://github.com/superhac/vpinmediadb). All media images are stored in a `medias/` subfolder within each table's directory:
 

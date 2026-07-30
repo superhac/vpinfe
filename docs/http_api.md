@@ -416,7 +416,7 @@ rather than being queued — queueing would mean a double-click costs two full s
 ## Table identity
 
 Tables are addressed by an opaque local id — `common/table_identity.py`, stored per table in
-its `.info` under `VPinFE.id`:
+its `.info` under `vpinfe.id`:
 
 ```
 GET /api/v1/tables/tuF3WogthK
@@ -426,7 +426,7 @@ The id is minted once and then stays put. It survives renames, VPSdb re-matches,
 updates, which is what an id in a URL, an event, or a job has to do.
 
 `VPSId` is not that id, and can't be. It's empty for any table VPSdb hasn't matched, it isn't
-guaranteed unique, and the effective id used elsewhere (`VPinFE.altvpsid or Info.VPSId`) is
+guaranteed unique, and the effective id used elsewhere (`vpinfe.alt_vpsid or Info.VPSId`) is
 deliberately cleared when the .vpx file changes — so updating a table would silently change
 its identity. `vpsId` is still exposed on the table resource, because correlating with VPSdb,
 VPinPlay, and other outside services is exactly what it's good for. It's an attribute, not
@@ -447,11 +447,12 @@ issued the id. The API exposes it as the resource's `id`.
 
 ### Schema version
 
-The `VPinFE` section of a table's `.info` carries a `schema` number, bumped when the shape of
-that section changes. It is scoped to that section deliberately: VPinFE owns those keys
-outright, so their shape can be reasoned about from a version. `Info` and `VPXFile` are derived
-from VPSdb and the vpx file, and the `.info` is a file other tools read and write, so those
-sections stay shape-driven and tolerant.
+The `vpinfe` section of a table's `.info` carries a `schema` number, bumped when the shape of
+the file changes. `Info` and `User` are the interop contract other frontends read and write, so
+they stay shape-driven and tolerant; the sections we own carry the version.
+
+A file with no `schema` at all was written by 2.x. It is migrated on read and, on the first
+write after that, the original is kept alongside it as `<Table>.info.vpinfe-<timestamp>`.
 
 Migration runs on read, in memory, and never writes — the stamp reaches disk on the next real
 write. A section written by a *newer* VPinFE is left exactly as it is: downgrading someone's
