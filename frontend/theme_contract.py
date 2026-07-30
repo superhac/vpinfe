@@ -1,0 +1,116 @@
+"""What a theme was written against, and how to serve it.
+
+A theme declares `contract` in its manifest.json; absent means 1, which is every theme
+written before this existed. The payload is always built in the current shape and
+projected backwards, never the reverse - the newest shape is the one that is true.
+
+Adding a field, a media kind or a method does not bump the contract: those are visible
+at every level and a theme feature-detects them. Only removing or reshaping something a
+theme already reads does. That is what keeps a bump rare.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from pathlib import Path
+
+from common.tables.table_metadata import DETECTION_KEYS, default_game_file
+
+logger = logging.getLogger("vpinfe.frontend.theme_contract")
+
+CURRENT_CONTRACT = 2
+OLDEST_CONTRACT = 1
+CONTRACT_KEY = "contract"
+
+# What contract 1 calls each game-file field. The .info renamed these; a theme written
+# against 2.x still reads the old spelling, so the projection restores it.
+_LEGACY_GAME_FILE_KEYS = {
+    "file_hash": "filehash",
+    "vbs_hash": "vbsHash",
+    "release_date": "releaseDate",
+    "save_date": "saveDate",
+    "save_rev": "saveRev",
+    "detect_nfozzy": "detectnfozzy",
+    "detect_fleep": "detectfleep",
+    "detect_ssf": "detectssf",
+    "detect_lut": "detectlut",
+    "detect_scorbit": "detectscorebit",
+    "detect_fastflips": "detectfastflips",
+    "detect_flex": "detectflex",
+    "detect_pinmame": "detectpinmame",
+}
+
+# 1  the shape 2.x themes read: meta.VPXFile, and Rom and Authors on meta.Info
+# 2  the .info's own shape: meta.game_files, meta.vpinfe, and neither of those on Info
+
+
+def declared_contract(theme_dir) -> int:
+    """The level a theme asks for, clamped to what this build can serve."""
+    manifest = Path(theme_dir) / "manifest.json"
+    try:
+        manifest_data = json.loads(manifest.read_text(encoding="utf-8"))
+        level = int(manifest_data.get(CONTRACT_KEY, OLDEST_CONTRACT))
+    except (OSError, ValueError, TypeError, AttributeError):
+        return OLDEST_CONTRACT
+
+    if level > CURRENT_CONTRACT:
+        logger.warning(
+            "Theme %s asks for contract %s and this build serves %s. Serving %s; parts of "
+            "the theme may expect data that does not exist yet.",
+            Path(theme_dir).name, level, CURRENT_CONTRACT, CURRENT_CONTRACT)
+        return CURRENT_CONTRACT
+    return max(level, OLDEST_CONTRACT)
+
+
+def project(row: dict, level: int) -> dict:
+    """One table's payload as the given contract expects it."""
+    if level >= CURRENT_CONTRACT:
+        return row
+    return _to_contract_1(row)
+
+
+def _to_bool(value) -> bool:
+    """A detect flag as a real boolean. A JSON "false" is truthy to anything that reads
+    it without care, and the parser has handed back strings before now."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes", "on")
+    return value == 1
+
+
+def _legacy_game_file(meta: dict, row: dict) -> dict:
+    """The table's default game file as VPXFile, plus the addon flags that rode with it."""
+    name, entry = default_game_file(meta)
+    vpx = {_LEGACY_GAME_FILE_KEYS.get(key, key): value for key, value in dict(entry).items()}
+    vpx["filename"] = name
+    for key in DETECTION_KEYS:
+        vpx[_LEGACY_GAME_FILE_KEYS.get(key, key)] = _to_bool(entry.get(key, False))
+    for flag in ("altSoundExists", "altColorExists", "pupPackExists"):
+        vpx[flag] = bool(row.get(flag))
+    return vpx
+
+
+def _to_contract_1(row: dict) -> dict:
+    """Contract 1 never sees the sections that replaced what it reads.
+
+    Serving both shapes would let a theme work by accident against fields it never
+    declared, which is the failure this exists to prevent.
+    """
+    meta = dict(row.get("meta") or {})
+    vpx = _legacy_game_file(meta, row)
+    meta["VPXFile"] = vpx
+
+    info = dict(meta.get("Info") or {})
+    info.setdefault("Rom", vpx.get("rom", ""))
+    info.setdefault("Authors", vpx.get("authors", []))
+    meta["Info"] = info
+
+    meta["VPinFE"] = dict(meta.get("vpinfe") or {})
+    for section in ("game_files", "vpinfe", "assets"):
+        meta.pop(section, None)
+
+    projected = dict(row)
+    projected["meta"] = meta
+    return projected

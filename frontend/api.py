@@ -23,6 +23,7 @@ from frontend import (
     table_state,
     theme_api,
 )
+from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
 
 logger = logging.getLogger("vpinfe.frontend.api")
 
@@ -128,6 +129,12 @@ class API:
     def _normalize_table_meta(self, table):
         return normalize_meta(table.metaConfig)
 
+    def _theme_contract(self) -> int:
+        """Which shape the active theme asked for. Read per payload rather than cached,
+        so switching themes does not need a restart to take effect."""
+        theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(self._iniConfig.config))
+        return declared_contract(theme_dir) if theme_dir else CURRENT_CONTRACT
+
     def _reset_to_default_view(self):
         """Reset the current view to the default order: alphabetical by the
         (article-reordered) title, ascending.
@@ -180,7 +187,8 @@ class API:
     def get_tables(self, reset=False):
         if reset:
             self._reset_to_default_view()
-        self.jsTableDictData = table_state.tables_json(self.filteredTables)
+        self.jsTableDictData = table_state.tables_json(self.filteredTables,
+                                                       self._theme_contract())
         return self.jsTableDictData
 
     def get_initial_table_index(self):

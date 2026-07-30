@@ -4,12 +4,11 @@ import json
 import logging
 
 from common.tables.collections_service import filter_tables_by_collection, get_collection_names, save_filter_collection
-from common.tables.table_metadata import default_game_file
 from common.media_paths import table_media_payload
 from common.shared_assets import manufacturer_logo_web_path
 from common.tables.tablelistfilters import TableListFilters
+from frontend.theme_contract import CURRENT_CONTRACT, project
 from common.tables.table_metadata import (
-    DETECTION_KEYS,
     get_or_create_user_meta,
     load_table_meta,
     normalize_meta,
@@ -25,23 +24,6 @@ from common.tables.table_metadata import (
 logger = logging.getLogger("vpinfe.frontend.table_state")
 
 
-# What themes have always called each game-file field. The .info renamed these; the
-# payload has not, because a theme written against 2.x is still reading them.
-_LEGACY_GAME_FILE_KEYS = {
-    "file_hash": "filehash",
-    "vbs_hash": "vbsHash",
-    "release_date": "releaseDate",
-    "save_date": "saveDate",
-    "save_rev": "saveRev",
-    "detect_nfozzy": "detectnfozzy",
-    "detect_fleep": "detectfleep",
-    "detect_ssf": "detectssf",
-    "detect_lut": "detectlut",
-    "detect_scorbit": "detectscorebit",
-    "detect_fastflips": "detectfastflips",
-    "detect_flex": "detectflex",
-    "detect_pinmame": "detectpinmame",
-}
 
 
 def default_filter_state():
@@ -69,15 +51,7 @@ def normalize_sort_order(order_by, sort_type="Alpha"):
     return default_sort_order(sort_type)
 
 
-def _to_bool(value):
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.lower() == "true"
-    return value == 1
-
-
-def tables_json(tables) -> str:
+def tables_json(tables, contract: int = CURRENT_CONTRACT) -> str:
     result = []
     logo_cache: dict[str, str | None] = {}
     for table in tables:
@@ -102,16 +76,6 @@ def tables_json(tables) -> str:
             info["Title"] = reorder_leading_article(info["Title"])
             meta["Info"] = info
 
-        gf_name, entry = default_game_file(meta)
-        vpx = {_LEGACY_GAME_FILE_KEYS.get(k, k): v for k, v in dict(entry).items()}
-        vpx["filename"] = gf_name
-        for key in DETECTION_KEYS:
-            vpx[_LEGACY_GAME_FILE_KEYS.get(key, key)] = _to_bool(entry.get(key, False))
-        vpx["altSoundExists"] = bool(table.altSoundExists)
-        vpx["altColorExists"] = bool(table.altColorExists)
-        vpx["pupPackExists"] = bool(table.pupPackExists)
-        meta["VPXFile"] = vpx
-
         row = {
             "tableDirName": table.tableDirName,
             "fullPathTable": table.fullPathTable,
@@ -126,7 +90,7 @@ def tables_json(tables) -> str:
         if maker not in logo_cache:
             logo_cache[maker] = manufacturer_logo_web_path(maker)
         row["ManufacturerLogoPath"] = logo_cache[maker]
-        result.append(row)
+        result.append(project(row, contract))
     return json.dumps(result)
 
 
