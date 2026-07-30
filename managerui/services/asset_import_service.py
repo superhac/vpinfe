@@ -458,6 +458,9 @@ def _replace_vpx_from_file(source, asset: DetectedAsset, base: Path) -> None:
             if new_b2s.exists():
                 new_b2s.unlink()
             os.replace(old_b2s, new_b2s)
+    _record_replaced_build(base, new_vpx,
+                           old_vpx.name if old_vpx and old_vpx.name != new_vpx.name else None)
+
     if old_ini and old_ini.exists():
         new_ini = base / f"{new_vpx.stem}.ini"
         if old_ini.resolve() != new_ini.resolve():
@@ -503,6 +506,20 @@ def _import_media(source, asset: DetectedAsset, table_path: Path) -> None:
         replace_media_file(str(table_path), table_path.name, asset.media_key, str(scratch))
     finally:
         scratch.unlink(missing_ok=True)
+
+
+def _record_replaced_build(table_dir: Path, vpx: Path, removed: str | None) -> None:
+    """Describe the new .vpx in the table's .info, and drop the entry for the one it
+    replaced. Best effort - the table is on disk either way.
+    """
+    try:
+        meta = MetaConfig(str(table_dir / f"{table_dir.name}.info"))
+        parsed = VPXParser().singleFileExtract(str(vpx))
+        if parsed or removed:
+            meta.replace_game_file(removed, vpx.name, parsed)
+    except Exception:
+        logger.warning("Replaced the table with %s, but could not record it in the .info",
+                       vpx.name, exc_info=True)
 
 
 def _record_patched_build(table_dir: Path, vpx: Path, base_file: str, base_hash: str) -> None:

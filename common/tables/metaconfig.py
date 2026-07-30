@@ -64,6 +64,18 @@ def migrate_vpinfe_section(vpinfe):
     return vpinfe
 
 
+def _default_build_changed(chosen, previous_files, game_files):
+    """Whether the table's default build is a different file than it was.
+
+    A manual VPS override is tied to the table file it was chosen against, so replacing
+    that file drops it. Scoped to the default build: ADDING a build is not a reason to
+    discard the user's match.
+    """
+    previous_hash = str(previous_files.get(chosen, {}).get("file_hash", "") or "").strip()
+    new_hash = str(game_files.get(chosen, {}).get("file_hash", "") or "").strip()
+    return bool(previous_hash and new_hash and previous_hash != new_hash)
+
+
 class InvalidMetaConfigError(ValueError):
     """Raised when a table .info file exists but cannot be read as metadata."""
 
@@ -161,12 +173,7 @@ class MetaConfig:
         # so existing tables keep selecting exactly what they select today).
         chosen = default_game_file(game_files, "", recorded_default(vpinfe))
 
-        # A manual VPS override is tied to the table file it was chosen against, so
-        # replacing that file drops it. Scoped to the default build on purpose:
-        # ADDING a second build is not a reason to discard the user's match.
-        previous_hash = str(previous_files.get(chosen, {}).get("file_hash", "") or "").strip()
-        new_hash = str(game_files.get(chosen, {}).get("file_hash", "") or "").strip()
-        if previous_hash and new_hash and previous_hash != new_hash:
+        if _default_build_changed(chosen, previous_files, game_files):
             vpinfe["alt_vpsid"] = ""
         else:
             vpinfe.setdefault("alt_vpsid", "")
@@ -279,6 +286,34 @@ class MetaConfig:
         """
         entry = self.data.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
         entry.update(entry_from_parsed(parsed))
+        self.writeConfig()
+
+    def replace_game_file(self, removed, filename, parsed):
+        """One build replaced another on disk: describe the new one, forget the old.
+
+        A gone build's entry is not kept - per-build history for a file that no longer
+        exists answers nothing. If the default build is what changed, the manual VPS
+        override goes with it, the same rule a rebuild applies.
+        """
+        entries = game_file_entries(self.data)
+        # Deep enough to survive the update below: a shallow copy shares the entry dicts,
+        # so the "before" would change with the "after" and never look different.
+        previous = {name: dict(entry) for name, entry in entries.items()
+                    if isinstance(entry, dict)}
+
+        dropped = bool(removed and removed != filename and entries.pop(removed, None))
+        if parsed:
+            # A failed parse leaves the entry unparsed rather than filled with empties.
+            entries.setdefault(filename, {}).update(entry_from_parsed(parsed))
+        elif not dropped:
+            return      # nothing to say; do not add an empty section to the .info
+
+        self.data[GAME_FILES_KEY] = entries
+        vpinfe = self.data.get("VPinFE")
+        if isinstance(vpinfe, dict):
+            chosen = default_game_file(entries, "", recorded_default(vpinfe))
+            if _default_build_changed(chosen, previous, entries):
+                vpinfe["alt_vpsid"] = ""
         self.writeConfig()
 
     def record_patch_source(self, filename, base_file, base_hash, patch_format):

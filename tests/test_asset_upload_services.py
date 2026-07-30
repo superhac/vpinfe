@@ -914,6 +914,71 @@ class ImportExecuteTests(unittest.TestCase):
                 self.assertTrue((table_dir / "New.directb2s").exists())
                 self.assertFalse((table_dir / "Old.directb2s").exists())
 
+    def _replace_table(self, tmp, table_dir, info: dict, new_name: str, parsed):
+        """Drop new_name onto an existing table, and hand back the resulting .info."""
+        import json
+        from pathlib import Path
+        (table_dir / "Old.vpx").write_bytes(b"old")
+        info_path = table_dir / f"{table_dir.name}.info"
+        info_path.write_text(json.dumps(info))
+        zip_path = Path(tmp) / "new.zip"
+        _make_zip(zip_path, [new_name])
+
+        plan = build_import_plan(analyze_path(zip_path), table_path=str(table_dir))
+        with mock.patch.object(asset_import_service, "refresh_table"), \
+                mock.patch.object(asset_import_service, "VPXParser") as parser:
+            parser.return_value.singleFileExtract.return_value = parsed
+            execute_import_plan(plan, zip_path)
+        return json.loads(info_path.read_text())
+
+    def test_a_replaced_table_is_described_and_the_old_entry_dropped(self):
+        """The new .vpx had no entry until the next metadata build, and the old one kept
+        an entry for a file that is gone."""
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            table_dir = Path(tmp) / "Foo (Bar 1999)"
+            table_dir.mkdir()
+            saved = self._replace_table(
+                tmp, table_dir,
+                {"game_files": {"Old.vpx": {"file_hash": "old-hash", "rom": "old_rom"}}},
+                "New.vpx", {"file_hash": "new-hash", "rom": "new_rom"})
+
+            self.assertEqual(list(saved["game_files"]), ["New.vpx"])
+            self.assertEqual(saved["game_files"]["New.vpx"]["rom"], "new_rom")
+
+    def test_replacing_the_default_build_still_drops_the_vps_override(self):
+        """Writing the new hash in at import time must not rob the rebuild of the change
+        it clears alt_vpsid on."""
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            table_dir = Path(tmp) / "Foo (Bar 1999)"
+            table_dir.mkdir()
+            saved = self._replace_table(
+                tmp, table_dir,
+                {"VPinFE": {"alt_vpsid": "chosen-against-the-old-file"},
+                 "game_files": {"Old.vpx": {"file_hash": "old-hash"}}},
+                "Old.vpx", {"file_hash": "new-hash"})
+
+            self.assertEqual(saved["VPinFE"]["alt_vpsid"], "")
+
+    def test_adding_a_build_does_not_drop_the_vps_override(self):
+        """A second build is not a reason to discard the user's match."""
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            table_dir = Path(tmp) / "Foo (Bar 1999)"
+            table_dir.mkdir()
+            saved = self._replace_table(
+                tmp, table_dir,
+                {"VPinFE": {"alt_vpsid": "still-this-machine",
+                            "default_game_file": "Old.vpx"},
+                 "game_files": {"Old.vpx": {"file_hash": "old-hash"}}},
+                "Old.vpx", {"file_hash": "old-hash"})
+
+            self.assertEqual(saved["VPinFE"]["alt_vpsid"], "still-this-machine")
+
     def test_execute_new_bundle_creates_folder(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
