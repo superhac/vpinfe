@@ -140,14 +140,16 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
         name = _safe_upload_name(_basename(asset.entries[0].arcname))
         return PlannedItem(asset, str(base / name), "copy"), None
     if kind == "patch":
-        # The result is a NEW table beside the original. Never replace: re-applying, or
-        # taking a later patch, needs the untouched base, and the base may be gone
-        # upstream by then.
+        # The patch's own name, so a mod's sidecars and artwork still match it by stem.
+        # Tagged only where that would land on a .vpx already here: never overwrite the
+        # base, which is the one file the result cannot be rebuilt without.
         if not vpx_stem:
             return None, BlockedItem(asset, "No table to patch; import the base table first")
-        name = Path(_basename(asset.entries[0].arcname)).stem
-        dest = base / f"{_safe_upload_name(name)} [patched].vpx"
-        return PlannedItem(asset, str(dest), "apply_patch"), None
+        name = _safe_upload_name(Path(_basename(asset.entries[0].arcname)).stem)
+        # Case-insensitively: on macOS and Windows "table.vpx" IS "Table.vpx".
+        if name.lower() == vpx_stem.lower() or (base / f"{name}.vpx").exists():
+            name = f"{name} [patched]"
+        return PlannedItem(asset, str(base / f"{name}.vpx"), "apply_patch"), None
     if kind == "media":
         filename = _MEDIA_FILENAMES.get(asset.media_key, asset.media_key)
         return PlannedItem(asset, str(base / "medias" / filename), "replace_media"), None

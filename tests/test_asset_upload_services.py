@@ -76,18 +76,46 @@ class PatchAssetTests(unittest.TestCase):
             self.assertFalse(plan.items)
             self.assertTrue(any("base table" in b.reason for b in plan.blocked))
 
-    def test_patch_writes_beside_the_base_never_over_it(self):
+    def test_the_patched_table_takes_the_patch_name(self):
+        """A mod's .ini, .directb2s and artwork are named for the mod, and all of them
+        are found by matching the .vpx stem."""
         import tempfile
         from pathlib import Path
         with tempfile.TemporaryDirectory() as tmp:
             Path(tmp, "Table.vpx").write_bytes(b"x" * 64)
             path = os.path.join(tmp, "mod.zip")
-            _make_zip(path, ["CactusCanyon.dif"])
+            _make_zip(path, ["CactusCanyon VPW Mod 1.2.dif"])
             plan = build_import_plan(analyze_path(path), table_path=tmp)
             self.assertEqual([i.action for i in plan.items], ["apply_patch"])
             dest = Path(plan.items[0].destination)
-            self.assertTrue(dest.name.endswith("[patched].vpx"))
-            self.assertNotEqual(dest.name, "Table.vpx")
+            self.assertEqual(dest.name, "CactusCanyon VPW Mod 1.2.vpx")
+
+    def test_a_patch_named_after_its_base_is_tagged_instead(self):
+        """Writing over the base would destroy it, and it has to survive - the patched
+        table cannot be rebuilt without it."""
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "Cactus Canyon.vpx").write_bytes(b"x" * 64)
+            path = os.path.join(tmp, "mod.zip")
+            _make_zip(path, ["cactus canyon.dif"])   # same name, other case
+            plan = build_import_plan(analyze_path(path), table_path=tmp)
+            dest = Path(plan.items[0].destination)
+            self.assertEqual(dest.name, "cactus canyon [patched].vpx")
+
+    def test_a_patch_named_after_another_build_is_tagged_too(self):
+        """The base is whichever .vpx the patch applies to; any other build in the
+        folder is just as much somebody's table."""
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "Cactus Canyon.vpx").write_bytes(b"x" * 64)
+            Path(tmp, "Cactus Canyon (VR).vpx").write_bytes(b"x" * 32)
+            path = os.path.join(tmp, "mod.zip")
+            _make_zip(path, ["Cactus Canyon (VR).dif"])
+            plan = build_import_plan(analyze_path(path), table_path=tmp)
+            dest = Path(plan.items[0].destination)
+            self.assertEqual(dest.name, "Cactus Canyon (VR) [patched].vpx")
 
 
 class AssetRegistryTests(unittest.TestCase):
