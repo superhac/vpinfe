@@ -9,3 +9,8 @@ third-party/
 # PyInstaller build directories
 build/
 dist/
+
+# Per-developer assistant and editor config, never the project's
+.claude/
+.codex
+*.local.md
