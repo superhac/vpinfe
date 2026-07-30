@@ -137,6 +137,18 @@ in the standalone export bundle. Detection is deliberately narrow — never a bl
 *Why:* whoever made the table wrote those notes for whoever installs it; now they arrive.
 Covered by `tests/test_asset_upload_services.py` and `tests/test_export_bundle.py`.
 
+**PAR-15 — Manufacturer logos, served from a shared assets root.**
+*(machine-checked)* Themes gain one payload field, `ManufacturerLogoPath`: a
+`/assets/`-relative web path to the table manufacturer's logo, or `null` when there is
+none — which is every install today, since nothing ships and nothing downloads yet. The
+assets root is `[Settings] assetsdir` (default: `assets/` under the config dir), served
+at `/assets/`, with `manufacturers/user/` overriding `manufacturers/default/`. Lookup
+normalizes the VPSdb manufacturer string ("Williams Electronics" finds `williams.png`)
+with a `manufacturers.json` alias map for the exceptions.
+*Why:* manufacturer is already a first-class metadata and filter dimension; themes just
+had nothing to render for it. A shared root exists because a manufacturer logo is neither
+per-table nor per-theme. Covered by `tests/test_shared_assets.py`.
+
 **PAR-16 — Game files can be hidden, and several are peers rather than one default.**
 A table folder can hold more than one launchable `.vpx` — a desktop build and a VR build,
 or a table and a patched variant. Every visible one is independently launchable; there is
@@ -151,28 +163,6 @@ they have to pick one. Consumers listing what to play should filter on `hidden`.
 table cannot be rebuilt without it — but nobody wants to be offered it. Deleting it would
 be the wrong fix. Covered by `tests/test_jdiffpatch.py`.
 
-**PAR-15 — Manufacturer logos, served from a shared assets root.**
-*(machine-checked)* Themes gain one payload field, `ManufacturerLogoPath`: a
-`/assets/`-relative web path to the table manufacturer's logo, or `null` when there is
-none — which is every install today, since nothing ships and nothing downloads yet. The
-assets root is `[Settings] assetsdir` (default: `assets/` under the config dir), served
-at `/assets/`, with `manufacturers/user/` overriding `manufacturers/default/`. Lookup
-normalizes the VPSdb manufacturer string ("Williams Electronics" finds `williams.png`)
-with a `manufacturers.json` alias map for the exceptions.
-*Why:* manufacturer is already a first-class metadata and filter dimension; themes just
-had nothing to render for it. A shared root exists because a manufacturer logo is neither
-per-table nor per-theme. Covered by `tests/test_shared_assets.py`.
-
-**PAR-16 — Addon folders are detected whatever their casing.**
-The library scan matched `pupvideos`, `serum`, `vni`, `music` and `medias` against the
-folder name exactly as stored, so a folder named `PUPVideos` — the casing PinUP Popper
-itself writes — was not detected. The API had always lowercased before comparing, so the
-same table reported a PUP pack there and none in the Manager UI and themes. The scan now
-folds case too. Tables whose folders are not all-lowercase will start reporting addons
-they always had (`pupPackExists`, `altColorExists`, `vniExists`, `altSoundExists`).
-*Why:* one table cannot have two answers, and the scan was already case-insensitive about
-`.directb2s` and `.ini` three lines away. Covered by `tests/test_media_resolution.py`.
-
 **PAR-17 — Your own media is protected by hash, and claiming it is gone.**
 On master, artwork was protected by marking it `"Source": "user"` — something you had to
 know about and run. The downloader now hashes any file already on disk and compares it to
@@ -186,6 +176,16 @@ media" toggle is gone, and `--user-media` now only means "fetch nothing". Existi
 who already knew about it. One loss worth naming: a file byte-identical to VPinMediaDB's
 could previously be pinned by claiming it, and can no longer be pinned at all. Covered by
 `tests/test_vpsdb_media.py`.
+
+**PAR-18 — Addon folders are detected whatever their casing.**
+The library scan matched `pupvideos`, `serum`, `vni`, `music` and `medias` against the
+folder name exactly as stored, so a folder named `PUPVideos` — the casing PinUP Popper
+itself writes — was not detected. The API had always lowercased before comparing, so the
+same table reported a PUP pack there and none in the Manager UI and themes. The scan now
+folds case too. Tables whose folders are not all-lowercase will start reporting addons
+they always had (`pupPackExists`, `altColorExists`, `vniExists`, `altSoundExists`).
+*Why:* one table cannot have two answers, and the scan was already case-insensitive about
+`.directb2s` and `.ini` three lines away. Covered by `tests/test_media_resolution.py`.
 
 ## Explicitly *not* exceptions
 
