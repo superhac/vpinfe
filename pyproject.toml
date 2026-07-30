@@ -1,7 +1,10 @@
 [tool.ruff]
 line-length = 100
 target-version = "py314"
-extend-exclude = ["third-party", "chromium", "web"]
+# managerui/maps is a vendored drop of tomlogic/pinmame-nvram-maps, tools included.
+# Linting it reports someone else's style as our debt, and fixing it would conflict on
+# the next update.
+extend-exclude = ["third-party", "chromium", "web", "managerui/maps"]
 
 [tool.ruff.lint]
 # E/W pycodestyle, F pyflakes, I import order, N PEP 8 naming,
