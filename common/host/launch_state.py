@@ -3,10 +3,8 @@
 Every change is announced as `play.state_changed`, so a consumer can be told rather
 than having to ask.
 
-`source` exists because one consumer - the frontend - needs to tell its own launches
-apart from everyone else's, and every other consumer needs the state to be true
-regardless of who started it. Reporting only launches the frontend did not start
-would make the state a message to one client rather than a fact about the machine.
+`source` is who asked. The frontend needs to tell its own launches apart; everyone else
+needs the state to be true regardless of who started it.
 """
 
 from __future__ import annotations

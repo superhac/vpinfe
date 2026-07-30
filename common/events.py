@@ -13,22 +13,20 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger("vpinfe.common.events")
 
-# Table lifecycle. `launching` is the one with hooks that matter: everything
-# registered against it has finished before the game file is started.
+# Table lifecycle. Every hook on `launching` has finished before the game file starts.
 TABLE_LAUNCHING = "table.launching"
 TABLE_LAUNCHED = "table.launched"
 TABLE_EXITED = "table.exited"
 
-# The player moved to a table in the wheel. Fires often - once per wheel stop -
-# and nothing may block on it, so this one is for subscribers only. A handler that
-# raises has failed to decorate a selection; it has not failed to select.
+# The player moved to a table in the wheel. Fires once per wheel stop and nothing may
+# block on it, so subscribers only.
 TABLE_SELECTED = "table.selected"
 
-# Play-host state changed - today that is the remote-launch overlay. Carries the
-# whole new state, so a consumer that missed one is still correct after the next.
+# Play-host state changed. Carries the whole new state, so a consumer that missed one
+# is still correct after the next.
 PLAY_STATE_CHANGED = "play.state_changed"
 
-# Slow work. One shape everywhere, whether the work runs in this process or not:
+# Slow work, one shape everywhere:
 #   job.progress  {job_id, pct, message}
 #   job.done      {job_id}
 #   job.failed    {job_id, error}
