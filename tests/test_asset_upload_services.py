@@ -117,6 +117,37 @@ class PatchAssetTests(unittest.TestCase):
             dest = Path(plan.items[0].destination)
             self.assertEqual(dest.name, "Cactus Canyon (VR) [patched].vpx")
 
+    def test_a_mods_sidecars_are_named_for_the_patched_build(self):
+        """The .ini and .directb2s in a mod bundle describe the table the patch builds.
+        Named for the base, they overwrite the base's own and attach to the wrong
+        build."""
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "Cactus Canyon.vpx").write_bytes(b"x" * 64)
+            path = os.path.join(tmp, "mod.zip")
+            _make_zip(path, ["CC VPW Mod 1.2.dif", "CC VPW Mod 1.2.ini",
+                             "CC VPW Mod 1.2.directb2s"])
+            plan = build_import_plan(analyze_path(path), table_path=tmp)
+            by_kind = {i.asset.kind: Path(i.destination).name for i in plan.items}
+
+            self.assertEqual(by_kind["patch"], "CC VPW Mod 1.2.vpx")
+            self.assertEqual(by_kind["ini"], "CC VPW Mod 1.2.ini")
+            self.assertEqual(by_kind["backglass"], "CC VPW Mod 1.2.directb2s")
+
+    def test_sidecars_without_a_patch_still_follow_the_table(self):
+        """Only a mod bundle redirects them. A backglass dropped on a table is for the
+        table that is there."""
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "Cactus Canyon.vpx").write_bytes(b"x" * 64)
+            path = os.path.join(tmp, "b2s.zip")
+            _make_zip(path, ["Whatever It Was Called.directb2s"])
+            plan = build_import_plan(analyze_path(path), table_path=tmp)
+
+            self.assertEqual(Path(plan.items[0].destination).name, "Cactus Canyon.directb2s")
+
     def test_a_patched_build_records_its_base_and_patch(self):
         """Construction is the one origin we witness, and the result cannot be rebuilt
         without the exact base it was made from."""

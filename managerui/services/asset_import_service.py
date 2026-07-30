@@ -103,8 +103,35 @@ def _rom_dest_name(asset: DetectedAsset, source_name: str) -> tuple[str, str]:
     return f"{_safe_upload_name(stem)}.zip", "zip_rom"
 
 
+def _patched_vpx_name(asset: DetectedAsset, base: Path, vpx_stem: str) -> str:
+    """The filename applying this patch will produce.
+
+    The patch's own name, so a mod's sidecars and artwork still match it by stem. Tagged
+    only where that would land on a .vpx already here: never overwrite the base, which is
+    the one file the result cannot be rebuilt without.
+    """
+    name = _safe_upload_name(Path(_basename(asset.entries[0].arcname)).stem)
+    # Case-insensitively: on macOS and Windows "table.vpx" IS "Table.vpx".
+    if name.lower() == vpx_stem.lower() or (base / f"{name}.vpx").exists():
+        name = f"{name} [patched]"
+    return f"{name}.vpx"
+
+
+def _sidecar_stem(assets, base: Path, vpx_stem: str) -> str:
+    """Which build a bundle's .directb2s and .ini belong to: the patched table when the
+    bundle carries a patch, since they describe what the patch builds, not the base.
+
+    Deselecting the patch afterwards leaves them named for a .vpx that never gets built.
+    """
+    for asset in assets:
+        if asset.kind == "patch" and vpx_stem:
+            return Path(_patched_vpx_name(asset, base, vpx_stem)).stem
+    return vpx_stem
+
+
 def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
-                source_name: str, table_kind_action: str) -> tuple[PlannedItem | None, BlockedItem | None]:
+                source_name: str, table_kind_action: str,
+                sidecar_stem: str = "") -> tuple[PlannedItem | None, BlockedItem | None]:
     kind = asset.kind
     spec = spec_for(kind)
     if spec.requires_rom and not rom_name:
@@ -117,10 +144,10 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
         # Always written as <folder>.info — the parser matches it by folder name.
         return PlannedItem(asset, str(base / f"{base.name}.info"), "write_info"), None
     if kind == "backglass":
-        stem = vpx_stem or Path(_basename(asset.entries[0].arcname)).stem
+        stem = sidecar_stem or vpx_stem or Path(_basename(asset.entries[0].arcname)).stem
         return PlannedItem(asset, str(base / f"{stem}.directb2s"), "replace_b2s"), None
     if kind == "ini":
-        stem = vpx_stem or Path(_basename(asset.entries[0].arcname)).stem
+        stem = sidecar_stem or vpx_stem or Path(_basename(asset.entries[0].arcname)).stem
         return PlannedItem(asset, str(base / f"{stem}.ini"), "copy"), None
     if kind == "rom":
         name, action = _rom_dest_name(asset, source_name)
@@ -141,16 +168,10 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
         name = _safe_upload_name(_basename(asset.entries[0].arcname))
         return PlannedItem(asset, str(base / name), "copy"), None
     if kind == "patch":
-        # The patch's own name, so a mod's sidecars and artwork still match it by stem.
-        # Tagged only where that would land on a .vpx already here: never overwrite the
-        # base, which is the one file the result cannot be rebuilt without.
         if not vpx_stem:
             return None, BlockedItem(asset, "No table to patch; import the base table first")
-        name = _safe_upload_name(Path(_basename(asset.entries[0].arcname)).stem)
-        # Case-insensitively: on macOS and Windows "table.vpx" IS "Table.vpx".
-        if name.lower() == vpx_stem.lower() or (base / f"{name}.vpx").exists():
-            name = f"{name} [patched]"
-        return PlannedItem(asset, str(base / f"{name}.vpx"), "apply_patch"), None
+        return PlannedItem(asset, str(base / _patched_vpx_name(asset, base, vpx_stem)),
+                           "apply_patch"), None
     if kind == "media":
         filename = _MEDIA_FILENAMES.get(asset.media_key, asset.media_key)
         return PlannedItem(asset, str(base / "medias" / filename), "replace_media"), None
@@ -170,9 +191,10 @@ def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", table_r
         vpx_stem = Path(_basename(table_asset.entries[0].arcname)).stem
         new_dir_name = _safe_upload_name(vpx_stem)
         base = Path(tables_path or get_tables_path()).expanduser() / new_dir_name
+        sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
             item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,
-                                      table_kind_action="copy")
+                                      table_kind_action="copy", sidecar_stem=sidecar_stem)
             (items if item else blocked).append(item or block)
         return ImportPlan(str(base), new_dir_name, "", tuple(items), tuple(blocked))
 
@@ -184,9 +206,10 @@ def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", table_r
             vpx_stem = ""
         # A table dropped onto an existing table replaces its .vpx (the "update table" case).
         # New-table creation is handled by the new_bundle branch above.
+        sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
             item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,
-                                      table_kind_action="replace_vpx")
+                                      table_kind_action="replace_vpx", sidecar_stem=sidecar_stem)
             (items if item else blocked).append(item or block)
         return ImportPlan(str(base), "", rom_name, tuple(items), tuple(blocked))
 
