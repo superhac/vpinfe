@@ -8,8 +8,10 @@ from pathlib import Path
 from common.tables.collections_service import get_collections_manager
 from common.tables.vpxcollections import MEMBERS_KEY
 from common.tables import table_identity
+from common.timestamps import epoch_to_iso
 from common.tables.table_metadata import (
     default_game_file_entry,
+    get_or_create_game_file_user,
     get_or_create_user_meta,
     load_table_meta,
     normalize_meta,
@@ -46,24 +48,24 @@ def track_table_play(table, collection_name: str = "Last Played", max_items: int
     logger.info("Tracked table play: %s (now %s in %s)", member_id, len(ids[:max_items]), collection_name)
 
 
-def increment_start_count(table) -> None:
+def increment_start_count(table, game_file: str = "") -> None:
     config = clone_table_meta(table)
     if not config:
         logger.warning("Could not increment StartCount: invalid table metadata for %s", table.tableDirName)
         return
 
-    user = apply_start_count_update(config)
+    user = apply_start_count_update(config, game_file=game_file)
     persist_table_meta(table, config)
     logger.debug("Updated User.StartCount for %s -> %s", table.tableDirName, user["StartCount"])
 
 
-def add_runtime_minutes(table, elapsed_seconds: float) -> None:
+def add_runtime_minutes(table, elapsed_seconds: float, game_file: str = "") -> None:
     config = clone_table_meta(table)
     if not config:
         logger.warning("Could not update RunTime: invalid table metadata for %s", table.tableDirName)
         return
 
-    user = apply_runtime_update(config, elapsed_seconds)
+    user = apply_runtime_update(config, elapsed_seconds, game_file=game_file)
     persist_table_meta(table, config)
     logger.info(
         "Updated User.RunTime for %s: +%s min (total=%s)",
@@ -78,24 +80,42 @@ def clone_table_meta(table) -> dict:
     return deepcopy(config) if isinstance(config, dict) else {}
 
 
-def apply_start_count_update(config: dict, played_at: int | None = None) -> dict:
-    user = get_or_create_user_meta(config)
+def _plus(mapping: dict, key: str, amount: int) -> None:
     try:
-        user["StartCount"] = int(user.get("StartCount", 0)) + 1
+        mapping[key] = int(mapping.get(key, 0)) + amount
     except (TypeError, ValueError):
-        user["StartCount"] = 1
+        mapping[key] = amount
+
+
+def apply_start_count_update(config: dict, played_at: int | None = None,
+                             game_file: str = "") -> dict:
+    """Count a launch against the table, and against the game file that was launched.
+
+    The two accumulate independently rather than one being a rollup of the other:
+    deleting a game file would otherwise un-play hours that were played.
+    """
+    user = get_or_create_user_meta(config)
+    _plus(user, "StartCount", 1)
     user["LastRun"] = int(played_at or time.time())
+
+    if game_file:
+        played = get_or_create_game_file_user(config, game_file)
+        _plus(played, "start_count", 1)
+        # ISO, where User.LastRun is an epoch integer it cannot stop being: it is a
+        # specced key and goes to the VPinPlay API verbatim. Ours says what it is.
+        played["last_run"] = epoch_to_iso(user["LastRun"])
     return user
 
 
-def apply_runtime_update(config: dict, elapsed_seconds: float) -> dict:
+def apply_runtime_update(config: dict, elapsed_seconds: float, game_file: str = "") -> dict:
     session_minutes = int((elapsed_seconds + 59) // 60)
     user = get_or_create_user_meta(config)
-    try:
-        prior_runtime = int(user.get("RunTime", 0))
-    except (TypeError, ValueError):
-        prior_runtime = 0
-    user["RunTime"] = prior_runtime + session_minutes
+    _plus(user, "RunTime", session_minutes)
+    if game_file:
+        # Seconds, and the name says so. User.RunTime is minutes, undocumented as such
+        # and wrong in docs/technical_details.md for as long as it has existed.
+        _plus(get_or_create_game_file_user(config, game_file), "run_time_seconds",
+              int(round(elapsed_seconds)))
     return user
 
 

@@ -132,10 +132,10 @@ def _command(table, vpx_path: str, launcher: str, settings) -> list[str]:
     )
 
 
-def _record_play(table, ini_config, elapsed_seconds: float, profile) -> None:
+def _record_play(table, ini_config, elapsed_seconds: float, profile, game_file: str = "") -> None:
     """Play data for a finished session. Runs on every path, which it did not use to."""
     if profile is None:
-        table_play_service.add_runtime_minutes(table, elapsed_seconds)
+        table_play_service.add_runtime_minutes(table, elapsed_seconds, game_file)
         table_play_service.update_score_from_nvram(table)
         return
 
@@ -239,7 +239,7 @@ def launch_table(table, ini_config, *, source: str, game_file: str | None = None
             record_table_start(str(getattr(table, "fullPathTable", "")
                                    or getattr(table, "tableDirName", "") or ""))
         else:
-            table_play_service.increment_start_count(table)
+            table_play_service.increment_start_count(table, os.path.basename(vpx_path))
 
         # Draining stdout is not optional: the pipe fills and VPX blocks on a write
         # if nobody reads it.
@@ -258,7 +258,8 @@ def launch_table(table, ini_config, *, source: str, game_file: str | None = None
         events.emit(events.TABLE_EXITED, table=table, ini_config=ini_config)
 
     if started_at is not None:
-        _record_play(table, ini_config, max(0.0, time.time() - started_at), profile)
+        _record_play(table, ini_config, max(0.0, time.time() - started_at), profile,
+                     os.path.basename(vpx_path))
     table_play_service.delete_nvram_if_configured(table)
 
 

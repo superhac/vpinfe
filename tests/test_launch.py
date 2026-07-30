@@ -149,6 +149,16 @@ class PlayDataTests(LaunchTests):
         play.update_score_from_nvram.assert_called_once()
         play.delete_nvram_if_configured.assert_called_once()
 
+    def test_the_game_file_that_was_launched_is_the_one_credited(self) -> None:
+        """A folder can hold several game files, and the API can launch any of them."""
+        table = _table()
+        table.fullPathVPXfile = "/tables/Example/Example (VR).vpx"
+
+        play = self._run(table=table)
+
+        self.assertEqual(play.increment_start_count.call_args.args[1], "Example (VR).vpx")
+        self.assertEqual(play.add_runtime_minutes.call_args.args[2], "Example (VR).vpx")
+
 
 class RefusalTests(LaunchTests):
     def _check(self, table=None, game_file=None, launcher_exists=True, launcher=True):

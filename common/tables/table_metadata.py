@@ -6,6 +6,7 @@ from typing import Any, Dict
 
 from common.tables.game_files import (
     DETECT_KEYS,
+    GAME_FILES_KEY,
     default_game_file as _resolve_default,
     game_file_entries,
     recorded_default,
@@ -200,6 +201,20 @@ def get_or_create_user_meta(config: Dict[str, Any]) -> Dict[str, Any]:
     user.setdefault("StartCount", 0)
     user.setdefault("RunTime", 0)
     user.setdefault("Tags", [])
+    return user
+
+
+def get_or_create_game_file_user(config: dict[str, Any], filename: str) -> dict[str, Any]:
+    """One game file's play record, created on its first launch.
+
+    Counters only. A per-game-file rating and favorite are in the design but nothing
+    sets them, and storing a field no producer fills invites a reader to trust it.
+    """
+    entry = config.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
+    user = entry.setdefault("user", {})
+    user.setdefault("last_run", None)
+    user.setdefault("start_count", 0)
+    user.setdefault("run_time_seconds", 0)
     return user
 
 

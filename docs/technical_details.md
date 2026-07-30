@@ -167,7 +167,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   - Favorite: Favorite flag (0/1)
   - LastRun: Timestamp of last play
   - StartCount: How many times played
-  - RunTime: Total playtime in seconds
+  - RunTime: Total playtime in minutes
   - Tags: Array of custom tags
 
 - VPXFile

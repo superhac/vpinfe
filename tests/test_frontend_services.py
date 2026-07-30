@@ -310,5 +310,61 @@ class FrontendServiceTests(unittest.TestCase):
             self.assertTrue(info_nvram.exists())
 
 
+class PerGameFilePlayStatsTests(unittest.TestCase):
+    """A folder holds several game files and the API can launch any of them, so a play
+    is credited to the one that ran as well as to the table."""
+
+    def _launch(self, config, game_file, seconds=90, played_at=1000):
+        table_play_service.apply_start_count_update(config, played_at, game_file)
+        table_play_service.apply_runtime_update(config, seconds, game_file)
+        return config
+
+    def test_a_launch_counts_against_the_table_and_the_game_file(self):
+        config = self._launch({}, "Example (VR).vpx")
+
+        self.assertEqual(config["User"]["StartCount"], 1)
+        self.assertEqual(config["User"]["LastRun"], 1000)
+        played = config["game_files"]["Example (VR).vpx"]["user"]
+        self.assertEqual(played, {"last_run": "1970-01-01T00:16:40Z",
+                                  "start_count": 1, "run_time_seconds": 90})
+
+    def test_each_game_file_keeps_its_own_count(self):
+        config = self._launch({}, "Example.vpx")
+        self._launch(config, "Example.vpx")
+        self._launch(config, "Example (VR).vpx")
+
+        entries = config["game_files"]
+        self.assertEqual(entries["Example.vpx"]["user"]["start_count"], 2)
+        self.assertEqual(entries["Example (VR).vpx"]["user"]["start_count"], 1)
+        self.assertEqual(config["User"]["StartCount"], 3, "the table saw all three")
+
+    def test_the_table_total_is_not_a_rollup(self):
+        """Deleting a game file must not un-play hours that were played, which is what
+        a total summed from the entries would do."""
+        config = self._launch({}, "Example.vpx")
+        self._launch(config, "Gone.vpx")
+        del config["game_files"]["Gone.vpx"]
+
+        self.assertEqual(config["User"]["StartCount"], 2)
+        self.assertEqual(config["User"]["RunTime"], 4, "minutes, as the spec key always was")
+
+    def test_a_hidden_game_file_still_accrues_and_stays_hidden(self):
+        """Hiding is presentation: the API can still launch it, and it is still played."""
+        config = {"game_files": {"Base.vpx": {"hidden": True, "rom": "afm_113b"}}}
+        self._launch(config, "Base.vpx")
+
+        entry = config["game_files"]["Base.vpx"]
+        self.assertEqual(entry["user"]["start_count"], 1)
+        self.assertTrue(entry["hidden"])
+        self.assertEqual(entry["rom"], "afm_113b", "the parse must survive a play")
+
+    def test_a_launch_with_no_game_file_named_still_counts_for_the_table(self):
+        """Nothing outside the launch path knows which file ran."""
+        config = self._launch({}, "")
+
+        self.assertEqual(config["User"]["StartCount"], 1)
+        self.assertNotIn("game_files", config)
+
+
 if __name__ == "__main__":
     unittest.main()
