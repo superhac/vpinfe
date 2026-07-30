@@ -121,10 +121,13 @@ def apply_runtime_update(config: dict, elapsed_seconds: float, game_file: str = 
 
 
 def score_rom_from_meta(config: dict) -> str:
-    vpx_rom = str(default_game_file_entry(config).get("rom", "") or "").strip()
-    if vpx_rom:
-        return vpx_rom
-    return str(section(config, "Info").get("Rom", "") or "").strip()
+    """The ROM of the game file we would launch, or "".
+
+    No fall back to a table-level Info.Rom: the migration drops that key, and a value
+    it kept could disagree with the file it claims to describe. A table that has not
+    been through a metadata build since has no ROM recorded, which is the truth.
+    """
+    return str(default_game_file_entry(config).get("rom", "") or "").strip()
 
 
 def parse_score_from_nvram(table) -> tuple[dict | None, str | None]:

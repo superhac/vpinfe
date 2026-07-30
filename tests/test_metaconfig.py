@@ -62,7 +62,7 @@ class TestMetaConfig(unittest.TestCase):
                         "game_files": {
                             "Example Table.vpx": {"file_hash": "old-filehash"},
                         },
-                        "VPinFE": {
+                        "vpinfe": {
                             "alt_vpsid": "12345",
                             "alt_launcher": "/custom/launcher",
                             "alt_title": "Example Alt Title",
@@ -75,10 +75,10 @@ class TestMetaConfig(unittest.TestCase):
 
             saved = self._write_meta(info_path)
 
-            self.assertEqual(saved["VPinFE"]["alt_vpsid"], "")
-            self.assertEqual(saved["VPinFE"]["alt_launcher"], "/custom/launcher")
-            self.assertEqual(saved["VPinFE"]["alt_title"], "Example Alt Title")
-            self.assertTrue(saved["VPinFE"]["delete_nvram_on_close"])
+            self.assertEqual(saved["vpinfe"]["alt_vpsid"], "")
+            self.assertEqual(saved["vpinfe"]["alt_launcher"], "/custom/launcher")
+            self.assertEqual(saved["vpinfe"]["alt_title"], "Example Alt Title")
+            self.assertTrue(saved["vpinfe"]["delete_nvram_on_close"])
 
     def test_write_config_meta_preserves_altvpsid_when_filehash_is_unchanged(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -89,7 +89,7 @@ class TestMetaConfig(unittest.TestCase):
                         "game_files": {
                             "Example Table.vpx": {"file_hash": "same-filehash"},
                         },
-                        "VPinFE": {
+                        "vpinfe": {
                             "alt_vpsid": "12345",
                             "alt_launcher": "/custom/launcher",
                             "alt_title": "Example Alt Title",
@@ -102,10 +102,10 @@ class TestMetaConfig(unittest.TestCase):
 
             saved = self._write_meta(info_path, filehash="same-filehash")
 
-            self.assertEqual(saved["VPinFE"]["alt_vpsid"], "12345")
-            self.assertEqual(saved["VPinFE"]["alt_launcher"], "/custom/launcher")
-            self.assertEqual(saved["VPinFE"]["alt_title"], "Example Alt Title")
-            self.assertTrue(saved["VPinFE"]["delete_nvram_on_close"])
+            self.assertEqual(saved["vpinfe"]["alt_vpsid"], "12345")
+            self.assertEqual(saved["vpinfe"]["alt_launcher"], "/custom/launcher")
+            self.assertEqual(saved["vpinfe"]["alt_title"], "Example Alt Title")
+            self.assertTrue(saved["vpinfe"]["delete_nvram_on_close"])
 
     def test_write_config_meta_adds_pinball_primer_tutorial(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -263,13 +263,13 @@ class VPinFESchemaTests(unittest.TestCase):
 
     def test_reading_migrates_in_memory_without_writing(self) -> None:
         info = self.root / "Example.info"
-        info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "VPinFE": {"alt_title": "x"}}),
+        info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "vpinfe": {"alt_title": "x"}}),
                         encoding="utf-8")
         before = info.read_text(encoding="utf-8")
 
         meta = MetaConfig(str(info))
 
-        self.assertEqual(meta.data["VPinFE"]["schema"], CURRENT_VPINFE_SCHEMA)
+        self.assertEqual(meta.data["vpinfe"]["schema"], CURRENT_VPINFE_SCHEMA)
         self.assertEqual(info.read_text(encoding="utf-8"), before, "reading must not write")
 
     def test_writing_persists_the_stamp_and_mints_an_id(self) -> None:
@@ -277,8 +277,8 @@ class VPinFESchemaTests(unittest.TestCase):
         TestMetaConfig()._write_meta(info)
         saved = json.loads(info.read_text(encoding="utf-8"))
 
-        self.assertEqual(saved["VPinFE"]["schema"], CURRENT_VPINFE_SCHEMA)
-        self.assertTrue(saved["VPinFE"]["id"])
+        self.assertEqual(saved["vpinfe"]["schema"], CURRENT_VPINFE_SCHEMA)
+        self.assertTrue(saved["vpinfe"]["id"])
 
     def test_other_sections_are_not_versioned(self) -> None:
         info = self.root / "Example.info"

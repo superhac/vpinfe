@@ -43,7 +43,7 @@ class MintedIdTests(unittest.TestCase):
         info = self.root / "Example.info"
         MetaConfig(str(info)).writeConfigMeta({"vpsdata": {}, "vpxdata": {"filename": "x.vpx"}})
 
-        minted = json.loads(info.read_text(encoding="utf-8"))["VPinFE"]["id"]
+        minted = json.loads(info.read_text(encoding="utf-8"))["vpinfe"]["id"]
         self.assertEqual(len(minted), table_identity.ID_LENGTH)
         self.assertTrue(set(minted) <= set(table_identity.ID_ALPHABET))
 
@@ -75,7 +75,7 @@ class TableIdTests(unittest.TestCase):
         on_disk = json.loads(info.read_text(encoding="utf-8"))
 
         self.assertTrue(minted)
-        self.assertEqual(on_disk["VPinFE"]["id"], minted)
+        self.assertEqual(on_disk["vpinfe"]["id"], minted)
         self.assertEqual(table_identity.table_id(table), minted)
 
     def test_ensure_id_is_stable_across_calls(self) -> None:
@@ -90,7 +90,7 @@ class TableIdTests(unittest.TestCase):
         """The in-memory copy can be stale; disk wins over minting a second id."""
         table = _table(self.root, meta={"Info": {"VPSId": "vps-1"}})
         info = Path(table.fullPathTable) / "Example.info"
-        info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "VPinFE": {"id": "already-here"}}),
+        info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "vpinfe": {"id": "already-here"}}),
                         encoding="utf-8")
 
         self.assertEqual(table_identity.ensure_id(table), "already-here")
@@ -99,7 +99,7 @@ class TableIdTests(unittest.TestCase):
         table = _table(self.root, meta={
             "Info": {"VPSId": "vps-1", "Title": "Example"},
             "User": {"Rating": 4},
-            "VPinFE": {"alt_title": "My Example"},
+            "vpinfe": {"alt_title": "My Example"},
         })
 
         table_identity.ensure_id(table)
@@ -107,7 +107,7 @@ class TableIdTests(unittest.TestCase):
         on_disk = json.loads(info.read_text(encoding="utf-8"))
 
         self.assertEqual(on_disk["User"]["Rating"], 4)
-        self.assertEqual(on_disk["VPinFE"]["alt_title"], "My Example")
+        self.assertEqual(on_disk["vpinfe"]["alt_title"], "My Example")
         self.assertEqual(on_disk["Info"]["Title"], "Example")
 
 
@@ -140,28 +140,28 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
 
         rebuilt = self._rebuild(info, "hash-a")
 
-        self.assertTrue(rebuilt["VPinFE"]["id"])
+        self.assertTrue(rebuilt["vpinfe"]["id"])
 
     def test_the_id_survives_a_table_file_update_that_clears_altvpsid(self) -> None:
         """altvpsid is cleared when the .vpx changes; the table id must not be."""
         info = self.root / "Example.info"
         first = self._rebuild(info, "hash-a")
-        table_id = first["VPinFE"]["id"]
+        table_id = first["vpinfe"]["id"]
 
         # User re-points the table at different VPSdb metadata, then updates the .vpx.
         data = json.loads(info.read_text(encoding="utf-8"))
-        data["VPinFE"]["alt_vpsid"] = "vps-override"
+        data["vpinfe"]["alt_vpsid"] = "vps-override"
         info.write_text(json.dumps(data), encoding="utf-8")
         after = self._rebuild(info, "hash-b")
 
-        self.assertEqual(after["VPinFE"]["alt_vpsid"], "", "precondition: altvpsid is cleared")
-        self.assertEqual(after["VPinFE"]["id"], table_id)
+        self.assertEqual(after["vpinfe"]["alt_vpsid"], "", "precondition: altvpsid is cleared")
+        self.assertEqual(after["vpinfe"]["id"], table_id)
 
     def test_the_id_survives_repeated_rebuilds(self) -> None:
         info = self.root / "Example.info"
 
-        first = self._rebuild(info, "hash-a")["VPinFE"]["id"]
-        second = self._rebuild(info, "hash-a")["VPinFE"]["id"]
+        first = self._rebuild(info, "hash-a")["vpinfe"]["id"]
+        second = self._rebuild(info, "hash-a")["vpinfe"]["id"]
 
         self.assertEqual(first, second)
 
@@ -195,7 +195,7 @@ class UniquenessTests(unittest.TestCase):
         original = _table(self.root, "Original", meta={"Info": {}})
         assigned = table_identity.ensure_id(original)
         # Copying the folder copies the .info, and with it the id.
-        copy = _table(self.root, "Copy", meta={"Info": {}, "VPinFE": {"id": assigned}})
+        copy = _table(self.root, "Copy", meta={"Info": {}, "vpinfe": {"id": assigned}})
 
         with self.assertLogs("vpinfe.common.tables.table_identity", level="WARNING"):
             by_id = table_identity.ensure_unique_ids([original, copy])
@@ -236,7 +236,7 @@ class RowFieldTests(unittest.TestCase):
         """VPS ids correlate with other services; vpinfe_id is what identifies the table."""
         table = _table(self.root, meta={
             "Info": {"VPSId": "vps-1"},
-            "VPinFE": {"alt_vpsid": "vps-override"},
+            "vpinfe": {"alt_vpsid": "vps-override"},
         })
         assigned = table_identity.ensure_id(table)
 

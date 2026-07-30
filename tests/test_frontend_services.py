@@ -107,7 +107,7 @@ class FrontendServiceTests(unittest.TestCase):
             tableDirName="Example",
             realDMDImagePath="/tmp/realdmd.png",
             realDMDColorImagePath="/tmp/realdmd-color.png",
-            metaConfig={"VPinFE": {"frontend_dof_event": "E901"}},
+            metaConfig={"vpinfe": {"frontend_dof_event": "E901"}},
         )
         color_config = configparser.ConfigParser()
         color_config.read_dict({"Media": {"realdmdmediapriority": "color"}})
@@ -161,7 +161,7 @@ class FrontendServiceTests(unittest.TestCase):
                         "Info": {"Title": "Example", "VPSId": "vps-1"},
                         "User": {"Rating": 0, "StartCount": 0, "RunTime": 0},
                         "VPXFile": {},
-                        "VPinFE": {},
+                        "vpinfe": {},
                     }
                 ),
                 encoding="utf-8",
@@ -178,7 +178,7 @@ class FrontendServiceTests(unittest.TestCase):
                         "Info": {"Title": "Example", "VPSId": "vps-1"},
                         "User": {"Rating": 0, "StartCount": 7, "RunTime": 15},
                         "VPXFile": {},
-                        "VPinFE": {},
+                        "vpinfe": {},
                     }
                 ),
                 encoding="utf-8",
@@ -203,7 +203,7 @@ class FrontendServiceTests(unittest.TestCase):
                         "Info": {"Title": "Example", "VPSId": "vps-1"},
                         "User": {"Rating": 0, "StartCount": 0, "RunTime": 0},
                         "VPXFile": {},
-                        "VPinFE": {},
+                        "vpinfe": {},
                     }
                 ),
                 encoding="utf-8",
@@ -220,7 +220,7 @@ class FrontendServiceTests(unittest.TestCase):
                         "Info": {"Title": "Example", "VPSId": "vps-1"},
                         "User": {"Rating": 4, "StartCount": 0, "RunTime": 0},
                         "VPXFile": {},
-                        "VPinFE": {},
+                        "vpinfe": {},
                     }
                 ),
                 encoding="utf-8",
@@ -260,7 +260,9 @@ class FrontendServiceTests(unittest.TestCase):
             self.assertEqual(score_data, {"rom": "vpx_rom"})
             self.assertEqual(score_path, "/scores/vpx_rom.nv")
 
-    def test_parse_score_from_nvram_falls_back_to_info_rom(self) -> None:
+    def test_a_migrated_table_reads_its_rom_from_the_game_file(self) -> None:
+        """2.x kept a table-level Info.Rom and the migration drops it. A value carried
+        from there could disagree with the file it claims to describe."""
         with TemporaryDirectory() as tmp:
             table_dir = Path(tmp) / "Example"
             table_dir.mkdir()
@@ -269,7 +271,7 @@ class FrontendServiceTests(unittest.TestCase):
                 json.dumps(
                     {
                         "Info": {"Rom": "info_rom"},
-                        "VPXFile": {"rom": ""},
+                        "VPXFile": {"filename": "Example.vpx", "rom": "vpx_rom"},
                     }
                 ),
                 encoding="utf-8",
@@ -280,11 +282,11 @@ class FrontendServiceTests(unittest.TestCase):
                 metaConfig={},
             )
 
-            with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/info_rom.nv")) as read_rom, \
-                    mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "info_rom"}):
+            with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
+                    mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}):
                 table_play_service.parse_score_from_nvram(table)
 
-            read_rom.assert_called_once_with("info_rom", str(table_dir))
+            read_rom.assert_called_once_with("vpx_rom", str(table_dir))
 
     def test_delete_nvram_if_configured_reads_the_game_files_rom(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -300,7 +302,7 @@ class FrontendServiceTests(unittest.TestCase):
                 tableDirName="Example",
                 metaConfig={
                     "game_files": {"Example.vpx": {"rom": "vpx_rom"}},
-                    "VPinFE": {"delete_nvram_on_close": True},
+                    "vpinfe": {"delete_nvram_on_close": True},
                 },
             )
 

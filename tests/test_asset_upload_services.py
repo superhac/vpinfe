@@ -773,13 +773,13 @@ class MergeInfoTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             real_launcher = Path(tmp) / "vpx-custom"
             real_launcher.write_bytes(b"x")
-            incoming = {"VPinFE": {"alt_launcher": "/nonexistent/vpx", "alt_title": "Cool Name"}}
-            merged = merge_info(incoming, {"VPinFE": {"alt_launcher": "", "alt_title": ""}})
-            self.assertEqual(merged["VPinFE"]["alt_launcher"], "")   # dropped, does not resolve
-            self.assertEqual(merged["VPinFE"]["alt_title"], "Cool Name")
-            incoming2 = {"VPinFE": {"alt_launcher": str(real_launcher)}}
-            merged2 = merge_info(incoming2, {"VPinFE": {"alt_launcher": ""}})
-            self.assertEqual(merged2["VPinFE"]["alt_launcher"], str(real_launcher))
+            incoming = {"vpinfe": {"alt_launcher": "/nonexistent/vpx", "alt_title": "Cool Name"}}
+            merged = merge_info(incoming, {"vpinfe": {"alt_launcher": "", "alt_title": ""}})
+            self.assertEqual(merged["vpinfe"]["alt_launcher"], "")   # dropped, does not resolve
+            self.assertEqual(merged["vpinfe"]["alt_title"], "Cool Name")
+            incoming2 = {"vpinfe": {"alt_launcher": str(real_launcher)}}
+            merged2 = merge_info(incoming2, {"vpinfe": {"alt_launcher": ""}})
+            self.assertEqual(merged2["vpinfe"]["alt_launcher"], str(real_launcher))
 
     def test_unknown_sections_added_not_replaced(self):
         incoming = {"CustomTool": {"a": 1}, "Shared": {"x": "incoming"}}
@@ -957,11 +957,11 @@ class ImportExecuteTests(unittest.TestCase):
             table_dir.mkdir()
             saved = self._replace_table(
                 tmp, table_dir,
-                {"VPinFE": {"alt_vpsid": "chosen-against-the-old-file"},
+                {"vpinfe": {"alt_vpsid": "chosen-against-the-old-file"},
                  "game_files": {"Old.vpx": {"file_hash": "old-hash"}}},
                 "Old.vpx", {"file_hash": "new-hash"})
 
-            self.assertEqual(saved["VPinFE"]["alt_vpsid"], "")
+            self.assertEqual(saved["vpinfe"]["alt_vpsid"], "")
 
     def test_adding_a_game_file_does_not_drop_the_vps_override(self):
         """A second game file is not a reason to discard the user's match."""
@@ -972,12 +972,12 @@ class ImportExecuteTests(unittest.TestCase):
             table_dir.mkdir()
             saved = self._replace_table(
                 tmp, table_dir,
-                {"VPinFE": {"alt_vpsid": "still-this-machine",
+                {"vpinfe": {"alt_vpsid": "still-this-machine",
                             "default_game_file": "Old.vpx"},
                  "game_files": {"Old.vpx": {"file_hash": "old-hash"}}},
                 "Old.vpx", {"file_hash": "old-hash"})
 
-            self.assertEqual(saved["VPinFE"]["alt_vpsid"], "still-this-machine")
+            self.assertEqual(saved["vpinfe"]["alt_vpsid"], "still-this-machine")
 
     def test_execute_new_bundle_creates_folder(self):
         from pathlib import Path

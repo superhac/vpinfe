@@ -25,7 +25,7 @@ class TestVPinPlayService(unittest.TestCase):
                     },
                 },
                 "VPXFile": {},
-                "VPinFE": {},
+                "vpinfe": {},
             }
         )
 
@@ -47,7 +47,7 @@ class TestVPinPlayService(unittest.TestCase):
                     "Score": "not-a-dict",
                 },
                 "VPXFile": {},
-                "VPinFE": {},
+                "vpinfe": {},
             }
         )
 
@@ -69,7 +69,7 @@ class TestVPinPlayService(unittest.TestCase):
             "Info": {"VPSId": "vps-123", "Rom": "agent777"},
             "User": {},
             "VPXFile": {},
-            "VPinFE": {},
+            "vpinfe": {},
         }
         parser_instance = mock_table_parser.return_value
         parser_instance.getAllTables.return_value = [table]

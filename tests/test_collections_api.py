@@ -26,7 +26,7 @@ def _table(folder: str, table_id: str) -> SimpleNamespace:
         fullPathTable=f"/tables/{folder}",
         fullPathVPXfile=f"/tables/{folder}/{folder}.vpx",
         metaConfig={"Info": {"Title": folder, "Manufacturer": "Bally"},
-                    "VPinFE": {"id": table_id}},
+                    "vpinfe": {"id": table_id}},
     )
 
 

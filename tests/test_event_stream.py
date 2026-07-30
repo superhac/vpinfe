@@ -114,7 +114,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         things to put on a socket."""
         table = SimpleNamespace(
             tableDirName="Medieval Madness (Williams 1997)",
-            metaConfig={"VPinFE": {"id": "6f1c9a4e"}},
+            metaConfig={"vpinfe": {"id": "6f1c9a4e"}},
         )
         stream = self._open()
         await self._hello(stream)

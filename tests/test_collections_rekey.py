@@ -13,11 +13,11 @@ from common.tables.vpxcollections import CURRENT_SCHEMA, SCHEMA_SECTION, VPXColl
 def _table(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", table_id: str = ""):
     folder = root / name
     folder.mkdir(parents=True, exist_ok=True)
-    meta = {"Info": {"VPSId": vpsid, "Title": name}, "VPinFE": {}}
+    meta = {"Info": {"VPSId": vpsid, "Title": name}, "vpinfe": {}}
     if altvpsid:
-        meta["VPinFE"]["alt_vpsid"] = altvpsid
+        meta["vpinfe"]["alt_vpsid"] = altvpsid
     if table_id:
-        meta["VPinFE"]["id"] = table_id
+        meta["vpinfe"]["id"] = table_id
     (folder / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
     return SimpleNamespace(fullPathTable=str(folder), tableDirName=name, metaConfig=meta)
 
@@ -149,15 +149,15 @@ class MembershipTests(unittest.TestCase):
             return json.loads(info.read_text(encoding="utf-8"))
 
         first = rebuild("hash-a")
-        table_id_value = first["VPinFE"]["id"]
+        table_id_value = first["vpinfe"]["id"]
 
         # User re-points the table, then updates the .vpx - which clears altvpsid.
         data = json.loads(info.read_text(encoding="utf-8"))
-        data["VPinFE"]["alt_vpsid"] = "vps-override"
+        data["vpinfe"]["alt_vpsid"] = "vps-override"
         info.write_text(json.dumps(data), encoding="utf-8")
         after = rebuild("hash-b")
 
-        self.assertEqual(after["VPinFE"]["alt_vpsid"], "", "precondition: altvpsid cleared")
+        self.assertEqual(after["vpinfe"]["alt_vpsid"], "", "precondition: altvpsid cleared")
 
         table = SimpleNamespace(fullPathTable=str(self.root), tableDirName="MM",
                                 metaConfig=after)

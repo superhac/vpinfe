@@ -3,6 +3,7 @@ import logging
 import os
 from urllib.parse import urlparse, parse_qs
 
+from common.tables.info_migration import migrate, needs_migration, write_backup
 from common.tables.game_files import (
     DETECT_KEYS,
     GAME_FILES_KEY,
@@ -23,11 +24,10 @@ logger = logging.getLogger("vpinfe.common.tables.metaconfig")
 CURRENT_VPINFE_SCHEMA = 2
 VPINFE_SCHEMA_KEY = "schema"
 
-# The section we own outright: app configuration and table-level bookkeeping. Still
-# PascalCase because that is what 2.x wrote and what every existing file holds; the
-# migration renames it to `vpinfe`, since the sections we own are snake_case. Named
-# here so that rename is this line plus the migration, not a sweep of the tree.
-VPINFE_SECTION = "VPinFE"
+# The section we own outright: app configuration and table-level bookkeeping. 2.x wrote
+# it as `VPinFE`; the
+# migration renames it, since the sections we own are snake_case - which it now has.
+VPINFE_SECTION = "vpinfe"
 
 # One entry per file VPinFE placed, keyed by the path it was written to. Supersedes
 # Medias, which was keyed by media kind and so held at most one entry per kind - it
@@ -96,16 +96,24 @@ class MetaConfig:
     def __init__(self, configfilepath):
         self.configFilePath = configfilepath
         self.data = {}
+        # The file as it was found, held only until a write backs it up.
+        self._pre_migration = ""
 
         if os.path.exists(configfilepath):
             try:
                 if os.path.getsize(configfilepath) == 0:
                     raise InvalidMetaConfigError(configfilepath, "file is empty")
-                with open(configfilepath, "r", encoding="utf-8") as f:
-                    self.data = json.load(f)
+                with open(configfilepath, encoding="utf-8") as f:
+                    original = f.read()
+                self.data = json.loads(original)
             except json.JSONDecodeError as exc:
                 reason = f"invalid JSON at line {exc.lineno} column {exc.colno}: {exc.msg}"
                 raise InvalidMetaConfigError(configfilepath, reason) from exc
+            if needs_migration(self.data):
+                self._pre_migration = original
+                self.data = migrate(self.data)
+                logger.info("Migrated %s to schema %s in memory", configfilepath,
+                            CURRENT_VPINFE_SCHEMA)
         else:
             self.data = {}
         self._normalize_detection_flags()
@@ -245,6 +253,14 @@ class MetaConfig:
     def writeConfig(self):
         self._normalize_detection_flags()
         os.makedirs(os.path.dirname(self.configFilePath), exist_ok=True)
+        if self._pre_migration:
+            # Before the first write of the new shape, and only then: one restore point
+            # per schema bump, not one per rebuild. A failure here stops the write - the
+            # backup exists for the person who needs to go back, so proceeding without
+            # one would take away the only thing that makes this reversible.
+            saved = write_backup(self.configFilePath, self._pre_migration)
+            self._pre_migration = ""
+            logger.info("Kept the pre-migration metadata at %s", saved)
         with open(self.configFilePath, "w", encoding="utf-8") as f:
             json.dump(self.data, f, indent=4)
 

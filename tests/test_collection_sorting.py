@@ -20,7 +20,7 @@ def _table(title, vpsid, last_run=None, altvpsid="", alttitle="", runtime=0, sta
                 "RunTime": runtime,
                 "StartCount": start_count,
             },
-            "VPinFE": {
+            "vpinfe": {
                 "alt_vpsid": altvpsid,
                 "alt_title": alttitle,
             },

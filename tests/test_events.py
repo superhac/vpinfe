@@ -165,7 +165,7 @@ class TableSelectionTests(unittest.TestCase):
 
     @staticmethod
     def _table(name="Medieval Madness"):
-        return SimpleNamespace(tableDirName=name, metaConfig={"VPinFE": {"frontend_dof_event": "E901"}})
+        return SimpleNamespace(tableDirName=name, metaConfig={"vpinfe": {"frontend_dof_event": "E901"}})
 
     def test_selection_is_subscribers_only(self) -> None:
         """A hook could abandon a selection. Nothing may stop the wheel moving."""
