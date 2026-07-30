@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from common.timestamps import iso_from_asctime, iso_from_authored_date
+
 VPX_SUFFIX = ".vpx"
 
 # One entry per .vpx, keyed by filename:
@@ -61,6 +63,10 @@ def entry_from_parsed(parsed: dict | None) -> dict:
     """
     parsed = parsed if isinstance(parsed, dict) else {}
     entry = {key: parsed.get(key, "") or "" for key in PARSED_KEYS}
+    # Dates are normalized on the way in, so the stored value sorts and filters. The
+    # author's raw string is recoverable by re-parsing the .vpx beside the .info.
+    entry["release_date"] = iso_from_authored_date(entry["release_date"])
+    entry["save_date"] = iso_from_asctime(entry["save_date"])
     entry["authors"] = parse_authors(parsed.get("author_name", ""))
     for key in DETECT_KEYS:
         entry[key] = _as_bool(parsed.get(key, False))

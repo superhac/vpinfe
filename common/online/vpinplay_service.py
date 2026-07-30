@@ -78,6 +78,11 @@ def _build_table_payload(meta: dict) -> dict | None:
             "filename": gf_name,
             "filehash": str(vpx.get("file_hash", "") or ""),
             "version": str(vpx.get("version", "") or ""),
+            # Dates go out in the shape we store them, which is now ISO. This field has
+            # always carried whatever the table author typed - "August 2016" through
+            # "xx/xx/2019" - so nothing downstream can have been parsing it, and the raw
+            # string is deliberately not kept. Confirm with the service before relying on
+            # ISO here.
             "releaseDate": str(vpx.get("release_date", "") or ""),
             "saveDate": str(vpx.get("save_date", "") or ""),
             "saveRev": str(vpx.get("save_rev", "") or ""),
