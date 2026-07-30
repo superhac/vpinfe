@@ -74,7 +74,7 @@ noise. Not machine-checked — prose only.
 
 **PAR-09 — Media resolves through a precedence chain and accepts extension families.**
 Master resolved exactly one fixed name per kind (`wheel.png`). 3.0 resolves
-`(Wheel) <build>.png` over `(Wheel) <folder>.png` over `wheel.png`, trying each kind's
+`(Wheel) <game-file>.png` over `(Wheel) <folder>.png` over `wheel.png`, trying each kind's
 extension family in order — so a spec-named or `.jpg` file that master silently ignored
 now displays. A library using only the fixed names behaves identically.
 *Why:* hand-placed media was invisible unless it matched one exact name, and a media
@@ -118,13 +118,13 @@ wheel semantics. Covered by `tests/test_media_resolution.py`.
 
 **PAR-13 — A table export is one game by default, not the whole folder.**
 The `.vpxz` download and the mobile Web Send used to ship everything: every alternate
-build, all media, every extra. The default is now a standalone bundle for the table's
+game file, all media, every extra. The default is now a standalone bundle for the table's
 game file — the chosen `.vpx`, its stem-matched and folder-named companions, `pinmame/`,
 `music/`, colorization and sound folders, the author's readme files, and a `.info` whose
 `Medias` section lists only what actually shipped. The whole-folder form remains
 available to callers through the API (`?full=true`), under its own permission scope.
 *Why:* export a game, not a folder — transfers shrink dramatically, and a multi-`.vpx`
-folder finally exports the build you meant instead of all of them. Covered by
+folder finally exports the game file you meant instead of all of them. Covered by
 `tests/test_export_bundle.py`.
 
 **PAR-14 — Readme files import, display, and travel with the table.**
@@ -150,7 +150,7 @@ had nothing to render for it. A shared root exists because a manufacturer logo i
 per-table nor per-theme. Covered by `tests/test_shared_assets.py`.
 
 **PAR-16 — Game files can be hidden, and several are peers rather than one default.**
-A table folder can hold more than one launchable `.vpx` — a desktop build and a VR build,
+A table folder can hold more than one launchable `.vpx` — a desktop game file and a VR build,
 or a table and a patched variant. Every visible one is independently launchable; there is
 no primary-with-alternates. The `.info` gains a `GameFiles` section keyed by filename
 (`{"hidden": true}`), absent meaning visible, so an existing library is unchanged. The

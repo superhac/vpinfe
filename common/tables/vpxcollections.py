@@ -191,7 +191,7 @@ class VPXCollections:
 
         Runs once: the file records that it has been through this, so later startups
         do not rescan. A file written by a newer VPinFE is left alone - an older
-        build must not rewrite membership it does not understand.
+        build of VPinFE must not rewrite membership it does not understand.
 
         Entries that resolve to a table are rewritten; entries that do not are kept
         as they are, because the table may simply not be present right now and

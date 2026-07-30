@@ -54,14 +54,14 @@ def first_meta_value(meta: Any, *paths: tuple[str, str], default: Any = "") -> A
 
 def default_game_file(meta: Any, names: Any = None,
                       folder_name: str = "") -> tuple[str, Dict[str, Any]]:
-    """(filename, entry) for the build this table defaults to; ("", {}) when it has none.
+    """(filename, entry) for the game file this table defaults to; ("", {}) when it has none.
 
     Returns both because the callers that need one usually need the other - a table row
-    shows the filename and the version off the same build - and resolving twice would
+    shows the filename and the version off the same game file - and resolving twice would
     be doing the same work to answer half the question each time.
 
     Callers holding a folder listing should pass it, so a recorded default that is no
-    longer on disk falls through to a build that is.
+    longer on disk falls through to one that is.
     """
     normalized = normalize_meta(meta)
     entries = game_file_entries(normalized)
@@ -73,7 +73,7 @@ def default_game_file(meta: Any, names: Any = None,
 
 
 def default_game_file_entry(meta: Any, names: Any = None, folder_name: str = "") -> Dict[str, Any]:
-    """What the table's default build says about itself, or {}."""
+    """What the table's default game file says about itself, or {}."""
     return default_game_file(meta, names, folder_name)[1]
 
 
@@ -88,7 +88,7 @@ def normalize_rating(value: Any) -> int:
 def as_string_list(value: Any) -> list[str]:
     """A list-valued metadata field, whatever the .info actually held.
 
-    These come back as lists from a normal build, but a hand-edited or
+    These come back as lists from a normal metadata build, but a hand-edited or
     badly-written .info can hold a scalar - including a stringified list. One such
     table used to be enough to make every consumer's type assumption wrong; now it
     is contained here.

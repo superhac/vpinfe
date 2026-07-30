@@ -80,7 +80,7 @@ class IsParsedTests(unittest.TestCase):
         self.assertTrue(is_parsed({"file_hash": "3a77427e", "rom": ""}))
 
     def test_a_decision_alone_is_not_a_parse(self) -> None:
-        """Hiding a build records what the user wants, not what the file says."""
+        """Hiding a game file records what the user wants, not what the file says."""
         self.assertFalse(is_parsed({"hidden": True}))
 
     def test_junk_is_not_a_parse(self) -> None:

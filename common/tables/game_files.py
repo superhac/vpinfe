@@ -15,11 +15,12 @@ VPX_SUFFIX = ".vpx"
 #     "Table (VR Room).vpx": {"version": "1.2", "rom": "afm_113b", "hidden": false, ...}
 #   }
 #
-# A missing entry means an unparsed build, and a missing `hidden` means visible.
+# A missing entry means a game file nothing has parsed, and a missing `hidden` means
+# visible.
 GAME_FILES_KEY = "game_files"
 
-# Which build is the default, kept in the vpinfe section because it is a table-level
-# choice rather than something a build says about itself.
+# Which game file is the default, kept in the vpinfe section because it is a table-level
+# choice rather than something a game file says about itself.
 DEFAULT_GAME_FILE_KEY = "default_game_file"
 
 # What a game_files entry takes from a parse, in the parser's own names. The .vpx's
@@ -44,7 +45,7 @@ def _as_bool(value) -> bool:
 
 
 def parse_authors(value) -> list[str]:
-    """Authors as the .vpx records them. Per build, never rolled up to the table."""
+    """Authors as the .vpx records them. Per game file, never rolled up to the table."""
     if not value:
         return []
     if isinstance(value, list):
@@ -67,7 +68,7 @@ def entry_from_parsed(parsed: dict | None) -> dict:
 
 
 def is_parsed(entry: dict | None) -> bool:
-    """Whether an entry describes a build we have read, rather than one we only recorded
+    """Whether an entry describes a game file we have read, rather than one we only recorded
     something about - hidden, or where it came from. Reading those as parsed answers "no
     rom declared" for a file nothing has opened.
     """
@@ -83,7 +84,7 @@ def game_file_names(names: Iterable[str]) -> list[str]:
 
 def hidden_game_files(settings: dict | None) -> set[str]:
     """Filenames the user has hidden from the frontend. Hiding never deletes - a patch
-    base has to stay on disk - it only stops the build being offered.
+    base has to stay on disk - it only stops the game file being offered.
     """
     if not isinstance(settings, dict):
         return set()
@@ -95,13 +96,13 @@ def hidden_game_files(settings: dict | None) -> set[str]:
 
 def visible_game_files(names: Iterable[str], settings: dict | None = None) -> list[str]:
     """The game files a frontend should offer. Each is independently launchable: several
-    builds of one table are peers, not a primary with alternates."""
+    game files of one table are peers, not a primary with alternates."""
     hidden = hidden_game_files(settings)
     return [n for n in game_file_names(names) if n not in hidden]
 
 
 def default_game_file(names: Iterable[str], folder_name: str = "", recorded: str = "") -> str:
-    """Which build a single-game-file consumer gets, or "" when there are none.
+    """Which game file a single-game-file consumer gets, or "" when there are none.
 
     Not "the one to launch" - every visible game file is launchable. This is for the
     places that must pick exactly one: an export, a table row, any theme written so far.

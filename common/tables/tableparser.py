@@ -113,7 +113,7 @@ class TableParser:
             table.fullPathVPXfile = str(table_dir / chosen)
 
             # Media after the default pick: tier 1 of the resolution chain keys off
-            # the build that actually launches.
+            # the game file that actually launches.
             self.loadImagePaths(
                 table,
                 table_contents=table_contents,

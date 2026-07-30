@@ -158,7 +158,7 @@ def _game_files(table, row: dict) -> list[dict]:
     filename recorded in the .info: a table folder can hold several .vpx files.
     Sorted, so the answer does not depend on directory order.
 
-    A build the metadata describes but that is absent from disk is still reported - a
+    A game file the metadata describes but absent from disk is still reported - a
     table pointing at a missing file is something the caller should see - but the
     default falls to one that exists, since the default is what a caller would launch.
     """
@@ -205,7 +205,7 @@ def _game_files(table, row: dict) -> list[dict]:
             "assets": asset_resolver.resolve_for_game_file(name, table_dir.name, files),
         }
         if is_parsed(described_entry):
-            # Every build carries its own ROM and detect flags, so each one answers
+            # Every game file carries its own ROM and detect flags, so each one answers
             # for itself. This used to be knowable only for the single file the .info
             # described; the rest returned an honest "unknown".
             chain = asset_resolver.resolve_rom_chain(
@@ -222,9 +222,9 @@ def _game_files(table, row: dict) -> list[dict]:
             flex = asset_resolver.flexdmd_state(
                 subdirs, _tristate(described_entry.get("detect_flex")))
         else:
-            # Never parsed: a build added since the last metadata build, and the .info
-            # may already carry decisions about it - hidden, or where it came from -
-            # without anything having read the file itself.
+            # Never parsed: added since the last metadata build, and the .info may already
+            # carry decisions about it - hidden, or where it came from - without
+            # anything having read the file itself.
             chain = {"declared": None, "alias_of": None, "effective": None,
                      "required": None, "catalog": None, "clone_of": None,
                      "audit": None, "installed": None,

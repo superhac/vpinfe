@@ -119,8 +119,8 @@ def _patched_vpx_name(asset: DetectedAsset, base: Path, vpx_stem: str) -> str:
 
 
 def _sidecar_stem(assets, base: Path, vpx_stem: str) -> str:
-    """Which build a bundle's .directb2s and .ini belong to: the patched table when the
-    bundle carries a patch, since they describe what the patch builds, not the base.
+    """Which game file a bundle's .directb2s and .ini belong to: the patched table when the
+    bundle carries a patch, since they describe what the patch produces, not the base.
 
     Deselecting the patch afterwards leaves them named for a .vpx that never gets built.
     """
@@ -458,7 +458,7 @@ def _replace_vpx_from_file(source, asset: DetectedAsset, base: Path) -> None:
             if new_b2s.exists():
                 new_b2s.unlink()
             os.replace(old_b2s, new_b2s)
-    _record_replaced_build(base, new_vpx,
+    _record_replaced_game_file(base, new_vpx,
                            old_vpx.name if old_vpx and old_vpx.name != new_vpx.name else None)
 
     if old_ini and old_ini.exists():
@@ -508,7 +508,7 @@ def _import_media(source, asset: DetectedAsset, table_path: Path) -> None:
         scratch.unlink(missing_ok=True)
 
 
-def _record_replaced_build(table_dir: Path, vpx: Path, removed: str | None) -> None:
+def _record_replaced_game_file(table_dir: Path, vpx: Path, removed: str | None) -> None:
     """Describe the new .vpx in the table's .info, and drop the entry for the one it
     replaced. Best effort - the table is on disk either way.
     """
@@ -522,9 +522,9 @@ def _record_replaced_build(table_dir: Path, vpx: Path, removed: str | None) -> N
                        vpx.name, exc_info=True)
 
 
-def _record_patched_build(table_dir: Path, vpx: Path, base_file: str, base_hash: str) -> None:
-    """Write the new build into the table's .info: what it says about itself, and where it
-    came from. Best effort - the table is on disk and playable either way.
+def _record_patched_game_file(table_dir: Path, vpx: Path, base_file: str, base_hash: str) -> None:
+    """Write the new game file into the table's .info: what it says about itself, and where
+    it came from. Best effort - the table is on disk and playable either way.
     """
     try:
         meta = MetaConfig(str(table_dir / f"{table_dir.name}.info"))
@@ -569,7 +569,7 @@ def _apply_patch(source, asset: DetectedAsset, base: Path, dest: Path) -> None:
         base_hash = _sha256(original)
         logger.info("Patched %s -> %s (base sha256 %s)", original.name, dest.name,
                     base_hash[:16])
-        _record_patched_build(base, dest, original.name, base_hash)
+        _record_patched_game_file(base, dest, original.name, base_hash)
     finally:
         patch_tmp.unlink(missing_ok=True)
 

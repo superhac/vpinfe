@@ -96,7 +96,7 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
     vpinfe = section(meta, "VPinFE")
     table_name = Path(table.fullPathTable).name
     vpsid = first_meta_value(meta, ("Info", "VPSId"), default="")
-    # The row describes one build - the table's default. A folder can hold several,
+    # The row describes one game file - the table's default. A folder can hold several,
     # and the API lists them all separately; this is what the table-level views show.
     gf_name, gf = default_game_file(meta, folder_name=table_name)
 
@@ -116,14 +116,14 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "vpinfe_id": vpinfe_id(table),
         "ipdb_id": first_meta_value(meta, ("Info", "IPDBId")),
         "pinball_primer_tut": first_meta_value(meta, ("Info", "PinballPrimerTut")),
-        # Info carries what VPS knows; the build's own claim is the fallback and can
+        # Info carries what VPS knows; the game file's own claim is the fallback and can
         # legitimately differ from it.
         "manufacturer": first_meta_value(meta, ("Info", "Manufacturer")) or gf_value("manufacturer"),
         "year": first_meta_value(meta, ("Info", "Year")) or gf_value("year"),
         "type": first_meta_value(meta, ("Info", "Type")) or gf_value("type"),
         "themes": as_string_list(first_meta_value(meta, ("Info", "Themes"), default=[])),
-        # Authors are per build, never rolled up: half the multi-build folders in the
-        # test library name different authors on different builds.
+        # Authors are per game file, never rolled up: half the multi-game-file folders
+        # in the test library name different authors in different ones.
         "authors": as_string_list(gf_value("authors", [])),
         "rom": gf_value("rom"),
         "version": gf_value("version"),

@@ -104,8 +104,8 @@ class PatchAssetTests(unittest.TestCase):
             dest = Path(plan.items[0].destination)
             self.assertEqual(dest.name, "cactus canyon [patched].vpx")
 
-    def test_a_patch_named_after_another_build_is_tagged_too(self):
-        """The base is whichever .vpx the patch applies to; any other build in the
+    def test_a_patch_named_after_another_game_file_is_tagged_too(self):
+        """The base is whichever .vpx the patch applies to; any other game file in the
         folder is just as much somebody's table."""
         import tempfile
         from pathlib import Path
@@ -118,10 +118,10 @@ class PatchAssetTests(unittest.TestCase):
             dest = Path(plan.items[0].destination)
             self.assertEqual(dest.name, "Cactus Canyon (VR) [patched].vpx")
 
-    def test_a_mods_sidecars_are_named_for_the_patched_build(self):
-        """The .ini and .directb2s in a mod bundle describe the table the patch builds.
+    def test_a_mods_sidecars_are_named_for_the_patched_game_file(self):
+        """The .ini and .directb2s in a mod bundle describe the table the patch makes.
         Named for the base, they overwrite the base's own and attach to the wrong
-        build."""
+        game file."""
         import tempfile
         from pathlib import Path
         with tempfile.TemporaryDirectory() as tmp:
@@ -149,7 +149,7 @@ class PatchAssetTests(unittest.TestCase):
 
             self.assertEqual(Path(plan.items[0].destination).name, "Cactus Canyon.directb2s")
 
-    def test_a_patched_build_records_its_base_and_patch(self):
+    def test_a_patched_game_file_records_its_base_and_patch(self):
         """Construction is the one origin we witness, and the result cannot be rebuilt
         without the exact base it was made from."""
         import hashlib
@@ -179,9 +179,9 @@ class PatchAssetTests(unittest.TestCase):
                                               "hash": hashlib.sha256(b"ABCDEF").hexdigest()})
             self.assertEqual(source["patch"]["format"], "jojodiff")
 
-    def test_the_patched_build_is_parsed_when_it_is_built(self):
+    def test_the_patched_game_file_is_parsed_when_it_is_made(self):
         """Otherwise it sits with no version, ROM or authors until the next metadata
-        build - and it can be the folder's default build straight away."""
+        game file - and it can be the folder's default straight away."""
         import json
         import tempfile
         import zipfile
@@ -210,8 +210,8 @@ class PatchAssetTests(unittest.TestCase):
             self.assertTrue(entry["detect_ssf"])
             self.assertIn("source", entry, "the parse must not displace where it came from")
 
-    def test_a_build_we_cannot_parse_is_not_recorded_as_empty(self):
-        """"Nothing has read this build" is true; "it declares no ROM" is not."""
+    def test_a_game_file_we_cannot_parse_is_not_recorded_as_empty(self):
+        """"Nothing has read this game file" is true; "it declares no ROM" is not."""
         import json
         import tempfile
         import zipfile
@@ -947,7 +947,7 @@ class ImportExecuteTests(unittest.TestCase):
             self.assertEqual(list(saved["game_files"]), ["New.vpx"])
             self.assertEqual(saved["game_files"]["New.vpx"]["rom"], "new_rom")
 
-    def test_replacing_the_default_build_still_drops_the_vps_override(self):
+    def test_replacing_the_default_game_file_still_drops_the_vps_override(self):
         """Writing the new hash in at import time must not rob the rebuild of the change
         it clears alt_vpsid on."""
         from pathlib import Path
@@ -963,8 +963,8 @@ class ImportExecuteTests(unittest.TestCase):
 
             self.assertEqual(saved["VPinFE"]["alt_vpsid"], "")
 
-    def test_adding_a_build_does_not_drop_the_vps_override(self):
-        """A second build is not a reason to discard the user's match."""
+    def test_adding_a_game_file_does_not_drop_the_vps_override(self):
+        """A second game file is not a reason to discard the user's match."""
         from pathlib import Path
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:

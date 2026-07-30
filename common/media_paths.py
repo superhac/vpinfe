@@ -163,8 +163,8 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
 
     Three tiers, most specific wins, per kind:
 
-      1. "(Token) <game-file-stem>.<ext>"  - this build's own media
-      2. "(Token) <folder-name>.<ext>"     - shared by every build in the folder
+      1. "(Token) <game-file-stem>.<ext>"  - this game file's own media
+      2. "(Token) <folder-name>.<ext>"     - shared by every game file in the folder
       3. "wheel.png"-style fixed names     - what vpinmediadb writes
 
     Within a tier the kind's extension family is tried in order, first hit wins -

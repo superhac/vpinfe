@@ -26,8 +26,8 @@ VPINFE_SCHEMA_KEY = "schema"
 
 # One entry per file VPinFE placed, keyed by the path it was written to. Supersedes
 # Medias, which was keyed by media kind and so held at most one entry per kind - it
-# could not say which build's wheel it meant once artwork could belong to a specific
-# build, and the same question applies to backglasses, ROMs and colorizations anyway.
+# could not say which game file's wheel it meant once artwork could belong to a
+# specific one, and the same question applies to backglasses, ROMs and colorizations.
 ASSETS_KEY = "assets"
 
 _warned_newer_schema = set()
@@ -64,11 +64,11 @@ def migrate_vpinfe_section(vpinfe):
     return vpinfe
 
 
-def _default_build_changed(chosen, previous_files, game_files):
-    """Whether the table's default build is a different file than it was.
+def _default_game_file_changed(chosen, previous_files, game_files):
+    """Whether the table's default game file is a different file than it was.
 
     A manual VPS override is tied to the table file it was chosen against, so replacing
-    that file drops it. Scoped to the default build: ADDING a build is not a reason to
+    that file drops it. Scoped to the default: ADDING a game file is not a reason to
     discard the user's match.
     """
     previous_hash = str(previous_files.get(chosen, {}).get("file_hash", "") or "").strip()
@@ -115,7 +115,7 @@ class MetaConfig:
         )
 
         # Info is wholly what VPS knows about the machine. Rom and Authors used to be
-        # copied in from the parsed .vpx and were per-build values all along - they
+        # copied in from the parsed .vpx and were per-game-file values all along - they
         # live on their own game_files entry now.
         info = {
             "IPDBId": parse_qs(urlparse(configdata.get("vpsdata", {}).get("ipdbUrl", "")).query).get("id", [""])[0],
@@ -165,15 +165,15 @@ class MetaConfig:
         previous_files = game_file_entries(self.data)
         game_files = self._build_game_files(configdata)
 
-        # Which build a single-game-file consumer gets - today's themes all assume one
-        # table means one build. Resolved fresh here and deliberately NOT written back:
+        # Which game file a single-game-file consumer gets - today's themes all assume
+        # one table means one game file. Resolved fresh here and deliberately NOT written back:
         # seeding it on every rebuild would turn an arbitrary first pick into a
         # permanent one with nothing to change it. The key is written only when
         # somebody chooses (and by the migration, which seeds it from VPXFile.filename
         # so existing tables keep selecting exactly what they select today).
         chosen = default_game_file(game_files, "", recorded_default(vpinfe))
 
-        if _default_build_changed(chosen, previous_files, game_files):
+        if _default_game_file_changed(chosen, previous_files, game_files):
             vpinfe["alt_vpsid"] = ""
         else:
             vpinfe.setdefault("alt_vpsid", "")
@@ -202,10 +202,10 @@ class MetaConfig:
         self.writeConfig()
 
     def _build_game_files(self, configdata):
-        """One entry per parsed build, keyed by filename.
+        """One entry per parsed game file, keyed by filename.
 
         Callers pass `gamefiles` as {filename: parsed}. `vpxdata` alone is still
-        accepted for the single-build case, which is most of the library.
+        accepted for the single-game-file case, which is most of the library.
 
         Anything already recorded against a filename and not covered by the parse -
         the user's `hidden`, a `patch_applied` flag, later play stats and match
@@ -246,7 +246,7 @@ class MetaConfig:
         return text.replace("\r\n", "").replace("\n", "")
 
     def gameFileSettings(self):
-        """Per-game-file entries, keyed by filename. A folder can hold several builds
+        """Per-game-file entries, keyed by filename. A folder can hold several game files
         of one table - desktop, VR, a patched variant - and they are peers."""
         return game_file_entries(self.data)
 
@@ -263,25 +263,25 @@ class MetaConfig:
             entry["hidden"] = True
         else:
             entry.pop("hidden", None)
-            # An entry that only ever carried `hidden` came from a build we never
+            # An entry that only ever carried `hidden` came from a game file we never
             # parsed; drop it rather than leave an empty record behind.
             if not entry:
                 settings.pop(filename, None)
         self.writeConfig()
 
     def gameFileValue(self, filename, key, default=""):
-        """One key off a specific build's entry."""
+        """One key off a specific game file's entry."""
         value = game_file_entries(self.data).get(filename, {})
         return value.get(key, default) if isinstance(value, dict) else default
 
     def setGameFileValue(self, filename, key, value):
-        """Record something we did to a build, against that build."""
+        """Record something we did to a game file, against that game file."""
         entry = self.data.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
         entry[key] = value
         self.writeConfig()
 
     def refresh_game_file(self, filename, parsed):
-        """Refresh what one build says about itself. Everything else on the entry - hidden,
+        """Refresh what one game file says about itself. Everything else on the entry - hidden,
         where it came from, later play stats - survives, as it does on a full rebuild.
         """
         entry = self.data.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
@@ -289,10 +289,10 @@ class MetaConfig:
         self.writeConfig()
 
     def replace_game_file(self, removed, filename, parsed):
-        """One build replaced another on disk: describe the new one, forget the old.
+        """One game file replaced another on disk: describe the new one, forget the old.
 
-        A gone build's entry is not kept - per-build history for a file that no longer
-        exists answers nothing. If the default build is what changed, the manual VPS
+        A gone game file's entry is not kept - its history answers nothing once the file
+        is gone. If the default is what changed, the manual VPS
         override goes with it, the same rule a rebuild applies.
         """
         entries = game_file_entries(self.data)
@@ -312,12 +312,12 @@ class MetaConfig:
         vpinfe = self.data.get("VPinFE")
         if isinstance(vpinfe, dict):
             chosen = default_game_file(entries, "", recorded_default(vpinfe))
-            if _default_build_changed(chosen, previous, entries):
+            if _default_game_file_changed(chosen, previous, entries):
                 vpinfe["alt_vpsid"] = ""
         self.writeConfig()
 
     def record_patch_source(self, filename, base_file, base_hash, patch_format):
-        """Record a build we made ourselves: the base it came from, and the patch that
+        """Record a game file we made ourselves: the base it came from, and the patch that
         made it. An ordinary .vpx has no source, which is the normal case.
 
         The base is hashed because a .dif applies to one exact file, and the delta's
@@ -333,7 +333,7 @@ class MetaConfig:
     def add_asset(self, path, host, md5=""):
         """Record a file we placed, against the path we wrote it to.
 
-        Origin only. What kind of media it is and which build it belongs to are read
+        Origin only. What kind of media it is and which game file it belongs to are read
         off the filename by resolve_media_files on every run, so a stored copy could
         only ever agree with it or be wrong - and resolution wins either way.
         """

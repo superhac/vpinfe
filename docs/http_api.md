@@ -114,7 +114,7 @@ Media is served under `GET /tables/{id}/media`: every kind from `common/media_pa
 present or not, so a client enumerates what is possible instead of guessing from omissions.
 A present kind links to `/media/{kind}`, which streams the file with its real content type.
 Resolution is the same three-tier chain the scan uses, applied to the folder as it is at
-request time: a spec-named file for the launching build (`(Wheel) <build>.png`) beats a
+request time: a spec-named file for the launching game file (`(Wheel) <game-file>.png`) beats a
 folder-named one (`(Wheel) <folder>.png`) beats the fixed default (`wheel.png`), each kind
 trying its extension family in order, `medias/` before the folder root throughout.
 Consumers never learn these rules — every kind still reports exactly one winning file.
@@ -162,7 +162,7 @@ satisfies, which is a different mechanism from an asset found by naming rule:
   `declared` stays null until the project-folder extraction is built.
 
 The script-declared facts are only known for the game file the table's metadata records;
-other builds report `null` with a reason rather than inheriting the wrong answer.
+other game files report `null` with a reason rather than inheriting the wrong answer.
 
 `rom` on the table resource is the recorded game file's **declared** ROM name kept as plain
 metadata; the full chain (alias, effective, installed, nvram) lives on the game file's
