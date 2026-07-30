@@ -273,6 +273,14 @@ class MetaConfig:
         entry[key] = value
         self.writeConfig()
 
+    def refresh_game_file(self, filename, parsed):
+        """Refresh what one build says about itself. Everything else on the entry - hidden,
+        where it came from, later play stats - survives, as it does on a full rebuild.
+        """
+        entry = self.data.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
+        entry.update(entry_from_parsed(parsed))
+        self.writeConfig()
+
     def record_patch_source(self, filename, base_file, base_hash, patch_format):
         """Record a build we made ourselves: the base it came from, and the patch that
         made it. An ordinary .vpx has no source, which is the normal case.

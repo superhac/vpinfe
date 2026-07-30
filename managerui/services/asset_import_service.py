@@ -12,6 +12,7 @@ from typing import Callable
 from common.media_paths import media_filename_map
 from common.tables.metaconfig import MetaConfig
 from common.tables.table_repository import refresh_table
+from common.tables.vpxparser import VPXParser
 from managerui.paths import get_tables_path
 from managerui.services.asset_analyzer_service import (
     AnalysisResult,
@@ -504,19 +505,19 @@ def _import_media(source, asset: DetectedAsset, table_path: Path) -> None:
         scratch.unlink(missing_ok=True)
 
 
-def _record_patch_source(table_dir: Path, filename: str, base_file: str, base_hash: str) -> None:
-    """Write the patched build's origin into the table's .info.
-
-    Best effort on purpose. The table is already on disk and playable by the time this
-    runs, so an .info we cannot read costs the provenance, not the import.
+def _record_patched_build(table_dir: Path, vpx: Path, base_file: str, base_hash: str) -> None:
+    """Write the new build into the table's .info: what it says about itself, and where it
+    came from. Best effort - the table is on disk and playable either way.
     """
     try:
         meta = MetaConfig(str(table_dir / f"{table_dir.name}.info"))
-        # The format the .dif is in, not the module that read it - common/jdiffpatch.py
-        # is one implementation of JojoDiff, and the format is what outlives it.
-        meta.record_patch_source(filename, base_file, base_hash, "jojodiff")
+        parsed = VPXParser().singleFileExtract(str(vpx))
+        if parsed:
+            # A failed parse leaves the entry unparsed rather than filled with empties.
+            meta.refresh_game_file(vpx.name, parsed)
+        meta.record_patch_source(vpx.name, base_file, base_hash, "jojodiff")
     except Exception:
-        logger.warning("Patched %s, but could not record where it came from", filename,
+        logger.warning("Patched %s, but could not record it in the .info", vpx.name,
                        exc_info=True)
 
 
@@ -551,7 +552,7 @@ def _apply_patch(source, asset: DetectedAsset, base: Path, dest: Path) -> None:
         base_hash = _sha256(original)
         logger.info("Patched %s -> %s (base sha256 %s)", original.name, dest.name,
                     base_hash[:16])
-        _record_patch_source(base, dest.name, original.name, base_hash)
+        _record_patched_build(base, dest, original.name, base_hash)
     finally:
         patch_tmp.unlink(missing_ok=True)
 

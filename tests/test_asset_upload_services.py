@@ -5,6 +5,7 @@ import os
 import unittest
 from unittest import mock
 
+from common.tables.game_files import is_parsed
 from managerui.services import asset_analyzer_service, asset_import_service, upload_session_service
 from managerui.services.asset_analyzer_service import analyze_path, analyze_upload_session
 from managerui.services.asset_import_service import (
@@ -177,6 +178,62 @@ class PatchAssetTests(unittest.TestCase):
             self.assertEqual(source["base"], {"file": "Table.vpx",
                                               "hash": hashlib.sha256(b"ABCDEF").hexdigest()})
             self.assertEqual(source["patch"]["format"], "jojodiff")
+
+    def test_the_patched_build_is_parsed_when_it_is_built(self):
+        """Otherwise it sits with no version, ROM or authors until the next metadata
+        build - and it can be the folder's default build straight away."""
+        import json
+        import tempfile
+        import zipfile
+        from pathlib import Path
+
+        from common.jdiffpatch import EQL, ESC
+        with tempfile.TemporaryDirectory() as tmp:
+            table_dir = Path(tmp) / "Foo (Bar 1999)"
+            table_dir.mkdir()
+            (table_dir / "Table.vpx").write_bytes(b"ABCDEF")
+            zip_path = Path(tmp) / "mod.zip"
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                archive.writestr("Mod.dif", bytes([ESC, EQL, 5]))
+
+            parsed = {"file_hash": "abc123", "version": "1.2", "rom": "mod_rom",
+                      "author_name": "VPW", "detect_ssf": True}
+            plan = build_import_plan(analyze_path(zip_path), table_path=str(table_dir))
+            with mock.patch.object(asset_import_service, "VPXParser") as parser:
+                parser.return_value.singleFileExtract.return_value = parsed
+                execute_import_plan(plan, zip_path)
+
+            entry = json.loads((table_dir / "Foo (Bar 1999).info").read_text())["game_files"]["Mod.vpx"]
+            self.assertEqual(entry["rom"], "mod_rom")
+            self.assertEqual(entry["version"], "1.2")
+            self.assertEqual(entry["authors"], ["VPW"])
+            self.assertTrue(entry["detect_ssf"])
+            self.assertIn("source", entry, "the parse must not displace where it came from")
+
+    def test_a_build_we_cannot_parse_is_not_recorded_as_empty(self):
+        """"Nothing has read this build" is true; "it declares no ROM" is not."""
+        import json
+        import tempfile
+        import zipfile
+        from pathlib import Path
+
+        from common.jdiffpatch import EQL, ESC
+        with tempfile.TemporaryDirectory() as tmp:
+            table_dir = Path(tmp) / "Foo (Bar 1999)"
+            table_dir.mkdir()
+            (table_dir / "Table.vpx").write_bytes(b"ABCDEF")
+            zip_path = Path(tmp) / "mod.zip"
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                archive.writestr("Mod.dif", bytes([ESC, EQL, 5]))
+
+            plan = build_import_plan(analyze_path(zip_path), table_path=str(table_dir))
+            with mock.patch.object(asset_import_service, "VPXParser") as parser:
+                parser.return_value.singleFileExtract.return_value = None
+                execute_import_plan(plan, zip_path)
+
+            entry = json.loads((table_dir / "Foo (Bar 1999).info").read_text())["game_files"]["Mod.vpx"]
+            self.assertEqual(list(entry), ["source"])
+            self.assertFalse(is_parsed(entry))
 
     def test_an_unrecordable_source_does_not_fail_the_import(self):
         """The patched table is on disk and playable by then. Losing the provenance is
