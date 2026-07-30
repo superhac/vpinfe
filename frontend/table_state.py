@@ -4,7 +4,7 @@ import json
 import logging
 
 from common.tables.collections_service import filter_tables_by_collection, get_collection_names, save_filter_collection
-from common.tables.table_metadata import default_game_file_entry
+from common.tables.table_metadata import default_game_file
 from common.media_paths import table_media_payload
 from common.shared_assets import manufacturer_logo_web_path
 from common.tables.tablelistfilters import TableListFilters
@@ -23,6 +23,25 @@ from common.tables.table_metadata import (
 
 
 logger = logging.getLogger("vpinfe.frontend.table_state")
+
+
+# What themes have always called each game-file field. The .info renamed these; the
+# payload has not, because a theme written against 2.x is still reading them.
+_LEGACY_GAME_FILE_KEYS = {
+    "file_hash": "filehash",
+    "vbs_hash": "vbsHash",
+    "release_date": "releaseDate",
+    "save_date": "saveDate",
+    "save_rev": "saveRev",
+    "detect_nfozzy": "detectnfozzy",
+    "detect_fleep": "detectfleep",
+    "detect_ssf": "detectssf",
+    "detect_lut": "detectlut",
+    "detect_scorbit": "detectscorebit",
+    "detect_fastflips": "detectfastflips",
+    "detect_flex": "detectflex",
+    "detect_pinmame": "detectpinmame",
+}
 
 
 def default_filter_state():
@@ -62,7 +81,10 @@ def tables_json(tables) -> str:
     result = []
     logo_cache: dict[str, str | None] = {}
     for table in tables:
-        meta = normalize_meta(table.metaConfig)
+        # A copy: what follows adds fields the theme contract defines, and writing those
+        # into the shared metaConfig would put a dropped section back on disk at the next
+        # rebuild.
+        meta = dict(normalize_meta(table.metaConfig))
 
         vpinfe = vpinfe_section(meta)
         info = section(meta, "Info")
@@ -80,14 +102,15 @@ def tables_json(tables) -> str:
             info["Title"] = reorder_leading_article(info["Title"])
             meta["Info"] = info
 
-        # Copied: the entry belongs to the shared meta dict, and the payload adds
-        # fields to it that have no business being written back to a .info.
-        vpx = dict(default_game_file_entry(meta))
+        gf_name, entry = default_game_file(meta)
+        vpx = {_LEGACY_GAME_FILE_KEYS.get(k, k): v for k, v in dict(entry).items()}
+        vpx["filename"] = gf_name
         for key in DETECTION_KEYS:
-            vpx[key] = _to_bool(vpx.get(key, False))
+            vpx[_LEGACY_GAME_FILE_KEYS.get(key, key)] = _to_bool(entry.get(key, False))
         vpx["altSoundExists"] = bool(table.altSoundExists)
         vpx["altColorExists"] = bool(table.altColorExists)
         vpx["pupPackExists"] = bool(table.pupPackExists)
+        meta["VPXFile"] = vpx
 
         row = {
             "tableDirName": table.tableDirName,
