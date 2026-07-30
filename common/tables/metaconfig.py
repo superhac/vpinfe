@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import uuid
 from urllib.parse import urlparse, parse_qs
 
 from common.tables.game_files import (
@@ -159,7 +158,11 @@ class MetaConfig:
         # Outside the filehash check below on purpose: the id must survive the table
         # file changing, which is exactly when altvpsid is cleared.
         if not str(vpinfe.get("id", "") or "").strip():
-            vpinfe["id"] = uuid.uuid4().hex
+            # Imported here because table_identity reaches back through table_metadata
+            # to this module. One minting rule, one place, no cycle.
+            from common.tables.table_identity import new_id
+
+            vpinfe["id"] = new_id()
 
         assets = self.data.get(ASSETS_KEY, {})
         previous_files = game_file_entries(self.data)

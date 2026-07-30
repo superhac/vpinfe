@@ -23,6 +23,36 @@ def _table(root: Path, name: str = "Example", meta: dict | None = None):
     )
 
 
+class MintedIdTests(unittest.TestCase):
+    """Short enough to read down a phone, long enough not to collide."""
+
+    def test_an_id_is_short_and_unambiguous(self) -> None:
+        minted = table_identity.new_id()
+
+        self.assertEqual(len(minted), table_identity.ID_LENGTH)
+        self.assertTrue(set(minted) <= set(table_identity.ID_ALPHABET))
+        self.assertFalse(set(minted) & set("0OIl"), "these are misread out loud")
+
+    def test_ids_do_not_repeat(self) -> None:
+        minted = [table_identity.new_id() for _ in range(5000)]
+
+        self.assertEqual(len(set(minted)), len(minted))
+
+    def test_a_metadata_rebuild_mints_the_same_shape(self) -> None:
+        """Two writers assign ids; only one format may come out of them."""
+        info = self.root / "Example.info"
+        MetaConfig(str(info)).writeConfigMeta({"vpsdata": {}, "vpxdata": {"filename": "x.vpx"}})
+
+        minted = json.loads(info.read_text(encoding="utf-8"))["VPinFE"]["id"]
+        self.assertEqual(len(minted), table_identity.ID_LENGTH)
+        self.assertTrue(set(minted) <= set(table_identity.ID_ALPHABET))
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+
+
 class TableIdTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = TemporaryDirectory()

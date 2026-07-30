@@ -7,7 +7,7 @@ and keeps its own. Reading never writes; minting is explicit. See docs/http_api.
 from __future__ import annotations
 
 import logging
-import uuid
+import secrets
 from collections.abc import Iterable
 from typing import Any
 
@@ -24,9 +24,15 @@ logger = logging.getLogger("vpinfe.common.tables.table_identity")
 ID_SECTION = "VPinFE"
 ID_KEY = "id"
 
+# No 0/O or I/l, so an id survives being read down a phone or retyped out of a bug
+# report. Ten of these is ~4e17 values; ensure_unique_ids re-mints the collision that
+# will not happen.
+ID_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+ID_LENGTH = 10
+
 
 def new_id() -> str:
-    return uuid.uuid4().hex
+    return "".join(secrets.choice(ID_ALPHABET) for _ in range(ID_LENGTH))
 
 
 def table_id(table) -> str:

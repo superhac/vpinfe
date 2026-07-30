@@ -419,7 +419,7 @@ Tables are addressed by an opaque local id — `common/table_identity.py`, store
 its `.info` under `VPinFE.id`:
 
 ```
-GET /api/v1/tables/6f1c9a4e8b7d4f02a1c35e9d7b204c88
+GET /api/v1/tables/tuF3WogthK
 ```
 
 The id is minted once and then stays put. It survives renames, VPSdb re-matches, and table
