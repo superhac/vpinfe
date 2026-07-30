@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import uuid
-from datetime import UTC, datetime
 from urllib.parse import urlparse, parse_qs
 
 from common.tables.game_files import (
@@ -13,6 +12,7 @@ from common.tables.game_files import (
     game_file_entries,
     recorded_default,
 )
+from common.timestamps import utc_now_iso
 
 logger = logging.getLogger("vpinfe.common.tables.metaconfig")
 
@@ -323,11 +323,10 @@ class MetaConfig:
         The base is hashed because a .dif applies to one exact file, and the delta's
         format is recorded rather than the code that applied it.
         """
-        applied = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
         entry = self.data.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
         entry["source"] = {
             "base": {"file": base_file, "hash": base_hash},
-            "patch": {"format": patch_format, "applied": applied},
+            "patch": {"format": patch_format, "applied": utc_now_iso()},
         }
         self.writeConfig()
 

@@ -1,6 +1,5 @@
 import json
 import logging
-from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -10,6 +9,7 @@ from common.app_version import get_version
 from common.config_access import SettingsConfig, VPinPlayConfig
 from common.tables.table_metadata import default_game_file
 from common.tables.tableparser import TableParser
+from common.timestamps import utc_now_iso
 
 
 logger = logging.getLogger("vpinfe.common.online.vpinplay_service")
@@ -50,10 +50,6 @@ def _normalize_service_endpoint(service_ip: str) -> str:
     if base.endswith("/api/v1"):
         return f"{base}/sync"
     return f"{base}/api/v1/sync"
-
-
-def _utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _build_table_payload(meta: dict) -> dict | None:
@@ -116,7 +112,7 @@ def _build_sync_payload(user_id: str, initials: str, machine_id: str, tables: li
             "initials": initials,
             "machineId": machine_id,
         },
-        "sentAt": _utc_now_iso(),
+        "sentAt": utc_now_iso(),
         "tables": tables,
     }
 
