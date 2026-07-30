@@ -122,8 +122,8 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "year": first_meta_value(meta, ("Info", "Year")) or gf_value("year"),
         "type": first_meta_value(meta, ("Info", "Type")) or gf_value("type"),
         "themes": as_string_list(first_meta_value(meta, ("Info", "Themes"), default=[])),
-        # Authors are per game file, never rolled up: half the multi-game-file folders
-        # in the test library name different authors in different ones.
+        # Authors are per game file, never rolled up: multi-game-file folders often
+        # name different authors in different ones.
         "authors": as_string_list(gf_value("authors", [])),
         "rom": gf_value("rom"),
         "version": gf_value("version"),

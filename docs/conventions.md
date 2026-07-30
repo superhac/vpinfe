@@ -206,10 +206,10 @@ A **declared ROM name is not a ROM asset.** A table's script sets `cGameName`, a
 
 Nothing recorded today tells the two apart, and the shape of the name is a hint rather
 than a rule: PinMAME sets look like `mm_109c`, DOF keys like `GTB2001_1971`. Measured
-against a 653-table library, **244 of the 579 tables that declare a name have no ROM
-file, and they are overwhelmingly EM tables that never needed one.** So "declares a ROM,
-has no ROM file" is a normal, healthy state for most of the library, and reporting ROM
-presence as a plain missing/present flag would call hundreds of working tables broken.
+across a large library, **most tables that declare a name have no ROM file, and they are
+overwhelmingly EM tables that never needed one.** So "declares a ROM, has no ROM file" is
+a normal, healthy state for most of a library, and reporting ROM presence as a plain
+missing/present flag would call hundreds of working tables broken.
 
 That is why ROM is a *dependency*, not an asset: assets are found by naming rule with no
 help from the script (the way VPX finds a `.directb2s` or a table `.ini`), while a
@@ -220,8 +220,8 @@ above. `required` on the chain comes from the `detectpinmame` flag: the script d
 the emulator when it calls `LoadVPM`, `vpmInit`, or creates `VPinMAME.Controller`
 directly — measured on the comment-stripped script, because EM tables commonly carry
 dead VPM code, and a commented-out `LoadVPM` is not a dependency. Measured against a
-145-table validation set: every ROM-installed table hits, every DOF-key EM table
-misses. One known ambiguity: some EM/PM recreations *conditionally* drive PinMAME for
+validation set covering both cases: every ROM-installed table hits, every DOF-key EM
+table misses. One known ambiguity: some EM/PM recreations *conditionally* drive PinMAME for
 chime sounds (the `cOptRom` pattern), and read as required when the player may run
 happily without the ROM. The flag lands in `VPXFile` on the next metadata rebuild;
 until then the chain reports `required: null`.
