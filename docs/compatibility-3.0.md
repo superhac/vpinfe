@@ -195,3 +195,16 @@ never write; only the PAR-01/02 first-run migrations do.
 
 The alphabetical sort that ignores a leading "The" is master behavior (shipped
 there in July 2026), not a 3.0 change.
+
+## Retiring the gate
+
+The gate is scaffolding for the transition and it dies with it: once this branch *is*
+master, there is nothing left to compare against. Whoever does that merge should delete
+`tests/test_parity.py`, `tests/parity_capture.py` and `tests/parity_baseline_master.json`,
+and drop the `!tests/parity_baseline_master.json` line from `.gitignore` — it only exists
+to punch the baseline back through the blanket `*.json` rule, and removing the file
+without it leaves a dangling negation.
+
+This file stays. By then it stops being a gate and becomes the list of what changed in
+3.0 and why: upgrade notes for anyone coming from 2.x, and the first place to look when a
+theme or an API consumer breaks.
