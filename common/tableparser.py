@@ -5,6 +5,7 @@ from time import perf_counter
 from common.config_access import MediaConfig
 from common.media_paths import apply_media_paths
 from common.table import Table
+from common.info_restore import backup_names, converted_by_newer, restorable_backup
 from common.metaconfig import InvalidMetaConfigError, MetaConfig
 
 
@@ -94,6 +95,13 @@ class TableParser:
                 has_medias_dir="medias" in table_subdirs,
             )
             self.loadMetaData(table)
+
+            # Only a table a newer VPinFE actually converted has anything to put back,
+            # and only then is a saved copy worth opening to check we can read it.
+            table.info_restorable = bool(
+                converted_by_newer(table.metaConfig)
+                and backup_names(table_contents, info_name)
+                and restorable_backup(table_dir, names=table_contents))
 
             self.tables.append(table)
 

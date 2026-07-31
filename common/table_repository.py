@@ -44,6 +44,15 @@ def refresh_tables() -> List[Any]:
     return ensure_tables_loaded(reload=True)
 
 
+def restorable_table_names() -> List[str]:
+    """Folders holding a .info saved by a newer VPinFE, so the Tables page can offer to
+    put them back. Read off the loaded library, which listed every folder to get there."""
+    return sorted(
+        (t.tableDirName for t in ensure_tables_loaded() if getattr(t, "info_restorable", False)),
+        key=str.lower,
+    )
+
+
 def refresh_table(table_path: str) -> List[Any]:
     normalized = str(Path(table_path).expanduser().resolve())
     tables = refresh_tables()
