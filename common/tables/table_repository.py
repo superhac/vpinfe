@@ -54,6 +54,27 @@ def refresh_tables() -> List[Any]:
     return ensure_tables_loaded(reload=True)
 
 
+def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
+    """How many tables could be converted, and how many have something to restore.
+
+    Both come off the loaded library, which read every .info and listed every folder to
+    get there. A second walk to answer this would cost what the scan already paid.
+    """
+    tables = ensure_tables_loaded(reload=reload)
+    return {
+        "pending_convert": sum(1 for t in tables if getattr(t, "info_pending_convert", False)),
+        "restorable": sum(1 for t in tables if getattr(t, "info_restorable", False)),
+    }
+
+
+def restorable_table_names() -> List[str]:
+    """Folders holding a saved copy of their .info, for the list a restore dialog shows."""
+    return sorted(
+        (t.tableDirName for t in ensure_tables_loaded() if getattr(t, "info_restorable", False)),
+        key=str.lower,
+    )
+
+
 def refresh_table(table_path: str) -> List[Any]:
     """Re-read one table folder, not the library.
 

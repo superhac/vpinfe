@@ -10,6 +10,7 @@ from common.tables.game_files import (
     game_file_names,
     recorded_default,
 )
+from common.tables.info_migration import backup_names, restorable_backup
 from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
 from common.tables.table import Table
 from common.tables.table_metadata import section, vpinfe_section
@@ -98,6 +99,11 @@ class TableParser:
             return None
 
         info_name = f"{table.tableDirName}.info"
+        # Only folders that hold a backup read one, which for a library nothing has
+        # converted is none of them.
+        table.info_restorable = bool(
+            backup_names(table_contents, info_name)
+            and restorable_backup(table_dir, names=table_contents))
         if info_name not in table_contents:
             self.missing_tables.append({
                 'folder': table.tableDirName,
@@ -203,6 +209,7 @@ class TableParser:
             logger.error("Invalid metadata for table '%s': %s", Table.tableDirName, exc)
             raise
         Table.metaConfig = meta.data
+        Table.info_pending_convert = meta.pending_migration
 
     def getTable(self, index):
         return self.tables[index]
