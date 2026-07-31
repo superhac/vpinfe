@@ -55,8 +55,25 @@ def refresh_tables() -> List[Any]:
 
 
 def refresh_table(table_path: str) -> List[Any]:
+    """Re-read one table folder, not the library.
+
+    The whole-library reload this used to do is why setting a star rating on a big
+    network share took minutes: every caller changes one folder and then paid to look
+    at all of them.
+    """
     normalized = str(Path(table_path).expanduser().resolve())
-    tables = refresh_tables()
+    started_at = perf_counter()
+    with _LOCK:
+        if _PARSER is None or not _PARSER.getTableCount():
+            reloaded = None
+        else:
+            reloaded = _PARSER.reload_table(normalized)
+            tables = list(_PARSER.getAllTables())
+    if reloaded is None:
+        # Nothing loaded yet, so there is no one table to refresh - read the library.
+        tables = ensure_tables_loaded(reload=True)
+
+    logger.debug("refresh_table %s elapsed=%.3fs", normalized, perf_counter() - started_at)
     return [table for table in tables if str(Path(table.fullPathTable).resolve()) == normalized]
 
 
