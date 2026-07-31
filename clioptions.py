@@ -7,7 +7,7 @@ from screeninfo import get_monitors
 from common.iniconfig import IniConfig
 from common.logging_config import get_logger
 from common.paths import VPINFE_INI_PATH, ensure_config_dir
-from common.tables import metadata_service, table_report_service
+from common.tables import info_maintenance, metadata_service, table_report_service
 from frontend.customhttpserver import CustomHTTPServer
 
 logger = get_logger("vpinfe.cli")
@@ -28,6 +28,22 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName:
         log_cb=log_cb,
         iniconfig=iniconfig,
     )
+
+
+def _table_root_dir():
+    from common.config_access import SettingsConfig
+
+    return SettingsConfig.from_config(iniconfig).table_root_dir
+
+
+def convert_info_files(table_name: str = None, progress_cb=None, log_cb=None):
+    return info_maintenance.convert_library(
+        _table_root_dir(), table_name=table_name, progress_cb=progress_cb, log_cb=log_cb)
+
+
+def restore_info_files(table_name: str = None, progress_cb=None, log_cb=None):
+    return info_maintenance.restore_library(
+        _table_root_dir(), table_name=table_name, progress_cb=progress_cb, log_cb=log_cb)
 
 
 def listMissingTables():
@@ -97,7 +113,9 @@ def parseArgs():
     parser.add_argument("--no-media", action="store_true", help="Do not download images when building meta.ini")
     parser.add_argument("--update-all", action="store_true", help="Reparse all tables when building meta.ini")
     parser.add_argument("--user-media", action="store_true", help="With --buildmeta: skip vpinmediadb downloads entirely and supply all media yourself")
-    parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta")
+    parser.add_argument("--convert-info", action="store_true", help="Convert every table's .info file to the current format in one pass, keeping a copy of each old file. Tables convert as you use them anyway; this just does it all now")
+    parser.add_argument("--restore-info", action="store_true", help="Put back the .info files saved before they were converted, for every table that has one. Your current .info is kept first")
+    parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta, --convert-info or --restore-info")
 
     args, unknown = parser.parse_known_args()  # macOS-friendly parsing
 
@@ -146,6 +164,14 @@ def parseArgs():
     if args.claim_user_media:
         logger.info("--claim-user-media is deprecated and does nothing. Media that is "
                     "not vpinmediadb's is left alone automatically; no need to claim it.")
+        sys.exit()
+
+    if args.convert_info:
+        convert_info_files(table_name=args.table)
+        sys.exit()
+
+    if args.restore_info:
+        restore_info_files(table_name=args.table)
         sys.exit()
 
     if args.buildmeta:

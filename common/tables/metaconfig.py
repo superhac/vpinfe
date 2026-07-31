@@ -119,6 +119,15 @@ class MetaConfig:
         self._normalize_detection_flags()
         self._migrate_vpinfe()
 
+    @property
+    def pending_migration(self) -> bool:
+        """Whether this file converted on read and has not been written back yet.
+
+        The lazy path means "has the library converted" has no answer without asking every
+        file. This is how the caller asks one.
+        """
+        return bool(self._pre_migration)
+
     def writeConfigMeta(self, configdata):
         """
         Build the .info JSON structure
