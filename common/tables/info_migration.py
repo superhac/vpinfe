@@ -7,11 +7,16 @@ stamp or predates the idea. See INFO-SCHEMA.local.md for why each section moved.
 from __future__ import annotations
 
 import json
+import logging
 import os
+import shutil
 from datetime import UTC, datetime
+from pathlib import Path
 
 from common.tables.game_files import GAME_FILES_KEY, parse_authors
 from common.timestamps import iso_from_asctime, iso_from_authored_date
+
+logger = logging.getLogger("vpinfe.common.tables.info_migration")
 
 SCHEMA_KEY = "schema"
 CURRENT_SCHEMA = 2
@@ -68,11 +73,18 @@ def is_versioned(data) -> bool:
 
 
 def needs_migration(data) -> bool:
-    """An unversioned file carrying anything 2.x wrote."""
-    if not isinstance(data, dict) or is_versioned(data):
+    """An unversioned file carrying anything 2.x wrote, or a migrated one 2.x wrote again.
+
+    We never write VPXFile or Medias, so finding either in a versioned file is proof a 2.x
+    build rebuilt it after the migration - and its game_files went stale the moment that
+    happened. Checked ahead of the version stamp, which is the thing not to trust here.
+    """
+    if not isinstance(data, dict):
         return False
     if any(name in data for name in _DROPPED_SECTIONS):
         return True
+    if is_versioned(data):
+        return False
     user = data.get("User")
     if isinstance(user, dict) and "FrontendDOFEvent" in user:
         return True
@@ -131,7 +143,12 @@ def migrate(data: dict) -> dict:
     game_files = dict(data.get(GAME_FILES_KEY) or {})
     filename = str(vpx_file.get("filename", "") or "").strip()
     if filename:
-        game_files[filename] = _game_file_entry(vpx_file, authors)
+        # Refresh what VPXFile covers and leave the rest - hidden, source, play stats.
+        # Nothing to keep on a first migration; everything to lose when 2.x wrote the
+        # file again and this runs over an entry we already built.
+        prior = game_files.get(filename)
+        prior = prior if isinstance(prior, dict) else {}
+        game_files[filename] = {**prior, **_game_file_entry(vpx_file, authors)}
         # Every theme so far assumes one table means one game file, so the file 2.x
         # described stays the one a single-game-file consumer gets.
         vpinfe.setdefault("default_game_file", filename)
@@ -152,6 +169,66 @@ def backup_path(info_path, when: datetime | None = None) -> str:
     return f"{info_path}{BACKUP_MARKER}{stamp}"
 
 
+def backup_names(names, info_name: str) -> list[str]:
+    """The pre-migration copies in a folder listing, newest first.
+
+    Takes names rather than a path so this can ride a scan the caller is already doing:
+    on a network share the listing is the expensive part, and the library walk has it.
+    The timestamp is ISO 8601 basic, so lexical order is chronological.
+    """
+    prefix = info_name + BACKUP_MARKER
+    return sorted((n for n in names if n.startswith(prefix)), reverse=True)
+
+
+def restorable_backup(table_dir, max_schema: int = CURRENT_SCHEMA, names=None) -> str | None:
+    """The backup this build would restore in this folder, or None.
+
+    Newest first, and the first one whose schema this build can read wins. Older ones stay
+    as deeper restore points, and a backup written by a *newer* build is stepped over
+    rather than ending the search - the one behind it is usually what is wanted.
+
+    Reads each candidate, so callers pass `names` when they have already listed the folder.
+    Only folders that hold a backup pay for it, which for anyone who never converted is
+    none of them.
+    """
+    table_dir = Path(table_dir)
+    if names is None:
+        try:
+            names = os.listdir(table_dir)
+        except OSError:
+            return None
+    info_name = f"{table_dir.name}.info"
+    for name in backup_names(names, info_name):
+        candidate = table_dir / name
+        try:
+            schema = backup_schema(candidate)
+        except (OSError, ValueError):
+            logger.warning("Unreadable backup, skipping: %s", candidate)
+            continue
+        if schema is None or schema <= max_schema:
+            return str(candidate)
+    return None
+
+
+def backup_schema(path) -> int | None:
+    """The schema a backup holds, or None when it predates versioning. Raises if unreadable."""
+    with open(path, encoding="utf-8") as handle:
+        data = json.load(handle)
+    section = data.get("vpinfe") if isinstance(data, dict) else None
+    if not isinstance(section, dict):
+        return None
+    return int(section.get(SCHEMA_KEY) or 0) or None
+
+
+def _free_backup_path(info_path, when: datetime | None = None) -> str:
+    path = backup_path(info_path, when)
+    while os.path.exists(path):        # never overwrite a restore point
+        when = (when or datetime.now(UTC))
+        when = when.replace(second=(when.second + 1) % 60)
+        path = backup_path(info_path, when)
+    return path
+
+
 def write_backup(info_path, original_text: str, when: datetime | None = None) -> str:
     """Copy the file aside before it is rewritten, and prove the copy is readable.
 
@@ -159,13 +236,21 @@ def write_backup(info_path, original_text: str, when: datetime | None = None) ->
     discovered at the moment somebody needs it.
     """
     json.loads(original_text)
-    path = backup_path(info_path, when)
-    while os.path.exists(path):        # never overwrite a restore point
-        when = (when or datetime.now(UTC))
-        when = when.replace(second=(when.second + 1) % 60)
-        path = backup_path(info_path, when)
+    path = _free_backup_path(info_path, when)
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(original_text)
     with open(path, encoding="utf-8") as handle:
         json.load(handle)
+    return path
+
+
+def copy_aside(info_path, when: datetime | None = None) -> str:
+    """Keep the current file before a restore replaces it, whatever state it is in.
+
+    Deliberately does not check the JSON the way write_backup does. A file too broken to
+    parse is a file somebody is restoring *because* it is broken, and refusing to keep it
+    would block the rescue to protect a copy nobody wants back.
+    """
+    path = _free_backup_path(info_path, when)
+    shutil.copy2(info_path, path)
     return path

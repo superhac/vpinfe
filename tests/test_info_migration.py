@@ -43,7 +43,19 @@ class DetectionTests(unittest.TestCase):
         self.assertTrue(needs_migration(LEGACY))
 
     def test_a_stamped_file_is_left_alone(self):
-        self.assertFalse(needs_migration({"vpinfe": {"schema": 2}, "VPXFile": {}}))
+        self.assertFalse(needs_migration({"vpinfe": {"schema": 2}, "game_files": {}}))
+
+    def test_a_stamped_file_2x_wrote_again_is_migrated_again(self):
+        """We never write VPXFile, so finding one in a stamped file means a 2.x build
+        rebuilt it after the migration and its game_files is stale. Trusting the stamp
+        here is the bug 5db3f3d fixed, one release later."""
+        rolled_back = {"vpinfe": {"schema": 2}, "game_files": {"X.vpx": {"rom": "old"}},
+                       "VPXFile": {"filename": "X.vpx", "rom": "new"}}
+
+        self.assertTrue(needs_migration(rolled_back))
+
+    def test_a_stamped_file_2x_rebuilt_media_into_is_migrated_again(self):
+        self.assertTrue(needs_migration({"vpinfe": {"schema": 2}, "Medias": {"wheel": {}}}))
 
     def test_the_old_sections_own_schema_does_not_count_as_migrated(self):
         """A 3.0 build before the rename stamped VPinFE.schema, which numbered that
@@ -101,6 +113,26 @@ class WhatSurvivesTests(unittest.TestCase):
         self.assertEqual(vpinfe["plugin_profile"], "no-dmd")
         self.assertEqual(vpinfe["alt_title"], "Doctor Dude")
         self.assertEqual(vpinfe["alt_vpsid"], "vps-override")
+
+    def test_rerunning_over_a_built_entry_keeps_what_only_we_record(self):
+        """The re-entry case: 2.x rebuilt a file we had already converted. Its VPXFile is
+        the fresher parse, but hiding, origins and stats exist only on our side and
+        replacing the entry outright would delete them."""
+        rolled_back = dict(LEGACY)
+        rolled_back["vpinfe"] = {"schema": 2}
+        rolled_back["game_files"] = {"Dr. Dude.vpx": {
+            "hidden": True,
+            "source": {"vps_file_id": "f-1"},
+            "play": {"start_count": 9},
+            "rom": "stale",
+        }}
+
+        entry = migrate(rolled_back)["game_files"]["Dr. Dude.vpx"]
+
+        self.assertTrue(entry["hidden"])
+        self.assertEqual(entry["source"], {"vps_file_id": "f-1"})
+        self.assertEqual(entry["play"], {"start_count": 9})
+        self.assertEqual(entry["rom"], "dd_l2", "the fresher parse wins on parsed fields")
 
     def test_the_table_file_becomes_a_game_file(self):
         entry = self.after["game_files"]["Dr. Dude.vpx"]
