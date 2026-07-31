@@ -12,6 +12,7 @@ from managerui.pages.table_detail_dialog import open_table_dialog
 from managerui.pages.table_import_dialog import open_import_table_dialog
 from managerui.pages.dnd_drop_zone import create_drop_zone, enable_row_drops, DropContext
 from managerui.pages.table_match_dialog import open_match_vps_dialog, open_missing_tables_dialog
+from managerui.pages.info_maintenance_dialogs import maintenance_menu, render_convert_banner
 from managerui.services import table_service
 from managerui.services import table_index_service
 from managerui.services.media_service import invalidate_media_cache
@@ -608,6 +609,14 @@ def render_panel(tab=None):
                     import_btn = ui.button("Import Table", icon="upload").props("color=accent").style('border-radius: 0;')
 
                     import_btn.on_click(lambda: open_import_table_dialog(perform_scan))
+
+                    # Both info operations live behind one control, in the same place in
+                    # every release: whoever needs the restore has just downgraded.
+                    maintenance_menu(on_done=lambda: asyncio.create_task(perform_scan(silent=True)))
+
+        # Offers a one-pass conversion only while one is possible, and answers the
+        # question the lazy path otherwise leaves open: is my library converted yet.
+        render_convert_banner(on_done=lambda: asyncio.create_task(perform_scan(silent=True)))
 
         def _dnd_context() -> DropContext:
             selected = table.selected or []

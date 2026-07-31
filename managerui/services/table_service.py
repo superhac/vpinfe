@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 from common import jobs
 from common.iniconfig import IniConfig
 from common.config_access import SettingsConfig
-from common.tables import table_repository
+from common.tables import info_maintenance, table_repository
 from common.tables.game_files import recorded_default
 from common.tables.table_repository import get_missing_tables, get_table_rows, refresh_table
 from common.tables import metadata_service
@@ -401,6 +401,39 @@ def build_metadata(*args, progress_cb=None, log_cb=None, job=None, **kwargs):
         return _scan(job, *args, **kwargs)
     with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as tracked:
         return _scan(tracked, *args, **kwargs)
+
+
+def info_maintenance_counts(reload: bool = False):
+    """What the Tables page needs to decide whether to offer conversion or a restore."""
+    return table_repository.info_maintenance_counts(reload=reload)
+
+
+def restorable_table_names():
+    """Folders with a saved .info, for the read-only list the restore dialog shows."""
+    return table_repository.restorable_table_names()
+
+
+def convert_info(progress_cb=None, log_cb=None, **kwargs):
+    """Convert every table's .info in one pass.
+
+    Registered as a library scan rather than a kind of its own: the point of the kind is
+    that two things rewriting the same .info files must not overlap, and this rewrites
+    exactly the files a scan does.
+    """
+    with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as job:
+        result = info_maintenance.convert_library(
+            get_tables_path(), progress_cb=job.progress, log_cb=job.log, **kwargs)
+    table_repository.refresh_tables()
+    return result
+
+
+def restore_info(progress_cb=None, log_cb=None, **kwargs):
+    """Put back the .info files saved before conversion, for every table that has one."""
+    with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as job:
+        result = info_maintenance.restore_library(
+            get_tables_path(), progress_cb=job.progress, log_cb=job.log, **kwargs)
+    table_repository.refresh_tables()
+    return result
 
 
 def apply_vpx_patches(*args, **kwargs):
