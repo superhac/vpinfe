@@ -44,7 +44,25 @@ class DetectionTests(unittest.TestCase):
 
     def test_a_stamped_file_is_left_alone(self):
         self.assertFalse(needs_migration({"vpinfe": {"schema": 2}, "VPXFile": {}}))
-        self.assertFalse(needs_migration({"VPinFE": {"schema": 2}}))
+
+    def test_the_old_sections_own_schema_does_not_count_as_migrated(self):
+        """A 3.0 build before the rename stamped VPinFE.schema, which numbered that
+        section's shape rather than the file's. Reading it as "already migrated" leaves
+        the file half converted - VPXFile still there, no game_files, and every consumer
+        of them empty."""
+        half = {"VPinFE": {"schema": 2, "altvpsid": "", "id": "f7e3e722"},
+                "vpinfe": {"id": "mJ8F4RqD8U"},
+                "VPXFile": {"filename": "X.vpx", "rom": "afm", "detectssf": True},
+                "Medias": {}, "Info": {}, "User": {}}
+
+        self.assertTrue(needs_migration(half))
+
+        after = migrate(half)
+        self.assertEqual(after["game_files"]["X.vpx"]["rom"], "afm")
+        self.assertTrue(after["game_files"]["X.vpx"]["detect_ssf"])
+        self.assertNotIn("VPXFile", after)
+        self.assertEqual(after["vpinfe"]["id"], "mJ8F4RqD8U",
+                         "the id this build already minted wins over the old one")
 
     def test_a_file_we_wrote_is_not_migrated_again(self):
         self.assertFalse(needs_migration(migrate(LEGACY)))

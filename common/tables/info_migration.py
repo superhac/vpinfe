@@ -54,14 +54,17 @@ _DROPPED_INFO_KEYS = ("Rom",)
 
 
 def is_versioned(data) -> bool:
-    """Whether this file has been through a schema, in either section name."""
+    """Whether this file has been through the migration.
+
+    Only the section we write today counts. A `schema` in the old PascalCase section is
+    a different number that meant something else - the shape of that section alone, from
+    a 3.0 build before the rename - and reading it as "already migrated" leaves the file
+    half converted: no game_files, and every consumer of them empty.
+    """
     if not isinstance(data, dict):
         return False
-    for name in ("vpinfe", "VPinFE"):
-        section = data.get(name)
-        if isinstance(section, dict) and section.get(SCHEMA_KEY):
-            return True
-    return False
+    section = data.get("vpinfe")
+    return isinstance(section, dict) and bool(section.get(SCHEMA_KEY))
 
 
 def needs_migration(data) -> bool:
