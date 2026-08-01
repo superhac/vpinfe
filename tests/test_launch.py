@@ -70,7 +70,7 @@ class LaunchTests(unittest.TestCase):
                 mock.patch.object(launch, "game_play_service") as play, \
                 mock.patch.multiple(launch, **patches):
             settings_cls.from_config.return_value = _settings()
-            launch.launch_table(game or _game(), types.SimpleNamespace(config={}),
+            launch.launch_game(game or _game(), types.SimpleNamespace(config={}),
                                 source=launch_state.SOURCE_API, popen=popen)
         return play
 
@@ -83,17 +83,17 @@ class LifecycleTests(LaunchTests):
 
         self._run(popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
 
-        self.assertEqual(seen, ["table.launching", "table.launched", "table.exited"])
+        self.assertEqual(seen, ["game.launching", "game.launched", "game.exited"])
 
     def test_a_game_that_never_starts_reports_no_launched(self) -> None:
-        """table.launched means the table is up, not that a process exists."""
+        """game.launched means the table is up, not that a process exists."""
         seen = []
         for name in (events.GAME_LAUNCHING, events.GAME_LAUNCHED, events.GAME_EXITED):
             events.subscribe(name, lambda _n=name, **_: seen.append(_n))
 
         self._run(popen=lambda cmd, **k: _FakePopen(["some other output\n"]))
 
-        self.assertEqual(seen, ["table.launching", "table.exited"])
+        self.assertEqual(seen, ["game.launching", "game.exited"])
 
     def test_exited_still_fires_when_the_launch_blows_up(self) -> None:
         """Whoever heard launching has to hear exited, or the frontend never gets

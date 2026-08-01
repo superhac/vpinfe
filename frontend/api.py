@@ -41,12 +41,12 @@ API_ALLOWED_METHODS = {
     'close_app',
     'shutdown_system',
     'get_monitors',
-    'get_tables',
-    'get_initial_table_index',
+    'get_games',
+    'get_initial_game_index',
     'get_collections',
     'get_collections_metadata',
     'get_collection_image_url',
-    'set_tables_by_collection',
+    'set_games_by_collection',
     'save_filter_collection',
     'get_current_filter_state',
     'get_current_sort_state',
@@ -66,10 +66,10 @@ API_ALLOWED_METHODS = {
     'get_keymapping',
     'get_mainmenu_config',
     'set_button_mapping',
-    'launch_table',
-    'notify_table_selected',
-    'get_table_rating',
-    'set_table_rating',
+    'launch_game',
+    'notify_game_selected',
+    'get_game_rating',
+    'set_game_rating',
     'build_metadata',
     'get_theme_config',
     'get_theme_name',
@@ -78,8 +78,8 @@ API_ALLOWED_METHODS = {
     'get_temporary_vpinplay_profile',
     'set_temporary_vpinplay_profile',
     'clear_temporary_vpinplay_profile',
-    'get_table_orientation',
-    'get_table_rotation',
+    'get_playfield_orientation',
+    'get_playfield_rotation',
     'get_splashscreen_enabled',
     'get_audio_muted',
     'set_audio_muted',
@@ -94,7 +94,36 @@ API_ALLOWED_METHODS = {
 }
 
 
+
+# Themes written before the vocabulary rename call these names. The allowlist carries
+# both spellings and __getattr__ forwards the old one, so an existing theme keeps working
+# without a contract bump - the payload it gets back is identical either way.
+_RENAMED_METHODS = {
+    'get_tables': 'get_games',
+    'get_initial_table_index': 'get_initial_game_index',
+    'set_tables_by_collection': 'set_games_by_collection',
+    'launch_table': 'launch_game',
+    'notify_table_selected': 'notify_game_selected',
+    'get_table_rating': 'get_game_rating',
+    'set_table_rating': 'set_game_rating',
+    'get_table_orientation': 'get_playfield_orientation',
+    'get_table_rotation': 'get_playfield_rotation',
+}
+
+API_ALLOWED_METHODS |= set(_RENAMED_METHODS)
+
+
 class API:
+
+    def __getattr__(self, name):
+        """Forward a pre-rename method name to its replacement.
+
+        Only reached when normal lookup fails, so it costs nothing for current names.
+        """
+        renamed = _RENAMED_METHODS.get(name)
+        if renamed is None:
+            raise AttributeError(name)
+        return getattr(self, renamed)
     def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None):
         self._iniConfig = iniConfig
         self.window_name = window_name          # 'bg', 'dmd', or 'table'
@@ -115,7 +144,7 @@ class API:
         startup_collection = self._iniConfig.config['Settings'].get('startup_collection', '').strip()
         if startup_collection:
             try:
-                self.set_tables_by_collection(startup_collection)
+                self.set_games_by_collection(startup_collection)
             except Exception:
                 logger.exception("Could not load startup collection '%s'", startup_collection)
 
@@ -184,14 +213,14 @@ class API:
         if self.ws_bridge:
             self.ws_bridge.send_event_all_with_iframe(message)
 
-    def get_tables(self, reset=False):
+    def get_games(self, reset=False):
         if reset:
             self._reset_to_default_view()
         self.jsGameDictData = game_state.games_json(self.filteredGames,
                                                        self._theme_contract())
         return self.jsGameDictData
 
-    def get_initial_table_index(self):
+    def get_initial_game_index(self):
         # Position the wheel on the last-launched table at startup. Resolved
         # against the current (possibly filtered) view; 0 when disabled or unfound.
         return last_game.resolve_last_game_index(self._iniConfig, self.filteredGames)
@@ -206,7 +235,7 @@ class API:
     def get_collection_image_url(self, collection):
         return get_collection_image_url(collection)
 
-    def set_tables_by_collection(self, collection):
+    def set_games_by_collection(self, collection):
         """Set filtered tables based on collection from collections.ini."""
         game_state.apply_collection(self, collection)
 
@@ -341,7 +370,7 @@ class API:
         """Set a gamepad button mapping and save to config."""
         return input_api.set_button_mapping(self._iniConfig, button_name, button_index)
 
-    def launch_table(self, index):
+    def launch_game(self, index):
         """Launch what the wheel is sitting on.
 
         The windows hear about it through the bus like everyone else, so nothing
@@ -354,14 +383,14 @@ class API:
             return {"success": False, "reason": "invalid_index"}
 
         try:
-            launch.launch_table(game, self._iniConfig,
+            launch.launch_game(game, self._iniConfig,
                                 source=launch_state.SOURCE_FRONTEND)
         except launch.LaunchUnavailableError as exc:
             logger.warning("Cannot launch %s: %s", game.tableDirName, exc)
             return {"success": False, "reason": str(exc)}
         return {"success": True}
 
-    def notify_table_selected(self, index):
+    def notify_game_selected(self, index):
         """Announce that the player moved to this table.
 
         Whatever reacts - a DOF effect, the real DMD, something not written yet -
@@ -377,13 +406,13 @@ class API:
         events.emit(events.GAME_SELECTED, game=game, ini_config=self._iniConfig)
         return {"success": True}
 
-    def get_table_rating(self, index):
+    def get_game_rating(self, index):
         """Get User.Rating for a table index in the current filtered list."""
-        return game_state.get_table_rating(self.filteredGames, index)
+        return game_state.get_game_rating(self.filteredGames, index)
 
-    def set_table_rating(self, index, rating):
+    def set_game_rating(self, index, rating):
         """Set User.Rating (0-5) for a table index in the current filtered list."""
-        result = game_state.set_table_rating(self.filteredGames, index, rating)
+        result = game_state.set_game_rating(self.filteredGames, index, rating)
         logger.info("Updated User.Rating for %s -> %s", self.filteredGames[index].tableDirName, result["rating"])
         return result
 
@@ -453,11 +482,11 @@ class API:
         })
         return result
 
-    def get_table_orientation(self):
-        return config_api.get_table_orientation(self._iniConfig.config)
+    def get_playfield_orientation(self):
+        return config_api.get_playfield_orientation(self._iniConfig.config)
 
-    def get_table_rotation(self):
-        return config_api.get_table_rotation(self._iniConfig.config)
+    def get_playfield_rotation(self):
+        return config_api.get_playfield_rotation(self._iniConfig.config)
 
     def get_cab_mode(self):
         return config_api.get_cab_mode(self._iniConfig.config)

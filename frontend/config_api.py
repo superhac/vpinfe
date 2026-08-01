@@ -177,11 +177,11 @@ def get_media_priorities(config):
     return MediaConfig.from_config(config).priority_payload()
 
 
-def get_table_orientation(config):
+def get_playfield_orientation(config):
     return DisplayConfig.from_config(config).playfield_orientation
 
 
-def get_table_rotation(config):
+def get_playfield_rotation(config):
     return DisplayConfig.from_config(config).playfield_rotation
 
 

@@ -170,7 +170,7 @@ If your theme supports cabinets or portrait-style table layouts, build that into
 There are two different rotation concepts to keep separate:
 
 - **OS monitor orientation**: If the user sets the playfield monitor to Portrait in the operating system, Chromium receives a portrait-shaped window. For example, CSS `100vw` is the narrow edge and `100vh` is the long edge.
-- **VPinFE table rotation**: `[Displays] playfieldrotation` is exposed to themes as `vpin.tableRotation` and `get_table_rotation`. This tells the theme how to rotate its playfield UI inside that Chromium window.
+- **VPinFE table rotation**: `[Displays] playfieldrotation` is exposed to themes as `vpin.tableRotation` and `get_playfield_rotation`. This tells the theme how to rotate its playfield UI inside that Chromium window.
 
 VPinFE does not automatically rotate arbitrary theme markup. The backend launches Chromium on the configured monitor and `vpinfe-core.js` loads display values during `vpin.ready`; the theme decides how to use those values.
 
@@ -178,7 +178,7 @@ These calls are especially useful:
 
 ```javascript
 const cabMode = await vpin.call("get_cab_mode");
-const rotationDegree = await vpin.call("get_table_rotation");
+const rotationDegree = await vpin.call("get_playfield_rotation");
 ```
 
 After `await vpin.ready`, the same values are also available as:
@@ -191,8 +191,8 @@ vpin.tableRotation;    // degrees, default 0
 Do not infer cabinet Portrait mode from `window.innerWidth` and `window.innerHeight`. VPinFE can run through the bundled embedded Chromium build or through a user-installed Chrome, and desktop window bounds can be affected by OS display orientation, monitor placement, DPI behavior, and theme transforms. Treat viewport dimensions as layout measurements only. Use VPinFE's display config as the source of truth:
 
 ```javascript
-const tableOrientation = String(await vpin.call("get_table_orientation") || "").toLowerCase();
-const tableRotation = Number(await vpin.call("get_table_rotation")) || 0;
+const tableOrientation = String(await vpin.call("get_playfield_orientation") || "").toLowerCase();
+const tableRotation = Number(await vpin.call("get_playfield_rotation")) || 0;
 const tableDisplayPortrait = tableOrientation === "portrait";
 const normalizedRotation = ((tableRotation % 360) + 360) % 360;
 ```
@@ -957,8 +957,8 @@ The following methods are available via `vpin.call()`:
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `get_tables` | `reset=false` | `string` (JSON) | Returns JSON string of the current (filtered) table list. Pass `true` to reset to the full unfiltered list. Each table object includes paths, media paths, addon flags, and metadata. |
-| `launch_table` | `index` | — | Launches the VPX table at the given index. Blocks until the table exits. Automatically tracks play in the "Last Played" collection. Sends `TableLaunching` before launch, `TableRunning` when the table finishes loading, and `TableLaunchComplete` when it exits. |
+| `get_games` | `reset=false` | `string` (JSON) | Returns JSON string of the current (filtered) table list. Pass `true` to reset to the full unfiltered list. Each table object includes paths, media paths, addon flags, and metadata. |
+| `launch_game` | `index` | — | Launches the VPX table at the given index. Blocks until the table exits. Automatically tracks play in the "Last Played" collection. Sends `TableLaunching` before launch, `TableRunning` when the table finishes loading, and `TableLaunchComplete` when it exits. |
 | `build_metadata` | `download_media=true`, `update_all=false` | `object` | Triggers a background metadata build/refresh. Sends progress events (`buildmeta_progress`, `buildmeta_log`, `buildmeta_complete`, `buildmeta_error`) to all windows. Returns `{success, message}`. |
 
 ##### Collections
@@ -968,7 +968,7 @@ The following methods are available via `vpin.call()`:
 | `get_collections` | — | `array` | Returns list of collection names from `collections.ini`. |
 | `get_collections_metadata` | — | `array` | Returns collection objects with `name`, `type`, `is_filter`, `image`, `image_url`, and `table_count`. `image_url` is a theme-server URL such as `/collection_icons/favorites.png`, or an empty string when no image is set. |
 | `get_collection_image_url` | `collection` | `string` | Returns the image URL for one collection, or an empty string when no image is set. |
-| `set_tables_by_collection` | `collection` | — | Filters the table list by the named collection. Supports both VPS ID-based and filter-based collections. |
+| `set_games_by_collection` | `collection` | — | Filters the table list by the named collection. Supports both VPS ID-based and filter-based collections. |
 | `save_filter_collection` | `name`, `letter`, `theme`, `table_type`, `manufacturer`, `year`, `sort_by`, `rating`, `rating_or_higher`, `order_by` | `object` | Saves the current filter settings as a named collection. `order_by` is `"Descending"` or `"Ascending"` and defaults to `"Descending"`. Returns `{success, message}`. |
 | `get_current_collection` | — | `string` | Returns the name of the currently active collection, or `"None"`. |
 
@@ -1013,8 +1013,8 @@ The following methods are available via `vpin.call()`:
 | `get_theme_config` | — | `object\|null` | Loads and returns the theme's current configuration values. When a theme provides `theme.json`, VPinFE flattens the option `value` fields into the object returned to theme code. |
 | `get_theme_assets_port` | — | `number` | Returns the HTTP server port (default `8000`). |
 | `get_theme_index_page` | — | `string` | Returns the full URL for this window's theme index page. |
-| `get_table_orientation` | — | `string` | Returns the table orientation from config (`"landscape"` or `"portrait"`). |
-| `get_table_rotation` | — | `number` | Returns the table rotation angle in degrees from config (default `0`). |
+| `get_playfield_orientation` | — | `string` | Returns the table orientation from config (`"landscape"` or `"portrait"`). |
+| `get_playfield_rotation` | — | `number` | Returns the table rotation angle in degrees from config (default `0`). |
 
 ##### URL Query Parameters
 

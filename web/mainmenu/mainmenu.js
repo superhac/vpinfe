@@ -293,7 +293,7 @@ async function refreshRatingMenuLabel(indexHint = null) {
       currentTableIndex = idx;
     }
 
-    const savedRating = await window.parent.vpin.call('get_table_rating', idx);
+    const savedRating = await window.parent.vpin.call('get_game_rating', idx);
     if (requestSeq !== ratingLabelRequestSeq) return;
     ratingItem.innerHTML = `Rating (<span style="color:#ffd84d;">${ratingStarsText(savedRating)}</span>)`;
     syncMenuWidthFromLongestLabel();
@@ -454,7 +454,7 @@ function renderRatingStars() {
 async function showRatingDialog() {
   try {
     ratingTableIndex = resolveCurrentTableIndex();
-    const savedRating = await window.parent.vpin.call('get_table_rating', ratingTableIndex);
+    const savedRating = await window.parent.vpin.call('get_game_rating', ratingTableIndex);
     ratingDraft = normalizeRating(savedRating);
   } catch (_e) {
     ratingTableIndex = resolveCurrentTableIndex();
@@ -483,7 +483,7 @@ function hideRatingDialog() {
 
 async function saveRatingDialog() {
   try {
-    await window.parent.vpin.call('set_table_rating', ratingTableIndex, ratingDraft);
+    await window.parent.vpin.call('set_game_rating', ratingTableIndex, ratingDraft);
     window.parent.vpin.sendMessageToAllWindowsIncSelf({
       type: 'TableDataChange',
       index: ratingTableIndex,

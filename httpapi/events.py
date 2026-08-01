@@ -61,13 +61,13 @@ def _game_event(game=None, **_) -> dict:
     answer to "what does a table look like".
     """
     if game is None:
-        return {"table": None}
+        return {"game": None}
 
     game_id = game_identity.game_id(game)
     reference = {"id": game_id, "name": getattr(game, "tableDirName", "")}
     if game_id:
         reference["links"] = {"self": f"/api/v1/games/{game_id}"}
-    return {"table": reference}
+    return {"game": reference}
 
 
 def _job_event(**payload) -> dict:

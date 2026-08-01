@@ -125,7 +125,7 @@ logged and contained. Releasing the peripherals is a hook because launching with
 them still held would be wrong; anything that merely wants to know about a launch
 is a subscriber and must not be able to prevent one.
 
-`table.selected` is deliberately subscribers-only. It fires once per wheel stop and
+`game.selected` is deliberately subscribers-only. It fires once per wheel stop and
 drives decoration - a DOF effect, the art on a DMD panel - so a handler that raises
 has failed to decorate a selection, not failed to select. Registering a hook on it
 would let a dead device stop the wheel.

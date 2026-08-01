@@ -237,7 +237,7 @@ def _numeric_meta_value(game, field):
     return value
 
 
-def get_table_rating(games, index):
+def get_game_rating(games, index):
     try:
         game = games[index]
     except Exception:
@@ -245,7 +245,7 @@ def get_table_rating(games, index):
     return normalize_rating(section(load_game_meta(game), "User").get("Rating", 0))
 
 
-def set_table_rating(games, index, rating):
+def set_game_rating(games, index, rating):
     game = games[index]
     config = load_game_meta(game)
     user = get_or_create_user_meta(config)

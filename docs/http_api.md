@@ -316,7 +316,7 @@ What's on it:
 
 | Event | Payload |
 |-------|---------|
-| `table.launching` / `table.launched` / `table.exited` / `table.selected` | `{"table": {"id", "name", "links"}}`, or `{"table": null}` when the launch didn't come from the wheel |
+| `game.launching` / `game.launched` / `game.exited` / `game.selected` | `{"game": {"id", "name", "links"}}`, or `{"game": null}` when the launch didn't come from the wheel |
 | `play.state_changed` | `{"state": {"launching", "table_name", "source"}}` |
 | `job.progress` | `{"job_id", "pct", "message"}` |
 | `job.done` | `{"job_id"}` |
@@ -327,7 +327,7 @@ A table on the stream is a *reference*, not a resource: an id, a name to show, a
 looks like, at `GET /api/v1/games/{id}`. A table that hasn't been assigned an id yet carries
 an empty one and no link rather than a broken one.
 
-The bus carries more than that per event — `table.launching` hands its handlers the whole
+The bus carries more than that per event — `game.launching` hands its handlers the whole
 `Table` object and the ini config, because its handlers are in-process. The stream projects
 each event into the shape above instead of forwarding what was published, which is what makes
 the wire shape a contract rather than a consequence: adding a keyword argument at a publisher

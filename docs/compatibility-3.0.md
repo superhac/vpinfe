@@ -196,6 +196,18 @@ served in the shape a theme declares as `contract` in its `manifest.json`, and a
 contract 1 — the 2.x shape, synthesised. Covered by `tests/test_info_migration.py` and
 `tests/test_theme_contract.py`.
 
+**PAR-21 — The WebSocket methods take VPS's vocabulary, and the old names still answer.**
+*(machine-checked)*
+`get_tables`, `get_initial_table_index`, `set_tables_by_collection`, `launch_table`,
+`notify_table_selected`, `get_table_rating`, `set_table_rating`, `get_table_orientation`
+and `get_table_rotation` are now `get_games`, `get_initial_game_index`,
+`set_games_by_collection`, `launch_game`, `notify_game_selected`, `get_game_rating`,
+`set_game_rating`, `get_playfield_orientation` and `get_playfield_rotation`.
+Every old name stays in the allowlist and forwards to its replacement, so a theme written
+against any earlier build keeps working unchanged and gets an identical payload back.
+*Why:* VPS calls the machine a game and the `.vpx` a table; ours said the opposite. The
+screen ones are the playfield, which is what `docs/conventions.md` already called it.
+
 **PAR-18 — Addon folders are detected whatever their casing.**
 The library scan matched `pupvideos`, `serum`, `vni`, `music` and `medias` against the
 folder name exactly as stored, so a folder named `PUPVideos` — the casing PinUP Popper

@@ -137,7 +137,7 @@ def _launch_game(game: dict):
 
     def run_and_wait():
         try:
-            launch.launch_table(resolved, cfg, source=launch_state.SOURCE_REMOTE)
+            launch.launch_game(resolved, cfg, source=launch_state.SOURCE_REMOTE)
         except Exception:
             logger.exception("Remote launch failed")
 

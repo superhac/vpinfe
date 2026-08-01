@@ -195,7 +195,7 @@ def check_launchable(game, ini_config, table: str | None = None) -> str:
     return resolved
 
 
-def launch_table(game, ini_config, *, source: str, table: str | None = None,
+def launch_game(game, ini_config, *, source: str, table: str | None = None,
                  popen=None) -> None:
     """Launch a table and stay with it until it exits. Blocking.
 
@@ -218,8 +218,8 @@ def launch_table(game, ini_config, *, source: str, table: str | None = None,
 
     started_at = None
     profile = None
-    # Everything from here is inside the try, so table.exited is guaranteed to
-    # anyone who heard table.launching - which is what stops a failure below from
+    # Everything from here is inside the try, so game.exited is guaranteed to
+    # anyone who heard game.launching - which is what stops a failure below from
     # leaving the frontend with its input suppressed for the life of the process.
     try:
         launch_state.set_launching(getattr(game, "tableDirName", None), source=source)

@@ -14,13 +14,13 @@ from dataclasses import dataclass, field
 logger = logging.getLogger("vpinfe.common.events")
 
 # Table lifecycle. Every hook on `launching` has finished before the game file starts.
-GAME_LAUNCHING = "table.launching"
-GAME_LAUNCHED = "table.launched"
-GAME_EXITED = "table.exited"
+GAME_LAUNCHING = "game.launching"
+GAME_LAUNCHED = "game.launched"
+GAME_EXITED = "game.exited"
 
 # The player moved to a table in the wheel. Fires once per wheel stop and nothing may
 # block on it, so subscribers only.
-GAME_SELECTED = "table.selected"
+GAME_SELECTED = "game.selected"
 
 # Play-host state changed. Carries the whole new state, so a consumer that missed one
 # is still correct after the next.

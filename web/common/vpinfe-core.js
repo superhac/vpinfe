@@ -435,10 +435,10 @@ class VPinFECore {
   async launchTable(index) {
     this.#setFrontendInputEnabled(false);
     try {
-      await this.call("launch_table", index);
+      await this.call("launch_game", index);
     } catch (e) {
       // The call will timeout after 30s while VPX is still running - that's expected
-      this.call("console_out", `launch_table call ended: ${e.message}`);
+      this.call("console_out", `launch_game call ended: ${e.message}`);
     } finally {
       if (!this._launchInputSuppressedByLifecycle && !this.remoteLaunchActive) {
         this.#setFrontendInputEnabled(true);
@@ -447,7 +447,7 @@ class VPinFECore {
   }
 
   async getTableData(reset=false) {
-    this.tableData = JSON.parse(await this.call("get_tables", reset));
+    this.tableData = JSON.parse(await this.call("get_games", reset));
     this.#attachCachedVPinPlayRatings();
     if (this._windowName === "table") {
       const maxIndex = Math.max(0, this.tableData.length - 1);
@@ -471,7 +471,7 @@ class VPinFECore {
   // input uses, so no theme changes are needed to honor the restored position.
   async #restoreInitialTable() {
     try {
-      const index = await this.call("get_initial_table_index");
+      const index = await this.call("get_initial_game_index");
       if (typeof index === "number" && index > 0 && index < this.tableData.length) {
         this._currentTableIndex = index;
         // Themes register window.receiveEvent at varying points in their startup
@@ -563,7 +563,7 @@ class VPinFECore {
       if (message.collection === "None") {
         await this.getTableData(true);
       } else {
-        await this.call("set_tables_by_collection", message.collection);
+        await this.call("set_games_by_collection", message.collection);
         await this.getTableData();
       }
     } else if (message.filters) {
@@ -662,10 +662,10 @@ class VPinFECore {
 
     this._lastSelectedIndex = index;
     try {
-      await this.call("notify_table_selected", index);
+      await this.call("notify_game_selected", index);
     } catch (e) {
       this._lastSelectedIndex = null;
-      this.call("console_out", `notify_table_selected failed: ${e.message}`);
+      this.call("console_out", `notify_game_selected failed: ${e.message}`);
     }
   }
 
@@ -966,8 +966,8 @@ class VPinFECore {
       this.vpinplayEndpoint = "";
     }
     // Load display config
-    this.tableOrientation = await this.call("get_table_orientation");
-    this.tableRotation = await this.call("get_table_rotation");
+    this.tableOrientation = await this.call("get_playfield_orientation");
+    this.tableRotation = await this.call("get_playfield_rotation");
     await this.#loadMonitors();
     await this.getTableData();
    //this.#overrideConsole(); //disabled for now...

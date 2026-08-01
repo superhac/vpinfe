@@ -123,7 +123,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         frame = await self._next(stream)
 
         self.assertEqual(_payload(frame), {
-            "table": {
+            "game": {
                 "id": "6f1c9a4e",
                 "name": "Medieval Madness (Williams 1997)",
                 # A pointer to the table, not a second answer to what a table is.
@@ -142,7 +142,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
                     ini_config=None)
         frame = await self._next(stream)
 
-        self.assertEqual(_payload(frame)["table"],
+        self.assertEqual(_payload(frame)["game"],
                          {"id": "", "name": "Unidentified"})
 
     async def test_a_game_event_without_a_game_still_streams(self) -> None:
@@ -153,7 +153,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         events.emit(events.GAME_LAUNCHING, game=None, ini_config="cfg")
         frame = await self._next(stream)
 
-        self.assertEqual(_payload(frame), {"table": None})
+        self.assertEqual(_payload(frame), {"game": None})
 
     async def test_a_job_event_keeps_the_documented_shape(self) -> None:
         """The shape is a contract, so a caller's extra keyword does not become one."""

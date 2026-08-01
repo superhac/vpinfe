@@ -280,7 +280,7 @@ def get_game(game_id: str) -> models.GameResource:
 
 @router.get("/{game_id}/tables", summary="A table's game files",
             dependencies=[requires(scopes.GAMES_READ)])
-def get_tables(game_id: str) -> models.TableList:
+def get_games(game_id: str) -> models.TableList:
     game = _game_or_404(game_id)
     return {"tables": _tables(game, game_to_row(game))}
 
@@ -355,7 +355,7 @@ def get_game_media_file(game_id: str, kind: str):
 
 @router.post("/{game_id}/launch", summary="Launch a table on this play host",
              status_code=202, dependencies=[requires(scopes.LAUNCH_INVOKE)])
-def launch_table(game_id: str,
+def launch_game(game_id: str,
                  payload: models.LaunchRequest | None = Body(default=None),
                  ) -> models.LaunchAccepted:
     """Start a table and return once it is starting, not once it is over.
@@ -378,7 +378,7 @@ def launch_table(game_id: str,
 
     def run():
         try:
-            launch.launch_table(game, ini_config, source=launch_state.SOURCE_API,
+            launch.launch_game(game, ini_config, source=launch_state.SOURCE_API,
                                 table=table)
         except Exception:
             logger.exception("Launch of %s failed", game_id)

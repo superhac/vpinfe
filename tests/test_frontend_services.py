@@ -227,7 +227,7 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = game_state.set_table_rating([game], 0, 5)
+            result = game_state.set_game_rating([game], 0, 5)
 
             self.assertEqual(result, {"success": True, "rating": 5})
             saved = json.loads(info_path.read_text(encoding="utf-8"))

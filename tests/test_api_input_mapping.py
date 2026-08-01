@@ -130,7 +130,7 @@ class TestApiInputMapping(unittest.TestCase):
                 patch("common.host.launch.game_play_service"), \
                 patch("frontend.play_events.save_last_game"):
                 play_events.register(ws_bridge)
-                api.launch_table(0)
+                api.launch_game(0)
 
             self.assertEqual(call_order[:2], ["delete_log", "popen"])
             self.assertEqual(window_messages[0]["type"], "TableLaunching")

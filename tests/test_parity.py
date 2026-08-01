@@ -24,7 +24,15 @@ LEDGER = REPO_ROOT / "docs" / "compatibility-3.0.md"
 LEDGER_ALLOWS = {
     "PAR-03": {"remote_launch", "upload_begin", "archive_download"},
     "PAR-04": {"removed": "update_frontend_dof_for_table",
-               "added": "notify_table_selected"},
+               "added": "notify_game_selected"},
+    # PAR-21: every old spelling stays in the allowlist and forwards, so this is
+    # additive - nothing is removed, and a theme calling the old name still works.
+    "PAR-21": {"get_games", "get_initial_game_index", "set_games_by_collection",
+               "launch_game", "get_game_rating", "set_game_rating",
+               "get_playfield_orientation", "get_playfield_rotation",
+               # PAR-04's name, kept as an alias by PAR-21 even though master
+               # never served it - a 3.0-era theme may already call it.
+               "notify_table_selected"},
     # New media kinds add theme-payload keys. Additive only: every key master
     # had must still be present and equal.
     "PAR-11": {"RuleCardImagePath", "TopperPath", "TopperVideoPath",
@@ -110,9 +118,10 @@ class ParityTests(unittest.TestCase):
         rename = LEDGER_ALLOWS["PAR-04"]
 
         self.assertEqual(master - current, {rename["removed"]},
-                         "only PAR-04's removal is permitted")
-        self.assertEqual(current - master, {rename["added"]},
-                         "only PAR-04's addition is permitted")
+                         "only PAR-04's removal is permitted - every renamed method "
+                         "keeps its old name as a forwarding alias")
+        self.assertEqual(current - master, {rename["added"]} | LEDGER_ALLOWS["PAR-21"],
+                         "only PAR-04's and PAR-21's additions are permitted")
 
     def test_legacy_endpoints_served_on_master_and_do_not_serve_here(self) -> None:
         """PAR-03: removed, not aliased - and the removal itself is asserted, so
