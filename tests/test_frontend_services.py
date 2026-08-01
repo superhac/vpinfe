@@ -48,6 +48,49 @@ class FrontendServiceTests(unittest.TestCase):
             (Path(temp_dir) / "Example").mkdir()
             self.assertIsNone(theme_api.get_theme_config(parser))
 
+    def _theme_config(self, **files):
+        """get_theme_config for a theme dir holding the given <name>.json files."""
+        parser = configparser.ConfigParser()
+        parser["Settings"] = {"theme": "Example"}
+        with (
+            TemporaryDirectory() as temp_dir,
+            mock.patch("frontend.theme_api.THEMES_DIR", Path(temp_dir)),
+        ):
+            theme_dir = Path(temp_dir) / "Example"
+            theme_dir.mkdir()
+            for name, body in files.items():
+                (theme_dir / f"{name}.json").write_text(json.dumps(body), encoding="utf-8")
+            return theme_api.get_theme_config(parser)
+
+    def test_theme_config_merges_author_config_under_user_options(self):
+        """Revolution's shape: one user option must not drop the author's config.json."""
+        result = self._theme_config(
+            config={"use_core_audio": True, "audio": {"enabled": True}},
+            theme={"options": [{"key": "startCollectionSelection", "value": False}]},
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "use_core_audio": True,
+                "audio": {"enabled": True},
+                "startCollectionSelection": False,
+            },
+        )
+
+    def test_theme_config_user_option_wins_but_keeps_the_rest_of_the_section(self):
+        result = self._theme_config(
+            config={"audio": {"enabled": True, "maxVolume": 0.4}},
+            theme={"options": [{"key": "audio.maxVolume", "value": 0.9}]},
+        )
+
+        self.assertEqual(result, {"audio": {"enabled": True, "maxVolume": 0.9}})
+
+    def test_theme_config_reads_author_config_when_there_are_no_options(self):
+        result = self._theme_config(config={"use_core_audio": True})
+
+        self.assertEqual(result, {"use_core_audio": True})
+
     def test_theme_config_flattens_values_from_theme_json(self):
         parser = configparser.ConfigParser()
         parser["Settings"] = {"theme": "Example"}
