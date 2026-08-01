@@ -13,8 +13,8 @@ category_select = None
 # Import config
 from common.iniconfig import IniConfig
 from common.host import launch, launch_state
-from common.tables import table_identity
-from common.tables.table_repository import ensure_games_loaded
+from common.tables import game_identity
+from common.tables.game_repository import ensure_games_loaded
 from managerui.ui_helpers import debounced_input, load_page_style
 _INI_CFG = None
 logger = logging.getLogger("vpinfe.manager.remote")
@@ -116,7 +116,7 @@ def _launch_game(game: dict):
     import threading
 
     table_name = game.get('name', 'table')
-    resolved = table_identity.find_by_id(ensure_games_loaded(), game.get('vpinfe_id', ''))
+    resolved = game_identity.find_by_id(ensure_games_loaded(), game.get('vpinfe_id', ''))
     if resolved is None:
         # Every launchable table has an id, so this means the library moved under us.
         ui.notify(f'Could not find {table_name} in the library', type='negative')
@@ -456,11 +456,11 @@ def show_vpx_game_controls():
             ).classes("flex-grow").style(
                 "min-width: 0; background: var(--surface) !important; border-radius: 8px;"
             )
-            ui_refs['table_select'] = game_select
+            ui_refs['game_select'] = game_select
 
             # Launch button
             def do_launch():
-                selected = ui_refs['table_select'].value
+                selected = ui_refs['game_select'].value
                 if selected:
                     # Find the table by vpx_path (which is the value)
                     game = next((t for t in launch_state['tables'] if t['vpx_path'] == selected), None)
@@ -507,13 +507,13 @@ def show_vpx_game_controls():
             # Clear search and update table list
             ui_refs['filter_input'].value = ''
             launch_state['last_term'] = ''
-            ui_refs['table_select'].options = launch_state['filtered_options']
+            ui_refs['game_select'].options = launch_state['filtered_options']
             if launch_state['filtered_options']:
                 first_key = next(iter(launch_state['filtered_options']))
-                ui_refs['table_select'].value = first_key
+                ui_refs['game_select'].value = first_key
             else:
-                ui_refs['table_select'].value = None
-            ui_refs['table_select'].update()
+                ui_refs['game_select'].value = None
+            ui_refs['game_select'].update()
 
         # Collections dropdown (with label above)
         ui.label("Collection").classes("text-xs mb-1").style("color: var(--ink-muted) !important;")

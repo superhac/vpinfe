@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from common.paths import COLLECTIONS_PATH
-from common.tables.tablelistfilters import GameListFilters
+from common.tables.gamelistfilters import GameListFilters
 from common.tables.vpxcollections import VPXCollections
 from common.values import is_truthy
 

@@ -10,16 +10,16 @@ from typing import Dict, List
 from nicegui import context, events, run, ui
 
 from managerui.paths import get_games_path
-from managerui.services import table_service
+from managerui.services import game_service
 from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import debounced_input
 
 
 logger = logging.getLogger("vpinfe.manager.tables")
-associate_vps_to_folder = table_service.associate_vps_to_folder
-ensure_dir = table_service.ensure_dir
-save_upload_bytes = table_service.save_upload_bytes
-search_vpsdb = table_service.search_vpsdb
+associate_vps_to_folder = game_service.associate_vps_to_folder
+ensure_dir = game_service.ensure_dir
+save_upload_bytes = game_service.save_upload_bytes
+search_vpsdb = game_service.search_vpsdb
 
 
 def open_import_game_dialog(perform_scan_cb=None):
@@ -326,7 +326,7 @@ def open_import_game_dialog(perform_scan_cb=None):
                 with client:
                     import_loading_label.set_text('Rebuilding metadata...')
                 await run.io_bound(
-                    table_service.build_metadata,
+                    game_service.build_metadata,
                     downloadMedia=True,
                     updateAll=True,
                     gameName=game_dir_name,

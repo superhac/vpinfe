@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from frontend import input_api
 from frontend.api import API
-from frontend.table_state import page_jump_index
+from frontend.game_state import page_jump_index
 
 
 def _game(title):

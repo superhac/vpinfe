@@ -232,7 +232,7 @@ class PayloadTests(unittest.TestCase):
         import json as _json
         from types import SimpleNamespace
 
-        from frontend.table_state import games_json
+        from frontend.game_state import games_json
 
         game = SimpleNamespace(
             tableDirName="Cactus Canyon (Bally 1998)",

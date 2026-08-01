@@ -211,7 +211,7 @@ def import_upload(upload_id: str,
 
     if vps_entry is not None and report.get("new_table"):
         # Files are on disk; association failure is reported, not fatal.
-        from managerui.services.table_service import associate_vps_to_folder, build_metadata
+        from managerui.services.game_service import associate_vps_to_folder, build_metadata
 
         try:
             associate_vps_to_folder(Path(report["table_path"]), vps_entry, True)
@@ -227,7 +227,7 @@ def import_upload(upload_id: str,
 
 @vps_router.get("/search", summary="Search VPSdb", dependencies=[requires(scopes.VPS_READ)])
 def search_vps(q: str = "", limit: int = 20) -> models.VpsSearchResults:
-    from managerui.services.table_service import search_vpsdb
+    from managerui.services.game_service import search_vpsdb
 
     return {
         "results": [

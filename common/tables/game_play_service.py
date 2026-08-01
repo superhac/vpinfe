@@ -7,9 +7,9 @@ from pathlib import Path
 
 from common.tables.collections_service import get_collections_manager
 from common.tables.vpxcollections import MEMBERS_KEY
-from common.tables import table_identity
+from common.tables import game_identity
 from common.timestamps import epoch_to_iso
-from common.tables.table_metadata import (
+from common.tables.game_metadata import (
     default_game_file_entry,
     get_or_create_game_file_user,
     get_or_create_user_meta,
@@ -21,14 +21,14 @@ from common.tables.table_metadata import (
 )
 
 
-logger = logging.getLogger("vpinfe.common.tables.table_play_service")
+logger = logging.getLogger("vpinfe.common.tables.game_play_service")
 
 
 def track_game_play(game, collection_name: str = "Last Played", max_items: int = 30) -> None:
     meta = normalize_meta(getattr(game, "metaConfig", {}))
     # Membership is the table's own id; VPSId is a fallback for a table that has
     # not been assigned one yet.
-    member_id = table_identity.table_id(game) or section(meta, "Info").get("VPSId")
+    member_id = game_identity.table_id(game) or section(meta, "Info").get("VPSId")
     if not member_id:
         logger.debug("Table has no id, cannot track play")
         return

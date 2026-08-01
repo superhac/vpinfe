@@ -12,14 +12,14 @@ from collections.abc import Iterable
 from typing import Any
 
 from common.tables.metaconfig import VPINFE_SECTION
-from common.tables.table_metadata import (
+from common.tables.game_metadata import (
     load_game_meta,
     normalize_meta,
     persist_game_meta,
     section,
 )
 
-logger = logging.getLogger("vpinfe.common.tables.table_identity")
+logger = logging.getLogger("vpinfe.common.tables.game_identity")
 
 # Also written by MetaConfig.writeConfigMeta, which mints during a metadata rebuild.
 ID_SECTION = VPINFE_SECTION

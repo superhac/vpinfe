@@ -13,14 +13,14 @@ from common.tables.collections_service import (
     get_collection_names,
     get_collections_metadata,
 )
-from common.tables.table_metadata import normalize_meta
-from common.tables.table_repository import ensure_games_loaded
+from common.tables.game_metadata import normalize_meta
+from common.tables.game_repository import ensure_games_loaded
 from frontend import (
     config_api,
+    game_state,
     input_api,
-    last_table,
+    last_game,
     metadata_build_service,
-    table_state,
     theme_api,
 )
 from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
@@ -103,7 +103,7 @@ class API:
         self.allGames = ensure_games_loaded()
         self.jsGameDictData = None
         # Track current filter state
-        self.current_filters = table_state.default_filter_state()
+        self.current_filters = game_state.default_filter_state()
         # Track current collection
         self.current_collection = None
         # Establish the default view: alphabetical by (article-reordered) title,
@@ -147,7 +147,7 @@ class API:
         self.filteredGames = list(self.allGames)
         self.current_sort = 'Alpha'
         self.current_order = 'Ascending'
-        table_state.apply_sort(self.filteredGames, self.current_sort, self.current_order)
+        game_state.apply_sort(self.filteredGames, self.current_sort, self.current_order)
 
 
     ###################
@@ -187,14 +187,14 @@ class API:
     def get_tables(self, reset=False):
         if reset:
             self._reset_to_default_view()
-        self.jsGameDictData = table_state.games_json(self.filteredGames,
+        self.jsGameDictData = game_state.games_json(self.filteredGames,
                                                        self._theme_contract())
         return self.jsGameDictData
 
     def get_initial_table_index(self):
         # Position the wheel on the last-launched table at startup. Resolved
         # against the current (possibly filtered) view; 0 when disabled or unfound.
-        return last_table.resolve_last_game_index(self._iniConfig, self.filteredGames)
+        return last_game.resolve_last_game_index(self._iniConfig, self.filteredGames)
 
 
     def get_collections(self):
@@ -208,7 +208,7 @@ class API:
 
     def set_tables_by_collection(self, collection):
         """Set filtered tables based on collection from collections.ini."""
-        table_state.apply_collection(self, collection)
+        game_state.apply_collection(self, collection)
 
     def save_filter_collection(
         self,
@@ -225,7 +225,7 @@ class API:
     ):
         """Save current filter settings as a named collection."""
         try:
-            return table_state.save_current_filter_collection(
+            return game_state.save_current_filter_collection(
                 self, name, letter, theme, table_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by
             )
         except ValueError as e:
@@ -248,7 +248,7 @@ class API:
         return self.current_collection or 'None'
 
     def _filter_option(self, key: str):
-        return table_state.filter_options(self.allGames)[key]
+        return game_state.filter_options(self.allGames)[key]
 
     def get_filter_letters(self):
         return self._filter_option(_FILTER_OPTION_KEYS["letters"])
@@ -281,13 +281,13 @@ class API:
             rating,
             rating_or_higher,
         )
-        count = table_state.apply_filters(self, letter, theme, table_type, manufacturer, year, rating, rating_or_higher)
+        count = game_state.apply_filters(self, letter, theme, table_type, manufacturer, year, rating, rating_or_higher)
         logger.debug("Filtered tables count: %s", count)
         return count
 
     def reset_filters(self):
         """Reset all VPSdb filters back to full table list."""
-        self.current_filters = table_state.default_filter_state()
+        self.current_filters = game_state.default_filter_state()
         self._reset_to_default_view()
 
     def apply_sort(self, sort_type, order_by=None):
@@ -298,10 +298,10 @@ class API:
         Returns the count of sorted tables.
         """
         self.current_sort = sort_type
-        self.current_order = table_state.normalize_sort_order(order_by, sort_type)
+        self.current_order = game_state.normalize_sort_order(order_by, sort_type)
         logger.debug("Applying sort: %s %s", sort_type, self.current_order)
 
-        count = table_state.apply_sort(self.filteredGames, sort_type, self.current_order)
+        count = game_state.apply_sort(self.filteredGames, sort_type, self.current_order)
         logger.debug("Sorted %s tables by %s %s", count, sort_type, self.current_order)
         return count
 
@@ -316,7 +316,7 @@ class API:
         except (TypeError, ValueError):
             index = 0
         paging_type, page_size = input_api.get_paging_config(self._iniConfig.config)
-        return table_state.page_jump_index(
+        return game_state.page_jump_index(
             self.filteredGames, index, direction, self.current_sort, paging_type, page_size
         )
 
@@ -379,11 +379,11 @@ class API:
 
     def get_table_rating(self, index):
         """Get User.Rating for a table index in the current filtered list."""
-        return table_state.get_table_rating(self.filteredGames, index)
+        return game_state.get_table_rating(self.filteredGames, index)
 
     def set_table_rating(self, index, rating):
         """Set User.Rating (0-5) for a table index in the current filtered list."""
-        result = table_state.set_table_rating(self.filteredGames, index, rating)
+        result = game_state.set_table_rating(self.filteredGames, index, rating)
         logger.info("Updated User.Rating for %s -> %s", self.filteredGames[index].tableDirName, result["rating"])
         return result
 

@@ -7,7 +7,7 @@ from screeninfo import get_monitors
 from common.iniconfig import IniConfig
 from common.logging_config import get_logger
 from common.paths import VPINFE_INI_PATH, ensure_config_dir
-from common.tables import info_maintenance, metadata_service, table_report_service
+from common.tables import info_maintenance, metadata_service, game_report_service
 from frontend.customhttpserver import CustomHTTPServer
 
 logger = get_logger("vpinfe.cli")
@@ -50,11 +50,11 @@ def restore_info_files(table_name: str = None, progress_cb=None, log_cb=None):
 
 
 def listMissingGames():
-    return table_report_service.list_missing_games(iniconfig=iniconfig, log=logger.info)
+    return game_report_service.list_missing_games(iniconfig=iniconfig, log=logger.info)
 
 
 def listUnknownGames():
-    return table_report_service.list_unknown_games(iniconfig=iniconfig, log=logger.info)
+    return game_report_service.list_unknown_games(iniconfig=iniconfig, log=logger.info)
 
 
 def vpxPatches(progress_cb=None):

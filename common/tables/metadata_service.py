@@ -9,7 +9,7 @@ from common.jobs import JobReporter
 from common.tables.metaconfig import MetaConfig
 from common.paths import get_ini_config
 from common.tables.standalonescripts import StandaloneScripts
-from common.tables.tableparser import GameParser
+from common.tables.gameparser import GameParser
 from common.online.vpsdb import VPSdb
 from common.tables.vpxparser import VPXParser
 

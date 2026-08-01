@@ -17,9 +17,9 @@ from common.tables.info_migration import (
 )
 from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
 from common.tables.game import Game
-from common.tables.table_metadata import section, vpinfe_section
+from common.tables.game_metadata import section, vpinfe_section
 
-logger = logging.getLogger("vpinfe.common.tables.tableparser")
+logger = logging.getLogger("vpinfe.common.tables.gameparser")
 
 
 class GameParser:

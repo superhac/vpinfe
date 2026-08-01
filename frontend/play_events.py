@@ -15,7 +15,7 @@ import logging
 import sys
 
 from common import events
-from frontend.last_table import save_last_game
+from frontend.last_game import save_last_game
 
 logger = logging.getLogger("vpinfe.frontend.play_events")
 

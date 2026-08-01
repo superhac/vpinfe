@@ -4,19 +4,19 @@ import logging
 import os
 from pathlib import Path
 
+from common.tables.game_identity import table_id
+from common.tables.game_metadata import (
+    base_game_vps_id,
+    game_title,
+    section,
+    vpinfe_section,
+)
 from common.tables.info_migration import (
     backup_names,
     copy_aside,
     write_atomic,
 )
 from common.tables.metaconfig import VPINFE_SECTION
-from common.tables.table_identity import table_id
-from common.tables.table_metadata import (
-    base_game_vps_id,
-    game_title,
-    section,
-    vpinfe_section,
-)
 
 logger = logging.getLogger("vpinfe.common.tables.vpxcollections")
 

@@ -5,11 +5,11 @@ from typing import Dict, List
 from pathlib import Path
 from urllib.parse import quote
 
-from common.tables import table_repository
+from common.tables import game_repository
 from common.tables.vpxcollections import MEMBERS_KEY, VPXCollections
 
 from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR
-from managerui.services import table_index_service
+from managerui.services import game_index_service
 
 COLLECTION_ICONS_DIR = CONFIG_DIR / "collection_icons"
 COLLECTION_IMAGE_KEY = "image"
@@ -100,18 +100,18 @@ def set_collection_image(name: str, filename: str | None) -> None:
 
 
 def get_game_rows_for_collections(cached_games: list[dict] | None = None) -> list[dict]:
-    return cached_games if cached_games is not None else table_index_service.scan_rows(reload=False)
+    return cached_games if cached_games is not None else game_index_service.scan_rows(reload=False)
 
 
 def get_vpsdb_rows_for_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> list[dict]:
     if cached_vpsdb_rows is not None:
         return cached_vpsdb_rows
 
-    from managerui.services import table_service
+    from managerui.services import game_service
 
-    rows = table_service.load_vpsdb()
-    if not rows and table_service.ensure_vpsdb_downloaded():
-        rows = table_service.load_vpsdb()
+    rows = game_service.load_vpsdb()
+    if not rows and game_service.ensure_vpsdb_downloaded():
+        rows = game_service.load_vpsdb()
     return rows
 
 
@@ -125,7 +125,7 @@ def get_game_name_map(cached_games: list[dict] | None = None) -> Dict[str, str]:
 
 
 def get_game_collections_map() -> Dict[str, List[str]]:
-    return table_repository.collections_by_game_id()
+    return game_repository.collections_by_game_id()
 
 
 def member_to_name(member_id: str, game_map: Dict[str, str] | None = None) -> str:

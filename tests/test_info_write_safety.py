@@ -13,9 +13,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
+from common.tables.gameparser import GameParser
 from common.tables.info_migration import write_json_atomic
 from common.tables.metaconfig import MetaConfig
-from common.tables.tableparser import GameParser
 
 
 class AtomicWriteTests(unittest.TestCase):
@@ -151,7 +151,7 @@ class StaleCountTests(unittest.TestCase):
             (d / f"{name}.info").write_text(json.dumps(legacy), encoding="utf-8")
 
     def test_the_backfill_leaves_no_game_still_claiming_it_needs_upgrading(self):
-        from common.tables.table_identity import ensure_unique_ids
+        from common.tables.game_identity import ensure_unique_ids
 
         parser = GameParser(str(self.root))
         tables = parser.getAllGames()

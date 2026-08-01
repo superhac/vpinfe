@@ -7,8 +7,8 @@ import requests
 
 from common.app_version import get_version
 from common.config_access import SettingsConfig, VPinPlayConfig
-from common.tables.table_metadata import default_game_file, normalize_rating, vpinfe_section
-from common.tables.tableparser import GameParser
+from common.tables.game_metadata import default_game_file, normalize_rating, vpinfe_section
+from common.tables.gameparser import GameParser
 from common.timestamps import utc_now_iso
 
 

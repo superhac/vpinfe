@@ -5,7 +5,7 @@ import shlex
 from pathlib import Path
 
 from common.paths import PLUGIN_PROFILES_DIR
-from common.tables.table_metadata import vpinfe_section
+from common.tables.game_metadata import vpinfe_section
 
 logger = logging.getLogger("vpinfe.common.host.launcher")
 _ENV_KEY_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')

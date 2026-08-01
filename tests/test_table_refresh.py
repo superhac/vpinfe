@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.tables.tableparser import GameParser
+from common.tables.gameparser import GameParser
 
 
 def _game_folder(root: Path, name: str, rating: int = 0) -> Path:

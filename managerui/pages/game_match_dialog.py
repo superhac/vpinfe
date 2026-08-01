@@ -6,20 +6,20 @@ from typing import Callable, Dict, List, Optional
 
 from nicegui import events, run, ui
 
-from managerui.pages.table_dialog_context import GameDialogContext, default_context
-from managerui.services import table_service
+from managerui.pages.game_dialog_context import GameDialogContext, default_context
+from managerui.services import game_service
 from managerui.ui_helpers import debounced_input
 
 
 logger = logging.getLogger("vpinfe.manager.tables")
 _missing_games_dialog: Optional[ui.dialog] = None
 
-associate_vps_to_folder = table_service.associate_vps_to_folder
-search_vpsdb = table_service.search_vpsdb
+associate_vps_to_folder = game_service.associate_vps_to_folder
+search_vpsdb = game_service.search_vpsdb
 
 
 def scan_missing_games():
-    return table_service.scan_missing_game_rows(reload=True)
+    return game_service.scan_missing_game_rows(reload=True)
 
 
 def open_missing_games_dialog(

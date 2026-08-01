@@ -181,14 +181,14 @@ class MetaConfig:
         vpinfe.setdefault("alt_launcher", "")
         vpinfe.setdefault("plugin_profile", "")
         vpinfe.setdefault("alt_title", "")
-        # Configuration, not a play record - see table_metadata.table_frontend_dof_event.
+        # Configuration, not a play record - see table_metadata.game_frontend_dof_event.
         vpinfe.setdefault("frontend_dof_event", "")
         # Outside the filehash check below on purpose: the id must survive the table
         # file changing, which is exactly when altvpsid is cleared.
         if not str(vpinfe.get("id", "") or "").strip():
             # Imported here because table_identity reaches back through table_metadata
             # to this module. One minting rule, one place, no cycle.
-            from common.tables.table_identity import new_id
+            from common.tables.game_identity import new_id
 
             vpinfe["id"] = new_id()
 

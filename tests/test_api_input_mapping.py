@@ -127,7 +127,7 @@ class TestApiInputMapping(unittest.TestCase):
             self.addCleanup(play_events.reset_for_tests)
             self.addCleanup(events.clear)
             with patch("common.host.launch.delete_vpinball_log_on_start_if_configured", side_effect=lambda _settings: call_order.append("delete_log")), \
-                patch("common.host.launch.table_play_service"), \
+                patch("common.host.launch.game_play_service"), \
                 patch("frontend.play_events.save_last_game"):
                 play_events.register(ws_bridge)
                 api.launch_table(0)

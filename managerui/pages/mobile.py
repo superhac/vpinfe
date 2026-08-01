@@ -10,7 +10,7 @@ from nicegui import ui, run
 
 from common.iniconfig import IniConfig
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_games_path
-from managerui.services import table_catalog
+from managerui.services import game_catalog
 from managerui.ui_helpers import load_page_style
 
 
@@ -49,12 +49,12 @@ def _get_games_path() -> str:
 
 
 def _scan_games():
-    return table_catalog.scan_mobile_games(reload=False)
+    return game_catalog.scan_mobile_games(reload=False)
 
 
 def _build_game_rows(tables):
     """Build display rows from scanned tables."""
-    return table_catalog.build_mobile_game_rows(tables)
+    return game_catalog.build_mobile_game_rows(tables)
 
 
 def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=None):

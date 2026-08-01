@@ -44,7 +44,7 @@ def build_game_filter_options(rows: Iterable[dict]) -> dict[str, list[str]]:
         "manufacturers": [ALL_VALUE] + sorted(manufacturers),
         "years": [ALL_VALUE] + sorted(years),
         "themes": [ALL_VALUE] + sorted(themes),
-        "table_types": [ALL_VALUE] + sorted(game_types),
+        "game_types": [ALL_VALUE] + sorted(game_types),
     }
 
 

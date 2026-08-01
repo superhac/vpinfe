@@ -39,7 +39,7 @@ from common.online.vpinplay_runtime import (
     set_game_score,
 )
 from common.online.vpinplay_service import sync_single_game_meta
-from common.tables import table_play_service
+from common.tables import game_play_service
 from common.tables.game_files import default_game_file, game_file_names
 
 logger = logging.getLogger("vpinfe.common.host.launch")
@@ -135,8 +135,8 @@ def _command(game, vpx_path: str, launcher: str, settings) -> list[str]:
 def _record_play(game, ini_config, elapsed_seconds: float, profile, game_file: str = "") -> None:
     """Play data for a finished session. Runs on every path, which it did not use to."""
     if profile is None:
-        table_play_service.add_runtime_minutes(game, elapsed_seconds, game_file)
-        table_play_service.update_score_from_nvram(game)
+        game_play_service.add_runtime_minutes(game, elapsed_seconds, game_file)
+        game_play_service.update_score_from_nvram(game)
         return
 
     game_key = str(getattr(game, "fullPathTable", "") or getattr(game, "tableDirName", "") or "")
@@ -145,13 +145,13 @@ def _record_play(game, ini_config, elapsed_seconds: float, profile, game_file: s
         return
 
     add_game_runtime(game_key, elapsed_seconds, profile.profile_key)
-    score_data, score_path = table_play_service.parse_score_from_nvram(game)
+    score_data, score_path = game_play_service.parse_score_from_nvram(game)
     if score_data:
         set_game_score(game_key, score_data, profile.profile_key)
         logger.info("Captured alternate User.Score for %s from %s",
                     game.tableDirName, score_path)
 
-    game_meta = table_play_service.build_runtime_submission_meta(
+    game_meta = game_play_service.build_runtime_submission_meta(
         game, get_game_user_state(game_key, profile.profile_key))
     if not game_meta:
         return
@@ -210,7 +210,7 @@ def launch_table(game, ini_config, *, source: str, game_file: str | None = None,
     vpx_path = _resolve_game_file(game, game_file)
 
     delete_vpinball_log_on_start_if_configured(settings)
-    table_play_service.track_game_play(game)
+    game_play_service.track_game_play(game)
 
     # Hooks run first and can still stop this - releasing the peripherals is one.
     # Nothing below has happened yet, so a refusal here leaves nothing to undo.
@@ -239,7 +239,7 @@ def launch_table(game, ini_config, *, source: str, game_file: str | None = None,
             record_game_start(str(getattr(game, "fullPathTable", "")
                                    or getattr(game, "tableDirName", "") or ""))
         else:
-            table_play_service.increment_start_count(game, os.path.basename(vpx_path))
+            game_play_service.increment_start_count(game, os.path.basename(vpx_path))
 
         # Draining stdout is not optional: the pipe fills and VPX blocks on a write
         # if nobody reads it.
@@ -260,7 +260,7 @@ def launch_table(game, ini_config, *, source: str, game_file: str | None = None,
     if started_at is not None:
         _record_play(game, ini_config, max(0.0, time.time() - started_at), profile,
                      os.path.basename(vpx_path))
-    table_play_service.delete_nvram_if_configured(game)
+    game_play_service.delete_nvram_if_configured(game)
 
 
 def game_file_for(game, game_file: str | None = None) -> str:

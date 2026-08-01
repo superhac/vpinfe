@@ -860,7 +860,7 @@ class VpsHelperTests(unittest.TestCase):
 
     def test_find_vps_entry(self):
         rows = [{"id": "abc123", "name": "Foo"}, {"id": "def456", "name": "Bar"}]
-        with mock.patch("managerui.services.table_service.load_vpsdb", return_value=rows):
+        with mock.patch("managerui.services.game_service.load_vpsdb", return_value=rows):
             self.assertEqual(find_vps_entry("def456")["name"], "Bar")
             self.assertIsNone(find_vps_entry("nope"))
             self.assertIsNone(find_vps_entry(""))

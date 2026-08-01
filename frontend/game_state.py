@@ -6,9 +6,9 @@ import logging
 from common.tables.collections_service import filter_games_by_collection, get_collection_names, save_filter_collection
 from common.media_paths import game_media_payload
 from common.shared_assets import manufacturer_logo_web_path
-from common.tables.tablelistfilters import GameListFilters
+from common.tables.gamelistfilters import GameListFilters
 from frontend.theme_contract import CURRENT_CONTRACT, project
-from common.tables.table_metadata import (
+from common.tables.game_metadata import (
     get_or_create_user_meta,
     load_game_meta,
     normalize_meta,
@@ -21,7 +21,7 @@ from common.tables.table_metadata import (
 )
 
 
-logger = logging.getLogger("vpinfe.frontend.table_state")
+logger = logging.getLogger("vpinfe.frontend.game_state")
 
 
 

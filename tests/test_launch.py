@@ -67,7 +67,7 @@ class LaunchTests(unittest.TestCase):
         patches.update(overrides)
 
         with mock.patch.object(launch, "SettingsConfig") as settings_cls, \
-                mock.patch.object(launch, "table_play_service") as play, \
+                mock.patch.object(launch, "game_play_service") as play, \
                 mock.patch.multiple(launch, **patches):
             settings_cls.from_config.return_value = _settings()
             launch.launch_table(game or _game(), types.SimpleNamespace(config={}),

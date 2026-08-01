@@ -9,23 +9,23 @@ from typing import Dict, List, Optional
 from common import jobs
 from common.iniconfig import IniConfig
 from common.config_access import SettingsConfig
-from common.tables import info_maintenance, table_repository
+from common.tables import info_maintenance, game_repository
 from common.tables.game_files import recorded_default
-from common.tables.table_repository import get_missing_games, get_game_rows, refresh_game
+from common.tables.game_repository import get_missing_games, get_game_rows, refresh_game
 from common.tables import metadata_service
 from common.tables.vpxcollections import VPXCollections
 from common.tables.game_files import default_game_file
 from common.tables.metaconfig import VPINFE_SECTION
-from common.tables.table_metadata import section as meta_section
-from common.tables.table_metadata import vpinfe_section
+from common.tables.game_metadata import section as meta_section
+from common.tables.game_metadata import vpinfe_section
 from common.tables.vpxparser import VPXParser
 
 from common.paths import CONFIG_DIR
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_games_path
-from managerui.services import table_index_service
+from managerui.services import game_index_service
 
 
-logger = logging.getLogger("vpinfe.manager.table_service")
+logger = logging.getLogger("vpinfe.manager.game_service")
 
 VPSDB_JSON_PATH = VPINFE_INI_PATH.parent / "vpsdb.json"
 _vpsdb_cache: Optional[List[Dict]] = None
@@ -57,7 +57,7 @@ def ensure_vpsdb_downloaded() -> bool:
 
 
 def get_game_collections_map() -> Dict[str, List[str]]:
-    return table_repository.collections_by_game_id()
+    return game_repository.collections_by_game_id()
 
 
 def get_game_collections() -> List[str]:
@@ -323,11 +323,11 @@ def associate_vps_to_folder(
 
 
 def scan_game_rows(reload: bool = False) -> List[Dict]:
-    return table_index_service.scan_rows(reload=reload)
+    return game_index_service.scan_rows(reload=reload)
 
 
 def scan_missing_game_rows(reload: bool = False) -> List[Dict]:
-    return table_index_service.scan_missing_rows(reload=reload)
+    return game_index_service.scan_missing_rows(reload=reload)
 
 
 def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> dict:
@@ -406,19 +406,19 @@ def build_metadata(*args, progress_cb=None, log_cb=None, job=None, **kwargs):
 
 def info_maintenance_counts(reload: bool = False):
     """What the Tables page needs to decide whether to offer upgrade or a restore."""
-    return table_repository.info_maintenance_counts(reload=reload)
+    return game_repository.info_maintenance_counts(reload=reload)
 
 
 def unreadable_games():
-    return table_repository.unreadable_games()
+    return game_repository.unreadable_games()
 
 
 def pending_upgrade_game_names():
-    return table_repository.pending_upgrade_game_names()
+    return game_repository.pending_upgrade_game_names()
 
 
 def newest_backup_stamp():
-    return table_repository.newest_backup_stamp()
+    return game_repository.newest_backup_stamp()
 
 
 def collections_restorable():
@@ -429,7 +429,7 @@ def collections_restorable():
 
 
 def restorable_game_names():
-    return table_repository.restorable_game_names()
+    return game_repository.restorable_game_names()
 
 
 def upgrade_info(progress_cb=None, log_cb=None, **kwargs):
@@ -442,7 +442,7 @@ def upgrade_info(progress_cb=None, log_cb=None, **kwargs):
     with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as job:
         result = info_maintenance.upgrade_library(
             get_games_path(), progress_cb=job.progress, log_cb=job.log, **kwargs)
-    table_repository.refresh_games()
+    game_repository.refresh_games()
     return result
 
 
@@ -452,7 +452,7 @@ def restore_info(progress_cb=None, log_cb=None, **kwargs):
         result = info_maintenance.restore_library(
             get_games_path(), config_dir=CONFIG_DIR,
             progress_cb=job.progress, log_cb=job.log, **kwargs)
-    table_repository.refresh_games()
+    game_repository.refresh_games()
     return result
 
 

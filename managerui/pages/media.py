@@ -313,7 +313,7 @@ def render_panel():
             manufacturer_select.options = opts['manufacturers']
             year_select.options = opts['years']
             theme_select.options = opts['themes']
-            game_type_select.options = opts['table_types']
+            game_type_select.options = opts['game_types']
             manufacturer_select.update()
             year_select.update()
             theme_select.update()
@@ -502,7 +502,7 @@ def render_panel():
 
                 game_type_select = ui.select(
                     label='Type',
-                    options=filter_opts['table_types'],
+                    options=filter_opts['game_types'],
                     value='All'
                 ).props('outlined dense').classes('w-28')
                 game_type_select.on_value_change(on_game_type_change)

@@ -13,9 +13,9 @@ from common.third_party import find_named_path, import_module_from_path
 from common.jobs import JobReporter
 from common.media_paths import apply_media_paths, media_filename_map, game_media_payload
 from common.tables.standalonescripts import StandaloneScripts
-from common.tables.table_metadata import game_themes, game_title, table_type
-from common.tables.table_repository import game_to_row
-from common.tables.tableparser import GameParser
+from common.tables.game_metadata import game_themes, game_title, table_type
+from common.tables.game_repository import game_to_row
+from common.tables.gameparser import GameParser
 from common.online.theme_installer import ThemeInstallStore
 from common.online.vpsdb_cache import VPSDatabaseCache
 
@@ -31,7 +31,7 @@ def _tableparser_target(node) -> str | None:
         return None
     func = node.value.func
     name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
-    if name != "TableParser":
+    if name != "GameParser":
         return None
     target = node.targets[0]
     return target.id if isinstance(target, ast.Name) else None
@@ -44,7 +44,7 @@ def _is_reload_of(node, name: str) -> bool:
     func = node.value.func
     return (
         isinstance(func, ast.Attribute)
-        and func.attr == "loadTables"
+        and func.attr == "loadGames"
         and isinstance(func.value, ast.Name)
         and func.value.id == name
     )

@@ -65,10 +65,10 @@ def _capture_theme_payload(games_root: Path) -> dict:
     environment noise, but a missing key breaks every theme the same way.
     """
     try:
-        from common.tables.tableparser import GameParser  # 3.0 layout
+        from common.tables.gameparser import GameParser  # 3.0 layout
     except ImportError:
-        from common.tableparser import GameParser  # 2.x layout
-    from frontend.table_state import games_json
+        from common.gameparser import GameParser  # 2.x layout
+    from frontend.game_state import games_json
 
     parser = GameParser(str(games_root))
     payload = json.loads(games_json(parser.getAllGames()))

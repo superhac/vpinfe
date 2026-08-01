@@ -4,13 +4,13 @@ from pathlib import Path
 from typing import Dict, List
 
 from common.tables.metaconfig import VPINFE_SECTION
-from managerui.services import table_index_service
+from managerui.services import game_index_service
 
 
 def scan_mobile_games(reload: bool = False) -> List[Dict]:
     """Return the compact table shape used by the mobile transfer page."""
     tables = []
-    for row in table_index_service.scan_rows(reload=reload):
+    for row in game_index_service.scan_rows(reload=reload):
         table_path = row.get("table_path", "")
         tables.append({
             "name": row.get("name", ""),
@@ -41,7 +41,7 @@ def build_mobile_game_rows(tables: List[Dict]) -> List[Dict]:
 def scan_launchable_games(games_path: str | None = None) -> List[Dict]:
     """Return launchable table rows from the shared table index."""
     tables = []
-    for row in table_index_service.scan_rows(reload=False):
+    for row in game_index_service.scan_rows(reload=False):
         table_path = row.get("table_path", "")
         filename = row.get("filename", "")
         if not table_path or not filename:

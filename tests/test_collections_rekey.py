@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import mock
 
-from common.tables import table_repository
+from common.tables import game_repository
 from common.tables.metaconfig import MetaConfig
 from common.tables.vpxcollections import (
     CURRENT_SCHEMA,
@@ -193,9 +193,9 @@ class DisplayPathTests(unittest.TestCase):
         self.ini = self.root / "collections.ini"
 
     def _row_for(self, game):
-        with mock.patch.object(table_repository, "COLLECTIONS_PATH", self.ini):
-            mapping = table_repository.collections_by_game_id()
-        return table_repository.game_to_row(game, mapping)
+        with mock.patch.object(game_repository, "COLLECTIONS_PATH", self.ini):
+            mapping = game_repository.collections_by_game_id()
+        return game_repository.game_to_row(game, mapping)
 
     def test_a_migrated_collection_still_shows_on_the_game_row(self) -> None:
         game = _game(self.root, "Medieval Madness", vpsid="vps-mm", table_id="id-mm")
@@ -243,8 +243,8 @@ class DisplayPathTests(unittest.TestCase):
         """They have no member list; membership is decided per table when displayed."""
         self.ini.write_text("[Recent]\ntype = filter\nletter = All\n", encoding="utf-8")
 
-        with mock.patch.object(table_repository, "COLLECTIONS_PATH", self.ini):
-            self.assertEqual(table_repository.collections_by_game_id(), {})
+        with mock.patch.object(game_repository, "COLLECTIONS_PATH", self.ini):
+            self.assertEqual(game_repository.collections_by_game_id(), {})
 
 
 if __name__ == "__main__":

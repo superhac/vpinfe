@@ -11,7 +11,7 @@ from typing import Callable
 
 from common.media_paths import media_filename_map
 from common.tables.metaconfig import VPINFE_SECTION, MetaConfig
-from common.tables.table_repository import refresh_game
+from common.tables.game_repository import refresh_game
 from common.tables.vpxparser import VPXParser
 from managerui.paths import get_games_path
 from managerui.services.asset_analyzer_service import (
@@ -22,7 +22,7 @@ from managerui.services.asset_analyzer_service import (
 )
 from managerui.services.asset_registry import ARCHIVE_EXTENSIONS, spec_for
 from managerui.services.media_service import IMAGE_EXTENSIONS, replace_media_file
-from managerui.services.table_service import (
+from managerui.services.game_service import (
     _find_directb2s_file,
     _find_ini_file,
     _find_vpx_file,
@@ -286,7 +286,7 @@ def vps_folder_name(vps_entry: dict) -> str:
 
 def find_vps_entry(vps_id: str) -> dict | None:
     """Look up a VPS entry by its id."""
-    from managerui.services.table_service import load_vpsdb
+    from managerui.services.game_service import load_vpsdb
 
     wanted = (vps_id or "").strip()
     if not wanted:

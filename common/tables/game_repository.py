@@ -8,9 +8,9 @@ from typing import Any, Dict, List, Optional
 
 from common.paths import COLLECTIONS_PATH, get_games_path, get_ini_config
 from common.tables.info_migration import CURRENT_SCHEMA, schema_of
-from common.tables.table_identity import ensure_unique_ids
-from common.tables.table_identity import table_id as vpinfe_id
-from common.tables.table_metadata import (
+from common.tables.game_identity import ensure_unique_ids
+from common.tables.game_identity import table_id as vpinfe_id
+from common.tables.game_metadata import (
     as_string_list,
     default_game_file,
     first_meta_value,
@@ -19,12 +19,12 @@ from common.tables.table_metadata import (
     section,
     vpinfe_section,
 )
-from common.tables.tableparser import GameParser
+from common.tables.gameparser import GameParser
 from common.tables.vpxcollections import VPXCollections
 
 _LOCK = threading.Lock()
 _PARSER: Optional[GameParser] = None
-logger = logging.getLogger("vpinfe.common.tables.table_repository")
+logger = logging.getLogger("vpinfe.common.tables.game_repository")
 
 
 def ensure_games_loaded(reload: bool = False) -> List[Any]:

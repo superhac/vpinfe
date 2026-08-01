@@ -14,8 +14,8 @@ from common.media_paths import (
     resolve_media_files,
 )
 from common.tables.metaconfig import MetaConfig
-from common.tables.table_metadata import reorder_leading_article, vpinfe_section
-from common.tables.table_repository import ensure_games_loaded
+from common.tables.game_metadata import reorder_leading_article, vpinfe_section
+from common.tables.game_repository import ensure_games_loaded
 
 from managerui.paths import CONFIG_DIR, get_games_path
 

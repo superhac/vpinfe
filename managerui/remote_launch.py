@@ -6,7 +6,7 @@ from common.values import is_truthy
 from common.tables.vpxcollections import VPXCollections
 
 from managerui.paths import COLLECTIONS_PATH
-from managerui.services import table_catalog
+from managerui.services import game_catalog
 
 
 logger = logging.getLogger("vpinfe.manager.remote_launch")
@@ -105,4 +105,4 @@ def game_matches_filters(game: dict, filters) -> bool:
 
 
 def scan_games_for_launch() -> list[dict]:
-    return table_catalog.scan_launchable_games()
+    return game_catalog.scan_launchable_games()

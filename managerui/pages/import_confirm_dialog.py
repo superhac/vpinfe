@@ -7,7 +7,7 @@ from typing import Callable
 
 from nicegui import context, run, ui
 
-from managerui.services import table_service, upload_session_service
+from managerui.services import game_service, upload_session_service
 from managerui.services.asset_analyzer_service import AnalysisResult
 from managerui.services.asset_import_service import (
     ImportPlan,
@@ -187,7 +187,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                                     "w-full").style("color: var(--ink);")
 
                     async def _do_search() -> None:
-                        entries = await run.io_bound(table_service.search_vpsdb, search_input.value or "", 20)
+                        entries = await run.io_bound(game_service.search_vpsdb, search_input.value or "", 20)
                         _render_results(entries)
 
                     debounced_input(search_input, 300)
@@ -217,7 +217,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                 words = term.split()
                 for count in range(len(words), 0, -1):
                     candidate = " ".join(words[:count])
-                    entries = await run.io_bound(table_service.search_vpsdb, candidate, 5)
+                    entries = await run.io_bound(game_service.search_vpsdb, candidate, 5)
                     if entries:
                         if vps_state["entry"] is None:
                             with state["client"]:
@@ -328,9 +328,9 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                 with client:
                     loading_label.set_text("Associating with VPS and downloading media...")
                 try:
-                    await run.io_bound(table_service.associate_vps_to_folder,
+                    await run.io_bound(game_service.associate_vps_to_folder,
                                        Path(report["table_path"]), vps_entry, True)
-                    await run.io_bound(table_service.build_metadata, downloadMedia=True,
+                    await run.io_bound(game_service.build_metadata, downloadMedia=True,
                                        updateAll=True, gameName=resolved.new_table_dir_name)
                 except Exception:
                     # The files are already imported; a failed association must not read as a failed import.

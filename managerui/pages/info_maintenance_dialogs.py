@@ -13,7 +13,7 @@ from queue import Queue
 
 from nicegui import run, ui
 
-from managerui.services import table_service, ui_state
+from managerui.services import game_service, ui_state
 from managerui.ui_helpers import dialog_card
 
 logger = logging.getLogger("vpinfe.manager.info_maintenance")
@@ -63,7 +63,7 @@ def _subject(count: int, collections: bool) -> str:
 
 def _collections_restorable() -> bool:
     try:
-        return table_service.collections_restorable()
+        return game_service.collections_restorable()
     except Exception:
         logger.exception("Could not check for a saved collections file")
         return False
@@ -88,7 +88,7 @@ def _backup_date(stamp: str) -> str:
 
 def _counts(reload: bool = False) -> dict:
     try:
-        return table_service.info_maintenance_counts(reload=reload)
+        return game_service.info_maintenance_counts(reload=reload)
     except Exception:
         logger.exception("Could not read info maintenance counts")
         return {"pending_upgrade": 0, "restorable": 0, "newer_than_us": 0}
@@ -192,7 +192,7 @@ def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
 
 def open_upgrade_dialog(on_done=None) -> None:
     try:
-        names = table_service.pending_upgrade_game_names()
+        names = game_service.pending_upgrade_game_names()
     except Exception:
         logger.exception("Could not list the .info files still to upgrade")
         names = []
@@ -206,7 +206,7 @@ def open_upgrade_dialog(on_done=None) -> None:
         intro=UPGRADE_INTRO,
         detail=UPGRADE_DETAIL,
         confirm_label='Upgrade all',
-        action=table_service.upgrade_info,
+        action=game_service.upgrade_info,
         game_names=names,
         on_done=on_done,
     )
@@ -214,7 +214,7 @@ def open_upgrade_dialog(on_done=None) -> None:
 
 def open_restore_dialog(on_done=None) -> None:
     try:
-        names = table_service.restorable_game_names()
+        names = game_service.restorable_game_names()
     except Exception:
         logger.exception("Could not list tables with a saved .info")
         names = []
@@ -224,13 +224,13 @@ def open_restore_dialog(on_done=None) -> None:
         ui.notify("There are no backups to restore.", type='info')
         return
 
-    date = _backup_date(table_service.newest_backup_stamp())
+    date = _backup_date(game_service.newest_backup_stamp())
     _run_dialog(
         title='Restore backups',
         intro=RESTORE_INTRO.format(when=f" on {date}" if date else " before the upgrade"),
         detail=RESTORE_DETAIL,
         confirm_label='Restore all',
-        action=table_service.restore_info,
+        action=game_service.restore_info,
         game_names=names,
         on_done=on_done,
     )
@@ -269,7 +269,7 @@ def render_info_banners(on_done=None) -> None:
 def _render_unreadable_warning() -> None:
     """Not dismissible: the table is missing from the frontend until somebody deals with it."""
     try:
-        broken = table_service.unreadable_games()
+        broken = game_service.unreadable_games()
     except Exception:
         logger.exception("Could not read the unreadable-table list")
         return

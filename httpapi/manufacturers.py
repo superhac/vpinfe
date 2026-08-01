@@ -15,7 +15,7 @@ from fastapi import APIRouter
 
 from common.paths import CONFIG_DIR
 from common.shared_assets import manufacturer_report, vps_manufacturer_names
-from common.tables.table_repository import game_to_row
+from common.tables.game_repository import game_to_row
 
 from . import models, scopes
 from .auth import requires

@@ -8,22 +8,22 @@ from typing import List, Dict, Optional, Callable
 from queue import Queue
 from managerui.filters import apply_game_filters, build_game_filter_options
 from managerui.paths import VPINFE_INI_PATH, get_games_path as resolve_games_path
-from managerui.pages.table_detail_dialog import open_game_dialog
-from managerui.pages.table_import_dialog import open_import_game_dialog
+from managerui.pages.game_detail_dialog import open_game_dialog
+from managerui.pages.game_import_dialog import open_import_game_dialog
 from managerui.pages.dnd_drop_zone import create_drop_zone, enable_row_drops, DropContext
-from managerui.pages.table_match_dialog import open_match_vps_dialog, open_missing_games_dialog
+from managerui.pages.game_match_dialog import open_match_vps_dialog, open_missing_games_dialog
 from managerui.pages.info_maintenance_dialogs import maintenance_menu, render_info_banners
-from managerui.services import table_service
-from managerui.services import table_index_service
+from managerui.services import game_service
+from managerui.services import game_index_service
 from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import debounced_input, dialog_card, load_page_style
 
-VPSDB_JSON_PATH = table_service.VPSDB_JSON_PATH
+VPSDB_JSON_PATH = game_service.VPSDB_JSON_PATH
 
 # Load vpinfe.ini once to avoid repeated parsing
 from common.iniconfig import IniConfig
 from common.tables.metaconfig import VPINFE_SECTION
-from common.tables.table_metadata import (
+from common.tables.game_metadata import (
     vpinfe_section,
     default_game_file,
     reorder_leading_article,
@@ -40,41 +40,41 @@ def ensure_vpsdb_downloaded() -> bool:
     Returns True if vpsdb is available, False otherwise.
     """
     global _vpsdb_cache
-    ok = table_service.ensure_vpsdb_downloaded()
+    ok = game_service.ensure_vpsdb_downloaded()
     _vpsdb_cache = None
     return ok
 # Ensure only one Missing Tables dialog at a time
 _missing_games_dialog: Optional[ui.dialog] = None
 # Cache compatibility helpers. Ownership lives in table_index_service.
 def _games_cache() -> Optional[List[Dict]]:
-    return table_index_service.get_rows()
+    return game_index_service.get_rows()
 
 
 def _missing_cache() -> Optional[List[Dict]]:
-    return table_index_service.get_missing_rows()
+    return game_index_service.get_missing_rows()
 
 
 def normalize_game_rating(value) -> int:
     """Normalize rating values to an integer in the range 0..5."""
-    return table_service.normalize_game_rating(value)
+    return game_service.normalize_game_rating(value)
 
 
 def get_game_collections_map() -> Dict[str, List[str]]:
     """Collection names keyed by table id, for collections with explicit members."""
-    return table_service.get_game_collections_map()
+    return game_service.get_game_collections_map()
 
 
 def get_game_collections() -> List[str]:
     """Names of the collections a table can be added to by hand."""
-    return table_service.get_game_collections()
+    return game_service.get_game_collections()
 
 
 def add_game_to_collection(table_id: str, collection_name: str) -> bool:
     """Add a table to a collection. Returns True on success."""
     try:
-        if not table_service.add_game_to_collection(table_id, collection_name):
+        if not game_service.add_game_to_collection(table_id, collection_name):
             return False
-        table_index_service.add_collection_membership(table_id, collection_name)
+        game_index_service.add_collection_membership(table_id, collection_name)
         return True
     except Exception as e:
         logger.error(f"Failed to add table to collection: {e}")
@@ -87,7 +87,7 @@ def sync_collections_to_cache():
     Call this after modifying collections outside of add_table_to_collection(),
     such as when removing tables from collections or deleting/renaming collections.
     """
-    table_index_service.sync_collection_memberships(get_game_collections_map())
+    game_index_service.sync_collection_memberships(get_game_collections_map())
 
 
 def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
@@ -101,30 +101,30 @@ def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
     Returns:
         True on success, False on failure
     """
-    return table_service.update_vpinfe_setting(table_path, key, value)
+    return game_service.update_vpinfe_setting(table_path, key, value)
 
 
 def update_user_setting(table_path: str, key: str, value) -> bool:
     """Update a User setting in the table's .info file."""
-    return table_service.update_user_setting(table_path, key, value)
+    return game_service.update_user_setting(table_path, key, value)
 
 
 def load_vpsdb() -> List[Dict]:
     global _vpsdb_cache
-    _vpsdb_cache = table_service.load_vpsdb()
+    _vpsdb_cache = game_service.load_vpsdb()
     return _vpsdb_cache
 
 def search_vpsdb(term: str, limit: int = 50) -> List[Dict]:
-    return table_service.search_vpsdb(term, limit)
+    return game_service.search_vpsdb(term, limit)
 
 ACCEPT_CRZ = ['.crz', '.cRZ', '.CRZ']  # altcolor accepted extensions (case-insensitive)
 ACCEPT_VNI = ['.vni', '.VNI', '.pal', '.PAL']  # vni accepted extensions (case-insensitive)
 
 def ensure_dir(p: Path) -> None:
-    table_service.ensure_dir(p)
+    game_service.ensure_dir(p)
 
 def save_upload_bytes(dest_file: Path, content: bytes) -> None:
-    table_service.save_upload_bytes(dest_file, content)
+    game_service.save_upload_bytes(dest_file, content)
 
 
 # --- helper to create a .info file with a chosen VPS record for one folder ---
@@ -133,7 +133,7 @@ def associate_vps_to_folder(game_folder: Path, vps_entry: Dict, download_media: 
     """
     Creates a `.info` file inside `table_folder` using the selected vps_entry and the VPX metadata.
     """
-    table_service.associate_vps_to_folder(game_folder, vps_entry, download_media)
+    game_service.associate_vps_to_folder(game_folder, vps_entry, download_media)
 
 
 logger = logging.getLogger("vpinfe.manager.tables")
@@ -236,10 +236,10 @@ def scan_games(silent: bool = False):
         if not silent:
             ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
         return []
-    return table_service.scan_game_rows(reload=False)
+    return game_service.scan_game_rows(reload=False)
 
 def scan_missing_games():
-    return table_service.scan_missing_game_rows(reload=False)
+    return game_service.scan_missing_game_rows(reload=False)
 
 
 def load_metadata_from_ini():
@@ -265,7 +265,7 @@ def render_panel(tab=None):
                 # (the clicked row from Quasar is a copy that may be stale)
                 table_path = clicked_row.get('table_path', '')
                 row_data = clicked_row
-                cached_row = table_index_service.find_by_path(table_path) if table_path else None
+                cached_row = game_index_service.find_by_path(table_path) if table_path else None
                 if cached_row is not None:
                     row_data = cached_row
                 # Pass update_table_display as callback to refresh table when dialog closes
@@ -291,7 +291,7 @@ def render_panel(tab=None):
                     await run.io_bound(ensure_vpsdb_downloaded)
 
                 # Pull rows from the shared startup-backed repository
-                game_rows, missing_rows = await run.io_bound(table_index_service.scan_game_data, True)
+                game_rows, missing_rows = await run.io_bound(game_index_service.scan_game_data, True)
 
                 # Update UI components (default sort by Name; force refresh by reassigning rows)
                 try:
@@ -448,7 +448,7 @@ def render_panel(tab=None):
 
                     try:
                         result = await run.io_bound(
-                            table_service.build_metadata,
+                            game_service.build_metadata,
                             downloadMedia=bool(download_media_switch.value),
                             updateAll=bool(update_all_switch.value),
                             progress_cb=progress_cb,
@@ -580,7 +580,7 @@ def render_panel(tab=None):
                                     patch_progress_timer.active = True
 
                                 try:
-                                    await run.io_bound(table_service.apply_vpx_patches, progress_cb=patch_progress_cb)
+                                    await run.io_bound(game_service.apply_vpx_patches, progress_cb=patch_progress_cb)
                                     with client:
                                         patch_status_label.text = "Completed!"
                                         patch_progressbar.value = 1.0
@@ -737,7 +737,7 @@ def render_panel(tab=None):
             manufacturer_select.options = opts['manufacturers']
             year_select.options = opts['years']
             theme_select.options = opts['themes']
-            game_type_select.options = opts['table_types']
+            game_type_select.options = opts['game_types']
             manufacturer_select.update()
             year_select.update()
             theme_select.update()
@@ -777,7 +777,7 @@ def render_panel(tab=None):
 
                 game_type_select = ui.select(
                     label='Type',
-                    options=filter_opts['table_types'],
+                    options=filter_opts['game_types'],
                     value='All'
                 ).props('outlined dense').classes('w-28')
                 game_type_select.on_value_change(on_game_type_change)

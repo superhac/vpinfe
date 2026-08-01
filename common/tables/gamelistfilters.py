@@ -1,4 +1,4 @@
-from common.tables.table_metadata import (
+from common.tables.game_metadata import (
     game_manufacturer,
     game_rating,
     game_themes,

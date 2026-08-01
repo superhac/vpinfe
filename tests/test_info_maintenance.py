@@ -12,6 +12,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from common.tables.gameparser import GameParser
 from common.tables.info_maintenance import (
     game_dirs,
     restorable_backup,
@@ -19,7 +20,6 @@ from common.tables.info_maintenance import (
     upgrade_library,
 )
 from common.tables.info_migration import CURRENT_SCHEMA, backup_schema, schema_of
-from common.tables.tableparser import GameParser
 
 LEGACY = {
     "Info": {"Title": "Dr. Dude", "Rom": "dd_l2", "Authors": "someone"},

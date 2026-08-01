@@ -5,7 +5,7 @@ from common.values import is_truthy
 
 from nicegui import ui, events, run, app
 from managerui.services import collections_service
-from managerui.services import table_index_service
+from managerui.services import game_index_service
 from managerui.ui_helpers import debounced_input, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.collections")
@@ -222,7 +222,7 @@ def render_panel(tab=None):
                         try:
                             collections_service.delete_collection(name)
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
+                            game_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
                             ui.notify(f'Collection "{name}" deleted', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -254,7 +254,7 @@ def render_panel(tab=None):
                         try:
                             collections_service.rename_collection(name, new_name)
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
+                            game_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
                             ui.notify(f'Renamed to "{new_name}"', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -347,7 +347,7 @@ def render_panel(tab=None):
                             game_ids = [t['id'] for t in selected_games['items']]
                             collections_service.create_game_collection(name, game_ids, image=image_state['filename'])
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
+                            game_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
                             ui.notify(f'Collection "{name}" created', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -668,7 +668,7 @@ def render_panel(tab=None):
                             game_ids = [t['id'] for t in selected_games['items']]
                             collections_service.update_game_collection(name, game_ids, image=image_state['filename'])
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
+                            game_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
                             refresh_collections()

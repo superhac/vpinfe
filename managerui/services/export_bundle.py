@@ -18,8 +18,8 @@ from common.tables.game_files import (
     game_file_names,
     recorded_default,
 )
+from common.tables.game_metadata import vpinfe_section
 from common.tables.metaconfig import ASSETS_KEY
-from common.tables.table_metadata import vpinfe_section
 from managerui.services.asset_registry import (
     is_readme,  # noqa: F401  (one matcher, import and export)
 )

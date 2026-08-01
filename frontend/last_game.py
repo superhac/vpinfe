@@ -5,7 +5,7 @@ import logging
 from common.config_access import SettingsConfig, cfg_get
 
 
-logger = logging.getLogger("vpinfe.frontend.last_table")
+logger = logging.getLogger("vpinfe.frontend.last_game")
 
 # Internal state, not a user-facing setting. Kept in its own section so the
 # Manager UI (which renders every key in a shown section) never surfaces it.
@@ -13,7 +13,7 @@ STATE_SECTION = "State"
 STATE_KEY = "lasttable"
 
 
-def table_identity(game) -> str:
+def game_identity(game) -> str:
     """Stable id for a table, preferring its absolute path over its dir name.
 
     Used both to save the last-launched table and to resolve it back to an
@@ -26,7 +26,7 @@ def save_last_game(iniConfig, game) -> None:
     """Persist `table` as the last-launched table when the feature is enabled."""
     if not SettingsConfig.from_config(iniConfig).restore_last_game:
         return
-    identity = table_identity(game)
+    identity = game_identity(game)
     if not identity:
         return
     parser = iniConfig.config
@@ -53,6 +53,6 @@ def resolve_last_game_index(iniConfig, tables) -> int:
     if not saved:
         return 0
     for index, game in enumerate(tables):
-        if table_identity(game) == saved:
+        if game_identity(game) == saved:
             return index
     return 0

@@ -10,9 +10,9 @@ from managerui.services.archive_service import resolve_game_dir
 from managerui.services.collections_service import get_filter_options, search_games
 from managerui.services.media_service import media_url, update_cache_entry, set_media_cache, get_media_cache, invalidate_media_cache
 from managerui.services.system_service import format_bytes, metric_tone
-from managerui.services.table_catalog import build_mobile_game_rows
+from managerui.services.game_catalog import build_mobile_game_rows
 from managerui.services import theme_service
-from managerui.services.table_index_service import (
+from managerui.services.game_index_service import (
     add_collection_membership,
     find_by_path,
     search_rows,
@@ -20,7 +20,7 @@ from managerui.services.table_index_service import (
     set_rows,
     update_row_by_path,
 )
-from managerui.services.table_service import normalize_game_rating, replace_game_file
+from managerui.services.game_service import normalize_game_rating, replace_game_file
 
 
 class ManagerUiServiceTests(unittest.TestCase):
@@ -73,7 +73,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             old_vpx.write_bytes(b"old vpx")
             old_b2s.write_bytes(b"old b2s")
 
-            with mock.patch("managerui.services.table_service.refresh_game"):
+            with mock.patch("managerui.services.game_service.refresh_game"):
                 result = replace_game_file(
                     str(game_dir),
                     "New Table.vpx",
@@ -100,7 +100,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             existing_b2s = game_dir / "Custom Backglass.directb2s"
             existing_b2s.write_bytes(b"old b2s")
 
-            with mock.patch("managerui.services.table_service.refresh_game"):
+            with mock.patch("managerui.services.game_service.refresh_game"):
                 result = replace_game_file(
                     str(game_dir),
                     "Uploaded.directb2s",
@@ -118,7 +118,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             game_dir.mkdir()
             (game_dir / "Example.vpx").write_bytes(b"vpx")
 
-            with mock.patch("managerui.services.table_service.refresh_game"):
+            with mock.patch("managerui.services.game_service.refresh_game"):
                 result = replace_game_file(
                     str(game_dir),
                     "Uploaded.directb2s",
@@ -181,9 +181,9 @@ class ManagerUiServiceTests(unittest.TestCase):
             {"id": "m", "name": "Medieval Madness", "manufacturer": "Williams", "year": 1997, "type": "SS", "theme": ["Fantasy"]},
         ]
 
-        with mock.patch("managerui.services.table_service.load_vpsdb", return_value=vpsdb_rows), \
-                mock.patch("managerui.services.table_service.ensure_vpsdb_downloaded") as ensure_vpsdb, \
-                mock.patch("managerui.services.table_index_service.scan_rows") as scan_rows:
+        with mock.patch("managerui.services.game_service.load_vpsdb", return_value=vpsdb_rows), \
+                mock.patch("managerui.services.game_service.ensure_vpsdb_downloaded") as ensure_vpsdb, \
+                mock.patch("managerui.services.game_index_service.scan_rows") as scan_rows:
             options = get_filter_options()
 
         self.assertEqual(options["letters"], ["All", "A", "M"])

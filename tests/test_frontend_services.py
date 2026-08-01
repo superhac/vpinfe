@@ -10,9 +10,9 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.host import realdmd, system_actions
-from common.tables import table_play_service, table_report_service
-from common.tables.table_metadata import game_frontend_dof_event
-from frontend import config_api, table_state, theme_api
+from common.tables import game_play_service, game_report_service
+from common.tables.game_metadata import game_frontend_dof_event
+from frontend import config_api, game_state, theme_api
 
 
 class FrontendServiceTests(unittest.TestCase):
@@ -187,9 +187,9 @@ class FrontendServiceTests(unittest.TestCase):
         logs = []
         ini = types.SimpleNamespace(config={"Settings": {"tablerootdir": "/tables"}})
 
-        with mock.patch("common.tables.table_report_service.GameParser", return_value=parser_instance), \
-            mock.patch("common.tables.table_report_service.VPSdb", return_value=vps_instance):
-            table_report_service.list_unknown_games(iniconfig=ini, log=lambda msg, *args: logs.append(msg % args if args else msg))
+        with mock.patch("common.tables.game_report_service.GameParser", return_value=parser_instance), \
+            mock.patch("common.tables.game_report_service.VPSdb", return_value=vps_instance):
+            game_report_service.list_unknown_games(iniconfig=ini, log=lambda msg, *args: logs.append(msg % args if args else msg))
 
         self.assertTrue(any("Unknown table 1: Unknown" in line for line in logs))
 
@@ -227,7 +227,7 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = table_state.set_table_rating([game], 0, 5)
+            result = game_state.set_table_rating([game], 0, 5)
 
             self.assertEqual(result, {"success": True, "rating": 5})
             saved = json.loads(info_path.read_text(encoding="utf-8"))
@@ -269,7 +269,7 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            table_play_service.increment_start_count(game)
+            game_play_service.increment_start_count(game)
 
             saved = json.loads(info_path.read_text(encoding="utf-8"))
             self.assertEqual(saved["User"]["Rating"], 4)
@@ -296,7 +296,7 @@ class FrontendServiceTests(unittest.TestCase):
 
             with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
                     mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}) as to_json:
-                score_data, score_path = table_play_service.parse_score_from_nvram(game)
+                score_data, score_path = game_play_service.parse_score_from_nvram(game)
 
             read_rom.assert_called_once_with("vpx_rom", str(game_dir))
             to_json.assert_called_once_with("vpx_rom", 123, "/scores/vpx_rom.nv")
@@ -327,7 +327,7 @@ class FrontendServiceTests(unittest.TestCase):
 
             with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
                     mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}):
-                table_play_service.parse_score_from_nvram(game)
+                game_play_service.parse_score_from_nvram(game)
 
             read_rom.assert_called_once_with("vpx_rom", str(game_dir))
 
@@ -349,7 +349,7 @@ class FrontendServiceTests(unittest.TestCase):
                 },
             )
 
-            table_play_service.delete_nvram_if_configured(game)
+            game_play_service.delete_nvram_if_configured(game)
 
             self.assertFalse(vpx_nvram.exists())
             self.assertTrue(info_nvram.exists())
@@ -360,8 +360,8 @@ class PerGameFilePlayStatsTests(unittest.TestCase):
     is credited to the one that ran as well as to the table."""
 
     def _launch(self, config, game_file, seconds=90, played_at=1000):
-        table_play_service.apply_start_count_update(config, played_at, game_file)
-        table_play_service.apply_runtime_update(config, seconds, game_file)
+        game_play_service.apply_start_count_update(config, played_at, game_file)
+        game_play_service.apply_runtime_update(config, seconds, game_file)
         return config
 
     def test_a_launch_counts_against_the_game_and_the_game_file(self):

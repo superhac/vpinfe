@@ -20,7 +20,7 @@ from common.config_access import MediaConfig
 from common.host import launch, launch_state, pinmame_catalog
 from common.media_paths import MEDIA_SPECS, resolve_media_files
 from common.paths import get_ini_config
-from common.tables import asset_resolver, table_identity
+from common.tables import asset_resolver, game_identity
 from common.tables.game_files import (
     default_game_file,
     game_file_names,
@@ -28,8 +28,8 @@ from common.tables.game_files import (
     is_parsed,
     recorded_default,
 )
-from common.tables.table_metadata import vpinfe_section
-from common.tables.table_repository import (
+from common.tables.game_metadata import vpinfe_section
+from common.tables.game_repository import (
     collections_by_game_id,
     ensure_games_loaded,
     game_to_row,
@@ -51,7 +51,7 @@ def _catalog() -> dict:
     been through it. main.py does the same at startup; this keeps the API correct
     when it is driven without a full app boot.
     """
-    return table_identity.ensure_unique_ids(ensure_games_loaded())
+    return game_identity.ensure_unique_ids(ensure_games_loaded())
 
 
 def _game_or_404(table_id: str):

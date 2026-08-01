@@ -5,11 +5,11 @@ import logging
 from common.iniconfig import IniConfig
 from common.config_access import SettingsConfig
 from common.paths import get_ini_config
-from common.tables.tableparser import GameParser
+from common.tables.gameparser import GameParser
 from common.online.vpsdb import VPSdb
 
 
-logger = logging.getLogger("vpinfe.common.tables.table_report_service")
+logger = logging.getLogger("vpinfe.common.tables.game_report_service")
 
 
 def _config(config: IniConfig | None = None) -> IniConfig:

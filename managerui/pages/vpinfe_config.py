@@ -552,8 +552,8 @@ def render_panel(tab=None):
                 config.config.get('Settings', 'vpxinipath', fallback=''),
             )
             try:
-                from managerui.services import table_index_service
-                table_index_service.invalidate()
+                from managerui.services import game_index_service
+                game_index_service.invalidate()
             except Exception:
                 logger.exception("Failed to invalidate table index after saving configuration")
             ui.notify('Configuration Saved', type='positive')

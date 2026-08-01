@@ -11,10 +11,10 @@ from typing import Callable, Optional
 
 from nicegui import context, events, run, ui
 
-from common.tables.table_metadata import reorder_leading_article
-from managerui.pages.table_dialog_context import GameDialogContext, default_context
+from common.tables.game_metadata import reorder_leading_article
+from managerui.pages.game_dialog_context import GameDialogContext, default_context
 from managerui.pages.dnd_drop_zone import create_drop_zone, DropContext
-from managerui.services import plugin_profile_service, table_index_service, table_service
+from managerui.services import plugin_profile_service, game_index_service, game_service
 from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import load_page_style
 
@@ -23,18 +23,18 @@ logger = logging.getLogger("vpinfe.manager.tables")
 ACCEPT_CRZ = ['.crz', '.cRZ', '.CRZ']
 ACCEPT_VNI = ['.vni', '.VNI', '.pal', '.PAL']
 
-normalize_game_rating = table_service.normalize_game_rating
-update_vpinfe_setting = table_service.update_vpinfe_setting
-update_user_setting = table_service.update_user_setting
-get_game_collections = table_service.get_game_collections
-ensure_dir = table_service.ensure_dir
-save_upload_bytes = table_service.save_upload_bytes
+normalize_game_rating = game_service.normalize_game_rating
+update_vpinfe_setting = game_service.update_vpinfe_setting
+update_user_setting = game_service.update_user_setting
+get_game_collections = game_service.get_game_collections
+ensure_dir = game_service.ensure_dir
+save_upload_bytes = game_service.save_upload_bytes
 
 
 def add_game_to_collection(table_id: str, collection_name: str) -> bool:
-    if not table_service.add_game_to_collection(table_id, collection_name):
+    if not game_service.add_game_to_collection(table_id, collection_name):
         return False
-    table_index_service.add_collection_membership(table_id, collection_name)
+    game_index_service.add_collection_membership(table_id, collection_name)
     return True
 
 
@@ -93,7 +93,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                         rebuild_status.set_text('Rebuilding...')
                     try:
                         result = await run.io_bound(
-                            table_service.build_metadata,
+                            game_service.build_metadata,
                             downloadMedia=True,
                             updateAll=True,
                             gameName=game_dir_name,
@@ -129,7 +129,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                         rebuild_status.set_text('Extracting VBS...')
                     try:
                         result = await run.io_bound(
-                            table_service.extract_vbs,
+                            game_service.extract_vbs,
                             game_path_str,
                             filename,
                             row_data.get('alt_launcher', ''),
@@ -167,7 +167,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                                 update_status.set_text(f'Updating {upload_name}...')
                             try:
                                 result = await run.io_bound(
-                                    table_service.replace_game_file,
+                                    game_service.replace_game_file,
                                     game_path_str,
                                     upload_name,
                                     data,
@@ -176,7 +176,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                                 )
                                 if result.get('file_type') == 'vpx':
                                     row_data['filename'] = result.get('filename', row_data.get('filename', ''))
-                                    table_index_service.update_row_by_path(game_path_str, {'filename': row_data['filename']})
+                                    game_index_service.update_row_by_path(game_path_str, {'filename': row_data['filename']})
                                     with client:
                                         update_status.set_text('Table file updated. Rebuilding metadata...')
                                         ui.notify('Table file updated', type='positive')
@@ -447,7 +447,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             if update_user_setting(game_path_str, 'Rating', clamped):
                                 rating_state['value'] = clamped
                                 row_data['rating'] = clamped
-                                table_index_service.update_row_by_path(game_path_str, {'rating': clamped})
+                                game_index_service.update_row_by_path(game_path_str, {'rating': clamped})
                                 refresh_rating_ui()
                                 if on_close:
                                     on_close()
@@ -548,7 +548,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             except Exception:
                                 pass
                             effective_name = new_value or reorder_leading_article(fallback_name)
-                            table_index_service.update_row_by_path(game_path_str, {
+                            game_index_service.update_row_by_path(game_path_str, {
                                 'alt_title': new_value,
                                 'name': effective_name,
                             })
@@ -590,7 +590,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                                 # Collections do not move with this any more - membership
                                 # is the table's own id, which a VPS id change cannot touch.
                                 row_data['alt_vpsid'] = new_value
-                                table_index_service.update_row_by_path(game_path_str, {
+                                game_index_service.update_row_by_path(game_path_str, {
                                     'alt_vpsid': new_value,
                                 })
                                 ui.notify('Alt VPS ID saved', type='positive')
@@ -613,7 +613,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                         new_value = (altlauncher_input.value or '').strip()
                         if update_vpinfe_setting(game_path_str, 'alt_launcher', new_value):
                             row_data['alt_launcher'] = new_value
-                            table_index_service.update_row_by_path(game_path_str, {'alt_launcher': new_value})
+                            game_index_service.update_row_by_path(game_path_str, {'alt_launcher': new_value})
                             ui.notify('Alt launcher saved', type='positive')
                         else:
                             ui.notify('Failed to save alt launcher', type='negative')
@@ -641,7 +641,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                         new_value = '' if plugin_profile_service.is_default_profile(selected) else selected
                         if update_vpinfe_setting(game_path_str, 'plugin_profile', new_value):
                             row_data['plugin_profile'] = new_value
-                            table_index_service.update_row_by_path(game_path_str, {'plugin_profile': new_value})
+                            game_index_service.update_row_by_path(game_path_str, {'plugin_profile': new_value})
                             ui.notify('Plugin profile saved', type='positive')
                         else:
                             ui.notify('Failed to save plugin profile', type='negative')
@@ -660,7 +660,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                         new_value = (frontend_dof_event_input.value or '').strip()
                         if update_vpinfe_setting(game_path_str, 'frontend_dof_event', new_value):
                             row_data['frontend_dof_event'] = new_value
-                            table_index_service.update_row_by_path(game_path_str, {'frontend_dof_event': new_value})
+                            game_index_service.update_row_by_path(game_path_str, {'frontend_dof_event': new_value})
                             ui.notify('Frontend DOF event saved', type='positive')
                         else:
                             ui.notify('Failed to save Frontend DOF event', type='negative')
@@ -674,7 +674,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                         if update_vpinfe_setting(game_path_str, 'delete_nvram_on_close', new_value):
                             row_data['delete_nvram_on_close'] = new_value
                             # Also update the cache so the value persists across dialog opens
-                            table_index_service.update_row_by_path(game_path_str, {'delete_nvram_on_close': new_value})
+                            game_index_service.update_row_by_path(game_path_str, {'delete_nvram_on_close': new_value})
                             ui.notify('Setting saved', type='positive')
                         else:
                             ui.notify('Failed to save setting', type='negative')
