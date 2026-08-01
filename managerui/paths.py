@@ -12,10 +12,10 @@ MANAGER_STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 def get_games_path(default: str = "~/tables") -> str:
-    """Resolve Settings.tablerootdir with a stable fallback."""
+    """Resolve Settings.gamerootdir with a stable fallback."""
     try:
         config = get_ini_config()
-        game_root = config.config.get("Settings", "tablerootdir", fallback="").strip()
+        game_root = config.config.get("Settings", "gamerootdir", fallback="").strip()
         if game_root:
             return os.path.expanduser(game_root)
     except Exception:

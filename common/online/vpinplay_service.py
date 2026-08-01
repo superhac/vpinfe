@@ -269,7 +269,7 @@ def sync_on_shutdown(iniconfig, timeout_seconds: int = 10) -> dict | None:
     if not service_ip or not user_id or not initials or not machine_id or not game_root_dir:
         logger.warning(
             "Skipping VPinPlay shutdown sync: missing required settings "
-            "(apiendpoint=%s, userid=%s, initials=%s, machineid=%s, tablerootdir=%s).",
+            "(apiendpoint=%s, userid=%s, initials=%s, machineid=%s, gamerootdir=%s).",
             bool(service_ip),
             bool(user_id),
             bool(initials),

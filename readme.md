@@ -87,7 +87,7 @@ Next you must configure these three essential settings in the `[Settings]` secti
 <img width="1307" height="591" alt="1-settings-panel" src="https://github.com/user-attachments/assets/4c774005-a6a6-4970-b85e-d4f26ea18941" />
 
 1. **vpxbinpath** - Full path to your VPinball executable (e.g., `/home/user/vpinball/build/VPinballX_BGFX`)
-2. **tablerootdir** - Root directory where all your tables are located (e.g., `/home/user/tables/`)
+2. **gamerootdir** - Root directory where all your tables are located (e.g., `/home/user/tables/`)
 3. **vpxinipath** - Path to your VPinballX.ini file (e.g., `~/.vpinball/VPinballX.ini`)
 
 Once these are configured you can exit the ManagerUI by clicking the shutdown button in the UI (upper left area).  Anytime you want to return to the ManagerUI look in the console for its webserver address.  Its a line that looks like this:
@@ -224,7 +224,7 @@ Core startup and launch behavior:
 - **Active Theme**: currently selected frontend theme
 - **Startup Collection**: collection opened when VPinFE starts
 - **Auto Update Media On Startup**: enables startup media refresh behavior
-- **Restore Last Table**: opens the wheel on the last table you launched instead of the first; on by default, saved as `Settings.restorelasttable`
+- **Restore Last Table**: opens the wheel on the last table you launched instead of the first; on by default, saved as `Settings.restorelastgame`
 - **Enable splashscreen**: shows the frontend splash screen during startup
 - **Mute Frontend Audio**: mutes frontend audio playback
 - **Hide Quit from MainMenu**: hides the **Quit** item from the frontend main menu; saved as `Settings.MMhideQuitButton` in `vpinfe.ini`

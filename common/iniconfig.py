@@ -12,6 +12,21 @@ def _generate_machine_id(length: int = 64) -> str:
 	alphabet = string.ascii_letters + string.digits
 	return ''.join(secrets.choice(alphabet) for _ in range(length))
 
+
+# (section, old key, new key) - see the migration in _migrate below.
+_RENAMED_KEYS = (
+	('Displays', 'tablescreenid', 'playfieldscreenid'),
+	('Displays', 'tableorientation', 'playfieldorientation'),
+	('Displays', 'tablerotation', 'playfieldrotation'),
+	('Settings', 'tablerootdir', 'gamerootdir'),
+	('Settings', 'restorelasttable', 'restorelastgame'),
+	('Media', 'tabletype', 'playfieldvariant'),
+	('Media', 'tableresolution', 'playfieldresolution'),
+	('Media', 'tablevideoresolution', 'playfieldvideoresolution'),
+	('Media', 'tablemediapriority', 'playfieldmediapriority'),
+	('State', 'lasttable', 'lastgame'),
+)
+
 class IniConfig:
 
 	def __init__(self, configfilepath):
@@ -22,9 +37,9 @@ class IniConfig:
 				'dmdscreenid': '',
 				'bgwindowoverride': '',
 				'dmdwindowoverride': '',
-				'tablescreenid': '0',
-				'tableorientation': 'landscape',
-				'tablerotation': '0',
+				'playfieldscreenid': '0',
+				'playfieldorientation': 'landscape',
+				'playfieldrotation': '0',
 				'cabmode': 'false'
 			},
 			'Settings': {
@@ -33,7 +48,7 @@ class IniConfig:
 				'globalinioverride': '',
 				'globaltableinioverrideenabled': 'false',
 				'globaltableinioverridemask': '',
-				'tablerootdir': '',
+				'gamerootdir': '',
 				'vpxinipath': '',
 				'rartoolpath': '',
 				'vpxlogdeleteonstart': 'false',
@@ -46,7 +61,7 @@ class IniConfig:
 				'chromeoptionsexclude': '',
 				'disabledefaultchromeoptions': 'false',
 				'MMhideQuitButton': 'false',
-				'restorelasttable': 'true',
+				'restorelastgame': 'true',
 				},
 			'Input': {
 				'joyleft': '',
@@ -81,18 +96,18 @@ class IniConfig:
 				'console': 'true',
 				},
 				'Media': {
-					'tabletype': 'table',
-					'tableresolution': '4k',
-					'tablevideoresolution': '1k',
+					'playfieldvariant': 'table',
+					'playfieldresolution': '4k',
+					'playfieldvideoresolution': '1k',
 					'defaultmissingmediaimg': '',
 					'thumbcachemaxmb': '500',
-					'tablemediapriority': 'video',
+					'playfieldmediapriority': 'video',
 					'bgmediapriority': 'video',
 					'dmdmediapriority': 'video',
 					'realdmdmediapriority': 'color',
 					},
 			'VPSdb': {'last': ''},
-			'State': {'lasttable': ''},
+			'State': {'lastgame': ''},
 			'pinmame-score-parser': {
 				'romsupdatesha': '',
 				},
@@ -139,8 +154,22 @@ class IniConfig:
 				self.save()
 
 		self.config.read(configfilepath)
-		# Add any missing default options
 		changed = False
+
+		# The vocabulary rename, BEFORE defaults are filled in: once a default
+		# exists for the new key, "copy only if absent" copies nothing and the
+		# user's real value is dropped when the old key is removed.
+		# The vocabulary rename: a table folder is a game, and the table screen is the
+		# playfield. Read the old key once and write the new one, so an existing
+		# vpinfe.ini keeps working and is corrected in place on first load.
+		for section, old, new in _RENAMED_KEYS:
+			if self.config.has_option(section, old):
+				if not self.config.has_option(section, new):
+					self.config.set(section, new, self.config.get(section, old))
+				self.config.remove_option(section, old)
+				changed = True
+
+		# Add any missing default options
 		for section, defaults in self.defaults.items():
 			if not self.config.has_section(section):
 				self.config.add_section(section)

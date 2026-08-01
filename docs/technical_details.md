@@ -10,17 +10,17 @@ VPinFE uses a platform-specific configuration directory to store its settings. O
 | ----------------- | -------------------------------------------------------------------------                           |
 | bgscreenid        | Blackglass screen number.  use `--listres` to get your mointor ids. Leave blank if no display       |
 | dmdscreenid       | dmdscreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display      |
-| tablescreenid     | tablescreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display    |
+| playfieldscreenid     | playfieldscreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display    |
 
 ### [Settings]
 | Key               | Description |
 | ----------------- | ------------------------------------------------------------------------- |
 | vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
-| tablerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
+| gamerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
 | assetsdir         | Root folder for shared assets such as manufacturer logos, served at `/assets/`. Defaults to `assets/` under the VPinFE config dir. Put your own logos in `manufacturers/user/` (e.g. `bally.png`); files there win over a downloaded pack in `manufacturers/default/`. The generated `manufacturers/manufacturers-reference.json` lists every known manufacturer with the filename it looks for. |
 | startup_collection| Set the collection VPinFE starts up with.  Case sensitive, match collection name. |
 | splashscreen      | Enable or disable the splash screen at startup. Default is `false`. |
-| restorelasttable  | Open the wheel on the last table you launched instead of the first. Default is `true`. |
+| restorelastgame  | Open the wheel on the last table you launched instead of the first. Default is `true`. |
 
 ### [Input]
 | Key               | Description |
@@ -49,13 +49,13 @@ VPinFE uses a platform-specific configuration directory to store its settings. O
 Internal state written by VPinFE, not shown in the Manager UI.
 | Key               | Description |
 | ----------------- | ------------------------------------------------------------------------- |
-| lasttable         | Path of the last table you launched. Used by `restorelasttable` to reopen on that table. |
+| lastgame         | Path of the last table you launched. Used by `restorelastgame` to reopen on that table. |
 
 ### [Media]
 | Key               | Description |
 | ----------------- | ------------------------------------------------------------------------- |
-| tabletype         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait table images. |
-| tableresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
+| playfieldvariant         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait table images. |
+| playfieldresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
 | wheelset          | Name of the wheel set to use library-wide. A set is a folder of alternate wheel art at `medias/wheels/<set>/` inside a table folder. The reserved name `logo` shows each table's game logo in the wheel slot. Blank means plain wheels. The active theme can override this with its own `wheelSet` option. |
 
 ### [Network]

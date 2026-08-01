@@ -68,7 +68,7 @@ def gamepadtest():
     from frontend.ws_bridge import WebSocketBridge
 
     mount_points = {
-        '/tables/': os.path.abspath(iniconfig.config['Settings']['tablerootdir']),
+        '/tables/': os.path.abspath(iniconfig.config['Settings']['gamerootdir']),
         '/web/': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web'),
     }
     http_server = CustomHTTPServer(mount_points)

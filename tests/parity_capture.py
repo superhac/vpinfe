@@ -123,7 +123,7 @@ def capture() -> dict:
         config_dir = Path(tmp) / "config"
         config_dir.mkdir()
         (config_dir / "vpinfe.ini").write_text(
-            f"[Settings]\ntablerootdir = {games_root}\nvpxbinpath = \n",
+            f"[Settings]\ngamerootdir = {games_root}\nvpxbinpath = \n",
             encoding="utf-8")
         os.environ["VPINFE_CONFIG_DIR"] = str(config_dir)
 

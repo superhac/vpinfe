@@ -66,7 +66,7 @@ class SettingsConfig:
     def from_config(cls, source: Any) -> "SettingsConfig":
         theme = cfg_get(source, "Settings", "theme", "Revolution").strip() or "Revolution"
         return cls(
-            game_root_dir=cfg_get(source, "Settings", "tablerootdir", "").strip(),
+            game_root_dir=cfg_get(source, "Settings", "gamerootdir", "").strip(),
             assets_dir=cfg_get(source, "Settings", "assetsdir", "").strip(),
             vpx_bin_path=cfg_get(source, "Settings", "vpxbinpath", "").strip(),
             vpx_ini_path=cfg_get(source, "Settings", "vpxinipath", "").strip(),
@@ -85,7 +85,7 @@ class SettingsConfig:
             disable_default_chrome_options=cfg_bool(source, "Settings", "disabledefaultchromeoptions", False),
             cab_mode=cfg_bool(source, "Settings", "cabmode", False),
             hide_quit_button=cfg_bool(source, "Settings", "MMhideQuitButton", False),
-            restore_last_game=cfg_bool(source, "Settings", "restorelasttable", True),
+            restore_last_game=cfg_bool(source, "Settings", "restorelastgame", True),
         )
 
 
@@ -104,11 +104,11 @@ class MediaConfig:
     def from_config(cls, source: Any) -> "MediaConfig":
         return cls(
             wheelset=cfg_get(source, "Media", "wheelset", "").strip(),
-            playfield_variant=(cfg_get(source, "Media", "tabletype", "table").strip().lower()
+            playfield_variant=(cfg_get(source, "Media", "playfieldvariant", "table").strip().lower()
                             or "table"),
-            playfield_resolution=cfg_get(source, "Media", "tableresolution", "4k").strip().lower() or "4k",
-            playfield_video_resolution=cfg_get(source, "Media", "tablevideoresolution", "1k").strip().lower() or "1k",
-            playfield_media_priority=_media_priority(source, "tablemediapriority", ("image", "video"), "video"),
+            playfield_resolution=cfg_get(source, "Media", "playfieldresolution", "4k").strip().lower() or "4k",
+            playfield_video_resolution=cfg_get(source, "Media", "playfieldvideoresolution", "1k").strip().lower() or "1k",
+            playfield_media_priority=_media_priority(source, "playfieldmediapriority", ("image", "video"), "video"),
             bg_media_priority=_media_priority(source, "bgmediapriority", ("image", "video"), "video"),
             dmd_media_priority=_media_priority(source, "dmdmediapriority", ("image", "video"), "video"),
             realdmd_media_priority=_media_priority(source, "realdmdmediapriority", ("standard", "color"), "color"),
@@ -166,14 +166,14 @@ class DisplayConfig:
 
     @classmethod
     def from_config(cls, source: Any) -> "DisplayConfig":
-        playfield_screen_id_raw = cfg_get(source, "Displays", "tablescreenid", "0").strip()
+        playfield_screen_id_raw = cfg_get(source, "Displays", "playfieldscreenid", "0").strip()
         return cls(
-            playfield_screen_id=cfg_int(source, "Displays", "tablescreenid", 0),
+            playfield_screen_id=cfg_int(source, "Displays", "playfieldscreenid", 0),
             playfield_screen_id_raw=playfield_screen_id_raw,
             bg_screen_id=cfg_get(source, "Displays", "bgscreenid", "").strip(),
             dmd_screen_id=cfg_get(source, "Displays", "dmdscreenid", "").strip(),
-            playfield_orientation=cfg_get(source, "Displays", "tableorientation", "landscape"),
-            playfield_rotation=cfg_int(source, "Displays", "tablerotation", 0),
+            playfield_orientation=cfg_get(source, "Displays", "playfieldorientation", "landscape"),
+            playfield_rotation=cfg_int(source, "Displays", "playfieldrotation", 0),
             cab_mode=cfg_bool(source, "Displays", "cabmode", SettingsConfig.from_config(source).cab_mode),
         )
 
@@ -182,7 +182,7 @@ class DisplayConfig:
             return self.bg_screen_id
         if config_key == "dmdscreenid":
             return self.dmd_screen_id
-        if config_key == "tablescreenid":
+        if config_key == "playfieldscreenid":
             return self.playfield_screen_id_raw
         return ""
 

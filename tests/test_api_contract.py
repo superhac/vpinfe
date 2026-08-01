@@ -85,7 +85,7 @@ def _run_probe() -> dict:
 
         config_dir.mkdir(parents=True)
         (config_dir / "vpinfe.ini").write_text(
-            f"[Settings]\ntablerootdir = {games_dir}\n", encoding="utf-8")
+            f"[Settings]\ngamerootdir = {games_dir}\n", encoding="utf-8")
 
         proc = subprocess.run(
             [sys.executable, "-m", "tests.api_probe"],

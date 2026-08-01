@@ -31,7 +31,7 @@ class VPXParser:
         'save_rev': 'tableinfo/tablesaverev',
         'manufacturer': 'tableinfo/companyname',
         'year': 'tableinfo/companyyear',
-        'type': 'tableinfo/tabletype',
+        'type': 'tableinfo/playfieldvariant',
         'table_description': 'tableinfo/tabledescription',
     }
 

@@ -253,7 +253,7 @@ def render_panel():
         user_id = _input_value("userid")
         initials = _input_value("initials")
         machine_id = _input_value("machineid")
-        games_dir = config.config.get("Settings", "tablerootdir", fallback="").strip()
+        games_dir = config.config.get("Settings", "gamerootdir", fallback="").strip()
 
         if not service_ip:
             ui.notify("API Endpoint is required.", type="warning")

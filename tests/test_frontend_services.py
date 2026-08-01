@@ -185,7 +185,7 @@ class FrontendServiceTests(unittest.TestCase):
         vps_instance.parseGameNameFromDir.return_value = {"name": "Unknown", "manufacturer": "", "year": ""}
         vps_instance.lookupName.return_value = None
         logs = []
-        ini = types.SimpleNamespace(config={"Settings": {"tablerootdir": "/games"}})
+        ini = types.SimpleNamespace(config={"Settings": {"gamerootdir": "/games"}})
 
         with mock.patch("common.games.game_report_service.GameParser", return_value=parser_instance), \
             mock.patch("common.games.game_report_service.VPSdb", return_value=vps_instance):

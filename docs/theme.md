@@ -170,7 +170,7 @@ If your theme supports cabinets or portrait-style table layouts, build that into
 There are two different rotation concepts to keep separate:
 
 - **OS monitor orientation**: If the user sets the playfield monitor to Portrait in the operating system, Chromium receives a portrait-shaped window. For example, CSS `100vw` is the narrow edge and `100vh` is the long edge.
-- **VPinFE table rotation**: `[Displays] tablerotation` is exposed to themes as `vpin.tableRotation` and `get_table_rotation`. This tells the theme how to rotate its playfield UI inside that Chromium window.
+- **VPinFE table rotation**: `[Displays] playfieldrotation` is exposed to themes as `vpin.tableRotation` and `get_table_rotation`. This tells the theme how to rotate its playfield UI inside that Chromium window.
 
 VPinFE does not automatically rotate arbitrary theme markup. The backend launches Chromium on the configured monitor and `vpinfe-core.js` loads display values during `vpin.ready`; the theme decides how to use those values.
 

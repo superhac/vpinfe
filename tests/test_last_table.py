@@ -29,7 +29,7 @@ class TestLastGame(unittest.TestCase):
 
             last_game.save_last_game(config, games[2])
 
-            self.assertEqual(config.config.get("State", "lasttable"), "/games/CCC")
+            self.assertEqual(config.config.get("State", "lastgame"), "/games/CCC")
             self.assertEqual(last_game.resolve_last_game_index(config, games), 2)
 
     def test_resolve_survives_reordering(self) -> None:
@@ -48,7 +48,7 @@ class TestLastGame(unittest.TestCase):
     def test_resolve_returns_zero_when_not_found(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            config.config.set("State", "lasttable", "/games/GONE")
+            config.config.set("State", "lastgame", "/games/GONE")
 
             games = [FakeGame(fullPathTable="/games/AAA", tableDirName="AAA")]
             self.assertEqual(last_game.resolve_last_game_index(config, games), 0)
@@ -62,7 +62,7 @@ class TestLastGame(unittest.TestCase):
     def test_disabled_skips_save_and_resolve(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            config.config.set("Settings", "restorelasttable", "false")
+            config.config.set("Settings", "restorelastgame", "false")
 
             games = [
                 FakeGame(fullPathTable="/games/AAA", tableDirName="AAA"),
@@ -71,7 +71,7 @@ class TestLastGame(unittest.TestCase):
             last_game.save_last_game(config, games[1])
 
             # Nothing persisted, and resolution is short-circuited to 0.
-            self.assertEqual(config.config.get("State", "lasttable"), "")
+            self.assertEqual(config.config.get("State", "lastgame"), "")
             self.assertEqual(last_game.resolve_last_game_index(config, games), 0)
 
     def test_falls_back_to_dir_name_when_path_missing(self) -> None:
@@ -80,7 +80,7 @@ class TestLastGame(unittest.TestCase):
             game = FakeGame(fullPathTable="", tableDirName="OnlyDirName")
             last_game.save_last_game(config, game)
 
-            self.assertEqual(config.config.get("State", "lasttable"), "OnlyDirName")
+            self.assertEqual(config.config.get("State", "lastgame"), "OnlyDirName")
             self.assertEqual(
                 last_game.resolve_last_game_index(config, [FakeGame(tableDirName="Other"), game]),
                 1,

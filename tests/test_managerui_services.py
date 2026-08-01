@@ -164,7 +164,7 @@ class ManagerUiServiceTests(unittest.TestCase):
 
     def test_config_field_metadata(self):
         self.assertTrue(is_checkbox_field("Settings", "muteaudio"))
-        self.assertFalse(is_checkbox_field("Settings", "tablerootdir"))
+        self.assertFalse(is_checkbox_field("Settings", "gamerootdir"))
         self.assertEqual(sort_input_mapping_keys(["keyback", "keyleft", "keycustom"], "key"), [
             "keyleft",
             "keyback",

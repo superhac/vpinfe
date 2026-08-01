@@ -55,7 +55,7 @@ def get_ini_config() -> IniConfig:
 def get_games_path(default: str = "~/tables") -> str:
     try:
         config = get_ini_config()
-        game_root = config.config.get("Settings", "tablerootdir", fallback="").strip()
+        game_root = config.config.get("Settings", "gamerootdir", fallback="").strip()
         if game_root:
             return os.path.expanduser(game_root)
     except Exception:

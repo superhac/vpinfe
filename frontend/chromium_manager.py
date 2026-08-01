@@ -407,7 +407,7 @@ class ChromiumManager:
         window_configs = [
             ("bg", "bgscreenid"),
             ("dmd", "dmdscreenid"),
-            ("table", "tablescreenid"),
+            ("table", "playfieldscreenid"),
         ]
 
         for window_name, config_key in window_configs:

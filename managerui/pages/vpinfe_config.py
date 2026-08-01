@@ -69,10 +69,10 @@ FRIENDLY_NAMES = {
     'vpxinipath' : 'VPX Ini Path',
     'rartoolpath': 'RAR Tool Path (unar/unrar, blank = auto-detect)',
     'vpxlogdeleteonstart': 'Delete VPinball Log On Table Start',
-    'tablerootdir': 'Tables Directory',
+    'gamerootdir': 'Tables Directory',
     'startup_collection': 'Startup Collection',
     'autoupdatemediaonstartup': 'Auto Update Media On Startup',
-    'restorelasttable': 'Restore Last Table',
+    'restorelastgame': 'Restore Last Table',
     'splashscreen': 'Enable splashscreen',
     'muteaudio': 'Mute Frontend Audio',
     'chromeoptions': 'Additional Chrome Options',
@@ -90,13 +90,12 @@ FRIENDLY_NAMES = {
     'console': 'Console Logging',
 
     # [Displays]
-    'tablescreenid': 'Playfield Monitor ID',
+    'playfieldscreenid': 'Playfield Monitor ID',
     'bgscreenid': 'Backglass Monitor ID',
     'dmdscreenid': 'DMD Monitor ID',
     'bgwindowoverride': 'Backglass Window Override (x,y,width,height)',
     'dmdwindowoverride': 'DMD Window Override (x,y,width,height)',
-    'tablerotation': 'Playfield Rotation (0/90/270)',
-    'tableorientation': 'Playfield Orientation (Landscape/Portrait)',
+    'playfieldrotation': 'Playfield Rotation (0/90/270)',
     'playfieldorientation': 'Playfield Orientation (Landscape/Portrait)',
     'cabmode': 'Cabinet Mode',
 
@@ -145,12 +144,12 @@ FRIENDLY_NAMES = {
     'initials': 'Initials',
     'machineid': 'Machine ID',
     # [Media]
-    'tabletype': 'Table Type',
-    'tableresolution': 'Default Table Resolution',
-    'tablevideoresolution': 'Default Table Video Resolution',
+    'playfieldvariant': 'Table Type',
+    'playfieldresolution': 'Default Table Resolution',
+    'playfieldvideoresolution': 'Default Table Video Resolution',
     'defaultmissingmediaimg': 'Default Missing Media Image',
     'thumbcachemaxmb': 'Thumbnail Cache Max (MB)',
-    'tablemediapriority': 'Table Media Priority',
+    'playfieldmediapriority': 'Table Media Priority',
     'bgmediapriority': 'Backglass Media Priority',
     'dmdmediapriority': 'DMD Media Priority',
     'realdmdmediapriority': 'Real DMD Priority',
@@ -159,7 +158,7 @@ FRIENDLY_NAMES = {
 }
 
 MEDIA_PRIORITY_KEYS = (
-    'tablemediapriority',
+    'playfieldmediapriority',
     'bgmediapriority',
     'dmdmediapriority',
     'realdmdmediapriority',
@@ -475,7 +474,8 @@ def render_panel(tab=None):
                     text='Enable' if special_label_above else friendly_label,
                     value=(value == "true")
                 ).classes('config-input')
-            elif section == 'Displays' and key in ('tablescreenid', 'bgscreenid', 'dmdscreenid'):
+            elif section == 'Displays' and key in (
+                    'playfieldscreenid', 'bgscreenid', 'dmdscreenid'):
                 monitor_options = _get_display_id_options(detected_displays, value)
                 inp = ui.select(
                     options=monitor_options,
@@ -549,10 +549,10 @@ def render_panel(tab=None):
             with open(INI_PATH, 'w') as f:
                 config.config.write(f)
             logger.info(
-                "Saved configuration to %s: vpxbinpath=%r tablerootdir=%r vpxinipath=%r",
+                "Saved configuration to %s: vpxbinpath=%r gamerootdir=%r vpxinipath=%r",
                 INI_PATH,
                 config.config.get('Settings', 'vpxbinpath', fallback=''),
-                config.config.get('Settings', 'tablerootdir', fallback=''),
+                config.config.get('Settings', 'gamerootdir', fallback=''),
                 config.config.get('Settings', 'vpxinipath', fallback=''),
             )
             try:
@@ -696,7 +696,7 @@ def render_panel(tab=None):
                         with ui.element('div').classes(content_classes):
                             if section == 'Settings':
                                 path_keys = [
-                                    key for key in ('vpxbinpath', 'tablerootdir', 'vpxinipath')
+                                    key for key in ('vpxbinpath', 'gamerootdir', 'vpxinipath')
                                     if key in options
                                 ]
                                 launch_keys = [
@@ -875,7 +875,7 @@ def render_panel(tab=None):
                             else:
                                 with ui.card().classes('config-card w-full p-4'):
                                     if section == 'Displays':
-                                        split_key = 'tableorientation' if section == 'Displays' else 'theme'
+                                        split_key = 'playfieldorientation' if section == 'Displays' else 'theme'
                                         split_index = options.index(split_key) if split_key in options else len(options)
                                         first_column_keys = options[:split_index]
                                         second_column_keys = options[split_index:]
@@ -890,7 +890,7 @@ def render_panel(tab=None):
                                                 second_column_keys.remove(override_key)
                                                 present_override_keys.append(override_key)
 
-                                        monitor_anchor_keys = ['tablescreenid', 'bgscreenid', 'dmdscreenid']
+                                        monitor_anchor_keys = ['playfieldscreenid', 'bgscreenid', 'dmdscreenid']
                                         insert_after = max(
                                             (first_column_keys.index(key) for key in monitor_anchor_keys if key in first_column_keys),
                                             default=-1,

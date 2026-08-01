@@ -29,14 +29,14 @@ class GameParser:
 
     def __init__(self, gamesRootFilePath, iniConfig=None):
         self.gamesRootFilePath = Path(gamesRootFilePath)
-        self.tabletype = "table"
+        self.playfieldvariant = "table"
         self.games: list[Game] = []
         self.missing_games: list[dict] = []
         self.unreadable_games: list[dict] = []
         self.active_sets: dict[str, str] = {}
         if iniConfig:
             media_cfg = MediaConfig.from_config(iniConfig)
-            self.tabletype = media_cfg.playfield_variant
+            self.playfieldvariant = media_cfg.playfield_variant
             from common.media_paths import active_set_for
             wheelset = active_set_for("wheel", media_cfg.wheelset)
             if wheelset:
@@ -218,7 +218,7 @@ class GameParser:
                             fname if rel == "." else f"{rel}/{fname}".replace(os.sep, "/"))
             except Exception:
                 medias_contents = set()
-        apply_media_paths(Game, game_contents, medias_contents, self.tabletype,
+        apply_media_paths(Game, game_contents, medias_contents, self.playfieldvariant,
                           table_stem, self.active_sets or None)
 
     def loadMetaData(self, Game):

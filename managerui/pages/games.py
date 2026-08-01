@@ -142,7 +142,7 @@ def associate_vps_to_folder(game_folder: Path, vps_entry: Dict, download_media: 
 logger = logging.getLogger("vpinfe.manager.games")
 
 def get_games_path() -> str:
-    """Resolve tables path from vpinfe.ini [Settings] tablerootdir, fallback to ~/tables."""
+    """Resolve tables path from vpinfe.ini [Settings] gamerootdir, fallback to ~/tables."""
     return resolve_games_path()
 
 def parse_game_info(info_path):

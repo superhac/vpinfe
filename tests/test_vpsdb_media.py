@@ -29,7 +29,7 @@ class OwnershipTests(unittest.TestCase):
         return VPSMediaDownloader(
             {"vps-1": {"wheel": "https://example.invalid/wheel.png",
                        "wheel_md5": remote_md5}},
-            tabletype="table", tableresolution="1k", tablevideoresolution="1k",
+            playfieldvariant="table", playfieldresolution="1k", playfieldvideoresolution="1k",
         )
 
     def _run(self, on_disk: bytes, remote_md5: str):
@@ -103,7 +103,7 @@ class RecordingTests(unittest.TestCase):
         return VPSMediaDownloader(
             {"vps-1": {"wheel": "https://example.invalid/wheel.png",
                        "wheel_md5": remote_md5}},
-            tabletype="table", tableresolution="1k", tablevideoresolution="1k")
+            playfieldvariant="table", playfieldresolution="1k", playfieldvideoresolution="1k")
 
     def test_a_file_we_never_wrote_is_not_recorded_as_ours(self) -> None:
         """download_media returns None for anything it declined to touch, and record()

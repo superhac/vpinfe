@@ -155,7 +155,7 @@ class TestCommonArchitecture(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser.read_dict({
             "Settings": {
-                "tablerootdir": "/games",
+                "gamerootdir": "/games",
                 "vpxinipath": "/home/player/.vpinball/VPinballX.ini",
                 "vpxlogdeleteonstart": "yes",
                 "theme": "",
@@ -163,10 +163,10 @@ class TestCommonArchitecture(unittest.TestCase):
                 "cabmode": "true",
             },
             "Media": {
-                "tabletype": "FSS",
-                "tableresolution": "4K",
-                "tablevideoresolution": "1080p",
-                "tablemediapriority": "image",
+                "playfieldvariant": "FSS",
+                "playfieldresolution": "4K",
+                "playfieldvideoresolution": "1080p",
+                "playfieldmediapriority": "image",
                 "bgmediapriority": "mp4",
                 "dmdmediapriority": "invalid",
                 "realdmdmediapriority": "realdmd.png",
@@ -176,8 +176,8 @@ class TestCommonArchitecture(unittest.TestCase):
                 "themeassetsport": "bad",
             },
             "Displays": {
-                "tablescreenid": "2",
-                "tablerotation": "270",
+                "playfieldscreenid": "2",
+                "playfieldrotation": "270",
             },
             "vpinplay": {
                 "apiendpoint": " http://example.test ",
@@ -204,19 +204,20 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertEqual(NetworkConfig.from_config(parser).ws_port, 9002)
         self.assertEqual(NetworkConfig.from_config(parser).theme_assets_port, 8000)
         self.assertEqual(DisplayConfig.from_config(parser).playfield_screen_id, 2)
-        self.assertEqual(DisplayConfig.from_config(parser).window_screen_id("tablescreenid"), "2")
+        self.assertEqual(
+            DisplayConfig.from_config(parser).window_screen_id("playfieldscreenid"), "2")
         self.assertTrue(DisplayConfig.from_config(parser).cab_mode)
         self.assertEqual(VPinPlayConfig.from_config(parser).api_endpoint, "http://example.test")
         self.assertTrue(VPinPlayConfig.from_config(parser).sync_on_exit)
 
     def test_display_config_preserves_empty_game_screen_for_window_discovery(self) -> None:
         parser = configparser.ConfigParser()
-        parser.read_dict({"Displays": {"tablescreenid": ""}})
+        parser.read_dict({"Displays": {"playfieldscreenid": ""}})
 
         display = DisplayConfig.from_config(parser)
 
         self.assertEqual(display.playfield_screen_id, 0)
-        self.assertEqual(display.window_screen_id("tablescreenid"), "")
+        self.assertEqual(display.window_screen_id("playfieldscreenid"), "")
 
     def test_settings_config_defaults_splashscreen_off(self) -> None:
         parser = configparser.ConfigParser()

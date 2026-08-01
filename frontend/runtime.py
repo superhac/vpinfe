@@ -20,7 +20,7 @@ from common.online.vpinplay_runtime import clear_alternate_profile
 WINDOW_CONFIGS = (
     ("bg", "bgscreenid"),
     ("dmd", "dmdscreenid"),
-    ("table", "tablescreenid"),
+    ("table", "playfieldscreenid"),
 )
 
 
@@ -89,7 +89,7 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
 
     game_root = settings.game_root_dir
     if not game_root:
-        logger.warning("Startup media sync enabled, but tablerootdir is empty. Skipping.")
+        logger.warning("Startup media sync enabled, but gamerootdir is empty. Skipping.")
         return False
 
     def _worker():

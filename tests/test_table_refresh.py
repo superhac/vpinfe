@@ -33,7 +33,7 @@ class SingleGameRefreshTests(unittest.TestCase):
         for name in ("Alpha", "Bravo", "Charlie"):
             _game_folder(self.root, name)
         config = configparser.ConfigParser()
-        config.read_dict({"Settings": {"tablerootdir": str(self.root)}, "Media": {}})
+        config.read_dict({"Settings": {"gamerootdir": str(self.root)}, "Media": {}})
         self.parser = GameParser(str(self.root), config)
         self.parser.loadGames(reload=True)
 

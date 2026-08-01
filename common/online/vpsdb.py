@@ -44,22 +44,22 @@ class VPSdb:
 
         # Setup preferences
         media_config = MediaConfig.from_config(self._vpinfeIniConfig)
-        self.tabletype = media_config.playfield_variant
-        self.tableresolution = media_config.playfield_resolution
-        self.tablevideoresolution = media_config.playfield_video_resolution
+        self.playfieldvariant = media_config.playfield_variant
+        self.playfieldresolution = media_config.playfield_resolution
+        self.playfieldvideoresolution = media_config.playfield_video_resolution
         logger.info(
             "Using %s/%s tables (video: %s)",
-            self.tableresolution,
-            self.tabletype,
-            self.tablevideoresolution,
+            self.playfieldresolution,
+            self.playfieldvariant,
+            self.playfieldvideoresolution,
         )
 
         self.vpinmediadbjson = self.downloadMediaJson()
         self._media_downloader = VPSMediaDownloader(
             self.vpinmediadbjson,
-            tabletype=self.tabletype,
-            tableresolution=self.tableresolution,
-            tablevideoresolution=self.tablevideoresolution,
+            playfieldvariant=self.playfieldvariant,
+            playfieldresolution=self.playfieldresolution,
+            playfieldvideoresolution=self.playfieldvideoresolution,
         )
 
     def _write_manufacturer_reference(self):
