@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 
 from common.iniconfig import IniConfig
 from common.config_access import MediaConfig, SettingsConfig
+from common import info_restore, table_repository
 from common.table_repository import get_missing_tables, get_table_rows, refresh_table
 from common import metadata_service
 from common.vpxcollections import VPXCollections
@@ -404,6 +405,29 @@ def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> di
 
 def build_metadata(*args, **kwargs):
     return metadata_service.build_metadata(*args, iniconfig=_fresh_config(), **kwargs)
+
+
+def unreadable_tables():
+    """Tables the scan had to leave out because their .info could not be read."""
+    return table_repository.unreadable_tables()
+
+
+def newest_backup_stamp():
+    """Timestamp of the most recent backup, for naming the date a restore goes back to."""
+    return table_repository.newest_backup_stamp()
+
+
+def restorable_table_names():
+    """Folders with a .info saved by a newer VPinFE, for the banner and its dialog."""
+    return table_repository.restorable_table_names()
+
+
+def restore_info(progress_cb=None, log_cb=None, **kwargs):
+    """Put back the .info files a newer VPinFE converted, library-wide."""
+    result = info_restore.restore_library(
+        get_tables_path(), progress_cb=progress_cb, log_cb=log_cb, **kwargs)
+    table_repository.refresh_tables()
+    return result
 
 
 def apply_vpx_patches(*args, **kwargs):

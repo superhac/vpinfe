@@ -5,6 +5,12 @@ from time import perf_counter
 from common.config_access import MediaConfig
 from common.media_paths import apply_media_paths
 from common.table import Table
+from common.info_restore import (
+    BACKUP_MARKER,
+    backup_names,
+    converted_by_newer,
+    restorable_backup,
+)
 from common.metaconfig import InvalidMetaConfigError, MetaConfig
 
 
@@ -21,6 +27,7 @@ class TableParser:
         self.tabletype = "table"
         self.tables: list[Table] = []
         self.missing_tables: list[dict] = []
+        self.unreadable_tables: list[dict] = []
         if iniConfig:
             self.tabletype = MediaConfig.from_config(iniConfig).table_type
         self.loadTables()
@@ -32,6 +39,7 @@ class TableParser:
         started_at = perf_counter()
         self.tables.clear()
         self.missing_tables.clear()
+        self.unreadable_tables.clear()
 
         if not self.tablesRootFilePath.exists():
             return
@@ -93,7 +101,30 @@ class TableParser:
                 table_contents=table_contents,
                 has_medias_dir="medias" in table_subdirs,
             )
-            self.loadMetaData(table)
+            try:
+                self.loadMetaData(table)
+            except InvalidMetaConfigError as exc:
+                # One unreadable file used to stop the whole library loading, so a single
+                # truncated .info left the app with no tables at all. Drop the one table
+                # and keep going: excluded rather than loaded empty, because loading it
+                # empty would let the next write overwrite a file we could not read.
+                self.unreadable_tables.append({
+                    'folder': table.tableDirName,
+                    'path': str(table_dir),
+                    'error': str(exc),
+                })
+                logger.error("Skipping table with unreadable metadata: %s", exc)
+                continue
+
+            # Only a table a newer VPinFE upgraded has anything to put back, and only then
+            # is a saved copy worth opening to check we can read it.
+            stamps = backup_names(table_contents, info_name)
+            table.info_restorable = bool(
+                converted_by_newer(table.metaConfig)
+                and stamps
+                and restorable_backup(table_dir, names=table_contents))
+            if stamps:
+                table.info_backup_stamp = stamps[0].rsplit(BACKUP_MARKER, 1)[-1]
 
             self.tables.append(table)
 
@@ -139,6 +170,10 @@ class TableParser:
 
     def getAllTables(self):
         return list(self.tables)
+
+    def getUnreadableTables(self):
+        """Folders whose .info could not be read, so the table was left out."""
+        return [dict(row) for row in self.unreadable_tables]
 
     def getMissingTables(self):
         return [dict(row) for row in self.missing_tables]

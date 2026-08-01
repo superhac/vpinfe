@@ -1,6 +1,7 @@
 import json
 import os
 from urllib.parse import urlparse, parse_qs
+from common.info_restore import write_json_atomic
 
 
 class InvalidMetaConfigError(ValueError):
@@ -146,8 +147,7 @@ class MetaConfig:
     def writeConfig(self):
         self._normalize_detection_flags()
         os.makedirs(os.path.dirname(self.configFilePath), exist_ok=True)
-        with open(self.configFilePath, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, indent=4)
+        write_json_atomic(self.configFilePath, self.data)
 
     def getConfig(self):
         return self.data

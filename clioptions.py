@@ -7,7 +7,7 @@ from screeninfo import get_monitors
 from common.iniconfig import IniConfig
 from common.logging_config import get_logger
 from common.paths import VPINFE_INI_PATH, ensure_config_dir
-from common import metadata_service, table_report_service
+from common import info_restore, metadata_service, table_report_service
 from frontend.customhttpserver import CustomHTTPServer
 
 logger = get_logger("vpinfe.cli")
@@ -28,6 +28,14 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName:
         log_cb=log_cb,
         iniconfig=iniconfig,
     )
+
+
+def restore_info_files(table_name: str = None, progress_cb=None, log_cb=None):
+    from common.config_access import SettingsConfig
+
+    return info_restore.restore_library(
+        SettingsConfig.from_config(iniconfig).table_root_dir,
+        table_name=table_name, progress_cb=progress_cb, log_cb=log_cb)
 
 
 def listMissingTables():
@@ -110,7 +118,8 @@ def parseArgs():
     parser.add_argument("--no-media", action="store_true", help="Do not download images when building meta.ini")
     parser.add_argument("--update-all", action="store_true", help="Reparse all tables when building meta.ini")
     parser.add_argument("--user-media", action="store_true", help="With --buildmeta: skip vpinmediadb downloads and claim existing local media as user-sourced")
-    parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta or --claim-user-media")
+    parser.add_argument("--restore-info", action="store_true", help="Put back the .info files a newer VPinFE saved before converting them, for every table that has one. Your current .info is kept first")
+    parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta, --claim-user-media or --restore-info")
 
     args, unknown = parser.parse_known_args()  # macOS-friendly parsing
 
@@ -155,6 +164,10 @@ def parseArgs():
 
     if args.claim_user_media:
         claimUserMedia(tableName=args.table)
+        sys.exit()
+
+    if args.restore_info:
+        restore_info_files(table_name=args.table)
         sys.exit()
 
     if args.buildmeta:

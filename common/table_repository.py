@@ -44,6 +44,31 @@ def refresh_tables() -> List[Any]:
     return ensure_tables_loaded(reload=True)
 
 
+def unreadable_tables() -> List[Dict[str, str]]:
+    """Folders whose .info could not be read, so the table was left out of the library."""
+    ensure_tables_loaded()
+    with _LOCK:
+        if _PARSER is None:
+            return []
+        return [dict(row) for row in _PARSER.getUnreadableTables()]
+
+
+def newest_backup_stamp() -> str:
+    """The most recent backup timestamp in the library, or ""."""
+    stamps = [s for s in (getattr(t, "info_backup_stamp", "")
+                          for t in ensure_tables_loaded()) if s]
+    return max(stamps) if stamps else ""
+
+
+def restorable_table_names() -> List[str]:
+    """Folders holding a .info saved by a newer VPinFE, so the Tables page can offer to
+    put them back. Read off the loaded library, which listed every folder to get there."""
+    return sorted(
+        (t.tableDirName for t in ensure_tables_loaded() if getattr(t, "info_restorable", False)),
+        key=str.lower,
+    )
+
+
 def refresh_table(table_path: str) -> List[Any]:
     normalized = str(Path(table_path).expanduser().resolve())
     tables = refresh_tables()
