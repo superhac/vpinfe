@@ -77,7 +77,7 @@ class PlayState(ApiModel):
     own launches on it, so dropping the field breaks the remote overlay."""
 
     launching: bool
-    table_name: str | None
+    game_name: str | None
     source: str | None
 
 
@@ -135,7 +135,7 @@ class GameList(ApiModel):
     total: int
     offset: int
     count: int
-    tables: list[GameResource]
+    games: list[GameResource]
 
 
 class ResolvedAsset(ApiModel):
@@ -246,7 +246,7 @@ class CollectionFilters(ApiModel):
 
     letter: str = "All"
     theme: str = "All"
-    table_type: str = "All"
+    game_type: str = "All"
     manufacturer: str = "All"
     year: str = "All"
     rating: str = "All"
@@ -257,19 +257,19 @@ class CollectionFilters(ApiModel):
 
 class CollectionLinks(ApiModel):
     self_: str = Field(alias="self")
-    tables: str
+    games: str
 
 
 class CollectionResource(ApiModel):
     """`type` is `manual` (an explicit list of tables) or `filter` (criteria applied
-    at display time). `table_count` is null for a filter collection, whose membership
+    at display time). `game_count` is null for a filter collection, whose membership
     is not a stored list - ask /tables for its current members. `filters` is set only
     for a filter collection."""
 
     name: str
     type: str
     image: str | None
-    table_count: int | None
+    game_count: int | None
     filters: CollectionFilters | None
     links: CollectionLinks
 
@@ -284,7 +284,7 @@ class CreateCollectionRequest(ApiModel):
 
     name: str
     filters: CollectionFilters | None = None
-    tables: list[str] = Field(default_factory=list)
+    games: list[str] = Field(default_factory=list)
 
 
 # --- Jobs ------------------------------------------------------------------
@@ -334,7 +334,7 @@ class ManufacturerEntry(ApiModel):
     slug: str
     aliased_to: str | None
     logo: str | None
-    tables: int
+    games: int
 
 
 class ManufacturerList(ApiModel):
@@ -358,7 +358,7 @@ class LaunchAccepted(ApiModel):
     """202: the launch is under way, not finished - watch /events for the rest."""
 
     launching: bool
-    table_id: str
+    game_id: str
     file: str
     links: LaunchLinks
 
@@ -398,7 +398,7 @@ class Analysis(ApiModel):
 
     source_kind: str
     source_name: str
-    has_table: bool
+    has_game: bool
     assets: list[DetectedAssetInfo]
     notes: list[str]
     error: str
@@ -426,8 +426,8 @@ class PlanItem(ApiModel):
 
 
 class ImportPlanResource(ApiModel):
-    table_path: str
-    new_table_dir_name: str
+    game_path: str
+    new_game_dir_name: str
     rom_name: str
     items: list[PlanItem]
     blocked: list[BlockedAsset]
@@ -439,8 +439,8 @@ class ImportReport(ApiModel):
 
     imported: list[str]
     skipped: list[str]
-    table_path: str
-    new_table: bool
+    game_path: str
+    new_game: bool
     media_keys: list[str]
     blocked: list[BlockedAsset]
     vps_associated: bool | None = None
@@ -451,16 +451,16 @@ class PlanRequest(ApiModel):
     """Every field optional: an empty body plans the upload as it stands."""
 
     vps_id: str = ""
-    table_path: str = ""
+    game_path: str = ""
     rom_name: str = ""
-    allow_new_table: bool = False
+    allow_new_game: bool = False
 
 
 class ImportRequest(PlanRequest):
     """`selected` picks plan items by index; omitted means the plan's own defaults.
     `new_table_dir_name` omitted falls back to the VPS-derived name, then the vpx stem."""
 
-    new_table_dir_name: str | None = None
+    new_game_dir_name: str | None = None
     selected: list[int] | None = None
 
 

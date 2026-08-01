@@ -77,14 +77,14 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         """Otherwise a client connecting mid-launch sees nothing until it ends."""
         event_stream.declare_snapshot(
             events.PLAY_STATE_CHANGED,
-            lambda: {"state": {"launching": True, "table_name": "Medieval Madness"}})
+            lambda: {"state": {"launching": True, "game_name": "Medieval Madness"}})
         stream = self._open()
         await self._hello(stream)
 
         snapshot = await self._next(stream)
 
         self.assertEqual(_fields(snapshot)["event"], events.PLAY_STATE_CHANGED)
-        self.assertEqual(_payload(snapshot)["state"]["table_name"], "Medieval Madness")
+        self.assertEqual(_payload(snapshot)["state"]["game_name"], "Medieval Madness")
         self.assertNotIn("id", _fields(snapshot), "a snapshot is not a resume point")
 
     async def test_a_published_event_reaches_a_connected_client(self) -> None:
@@ -127,7 +127,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
                 "id": "6f1c9a4e",
                 "name": "Medieval Madness (Williams 1997)",
                 # A pointer to the table, not a second answer to what a table is.
-                "links": {"self": "/api/v1/tables/6f1c9a4e"},
+                "links": {"self": "/api/v1/games/6f1c9a4e"},
             },
         })
         self.assertNotIn("secret-ini-config", frame)

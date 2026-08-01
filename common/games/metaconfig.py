@@ -1,15 +1,9 @@
 import json
 import logging
 import os
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
-from common.tables.info_migration import (
-    migrate,
-    needs_migration,
-    write_backup,
-    write_json_atomic,
-)
-from common.tables.game_files import (
+from common.games.game_files import (
     DETECT_KEYS,
     GAME_FILES_KEY,
     default_game_file,
@@ -17,9 +11,15 @@ from common.tables.game_files import (
     game_file_entries,
     recorded_default,
 )
+from common.games.info_migration import (
+    migrate,
+    needs_migration,
+    write_backup,
+    write_json_atomic,
+)
 from common.timestamps import utc_now_iso
 
-logger = logging.getLogger("vpinfe.common.tables.metaconfig")
+logger = logging.getLogger("vpinfe.common.games.metaconfig")
 
 # Schema version for the VPinFE section only - we own those keys outright, so their
 # shape can be reasoned about from a version. Other sections stay shape-driven.
@@ -188,7 +188,7 @@ class MetaConfig:
         if not str(vpinfe.get("id", "") or "").strip():
             # Imported here because table_identity reaches back through table_metadata
             # to this module. One minting rule, one place, no cycle.
-            from common.tables.game_identity import new_id
+            from common.games.game_identity import new_id
 
             vpinfe["id"] = new_id()
 

@@ -49,10 +49,10 @@ class RealDmdUpdater:
         self._game_name = ""
         self._thread: threading.Thread | None = None
 
-    def queue_image_update(self, table_name: str, image_path: Path | None) -> None:
+    def queue_image_update(self, game_name: str, image_path: Path | None) -> None:
         self._ensure_worker()
         with self._lock:
-            self._game_name = table_name
+            self._game_name = game_name
             self._image_path = image_path
             self._event.set()
 
@@ -75,20 +75,20 @@ class RealDmdUpdater:
     def _process_pending(self) -> None:
         with self._lock:
             image_path = self._image_path
-            table_name = self._game_name
+            game_name = self._game_name
             self._event.clear()
 
         try:
             image_sent = self._show_image(self._iniconfig, image_path)
             logger.debug(
                 "Async real DMD update for %s -> sent=%s image=%s",
-                table_name,
+                game_name,
                 image_sent,
                 image_path,
             )
         except Exception:
             logger.exception(
                 "Async real DMD update failed for %s (image=%s)",
-                table_name,
+                game_name,
                 image_path,
             )

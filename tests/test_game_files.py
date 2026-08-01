@@ -1,6 +1,6 @@
 import unittest
 
-from common.tables.game_files import default_game_file, game_file_names, is_parsed
+from common.games.game_files import default_game_file, game_file_names, is_parsed
 
 
 class GameFileNamesTests(unittest.TestCase):

@@ -11,15 +11,14 @@ from typing import Callable, Optional
 
 from nicegui import context, events, run, ui
 
-from common.tables.game_metadata import reorder_leading_article
+from common.games.game_metadata import reorder_leading_article
+from managerui.pages.dnd_drop_zone import DropContext, create_drop_zone
 from managerui.pages.game_dialog_context import GameDialogContext, default_context
-from managerui.pages.dnd_drop_zone import create_drop_zone, DropContext
-from managerui.services import plugin_profile_service, game_index_service, game_service
+from managerui.services import game_index_service, game_service, plugin_profile_service
 from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import load_page_style
 
-
-logger = logging.getLogger("vpinfe.manager.tables")
+logger = logging.getLogger("vpinfe.manager.games")
 ACCEPT_CRZ = ['.crz', '.cRZ', '.CRZ']
 ACCEPT_VNI = ['.vni', '.VNI', '.pal', '.PAL']
 
@@ -31,10 +30,10 @@ ensure_dir = game_service.ensure_dir
 save_upload_bytes = game_service.save_upload_bytes
 
 
-def add_game_to_collection(table_id: str, collection_name: str) -> bool:
-    if not game_service.add_game_to_collection(table_id, collection_name):
+def add_game_to_collection(game_id: str, collection_name: str) -> bool:
+    if not game_service.add_game_to_collection(game_id, collection_name):
         return False
-    game_index_service.add_collection_membership(table_id, collection_name)
+    game_index_service.add_collection_membership(game_id, collection_name)
     return True
 
 
@@ -54,7 +53,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
 
     dlg = ui.dialog()
     with dlg, ui.card().classes('table-dialog-card').style('width: 1000px; max-width: 85vw;'):
-        table_name = row_data.get('name') or row_data.get('filename') or 'Table'
+        game_name = row_data.get('name') or row_data.get('filename') or 'Table'
         game_path_str = row_data.get('table_path', '')
         row_data['rating'] = normalize_game_rating(row_data.get('rating', 0))
         # Holds the VBS-indicator refresh callback (assigned when the panel below
@@ -66,7 +65,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
             ui.icon('casino', size='32px').style('color: var(--ink);')
             with ui.column().classes('gap-0 flex-grow'):
                 with ui.row().classes('items-center gap-2'):
-                    title_label = ui.label(table_name).classes('text-xl font-bold').style('color: var(--ink);')
+                    title_label = ui.label(game_name).classes('text-xl font-bold').style('color: var(--ink);')
                     if (row_data.get('alt_launcher', '') or '').strip():
                         ui.badge('ALT-L', color='warning').props('rounded')
                     if (row_data.get('alt_title', '') or '').strip():
@@ -154,7 +153,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                     update_dlg = ui.dialog()
                     with update_dlg, ui.card().classes('table-dialog-card').style('width: 620px; max-width: 92vw;'):
                         ui.label('Update Table').classes('text-lg font-semibold').style('color: var(--ink);')
-                        ui.label(table_name).classes('text-sm').style('color: var(--ink-muted);')
+                        ui.label(game_name).classes('text-sm').style('color: var(--ink-muted);')
                         update_status = ui.label('Choose a .vpx table file or .directb2s backglass file.').classes('text-xs').style('color: var(--ink-muted);')
 
                         async def handle_game_update(e: events.UploadEventArguments, file_type: str):
@@ -469,11 +468,11 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                         refresh_rating_ui()
 
             # Collections section - add table to collection
-            table_id = row_data.get('vpinfe_id', '')
+            game_id = row_data.get('vpinfe_id', '')
             current_collections = row_data.get('collections', [])
             available_collections = get_game_collections()
 
-            if table_id and available_collections:
+            if game_id and available_collections:
                 with ui.card().classes('w-full p-4').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);'):
                     ui.label('Collections').classes('text-lg font-semibold mb-3').style('color: var(--ink);')
 
@@ -501,7 +500,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                                 if not selected:
                                     ui.notify('Please select a collection', type='warning')
                                     return
-                                if add_game_to_collection(table_id, selected):
+                                if add_game_to_collection(game_id, selected):
                                     ui.notify(f'Added to {selected}', type='positive')
                                     # add_table_to_collection already updates the cache,
                                     # just update the dropdown options
@@ -687,13 +686,13 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
 
             # Addons section
             with ui.expansion('Install Addons', icon='extension').classes('w-full').style('background: var(--bg); opacity: 0.5; border-radius: 8px;'):
-                table_path = Path(row_data.get('table_path', ''))
+                game_path = Path(row_data.get('table_path', ''))
                 rom_name = (row_data.get('rom') or '').strip()
 
                 with ui.column().classes('gap-4 p-2').style('background: var(--surface); border-radius: 8px;'):
                     create_drop_zone(
                         label='Drop asset files or archives for this table',
-                        get_context=lambda: DropContext(table_path=str(table_path), game_row=row_data,
+                        get_context=lambda: DropContext(game_path=str(game_path), game_row=row_data,
                                                         rom_name=rom_name),
                         on_imported=lambda _report: (on_close() if on_close else None),
                     )
@@ -713,7 +712,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             # Read content from SpooledTemporaryFile if needed
                             content = e.content.read() if hasattr(e.content, 'read') else e.content
                             try:
-                                dest_dir = table_path / 'pupvideos'
+                                dest_dir = game_path / 'pupvideos'
                                 ensure_dir(dest_dir)
                                 with zipfile.ZipFile(io.BytesIO(content), 'r') as zf:
                                     zf.extractall(dest_dir)
@@ -739,7 +738,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             if ext not in ACCEPT_CRZ:
                                 ui.notify('Only .cRZ files accepted', type='negative')
                                 return
-                            dest = table_path / 'serum' / rom_name / e.name
+                            dest = game_path / 'serum' / rom_name / e.name
                             # Read content from SpooledTemporaryFile if needed
                             content = e.content.read() if hasattr(e.content, 'read') else e.content
                             save_upload_bytes(dest, content)
@@ -761,7 +760,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             if ext not in ACCEPT_VNI:
                                 ui.notify('Only .vni and .pal files accepted', type='negative')
                                 return
-                            dest = table_path / 'vni' / rom_name / e.name
+                            dest = game_path / 'vni' / rom_name / e.name
                             # Read content from SpooledTemporaryFile when multiple=True
                             content = e.content.read() if hasattr(e.content, 'read') else e.content
                             save_upload_bytes(dest, content)
@@ -779,7 +778,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             if not rom_name:
                                 ui.notify('ROM not found. Update metadata first.', type='warning')
                                 return
-                            dest = table_path / 'pinmame' / 'altsound' / rom_name / e.name
+                            dest = game_path / 'pinmame' / 'altsound' / rom_name / e.name
                             # Read content from SpooledTemporaryFile if needed
                             content = e.content.read() if hasattr(e.content, 'read') else e.content
                             save_upload_bytes(dest, content)

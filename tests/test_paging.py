@@ -18,76 +18,76 @@ def _games(*titles):
 class TestPageJumpIndexAlpha(unittest.TestCase):
     def setUp(self):
         # Alpha-sorted list: groups #(2), A(2), B(1), C(3)
-        self.tables = _games(
+        self.games = _games(
             "24", "4x4", "Attack", "Avalanche", "Bally Hoo", "Cactus", "Comet", "Cyclone"
         )
 
     def test_next_jumps_to_first_of_next_letter(self):
-        self.assertEqual(page_jump_index(self.tables, 2, "next"), 4)
+        self.assertEqual(page_jump_index(self.games, 2, "next"), 4)
 
     def test_next_from_mid_group_skips_rest_of_group(self):
-        self.assertEqual(page_jump_index(self.tables, 5, "next"), 0)
+        self.assertEqual(page_jump_index(self.games, 5, "next"), 0)
 
     def test_next_wraps_to_number_bucket(self):
-        self.assertEqual(page_jump_index(self.tables, 7, "next"), 0)
+        self.assertEqual(page_jump_index(self.games, 7, "next"), 0)
 
     def test_prev_jumps_to_first_of_previous_letter(self):
-        self.assertEqual(page_jump_index(self.tables, 4, "prev"), 2)
+        self.assertEqual(page_jump_index(self.games, 4, "prev"), 2)
 
     def test_prev_from_mid_group_goes_to_previous_group_start(self):
-        self.assertEqual(page_jump_index(self.tables, 6, "prev"), 4)
+        self.assertEqual(page_jump_index(self.games, 6, "prev"), 4)
 
     def test_prev_wraps_from_number_bucket_to_last_group(self):
-        self.assertEqual(page_jump_index(self.tables, 0, "prev"), 5)
+        self.assertEqual(page_jump_index(self.games, 0, "prev"), 5)
 
     def test_numbers_and_symbols_share_one_bucket(self):
-        tables = _games("24", "4x4", "(Secret)", "Attack")
-        self.assertEqual(page_jump_index(tables, 0, "next"), 3)
+        games = _games("24", "4x4", "(Secret)", "Attack")
+        self.assertEqual(page_jump_index(games, 0, "next"), 3)
 
     def test_descending_alpha_order_still_groups(self):
-        tables = _games("Cactus", "Bally Hoo", "Attack", "Avalanche")
-        self.assertEqual(page_jump_index(tables, 0, "next"), 1)
-        self.assertEqual(page_jump_index(tables, 3, "prev"), 1)
+        games = _games("Cactus", "Bally Hoo", "Attack", "Avalanche")
+        self.assertEqual(page_jump_index(games, 0, "next"), 1)
+        self.assertEqual(page_jump_index(games, 3, "prev"), 1)
 
     def test_single_letter_group_falls_back_to_numeric(self):
-        tables = _games("Attack", "Avalanche", "Aztec", "Airborne")
+        games = _games("Attack", "Avalanche", "Aztec", "Airborne")
         # Numeric fallback: step = min(10, 4 // 2) = 2
-        self.assertEqual(page_jump_index(tables, 0, "next"), 2)
+        self.assertEqual(page_jump_index(games, 0, "next"), 2)
 
     def test_non_alpha_sort_falls_back_to_numeric(self):
-        result = page_jump_index(self.tables, 0, "next", sort_type="LastRun", page_size=3)
+        result = page_jump_index(self.games, 0, "next", sort_type="LastRun", page_size=3)
         self.assertEqual(result, 3)
 
 
 class TestPageJumpIndexNumeric(unittest.TestCase):
     def test_next_steps_by_page_size(self):
-        tables = _games(*[f"T{i:02d}" for i in range(30)])
-        self.assertEqual(page_jump_index(tables, 0, "next", paging_type="numeric", page_size=10), 10)
+        games = _games(*[f"T{i:02d}" for i in range(30)])
+        self.assertEqual(page_jump_index(games, 0, "next", paging_type="numeric", page_size=10), 10)
 
     def test_prev_steps_back_and_wraps(self):
-        tables = _games(*[f"T{i:02d}" for i in range(30)])
-        self.assertEqual(page_jump_index(tables, 5, "prev", paging_type="numeric", page_size=10), 25)
+        games = _games(*[f"T{i:02d}" for i in range(30)])
+        self.assertEqual(page_jump_index(games, 5, "prev", paging_type="numeric", page_size=10), 25)
 
     def test_step_caps_at_half_the_list(self):
         # 15 tables, size 10: uncapped this would land 10 ahead, which reads as
         # moving backward 5 on a circular wheel. Cap keeps it at 7.
-        tables = _games(*[f"T{i:02d}" for i in range(15)])
-        self.assertEqual(page_jump_index(tables, 0, "next", paging_type="numeric", page_size=10), 7)
+        games = _games(*[f"T{i:02d}" for i in range(15)])
+        self.assertEqual(page_jump_index(games, 0, "next", paging_type="numeric", page_size=10), 7)
 
     def test_two_games_step_one(self):
-        tables = _games("Alpha", "Bravo")
-        self.assertEqual(page_jump_index(tables, 0, "next", paging_type="numeric", page_size=10), 1)
+        games = _games("Alpha", "Bravo")
+        self.assertEqual(page_jump_index(games, 0, "next", paging_type="numeric", page_size=10), 1)
 
     def test_single_game_is_noop(self):
-        tables = _games("Alpha")
-        self.assertEqual(page_jump_index(tables, 0, "next", paging_type="numeric"), 0)
+        games = _games("Alpha")
+        self.assertEqual(page_jump_index(games, 0, "next", paging_type="numeric"), 0)
 
     def test_empty_list_returns_index(self):
         self.assertEqual(page_jump_index([], 3, "next"), 3)
 
     def test_out_of_range_index_is_normalized(self):
-        tables = _games(*[f"T{i:02d}" for i in range(10)])
-        self.assertEqual(page_jump_index(tables, 12, "next", paging_type="numeric", page_size=3), 5)
+        games = _games(*[f"T{i:02d}" for i in range(10)])
+        self.assertEqual(page_jump_index(games, 12, "next", paging_type="numeric", page_size=3), 5)
 
 
 class TestGetPagingConfig(unittest.TestCase):
@@ -115,14 +115,14 @@ class TestGetPagingConfig(unittest.TestCase):
 
 
 class TestApiGetPageIndex(unittest.TestCase):
-    def _api(self, tables, sort_type="Alpha", **input_values):
+    def _api(self, games, sort_type="Alpha", **input_values):
         parser = configparser.ConfigParser()
         parser.add_section("Input")
         for key, value in input_values.items():
             parser.set("Input", key, value)
         api = API.__new__(API)
         api._iniConfig = SimpleNamespace(config=parser)
-        api.filteredGames = tables
+        api.filteredGames = games
         api.current_sort = sort_type
         return api
 

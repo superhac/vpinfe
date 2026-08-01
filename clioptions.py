@@ -1,13 +1,13 @@
 import argparse
-import sys
 import os
+import sys
 
 from screeninfo import get_monitors
 
+from common.games import game_report_service, info_maintenance, metadata_service
 from common.iniconfig import IniConfig
 from common.logging_config import get_logger
 from common.paths import VPINFE_INI_PATH, ensure_config_dir
-from common.tables import info_maintenance, metadata_service, game_report_service
 from frontend.customhttpserver import CustomHTTPServer
 
 logger = get_logger("vpinfe.cli")
@@ -36,16 +36,16 @@ def _game_root_dir():
     return SettingsConfig.from_config(iniconfig).game_root_dir
 
 
-def upgrade_info_files(table_name: str = None, progress_cb=None, log_cb=None):
+def upgrade_info_files(game_name: str = None, progress_cb=None, log_cb=None):
     return info_maintenance.upgrade_library(
-        _game_root_dir(), table_name=table_name, progress_cb=progress_cb, log_cb=log_cb)
+        _game_root_dir(), game_name=game_name, progress_cb=progress_cb, log_cb=log_cb)
 
 
-def restore_info_files(table_name: str = None, progress_cb=None, log_cb=None):
+def restore_info_files(game_name: str = None, progress_cb=None, log_cb=None):
     from common.paths import CONFIG_DIR
 
     return info_maintenance.restore_library(
-        _game_root_dir(), table_name=table_name, config_dir=CONFIG_DIR,
+        _game_root_dir(), game_name=game_name, config_dir=CONFIG_DIR,
         progress_cb=progress_cb, log_cb=log_cb)
 
 
@@ -63,8 +63,8 @@ def vpxPatches(progress_cb=None):
 
 def gamepadtest():
     """Run the gamepad test window using Chromium and the HTTP server."""
-    from frontend.chromium_manager import ChromiumManager
     from frontend.api import API
+    from frontend.chromium_manager import ChromiumManager
     from frontend.ws_bridge import WebSocketBridge
 
     mount_points = {
@@ -170,11 +170,11 @@ def parseArgs():
         sys.exit()
 
     if args.upgrade_info:
-        upgrade_info_files(table_name=args.game)
+        upgrade_info_files(game_name=args.game)
         sys.exit()
 
     if args.restore_info:
-        restore_info_files(table_name=args.game)
+        restore_info_files(game_name=args.game)
         sys.exit()
 
     if args.buildmeta:

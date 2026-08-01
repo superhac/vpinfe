@@ -1,12 +1,11 @@
 import logging
-from difflib import SequenceMatcher
 import re
+from difflib import SequenceMatcher
 
-from common.paths import CONFIG_DIR
 from common.config_access import MediaConfig
 from common.online.vpsdb_cache import VPinMediaDatabase, VPSDatabaseCache
 from common.online.vpsdb_media import VPSMediaDownloader
-
+from common.paths import CONFIG_DIR
 
 logger = logging.getLogger("vpinfe.common.online.vpsdb")
 
@@ -85,7 +84,7 @@ class VPSdb:
     def __contains__(self, item):
         return item in self.data if self.data else False
 
-    def tables(self):
+    def games(self):
         return self.data
 
     # ----------------------------------------------------------------------

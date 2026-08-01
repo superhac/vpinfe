@@ -12,7 +12,7 @@ High-level flow:
 2. `frontend/api.py` includes the discovered file paths in the table JSON returned to the browser.
 3. `web/common/vpinfe-core.js` stores that table data in `this.tableData`.
 4. Theme code calls helper methods such as `vpin.getImageURL(index, type)` or `vpin.getVideoURL(index, type)`.
-5. `vpinfe-core.js` converts the local path into a URL under `/tables/...`.
+5. `vpinfe-core.js` converts the local path into a URL under `/games/...`.
 6. The local HTTP server serves the file to the theme.
 
 ## Media Discovery
@@ -98,7 +98,7 @@ Relevant code:
 
 Examples:
 
-- `/tables/Addams Family/medias/dmd.mp4`
+- `/games/Addams Family/medias/dmd.mp4`
 - `http://127.0.0.1:<themeassetsport>/tables/Addams%20Family/medias/dmd.mp4`
 
 If the file lives directly in the table folder instead of `medias/`, the URL becomes:
@@ -143,7 +143,7 @@ That means:
 1. `common/tableparser.py` finds `table.mp4` or `fss.mp4` and stores it as `TableVideoPath`.
 2. `frontend/api.py` includes `TableVideoPath` in the table payload.
 3. `vpin.getVideoURL(index, "table")` reads `table.TableVideoPath`.
-4. `#convertPathToURL()` maps that path to a `/tables/.../medias/<file>.mp4` URL.
+4. `#convertPathToURL()` maps that path to a `/games/.../medias/<file>.mp4` URL.
 
 ## Backglass Video Flow
 

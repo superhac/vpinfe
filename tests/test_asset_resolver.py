@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import unittest
 
-from common.tables import asset_resolver as res
+from common.games import asset_resolver as res
 
 FOLDER = "Attack from Mars (Bally 1995)"
 BIGUS = "Attack from Mars (Bally 1995) - bigus1 (1) - VPF_14317.vpx"

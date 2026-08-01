@@ -16,14 +16,14 @@ class LaunchStateTests(unittest.TestCase):
         state = launch_state.current()
 
         self.assertFalse(state.launching)
-        self.assertIsNone(state.table_name)
+        self.assertIsNone(state.game_name)
 
     def test_set_launching_records_the_game(self) -> None:
         launch_state.set_launching("Medieval Madness", source=launch_state.SOURCE_REMOTE)
 
         state = launch_state.current()
         self.assertTrue(state.launching)
-        self.assertEqual(state.table_name, "Medieval Madness")
+        self.assertEqual(state.game_name, "Medieval Madness")
 
     def test_the_state_records_who_asked(self) -> None:
         """The frontend has to tell its own launches from everyone else's, and
@@ -38,7 +38,7 @@ class LaunchStateTests(unittest.TestCase):
         launch_state.clear()
 
         self.assertEqual(launch_state.current().as_dict(),
-                         {"launching": False, "table_name": None, "source": None})
+                         {"launching": False, "game_name": None, "source": None})
 
     def test_clearing_when_idle_is_harmless(self) -> None:
         """The remote page clears in a finally and in an except; both can run."""
@@ -67,7 +67,7 @@ class LaunchStateTests(unittest.TestCase):
                     launch_state.set_launching(name, source=launch_state.SOURCE_REMOTE)
                     state = launch_state.current()
                     # never a half-written pair: launching implies a name
-                    if state.launching and state.table_name is None:
+                    if state.launching and state.game_name is None:
                         errors.append(state)
             except Exception as exc:  # noqa: BLE001
                 errors.append(exc)
@@ -95,14 +95,14 @@ class LaunchStateEventTests(unittest.TestCase):
     def test_a_launch_is_announced(self) -> None:
         launch_state.set_launching("Medieval Madness", source=launch_state.SOURCE_REMOTE)
 
-        self.assertEqual(self.seen, [{"launching": True, "table_name": "Medieval Madness",
+        self.assertEqual(self.seen, [{"launching": True, "game_name": "Medieval Madness",
                            "source": "remote"}])
 
     def test_clearing_is_announced(self) -> None:
         launch_state.set_launching("Medieval Madness", source=launch_state.SOURCE_REMOTE)
         launch_state.clear()
 
-        self.assertEqual(self.seen[-1], {"launching": False, "table_name": None, "source": None})
+        self.assertEqual(self.seen[-1], {"launching": False, "game_name": None, "source": None})
 
     def test_an_unchanged_state_is_not_announced(self) -> None:
         """The remote page clears in both a finally and an except; both can run."""
@@ -117,13 +117,13 @@ class LaunchStateEventTests(unittest.TestCase):
         launch_state.set_launching("B", source=launch_state.SOURCE_API)
 
         self.assertEqual(self.seen[-1],
-                         {"launching": True, "table_name": "B", "source": "api"})
+                         {"launching": True, "game_name": "B", "source": "api"})
 
     def test_a_handler_may_read_the_state_back(self) -> None:
         """The event goes out after the lock is released, so this cannot deadlock."""
         read_back = []
         events.subscribe(events.PLAY_STATE_CHANGED,
-                         lambda **_: read_back.append(launch_state.current().table_name))
+                         lambda **_: read_back.append(launch_state.current().game_name))
 
         launch_state.set_launching("Medieval Madness", source=launch_state.SOURCE_REMOTE)
 

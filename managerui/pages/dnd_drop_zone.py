@@ -14,7 +14,6 @@ from managerui.services import upload_session_service
 from managerui.services.asset_analyzer_service import AnalysisResult, analyze_upload_session
 from managerui.services.asset_import_service import build_import_plan, build_media_slot_plan
 
-
 logger = logging.getLogger("vpinfe.manager.dnd_ui")
 
 _script_clients: set[str] = set()
@@ -22,10 +21,10 @@ _script_clients: set[str] = set()
 
 @dataclass(frozen=True)
 class DropContext:
-    table_path: str = ""
+    game_path: str = ""
     game_row: dict | None = None
     rom_name: str = ""
-    allow_new_table: bool = False
+    allow_new_game: bool = False
 
 
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -81,11 +80,11 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
             cell_resolver = state.get("resolve_cell")
             if cell_row and cell_media_key and cell_resolver is not None:
                 # Slot-targeted drop: the cell dictates table and media key; no analysis.
-                table_path = cell_resolver(cell_row)
+                game_path = cell_resolver(cell_row)
                 files = [p for p in session_dir.iterdir() if p.is_file()]
                 dirs = [p for p in session_dir.iterdir() if p.is_dir()]
                 with client:
-                    if not table_path:
+                    if not game_path:
                         ui.notify("Could not resolve the drop target table", type="negative")
                         upload_session_service.cleanup_session(upload_id)
                         return
@@ -93,7 +92,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                         ui.notify("Drop a single media file on a slot", type="warning")
                         upload_session_service.cleanup_session(upload_id)
                         return
-                    plan = build_media_slot_plan(files[0], table_path=table_path,
+                    plan = build_media_slot_plan(files[0], game_path=game_path,
                                                  media_key=cell_media_key)
                     if not plan.items:
                         reasons = "; ".join(sorted({b.reason for b in plan.blocked})) or "Nothing to import"
@@ -125,10 +124,10 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                     return
                 plan = build_import_plan(
                     analysis,
-                    table_path=ctx.table_path,
+                    game_path=ctx.game_path,
                     game_row=ctx.game_row,
                     rom_name=ctx.rom_name,
-                    allow_new_table=ctx.allow_new_table,
+                    allow_new_game=ctx.allow_new_game,
                 )
                 if not plan.items:
                     reasons = "; ".join(sorted({b.reason for b in plan.blocked})) or "Nothing to import"

@@ -26,8 +26,8 @@ class _FakePopen:
 
 def _game(name="Example"):
     return types.SimpleNamespace(
-        fullPathVPXfile=f"/tables/{name}/{name}.vpx",
-        fullPathTable=f"/tables/{name}",
+        fullPathVPXfile=f"/games/{name}/{name}.vpx",
+        fullPathTable=f"/games/{name}",
         tableDirName=name,
         metaConfig={},
     )
@@ -128,7 +128,7 @@ class LifecycleTests(LaunchTests):
 
         self._run(popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
 
-        self.assertEqual(during, [{"launching": True, "table_name": "Example",
+        self.assertEqual(during, [{"launching": True, "game_name": "Example",
                                    "source": "api"}])
         self.assertFalse(launch_state.current().launching)
 
@@ -152,7 +152,7 @@ class PlayDataTests(LaunchTests):
     def test_the_game_file_that_was_launched_is_the_one_credited(self) -> None:
         """A folder can hold several game files, and the API can launch any of them."""
         game = _game()
-        game.fullPathVPXfile = "/tables/Example/Example (VR).vpx"
+        game.fullPathVPXfile = "/games/Example/Example (VR).vpx"
 
         play = self._run(game=game)
 
@@ -204,7 +204,7 @@ class RefusalTests(LaunchTests):
         self.assertTrue(resolved.endswith("Other.vpx"))
 
     def test_the_default_is_the_game_s_own_file(self) -> None:
-        self.assertEqual(self._check(), "/tables/Example/Example.vpx")
+        self.assertEqual(self._check(), "/games/Example/Example.vpx")
 
 
 if __name__ == "__main__":

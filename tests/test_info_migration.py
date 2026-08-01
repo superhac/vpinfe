@@ -12,14 +12,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.tables.info_migration import (
+from common.games.info_migration import (
     backup_path,
     is_versioned,
     migrate,
     needs_migration,
     write_backup,
 )
-from common.tables.metaconfig import MetaConfig
+from common.games.metaconfig import MetaConfig
 
 LEGACY = {
     "Info": {"Title": "Dr. Dude", "VPSId": "vps-1", "Rom": "dd_l2",
@@ -196,9 +196,9 @@ class BackupTests(unittest.TestCase):
         return sorted(p for p in self.root.iterdir() if ".vpinfe-" in p.name)
 
     def test_the_name_carries_a_sortable_utc_stamp(self):
-        path = backup_path("/tables/X/X.info", datetime(2026, 7, 29, 14, 30, 22, tzinfo=UTC))
+        path = backup_path("/games/X/X.info", datetime(2026, 7, 29, 14, 30, 22, tzinfo=UTC))
 
-        self.assertEqual(path, "/tables/X/X.info.vpinfe-20260729T143022Z")
+        self.assertEqual(path, "/games/X/X.info.vpinfe-20260729T143022Z")
         self.assertNotIn(":", path, "Windows will not have a colon in a filename")
 
     def test_reading_does_not_write_anything(self):

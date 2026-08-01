@@ -1,12 +1,12 @@
-from common.tables.game_metadata import (
+from common.games.game_metadata import (
     game_manufacturer,
     game_rating,
     game_themes,
     game_title,
+    game_type,
     game_year,
     get_meta_value,
     normalize_rating,
-    table_type,
 )
 from common.values import is_truthy
 
@@ -14,8 +14,8 @@ from common.values import is_truthy
 class GameListFilters:
     """Filter tables by various criteria: starting letter, theme, type, and rating."""
 
-    def __init__(self, tables=None):
-        self.tables = list(tables or [])
+    def __init__(self, games=None):
+        self.games = list(games or [])
 
     @staticmethod
     def _get_meta_value(game, section, key, fallback=""):
@@ -25,7 +25,7 @@ class GameListFilters:
     def get_available_letters(self):
         """Return sorted list of unique starting letters from table names."""
         letters = set()
-        for game in self.tables:
+        for game in self.games:
             # Try Info.Title first (JSON format), then VPSdb.name (legacy)
             name = game_title(game)
             if name:
@@ -38,15 +38,15 @@ class GameListFilters:
     def get_available_themes(self):
         """Return sorted list of unique themes from all tables."""
         themes = set()
-        for game in self.tables:
+        for game in self.games:
             themes.update(game_themes(game))
         return sorted(themes)
 
     def get_available_types(self):
         """Return sorted list of unique table types."""
         types = set()
-        for game in self.tables:
-            current_type = table_type(game)
+        for game in self.games:
+            current_type = game_type(game)
             if current_type:
                 types.add(current_type)
         return sorted(types)
@@ -54,7 +54,7 @@ class GameListFilters:
     def get_available_manufacturers(self):
         """Return sorted list of unique manufacturers."""
         manufacturers = set()
-        for game in self.tables:
+        for game in self.games:
             manufacturer = game_manufacturer(game)
             if manufacturer:
                 manufacturers.add(manufacturer)
@@ -63,7 +63,7 @@ class GameListFilters:
     def get_available_years(self):
         """Return sorted list of unique years."""
         years = set()
-        for game in self.tables:
+        for game in self.games:
             year = game_year(game)
             if year:
                 years.add(str(year))
@@ -79,7 +79,7 @@ class GameListFilters:
 
     def _get_game_type(self, game):
         """Get table type from either JSON or legacy format."""
-        return table_type(game)
+        return game_type(game)
 
     def _get_game_manufacturer(self, game):
         """Get table manufacturer from either JSON or legacy format."""
@@ -98,75 +98,75 @@ class GameListFilters:
         """Get table rating from User.Rating metadata."""
         return game_rating(game)
 
-    def filter_by_letter(self, tables, letter):
+    def filter_by_letter(self, games, letter):
         """Filter tables by starting letter of name. Supports comma-separated values."""
         if not letter or letter == "All":
-            return tables
+            return games
 
         letters = {l.strip().upper() for l in str(letter).split(',')}
         filtered = []
-        for game in tables:
+        for game in games:
             name = self._get_game_name(game)
             if name and name[0].upper() in letters:
                 filtered.append(game)
         return filtered
 
-    def filter_by_theme(self, tables, theme):
+    def filter_by_theme(self, games, theme):
         """Filter tables by theme. Supports comma-separated values."""
         if not theme or theme == "All":
-            return tables
+            return games
 
         themes = {t.strip() for t in str(theme).split(',')}
         filtered = []
-        for game in tables:
+        for game in games:
             game_themes = self._get_game_theme(game)
             if themes & set(game_themes):
                 filtered.append(game)
         return filtered
 
-    def filter_by_type(self, tables, table_type):
+    def filter_by_type(self, games, game_type):
         """Filter tables by type (EM, SS, etc.). Supports comma-separated values."""
-        if not table_type or table_type == "All":
-            return tables
+        if not game_type or game_type == "All":
+            return games
 
-        types = {t.strip() for t in str(table_type).split(',')}
+        types = {t.strip() for t in str(game_type).split(',')}
         filtered = []
-        for game in tables:
+        for game in games:
             current_type = self._get_game_type(game)
             if current_type in types:
                 filtered.append(game)
         return filtered
 
-    def filter_by_manufacturer(self, tables, manufacturer):
+    def filter_by_manufacturer(self, games, manufacturer):
         """Filter tables by manufacturer. Supports comma-separated values."""
         if not manufacturer or manufacturer == "All":
-            return tables
+            return games
 
         manufacturers = {m.strip() for m in str(manufacturer).split(',')}
         filtered = []
-        for game in tables:
+        for game in games:
             current_manufacturer = self._get_game_manufacturer(game)
             if current_manufacturer in manufacturers:
                 filtered.append(game)
         return filtered
 
-    def filter_by_year(self, tables, year):
+    def filter_by_year(self, games, year):
         """Filter tables by year. Supports comma-separated values."""
         if not year or year == "All":
-            return tables
+            return games
 
         years = {y.strip() for y in str(year).split(',')}
         filtered = []
-        for game in tables:
+        for game in games:
             current_year = self._get_game_year(game)
             if current_year in years:
                 filtered.append(game)
         return filtered
 
-    def filter_by_rating(self, tables, rating, rating_or_higher=False):
+    def filter_by_rating(self, games, rating, rating_or_higher=False):
         """Filter tables by rating. Supports comma-separated values and optional 'or higher' mode."""
         if not rating or rating == "All":
-            return tables
+            return games
 
         selected_ratings = []
         for r in str(rating).split(','):
@@ -176,21 +176,21 @@ class GameListFilters:
                 continue
 
         if not selected_ratings:
-            return tables
+            return games
 
         if is_truthy(rating_or_higher):
             min_rating = min(selected_ratings)
-            return [game for game in tables if self._get_game_rating(game) >= min_rating]
+            return [game for game in games if self._get_game_rating(game) >= min_rating]
 
         rating_set = set(selected_ratings)
-        return [game for game in tables if self._get_game_rating(game) in rating_set]
+        return [game for game in games if self._get_game_rating(game) in rating_set]
 
-    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=False):
+    def apply_filters(self, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=False):
         """
         Apply multiple filters in combination.
         Returns filtered and sorted list of tables.
         """
-        result = list(self.tables)  # Make a copy to avoid modifying original
+        result = list(self.games)  # Make a copy to avoid modifying original
 
         # Apply each filter sequentially
         if letter and letter != "All":
@@ -199,8 +199,8 @@ class GameListFilters:
         if theme and theme != "All":
             result = self.filter_by_theme(result, theme)
 
-        if table_type and table_type != "All":
-            result = self.filter_by_type(result, table_type)
+        if game_type and game_type != "All":
+            result = self.filter_by_type(result, game_type)
 
         if manufacturer and manufacturer != "All":
             result = self.filter_by_manufacturer(result, manufacturer)

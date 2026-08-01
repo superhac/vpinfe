@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from common.tables.game_repository import get_game_rows, get_missing_games
+from common.games.game_repository import get_game_rows, get_missing_games
 
 
 @dataclass
@@ -38,15 +38,15 @@ def _build_index(rows: List[Dict], missing_rows: Optional[List[Dict]] = None) ->
     searchable = []
 
     for row in rows:
-        table_path = row.get("table_path", "")
-        normalized_path = _normalize_path(table_path)
+        game_path = row.get("table_path", "")
+        normalized_path = _normalize_path(game_path)
         if normalized_path:
             by_path[normalized_path] = row
             by_dir[Path(normalized_path).name] = row
 
-        table_id = row.get("vpinfe_id")
-        if table_id:
-            by_game_id[str(table_id)] = row
+        game_id = row.get("vpinfe_id")
+        if game_id:
+            by_game_id[str(game_id)] = row
 
         search_blob = " ".join(
             str(row.get(key, "") or "")
@@ -119,16 +119,16 @@ def scan_game_data(reload: bool = False) -> tuple[List[Dict], List[Dict]]:
     return set_game_data(rows, missing_rows)
 
 
-def find_by_path(table_path: str) -> Optional[Dict]:
-    return _index.by_path.get(_normalize_path(table_path))
+def find_by_path(game_path: str) -> Optional[Dict]:
+    return _index.by_path.get(_normalize_path(game_path))
 
 
 def find_by_dir(game_dir: str) -> Optional[Dict]:
     return _index.by_dir.get(game_dir)
 
 
-def find_by_game_id(table_id: str) -> Optional[Dict]:
-    return _index.by_game_id.get(str(table_id))
+def find_by_game_id(game_id: str) -> Optional[Dict]:
+    return _index.by_game_id.get(str(game_id))
 
 
 def search_rows(term: str, *, limit: int = 20, rows: Optional[List[Dict]] = None) -> List[Dict]:
@@ -146,8 +146,8 @@ def search_rows(term: str, *, limit: int = 20, rows: Optional[List[Dict]] = None
     return [row for blob, row in searchable if term in blob][:limit]
 
 
-def update_row_by_path(table_path: str, updates: Dict) -> Optional[Dict]:
-    row = find_by_path(table_path)
+def update_row_by_path(game_path: str, updates: Dict) -> Optional[Dict]:
+    row = find_by_path(game_path)
     if row is None:
         return None
     row.update(updates)
@@ -163,8 +163,8 @@ def sync_collection_memberships(collections_map: Dict[str, List[str]]) -> None:
     set_rows(_index.rows)
 
 
-def add_collection_membership(table_id: str, collection_name: str) -> None:
-    row = find_by_game_id(table_id)
+def add_collection_membership(game_id: str, collection_name: str) -> None:
+    row = find_by_game_id(game_id)
     if row is None:
         return
     row.setdefault("collections", [])

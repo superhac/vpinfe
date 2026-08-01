@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import sys
+import multiprocessing
 import os
 import platform
-import multiprocessing
+import sys
+
 multiprocessing.freeze_support()
 
 # On Windows, hide the console window when launched via icon (not from terminal).
@@ -29,20 +30,21 @@ if "--dof-helper" in sys.argv[1:]:
 # common.paths resolves CONFIG_DIR at import time, so --configdir has to reach
 # the environment before anything under common/ is imported. Do it first.
 from common.config_bootstrap import apply_configdir_override
+
 apply_configdir_override(sys.argv[1:])
 
-from common.logging_config import configure_logging, get_logger
-from common.iniconfig import IniConfig
+from common.app_version import get_version
+from common.games.metadata_service import build_metadata
 from common.host.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.host.libdmdutil_service import (
     stop_libdmdutil_service,
 )
+from common.iniconfig import IniConfig
+from common.logging_config import configure_logging, get_logger
 from common.online.pinmame_score_parser_updater import ensure_latest_roms_json
-from common.online.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
-from common.app_version import get_version
 from common.online.themes import ThemeRegistry
+from common.online.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
 from common.paths import VPINFE_INI_PATH, configure_nicegui_storage, ensure_config_dir
-from common.tables.metadata_service import build_metadata
 
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -73,13 +75,14 @@ def reconfigure_app_logging() -> None:
     configure_logging(config_dir, iniconfig)
 
 # Now safe to import modules that create their own IniConfig at import time
-from frontend import runtime
-from clioptions import parseArgs
-from managerui.managerui import start_manager_ui, stop_manager_ui, set_first_run, _shutdown_event
 from nicegui import app as nicegui_app
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
+
 import httpapi
+from clioptions import parseArgs
+from frontend import runtime
+from managerui.managerui import _shutdown_event, set_first_run, start_manager_ui, stop_manager_ui
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
 
@@ -176,8 +179,8 @@ except Exception:
 
 # Give every table a stable id. One-time cost per library; a no-op afterwards.
 try:
-    from common.tables.game_identity import ensure_unique_ids
-    from common.tables.game_repository import ensure_games_loaded
+    from common.games.game_identity import ensure_unique_ids
+    from common.games.game_repository import ensure_games_loaded
     ensure_unique_ids(ensure_games_loaded())
 except Exception:
     logger.exception("Table id backfill failed; tables without an id are not addressable")
@@ -185,8 +188,8 @@ except Exception:
 # Collection membership moves onto table ids once the ids exist. Resolvable entries
 # are rewritten; anything that does not resolve is left alone rather than dropped.
 try:
+    from common.games.vpxcollections import VPXCollections
     from common.paths import COLLECTIONS_PATH
-    from common.tables.vpxcollections import VPXCollections
     _collections = VPXCollections(str(COLLECTIONS_PATH))
     _collections.migrate_membership_to_game_ids(ensure_games_loaded())
 except Exception:
@@ -197,18 +200,20 @@ _start_startup_media_sync()
 # Feedback hardware follows table lifecycle events from here on, so both launch
 # paths get the same behaviour without either of them knowing about DOF.
 from common.host import peripherals
+
 peripherals.register()
 
 start_dof_service_if_enabled(iniconfig)
 
 # Point the archive analyzer at a configured RAR tool (blank = auto-detect from PATH)
 from managerui.services.asset_analyzer_service import configure_rar_tool
+
 configure_rar_tool(iniconfig.config.get('Settings', 'rartoolpath', fallback='').strip())
 
 # Create API instances and register with WebSocket bridge
 create_api_instances()
 
-# Start the HTTP server to serve images from the "tables" directory
+# Start the HTTP server to serve images from the "games" directory
 http_server = runtime.start_asset_server(MOUNT_POINTS, iniconfig)
 
 # Start the NiceGUI HTTP server

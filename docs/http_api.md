@@ -49,18 +49,18 @@ the documented entry point is a plain 200. Both spellings work.
 | POST | `/api/v1/collections` | Create one. `filters` makes it filter-based, `tables` makes it manual |
 | DELETE | `/api/v1/collections/{name}` | Delete it |
 | PUT | `/api/v1/collections/{name}/tables/{id}` | Add a table (idempotent) |
-| DELETE | `/api/v1/collections/{name}/tables/{id}` | Remove a table |
+| DELETE | `/api/v1/collections/{name}/games/{id}` | Remove a table |
 | GET | `/api/v1/jobs` | Slow work, running first. `?kind=` filters |
 | GET | `/api/v1/jobs/{id}` | One job — state, last progress, outcome |
 | POST | `/api/v1/library/scan` | Rebuild table metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library table count. The reference for logo packs and alias maps |
-| GET | `/api/v1/tables` | List tables (`q`, `limit`, `offset`) |
-| GET | `/api/v1/tables/{id}` | One table |
-| GET | `/api/v1/tables/{id}/game-files` | The table's game files, with resolved assets and dependencies |
-| GET | `/api/v1/tables/{id}/media` | Every media kind, present or not |
-| GET | `/api/v1/tables/{id}/media/{kind}` | Stream one media file |
-| GET | `/api/v1/tables/{id}/archive` | Download the table as `.vpxz` — one game by default; `?file=` picks the build. `?full=true` (whole folder) carries its own scope, `tables:export_full` |
-| POST | `/api/v1/tables/{id}/launch` | Launch a table here. Optional `{"file": "..."}` picks a game file |
+| GET | `/api/v1/games` | List tables (`q`, `limit`, `offset`) |
+| GET | `/api/v1/games/{id}` | One table |
+| GET | `/api/v1/games/{id}/game-files` | The table's game files, with resolved assets and dependencies |
+| GET | `/api/v1/games/{id}/media` | Every media kind, present or not |
+| GET | `/api/v1/games/{id}/media/{kind}` | Stream one media file |
+| GET | `/api/v1/games/{id}/archive` | Download the table as `.vpxz` — one game by default; `?file=` picks the build. `?full=true` (whole folder) carries its own scope, `tables:export_full` |
+| POST | `/api/v1/games/{id}/launch` | Launch a table here. Optional `{"file": "..."}` picks a game file |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
 | GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count", "total_bytes"}` |
@@ -204,7 +204,7 @@ Every request into `/api/v1` passes one middleware that stamps an identity on it
 route declares the scope it needs:
 
 ```python
-@router.get("/tables", dependencies=[requires(scopes.TABLES_READ)])
+@router.get("/games", dependencies=[requires(scopes.TABLES_READ)])
 ```
 
 **The policy is dormant.** Today whoever can reach the instance is granted every scope, which
@@ -261,12 +261,12 @@ each have an event stream, carrying their own events. Test for a role with
 
 ## Launching
 
-`POST /api/v1/tables/{id}/launch` starts a table on this play host. It returns `202` as soon
+`POST /api/v1/games/{id}/launch` starts a table on this play host. It returns `202` as soon
 as the launch is under way — not when the table exits, which can be hours later. Watch
 `/api/v1/events` to find out what happens next.
 
 ```
-POST /api/v1/tables/6f1c9a4e.../launch
+POST /api/v1/games/6f1c9a4e.../launch
 {"file": "Table Name VPW Mod.vpx"}
 ```
 
@@ -324,7 +324,7 @@ What's on it:
 
 A table on the stream is a *reference*, not a resource: an id, a name to show, and
 `links.self` to fetch the rest. Events stay small and there is one answer to what a table
-looks like, at `GET /api/v1/tables/{id}`. A table that hasn't been assigned an id yet carries
+looks like, at `GET /api/v1/games/{id}`. A table that hasn't been assigned an id yet carries
 an empty one and no link rather than a broken one.
 
 The bus carries more than that per event — `table.launching` hands its handlers the whole
@@ -374,7 +374,7 @@ recovers by itself.
 Two kinds behind one resource. A **manual** collection stores an explicit list of table
 ids; a **filter** collection stores criteria and resolves to whatever matches when you ask.
 `type` says which, and `table_count` is null for a filter collection because there is no
-stored list to count — ask `/collections/{name}/tables`, which answers the same question
+stored list to count — ask `/collections/{name}/games`, which answers the same question
 for both kinds and applies the collection's own ordering.
 
 Editing membership only makes sense for the manual kind, so `PUT`/`DELETE` on a filter
@@ -394,7 +394,7 @@ Collection names are the identity, so they are URL-encoded in paths (`Last%20Pla
 Work that takes minutes is a job: you ask for the work, get `202` and a job resource back,
 and follow it on the event stream. `POST /library/scan` is the first one — a metadata
 rebuild across every table folder, which is why it sits under `/library` rather than
-`/tables/{id}`; it isn't an operation on a table.
+`/games/{id}`; it isn't an operation on a table.
 
 The job resource exists because the stream isn't the only way in. A client that connected
 late, missed `job.done`, or simply wants to know what is running asks `GET /jobs` or
@@ -419,7 +419,7 @@ Tables are addressed by an opaque local id — `common/table_identity.py`, store
 its `.info` under `vpinfe.id`:
 
 ```
-GET /api/v1/tables/tuF3WogthK
+GET /api/v1/games/tuF3WogthK
 ```
 
 The id is minted once and then stays put. It survives renames, VPSdb re-matches, and table
@@ -467,7 +467,7 @@ Build an `APIRouter`, include it in `create_api_app()`, and let the envelope han
 from fastapi import APIRouter
 from httpapi.errors import NotFoundError
 
-router = APIRouter(prefix="/tables", tags=["tables"])
+router = APIRouter(prefix="/games", tags=["tables"])
 
 @router.get("/{table_id}")
 def get_table(table_id: str) -> dict:

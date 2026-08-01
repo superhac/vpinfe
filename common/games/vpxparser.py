@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 import argparse
-import logging
-import olefile
-import json
-import struct
-import hashlib
-import os
-import re
 import csv
+import hashlib
+import json
+import logging
+import os
 import pathlib
+import re
+import struct
 import sys
 
+import olefile
 
-logger = logging.getLogger("vpinfe.common.tables.vpxparser")
+logger = logging.getLogger("vpinfe.common.games.vpxparser")
 
 
 class VPXParser:
@@ -269,15 +269,15 @@ class VPXParser:
     # -------------------------------
     # Matchers
     # -------------------------------
-    def findFileSHAMatch(self, tables, vpxFileValues):
-        for game in tables:
+    def findFileSHAMatch(self, games, vpxFileValues):
+        for game in games:
             if vpxFileValues['file_hash'] == game['file_hash']:
                 logger.info("Found FILE hash match.")
                 return game
         return None
 
-    def findCodeSHAMatch(self, tables, vpxFileValues):
-        for game in tables:
+    def findCodeSHAMatch(self, games, vpxFileValues):
+        for game in games:
             if vpxFileValues['vbs_hash'] == game['vbs_hash']:
                 logger.info("Found CODE hash match.")
                 return game

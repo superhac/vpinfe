@@ -1,11 +1,10 @@
 import logging
 from typing import Dict, List
 
-from common.values import is_truthy
+from nicegui import app, events, run, ui
 
-from nicegui import ui, events, run, app
-from managerui.services import collections_service
-from managerui.services import game_index_service
+from common.values import is_truthy
+from managerui.services import collections_service, game_index_service
 from managerui.ui_helpers import debounced_input, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.collections")
@@ -315,18 +314,18 @@ def render_panel(tab=None):
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
                             for t in matches:
-                                table_id = t.get('vpinfe_id', '')
+                                game_id = t.get('vpinfe_id', '')
                                 name = t.get('name', 'Unknown')
-                                if not table_id:
+                                if not game_id:
                                     continue
                                 # Check if already selected
-                                already_selected = any(s['id'] == table_id for s in selected_games['items'])
+                                already_selected = any(s['id'] == game_id for s in selected_games['items'])
                                 with ui.row().classes('w-full items-center justify-between p-2 bg-gray-800 rounded hover:bg-gray-700'):
                                     ui.label(f'{name}').classes('text-white text-sm flex-grow')
                                     if already_selected:
                                         ui.icon('check', color='green')
                                     else:
-                                        def add_game(vid=table_id, n=name):
+                                        def add_game(vid=game_id, n=name):
                                             if not any(s['id'] == vid for s in selected_games['items']):
                                                 selected_games['items'].append({'id': vid, 'name': n})
                                                 update_selected_display()
@@ -428,7 +427,7 @@ def render_panel(tab=None):
                                 name,
                                 letter=_join_or_all(letter_input.value),
                                 theme=_join_or_all(theme_input.value),
-                                table_type=_join_or_all(type_input.value),
+                                game_type=_join_or_all(type_input.value),
                                 manufacturer=_join_or_all(manufacturer_input.value),
                                 year=_join_or_all(year_input.value),
                                 rating=selected_rating,
@@ -560,7 +559,7 @@ def render_panel(tab=None):
                                 name,
                                 letter=_join_or_all(letter_input.value),
                                 theme=_join_or_all(theme_input.value),
-                                table_type=_join_or_all(type_input.value),
+                                game_type=_join_or_all(type_input.value),
                                 manufacturer=_join_or_all(manufacturer_input.value),
                                 year=_join_or_all(year_input.value),
                                 rating=selected_rating,
@@ -641,17 +640,17 @@ def render_panel(tab=None):
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
                             for t in matches:
-                                table_id = t.get('vpinfe_id', '')
+                                game_id = t.get('vpinfe_id', '')
                                 tname = t.get('name', 'Unknown')
-                                if not table_id:
+                                if not game_id:
                                     continue
-                                already_selected = any(s['id'] == table_id for s in selected_games['items'])
+                                already_selected = any(s['id'] == game_id for s in selected_games['items'])
                                 with ui.row().classes('w-full items-center justify-between p-2 bg-gray-800 rounded hover:bg-gray-700'):
                                     ui.label(f'{tname}').classes('text-white text-sm flex-grow')
                                     if already_selected:
                                         ui.icon('check', color='green')
                                     else:
-                                        def add_game(vid=table_id, n=tname):
+                                        def add_game(vid=game_id, n=tname):
                                             if not any(s['id'] == vid for s in selected_games['items']):
                                                 selected_games['items'].append({'id': vid, 'name': n})
                                                 update_selected_display()

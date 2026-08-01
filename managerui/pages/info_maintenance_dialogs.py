@@ -279,10 +279,10 @@ def _render_unreadable_warning() -> None:
     names = ", ".join(row.get("folder", "?") for row in broken[:3])
     if len(broken) > 3:
         names += f" and {len(broken) - 3} more"
-    tables = "1 table is" if len(broken) == 1 else f"{len(broken)} tables are"
+    games = "1 table is" if len(broken) == 1 else f"{len(broken)} tables are"
     _strip(
         'warning', 'var(--neon-pink)',
-        f'{tables} missing because the .info file could not be read.',
+        f'{games} missing because the .info file could not be read.',
         f'{names}. The files were left untouched — a backup may hold a working copy.',
         lambda: ui.button('Restore backups', icon='history',
                           on_click=lambda: open_restore_dialog()).style(_ACCENT),

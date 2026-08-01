@@ -14,8 +14,7 @@ from managerui.services import game_service
 from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import debounced_input
 
-
-logger = logging.getLogger("vpinfe.manager.tables")
+logger = logging.getLogger("vpinfe.manager.games")
 associate_vps_to_folder = game_service.associate_vps_to_folder
 ensure_dir = game_service.ensure_dir
 save_upload_bytes = game_service.save_upload_bytes

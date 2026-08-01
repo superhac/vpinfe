@@ -4,17 +4,16 @@ import logging
 import os
 
 from common.config_access import SettingsConfig
+from common.games.gameparser import GameParser
+from common.games.metaconfig import MetaConfig
+from common.games.standalonescripts import StandaloneScripts
+from common.games.vpxparser import VPXParser
 from common.iniconfig import IniConfig
 from common.jobs import JobReporter
-from common.tables.metaconfig import MetaConfig
-from common.paths import get_ini_config
-from common.tables.standalonescripts import StandaloneScripts
-from common.tables.gameparser import GameParser
 from common.online.vpsdb import VPSdb
-from common.tables.vpxparser import VPXParser
+from common.paths import get_ini_config
 
-
-logger = logging.getLogger("vpinfe.common.tables.metadata_service")
+logger = logging.getLogger("vpinfe.common.games.metadata_service")
 
 
 def _config(config: IniConfig | None = None) -> IniConfig:
@@ -41,16 +40,16 @@ def build_metadata(
     settings = SettingsConfig.from_config(config)
 
     tp = GameParser(settings.game_root_dir, config)
-    tables = tp.getAllGames()
+    games = tp.getAllGames()
 
     if gameName:
-        tables = [game for game in tables if game.tableDirName == gameName]
-        if not tables:
+        games = [game for game in games if game.tableDirName == gameName]
+        if not games:
             log(f"Table folder '{gameName}' not found")
             return {"found": 0, "not_found": 0}
         log(f"Processing single table: {gameName}")
 
-    total = len(tables)
+    total = len(games)
 
     vps = VPSdb(settings.game_root_dir, config)
     log(f"Found {len(vps)} tables in VPSdb")
@@ -58,7 +57,7 @@ def build_metadata(
     if progress_cb:
         reporter.progress(0, total, "Starting")
 
-    for current, game in enumerate(tables, 1):
+    for current, game in enumerate(games, 1):
         info_path = os.path.join(game.fullPathTable, f"{game.tableDirName}.info")
 
         if os.path.exists(info_path) and not updateAll:
@@ -124,5 +123,5 @@ def apply_vpx_patches(progress_cb=None, iniconfig: IniConfig | None = None):
     config = _config(iniconfig)
     settings = SettingsConfig.from_config(config)
     tp = GameParser(settings.game_root_dir, config)
-    tables = tp.getAllGames()
-    StandaloneScripts(tables, progress_cb=progress_cb)
+    games = tp.getAllGames()
+    StandaloneScripts(games, progress_cb=progress_cb)

@@ -6,11 +6,9 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, List, Optional
 
-from common.paths import COLLECTIONS_PATH, get_games_path, get_ini_config
-from common.tables.info_migration import CURRENT_SCHEMA, schema_of
-from common.tables.game_identity import ensure_unique_ids
-from common.tables.game_identity import table_id as vpinfe_id
-from common.tables.game_metadata import (
+from common.games.game_identity import ensure_unique_ids
+from common.games.game_identity import game_id as vpinfe_id
+from common.games.game_metadata import (
     as_string_list,
     default_game_file,
     first_meta_value,
@@ -19,12 +17,14 @@ from common.tables.game_metadata import (
     section,
     vpinfe_section,
 )
-from common.tables.gameparser import GameParser
-from common.tables.vpxcollections import VPXCollections
+from common.games.gameparser import GameParser
+from common.games.info_migration import CURRENT_SCHEMA, schema_of
+from common.games.vpxcollections import VPXCollections
+from common.paths import COLLECTIONS_PATH, get_games_path, get_ini_config
 
 _LOCK = threading.Lock()
 _PARSER: Optional[GameParser] = None
-logger = logging.getLogger("vpinfe.common.tables.game_repository")
+logger = logging.getLogger("vpinfe.common.games.game_repository")
 
 
 def ensure_games_loaded(reload: bool = False) -> List[Any]:
@@ -37,16 +37,16 @@ def ensure_games_loaded(reload: bool = False) -> List[Any]:
             _PARSER = GameParser(games_root, get_ini_config())
         elif reload:
             _PARSER.loadGames(reload=True)
-        tables = list(_PARSER.getAllGames())
+        games = list(_PARSER.getAllGames())
 
     elapsed = perf_counter() - started_at
     logger.debug(
         "ensure_tables_loaded reload=%s count=%s elapsed=%.3fs",
         reload,
-        len(tables),
+        len(games),
         elapsed,
     )
-    return tables
+    return games
 
 
 def refresh_games() -> List[Any]:
@@ -58,14 +58,14 @@ def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
 
     Off the loaded library, which already read every .info and listed every folder.
     """
-    tables = ensure_games_loaded(reload=reload)
+    games = ensure_games_loaded(reload=reload)
     return {
-        "pending_upgrade": sum(1 for t in tables if getattr(t, "info_pending_upgrade", False)),
-        "restorable": sum(1 for t in tables if getattr(t, "info_restorable", False)),
+        "pending_upgrade": sum(1 for t in games if getattr(t, "info_pending_upgrade", False)),
+        "restorable": sum(1 for t in games if getattr(t, "info_restorable", False)),
         # Written by a build newer than this one. Without this the page cannot tell "I
         # upgraded these" from "something newer did, and I cannot fully read them" - and
         # says the first, which is a lie the moment a schema 3 exists.
-        "newer_than_us": sum(1 for t in tables
+        "newer_than_us": sum(1 for t in games
                              if (schema_of(t.metaConfig) or 0) > CURRENT_SCHEMA),
     }
 
@@ -103,27 +103,27 @@ def restorable_game_names() -> List[str]:
     )
 
 
-def refresh_game(table_path: str) -> List[Any]:
+def refresh_game(game_path: str) -> List[Any]:
     """Re-read one table folder, not the library.
 
     The whole-library reload this used to do is why setting a star rating on a big
     network share took minutes: every caller changes one folder and then paid to look
     at all of them.
     """
-    normalized = str(Path(table_path).expanduser().resolve())
+    normalized = str(Path(game_path).expanduser().resolve())
     started_at = perf_counter()
     with _LOCK:
         if _PARSER is None or not _PARSER.getGameCount():
             reloaded = None
         else:
             reloaded = _PARSER.reload_game(normalized)
-            tables = list(_PARSER.getAllGames())
+            games = list(_PARSER.getAllGames())
     if reloaded is None:
         # Nothing loaded yet, so there is no one table to refresh - read the library.
-        tables = ensure_games_loaded(reload=True)
+        games = ensure_games_loaded(reload=True)
 
     logger.debug("refresh_table %s elapsed=%.3fs", normalized, perf_counter() - started_at)
-    return [game for game in tables if str(Path(game.fullPathTable).resolve()) == normalized]
+    return [game for game in games if str(Path(game.fullPathTable).resolve()) == normalized]
 
 
 def get_missing_games(reload: bool = False) -> List[Dict[str, str]]:
@@ -161,11 +161,11 @@ def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) ->
     info = section(meta, "Info")
     user = section(meta, "User")
     vpinfe = vpinfe_section(meta)
-    table_name = Path(game.fullPathTable).name
+    game_name = Path(game.fullPathTable).name
     vpsid = first_meta_value(meta, ("Info", "VPSId"), default="")
     # The row describes one game file - the table's default. A folder can hold several,
     # and the API lists them all separately; this is what the table-level views show.
-    gf_name, gf = default_game_file(meta, folder_name=table_name)
+    gf_name, gf = default_game_file(meta, folder_name=game_name)
 
     def gf_value(key, default=""):
         value = gf.get(key, None)
@@ -173,7 +173,7 @@ def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) ->
 
     row = {
         "name": (str(vpinfe.get("alt_title", "") or "").strip()
-                 or reorder_leading_article(first_meta_value(meta, ("Info", "Title"), default=table_name) or "")),
+                 or reorder_leading_article(first_meta_value(meta, ("Info", "Title"), default=game_name) or "")),
         "filename": gf_name or Path(game.fullPathVPXfile).name,
         # vpsid and altvpsid correlate with VPSdb, VPinPlay and anything else keyed
         # by them. vpinfe_id is this install's own id (common/table_identity.py) and
@@ -246,9 +246,9 @@ def get_game_rows(reload: bool = False) -> List[Dict[str, Any]]:
     # imported since startup would otherwise carry an empty id and collide with
     # every other table that has none. Already-assigned libraries pay nothing:
     # this only touches disk for a table that has no id yet.
-    tables = ensure_unique_ids(ensure_games_loaded(reload=reload)).values()
+    games = ensure_unique_ids(ensure_games_loaded(reload=reload)).values()
     collections_map = collections_by_game_id()
-    rows = [game_to_row(game, collections_map) for game in tables]
+    rows = [game_to_row(game, collections_map) for game in games]
     rows.sort(key=lambda row: (row.get("name") or "").lower())
     return rows
 

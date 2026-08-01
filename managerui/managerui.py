@@ -1,43 +1,49 @@
 from __future__ import annotations
+
 import logging
 
 from common.paths import configure_nicegui_storage
 
-
 _NICEGUI_STORAGE_PATH = configure_nicegui_storage()
 
-from nicegui import ui, app, context
-from .pages import tables as tab_games
-from .pages import vpinfe_config as tab_vpinfe
-from .pages import vpx_config as tab_vpx_config
-from .pages import vpx_plugins as tab_vpx_plugins
-from .pages import collections as tab_collections
-from .pages import media as tab_media
-from .pages import themes as tab_themes
-from .pages import system as tab_system
-from .pages import mobile as tab_mobile
-from .pages import vpinplay as tab_vpinplay
-from .pages import vpinplay_player as tab_vpinplay_player
-from .pages import logs as tab_logs
-from .page_registry import NAV_PAGES, PAGE_ALIASES
-from .services import app_control
-from .ui_helpers import load_manager_styles, nav_button, run_page_teardowns, set_shell_save_bar
 import asyncio
-import threading
 import os
 import socket
+import threading
 import time
+
+from nicegui import app, context, ui
+
 from common.app_version import get_version
 from common.online.app_updater import (
     check_for_updates as check_for_app_updates,
+)
+from common.online.app_updater import (
     launch_prepared_update,
     prepare_update,
 )
+
+from .page_registry import NAV_PAGES, PAGE_ALIASES
+from .pages import collections as tab_collections
+from .pages import games as tab_games
+from .pages import logs as tab_logs
+from .pages import media as tab_media
+from .pages import mobile as tab_mobile
+from .pages import system as tab_system
+from .pages import themes as tab_themes
+from .pages import vpinfe_config as tab_vpinfe
+from .pages import vpinplay as tab_vpinplay
+from .pages import vpinplay_player as tab_vpinplay_player
+from .pages import vpx_config as tab_vpx_config
+from .pages import vpx_plugins as tab_vpx_plugins
+from .services import app_control
+from .ui_helpers import load_manager_styles, nav_button, run_page_teardowns, set_shell_save_bar
 
 logger = logging.getLogger("vpinfe.manager.ui")
 
 # Shutdown event — set by _quit_app() to unblock headless mode
 import threading as _threading
+
 _shutdown_event = _threading.Event()
 
 # First-run flag — set by main.py when no vpinfe.ini existed
@@ -105,7 +111,7 @@ def check_for_updates() -> dict:
 
 
 _PAGE_RENDERERS = {
-    'tables': tab_games.render_panel,
+    'games': tab_games.render_panel,
     'collections': tab_collections.render_panel,
     'media': tab_media.render_panel,
     'themes': tab_themes.render_panel,
@@ -324,7 +330,7 @@ def build_app(page_param: str = '', dialog_param: str = ''):
     elif page_param:
         initial_page = page_param
     else:
-        initial_page = 'tables'
+        initial_page = 'games'
     show_page(initial_page)
 
     # Show dialog if requested via URL param, or first-run dialog

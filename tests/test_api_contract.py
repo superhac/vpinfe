@@ -25,7 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 def _run_probe() -> dict:
     with TemporaryDirectory() as tmp:
         config_dir = Path(tmp) / "config"
-        games_dir = Path(tmp) / "tables"
+        games_dir = Path(tmp) / "games"
         game = games_dir / "Example Table (Bally 1990)"
         game.mkdir(parents=True)
         (game / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
@@ -115,7 +115,7 @@ class ApiContractTests(unittest.TestCase):
 
         self.assertEqual(entry["status"], 200)
         self.assertEqual(entry["json"],
-                         {"launching": False, "table_name": None, "source": None})
+                         {"launching": False, "game_name": None, "source": None})
         self.assertEqual(entry["cors"], "*", "themes call this from another origin")
         # Same-origin callers get no CORS header, which is correct and not a regression:
         # the header only has meaning in a cross-origin response.
@@ -134,10 +134,10 @@ class ApiContractTests(unittest.TestCase):
         cleared = self.probe["play_state_cleared"]["json"]
 
         self.assertEqual(launching, {"launching": True,
-                                     "table_name": "Medieval Madness (Williams 1997)",
+                                     "game_name": "Medieval Madness (Williams 1997)",
                                      "source": "remote"})
         self.assertEqual(cleared,
-                         {"launching": False, "table_name": None, "source": None})
+                         {"launching": False, "game_name": None, "source": None})
 
     def test_launch_refuses_before_it_starts_anything(self) -> None:
         """Every refusal is answered synchronously. A launch that returns 202 and
@@ -279,7 +279,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(entry["status"], 200)
         body = entry["json"]
         self.assertEqual(body["total"], 3)
-        game = [t for t in body["tables"] if t["name"] == "Example Table"][0]
+        game = [t for t in body["games"] if t["name"] == "Example Table"][0]
         self.assertTrue(game["id"], "every listed table is addressable")
         self.assertEqual(game["vps_id"], "vps-example", "correlation, not identity")
         self.assertEqual(game["name"], "Example Table")
@@ -289,8 +289,8 @@ class ApiContractTests(unittest.TestCase):
 
         self.assertEqual(self.probe["table_get"]["status"], 200)
         self.assertEqual(game["links"]["game_files"],
-                         f"/api/v1/tables/{game['id']}/game-files")
-        self.assertEqual(game["links"]["archive"], f"/api/v1/tables/{game['id']}/archive")
+                         f"/api/v1/games/{game['id']}/game-files")
+        self.assertEqual(game["links"]["archive"], f"/api/v1/games/{game['id']}/archive")
 
     def test_game_files_are_a_list_even_though_there_is_one_today(self) -> None:
         """A table is not permanently one .vpx; the shape says so now."""

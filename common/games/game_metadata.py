@@ -4,15 +4,16 @@ import ast
 from pathlib import Path
 from typing import Any, Dict
 
-from common.tables.game_files import (
+from common.games.game_files import (
     DETECT_KEYS,
     GAME_FILES_KEY,
-    default_game_file as _resolve_default,
     game_file_entries,
     recorded_default,
 )
-from common.tables.metaconfig import VPINFE_SECTION, MetaConfig
-
+from common.games.game_files import (
+    default_game_file as _resolve_default,
+)
+from common.games.metaconfig import VPINFE_SECTION, MetaConfig
 
 # Re-exported so the theme payload and the Manager UI agree with storage. Sourced
 # from game_files rather than restated, since a second list drifts silently - it
@@ -160,7 +161,7 @@ def game_themes(game) -> list[str]:
     return [legacy]
 
 
-def table_type(game) -> str:
+def game_type(game) -> str:
     meta = normalize_meta(getattr(game, "metaConfig", {}))
     return str(first_meta_value(meta, ("Info", "Type"), ("VPSdb", "type"), default="") or "")
 

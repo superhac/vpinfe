@@ -4,21 +4,21 @@ import logging
 import os
 from pathlib import Path
 
-from common.tables.game_identity import table_id
-from common.tables.game_metadata import (
+from common.games.game_identity import game_id
+from common.games.game_metadata import (
     base_game_vps_id,
     game_title,
     section,
     vpinfe_section,
 )
-from common.tables.info_migration import (
+from common.games.info_migration import (
     backup_names,
     copy_aside,
     write_atomic,
 )
-from common.tables.metaconfig import VPINFE_SECTION
+from common.games.metaconfig import VPINFE_SECTION
 
-logger = logging.getLogger("vpinfe.common.tables.vpxcollections")
+logger = logging.getLogger("vpinfe.common.games.vpxcollections")
 
 # collections.ini is entirely ours, so it carries a version like the VPinFE section
 # of a table's .info does. In an ini the sections are collection names, so the
@@ -136,7 +136,7 @@ class VPXCollections:
         section: str,
         letter="All",
         theme="All",
-        table_type="All",
+        game_type="All",
         manufacturer="All",
         year="All",
         rating="All",
@@ -153,7 +153,7 @@ class VPXCollections:
         sec["type"] = "filter"
         sec["letter"] = letter
         sec["theme"] = theme
-        sec["table_type"] = table_type
+        sec["table_type"] = game_type
         sec["manufacturer"] = manufacturer
         sec["year"] = year
         sec["rating"] = rating
@@ -198,7 +198,7 @@ class VPXCollections:
         members.remove(member_id)
         self.config[section][MEMBERS_KEY] = ",".join(members)
 
-    def migrate_membership_to_game_ids(self, tables) -> int:
+    def migrate_membership_to_game_ids(self, games) -> int:
         """Move VPS-keyed membership onto table ids. Returns how many entries moved.
 
         Runs once: the file records that it has been through this, so later startups
@@ -224,8 +224,8 @@ class VPXCollections:
             return 0
 
         by_vps: dict[str, str] = {}
-        for game in tables:
-            tid = table_id(game)
+        for game in games:
+            tid = game_id(game)
             if not tid:
                 continue
             vpinfe = vpinfe_section(getattr(game, "metaConfig", {}))
@@ -280,7 +280,7 @@ class VPXCollections:
         when it ran, still holds one - and because a table with no VPSdb match has
         no VPS id at all, which is one of the reasons membership moved off it.
         """
-        if table_id(game) and table_id(game) in member_ids:
+        if game_id(game) and game_id(game) in member_ids:
             return True
 
         vpinfe = vpinfe_section(getattr(game, "metaConfig", {}))
@@ -291,10 +291,10 @@ class VPXCollections:
             or (alt_vpsid and alt_vpsid in member_ids)
         )
 
-    def filter_games(self, tables, collection):
+    def filter_games(self, games, collection):
         """Tables belonging to a collection, ordered for display."""
         filter_ids = set(self.get_members(collection))
-        result = [t for t in tables if self.is_member(t, filter_ids)]
+        result = [t for t in games if self.is_member(t, filter_ids)]
 
         if collection == "Last Played":
             # Automatic recents collection should surface the most recently run tables first.

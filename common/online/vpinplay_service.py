@@ -7,10 +7,9 @@ import requests
 
 from common.app_version import get_version
 from common.config_access import SettingsConfig, VPinPlayConfig
-from common.tables.game_metadata import default_game_file, normalize_rating, vpinfe_section
-from common.tables.gameparser import GameParser
+from common.games.game_metadata import default_game_file, normalize_rating, vpinfe_section
+from common.games.gameparser import GameParser
 from common.timestamps import utc_now_iso
-
 
 logger = logging.getLogger("vpinfe.common.online.vpinplay_service")
 
@@ -111,7 +110,7 @@ def _build_game_payload(meta: dict) -> dict | None:
     }
 
 
-def _build_sync_payload(user_id: str, initials: str, machine_id: str, tables: list[dict]) -> dict:
+def _build_sync_payload(user_id: str, initials: str, machine_id: str, games: list[dict]) -> dict:
     return {
         "source": {
             "program": "VPinFE",
@@ -123,7 +122,7 @@ def _build_sync_payload(user_id: str, initials: str, machine_id: str, tables: li
             "machineId": machine_id,
         },
         "sentAt": utc_now_iso(),
-        "tables": tables,
+        "games": games,
     }
 
 
@@ -174,11 +173,11 @@ def sync_installed_games(
         raise ValueError(f"Tables Directory does not exist: {game_root_dir}")
 
     parser = GameParser(game_root_dir)
-    tables = parser.getAllGames()
+    games = parser.getAllGames()
 
     payload_games = []
     skipped = 0
-    for game in tables:
+    for game in games:
         meta = game.metaConfig if isinstance(game.metaConfig, dict) else {}
         game_payload = _build_game_payload(meta)
         if game_payload is None:
@@ -199,7 +198,7 @@ def sync_installed_games(
     post_result = _post_sync_payload(endpoint, payload, timeout_seconds)
 
     return {
-        "tables_scanned": len(tables),
+        "tables_scanned": len(games),
         "tables_sent": len(payload_games),
         "tables_skipped": skipped,
         **post_result,

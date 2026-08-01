@@ -8,7 +8,6 @@ import requests
 
 from common.http_client import get_bytes, get_json, get_text
 
-
 logger = logging.getLogger("vpinfe.common.online.vpsdb_cache")
 
 
@@ -77,7 +76,7 @@ class VPSDatabaseCache:
         if isinstance(data, list):
             return data
         if isinstance(data, dict):
-            items = data.get("tables") or data.get("items") or []
+            items = data.get("games") or data.get("items") or []
             return items if isinstance(items, list) else []
         return []
 

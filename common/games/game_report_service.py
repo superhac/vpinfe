@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import logging
 
-from common.iniconfig import IniConfig
 from common.config_access import SettingsConfig
-from common.paths import get_ini_config
-from common.tables.gameparser import GameParser
+from common.games.gameparser import GameParser
+from common.iniconfig import IniConfig
 from common.online.vpsdb import VPSdb
+from common.paths import get_ini_config
 
-
-logger = logging.getLogger("vpinfe.common.tables.game_report_service")
+logger = logging.getLogger("vpinfe.common.games.game_report_service")
 
 
 def _config(config: IniConfig | None = None) -> IniConfig:
@@ -21,15 +20,15 @@ def list_missing_games(iniconfig: IniConfig | None = None, log=None) -> None:
     log = log or logger.info
     game_root = SettingsConfig.from_config(config).game_root_dir
     tp = GameParser(game_root, config)
-    tables = tp.getAllGames()
+    games = tp.getAllGames()
     log("Listing tables missing from %s", game_root)
-    log("Found %s tables in %s", len(tables), game_root)
+    log("Found %s tables in %s", len(games), game_root)
 
     vps = VPSdb(game_root, config)
     log("Found %s tables in VPSdb", len(vps))
 
     games_found = []
-    for game in tables:
+    for game in games:
         vps_search_data = vps.parseGameNameFromDir(game.tableDirName)
         vps_data = (
             vps.lookupName(
@@ -44,7 +43,7 @@ def list_missing_games(iniconfig: IniConfig | None = None, log=None) -> None:
             games_found.append(vps_data)
 
     current = 0
-    for vps_game in vps.tables():
+    for vps_game in vps.games():
         if vps_game not in games_found:
             current += 1
             log(
@@ -61,15 +60,15 @@ def list_unknown_games(iniconfig: IniConfig | None = None, log=None) -> None:
     log = log or logger.info
     game_root = SettingsConfig.from_config(config).game_root_dir
     tp = GameParser(game_root, config)
-    tables = tp.getAllGames()
+    games = tp.getAllGames()
     log("Listing unknown tables from %s", game_root)
-    log("Found %s tables in %s", len(tables), game_root)
+    log("Found %s tables in %s", len(games), game_root)
 
     vps = VPSdb(game_root, config)
     log("Found %s tables in VPSdb", len(vps))
 
     current = 0
-    for game in tables:
+    for game in games:
         vps_search_data = vps.parseGameNameFromDir(game.tableDirName)
         vps_data = (
             vps.lookupName(

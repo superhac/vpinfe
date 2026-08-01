@@ -16,8 +16,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
+from common.games.asset_resolver import apply_audit, resolve_rom_chain
 from common.host import pinmame_catalog
-from common.tables.asset_resolver import apply_audit, resolve_rom_chain
 
 
 class LocatorTests(unittest.TestCase):

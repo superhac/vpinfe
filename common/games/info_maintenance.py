@@ -9,29 +9,29 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from common.jobs import JobReporter
-from common.tables.info_migration import (
+from common.games.info_migration import (
     CURRENT_SCHEMA,
     copy_aside,
     replace_atomic,
     restorable_backup,
 )
-from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
-from common.tables.vpxcollections import (
+from common.games.metaconfig import InvalidMetaConfigError, MetaConfig
+from common.games.vpxcollections import (
     COLLECTIONS_NAME,
     restorable_collections_backup,
 )
+from common.jobs import JobReporter
 
-logger = logging.getLogger("vpinfe.common.tables.info_maintenance")
+logger = logging.getLogger("vpinfe.common.games.info_maintenance")
 
 
-def game_dirs(game_root, table_name: str | None = None) -> list[Path]:
+def game_dirs(game_root, game_name: str | None = None) -> list[Path]:
     """Table folders under the root. Not loadTables: that raises on the first bad `.info`."""
     root = Path(game_root)
     if not root.is_dir():
         return []
-    if table_name:
-        one = root / table_name
+    if game_name:
+        one = root / game_name
         return [one] if one.is_dir() else []
     return sorted(
         (d for d in root.iterdir() if d.is_dir() and not d.name.startswith(".")),
@@ -56,7 +56,7 @@ def pending_upgrade(game_dir) -> bool:
 
 def upgrade_library(
     game_root,
-    table_name: str | None = None,
+    game_name: str | None = None,
     progress_cb=None,
     log_cb=None,
 ) -> dict:
@@ -67,7 +67,7 @@ def upgrade_library(
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
     log = reporter.log
 
-    folders = game_dirs(game_root, table_name)
+    folders = game_dirs(game_root, game_name)
     total = len(folders)
     result = {"upgraded": 0, "already_current": 0, "failed": 0, "failures": []}
 
@@ -100,7 +100,7 @@ def upgrade_library(
 
 def restore_library(
     game_root,
-    table_name: str | None = None,
+    game_name: str | None = None,
     max_schema: int = CURRENT_SCHEMA,
     config_dir=None,
     progress_cb=None,
@@ -113,7 +113,7 @@ def restore_library(
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
     log = reporter.log
 
-    folders = game_dirs(game_root, table_name)
+    folders = game_dirs(game_root, game_name)
     total = len(folders)
     result = {"restored": 0, "nothing_to_restore": 0, "failed": 0, "failures": [],
               "collections_restored": False}

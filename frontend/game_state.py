@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import logging
 
-from common.tables.collections_service import filter_games_by_collection, get_collection_names, save_filter_collection
-from common.media_paths import game_media_payload
-from common.shared_assets import manufacturer_logo_web_path
-from common.tables.gamelistfilters import GameListFilters
-from frontend.theme_contract import CURRENT_CONTRACT, project
-from common.tables.game_metadata import (
+from common.games.collections_service import (
+    filter_games_by_collection,
+    get_collection_names,
+    save_filter_collection,
+)
+from common.games.game_metadata import (
+    game_title,
     get_or_create_user_meta,
     load_game_meta,
     normalize_meta,
@@ -16,10 +17,12 @@ from common.tables.game_metadata import (
     persist_game_meta,
     reorder_leading_article,
     section,
-    game_title,
     vpinfe_section,
 )
-
+from common.games.gamelistfilters import GameListFilters
+from common.media_paths import game_media_payload
+from common.shared_assets import manufacturer_logo_web_path
+from frontend.theme_contract import CURRENT_CONTRACT, project
 
 logger = logging.getLogger("vpinfe.frontend.game_state")
 
@@ -51,10 +54,10 @@ def normalize_sort_order(order_by, sort_type="Alpha"):
     return default_sort_order(sort_type)
 
 
-def games_json(tables, contract: int = CURRENT_CONTRACT) -> str:
+def games_json(games, contract: int = CURRENT_CONTRACT) -> str:
     result = []
     logo_cache: dict[str, str | None] = {}
-    for game in tables:
+    for game in games:
         # A copy: what follows adds fields the theme contract defines, and writing those
         # into the shared metaConfig would put a dropped section back on disk at the next
         # rebuild.
@@ -116,13 +119,13 @@ def apply_collection(api, collection):
     api.apply_sort(filters["sort_by"], api.current_order)
 
 
-def save_current_filter_collection(api, name, letter, theme, table_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by="Descending"):
-    save_filter_collection(name, letter, theme, table_type, manufacturer, year, rating, rating_or_higher, sort_by, order_by)
+def save_current_filter_collection(api, name, letter, theme, game_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by="Descending"):
+    save_filter_collection(name, letter, theme, game_type, manufacturer, year, rating, rating_or_higher, sort_by, order_by)
     return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
 
 
-def filter_options(tables):
-    filters = GameListFilters(tables)
+def filter_options(games):
+    filters = GameListFilters(games)
     return {
         "letters": filters.get_available_letters(),
         "themes": filters.get_available_themes(),
@@ -132,12 +135,12 @@ def filter_options(tables):
     }
 
 
-def apply_filters(api, letter=None, theme=None, table_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
+def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
     api.current_collection = None
     updates = {
         "letter": letter,
         "theme": theme,
-        "type": table_type,
+        "type": game_type,
         "manufacturer": manufacturer,
         "year": year,
         "rating": rating,
@@ -151,7 +154,7 @@ def apply_filters(api, letter=None, theme=None, table_type=None, manufacturer=No
     api.filteredGames = GameListFilters(api.allGames).apply_filters(
         letter=api.current_filters["letter"],
         theme=api.current_filters["theme"],
-        table_type=api.current_filters["type"],
+        game_type=api.current_filters["type"],
         manufacturer=api.current_filters["manufacturer"],
         year=api.current_filters["year"],
         rating=api.current_filters["rating"],
@@ -160,20 +163,20 @@ def apply_filters(api, letter=None, theme=None, table_type=None, manufacturer=No
     return len(api.filteredGames)
 
 
-def apply_sort(tables, sort_type, order_by=None):
+def apply_sort(games, sort_type, order_by=None):
     reverse = normalize_sort_order(order_by, sort_type) == "Descending"
     if sort_type == "Alpha":
-        tables.sort(key=lambda game: game_title(game).lower(), reverse=reverse)
+        games.sort(key=lambda game: game_title(game).lower(), reverse=reverse)
     elif sort_type == "Newest":
-        tables.sort(key=lambda game: game_title(game).lower())
-        tables.sort(key=lambda game: game.creation_time if game.creation_time is not None else 0, reverse=reverse)
+        games.sort(key=lambda game: game_title(game).lower())
+        games.sort(key=lambda game: game.creation_time if game.creation_time is not None else 0, reverse=reverse)
     elif sort_type == "LastRun":
-        _sort_by_numeric_meta(tables, "LastRun", reverse)
+        _sort_by_numeric_meta(games, "LastRun", reverse)
     elif sort_type == "Highest StartCount":
-        _sort_by_numeric_meta(tables, "StartCount", reverse)
+        _sort_by_numeric_meta(games, "StartCount", reverse)
     elif sort_type == "RunTime":
-        _sort_by_numeric_meta(tables, "RunTime", reverse)
-    return len(tables)
+        _sort_by_numeric_meta(games, "RunTime", reverse)
+    return len(games)
 
 
 def _paging_group_key(game):
@@ -186,7 +189,7 @@ def _paging_group_key(game):
     return "#"
 
 
-def page_jump_index(tables, index, direction, sort_type="Alpha", paging_type="alpha", page_size=10):
+def page_jump_index(games, index, direction, sort_type="Alpha", paging_type="alpha", page_size=10):
     """Return the target wheel index for a joypageup/joypagedown press.
 
     Alpha paging jumps to the first table of the adjacent letter group in the
@@ -195,14 +198,14 @@ def page_jump_index(tables, index, direction, sort_type="Alpha", paging_type="al
     to numeric paging. Numeric paging steps by pagingsize, capped at half the
     list so a press never wraps past the starting point. All paging is circular.
     """
-    count = len(tables)
+    count = len(games)
     if count <= 1:
         return 0 if count else index
     index = index % count
     forward = direction != "prev"
 
     if paging_type == "alpha" and sort_type == "Alpha":
-        keys = [_paging_group_key(game) for game in tables]
+        keys = [_paging_group_key(game) for game in games]
         if len(set(keys)) > 1:
             step = 1 if forward else -1
             pos = (index + step) % count
@@ -218,9 +221,9 @@ def page_jump_index(tables, index, direction, sort_type="Alpha", paging_type="al
     return (index + step) % count if forward else (index - step) % count
 
 
-def _sort_by_numeric_meta(tables, field, reverse):
-    tables.sort(key=lambda game: game_title(game).lower())
-    tables.sort(key=lambda game: _numeric_meta_value(game, field), reverse=reverse)
+def _sort_by_numeric_meta(games, field, reverse):
+    games.sort(key=lambda game: game_title(game).lower())
+    games.sort(key=lambda game: _numeric_meta_value(game, field), reverse=reverse)
 
 
 def _numeric_meta_value(game, field):
@@ -234,16 +237,16 @@ def _numeric_meta_value(game, field):
     return value
 
 
-def get_table_rating(tables, index):
+def get_table_rating(games, index):
     try:
-        game = tables[index]
+        game = games[index]
     except Exception:
         return 0
     return normalize_rating(section(load_game_meta(game), "User").get("Rating", 0))
 
 
-def set_table_rating(tables, index, rating):
-    game = tables[index]
+def set_table_rating(games, index, rating):
+    game = games[index]
     config = load_game_meta(game)
     user = get_or_create_user_meta(config)
     normalized = normalize_rating(rating)

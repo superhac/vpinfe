@@ -1,11 +1,11 @@
-import sys
 import logging
 import re
 import shlex
+import sys
 from pathlib import Path
 
+from common.games.game_metadata import vpinfe_section
 from common.paths import PLUGIN_PROFILES_DIR
-from common.tables.game_metadata import vpinfe_section
 
 logger = logging.getLogger("vpinfe.common.host.launcher")
 _ENV_KEY_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
@@ -158,12 +158,12 @@ def build_masked_tableini_path(vpx_game_path: str, override_enabled, override_ma
         logger.warning("Global tableini override enabled, but mask is empty; skipping -tableini")
         return ""
 
-    table_path = Path(str(vpx_game_path or "").strip())
-    if not table_path.name:
+    game_path = Path(str(vpx_game_path or "").strip())
+    if not game_path.name:
         return ""
 
-    masked_name = f"{table_path.stem}.{mask}.ini"
-    return str(table_path.with_name(masked_name))
+    masked_name = f"{game_path.stem}.{mask}.ini"
+    return str(game_path.with_name(masked_name))
 
 
 def resolve_launch_tableini_override(vpx_game_path: str, override_enabled, override_mask: str) -> str:

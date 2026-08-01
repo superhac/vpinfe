@@ -11,15 +11,15 @@ import secrets
 from collections.abc import Iterable
 from typing import Any
 
-from common.tables.metaconfig import VPINFE_SECTION
-from common.tables.game_metadata import (
+from common.games.game_metadata import (
     load_game_meta,
     normalize_meta,
     persist_game_meta,
     section,
 )
+from common.games.metaconfig import VPINFE_SECTION
 
-logger = logging.getLogger("vpinfe.common.tables.game_identity")
+logger = logging.getLogger("vpinfe.common.games.game_identity")
 
 # Also written by MetaConfig.writeConfigMeta, which mints during a metadata rebuild.
 ID_SECTION = VPINFE_SECTION
@@ -36,7 +36,7 @@ def new_id() -> str:
     return "".join(secrets.choice(ID_ALPHABET) for _ in range(ID_LENGTH))
 
 
-def table_id(game) -> str:
+def game_id(game) -> str:
     """The table's id, or "" if it hasn't been assigned one. Never writes."""
     meta = normalize_meta(getattr(game, "metaConfig", {}))
     return str(section(meta, ID_SECTION).get(ID_KEY, "") or "").strip()
@@ -57,7 +57,7 @@ def ensure_id(game, *, force_new: bool = False) -> str:
     the write fails: an id that isn't on disk isn't an identity.
     """
     if not force_new:
-        existing = table_id(game)
+        existing = game_id(game)
         if existing:
             return existing
 
@@ -76,15 +76,15 @@ def ensure_id(game, *, force_new: bool = False) -> str:
     return minted
 
 
-def ensure_unique_ids(tables: Iterable[Any]) -> dict[str, Any]:
+def ensure_unique_ids(games: Iterable[Any]) -> dict[str, Any]:
     """Give every table an id, re-minting collisions so an id addresses one table.
 
     Two tables share an id when a table folder was copied.
     """
     by_id: dict[str, Any] = {}
     minted = 0
-    for game in tables:
-        current = table_id(game)
+    for game in games:
+        current = game_id(game)
         if not current:
             current = ensure_id(game)
             minted += 1
@@ -103,12 +103,12 @@ def ensure_unique_ids(tables: Iterable[Any]) -> dict[str, Any]:
     return by_id
 
 
-def find_by_id(tables: Iterable[Any], wanted: str) -> Any | None:
+def find_by_id(games: Iterable[Any], wanted: str) -> Any | None:
     """The table with this id, or None. A table with no id can't match."""
     wanted = (wanted or "").strip()
     if not wanted:
         return None
-    for game in tables:
-        if table_id(game) == wanted:
+    for game in games:
+        if game_id(game) == wanted:
             return game
     return None

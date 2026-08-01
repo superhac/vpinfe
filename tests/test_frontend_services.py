@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import configparser
 import json
-import types
 import os
+import types
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
+from common.games import game_play_service, game_report_service
+from common.games.game_metadata import game_frontend_dof_event
 from common.host import realdmd, system_actions
-from common.tables import game_play_service, game_report_service
-from common.tables.game_metadata import game_frontend_dof_event
 from frontend import config_api, game_state, theme_api
 
 
@@ -185,10 +185,10 @@ class FrontendServiceTests(unittest.TestCase):
         vps_instance.parseGameNameFromDir.return_value = {"name": "Unknown", "manufacturer": "", "year": ""}
         vps_instance.lookupName.return_value = None
         logs = []
-        ini = types.SimpleNamespace(config={"Settings": {"tablerootdir": "/tables"}})
+        ini = types.SimpleNamespace(config={"Settings": {"tablerootdir": "/games"}})
 
-        with mock.patch("common.tables.game_report_service.GameParser", return_value=parser_instance), \
-            mock.patch("common.tables.game_report_service.VPSdb", return_value=vps_instance):
+        with mock.patch("common.games.game_report_service.GameParser", return_value=parser_instance), \
+            mock.patch("common.games.game_report_service.VPSdb", return_value=vps_instance):
             game_report_service.list_unknown_games(iniconfig=ini, log=lambda msg, *args: logs.append(msg % args if args else msg))
 
         self.assertTrue(any("Unknown table 1: Unknown" in line for line in logs))
@@ -294,8 +294,8 @@ class FrontendServiceTests(unittest.TestCase):
                 metaConfig={},
             )
 
-            with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
-                    mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}) as to_json:
+            with mock.patch("common.games.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
+                    mock.patch("common.games.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}) as to_json:
                 score_data, score_path = game_play_service.parse_score_from_nvram(game)
 
             read_rom.assert_called_once_with("vpx_rom", str(game_dir))
@@ -325,8 +325,8 @@ class FrontendServiceTests(unittest.TestCase):
                 metaConfig={},
             )
 
-            with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
-                    mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}):
+            with mock.patch("common.games.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
+                    mock.patch("common.games.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}):
                 game_play_service.parse_score_from_nvram(game)
 
             read_rom.assert_called_once_with("vpx_rom", str(game_dir))

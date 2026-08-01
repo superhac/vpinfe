@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-
 ALL_VALUE = "All"
 
 
@@ -36,9 +35,9 @@ def build_game_filter_options(rows: Iterable[dict]) -> dict[str, list[str]]:
             if theme:
                 themes.add(str(theme))
 
-        table_type = row.get("type", "")
-        if table_type:
-            game_types.add(str(table_type))
+        game_type = row.get("type", "")
+        if game_type:
+            game_types.add(str(game_type))
 
     return {
         "manufacturers": [ALL_VALUE] + sorted(manufacturers),
@@ -79,9 +78,9 @@ def apply_game_filters(
             if theme in _as_list(row.get("themes", []))
         ]
 
-    table_type = filter_state.get("table_type", ALL_VALUE)
-    if table_type != ALL_VALUE:
-        result = [row for row in result if row.get("type") == table_type]
+    game_type = filter_state.get("table_type", ALL_VALUE)
+    if game_type != ALL_VALUE:
+        result = [row for row in result if row.get("type") == game_type]
 
     for predicate in extra_predicates or ():
         result = [row for row in result if predicate(row)]

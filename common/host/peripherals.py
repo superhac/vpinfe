@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 
 from common import events
+from common.games.game_metadata import game_frontend_dof_event
 from common.host import realdmd
 from common.host.dof_service import (
     send_frontend_dof_event,
@@ -17,7 +18,6 @@ from common.host.dof_service import (
     stop_dof_service,
 )
 from common.host.libdmdutil_service import show_image, stop_libdmdutil_service
-from common.tables.game_metadata import game_frontend_dof_event
 
 logger = logging.getLogger("vpinfe.common.host.peripherals")
 

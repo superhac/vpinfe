@@ -4,22 +4,22 @@ from pathlib import Path
 from time import perf_counter
 
 from common.config_access import MediaConfig
-from common.media_paths import apply_media_paths
-from common.tables.game_files import (
+from common.games.game import Game
+from common.games.game_files import (
     default_game_file,
     game_file_names,
     recorded_default,
 )
-from common.tables.info_migration import (
+from common.games.game_metadata import section, vpinfe_section
+from common.games.info_migration import (
     BACKUP_MARKER,
     backup_names,
     restorable_backup,
 )
-from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
-from common.tables.game import Game
-from common.tables.game_metadata import section, vpinfe_section
+from common.games.metaconfig import InvalidMetaConfigError, MetaConfig
+from common.media_paths import apply_media_paths
 
-logger = logging.getLogger("vpinfe.common.tables.gameparser")
+logger = logging.getLogger("vpinfe.common.games.gameparser")
 
 
 class GameParser:
@@ -30,7 +30,7 @@ class GameParser:
     def __init__(self, gamesRootFilePath, iniConfig=None):
         self.gamesRootFilePath = Path(gamesRootFilePath)
         self.tabletype = "table"
-        self.tables: list[Game] = []
+        self.games: list[Game] = []
         self.missing_games: list[dict] = []
         self.unreadable_games: list[dict] = []
         self.active_sets: dict[str, str] = {}
@@ -45,11 +45,11 @@ class GameParser:
         self.loadGames()
 
     def loadGames(self, reload=False):  # reload if you want to rescan the tables
-        if not reload and self.tables:
+        if not reload and self.games:
             return
 
         started_at = perf_counter()
-        self.tables.clear()
+        self.games.clear()
         self.missing_games.clear()
         self.unreadable_games.clear()
 
@@ -64,13 +64,13 @@ class GameParser:
                 continue
             game = self._build_game(game_dir)
             if game is not None:
-                self.tables.append(game)
+                self.games.append(game)
 
         elapsed = perf_counter() - started_at
         logger.debug(
             "Load completed in %.3fs: loaded=%s missing_info=%s",
             elapsed,
-            len(self.tables),
+            len(self.games),
             len(self.missing_games)
         )
 
@@ -184,16 +184,16 @@ class GameParser:
         self.unreadable_games = [r for r in self.unreadable_games if r["path"] != target]
 
         game = self._build_game(game_dir) if game_dir.is_dir() else None
-        for index, existing in enumerate(self.tables):
+        for index, existing in enumerate(self.games):
             if existing.fullPathTable == target:
                 if game is None:
-                    del self.tables[index]        # the folder went away
+                    del self.games[index]        # the folder went away
                 else:
-                    self.tables[index] = game
+                    self.games[index] = game
                 return game
 
         if game is not None:
-            self.tables.append(game)             # a folder that was not there before
+            self.games.append(game)             # a folder that was not there before
         return game
 
     def loadImagePaths(self, Game, game_contents=None, has_medias_dir=None,
@@ -232,13 +232,13 @@ class GameParser:
         Game.info_pending_upgrade = meta.pending_migration
 
     def getGame(self, index):
-        return self.tables[index]
+        return self.games[index]
 
     def getGameCount(self):
-        return len(self.tables)
+        return len(self.games)
 
     def getAllGames(self):
-        return list(self.tables)
+        return list(self.games)
 
     def getUnreadableGames(self):
         """Folders whose .info could not be read, so the table was left out."""

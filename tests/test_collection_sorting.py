@@ -3,8 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
-from common.tables.vpxcollections import VPXCollections
-
+from common.games.vpxcollections import VPXCollections
 from frontend.api import API
 
 
@@ -45,13 +44,13 @@ class TestCollectionSorting(unittest.TestCase):
             )
 
             manager = VPXCollections(str(ini_path))
-            tables = [
+            games = [
                 _game("Bravo", "vps-1", last_run=100),
                 _game("Alpha", "vps-2", last_run=300),
                 _game("Charlie", "vps-3", last_run=None),
             ]
 
-            result = manager.filter_games(tables, "Last Played")
+            result = manager.filter_games(games, "Last Played")
 
             self.assertEqual(
                 [game.metaConfig["Info"]["Title"] for game in result],
@@ -73,12 +72,12 @@ class TestCollectionSorting(unittest.TestCase):
             )
 
             manager = VPXCollections(str(ini_path))
-            tables = [
+            games = [
                 _game("Zulu", "vps-1", last_run=999),
                 _game("Alpha", "vps-2", last_run=1),
             ]
 
-            result = manager.filter_games(tables, "Favorites")
+            result = manager.filter_games(games, "Favorites")
 
             self.assertEqual(
                 [game.metaConfig["Info"]["Title"] for game in result],

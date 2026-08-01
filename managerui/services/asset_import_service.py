@@ -9,10 +9,10 @@ from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Callable
 
+from common.games.game_repository import refresh_game
+from common.games.metaconfig import VPINFE_SECTION, MetaConfig
+from common.games.vpxparser import VPXParser
 from common.media_paths import media_filename_map
-from common.tables.metaconfig import VPINFE_SECTION, MetaConfig
-from common.tables.game_repository import refresh_game
-from common.tables.vpxparser import VPXParser
 from managerui.paths import get_games_path
 from managerui.services.asset_analyzer_service import (
     AnalysisResult,
@@ -21,7 +21,6 @@ from managerui.services.asset_analyzer_service import (
     open_source,
 )
 from managerui.services.asset_registry import ARCHIVE_EXTENSIONS, spec_for
-from managerui.services.media_service import IMAGE_EXTENSIONS, replace_media_file
 from managerui.services.game_service import (
     _find_directb2s_file,
     _find_ini_file,
@@ -29,7 +28,7 @@ from managerui.services.game_service import (
     _safe_upload_name,
     ensure_dir,
 )
-
+from managerui.services.media_service import IMAGE_EXTENSIONS, replace_media_file
 
 logger = logging.getLogger("vpinfe.manager.asset_import")
 
@@ -53,8 +52,8 @@ class BlockedItem:
 
 @dataclass(frozen=True)
 class ImportPlan:
-    table_path: str          # target table dir (existing, or the resolved new-table dir)
-    new_table_dir_name: str  # non-empty only for new-table bundle imports
+    game_path: str          # target table dir (existing, or the resolved new-table dir)
+    new_game_dir_name: str  # non-empty only for new-table bundle imports
     rom_name: str
     items: tuple[PlannedItem, ...]
     blocked: tuple[BlockedItem, ...]
@@ -179,13 +178,13 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
     return None, BlockedItem(asset, f"Unsupported asset type: {kind}")
 
 
-def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", game_row: dict | None = None,
-                      rom_name: str = "", allow_new_table: bool = False,
+def build_import_plan(analysis: AnalysisResult, *, game_path: str = "", game_row: dict | None = None,
+                      rom_name: str = "", allow_new_game: bool = False,
                       games_path: str | None = None) -> ImportPlan:
     """Route detected assets to destinations for an existing table or a new table bundle."""
     items: list[PlannedItem] = []
     blocked: list[BlockedItem] = []
-    new_bundle = analysis.has_table and allow_new_table
+    new_bundle = analysis.has_game and allow_new_game
 
     if new_bundle:
         game_asset = next(a for a in analysis.assets if a.kind == "table")
@@ -199,8 +198,8 @@ def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", game_ro
             (items if item else blocked).append(item or block)
         return ImportPlan(str(base), new_dir_name, "", tuple(items), tuple(blocked))
 
-    if table_path:
-        base = Path(table_path).expanduser()
+    if game_path:
+        base = Path(game_path).expanduser()
         try:
             vpx_stem = _find_vpx_file(base).stem
         except (FileNotFoundError, OSError):
@@ -222,7 +221,7 @@ def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", game_ro
     return ImportPlan("", "", rom_name, (), tuple(blocked))
 
 
-def build_media_slot_plan(source_path: Path, *, table_path: str, media_key: str) -> ImportPlan:
+def build_media_slot_plan(source_path: Path, *, game_path: str, media_key: str) -> ImportPlan:
     """Plan a targeted media-slot import from a single dropped file.
 
     The slot dictates the media key (no filename inference); the file only has to
@@ -243,7 +242,7 @@ def build_media_slot_plan(source_path: Path, *, table_path: str, media_key: str)
 
     if src.is_dir() or src.suffix.lower() in ARCHIVE_EXTENSIONS:
         blocked = BlockedItem(asset, "Drop a single media file on a slot")
-        return ImportPlan(table_path, "", "", (), (blocked,))
+        return ImportPlan(game_path, "", "", (), (blocked,))
 
     slot_suffix = Path(canonical).suffix.lower()
     suffix = src.suffix.lower()
@@ -255,11 +254,11 @@ def build_media_slot_plan(source_path: Path, *, table_path: str, media_key: str)
         expected = "an image file"
     if not suitable:
         blocked = BlockedItem(asset, f"This slot expects {expected}, not {suffix or 'a file without extension'}")
-        return ImportPlan(table_path, "", "", (), (blocked,))
+        return ImportPlan(game_path, "", "", (), (blocked,))
 
-    destination = str(Path(table_path) / "medias" / canonical)
+    destination = str(Path(game_path) / "medias" / canonical)
     item = PlannedItem(asset, destination, "replace_media")
-    return ImportPlan(table_path, "", "", (item,), ())
+    return ImportPlan(game_path, "", "", (item,), ())
 
 
 def sanitize_dir_name(name: str) -> str:
@@ -298,7 +297,7 @@ def find_vps_entry(vps_id: str) -> dict | None:
 
 
 def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
-                      new_table_dir_name: str | None = None) -> ImportPlan:
+                      new_game_dir_name: str | None = None) -> ImportPlan:
     """Narrow a plan to the chosen item indices and optionally rename a new-table target.
 
     indices=None keeps every item. For new-table bundles, passing a new name rebases all
@@ -311,19 +310,19 @@ def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
         wanted = set(indices)
         chosen = tuple(item for index, item in enumerate(plan.items) if index in wanted)
 
-    if not plan.new_table_dir_name:
+    if not plan.new_game_dir_name:
         return replace(plan, items=chosen)
 
-    new_name = sanitize_dir_name(new_table_dir_name) if new_table_dir_name is not None else plan.new_table_dir_name
+    new_name = sanitize_dir_name(new_game_dir_name) if new_game_dir_name is not None else plan.new_game_dir_name
     if not new_name:
         raise ValueError("Table folder name required")
-    if new_name == plan.new_table_dir_name:
+    if new_name == plan.new_game_dir_name:
         return replace(plan, items=chosen)
 
-    old_base = plan.table_path
+    old_base = plan.game_path
     new_base = str(Path(old_base).parent / new_name)
     rebased = tuple(replace(item, destination=item.destination.replace(old_base, new_base, 1)) for item in chosen)
-    return replace(plan, table_path=new_base, new_table_dir_name=new_name, items=rebased)
+    return replace(plan, game_path=new_base, new_game_dir_name=new_name, items=rebased)
 
 
 # Medias stays listed although nothing writes it any more: an imported .info written by
@@ -496,14 +495,14 @@ def _extract_tree(source, asset: DetectedAsset, base_dir: Path) -> None:
         source.extract_member(entry.path, dest)
 
 
-def _import_media(source, asset: DetectedAsset, table_path: Path) -> None:
+def _import_media(source, asset: DetectedAsset, game_path: Path) -> None:
     entry = asset.entries[0]
     suffix = PurePosixPath(entry.arcname).suffix
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as handle:
         scratch = Path(handle.name)
     try:
         source.extract_member(entry.path, scratch)
-        replace_media_file(str(table_path), table_path.name, asset.media_key, str(scratch))
+        replace_media_file(str(game_path), game_path.name, asset.media_key, str(scratch))
     finally:
         scratch.unlink(missing_ok=True)
 
@@ -586,8 +585,8 @@ def _sha256(path: Path) -> str:
 def execute_import_plan(plan: ImportPlan, source_path: Path,
                         *, progress_cb: Callable[[str], None] | None = None) -> dict:
     """Execute an import plan, streaming each asset from source_path to its destination."""
-    base = Path(plan.table_path)
-    if plan.new_table_dir_name:
+    base = Path(plan.game_path)
+    if plan.new_game_dir_name:
         if base.exists():
             raise ValueError(f"Table folder already exists: {base.name}")
         base.mkdir(parents=True)
@@ -631,6 +630,6 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
         "imported": imported,
         "skipped": [b.asset.kind for b in plan.blocked],
         "table_path": str(base),
-        "new_table": bool(plan.new_table_dir_name),
+        "new_table": bool(plan.new_game_dir_name),
         "media_keys": media_keys,
     }

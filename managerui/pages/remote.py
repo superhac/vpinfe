@@ -1,8 +1,10 @@
 import logging
-from nicegui import ui, run
+
+from nicegui import run, ui
+
+from managerui import remote_launch
 from managerui.paths import VPINFE_INI_PATH
 from managerui.remote_actions import PINMAME_SERVICE_CONTROLS, SYSTEM_CONTROLS, RemoteAction
-from managerui import remote_launch
 from managerui.services import app_control
 
 ks = None
@@ -11,11 +13,12 @@ category_select = None
 
 # Config for launching tables
 # Import config
-from common.iniconfig import IniConfig
+from common.games import game_identity
+from common.games.game_repository import ensure_games_loaded
 from common.host import launch, launch_state
-from common.tables import game_identity
-from common.tables.game_repository import ensure_games_loaded
+from common.iniconfig import IniConfig
 from managerui.ui_helpers import debounced_input, load_page_style
+
 _INI_CFG = None
 logger = logging.getLogger("vpinfe.manager.remote")
 
@@ -115,11 +118,11 @@ def _launch_game(game: dict):
     """Hand a table to the launch service and let the bus tell everyone else."""
     import threading
 
-    table_name = game.get('name', 'table')
+    game_name = game.get('name', 'table')
     resolved = game_identity.find_by_id(ensure_games_loaded(), game.get('vpinfe_id', ''))
     if resolved is None:
         # Every launchable table has an id, so this means the library moved under us.
-        ui.notify(f'Could not find {table_name} in the library', type='negative')
+        ui.notify(f'Could not find {game_name} in the library', type='negative')
         return False
 
     cfg = _get_ini_config()
@@ -130,7 +133,7 @@ def _launch_game(game: dict):
         return False
 
     logger.info("Remote launching table: %s", resolved.tableDirName)
-    ui.notify(f'Remote Launching {table_name}...', type='info')
+    ui.notify(f'Remote Launching {game_name}...', type='info')
 
     def run_and_wait():
         try:
@@ -442,7 +445,7 @@ def show_vpx_game_controls():
         ui.label("Launch Table").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
         # State for the selection - also store UI element references
-        launch_state = {'tables': [], 'all_options': {}, 'filtered_options': {}, 'collection': 'All', 'last_term': ''}
+        launch_state = {'games': [], 'all_options': {}, 'filtered_options': {}, 'collection': 'All', 'last_term': ''}
         ui_refs = {}
 
         # Dropdown and launch button row (first)
@@ -463,7 +466,7 @@ def show_vpx_game_controls():
                 selected = ui_refs['game_select'].value
                 if selected:
                     # Find the table by vpx_path (which is the value)
-                    game = next((t for t in launch_state['tables'] if t['vpx_path'] == selected), None)
+                    game = next((t for t in launch_state['games'] if t['vpx_path'] == selected), None)
                     if game:
                         _launch_game(game)
                     else:
@@ -482,14 +485,14 @@ def show_vpx_game_controls():
             if collection == 'All':
                 # Use all tables
                 launch_state['filtered_options'] = {
-                    t['vpx_path']: t['display_name'] for t in launch_state['tables']
+                    t['vpx_path']: t['display_name'] for t in launch_state['games']
                 }
             elif _is_filter_collection(collection):
                 # Filter-based collection
                 filters = _get_collection_filters(collection)
                 launch_state['filtered_options'] = {
                     t['vpx_path']: t['display_name']
-                    for t in launch_state['tables']
+                    for t in launch_state['games']
                     if _game_matches_filters(t, filters)
                 }
             else:
@@ -497,7 +500,7 @@ def show_vpx_game_controls():
                 members = _get_collection_members(collection)
                 launch_state['filtered_options'] = {
                     t['vpx_path']: t['display_name']
-                    for t in launch_state['tables']
+                    for t in launch_state['games']
                     if t.get('vpinfe_id') and t['vpinfe_id'] in members
                 }
 
@@ -579,7 +582,7 @@ def show_vpx_game_controls():
         # Launch on Enter key
         def on_enter():
             if game_select.value:
-                game = next((t for t in launch_state['tables'] if t['vpx_path'] == game_select.value), None)
+                game = next((t for t in launch_state['games'] if t['vpx_path'] == game_select.value), None)
                 if game:
                     _launch_game(game)
 
@@ -595,10 +598,10 @@ def show_vpx_game_controls():
             collection_select.update()
 
             # Load tables
-            tables = await run.io_bound(_scan_games_for_launch)
-            launch_state['tables'] = tables
+            games = await run.io_bound(_scan_games_for_launch)
+            launch_state['games'] = games
             # Build options as dict: {vpx_path: display_name}
-            options = {t['vpx_path']: t['display_name'] for t in tables}
+            options = {t['vpx_path']: t['display_name'] for t in games}
             launch_state['all_options'] = options
             launch_state['filtered_options'] = options
             game_select.options = options

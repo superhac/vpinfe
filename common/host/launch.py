@@ -21,6 +21,8 @@ import time
 
 from common import events
 from common.config_access import SettingsConfig, VPinPlayConfig
+from common.games import game_play_service
+from common.games.game_files import default_game_file, game_file_names
 from common.host import launch_state
 from common.host.launcher import (
     build_vpx_launch_command,
@@ -39,8 +41,6 @@ from common.online.vpinplay_runtime import (
     set_game_score,
 )
 from common.online.vpinplay_service import sync_single_game_meta
-from common.tables import game_play_service
-from common.tables.game_files import default_game_file, game_file_names
 
 logger = logging.getLogger("vpinfe.common.host.launch")
 

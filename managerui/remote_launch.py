@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import logging
 
+from common.games.vpxcollections import VPXCollections
 from common.values import is_truthy
-from common.tables.vpxcollections import VPXCollections
-
 from managerui.paths import COLLECTIONS_PATH
 from managerui.services import game_catalog
-
 
 logger = logging.getLogger("vpinfe.manager.remote_launch")
 
@@ -61,8 +59,8 @@ def game_matches_filters(game: dict, filters) -> bool:
 
     letter = filters.get("letter", "All")
     if letter != "All":
-        table_name = game.get("name", "")
-        if table_name and table_name[0].upper() != letter.upper():
+        game_name = game.get("name", "")
+        if game_name and game_name[0].upper() != letter.upper():
             return False
 
     manufacturer = filters.get("manufacturer", "All")
@@ -73,8 +71,8 @@ def game_matches_filters(game: dict, filters) -> bool:
     if year != "All" and str(game.get("year", "")) != str(year):
         return False
 
-    table_type = filters.get("table_type", "All")
-    if table_type != "All" and game.get("type", "") != table_type:
+    game_type = filters.get("table_type", "All")
+    if game_type != "All" and game.get("type", "") != game_type:
         return False
 
     theme = filters.get("theme", "All")

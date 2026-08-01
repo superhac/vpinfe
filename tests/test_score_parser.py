@@ -1,9 +1,9 @@
+import json
+import tempfile
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
-import json
-import tempfile
 
 _test_config_dir = Path(tempfile.mkdtemp(prefix="vpinfe-score-parser-test-"))
 (_test_config_dir / "roms.json").write_text(
@@ -18,10 +18,11 @@ _test_config_dir = Path(tempfile.mkdtemp(prefix="vpinfe-score-parser-test-"))
 )
 
 from common import paths
+
 paths.USER_ROMS_PATH = _test_config_dir / "roms.json"
 paths.USER_CONFIG_PATH = _test_config_dir / "vpinfe.ini"
-from common.tables import score_parser
-from common.tables.score_parser import ParsedEntry, result_to_jsonable
+from common.games import score_parser
+from common.games.score_parser import ParsedEntry, result_to_jsonable
 
 
 class TestScoreParser(unittest.TestCase):

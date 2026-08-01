@@ -4,7 +4,6 @@ import logging
 
 from common.config_access import SettingsConfig, cfg_get
 
-
 logger = logging.getLogger("vpinfe.frontend.last_game")
 
 # Internal state, not a user-facing setting. Kept in its own section so the
@@ -41,7 +40,7 @@ def save_last_game(iniConfig, game) -> None:
         logger.exception("Could not persist last table selection")
 
 
-def resolve_last_game_index(iniConfig, tables) -> int:
+def resolve_last_game_index(iniConfig, games) -> int:
     """Return the index of the saved last table within `tables`, else 0.
 
     Returns 0 when the feature is off, nothing is saved, or the saved table
@@ -52,7 +51,7 @@ def resolve_last_game_index(iniConfig, tables) -> int:
     saved = cfg_get(iniConfig, STATE_SECTION, STATE_KEY, "").strip()
     if not saved:
         return 0
-    for index, game in enumerate(tables):
+    for index, game in enumerate(games):
         if game_identity(game) == saved:
             return index
     return 0

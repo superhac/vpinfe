@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import os
-
 import unittest
 from unittest import mock
 
-from common.tables.game_files import is_parsed
+from common.games.game_files import is_parsed
 from managerui.services import asset_analyzer_service, asset_import_service, upload_session_service
 from managerui.services.asset_analyzer_service import analyze_path, analyze_upload_session
 from managerui.services.asset_import_service import (
+    _safe_dest,
     build_import_plan,
     build_media_slot_plan,
     execute_import_plan,
@@ -16,7 +16,6 @@ from managerui.services.asset_import_service import (
     merge_info,
     select_plan_items,
     vps_folder_name,
-    _safe_dest,
 )
 from managerui.services.asset_registry import (
     classify_bare_extension,
@@ -73,7 +72,7 @@ class PatchAssetTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "mod.zip")
             _make_zip(path, ["CactusCanyon.dif"])
-            plan = build_import_plan(analyze_path(path), table_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_path=tmp)
             self.assertFalse(plan.items)
             self.assertTrue(any("base table" in b.reason for b in plan.blocked))
 
@@ -86,7 +85,7 @@ class PatchAssetTests(unittest.TestCase):
             Path(tmp, "Table.vpx").write_bytes(b"x" * 64)
             path = os.path.join(tmp, "mod.zip")
             _make_zip(path, ["CactusCanyon VPW Mod 1.2.dif"])
-            plan = build_import_plan(analyze_path(path), table_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_path=tmp)
             self.assertEqual([i.action for i in plan.items], ["apply_patch"])
             dest = Path(plan.items[0].destination)
             self.assertEqual(dest.name, "CactusCanyon VPW Mod 1.2.vpx")
@@ -100,7 +99,7 @@ class PatchAssetTests(unittest.TestCase):
             Path(tmp, "Cactus Canyon.vpx").write_bytes(b"x" * 64)
             path = os.path.join(tmp, "mod.zip")
             _make_zip(path, ["cactus canyon.dif"])   # same name, other case
-            plan = build_import_plan(analyze_path(path), table_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_path=tmp)
             dest = Path(plan.items[0].destination)
             self.assertEqual(dest.name, "cactus canyon [patched].vpx")
 
@@ -114,7 +113,7 @@ class PatchAssetTests(unittest.TestCase):
             Path(tmp, "Cactus Canyon (VR).vpx").write_bytes(b"x" * 32)
             path = os.path.join(tmp, "mod.zip")
             _make_zip(path, ["Cactus Canyon (VR).dif"])
-            plan = build_import_plan(analyze_path(path), table_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_path=tmp)
             dest = Path(plan.items[0].destination)
             self.assertEqual(dest.name, "Cactus Canyon (VR) [patched].vpx")
 
@@ -129,7 +128,7 @@ class PatchAssetTests(unittest.TestCase):
             path = os.path.join(tmp, "mod.zip")
             _make_zip(path, ["CC VPW Mod 1.2.dif", "CC VPW Mod 1.2.ini",
                              "CC VPW Mod 1.2.directb2s"])
-            plan = build_import_plan(analyze_path(path), table_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_path=tmp)
             by_kind = {i.asset.kind: Path(i.destination).name for i in plan.items}
 
             self.assertEqual(by_kind["patch"], "CC VPW Mod 1.2.vpx")
@@ -145,7 +144,7 @@ class PatchAssetTests(unittest.TestCase):
             Path(tmp, "Cactus Canyon.vpx").write_bytes(b"x" * 64)
             path = os.path.join(tmp, "b2s.zip")
             _make_zip(path, ["Whatever It Was Called.directb2s"])
-            plan = build_import_plan(analyze_path(path), table_path=tmp)
+            plan = build_import_plan(analyze_path(path), game_path=tmp)
 
             self.assertEqual(Path(plan.items[0].destination).name, "Cactus Canyon.directb2s")
 
@@ -168,7 +167,7 @@ class PatchAssetTests(unittest.TestCase):
             with zipfile.ZipFile(zip_path, "w") as archive:
                 archive.writestr("Mod.dif", bytes([ESC, EQL, 5]))   # copy all six bytes
 
-            plan = build_import_plan(analyze_path(zip_path), table_path=str(game_dir))
+            plan = build_import_plan(analyze_path(zip_path), game_path=str(game_dir))
             execute_import_plan(plan, zip_path)
 
             patched = game_dir / "Mod.vpx"
@@ -198,7 +197,7 @@ class PatchAssetTests(unittest.TestCase):
 
             parsed = {"file_hash": "abc123", "version": "1.2", "rom": "mod_rom",
                       "author_name": "VPW", "detect_ssf": True}
-            plan = build_import_plan(analyze_path(zip_path), table_path=str(game_dir))
+            plan = build_import_plan(analyze_path(zip_path), game_path=str(game_dir))
             with mock.patch.object(asset_import_service, "VPXParser") as parser:
                 parser.return_value.singleFileExtract.return_value = parsed
                 execute_import_plan(plan, zip_path)
@@ -226,7 +225,7 @@ class PatchAssetTests(unittest.TestCase):
             with zipfile.ZipFile(zip_path, "w") as archive:
                 archive.writestr("Mod.dif", bytes([ESC, EQL, 5]))
 
-            plan = build_import_plan(analyze_path(zip_path), table_path=str(game_dir))
+            plan = build_import_plan(analyze_path(zip_path), game_path=str(game_dir))
             with mock.patch.object(asset_import_service, "VPXParser") as parser:
                 parser.return_value.singleFileExtract.return_value = None
                 execute_import_plan(plan, zip_path)
@@ -252,7 +251,7 @@ class PatchAssetTests(unittest.TestCase):
             with zipfile.ZipFile(zip_path, "w") as archive:
                 archive.writestr("Mod.dif", bytes([ESC, EQL, 5]))
 
-            plan = build_import_plan(analyze_path(zip_path), table_path=str(game_dir))
+            plan = build_import_plan(analyze_path(zip_path), game_path=str(game_dir))
             with self.assertLogs("vpinfe.manager.asset_import", level="WARNING"):
                 execute_import_plan(plan, zip_path)
 
@@ -337,7 +336,7 @@ class AssetAnalyzerTests(unittest.TestCase):
             zip_path = Path(tmp) / "bundle.zip"
             _make_zip(zip_path, ["Foo.vpx", "Foo.directb2s", "Foo.ini"])
             result = analyze_path(zip_path)
-            self.assertTrue(result.has_table)
+            self.assertTrue(result.has_game)
             self.assertEqual(_kinds(result), ["backglass", "ini", "table"])
             self.assertEqual(result.error, "")
 
@@ -384,10 +383,10 @@ class AssetAnalyzerTests(unittest.TestCase):
             self.assertEqual(len(result.assets[0].entries), 3)
 
     def test_nested_zip_is_rom_blob(self):
-        from pathlib import Path
-        from tempfile import TemporaryDirectory
         import io
         import zipfile
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:
             zip_path = Path(tmp) / "nested.zip"
             inner = io.BytesIO()
@@ -455,9 +454,9 @@ class AssetAnalyzerTests(unittest.TestCase):
         self.assertEqual(readme.preview, "x" * 16, "preview text extracted best-effort")
 
     def test_dir_source_parity_with_zip(self):
+        import zipfile
         from pathlib import Path
         from tempfile import TemporaryDirectory
-        import zipfile
         names = ["Foo.vpx", "MyPup/screens.pup", "MyPup/s1/a.mp4"]
         with TemporaryDirectory() as tmp:
             zip_path = Path(tmp) / "parity.zip"
@@ -569,8 +568,8 @@ class ImportPlanTests(unittest.TestCase):
             zip_path = Path(tmp) / "Medieval Madness.zip"
             _make_zip(zip_path, ["Medieval Madness.vpx", "Medieval Madness.directb2s", "mm.crz"])
             analysis = analyze_path(zip_path)
-            plan = build_import_plan(analysis, allow_new_table=True, games_path=tmp)
-            self.assertEqual(plan.new_table_dir_name, "Medieval Madness")
+            plan = build_import_plan(analysis, allow_new_game=True, games_path=tmp)
+            self.assertEqual(plan.new_game_dir_name, "Medieval Madness")
             actions = _plan_kinds_by_action(plan)
             self.assertEqual(actions["table"], "copy")
             self.assertEqual(actions["backglass"], "replace_b2s")
@@ -587,7 +586,7 @@ class ImportPlanTests(unittest.TestCase):
             zip_path = Path(tmp) / "assets.zip"
             _make_zip(zip_path, ["new.vpx", "MyPup/screens.pup", "MyPup/s1/a.mp4", "wheel.png"])
             analysis = analyze_path(zip_path)
-            plan = build_import_plan(analysis, table_path=str(game_dir), rom_name="mm")
+            plan = build_import_plan(analysis, game_path=str(game_dir), rom_name="mm")
             actions = _plan_kinds_by_action(plan)
             self.assertEqual(actions["table"], "replace_vpx")
             self.assertEqual(actions["pup_pack"], "extract_tree")
@@ -611,7 +610,7 @@ class SelectPlanItemsTests(unittest.TestCase):
         zip_path = Path(tmp) / "Medieval Madness.zip"
         _make_zip(zip_path, ["Medieval Madness.vpx", "wheel.png", "MyPup/screens.pup", "MyPup/s/a.mp4"])
         analysis = analyze_path(zip_path)
-        return build_import_plan(analysis, allow_new_table=True, games_path=tmp)
+        return build_import_plan(analysis, allow_new_game=True, games_path=tmp)
 
     def test_none_keeps_all_items(self):
         from tempfile import TemporaryDirectory
@@ -631,8 +630,8 @@ class SelectPlanItemsTests(unittest.TestCase):
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:
             plan = self._bundle_plan(tmp)
-            renamed = select_plan_items(plan, new_table_dir_name="Renamed MM")
-            self.assertEqual(renamed.new_table_dir_name, "Renamed MM")
+            renamed = select_plan_items(plan, new_game_dir_name="Renamed MM")
+            self.assertEqual(renamed.new_game_dir_name, "Renamed MM")
             for item in renamed.items:
                 self.assertIn(f"{os.sep}Renamed MM{os.sep}", item.destination)
 
@@ -641,7 +640,7 @@ class SelectPlanItemsTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             plan = self._bundle_plan(tmp)
             with self.assertRaises(ValueError):
-                select_plan_items(plan, new_table_dir_name='<>:"/\\|?*')
+                select_plan_items(plan, new_game_dir_name='<>:"/\\|?*')
 
 
 class MediaSlotPlanTests(unittest.TestCase):
@@ -661,7 +660,7 @@ class MediaSlotPlanTests(unittest.TestCase):
                 with self.subTest(filename=filename, media_key=media_key):
                     src = Path(tmp) / filename
                     src.write_bytes(b"x")
-                    plan = build_media_slot_plan(src, table_path=tmp, media_key=media_key)
+                    plan = build_media_slot_plan(src, game_path=tmp, media_key=media_key)
                     if ok:
                         self.assertEqual(len(plan.items), 1)
                         self.assertEqual(plan.items[0].action, "replace_media")
@@ -676,10 +675,10 @@ class MediaSlotPlanTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             archive = Path(tmp) / "pack.zip"
             archive.write_bytes(b"x")
-            plan = build_media_slot_plan(archive, table_path=tmp, media_key="wheel")
+            plan = build_media_slot_plan(archive, game_path=tmp, media_key="wheel")
             self.assertEqual(plan.items, ())
             with self.assertRaises(ValueError):
-                build_media_slot_plan(archive, table_path=tmp, media_key="not_a_slot")
+                build_media_slot_plan(archive, game_path=tmp, media_key="not_a_slot")
 
     def test_execute_slot_plan_calls_replace(self):
         from pathlib import Path
@@ -689,7 +688,7 @@ class MediaSlotPlanTests(unittest.TestCase):
             game_dir.mkdir()
             src = Path(tmp) / "cool-art.png"
             src.write_bytes(b"png-bytes")
-            plan = build_media_slot_plan(src, table_path=str(game_dir), media_key="wheel")
+            plan = build_media_slot_plan(src, game_path=str(game_dir), media_key="wheel")
             with mock.patch("managerui.services.asset_import_service.replace_media_file") as fake:
                 report = execute_import_plan(plan, src)
             self.assertEqual(fake.call_args.args[2], "wheel")
@@ -808,7 +807,7 @@ class GameInfoImportTests(unittest.TestCase):
             with TemporaryDirectory() as tmp:
                 zip_path = self._bundle(tmp, {"Info": {"VPSId": "abc"}, "User": {"Rating": 5}})
                 analysis = analyze_path(zip_path)
-                plan = build_import_plan(analysis, allow_new_table=True, games_path=tmp)
+                plan = build_import_plan(analysis, allow_new_game=True, games_path=tmp)
                 plan = select_plan_items(plan, None, "New Name (Mfg 2000)")
                 execute_import_plan(plan, zip_path)
                 dest = Path(tmp) / "New Name (Mfg 2000)" / "New Name (Mfg 2000).info"
@@ -831,7 +830,7 @@ class GameInfoImportTests(unittest.TestCase):
                 zip_path = self._bundle(
                     tmp, {"Info": {"VPSId": "foreign-id"}, "User": {"Rating": 5, "StartCount": 99}})
                 analysis = analyze_path(zip_path)
-                plan = build_import_plan(analysis, table_path=str(game_dir))
+                plan = build_import_plan(analysis, game_path=str(game_dir))
                 execute_import_plan(plan, zip_path)
 
                 data = json.loads(info_path.read_text())
@@ -885,7 +884,7 @@ class ImportExecuteTests(unittest.TestCase):
                     "mm.crz",
                 ])
                 analysis = analyze_path(zip_path)
-                plan = build_import_plan(analysis, table_path=str(game_dir), rom_name="mm_rom")
+                plan = build_import_plan(analysis, game_path=str(game_dir), rom_name="mm_rom")
                 report = execute_import_plan(plan, zip_path)
 
                 self.assertTrue((game_dir / "pinmame" / "roms" / "mm.zip").exists())
@@ -905,7 +904,7 @@ class ImportExecuteTests(unittest.TestCase):
                 zip_path = Path(tmp) / "new.zip"
                 _make_zip(zip_path, ["New.vpx"])
                 analysis = analyze_path(zip_path)
-                plan = build_import_plan(analysis, table_path=str(game_dir))
+                plan = build_import_plan(analysis, game_path=str(game_dir))
                 execute_import_plan(plan, zip_path)
 
                 self.assertTrue((game_dir / "New.vpx").exists())
@@ -924,7 +923,7 @@ class ImportExecuteTests(unittest.TestCase):
         zip_path = Path(tmp) / "new.zip"
         _make_zip(zip_path, [new_name])
 
-        plan = build_import_plan(analyze_path(zip_path), table_path=str(game_dir))
+        plan = build_import_plan(analyze_path(zip_path), game_path=str(game_dir))
         with mock.patch.object(asset_import_service, "refresh_game"), \
                 mock.patch.object(asset_import_service, "VPXParser") as parser:
             parser.return_value.singleFileExtract.return_value = parsed
@@ -987,7 +986,7 @@ class ImportExecuteTests(unittest.TestCase):
                 zip_path = Path(tmp) / "Medieval Madness.zip"
                 _make_zip(zip_path, ["Medieval Madness.vpx", "wheel.png"])
                 analysis = analyze_path(zip_path)
-                plan = build_import_plan(analysis, allow_new_table=True, games_path=tmp)
+                plan = build_import_plan(analysis, allow_new_game=True, games_path=tmp)
                 report = execute_import_plan(plan, zip_path)
                 new_dir = Path(tmp) / "Medieval Madness"
                 self.assertTrue((new_dir / "Medieval Madness.vpx").exists())
@@ -1002,7 +1001,7 @@ class ImportExecuteTests(unittest.TestCase):
             zip_path = Path(tmp) / "Medieval Madness.zip"
             _make_zip(zip_path, ["Medieval Madness.vpx"])
             analysis = analyze_path(zip_path)
-            plan = build_import_plan(analysis, allow_new_table=True, games_path=tmp)
+            plan = build_import_plan(analysis, allow_new_game=True, games_path=tmp)
             with self.assertRaises(ValueError):
                 execute_import_plan(plan, zip_path)
 
@@ -1027,9 +1026,9 @@ class TraversalGuardTests(unittest.TestCase):
             self.assertTrue(str(dest).startswith(str(base.resolve())))
 
     def test_malicious_archive_member_blocked_on_extract(self):
+        import zipfile
         from pathlib import Path
         from tempfile import TemporaryDirectory
-        import zipfile
         with mock.patch.object(asset_import_service, "refresh_game"):
             with TemporaryDirectory() as tmp:
                 game_dir = Path(tmp) / "Foo (Bar 1999)"
@@ -1040,7 +1039,7 @@ class TraversalGuardTests(unittest.TestCase):
                     archive.writestr("Pack/screens.pup", b"x")
                     archive.writestr("Pack/../../escape.mp4", b"x")
                 analysis = analyze_path(zip_path)
-                plan = build_import_plan(analysis, table_path=str(game_dir))
+                plan = build_import_plan(analysis, game_path=str(game_dir))
                 with self.assertRaises(ValueError):
                     execute_import_plan(plan, zip_path)
 

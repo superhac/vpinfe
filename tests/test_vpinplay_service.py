@@ -122,7 +122,7 @@ class TestVPinPlayService(unittest.TestCase):
                 user_id="user-123",
                 initials="ABC",
                 machine_id="machine-123",
-                game_root_dir="/tables",
+                game_root_dir="/games",
             )
 
         payload = mock_post.call_args.kwargs["json"]

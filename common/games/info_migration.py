@@ -15,10 +15,10 @@ import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from common.tables.game_files import GAME_FILES_KEY, parse_authors
+from common.games.game_files import GAME_FILES_KEY, parse_authors
 from common.timestamps import iso_from_asctime, iso_from_authored_date
 
-logger = logging.getLogger("vpinfe.common.tables.info_migration")
+logger = logging.getLogger("vpinfe.common.games.info_migration")
 
 SCHEMA_KEY = "schema"
 CURRENT_SCHEMA = 2

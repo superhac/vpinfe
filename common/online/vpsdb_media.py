@@ -10,7 +10,6 @@ import requests
 from common.http_client import download_file
 from common.media_paths import default_media_path
 
-
 logger = logging.getLogger("vpinfe.common.online.vpsdb_media")
 
 
@@ -24,13 +23,13 @@ class VPSMediaDownloader:
     def file_exists(self, path) -> bool:
         return bool(path and os.path.exists(path))
 
-    def download_media_file(self, table_id, url, filename) -> None:
+    def download_media_file(self, game_id, url, filename) -> None:
         logger.info("Downloading %s from %s", filename, url)
         try:
             download_file(url, Path(filename))
             logger.info("Successfully downloaded %s from VPinMedia", filename)
         except requests.RequestException as exc:
-            logger.warning("Failed to download %s for table %s: %s", filename, table_id, exc)
+            logger.warning("Failed to download %s for table %s: %s", filename, game_id, exc)
 
     def local_md5(self, path) -> str:
         """The file's own hash, or "" when it cannot be read."""
@@ -57,7 +56,7 @@ class VPSMediaDownloader:
         """
         return bool(remote_md5) and self.local_md5(path) == remote_md5
 
-    def download_media(self, table_id, metadata, key, filename, default_filename):
+    def download_media(self, game_id, metadata, key, filename, default_filename):
         if not metadata or key not in metadata:
             return None
 
@@ -73,17 +72,17 @@ class VPSMediaDownloader:
             # Ours and already current - the hashes match, so there is nothing to fetch.
             return actual_path, remote_md5
 
-        self.download_media_file(table_id, metadata[key], default_filename)
+        self.download_media_file(game_id, metadata[key], default_filename)
         if self.file_exists(default_filename):
             return default_filename, remote_md5
         return None
 
-    def download_media_for_game(self, game, table_id, meta_config=None) -> None:
-        if table_id not in self.media_index:
-            logger.info("No media exists for %s (ID %s).", game.fullPathTable, table_id)
+    def download_media_for_game(self, game, game_id, meta_config=None) -> None:
+        if game_id not in self.media_index:
+            logger.info("No media exists for %s (ID %s).", game.fullPathTable, game_id)
             return
 
-        game_media = self.media_index[table_id]
+        game_media = self.media_index[game_id]
         medias_dir = os.path.join(game.fullPathTable, "medias")
         os.makedirs(medias_dir, exist_ok=True)
 
@@ -97,7 +96,7 @@ class VPSMediaDownloader:
         # The ledger is keyed by path now, so the kind no longer has to be passed along
         # to be recorded - it was the same value as `key` at every call site anyway.
         def process(metadata, key, filename, default_filename):
-            record(self.download_media(table_id, metadata, key, filename, default_filename))
+            record(self.download_media(game_id, metadata, key, filename, default_filename))
 
         process(game_media.get("1k"), "bg", game.BGImagePath, str(default_media_path(game.fullPathTable, "bg", self.tabletype)))
         process(game_media.get("1k"), "dmd", game.DMDImagePath, str(default_media_path(game.fullPathTable, "dmd", self.tabletype)))

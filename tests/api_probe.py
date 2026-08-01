@@ -55,14 +55,14 @@ def probe() -> dict:
     record("legacy_remote_launch_gone", client.get("/api/remote-launch"))
 
     # Tables, and the sub-resources that used to be /api/download-table-vpxz.
-    listing = client.get("/api/v1/tables")
+    listing = client.get("/api/v1/games")
     record("tables_list", listing)
-    tables = (listing.json() or {}).get("tables") or []
-    table_id = tables[0]["id"] if tables else ""
+    games = (listing.json() or {}).get("games") or []
+    game_id = games[0]["id"] if games else ""
 
-    record("table_get", client.get(f"/api/v1/tables/{table_id}"))
-    record("table_files", client.get(f"/api/v1/tables/{table_id}/game-files"))
-    archive = client.get(f"/api/v1/tables/{table_id}/archive?download_token=abc123")
+    record("table_get", client.get(f"/api/v1/games/{game_id}"))
+    record("table_files", client.get(f"/api/v1/games/{game_id}/game-files"))
+    archive = client.get(f"/api/v1/games/{game_id}/archive?download_token=abc123")
     result["table_archive"] = {
         "status": archive.status_code,
         "content_type": (archive.headers.get("content-type") or "").split(";")[0],
@@ -71,8 +71,8 @@ def probe() -> dict:
         "bytes": len(archive.content),
     }
     def files_for(name):
-        hit = [t for t in tables if t["name"] == name]
-        return client.get(f"/api/v1/tables/{hit[0]['id']}/game-files") if hit else None
+        hit = [t for t in games if t["name"] == name]
+        return client.get(f"/api/v1/games/{hit[0]['id']}/game-files") if hit else None
 
     multi = files_for("Multi File")
     if multi is not None:
@@ -83,26 +83,26 @@ def probe() -> dict:
 
     # Launch, without ever starting anything: the probe's config has no launcher,
     # which is the same refusal a machine without VPX installed would give.
-    record("launch_no_launcher", client.post(f"/api/v1/tables/{table_id}/launch"))
+    record("launch_no_launcher", client.post(f"/api/v1/games/{game_id}/launch"))
     record("launch_unknown_file",
-           client.post(f"/api/v1/tables/{table_id}/launch", json={"file": "nope.vpx"}))
+           client.post(f"/api/v1/games/{game_id}/launch", json={"file": "nope.vpx"}))
     launch_state.set_launching("Something Else", source=launch_state.SOURCE_FRONTEND)
-    record("launch_while_busy", client.post(f"/api/v1/tables/{table_id}/launch"))
+    record("launch_while_busy", client.post(f"/api/v1/games/{game_id}/launch"))
     launch_state.clear()
-    record("launch_unknown_table", client.post("/api/v1/tables/no-such-id/launch"))
+    record("launch_unknown_table", client.post("/api/v1/games/no-such-id/launch"))
 
-    record("media_list", client.get(f"/api/v1/tables/{table_id}/media"))
-    wheel = client.get(f"/api/v1/tables/{table_id}/media/wheel")
+    record("media_list", client.get(f"/api/v1/games/{game_id}/media"))
+    wheel = client.get(f"/api/v1/games/{game_id}/media/wheel")
     result["media_wheel"] = {
         "status": wheel.status_code,
         "content_type": (wheel.headers.get("content-type") or "").split(";")[0],
         "bytes": len(wheel.content),
     }
-    record("media_absent", client.get(f"/api/v1/tables/{table_id}/media/flyer"))
-    record("media_unknown_kind", client.get(f"/api/v1/tables/{table_id}/media/poster"))
+    record("media_absent", client.get(f"/api/v1/games/{game_id}/media/flyer"))
+    record("media_unknown_kind", client.get(f"/api/v1/games/{game_id}/media/poster"))
 
-    record("table_unknown", client.get("/api/v1/tables/no-such-id"))
-    record("archive_unknown", client.get("/api/v1/tables/no-such-id/archive"))
+    record("table_unknown", client.get("/api/v1/games/no-such-id"))
+    record("archive_unknown", client.get("/api/v1/games/no-such-id/archive"))
     record("legacy_archive_gone", client.get("/api/download-table-vpxz?name=whatever"))
 
     # Uploads now live under /api/v1. Walk the same sequence the drag-and-drop

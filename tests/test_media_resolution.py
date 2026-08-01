@@ -20,7 +20,7 @@ GAME_FILE = "Cactus Canyon (Bally 1998) - VPW 1.2"
 
 
 def _resolve(medias, root=(), stem=GAME_FILE):
-    return resolve_media_files(f"/tables/{FOLDER}", set(root), set(medias),
+    return resolve_media_files(f"/games/{FOLDER}", set(root), set(medias),
                                "table", stem)
 
 
@@ -216,7 +216,7 @@ class WheelSetTests(unittest.TestCase):
     6-8), plus the reserved virtual set "logo"."""
 
     def _resolve_sets(self, medias, active=None, root=()):
-        return resolve_media_files(f"/tables/{FOLDER}", set(root), set(medias),
+        return resolve_media_files(f"/games/{FOLDER}", set(root), set(medias),
                                    "table", GAME_FILE,
                                    {"wheel": active} if active else None)
 
@@ -346,7 +346,7 @@ class ParserCasingTests(unittest.TestCase):
         miss it while the API found it - the same table, two answers."""
         import json
 
-        from common.tables.gameparser import GameParser
+        from common.games.gameparser import GameParser
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / FOLDER
@@ -431,7 +431,7 @@ class ParserOrderTests(unittest.TestCase):
         before it resolves media - the same reordering the launcher needed."""
         import json
 
-        from common.tables.gameparser import GameParser
+        from common.games.gameparser import GameParser
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / FOLDER

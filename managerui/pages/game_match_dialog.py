@@ -10,8 +10,7 @@ from managerui.pages.game_dialog_context import GameDialogContext, default_conte
 from managerui.services import game_service
 from managerui.ui_helpers import debounced_input
 
-
-logger = logging.getLogger("vpinfe.manager.tables")
+logger = logging.getLogger("vpinfe.manager.games")
 _missing_games_dialog: Optional[ui.dialog] = None
 
 associate_vps_to_folder = game_service.associate_vps_to_folder

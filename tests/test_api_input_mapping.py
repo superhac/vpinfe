@@ -93,11 +93,11 @@ class TestApiInputMapping(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             launcher = Path(tmp) / "VPinballX"
             launcher.write_text("", encoding="utf-8")
-            table_path = Path(tmp) / "Example.vpx"
-            table_path.write_text("", encoding="utf-8")
+            game_path = Path(tmp) / "Example.vpx"
+            game_path.write_text("", encoding="utf-8")
 
             game = types.SimpleNamespace(
-                fullPathVPXfile=str(table_path),
+                fullPathVPXfile=str(game_path),
                 metaConfig={},
                 tableDirName="Example",
                 fullPathTable=str(Path(tmp)),

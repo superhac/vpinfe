@@ -17,8 +17,8 @@ import threading
 
 from fastapi import APIRouter, Body, Response
 
-from common.tables import game_identity
-from common.tables.collections_service import (
+from common.games import game_identity
+from common.games.collections_service import (
     filter_games_by_collection,
     get_collections_manager,
     get_collections_metadata,
@@ -27,7 +27,7 @@ from common.tables.collections_service import (
 from . import models, scopes
 from .auth import requires
 from .errors import ConflictError, InvalidRequestError, NotFoundError
-from .tables import _catalog, _resource
+from .games import _catalog, _resource
 
 router = APIRouter(prefix="/collections", tags=["collections"])
 
@@ -42,7 +42,7 @@ def _links(name: str) -> dict:
 
     encoded = quote(name, safe="")
     return {"self": f"/api/v1/collections/{encoded}",
-            "tables": f"/api/v1/collections/{encoded}/tables"}
+            "games": f"/api/v1/collections/{encoded}/games"}
 
 
 def _resource_for(row: dict) -> dict:
@@ -68,7 +68,7 @@ def _resource_for(row: dict) -> dict:
         # membership moved onto table ids. The honest name belongs in the contract.
         "type": "filter" if row["is_filter"] else "manual",
         "image": row.get("image") or None,
-        "table_count": row.get("table_count"),
+        "game_count": row.get("game_count"),
         "filters": filters,
         "links": _links(name),
     }
@@ -93,21 +93,21 @@ def get_collection(name: str) -> models.CollectionResource:
     return _resource_for(_row_or_404(name))
 
 
-@router.get("/{name}/tables", summary="The tables in a collection",
+@router.get("/{name}/games", summary="The tables in a collection",
             dependencies=[requires(scopes.COLLECTIONS_READ)])
 def collection_games(name: str) -> models.GameList:
     """Resolved membership, so a filter collection answers the same question a
     manual one does. Ordering is the collection's own."""
     _row_or_404(name)
-    from common.tables.game_repository import collections_by_game_id, game_to_row
+    from common.games.game_repository import collections_by_game_id, game_to_row
 
     catalog = _catalog()
     members, _filters = filter_games_by_collection(list(catalog.values()), name)
     by_collection = collections_by_game_id()
-    resources = [_resource(game_to_row(game, by_collection), game_identity.table_id(game))
+    resources = [_resource(game_to_row(game, by_collection), game_identity.game_id(game))
                  for game in members]
     return {"total": len(resources), "offset": 0, "count": len(resources),
-            "tables": resources}
+            "games": resources}
 
 
 @router.post("", summary="Create a collection", status_code=201,
@@ -118,7 +118,7 @@ def create_collection(response: Response,
     name = request.name.strip()
     if not name:
         raise InvalidRequestError("A collection needs a name")
-    if request.filters is not None and request.tables:
+    if request.filters is not None and request.games:
         raise InvalidRequestError(
             "A collection is either filter-based or an explicit list of tables, not both")
 
@@ -131,15 +131,15 @@ def create_collection(response: Response,
         if request.filters is not None:
             f = request.filters
             manager.add_filter_collection(
-                name, f.letter, f.theme, f.table_type, f.manufacturer, f.year,
+                name, f.letter, f.theme, f.game_type, f.manufacturer, f.year,
                 f.rating, "true" if f.rating_or_higher else "false",
                 f.sort_by, f.order_by)
         else:
             known = set(_catalog())
-            unknown = [table_id for table_id in request.tables if table_id not in known]
+            unknown = [game_id for game_id in request.games if game_id not in known]
             if unknown:
                 raise InvalidRequestError("Unknown table ids", details={"ids": unknown})
-            manager.add_collection(name, request.tables)
+            manager.add_collection(name, request.games)
         manager.save()
 
     response.headers["Location"] = _links(name)["self"]
@@ -159,13 +159,13 @@ def delete_collection(name: str) -> Response:
     return Response(status_code=204)
 
 
-@router.put("/{name}/tables/{table_id}", summary="Add a table to a collection",
+@router.put("/{name}/games/{game_id}", summary="Add a table to a collection",
             status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
-def add_member(name: str, table_id: str) -> Response:
+def add_member(name: str, game_id: str) -> Response:
     """Idempotent: adding a table that is already a member is a success, because the
     caller's intent - that it be in there - is satisfied either way."""
-    if table_id not in _catalog():
-        raise NotFoundError(f"No table with id {table_id}")
+    if game_id not in _catalog():
+        raise NotFoundError(f"No table with id {game_id}")
     with _write_lock:
         manager = get_collections_manager()
         manager.reload()
@@ -174,14 +174,14 @@ def add_member(name: str, table_id: str) -> Response:
         if manager.is_filter_based(name):
             raise ConflictError(
                 f"{name} is a filter collection - its membership comes from its criteria")
-        manager.add_member(name, table_id)
+        manager.add_member(name, game_id)
         manager.save()
     return Response(status_code=204)
 
 
-@router.delete("/{name}/tables/{table_id}", summary="Remove a table from a collection",
+@router.delete("/{name}/games/{game_id}", summary="Remove a table from a collection",
                status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
-def remove_member(name: str, table_id: str) -> Response:
+def remove_member(name: str, game_id: str) -> Response:
     with _write_lock:
         manager = get_collections_manager()
         manager.reload()
@@ -190,8 +190,8 @@ def remove_member(name: str, table_id: str) -> Response:
         if manager.is_filter_based(name):
             raise ConflictError(
                 f"{name} is a filter collection - its membership comes from its criteria")
-        if table_id not in manager.get_members(name):
-            raise NotFoundError(f"{table_id} is not in {name}")
-        manager.remove_member(name, table_id)
+        if game_id not in manager.get_members(name):
+            raise NotFoundError(f"{game_id} is not in {name}")
+        manager.remove_member(name, game_id)
         manager.save()
     return Response(status_code=204)

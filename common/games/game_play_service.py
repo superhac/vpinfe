@@ -5,11 +5,9 @@ import time
 from copy import deepcopy
 from pathlib import Path
 
-from common.tables.collections_service import get_collections_manager
-from common.tables.vpxcollections import MEMBERS_KEY
-from common.tables import game_identity
-from common.timestamps import epoch_to_iso
-from common.tables.game_metadata import (
+from common.games import game_identity
+from common.games.collections_service import get_collections_manager
+from common.games.game_metadata import (
     default_game_file_entry,
     get_or_create_game_file_user,
     get_or_create_user_meta,
@@ -19,16 +17,17 @@ from common.tables.game_metadata import (
     section,
     vpinfe_section,
 )
+from common.games.vpxcollections import MEMBERS_KEY
+from common.timestamps import epoch_to_iso
 
-
-logger = logging.getLogger("vpinfe.common.tables.game_play_service")
+logger = logging.getLogger("vpinfe.common.games.game_play_service")
 
 
 def track_game_play(game, collection_name: str = "Last Played", max_items: int = 30) -> None:
     meta = normalize_meta(getattr(game, "metaConfig", {}))
     # Membership is the table's own id; VPSId is a fallback for a table that has
     # not been assigned one yet.
-    member_id = game_identity.table_id(game) or section(meta, "Info").get("VPSId")
+    member_id = game_identity.game_id(game) or section(meta, "Info").get("VPSId")
     if not member_id:
         logger.debug("Table has no id, cannot track play")
         return
@@ -142,7 +141,7 @@ def parse_score_from_nvram(game) -> tuple[dict | None, str | None]:
         return None, None
 
     try:
-        from common.tables.score_parser import read_rom_with_source, result_to_jsonable
+        from common.games.score_parser import read_rom_with_source, result_to_jsonable
 
         parsed_result, score_path = read_rom_with_source(rom, game.fullPathTable)
         score_data = result_to_jsonable(rom, parsed_result, score_path)

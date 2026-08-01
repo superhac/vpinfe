@@ -65,7 +65,7 @@ def _capture_theme_payload(games_root: Path) -> dict:
     environment noise, but a missing key breaks every theme the same way.
     """
     try:
-        from common.tables.gameparser import GameParser  # 3.0 layout
+        from common.games.gameparser import GameParser  # 3.0 layout
     except ImportError:
         from common.gameparser import GameParser  # 2.x layout
     from frontend.game_state import games_json
@@ -116,7 +116,7 @@ def _capture_legacy_endpoints() -> dict:
 
 def capture() -> dict:
     with TemporaryDirectory() as tmp:
-        games_root = Path(tmp) / "tables"
+        games_root = Path(tmp) / "games"
         games_root.mkdir()
         _build_fixture_library(games_root)
 

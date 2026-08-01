@@ -74,13 +74,13 @@ class GameFileVisibilityTests(unittest.TestCase):
     rebuilt without the base."""
 
     def test_absent_settings_mean_everything_is_visible(self):
-        from common.tables.game_files import visible_game_files
+        from common.games.game_files import visible_game_files
         names = ["a.vpx", "b.vpx"]
         self.assertEqual(visible_game_files(names, None), ["a.vpx", "b.vpx"])
         self.assertEqual(visible_game_files(names, {}), ["a.vpx", "b.vpx"])
 
     def test_hidden_files_are_not_offered(self):
-        from common.tables.game_files import hidden_game_files, visible_game_files
+        from common.games.game_files import hidden_game_files, visible_game_files
         settings = {"base.vpx": {"hidden": True}}
         names = ["base.vpx", "table.vpx", "table (VR).vpx"]
         self.assertEqual(hidden_game_files(settings), {"base.vpx"})
@@ -89,11 +89,11 @@ class GameFileVisibilityTests(unittest.TestCase):
 
     def test_several_visible_game_files_are_peers(self):
         """No primary-with-alternates: a VR game file and a desktop one are equals."""
-        from common.tables.game_files import visible_game_files
+        from common.games.game_files import visible_game_files
         names = ["table.vpx", "table (VR).vpx"]
         self.assertEqual(len(visible_game_files(names, {})), 2)
 
     def test_malformed_settings_do_not_hide_anything(self):
-        from common.tables.game_files import hidden_game_files
+        from common.games.game_files import hidden_game_files
         for bad in (None, [], "nope", {"a.vpx": "yes"}, {"a.vpx": {"hidden": "true"}}):
             self.assertEqual(hidden_game_files(bad), set(), repr(bad))

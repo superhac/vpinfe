@@ -12,14 +12,14 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.tables.gameparser import GameParser
-from common.tables.info_maintenance import (
+from common.games.gameparser import GameParser
+from common.games.info_maintenance import (
     game_dirs,
     restorable_backup,
     restore_library,
     upgrade_library,
 )
-from common.tables.info_migration import CURRENT_SCHEMA, backup_schema, schema_of
+from common.games.info_migration import CURRENT_SCHEMA, backup_schema, schema_of
 
 LEGACY = {
     "Info": {"Title": "Dr. Dude", "Rom": "dd_l2", "Authors": "someone"},
@@ -110,7 +110,7 @@ class UpgradeTests(LibraryTestCase):
         self._game("Dr. Dude")
         self._game("Taxi")
 
-        result = upgrade_library(self.root, table_name="Taxi")
+        result = upgrade_library(self.root, game_name="Taxi")
 
         self.assertEqual(result["upgraded"], 1)
         self.assertNotIn("vpinfe", self._info(self.root / "Dr. Dude"))
@@ -236,11 +236,11 @@ class WhatThePageSaysTests(LibraryTestCase):
         return game_dir
 
     def _counts(self):
-        tables = GameParser(str(self.root)).getAllGames()
+        games = GameParser(str(self.root)).getAllGames()
         return {
-            "pending_upgrade": sum(1 for t in tables if t.info_pending_upgrade),
-            "restorable": sum(1 for t in tables if t.info_restorable),
-            "newer_than_us": sum(1 for t in tables
+            "pending_upgrade": sum(1 for t in games if t.info_pending_upgrade),
+            "restorable": sum(1 for t in games if t.info_restorable),
+            "newer_than_us": sum(1 for t in games
                                  if (schema_of(t.metaConfig) or 0) > CURRENT_SCHEMA),
         }
 

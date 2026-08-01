@@ -1,15 +1,15 @@
-import os
-import logging
 import asyncio
+import logging
+import os
 import shutil
-from nicegui import ui, events, run, app, context
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
+from nicegui import app, context, events, run, ui
 
 from managerui.filters import apply_game_filters, build_game_filter_options
-from managerui.pages.dnd_drop_zone import create_drop_zone, enable_cell_drops, DropContext
+from managerui.pages.dnd_drop_zone import DropContext, create_drop_zone, enable_cell_drops
 from managerui.services import media_service
 from managerui.ui_helpers import debounced_input, load_page_style
-
 
 logger = logging.getLogger("vpinfe.manager.media")
 
@@ -375,7 +375,7 @@ def render_panel():
 
         # --- Media replacement logic ---
 
-        def open_replace_dialog(game_dir: str, table_path: str, table_name: str, media_key: str, media_label: str):
+        def open_replace_dialog(game_dir: str, game_path: str, game_name: str, media_key: str, media_label: str):
             """Open a dialog to replace a media file for a table."""
             target_filename = MEDIA_KEY_TO_FILENAME[media_key]
             is_video = target_filename.endswith('.mp4')
@@ -392,7 +392,7 @@ def render_panel():
 
             with ui.dialog() as dlg, ui.card().style('min-width: 500px; background: var(--surface) !important; border: 1px solid var(--line) !important;'):
                 ui.label(f'Replace {media_label}').classes('text-xl font-bold mb-2').style('color: var(--ink)')
-                ui.label(f'Table: {table_name}').classes('mb-1').style('color: var(--ink-muted)')
+                ui.label(f'Table: {game_name}').classes('mb-1').style('color: var(--ink-muted)')
                 ui.label(f'Target: {target_filename}').classes('text-sm mb-4').style('color: var(--ink-muted)')
 
                 # Show current media if exists
@@ -413,7 +413,7 @@ def render_panel():
 
                 async def handle_upload(e: events.UploadEventArguments):
                     # Save to a temp location first
-                    tmp_dir = os.path.join(table_path, '.tmp_upload')
+                    tmp_dir = os.path.join(game_path, '.tmp_upload')
                     os.makedirs(tmp_dir, exist_ok=True)
                     tmp_path = os.path.join(tmp_dir, e.file.name)
                     with open(tmp_path, 'wb') as f:
@@ -436,7 +436,7 @@ def render_panel():
                             return
                         try:
                             src = upload_state['path']
-                            target_path = await run.io_bound(media_service.replace_media_file, table_path, game_dir, media_key, src)
+                            target_path = await run.io_bound(media_service.replace_media_file, game_path, game_dir, media_key, src)
 
                             # Build the URL for the new media (now in medias/ subfolder)
                             new_url = media_service.media_url('media_tables', game_dir, 'medias', target_filename)
@@ -445,7 +445,7 @@ def render_panel():
                             update_game_display()
 
                             # Cleanup temp
-                            tmp_dir = os.path.join(table_path, '.tmp_upload')
+                            tmp_dir = os.path.join(game_path, '.tmp_upload')
                             if os.path.exists(tmp_dir):
                                 shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -621,14 +621,14 @@ def render_panel():
             def on_media_click(e):
                 args = e.args
                 game_dir = args[0]
-                table_path = args[1]
-                table_name = args[2]
+                game_path = args[1]
+                game_name = args[2]
                 media_key = args[3]
                 media_label = MEDIA_KEY_TO_LABEL.get(media_key, media_key)
                 open_replace_dialog(
                     game_dir=game_dir,
-                    table_path=table_path,
-                    table_name=table_name,
+                    game_path=game_path,
+                    game_name=game_name,
                     media_key=media_key,
                     media_label=media_label,
                 )
@@ -640,11 +640,11 @@ def render_panel():
 
             def _on_cell_imported(report):
                 async def _refresh():
-                    table_path = report.get('table_path', '')
-                    game_dir = os.path.basename(table_path.rstrip('/'))
+                    game_path = report.get('table_path', '')
+                    game_dir = os.path.basename(game_path.rstrip('/'))
                     for media_key in report.get('media_keys', []):
                         target_filename = MEDIA_KEY_TO_FILENAME[media_key]
-                        target_path = os.path.join(table_path, 'medias', target_filename)
+                        target_path = os.path.join(game_path, 'medias', target_filename)
                         new_url = media_service.media_url('media_tables', game_dir, 'medias', target_filename)
                         new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir, media_key, target_path)
                         media_service.update_cache_entry(game_dir, media_key, new_url, new_thumb)

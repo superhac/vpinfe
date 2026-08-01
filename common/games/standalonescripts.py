@@ -1,22 +1,21 @@
 import logging
-from common.tables.metaconfig import MetaConfig
 import os
 from pathlib import Path
 
 import requests
 
+from common.games.metaconfig import MetaConfig
 from common.http_client import download_file, get_json
 
-
-logger = logging.getLogger("vpinfe.common.tables.standalonescripts")
+logger = logging.getLogger("vpinfe.common.games.standalonescripts")
 
 class StandaloneScripts:
 
     hashsUrl = "https://raw.githubusercontent.com/jsm174/vpx-standalone-scripts/refs/heads/master/hashes.json"
     
-    def __init__(self, tables, progress_cb=None, auto_run: bool = True):
+    def __init__(self, games, progress_cb=None, auto_run: bool = True):
         self.hashes = None
-        self.tables = tables
+        self.games = games
         self.progress_cb = progress_cb
         logger.info("VPX-Standalone-Scripts Patching System initialized.")
         if auto_run:
@@ -41,9 +40,9 @@ class StandaloneScripts:
     def checkForPatches(self):
          if not self.hashes:
              return
-         total = len(self.tables) if self.tables else 0
+         total = len(self.games) if self.games else 0
          current = 0
-         for game in self.tables:
+         for game in self.games:
              current += 1
              if self.progress_cb and total:
                  try:

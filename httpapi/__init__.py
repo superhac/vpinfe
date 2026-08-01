@@ -17,13 +17,13 @@ from . import (
     collections,
     core_capabilities,
     events,
+    games,
     instance,
     jobs,
     library,
     manufacturers,
     play,
     scopes,
-    tables,
     uploads,
 )
 from .errors import (
@@ -89,7 +89,7 @@ def create_api_app() -> FastAPI:
     api.include_router(library.router)
     api.include_router(manufacturers.router)
     api.include_router(play.router)
-    api.include_router(tables.router)
+    api.include_router(games.router)
     api.include_router(uploads.router)
     api.include_router(uploads.vps_router)
 

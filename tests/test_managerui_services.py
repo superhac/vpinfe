@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-import unittest
 import importlib
+import unittest
 from unittest import mock
 
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui.filters import ALL_VALUE, apply_game_filters, build_game_filter_options
+from managerui.services import theme_service
 from managerui.services.archive_service import resolve_game_dir
 from managerui.services.collections_service import get_filter_options, search_games
-from managerui.services.media_service import media_url, update_cache_entry, set_media_cache, get_media_cache, invalidate_media_cache
-from managerui.services.system_service import format_bytes, metric_tone
 from managerui.services.game_catalog import build_mobile_game_rows
-from managerui.services import theme_service
 from managerui.services.game_index_service import (
     add_collection_membership,
     find_by_path,
@@ -21,6 +19,14 @@ from managerui.services.game_index_service import (
     update_row_by_path,
 )
 from managerui.services.game_service import normalize_game_rating, replace_game_file
+from managerui.services.media_service import (
+    get_media_cache,
+    invalidate_media_cache,
+    media_url,
+    set_media_cache,
+    update_cache_entry,
+)
+from managerui.services.system_service import format_bytes, metric_tone
 
 
 class ManagerUiServiceTests(unittest.TestCase):
@@ -62,8 +68,8 @@ class ManagerUiServiceTests(unittest.TestCase):
                 self.assertEqual(normalize_game_rating(raw), expected)
 
     def test_replace_game_file_replaces_vpx_and_renames_directb2s(self):
-        from tempfile import TemporaryDirectory
         from pathlib import Path
+        from tempfile import TemporaryDirectory
 
         with TemporaryDirectory() as temp_dir:
             game_dir = Path(temp_dir) / "Example"
@@ -90,8 +96,8 @@ class ManagerUiServiceTests(unittest.TestCase):
             self.assertEqual(result["directb2s_filename"], "New Table.directb2s")
 
     def test_replace_game_file_directb2s_uses_existing_name_or_vpx_stem(self):
-        from tempfile import TemporaryDirectory
         from pathlib import Path
+        from tempfile import TemporaryDirectory
 
         with TemporaryDirectory() as temp_dir:
             game_dir = Path(temp_dir) / "Example"
@@ -132,11 +138,11 @@ class ManagerUiServiceTests(unittest.TestCase):
 
     def test_resolve_game_dir_rejects_path_traversal(self):
         with self.subTest("valid table"):
-            from tempfile import TemporaryDirectory
             from pathlib import Path
+            from tempfile import TemporaryDirectory
 
             with TemporaryDirectory() as temp_dir:
-                games_root = Path(temp_dir) / "tables"
+                games_root = Path(temp_dir) / "games"
                 good_game = games_root / "Good Table"
                 good_game.mkdir(parents=True)
 
@@ -194,10 +200,11 @@ class ManagerUiServiceTests(unittest.TestCase):
         scan_rows.assert_not_called()
 
     def test_common_collections_metadata_includes_image_urls(self):
-        from tempfile import TemporaryDirectory
         from pathlib import Path
+        from tempfile import TemporaryDirectory
         from unittest import mock
-        import common.tables.collections_service as common_collections
+
+        import common.games.collections_service as common_collections
 
         with TemporaryDirectory() as temp_dir:
             collections_ini = Path(temp_dir) / "collections.ini"
@@ -217,7 +224,7 @@ class ManagerUiServiceTests(unittest.TestCase):
 
         self.assertEqual(metadata[0]["name"], "Favorites")
         self.assertEqual(metadata[0]["image_url"], "/collection_icons/favorites.png")
-        self.assertEqual(metadata[0]["table_count"], 2)
+        self.assertEqual(metadata[0]["game_count"], 2)
         self.assertTrue(metadata[1]["is_filter"])
         self.assertEqual(metadata[1]["image_url"], "")
 
@@ -310,9 +317,9 @@ class ManagerUiServiceTests(unittest.TestCase):
         self.assertEqual(rows[0]["collections"], ["Favorites"])
 
     def test_theme_service_reads_schema_and_writes_values_into_theme_json(self):
+        import json
         from pathlib import Path
         from tempfile import TemporaryDirectory
-        import json
 
         with TemporaryDirectory() as temp_dir:
             themes_dir = Path(temp_dir)

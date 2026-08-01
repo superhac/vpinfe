@@ -1,23 +1,27 @@
-import os
-import io
 import contextlib
+import io
 import logging
+import os
 import re
 import runpy
 import shlex
 import sys
-from nicegui import ui, run
-from common.iniconfig import IniConfig
+from pathlib import Path
+
+from nicegui import run, ui
+
+from common.games.vpxcollections import VPXCollections
 from common.host.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
 from common.host.launcher import build_masked_tableini_path, build_vpx_launch_command
-from common.tables.vpxcollections import VPXCollections
-from frontend.chromium_manager import get_builtin_chromium_options, parse_additional_chromium_options
-from pathlib import Path
-from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
+from common.iniconfig import IniConfig
+from frontend.chromium_manager import (
+    get_builtin_chromium_options,
+    parse_additional_chromium_options,
+)
 from managerui import config_support
-from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR, VPINFE_INI_PATH, THEMES_DIR
-from managerui.ui_helpers import load_page_style, attach_shell_save_bar
-
+from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
+from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR, THEMES_DIR, VPINFE_INI_PATH
+from managerui.ui_helpers import attach_shell_save_bar, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.vpinfe_config")
 

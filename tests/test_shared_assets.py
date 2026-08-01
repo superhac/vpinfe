@@ -236,7 +236,7 @@ class PayloadTests(unittest.TestCase):
 
         game = SimpleNamespace(
             tableDirName="Cactus Canyon (Bally 1998)",
-            fullPathTable="/tables/Cactus Canyon (Bally 1998)",
+            fullPathTable="/games/Cactus Canyon (Bally 1998)",
             fullPathVPXfile="",
             pupPackExists=False,
             altColorExists=False,

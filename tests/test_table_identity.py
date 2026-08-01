@@ -4,9 +4,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
-from common.tables import game_identity
-from common.tables.game_repository import game_to_row
-from common.tables.metaconfig import MetaConfig
+from common.games import game_identity
+from common.games.game_repository import game_to_row
+from common.games.metaconfig import MetaConfig
 
 
 def _game(root: Path, name: str = "Example", meta: dict | None = None):
@@ -64,7 +64,7 @@ class GameIdTests(unittest.TestCase):
         info = Path(game.fullPathTable) / "Example.info"
         before = info.read_text(encoding="utf-8")
 
-        self.assertEqual(game_identity.table_id(game), "")
+        self.assertEqual(game_identity.game_id(game), "")
         self.assertEqual(info.read_text(encoding="utf-8"), before)
 
     def test_ensure_id_mints_and_persists(self) -> None:
@@ -76,7 +76,7 @@ class GameIdTests(unittest.TestCase):
 
         self.assertTrue(minted)
         self.assertEqual(on_disk["vpinfe"]["id"], minted)
-        self.assertEqual(game_identity.table_id(game), minted)
+        self.assertEqual(game_identity.game_id(game), minted)
 
     def test_ensure_id_is_stable_across_calls(self) -> None:
         game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
@@ -146,7 +146,7 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
         """altvpsid is cleared when the .vpx changes; the table id must not be."""
         info = self.root / "Example.info"
         first = self._rebuild(info, "hash-a")
-        table_id = first["vpinfe"]["id"]
+        game_id = first["vpinfe"]["id"]
 
         # User re-points the table at different VPSdb metadata, then updates the .vpx.
         data = json.loads(info.read_text(encoding="utf-8"))
@@ -155,7 +155,7 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
         after = self._rebuild(info, "hash-b")
 
         self.assertEqual(after["vpinfe"]["alt_vpsid"], "", "precondition: altvpsid is cleared")
-        self.assertEqual(after["vpinfe"]["id"], table_id)
+        self.assertEqual(after["vpinfe"]["id"], game_id)
 
     def test_the_id_survives_repeated_rebuilds(self) -> None:
         info = self.root / "Example.info"
@@ -184,12 +184,12 @@ class UniquenessTests(unittest.TestCase):
         self.root = Path(self._tmp.name)
 
     def test_ensure_unique_ids_assigns_every_game(self) -> None:
-        tables = [_game(self.root, n, meta={"Info": {}}) for n in ("A", "B", "C")]
+        games = [_game(self.root, n, meta={"Info": {}}) for n in ("A", "B", "C")]
 
-        by_id = game_identity.ensure_unique_ids(tables)
+        by_id = game_identity.ensure_unique_ids(games)
 
         self.assertEqual(len(by_id), 3)
-        self.assertTrue(all(game_identity.table_id(t) for t in tables))
+        self.assertTrue(all(game_identity.game_id(t) for t in games))
 
     def test_a_copied_game_folder_gets_a_fresh_id(self) -> None:
         original = _game(self.root, "Original", meta={"Info": {}})
@@ -197,11 +197,11 @@ class UniquenessTests(unittest.TestCase):
         # Copying the folder copies the .info, and with it the id.
         copy = _game(self.root, "Copy", meta={"Info": {}, "vpinfe": {"id": assigned}})
 
-        with self.assertLogs("vpinfe.common.tables.game_identity", level="WARNING"):
+        with self.assertLogs("vpinfe.common.games.game_identity", level="WARNING"):
             by_id = game_identity.ensure_unique_ids([original, copy])
 
-        self.assertNotEqual(game_identity.table_id(copy), assigned)
-        self.assertEqual(game_identity.table_id(original), assigned)
+        self.assertNotEqual(game_identity.game_id(copy), assigned)
+        self.assertEqual(game_identity.game_id(original), assigned)
         self.assertEqual(len(by_id), 2)
 
 

@@ -13,13 +13,13 @@ import json
 from collections.abc import Iterator
 from pathlib import Path
 
-from common.tables.game_files import (
+from common.games.game_files import (
     default_game_file,
     game_file_names,
     recorded_default,
 )
-from common.tables.game_metadata import vpinfe_section
-from common.tables.metaconfig import ASSETS_KEY
+from common.games.game_metadata import vpinfe_section
+from common.games.metaconfig import ASSETS_KEY
 from managerui.services.asset_registry import (
     is_readme,  # noqa: F401  (one matcher, import and export)
 )

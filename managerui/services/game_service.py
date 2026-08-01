@@ -7,23 +7,19 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from common import jobs
-from common.iniconfig import IniConfig
 from common.config_access import SettingsConfig
-from common.tables import info_maintenance, game_repository
-from common.tables.game_files import recorded_default
-from common.tables.game_repository import get_missing_games, get_game_rows, refresh_game
-from common.tables import metadata_service
-from common.tables.vpxcollections import VPXCollections
-from common.tables.game_files import default_game_file
-from common.tables.metaconfig import VPINFE_SECTION
-from common.tables.game_metadata import section as meta_section
-from common.tables.game_metadata import vpinfe_section
-from common.tables.vpxparser import VPXParser
-
+from common.games import game_repository, info_maintenance, metadata_service
+from common.games.game_files import default_game_file, recorded_default
+from common.games.game_metadata import section as meta_section
+from common.games.game_metadata import vpinfe_section
+from common.games.game_repository import get_game_rows, get_missing_games, refresh_game
+from common.games.metaconfig import VPINFE_SECTION
+from common.games.vpxcollections import VPXCollections
+from common.games.vpxparser import VPXParser
+from common.iniconfig import IniConfig
 from common.paths import CONFIG_DIR
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_games_path
 from managerui.services import game_index_service
-
 
 logger = logging.getLogger("vpinfe.manager.game_service")
 
@@ -72,10 +68,10 @@ def get_game_collections() -> List[str]:
     return result
 
 
-def add_game_to_collection(table_id: str, collection_name: str) -> bool:
+def add_game_to_collection(game_id: str, collection_name: str) -> bool:
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
-        collections.add_member(collection_name, table_id)
+        collections.add_member(collection_name, game_id)
         collections.save()
         return True
     except Exception as e:
@@ -83,9 +79,9 @@ def add_game_to_collection(table_id: str, collection_name: str) -> bool:
         return False
 
 
-def update_info_section(table_path: str, section: str, key: str, value) -> bool:
+def update_info_section(game_path: str, section: str, key: str, value) -> bool:
     try:
-        game_dir = Path(table_path)
+        game_dir = Path(game_path)
         info_file = game_dir / f"{game_dir.name}.info"
         if not info_file.exists():
             logger.error("Info file not found: %s", info_file)
@@ -94,19 +90,19 @@ def update_info_section(table_path: str, section: str, key: str, value) -> bool:
         data = json.loads(info_file.read_text(encoding="utf-8"))
         data.setdefault(section, {})[key] = value
         info_file.write_text(json.dumps(data, indent=4), encoding="utf-8")
-        refresh_game(table_path)
+        refresh_game(game_path)
         return True
     except Exception as e:
         logger.error("Failed to update %s.%s: %s", section, key, e)
         return False
 
 
-def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
-    return update_info_section(table_path, VPINFE_SECTION, key, value)
+def update_vpinfe_setting(game_path: str, key: str, value) -> bool:
+    return update_info_section(game_path, VPINFE_SECTION, key, value)
 
 
-def update_user_setting(table_path: str, key: str, value) -> bool:
-    return update_info_section(table_path, "User", key, value)
+def update_user_setting(game_path: str, key: str, value) -> bool:
+    return update_info_section(game_path, "User", key, value)
 
 
 def load_vpsdb() -> List[Dict]:
@@ -118,7 +114,7 @@ def load_vpsdb() -> List[Dict]:
         if isinstance(data, list):
             _vpsdb_cache = data
         else:
-            _vpsdb_cache = data.get("tables") or data.get("items") or []
+            _vpsdb_cache = data.get("games") or data.get("items") or []
     except Exception as e:
         logger.error("Failed to load vpsdb.json: %s", e)
         _vpsdb_cache = []
@@ -195,8 +191,8 @@ def _write_replace(dest_file: Path, content: bytes) -> None:
     os.replace(tmp_file, dest_file)
 
 
-def replace_game_file(table_path: str, filename: str, content: bytes, file_type: str, current_vpx_filename: str = "") -> Dict[str, str]:
-    game_dir = Path(table_path).expanduser()
+def replace_game_file(game_path: str, filename: str, content: bytes, file_type: str, current_vpx_filename: str = "") -> Dict[str, str]:
+    game_dir = Path(game_path).expanduser()
     if not game_dir.exists() or not game_dir.is_dir():
         raise FileNotFoundError(f"Table folder not found: {game_dir}")
 
@@ -271,7 +267,7 @@ def associate_vps_to_folder(
     vps_entry: Dict,
     download_media: bool = False,
 ) -> None:
-    from common.tables.metaconfig import MetaConfig
+    from common.games.metaconfig import MetaConfig
 
     if not game_folder.exists():
         raise FileNotFoundError(f"Folder not found: {game_folder}")
@@ -330,7 +326,7 @@ def scan_missing_game_rows(reload: bool = False) -> List[Dict]:
     return game_index_service.scan_missing_rows(reload=reload)
 
 
-def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> dict:
+def extract_vbs(game_path: str, vpx_filename: str, altlauncher: str = "") -> dict:
     """Run the VPX binary with -extractvbs to extract a table's .vbs script.
 
     VPX writes the extracted .vbs next to the .vpx file (the table's root dir)
@@ -338,9 +334,10 @@ def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> di
 
     Returns {'vbs_path': str} on success. Raises on failure.
     """
+    import platform as _platform
     import subprocess
     import sys as _sys
-    import platform as _platform
+
     from common.host.launcher import get_effective_launcher
 
     cfg = _fresh_config()
@@ -352,7 +349,7 @@ def extract_vbs(table_path: str, vpx_filename: str, altlauncher: str = "") -> di
     if not vpxbin_path.exists():
         raise FileNotFoundError(f"Launcher not found ({source_key}): {vpxbin_path}")
 
-    vpx_file = Path(table_path) / vpx_filename
+    vpx_file = Path(game_path) / vpx_filename
     if not vpx_file.is_file():
         raise FileNotFoundError(f"Table file not found: {vpx_file}")
 
@@ -423,7 +420,7 @@ def newest_backup_stamp():
 
 def collections_restorable():
     """Whether a newer VPinFE left a collections file this build can put back."""
-    from common.tables.vpxcollections import restorable_collections_backup
+    from common.games.vpxcollections import restorable_collections_backup
 
     return bool(restorable_collections_backup(CONFIG_DIR))
 

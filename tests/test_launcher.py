@@ -17,16 +17,16 @@ from common.host.launcher import (
 class TestLauncherGameIniOverride(unittest.TestCase):
     def test_build_masked_tableini_path_enabled_builds_expected_name(self) -> None:
         stem = "300 (Gottlieb 1975) team scampa123 mod v1.1"
-        vpx = os.path.join(os.sep, "tables", f"{stem}.vpx")
+        vpx = os.path.join(os.sep, "games", f"{stem}.vpx")
         got = build_masked_tableini_path(vpx, True, "windows")
-        self.assertEqual(got, os.path.join(os.sep, "tables", f"{stem}.windows.ini"))
+        self.assertEqual(got, os.path.join(os.sep, "games", f"{stem}.windows.ini"))
 
     def test_build_masked_tableini_path_disabled_returns_empty(self) -> None:
-        vpx = "/tables/example.vpx"
+        vpx = "/games/example.vpx"
         self.assertEqual(build_masked_tableini_path(vpx, False, "windows"), "")
 
     def test_build_masked_tableini_path_empty_mask_returns_empty(self) -> None:
-        vpx = "/tables/example.vpx"
+        vpx = "/games/example.vpx"
         self.assertEqual(build_masked_tableini_path(vpx, True, "  "), "")
 
     def test_resolve_launch_tableini_override_requires_existing_file(self) -> None:
@@ -48,9 +48,9 @@ class TestLauncherGameIniOverride(unittest.TestCase):
     def test_build_vpx_launch_command_keeps_play_last_with_all_overrides(self) -> None:
         cmd = build_vpx_launch_command(
             launcher_path="/opt/vpinball/VPinballX",
-            vpx_game_path="/tables/example.vpx",
+            vpx_game_path="/games/example.vpx",
             global_ini_override="/cfg/VPinballX.ini",
-            tableini_override="/tables/example.windows.ini",
+            tableini_override="/games/example.windows.ini",
         )
         self.assertEqual(
             cmd,
@@ -59,9 +59,9 @@ class TestLauncherGameIniOverride(unittest.TestCase):
                 "-ini",
                 "/cfg/VPinballX.ini",
                 "-tableini",
-                "/tables/example.windows.ini",
+                "/games/example.windows.ini",
                 "-play",
-                "/tables/example.vpx",
+                "/games/example.vpx",
             ],
         )
         self.assertEqual(cmd[-2], "-play")
@@ -69,11 +69,11 @@ class TestLauncherGameIniOverride(unittest.TestCase):
     def test_build_vpx_launch_command_keeps_play_last_without_overrides(self) -> None:
         cmd = build_vpx_launch_command(
             launcher_path="/opt/vpinball/VPinballX",
-            vpx_game_path="/tables/example.vpx",
+            vpx_game_path="/games/example.vpx",
         )
         self.assertEqual(
             cmd,
-            ["/opt/vpinball/VPinballX", "-play", "/tables/example.vpx"],
+            ["/opt/vpinball/VPinballX", "-play", "/games/example.vpx"],
         )
         self.assertEqual(cmd[-2], "-play")
 
@@ -109,7 +109,7 @@ class TestLauncherPluginProfile(unittest.TestCase):
     def test_plugin_profile_fills_ini_slot_and_keeps_play_last(self) -> None:
         cmd = build_vpx_launch_command(
             launcher_path="/opt/vpinball/VPinballX",
-            vpx_game_path="/tables/example.vpx",
+            vpx_game_path="/games/example.vpx",
             plugin_profile_override="/cfg/plugin_profiles/no-dmd.ini",
         )
         self.assertEqual(
@@ -119,7 +119,7 @@ class TestLauncherPluginProfile(unittest.TestCase):
                 "-ini",
                 "/cfg/plugin_profiles/no-dmd.ini",
                 "-play",
-                "/tables/example.vpx",
+                "/games/example.vpx",
             ],
         )
         self.assertEqual(cmd[-2], "-play")
@@ -127,7 +127,7 @@ class TestLauncherPluginProfile(unittest.TestCase):
     def test_plugin_profile_wins_over_global_ini_override_without_duplicate_flag(self) -> None:
         cmd = build_vpx_launch_command(
             launcher_path="/opt/vpinball/VPinballX",
-            vpx_game_path="/tables/example.vpx",
+            vpx_game_path="/games/example.vpx",
             global_ini_override="/cfg/VPinballX.ini",
             plugin_profile_override="/cfg/plugin_profiles/no-dmd.ini",
         )
@@ -140,7 +140,7 @@ class TestLauncherPluginProfile(unittest.TestCase):
     def test_global_ini_override_still_applies_when_no_plugin_profile(self) -> None:
         cmd = build_vpx_launch_command(
             launcher_path="/opt/vpinball/VPinballX",
-            vpx_game_path="/tables/example.vpx",
+            vpx_game_path="/games/example.vpx",
             global_ini_override="/cfg/VPinballX.ini",
             plugin_profile_override="",
         )
@@ -151,7 +151,7 @@ class TestLauncherPluginProfile(unittest.TestCase):
                 "-ini",
                 "/cfg/VPinballX.ini",
                 "-play",
-                "/tables/example.vpx",
+                "/games/example.vpx",
             ],
         )
 

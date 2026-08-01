@@ -1,6 +1,6 @@
 import unittest
 
-from common.tables.game_metadata import as_string_list
+from common.games.game_metadata import as_string_list
 
 
 class AsStringListTests(unittest.TestCase):

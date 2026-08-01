@@ -1,6 +1,13 @@
 import logging
 
 from common import events
+from common.games.collections_service import (
+    get_collection_image_url,
+    get_collection_names,
+    get_collections_metadata,
+)
+from common.games.game_metadata import normalize_meta
+from common.games.game_repository import ensure_games_loaded
 from common.host import launch, launch_state, system_actions
 from common.host.display_service import monitors_as_dicts
 from common.online.vpinplay_runtime import (
@@ -8,13 +15,6 @@ from common.online.vpinplay_runtime import (
     clear_alternate_profile,
     get_alternate_profile_state,
 )
-from common.tables.collections_service import (
-    get_collection_image_url,
-    get_collection_names,
-    get_collections_metadata,
-)
-from common.tables.game_metadata import normalize_meta
-from common.tables.game_repository import ensure_games_loaded
 from frontend import (
     config_api,
     game_state,
@@ -215,7 +215,7 @@ class API:
         name,
         letter="All",
         theme="All",
-        table_type="All",
+        game_type="All",
         manufacturer="All",
         year="All",
         sort_by="Alpha",
@@ -226,7 +226,7 @@ class API:
         """Save current filter settings as a named collection."""
         try:
             return game_state.save_current_filter_collection(
-                self, name, letter, theme, table_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by
+                self, name, letter, theme, game_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by
             )
         except ValueError as e:
             return {"success": False, "message": str(e)}
@@ -265,7 +265,7 @@ class API:
     def get_filter_years(self):
         return self._filter_option(_FILTER_OPTION_KEYS["years"])
 
-    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
+    def apply_filters(self, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
         """
         Apply VPSdb filters to the full table list.
         These filters work independently of collections.
@@ -275,13 +275,13 @@ class API:
             "Applying filters: letter=%s, theme=%s, type=%s, manufacturer=%s, year=%s, rating=%s, rating_or_higher=%s",
             letter,
             theme,
-            table_type,
+            game_type,
             manufacturer,
             year,
             rating,
             rating_or_higher,
         )
-        count = game_state.apply_filters(self, letter, theme, table_type, manufacturer, year, rating, rating_or_higher)
+        count = game_state.apply_filters(self, letter, theme, game_type, manufacturer, year, rating, rating_or_higher)
         logger.debug("Filtered tables count: %s", count)
         return count
 
@@ -399,7 +399,7 @@ class API:
         Returns:
             dict with success status and message
         """
-        from common.tables.metadata_service import build_metadata
+        from common.games.metadata_service import build_metadata
 
         return metadata_build_service.start_build(
             self,

@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, List
 from pathlib import Path
+from typing import Dict, List
 from urllib.parse import quote
 
-from common.tables import game_repository
-from common.tables.vpxcollections import MEMBERS_KEY, VPXCollections
-
+from common.games import game_repository
+from common.games.vpxcollections import MEMBERS_KEY, VPXCollections
 from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR
 from managerui.services import game_index_service
 
@@ -116,10 +115,10 @@ def get_vpsdb_rows_for_filter_options(cached_vpsdb_rows: list[dict] | None = Non
 
 
 def get_game_name_map(cached_games: list[dict] | None = None) -> Dict[str, str]:
-    tables = get_game_rows_for_collections(cached_games)
+    games = get_game_rows_for_collections(cached_games)
     return {
         game["vpinfe_id"]: game.get("name") or game["vpinfe_id"]
-        for game in tables
+        for game in games
         if game.get("vpinfe_id")
     }
 
@@ -150,9 +149,9 @@ def _as_values(value) -> list[str]:
 
 
 def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> Dict[str, List[str]]:
-    tables = get_vpsdb_rows_for_filter_options(cached_vpsdb_rows)
+    games = get_vpsdb_rows_for_filter_options(cached_vpsdb_rows)
 
-    if not tables:
+    if not games:
         return {
             "letters": ["All"],
             "themes": ["All"],
@@ -170,16 +169,16 @@ def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> Dict[str,
     manufacturers = set()
     years = set()
 
-    for game in tables:
+    for game in games:
         name = game.get("name", "")
         if name:
             first_char = name[0].upper()
             if first_char.isalnum():
                 letters.add(first_char)
 
-        table_type = game.get("type", "") or game.get("tableType", "")
-        if table_type:
-            types.add(str(table_type).strip())
+        game_type = game.get("type", "") or game.get("tableType", "")
+        if game_type:
+            types.add(str(game_type).strip())
 
         manufacturer = game.get("manufacturer", "") or game.get("mfg", "")
         if manufacturer:

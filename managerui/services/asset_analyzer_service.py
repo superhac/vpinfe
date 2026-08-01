@@ -72,7 +72,7 @@ class AnalysisResult:
     source_kind: str
     source_name: str
     assets: tuple[DetectedAsset, ...]
-    has_table: bool
+    has_game: bool
     notes: tuple[str, ...] = ()
     error: str = ""
     unrecognized: tuple[str, ...] = ()   # source-relative paths that no rule claimed
@@ -393,12 +393,12 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
         return picked
 
     # 1. Table
-    has_table = False
+    has_game = False
     vpx_dirs: set[str] = set()
     for e in list(unclaimed()):
         if _suffix(e.arcname) == ".vpx":
             claimed.add(e.path)
-            has_table = True
+            has_game = True
             vpx_dirs.add(_parent(e.arcname))
             assets.append(DetectedAsset("table", "Table", (e,), size=e.size, detail=_basename(e.arcname)))
 
@@ -510,7 +510,7 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
                 size=e.size, detail=f"{_basename(e.arcname)} → {media_key}"))
 
     unrecognized = tuple(e.arcname for e in files if e.path not in claimed)
-    return assets, notes, has_table, unrecognized
+    return assets, notes, has_game, unrecognized
 
 
 def _dedupe_roots(roots: list[str]) -> list[str]:
@@ -660,7 +660,7 @@ def analyze_path(path: Path) -> AnalysisResult:
             logger.exception("Failed to list source: %s", path)
             return AnalysisResult(source.kind, source.name, (), False, error="Could not read the dropped item")
 
-        assets, notes, has_table, unrecognized = _analyze_entries(entries)
+        assets, notes, has_game, unrecognized = _analyze_entries(entries)
 
         # A bundle .info is read up front (it is tiny) so its content can seed the
         # import dialog and be validated before anything is written.
@@ -681,7 +681,7 @@ def analyze_path(path: Path) -> AnalysisResult:
     if not assets:
         return AnalysisResult(source.kind, source.name, (), False, tuple(notes),
                               error="No recognized assets found", unrecognized=unrecognized)
-    return AnalysisResult(source.kind, source.name, tuple(assets), has_table, tuple(notes),
+    return AnalysisResult(source.kind, source.name, tuple(assets), has_game, tuple(notes),
                           unrecognized=unrecognized, bundle_info=bundle_info)
 
 

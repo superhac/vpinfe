@@ -29,8 +29,8 @@ class ManufacturerEndpointTests(unittest.TestCase):
 
         def _game(folder: str, manufacturer: str) -> SimpleNamespace:
             return SimpleNamespace(
-                fullPathTable=f"/tables/{folder}",
-                fullPathVPXfile=f"/tables/{folder}/{folder}.vpx",
+                fullPathTable=f"/games/{folder}",
+                fullPathVPXfile=f"/games/{folder}/{folder}.vpx",
                 metaConfig={"Info": {"Manufacturer": manufacturer}},
             )
 
@@ -57,10 +57,10 @@ class ManufacturerEndpointTests(unittest.TestCase):
         self.assertEqual(rows["Bally Manufacturing"]["slug"], "bally")
         self.assertEqual(rows["Bally Manufacturing"]["logo"],
                          "/assets/manufacturers/default/bally.png")
-        self.assertEqual(rows["Bally Manufacturing"]["tables"], 2)
+        self.assertEqual(rows["Bally Manufacturing"]["games"], 2)
         self.assertIsNone(rows["Bally Wulff"]["logo"])
-        self.assertEqual(rows["Bally Wulff"]["tables"], 0)
-        self.assertEqual(rows["Homebrew Works"]["tables"], 1,
+        self.assertEqual(rows["Bally Wulff"]["games"], 0)
+        self.assertEqual(rows["Homebrew Works"]["games"], 1,
                          "a library-only name still gets a row")
 
 

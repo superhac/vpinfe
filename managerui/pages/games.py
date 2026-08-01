@@ -1,33 +1,36 @@
-import os
-import logging
 import asyncio
-from nicegui import ui, events, run, context
-from pathlib import Path
 import json
-from typing import List, Dict, Optional, Callable
+import logging
+import os
+from pathlib import Path
 from queue import Queue
+from typing import Callable, Dict, List, Optional
+
+from nicegui import context, events, run, ui
+
 from managerui.filters import apply_game_filters, build_game_filter_options
-from managerui.paths import VPINFE_INI_PATH, get_games_path as resolve_games_path
+from managerui.pages.dnd_drop_zone import DropContext, create_drop_zone, enable_row_drops
 from managerui.pages.game_detail_dialog import open_game_dialog
 from managerui.pages.game_import_dialog import open_import_game_dialog
-from managerui.pages.dnd_drop_zone import create_drop_zone, enable_row_drops, DropContext
 from managerui.pages.game_match_dialog import open_match_vps_dialog, open_missing_games_dialog
 from managerui.pages.info_maintenance_dialogs import maintenance_menu, render_info_banners
-from managerui.services import game_service
-from managerui.services import game_index_service
+from managerui.paths import VPINFE_INI_PATH
+from managerui.paths import get_games_path as resolve_games_path
+from managerui.services import game_index_service, game_service
 from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import debounced_input, dialog_card, load_page_style
 
 VPSDB_JSON_PATH = game_service.VPSDB_JSON_PATH
 
 # Load vpinfe.ini once to avoid repeated parsing
-from common.iniconfig import IniConfig
-from common.tables.metaconfig import VPINFE_SECTION
-from common.tables.game_metadata import (
-    vpinfe_section,
+from common.games.game_metadata import (
     default_game_file,
     reorder_leading_article,
+    vpinfe_section,
 )
+from common.games.metaconfig import VPINFE_SECTION
+from common.iniconfig import IniConfig
+
 _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
 
 #_vpsdb_cache: List[Dict] | None = None
@@ -69,12 +72,12 @@ def get_game_collections() -> List[str]:
     return game_service.get_game_collections()
 
 
-def add_game_to_collection(table_id: str, collection_name: str) -> bool:
+def add_game_to_collection(game_id: str, collection_name: str) -> bool:
     """Add a table to a collection. Returns True on success."""
     try:
-        if not game_service.add_game_to_collection(table_id, collection_name):
+        if not game_service.add_game_to_collection(game_id, collection_name):
             return False
-        game_index_service.add_collection_membership(table_id, collection_name)
+        game_index_service.add_collection_membership(game_id, collection_name)
         return True
     except Exception as e:
         logger.error(f"Failed to add table to collection: {e}")
@@ -90,7 +93,7 @@ def sync_collections_to_cache():
     game_index_service.sync_collection_memberships(get_game_collections_map())
 
 
-def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
+def update_vpinfe_setting(game_path: str, key: str, value) -> bool:
     """Update a VPinFE setting in the table's .info file.
 
     Args:
@@ -101,12 +104,12 @@ def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
     Returns:
         True on success, False on failure
     """
-    return game_service.update_vpinfe_setting(table_path, key, value)
+    return game_service.update_vpinfe_setting(game_path, key, value)
 
 
-def update_user_setting(table_path: str, key: str, value) -> bool:
+def update_user_setting(game_path: str, key: str, value) -> bool:
     """Update a User setting in the table's .info file."""
-    return game_service.update_user_setting(table_path, key, value)
+    return game_service.update_user_setting(game_path, key, value)
 
 
 def load_vpsdb() -> List[Dict]:
@@ -136,29 +139,29 @@ def associate_vps_to_folder(game_folder: Path, vps_entry: Dict, download_media: 
     game_service.associate_vps_to_folder(game_folder, vps_entry, download_media)
 
 
-logger = logging.getLogger("vpinfe.manager.tables")
+logger = logging.getLogger("vpinfe.manager.games")
 
 def get_games_path() -> str:
     """Resolve tables path from vpinfe.ini [Settings] tablerootdir, fallback to ~/tables."""
     return resolve_games_path()
 
 def parse_game_info(info_path):
-    import os
     import json
+    import os
 
     try:
         with open(info_path, "r", encoding="utf-8") as f:
             raw = json.load(f)
 
         game_dir = os.path.dirname(info_path)
-        table_name = os.path.basename(game_dir)
+        game_name = os.path.basename(game_dir)
 
         info = raw.get("Info", {})
         user = raw.get("User", {})
         vpinfe = vpinfe_section(raw)
         # This row describes the table's default build. A folder can hold several;
         # the API lists them all, the table view shows one.
-        gf_name, vpx = default_game_file(raw, folder_name=table_name)
+        gf_name, vpx = default_game_file(raw, folder_name=game_name)
 
         def get(*paths, default=""):
             """
@@ -174,8 +177,8 @@ def parse_game_info(info_path):
         data = {
             # Display / identity (strip whitespace from name)
             "name": ((vpinfe.get("alt_title", "") or "").strip()
-                     or reorder_leading_article(get(("Info", "Title"), ("root", "name"), default=table_name) or "")),
-            "filename": gf_name or f"{table_name}.vpx",
+                     or reorder_leading_article(get(("Info", "Title"), ("root", "name"), default=game_name) or "")),
+            "filename": gf_name or f"{game_name}.vpx",
             "vpsid": get(("Info", "VPSId"), ("root", "id")),
             "id": get((VPINFE_SECTION, "alt_vpsid"), ("Info", "VPSId"), ("root", "id")),
             "ipdb_id": get(("Info", "IPDBId")),
@@ -247,7 +250,7 @@ def load_metadata_from_ini():
 
 def render_panel(tab=None):
     with ui.column().classes('w-full'):
-        load_page_style("tables.css")
+        load_page_style("games.css")
         # Define columns for the table
         columns = [
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
@@ -263,9 +266,9 @@ def render_panel(tab=None):
                 clicked_row = e.args[1]
                 # Look up the actual row from the cache to get the latest data
                 # (the clicked row from Quasar is a copy that may be stale)
-                table_path = clicked_row.get('table_path', '')
+                game_path = clicked_row.get('table_path', '')
                 row_data = clicked_row
-                cached_row = game_index_service.find_by_path(table_path) if table_path else None
+                cached_row = game_index_service.find_by_path(game_path) if game_path else None
                 if cached_row is not None:
                     row_data = cached_row
                 # Pass update_table_display as callback to refresh table when dialog closes
@@ -622,15 +625,15 @@ def render_panel(tab=None):
             selected = game.selected or []
             if len(selected) == 1:
                 row = selected[0]
-                return DropContext(table_path=row.get('table_path', ''), game_row=row,
-                                   rom_name=(row.get('rom') or '').strip(), allow_new_table=True)
-            return DropContext(allow_new_table=True)
+                return DropContext(game_path=row.get('table_path', ''), game_row=row,
+                                   rom_name=(row.get('rom') or '').strip(), allow_new_game=True)
+            return DropContext(allow_new_game=True)
 
         def _dnd_row_context(row_key: str) -> DropContext | None:
             row = next((r for r in (_games_cache() or []) if r.get('vpinfe_id') == row_key), None)
             if not row:
                 return None
-            return DropContext(table_path=row.get('table_path', ''), game_row=row,
+            return DropContext(game_path=row.get('table_path', ''), game_row=row,
                                rom_name=(row.get('rom') or '').strip())
 
         drop_zone = create_drop_zone(
@@ -982,9 +985,9 @@ def render_panel(tab=None):
             added = 0
             skipped = 0
             for row in selected:
-                table_id = row.get('vpinfe_id', '')
-                if table_id:
-                    if add_game_to_collection(table_id, collection):
+                game_id = row.get('vpinfe_id', '')
+                if game_id:
+                    if add_game_to_collection(game_id, collection):
                         added += 1
                 else:
                     skipped += 1

@@ -1,24 +1,29 @@
 import ast
-import os
 import configparser
 import json
+import os
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import mock
 
-from common.config_access import DisplayConfig, MediaConfig, NetworkConfig, SettingsConfig, VPinPlayConfig
-from common.third_party import find_named_path, import_module_from_path
+from common.config_access import (
+    DisplayConfig,
+    MediaConfig,
+    NetworkConfig,
+    SettingsConfig,
+    VPinPlayConfig,
+)
+from common.games.game_metadata import game_themes, game_title, game_type
+from common.games.game_repository import game_to_row
+from common.games.gameparser import GameParser
+from common.games.standalonescripts import StandaloneScripts
 from common.jobs import JobReporter
-from common.media_paths import apply_media_paths, media_filename_map, game_media_payload
-from common.tables.standalonescripts import StandaloneScripts
-from common.tables.game_metadata import game_themes, game_title, table_type
-from common.tables.game_repository import game_to_row
-from common.tables.gameparser import GameParser
+from common.media_paths import apply_media_paths, game_media_payload, media_filename_map
 from common.online.theme_installer import ThemeInstallStore
 from common.online.vpsdb_cache import VPSDatabaseCache
-
+from common.third_party import find_named_path, import_module_from_path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -112,15 +117,15 @@ class TestCommonArchitecture(unittest.TestCase):
 
     def test_game_parser_accessors_return_copies(self) -> None:
         parser = GameParser.__new__(GameParser)
-        parser.tables = [SimpleNamespace(name="one")]
+        parser.games = [SimpleNamespace(name="one")]
         parser.missing_games = [{"folder": "missing"}]
 
-        tables = parser.getAllGames()
+        games = parser.getAllGames()
         missing = parser.getMissingGames()
-        tables.clear()
+        games.clear()
         missing[0]["folder"] = "changed"
 
-        self.assertEqual(len(parser.tables), 1)
+        self.assertEqual(len(parser.games), 1)
         self.assertEqual(parser.missing_games[0]["folder"], "missing")
 
     def test_metadata_display_helpers_handle_legacy_fields(self) -> None:
@@ -137,10 +142,10 @@ class TestCommonArchitecture(unittest.TestCase):
 
         self.assertEqual(game_title(game), "Legacy Name")
         self.assertEqual(game_themes(game), ["Music", "Movies"])
-        self.assertEqual(table_type(game), "SS")
+        self.assertEqual(game_type(game), "SS")
 
     def test_standalone_scripts_can_be_constructed_without_running_network_work(self) -> None:
-        with mock.patch("common.tables.standalonescripts.StandaloneScripts.apply_patches") as apply_patches:
+        with mock.patch("common.games.standalonescripts.StandaloneScripts.apply_patches") as apply_patches:
             scripts = StandaloneScripts([], auto_run=False)
 
         self.assertIsNone(scripts.hashes)
@@ -150,7 +155,7 @@ class TestCommonArchitecture(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser.read_dict({
             "Settings": {
-                "tablerootdir": "/tables",
+                "tablerootdir": "/games",
                 "vpxinipath": "/home/player/.vpinball/VPinballX.ini",
                 "vpxlogdeleteonstart": "yes",
                 "theme": "",
@@ -180,7 +185,7 @@ class TestCommonArchitecture(unittest.TestCase):
             },
         })
 
-        self.assertEqual(SettingsConfig.from_config(parser).game_root_dir, "/tables")
+        self.assertEqual(SettingsConfig.from_config(parser).game_root_dir, "/games")
         self.assertEqual(SettingsConfig.from_config(parser).vpx_ini_path, "/home/player/.vpinball/VPinballX.ini")
         self.assertEqual(SettingsConfig.from_config(parser).theme, "Revolution")
         self.assertTrue(SettingsConfig.from_config(parser).auto_update_media_on_startup)
@@ -295,9 +300,9 @@ class TestCommonArchitecture(unittest.TestCase):
 
             with mock.patch.object(GameParser, "_build_game", counting_build):
                 parser = GameParser(root)
-                tables = parser.getAllGames()
+                games = parser.getAllGames()
 
-            self.assertEqual(len(tables), 2)
+            self.assertEqual(len(games), 2)
             self.assertEqual(len(calls), 2, "the library was read more than once")
 
     def test_no_caller_reloads_a_freshly_constructed_tableparser(self) -> None:

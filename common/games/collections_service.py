@@ -3,9 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import quote
 
+from common.games.gamelistfilters import GameListFilters
+from common.games.vpxcollections import VPXCollections
 from common.paths import COLLECTIONS_PATH
-from common.tables.gamelistfilters import GameListFilters
-from common.tables.vpxcollections import VPXCollections
 from common.values import is_truthy
 
 COLLECTION_ICONS_DIR = COLLECTIONS_PATH.parent / "collection_icons"
@@ -55,33 +55,33 @@ def get_collections_metadata() -> list[dict]:
             "is_filter": is_filter,
             "image": image,
             "image_url": collection_icon_url(image),
-            "table_count": None if is_filter else len(manager.get_members(name)),
+            "game_count": None if is_filter else len(manager.get_members(name)),
         })
     return rows
 
 
-def filter_games_by_collection(tables, collection: str):
+def filter_games_by_collection(games, collection: str):
     manager = get_collections_manager()
     if manager.is_filter_based(collection):
         filters = manager.get_filters(collection)
-        filtered = GameListFilters(tables).apply_filters(
+        filtered = GameListFilters(games).apply_filters(
             letter=filters["letter"],
             theme=filters["theme"],
-            table_type=filters["table_type"],
+            game_type=filters["table_type"],
             manufacturer=filters["manufacturer"],
             year=filters["year"],
             rating=filters.get("rating", "All"),
             rating_or_higher=filters.get("rating_or_higher", "false"),
         )
         return filtered, filters
-    return manager.filter_games(tables, collection), None
+    return manager.filter_games(games, collection), None
 
 
 def save_filter_collection(
     name: str,
     letter: str = "All",
     theme: str = "All",
-    table_type: str = "All",
+    game_type: str = "All",
     manufacturer: str = "All",
     year: str = "All",
     rating: str = "All",
@@ -94,7 +94,7 @@ def save_filter_collection(
         name,
         letter,
         theme,
-        table_type,
+        game_type,
         manufacturer,
         year,
         rating,

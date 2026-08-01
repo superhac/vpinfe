@@ -13,9 +13,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from common.tables.gameparser import GameParser
-from common.tables.info_migration import write_json_atomic
-from common.tables.metaconfig import MetaConfig
+from common.games.gameparser import GameParser
+from common.games.info_migration import write_json_atomic
+from common.games.metaconfig import MetaConfig
 
 
 class AtomicWriteTests(unittest.TestCase):
@@ -151,17 +151,17 @@ class StaleCountTests(unittest.TestCase):
             (d / f"{name}.info").write_text(json.dumps(legacy), encoding="utf-8")
 
     def test_the_backfill_leaves_no_game_still_claiming_it_needs_upgrading(self):
-        from common.tables.game_identity import ensure_unique_ids
+        from common.games.game_identity import ensure_unique_ids
 
         parser = GameParser(str(self.root))
-        tables = parser.getAllGames()
-        self.assertTrue(all(t.info_pending_upgrade for t in tables),
+        games = parser.getAllGames()
+        self.assertTrue(all(t.info_pending_upgrade for t in games),
                         "they do need upgrading before the backfill runs")
 
-        ensure_unique_ids(tables)
+        ensure_unique_ids(games)
 
-        self.assertEqual([t.tableDirName for t in tables if t.info_pending_upgrade], [])
-        self.assertTrue(all(t.info_restorable for t in tables),
+        self.assertEqual([t.tableDirName for t in games if t.info_pending_upgrade], [])
+        self.assertTrue(all(t.info_restorable for t in games),
                         "each upgrade left a restore point")
 
 

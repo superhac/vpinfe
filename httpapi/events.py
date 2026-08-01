@@ -22,7 +22,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 
 from common import events
-from common.tables import game_identity
+from common.games import game_identity
 
 from . import scopes
 from .auth import requires
@@ -63,10 +63,10 @@ def _game_event(game=None, **_) -> dict:
     if game is None:
         return {"table": None}
 
-    table_id = game_identity.table_id(game)
-    reference = {"id": table_id, "name": getattr(game, "tableDirName", "")}
-    if table_id:
-        reference["links"] = {"self": f"/api/v1/tables/{table_id}"}
+    game_id = game_identity.game_id(game)
+    reference = {"id": game_id, "name": getattr(game, "tableDirName", "")}
+    if game_id:
+        reference["links"] = {"self": f"/api/v1/games/{game_id}"}
     return {"table": reference}
 
 
