@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import unittest
@@ -48,6 +49,22 @@ def _capture_current() -> dict:
     if "__error__" in payload:
         raise AssertionError(f"capture failed: {payload['__error__']}\n{proc.stderr[-1500:]}")
     return payload
+
+
+class LedgerTests(unittest.TestCase):
+    """The ledger's own shape. Separate from ParityTests so a doc mistake is caught
+    without paying for the capture subprocess, and still reported when it fails.
+    """
+
+    def test_every_entry_has_its_own_id(self) -> None:
+        """Two entries sharing an id makes one of them unreachable: the gate looks an id
+        up to find the reason for a difference, and finds the wrong one. It has happened.
+        """
+        ids = re.findall(r"^\*\*(PAR-\d+)", LEDGER.read_text(), re.MULTILINE)
+        duplicates = sorted({par_id for par_id in ids if ids.count(par_id) > 1})
+
+        self.assertEqual(duplicates, [], f"ledger ids used more than once: {duplicates}")
+        self.assertTrue(ids, "no ledger entries found - has the heading format changed?")
 
 
 class ParityTests(unittest.TestCase):
