@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import logging
 import threading
+from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, List, Optional
 
-from pathlib import Path
-
 from common.paths import COLLECTIONS_PATH, get_ini_config, get_tables_path
+from common.tables.info_migration import CURRENT_SCHEMA, schema_of
 from common.tables.table_identity import ensure_unique_ids
 from common.tables.table_identity import table_id as vpinfe_id
 from common.tables.table_metadata import (
@@ -21,7 +21,6 @@ from common.tables.table_metadata import (
 )
 from common.tables.tableparser import TableParser
 from common.tables.vpxcollections import VPXCollections
-
 
 _LOCK = threading.Lock()
 _PARSER: Optional[TableParser] = None
@@ -63,6 +62,11 @@ def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
     return {
         "pending_upgrade": sum(1 for t in tables if getattr(t, "info_pending_upgrade", False)),
         "restorable": sum(1 for t in tables if getattr(t, "info_restorable", False)),
+        # Written by a build newer than this one. Without this the page cannot tell "I
+        # upgraded these" from "something newer did, and I cannot fully read them" - and
+        # says the first, which is a lie the moment a schema 3 exists.
+        "newer_than_us": sum(1 for t in tables
+                             if (schema_of(t.metaConfig) or 0) > CURRENT_SCHEMA),
     }
 
 

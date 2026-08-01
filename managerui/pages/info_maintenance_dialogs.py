@@ -74,7 +74,7 @@ def _counts(reload: bool = False) -> dict:
         return table_service.info_maintenance_counts(reload=reload)
     except Exception:
         logger.exception("Could not read info maintenance counts")
-        return {"pending_upgrade": 0, "restorable": 0}
+        return {"pending_upgrade": 0, "restorable": 0, "newer_than_us": 0}
 
 
 def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
@@ -240,7 +240,9 @@ def render_info_banners(on_done=None) -> None:
     """A table the scan could not read, tables the upgrade missed, then news that it ran."""
     _render_unreadable_warning()
     counts = _counts()
-    if counts.get('pending_upgrade', 0):
+    if counts.get('newer_than_us', 0):
+        _render_newer_warning(counts['newer_than_us'])
+    elif counts.get('pending_upgrade', 0):
         _render_not_upgraded_warning(counts['pending_upgrade'], on_done)
     elif counts.get('restorable', 0):
         _render_upgraded_notice(counts['restorable'])
@@ -264,6 +266,23 @@ def _render_unreadable_warning() -> None:
         'warning', 'var(--neon-pink)',
         f'{tables} missing because the .info file could not be read.',
         f'{names}. The files were left untouched — a backup may hold a working copy.',
+        lambda: ui.button('Restore backups', icon='history',
+                          on_click=lambda: open_restore_dialog()).style(_ACCENT),
+    )
+
+
+def _render_newer_warning(newer: int) -> None:
+    """A newer VPinFE has been here, so this build is reading a shape it does not know.
+
+    Takes priority over the upgraded notice: claiming "I upgraded these" when something
+    newer did is the one message that is actively wrong.
+    """
+    _strip(
+        'history', 'var(--neon-pink)',
+        f'A newer VPinFE upgraded {_files(newer)}.',
+        'This version can only read part of them, so some details may be missing. Restore '
+        'puts your ratings, favourites, tags and play counts back to how this version '
+        'recorded them.',
         lambda: ui.button('Restore backups', icon='history',
                           on_click=lambda: open_restore_dialog()).style(_ACCENT),
     )

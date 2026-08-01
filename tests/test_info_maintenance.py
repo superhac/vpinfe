@@ -18,7 +18,8 @@ from common.tables.info_maintenance import (
     table_dirs,
     upgrade_library,
 )
-from common.tables.info_migration import backup_schema
+from common.tables.info_migration import CURRENT_SCHEMA, backup_schema, schema_of
+from common.tables.tableparser import TableParser
 
 LEGACY = {
     "Info": {"Title": "Dr. Dude", "Rom": "dd_l2", "Authors": "someone"},
@@ -212,3 +213,56 @@ class WalkTests(LibraryTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WhatThePageSaysTests(LibraryTestCase):
+    """Which of the three things the Tables page tells the user.
+
+    The one that matters is a library a NEWER build upgraded: saying "I upgraded these"
+    there is actively wrong, and it is the state every future schema bump creates.
+    """
+
+    def _table_at(self, schema, with_backup=True):
+        table_dir = self.root / "Dr. Dude"
+        table_dir.mkdir()
+        (table_dir / "Dr. Dude.vpx").write_text("x", encoding="utf-8")
+        live = {"Info": {}, "User": {"Rating": 4}, "vpinfe": {"schema": schema, "id": "a"},
+                "game_files": {"Dr. Dude.vpx": {"rom": "dd"}}}
+        (table_dir / "Dr. Dude.info").write_text(json.dumps(live), encoding="utf-8")
+        if with_backup:
+            older = {**live, "vpinfe": {"schema": CURRENT_SCHEMA, "id": "a"}}
+            (table_dir / "Dr. Dude.info.vpinfe-20260901T000000Z").write_text(
+                json.dumps(older), encoding="utf-8")
+        return table_dir
+
+    def _counts(self):
+        tables = TableParser(str(self.root)).getAllTables()
+        return {
+            "pending_upgrade": sum(1 for t in tables if t.info_pending_upgrade),
+            "restorable": sum(1 for t in tables if t.info_restorable),
+            "newer_than_us": sum(1 for t in tables
+                                 if (schema_of(t.metaConfig) or 0) > CURRENT_SCHEMA),
+        }
+
+    def test_a_library_a_newer_build_upgraded_is_reported_as_that(self):
+        self._table_at(CURRENT_SCHEMA + 1)
+
+        counts = self._counts()
+
+        self.assertEqual(counts["newer_than_us"], 1)
+        self.assertEqual(counts["pending_upgrade"], 0)
+
+    def test_a_library_this_build_upgraded_is_not(self):
+        self._table_at(CURRENT_SCHEMA)
+
+        counts = self._counts()
+
+        self.assertEqual(counts["newer_than_us"], 0)
+        self.assertEqual(counts["restorable"], 1)
+
+    def test_a_library_nobody_has_upgraded_says_nothing(self):
+        self._table_at(CURRENT_SCHEMA, with_backup=False)
+
+        counts = self._counts()
+
+        self.assertEqual(counts, {"pending_upgrade": 0, "restorable": 0, "newer_than_us": 0})
