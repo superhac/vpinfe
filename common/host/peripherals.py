@@ -17,7 +17,7 @@ from common.host.dof_service import (
     stop_dof_service,
 )
 from common.host.libdmdutil_service import show_image, stop_libdmdutil_service
-from common.tables.table_metadata import table_frontend_dof_event
+from common.tables.table_metadata import game_frontend_dof_event
 
 logger = logging.getLogger("vpinfe.common.host.peripherals")
 
@@ -43,7 +43,7 @@ def play_dof_effect(*, game=None, ini_config=None, **_payload) -> None:
     """Fire the table's DOF effect - solenoids and lights."""
     if game is None:
         return
-    send_frontend_dof_event(ini_config, table_frontend_dof_event(game))
+    send_frontend_dof_event(ini_config, game_frontend_dof_event(game))
 
 
 def show_realdmd_art(*, game=None, ini_config=None, **_payload) -> None:
@@ -52,7 +52,7 @@ def show_realdmd_art(*, game=None, ini_config=None, **_payload) -> None:
         return
     _updater(ini_config).queue_image_update(
         getattr(game, "tableDirName", ""),
-        realdmd.get_realdmd_image_for_table(game, ini_config),
+        realdmd.get_realdmd_image_for_game(game, ini_config),
     )
 
 
@@ -74,13 +74,13 @@ def register() -> None:
     global _registered
     if _registered:
         return
-    events.hook(events.TABLE_LAUNCHING, release_for_launch, priority=PRIORITY)
-    events.hook(events.TABLE_EXITED, reacquire_after_exit, priority=PRIORITY)
+    events.hook(events.GAME_LAUNCHING, release_for_launch, priority=PRIORITY)
+    events.hook(events.GAME_EXITED, reacquire_after_exit, priority=PRIORITY)
     # Two devices, two subscribers, one trigger. Neither knows the other exists,
     # so a DOF failure still leaves the art on the panel and vice versa - and a
     # third device is a third subscriber rather than an edit here.
-    events.subscribe(events.TABLE_SELECTED, play_dof_effect)
-    events.subscribe(events.TABLE_SELECTED, show_realdmd_art)
+    events.subscribe(events.GAME_SELECTED, play_dof_effect)
+    events.subscribe(events.GAME_SELECTED, show_realdmd_art)
     _registered = True
     logger.debug("Peripherals attached to table lifecycle events")
 

@@ -467,25 +467,25 @@ class ChromiumManager:
 
         # macOS: ensure the table window gets focus after all windows launch
         if sys.platform == "darwin":
-            threading.Thread(target=self._focus_table_window_mac, daemon=True).start()
+            threading.Thread(target=self._focus_game_window_mac, daemon=True).start()
 
-    def _focus_table_window_mac(self):
+    def _focus_game_window_mac(self):
         """macOS: ensure focus goes to the table window after launch."""
         time.sleep(0.5)
         try:
             import AppKit
 
-            table_pid = None
+            game_pid = None
             for win_name, proc, _, _ in self._processes:
                 if win_name == "table":
-                    table_pid = proc.pid
+                    game_pid = proc.pid
                     break
 
-            if table_pid is None:
+            if game_pid is None:
                 return
 
             for ns_app in AppKit.NSWorkspace.sharedWorkspace().runningApplications():
-                if ns_app.processIdentifier() == table_pid:
+                if ns_app.processIdentifier() == game_pid:
                     ns_app.activateWithOptions_(
                         AppKit.NSApplicationActivateIgnoringOtherApps
                     )

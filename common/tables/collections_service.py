@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from common.paths import COLLECTIONS_PATH
-from common.tables.tablelistfilters import TableListFilters
+from common.tables.tablelistfilters import GameListFilters
 from common.tables.vpxcollections import VPXCollections
 from common.values import is_truthy
 
@@ -60,11 +60,11 @@ def get_collections_metadata() -> list[dict]:
     return rows
 
 
-def filter_tables_by_collection(tables, collection: str):
+def filter_games_by_collection(tables, collection: str):
     manager = get_collections_manager()
     if manager.is_filter_based(collection):
         filters = manager.get_filters(collection)
-        filtered = TableListFilters(tables).apply_filters(
+        filtered = GameListFilters(tables).apply_filters(
             letter=filters["letter"],
             theme=filters["theme"],
             table_type=filters["table_type"],
@@ -74,7 +74,7 @@ def filter_tables_by_collection(tables, collection: str):
             rating_or_higher=filters.get("rating_or_higher", "false"),
         )
         return filtered, filters
-    return manager.filter_tables(tables, collection), None
+    return manager.filter_games(tables, collection), None
 
 
 def save_filter_collection(

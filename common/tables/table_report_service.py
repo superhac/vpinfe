@@ -5,7 +5,7 @@ import logging
 from common.iniconfig import IniConfig
 from common.config_access import SettingsConfig
 from common.paths import get_ini_config
-from common.tables.tableparser import TableParser
+from common.tables.tableparser import GameParser
 from common.online.vpsdb import VPSdb
 
 
@@ -16,21 +16,21 @@ def _config(config: IniConfig | None = None) -> IniConfig:
     return config or get_ini_config()
 
 
-def list_missing_tables(iniconfig: IniConfig | None = None, log=None) -> None:
+def list_missing_games(iniconfig: IniConfig | None = None, log=None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
-    game_root = SettingsConfig.from_config(config).table_root_dir
-    tp = TableParser(game_root, config)
-    tables = tp.getAllTables()
+    game_root = SettingsConfig.from_config(config).game_root_dir
+    tp = GameParser(game_root, config)
+    tables = tp.getAllGames()
     log("Listing tables missing from %s", game_root)
     log("Found %s tables in %s", len(tables), game_root)
 
     vps = VPSdb(game_root, config)
     log("Found %s tables in VPSdb", len(vps))
 
-    tables_found = []
+    games_found = []
     for game in tables:
-        vps_search_data = vps.parseTableNameFromDir(game.tableDirName)
+        vps_search_data = vps.parseGameNameFromDir(game.tableDirName)
         vps_data = (
             vps.lookupName(
                 vps_search_data["name"],
@@ -41,27 +41,27 @@ def list_missing_tables(iniconfig: IniConfig | None = None, log=None) -> None:
             else None
         )
         if vps_data:
-            tables_found.append(vps_data)
+            games_found.append(vps_data)
 
     current = 0
-    for vps_table in vps.tables():
-        if vps_table not in tables_found:
+    for vps_game in vps.tables():
+        if vps_game not in games_found:
             current += 1
             log(
                 "Missing table %s: %s (%s %s)",
                 current,
-                vps_table["name"],
-                vps_table["manufacturer"],
-                vps_table["year"],
+                vps_game["name"],
+                vps_game["manufacturer"],
+                vps_game["year"],
             )
 
 
-def list_unknown_tables(iniconfig: IniConfig | None = None, log=None) -> None:
+def list_unknown_games(iniconfig: IniConfig | None = None, log=None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
-    game_root = SettingsConfig.from_config(config).table_root_dir
-    tp = TableParser(game_root, config)
-    tables = tp.getAllTables()
+    game_root = SettingsConfig.from_config(config).game_root_dir
+    tp = GameParser(game_root, config)
+    tables = tp.getAllGames()
     log("Listing unknown tables from %s", game_root)
     log("Found %s tables in %s", len(tables), game_root)
 
@@ -70,7 +70,7 @@ def list_unknown_tables(iniconfig: IniConfig | None = None, log=None) -> None:
 
     current = 0
     for game in tables:
-        vps_search_data = vps.parseTableNameFromDir(game.tableDirName)
+        vps_search_data = vps.parseGameNameFromDir(game.tableDirName)
         vps_data = (
             vps.lookupName(
                 vps_search_data["name"],

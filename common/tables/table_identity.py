@@ -13,9 +13,9 @@ from typing import Any
 
 from common.tables.metaconfig import VPINFE_SECTION
 from common.tables.table_metadata import (
-    load_table_meta,
+    load_game_meta,
     normalize_meta,
-    persist_table_meta,
+    persist_game_meta,
     section,
 )
 
@@ -61,7 +61,7 @@ def ensure_id(game, *, force_new: bool = False) -> str:
         if existing:
             return existing
 
-    config = load_table_meta(game)
+    config = load_game_meta(game)
     vpinfe = _vpinfe_section(config)
     existing = str(vpinfe.get(ID_KEY, "") or "").strip()
     if existing and not force_new:
@@ -71,7 +71,7 @@ def ensure_id(game, *, force_new: bool = False) -> str:
 
     minted = new_id()
     vpinfe[ID_KEY] = minted
-    persist_table_meta(game, config)
+    persist_game_meta(game, config)
     logger.debug("Assigned table id %s to %s", minted, getattr(game, "tableDirName", "?"))
     return minted
 

@@ -117,7 +117,7 @@ def _dynamic_select_options(source: str) -> list[dict[str, Any]] | None:
     names: list[str] = []
     try:
         config = IniConfig(str(VPINFE_INI_PATH))
-        root = SettingsConfig.from_config(config).table_root_dir
+        root = SettingsConfig.from_config(config).game_root_dir
         if root:
             names = list_media_sets(root, "wheel")
     except Exception:

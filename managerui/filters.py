@@ -17,11 +17,11 @@ def _as_list(value: Any) -> list:
     return [value]
 
 
-def build_table_filter_options(rows: Iterable[dict]) -> dict[str, list[str]]:
+def build_game_filter_options(rows: Iterable[dict]) -> dict[str, list[str]]:
     manufacturers = set()
     years = set()
     themes = set()
-    table_types = set()
+    game_types = set()
 
     for row in rows:
         manufacturer = row.get("manufacturer", "")
@@ -38,17 +38,17 @@ def build_table_filter_options(rows: Iterable[dict]) -> dict[str, list[str]]:
 
         table_type = row.get("type", "")
         if table_type:
-            table_types.add(str(table_type))
+            game_types.add(str(table_type))
 
     return {
         "manufacturers": [ALL_VALUE] + sorted(manufacturers),
         "years": [ALL_VALUE] + sorted(years),
         "themes": [ALL_VALUE] + sorted(themes),
-        "table_types": [ALL_VALUE] + sorted(table_types),
+        "table_types": [ALL_VALUE] + sorted(game_types),
     }
 
 
-def apply_table_filters(
+def apply_game_filters(
     rows: Iterable[dict],
     filter_state: dict[str, Any],
     *,

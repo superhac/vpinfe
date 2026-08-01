@@ -16,14 +16,14 @@ def get_collections_manager():
     return collections_service.get_collections_manager()
 
 
-def get_table_name_map() -> Dict[str, str]:
+def get_game_name_map() -> Dict[str, str]:
     """Table names keyed by table id, for showing what is in a collection."""
-    return collections_service.get_table_name_map()
+    return collections_service.get_game_name_map()
 
 
-def member_to_name(member_id: str, table_map: Dict[str, str] = None) -> str:
+def member_to_name(member_id: str, game_map: Dict[str, str] = None) -> str:
     """Name of a collection member, or the raw id when no table matches."""
-    return collections_service.member_to_name(member_id, table_map)
+    return collections_service.member_to_name(member_id, game_map)
 
 
 def get_filter_options() -> Dict[str, List[str]]:
@@ -49,7 +49,7 @@ def render_panel(tab=None):
                     ui.icon('collections_bookmark', size='32px').classes('text-white').style('filter: drop-shadow(var(--glow-purple));')
                     ui.label('Collections Manager').classes('text-2xl font-bold text-white').style('text-shadow: var(--glow-purple);')
                 with ui.row().classes('gap-3'):
-                    add_table_collection_btn = ui.button("New Table Collection", icon="add").props("color=primary rounded")
+                    add_game_collection_btn = ui.button("New Table Collection", icon="add").props("color=primary rounded")
                     add_filter_btn = ui.button("New Filter Collection", icon="filter_list").props("color=secondary rounded")
 
         # Collections list container
@@ -100,7 +100,7 @@ def render_panel(tab=None):
             collections_container.clear()
             manager = get_collections_manager()
             collection_names = manager.get_collections_name()
-            table_map = get_table_name_map()
+            game_map = get_game_name_map()
 
             if not collection_names:
                 with collections_container:
@@ -179,7 +179,7 @@ def render_panel(tab=None):
                             members = manager.get_members(name)
                             if members:
                                 # Create expandable chips section with isolated state
-                                create_expandable_chips(members, table_map)
+                                create_expandable_chips(members, game_map)
 
         def create_expandable_chips(vps_ids: list, tbl_map: dict):
             """Factory function to create expandable chips with isolated state."""
@@ -222,7 +222,7 @@ def render_panel(tab=None):
                         try:
                             collections_service.delete_collection(name)
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_table_collections_map())
+                            table_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
                             ui.notify(f'Collection "{name}" deleted', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -254,7 +254,7 @@ def render_panel(tab=None):
                         try:
                             collections_service.rename_collection(name, new_name)
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_table_collections_map())
+                            table_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
                             ui.notify(f'Renamed to "{new_name}"', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -264,7 +264,7 @@ def render_panel(tab=None):
                     ui.button('Rename', icon='check', on_click=do_rename).props('color=primary')
             dlg.open()
 
-        def open_new_table_collection_dialog():
+        def open_new_game_collection_dialog():
             """Dialog to create a new VPS ID-based collection."""
             dlg = ui.dialog().props('persistent max-width=800px')
             with dlg, ui.card().classes('w-[750px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
@@ -277,22 +277,22 @@ def render_panel(tab=None):
                 ui.label('Add tables to this collection:').classes('text-sm text-gray-400 mt-4')
 
                 # Selected tables list
-                selected_tables = {'items': []}  # {id, name}
+                selected_games = {'items': []}  # {id, name}
                 selected_container = ui.column().classes('w-full gap-1 mt-2').style('max-height: 150px; overflow-y: auto;')
 
                 def update_selected_display():
                     selected_container.clear()
                     with selected_container:
-                        if not selected_tables['items']:
+                        if not selected_games['items']:
                             ui.label('No tables selected').classes('text-gray-500 text-sm')
                         else:
-                            for item in selected_tables['items']:
+                            for item in selected_games['items']:
                                 with ui.row().classes('w-full items-center justify-between p-2 bg-gray-800 rounded'):
                                     ui.label(item['name']).classes('text-white text-sm')
-                                    ui.button(icon='close', on_click=lambda i=item: remove_table(i)).props('flat round dense size=sm')
+                                    ui.button(icon='close', on_click=lambda i=item: remove_game(i)).props('flat round dense size=sm')
 
-                def remove_table(item):
-                    selected_tables['items'] = [t for t in selected_tables['items'] if t['id'] != item['id']]
+                def remove_game(item):
+                    selected_games['items'] = [t for t in selected_games['items'] if t['id'] != item['id']]
                     update_selected_display()
 
                 update_selected_display()
@@ -310,7 +310,7 @@ def render_panel(tab=None):
                         return
 
                     with search_results:
-                        matches = await run.io_bound(collections_service.search_tables, term)
+                        matches = await run.io_bound(collections_service.search_games, term)
                         if not matches:
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
@@ -320,18 +320,18 @@ def render_panel(tab=None):
                                 if not table_id:
                                     continue
                                 # Check if already selected
-                                already_selected = any(s['id'] == table_id for s in selected_tables['items'])
+                                already_selected = any(s['id'] == table_id for s in selected_games['items'])
                                 with ui.row().classes('w-full items-center justify-between p-2 bg-gray-800 rounded hover:bg-gray-700'):
                                     ui.label(f'{name}').classes('text-white text-sm flex-grow')
                                     if already_selected:
                                         ui.icon('check', color='green')
                                     else:
-                                        def add_table(vid=table_id, n=name):
-                                            if not any(s['id'] == vid for s in selected_tables['items']):
-                                                selected_tables['items'].append({'id': vid, 'name': n})
+                                        def add_game(vid=table_id, n=name):
+                                            if not any(s['id'] == vid for s in selected_games['items']):
+                                                selected_games['items'].append({'id': vid, 'name': n})
                                                 update_selected_display()
                                                 ui.notify(f'Added {n}', type='positive')
-                                        ui.button(icon='add', on_click=add_table).props('flat round dense size=sm color=primary')
+                                        ui.button(icon='add', on_click=add_game).props('flat round dense size=sm color=primary')
 
                 search_input.on_value_change(do_search)
 
@@ -344,10 +344,10 @@ def render_panel(tab=None):
                             ui.notify('Please enter a collection name', type='warning')
                             return
                         try:
-                            table_ids = [t['id'] for t in selected_tables['items']]
-                            collections_service.create_table_collection(name, table_ids, image=image_state['filename'])
+                            game_ids = [t['id'] for t in selected_games['items']]
+                            collections_service.create_game_collection(name, game_ids, image=image_state['filename'])
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_table_collections_map())
+                            table_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
                             ui.notify(f'Collection "{name}" created', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -452,7 +452,7 @@ def render_panel(tab=None):
             if is_filter:
                 open_edit_filter_dialog(name)
             else:
-                open_edit_table_collection_dialog(name)
+                open_edit_game_collection_dialog(name)
 
         def open_edit_filter_dialog(name: str):
             """Dialog to edit a filter-based collection."""
@@ -579,7 +579,7 @@ def render_panel(tab=None):
 
             dlg.open()
 
-        def open_edit_table_collection_dialog(name: str):
+        def open_edit_game_collection_dialog(name: str):
             """Dialog to edit a VPS ID-based collection."""
             manager = get_collections_manager()
             current_members = manager.get_members(name)
@@ -592,15 +592,15 @@ def render_panel(tab=None):
                 image_state = create_image_picker(image_state_value)
 
                 # Track current tables in collection
-                selected_tables = {'items': []}
+                selected_games = {'items': []}
 
                 # Try to resolve VPS IDs to names from cache
-                table_map = get_table_name_map()
+                game_map = get_game_name_map()
 
                 for vid in current_members:
-                    selected_tables['items'].append({
+                    selected_games['items'].append({
                         'id': vid,
-                        'name': table_map.get(vid, vid)
+                        'name': game_map.get(vid, vid)
                     })
 
                 ui.label('Tables in this collection:').classes('text-sm text-gray-400 mt-4')
@@ -609,16 +609,16 @@ def render_panel(tab=None):
                 def update_selected_display():
                     selected_container.clear()
                     with selected_container:
-                        if not selected_tables['items']:
+                        if not selected_games['items']:
                             ui.label('No tables in collection').classes('text-gray-500 text-sm')
                         else:
-                            for item in selected_tables['items']:
+                            for item in selected_games['items']:
                                 with ui.row().classes('w-full items-center justify-between p-2 bg-gray-800 rounded'):
                                     ui.label(item['name']).classes('text-white text-sm')
-                                    ui.button(icon='close', on_click=lambda i=item: remove_table(i)).props('flat round dense size=sm color=negative')
+                                    ui.button(icon='close', on_click=lambda i=item: remove_game(i)).props('flat round dense size=sm color=negative')
 
-                def remove_table(item):
-                    selected_tables['items'] = [t for t in selected_tables['items'] if t['id'] != item['id']]
+                def remove_game(item):
+                    selected_games['items'] = [t for t in selected_games['items'] if t['id'] != item['id']]
                     update_selected_display()
 
                 update_selected_display()
@@ -636,7 +636,7 @@ def render_panel(tab=None):
                         return
 
                     with search_results:
-                        matches = await run.io_bound(collections_service.search_tables, term)
+                        matches = await run.io_bound(collections_service.search_games, term)
                         if not matches:
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
@@ -645,18 +645,18 @@ def render_panel(tab=None):
                                 tname = t.get('name', 'Unknown')
                                 if not table_id:
                                     continue
-                                already_selected = any(s['id'] == table_id for s in selected_tables['items'])
+                                already_selected = any(s['id'] == table_id for s in selected_games['items'])
                                 with ui.row().classes('w-full items-center justify-between p-2 bg-gray-800 rounded hover:bg-gray-700'):
                                     ui.label(f'{tname}').classes('text-white text-sm flex-grow')
                                     if already_selected:
                                         ui.icon('check', color='green')
                                     else:
-                                        def add_table(vid=table_id, n=tname):
-                                            if not any(s['id'] == vid for s in selected_tables['items']):
-                                                selected_tables['items'].append({'id': vid, 'name': n})
+                                        def add_game(vid=table_id, n=tname):
+                                            if not any(s['id'] == vid for s in selected_games['items']):
+                                                selected_games['items'].append({'id': vid, 'name': n})
                                                 update_selected_display()
                                                 ui.notify(f'Added {n}', type='positive')
-                                        ui.button(icon='add', on_click=add_table).props('flat round dense size=sm color=primary')
+                                        ui.button(icon='add', on_click=add_game).props('flat round dense size=sm color=primary')
 
                 search_input.on_value_change(do_search)
 
@@ -665,10 +665,10 @@ def render_panel(tab=None):
 
                     def save_changes():
                         try:
-                            table_ids = [t['id'] for t in selected_tables['items']]
-                            collections_service.update_table_collection(name, table_ids, image=image_state['filename'])
+                            game_ids = [t['id'] for t in selected_games['items']]
+                            collections_service.update_game_collection(name, game_ids, image=image_state['filename'])
                             # Sync the tables cache with updated collection memberships
-                            table_index_service.sync_collection_memberships(collections_service.get_table_collections_map())
+                            table_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -680,7 +680,7 @@ def render_panel(tab=None):
             dlg.open()
 
         # Wire up the add buttons
-        add_table_collection_btn.on_click(open_new_table_collection_dialog)
+        add_game_collection_btn.on_click(open_new_game_collection_dialog)
         add_filter_btn.on_click(open_new_filter_dialog)
 
         # Initial load

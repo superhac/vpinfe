@@ -19,7 +19,7 @@ from fastapi import APIRouter, Body, Response
 
 from common.tables import table_identity
 from common.tables.collections_service import (
-    filter_tables_by_collection,
+    filter_games_by_collection,
     get_collections_manager,
     get_collections_metadata,
 )
@@ -95,16 +95,16 @@ def get_collection(name: str) -> models.CollectionResource:
 
 @router.get("/{name}/tables", summary="The tables in a collection",
             dependencies=[requires(scopes.COLLECTIONS_READ)])
-def collection_tables(name: str) -> models.TableList:
+def collection_games(name: str) -> models.GameList:
     """Resolved membership, so a filter collection answers the same question a
     manual one does. Ordering is the collection's own."""
     _row_or_404(name)
-    from common.tables.table_repository import collections_by_table_id, table_to_row
+    from common.tables.table_repository import collections_by_game_id, game_to_row
 
     catalog = _catalog()
-    members, _filters = filter_tables_by_collection(list(catalog.values()), name)
-    by_collection = collections_by_table_id()
-    resources = [_resource(table_to_row(game, by_collection), table_identity.table_id(game))
+    members, _filters = filter_games_by_collection(list(catalog.values()), name)
+    by_collection = collections_by_game_id()
+    resources = [_resource(game_to_row(game, by_collection), table_identity.table_id(game))
                  for game in members]
     return {"total": len(resources), "offset": 0, "count": len(resources),
             "tables": resources}

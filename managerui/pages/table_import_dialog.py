@@ -22,7 +22,7 @@ save_upload_bytes = table_service.save_upload_bytes
 search_vpsdb = table_service.search_vpsdb
 
 
-def open_import_table_dialog(perform_scan_cb=None):
+def open_import_game_dialog(perform_scan_cb=None):
     """Top-level dialog for importing a new table with associated files."""
     dlg = ui.dialog().props('persistent max-width=900px')
     import_state = {
@@ -329,7 +329,7 @@ def open_import_table_dialog(perform_scan_cb=None):
                     table_service.build_metadata,
                     downloadMedia=True,
                     updateAll=True,
-                    tableName=game_dir_name,
+                    gameName=game_dir_name,
                 )
 
                 # Invalidate media cache

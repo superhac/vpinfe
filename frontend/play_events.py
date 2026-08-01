@@ -15,7 +15,7 @@ import logging
 import sys
 
 from common import events
-from frontend.last_table import save_last_table
+from frontend.last_table import save_last_game
 
 logger = logging.getLogger("vpinfe.frontend.play_events")
 
@@ -37,7 +37,7 @@ def on_launching(*, game=None, **_payload) -> None:
     stopped this - input is never suppressed for a launch that is not happening.
     """
     if game is not None and _ini_config is not None:
-        save_last_table(_ini_config, game)
+        save_last_game(_ini_config, game)
     _broadcast({"type": "TableLaunching"})
 
 
@@ -65,9 +65,9 @@ def register(ws_bridge, frontend_browser=None, ini_config=None) -> None:
     if _registered:
         return
 
-    events.subscribe(events.TABLE_LAUNCHING, on_launching)
-    events.subscribe(events.TABLE_LAUNCHED, on_launched)
-    events.subscribe(events.TABLE_EXITED, on_exited)
+    events.subscribe(events.GAME_LAUNCHING, on_launching)
+    events.subscribe(events.GAME_LAUNCHED, on_launched)
+    events.subscribe(events.GAME_EXITED, on_exited)
     _registered = True
 
 

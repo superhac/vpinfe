@@ -87,7 +87,7 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
     if not enabled:
         return False
 
-    game_root = settings.table_root_dir
+    game_root = settings.game_root_dir
     if not game_root:
         logger.warning("Startup media sync enabled, but tablerootdir is empty. Skipping.")
         return False
@@ -122,8 +122,8 @@ def build_mount_points(base_path: str, config_dir: Path, iniconfig):
         "/collection_icons/": collection_icons_dir,
     }
     settings = SettingsConfig.from_config(iniconfig)
-    if settings.table_root_dir:
-        mount_points["/tables/"] = os.path.abspath(settings.table_root_dir)
+    if settings.game_root_dir:
+        mount_points["/tables/"] = os.path.abspath(settings.game_root_dir)
 
     from common.shared_assets import configure_shared_assets, resolve_assets_dir
 

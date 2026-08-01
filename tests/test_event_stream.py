@@ -109,7 +109,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(_payload(frame), {"state": {"launching": False, "table_name": None}})
 
-    async def test_a_table_event_carries_identity_not_the_table(self) -> None:
+    async def test_a_game_event_carries_identity_not_the_game(self) -> None:
         """The bus payload is in-process; the Table object and the ini config are not
         things to put on a socket."""
         game = SimpleNamespace(
@@ -119,7 +119,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.TABLE_SELECTED, game=game, ini_config="secret-ini-config")
+        events.emit(events.GAME_SELECTED, game=game, ini_config="secret-ini-config")
         frame = await self._next(stream)
 
         self.assertEqual(_payload(frame), {
@@ -132,12 +132,12 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         })
         self.assertNotIn("secret-ini-config", frame)
 
-    async def test_a_table_with_no_id_yet_is_referenced_without_a_broken_link(self) -> None:
+    async def test_a_game_with_no_id_yet_is_referenced_without_a_broken_link(self) -> None:
         """Ids are minted on a write path, so a scan can hand us a table without one."""
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.TABLE_SELECTED,
+        events.emit(events.GAME_SELECTED,
                     game=SimpleNamespace(tableDirName="Unidentified", metaConfig={}),
                     ini_config=None)
         frame = await self._next(stream)
@@ -145,12 +145,12 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(_payload(frame)["table"],
                          {"id": "", "name": "Unidentified"})
 
-    async def test_a_table_event_without_a_table_still_streams(self) -> None:
+    async def test_a_game_event_without_a_game_still_streams(self) -> None:
         """The Remote Control page launches without one."""
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.TABLE_LAUNCHING, game=None, ini_config="cfg")
+        events.emit(events.GAME_LAUNCHING, game=None, ini_config="cfg")
         frame = await self._next(stream)
 
         self.assertEqual(_payload(frame), {"table": None})
@@ -171,7 +171,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         stream = self._open(PLAY_STATE)
         await self._hello(stream)
 
-        events.emit(events.TABLE_SELECTED, game=None, ini_config=None)
+        events.emit(events.GAME_SELECTED, game=None, ini_config=None)
         events.emit(events.PLAY_STATE_CHANGED, state={"launching": True, "table_name": "Taxi"})
         frame = await self._next(stream)
 

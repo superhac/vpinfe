@@ -100,7 +100,7 @@ class TestIniConfig(unittest.TestCase):
             self.assertTrue(config.config.has_section("Settings"))
             self.assertEqual(config.config.get("Settings", "vpxlogdeleteonstart"), "false")
 
-    def test_restore_last_table_defaults_on(self) -> None:
+    def test_restore_last_game_defaults_on(self) -> None:
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 

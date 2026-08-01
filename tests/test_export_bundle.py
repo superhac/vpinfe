@@ -143,9 +143,9 @@ class FullExportScopeTests(unittest.TestCase):
         from httpapi import scopes
         from httpapi.auth import LocalTrustPolicy
 
-        self.assertIn(scopes.TABLES_EXPORT_FULL, scopes.CORE)
+        self.assertIn(scopes.GAMES_EXPORT_FULL, scopes.CORE)
         identity = LocalTrustPolicy().identify(None)
-        self.assertTrue(identity.can(scopes.TABLES_EXPORT_FULL))
+        self.assertTrue(identity.can(scopes.GAMES_EXPORT_FULL))
 
 
 class ArchiveTests(unittest.TestCase):

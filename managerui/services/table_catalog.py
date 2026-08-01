@@ -7,7 +7,7 @@ from common.tables.metaconfig import VPINFE_SECTION
 from managerui.services import table_index_service
 
 
-def scan_mobile_tables(reload: bool = False) -> List[Dict]:
+def scan_mobile_games(reload: bool = False) -> List[Dict]:
     """Return the compact table shape used by the mobile transfer page."""
     tables = []
     for row in table_index_service.scan_rows(reload=reload):
@@ -23,7 +23,7 @@ def scan_mobile_tables(reload: bool = False) -> List[Dict]:
     return tables
 
 
-def build_mobile_table_rows(tables: List[Dict]) -> List[Dict]:
+def build_mobile_game_rows(tables: List[Dict]) -> List[Dict]:
     """Build mobile page display rows from scanned tables."""
     rows = []
     for game in tables:
@@ -38,7 +38,7 @@ def build_mobile_table_rows(tables: List[Dict]) -> List[Dict]:
     return rows
 
 
-def scan_launchable_tables(games_path: str | None = None) -> List[Dict]:
+def scan_launchable_games(games_path: str | None = None) -> List[Dict]:
     """Return launchable table rows from the shared table index."""
     tables = []
     for row in table_index_service.scan_rows(reload=False):

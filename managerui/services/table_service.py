@@ -11,7 +11,7 @@ from common.iniconfig import IniConfig
 from common.config_access import SettingsConfig
 from common.tables import info_maintenance, table_repository
 from common.tables.game_files import recorded_default
-from common.tables.table_repository import get_missing_tables, get_table_rows, refresh_table
+from common.tables.table_repository import get_missing_games, get_game_rows, refresh_game
 from common.tables import metadata_service
 from common.tables.vpxcollections import VPXCollections
 from common.tables.game_files import default_game_file
@@ -35,7 +35,7 @@ def _fresh_config() -> IniConfig:
     return IniConfig(str(VPINFE_INI_PATH))
 
 
-def normalize_table_rating(value) -> int:
+def normalize_game_rating(value) -> int:
     try:
         normalized = int(float(value))
     except (TypeError, ValueError):
@@ -48,7 +48,7 @@ def ensure_vpsdb_downloaded() -> bool:
     from common.online.vpsdb import VPSdb
     try:
         config = _fresh_config()
-        VPSdb(SettingsConfig.from_config(config).table_root_dir, config)
+        VPSdb(SettingsConfig.from_config(config).game_root_dir, config)
         _vpsdb_cache = None
         return VPSDB_JSON_PATH.exists()
     except Exception as e:
@@ -56,11 +56,11 @@ def ensure_vpsdb_downloaded() -> bool:
         return VPSDB_JSON_PATH.exists()
 
 
-def get_table_collections_map() -> Dict[str, List[str]]:
-    return table_repository.collections_by_table_id()
+def get_game_collections_map() -> Dict[str, List[str]]:
+    return table_repository.collections_by_game_id()
 
 
-def get_table_collections() -> List[str]:
+def get_game_collections() -> List[str]:
     result = []
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
@@ -72,7 +72,7 @@ def get_table_collections() -> List[str]:
     return result
 
 
-def add_table_to_collection(table_id: str, collection_name: str) -> bool:
+def add_game_to_collection(table_id: str, collection_name: str) -> bool:
     try:
         collections = VPXCollections(str(COLLECTIONS_PATH))
         collections.add_member(collection_name, table_id)
@@ -94,7 +94,7 @@ def update_info_section(table_path: str, section: str, key: str, value) -> bool:
         data = json.loads(info_file.read_text(encoding="utf-8"))
         data.setdefault(section, {})[key] = value
         info_file.write_text(json.dumps(data, indent=4), encoding="utf-8")
-        refresh_table(table_path)
+        refresh_game(table_path)
         return True
     except Exception as e:
         logger.error("Failed to update %s.%s: %s", section, key, e)
@@ -195,7 +195,7 @@ def _write_replace(dest_file: Path, content: bytes) -> None:
     os.replace(tmp_file, dest_file)
 
 
-def replace_table_file(table_path: str, filename: str, content: bytes, file_type: str, current_vpx_filename: str = "") -> Dict[str, str]:
+def replace_game_file(table_path: str, filename: str, content: bytes, file_type: str, current_vpx_filename: str = "") -> Dict[str, str]:
     game_dir = Path(table_path).expanduser()
     if not game_dir.exists() or not game_dir.is_dir():
         raise FileNotFoundError(f"Table folder not found: {game_dir}")
@@ -238,7 +238,7 @@ def replace_table_file(table_path: str, filename: str, content: bytes, file_type
                 os.replace(old_ini, new_ini)
             renamed_ini = new_ini.name
 
-        refresh_table(str(game_dir))
+        refresh_game(str(game_dir))
         return {
             "file_type": "vpx",
             "filename": new_vpx.name,
@@ -256,7 +256,7 @@ def replace_table_file(table_path: str, filename: str, content: bytes, file_type
         target_b2s = old_b2s if old_b2s else game_dir / f"{current_vpx.stem}.directb2s"
         _write_replace(target_b2s, content)
 
-        refresh_table(str(game_dir))
+        refresh_game(str(game_dir))
         return {
             "file_type": "directb2s",
             "filename": target_b2s.name,
@@ -295,9 +295,9 @@ def associate_vps_to_folder(
         from common.online.vpsdb import VPSdb
 
         config = _fresh_config()
-        vps = VPSdb(SettingsConfig.from_config(config).table_root_dir, config)
+        vps = VPSdb(SettingsConfig.from_config(config).game_root_dir, config)
 
-        class _LightTable:
+        class _LightGame:
             def __init__(self, folder: Path, vpx: Path):
                 self.tableDirName = folder.name
                 self.fullPathTable = str(folder)
@@ -315,18 +315,18 @@ def associate_vps_to_folder(
                 self.DMDVideoPath = None
                 self.AudioPath = None
 
-        vps.downloadMediaForTable(_LightTable(game_folder, vpx_file), vps_entry.get("id"), metaConfig=meta)
+        vps.downloadMediaForGame(_LightGame(game_folder, vpx_file), vps_entry.get("id"), metaConfig=meta)
 
     from managerui.services.media_service import invalidate_media_cache
     invalidate_media_cache()
-    refresh_table(str(game_folder))
+    refresh_game(str(game_folder))
 
 
-def scan_table_rows(reload: bool = False) -> List[Dict]:
+def scan_game_rows(reload: bool = False) -> List[Dict]:
     return table_index_service.scan_rows(reload=reload)
 
 
-def scan_missing_table_rows(reload: bool = False) -> List[Dict]:
+def scan_missing_game_rows(reload: bool = False) -> List[Dict]:
     return table_index_service.scan_missing_rows(reload=reload)
 
 
@@ -409,12 +409,12 @@ def info_maintenance_counts(reload: bool = False):
     return table_repository.info_maintenance_counts(reload=reload)
 
 
-def unreadable_tables():
-    return table_repository.unreadable_tables()
+def unreadable_games():
+    return table_repository.unreadable_games()
 
 
-def pending_upgrade_table_names():
-    return table_repository.pending_upgrade_table_names()
+def pending_upgrade_game_names():
+    return table_repository.pending_upgrade_game_names()
 
 
 def newest_backup_stamp():
@@ -428,8 +428,8 @@ def collections_restorable():
     return bool(restorable_collections_backup(CONFIG_DIR))
 
 
-def restorable_table_names():
-    return table_repository.restorable_table_names()
+def restorable_game_names():
+    return table_repository.restorable_game_names()
 
 
 def upgrade_info(progress_cb=None, log_cb=None, **kwargs):
@@ -442,7 +442,7 @@ def upgrade_info(progress_cb=None, log_cb=None, **kwargs):
     with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as job:
         result = info_maintenance.upgrade_library(
             get_games_path(), progress_cb=job.progress, log_cb=job.log, **kwargs)
-    table_repository.refresh_tables()
+    table_repository.refresh_games()
     return result
 
 
@@ -452,7 +452,7 @@ def restore_info(progress_cb=None, log_cb=None, **kwargs):
         result = info_maintenance.restore_library(
             get_games_path(), config_dir=CONFIG_DIR,
             progress_cb=job.progress, log_cb=job.log, **kwargs)
-    table_repository.refresh_tables()
+    table_repository.refresh_games()
     return result
 
 

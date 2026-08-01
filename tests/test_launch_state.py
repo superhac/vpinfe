@@ -18,7 +18,7 @@ class LaunchStateTests(unittest.TestCase):
         self.assertFalse(state.launching)
         self.assertIsNone(state.table_name)
 
-    def test_set_launching_records_the_table(self) -> None:
+    def test_set_launching_records_the_game(self) -> None:
         launch_state.set_launching("Medieval Madness", source=launch_state.SOURCE_REMOTE)
 
         state = launch_state.current()

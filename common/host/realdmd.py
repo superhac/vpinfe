@@ -16,7 +16,7 @@ from common.config_access import MediaConfig
 logger = logging.getLogger("vpinfe.common.host.realdmd")
 
 
-def get_realdmd_image_for_table(game, iniconfig=None) -> Path | None:
+def get_realdmd_image_for_game(game, iniconfig=None) -> Path | None:
     priority = "color"
     if iniconfig is not None:
         priority = MediaConfig.from_config(iniconfig).realdmd_media_priority
@@ -46,13 +46,13 @@ class RealDmdUpdater:
         self._lock = threading.Lock()
         self._event = threading.Event()
         self._image_path: Path | None = None
-        self._table_name = ""
+        self._game_name = ""
         self._thread: threading.Thread | None = None
 
     def queue_image_update(self, table_name: str, image_path: Path | None) -> None:
         self._ensure_worker()
         with self._lock:
-            self._table_name = table_name
+            self._game_name = table_name
             self._image_path = image_path
             self._event.set()
 
@@ -75,7 +75,7 @@ class RealDmdUpdater:
     def _process_pending(self) -> None:
         with self._lock:
             image_path = self._image_path
-            table_name = self._table_name
+            table_name = self._game_name
             self._event.clear()
 
         try:

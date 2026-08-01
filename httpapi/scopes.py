@@ -10,11 +10,11 @@ from __future__ import annotations
 # data - the answer to "what am I talking to", which is what discovery exists for.
 INSTANCE_READ = "instance:read"
 
-TABLES_READ = "tables:read"
-TABLES_WRITE = "tables:write"
+GAMES_READ = "tables:read"
+GAMES_WRITE = "tables:write"
 # Deliberately not part of tables:read: reading the library and extracting
 # complete table folders are different permissions.
-TABLES_EXPORT_FULL = "tables:export_full"
+GAMES_EXPORT_FULL = "tables:export_full"
 
 COLLECTIONS_READ = "collections:read"
 COLLECTIONS_WRITE = "collections:write"
@@ -45,7 +45,7 @@ JOBS_READ = "jobs:read"
 
 CORE = frozenset({
     INSTANCE_READ,
-    TABLES_READ, TABLES_WRITE, TABLES_EXPORT_FULL,
+    GAMES_READ, GAMES_WRITE, GAMES_EXPORT_FULL,
     COLLECTIONS_READ, COLLECTIONS_WRITE,
     PLAY_READ, LAUNCH_INVOKE,
     UPLOADS_WRITE, VPS_READ,

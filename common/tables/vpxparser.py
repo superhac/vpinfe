@@ -93,7 +93,7 @@ class VPXParser:
     # -------------------------------
     # Loading / extracting
     # -------------------------------
-    def loadTableValues(self, vpxFileValues, ole):
+    def loadGameValues(self, vpxFileValues, ole):
         for key, path in self.vpxPaths.items():
             if ole.exists(path):
                 with ole.openstream(path) as file:
@@ -137,7 +137,7 @@ class VPXParser:
         }
 
         with olefile.OleFileIO(file) as ole:
-            self.loadTableValues(vpxFileValues, ole)
+            self.loadGameValues(vpxFileValues, ole)
             self.loadVBCode(ole, vpxFileValues)
 
         self.loadSidecarVBCode(file, vpxFileValues)

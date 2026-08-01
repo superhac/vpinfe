@@ -5,12 +5,12 @@ from typing import Callable, Optional
 
 
 @dataclass(frozen=True)
-class TableDialogContext:
+class GameDialogContext:
     """Shared callbacks/state access used while moving table dialogs out of tables.py."""
 
-    refresh_tables: Optional[Callable[[], None]] = None
+    refresh_games: Optional[Callable[[], None]] = None
     refresh_missing: Optional[Callable[[], None]] = None
 
 
-def default_context() -> TableDialogContext:
-    return TableDialogContext()
+def default_context() -> GameDialogContext:
+    return GameDialogContext()

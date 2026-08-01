@@ -11,11 +11,11 @@ from unittest import mock
 from common.config_access import DisplayConfig, MediaConfig, NetworkConfig, SettingsConfig, VPinPlayConfig
 from common.third_party import find_named_path, import_module_from_path
 from common.jobs import JobReporter
-from common.media_paths import apply_media_paths, media_filename_map, table_media_payload
+from common.media_paths import apply_media_paths, media_filename_map, game_media_payload
 from common.tables.standalonescripts import StandaloneScripts
-from common.tables.table_metadata import table_themes, table_title, table_type
-from common.tables.table_repository import table_to_row
-from common.tables.tableparser import TableParser
+from common.tables.table_metadata import game_themes, game_title, table_type
+from common.tables.table_repository import game_to_row
+from common.tables.tableparser import GameParser
 from common.online.theme_installer import ThemeInstallStore
 from common.online.vpsdb_cache import VPSDatabaseCache
 
@@ -110,18 +110,18 @@ class TestCommonArchitecture(unittest.TestCase):
             self.assertEqual(store.installed_version("ExampleTheme"), "1.2.3")
             self.assertTrue(store.is_version_newer("1.2.4", "1.2.3"))
 
-    def test_table_parser_accessors_return_copies(self) -> None:
-        parser = TableParser.__new__(TableParser)
+    def test_game_parser_accessors_return_copies(self) -> None:
+        parser = GameParser.__new__(GameParser)
         parser.tables = [SimpleNamespace(name="one")]
-        parser.missing_tables = [{"folder": "missing"}]
+        parser.missing_games = [{"folder": "missing"}]
 
-        tables = parser.getAllTables()
-        missing = parser.getMissingTables()
+        tables = parser.getAllGames()
+        missing = parser.getMissingGames()
         tables.clear()
         missing[0]["folder"] = "changed"
 
         self.assertEqual(len(parser.tables), 1)
-        self.assertEqual(parser.missing_tables[0]["folder"], "missing")
+        self.assertEqual(parser.missing_games[0]["folder"], "missing")
 
     def test_metadata_display_helpers_handle_legacy_fields(self) -> None:
         game = SimpleNamespace(
@@ -135,8 +135,8 @@ class TestCommonArchitecture(unittest.TestCase):
             },
         )
 
-        self.assertEqual(table_title(game), "Legacy Name")
-        self.assertEqual(table_themes(game), ["Music", "Movies"])
+        self.assertEqual(game_title(game), "Legacy Name")
+        self.assertEqual(game_themes(game), ["Music", "Movies"])
         self.assertEqual(table_type(game), "SS")
 
     def test_standalone_scripts_can_be_constructed_without_running_network_work(self) -> None:
@@ -180,7 +180,7 @@ class TestCommonArchitecture(unittest.TestCase):
             },
         })
 
-        self.assertEqual(SettingsConfig.from_config(parser).table_root_dir, "/tables")
+        self.assertEqual(SettingsConfig.from_config(parser).game_root_dir, "/tables")
         self.assertEqual(SettingsConfig.from_config(parser).vpx_ini_path, "/home/player/.vpinball/VPinballX.ini")
         self.assertEqual(SettingsConfig.from_config(parser).theme, "Revolution")
         self.assertTrue(SettingsConfig.from_config(parser).auto_update_media_on_startup)
@@ -204,7 +204,7 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertEqual(VPinPlayConfig.from_config(parser).api_endpoint, "http://example.test")
         self.assertTrue(VPinPlayConfig.from_config(parser).sync_on_exit)
 
-    def test_display_config_preserves_empty_table_screen_for_window_discovery(self) -> None:
+    def test_display_config_preserves_empty_game_screen_for_window_discovery(self) -> None:
         parser = configparser.ConfigParser()
         parser.read_dict({"Displays": {"tablescreenid": ""}})
 
@@ -238,7 +238,7 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertEqual(game.BGImagePath, os.path.join(root, "bg.png"))
         self.assertEqual(game.TableImagePath, os.path.join(root, "medias", "fss.png"))
         self.assertEqual(media_filename_map("fss")["fss"], "fss.png")
-        self.assertEqual(table_media_payload(game)["TableImagePath"],
+        self.assertEqual(game_media_payload(game)["TableImagePath"],
                          os.path.join(root, "medias", "fss.png"))
 
     def test_job_reporter_wraps_log_and_progress_callbacks(self) -> None:
@@ -268,17 +268,17 @@ class TestCommonArchitecture(unittest.TestCase):
             without_b2s.mkdir()
             (without_b2s / "No B2S (Bally 1991).vpx").write_text("")
 
-            parser = TableParser(root)
-            by_name = {t.tableDirName: t for t in parser.getAllTables()}
+            parser = GameParser(root)
+            by_name = {t.tableDirName: t for t in parser.getAllGames()}
 
             self.assertTrue(by_name["With B2S (Bally 1990)"].b2sExists)
             self.assertFalse(by_name["No B2S (Bally 1991)"].b2sExists)
 
             # table_to_row mirrors the flag for the UI
-            self.assertTrue(table_to_row(by_name["With B2S (Bally 1990)"])["b2s_exists"])
-            self.assertFalse(table_to_row(by_name["No B2S (Bally 1991)"])["b2s_exists"])
+            self.assertTrue(game_to_row(by_name["With B2S (Bally 1990)"])["b2s_exists"])
+            self.assertFalse(game_to_row(by_name["No B2S (Bally 1991)"])["b2s_exists"])
 
-    def test_constructing_a_tableparser_reads_each_table_once(self) -> None:
+    def test_constructing_a_gameparser_reads_each_game_once(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             for name in ("A Table (Bally 1990)", "B Table (Bally 1991)"):
@@ -286,16 +286,16 @@ class TestCommonArchitecture(unittest.TestCase):
                 folder.mkdir()
                 (folder / f"{name}.vpx").write_text("")
 
-            real_build = TableParser._build_table
+            real_build = GameParser._build_game
             calls = []
 
             def counting_build(self, game_dir):
                 calls.append(game_dir)
                 return real_build(self, game_dir)
 
-            with mock.patch.object(TableParser, "_build_table", counting_build):
-                parser = TableParser(root)
-                tables = parser.getAllTables()
+            with mock.patch.object(GameParser, "_build_game", counting_build):
+                parser = GameParser(root)
+                tables = parser.getAllGames()
 
             self.assertEqual(len(tables), 2)
             self.assertEqual(len(calls), 2, "the library was read more than once")

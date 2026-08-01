@@ -69,7 +69,7 @@ def _collections_restorable() -> bool:
         return False
 
 
-def _tables(n: int) -> str:
+def _games(n: int) -> str:
     return "1 table" if n == 1 else f"{n} tables"
 
 
@@ -95,7 +95,7 @@ def _counts(reload: bool = False) -> dict:
 
 
 def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
-                table_names=None, on_done=None) -> None:
+                game_names=None, on_done=None) -> None:
     """Explain, confirm, report - shaped like the metadata build dialog."""
     dlg = ui.dialog().props('persistent max-width=700px')
     state = {'running': False, 'lines': [], 'progress_q': Queue(), 'log_q': Queue()}
@@ -108,11 +108,11 @@ def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
         with intro_container:
             ui.label(intro).classes('text-sm').style('color: var(--ink);')
             ui.label(detail).classes('text-xs').style('color: var(--ink-muted);')
-            if table_names:
-                with ui.expansion(f'Show the {len(table_names)} tables').classes('w-full'):
+            if game_names:
+                with ui.expansion(f'Show the {len(game_names)} tables').classes('w-full'):
                     with ui.column().classes('w-full p-2').style(
                             'max-height: 14rem; overflow: auto;'):
-                        for name in table_names:
+                        for name in game_names:
                             ui.label(name).classes('text-xs').style('color: var(--ink-muted);')
 
         progress_container = ui.column().classes('w-full gap-2')
@@ -192,7 +192,7 @@ def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
 
 def open_upgrade_dialog(on_done=None) -> None:
     try:
-        names = table_service.pending_upgrade_table_names()
+        names = table_service.pending_upgrade_game_names()
     except Exception:
         logger.exception("Could not list the .info files still to upgrade")
         names = []
@@ -207,14 +207,14 @@ def open_upgrade_dialog(on_done=None) -> None:
         detail=UPGRADE_DETAIL,
         confirm_label='Upgrade all',
         action=table_service.upgrade_info,
-        table_names=names,
+        game_names=names,
         on_done=on_done,
     )
 
 
 def open_restore_dialog(on_done=None) -> None:
     try:
-        names = table_service.restorable_table_names()
+        names = table_service.restorable_game_names()
     except Exception:
         logger.exception("Could not list tables with a saved .info")
         names = []
@@ -231,7 +231,7 @@ def open_restore_dialog(on_done=None) -> None:
         detail=RESTORE_DETAIL,
         confirm_label='Restore all',
         action=table_service.restore_info,
-        table_names=names,
+        game_names=names,
         on_done=on_done,
     )
 
@@ -269,7 +269,7 @@ def render_info_banners(on_done=None) -> None:
 def _render_unreadable_warning() -> None:
     """Not dismissible: the table is missing from the frontend until somebody deals with it."""
     try:
-        broken = table_service.unreadable_tables()
+        broken = table_service.unreadable_games()
     except Exception:
         logger.exception("Could not read the unreadable-table list")
         return

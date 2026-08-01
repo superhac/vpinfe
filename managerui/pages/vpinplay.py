@@ -10,7 +10,7 @@ from urllib.parse import quote
 from nicegui import run, ui
 
 from common.iniconfig import IniConfig
-from common.online.vpinplay_service import sync_installed_tables
+from common.online.vpinplay_service import sync_installed_games
 from managerui.config_fields import is_checkbox_field
 from managerui.pages.vpinfe_config import get_friendly_name
 from managerui.paths import VPINFE_INI_PATH
@@ -253,7 +253,7 @@ def render_panel():
         user_id = _input_value("userid")
         initials = _input_value("initials")
         machine_id = _input_value("machineid")
-        tables_dir = config.config.get("Settings", "tablerootdir", fallback="").strip()
+        games_dir = config.config.get("Settings", "tablerootdir", fallback="").strip()
 
         if not service_ip:
             ui.notify("API Endpoint is required.", type="warning")
@@ -267,7 +267,7 @@ def render_panel():
         if not machine_id:
             ui.notify("Machine ID is required.", type="warning")
             return
-        if not tables_dir:
+        if not games_dir:
             ui.notify("Tables Directory is required in Configuration > Settings.", type="warning")
             return
 
@@ -279,12 +279,12 @@ def render_panel():
         sync_vpinplay_button.text = "Syncing..."
         try:
             result = await run.io_bound(
-                sync_installed_tables,
+                sync_installed_games,
                 service_ip,
                 user_id,
                 initials,
                 machine_id,
-                tables_dir,
+                games_dir,
             )
             output_area.value = (
                 f"Scanned: {result['tables_scanned']}\n"

@@ -18,11 +18,11 @@ logger.info("Using config file at: %s", VPINFE_INI_PATH)
 iniconfig = IniConfig(str(VPINFE_INI_PATH))
 
 
-def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName: str = None, userMedia: bool = False, progress_cb=None, log_cb=None):
+def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, gameName: str = None, userMedia: bool = False, progress_cb=None, log_cb=None):
     return metadata_service.build_metadata(
         downloadMedia=downloadMedia,
         updateAll=updateAll,
-        tableName=tableName,
+        gameName=gameName,
         userMedia=userMedia,
         progress_cb=progress_cb,
         log_cb=log_cb,
@@ -30,31 +30,31 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName:
     )
 
 
-def _table_root_dir():
+def _game_root_dir():
     from common.config_access import SettingsConfig
 
-    return SettingsConfig.from_config(iniconfig).table_root_dir
+    return SettingsConfig.from_config(iniconfig).game_root_dir
 
 
 def upgrade_info_files(table_name: str = None, progress_cb=None, log_cb=None):
     return info_maintenance.upgrade_library(
-        _table_root_dir(), table_name=table_name, progress_cb=progress_cb, log_cb=log_cb)
+        _game_root_dir(), table_name=table_name, progress_cb=progress_cb, log_cb=log_cb)
 
 
 def restore_info_files(table_name: str = None, progress_cb=None, log_cb=None):
     from common.paths import CONFIG_DIR
 
     return info_maintenance.restore_library(
-        _table_root_dir(), table_name=table_name, config_dir=CONFIG_DIR,
+        _game_root_dir(), table_name=table_name, config_dir=CONFIG_DIR,
         progress_cb=progress_cb, log_cb=log_cb)
 
 
-def listMissingTables():
-    return table_report_service.list_missing_tables(iniconfig=iniconfig, log=logger.info)
+def listMissingGames():
+    return table_report_service.list_missing_games(iniconfig=iniconfig, log=logger.info)
 
 
-def listUnknownTables():
-    return table_report_service.list_unknown_tables(iniconfig=iniconfig, log=logger.info)
+def listUnknownGames():
+    return table_report_service.list_unknown_games(iniconfig=iniconfig, log=logger.info)
 
 
 def vpxPatches(progress_cb=None):
@@ -154,11 +154,11 @@ def parseArgs():
         sys.exit()
 
     if args.listmissing:
-        listMissingTables()
+        listMissingGames()
         sys.exit()
 
     if args.listunknown:
-        listUnknownTables()
+        listUnknownGames()
         sys.exit()
 
     # Kept as a stub because it shipped in 2.x and somebody has it in a script. It
@@ -178,7 +178,7 @@ def parseArgs():
         sys.exit()
 
     if args.buildmeta:
-        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all, tableName=args.game, userMedia=args.user_media)
+        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all, gameName=args.game, userMedia=args.user_media)
         sys.exit()
 
     if args.gamepadtest:

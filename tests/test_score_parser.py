@@ -171,7 +171,7 @@ class TestScoreParser(unittest.TestCase):
 
         self.assertEqual(result["entries"][0]["initials"], "")
 
-    def test_resolve_score_input_path_prefers_nvram_for_table_directory(self) -> None:
+    def test_resolve_score_input_path_prefers_nvram_for_game_directory(self) -> None:
         with TemporaryDirectory() as temp_dir:
             game_dir = Path(temp_dir)
             nvram_path = game_dir / "pinmame" / "nvram" / "agent777.nv"

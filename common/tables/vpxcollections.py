@@ -12,9 +12,9 @@ from common.tables.info_migration import (
 from common.tables.metaconfig import VPINFE_SECTION
 from common.tables.table_identity import table_id
 from common.tables.table_metadata import (
-    base_table_vps_id,
+    base_game_vps_id,
+    game_title,
     section,
-    table_title,
     vpinfe_section,
 )
 
@@ -37,7 +37,7 @@ _warned_newer_schema = set()
 
 
 def _get_display_title(game):
-    return table_title(game)
+    return game_title(game)
 
 
 def _get_last_run_value(game):
@@ -198,7 +198,7 @@ class VPXCollections:
         members.remove(member_id)
         self.config[section][MEMBERS_KEY] = ",".join(members)
 
-    def migrate_membership_to_table_ids(self, tables) -> int:
+    def migrate_membership_to_game_ids(self, tables) -> int:
         """Move VPS-keyed membership onto table ids. Returns how many entries moved.
 
         Runs once: the file records that it has been through this, so later startups
@@ -229,7 +229,7 @@ class VPXCollections:
             if not tid:
                 continue
             vpinfe = vpinfe_section(getattr(game, "metaConfig", {}))
-            for candidate in (base_table_vps_id(game),
+            for candidate in (base_game_vps_id(game),
                               str(vpinfe.get("alt_vpsid", "") or "").strip()):
                 if candidate:
                     by_vps.setdefault(candidate, tid)
@@ -284,14 +284,14 @@ class VPXCollections:
             return True
 
         vpinfe = vpinfe_section(getattr(game, "metaConfig", {}))
-        base_vpsid = base_table_vps_id(game)
+        base_vpsid = base_game_vps_id(game)
         alt_vpsid = str(vpinfe.get("alt_vpsid", "") or "").strip()
         return bool(
             (base_vpsid and base_vpsid in member_ids)
             or (alt_vpsid and alt_vpsid in member_ids)
         )
 
-    def filter_tables(self, tables, collection):
+    def filter_games(self, tables, collection):
         """Tables belonging to a collection, ordered for display."""
         filter_ids = set(self.get_members(collection))
         result = [t for t in tables if self.is_member(t, filter_ids)]

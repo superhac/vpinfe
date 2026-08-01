@@ -8,7 +8,7 @@ from queue import Queue
 logger = logging.getLogger("vpinfe.frontend.metadata_build_service")
 
 
-def start_build(api, *, build_metadata_func, ensure_tables_loaded_func, download_media=True, update_all=False):
+def start_build(api, *, build_metadata_func, ensure_games_loaded_func, download_media=True, update_all=False):
     event_queue = Queue()
 
     def progress_callback(current, total, message):
@@ -36,8 +36,8 @@ def start_build(api, *, build_metadata_func, ensure_tables_loaded_func, download
                 log_cb=log_callback,
             )
             event_queue.put({"type": "buildmeta_complete", "result": result})
-            api.allTables = ensure_tables_loaded_func(reload=True)
-            api.filteredTables = api.allTables
+            api.allGames = ensure_games_loaded_func(reload=True)
+            api.filteredGames = api.allGames
         except Exception as exc:
             event_queue.put({"type": "buildmeta_error", "error": str(exc)})
             logger.exception("buildMetaData failed")

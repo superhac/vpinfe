@@ -17,7 +17,7 @@ class VPSdb:
     along with associated media assets via VPinMediaDB.
     """
 
-    rootTableDir = None
+    rootGameDir = None
     data = None
     _vpinfeIniConfig = None
 
@@ -25,7 +25,7 @@ class VPSdb:
     vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
     vpinmdbUrl = "https://github.com/superhac/vpinmediadb/raw/refs/heads/main/vpinmdb.json"
 
-    def __init__(self, rootTableDir, vpinfeIniConfig):
+    def __init__(self, rootGameDir, vpinfeIniConfig):
         logger.info("Initializing VPSdb")
 
         self._vpinfeIniConfig = vpinfeIniConfig
@@ -38,7 +38,7 @@ class VPSdb:
             last_update_url=VPSdb.vpsUrlLastUpdate,
         )
         self._vpsdb_path = self._cache.path
-        self.rootTableDir = rootTableDir
+        self.rootGameDir = rootGameDir
         self.data = self._cache.ensure_current()
         logger.info("Total VPSdb entries: %s", len(self.data))
         self._write_manufacturer_reference()
@@ -111,7 +111,7 @@ class VPSdb:
         logger.debug("No match found for: %s", name)
         return None
 
-    def parseTableNameFromDir(self, directory_name):
+    def parseGameNameFromDir(self, directory_name):
         """
         Parses a directory name of format: 'Name (Manufacturer Year)'
         and ignores any suffix text after that block.
@@ -141,20 +141,20 @@ class VPSdb:
         """Fetches the last update version string from VPSdb."""
         return self._cache.fetch_last_update()
 
-    def downloadMediaFile(self, tableId, url, filename):
+    def downloadMediaFile(self, gameId, url, filename):
         """Downloads a single media file by URL."""
-        self._media_downloader.download_media_file(tableId, url, filename)
+        self._media_downloader.download_media_file(gameId, url, filename)
 
     # ----------------------------------------------------------------------
     # Local file helpers
     def fileExists(self, path):
         return self._media_downloader.file_exists(path)
 
-    def downloadMediaForTable(self, game, id, metaConfig=None):
+    def downloadMediaForGame(self, game, id, metaConfig=None):
         """Download all associated media for a given table."""
-        self._media_downloader.download_media_for_table(game, id, metaConfig)
+        self._media_downloader.download_media_for_game(game, id, metaConfig)
 
     # ----------------------------------------------------------------------
-    def updateTable(self, name, manufacturer, year):
+    def updateGame(self, name, manufacturer, year):
         """UI hook: updates progress label (requires UI integration)."""
-        self.progress_table_label.config(text=f"{name}\n({manufacturer} {year})")
+        self.progress_game_label.config(text=f"{name}\n({manufacturer} {year})")

@@ -22,17 +22,17 @@ from common.tables.table_metadata import section, vpinfe_section
 logger = logging.getLogger("vpinfe.common.tables.tableparser")
 
 
-class TableParser:
+class GameParser:
     # static console colors
     RED_CONSOLE_TEXT = '\033[31m'
     RESET_CONSOLE_TEXT = '\033[0m'
 
-    def __init__(self, tablesRootFilePath, iniConfig=None):
-        self.tablesRootFilePath = Path(tablesRootFilePath)
+    def __init__(self, gamesRootFilePath, iniConfig=None):
+        self.gamesRootFilePath = Path(gamesRootFilePath)
         self.tabletype = "table"
         self.tables: list[Game] = []
-        self.missing_tables: list[dict] = []
-        self.unreadable_tables: list[dict] = []
+        self.missing_games: list[dict] = []
+        self.unreadable_games: list[dict] = []
         self.active_sets: dict[str, str] = {}
         if iniConfig:
             media_cfg = MediaConfig.from_config(iniConfig)
@@ -42,27 +42,27 @@ class TableParser:
             if wheelset:
                 self.active_sets["wheel"] = wheelset
         # Constructing reads the library; a loadTables(reload=True) after it reads it twice.
-        self.loadTables()
+        self.loadGames()
 
-    def loadTables(self, reload=False):  # reload if you want to rescan the tables
+    def loadGames(self, reload=False):  # reload if you want to rescan the tables
         if not reload and self.tables:
             return
 
         started_at = perf_counter()
         self.tables.clear()
-        self.missing_tables.clear()
-        self.unreadable_tables.clear()
+        self.missing_games.clear()
+        self.unreadable_games.clear()
 
-        if not self.tablesRootFilePath.exists():
+        if not self.gamesRootFilePath.exists():
             return
 
         logger.info("Loading tables and image paths...")
-        for game_dir in sorted(self.tablesRootFilePath.iterdir()):
+        for game_dir in sorted(self.gamesRootFilePath.iterdir()):
             if not game_dir.is_dir():
                 continue
             if game_dir.name.startswith('.'):
                 continue
-            game = self._build_table(game_dir)
+            game = self._build_game(game_dir)
             if game is not None:
                 self.tables.append(game)
 
@@ -71,10 +71,10 @@ class TableParser:
             "Load completed in %.3fs: loaded=%s missing_info=%s",
             elapsed,
             len(self.tables),
-            len(self.missing_tables)
+            len(self.missing_games)
         )
 
-    def _build_table(self, game_dir):
+    def _build_game(self, game_dir):
         """One table folder, read from disk. Returns None when it holds no game file.
 
         The whole of what a scan does per table, so refreshing one costs one folder
@@ -113,7 +113,7 @@ class TableParser:
         if stamps:
             game.info_backup_stamp = stamps[0].rsplit(BACKUP_MARKER, 1)[-1]
         if info_name not in game_contents:
-            self.missing_tables.append({
+            self.missing_games.append({
                 'folder': game.tableDirName,
                 'path': str(game_dir),
             })
@@ -141,7 +141,7 @@ class TableParser:
         except InvalidMetaConfigError as exc:
             # This used to stop the whole library loading. Excluded rather than loaded
             # empty, so nothing can write over a file we could not read.
-            self.unreadable_tables.append({
+            self.unreadable_games.append({
                 'folder': game.tableDirName,
                 'path': str(game_dir),
                 'error': str(exc),
@@ -172,7 +172,7 @@ class TableParser:
         return game
 
 
-    def reload_table(self, game_dir):
+    def reload_game(self, game_dir):
         """Re-read one table folder in place. Returns the table, or None if it is gone.
 
         A rating, a rename or an import changes one folder, and rescanning the library
@@ -180,10 +180,10 @@ class TableParser:
         """
         game_dir = Path(game_dir)
         target = str(game_dir)
-        self.missing_tables = [row for row in self.missing_tables if row["path"] != target]
-        self.unreadable_tables = [r for r in self.unreadable_tables if r["path"] != target]
+        self.missing_games = [row for row in self.missing_games if row["path"] != target]
+        self.unreadable_games = [r for r in self.unreadable_games if r["path"] != target]
 
-        game = self._build_table(game_dir) if game_dir.is_dir() else None
+        game = self._build_game(game_dir) if game_dir.is_dir() else None
         for index, existing in enumerate(self.tables):
             if existing.fullPathTable == target:
                 if game is None:
@@ -231,21 +231,21 @@ class TableParser:
         Game.metaConfig = meta.data
         Game.info_pending_upgrade = meta.pending_migration
 
-    def getTable(self, index):
+    def getGame(self, index):
         return self.tables[index]
 
-    def getTableCount(self):
+    def getGameCount(self):
         return len(self.tables)
 
-    def getAllTables(self):
+    def getAllGames(self):
         return list(self.tables)
 
-    def getUnreadableTables(self):
+    def getUnreadableGames(self):
         """Folders whose .info could not be read, so the table was left out."""
-        return [dict(row) for row in self.unreadable_tables]
+        return [dict(row) for row in self.unreadable_games]
 
-    def getMissingTables(self):
-        return [dict(row) for row in self.missing_tables]
+    def getMissingGames(self):
+        return [dict(row) for row in self.missing_games]
 
     def isFavorite(self, Game):
         return vpinfe_section(Game.metaConfig).get("favorite", "").lower() == "true"

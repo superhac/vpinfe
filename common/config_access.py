@@ -41,7 +41,7 @@ def cfg_int(source, section: str, key: str, fallback: int = 0) -> int:
 
 @dataclass(frozen=True)
 class SettingsConfig:
-    table_root_dir: str = ""
+    game_root_dir: str = ""
     assets_dir: str = ""
     vpx_bin_path: str = ""
     vpx_ini_path: str = ""
@@ -51,8 +51,8 @@ class SettingsConfig:
     startup_collection: str = ""
     auto_update_media_on_startup: bool = False
     global_ini_override: str = ""
-    global_table_ini_override_enabled: bool = False
-    global_table_ini_override_mask: str = ""
+    global_game_ini_override_enabled: bool = False
+    global_game_ini_override_mask: str = ""
     vpx_launch_env: str = ""
     mute_audio: bool = False
     splashscreen: bool = False
@@ -60,13 +60,13 @@ class SettingsConfig:
     disable_default_chrome_options: bool = False
     cab_mode: bool = False
     hide_quit_button: bool = False
-    restore_last_table: bool = True
+    restore_last_game: bool = True
 
     @classmethod
     def from_config(cls, source: Any) -> "SettingsConfig":
         theme = cfg_get(source, "Settings", "theme", "Revolution").strip() or "Revolution"
         return cls(
-            table_root_dir=cfg_get(source, "Settings", "tablerootdir", "").strip(),
+            game_root_dir=cfg_get(source, "Settings", "tablerootdir", "").strip(),
             assets_dir=cfg_get(source, "Settings", "assetsdir", "").strip(),
             vpx_bin_path=cfg_get(source, "Settings", "vpxbinpath", "").strip(),
             vpx_ini_path=cfg_get(source, "Settings", "vpxinipath", "").strip(),
@@ -76,8 +76,8 @@ class SettingsConfig:
             startup_collection=cfg_get(source, "Settings", "startup_collection", "").strip(),
             auto_update_media_on_startup=cfg_bool(source, "Settings", "autoupdatemediaonstartup", False),
             global_ini_override=cfg_get(source, "Settings", "globalinioverride", "").strip(),
-            global_table_ini_override_enabled=cfg_bool(source, "Settings", "globaltableinioverrideenabled", False),
-            global_table_ini_override_mask=cfg_get(source, "Settings", "globaltableinioverridemask", ""),
+            global_game_ini_override_enabled=cfg_bool(source, "Settings", "globaltableinioverrideenabled", False),
+            global_game_ini_override_mask=cfg_get(source, "Settings", "globaltableinioverridemask", ""),
             vpx_launch_env=cfg_get(source, "Settings", "vpxlaunchenv", ""),
             mute_audio=cfg_bool(source, "Settings", "muteaudio", False),
             splashscreen=cfg_bool(source, "Settings", "splashscreen", False),
@@ -85,7 +85,7 @@ class SettingsConfig:
             disable_default_chrome_options=cfg_bool(source, "Settings", "disabledefaultchromeoptions", False),
             cab_mode=cfg_bool(source, "Settings", "cabmode", False),
             hide_quit_button=cfg_bool(source, "Settings", "MMhideQuitButton", False),
-            restore_last_table=cfg_bool(source, "Settings", "restorelasttable", True),
+            restore_last_game=cfg_bool(source, "Settings", "restorelasttable", True),
         )
 
 

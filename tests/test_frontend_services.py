@@ -11,7 +11,7 @@ from unittest import mock
 
 from common.host import realdmd, system_actions
 from common.tables import table_play_service, table_report_service
-from common.tables.table_metadata import table_frontend_dof_event
+from common.tables.table_metadata import game_frontend_dof_event
 from frontend import config_api, table_state, theme_api
 
 
@@ -161,35 +161,35 @@ class FrontendServiceTests(unittest.TestCase):
         # symlink to /private/tmp, so compare against the resolved expectation.
         color_expected = Path("/tmp/realdmd-color.png").resolve()
         standard_expected = Path("/tmp/realdmd.png").resolve()
-        self.assertEqual(table_frontend_dof_event(game), "E901")
-        self.assertEqual(realdmd.get_realdmd_image_for_table(game), color_expected)
-        self.assertEqual(realdmd.get_realdmd_image_for_table(game, color_config), color_expected)
-        self.assertEqual(realdmd.get_realdmd_image_for_table(game, standard_config), standard_expected)
+        self.assertEqual(game_frontend_dof_event(game), "E901")
+        self.assertEqual(realdmd.get_realdmd_image_for_game(game), color_expected)
+        self.assertEqual(realdmd.get_realdmd_image_for_game(game, color_config), color_expected)
+        self.assertEqual(realdmd.get_realdmd_image_for_game(game, standard_config), standard_expected)
 
         game.realDMDColorImagePath = ""
-        self.assertEqual(realdmd.get_realdmd_image_for_table(game, color_config), standard_expected)
+        self.assertEqual(realdmd.get_realdmd_image_for_game(game, color_config), standard_expected)
 
         calls = []
         updater = realdmd.RealDmdUpdater("ini", "table", lambda ini, image: calls.append((ini, image)) or True)
-        updater._table_name = "Example"
+        updater._game_name = "Example"
         updater._image_path = Path("/tmp/realdmd.png")
         updater._process_pending()
         self.assertEqual(calls, [("ini", Path("/tmp/realdmd.png"))])
 
-    def test_table_report_service_logs_unknown_table(self):
+    def test_game_report_service_logs_unknown_game(self):
         parser_instance = mock.Mock()
         game = types.SimpleNamespace(tableDirName="Unknown")
-        parser_instance.getAllTables.return_value = [game]
+        parser_instance.getAllGames.return_value = [game]
         vps_instance = mock.Mock()
         vps_instance.__len__ = mock.Mock(return_value=0)
-        vps_instance.parseTableNameFromDir.return_value = {"name": "Unknown", "manufacturer": "", "year": ""}
+        vps_instance.parseGameNameFromDir.return_value = {"name": "Unknown", "manufacturer": "", "year": ""}
         vps_instance.lookupName.return_value = None
         logs = []
         ini = types.SimpleNamespace(config={"Settings": {"tablerootdir": "/tables"}})
 
-        with mock.patch("common.tables.table_report_service.TableParser", return_value=parser_instance), \
+        with mock.patch("common.tables.table_report_service.GameParser", return_value=parser_instance), \
             mock.patch("common.tables.table_report_service.VPSdb", return_value=vps_instance):
-            table_report_service.list_unknown_tables(iniconfig=ini, log=lambda msg, *args: logs.append(msg % args if args else msg))
+            table_report_service.list_unknown_games(iniconfig=ini, log=lambda msg, *args: logs.append(msg % args if args else msg))
 
         self.assertTrue(any("Unknown table 1: Unknown" in line for line in logs))
 
@@ -303,7 +303,7 @@ class FrontendServiceTests(unittest.TestCase):
             self.assertEqual(score_data, {"rom": "vpx_rom"})
             self.assertEqual(score_path, "/scores/vpx_rom.nv")
 
-    def test_a_migrated_table_reads_its_rom_from_the_game_file(self) -> None:
+    def test_a_migrated_game_reads_its_rom_from_the_game_file(self) -> None:
         """2.x kept a table-level Info.Rom and the migration drops it. A value carried
         from there could disagree with the file it claims to describe."""
         with TemporaryDirectory() as tmp:
@@ -364,7 +364,7 @@ class PerGameFilePlayStatsTests(unittest.TestCase):
         table_play_service.apply_runtime_update(config, seconds, game_file)
         return config
 
-    def test_a_launch_counts_against_the_table_and_the_game_file(self):
+    def test_a_launch_counts_against_the_game_and_the_game_file(self):
         config = self._launch({}, "Example (VR).vpx")
 
         self.assertEqual(config["User"]["StartCount"], 1)
@@ -383,7 +383,7 @@ class PerGameFilePlayStatsTests(unittest.TestCase):
         self.assertEqual(entries["Example (VR).vpx"]["user"]["start_count"], 1)
         self.assertEqual(config["User"]["StartCount"], 3, "the table saw all three")
 
-    def test_the_table_total_is_not_a_rollup(self):
+    def test_the_game_total_is_not_a_rollup(self):
         """Deleting a game file must not un-play hours that were played, which is what
         a total summed from the entries would do."""
         config = self._launch({}, "Example.vpx")
@@ -403,7 +403,7 @@ class PerGameFilePlayStatsTests(unittest.TestCase):
         self.assertTrue(entry["hidden"])
         self.assertEqual(entry["rom"], "afm_113b", "the parse must survive a play")
 
-    def test_a_launch_with_no_game_file_named_still_counts_for_the_table(self):
+    def test_a_launch_with_no_game_file_named_still_counts_for_the_game(self):
         """Nothing outside the launch path knows which file ran."""
         config = self._launch({}, "")
 

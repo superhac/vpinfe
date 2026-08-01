@@ -15,7 +15,7 @@ from common.media_paths import (
 )
 from common.tables.metaconfig import MetaConfig
 from common.tables.table_metadata import reorder_leading_article, vpinfe_section
-from common.tables.table_repository import ensure_tables_loaded
+from common.tables.table_repository import ensure_games_loaded
 
 from managerui.paths import CONFIG_DIR, get_games_path
 
@@ -53,7 +53,7 @@ IMAGE_MEDIA_KEYS = [
     if Path(filename).suffix.lower() in IMAGE_EXTENSIONS
 ]
 
-TABLE_ATTR_TO_MEDIA_KEY = media_attr_key_map("table")
+GAME_ATTR_TO_MEDIA_KEY = media_attr_key_map("table")
 
 
 def get_media_cache() -> Optional[List[Dict]]:
@@ -190,7 +190,7 @@ def ensure_thumb(game_dir: str, media_key: str, source_path: str) -> Optional[st
         return None
 
 
-def _table_meta_sections(game):
+def _game_meta_sections(game):
     raw = game.metaConfig or {}
     if not isinstance(raw, dict):
         raw = {}
@@ -208,25 +208,25 @@ def media_url_from_path(game_dir: str, source_path: str) -> Optional[str]:
     return media_url("media_tables", game_dir, source.name)
 
 
-def scan_media_tables(reload: bool = False) -> List[Dict]:
+def scan_media_games(reload: bool = False) -> List[Dict]:
     games_path = get_games_path()
     rows = []
     if not os.path.exists(games_path):
         logger.warning("Tables path does not exist: %s. Skipping media scan.", games_path)
         return []
 
-    for game in ensure_tables_loaded(reload=reload):
+    for game in ensure_games_loaded(reload=reload):
         root = getattr(game, "fullPathTable", "") or ""
         if not root:
             continue
         current_dir = Path(root).name
-        info, vpinfe = _table_meta_sections(game)
+        info, vpinfe = _game_meta_sections(game)
         name = ((vpinfe.get("alt_title") or "").strip()
                 or reorder_leading_article(info.get("Title") or current_dir))
 
         media_info = {}
         thumb_info = {}
-        for attr_name, media_key in TABLE_ATTR_TO_MEDIA_KEY.items():
+        for attr_name, media_key in GAME_ATTR_TO_MEDIA_KEY.items():
             source_path = getattr(game, attr_name, None)
             if source_path:
                 media_info[media_key] = media_url_from_path(current_dir, source_path)

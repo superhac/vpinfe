@@ -27,7 +27,7 @@ class ManufacturerEndpointTests(unittest.TestCase):
 
         from common.shared_assets import configure_shared_assets
 
-        def _table(folder: str, manufacturer: str) -> SimpleNamespace:
+        def _game(folder: str, manufacturer: str) -> SimpleNamespace:
             return SimpleNamespace(
                 fullPathTable=f"/tables/{folder}",
                 fullPathVPXfile=f"/tables/{folder}/{folder}.vpx",
@@ -35,9 +35,9 @@ class ManufacturerEndpointTests(unittest.TestCase):
             )
 
         catalog = {
-            "id-1": _table("Eight Ball (Bally 1977)", "Bally Manufacturing"),
-            "id-2": _table("Eight Ball Deluxe (Bally 1981)", "Bally Manufacturing"),
-            "id-3": _table("Garage Build (Homebrew 2020)", "Homebrew Works"),
+            "id-1": _game("Eight Ball (Bally 1977)", "Bally Manufacturing"),
+            "id-2": _game("Eight Ball Deluxe (Bally 1981)", "Bally Manufacturing"),
+            "id-3": _game("Garage Build (Homebrew 2020)", "Homebrew Works"),
         }
 
         with TemporaryDirectory() as tmp:

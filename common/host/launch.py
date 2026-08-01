@@ -32,13 +32,13 @@ from common.host.launcher import (
 )
 from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
 from common.online.vpinplay_runtime import (
-    add_table_runtime,
+    add_game_runtime,
     get_active_profile,
-    get_table_user_state,
-    record_table_start,
-    set_table_score,
+    get_game_user_state,
+    record_game_start,
+    set_game_score,
 )
-from common.online.vpinplay_service import sync_single_table_meta
+from common.online.vpinplay_service import sync_single_game_meta
 from common.tables import table_play_service
 from common.tables.game_files import default_game_file, game_file_names
 
@@ -123,8 +123,8 @@ def _command(game, vpx_path: str, launcher: str, settings) -> list[str]:
         global_ini_override=settings.global_ini_override,
         tableini_override=resolve_launch_tableini_override(
             vpx_path,
-            settings.global_table_ini_override_enabled,
-            settings.global_table_ini_override_mask,
+            settings.global_game_ini_override_enabled,
+            settings.global_game_ini_override_mask,
         ),
         plugin_profile_override=resolve_launch_plugin_profile(
             get_plugin_profile_from_meta(getattr(game, "metaConfig", {}))
@@ -139,21 +139,21 @@ def _record_play(game, ini_config, elapsed_seconds: float, profile, game_file: s
         table_play_service.update_score_from_nvram(game)
         return
 
-    table_key = str(getattr(game, "fullPathTable", "") or getattr(game, "tableDirName", "") or "")
-    if not table_key:
+    game_key = str(getattr(game, "fullPathTable", "") or getattr(game, "tableDirName", "") or "")
+    if not game_key:
         logger.warning("Skipping alternate VPinPlay submission: missing table key")
         return
 
-    add_table_runtime(table_key, elapsed_seconds, profile.profile_key)
+    add_game_runtime(game_key, elapsed_seconds, profile.profile_key)
     score_data, score_path = table_play_service.parse_score_from_nvram(game)
     if score_data:
-        set_table_score(table_key, score_data, profile.profile_key)
+        set_game_score(game_key, score_data, profile.profile_key)
         logger.info("Captured alternate User.Score for %s from %s",
                     game.tableDirName, score_path)
 
-    table_meta = table_play_service.build_runtime_submission_meta(
-        game, get_table_user_state(table_key, profile.profile_key))
-    if not table_meta:
+    game_meta = table_play_service.build_runtime_submission_meta(
+        game, get_game_user_state(game_key, profile.profile_key))
+    if not game_meta:
         return
 
     vpinplay = VPinPlayConfig.from_config(ini_config)
@@ -162,12 +162,12 @@ def _record_play(game, ini_config, elapsed_seconds: float, profile, game_file: s
         return
 
     try:
-        result = sync_single_table_meta(
+        result = sync_single_game_meta(
             service_ip=vpinplay.api_endpoint,
             user_id=profile.user_id,
             initials=profile.initials,
             machine_id=profile.machine_id,
-            table_meta=table_meta,
+            game_meta=game_meta,
         )
         logger.info("Alternate VPinPlay submit complete for %s: status=%s ok=%s",
                     game.tableDirName, result.get("status_code"), result.get("ok"))
@@ -210,11 +210,11 @@ def launch_table(game, ini_config, *, source: str, game_file: str | None = None,
     vpx_path = _resolve_game_file(game, game_file)
 
     delete_vpinball_log_on_start_if_configured(settings)
-    table_play_service.track_table_play(game)
+    table_play_service.track_game_play(game)
 
     # Hooks run first and can still stop this - releasing the peripherals is one.
     # Nothing below has happened yet, so a refusal here leaves nothing to undo.
-    events.emit(events.TABLE_LAUNCHING, game=game, ini_config=ini_config)
+    events.emit(events.GAME_LAUNCHING, game=game, ini_config=ini_config)
 
     started_at = None
     profile = None
@@ -236,7 +236,7 @@ def launch_table(game, ini_config, *, source: str, game_file: str | None = None,
         started_at = time.time()
         profile = get_active_profile()
         if profile is not None:
-            record_table_start(str(getattr(game, "fullPathTable", "")
+            record_game_start(str(getattr(game, "fullPathTable", "")
                                    or getattr(game, "tableDirName", "") or ""))
         else:
             table_play_service.increment_start_count(game, os.path.basename(vpx_path))
@@ -247,7 +247,7 @@ def launch_table(game, ini_config, *, source: str, game_file: str | None = None,
         for line in process.stdout:
             if not running and STARTUP_MARKER in line:
                 running = True
-                events.emit(events.TABLE_LAUNCHED, game=game, ini_config=ini_config)
+                events.emit(events.GAME_LAUNCHED, game=game, ini_config=ini_config)
                 logger.info("table running")
 
         process.wait()
@@ -255,7 +255,7 @@ def launch_table(game, ini_config, *, source: str, game_file: str | None = None,
         # Before the play data below, so the peripherals come back promptly rather
         # than waiting on an NVRAM parse and possibly a network call.
         launch_state.clear()
-        events.emit(events.TABLE_EXITED, game=game, ini_config=ini_config)
+        events.emit(events.GAME_EXITED, game=game, ini_config=ini_config)
 
     if started_at is not None:
         _record_play(game, ini_config, max(0.0, time.time() - started_at), profile,

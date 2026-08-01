@@ -9,7 +9,7 @@ from common.jobs import JobReporter
 from common.tables.metaconfig import MetaConfig
 from common.paths import get_ini_config
 from common.tables.standalonescripts import StandaloneScripts
-from common.tables.tableparser import TableParser
+from common.tables.tableparser import GameParser
 from common.online.vpsdb import VPSdb
 from common.tables.vpxparser import VPXParser
 
@@ -24,7 +24,7 @@ def _config(config: IniConfig | None = None) -> IniConfig:
 def build_metadata(
     downloadMedia: bool = True,
     updateAll: bool = True,
-    tableName: str | None = None,
+    gameName: str | None = None,
     userMedia: bool = False,
     progress_cb=None,
     log_cb=None,
@@ -35,24 +35,24 @@ def build_metadata(
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
     log = reporter.log
 
-    not_found_tables = 0
+    not_found_games = 0
     parservpx = VPXParser()
 
     settings = SettingsConfig.from_config(config)
 
-    tp = TableParser(settings.table_root_dir, config)
-    tables = tp.getAllTables()
+    tp = GameParser(settings.game_root_dir, config)
+    tables = tp.getAllGames()
 
-    if tableName:
-        tables = [game for game in tables if game.tableDirName == tableName]
+    if gameName:
+        tables = [game for game in tables if game.tableDirName == gameName]
         if not tables:
-            log(f"Table folder '{tableName}' not found")
+            log(f"Table folder '{gameName}' not found")
             return {"found": 0, "not_found": 0}
-        log(f"Processing single table: {tableName}")
+        log(f"Processing single table: {gameName}")
 
     total = len(tables)
 
-    vps = VPSdb(settings.table_root_dir, config)
+    vps = VPSdb(settings.game_root_dir, config)
     log(f"Found {len(vps)} tables in VPSdb")
 
     if progress_cb:
@@ -72,7 +72,7 @@ def build_metadata(
         if progress_cb:
             reporter.progress(current, total, f"Processing {game.tableDirName}")
 
-        vpsSearchData = vps.parseTableNameFromDir(game.tableDirName)
+        vpsSearchData = vps.parseGameNameFromDir(game.tableDirName)
         vpsData = (
             vps.lookupName(
                 vpsSearchData["name"],
@@ -85,7 +85,7 @@ def build_metadata(
 
         if not vpsData:
             log("  - Not found in VPS")
-            not_found_tables += 1
+            not_found_games += 1
             continue
 
         log(f"Parsing VPX file: {game.fullPathVPXfile}")
@@ -93,7 +93,7 @@ def build_metadata(
 
         if not vpxData:
             log(f"  - VPX file not found or failed to parse: {game.fullPathVPXfile}")
-            not_found_tables += 1
+            not_found_games += 1
             continue
 
         meta.writeConfigMeta({
@@ -109,7 +109,7 @@ def build_metadata(
         # alone (common/online/vpsdb_media.py).
         if downloadMedia and not userMedia:
             try:
-                vps.downloadMediaForTable(game, vpsData["id"], metaConfig=meta)
+                vps.downloadMediaForGame(game, vpsData["id"], metaConfig=meta)
                 log("Downloaded media")
             except KeyError:
                 log("No media found")
@@ -117,12 +117,12 @@ def build_metadata(
     if progress_cb:
         reporter.progress(total, total, "Complete")
 
-    return {"found": total, "not_found": not_found_tables}
+    return {"found": total, "not_found": not_found_games}
 
 
 def apply_vpx_patches(progress_cb=None, iniconfig: IniConfig | None = None):
     config = _config(iniconfig)
     settings = SettingsConfig.from_config(config)
-    tp = TableParser(settings.table_root_dir, config)
-    tables = tp.getAllTables()
+    tp = GameParser(settings.game_root_dir, config)
+    tables = tp.getAllGames()
     StandaloneScripts(tables, progress_cb=progress_cb)

@@ -12,7 +12,7 @@ from typing import Callable, Optional
 from nicegui import context, events, run, ui
 
 from common.tables.table_metadata import reorder_leading_article
-from managerui.pages.table_dialog_context import TableDialogContext, default_context
+from managerui.pages.table_dialog_context import GameDialogContext, default_context
 from managerui.pages.dnd_drop_zone import create_drop_zone, DropContext
 from managerui.services import plugin_profile_service, table_index_service, table_service
 from managerui.services.media_service import invalidate_media_cache
@@ -23,40 +23,40 @@ logger = logging.getLogger("vpinfe.manager.tables")
 ACCEPT_CRZ = ['.crz', '.cRZ', '.CRZ']
 ACCEPT_VNI = ['.vni', '.VNI', '.pal', '.PAL']
 
-normalize_table_rating = table_service.normalize_table_rating
+normalize_game_rating = table_service.normalize_game_rating
 update_vpinfe_setting = table_service.update_vpinfe_setting
 update_user_setting = table_service.update_user_setting
-get_table_collections = table_service.get_table_collections
+get_game_collections = table_service.get_game_collections
 ensure_dir = table_service.ensure_dir
 save_upload_bytes = table_service.save_upload_bytes
 
 
-def add_table_to_collection(table_id: str, collection_name: str) -> bool:
-    if not table_service.add_table_to_collection(table_id, collection_name):
+def add_game_to_collection(table_id: str, collection_name: str) -> bool:
+    if not table_service.add_game_to_collection(table_id, collection_name):
         return False
     table_index_service.add_collection_membership(table_id, collection_name)
     return True
 
 
-def open_table_dialog(
+def open_game_dialog(
     row_data: dict,
     on_close: Optional[Callable[[], None]] = None,
-    context: TableDialogContext | None = None,
+    context: GameDialogContext | None = None,
 ):
     context = context or default_context()
-    on_close = on_close or context.refresh_tables
-    return _render_table_dialog(row_data, on_close=on_close)
+    on_close = on_close or context.refresh_games
+    return _render_game_dialog(row_data, on_close=on_close)
 
 
-def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = None):
+def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = None):
     # Add dialog styles
     load_page_style("table_dialog.css")
 
     dlg = ui.dialog()
     with dlg, ui.card().classes('table-dialog-card').style('width: 1000px; max-width: 85vw;'):
         table_name = row_data.get('name') or row_data.get('filename') or 'Table'
-        table_path_str = row_data.get('table_path', '')
-        row_data['rating'] = normalize_table_rating(row_data.get('rating', 0))
+        game_path_str = row_data.get('table_path', '')
+        row_data['rating'] = normalize_game_rating(row_data.get('rating', 0))
         # Holds the VBS-indicator refresh callback (assigned when the panel below
         # is built) so the Extract VBS handler in the header can refresh it live.
         vbs_refresh_holder = {'fn': None}
@@ -96,7 +96,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             table_service.build_metadata,
                             downloadMedia=True,
                             updateAll=True,
-                            tableName=game_dir_name,
+                            gameName=game_dir_name,
                         )
                         with client:
                             not_found = result.get('not_found', 0)
@@ -130,7 +130,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                     try:
                         result = await run.io_bound(
                             table_service.extract_vbs,
-                            table_path_str,
+                            game_path_str,
                             filename,
                             row_data.get('alt_launcher', ''),
                         )
@@ -149,7 +149,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         with client:
                             extract_vbs_btn.enable()
 
-                def open_update_table_dialog():
+                def open_update_game_dialog():
                     update_client = context.client
                     update_dlg = ui.dialog()
                     with update_dlg, ui.card().classes('table-dialog-card').style('width: 620px; max-width: 92vw;'):
@@ -157,7 +157,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         ui.label(table_name).classes('text-sm').style('color: var(--ink-muted);')
                         update_status = ui.label('Choose a .vpx table file or .directb2s backglass file.').classes('text-xs').style('color: var(--ink-muted);')
 
-                        async def handle_table_update(e: events.UploadEventArguments, file_type: str):
+                        async def handle_game_update(e: events.UploadEventArguments, file_type: str):
                             upload_name = e.file.name
                             data = await e.file.read()
                             client = update_client
@@ -167,8 +167,8 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 update_status.set_text(f'Updating {upload_name}...')
                             try:
                                 result = await run.io_bound(
-                                    table_service.replace_table_file,
-                                    table_path_str,
+                                    table_service.replace_game_file,
+                                    game_path_str,
                                     upload_name,
                                     data,
                                     file_type,
@@ -176,7 +176,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 )
                                 if result.get('file_type') == 'vpx':
                                     row_data['filename'] = result.get('filename', row_data.get('filename', ''))
-                                    table_index_service.update_row_by_path(table_path_str, {'filename': row_data['filename']})
+                                    table_index_service.update_row_by_path(game_path_str, {'filename': row_data['filename']})
                                     with client:
                                         update_status.set_text('Table file updated. Rebuilding metadata...')
                                         ui.notify('Table file updated', type='positive')
@@ -200,10 +200,10 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                     rebuild_btn.enable()
 
                         async def on_vpx_update(e: events.UploadEventArguments):
-                            await handle_table_update(e, 'vpx')
+                            await handle_game_update(e, 'vpx')
 
                         async def on_directb2s_update(e: events.UploadEventArguments):
-                            await handle_table_update(e, 'directb2s')
+                            await handle_game_update(e, 'directb2s')
 
                         async def on_rom_update(e: events.UploadEventArguments):
                             upload_name = e.file.name
@@ -219,7 +219,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 rebuild_btn.disable()
                                 update_status.set_text(f'Uploading ROM {upload_name}...')
                             try:
-                                dest = Path(table_path_str) / 'pinmame' / 'roms' / Path(upload_name).name
+                                dest = Path(game_path_str) / 'pinmame' / 'roms' / Path(upload_name).name
                                 await run.io_bound(save_upload_bytes, dest, data)
                                 with client:
                                     update_status.set_text(f'ROM uploaded: {upload_name}')
@@ -278,7 +278,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                     update_dlg.open()
 
                 rebuild_btn.on_click(lambda: asyncio.create_task(on_rebuild_meta()))
-                update_btn.on_click(open_update_table_dialog)
+                update_btn.on_click(open_update_game_dialog)
                 extract_vbs_btn.on_click(lambda: asyncio.create_task(on_extract_vbs()))
 
         # Main info section
@@ -309,8 +309,8 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                 def vbs_is_present() -> bool:
                     filename_for_vbs = (row_data.get('filename') or '').strip()
-                    if table_path_str and filename_for_vbs:
-                        return (Path(table_path_str) / (Path(filename_for_vbs).stem + '.vbs')).is_file()
+                    if game_path_str and filename_for_vbs:
+                        return (Path(game_path_str) / (Path(filename_for_vbs).stem + '.vbs')).is_file()
                     return False
 
                 with ui.grid(columns=2).classes('w-full gap-3'):
@@ -416,7 +416,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 ui.badge(label, color='grey').props('rounded outline')
 
                 # User rating row
-                rating_state = {'value': normalize_table_rating(row_data.get('rating', 0))}
+                rating_state = {'value': normalize_game_rating(row_data.get('rating', 0))}
                 rating_buttons = []
 
                 with ui.row().classes('detail-row items-center gap-2 w-full mt-2'):
@@ -426,7 +426,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         rating_text = ui.label('').style('color: var(--neon-cyan); font-size: 0.85rem; min-width: 48px;')
 
                         def refresh_rating_ui() -> None:
-                            value = normalize_table_rating(rating_state['value'])
+                            value = normalize_game_rating(rating_state['value'])
                             rating_text.set_text(f'({value}/5)')
                             for idx, button in enumerate(rating_buttons, start=1):
                                 is_set = idx <= value
@@ -440,14 +440,14 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 )
 
                         def save_rating(new_rating: int) -> None:
-                            clamped = normalize_table_rating(new_rating)
-                            if not table_path_str:
+                            clamped = normalize_game_rating(new_rating)
+                            if not game_path_str:
                                 ui.notify('Unable to save rating: missing table path', type='negative')
                                 return
-                            if update_user_setting(table_path_str, 'Rating', clamped):
+                            if update_user_setting(game_path_str, 'Rating', clamped):
                                 rating_state['value'] = clamped
                                 row_data['rating'] = clamped
-                                table_index_service.update_row_by_path(table_path_str, {'rating': clamped})
+                                table_index_service.update_row_by_path(game_path_str, {'rating': clamped})
                                 refresh_rating_ui()
                                 if on_close:
                                     on_close()
@@ -471,7 +471,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
             # Collections section - add table to collection
             table_id = row_data.get('vpinfe_id', '')
             current_collections = row_data.get('collections', [])
-            available_collections = get_table_collections()
+            available_collections = get_game_collections()
 
             if table_id and available_collections:
                 with ui.card().classes('w-full p-4').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);'):
@@ -501,7 +501,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                                 if not selected:
                                     ui.notify('Please select a collection', type='warning')
                                     return
-                                if add_table_to_collection(table_id, selected):
+                                if add_game_to_collection(table_id, selected):
                                     ui.notify(f'Added to {selected}', type='positive')
                                     # add_table_to_collection already updates the cache,
                                     # just update the dropdown options
@@ -536,11 +536,11 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                     def on_alttitle_save():
                         new_value = (alttitle_input.value or '').strip()
-                        if update_vpinfe_setting(table_path_str, 'alt_title', new_value):
+                        if update_vpinfe_setting(game_path_str, 'alt_title', new_value):
                             row_data['alt_title'] = new_value
                             fallback_name = (row_data.get('filename') or 'Table').strip()
                             try:
-                                info_path = Path(table_path_str) / f"{Path(table_path_str).name}.info"
+                                info_path = Path(game_path_str) / f"{Path(game_path_str).name}.info"
                                 with open(info_path, 'r', encoding='utf-8') as f:
                                     raw = json.load(f)
                                 info = raw.get("Info", {})
@@ -548,7 +548,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             except Exception:
                                 pass
                             effective_name = new_value or reorder_leading_article(fallback_name)
-                            table_index_service.update_row_by_path(table_path_str, {
+                            table_index_service.update_row_by_path(game_path_str, {
                                 'alt_title': new_value,
                                 'name': effective_name,
                             })
@@ -586,11 +586,11 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         if game_dir_name:
                             await on_rebuild_meta()
                         with save_client:
-                            if update_vpinfe_setting(table_path_str, 'alt_vpsid', new_value):
+                            if update_vpinfe_setting(game_path_str, 'alt_vpsid', new_value):
                                 # Collections do not move with this any more - membership
                                 # is the table's own id, which a VPS id change cannot touch.
                                 row_data['alt_vpsid'] = new_value
-                                table_index_service.update_row_by_path(table_path_str, {
+                                table_index_service.update_row_by_path(game_path_str, {
                                     'alt_vpsid': new_value,
                                 })
                                 ui.notify('Alt VPS ID saved', type='positive')
@@ -611,9 +611,9 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                     def on_altlauncher_save():
                         new_value = (altlauncher_input.value or '').strip()
-                        if update_vpinfe_setting(table_path_str, 'alt_launcher', new_value):
+                        if update_vpinfe_setting(game_path_str, 'alt_launcher', new_value):
                             row_data['alt_launcher'] = new_value
-                            table_index_service.update_row_by_path(table_path_str, {'alt_launcher': new_value})
+                            table_index_service.update_row_by_path(game_path_str, {'alt_launcher': new_value})
                             ui.notify('Alt launcher saved', type='positive')
                         else:
                             ui.notify('Failed to save alt launcher', type='negative')
@@ -639,9 +639,9 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         # Default means "use the live VPinballX.ini", which is the
                         # same as having no override, so store it as empty.
                         new_value = '' if plugin_profile_service.is_default_profile(selected) else selected
-                        if update_vpinfe_setting(table_path_str, 'plugin_profile', new_value):
+                        if update_vpinfe_setting(game_path_str, 'plugin_profile', new_value):
                             row_data['plugin_profile'] = new_value
-                            table_index_service.update_row_by_path(table_path_str, {'plugin_profile': new_value})
+                            table_index_service.update_row_by_path(game_path_str, {'plugin_profile': new_value})
                             ui.notify('Plugin profile saved', type='positive')
                         else:
                             ui.notify('Failed to save plugin profile', type='negative')
@@ -658,9 +658,9 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
 
                     def on_frontend_dof_event_save():
                         new_value = (frontend_dof_event_input.value or '').strip()
-                        if update_vpinfe_setting(table_path_str, 'frontend_dof_event', new_value):
+                        if update_vpinfe_setting(game_path_str, 'frontend_dof_event', new_value):
                             row_data['frontend_dof_event'] = new_value
-                            table_index_service.update_row_by_path(table_path_str, {'frontend_dof_event': new_value})
+                            table_index_service.update_row_by_path(game_path_str, {'frontend_dof_event': new_value})
                             ui.notify('Frontend DOF event saved', type='positive')
                         else:
                             ui.notify('Failed to save Frontend DOF event', type='negative')
@@ -671,10 +671,10 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                 with ui.row().classes('items-center gap-3 mt-3'):
                     def on_delete_nvram_change(e):
                         new_value = e.value
-                        if update_vpinfe_setting(table_path_str, 'delete_nvram_on_close', new_value):
+                        if update_vpinfe_setting(game_path_str, 'delete_nvram_on_close', new_value):
                             row_data['delete_nvram_on_close'] = new_value
                             # Also update the cache so the value persists across dialog opens
-                            table_index_service.update_row_by_path(table_path_str, {'delete_nvram_on_close': new_value})
+                            table_index_service.update_row_by_path(game_path_str, {'delete_nvram_on_close': new_value})
                             ui.notify('Setting saved', type='positive')
                         else:
                             ui.notify('Failed to save setting', type='negative')
@@ -693,7 +693,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                 with ui.column().classes('gap-4 p-2').style('background: var(--surface); border-radius: 8px;'):
                     create_drop_zone(
                         label='Drop asset files or archives for this table',
-                        get_context=lambda: DropContext(table_path=str(table_path), table_row=row_data,
+                        get_context=lambda: DropContext(table_path=str(table_path), game_row=row_data,
                                                         rom_name=rom_name),
                         on_imported=lambda _report: (on_close() if on_close else None),
                     )

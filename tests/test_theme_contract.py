@@ -139,7 +139,7 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual(projected["tableDirName"], "Example")
         self.assertEqual(projected["WheelImagePath"], "/t/wheel.png")
 
-    def test_a_table_with_no_game_file_still_projects(self):
+    def test_a_game_with_no_game_file_still_projects(self):
         row = {"meta": {"Info": {"Title": "x"}, "vpinfe": {}, "game_files": {}}}
 
         meta = project(row, 1)["meta"]

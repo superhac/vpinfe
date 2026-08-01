@@ -5,12 +5,12 @@ import importlib
 from unittest import mock
 
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
-from managerui.filters import ALL_VALUE, apply_table_filters, build_table_filter_options
+from managerui.filters import ALL_VALUE, apply_game_filters, build_game_filter_options
 from managerui.services.archive_service import resolve_game_dir
-from managerui.services.collections_service import get_filter_options, search_tables
+from managerui.services.collections_service import get_filter_options, search_games
 from managerui.services.media_service import media_url, update_cache_entry, set_media_cache, get_media_cache, invalidate_media_cache
 from managerui.services.system_service import format_bytes, metric_tone
-from managerui.services.table_catalog import build_mobile_table_rows
+from managerui.services.table_catalog import build_mobile_game_rows
 from managerui.services import theme_service
 from managerui.services.table_index_service import (
     add_collection_membership,
@@ -20,11 +20,11 @@ from managerui.services.table_index_service import (
     set_rows,
     update_row_by_path,
 )
-from managerui.services.table_service import normalize_table_rating, replace_table_file
+from managerui.services.table_service import normalize_game_rating, replace_game_file
 
 
 class ManagerUiServiceTests(unittest.TestCase):
-    def test_table_filter_options_and_apply_filters(self):
+    def test_game_filter_options_and_apply_filters(self):
         rows = [
             {
                 "name": "Attack From Mars",
@@ -44,24 +44,24 @@ class ManagerUiServiceTests(unittest.TestCase):
             },
         ]
 
-        options = build_table_filter_options(rows)
+        options = build_game_filter_options(rows)
         self.assertEqual(options["manufacturers"], [ALL_VALUE, "Bally", "Williams"])
         self.assertEqual(options["themes"], [ALL_VALUE, "Fantasy", "Sci-Fi"])
 
-        filtered = apply_table_filters(
+        filtered = apply_game_filters(
             rows,
             {"search": "mars", "manufacturer": "Bally", "year": ALL_VALUE},
             search_fields=("name", "filename"),
         )
         self.assertEqual([row["name"] for row in filtered], ["Attack From Mars"])
 
-    def test_normalize_table_rating(self):
+    def test_normalize_game_rating(self):
         cases = [(None, 0), ("bad", 0), ("2.8", 2), (8, 5), (-1, 0)]
         for raw, expected in cases:
             with self.subTest(raw=raw):
-                self.assertEqual(normalize_table_rating(raw), expected)
+                self.assertEqual(normalize_game_rating(raw), expected)
 
-    def test_replace_table_file_replaces_vpx_and_renames_directb2s(self):
+    def test_replace_game_file_replaces_vpx_and_renames_directb2s(self):
         from tempfile import TemporaryDirectory
         from pathlib import Path
 
@@ -73,8 +73,8 @@ class ManagerUiServiceTests(unittest.TestCase):
             old_vpx.write_bytes(b"old vpx")
             old_b2s.write_bytes(b"old b2s")
 
-            with mock.patch("managerui.services.table_service.refresh_table"):
-                result = replace_table_file(
+            with mock.patch("managerui.services.table_service.refresh_game"):
+                result = replace_game_file(
                     str(game_dir),
                     "New Table.vpx",
                     b"new vpx",
@@ -89,7 +89,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             self.assertEqual(result["filename"], "New Table.vpx")
             self.assertEqual(result["directb2s_filename"], "New Table.directb2s")
 
-    def test_replace_table_file_directb2s_uses_existing_name_or_vpx_stem(self):
+    def test_replace_game_file_directb2s_uses_existing_name_or_vpx_stem(self):
         from tempfile import TemporaryDirectory
         from pathlib import Path
 
@@ -100,8 +100,8 @@ class ManagerUiServiceTests(unittest.TestCase):
             existing_b2s = game_dir / "Custom Backglass.directb2s"
             existing_b2s.write_bytes(b"old b2s")
 
-            with mock.patch("managerui.services.table_service.refresh_table"):
-                result = replace_table_file(
+            with mock.patch("managerui.services.table_service.refresh_game"):
+                result = replace_game_file(
                     str(game_dir),
                     "Uploaded.directb2s",
                     b"new b2s",
@@ -118,8 +118,8 @@ class ManagerUiServiceTests(unittest.TestCase):
             game_dir.mkdir()
             (game_dir / "Example.vpx").write_bytes(b"vpx")
 
-            with mock.patch("managerui.services.table_service.refresh_table"):
-                result = replace_table_file(
+            with mock.patch("managerui.services.table_service.refresh_game"):
+                result = replace_game_file(
                     str(game_dir),
                     "Uploaded.directb2s",
                     b"new b2s",
@@ -130,23 +130,23 @@ class ManagerUiServiceTests(unittest.TestCase):
             self.assertEqual((game_dir / "Example.directb2s").read_bytes(), b"new b2s")
             self.assertEqual(result["filename"], "Example.directb2s")
 
-    def test_resolve_table_dir_rejects_path_traversal(self):
+    def test_resolve_game_dir_rejects_path_traversal(self):
         with self.subTest("valid table"):
             from tempfile import TemporaryDirectory
             from pathlib import Path
 
             with TemporaryDirectory() as temp_dir:
                 games_root = Path(temp_dir) / "tables"
-                good_table = games_root / "Good Table"
-                good_table.mkdir(parents=True)
+                good_game = games_root / "Good Table"
+                good_game.mkdir(parents=True)
 
-                self.assertEqual(resolve_game_dir("Good Table", str(games_root)), good_table.resolve())
+                self.assertEqual(resolve_game_dir("Good Table", str(games_root)), good_game.resolve())
 
                 with self.assertRaises(ValueError):
                     resolve_game_dir("../outside", str(games_root))
 
-    def test_mobile_table_rows_format_display_names(self):
-        rows = build_mobile_table_rows([
+    def test_mobile_game_rows_format_display_names(self):
+        rows = build_mobile_game_rows([
             {"name": "Centaur", "manufacturer": "Bally", "year": "1981", "table_dir_name": "Centaur"},
             {"name": "No Frills", "manufacturer": "", "year": "", "table_dir_name": "No Frills"},
         ])
@@ -173,7 +173,7 @@ class ManagerUiServiceTests(unittest.TestCase):
         options = get_filter_options(rows)
         self.assertEqual(options["letters"], ["All", "A", "M"])
         self.assertEqual(options["manufacturers"], ["All", "Bally", "Williams"])
-        self.assertEqual([row["vpinfe_id"] for row in search_tables("mars", rows)], ["a"])
+        self.assertEqual([row["vpinfe_id"] for row in search_games("mars", rows)], ["a"])
 
     def test_collections_filter_options_default_to_vpsdb(self):
         vpsdb_rows = [
@@ -295,7 +295,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             with self.subTest(key_id=key_id):
                 self.assertEqual(KeySimulator.KEY_ID_TO_PYNPUT[key_id], key_id)
 
-    def test_table_index_lookup_update_and_search(self):
+    def test_game_index_lookup_update_and_search(self):
         rows = set_rows([
             {"vpinfe_id": "afm", "name": "Attack From Mars", "filename": "afm.vpx", "table_path": "/tmp/tables/Attack", "collections": []},
             {"vpinfe_id": "mm", "name": "Medieval Madness", "filename": "mm.vpx", "table_path": "/tmp/tables/MM", "collections": []},

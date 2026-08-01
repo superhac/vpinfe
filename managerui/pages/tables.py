@@ -6,12 +6,12 @@ from pathlib import Path
 import json
 from typing import List, Dict, Optional, Callable
 from queue import Queue
-from managerui.filters import apply_table_filters, build_table_filter_options
-from managerui.paths import VPINFE_INI_PATH, get_games_path as resolve_tables_path
-from managerui.pages.table_detail_dialog import open_table_dialog
-from managerui.pages.table_import_dialog import open_import_table_dialog
+from managerui.filters import apply_game_filters, build_game_filter_options
+from managerui.paths import VPINFE_INI_PATH, get_games_path as resolve_games_path
+from managerui.pages.table_detail_dialog import open_game_dialog
+from managerui.pages.table_import_dialog import open_import_game_dialog
 from managerui.pages.dnd_drop_zone import create_drop_zone, enable_row_drops, DropContext
-from managerui.pages.table_match_dialog import open_match_vps_dialog, open_missing_tables_dialog
+from managerui.pages.table_match_dialog import open_match_vps_dialog, open_missing_games_dialog
 from managerui.pages.info_maintenance_dialogs import maintenance_menu, render_info_banners
 from managerui.services import table_service
 from managerui.services import table_index_service
@@ -44,9 +44,9 @@ def ensure_vpsdb_downloaded() -> bool:
     _vpsdb_cache = None
     return ok
 # Ensure only one Missing Tables dialog at a time
-_missing_tables_dialog: Optional[ui.dialog] = None
+_missing_games_dialog: Optional[ui.dialog] = None
 # Cache compatibility helpers. Ownership lives in table_index_service.
-def _tables_cache() -> Optional[List[Dict]]:
+def _games_cache() -> Optional[List[Dict]]:
     return table_index_service.get_rows()
 
 
@@ -54,25 +54,25 @@ def _missing_cache() -> Optional[List[Dict]]:
     return table_index_service.get_missing_rows()
 
 
-def normalize_table_rating(value) -> int:
+def normalize_game_rating(value) -> int:
     """Normalize rating values to an integer in the range 0..5."""
-    return table_service.normalize_table_rating(value)
+    return table_service.normalize_game_rating(value)
 
 
-def get_table_collections_map() -> Dict[str, List[str]]:
+def get_game_collections_map() -> Dict[str, List[str]]:
     """Collection names keyed by table id, for collections with explicit members."""
-    return table_service.get_table_collections_map()
+    return table_service.get_game_collections_map()
 
 
-def get_table_collections() -> List[str]:
+def get_game_collections() -> List[str]:
     """Names of the collections a table can be added to by hand."""
-    return table_service.get_table_collections()
+    return table_service.get_game_collections()
 
 
-def add_table_to_collection(table_id: str, collection_name: str) -> bool:
+def add_game_to_collection(table_id: str, collection_name: str) -> bool:
     """Add a table to a collection. Returns True on success."""
     try:
-        if not table_service.add_table_to_collection(table_id, collection_name):
+        if not table_service.add_game_to_collection(table_id, collection_name):
             return False
         table_index_service.add_collection_membership(table_id, collection_name)
         return True
@@ -87,7 +87,7 @@ def sync_collections_to_cache():
     Call this after modifying collections outside of add_table_to_collection(),
     such as when removing tables from collections or deleting/renaming collections.
     """
-    table_index_service.sync_collection_memberships(get_table_collections_map())
+    table_index_service.sync_collection_memberships(get_game_collections_map())
 
 
 def update_vpinfe_setting(table_path: str, key: str, value) -> bool:
@@ -140,9 +140,9 @@ logger = logging.getLogger("vpinfe.manager.tables")
 
 def get_games_path() -> str:
     """Resolve tables path from vpinfe.ini [Settings] tablerootdir, fallback to ~/tables."""
-    return resolve_tables_path()
+    return resolve_games_path()
 
-def parse_table_info(info_path):
+def parse_game_info(info_path):
     import os
     import json
 
@@ -220,7 +220,7 @@ def parse_table_info(info_path):
             "alt_title": (vpinfe.get("alt_title", "") or "").strip(),
             "alt_vpsid": (vpinfe.get("alt_vpsid", "") or "").strip(),
             "frontend_dof_event": (vpinfe.get("frontend_dof_event", "") or "").strip(),
-            "rating": normalize_table_rating(user.get("Rating", 0)),
+            "rating": normalize_game_rating(user.get("Rating", 0)),
         }
 
         return data
@@ -229,21 +229,21 @@ def parse_table_info(info_path):
         logger.error(f"Error reading {info_path}: {e}")
         return {}
 
-def scan_tables(silent: bool = False):
+def scan_games(silent: bool = False):
     games_path = get_games_path()
     if not os.path.exists(games_path):
         logger.warning(f"Tables path does not exist: {games_path}. Skipping scan.")
         if not silent:
             ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
         return []
-    return table_service.scan_table_rows(reload=False)
+    return table_service.scan_game_rows(reload=False)
 
-def scan_missing_tables():
-    return table_service.scan_missing_table_rows(reload=False)
+def scan_missing_games():
+    return table_service.scan_missing_game_rows(reload=False)
 
 
 def load_metadata_from_ini():
-    return scan_tables()
+    return scan_games()
 
 def render_panel(tab=None):
     with ui.column().classes('w-full'):
@@ -269,7 +269,7 @@ def render_panel(tab=None):
                 if cached_row is not None:
                     row_data = cached_row
                 # Pass update_table_display as callback to refresh table when dialog closes
-                open_table_dialog(row_data, on_close=lambda: update_table_display())
+                open_game_dialog(row_data, on_close=lambda: update_game_display())
             else:
                 ui.notify("Error: Unexpected row click event format.", type="negative")
 
@@ -291,23 +291,23 @@ def render_panel(tab=None):
                     await run.io_bound(ensure_vpsdb_downloaded)
 
                 # Pull rows from the shared startup-backed repository
-                table_rows, missing_rows = await run.io_bound(table_index_service.scan_table_data, True)
+                game_rows, missing_rows = await run.io_bound(table_index_service.scan_game_data, True)
 
                 # Update UI components (default sort by Name; force refresh by reassigning rows)
                 try:
-                    table_rows.sort(key=lambda r: (r.get('name') or '').lower())
+                    game_rows.sort(key=lambda r: (r.get('name') or '').lower())
                 except Exception:
                     pass
 
                 # Refresh filter options and apply current filters
                 try:
                     refresh_filter_options()
-                    update_table_display()
+                    update_game_display()
                 except NameError:
                     # Filters not yet created, just show all rows
-                    game._props['rows'] = table_rows
+                    game._props['rows'] = game_rows
                     game.update()
-                    title_label.set_text(f"Tables ({len(table_rows)})")
+                    title_label.set_text(f"Tables ({len(game_rows)})")
 
                 # Force browser layout recalculation to ensure table rows display properly
                 await asyncio.sleep(0.05)
@@ -324,7 +324,7 @@ def render_panel(tab=None):
 
                 # Update the click handler for the missing tables button with the new data
                 missing_button.on('click', None) # Remove old handler
-                missing_button.on('click', lambda: open_missing_tables_dialog(
+                missing_button.on('click', lambda: open_missing_games_dialog(
                     missing_rows,
                     on_close=lambda: asyncio.create_task(perform_scan(silent=True))
                 ))
@@ -608,7 +608,7 @@ def render_panel(tab=None):
 
                     import_btn = ui.button("Import Table", icon="upload").props("color=accent").style('border-radius: 0;')
 
-                    import_btn.on_click(lambda: open_import_table_dialog(perform_scan))
+                    import_btn.on_click(lambda: open_import_game_dialog(perform_scan))
 
                     # Both info operations live behind one control, in the same place in
                     # every release: whoever needs the restore has just downgraded.
@@ -622,15 +622,15 @@ def render_panel(tab=None):
             selected = game.selected or []
             if len(selected) == 1:
                 row = selected[0]
-                return DropContext(table_path=row.get('table_path', ''), table_row=row,
+                return DropContext(table_path=row.get('table_path', ''), game_row=row,
                                    rom_name=(row.get('rom') or '').strip(), allow_new_table=True)
             return DropContext(allow_new_table=True)
 
         def _dnd_row_context(row_key: str) -> DropContext | None:
-            row = next((r for r in (_tables_cache() or []) if r.get('vpinfe_id') == row_key), None)
+            row = next((r for r in (_games_cache() or []) if r.get('vpinfe_id') == row_key), None)
             if not row:
                 return None
-            return DropContext(table_path=row.get('table_path', ''), table_row=row,
+            return DropContext(table_path=row.get('table_path', ''), game_row=row,
                                rom_name=(row.get('rom') or '').strip())
 
         drop_zone = create_drop_zone(
@@ -640,7 +640,7 @@ def render_panel(tab=None):
         )
 
         # Use cached data if available, otherwise start with empty
-        initial_rows = _tables_cache() if _tables_cache() is not None else []
+        initial_rows = _games_cache() if _games_cache() is not None else []
         initial_missing = _missing_cache() if _missing_cache() is not None else []
 
         # --- Filter state and functions ---
@@ -656,7 +656,7 @@ def render_panel(tab=None):
 
         def get_filter_options_from_cache():
             """Extract unique filter values from cached tables."""
-            return build_table_filter_options(_tables_cache() or [])
+            return build_game_filter_options(_games_cache() or [])
 
         def apply_filters():
             """Filter the cached tables based on current filter state."""
@@ -665,20 +665,20 @@ def render_panel(tab=None):
                 extra_predicates.append(lambda row: row.get('pup_pack_exists', False))
             if filter_state['has_b2s']:
                 extra_predicates.append(lambda row: row.get('b2s_exists', False))
-            return apply_table_filters(
-                _tables_cache() or [],
+            return apply_game_filters(
+                _games_cache() or [],
                 filter_state,
                 search_fields=('name', 'filename'),
                 extra_predicates=extra_predicates,
             )
 
-        def update_table_display():
+        def update_game_display():
             """Update the table with filtered results."""
             filtered = apply_filters()
             game._props['rows'] = filtered
             game.update()
             # Update title with filtered count
-            total = len(_tables_cache() or [])
+            total = len(_games_cache() or [])
             shown = len(filtered)
             if shown == total:
                 title_label.set_text(f"Tables ({total})")
@@ -687,31 +687,31 @@ def render_panel(tab=None):
 
         def on_search_change(e: events.ValueChangeEventArguments):
             filter_state['search'] = e.value or ''
-            update_table_display()
+            update_game_display()
 
         def on_manufacturer_change(e: events.ValueChangeEventArguments):
             filter_state['manufacturer'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
         def on_year_change(e: events.ValueChangeEventArguments):
             filter_state['year'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
         def on_theme_change(e: events.ValueChangeEventArguments):
             filter_state['theme'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
-        def on_table_type_change(e: events.ValueChangeEventArguments):
+        def on_game_type_change(e: events.ValueChangeEventArguments):
             filter_state['table_type'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
         def on_pup_pack_change(e: events.ValueChangeEventArguments):
             filter_state['has_pup_pack'] = e.value or False
-            update_table_display()
+            update_game_display()
 
         def on_b2s_change(e: events.ValueChangeEventArguments):
             filter_state['has_b2s'] = e.value or False
-            update_table_display()
+            update_game_display()
 
         def clear_filters():
             filter_state['search'] = ''
@@ -725,11 +725,11 @@ def render_panel(tab=None):
             manufacturer_select.value = 'All'
             year_select.value = 'All'
             theme_select.value = 'All'
-            table_type_select.value = 'All'
+            game_type_select.value = 'All'
             pup_pack_checkbox.value = False
             b2s_checkbox.value = False
             game._props['pagination']['page'] = 1
-            update_table_display()
+            update_game_display()
 
         def refresh_filter_options():
             """Update filter dropdowns with current cache values."""
@@ -737,11 +737,11 @@ def render_panel(tab=None):
             manufacturer_select.options = opts['manufacturers']
             year_select.options = opts['years']
             theme_select.options = opts['themes']
-            table_type_select.options = opts['table_types']
+            game_type_select.options = opts['table_types']
             manufacturer_select.update()
             year_select.update()
             theme_select.update()
-            table_type_select.update()
+            game_type_select.update()
 
         # --- Search and Filter UI ---
         with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: var(--surface); border: 1px solid var(--line);'):
@@ -775,12 +775,12 @@ def render_panel(tab=None):
                 ).props('outlined dense').classes('w-40')
                 theme_select.on_value_change(on_theme_change)
 
-                table_type_select = ui.select(
+                game_type_select = ui.select(
                     label='Type',
                     options=filter_opts['table_types'],
                     value='All'
                 ).props('outlined dense').classes('w-28')
-                table_type_select.on_value_change(on_table_type_change)
+                game_type_select.on_value_change(on_game_type_change)
 
                 # PUP Pack checkbox
                 pup_pack_checkbox = ui.checkbox('PUP Pack', value=False).style('color: var(--ink);')
@@ -806,7 +806,7 @@ def render_panel(tab=None):
                 batch_label = ui.label('0 tables selected').classes('font-medium').style('color: var(--ink);')
                 batch_collection_select = ui.select(
                     label='Add to Collection',
-                    options=get_table_collections(),
+                    options=get_game_collections(),
                     value=None
                 ).props('dense').classes('w-48').style('color: var(--ink); border: 1px solid var(--line);')
                 batch_add_btn = ui.button('Add to Collection', icon='playlist_add').style('background: var(--neon-purple) !important; color: var(--ink) !important;')
@@ -821,9 +821,9 @@ def render_panel(tab=None):
                 batch_bar.visible = False
 
         # Create a scrollable container for the table with proper height constraint
-        table_container = ui.column().classes("w-full").style("flex: 1; overflow: hidden; display: flex;")
+        game_container = ui.column().classes("w-full").style("flex: 1; overflow: hidden; display: flex;")
 
-        with table_container:
+        with game_container:
             game = (
                 ui.game(columns=columns, rows=initial_rows, row_key='vpinfe_id', selection='multiple',
                          on_select=on_selection_change, pagination={'rowsPerPage': 25})
@@ -984,7 +984,7 @@ def render_panel(tab=None):
             for row in selected:
                 table_id = row.get('vpinfe_id', '')
                 if table_id:
-                    if add_table_to_collection(table_id, collection):
+                    if add_game_to_collection(table_id, collection):
                         added += 1
                 else:
                     skipped += 1
@@ -997,7 +997,7 @@ def render_panel(tab=None):
                 game.update()
                 batch_bar.visible = False
                 batch_collection_select.value = None
-                update_table_display()
+                update_game_display()
             else:
                 ui.notify('No tables could be added (missing VPS IDs)', type='warning')
 
@@ -1044,17 +1044,17 @@ def render_panel(tab=None):
             # Update button color: green if 0, red if > 0
             btn_color = "positive" if len(cached_missing) == 0 else "negative"
             missing_button._props['color'] = btn_color
-            missing_button.on('click', lambda: open_missing_tables_dialog(
+            missing_button.on('click', lambda: open_missing_games_dialog(
                 cached_missing,
                 on_close=lambda: asyncio.create_task(perform_scan(silent=True))
             ))
 
         # Function to refresh the table display
-        async def refresh_table_on_startup():
-            if _tables_cache() is not None:
+        async def refresh_game_on_startup():
+            if _games_cache() is not None:
                 # Refresh filter options and apply filters from cache
                 refresh_filter_options()
-                update_table_display()
+                update_game_display()
             else:
                 # No cache, run the scan
                 await perform_scan(silent=True)
@@ -1067,6 +1067,6 @@ def render_panel(tab=None):
         # Use a one-shot timer to ensure table loads after UI is ready
         async def startup_refresh():
             await asyncio.sleep(0.2)  # Wait for UI to be ready
-            await refresh_table_on_startup()
+            await refresh_game_on_startup()
 
         ui.timer(0.1, lambda: asyncio.create_task(startup_refresh()), once=True)

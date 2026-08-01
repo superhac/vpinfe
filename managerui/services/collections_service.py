@@ -99,8 +99,8 @@ def set_collection_image(name: str, filename: str | None) -> None:
     manager.save()
 
 
-def get_table_rows_for_collections(cached_tables: list[dict] | None = None) -> list[dict]:
-    return cached_tables if cached_tables is not None else table_index_service.scan_rows(reload=False)
+def get_game_rows_for_collections(cached_games: list[dict] | None = None) -> list[dict]:
+    return cached_games if cached_games is not None else table_index_service.scan_rows(reload=False)
 
 
 def get_vpsdb_rows_for_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> list[dict]:
@@ -115,8 +115,8 @@ def get_vpsdb_rows_for_filter_options(cached_vpsdb_rows: list[dict] | None = Non
     return rows
 
 
-def get_table_name_map(cached_tables: list[dict] | None = None) -> Dict[str, str]:
-    tables = get_table_rows_for_collections(cached_tables)
+def get_game_name_map(cached_games: list[dict] | None = None) -> Dict[str, str]:
+    tables = get_game_rows_for_collections(cached_games)
     return {
         game["vpinfe_id"]: game.get("name") or game["vpinfe_id"]
         for game in tables
@@ -124,19 +124,19 @@ def get_table_name_map(cached_tables: list[dict] | None = None) -> Dict[str, str
     }
 
 
-def get_table_collections_map() -> Dict[str, List[str]]:
-    return table_repository.collections_by_table_id()
+def get_game_collections_map() -> Dict[str, List[str]]:
+    return table_repository.collections_by_game_id()
 
 
-def member_to_name(member_id: str, table_map: Dict[str, str] | None = None) -> str:
+def member_to_name(member_id: str, game_map: Dict[str, str] | None = None) -> str:
     """Display name for a collection member, falling back to the raw id.
 
     An entry that has not been migrated yet, or points at a table that is not
     installed, has no name to show - so show what is recorded rather than nothing.
     """
-    if table_map is None:
-        table_map = get_table_name_map()
-    return table_map.get(member_id, member_id)
+    if game_map is None:
+        game_map = get_game_name_map()
+    return game_map.get(member_id, member_id)
 
 
 def _as_values(value) -> list[str]:
@@ -215,9 +215,9 @@ def rename_collection(name: str, new_name: str) -> None:
     manager.save()
 
 
-def create_table_collection(name: str, table_ids: list[str], image: str | None = None) -> None:
+def create_game_collection(name: str, game_ids: list[str], image: str | None = None) -> None:
     manager = get_collections_manager()
-    manager.add_collection(name, table_ids)
+    manager.add_collection(name, game_ids)
     if image:
         _set_section_image(manager.config[name], image)
     manager.save()
@@ -242,19 +242,19 @@ def update_filter_collection(name: str, **filters) -> None:
     manager.save()
 
 
-def update_table_collection(name: str, table_ids: list[str], image: str | None = None) -> None:
+def update_game_collection(name: str, game_ids: list[str], image: str | None = None) -> None:
     manager = get_collections_manager()
-    manager.config[name][MEMBERS_KEY] = ",".join(table_ids)
+    manager.config[name][MEMBERS_KEY] = ",".join(game_ids)
     if image is not None:
         _set_section_image(manager.config[name], image)
     manager.save()
 
 
-def search_tables(term: str, cached_tables: list[dict] | None = None, limit: int = 20) -> list[dict]:
+def search_games(term: str, cached_games: list[dict] | None = None, limit: int = 20) -> list[dict]:
     term = (term or "").strip().lower()
     if not term:
         return []
     return [
-        game for game in get_table_rows_for_collections(cached_tables)
+        game for game in get_game_rows_for_collections(cached_games)
         if term in (game.get("name") or "").lower()
     ][:limit]

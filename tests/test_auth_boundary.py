@@ -21,8 +21,8 @@ def _app_with_guarded_routes() -> object:
     app = httpapi.create_api_app()
     router = APIRouter(prefix="/probe")
 
-    @router.get("/tables-ish", dependencies=[auth.requires(scopes.TABLES_READ)])
-    def _tables_ish() -> dict:
+    @router.get("/tables-ish", dependencies=[auth.requires(scopes.GAMES_READ)])
+    def _games_ish() -> dict:
         return {"ok": True}
 
     @router.get("/vps-ish", dependencies=[auth.requires(scopes.VPS_READ)])
@@ -78,7 +78,7 @@ class EnforcementTests(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         error = response.json()["error"]
         self.assertEqual(error["code"], "forbidden")
-        self.assertIn(scopes.TABLES_READ, error["message"])
+        self.assertIn(scopes.GAMES_READ, error["message"])
 
     def test_a_granted_scope_still_passes(self) -> None:
         self._grant(scopes.INSTANCE_READ)
@@ -87,7 +87,7 @@ class EnforcementTests(unittest.TestCase):
 
     def test_scopes_are_not_interchangeable(self) -> None:
         """tables:read must not open the door to the outbound VPSdb lookup."""
-        self._grant(scopes.TABLES_READ)
+        self._grant(scopes.GAMES_READ)
         client = _client(_app_with_guarded_routes())
 
         self.assertEqual(client.get("/probe/tables-ish").status_code, 200)

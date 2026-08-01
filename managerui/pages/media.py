@@ -5,7 +5,7 @@ import shutil
 from nicegui import ui, events, run, app, context
 from typing import List, Dict, Optional
 
-from managerui.filters import apply_table_filters, build_table_filter_options
+from managerui.filters import apply_game_filters, build_game_filter_options
 from managerui.pages.dnd_drop_zone import create_drop_zone, enable_cell_drops, DropContext
 from managerui.services import media_service
 from managerui.ui_helpers import debounced_input, load_page_style
@@ -118,7 +118,7 @@ def render_panel():
         }
 
         def get_filter_options_from_cache():
-            return build_table_filter_options(_media_cache() or [])
+            return build_game_filter_options(_media_cache() or [])
 
         def apply_filters():
             missing_predicates = [
@@ -126,7 +126,7 @@ def render_panel():
                 for media_key, _, _ in MEDIA_TYPES
                 if filter_state.get(f'missing_{media_key}')
             ]
-            return apply_table_filters(_media_cache() or [], filter_state, extra_predicates=missing_predicates)
+            return apply_game_filters(_media_cache() or [], filter_state, extra_predicates=missing_predicates)
 
         def _visible_rows(rows: List[Dict]) -> List[Dict]:
             try:
@@ -200,7 +200,7 @@ def render_panel():
 
                 page_state['thumb_warm_in_progress'] = True
                 sem = asyncio.Semaphore(4)
-                current_pagination = dict(media_table._props.get('pagination', {}))
+                current_pagination = dict(media_game._props.get('pagination', {}))
 
                 async def _build_one(row: Dict, media_key: str, source_path: str):
                     changed = False
@@ -226,9 +226,9 @@ def render_panel():
                     if any(results) and can_update_ui():
                         with page_client:
                             # Rebuild rows from cache (same path as revisit), but keep current pagination.
-                            update_table_display(schedule_warm=False)
+                            update_game_display(schedule_warm=False)
                             if current_pagination:
-                                media_table.run_method('setPagination', current_pagination)
+                                media_game.run_method('setPagination', current_pagination)
             finally:
                 page_state['thumb_warm_in_progress'] = False
                 pending_rows = page_state.get('pending_warm_rows')
@@ -236,15 +236,15 @@ def render_panel():
                     page_state['pending_warm_rows'] = None
                     asyncio.create_task(warm_visible_thumbnails(pending_rows))
 
-        def update_table_display(schedule_warm: bool = True):
+        def update_game_display(schedule_warm: bool = True):
             filtered = apply_filters()
             rows_per_page = max(1, int(pagination_state.get('rowsPerPage', 25) or 25))
             max_page = max(1, (len(filtered) + rows_per_page - 1) // rows_per_page)
             pagination_state['page'] = min(max(1, int(pagination_state.get('page', 1) or 1)), max_page)
-            media_table._props['pagination'] = dict(pagination_state)
-            media_table._props['rows'] = filtered
-            media_table.update()
-            media_table.run_method('setPagination', dict(pagination_state))
+            media_game._props['pagination'] = dict(pagination_state)
+            media_game._props['rows'] = filtered
+            media_game.update()
+            media_game.run_method('setPagination', dict(pagination_state))
             total = len(_media_cache() or [])
             shown = len(filtered)
             if shown == total:
@@ -270,23 +270,23 @@ def render_panel():
 
         def on_search_change(e: events.ValueChangeEventArguments):
             filter_state['search'] = e.value or ''
-            update_table_display()
+            update_game_display()
 
         def on_manufacturer_change(e: events.ValueChangeEventArguments):
             filter_state['manufacturer'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
         def on_year_change(e: events.ValueChangeEventArguments):
             filter_state['year'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
         def on_theme_change(e: events.ValueChangeEventArguments):
             filter_state['theme'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
-        def on_table_type_change(e: events.ValueChangeEventArguments):
+        def on_game_type_change(e: events.ValueChangeEventArguments):
             filter_state['table_type'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
         def clear_filters():
             filter_state['search'] = ''
@@ -298,26 +298,26 @@ def render_panel():
             manufacturer_select.value = 'All'
             year_select.value = 'All'
             theme_select.value = 'All'
-            table_type_select.value = 'All'
+            game_type_select.value = 'All'
             # Reset missing media checkboxes
             for media_key, _, _ in MEDIA_TYPES:
                 filter_state[f'missing_{media_key}'] = False
             for cb in missing_checkboxes.values():
                 cb.value = False
             pagination_state['page'] = 1
-            media_table._props['pagination'] = dict(pagination_state)
-            update_table_display()
+            media_game._props['pagination'] = dict(pagination_state)
+            update_game_display()
 
         def refresh_filter_options():
             opts = get_filter_options_from_cache()
             manufacturer_select.options = opts['manufacturers']
             year_select.options = opts['years']
             theme_select.options = opts['themes']
-            table_type_select.options = opts['table_types']
+            game_type_select.options = opts['table_types']
             manufacturer_select.update()
             year_select.update()
             theme_select.update()
-            table_type_select.update()
+            game_type_select.update()
 
         async def perform_scan(*_, silent: bool = False):
             if page_state['scan_in_progress']:
@@ -334,7 +334,7 @@ def render_panel():
                     with page_client:
                         scan_btn.disable()
 
-                media_rows = await run.io_bound(media_service.scan_media_tables, True)
+                media_rows = await run.io_bound(media_service.scan_media_games, True)
                 try:
                     media_rows.sort(key=lambda r: (r.get('name') or '').lower())
                 except Exception:
@@ -344,10 +344,10 @@ def render_panel():
                     with page_client:
                         try:
                             refresh_filter_options()
-                            update_table_display()
+                            update_game_display()
                         except NameError:
-                            media_table._props['rows'] = media_rows
-                            media_table.update()
+                            media_game._props['rows'] = media_rows
+                            media_game.update()
 
                 await asyncio.sleep(0.05)
                 if can_update_ui():
@@ -442,7 +442,7 @@ def render_panel():
                             new_url = media_service.media_url('media_tables', game_dir, 'medias', target_filename)
                             new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir, media_key, target_path)
                             media_service.update_cache_entry(game_dir, media_key, new_url, new_thumb)
-                            update_table_display()
+                            update_game_display()
 
                             # Cleanup temp
                             tmp_dir = os.path.join(table_path, '.tmp_upload')
@@ -500,12 +500,12 @@ def render_panel():
                 ).props('outlined dense').classes('w-40')
                 theme_select.on_value_change(on_theme_change)
 
-                table_type_select = ui.select(
+                game_type_select = ui.select(
                     label='Type',
                     options=filter_opts['table_types'],
                     value='All'
                 ).props('outlined dense').classes('w-28')
-                table_type_select.on_value_change(on_table_type_change)
+                game_type_select.on_value_change(on_game_type_change)
 
                 ui.button(icon='clear_all', on_click=clear_filters).props('flat round').tooltip('Clear all filters')
 
@@ -518,8 +518,8 @@ def render_panel():
                     def make_handler(key):
                         def handler(e: events.ValueChangeEventArguments):
                             filter_state[f'missing_{key}'] = e.value
-                            media_table._props['pagination']['page'] = 1
-                            update_table_display()
+                            media_game._props['pagination']['page'] = 1
+                            update_game_display()
                         return handler
                     cb = ui.checkbox(media_label, value=False, on_change=make_handler(media_key)).style('color: var(--ink) !important;')
                     missing_checkboxes[media_key] = cb
@@ -529,10 +529,10 @@ def render_panel():
         count_label = ui.label(f"Tables ({total})").classes('text-lg font-semibold py-1 text-center w-full').style('color: var(--ink-muted) !important;')
 
         # Table with image thumbnails
-        table_container = ui.column().classes("w-full media-table").style("flex: 1; overflow: hidden; display: flex;")
+        game_container = ui.column().classes("w-full media-table").style("flex: 1; overflow: hidden; display: flex;")
 
-        with table_container:
-            media_table = (
+        with game_container:
+            media_game = (
                 ui.game(columns=columns, rows=initial_rows, row_key='table_dir', pagination=dict(pagination_state))
                   .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
                   .classes("w-full")
@@ -555,7 +555,7 @@ def render_panel():
                            + '" :data-drop-media-row="props.row.table_dir">')
 
                 if is_audio:
-                    media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
+                    media_game.add_slot(f'body-cell-{col_name}', cell_td + '''
                             <div v-if="props.row.media.''' + media_key + '''"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
@@ -568,7 +568,7 @@ def render_panel():
                         </q-td>
                     ''')
                 elif is_video:
-                    media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
+                    media_game.add_slot(f'body-cell-{col_name}', cell_td + '''
                             <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
@@ -592,7 +592,7 @@ def render_panel():
                         </q-td>
                     ''')
                 else:
-                    media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
+                    media_game.add_slot(f'body-cell-{col_name}', cell_td + '''
                             <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
@@ -632,9 +632,9 @@ def render_panel():
                     media_key=media_key,
                     media_label=media_label,
                 )
-            media_table.on('media_click', on_media_click)
+            media_game.on('media_click', on_media_click)
 
-            def _cell_table_path(game_dir: str):
+            def _cell_game_path(game_dir: str):
                 return next((r.get('table_path') for r in (_media_cache() or [])
                              if r.get('table_dir') == game_dir), None)
 
@@ -648,7 +648,7 @@ def render_panel():
                         new_url = media_service.media_url('media_tables', game_dir, 'medias', target_filename)
                         new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir, media_key, target_path)
                         media_service.update_cache_entry(game_dir, media_key, new_url, new_thumb)
-                    update_table_display()
+                    update_game_display()
                 asyncio.create_task(_refresh())
 
             media_drop_zone = create_drop_zone(
@@ -657,9 +657,9 @@ def render_panel():
                 on_imported=_on_cell_imported,
                 visible=False,
             )
-            enable_cell_drops(media_drop_zone, media_table, _cell_table_path)
+            enable_cell_drops(media_drop_zone, media_game, _cell_game_path)
 
-            media_table.add_slot('bottom', '''
+            media_game.add_slot('bottom', '''
                 <div class="row full-width items-center q-pa-sm"
                      style="background-color: var(--surface); color: var(--ink-muted); border-top: 1px solid var(--line);">
                     <span class="q-mr-sm" style="font-size: 0.85rem;">Rows per page:</span>
@@ -693,14 +693,14 @@ def render_panel():
                     pagination = _extract_pagination(e.args)
                     if pagination:
                         _store_pagination(pagination)
-                        media_table._props['pagination'] = dict(pagination_state)
-                        media_table.run_method('setPagination', dict(pagination_state))
+                        media_game._props['pagination'] = dict(pagination_state)
+                        media_game.run_method('setPagination', dict(pagination_state))
                 except Exception:
                     pass
                 if is_page_active():
                     asyncio.create_task(warm_visible_thumbnails(apply_filters()))
 
-            media_table.on('update:pagination', on_pagination_change)
+            media_game.on('update:pagination', on_pagination_change)
 
         # Startup scan
         async def refresh_on_startup():
@@ -709,7 +709,7 @@ def render_panel():
             if _media_cache() is not None:
                 if can_update_ui():
                     refresh_filter_options()
-                    update_table_display()
+                    update_game_display()
             else:
                 await perform_scan(silent=True)
             if can_update_ui():

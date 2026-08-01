@@ -19,25 +19,25 @@ from common.tables.table_metadata import (
     section,
     vpinfe_section,
 )
-from common.tables.tableparser import TableParser
+from common.tables.tableparser import GameParser
 from common.tables.vpxcollections import VPXCollections
 
 _LOCK = threading.Lock()
-_PARSER: Optional[TableParser] = None
+_PARSER: Optional[GameParser] = None
 logger = logging.getLogger("vpinfe.common.tables.table_repository")
 
 
-def ensure_tables_loaded(reload: bool = False) -> List[Any]:
+def ensure_games_loaded(reload: bool = False) -> List[Any]:
     global _PARSER
     started_at = perf_counter()
     with _LOCK:
         games_root = get_games_path()
-        needs_new_parser = _PARSER is None or str(_PARSER.tablesRootFilePath) != games_root
+        needs_new_parser = _PARSER is None or str(_PARSER.gamesRootFilePath) != games_root
         if needs_new_parser:
-            _PARSER = TableParser(games_root, get_ini_config())
+            _PARSER = GameParser(games_root, get_ini_config())
         elif reload:
-            _PARSER.loadTables(reload=True)
-        tables = list(_PARSER.getAllTables())
+            _PARSER.loadGames(reload=True)
+        tables = list(_PARSER.getAllGames())
 
     elapsed = perf_counter() - started_at
     logger.debug(
@@ -49,8 +49,8 @@ def ensure_tables_loaded(reload: bool = False) -> List[Any]:
     return tables
 
 
-def refresh_tables() -> List[Any]:
-    return ensure_tables_loaded(reload=True)
+def refresh_games() -> List[Any]:
+    return ensure_games_loaded(reload=True)
 
 
 def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
@@ -58,7 +58,7 @@ def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
 
     Off the loaded library, which already read every .info and listed every folder.
     """
-    tables = ensure_tables_loaded(reload=reload)
+    tables = ensure_games_loaded(reload=reload)
     return {
         "pending_upgrade": sum(1 for t in tables if getattr(t, "info_pending_upgrade", False)),
         "restorable": sum(1 for t in tables if getattr(t, "info_restorable", False)),
@@ -70,19 +70,19 @@ def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
     }
 
 
-def unreadable_tables() -> List[Dict[str, str]]:
+def unreadable_games() -> List[Dict[str, str]]:
     """Folders whose .info could not be read, so the table was left out of the library."""
-    ensure_tables_loaded()
+    ensure_games_loaded()
     with _LOCK:
         if _PARSER is None:
             return []
-        return [dict(row) for row in _PARSER.getUnreadableTables()]
+        return [dict(row) for row in _PARSER.getUnreadableGames()]
 
 
-def pending_upgrade_table_names() -> List[str]:
+def pending_upgrade_game_names() -> List[str]:
     """Folders whose .info the upgrade did not reach, for the list its dialog shows."""
     return sorted(
-        (t.tableDirName for t in ensure_tables_loaded()
+        (t.tableDirName for t in ensure_games_loaded()
          if getattr(t, "info_pending_upgrade", False)),
         key=str.lower,
     )
@@ -91,19 +91,19 @@ def pending_upgrade_table_names() -> List[str]:
 def newest_backup_stamp() -> str:
     """The most recent backup timestamp in the library, or ""."""
     stamps = [s for s in (getattr(t, "info_backup_stamp", "")
-                          for t in ensure_tables_loaded()) if s]
+                          for t in ensure_games_loaded()) if s]
     return max(stamps) if stamps else ""
 
 
-def restorable_table_names() -> List[str]:
+def restorable_game_names() -> List[str]:
     """Folders holding a saved copy of their .info, for the list a restore dialog shows."""
     return sorted(
-        (t.tableDirName for t in ensure_tables_loaded() if getattr(t, "info_restorable", False)),
+        (t.tableDirName for t in ensure_games_loaded() if getattr(t, "info_restorable", False)),
         key=str.lower,
     )
 
 
-def refresh_table(table_path: str) -> List[Any]:
+def refresh_game(table_path: str) -> List[Any]:
     """Re-read one table folder, not the library.
 
     The whole-library reload this used to do is why setting a star rating on a big
@@ -113,28 +113,28 @@ def refresh_table(table_path: str) -> List[Any]:
     normalized = str(Path(table_path).expanduser().resolve())
     started_at = perf_counter()
     with _LOCK:
-        if _PARSER is None or not _PARSER.getTableCount():
+        if _PARSER is None or not _PARSER.getGameCount():
             reloaded = None
         else:
-            reloaded = _PARSER.reload_table(normalized)
-            tables = list(_PARSER.getAllTables())
+            reloaded = _PARSER.reload_game(normalized)
+            tables = list(_PARSER.getAllGames())
     if reloaded is None:
         # Nothing loaded yet, so there is no one table to refresh - read the library.
-        tables = ensure_tables_loaded(reload=True)
+        tables = ensure_games_loaded(reload=True)
 
     logger.debug("refresh_table %s elapsed=%.3fs", normalized, perf_counter() - started_at)
     return [game for game in tables if str(Path(game.fullPathTable).resolve()) == normalized]
 
 
-def get_missing_tables(reload: bool = False) -> List[Dict[str, str]]:
-    ensure_tables_loaded(reload=reload)
+def get_missing_games(reload: bool = False) -> List[Dict[str, str]]:
+    ensure_games_loaded(reload=reload)
     with _LOCK:
         if _PARSER is None:
             return []
-        return [dict(row) for row in _PARSER.getMissingTables()]
+        return [dict(row) for row in _PARSER.getMissingGames()]
 
 
-def collections_by_table_id() -> Dict[str, List[str]]:
+def collections_by_game_id() -> Dict[str, List[str]]:
     """Collection names keyed by the table id membership is recorded under.
 
     Only explicit-membership collections. A filter collection has no member list to
@@ -156,7 +156,7 @@ def collections_by_table_id() -> Dict[str, List[str]]:
     return mapping
 
 
-def table_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
+def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
     meta = game.metaConfig or {}
     info = section(meta, "Info")
     user = section(meta, "User")
@@ -241,22 +241,22 @@ def _collections_for(row: Dict[str, Any], collections_map: Dict[str, List[str]])
     return []
 
 
-def get_table_rows(reload: bool = False) -> List[Dict[str, Any]]:
+def get_game_rows(reload: bool = False) -> List[Dict[str, Any]]:
     # A row is addressed by its table id, so every row has to have one - a table
     # imported since startup would otherwise carry an empty id and collide with
     # every other table that has none. Already-assigned libraries pay nothing:
     # this only touches disk for a table that has no id yet.
-    tables = ensure_unique_ids(ensure_tables_loaded(reload=reload)).values()
-    collections_map = collections_by_table_id()
-    rows = [table_to_row(game, collections_map) for game in tables]
+    tables = ensure_unique_ids(ensure_games_loaded(reload=reload)).values()
+    collections_map = collections_by_game_id()
+    rows = [game_to_row(game, collections_map) for game in tables]
     rows.sort(key=lambda row: (row.get("name") or "").lower())
     return rows
 
 
-def get_table_name_map(reload: bool = False) -> Dict[str, str]:
+def get_game_name_map(reload: bool = False) -> Dict[str, str]:
     """Display names keyed by table id, for showing what is in a collection."""
     return {
         row["vpinfe_id"]: row.get("name") or row["vpinfe_id"]
-        for row in get_table_rows(reload=reload)
+        for row in get_game_rows(reload=reload)
         if row.get("vpinfe_id")
     }

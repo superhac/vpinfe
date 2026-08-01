@@ -17,11 +17,11 @@ from starlette.testclient import TestClient
 import httpapi
 from common.tables.vpxcollections import VPXCollections
 
-TABLE_ID = "aaaa1111"
+GAME_ID = "aaaa1111"
 OTHER_ID = "bbbb2222"
 
 
-def _table(folder: str, table_id: str) -> SimpleNamespace:
+def _game(folder: str, table_id: str) -> SimpleNamespace:
     return SimpleNamespace(
         fullPathTable=f"/tables/{folder}",
         fullPathVPXfile=f"/tables/{folder}/{folder}.vpx",
@@ -37,8 +37,8 @@ class CollectionsApiTests(unittest.TestCase):
         self.path = f"{tmp.name}/collections.ini"
         open(self.path, "w").close()
 
-        self.catalog = {TABLE_ID: _table("Cactus Canyon (Bally 1998)", TABLE_ID),
-                        OTHER_ID: _table("Eight Ball (Bally 1977)", OTHER_ID)}
+        self.catalog = {GAME_ID: _game("Cactus Canyon (Bally 1998)", GAME_ID),
+                        OTHER_ID: _game("Eight Ball (Bally 1977)", OTHER_ID)}
 
         # One manager over a throwaway file, shared by the service and the test.
         manager = VPXCollections(self.path)
@@ -58,7 +58,7 @@ class CollectionsApiTests(unittest.TestCase):
 
     def test_a_manual_collection_is_created_with_its_members(self) -> None:
         response = self.client.post("/collections",
-                                    json={"name": "Favourites", "tables": [TABLE_ID]})
+                                    json={"name": "Favourites", "tables": [GAME_ID]})
 
         self.assertEqual(response.status_code, 201)
         body = response.json()
@@ -66,7 +66,7 @@ class CollectionsApiTests(unittest.TestCase):
         self.assertEqual(body["table_count"], 1)
         self.assertIsNone(body["filters"])
         self.assertEqual(response.headers["Location"], "/api/v1/collections/Favourites")
-        self.assertEqual(self.manager.get_members("Favourites"), [TABLE_ID])
+        self.assertEqual(self.manager.get_members("Favourites"), [GAME_ID])
 
     def test_a_filter_collection_keeps_its_criteria(self) -> None:
         response = self.client.post("/collections", json={
@@ -82,14 +82,14 @@ class CollectionsApiTests(unittest.TestCase):
 
     def test_asking_for_both_kinds_at_once_is_refused(self) -> None:
         response = self.client.post("/collections", json={
-            "name": "Confused", "tables": [TABLE_ID], "filters": {"year": "1977"}})
+            "name": "Confused", "tables": [GAME_ID], "filters": {"year": "1977"}})
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"]["code"], "invalid_request")
 
-    def test_an_unknown_table_id_is_named_rather_than_stored(self) -> None:
+    def test_an_unknown_game_id_is_named_rather_than_stored(self) -> None:
         response = self.client.post("/collections",
-                                    json={"name": "Bad", "tables": [TABLE_ID, "nope"]})
+                                    json={"name": "Bad", "tables": [GAME_ID, "nope"]})
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"]["details"]["ids"], ["nope"])
@@ -112,45 +112,45 @@ class CollectionsApiTests(unittest.TestCase):
     def test_adding_and_removing_a_member(self) -> None:
         self.client.post("/collections", json={"name": "Favourites"})
 
-        added = self.client.put(f"/collections/Favourites/tables/{TABLE_ID}")
+        added = self.client.put(f"/collections/Favourites/tables/{GAME_ID}")
         self.assertEqual(added.status_code, 204)
-        self.assertEqual(self.manager.get_members("Favourites"), [TABLE_ID])
+        self.assertEqual(self.manager.get_members("Favourites"), [GAME_ID])
 
-        removed = self.client.delete(f"/collections/Favourites/tables/{TABLE_ID}")
+        removed = self.client.delete(f"/collections/Favourites/tables/{GAME_ID}")
         self.assertEqual(removed.status_code, 204)
         self.assertEqual(self.manager.get_members("Favourites"), [])
 
     def test_adding_a_member_twice_is_a_success(self) -> None:
         """The caller's intent is that it be in there; it is."""
         self.client.post("/collections", json={"name": "Favourites"})
-        self.client.put(f"/collections/Favourites/tables/{TABLE_ID}")
+        self.client.put(f"/collections/Favourites/tables/{GAME_ID}")
 
-        again = self.client.put(f"/collections/Favourites/tables/{TABLE_ID}")
+        again = self.client.put(f"/collections/Favourites/tables/{GAME_ID}")
 
         self.assertEqual(again.status_code, 204)
-        self.assertEqual(self.manager.get_members("Favourites"), [TABLE_ID])
+        self.assertEqual(self.manager.get_members("Favourites"), [GAME_ID])
 
     def test_a_filter_collections_membership_cannot_be_edited(self) -> None:
         self.client.post("/collections",
                          json={"name": "Smart", "filters": {"manufacturer": "Bally"}})
 
-        response = self.client.put(f"/collections/Smart/tables/{TABLE_ID}")
+        response = self.client.put(f"/collections/Smart/tables/{GAME_ID}")
 
         self.assertEqual(response.status_code, 409)
         self.assertIn("criteria", response.json()["error"]["message"])
 
-    def test_membership_of_an_unknown_table_or_collection_is_not_found(self) -> None:
+    def test_membership_of_an_unknown_game_or_collection_is_not_found(self) -> None:
         self.client.post("/collections", json={"name": "Favourites"})
 
         self.assertEqual(
             self.client.put("/collections/Favourites/tables/nope").status_code, 404)
         self.assertEqual(
-            self.client.put(f"/collections/Nope/tables/{TABLE_ID}").status_code, 404)
+            self.client.put(f"/collections/Nope/tables/{GAME_ID}").status_code, 404)
 
-    def test_removing_a_table_that_is_not_a_member_is_not_found(self) -> None:
+    def test_removing_a_game_that_is_not_a_member_is_not_found(self) -> None:
         self.client.post("/collections", json={"name": "Favourites"})
 
-        response = self.client.delete(f"/collections/Favourites/tables/{TABLE_ID}")
+        response = self.client.delete(f"/collections/Favourites/tables/{GAME_ID}")
 
         self.assertEqual(response.status_code, 404)
 
@@ -166,16 +166,16 @@ class CollectionsApiTests(unittest.TestCase):
         self.assertEqual(one["links"]["tables"], "/api/v1/collections/Favourites/tables")
 
     def test_resolved_membership_answers_for_both_kinds(self) -> None:
-        self.client.post("/collections", json={"name": "Manual", "tables": [TABLE_ID]})
+        self.client.post("/collections", json={"name": "Manual", "tables": [GAME_ID]})
         self.client.post("/collections",
                          json={"name": "Smart", "filters": {"manufacturer": "Bally"}})
 
         manual = self.client.get("/collections/Manual/tables").json()
         smart = self.client.get("/collections/Smart/tables").json()
 
-        self.assertEqual([row["id"] for row in manual["tables"]], [TABLE_ID])
+        self.assertEqual([row["id"] for row in manual["tables"]], [GAME_ID])
         self.assertEqual(manual["total"], 1)
-        self.assertEqual({row["id"] for row in smart["tables"]}, {TABLE_ID, OTHER_ID},
+        self.assertEqual({row["id"] for row in smart["tables"]}, {GAME_ID, OTHER_ID},
                          "the filter resolves against the library, not a stored list")
 
     def test_deleting_a_collection(self) -> None:

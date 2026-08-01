@@ -23,7 +23,7 @@ _script_clients: set[str] = set()
 @dataclass(frozen=True)
 class DropContext:
     table_path: str = ""
-    table_row: dict | None = None
+    game_row: dict | None = None
     rom_name: str = ""
     allow_new_table: bool = False
 
@@ -126,7 +126,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                 plan = build_import_plan(
                     analysis,
                     table_path=ctx.table_path,
-                    table_row=ctx.table_row,
+                    game_row=ctx.game_row,
                     rom_name=ctx.rom_name,
                     allow_new_table=ctx.allow_new_table,
                 )
@@ -186,11 +186,11 @@ def enable_row_drops(zone: ui.element, container: ui.element,
 
 
 def enable_cell_drops(zone: ui.element, container: ui.element,
-                      resolve_table_path: Callable[[str], str | None]) -> None:
+                      resolve_game_path: Callable[[str], str | None]) -> None:
     """Make media cells inside container slot-targeted drop targets.
 
     Cells must carry data-drop-media-key and data-drop-media-row attributes; the cell
     dictates both the target table (resolved via resolve_table_path) and the media slot.
     """
-    zone.dnd_state["resolve_cell"] = resolve_table_path
+    zone.dnd_state["resolve_cell"] = resolve_game_path
     container.classes(f"vpinfe-dnd-cells-{zone.dnd_token}")

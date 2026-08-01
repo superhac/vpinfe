@@ -134,7 +134,7 @@ class WhatSurvivesTests(unittest.TestCase):
         self.assertEqual(entry["play"], {"start_count": 9})
         self.assertEqual(entry["rom"], "dd_l2", "the fresher parse wins on parsed fields")
 
-    def test_the_table_file_becomes_a_game_file(self):
+    def test_the_game_file_becomes_a_game_file(self):
         entry = self.after["game_files"]["Dr. Dude.vpx"]
         self.assertEqual(entry["file_hash"], "abc123")
         self.assertEqual(entry["vbs_hash"], "def456")
@@ -175,7 +175,7 @@ class WhatSurvivesTests(unittest.TestCase):
         self.assertNotIn("Rom", self.after["Info"])
         self.assertNotIn("Authors", self.after["Info"])
 
-    def test_a_folder_with_no_table_file_still_migrates(self):
+    def test_a_folder_with_no_game_file_still_migrates(self):
         """Nine files in the corpus have no VPXFile at all."""
         after = migrate({"Info": {"Title": "x"}, "User": {"Rating": 2},
                          "Medias": {}, "VPinFE": {"altlauncher": "/opt/vpx"}})

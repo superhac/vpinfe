@@ -44,17 +44,17 @@ def _get_ini_config():
     return _INI_CFG
 
 
-def _get_tables_path() -> str:
+def _get_games_path() -> str:
     return get_games_path()
 
 
-def _scan_tables():
-    return table_catalog.scan_mobile_tables(reload=False)
+def _scan_games():
+    return table_catalog.scan_mobile_games(reload=False)
 
 
-def _build_table_rows(tables):
+def _build_game_rows(tables):
     """Build display rows from scanned tables."""
-    return table_catalog.build_mobile_table_rows(tables)
+    return table_catalog.build_mobile_game_rows(tables)
 
 
 def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=None):
@@ -105,7 +105,7 @@ def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=Non
                 raise
 
 
-def _send_table_to_device(
+def _send_game_to_device(
     host,
     port,
     game_dir_name,
@@ -125,7 +125,7 @@ def _send_table_to_device(
     exclude_ini = _to_bool(exclude_ini)
     copy_masked_tableini_as_default = _to_bool(copy_masked_tableini_as_default)
 
-    games_path = _get_tables_path()
+    games_path = _get_games_path()
     table_path = os.path.join(games_path, game_dir_name)
     base_url = f'http://{host}:{port}'
 
@@ -366,7 +366,7 @@ def _send_table_to_device(
         progress_cb(total_files, total_files, 'Complete')
 
 
-def _delete_table_from_device(host, port, game_dir_name):
+def _delete_game_from_device(host, port, game_dir_name):
     """Delete a table directory from the mobile device via POST /delete?q=<path>."""
     base_url = f'http://{host}:{port}'
     encoded_dir = urllib.parse.quote(game_dir_name, safe='')
@@ -405,12 +405,12 @@ def build(standalone=True):
 
 def _build_vpxz_download_panel():
     loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
-    table_container = ui.column().classes('w-full')
+    game_container = ui.column().classes('w-full')
 
-    async def load_tables():
-        tables = await run.io_bound(_scan_tables)
+    async def load_games():
+        tables = await run.io_bound(_scan_games)
         loading.set_visibility(False)
-        rows = _build_table_rows(tables)
+        rows = _build_game_rows(tables)
         for row in rows:
             row['download_token'] = uuid.uuid4().hex
 
@@ -418,7 +418,7 @@ def _build_vpxz_download_panel():
             {'name': 'display_name', 'label': 'Table', 'field': 'display_name', 'align': 'left', 'sortable': True},
         ]
 
-        with table_container:
+        with game_container:
             tbl = ui.game(
                 columns=columns,
                 rows=rows,
@@ -475,7 +475,7 @@ def _build_vpxz_download_panel():
 
             tbl.on('download', handle_download)
 
-    ui.timer(0.1, load_tables, once=True)
+    ui.timer(0.1, load_games, once=True)
 
 
 def _fetch_device_folders(host, port):
@@ -566,7 +566,7 @@ def _build_web_send_panel():
             .props('dense').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
 
     loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
-    table_container = ui.column().classes('w-full')
+    game_container = ui.column().classes('w-full')
 
     # Shared state for the table reference and device folders
     panel_state = {
@@ -615,7 +615,7 @@ def _build_web_send_panel():
         except Exception as e:
             _safe_notify(f'Could not connect: {e}', type='negative')
 
-    async def _send_single_table(host, port, name, exclude_ini, masked_ini_copy_enabled, masked_ini_mask):
+    async def _send_single_game(host, port, name, exclude_ini, masked_ini_copy_enabled, masked_ini_mask):
         """Send a single table with progress dialog. Returns True on success."""
         # Progress dialog
         with ui.dialog() as dlg, ui.card().classes('p-6').style('min-width: 400px; background: var(--surface) !important;'):
@@ -637,7 +637,7 @@ def _build_web_send_panel():
         def do_send():
             try:
                 cs = int(chunk_input.value.strip() or '1048576')
-                _send_table_to_device(
+                _send_game_to_device(
                     host,
                     port,
                     name,
@@ -694,7 +694,7 @@ def _build_web_send_panel():
         for i, row in enumerate(selected):
             name = row['table_dir_name']
             _safe_notify(f'Batch send: {i+1}/{total} - {name}', type='info')
-            ok = await _send_single_table(
+            ok = await _send_single_game(
                 host,
                 port,
                 name,
@@ -709,10 +709,10 @@ def _build_web_send_panel():
         panel_state['tbl'].update()
         await check_device()
 
-    async def load_tables():
-        tables = await run.io_bound(_scan_tables)
+    async def load_games():
+        tables = await run.io_bound(_scan_games)
         loading.set_visibility(False)
-        rows = _build_table_rows(tables)
+        rows = _build_game_rows(tables)
         # Add installed field
         for row in rows:
             row['installed'] = False
@@ -722,7 +722,7 @@ def _build_web_send_panel():
             {'name': 'display_name', 'label': 'Table', 'field': 'display_name', 'align': 'left', 'sortable': True},
         ]
 
-        with table_container:
+        with game_container:
             tbl = ui.game(
                 columns=columns,
                 rows=rows,
@@ -758,7 +758,7 @@ def _build_web_send_panel():
                 exclude_ini = _to_bool(exclude_ini)
                 masked_ini_copy_enabled = _to_bool(masked_ini_copy_checkbox.value)
                 masked_ini_mask = (masked_ini_input.value or '').strip()
-                ok = await _send_single_table(
+                ok = await _send_single_game(
                     host,
                     port,
                     name,
@@ -793,7 +793,7 @@ def _build_web_send_panel():
                     return
 
                 try:
-                    await run.io_bound(lambda: _delete_table_from_device(host, port, name))
+                    await run.io_bound(lambda: _delete_game_from_device(host, port, name))
                     _safe_notify(f'Deleted "{name}" from device', type='positive')
                     await check_device()
                 except Exception as ex:
@@ -805,4 +805,4 @@ def _build_web_send_panel():
         if saved_ip:
             await check_device()
 
-    ui.timer(0.1, load_tables, once=True)
+    ui.timer(0.1, load_games, once=True)

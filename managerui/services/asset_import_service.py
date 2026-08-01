@@ -11,7 +11,7 @@ from typing import Callable
 
 from common.media_paths import media_filename_map
 from common.tables.metaconfig import VPINFE_SECTION, MetaConfig
-from common.tables.table_repository import refresh_table
+from common.tables.table_repository import refresh_game
 from common.tables.vpxparser import VPXParser
 from managerui.paths import get_games_path
 from managerui.services.asset_analyzer_service import (
@@ -131,7 +131,7 @@ def _sidecar_stem(assets, base: Path, vpx_stem: str) -> str:
 
 
 def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
-                source_name: str, table_kind_action: str,
+                source_name: str, game_kind_action: str,
                 sidecar_stem: str = "") -> tuple[PlannedItem | None, BlockedItem | None]:
     kind = asset.kind
     spec = spec_for(kind)
@@ -140,7 +140,7 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
 
     if kind == "table":
         dest = base / _safe_upload_name(_basename(asset.entries[0].arcname))
-        return PlannedItem(asset, str(dest), table_kind_action), None
+        return PlannedItem(asset, str(dest), game_kind_action), None
     if kind == "table_info":
         # Always written as <folder>.info — the parser matches it by folder name.
         return PlannedItem(asset, str(base / f"{base.name}.info"), "write_info"), None
@@ -179,7 +179,7 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
     return None, BlockedItem(asset, f"Unsupported asset type: {kind}")
 
 
-def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", table_row: dict | None = None,
+def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", game_row: dict | None = None,
                       rom_name: str = "", allow_new_table: bool = False,
                       games_path: str | None = None) -> ImportPlan:
     """Route detected assets to destinations for an existing table or a new table bundle."""
@@ -188,14 +188,14 @@ def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", table_r
     new_bundle = analysis.has_table and allow_new_table
 
     if new_bundle:
-        table_asset = next(a for a in analysis.assets if a.kind == "table")
-        vpx_stem = Path(_basename(table_asset.entries[0].arcname)).stem
+        game_asset = next(a for a in analysis.assets if a.kind == "table")
+        vpx_stem = Path(_basename(game_asset.entries[0].arcname)).stem
         new_dir_name = _safe_upload_name(vpx_stem)
         base = Path(games_path or get_games_path()).expanduser() / new_dir_name
         sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
             item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,
-                                      table_kind_action="copy", sidecar_stem=sidecar_stem)
+                                      game_kind_action="copy", sidecar_stem=sidecar_stem)
             (items if item else blocked).append(item or block)
         return ImportPlan(str(base), new_dir_name, "", tuple(items), tuple(blocked))
 
@@ -210,12 +210,12 @@ def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", table_r
         sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
             item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,
-                                      table_kind_action="replace_vpx", sidecar_stem=sidecar_stem)
+                                      game_kind_action="replace_vpx", sidecar_stem=sidecar_stem)
             (items if item else blocked).append(item or block)
         return ImportPlan(str(base), "", rom_name, tuple(items), tuple(blocked))
 
     for asset in analysis.assets:
-        if spec_for(asset.kind).requires_table:
+        if spec_for(asset.kind).requires_game:
             blocked.append(BlockedItem(asset, "Select a table row, or drop onto a table's detail dialog"))
         else:
             blocked.append(BlockedItem(asset, "Drop onto the Tables page to import as a new table"))
@@ -394,7 +394,7 @@ def merge_info(incoming: dict, existing: dict) -> dict:
     return merged
 
 
-def _import_table_info(source, asset: DetectedAsset, base: Path) -> None:
+def _import_game_info(source, asset: DetectedAsset, base: Path) -> None:
     import json
 
     entry = asset.entries[0]
@@ -467,7 +467,7 @@ def _replace_vpx_from_file(source, asset: DetectedAsset, base: Path) -> None:
             if new_ini.exists():
                 new_ini.unlink()
             os.replace(old_ini, new_ini)
-    refresh_table(str(base))
+    refresh_game(str(base))
 
 
 def _build_rom_zip(source, asset: DetectedAsset, dest: Path) -> None:
@@ -613,7 +613,7 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
             elif item.action == "extract_tree":
                 _extract_tree(source, item.asset, dest)
             elif item.action == "write_info":
-                _import_table_info(source, item.asset, base)
+                _import_game_info(source, item.asset, base)
             elif item.action == "replace_media":
                 _import_media(source, item.asset, base)
                 media_keys.append(item.asset.media_key)

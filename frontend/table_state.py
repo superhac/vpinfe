@@ -3,20 +3,20 @@ from __future__ import annotations
 import json
 import logging
 
-from common.tables.collections_service import filter_tables_by_collection, get_collection_names, save_filter_collection
-from common.media_paths import table_media_payload
+from common.tables.collections_service import filter_games_by_collection, get_collection_names, save_filter_collection
+from common.media_paths import game_media_payload
 from common.shared_assets import manufacturer_logo_web_path
-from common.tables.tablelistfilters import TableListFilters
+from common.tables.tablelistfilters import GameListFilters
 from frontend.theme_contract import CURRENT_CONTRACT, project
 from common.tables.table_metadata import (
     get_or_create_user_meta,
-    load_table_meta,
+    load_game_meta,
     normalize_meta,
     normalize_rating,
-    persist_table_meta,
+    persist_game_meta,
     reorder_leading_article,
     section,
-    table_title,
+    game_title,
     vpinfe_section,
 )
 
@@ -51,7 +51,7 @@ def normalize_sort_order(order_by, sort_type="Alpha"):
     return default_sort_order(sort_type)
 
 
-def tables_json(tables, contract: int = CURRENT_CONTRACT) -> str:
+def games_json(tables, contract: int = CURRENT_CONTRACT) -> str:
     result = []
     logo_cache: dict[str, str | None] = {}
     for game in tables:
@@ -85,7 +85,7 @@ def tables_json(tables, contract: int = CURRENT_CONTRACT) -> str:
             "altSoundExists": game.altSoundExists,
             "meta": meta,
         }
-        row.update(table_media_payload(game))
+        row.update(game_media_payload(game))
         maker = str(info.get("Manufacturer", "") or "")
         if maker not in logo_cache:
             logo_cache[maker] = manufacturer_logo_web_path(maker)
@@ -96,8 +96,8 @@ def tables_json(tables, contract: int = CURRENT_CONTRACT) -> str:
 
 def apply_collection(api, collection):
     api.current_collection = collection
-    filtered, filters = filter_tables_by_collection(api.allTables, collection)
-    api.filteredTables = filtered
+    filtered, filters = filter_games_by_collection(api.allGames, collection)
+    api.filteredGames = filtered
     if filters is None:
         api.current_filters = default_filter_state()
         return
@@ -122,7 +122,7 @@ def save_current_filter_collection(api, name, letter, theme, table_type, manufac
 
 
 def filter_options(tables):
-    filters = TableListFilters(tables)
+    filters = GameListFilters(tables)
     return {
         "letters": filters.get_available_letters(),
         "themes": filters.get_available_themes(),
@@ -148,7 +148,7 @@ def apply_filters(api, letter=None, theme=None, table_type=None, manufacturer=No
     if rating_or_higher is not None:
         api.current_filters["rating_or_higher"] = str(rating_or_higher).strip().lower() in ("1", "true", "yes", "on")
 
-    api.filteredTables = TableListFilters(api.allTables).apply_filters(
+    api.filteredGames = GameListFilters(api.allGames).apply_filters(
         letter=api.current_filters["letter"],
         theme=api.current_filters["theme"],
         table_type=api.current_filters["type"],
@@ -157,15 +157,15 @@ def apply_filters(api, letter=None, theme=None, table_type=None, manufacturer=No
         rating=api.current_filters["rating"],
         rating_or_higher=api.current_filters["rating_or_higher"],
     )
-    return len(api.filteredTables)
+    return len(api.filteredGames)
 
 
 def apply_sort(tables, sort_type, order_by=None):
     reverse = normalize_sort_order(order_by, sort_type) == "Descending"
     if sort_type == "Alpha":
-        tables.sort(key=lambda game: table_title(game).lower(), reverse=reverse)
+        tables.sort(key=lambda game: game_title(game).lower(), reverse=reverse)
     elif sort_type == "Newest":
-        tables.sort(key=lambda game: table_title(game).lower())
+        tables.sort(key=lambda game: game_title(game).lower())
         tables.sort(key=lambda game: game.creation_time if game.creation_time is not None else 0, reverse=reverse)
     elif sort_type == "LastRun":
         _sort_by_numeric_meta(tables, "LastRun", reverse)
@@ -180,7 +180,7 @@ def _paging_group_key(game):
     # Letter groups for alpha paging. Titles starting with a digit or symbol all
     # land in one '#' bucket so a big collection doesn't take several presses to
     # cross the numeric titles.
-    title = table_title(game).strip()
+    title = game_title(game).strip()
     if title and title[0].isalpha():
         return title[0].upper()
     return "#"
@@ -219,7 +219,7 @@ def page_jump_index(tables, index, direction, sort_type="Alpha", paging_type="al
 
 
 def _sort_by_numeric_meta(tables, field, reverse):
-    tables.sort(key=lambda game: table_title(game).lower())
+    tables.sort(key=lambda game: game_title(game).lower())
     tables.sort(key=lambda game: _numeric_meta_value(game, field), reverse=reverse)
 
 
@@ -239,14 +239,14 @@ def get_table_rating(tables, index):
         game = tables[index]
     except Exception:
         return 0
-    return normalize_rating(section(load_table_meta(game), "User").get("Rating", 0))
+    return normalize_rating(section(load_game_meta(game), "User").get("Rating", 0))
 
 
 def set_table_rating(tables, index, rating):
     game = tables[index]
-    config = load_table_meta(game)
+    config = load_game_meta(game)
     user = get_or_create_user_meta(config)
     normalized = normalize_rating(rating)
     user["Rating"] = normalized
-    persist_table_meta(game, config)
+    persist_game_meta(game, config)
     return {"success": True, "rating": normalized}

@@ -184,7 +184,7 @@ class LogoTests(unittest.TestCase):
 
         self.assertEqual(resolved["logo"].name, "logo.png")
 
-    def test_a_wheel_less_table_shows_its_logo_in_the_wheel_slot(self) -> None:
+    def test_a_wheel_less_game_shows_its_logo_in_the_wheel_slot(self) -> None:
         resolved = _resolve(["logo.png"])
 
         self.assertEqual(resolved["wheel"].name, "logo.png",
@@ -306,7 +306,7 @@ class WheelSetTests(unittest.TestCase):
 
 
 class SpecCopyTests(unittest.TestCase):
-    def test_a_table_type_copy_keeps_every_field_but_the_key(self) -> None:
+    def test_a_game_type_copy_keeps_every_field_but_the_key(self) -> None:
         """It used to be rebuilt from four fields, so the copies quietly reported
         no token, no fallback, no set support, and the image family for videos."""
         from common.media_paths import MEDIA_SPECS, specs_for_playfield_variant
@@ -346,7 +346,7 @@ class ParserCasingTests(unittest.TestCase):
         miss it while the API found it - the same table, two answers."""
         import json
 
-        from common.tables.tableparser import TableParser
+        from common.tables.tableparser import GameParser
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / FOLDER
@@ -359,7 +359,7 @@ class ParserCasingTests(unittest.TestCase):
                 "VPXFile": {"filename": f"{GAME_FILE}.vpx"},
             }), encoding="utf-8")
 
-            game = TableParser(tmp).getAllTables()[0]
+            game = GameParser(tmp).getAllGames()[0]
 
         self.assertTrue(game.pupPackExists, "PUPVideos holds a PUP pack")
         self.assertTrue(game.altColorExists)
@@ -368,7 +368,7 @@ class ParserCasingTests(unittest.TestCase):
 
 
 class ImportSideTests(unittest.TestCase):
-    def _table(self, tmp, *files):
+    def _game(self, tmp, *files):
         root = Path(tmp) / FOLDER
         (root / "medias").mkdir(parents=True)
         for rel in files:
@@ -380,7 +380,7 @@ class ImportSideTests(unittest.TestCase):
     def test_an_imported_jpg_keeps_being_a_jpg(self) -> None:
         """The other live bug: JPEG bytes were written into wheel.png."""
         with TemporaryDirectory() as tmp:
-            root = self._table(tmp)
+            root = self._game(tmp)
             upload = Path(tmp) / "upload.jpg"
             upload.write_bytes(b"jpeg bytes")
 
@@ -392,7 +392,7 @@ class ImportSideTests(unittest.TestCase):
         """wheel.png sits earlier in the family than wheel.jpg, so leaving it
         behind would make the replacement invisible."""
         with TemporaryDirectory() as tmp:
-            root = self._table(tmp, "medias/wheel.png", "wheel.webp")
+            root = self._game(tmp, "medias/wheel.png", "wheel.webp")
             upload = Path(tmp) / "upload.jpg"
             upload.write_bytes(b"jpeg bytes")
 
@@ -407,7 +407,7 @@ class ImportSideTests(unittest.TestCase):
 
     def test_an_unknown_extension_falls_back_to_the_canonical_name(self) -> None:
         with TemporaryDirectory() as tmp:
-            root = self._table(tmp)
+            root = self._game(tmp)
             upload = Path(tmp) / "upload.tiff"
             upload.write_bytes(b"tiff bytes")
 
@@ -418,7 +418,7 @@ class ImportSideTests(unittest.TestCase):
     def test_source_media_path_sees_spec_named_files(self) -> None:
         """It used to be a second, fixed-names-only copy of the resolution rule."""
         with TemporaryDirectory() as tmp:
-            root = self._table(tmp, f"medias/(Wheel) {FOLDER}.png")
+            root = self._game(tmp, f"medias/(Wheel) {FOLDER}.png")
 
             resolved = source_media_path(str(root), "wheel")
 
@@ -431,7 +431,7 @@ class ParserOrderTests(unittest.TestCase):
         before it resolves media - the same reordering the launcher needed."""
         import json
 
-        from common.tables.tableparser import TableParser
+        from common.tables.tableparser import GameParser
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / FOLDER
@@ -445,8 +445,8 @@ class ParserOrderTests(unittest.TestCase):
             (root / "medias" / f"(Wheel) {GAME_FILE}.png").write_bytes(b"png")
             (root / "medias" / "(Wheel) some other build.png").write_bytes(b"png")
 
-            parser = TableParser(tmp)
-            game = parser.getAllTables()[0]
+            parser = GameParser(tmp)
+            game = parser.getAllGames()[0]
 
         self.assertEqual(os.path.basename(game.WheelImagePath),
                          f"(Wheel) {GAME_FILE}.png",

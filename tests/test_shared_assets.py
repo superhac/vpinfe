@@ -228,11 +228,11 @@ class ConfigTests(unittest.TestCase):
 
 
 class PayloadTests(unittest.TestCase):
-    def test_every_table_row_carries_the_logo_path_or_null(self) -> None:
+    def test_every_game_row_carries_the_logo_path_or_null(self) -> None:
         import json as _json
         from types import SimpleNamespace
 
-        from frontend.table_state import tables_json
+        from frontend.table_state import games_json
 
         game = SimpleNamespace(
             tableDirName="Cactus Canyon (Bally 1998)",
@@ -251,7 +251,7 @@ class PayloadTests(unittest.TestCase):
             configure_shared_assets(root)
             self.addCleanup(configure_shared_assets, None)
 
-            rows = _json.loads(tables_json([game]))
+            rows = _json.loads(games_json([game]))
 
         self.assertEqual(rows[0]["ManufacturerLogoPath"],
                          "/assets/manufacturers/user/bally.png")

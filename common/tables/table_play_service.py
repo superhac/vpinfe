@@ -13,9 +13,9 @@ from common.tables.table_metadata import (
     default_game_file_entry,
     get_or_create_game_file_user,
     get_or_create_user_meta,
-    load_table_meta,
+    load_game_meta,
     normalize_meta,
-    persist_table_meta,
+    persist_game_meta,
     section,
     vpinfe_section,
 )
@@ -24,7 +24,7 @@ from common.tables.table_metadata import (
 logger = logging.getLogger("vpinfe.common.tables.table_play_service")
 
 
-def track_table_play(game, collection_name: str = "Last Played", max_items: int = 30) -> None:
+def track_game_play(game, collection_name: str = "Last Played", max_items: int = 30) -> None:
     meta = normalize_meta(getattr(game, "metaConfig", {}))
     # Membership is the table's own id; VPSId is a fallback for a table that has
     # not been assigned one yet.
@@ -50,24 +50,24 @@ def track_table_play(game, collection_name: str = "Last Played", max_items: int 
 
 
 def increment_start_count(game, game_file: str = "") -> None:
-    config = clone_table_meta(game)
+    config = clone_game_meta(game)
     if not config:
         logger.warning("Could not increment StartCount: invalid table metadata for %s", game.tableDirName)
         return
 
     user = apply_start_count_update(config, game_file=game_file)
-    persist_table_meta(game, config)
+    persist_game_meta(game, config)
     logger.debug("Updated User.StartCount for %s -> %s", game.tableDirName, user["StartCount"])
 
 
 def add_runtime_minutes(game, elapsed_seconds: float, game_file: str = "") -> None:
-    config = clone_table_meta(game)
+    config = clone_game_meta(game)
     if not config:
         logger.warning("Could not update RunTime: invalid table metadata for %s", game.tableDirName)
         return
 
     user = apply_runtime_update(config, elapsed_seconds, game_file=game_file)
-    persist_table_meta(game, config)
+    persist_game_meta(game, config)
     logger.info(
         "Updated User.RunTime for %s: +%s min (total=%s)",
         game.tableDirName,
@@ -76,8 +76,8 @@ def add_runtime_minutes(game, elapsed_seconds: float, game_file: str = "") -> No
     )
 
 
-def clone_table_meta(game) -> dict:
-    config = load_table_meta(game)
+def clone_game_meta(game) -> dict:
+    config = load_game_meta(game)
     return deepcopy(config) if isinstance(config, dict) else {}
 
 
@@ -131,7 +131,7 @@ def score_rom_from_meta(config: dict) -> str:
 
 
 def parse_score_from_nvram(game) -> tuple[dict | None, str | None]:
-    config = clone_table_meta(game)
+    config = clone_game_meta(game)
     if not config:
         logger.warning("Could not parse Score: invalid table metadata for %s", game.tableDirName)
         return None, None
@@ -170,7 +170,7 @@ def apply_score_update(config: dict, score_data: dict) -> dict:
 
 
 def build_runtime_submission_meta(game, user_state: dict) -> dict:
-    config = clone_table_meta(game)
+    config = clone_game_meta(game)
     if not config:
         logger.warning("Could not build runtime submission metadata for %s", game.tableDirName)
         return {}
@@ -193,7 +193,7 @@ def build_runtime_submission_meta(game, user_state: dict) -> dict:
 
 
 def update_score_from_nvram(game) -> None:
-    config = clone_table_meta(game)
+    config = clone_game_meta(game)
     if not config:
         logger.warning("Could not update Score: invalid table metadata for %s", game.tableDirName)
         return
@@ -203,7 +203,7 @@ def update_score_from_nvram(game) -> None:
         return
 
     apply_score_update(config, score_data)
-    persist_table_meta(game, config)
+    persist_game_meta(game, config)
     logger.info("Updated User.Score for %s from %s", game.tableDirName, score_path)
 
 

@@ -47,8 +47,8 @@ class TestApiInputMapping(unittest.TestCase):
 
         return DummyIni(parser)
 
-    @patch("frontend.api.ensure_tables_loaded", return_value=[])
-    def test_get_joymaping_includes_joytutorial(self, _mock_tables) -> None:
+    @patch("frontend.api.ensure_games_loaded", return_value=[])
+    def test_get_joymaping_includes_joytutorial(self, _mock_games) -> None:
         ini = self._build_ini()
         api = API(ini)
 
@@ -56,8 +56,8 @@ class TestApiInputMapping(unittest.TestCase):
 
         self.assertEqual(mapping["joytutorial"], "8")
 
-    @patch("frontend.api.ensure_tables_loaded", return_value=[])
-    def test_set_button_mapping_accepts_joytutorial(self, _mock_tables) -> None:
+    @patch("frontend.api.ensure_games_loaded", return_value=[])
+    def test_set_button_mapping_accepts_joytutorial(self, _mock_games) -> None:
         ini = self._build_ini()
         api = API(ini)
 
@@ -67,8 +67,8 @@ class TestApiInputMapping(unittest.TestCase):
         self.assertEqual(ini.config.get("Input", "joytutorial"), "15")
         self.assertTrue(ini.saved)
 
-    @patch("frontend.api.ensure_tables_loaded", return_value=[])
-    def test_get_keymapping_includes_keytutorial(self, _mock_tables) -> None:
+    @patch("frontend.api.ensure_games_loaded", return_value=[])
+    def test_get_keymapping_includes_keytutorial(self, _mock_games) -> None:
         ini = self._build_ini()
         api = API(ini)
 
@@ -80,10 +80,10 @@ class TestApiInputMapping(unittest.TestCase):
     @patch("common.host.launch.build_vpx_launch_command",
            return_value=["/tmp/fake-launcher", "-play", "/tmp/table.vpx"])
     @patch("common.host.launch.get_effective_launcher")
-    @patch("frontend.api.ensure_tables_loaded")
-    def test_launch_table_emits_launching_and_complete_events(
+    @patch("frontend.api.ensure_games_loaded")
+    def test_launch_game_emits_launching_and_complete_events(
         self,
-        mock_tables,
+        mock_games,
         mock_get_launcher,
         _mock_build_cmd,
         mock_popen,
@@ -102,7 +102,7 @@ class TestApiInputMapping(unittest.TestCase):
                 tableDirName="Example",
                 fullPathTable=str(Path(tmp)),
             )
-            mock_tables.return_value = [game]
+            mock_games.return_value = [game]
             mock_get_launcher.return_value = (launcher, "Settings", None)
 
             process = types.SimpleNamespace(stdout=[], wait=lambda: 0)
@@ -128,7 +128,7 @@ class TestApiInputMapping(unittest.TestCase):
             self.addCleanup(events.clear)
             with patch("common.host.launch.delete_vpinball_log_on_start_if_configured", side_effect=lambda _settings: call_order.append("delete_log")), \
                 patch("common.host.launch.table_play_service"), \
-                patch("frontend.play_events.save_last_table"):
+                patch("frontend.play_events.save_last_game"):
                 play_events.register(ws_bridge)
                 api.launch_table(0)
 

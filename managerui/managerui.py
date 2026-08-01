@@ -7,7 +7,7 @@ from common.paths import configure_nicegui_storage
 _NICEGUI_STORAGE_PATH = configure_nicegui_storage()
 
 from nicegui import ui, app, context
-from .pages import tables as tab_tables
+from .pages import tables as tab_games
 from .pages import vpinfe_config as tab_vpinfe
 from .pages import vpx_config as tab_vpx_config
 from .pages import vpx_plugins as tab_vpx_plugins
@@ -105,7 +105,7 @@ def check_for_updates() -> dict:
 
 
 _PAGE_RENDERERS = {
-    'tables': tab_tables.render_panel,
+    'tables': tab_games.render_panel,
     'collections': tab_collections.render_panel,
     'media': tab_media.render_panel,
     'themes': tab_themes.render_panel,

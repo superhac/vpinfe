@@ -20,7 +20,7 @@ router = APIRouter(prefix="/library", tags=["library"])
 
 
 @router.post("/scan", summary="Rebuild table metadata from VPSdb", status_code=202,
-             dependencies=[requires(scopes.TABLES_WRITE)])
+             dependencies=[requires(scopes.GAMES_WRITE)])
 def scan(response: Response,
          request: models.ScanRequest | None = Body(default=None)) -> models.JobResource:
     """Accepted, not done: the work runs on its own thread and reports on the event

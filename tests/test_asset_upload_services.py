@@ -66,7 +66,7 @@ class PatchAssetTests(unittest.TestCase):
             _make_zip(path, ["CactusCanyon.dif", "CactusCanyon.ini"])
             self.assertEqual(_kinds(analyze_path(path)), ["ini", "patch"])
 
-    def test_patch_needs_a_table_to_apply_to(self):
+    def test_patch_needs_a_game_to_apply_to(self):
         """A .dif is a delta against one exact base. Without a table there is nothing
         to patch, and applying it to the wrong one corrupts rather than errors."""
         import tempfile
@@ -77,7 +77,7 @@ class PatchAssetTests(unittest.TestCase):
             self.assertFalse(plan.items)
             self.assertTrue(any("base table" in b.reason for b in plan.blocked))
 
-    def test_the_patched_table_takes_the_patch_name(self):
+    def test_the_patched_game_takes_the_patch_name(self):
         """A mod's .ini, .directb2s and artwork are named for the mod, and all of them
         are found by matching the .vpx stem."""
         import tempfile
@@ -136,7 +136,7 @@ class PatchAssetTests(unittest.TestCase):
             self.assertEqual(by_kind["ini"], "CC VPW Mod 1.2.ini")
             self.assertEqual(by_kind["backglass"], "CC VPW Mod 1.2.directb2s")
 
-    def test_sidecars_without_a_patch_still_follow_the_table(self):
+    def test_sidecars_without_a_patch_still_follow_the_game(self):
         """Only a mod bundle redirects them. A backglass dropped on a table is for the
         table that is there."""
         import tempfile
@@ -320,8 +320,8 @@ class AssetRegistryTests(unittest.TestCase):
         self.assertIsNone(match_media_key("realdmd.mp4"))
 
     def test_spec_for_flags(self):
-        self.assertFalse(spec_for("table").requires_table)
-        self.assertTrue(spec_for("backglass").requires_table)
+        self.assertFalse(spec_for("table").requires_game)
+        self.assertTrue(spec_for("backglass").requires_game)
         self.assertTrue(spec_for("altcolor_serum").requires_rom)
         self.assertFalse(spec_for("pup_pack").requires_rom)
         self.assertTrue(spec_for("media").allow_multiple)
@@ -330,7 +330,7 @@ class AssetRegistryTests(unittest.TestCase):
 
 
 class AssetAnalyzerTests(unittest.TestCase):
-    def test_table_bundle(self):
+    def test_game_bundle(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:
@@ -562,7 +562,7 @@ def _blocked_reasons(plan):
 
 
 class ImportPlanTests(unittest.TestCase):
-    def test_new_table_bundle_routes_vpx_and_blocks_rom_color(self):
+    def test_new_game_bundle_routes_vpx_and_blocks_rom_color(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:
@@ -577,7 +577,7 @@ class ImportPlanTests(unittest.TestCase):
             # serum color needs a ROM name the fresh table doesn't have yet
             self.assertIn("altcolor_serum", _blocked_reasons(plan))
 
-    def test_existing_table_routing(self):
+    def test_existing_game_routing(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:
@@ -696,7 +696,7 @@ class MediaSlotPlanTests(unittest.TestCase):
             self.assertEqual(report["media_keys"], ["wheel"])
 
 
-class TableInfoDetectionTests(unittest.TestCase):
+class GameInfoDetectionTests(unittest.TestCase):
     def test_info_beside_vpx_is_claimed_and_parsed(self):
         import json
         import zipfile
@@ -789,7 +789,7 @@ class MergeInfoTests(unittest.TestCase):
         self.assertEqual(merged["Shared"]["x"], "local")
 
 
-class TableInfoImportTests(unittest.TestCase):
+class GameInfoImportTests(unittest.TestCase):
     def _bundle(self, tmp, info: dict):
         import json
         import zipfile
@@ -800,11 +800,11 @@ class TableInfoImportTests(unittest.TestCase):
             archive.writestr("Old Name (Mfg 1999).info", json.dumps(info))
         return zip_path
 
-    def test_new_table_adopts_and_renames_info(self):
+    def test_new_game_adopts_and_renames_info(self):
         import json
         from pathlib import Path
         from tempfile import TemporaryDirectory
-        with mock.patch.object(asset_import_service, "refresh_table"):
+        with mock.patch.object(asset_import_service, "refresh_game"):
             with TemporaryDirectory() as tmp:
                 zip_path = self._bundle(tmp, {"Info": {"VPSId": "abc"}, "User": {"Rating": 5}})
                 analysis = analyze_path(zip_path)
@@ -816,11 +816,11 @@ class TableInfoImportTests(unittest.TestCase):
                 data = json.loads(dest.read_text())
                 self.assertEqual(data["User"]["Rating"], 5)
 
-    def test_existing_table_merges_and_backs_up(self):
+    def test_existing_game_merges_and_backs_up(self):
         import json
         from pathlib import Path
         from tempfile import TemporaryDirectory
-        with mock.patch.object(asset_import_service, "refresh_table"):
+        with mock.patch.object(asset_import_service, "refresh_game"):
             with TemporaryDirectory() as tmp:
                 game_dir = Path(tmp) / "Foo (Bar 1999)"
                 game_dir.mkdir()
@@ -867,10 +867,10 @@ class VpsHelperTests(unittest.TestCase):
 
 
 class ImportExecuteTests(unittest.TestCase):
-    def test_execute_places_assets_in_existing_table(self):
+    def test_execute_places_assets_in_existing_game(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
-        with mock.patch.object(asset_import_service, "refresh_table"):
+        with mock.patch.object(asset_import_service, "refresh_game"):
             with TemporaryDirectory() as tmp:
                 game_dir = Path(tmp) / "Foo (Bar 1999)"
                 game_dir.mkdir()
@@ -896,7 +896,7 @@ class ImportExecuteTests(unittest.TestCase):
     def test_execute_replace_vpx_restems_backglass(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
-        with mock.patch.object(asset_import_service, "refresh_table"):
+        with mock.patch.object(asset_import_service, "refresh_game"):
             with TemporaryDirectory() as tmp:
                 game_dir = Path(tmp) / "Foo (Bar 1999)"
                 game_dir.mkdir()
@@ -914,7 +914,7 @@ class ImportExecuteTests(unittest.TestCase):
                 self.assertTrue((game_dir / "New.directb2s").exists())
                 self.assertFalse((game_dir / "Old.directb2s").exists())
 
-    def _replace_table(self, tmp, game_dir, info: dict, new_name: str, parsed):
+    def _replace_game(self, tmp, game_dir, info: dict, new_name: str, parsed):
         """Drop new_name onto an existing table, and hand back the resulting .info."""
         import json
         from pathlib import Path
@@ -925,13 +925,13 @@ class ImportExecuteTests(unittest.TestCase):
         _make_zip(zip_path, [new_name])
 
         plan = build_import_plan(analyze_path(zip_path), table_path=str(game_dir))
-        with mock.patch.object(asset_import_service, "refresh_table"), \
+        with mock.patch.object(asset_import_service, "refresh_game"), \
                 mock.patch.object(asset_import_service, "VPXParser") as parser:
             parser.return_value.singleFileExtract.return_value = parsed
             execute_import_plan(plan, zip_path)
         return json.loads(info_path.read_text())
 
-    def test_a_replaced_table_is_described_and_the_old_entry_dropped(self):
+    def test_a_replaced_game_is_described_and_the_old_entry_dropped(self):
         """The new .vpx had no entry until the next metadata build, and the old one kept
         an entry for a file that is gone."""
         from pathlib import Path
@@ -939,7 +939,7 @@ class ImportExecuteTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Foo (Bar 1999)"
             game_dir.mkdir()
-            saved = self._replace_table(
+            saved = self._replace_game(
                 tmp, game_dir,
                 {"game_files": {"Old.vpx": {"file_hash": "old-hash", "rom": "old_rom"}}},
                 "New.vpx", {"file_hash": "new-hash", "rom": "new_rom"})
@@ -955,7 +955,7 @@ class ImportExecuteTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Foo (Bar 1999)"
             game_dir.mkdir()
-            saved = self._replace_table(
+            saved = self._replace_game(
                 tmp, game_dir,
                 {"vpinfe": {"alt_vpsid": "chosen-against-the-old-file"},
                  "game_files": {"Old.vpx": {"file_hash": "old-hash"}}},
@@ -970,7 +970,7 @@ class ImportExecuteTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Foo (Bar 1999)"
             game_dir.mkdir()
-            saved = self._replace_table(
+            saved = self._replace_game(
                 tmp, game_dir,
                 {"vpinfe": {"alt_vpsid": "still-this-machine",
                             "default_game_file": "Old.vpx"},
@@ -982,7 +982,7 @@ class ImportExecuteTests(unittest.TestCase):
     def test_execute_new_bundle_creates_folder(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
-        with mock.patch.object(asset_import_service, "refresh_table"):
+        with mock.patch.object(asset_import_service, "refresh_game"):
             with TemporaryDirectory() as tmp:
                 zip_path = Path(tmp) / "Medieval Madness.zip"
                 _make_zip(zip_path, ["Medieval Madness.vpx", "wheel.png"])
@@ -1030,7 +1030,7 @@ class TraversalGuardTests(unittest.TestCase):
         from pathlib import Path
         from tempfile import TemporaryDirectory
         import zipfile
-        with mock.patch.object(asset_import_service, "refresh_table"):
+        with mock.patch.object(asset_import_service, "refresh_game"):
             with TemporaryDirectory() as tmp:
                 game_dir = Path(tmp) / "Foo (Bar 1999)"
                 game_dir.mkdir()

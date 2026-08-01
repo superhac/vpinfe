@@ -164,7 +164,7 @@ def _restore_file(path, backup) -> None:
     replace_atomic(backup, path)
 
 
-def _tables(count: int) -> str:
+def _games(count: int) -> str:
     return f"{count} table" if count == 1 else f"{count} tables"
 
 
@@ -181,7 +181,7 @@ def _upgrade_summary(result: dict) -> str:
     )
     if result["failed"]:
         summary += (
-            f" {_tables(result['failed'])} could not be read and were left exactly as "
+            f" {_games(result['failed'])} could not be read and were left exactly as "
             "they were."
         )
     return summary
@@ -200,11 +200,11 @@ def _restore_summary(result: dict) -> str:
         summary += " Your collections are back too."
     if result["nothing_to_restore"]:
         summary += (
-            f" {_tables(result['nothing_to_restore'])} were never upgraded, so there was "
+            f" {_games(result['nothing_to_restore'])} were never upgraded, so there was "
             "nothing to put back."
         )
     if result["failed"]:
         summary += (
-            f" {_tables(result['failed'])} could not be restored and were left as they are."
+            f" {_games(result['failed'])} could not be restored and were left as they are."
         )
     return summary

@@ -331,7 +331,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                     await run.io_bound(table_service.associate_vps_to_folder,
                                        Path(report["table_path"]), vps_entry, True)
                     await run.io_bound(table_service.build_metadata, downloadMedia=True,
-                                       updateAll=True, tableName=resolved.new_table_dir_name)
+                                       updateAll=True, gameName=resolved.new_table_dir_name)
                 except Exception:
                     # The files are already imported; a failed association must not read as a failed import.
                     logger.exception("VPS association failed after import")

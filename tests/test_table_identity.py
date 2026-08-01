@@ -6,10 +6,10 @@ from types import SimpleNamespace
 
 from common.tables import table_identity
 from common.tables.metaconfig import MetaConfig
-from common.tables.table_repository import table_to_row
+from common.tables.table_repository import game_to_row
 
 
-def _table(root: Path, name: str = "Example", meta: dict | None = None):
+def _game(root: Path, name: str = "Example", meta: dict | None = None):
     """A table folder with a .info file, shaped like TableParser produces."""
     folder = root / name
     folder.mkdir(parents=True, exist_ok=True)
@@ -53,14 +53,14 @@ class MintedIdTests(unittest.TestCase):
         self.root = Path(self._tmp.name)
 
 
-class TableIdTests(unittest.TestCase):
+class GameIdTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.root = Path(self._tmp.name)
 
-    def test_reading_an_unassigned_table_returns_empty_and_writes_nothing(self) -> None:
-        game = _table(self.root, meta={"Info": {"VPSId": "vps-1"}})
+    def test_reading_an_unassigned_game_returns_empty_and_writes_nothing(self) -> None:
+        game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
         info = Path(game.fullPathTable) / "Example.info"
         before = info.read_text(encoding="utf-8")
 
@@ -68,7 +68,7 @@ class TableIdTests(unittest.TestCase):
         self.assertEqual(info.read_text(encoding="utf-8"), before)
 
     def test_ensure_id_mints_and_persists(self) -> None:
-        game = _table(self.root, meta={"Info": {"VPSId": "vps-1"}})
+        game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
 
         minted = table_identity.ensure_id(game)
         info = Path(game.fullPathTable) / "Example.info"
@@ -79,7 +79,7 @@ class TableIdTests(unittest.TestCase):
         self.assertEqual(table_identity.table_id(game), minted)
 
     def test_ensure_id_is_stable_across_calls(self) -> None:
-        game = _table(self.root, meta={"Info": {"VPSId": "vps-1"}})
+        game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
 
         first = table_identity.ensure_id(game)
         second = table_identity.ensure_id(game)
@@ -88,7 +88,7 @@ class TableIdTests(unittest.TestCase):
 
     def test_ensure_id_adopts_an_id_already_on_disk(self) -> None:
         """The in-memory copy can be stale; disk wins over minting a second id."""
-        game = _table(self.root, meta={"Info": {"VPSId": "vps-1"}})
+        game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
         info = Path(game.fullPathTable) / "Example.info"
         info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "vpinfe": {"id": "already-here"}}),
                         encoding="utf-8")
@@ -96,7 +96,7 @@ class TableIdTests(unittest.TestCase):
         self.assertEqual(table_identity.ensure_id(game), "already-here")
 
     def test_ensure_id_preserves_the_rest_of_the_meta(self) -> None:
-        game = _table(self.root, meta={
+        game = _game(self.root, meta={
             "Info": {"VPSId": "vps-1", "Title": "Example"},
             "User": {"Rating": 4},
             "vpinfe": {"alt_title": "My Example"},
@@ -142,7 +142,7 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
 
         self.assertTrue(rebuilt["vpinfe"]["id"])
 
-    def test_the_id_survives_a_table_file_update_that_clears_altvpsid(self) -> None:
+    def test_the_id_survives_a_game_file_update_that_clears_altvpsid(self) -> None:
         """altvpsid is cleared when the .vpx changes; the table id must not be."""
         info = self.root / "Example.info"
         first = self._rebuild(info, "hash-a")
@@ -165,12 +165,12 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
 
         self.assertEqual(first, second)
 
-    def test_a_table_vpsdb_never_matched_still_gets_an_id(self) -> None:
+    def test_a_game_vpsdb_never_matched_still_gets_an_id(self) -> None:
         """The VPS-derived id is empty here, which is why it can't be the key."""
-        game = _table(self.root, "Unmatched", meta={"Info": {"VPSId": ""}})
+        game = _game(self.root, "Unmatched", meta={"Info": {"VPSId": ""}})
 
         minted = table_identity.ensure_id(game)
-        row = table_to_row(game)
+        row = game_to_row(game)
 
         self.assertTrue(minted)
         self.assertEqual(row["vpsid"], "", "precondition: no VPS-derived id")
@@ -183,19 +183,19 @@ class UniquenessTests(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.root = Path(self._tmp.name)
 
-    def test_ensure_unique_ids_assigns_every_table(self) -> None:
-        tables = [_table(self.root, n, meta={"Info": {}}) for n in ("A", "B", "C")]
+    def test_ensure_unique_ids_assigns_every_game(self) -> None:
+        tables = [_game(self.root, n, meta={"Info": {}}) for n in ("A", "B", "C")]
 
         by_id = table_identity.ensure_unique_ids(tables)
 
         self.assertEqual(len(by_id), 3)
         self.assertTrue(all(table_identity.table_id(t) for t in tables))
 
-    def test_a_copied_table_folder_gets_a_fresh_id(self) -> None:
-        original = _table(self.root, "Original", meta={"Info": {}})
+    def test_a_copied_game_folder_gets_a_fresh_id(self) -> None:
+        original = _game(self.root, "Original", meta={"Info": {}})
         assigned = table_identity.ensure_id(original)
         # Copying the folder copies the .info, and with it the id.
-        copy = _table(self.root, "Copy", meta={"Info": {}, "vpinfe": {"id": assigned}})
+        copy = _game(self.root, "Copy", meta={"Info": {}, "vpinfe": {"id": assigned}})
 
         with self.assertLogs("vpinfe.common.tables.table_identity", level="WARNING"):
             by_id = table_identity.ensure_unique_ids([original, copy])
@@ -211,16 +211,16 @@ class LookupTests(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.root = Path(self._tmp.name)
 
-    def test_find_by_id_returns_the_matching_table(self) -> None:
-        wanted = _table(self.root, "Wanted", meta={"Info": {}})
-        other = _table(self.root, "Other", meta={"Info": {}})
+    def test_find_by_id_returns_the_matching_game(self) -> None:
+        wanted = _game(self.root, "Wanted", meta={"Info": {}})
+        other = _game(self.root, "Other", meta={"Info": {}})
         wanted_id = table_identity.ensure_id(wanted)
         table_identity.ensure_id(other)
 
         self.assertIs(table_identity.find_by_id([other, wanted], wanted_id), wanted)
 
     def test_find_by_id_rejects_missing_and_blank_ids(self) -> None:
-        unassigned = _table(self.root, "Unassigned", meta={"Info": {}})
+        unassigned = _game(self.root, "Unassigned", meta={"Info": {}})
 
         self.assertIsNone(table_identity.find_by_id([unassigned], "no-such-id"))
         self.assertIsNone(table_identity.find_by_id([unassigned], ""))
@@ -234,13 +234,13 @@ class RowFieldTests(unittest.TestCase):
 
     def test_a_row_carries_correlation_ids_and_identity_separately(self) -> None:
         """VPS ids correlate with other services; vpinfe_id is what identifies the table."""
-        game = _table(self.root, meta={
+        game = _game(self.root, meta={
             "Info": {"VPSId": "vps-1"},
             "vpinfe": {"alt_vpsid": "vps-override"},
         })
         assigned = table_identity.ensure_id(game)
 
-        row = table_to_row(game)
+        row = game_to_row(game)
 
         self.assertEqual(row["vpsid"], "vps-1")
         self.assertEqual(row["alt_vpsid"], "vps-override")
@@ -248,10 +248,10 @@ class RowFieldTests(unittest.TestCase):
         # There is no derived "id" to pick up by accident.
         self.assertNotIn("id", row)
 
-    def test_row_reports_an_empty_table_id_before_one_is_assigned(self) -> None:
-        game = _table(self.root, meta={"Info": {"VPSId": "vps-1"}})
+    def test_row_reports_an_empty_game_id_before_one_is_assigned(self) -> None:
+        game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
 
-        self.assertEqual(table_to_row(game)["vpinfe_id"], "")
+        self.assertEqual(game_to_row(game)["vpinfe_id"], "")
 
 
 if __name__ == "__main__":

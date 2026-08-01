@@ -177,8 +177,8 @@ except Exception:
 # Give every table a stable id. One-time cost per library; a no-op afterwards.
 try:
     from common.tables.table_identity import ensure_unique_ids
-    from common.tables.table_repository import ensure_tables_loaded
-    ensure_unique_ids(ensure_tables_loaded())
+    from common.tables.table_repository import ensure_games_loaded
+    ensure_unique_ids(ensure_games_loaded())
 except Exception:
     logger.exception("Table id backfill failed; tables without an id are not addressable")
 
@@ -188,7 +188,7 @@ try:
     from common.paths import COLLECTIONS_PATH
     from common.tables.vpxcollections import VPXCollections
     _collections = VPXCollections(str(COLLECTIONS_PATH))
-    _collections.migrate_membership_to_table_ids(ensure_tables_loaded())
+    _collections.migrate_membership_to_game_ids(ensure_games_loaded())
 except Exception:
     logger.exception("Collection membership migration failed; memberships left as they were")
 

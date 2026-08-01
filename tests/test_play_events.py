@@ -32,7 +32,7 @@ class PlayEventTests(unittest.TestCase):
         self.bridge = _Bridge()
 
     def _register(self, ini_config=None):
-        with mock.patch.object(play_events, "save_last_table"):
+        with mock.patch.object(play_events, "save_last_game"):
             play_events.register(self.bridge, None, ini_config)
 
     def test_registering_twice_leaves_one_of_each(self) -> None:
@@ -41,17 +41,17 @@ class PlayEventTests(unittest.TestCase):
         self._register()
         self._register()
 
-        for name in (events.TABLE_LAUNCHING, events.TABLE_LAUNCHED, events.TABLE_EXITED):
+        for name in (events.GAME_LAUNCHING, events.GAME_LAUNCHED, events.GAME_EXITED):
             with self.subTest(event=name):
                 self.assertEqual(events.registered(name), (0, 1))
 
     def test_the_windows_are_driven_by_the_lifecycle(self) -> None:
         self._register()
 
-        with mock.patch.object(play_events, "save_last_table"):
-            events.emit(events.TABLE_LAUNCHING, game=None, ini_config=None)
-            events.emit(events.TABLE_LAUNCHED, game=None, ini_config=None)
-            events.emit(events.TABLE_EXITED, game=None, ini_config=None)
+        with mock.patch.object(play_events, "save_last_game"):
+            events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
+            events.emit(events.GAME_LAUNCHED, game=None, ini_config=None)
+            events.emit(events.GAME_EXITED, game=None, ini_config=None)
 
         self.assertEqual(self.bridge.messages,
                          ["TableLaunching", "TableRunning", "TableLaunchComplete"])
@@ -60,18 +60,18 @@ class PlayEventTests(unittest.TestCase):
         """The Remote page used to produce no window messages at all."""
         self._register()
 
-        with mock.patch.object(play_events, "save_last_table"):
-            events.emit(events.TABLE_LAUNCHING, game=None, ini_config=None)
+        with mock.patch.object(play_events, "save_last_game"):
+            events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
 
         self.assertEqual(self.bridge.messages, ["TableLaunching"])
 
-    def test_the_last_table_is_recorded_on_launch(self) -> None:
+    def test_the_last_game_is_recorded_on_launch(self) -> None:
         game = types.SimpleNamespace(tableDirName="Example")
         ini = types.SimpleNamespace(config={})
         self._register(ini)
 
-        with mock.patch.object(play_events, "save_last_table") as save:
-            events.emit(events.TABLE_LAUNCHING, game=game, ini_config=None)
+        with mock.patch.object(play_events, "save_last_game") as save:
+            events.emit(events.GAME_LAUNCHING, game=game, ini_config=None)
 
         save.assert_called_once_with(ini, game)
 
@@ -82,7 +82,7 @@ class PlayEventTests(unittest.TestCase):
         self.bridge.send_event_all_with_iframe = mock.Mock(side_effect=RuntimeError("bridge down"))
 
         with self.assertLogs("vpinfe.common.events", level="ERROR"):
-            events.emit(events.TABLE_LAUNCHED, game=None, ini_config=None)
+            events.emit(events.GAME_LAUNCHED, game=None, ini_config=None)
 
 
 if __name__ == "__main__":

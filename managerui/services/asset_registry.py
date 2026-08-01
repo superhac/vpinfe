@@ -27,7 +27,7 @@ class AssetSpec:
     label: str
     icon: str
     extensions: tuple[str, ...]     # lowercase; () for marker/folder-detected kinds
-    requires_table: bool
+    requires_game: bool
     requires_rom: bool
     allow_multiple: bool
 

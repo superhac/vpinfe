@@ -216,7 +216,7 @@ def import_upload(upload_id: str,
         try:
             associate_vps_to_folder(Path(report["table_path"]), vps_entry, True)
             build_metadata(downloadMedia=True, updateAll=True,
-                           tableName=Path(report["table_path"]).name)
+                           gameName=Path(report["table_path"]).name)
             report["vps_associated"] = True
         except Exception as exc:
             logger.exception("VPS association failed after import")

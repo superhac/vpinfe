@@ -22,9 +22,9 @@ def table_identity(game) -> str:
     return str(getattr(game, "fullPathTable", "") or getattr(game, "tableDirName", "") or "")
 
 
-def save_last_table(iniConfig, game) -> None:
+def save_last_game(iniConfig, game) -> None:
     """Persist `table` as the last-launched table when the feature is enabled."""
-    if not SettingsConfig.from_config(iniConfig).restore_last_table:
+    if not SettingsConfig.from_config(iniConfig).restore_last_game:
         return
     identity = table_identity(game)
     if not identity:
@@ -41,13 +41,13 @@ def save_last_table(iniConfig, game) -> None:
         logger.exception("Could not persist last table selection")
 
 
-def resolve_last_table_index(iniConfig, tables) -> int:
+def resolve_last_game_index(iniConfig, tables) -> int:
     """Return the index of the saved last table within `tables`, else 0.
 
     Returns 0 when the feature is off, nothing is saved, or the saved table
     isn't in the current view (e.g. filtered out by a startup collection).
     """
-    if not SettingsConfig.from_config(iniConfig).restore_last_table:
+    if not SettingsConfig.from_config(iniConfig).restore_last_game:
         return 0
     saved = cfg_get(iniConfig, STATE_SECTION, STATE_KEY, "").strip()
     if not saved:

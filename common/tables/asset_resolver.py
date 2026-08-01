@@ -31,7 +31,7 @@ VPX_ASSET_KINDS = (
 )
 
 # Directory-scoped: one per table folder, shared by every game file in it.
-TABLE_DIRECTORY_KINDS = {
+GAME_DIRECTORY_KINDS = {
     "pup_pack": "pupvideos",
     "alt_color_serum": "serum",
     "alt_color_vni": "vni",

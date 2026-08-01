@@ -208,9 +208,9 @@ def build_vpx_launch_command(
     if ini_override:
         cmd.extend(["-ini", ini_override])
 
-    tableini = str(tableini_override or "").strip()
-    if tableini:
-        cmd.extend(["-tableini", tableini])
+    gameini = str(tableini_override or "").strip()
+    if gameini:
+        cmd.extend(["-tableini", gameini])
 
     cmd.extend(["-play", str(vpx_game_path)])
     return cmd

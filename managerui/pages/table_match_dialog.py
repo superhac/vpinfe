@@ -6,41 +6,41 @@ from typing import Callable, Dict, List, Optional
 
 from nicegui import events, run, ui
 
-from managerui.pages.table_dialog_context import TableDialogContext, default_context
+from managerui.pages.table_dialog_context import GameDialogContext, default_context
 from managerui.services import table_service
 from managerui.ui_helpers import debounced_input
 
 
 logger = logging.getLogger("vpinfe.manager.tables")
-_missing_tables_dialog: Optional[ui.dialog] = None
+_missing_games_dialog: Optional[ui.dialog] = None
 
 associate_vps_to_folder = table_service.associate_vps_to_folder
 search_vpsdb = table_service.search_vpsdb
 
 
-def scan_missing_tables():
-    return table_service.scan_missing_table_rows(reload=True)
+def scan_missing_games():
+    return table_service.scan_missing_game_rows(reload=True)
 
 
-def open_missing_tables_dialog(
+def open_missing_games_dialog(
     missing_rows: list[dict],
     on_close: Optional[Callable[[], None]] = None,
-    context: TableDialogContext | None = None,
+    context: GameDialogContext | None = None,
 ):
     context = context or default_context()
     on_close = on_close or context.refresh_missing
-    return _render_missing_tables_dialog(missing_rows, on_close=on_close)
+    return _render_missing_games_dialog(missing_rows, on_close=on_close)
 
 
 def open_match_vps_dialog(
     missing_row: dict,
     refresh_missing: Optional[Callable[[], None]] = None,
     refresh_installed: Optional[Callable[[], None]] = None,
-    context: TableDialogContext | None = None,
+    context: GameDialogContext | None = None,
 ):
     context = context or default_context()
     refresh_missing = refresh_missing or context.refresh_missing
-    refresh_installed = refresh_installed or context.refresh_tables
+    refresh_installed = refresh_installed or context.refresh_games
     return _render_match_vps_dialog(
         missing_row,
         refresh_missing=refresh_missing,
@@ -48,16 +48,16 @@ def open_match_vps_dialog(
     )
 
 
-def _render_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[Callable[[], None]] = None):
-    global _missing_tables_dialog
+def _render_missing_games_dialog(missing_rows: list[dict], on_close: Optional[Callable[[], None]] = None):
+    global _missing_games_dialog
     # Close any previous dialog to avoid stacking
     try:
-        if _missing_tables_dialog:
-            _missing_tables_dialog.close()
+        if _missing_games_dialog:
+            _missing_games_dialog.close()
     except Exception:
         pass
     dlg = ui.dialog().props('max-width=1080px')
-    _missing_tables_dialog = dlg
+    _missing_games_dialog = dlg
     with dlg, ui.card().classes('w-[960px] max-w-[95vw]'):
         title = ui.label(f'Missing Tables ({len(missing_rows)})').classes('text-lg font-bold')
         ui.separator()
@@ -78,7 +78,7 @@ def _render_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[C
                         'Match VPS ID',
                         on_click=lambda rr=r: open_match_vps_dialog(
                             rr,
-                            refresh_missing=lambda: (ui.notify('Missing list updated', type='info'), render(scan_missing_tables())),
+                            refresh_missing=lambda: (ui.notify('Missing list updated', type='info'), render(scan_missing_games())),
                             refresh_installed=None,
                         )
                     ).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
@@ -89,8 +89,8 @@ def _render_missing_tables_dialog(missing_rows: list[dict], on_close: Optional[C
             def _close():
                 dlg.close()
                 # clear global ref so a new one can be created next time
-                global _missing_tables_dialog
-                _missing_tables_dialog = None
+                global _missing_games_dialog
+                _missing_games_dialog = None
                 if callable(on_close):
                     on_close()
             ui.button('Close', on_click=_close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')

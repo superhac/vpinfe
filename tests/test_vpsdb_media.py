@@ -84,7 +84,7 @@ class OwnershipTests(unittest.TestCase):
 class RecordingTests(unittest.TestCase):
     """What reaches the assets ledger, going through the real recording path."""
 
-    def _table(self, root: Path):
+    def _game(self, root: Path):
         """Enough of a Table for download_media_for_table. Every media path points at
         the canonical name; only the wheel exists on disk in these tests."""
         paths = {"BGImagePath": "bg.png", "DMDImagePath": "dmd.png",
@@ -115,7 +115,7 @@ class RecordingTests(unittest.TestCase):
             dl = self._downloader(_md5(OURS))
             meta = mock.Mock()
             with mock.patch.object(dl, "download_media_file"):
-                dl.download_media_for_table(self._table(root), "vps-1", meta)
+                dl.download_media_for_game(self._game(root), "vps-1", meta)
 
             meta.add_asset.assert_not_called()
 
@@ -129,7 +129,7 @@ class RecordingTests(unittest.TestCase):
             dl = self._downloader(_md5(OURS))
             meta = mock.Mock()
             with mock.patch.object(dl, "download_media_file"):
-                dl.download_media_for_table(self._table(root), "vps-1", meta)
+                dl.download_media_for_game(self._game(root), "vps-1", meta)
 
             meta.add_asset.assert_called_once_with(
                 str(root / "medias" / "wheel.png"), "vpinmediadb", _md5(OURS))

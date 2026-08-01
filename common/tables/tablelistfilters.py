@@ -1,17 +1,17 @@
 from common.tables.table_metadata import (
+    game_manufacturer,
+    game_rating,
+    game_themes,
+    game_title,
+    game_year,
     get_meta_value,
     normalize_rating,
-    table_manufacturer,
-    table_rating,
-    table_themes,
-    table_title,
     table_type,
-    table_year,
 )
 from common.values import is_truthy
 
 
-class TableListFilters:
+class GameListFilters:
     """Filter tables by various criteria: starting letter, theme, type, and rating."""
 
     def __init__(self, tables=None):
@@ -27,7 +27,7 @@ class TableListFilters:
         letters = set()
         for game in self.tables:
             # Try Info.Title first (JSON format), then VPSdb.name (legacy)
-            name = table_title(game)
+            name = game_title(game)
             if name:
                 first_char = name[0].upper()
                 # Only include alphanumeric characters
@@ -39,7 +39,7 @@ class TableListFilters:
         """Return sorted list of unique themes from all tables."""
         themes = set()
         for game in self.tables:
-            themes.update(table_themes(game))
+            themes.update(game_themes(game))
         return sorted(themes)
 
     def get_available_types(self):
@@ -55,7 +55,7 @@ class TableListFilters:
         """Return sorted list of unique manufacturers."""
         manufacturers = set()
         for game in self.tables:
-            manufacturer = table_manufacturer(game)
+            manufacturer = game_manufacturer(game)
             if manufacturer:
                 manufacturers.add(manufacturer)
         return sorted(manufacturers)
@@ -64,39 +64,39 @@ class TableListFilters:
         """Return sorted list of unique years."""
         years = set()
         for game in self.tables:
-            year = table_year(game)
+            year = game_year(game)
             if year:
                 years.add(str(year))
         return sorted(years)
 
-    def _get_table_name(self, game):
+    def _get_game_name(self, game):
         """Get table name from either JSON or legacy format."""
-        return table_title(game)
+        return game_title(game)
 
-    def _get_table_theme(self, game):
+    def _get_game_theme(self, game):
         """Get table theme(s) from either JSON or legacy format."""
-        return table_themes(game)
+        return game_themes(game)
 
-    def _get_table_type(self, game):
+    def _get_game_type(self, game):
         """Get table type from either JSON or legacy format."""
         return table_type(game)
 
-    def _get_table_manufacturer(self, game):
+    def _get_game_manufacturer(self, game):
         """Get table manufacturer from either JSON or legacy format."""
-        return table_manufacturer(game)
+        return game_manufacturer(game)
 
-    def _get_table_year(self, game):
+    def _get_game_year(self, game):
         """Get table year from either JSON or legacy format."""
-        return table_year(game)
+        return game_year(game)
 
     @staticmethod
     def _normalize_rating(value):
         """Normalize rating values to an integer in the range 0..5."""
         return normalize_rating(value)
 
-    def _get_table_rating(self, game):
+    def _get_game_rating(self, game):
         """Get table rating from User.Rating metadata."""
-        return table_rating(game)
+        return game_rating(game)
 
     def filter_by_letter(self, tables, letter):
         """Filter tables by starting letter of name. Supports comma-separated values."""
@@ -106,7 +106,7 @@ class TableListFilters:
         letters = {l.strip().upper() for l in str(letter).split(',')}
         filtered = []
         for game in tables:
-            name = self._get_table_name(game)
+            name = self._get_game_name(game)
             if name and name[0].upper() in letters:
                 filtered.append(game)
         return filtered
@@ -119,8 +119,8 @@ class TableListFilters:
         themes = {t.strip() for t in str(theme).split(',')}
         filtered = []
         for game in tables:
-            table_themes = self._get_table_theme(game)
-            if themes & set(table_themes):
+            game_themes = self._get_game_theme(game)
+            if themes & set(game_themes):
                 filtered.append(game)
         return filtered
 
@@ -132,7 +132,7 @@ class TableListFilters:
         types = {t.strip() for t in str(table_type).split(',')}
         filtered = []
         for game in tables:
-            current_type = self._get_table_type(game)
+            current_type = self._get_game_type(game)
             if current_type in types:
                 filtered.append(game)
         return filtered
@@ -145,7 +145,7 @@ class TableListFilters:
         manufacturers = {m.strip() for m in str(manufacturer).split(',')}
         filtered = []
         for game in tables:
-            current_manufacturer = self._get_table_manufacturer(game)
+            current_manufacturer = self._get_game_manufacturer(game)
             if current_manufacturer in manufacturers:
                 filtered.append(game)
         return filtered
@@ -158,7 +158,7 @@ class TableListFilters:
         years = {y.strip() for y in str(year).split(',')}
         filtered = []
         for game in tables:
-            current_year = self._get_table_year(game)
+            current_year = self._get_game_year(game)
             if current_year in years:
                 filtered.append(game)
         return filtered
@@ -180,10 +180,10 @@ class TableListFilters:
 
         if is_truthy(rating_or_higher):
             min_rating = min(selected_ratings)
-            return [game for game in tables if self._get_table_rating(game) >= min_rating]
+            return [game for game in tables if self._get_game_rating(game) >= min_rating]
 
         rating_set = set(selected_ratings)
-        return [game for game in tables if self._get_table_rating(game) in rating_set]
+        return [game for game in tables if self._get_game_rating(game) in rating_set]
 
     def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=False):
         """
@@ -213,7 +213,7 @@ class TableListFilters:
 
         # Sort alphabetically by name
         result.sort(
-            key=lambda t: self._get_table_name(t).lower()
+            key=lambda t: self._get_game_name(t).lower()
         )
 
         return result

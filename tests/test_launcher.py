@@ -14,7 +14,7 @@ from common.host.launcher import (
 )
 
 
-class TestLauncherTableIniOverride(unittest.TestCase):
+class TestLauncherGameIniOverride(unittest.TestCase):
     def test_build_masked_tableini_path_enabled_builds_expected_name(self) -> None:
         stem = "300 (Gottlieb 1975) team scampa123 mod v1.1"
         vpx = os.path.join(os.sep, "tables", f"{stem}.vpx")

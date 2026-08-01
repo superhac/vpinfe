@@ -25,8 +25,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 def _run_probe() -> dict:
     with TemporaryDirectory() as tmp:
         config_dir = Path(tmp) / "config"
-        tables_dir = Path(tmp) / "tables"
-        game = tables_dir / "Example Table (Bally 1990)"
+        games_dir = Path(tmp) / "tables"
+        game = games_dir / "Example Table (Bally 1990)"
         game.mkdir(parents=True)
         (game / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
         # Assets the parser should find: a backglass, a per-table ini, a ROM and music.
@@ -49,7 +49,7 @@ def _run_probe() -> dict:
         }), encoding="utf-8")
 
         # A folder holding several .vpx, plus a .vbs that is not a game file.
-        multi = tables_dir / "Multi File (Bally 1991)"
+        multi = games_dir / "Multi File (Bally 1991)"
         multi.mkdir()
         for name in ("Multi File (Bally 1991).vpx", "Multi File (Bally 1991) - alt.vpx",
                      "Multi File (Bally 1991) - VPW.vpx"):
@@ -71,7 +71,7 @@ def _run_probe() -> dict:
         }), encoding="utf-8")
 
         # .info names a .vpx that is not on disk.
-        mismatch = tables_dir / "Mismatch (Bally 1992)"
+        mismatch = games_dir / "Mismatch (Bally 1992)"
         mismatch.mkdir()
         (mismatch / "Mismatch (Bally 1992).vpx").write_bytes(b"vpx")
         (mismatch / "Mismatch (Bally 1992).info").write_text(json.dumps({
@@ -85,7 +85,7 @@ def _run_probe() -> dict:
 
         config_dir.mkdir(parents=True)
         (config_dir / "vpinfe.ini").write_text(
-            f"[Settings]\ntablerootdir = {tables_dir}\n", encoding="utf-8")
+            f"[Settings]\ntablerootdir = {games_dir}\n", encoding="utf-8")
 
         proc = subprocess.run(
             [sys.executable, "-m", "tests.api_probe"],
@@ -147,7 +147,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(no_launcher["json"]["error"]["code"], "feature_unavailable")
         self.assertIn("vpxbinpath", no_launcher["json"]["error"]["message"])
 
-    def test_launch_rejects_a_game_file_the_table_does_not_have(self) -> None:
+    def test_launch_rejects_a_game_file_the_game_does_not_have(self) -> None:
         entry = self.probe["launch_unknown_file"]
 
         self.assertEqual(entry["status"], 400)
@@ -160,13 +160,13 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(entry["status"], 409)
         self.assertEqual(entry["json"]["error"]["code"], "conflict")
 
-    def test_launch_of_an_unknown_table_is_a_not_found(self) -> None:
+    def test_launch_of_an_unknown_game_is_a_not_found(self) -> None:
         entry = self.probe["launch_unknown_table"]
 
         self.assertEqual(entry["status"], 404)
         self.assertEqual(entry["json"]["error"]["code"], "not_found")
 
-    def test_a_table_reports_its_assets_not_its_media(self) -> None:
+    def test_a_game_reports_its_assets_not_its_media(self) -> None:
         """Assets are what the table needs to play; media is the artwork shown
         while browsing - see docs/conventions.md. The detail endpoint is the
         inventory lens: every kind, files attributed."""
@@ -273,7 +273,7 @@ class ApiContractTests(unittest.TestCase):
 
     # --- tables, and the archive that used to be /api/download-table-vpxz -----
 
-    def test_listing_tables_returns_addressable_resources(self) -> None:
+    def test_listing_games_returns_addressable_resources(self) -> None:
         entry = self.probe["tables_list"]
 
         self.assertEqual(entry["status"], 200)
@@ -284,7 +284,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(game["vps_id"], "vps-example", "correlation, not identity")
         self.assertEqual(game["name"], "Example Table")
 
-    def test_a_table_resource_links_to_its_sub_resources(self) -> None:
+    def test_a_game_resource_links_to_its_sub_resources(self) -> None:
         game = self.probe["table_get"]["json"]
 
         self.assertEqual(self.probe["table_get"]["status"], 200)
@@ -335,7 +335,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertTrue(by_name["Mismatch (Bally 1992).vpx"]["available"])
         self.assertTrue(by_name["Mismatch (Bally 1992).vpx"]["default"])
 
-    def test_an_unknown_table_is_a_404_in_the_envelope(self) -> None:
+    def test_an_unknown_game_is_a_404_in_the_envelope(self) -> None:
         for key in ("table_unknown", "archive_unknown"):
             with self.subTest(endpoint=key):
                 entry = self.probe[key]

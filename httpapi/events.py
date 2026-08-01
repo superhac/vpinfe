@@ -51,7 +51,7 @@ RETRY_MS = 3000
 HELLO_EVENT = "stream.hello"
 
 
-def _table_event(game=None, **_) -> dict:
+def _game_event(game=None, **_) -> dict:
     """The wire shape of a table lifecycle event.
 
     The bus carries the Table object and the whole ini config because its handlers
@@ -90,10 +90,10 @@ def _as_published(**payload) -> dict:
 # publish onto the same bus, and what it may broadcast is a scope question that
 # has to be answered before anything is streamed.
 STREAMED_EVENTS: dict[str, Callable[..., dict]] = {
-    events.TABLE_LAUNCHING: _table_event,
-    events.TABLE_LAUNCHED: _table_event,
-    events.TABLE_EXITED: _table_event,
-    events.TABLE_SELECTED: _table_event,
+    events.GAME_LAUNCHING: _game_event,
+    events.GAME_LAUNCHED: _game_event,
+    events.GAME_EXITED: _game_event,
+    events.GAME_SELECTED: _game_event,
     events.PLAY_STATE_CHANGED: _as_published,
     events.JOB_PROGRESS: _job_event,
     events.JOB_DONE: _job_event,

@@ -14,7 +14,7 @@ from common.tables.collections_service import (
     get_collections_metadata,
 )
 from common.tables.table_metadata import normalize_meta
-from common.tables.table_repository import ensure_tables_loaded
+from common.tables.table_repository import ensure_games_loaded
 from frontend import (
     config_api,
     input_api,
@@ -100,8 +100,8 @@ class API:
         self.window_name = window_name          # 'bg', 'dmd', or 'table'
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
         self.frontend_browser = frontend_browser  # ChromiumManager instance
-        self.allTables = ensure_tables_loaded()
-        self.jsTableDictData = None
+        self.allGames = ensure_games_loaded()
+        self.jsGameDictData = None
         # Track current filter state
         self.current_filters = table_state.default_filter_state()
         # Track current collection
@@ -126,7 +126,7 @@ class API:
     def _finish_setup(self):
         pass
 
-    def _normalize_table_meta(self, game):
+    def _normalize_game_meta(self, game):
         return normalize_meta(game.metaConfig)
 
     def _theme_contract(self) -> int:
@@ -144,10 +144,10 @@ class API:
         rating/meta updates still propagate). Shared by startup and every reset
         path so they all agree on the default order.
         """
-        self.filteredTables = list(self.allTables)
+        self.filteredGames = list(self.allGames)
         self.current_sort = 'Alpha'
         self.current_order = 'Ascending'
-        table_state.apply_sort(self.filteredTables, self.current_sort, self.current_order)
+        table_state.apply_sort(self.filteredGames, self.current_sort, self.current_order)
 
 
     ###################
@@ -187,14 +187,14 @@ class API:
     def get_tables(self, reset=False):
         if reset:
             self._reset_to_default_view()
-        self.jsTableDictData = table_state.tables_json(self.filteredTables,
+        self.jsGameDictData = table_state.games_json(self.filteredGames,
                                                        self._theme_contract())
-        return self.jsTableDictData
+        return self.jsGameDictData
 
     def get_initial_table_index(self):
         # Position the wheel on the last-launched table at startup. Resolved
         # against the current (possibly filtered) view; 0 when disabled or unfound.
-        return last_table.resolve_last_table_index(self._iniConfig, self.filteredTables)
+        return last_table.resolve_last_game_index(self._iniConfig, self.filteredGames)
 
 
     def get_collections(self):
@@ -248,7 +248,7 @@ class API:
         return self.current_collection or 'None'
 
     def _filter_option(self, key: str):
-        return table_state.filter_options(self.allTables)[key]
+        return table_state.filter_options(self.allGames)[key]
 
     def get_filter_letters(self):
         return self._filter_option(_FILTER_OPTION_KEYS["letters"])
@@ -301,7 +301,7 @@ class API:
         self.current_order = table_state.normalize_sort_order(order_by, sort_type)
         logger.debug("Applying sort: %s %s", sort_type, self.current_order)
 
-        count = table_state.apply_sort(self.filteredTables, sort_type, self.current_order)
+        count = table_state.apply_sort(self.filteredGames, sort_type, self.current_order)
         logger.debug("Sorted %s tables by %s %s", count, sort_type, self.current_order)
         return count
 
@@ -317,7 +317,7 @@ class API:
             index = 0
         paging_type, page_size = input_api.get_paging_config(self._iniConfig.config)
         return table_state.page_jump_index(
-            self.filteredTables, index, direction, self.current_sort, paging_type, page_size
+            self.filteredGames, index, direction, self.current_sort, paging_type, page_size
         )
 
     def console_out(self, output):
@@ -348,7 +348,7 @@ class API:
         here has to tell them.
         """
         try:
-            game = self.filteredTables[int(index)]
+            game = self.filteredGames[int(index)]
         except Exception:
             logger.warning("Ignoring launch for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
@@ -369,22 +369,22 @@ class API:
         fail in a way the wheel should care about.
         """
         try:
-            game = self.filteredTables[int(index)]
+            game = self.filteredGames[int(index)]
         except Exception:
             logger.debug("Ignoring table selection for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
 
-        events.emit(events.TABLE_SELECTED, game=game, ini_config=self._iniConfig)
+        events.emit(events.GAME_SELECTED, game=game, ini_config=self._iniConfig)
         return {"success": True}
 
     def get_table_rating(self, index):
         """Get User.Rating for a table index in the current filtered list."""
-        return table_state.get_table_rating(self.filteredTables, index)
+        return table_state.get_table_rating(self.filteredGames, index)
 
     def set_table_rating(self, index, rating):
         """Set User.Rating (0-5) for a table index in the current filtered list."""
-        result = table_state.set_table_rating(self.filteredTables, index, rating)
-        logger.info("Updated User.Rating for %s -> %s", self.filteredTables[index].tableDirName, result["rating"])
+        result = table_state.set_table_rating(self.filteredGames, index, rating)
+        logger.info("Updated User.Rating for %s -> %s", self.filteredGames[index].tableDirName, result["rating"])
         return result
 
     def build_metadata(self, download_media=True, update_all=False):
@@ -404,7 +404,7 @@ class API:
         return metadata_build_service.start_build(
             self,
             build_metadata_func=lambda **kwargs: build_metadata(iniconfig=self._iniConfig, **kwargs),
-            ensure_tables_loaded_func=ensure_tables_loaded,
+            ensure_games_loaded_func=ensure_games_loaded,
             download_media=download_media,
             update_all=update_all,
         )

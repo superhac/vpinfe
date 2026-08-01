@@ -30,9 +30,9 @@ from common.tables.game_files import (
 )
 from common.tables.table_metadata import vpinfe_section
 from common.tables.table_repository import (
-    collections_by_table_id,
-    ensure_tables_loaded,
-    table_to_row,
+    collections_by_game_id,
+    ensure_games_loaded,
+    game_to_row,
 )
 
 from . import models, scopes
@@ -51,10 +51,10 @@ def _catalog() -> dict:
     been through it. main.py does the same at startup; this keeps the API correct
     when it is driven without a full app boot.
     """
-    return table_identity.ensure_unique_ids(ensure_tables_loaded())
+    return table_identity.ensure_unique_ids(ensure_games_loaded())
 
 
-def _table_or_404(table_id: str):
+def _game_or_404(table_id: str):
     game = _catalog().get(table_id)
     if game is None:
         raise NotFoundError(f"No table with id {table_id}")
@@ -236,18 +236,18 @@ def _game_files(game, row: dict) -> list[dict]:
     return entries
 
 
-@router.get("", summary="List tables", dependencies=[requires(scopes.TABLES_READ)])
-def list_tables(
+@router.get("", summary="List tables", dependencies=[requires(scopes.GAMES_READ)])
+def list_games(
     q: str = Query("", description="Match against name, manufacturer or rom"),
     limit: int = Query(0, ge=0, description="0 returns everything"),
     offset: int = Query(0, ge=0),
-) -> models.TableList:
+) -> models.GameList:
     catalog = _catalog()
-    collections = collections_by_table_id()
+    collections = collections_by_game_id()
 
     items = []
     for table_id, game in catalog.items():
-        row = table_to_row(game, collections)
+        row = game_to_row(game, collections)
         items.append((row.get("name", "").lower(), _resource(row, table_id)))
     items.sort(key=lambda pair: pair[0])
     resources = [resource for _name, resource in items]
@@ -269,20 +269,20 @@ def list_tables(
     return {"total": total, "offset": offset, "count": len(resources), "tables": resources}
 
 
-@router.get("/{table_id}", summary="One table", dependencies=[requires(scopes.TABLES_READ)])
-def get_table(table_id: str) -> models.TableResource:
-    game = _table_or_404(table_id)
-    row = table_to_row(game, collections_by_table_id())
+@router.get("/{table_id}", summary="One table", dependencies=[requires(scopes.GAMES_READ)])
+def get_game(table_id: str) -> models.GameResource:
+    game = _game_or_404(table_id)
+    row = game_to_row(game, collections_by_game_id())
     resource = _resource(row, table_id)
     resource["assets"] = _inventory_assets(Path(row.get("table_path", "")))
     return resource
 
 
 @router.get("/{table_id}/game-files", summary="A table's game files",
-            dependencies=[requires(scopes.TABLES_READ)])
+            dependencies=[requires(scopes.GAMES_READ)])
 def get_game_files(table_id: str) -> models.GameFileList:
-    game = _table_or_404(table_id)
-    return {"game_files": _game_files(game, table_to_row(game))}
+    game = _game_or_404(table_id)
+    return {"game_files": _game_files(game, game_to_row(game))}
 
 
 def _default_stem(game) -> str | None:
@@ -316,11 +316,11 @@ def _resolved_media(game_dir: Path, game_file_stem: str | None = None) -> dict:
 
 
 @router.get("/{table_id}/media", summary="A table's media",
-            dependencies=[requires(scopes.TABLES_READ)])
-def get_table_media(table_id: str) -> models.MediaList:
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_game_media(table_id: str) -> models.MediaList:
     """Media is the artwork shown about a table - every kind, present or not,
     so a client can enumerate what is possible instead of guessing."""
-    game = _table_or_404(table_id)
+    game = _game_or_404(table_id)
     game_dir = Path(getattr(game, "fullPathTable", "") or "")
     prefix = f"/api/v1/tables/{table_id}/media"
     resolved = _resolved_media(game_dir, _default_stem(game))
@@ -339,9 +339,9 @@ def get_table_media(table_id: str) -> models.MediaList:
 
 
 @router.get("/{table_id}/media/{kind}", summary="One media file",
-            dependencies=[requires(scopes.TABLES_READ)])
-def get_table_media_file(table_id: str, kind: str):
-    game = _table_or_404(table_id)
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_game_media_file(table_id: str, kind: str):
+    game = _game_or_404(table_id)
     known = {spec.key for spec in MEDIA_SPECS}
     if kind not in known:
         raise InvalidRequestError("Unknown media kind",
@@ -363,7 +363,7 @@ def launch_table(table_id: str,
     The same service the wheel and the Remote Control page use, so a launch from
     here counts as a play and releases the peripherals like any other.
     """
-    game = _table_or_404(table_id)
+    game = _game_or_404(table_id)
     game_file = (payload.file or None) if payload else None
     ini_config = get_ini_config()
 
@@ -391,18 +391,18 @@ def launch_table(table_id: str,
 
 
 @router.get("/{table_id}/archive", summary="Download the table folder as an archive",
-            dependencies=[requires(scopes.TABLES_READ)])
-def get_table_archive(request: Request, table_id: str, download_token: str = "",
+            dependencies=[requires(scopes.GAMES_READ)])
+def get_game_archive(request: Request, table_id: str, download_token: str = "",
                       full: bool = False, file: str = ""):
     from managerui.services.archive_service import cleanup_archive, create_vpxz_archive
 
-    game = _table_or_404(table_id)
+    game = _game_or_404(table_id)
     if full:
         # The default bundle rides tables:read; the whole folder is its own
         # permission. Local trust grants both today.
         identity = getattr(request.state, "identity", None)
-        if identity is None or not identity.can(scopes.TABLES_EXPORT_FULL):
-            raise ForbiddenError(f"Requires {scopes.TABLES_EXPORT_FULL}")
+        if identity is None or not identity.can(scopes.GAMES_EXPORT_FULL):
+            raise ForbiddenError(f"Requires {scopes.GAMES_EXPORT_FULL}")
     game_dir_name = getattr(game, "tableDirName", "")
     try:
         archive = create_vpxz_archive(game_dir_name, everything=full,

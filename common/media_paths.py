@@ -263,7 +263,7 @@ def apply_media_paths(game, game_contents: set[str], medias_contents: set[str],
             setattr(game, spec.attr, str(path))
 
 
-def table_media_payload(game) -> dict[str, str | None]:
+def game_media_payload(game) -> dict[str, str | None]:
     return {
         spec.attr: getattr(game, spec.attr, None)
         for spec in MEDIA_SPECS

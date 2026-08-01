@@ -14,7 +14,7 @@ category_select = None
 from common.iniconfig import IniConfig
 from common.host import launch, launch_state
 from common.tables import table_identity
-from common.tables.table_repository import ensure_tables_loaded
+from common.tables.table_repository import ensure_games_loaded
 from managerui.ui_helpers import debounced_input, load_page_style
 _INI_CFG = None
 logger = logging.getLogger("vpinfe.manager.remote")
@@ -87,9 +87,9 @@ def _get_collection_filters(collection_name):
     return remote_launch.get_collection_filters(collection_name)
 
 
-def _table_matches_filters(game, filters):
+def _game_matches_filters(game, filters):
     """Check if a table matches the given filter criteria."""
-    return remote_launch.table_matches_filters(game, filters)
+    return remote_launch.game_matches_filters(game, filters)
 
 
 def _get_ini_config():
@@ -100,23 +100,23 @@ def _get_ini_config():
     return _INI_CFG
 
 
-def _get_tables_path() -> str:
+def _get_games_path() -> str:
     """Get the tables root directory from config."""
     from managerui.paths import get_games_path
     return get_games_path()
 
 
-def _scan_tables_for_launch():
+def _scan_games_for_launch():
     """Scan for tables that can be launched (have .info and .vpx files)."""
-    return remote_launch.scan_tables_for_launch()
+    return remote_launch.scan_games_for_launch()
 
 
-def _launch_table(game: dict):
+def _launch_game(game: dict):
     """Hand a table to the launch service and let the bus tell everyone else."""
     import threading
 
     table_name = game.get('name', 'table')
-    resolved = table_identity.find_by_id(ensure_tables_loaded(), game.get('vpinfe_id', ''))
+    resolved = table_identity.find_by_id(ensure_games_loaded(), game.get('vpinfe_id', ''))
     if resolved is None:
         # Every launchable table has an id, so this means the library moved under us.
         ui.notify(f'Could not find {table_name} in the library', type='negative')
@@ -448,7 +448,7 @@ def show_vpx_game_controls():
         # Dropdown and launch button row (first)
         with ui.row().classes("w-full items-center gap-2 mb-2"):
             # Dropdown select for tables
-            table_select = ui.select(
+            game_select = ui.select(
                 options=[],
                 on_change=lambda e: None
             ).props(
@@ -456,7 +456,7 @@ def show_vpx_game_controls():
             ).classes("flex-grow").style(
                 "min-width: 0; background: var(--surface) !important; border-radius: 8px;"
             )
-            ui_refs['table_select'] = table_select
+            ui_refs['table_select'] = game_select
 
             # Launch button
             def do_launch():
@@ -465,7 +465,7 @@ def show_vpx_game_controls():
                     # Find the table by vpx_path (which is the value)
                     game = next((t for t in launch_state['tables'] if t['vpx_path'] == selected), None)
                     if game:
-                        _launch_table(game)
+                        _launch_game(game)
                     else:
                         ui.notify('Please select a table first', type='warning')
                 else:
@@ -490,7 +490,7 @@ def show_vpx_game_controls():
                 launch_state['filtered_options'] = {
                     t['vpx_path']: t['display_name']
                     for t in launch_state['tables']
-                    if _table_matches_filters(t, filters)
+                    if _game_matches_filters(t, filters)
                 }
             else:
                 # Collection with an explicit member list
@@ -546,47 +546,47 @@ def show_vpx_game_controls():
 
             if not term:
                 # Show all options from collection and select first
-                table_select.options = base_options
+                game_select.options = base_options
                 if base_options:
                     first_key = next(iter(base_options))
-                    table_select.value = first_key
+                    game_select.value = first_key
                 else:
-                    table_select.value = None
+                    game_select.value = None
             else:
                 # Filter options by search term - limit to first 10 matches
                 filtered = {k: v for k, v in base_options.items()
                            if term in v.lower()}
                 filtered_limited = dict(list(filtered.items())[:10])
-                table_select.options = filtered_limited
+                game_select.options = filtered_limited
                 # Auto-select first match
                 if filtered_limited:
                     first_key = next(iter(filtered_limited))
-                    table_select.value = first_key
+                    game_select.value = first_key
                     # Only open dropdown when adding characters (not deleting)
                     if len(term) > len(last_term):
-                        table_select.run_method('showPopup')
+                        game_select.run_method('showPopup')
                         await ui.run_javascript('''
                             setTimeout(() => {
                                 document.querySelector('[placeholder="Search/Filter..."]').focus();
                             }, 100);
                         ''')
                 else:
-                    table_select.value = None
-            table_select.update()
+                    game_select.value = None
+            game_select.update()
 
         filter_input.on_value_change(on_filter)
 
         # Launch on Enter key
         def on_enter():
-            if table_select.value:
-                game = next((t for t in launch_state['tables'] if t['vpx_path'] == table_select.value), None)
+            if game_select.value:
+                game = next((t for t in launch_state['tables'] if t['vpx_path'] == game_select.value), None)
                 if game:
-                    _launch_table(game)
+                    _launch_game(game)
 
         filter_input.on('keydown.enter', on_enter)
 
         # Load tables and collections on first render
-        async def load_tables():
+        async def load_games():
             # Load collections
             collections = await run.io_bound(_get_collections)
             collection_options = ['All'] + list(collections)
@@ -595,21 +595,21 @@ def show_vpx_game_controls():
             collection_select.update()
 
             # Load tables
-            tables = await run.io_bound(_scan_tables_for_launch)
+            tables = await run.io_bound(_scan_games_for_launch)
             launch_state['tables'] = tables
             # Build options as dict: {vpx_path: display_name}
             options = {t['vpx_path']: t['display_name'] for t in tables}
             launch_state['all_options'] = options
             launch_state['filtered_options'] = options
-            table_select.options = options
+            game_select.options = options
             # Select first table by default
             if options:
                 first_key = next(iter(options))
-                table_select.value = first_key
-            table_select.update()
+                game_select.value = first_key
+            game_select.update()
 
         # Trigger initial load
-        ui.timer(0.1, load_tables, once=True)
+        ui.timer(0.1, load_games, once=True)
 
 
 def show_pinmame_controls():

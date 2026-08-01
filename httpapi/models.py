@@ -101,7 +101,7 @@ class AssetEntry(ApiModel):
     files: list[AssetFileBinding] | None = None
 
 
-class TableLinks(ApiModel):
+class GameLinks(ApiModel):
     self_: str = Field(alias="self")
     game_files: str
     media: str
@@ -109,7 +109,7 @@ class TableLinks(ApiModel):
     launch: str
 
 
-class TableResource(ApiModel):
+class GameResource(ApiModel):
     """A table: the pinball-machine concept, not a launchable file. vps_id correlates
     with VPSdb and anything keyed by it; `id` is what identifies the table here."""
 
@@ -126,16 +126,16 @@ class TableResource(ApiModel):
     rating: int
     collections: list[str]
     assets: dict[str, AssetEntry]
-    links: TableLinks
+    links: GameLinks
 
 
-class TableList(ApiModel):
+class GameList(ApiModel):
     """`total` counts what matched before limit and offset were applied."""
 
     total: int
     offset: int
     count: int
-    tables: list[TableResource]
+    tables: list[GameResource]
 
 
 class ResolvedAsset(ApiModel):
