@@ -1189,6 +1189,46 @@ Per-user stats and preferences stored in each table's `.info` file:
 | `RunTime` | `number` | Total accumulated play time in minutes. |
 | `Tags` | `array` | User-defined tags (string list). |
 
+### meta.game_files *(contract 2)*
+
+Every `.vpx` in the table folder, keyed by filename — a desktop build and a VR build, or a
+table and a patched variant, are peers and each answers for itself. At contract 1 this
+section does not exist; read `meta.VPXFile`, which describes only one.
+
+```javascript
+const meta = vpin.getTableMeta(currentTableIndex).meta;
+const playable = Object.entries(meta.game_files || {})
+    .filter(([, entry]) => !entry.hidden);
+```
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `file_hash` | `string` | Hash of the `.vpx`, which is how a replaced file is noticed. |
+| `vbs_hash` | `string` | Hash of the table script. |
+| `version` | `string` | Table version from VPX metadata. |
+| `release_date` | `string` | Release date, ISO 8601 at whatever precision the author gave — `2019-06-22`, `2016-08` and `2017` are all valid. An ambiguous date degrades to the year. Empty when the author wrote nothing usable. |
+| `save_date` | `string` | When the author last saved, ISO 8601 (`2022-12-13T16:03:21`). |
+| `save_rev` | `string` | Author's save revision. |
+| `rom` | `string` | ROM name. At contract 1 this is `Info.Rom`. |
+| `authors` | `array` | Author names. At contract 1 this is `Info.Authors`. |
+| `manufacturer` | `string` | Manufacturer from VPX metadata, which may disagree with `Info`. |
+| `year` | `string` | Year from VPX metadata, which may disagree with `Info`. |
+| `type` | `string` | Table type from VPX metadata. |
+| `hidden` | `boolean` | Absent means visible. A hidden file is still launchable but should not be offered — a patch leaves its base on disk, and the base cannot be deleted because the patched table cannot be rebuilt without it. |
+| `source` | `object` | Present only on a file VPinFE made by patching: `base` (`file`, `hash`) and `patch` (`format`, `applied`). An ordinary `.vpx` has none. |
+
+Detection flags ride on each entry too, as real booleans: `detect_nfozzy`, `detect_fleep`,
+`detect_ssf`, `detect_lut`, `detect_scorbit`, `detect_fastflips`, `detect_flex`,
+`detect_pinmame`. Note the snake_case — contract 1 spells the same flags `detectnfozzy`
+and so on. The addon flags `altSoundExists` / `altColorExists` / `pupPackExists` describe
+the folder rather than one file, so they stay on the table row at both contracts.
+
+**Which one is "the" game file.** `meta.vpinfe.default_game_file` names it when somebody
+chose; absent means resolve from the folder, which is the normal case. It is what the
+places that must pick exactly one use — an export, a table row, contract 1's `VPXFile`.
+It is *not* "the one to launch": every visible game file is launchable, so filter on
+`hidden` to decide what to offer.
+
 ### meta.VPXFile *(contract 1)*
 
 The table's game file. At contract 2 this section does not exist — read `meta.game_files`
@@ -1246,18 +1286,28 @@ features.forEach(({ key, label }) => {
 
 ### Reading Table Info
 
-Common pattern for getting display-ready table information:
+Common pattern for getting display-ready table information. This one is written to work at
+either contract — `VPXFile` is what contract 1 receives, `game_files` what contract 2 does,
+and only one of them is ever present:
 
 ```javascript
 const table = vpin.getTableMeta(currentTableIndex);
 const info = table.meta.Info || {};
 const user = table.meta.User || {};
-const vpx = table.meta.VPXFile || {};
+
+// Contract 1 serves meta.VPXFile; contract 2 serves meta.game_files, so pick the
+// chosen entry. Authors and Rom move onto the game file at contract 2.
+const files = table.meta.game_files;
+const chosenName = table.meta.vpinfe?.default_game_file || Object.keys(files || {})[0];
+const vpx = files ? { filename: chosenName, ...(files[chosenName] || {}) }
+                  : (table.meta.VPXFile || {});
 
 const title = info.Title || vpx.filename || table.tableDirName || 'Unknown Table';
 const manufacturer = info.Manufacturer || vpx.manufacturer || 'Unknown';
 const year = info.Year || vpx.year || '';
-const authors = Array.isArray(info.Authors) ? info.Authors.join(', ') : 'Unknown';
+const authors = Array.isArray(info.Authors) && info.Authors.length ? info.Authors.join(', ')
+    : Array.isArray(vpx.authors) && vpx.authors.length ? vpx.authors.join(', ')
+    : 'Unknown';
 const rating = Number(user.Rating || 0);
 const plays = Number(user.StartCount || 0);
 
