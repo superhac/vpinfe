@@ -842,21 +842,21 @@ def render_panel(tab=None):
                                 <span style="color: #facc15;">{{ '★'.repeat(Math.max(0, Math.min(5, Number(props.row.rating || 0)))) }}</span><span style="color: #64748b;">{{ '☆'.repeat(5 - Math.max(0, Math.min(5, Number(props.row.rating || 0)))) }}</span>
                             </span>
                             <q-badge
-                                v-if="props.row.altlauncher"
+                                v-if="props.row.alt_launcher"
                                 color="orange-8"
                                 text-color="white"
                                 label="ALT-L"
                                 style="font-size: 10px; padding: 2px 6px;"
                             />
                             <q-badge
-                                v-if="props.row.alttitle"
+                                v-if="props.row.alt_title"
                                 color="cyan-8"
                                 text-color="white"
                                 label="ALT-T"
                                 style="font-size: 10px; padding: 2px 6px;"
                             />
                             <q-badge
-                                v-if="props.row.altvpsid"
+                                v-if="props.row.alt_vpsid"
                                 color="indigo-8"
                                 text-color="white"
                                 label="ALT-VPS"
