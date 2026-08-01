@@ -7,15 +7,15 @@ where the newer build left something this one has never seen.
 from __future__ import annotations
 
 import json
-import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import unittest
 
 from common.info_restore import (
     backup_names,
     backup_path,
-    copy_aside,
     converted_by_newer,
+    copy_aside,
     restorable_backup,
     restore_library,
     table_dirs,
@@ -229,3 +229,70 @@ class CollisionOrderingTests(RestoreTestCase):
 
         self.assertGreater(second, first)
         self.assertIn("20260802T000000Z", second)
+
+
+class CollectionsTests(RestoreTestCase):
+    """Collections are the other thing a newer VPinFE rewrites.
+
+    It moves membership onto ids this build cannot resolve, so every collection reads as
+    empty here. The file lives in the config directory rather than a table folder, which
+    is why it needs saying separately at all.
+    """
+
+    OURS_INI = "[Favorites]\nvpsids = vps-1,vps-2\n"
+    UPGRADED_INI = "[vpinfe]\nschema = 1\n\n[Favorites]\nvpsids = mJ8F4RqD8U,b9zqdR8qSh\n"
+
+    def _config_dir(self, live, saved=None):
+        config = self.root / "config"
+        config.mkdir()
+        (config / "collections.ini").write_text(live, encoding="utf-8")
+        if saved is not None:
+            (config / "collections.ini.vpinfe-20260729T143022Z").write_text(
+                saved, encoding="utf-8")
+        return config
+
+    def test_a_collections_file_a_newer_build_wrote_is_put_back(self):
+        config = self._config_dir(self.UPGRADED_INI, self.OURS_INI)
+
+        result = restore_library(self.root, config_dir=config)
+
+        self.assertTrue(result["collections_restored"])
+        self.assertEqual((config / "collections.ini").read_text(encoding="utf-8"),
+                         self.OURS_INI)
+
+    def test_the_upgraded_file_is_kept_so_the_restore_is_reversible(self):
+        config = self._config_dir(self.UPGRADED_INI, self.OURS_INI)
+
+        restore_library(self.root, config_dir=config)
+
+        kept = [p.read_text(encoding="utf-8") for p in config.iterdir()
+                if ".vpinfe-" in p.name]
+        self.assertIn(self.UPGRADED_INI, kept)
+
+    def test_a_saved_copy_this_build_cannot_read_is_refused(self):
+        """A copy carrying a schema was written by a newer VPinFE. Putting it back would
+        leave membership this build still cannot resolve."""
+        config = self._config_dir(self.UPGRADED_INI, self.UPGRADED_INI)
+
+        result = restore_library(self.root, config_dir=config)
+
+        self.assertFalse(result["collections_restored"])
+
+    def test_no_saved_copy_means_collections_are_left_alone(self):
+        config = self._config_dir(self.OURS_INI)
+
+        result = restore_library(self.root, config_dir=config)
+
+        self.assertFalse(result["collections_restored"])
+        self.assertEqual((config / "collections.ini").read_text(encoding="utf-8"),
+                         self.OURS_INI)
+
+    def test_collections_restore_without_any_table_backups(self):
+        """The two are independent: a library nobody upgraded can still have had its
+        collections rewritten."""
+        config = self._config_dir(self.UPGRADED_INI, self.OURS_INI)
+
+        result = restore_library(self.root, config_dir=config)
+
+        self.assertEqual(result["restored"], 0)
+        self.assertTrue(result["collections_restored"])

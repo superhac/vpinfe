@@ -32,10 +32,12 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, tableName:
 
 def restore_info_files(table_name: str = None, progress_cb=None, log_cb=None):
     from common.config_access import SettingsConfig
+    from common.paths import CONFIG_DIR
 
     return info_restore.restore_library(
         SettingsConfig.from_config(iniconfig).table_root_dir,
-        table_name=table_name, progress_cb=progress_cb, log_cb=log_cb)
+        table_name=table_name, config_dir=CONFIG_DIR,
+        progress_cb=progress_cb, log_cb=log_cb)
 
 
 def listMissingTables():
@@ -118,7 +120,7 @@ def parseArgs():
     parser.add_argument("--no-media", action="store_true", help="Do not download images when building meta.ini")
     parser.add_argument("--update-all", action="store_true", help="Reparse all tables when building meta.ini")
     parser.add_argument("--user-media", action="store_true", help="With --buildmeta: skip vpinmediadb downloads and claim existing local media as user-sourced")
-    parser.add_argument("--restore-info", action="store_true", help="Put back the .info files a newer VPinFE saved before converting them, for every table that has one. Your current .info is kept first")
+    parser.add_argument("--restore-info", action="store_true", help="Put back the table info and collections a newer VPinFE saved before upgrading them. Your current files are kept first")
     parser.add_argument("--table", help="Specify a single table folder name to process with --buildmeta, --claim-user-media or --restore-info")
 
     args, unknown = parser.parse_known_args()  # macOS-friendly parsing

@@ -14,6 +14,7 @@ from common import metadata_service
 from common.vpxcollections import VPXCollections
 from common.vpxparser import VPXParser
 
+from common.paths import CONFIG_DIR
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_tables_path
 from managerui.services import table_index_service
 
@@ -417,15 +418,21 @@ def newest_backup_stamp():
     return table_repository.newest_backup_stamp()
 
 
+def collections_restorable():
+    """Whether a newer VPinFE left a collections file this build can put back."""
+    return bool(info_restore.restorable_collections_backup(CONFIG_DIR))
+
+
 def restorable_table_names():
     """Folders with a .info saved by a newer VPinFE, for the banner and its dialog."""
     return table_repository.restorable_table_names()
 
 
 def restore_info(progress_cb=None, log_cb=None, **kwargs):
-    """Put back the .info files a newer VPinFE converted, library-wide."""
+    """Put back what a newer VPinFE upgraded: every table's .info, and the collections."""
     result = info_restore.restore_library(
-        get_tables_path(), progress_cb=progress_cb, log_cb=log_cb, **kwargs)
+        get_tables_path(), config_dir=CONFIG_DIR,
+        progress_cb=progress_cb, log_cb=log_cb, **kwargs)
     table_repository.refresh_tables()
     return result
 

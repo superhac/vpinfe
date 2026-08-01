@@ -21,18 +21,24 @@ the user never chose which ones converted and cannot be asked to choose which co
 
 from __future__ import annotations
 
+import configparser
 import contextlib
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import os
+from pathlib import Path
 import shutil
 import tempfile
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 logger = logging.getLogger("vpinfe.common.info_restore")
 
 BACKUP_MARKER = ".vpinfe-"
+COLLECTIONS_NAME = "collections.ini"
+# Both files record the schema under a [vpinfe] / "vpinfe" section, so the rule for "can
+# this build read it" is the same in each: no schema key means it predates versioning.
+SCHEMA_SECTION = "vpinfe"
+SCHEMA_KEY = "schema"
 
 
 def converted_by_newer(meta):
@@ -60,13 +66,44 @@ def backup_names(names, info_name):
 
 
 def backup_schema(path):
-    """The schema a saved copy declares, or None when it predates versioning."""
+    """The schema a saved .info declares, or None when it predates versioning."""
     with open(path, encoding="utf-8") as handle:
         data = json.load(handle)
-    section = data.get("vpinfe") if isinstance(data, dict) else None
+    section = data.get(SCHEMA_SECTION) if isinstance(data, dict) else None
     if not isinstance(section, dict):
         return None
-    return int(section.get("schema") or 0) or None
+    return int(section.get(SCHEMA_KEY) or 0) or None
+
+
+def collections_schema(path):
+    """The schema a saved collections.ini declares, or None when it predates versioning."""
+    parser = configparser.ConfigParser()
+    parser.read(path, encoding="utf-8")
+    if SCHEMA_SECTION not in parser:
+        return None
+    return int(parser[SCHEMA_SECTION].get(SCHEMA_KEY, 0) or 0) or None
+
+
+def newest_readable_backup(directory, filename, schema_reader, names=None):
+    """The newest backup of `filename` this build can read, or None.
+
+    A copy written by a newer VPinFE is stepped over rather than ending the search - the
+    one behind it is usually what is wanted.
+    """
+    directory = Path(directory)
+    if names is None:
+        try:
+            names = os.listdir(directory)
+        except OSError:
+            return None
+    for name in backup_names(names, filename):
+        candidate = directory / name
+        try:
+            if schema_reader(candidate) is None:
+                return str(candidate)
+        except Exception:
+            logger.warning("Unreadable saved copy, skipping: %s", candidate)
+    return None
 
 
 def backup_path(info_path, when=None):
@@ -149,36 +186,26 @@ def table_dirs(table_root, table_name=None):
 
 
 def restorable_backup(table_dir, names=None):
-    """The saved copy this build would put back in this folder, or None.
-
-    Newest first, and the first one this build can actually read wins. A copy written by a
-    newer VPinFE is stepped over rather than treated as the end of the list - the one
-    behind it is usually exactly what is wanted.
-
-    Reads each candidate, so callers pass `names` when they have already listed the folder.
-    Only folders holding a saved copy pay for it, which for anyone who never ran a newer
-    VPinFE is none of them.
-    """
+    """The saved .info this build would put back in this folder, or None."""
     table_dir = Path(table_dir)
-    if names is None:
-        try:
-            names = os.listdir(table_dir)
-        except OSError:
-            return None
-    info_name = f"{table_dir.name}.info"
-    for name in backup_names(names, info_name):
-        candidate = table_dir / name
-        try:
-            schema = backup_schema(candidate)
-        except (OSError, ValueError):
-            logger.warning("Unreadable saved copy, skipping: %s", candidate)
-            continue
-        if schema is None:
-            return str(candidate)
-    return None
+    return newest_readable_backup(
+        table_dir, f"{table_dir.name}.info", backup_schema, names)
 
 
-def restore_library(table_root, table_name=None, progress_cb=None, log_cb=None):
+def restorable_collections_backup(config_dir):
+    """The saved collections.ini this build would put back, or None."""
+    return newest_readable_backup(config_dir, COLLECTIONS_NAME, collections_schema)
+
+
+def restore_file(path, backup):
+    """Put `backup` in place at `path`, keeping what is there now."""
+    if os.path.exists(path):
+        copy_aside(str(path))
+    replace_atomic(backup, path)
+
+
+def restore_library(table_root, table_name=None, config_dir=None,
+                    progress_cb=None, log_cb=None):
     """Put back the newest readable copy in every folder that has one.
 
     Never stops on one bad folder: an unreadable file is the state somebody is trying to
@@ -191,7 +218,8 @@ def restore_library(table_root, table_name=None, progress_cb=None, log_cb=None):
 
     folders = table_dirs(table_root, table_name)
     total = len(folders)
-    result = {"restored": 0, "nothing_to_restore": 0, "failed": 0, "failures": []}
+    result = {"restored": 0, "nothing_to_restore": 0, "failed": 0, "failures": [],
+              "collections_restored": False}
 
     log("Restoring table info from the copies saved before a newer VPinFE converted it. "
         "Your current info is kept first, so this can be undone too.")
@@ -208,9 +236,7 @@ def restore_library(table_root, table_name=None, progress_cb=None, log_cb=None):
             continue
         info_path = table_dir / f"{table_dir.name}.info"
         try:
-            if info_path.exists():
-                copy_aside(str(info_path))
-            replace_atomic(chosen, info_path)
+            restore_file(info_path, chosen)
         except OSError as exc:
             result["failed"] += 1
             result["failures"].append((table_dir.name, str(exc)))
@@ -218,6 +244,21 @@ def restore_library(table_root, table_name=None, progress_cb=None, log_cb=None):
             continue
         result["restored"] += 1
         log(f"Restored: {table_dir.name}")
+
+    # Collections live in the config directory, not a table folder, and a newer VPinFE
+    # rewrites their membership onto ids this build cannot resolve. Same rules: newest
+    # readable copy, keep what is there now, never delete.
+    if config_dir:
+        chosen = restorable_collections_backup(config_dir)
+        if chosen:
+            try:
+                restore_file(Path(config_dir) / COLLECTIONS_NAME, chosen)
+                result["collections_restored"] = True
+                log("Restored your collections.")
+            except OSError as exc:
+                result["failed"] += 1
+                result["failures"].append((COLLECTIONS_NAME, str(exc)))
+                log("Left as it is, could not be restored: your collections")
 
     log(_summary(result))
     return result
@@ -231,9 +272,11 @@ def _summary(result):
     if not result["restored"]:
         return "Nothing to restore - no table has info saved by a newer VPinFE."
     summary = (
-        f"Restored {_tables(result['restored'])}. Their ratings, favourites, tags and play "
+        f"Restored {_tables(result['restored'])}. Their ratings, favorites, tags and play "
         "counts are back as this version recorded them."
     )
+    if result["collections_restored"]:
+        summary += " Your collections are back too."
     if result["nothing_to_restore"]:
         summary += (
             f" {_tables(result['nothing_to_restore'])} were never converted, so there was "
