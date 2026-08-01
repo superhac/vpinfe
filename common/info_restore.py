@@ -27,7 +27,7 @@ import logging
 import os
 import shutil
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 logger = logging.getLogger("vpinfe.common.info_restore")
@@ -84,8 +84,10 @@ def copy_aside(info_path, when=None):
     """
     path = backup_path(info_path, when)
     while os.path.exists(path):        # never overwrite a restore point
-        when = when or datetime.now(timezone.utc)
-        when = when.replace(second=(when.second + 1) % 60)
+        # A whole second, not the second field: replace(second=(s + 1) % 60) wraps 59 to
+        # 0, and the name that is supposed to be newer then sorts 59 seconds older. These
+        # names are the only ordering a restore has.
+        when = (when or datetime.now(timezone.utc)) + timedelta(seconds=1)
         path = backup_path(info_path, when)
     shutil.copy2(info_path, path)
     return path

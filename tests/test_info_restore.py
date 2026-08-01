@@ -14,6 +14,7 @@ from tempfile import TemporaryDirectory
 from common.info_restore import (
     backup_names,
     backup_path,
+    copy_aside,
     converted_by_newer,
     restorable_backup,
     restore_library,
@@ -195,3 +196,36 @@ class NamingTests(RestoreTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CollisionOrderingTests(RestoreTestCase):
+    """Two backups in the same second still sort in the order they were made.
+
+    The names are the only ordering a restore has: it takes the newest readable one. A
+    bump that wrapped 59 to 0 made the newer file sort 59 seconds older, so a restore
+    could reach past a good backup to an older one.
+    """
+
+    def _two_at(self, when):
+        table_dir = self.root / "Dr. Dude"
+        table_dir.mkdir()
+        info = table_dir / "Dr. Dude.info"
+        info.write_text(json.dumps(OURS), encoding="utf-8")
+        first = copy_aside(str(info), when)
+        second = copy_aside(str(info), when)
+        return Path(first).name, Path(second).name
+
+    def test_a_collision_on_the_last_second_of_a_minute_still_sorts_forward(self):
+        from datetime import datetime, timezone
+
+        first, second = self._two_at(datetime(2026, 8, 1, 12, 30, 59, tzinfo=timezone.utc))
+
+        self.assertGreater(second, first)
+
+    def test_a_collision_at_midnight_rolls_the_date(self):
+        from datetime import datetime, timezone
+
+        first, second = self._two_at(datetime(2026, 8, 1, 23, 59, 59, tzinfo=timezone.utc))
+
+        self.assertGreater(second, first)
+        self.assertIn("20260802T000000Z", second)
