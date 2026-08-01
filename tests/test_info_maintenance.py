@@ -13,10 +13,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common.tables.info_maintenance import (
-    upgrade_library,
     restorable_backup,
     restore_library,
     table_dirs,
+    upgrade_library,
 )
 from common.tables.info_migration import backup_schema
 

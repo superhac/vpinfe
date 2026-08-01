@@ -47,3 +47,5 @@ class Table:
     # build can read, not merely a backup - after a restore the unusable copies remain.
     info_pending_upgrade: bool = False
     info_restorable: bool = False
+    # Newest backup's timestamp: "before the upgrade" means nothing weeks later.
+    info_backup_stamp: str = ""

@@ -412,6 +412,14 @@ def unreadable_tables():
     return table_repository.unreadable_tables()
 
 
+def pending_upgrade_table_names():
+    return table_repository.pending_upgrade_table_names()
+
+
+def newest_backup_stamp():
+    return table_repository.newest_backup_stamp()
+
+
 def restorable_table_names():
     return table_repository.restorable_table_names()
 

@@ -75,6 +75,22 @@ def unreadable_tables() -> List[Dict[str, str]]:
         return [dict(row) for row in _PARSER.getUnreadableTables()]
 
 
+def pending_upgrade_table_names() -> List[str]:
+    """Folders whose .info the upgrade did not reach, for the list its dialog shows."""
+    return sorted(
+        (t.tableDirName for t in ensure_tables_loaded()
+         if getattr(t, "info_pending_upgrade", False)),
+        key=str.lower,
+    )
+
+
+def newest_backup_stamp() -> str:
+    """The most recent backup timestamp in the library, or ""."""
+    stamps = [s for s in (getattr(t, "info_backup_stamp", "")
+                          for t in ensure_tables_loaded()) if s]
+    return max(stamps) if stamps else ""
+
+
 def restorable_table_names() -> List[str]:
     """Folders holding a saved copy of their .info, for the list a restore dialog shows."""
     return sorted(

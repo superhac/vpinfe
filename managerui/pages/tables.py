@@ -614,8 +614,8 @@ def render_panel(tab=None):
                     # every release: whoever needs the restore has just downgraded.
                     maintenance_menu(on_done=lambda: asyncio.create_task(perform_scan(silent=True)))
 
-        # Offers a one-pass upgrade only while one is possible, and answers the
-        # question the lazy path otherwise leaves open: is my library upgraded yet.
+        # What the page has to say about the .info files themselves: a table it could
+        # not read, news that the library was converted, or an offer to finish one.
         render_info_banners(on_done=lambda: asyncio.create_task(perform_scan(silent=True)))
 
         def _dnd_context() -> DropContext:

@@ -1,23 +1,19 @@
 """Upgrading the library's .info files, and putting them back.
 
-Tables upgrade one at a time as they are used, so a library is normally a mix of shapes
-and the user has no way to see which is which. The banner here is the only place that
-answers "is my library upgraded yet", and it removes itself once the answer is yes.
-
-Both operations are all-or-nothing across the library: the user did not choose which
-tables upgraded - their play habits did - so they cannot be asked to choose which ones
-come back.
+A library upgrades all at once at first launch, so a table still on the old format means
+that did not finish. See INFO-SCHEMA.local.md §5b.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime
 from queue import Queue
 
 from nicegui import run, ui
 
-from managerui.services import table_service
+from managerui.services import table_service, ui_state
 from managerui.ui_helpers import dialog_card
 
 logger = logging.getLogger("vpinfe.manager.info_maintenance")
@@ -27,26 +23,50 @@ _ACCENT = ('color: var(--neon-cyan) !important; background: var(--surface) !impo
 _MUTED = ('color: var(--ink-muted) !important; background: var(--surface) !important; '
           'border: 1px solid var(--line); border-radius: 18px; padding: 4px 10px;')
 
-CONVERT_INTRO = (
-    "Upgrades every table's .info file to the format this version uses. Your ratings, "
-    "favourites, tags and play counts come across unchanged, and the file being replaced "
-    "is saved beside it so this can be undone."
+UPGRADE_INTRO = (
+    "Upgrades the .info files that were missed. Ratings, favourites, tags and play "
+    "counts carry over unchanged, and each file is backed up first."
 )
 
-CONVERT_DETAIL = (
-    "Nothing is re-read from your .vpx files and nothing is downloaded - this is a format "
-    "change only, so it is much quicker than a table scan."
+UPGRADE_DETAIL = (
+    "A format change only - nothing is re-read from your .vpx files and nothing is "
+    "downloaded."
 )
 
 RESTORE_INTRO = (
-    "Puts your ratings, favourites, tags and play counts back to how they were before "
-    "the upgrade. Your current .info files are backed up first."
+    "Puts your ratings, favourites, tags and play counts back to how they were{when}. "
+    "Your current .info files are backed up first."
 )
 
 RESTORE_DETAIL = (
     "Only worth doing if you are going back to an older VPinFE - this version upgrades "
     "them again on the next start."
 )
+
+
+def _refresh_banners() -> None:
+    """Re-render the strips after an operation, so the one that prompted it goes away."""
+    try:
+        render_info_banners.refresh()
+    except Exception:
+        logger.debug("Banner refresh skipped", exc_info=True)
+
+
+def _tables(n: int) -> str:
+    return "1 table" if n == 1 else f"{n} tables"
+
+
+def _files(n: int) -> str:
+    return "1 .info file" if n == 1 else f"{n} .info files"
+
+
+def _backup_date(stamp: str) -> str:
+    # No %-d: not portable to Windows.
+    try:
+        parsed = datetime.strptime(stamp, "%Y%m%dT%H%M%SZ")
+    except (TypeError, ValueError):
+        return ""
+    return parsed.strftime("%d %B %Y").lstrip("0")
 
 
 def _counts(reload: bool = False) -> dict:
@@ -59,11 +79,7 @@ def _counts(reload: bool = False) -> dict:
 
 def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
                 table_names=None, on_done=None) -> None:
-    """One progress dialog for both operations: explain, confirm, then report.
-
-    Modelled on the metadata build dialog so a long library operation looks the same
-    wherever it was started.
-    """
+    """Explain, confirm, report - shaped like the metadata build dialog."""
     dlg = ui.dialog().props('persistent max-width=700px')
     state = {'running': False, 'lines': [], 'progress_q': Queue(), 'log_q': Queue()}
 
@@ -150,6 +166,7 @@ def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
                 state['running'] = False
                 if on_done:
                     on_done()
+                _refresh_banners()
 
         start_btn.on_click(lambda: asyncio.create_task(go()))
 
@@ -157,12 +174,23 @@ def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
 
 
 def open_upgrade_dialog(on_done=None) -> None:
+    try:
+        names = table_service.pending_upgrade_table_names()
+    except Exception:
+        logger.exception("Could not list the .info files still to upgrade")
+        names = []
+
+    if not names:
+        ui.notify("Every .info file is already on the current format.", type='info')
+        return
+
     _run_dialog(
         title='Upgrade .info files',
-        intro=CONVERT_INTRO,
-        detail=CONVERT_DETAIL,
+        intro=UPGRADE_INTRO,
+        detail=UPGRADE_DETAIL,
         confirm_label='Upgrade all',
         action=table_service.upgrade_info,
+        table_names=names,
         on_done=on_done,
     )
 
@@ -178,9 +206,10 @@ def open_restore_dialog(on_done=None) -> None:
         ui.notify("There are no backups to restore.", type='info')
         return
 
+    date = _backup_date(table_service.newest_backup_stamp())
     _run_dialog(
         title='Restore backups',
-        intro=RESTORE_INTRO,
+        intro=RESTORE_INTRO.format(when=f" on {date}" if date else " before the upgrade"),
         detail=RESTORE_DETAIL,
         confirm_label='Restore all',
         action=table_service.restore_info,
@@ -189,36 +218,104 @@ def open_restore_dialog(on_done=None) -> None:
     )
 
 
-def render_info_banners(on_done=None) -> None:
-    """Offer a one-pass upgrade while any table still needs one.
+UPGRADED_NOTICE_SEEN = "info_upgrade_notice_seen"
 
-    Deliberately phrased as an offer rather than a warning: the lazy path is working as
-    designed and nothing is wrong. It stops rendering for good once the count is zero,
-    which is what makes it an answer rather than a nag.
-    """
-    pending = _counts().get('pending_upgrade', 0)
-    if not pending:
+
+def _strip(icon: str, colour: str, headline: str, detail: str, actions) -> None:
+    # grow/min-w-0 and flex-nowrap together: without them a long detail line pushes the
+    # icon onto a line of its own.
+    with ui.card().classes('w-full mb-3').style(
+            f'background: var(--surface-soft); border: 1px solid {colour};'):
+        with ui.row().classes('w-full items-center gap-4 px-4 py-3 flex-wrap md:flex-nowrap'):
+            ui.icon(icon, size='24px').classes('shrink-0').style(f'color: {colour};')
+            with ui.column().classes('gap-1 grow min-w-0'):
+                ui.label(headline).classes('text-sm font-medium').style('color: var(--ink);')
+                ui.label(detail).classes('text-xs').style('color: var(--ink-muted);')
+            with ui.row().classes('gap-2 items-center shrink-0'):
+                actions()
+
+
+@ui.refreshable
+def render_info_banners(on_done=None) -> None:
+    """A table the scan could not read, tables the upgrade missed, then news that it ran."""
+    _render_unreadable_warning()
+    counts = _counts()
+    if counts.get('pending_upgrade', 0):
+        _render_not_upgraded_warning(counts['pending_upgrade'], on_done)
+    elif counts.get('restorable', 0):
+        _render_upgraded_notice(counts['restorable'])
+
+
+def _render_unreadable_warning() -> None:
+    """Not dismissible: the table is missing from the frontend until somebody deals with it."""
+    try:
+        broken = table_service.unreadable_tables()
+    except Exception:
+        logger.exception("Could not read the unreadable-table list")
+        return
+    if not broken:
         return
 
-    tables = "1 table" if pending == 1 else f"{pending} tables"
-    with ui.card().classes('w-full mb-4').style(
-            'background: var(--surface-soft); border: 1px solid var(--line);'):
-        with ui.row().classes('w-full items-center justify-between gap-4 p-3 flex-wrap'):
-            with ui.row().classes('items-center gap-3'):
-                ui.icon('info', size='20px').style('color: var(--neon-cyan);')
-                with ui.column().classes('gap-1'):
-                    ui.label('Your tables upgrade to the new info format as you use them.'
-                             ).classes('text-sm').style('color: var(--ink);')
-                    ui.label(f'{tables} still to go — upgrade them all now if you would '
-                             'rather do it in one pass.').classes('text-xs').style(
-                        'color: var(--ink-muted);')
-            ui.button('Upgrade all', icon='check',
-                      on_click=lambda: open_upgrade_dialog(on_done)).style(_ACCENT)
+    names = ", ".join(row.get("folder", "?") for row in broken[:3])
+    if len(broken) > 3:
+        names += f" and {len(broken) - 3} more"
+    tables = "1 table is" if len(broken) == 1 else f"{len(broken)} tables are"
+    _strip(
+        'warning', 'var(--neon-pink)',
+        f'{tables} missing because the .info file could not be read.',
+        f'{names}. The files were left untouched — a backup may hold a working copy.',
+        lambda: ui.button('Restore backups', icon='history',
+                          on_click=lambda: open_restore_dialog()).style(_ACCENT),
+    )
+
+
+def _render_not_upgraded_warning(pending: int, on_done) -> None:
+    """Reported as a problem, not offered as a choice - nobody opts into the upgrade."""
+    _strip(
+        'warning', 'var(--neon-pink)',
+        f'{_files(pending)} are still on the old format.',
+        'Probably an interrupted start, or files that could not be written. Their '
+        'details may be incomplete until this is fixed.',
+        lambda: ui.button('Upgrade them', icon='check',
+                          on_click=lambda: open_upgrade_dialog(on_done)).style(_ACCENT),
+    )
+
+
+
+def _render_upgraded_notice(restorable: int) -> None:
+    """The first chance the user has to learn their files changed shape.
+
+    Do not promise "you can downgrade": the backups are invisible to a release older than
+    the one that learned to restore.
+    """
+    if ui_state.get(UPGRADED_NOTICE_SEEN):
+        return
+
+
+    def actions():
+        def acknowledge():
+            ui_state.set(UPGRADED_NOTICE_SEEN, True)
+            _refresh_banners()
+
+        ui.button('Restore backups', icon='history',
+                  on_click=lambda: open_restore_dialog()).style(_MUTED)
+        ui.button('Got it', on_click=acknowledge).style(_ACCENT)
+
+    _strip(
+        'check_circle', 'var(--neon-cyan)',
+        'Your .info files were upgraded for this version.',
+        f'Nothing was lost — a backup of all {restorable} was saved first. Undo it from '
+        f'Maintenance at any time.',
+        actions,
+    )
 
 
 def maintenance_menu(on_done=None) -> None:
-    """Both operations, in the same place in every build so a downgrade keeps them there."""
-    with ui.button(icon='build_circle').props('flat').tooltip('Table info maintenance'):
+    """Labelled, because once the notice is dismissed this is the only route to a restore."""
+    pending = _counts().get('pending_upgrade', 0)
+    with ui.button("MAINTENANCE", icon="build").props("outline color=info").style(
+            'border-radius: 0;'):
         with ui.menu():
-            ui.menu_item('Upgrade .info files', lambda: open_upgrade_dialog(on_done))
             ui.menu_item('Restore backups', lambda: open_restore_dialog(on_done))
+            if pending:
+                ui.menu_item('Upgrade .info files', lambda: open_upgrade_dialog(on_done))

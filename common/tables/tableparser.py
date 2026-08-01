@@ -10,7 +10,11 @@ from common.tables.game_files import (
     game_file_names,
     recorded_default,
 )
-from common.tables.info_migration import backup_names, restorable_backup
+from common.tables.info_migration import (
+    BACKUP_MARKER,
+    backup_names,
+    restorable_backup,
+)
 from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
 from common.tables.table import Table
 from common.tables.table_metadata import section, vpinfe_section
@@ -102,9 +106,11 @@ class TableParser:
 
         info_name = f"{table.tableDirName}.info"
         # Only folders holding a backup open one.
+        stamps = backup_names(table_contents, info_name)
         table.info_restorable = bool(
-            backup_names(table_contents, info_name)
-            and restorable_backup(table_dir, names=table_contents))
+            stamps and restorable_backup(table_dir, names=table_contents))
+        if stamps:
+            table.info_backup_stamp = stamps[0].rsplit(BACKUP_MARKER, 1)[-1]
         if info_name not in table_contents:
             self.missing_tables.append({
                 'folder': table.tableDirName,
