@@ -12,7 +12,7 @@ import logging
 import os
 import shutil
 import tempfile
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from common.tables.game_files import GAME_FILES_KEY, parse_authors
@@ -262,8 +262,10 @@ def write_json_atomic(path, data) -> None:
 def _free_backup_path(info_path, when: datetime | None = None) -> str:
     path = backup_path(info_path, when)
     while os.path.exists(path):        # never overwrite a restore point
-        when = (when or datetime.now(UTC))
-        when = when.replace(second=(when.second + 1) % 60)
+        # A whole second, not the second field: replace(second=(s + 1) % 60) wraps 59 to
+        # 0, and the name that is supposed to be newer then sorts 59 seconds older. These
+        # names are the only ordering restore has.
+        when = (when or datetime.now(UTC)) + timedelta(seconds=1)
         path = backup_path(info_path, when)
     return path
 
