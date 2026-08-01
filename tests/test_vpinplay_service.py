@@ -5,6 +5,29 @@ from common.online.vpinplay_service import _build_table_payload, sync_installed_
 
 
 class TestVPinPlayService(unittest.TestCase):
+    def test_the_payload_uses_the_service_names_not_ours(self) -> None:
+        """Names checked against the service's own pydantic models (superhac/vpinplay,
+        app/models.py). It rejects nothing it does not recognize, so a key we spell our
+        way is dropped in silence and stored as the field's default.
+        """
+        payload = _build_table_payload({
+            "Info": {"VPSId": "vps-123"},
+            "User": {"Rating": 4},
+            "game_files": {"t.vpx": {
+                "detect_nfozzy": True, "detect_fleep": True, "detect_ssf": True,
+                "detect_lut": True, "detect_scorbit": True, "detect_fastflips": True,
+                "detect_flex": True, "save_rev": "7",
+            }},
+            "vpinfe": {"alt_title": "My Title", "alt_vpsid": "vps-999"},
+        })
+
+        assert payload is not None
+        self.assertEqual(payload["vpinfe"], {"alttitle": "My Title", "altvpsid": "vps-999"})
+        for wire_name in ("detectNfozzy", "detectFleep", "detectSSF", "detectLUT",
+                          "detectScorebit", "detectFastflips", "detectFlex"):
+            self.assertIs(payload["vpxFile"][wire_name], True, wire_name)
+        self.assertIn("saveRev", payload["vpxFile"])
+
     def test_a_rating_outside_the_services_bounds_cannot_fail_the_whole_sync(self) -> None:
         """Their rating is validated 0-5 across the whole request, so one table over the
         bound rejects every other table with it.

@@ -53,6 +53,12 @@ def _normalize_service_endpoint(service_ip: str) -> str:
 
 
 def _build_table_payload(meta: dict) -> dict | None:
+    """One table in the shape the VPinPlay service accepts.
+
+    This is an adapter, and the only place the service's vocabulary belongs: every key
+    and every bound here is theirs, read from a value that is ours. Their models reject
+    nothing they do not recognize, so a name that drifts is dropped in silence.
+    """
     info = meta.get("Info", {}) if isinstance(meta.get("Info"), dict) else {}
     user = meta.get("User", {}) if isinstance(meta.get("User"), dict) else {}
     gf_name, vpx = default_game_file(meta)
@@ -79,11 +85,8 @@ def _build_table_payload(meta: dict) -> dict | None:
             "filename": gf_name,
             "filehash": str(vpx.get("file_hash", "") or ""),
             "version": str(vpx.get("version", "") or ""),
-            # Dates go out in the shape we store them, which is now ISO. This field has
-            # always carried whatever the table author typed - "August 2016" through
-            # "xx/xx/2019" - so nothing downstream can have been parsing it, and the raw
-            # string is deliberately not kept. Confirm with the service before relying on
-            # ISO here.
+            # ISO since 9c6ba14, where 2.x sent the author's raw string. Stored there
+            # without being parsed, but it is part of how they key a variation.
             "releaseDate": str(vpx.get("release_date", "") or ""),
             "saveDate": str(vpx.get("save_date", "") or ""),
             "saveRev": str(vpx.get("save_rev", "") or ""),
@@ -92,17 +95,18 @@ def _build_table_payload(meta: dict) -> dict | None:
             "type": str(vpx.get("type", "") or ""),
             "vbsHash": str(vpx.get("vbs_hash", "") or ""),
             "rom": str(vpx.get("rom", "") or ""),
-            "detectnfozzy": bool(vpx.get("detect_nfozzy", False)),
-            "detectfleep": bool(vpx.get("detect_fleep", False)),
-            "detectssf": bool(vpx.get("detect_ssf", False)),
-            "detectlut": bool(vpx.get("detect_lut", False)),
-            "detectscorebit": bool(vpx.get("detect_scorbit", False)),
-            "detectfastflips": bool(vpx.get("detect_fastflips", False)),
-            "detectflex": bool(vpx.get("detect_flex", False)),
+            "detectNfozzy": bool(vpx.get("detect_nfozzy", False)),
+            "detectFleep": bool(vpx.get("detect_fleep", False)),
+            "detectSSF": bool(vpx.get("detect_ssf", False)),
+            "detectLUT": bool(vpx.get("detect_lut", False)),
+            # Scorbit is the product; the service spells its field Scorebit.
+            "detectScorebit": bool(vpx.get("detect_scorbit", False)),
+            "detectFastflips": bool(vpx.get("detect_fastflips", False)),
+            "detectFlex": bool(vpx.get("detect_flex", False)),
         },
         "vpinfe": {
-            "alt_title": str(vpinfe.get("alt_title", "") or ""),
-            "alt_vpsid": str(vpinfe.get("alt_vpsid", "") or ""),
+            "alttitle": str(vpinfe.get("alt_title", "") or ""),
+            "altvpsid": str(vpinfe.get("alt_vpsid", "") or ""),
         },
     }
 
