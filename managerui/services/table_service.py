@@ -412,6 +412,11 @@ def unreadable_tables():
     return table_repository.unreadable_tables()
 
 
+def newest_backup_stamp():
+    """Timestamp of the most recent backup, for naming the date a restore goes back to."""
+    return table_repository.newest_backup_stamp()
+
+
 def restorable_table_names():
     """Folders with a .info saved by a newer VPinFE, for the banner and its dialog."""
     return table_repository.restorable_table_names()

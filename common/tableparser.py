@@ -5,7 +5,12 @@ from time import perf_counter
 from common.config_access import MediaConfig
 from common.media_paths import apply_media_paths
 from common.table import Table
-from common.info_restore import backup_names, converted_by_newer, restorable_backup
+from common.info_restore import (
+    BACKUP_MARKER,
+    backup_names,
+    converted_by_newer,
+    restorable_backup,
+)
 from common.metaconfig import InvalidMetaConfigError, MetaConfig
 
 
@@ -113,10 +118,13 @@ class TableParser:
 
             # Only a table a newer VPinFE upgraded has anything to put back, and only then
             # is a saved copy worth opening to check we can read it.
+            stamps = backup_names(table_contents, info_name)
             table.info_restorable = bool(
                 converted_by_newer(table.metaConfig)
-                and backup_names(table_contents, info_name)
+                and stamps
                 and restorable_backup(table_dir, names=table_contents))
+            if stamps:
+                table.info_backup_stamp = stamps[0].rsplit(BACKUP_MARKER, 1)[-1]
 
             self.tables.append(table)
 

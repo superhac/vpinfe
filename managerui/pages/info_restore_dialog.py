@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime
 from queue import Queue
 
 from nicegui import run, ui
@@ -30,14 +31,59 @@ _MUTED = ('color: var(--ink-muted) !important; background: var(--surface) !impor
           'border: 1px solid var(--line); border-radius: 18px; padding: 4px 10px;')
 
 INTRO = (
-    "Puts back the .info file each table had before a newer VPinFE converted it. Your "
-    "ratings, favourites, tags and play counts go back to what this version recorded."
+    "Puts your ratings, favourites, tags and play counts back to how they were{when}. "
+    "Your current .info files are backed up first."
 )
 
 DETAIL = (
-    "The file being replaced is saved alongside it first, so this can be undone. Tables "
-    "that were never converted are left exactly as they are."
+    "Tables a newer VPinFE never touched are left exactly as they are."
 )
+
+
+def _files(n):
+    return "1 .info file" if n == 1 else f"{n} .info files"
+
+
+def _backup_date(stamp):
+    """A backup timestamp as a plain date, or "" if it cannot be read.
+
+    Built without %-d, which is not portable to Windows.
+    """
+    try:
+        parsed = datetime.strptime(stamp, "%Y%m%dT%H%M%SZ")
+    except (TypeError, ValueError):
+        return ""
+    return parsed.strftime("%d %B %Y").lstrip("0")
+
+
+def _strip(icon, colour, headline, detail, actions):
+    """One row: icon, text, actions.
+
+    The text column needs `grow min-w-0` and the row `flex-nowrap`, or a long detail line
+    grows past the available width and pushes the icon onto a line of its own.
+    """
+    with ui.card().classes('w-full mb-3').style(
+            f'background: var(--surface-soft); border: 1px solid {colour};'):
+        with ui.row().classes('w-full items-center gap-4 px-4 py-3 flex-wrap md:flex-nowrap'):
+            ui.icon(icon, size='24px').classes('shrink-0').style(f'color: {colour};')
+            with ui.column().classes('gap-1 grow min-w-0'):
+                ui.label(headline).classes('text-sm font-medium').style('color: var(--ink);')
+                ui.label(detail).classes('text-xs').style('color: var(--ink-muted);')
+            with ui.row().classes('gap-2 items-center shrink-0'):
+                actions()
+
+
+def _refresh_banners():
+    """Re-render the strips after a restore, so the one that prompted it goes away."""
+    try:
+        render_restore_banner.refresh()
+    except Exception:
+        logger.debug("Banner refresh skipped", exc_info=True)
+
+
+def _when():
+    date = _backup_date(table_service.newest_backup_stamp())
+    return f" on {date}" if date else " before the upgrade"
 
 
 def _restorable_names():
@@ -51,20 +97,19 @@ def _restorable_names():
 def open_restore_dialog(on_done=None) -> None:
     names = _restorable_names()
     if not names:
-        ui.notify("No table has an older .info saved, so there is nothing to put back.",
-                  type='info')
+        ui.notify("There are no backups to restore.", type='info')
         return
 
     dlg = ui.dialog().props('persistent max-width=700px')
     state = {'running': False, 'lines': [], 'progress_q': Queue(), 'log_q': Queue()}
 
     with dlg, dialog_card("650px"):
-        ui.label('Restore table info').classes('text-xl font-bold').style('color: var(--ink);')
+        ui.label('Restore backups').classes('text-xl font-bold').style('color: var(--ink);')
         ui.separator()
 
         intro_container = ui.column().classes('gap-3 q-my-md w-full')
         with intro_container:
-            ui.label(INTRO).classes('text-sm').style('color: var(--ink);')
+            ui.label(INTRO.format(when=_when())).classes('text-sm').style('color: var(--ink);')
             ui.label(DETAIL).classes('text-xs').style('color: var(--ink-muted);')
             with ui.expansion(f'Show the {len(names)} tables').classes('w-full'):
                 with ui.column().classes('w-full p-2').style(
@@ -140,29 +185,49 @@ def open_restore_dialog(on_done=None) -> None:
                 state['running'] = False
                 if on_done:
                     on_done()
+                _refresh_banners()
 
         start_btn.on_click(lambda: asyncio.create_task(go()))
 
     dlg.open()
 
 
+@ui.refreshable
 def render_restore_banner(on_done=None) -> None:
     """Say something only when a newer VPinFE has been here."""
+    _render_unreadable_warning()
     names = _restorable_names()
     if not names:
         return
 
-    tables = "1 table has" if len(names) == 1 else f"{len(names)} tables have"
-    with ui.card().classes('w-full mb-4').style(
-            'background: var(--surface-soft); border: 1px solid var(--line);'):
-        with ui.row().classes('w-full items-center justify-between gap-4 p-3 flex-wrap'):
-            with ui.row().classes('items-center gap-3'):
-                ui.icon('history', size='20px').style('color: var(--neon-cyan);')
-                with ui.column().classes('gap-1'):
-                    ui.label(f'{tables} info saved by a newer VPinFE.').classes(
-                        'text-sm').style('color: var(--ink);')
-                    ui.label('Restore to put back the version this release can read. Your '
-                             'current info is saved first.').classes('text-xs').style(
-                        'color: var(--ink-muted);')
-            ui.button('Restore', icon='history',
-                      on_click=lambda: open_restore_dialog(on_done)).style(_ACCENT)
+    _strip(
+        'history', 'var(--neon-cyan)',
+        f'A newer VPinFE upgraded {_files(len(names))}.',
+        'Restore puts your ratings, favourites, tags and play counts back to how this '
+        'version recorded them, and backs up the current files first.',
+        lambda: ui.button('Restore backups', icon='history',
+                          on_click=lambda: open_restore_dialog(on_done)).style(_ACCENT),
+    )
+
+
+def _render_unreadable_warning() -> None:
+    """Not dismissible: the table is missing from the frontend until somebody deals with it."""
+    try:
+        broken = table_service.unreadable_tables()
+    except Exception:
+        logger.exception("Could not read the unreadable-table list")
+        return
+    if not broken:
+        return
+
+    shown = ", ".join(row.get("folder", "?") for row in broken[:3])
+    if len(broken) > 3:
+        shown += f" and {len(broken) - 3} more"
+    tables = "1 table is" if len(broken) == 1 else f"{len(broken)} tables are"
+    _strip(
+        'warning', 'var(--neon-pink)',
+        f'{tables} missing because the .info file could not be read.',
+        f'{shown}. The files were left untouched — a backup may hold a working copy.',
+        lambda: ui.button('Restore backups', icon='history',
+                          on_click=lambda: open_restore_dialog()).style(_ACCENT),
+    )

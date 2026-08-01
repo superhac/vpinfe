@@ -53,6 +53,13 @@ def unreadable_tables() -> List[Dict[str, str]]:
         return [dict(row) for row in _PARSER.getUnreadableTables()]
 
 
+def newest_backup_stamp() -> str:
+    """The most recent backup timestamp in the library, or ""."""
+    stamps = [s for s in (getattr(t, "info_backup_stamp", "")
+                          for t in ensure_tables_loaded()) if s]
+    return max(stamps) if stamps else ""
+
+
 def restorable_table_names() -> List[str]:
     """Folders holding a .info saved by a newer VPinFE, so the Tables page can offer to
     put them back. Read off the loaded library, which listed every folder to get there."""

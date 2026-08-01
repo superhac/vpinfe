@@ -42,3 +42,5 @@ class Table:
     # After a restore the folder still holds the ones it could not use, and counting those
     # would leave the offer on screen with nothing behind it.
     info_restorable: bool = False
+    # Newest backup's timestamp, so the restore dialog can name the day it goes back to.
+    info_backup_stamp: str = ""
