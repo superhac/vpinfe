@@ -21,10 +21,12 @@ the user never chose which ones converted and cannot be asked to choose which co
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
 import shutil
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -87,6 +89,47 @@ def copy_aside(info_path, when=None):
         path = backup_path(info_path, when)
     shutil.copy2(info_path, path)
     return path
+
+
+def replace_atomic(source, path):
+    """Put `source` in place at `path` with no window where `path` is half written.
+
+    A plain copy over the live file truncates it first. Restoring does that once per
+    table across the whole library, and it is the operation somebody reaches for when
+    things have already gone wrong - the worst one to leave a truncated file behind.
+    """
+    directory = os.path.dirname(path) or "."
+    handle_fd, tmp = tempfile.mkstemp(dir=directory, prefix=".vpinfe_write_", suffix=".tmp")
+    os.close(handle_fd)
+    try:
+        shutil.copy2(source, tmp)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+def write_json_atomic(path, data):
+    """Write a .info so a reader sees either the old file or the new one, never half of one.
+
+    A plain open(path, "w") truncates before it writes, so an interrupted write leaves a
+    truncated file - and an unreadable .info is the one failure the library cannot shrug
+    off.
+    """
+    directory = os.path.dirname(path) or "."
+    # Must not look like a .info or a backup to anything scanning the folder.
+    handle_fd, tmp = tempfile.mkstemp(dir=directory, prefix=".vpinfe_write_", suffix=".tmp")
+    try:
+        with os.fdopen(handle_fd, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, indent=4)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
 
 
 def table_dirs(table_root, table_name=None):
@@ -165,7 +208,7 @@ def restore_library(table_root, table_name=None, progress_cb=None, log_cb=None):
         try:
             if info_path.exists():
                 copy_aside(str(info_path))
-            shutil.copy2(chosen, info_path)
+            replace_atomic(chosen, info_path)
         except OSError as exc:
             result["failed"] += 1
             result["failures"].append((table_dir.name, str(exc)))

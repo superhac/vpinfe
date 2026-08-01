@@ -44,6 +44,15 @@ def refresh_tables() -> List[Any]:
     return ensure_tables_loaded(reload=True)
 
 
+def unreadable_tables() -> List[Dict[str, str]]:
+    """Folders whose .info could not be read, so the table was left out of the library."""
+    ensure_tables_loaded()
+    with _LOCK:
+        if _PARSER is None:
+            return []
+        return [dict(row) for row in _PARSER.getUnreadableTables()]
+
+
 def restorable_table_names() -> List[str]:
     """Folders holding a .info saved by a newer VPinFE, so the Tables page can offer to
     put them back. Read off the loaded library, which listed every folder to get there."""

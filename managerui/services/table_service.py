@@ -407,6 +407,11 @@ def build_metadata(*args, **kwargs):
     return metadata_service.build_metadata(*args, iniconfig=_fresh_config(), **kwargs)
 
 
+def unreadable_tables():
+    """Tables the scan had to leave out because their .info could not be read."""
+    return table_repository.unreadable_tables()
+
+
 def restorable_table_names():
     """Folders with a .info saved by a newer VPinFE, for the banner and its dialog."""
     return table_repository.restorable_table_names()
