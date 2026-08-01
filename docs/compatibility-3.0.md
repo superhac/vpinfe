@@ -198,6 +198,17 @@ they always had (`pupPackExists`, `altColorExists`, `vniExists`, `altSoundExists
 *Why:* one table cannot have two answers, and the scan was already case-insensitive about
 `.directb2s` and `.ini` three lines away. Covered by `tests/test_media_resolution.py`.
 
+**PAR-20 — The 2.x restore module is removed; 3.0 restores through its own.**
+`common/info_restore.py`, its Manager UI dialog and its tests shipped in the 2.x line so a
+release older than 3.0 could put back the backups 3.0 writes. They are deleted here.
+`common/tables/info_maintenance.py` does the same job and generalises it: `restorable_backup`
+takes the highest schema this build can read, so one walk serves every future schema bump.
+*Why:* that module exists to serve the release *before* 3.0. Once 3.0 is master there is no
+older build to run it, and two implementations of one operation means fixing each bug twice.
+The backup filename and the read-the-shape-from-the-file rule are unchanged, so a 2.x
+install can still restore what a 3.0 install wrote — that contract lives in the file format,
+not in this module. Covered by `tests/test_info_maintenance.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and
