@@ -60,16 +60,26 @@ _DROPPED_SECTIONS = ("VPXFile", "Medias")
 _DROPPED_INFO_KEYS = ("Rom",)
 
 
-def is_versioned(data) -> bool:
-    """Whether this file has been through the migration.
+def schema_of(data) -> int | None:
+    """The schema a loaded .info declares, or None if it predates versioning.
 
     Only the section we write today counts - the old PascalCase `schema` numbered that
     section's shape, not the file's (5db3f3d).
     """
     if not isinstance(data, dict):
-        return False
+        return None
     section = data.get("vpinfe")
-    return isinstance(section, dict) and bool(section.get(SCHEMA_KEY))
+    if not isinstance(section, dict):
+        return None
+    try:
+        return int(section.get(SCHEMA_KEY) or 0) or None
+    except (TypeError, ValueError):
+        return None
+
+
+def is_versioned(data) -> bool:
+    """Whether this file has been through the migration."""
+    return schema_of(data) is not None
 
 
 def needs_migration(data) -> bool:
@@ -208,11 +218,7 @@ def backup_schema(path) -> int | None:
     Raises if the file cannot be read at all - the caller decides whether to skip it.
     """
     with open(path, encoding="utf-8") as handle:
-        data = json.load(handle)
-    section = data.get("vpinfe") if isinstance(data, dict) else None
-    if not isinstance(section, dict):
-        return None
-    return int(section.get(SCHEMA_KEY) or 0) or None
+        return schema_of(json.load(handle))
 
 
 def replace_atomic(source, path) -> None:
