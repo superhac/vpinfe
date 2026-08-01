@@ -6,23 +6,23 @@ Each configured display gets its own Chromium process in --app mode,
 positioned on the correct monitor with fullscreen.
 """
 
-import os
-import sys
 import logging
-import shlex
-from shutil import which
-from collections import namedtuple
+import os
 import platform
-import subprocess
-import tempfile
+import shlex
+import shutil
 import signal
+import subprocess
+import sys
+import tempfile
 import threading
 import time
+from collections import namedtuple
+from shutil import which
 from urllib.parse import quote
 
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, cfg_get
 from common.logging_config import include_thirdparty_logs
-
 
 logger = logging.getLogger("vpinfe.frontend.chromium_manager")
 
@@ -226,12 +226,64 @@ def get_mac_screens():
     return result
 
 
+PROFILE_PREFIX = "vpinfe_chromium_"
+
+
+def _profile_dirs_in_use():
+    """Profile directories a running Chromium is holding, ours or anyone's."""
+    try:
+        import psutil
+    except ImportError:
+        return None                     # cannot prove anything is dead; sweep nothing
+    in_use = set()
+    for proc in psutil.process_iter(["cmdline"]):
+        try:
+            for arg in proc.info["cmdline"] or ():
+                if arg.startswith("--user-data-dir="):
+                    in_use.add(arg.split("=", 1)[1])
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return in_use
+
+
+def sweep_stale_profiles():
+    """Remove profile directories left behind by a run that did not shut down.
+
+    terminate_all clears up after itself, but a SIGKILL, a power cut or a `systemctl
+    stop` never reaches it - and on a cabinet /tmp is often tmpfs, so what leaks is RAM.
+    Only directories no live process is using are touched, because a second instance may
+    be running and its profiles are not ours to delete.
+    """
+    in_use = _profile_dirs_in_use()
+    if in_use is None:
+        return 0
+    root = tempfile.gettempdir()
+    removed = 0
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return 0
+    for name in names:
+        if not name.startswith(PROFILE_PREFIX):
+            continue
+        path = os.path.join(root, name)
+        if path in in_use or not os.path.isdir(path):
+            continue
+        shutil.rmtree(path, ignore_errors=True)
+        removed += 1
+    if removed:
+        logger.info("Removed %s leftover Chromium profile director%s",
+                    removed, "y" if removed == 1 else "ies")
+    return removed
+
+
 class ChromiumManager:
     """Manages Chromium subprocess lifecycle for multi-monitor display."""
 
     def __init__(self):
         self._processes = []  # [(window_name, process, temp_dir, monitor)]
         self._exit_event = threading.Event()
+        sweep_stale_profiles()
 
     def launch_window(
         self,
@@ -271,7 +323,7 @@ class ChromiumManager:
         # PyInstaller bundles libaries which might be incompatible with the local files.
         system = platform.system()
         if (system == "Linux"):
-            if using_local_install and getattr(sys, "frozen", False): 
+            if using_local_install and getattr(sys, "frozen", False):
                 logger.debug("Using local Chromium on Linux")
                 lp_key = 'LD_LIBRARY_PATH'
                 lp_orig = env.get(lp_key + '_ORIG')
@@ -513,7 +565,7 @@ class ChromiumManager:
     def terminate_all(self):
         """Terminate all Chromium processes immediately."""
         logger.debug("Terminating all browser windows...")
-        for window_name, proc, temp_dir, _ in self._processes:
+        for window_name, proc, _temp_dir, _ in self._processes:
             try:
                 if proc.poll() is None:  # still running
                     # Use force=True (SIGKILL) directly - no need for graceful shutdown
@@ -527,6 +579,9 @@ class ChromiumManager:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 logger.warning("'%s' still not reaped", window_name)
+            # The profile is a fresh temp directory per window per launch, and nothing
+            # was removing it. Three per run adds up fast on a frontend that restarts.
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
         self._processes.clear()
         self._exit_event.set()
@@ -545,7 +600,7 @@ class ChromiumManager:
         def _monitor():
             """Watch for any process to exit, then terminate all."""
             while self._processes and not self._exit_event.is_set():
-                for window_name, proc, temp_dir, _ in list(self._processes):
+                for window_name, proc, _temp_dir, _ in list(self._processes):
                     if proc.poll() is not None:
                         if is_window_connected and is_window_connected(window_name):
                             logger.info(
@@ -579,7 +634,7 @@ class ChromiumManager:
 
     def get_process(self, window_name):
         """Get the process for a specific window."""
-        for name, proc, temp_dir, _ in self._processes:
+        for name, proc, _temp_dir, _ in self._processes:
             if name == window_name:
                 return proc
         return None
