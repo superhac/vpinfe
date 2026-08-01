@@ -7,7 +7,7 @@ import requests
 
 from common.app_version import get_version
 from common.config_access import SettingsConfig, VPinPlayConfig
-from common.tables.table_metadata import default_game_file, vpinfe_section
+from common.tables.table_metadata import default_game_file, normalize_rating, vpinfe_section
 from common.tables.tableparser import TableParser
 from common.timestamps import utc_now_iso
 
@@ -68,7 +68,8 @@ def _build_table_payload(meta: dict) -> dict | None:
             "rom": str(vpx.get("rom", "") or ""),
         },
         "user": {
-            "rating": _to_int(user.get("Rating", 0), default=0),
+            # Their bound is 0-5, and one table outside it fails the whole request.
+            "rating": normalize_rating(user.get("Rating", 0)),
             "lastRun": _normalize_last_run(user.get("LastRun")),
             "startCount": _to_int(user.get("StartCount", 0), default=0),
             "runTime": _to_int(user.get("RunTime", 0), default=0),

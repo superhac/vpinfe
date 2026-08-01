@@ -5,6 +5,16 @@ from common.online.vpinplay_service import _build_table_payload, sync_installed_
 
 
 class TestVPinPlayService(unittest.TestCase):
+    def test_a_rating_outside_the_services_bounds_cannot_fail_the_whole_sync(self) -> None:
+        """Their rating is validated 0-5 across the whole request, so one table over the
+        bound rejects every other table with it.
+        """
+        payload = _build_table_payload(
+            {"Info": {"VPSId": "vps-123"}, "User": {"Rating": 7}, "game_files": {}, "vpinfe": {}})
+
+        assert payload is not None
+        self.assertEqual(payload["user"]["rating"], 5)
+
     def test_build_table_payload_includes_user_score(self) -> None:
         payload = _build_table_payload(
             {
