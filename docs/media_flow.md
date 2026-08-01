@@ -28,6 +28,25 @@ Standard filenames include:
 
 Each kind also accepts the rest of its extension family (for images: `.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`), and spec-named files outrank the fixed names: `(Wheel) <game file name>.png` beats `(Wheel) <folder name>.png` beats `wheel.png`. The full precedence rules live in `common/media_paths.py`.
 
+### Media tokens
+
+The token in brackets names the kind. Visual Pinball publishes these in its own [FileLayout.md](https://github.com/vpinball/vpinball/blob/master/docs/FileLayout.md), under "Zero install table deployment guidelines", and VPinFE reads them:
+
+| Kind | Token | Kind | Token |
+|---|---|---|---|
+| Playfield | `(Playfield)` | Wheel | `(Wheel)` |
+| Backglass | `(Backglass)` | Logo | `(Logo)` |
+| DMD | `(DMD)` | Rule card | `(RuleCard)` |
+| Real DMD | `(RealDMD)` | Game flyer | `(Flyer)` |
+| Real color DMD | `(RealColorDMD)` | Rulesheet | `(RuleSheet)` |
+| Topper | `(Topper)` | Loading video | `(Loading)` |
+| Cabinet | `(Cabinet)` | Audio | `(Audio)` |
+| FSS | `(FSS)` | Launch audio | `(AudioLaunch)` |
+
+A video uses its image counterpart's token and is told apart by extension, so `(Topper) Name.png` and `(Topper) Name.mp4` are different kinds.
+
+Two of these differ from the published names. Visual Pinball calls the rule card `(GameHelp)` and the game flyer `(GameInfo)`; VPinFE leads with `(RuleCard)` and `(Flyer)` because they say what the file is, and **still accepts `(GameHelp)` and `(GameInfo)`** so media packaged either way works. If both are present the preferred name wins, but a game-file-specific file always beats a folder-level one whichever token it uses. `(Cabinet)`, `(FSS)`, `(Logo)` and `(RuleSheet)` have no published equivalent and are VPinFE's own.
+
 ### Manufacturer logos
 
 Manufacturer logos are not per-table media: they live in a shared assets root (`[Settings] assetsdir`, defaulting to `assets/` under the config dir) served at `/assets/`. Files in `manufacturers/user/` win over a pack in `manufacturers/default/`; lookup normalizes the table's `Info.Manufacturer` string (so "Williams Electronics" finds `williams.png`) with a `manufacturers.json` alias map for exceptions. The table payload carries the result as `ManufacturerLogoPath`, and themes call `vpin.getManufacturerLogoURL(index)`.

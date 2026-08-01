@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.media_paths import resolve_media_files
+from common.media_paths import MEDIA_SPECS, resolve_media_files
 from managerui.services.media_service import replace_media_file, source_media_path
 
 FOLDER = "Cactus Canyon (Bally 1998)"
@@ -128,11 +128,48 @@ class NewKindTests(unittest.TestCase):
 
         self.assertEqual(resolved["rulesheet"].name, f"(RuleSheet) {FOLDER}.md")
 
+
+class TokenAliasTests(unittest.TestCase):
+    """VPX publishes (GameHelp) and (GameInfo); we lead with the plain-English name.
+
+    Both resolve, so a media pack named either way works and nothing on disk has to
+    be renamed.
+    """
+
+    def test_the_plain_english_token_resolves(self) -> None:
+        resolved = _resolve([f"(RuleCard) {FOLDER}.png", f"(Flyer) {FOLDER}.png"])
+
+        self.assertEqual(resolved["rulecard"].name, f"(RuleCard) {FOLDER}.png")
+        self.assertEqual(resolved["flyer"].name, f"(Flyer) {FOLDER}.png")
+
+    def test_the_vpx_token_still_resolves(self) -> None:
+        resolved = _resolve([f"(GameHelp) {FOLDER}.png", f"(GameInfo) {FOLDER}.png"])
+
+        self.assertEqual(resolved["rulecard"].name, f"(GameHelp) {FOLDER}.png")
+        self.assertEqual(resolved["flyer"].name, f"(GameInfo) {FOLDER}.png")
+
+    def test_the_preferred_token_wins_within_a_tier(self) -> None:
+        resolved = _resolve([f"(GameHelp) {FOLDER}.png", f"(RuleCard) {FOLDER}.png"])
+
+        self.assertEqual(resolved["rulecard"].name, f"(RuleCard) {FOLDER}.png")
+
+    def test_a_game_file_alias_still_beats_a_folder_level_preferred_token(self) -> None:
+        """Tier outranks token preference, or "most specific wins" would not hold."""
+        resolved = _resolve([f"(GameHelp) {GAME_FILE}.png", f"(RuleCard) {FOLDER}.png"])
+
+        self.assertEqual(resolved["rulecard"].name, f"(GameHelp) {GAME_FILE}.png")
+
+    def test_aliases_are_only_where_the_published_name_is_opaque(self) -> None:
+        aliased = {spec.key for spec in MEDIA_SPECS if spec.alt_tokens}
+
+        self.assertEqual(aliased, {"rulecard", "flyer"})
+
     def test_spec_named_new_kinds_import_by_token(self) -> None:
         from managerui.services.asset_registry import match_media_key
 
         self.assertEqual(match_media_key(f"(Topper) {FOLDER}.mp4"), "topper_video")
         self.assertEqual(match_media_key(f"(Topper) {FOLDER}.png"), "topper")
+        self.assertEqual(match_media_key(f"(RuleCard) {FOLDER}.png"), "rulecard")
         self.assertEqual(match_media_key(f"(GameHelp) {FOLDER}.png"), "rulecard")
         self.assertEqual(match_media_key("rulesheet.pdf"), "rulesheet")
         self.assertEqual(match_media_key(f"(Loading) {FOLDER}.mp4"), "loading")

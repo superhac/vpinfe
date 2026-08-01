@@ -39,7 +39,10 @@ build and it changes how your library is stored — read the next section first.
 - **Core** — Media resolves through a precedence chain and accepts extension families:
   `(Wheel) <game file>.png` over `(Wheel) <folder>.png` over `wheel.png`, and a `.jpg`
   where the old code only ever looked for one exact `.png`. Art you placed by hand that was
-  silently ignored now shows up.
+  silently ignored now shows up. The token in brackets names the kind — Visual Pinball
+  publishes the list, and VPinFE reads it. Two are named for what they are rather than what
+  Visual Pinball calls them: use `(RuleCard)` and `(Flyer)` if you are naming files
+  yourself, and `(GameHelp)` and `(GameInfo)` keep working if your media came that way.
 - **Core, Themes** — Wheel sets, chosen in the ini or by the theme.
 - **Core, Themes** — Manufacturer logos, served from a shared assets root
   (`[Settings] assetsdir`, default `assets/` under the config dir) at `/assets/`. Nothing

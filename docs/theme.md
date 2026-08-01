@@ -1152,7 +1152,7 @@ Each element in `vpin.tableData` (and the return of `vpin.getTableMeta(index)`) 
 | `DMDVideoPath` | `string\|null` | Local path to the DMD video (`dmd.mp4`). |
 | `AudioPath` | `string\|null` | Local path to the audio file (`audio.mp3`). |
 | `LogoImagePath` | `string\|null` | Local path to the game logo image (`logo.png`). |
-| `RuleCardImagePath` | `string\|null` | Local path to the apron rule card image (`rulecard.png`). |
+| `RuleCardImagePath` | `string\|null` | Local path to the apron rule card image (`rulecard.png`, or `(RuleCard) …` / `(GameHelp) …`). |
 | `TopperPath` | `string\|null` | Local path to the topper image or video (`topper.png` / `topper.mp4`). |
 | `LoadingVideoPath` | `string\|null` | Local path to the loading-screen video (`loading.mp4`). |
 | `AudioLaunchPath` | `string\|null` | Local path to the launch audio file (`audiolaunch.mp3`). |

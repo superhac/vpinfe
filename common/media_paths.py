@@ -18,9 +18,12 @@ class MediaSpec:
     attr: str
     filename_template: str
     asset_group: str | None = None
-    # The spec token for tiers 1 and 2 - "(Wheel) Name.png". Video kinds share
-    # their image counterpart's token; the extension family tells them apart.
+    # The token for tiers 1 and 2 - "(Wheel) Name.png". Video kinds share their
+    # image counterpart's token; the extension family tells them apart.
     token: str | None = None
+    # Also accepted, tried after token. Where VPX's published name is opaque we
+    # lead with the plain-English one and keep theirs readable.
+    alt_tokens: tuple[str, ...] = ()
     family: tuple[str, ...] = IMAGE_FAMILY
     # Another kind whose resolved file serves when this kind has none - below
     # every tier of this kind, so any real file of its own outranks it.
@@ -47,7 +50,8 @@ MEDIA_SPECS = (
     MediaSpec("realdmd", "realDMDImagePath", "realdmd.png", token="(RealDMD)"),
     MediaSpec("realdmd_color", "realDMDColorImagePath", "realdmd-color.png",
               token="(RealColorDMD)"),
-    MediaSpec("flyer", "FlyerImagePath", "flyer.png", token="(GameInfo)"),
+    MediaSpec("flyer", "FlyerImagePath", "flyer.png", token="(Flyer)",
+              alt_tokens=("(GameInfo)",)),
     MediaSpec("table_video", "TableVideoPath", "{tabletype}.mp4", "table_video_resolution",
               token="(Playfield)", family=VIDEO_FAMILY),
     MediaSpec("bg_video", "BGVideoPath", "bg.mp4", "table_video_resolution",
@@ -57,7 +61,8 @@ MEDIA_SPECS = (
     MediaSpec("audio", "AudioPath", "audio.mp3", token="(Audio)", family=AUDIO_FAMILY),
     # The 3.0 additions - spec tokens except rulesheet, which the spec keeps
     # outside its media scheme and we bring in so it gets the chain.
-    MediaSpec("rulecard", "RuleCardImagePath", "rulecard.png", token="(GameHelp)"),
+    MediaSpec("rulecard", "RuleCardImagePath", "rulecard.png", token="(RuleCard)",
+              alt_tokens=("(GameHelp)",)),
     MediaSpec("topper", "TopperPath", "topper.png", token="(Topper)"),
     MediaSpec("topper_video", "TopperVideoPath", "topper.mp4", token="(Topper)",
               family=VIDEO_FAMILY),
@@ -201,11 +206,15 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
     resolved: dict[str, Path | None] = {}
     virtual_pending: dict[str, Path | None] = {}
     for spec in MEDIA_SPECS:
+        # Tier outranks token preference: a game-file-specific alias still beats a
+        # folder-level preferred token, or "most specific wins" would not hold.
+        tokens = ((spec.token,) + spec.alt_tokens) if spec.token else ()
         user_names: list[str] = []
-        if spec.token:
-            if game_file_stem:
-                user_names += [f"{spec.token} {game_file_stem}{ext}" for ext in spec.family]
-            user_names += [f"{spec.token} {folder_name}{ext}" for ext in spec.family]
+        if game_file_stem:
+            user_names += [f"{token} {game_file_stem}{ext}"
+                           for token in tokens for ext in spec.family]
+        user_names += [f"{token} {folder_name}{ext}"
+                       for token in tokens for ext in spec.family]
         fixed_stem = spec.stem(table_type)
         fixed_names = [f"{fixed_stem}{ext}" for ext in spec.family]
 

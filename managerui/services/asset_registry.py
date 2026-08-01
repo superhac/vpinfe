@@ -79,9 +79,10 @@ def _bucket(ext: str) -> str:
 _TOKEN_TO_KEY: dict[str, dict[str, str]] = {}
 for _spec in MEDIA_SPECS:
     if _spec.token:
-        for _ext in _spec.family:
-            _TOKEN_TO_KEY.setdefault(_spec.token.lower(), {}).setdefault(
-                _bucket(_ext), _spec.key)
+        for _token in (_spec.token,) + _spec.alt_tokens:
+            for _ext in _spec.family:
+                _TOKEN_TO_KEY.setdefault(_token.lower(), {}).setdefault(
+                    _bucket(_ext), _spec.key)
 
 # Keyword-in-stem fallbacks when a media file is not named canonically.
 # Ordered; realdmd is handled ahead of this table so "dmd" never claims a realdmd file.

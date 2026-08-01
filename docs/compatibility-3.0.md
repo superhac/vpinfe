@@ -77,9 +77,17 @@ Master resolved exactly one fixed name per kind (`wheel.png`). 3.0 resolves
 `(Wheel) <game-file>.png` over `(Wheel) <folder>.png` over `wheel.png`, trying each kind's
 extension family in order — so a spec-named or `.jpg` file that master silently ignored
 now displays. A library using only the fixed names behaves identically.
+Two kinds accept two tokens. Visual Pinball's `FileLayout.md` names the rule card
+`(GameHelp)` and the game flyer `(GameInfo)`; VPinFE leads with `(RuleCard)` and `(Flyer)`
+and accepts the published names as well, so media packaged either way resolves. Within a
+tier the preferred token wins; tier still outranks token, so a game-file-specific
+`(GameHelp)` file beats a folder-level `(RuleCard)` one.
 *Why:* hand-placed media was invisible unless it matched one exact name, and a media
 refresh could clobber a user's own file; the tiers make "mine" and "downloaded"
-structurally distinct. Covered by `tests/test_media_resolution.py`.
+structurally distinct. The published tokens for those two say the role rather than the
+thing, which reads as a different asset to anyone naming files by hand — and since VPinFE
+only ever *reads* tokens and writes the fixed names, accepting both costs nothing on disk.
+Covered by `tests/test_media_resolution.py`.
 
 **PAR-10 — Imported media keeps its real file extension.**
 Importing a `.jpg` wheel used to write JPEG bytes into `medias/wheel.png` — a file that
