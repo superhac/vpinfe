@@ -41,6 +41,7 @@ class TableParser:
             wheelset = active_set_for("wheel", media_cfg.wheelset)
             if wheelset:
                 self.active_sets["wheel"] = wheelset
+        # Constructing reads the library; a loadTables(reload=True) after it reads it twice.
         self.loadTables()
 
     def loadTables(self, reload=False):  # reload if you want to rescan the tables

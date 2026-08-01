@@ -41,7 +41,6 @@ def build_metadata(
     settings = SettingsConfig.from_config(config)
 
     tp = TableParser(settings.table_root_dir, config)
-    tp.loadTables(reload=True)
     tables = tp.getAllTables()
 
     if tableName:
@@ -125,6 +124,5 @@ def apply_vpx_patches(progress_cb=None, iniconfig: IniConfig | None = None):
     config = _config(iniconfig)
     settings = SettingsConfig.from_config(config)
     tp = TableParser(settings.table_root_dir, config)
-    tp.loadTables(reload=True)
     tables = tp.getAllTables()
     StandaloneScripts(tables, progress_cb=progress_cb)

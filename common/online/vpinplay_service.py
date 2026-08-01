@@ -169,7 +169,6 @@ def sync_installed_tables(
         raise ValueError(f"Tables Directory does not exist: {table_root_dir}")
 
     parser = TableParser(table_root_dir)
-    parser.loadTables(reload=True)
     tables = parser.getAllTables()
 
     payload_tables = []

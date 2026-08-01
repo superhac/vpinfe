@@ -1,3 +1,4 @@
+import ast
 import os
 import configparser
 import json
@@ -17,6 +18,36 @@ from common.tables.table_repository import table_to_row
 from common.tables.tableparser import TableParser
 from common.online.theme_installer import ThemeInstallStore
 from common.online.vpsdb_cache import VPSDatabaseCache
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _tableparser_target(node) -> str | None:
+    """The variable name, if this statement is `x = TableParser(...)`."""
+    if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+        return None
+    if not isinstance(node.value, ast.Call):
+        return None
+    func = node.value.func
+    name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+    if name != "TableParser":
+        return None
+    target = node.targets[0]
+    return target.id if isinstance(target, ast.Name) else None
+
+
+def _is_reload_of(node, name: str) -> bool:
+    """Whether this statement is `name.loadTables(...)`."""
+    if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Call):
+        return False
+    func = node.value.func
+    return (
+        isinstance(func, ast.Attribute)
+        and func.attr == "loadTables"
+        and isinstance(func.value, ast.Name)
+        and func.value.id == name
+    )
 
 
 class _FakeIni:
@@ -238,7 +269,6 @@ class TestCommonArchitecture(unittest.TestCase):
             (without_b2s / "No B2S (Bally 1991).vpx").write_text("")
 
             parser = TableParser(root)
-            parser.loadTables()
             by_name = {t.tableDirName: t for t in parser.getAllTables()}
 
             self.assertTrue(by_name["With B2S (Bally 1990)"].b2sExists)
@@ -247,6 +277,51 @@ class TestCommonArchitecture(unittest.TestCase):
             # table_to_row mirrors the flag for the UI
             self.assertTrue(table_to_row(by_name["With B2S (Bally 1990)"])["b2s_exists"])
             self.assertFalse(table_to_row(by_name["No B2S (Bally 1991)"])["b2s_exists"])
+
+    def test_constructing_a_tableparser_reads_each_table_once(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ("A Table (Bally 1990)", "B Table (Bally 1991)"):
+                folder = root / name
+                folder.mkdir()
+                (folder / f"{name}.vpx").write_text("")
+
+            real_build = TableParser._build_table
+            calls = []
+
+            def counting_build(self, table_dir):
+                calls.append(table_dir)
+                return real_build(self, table_dir)
+
+            with mock.patch.object(TableParser, "_build_table", counting_build):
+                parser = TableParser(root)
+                tables = parser.getAllTables()
+
+            self.assertEqual(len(tables), 2)
+            self.assertEqual(len(calls), 2, "the library was read more than once")
+
+    def test_no_caller_reloads_a_freshly_constructed_tableparser(self) -> None:
+        """Constructing loads, so a reload on the next line reads the whole library twice.
+
+        Cheap to reintroduce and invisible at runtime, so it is checked in the source
+        rather than left to review.
+        """
+        offenders = []
+        for path in sorted(REPO_ROOT.rglob("*.py")):
+            if any(part in {".venv", "build", "third_party"} for part in path.parts):
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                body = getattr(node, "body", None)
+                if not isinstance(body, list):
+                    continue
+                for first, second in zip(body, body[1:], strict=False):
+                    name = _tableparser_target(first)
+                    if name and _is_reload_of(second, name):
+                        offenders.append(f"{path.relative_to(REPO_ROOT)}:{second.lineno}")
+
+        self.assertEqual(offenders, [], "TableParser is constructed then reloaded at: "
+                                        + ", ".join(offenders))
 
 
 if __name__ == "__main__":

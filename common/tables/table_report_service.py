@@ -21,7 +21,6 @@ def list_missing_tables(iniconfig: IniConfig | None = None, log=None) -> None:
     log = log or logger.info
     table_root = SettingsConfig.from_config(config).table_root_dir
     tp = TableParser(table_root, config)
-    tp.loadTables(reload=True)
     tables = tp.getAllTables()
     log("Listing tables missing from %s", table_root)
     log("Found %s tables in %s", len(tables), table_root)
@@ -62,7 +61,6 @@ def list_unknown_tables(iniconfig: IniConfig | None = None, log=None) -> None:
     log = log or logger.info
     table_root = SettingsConfig.from_config(config).table_root_dir
     tp = TableParser(table_root, config)
-    tp.loadTables(reload=True)
     tables = tp.getAllTables()
     log("Listing unknown tables from %s", table_root)
     log("Found %s tables in %s", len(tables), table_root)
