@@ -42,8 +42,11 @@ def upgrade_info_files(table_name: str = None, progress_cb=None, log_cb=None):
 
 
 def restore_info_files(table_name: str = None, progress_cb=None, log_cb=None):
+    from common.paths import CONFIG_DIR
+
     return info_maintenance.restore_library(
-        _table_root_dir(), table_name=table_name, progress_cb=progress_cb, log_cb=log_cb)
+        _table_root_dir(), table_name=table_name, config_dir=CONFIG_DIR,
+        progress_cb=progress_cb, log_cb=log_cb)
 
 
 def listMissingTables():

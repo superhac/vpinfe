@@ -17,6 +17,10 @@ from common.tables.info_migration import (
     restorable_backup,
 )
 from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
+from common.tables.vpxcollections import (
+    COLLECTIONS_NAME,
+    restorable_collections_backup,
+)
 
 logger = logging.getLogger("vpinfe.common.tables.info_maintenance")
 
@@ -98,6 +102,7 @@ def restore_library(
     table_root,
     table_name: str | None = None,
     max_schema: int = CURRENT_SCHEMA,
+    config_dir=None,
     progress_cb=None,
     log_cb=None,
 ) -> dict:
@@ -110,7 +115,8 @@ def restore_library(
 
     folders = table_dirs(table_root, table_name)
     total = len(folders)
-    result = {"restored": 0, "nothing_to_restore": 0, "failed": 0, "failures": []}
+    result = {"restored": 0, "nothing_to_restore": 0, "failed": 0, "failures": [],
+              "collections_restored": False}
 
     log("Restoring backups. Your current .info files are backed up first, so this can be "
         "undone too.")
@@ -124,9 +130,7 @@ def restore_library(
             continue
         info_path = _info_path(table_dir)
         try:
-            if info_path.exists():
-                copy_aside(str(info_path))
-            replace_atomic(chosen, info_path)
+            _restore_file(info_path, chosen)
         except OSError as exc:
             result["failed"] += 1
             result["failures"].append((table_dir.name, str(exc)))
@@ -135,8 +139,29 @@ def restore_library(
         result["restored"] += 1
         log(f"Restored: {table_dir.name}")
 
+    # Collections live in the config directory rather than a table folder, and the id
+    # migration rewrites them into something an older build cannot resolve.
+    if config_dir:
+        chosen = restorable_collections_backup(config_dir, max_schema)
+        if chosen:
+            try:
+                _restore_file(Path(config_dir) / COLLECTIONS_NAME, chosen)
+                result["collections_restored"] = True
+                log("Restored your collections.")
+            except OSError as exc:
+                result["failed"] += 1
+                result["failures"].append((COLLECTIONS_NAME, str(exc)))
+                log("Left as it is, could not be restored: your collections")
+
     log(_restore_summary(result))
     return result
+
+
+def _restore_file(path, backup) -> None:
+    """Put `backup` in place at `path`, keeping what is there now."""
+    if Path(path).exists():
+        copy_aside(str(path))
+    replace_atomic(backup, path)
 
 
 def _tables(count: int) -> str:
@@ -151,7 +176,7 @@ def _upgrade_summary(result: dict) -> str:
     if not result["upgraded"]:
         return "Nothing to upgrade - every .info file is already on the current format."
     summary = (
-        f"Upgraded {_files(result['upgraded'])}. Ratings, favourites, tags and play "
+        f"Upgraded {_files(result['upgraded'])}. Ratings, favorites, tags and play "
         "counts came across unchanged, and a backup of each was saved."
     )
     if result["failed"]:
@@ -163,12 +188,16 @@ def _upgrade_summary(result: dict) -> str:
 
 
 def _restore_summary(result: dict) -> str:
-    if not result["restored"]:
+    if not result["restored"] and not result["collections_restored"]:
         return "Nothing to restore - there are no backups."
+    if not result["restored"]:
+        return "Restored your collections."
     summary = (
-        f"Restored {_files(result['restored'])}. Their ratings, favourites, tags and play "
+        f"Restored {_files(result['restored'])}. Their ratings, favorites, tags and play "
         "counts are back as this version recorded them."
     )
+    if result["collections_restored"]:
+        summary += " Your collections are back too."
     if result["nothing_to_restore"]:
         summary += (
             f" {_tables(result['nothing_to_restore'])} were never upgraded, so there was "

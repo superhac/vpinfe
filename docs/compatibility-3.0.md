@@ -201,7 +201,7 @@ they always had (`pupPackExists`, `altColorExists`, `vniExists`, `altSoundExists
 **PAR-20 — The 2.x restore module is removed; 3.0 restores through its own.**
 `common/info_restore.py`, its Manager UI dialog and its tests shipped in the 2.x line so a
 release older than 3.0 could put back the backups 3.0 writes. They are deleted here.
-`common/tables/info_maintenance.py` does the same job and generalises it: `restorable_backup`
+`common/tables/info_maintenance.py` does the same job and generalizes it: `restorable_backup`
 takes the highest schema this build can read, so one walk serves every future schema bump.
 *Why:* that module exists to serve the release *before* 3.0. Once 3.0 is master there is no
 older build to run it, and two implementations of one operation means fixing each bug twice.

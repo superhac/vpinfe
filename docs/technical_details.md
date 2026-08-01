@@ -190,7 +190,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   they are peers, not a primary with alternates. Each entry holds what that file says about
   itself:
   - file_hash, vbs_hash, version
-  - release_date, save_date, save_rev — normalised to ISO 8601, at whatever precision the
+  - release_date, save_date, save_rev — normalized to ISO 8601, at whatever precision the
     author actually gave. An unreadable or ambiguous date degrades to the year rather than
     being guessed at.
   - manufacturer, year, type — the `.vpx`'s own claim, which can differ from what VPS says

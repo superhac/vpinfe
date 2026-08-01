@@ -238,18 +238,19 @@ def replace_atomic(source, path) -> None:
         raise
 
 
-def write_json_atomic(path, data) -> None:
-    """Write a .info so a reader sees the old file or the new one, never half of one.
+def write_atomic(path, write) -> None:
+    """Write a file so a reader sees the old one or the new one, never half of one.
 
-    open(path, "w") truncates before writing, and the id backfill rewrites every file in
-    one burst at first launch - the worst moment to be interrupted.
+    open(path, "w") truncates before writing, and the id backfill rewrites every .info in
+    one burst at first launch - the worst moment to be interrupted. `write` is handed the
+    open handle.
     """
     directory = os.path.dirname(path) or "."
     # Underscores, not the BACKUP_MARKER hyphen: must not read as a restore point.
     handle_fd, tmp = tempfile.mkstemp(dir=directory, prefix=".vpinfe_write_", suffix=".tmp")
     try:
         with os.fdopen(handle_fd, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, indent=4)
+            write(handle)
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(tmp, path)
@@ -257,6 +258,11 @@ def write_json_atomic(path, data) -> None:
         with contextlib.suppress(OSError):
             os.unlink(tmp)
         raise
+
+
+def write_json_atomic(path, data) -> None:
+    """Write a .info atomically."""
+    write_atomic(path, lambda handle: json.dump(data, handle, indent=4))
 
 
 def _free_backup_path(info_path, when: datetime | None = None) -> str:

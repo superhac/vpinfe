@@ -1,8 +1,14 @@
 # vpxcollections.py
 import configparser
 import logging
+import os
 from pathlib import Path
 
+from common.tables.info_migration import (
+    backup_names,
+    copy_aside,
+    write_atomic,
+)
 from common.tables.metaconfig import VPINFE_SECTION
 from common.tables.table_identity import table_id
 from common.tables.table_metadata import (
@@ -247,6 +253,11 @@ class VPXCollections:
             if rewritten != members:
                 self.config[name][MEMBERS_KEY] = ",".join(rewritten)
 
+        # Keep what was there before the ids move. This is the other file a newer
+        # VPinFE rewrites, and until now it had no copy to go back to.
+        if self.ini_path.exists():
+            logger.info("Kept the pre-migration collections at %s",
+                        copy_aside(str(self.ini_path)))
         self._stamp_schema()
         self.save()
         logger.info("Collection membership moved onto table ids: %s moved, %s left "
@@ -254,9 +265,8 @@ class VPXCollections:
         return moved
 
     def save(self):
-        """Write collections back to disk."""
-        with self.ini_path.open("w") as f:
-            self.config.write(f)
+        """Write collections back to disk, atomically."""
+        write_atomic(self.ini_path, self.config.write)
 
     # ------------------------------------------------------------------
     # NEW JSON METADATA AWARE FILTERING
@@ -295,3 +305,40 @@ class VPXCollections:
             result.sort(key=lambda t: _get_display_title(t).lower())
 
         return result
+
+
+COLLECTIONS_NAME = "collections.ini"
+
+
+def collections_schema(path) -> int | None:
+    """The schema a saved collections file declares, or None if it predates versioning."""
+    parser = configparser.ConfigParser()
+    parser.read(path, encoding="utf-8")
+    if SCHEMA_SECTION not in parser:
+        return None
+    try:
+        return int(parser[SCHEMA_SECTION].get(SCHEMA_KEY, 0) or 0) or None
+    except (TypeError, ValueError):
+        return None
+
+
+def restorable_collections_backup(config_dir, max_schema: int = CURRENT_SCHEMA) -> str | None:
+    """The saved collections file this build would put back, or None.
+
+    Newest readable wins, same as a .info. A copy written by a newer build is stepped over.
+    """
+    config_dir = Path(config_dir)
+    try:
+        names = os.listdir(config_dir)
+    except OSError:
+        return None
+    for name in backup_names(names, COLLECTIONS_NAME):
+        candidate = config_dir / name
+        try:
+            schema = collections_schema(candidate)
+        except (OSError, ValueError):
+            logger.warning("Unreadable collections backup, skipping: %s", candidate)
+            continue
+        if schema is None or schema <= max_schema:
+            return str(candidate)
+    return None

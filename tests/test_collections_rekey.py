@@ -7,7 +7,13 @@ from unittest import mock
 
 from common.tables import table_repository
 from common.tables.metaconfig import MetaConfig
-from common.tables.vpxcollections import CURRENT_SCHEMA, SCHEMA_SECTION, VPXCollections
+from common.tables.vpxcollections import (
+    CURRENT_SCHEMA,
+    SCHEMA_SECTION,
+    VPXCollections,
+    collections_schema,
+    restorable_collections_backup,
+)
 
 
 def _table(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", table_id: str = ""):
@@ -243,3 +249,65 @@ class DisplayPathTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BackupTests(unittest.TestCase):
+    """Collections are the other file this branch rewrites.
+
+    The .info migration has kept a copy since the start; this one did not, and it moves
+    membership onto ids an older build cannot resolve - so without a copy a downgrade left
+    every collection reading as empty with nothing to go back to.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.ini = self.root / "collections.ini"
+
+    def _backups(self):
+        return sorted(p for p in self.root.iterdir() if ".vpinfe-" in p.name)
+
+    def test_the_migration_keeps_the_file_it_is_about_to_rewrite(self):
+        collections = _collections(self.ini, {"Favorites": ["vps-1"]})
+        before = self.ini.read_text(encoding="utf-8")
+
+        collections.migrate_membership_to_table_ids(
+            [_table(self.root, "Dr. Dude", vpsid="vps-1", table_id="tid-1")])
+
+        backups = self._backups()
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_text(encoding="utf-8"), before)
+
+    def test_a_run_that_changes_nothing_leaves_no_backup(self):
+        """It records that it has run, so a second startup does no work and keeps no copy."""
+        collections = _collections(self.ini, {"Favorites": ["vps-1"]})
+        collections.migrate_membership_to_table_ids(
+            [_table(self.root, "Dr. Dude", vpsid="vps-1", table_id="tid-1")])
+
+        VPXCollections(str(self.ini)).migrate_membership_to_table_ids([])
+
+        self.assertEqual(len(self._backups()), 1)
+
+    def test_the_saved_copy_is_the_one_this_build_would_restore(self):
+        collections = _collections(self.ini, {"Favorites": ["vps-1"]})
+        collections.migrate_membership_to_table_ids(
+            [_table(self.root, "Dr. Dude", vpsid="vps-1", table_id="tid-1")])
+
+        chosen = restorable_collections_backup(self.root)
+
+        self.assertIsNotNone(chosen)
+        self.assertIsNone(collections_schema(chosen),
+                          "the pre-migration copy predates versioning")
+
+    def test_an_interrupted_save_leaves_the_previous_file_intact(self):
+        collections = _collections(self.ini, {"Favorites": ["vps-1"]})
+        before = self.ini.read_text(encoding="utf-8")
+
+        with mock.patch.object(collections.config, "write",
+                               side_effect=OSError("disk went away")):
+            with self.assertRaises(OSError):
+                collections.save()
+
+        self.assertEqual(self.ini.read_text(encoding="utf-8"), before)
+        self.assertEqual([p.name for p in self.root.iterdir()], ["collections.ini"])

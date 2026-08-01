@@ -24,7 +24,7 @@ _MUTED = ('color: var(--ink-muted) !important; background: var(--surface) !impor
           'border: 1px solid var(--line); border-radius: 18px; padding: 4px 10px;')
 
 UPGRADE_INTRO = (
-    "Upgrades the .info files that were missed. Ratings, favourites, tags and play "
+    "Upgrades the .info files that were missed. Ratings, favorites, tags and play "
     "counts carry over unchanged, and each file is backed up first."
 )
 
@@ -34,8 +34,8 @@ UPGRADE_DETAIL = (
 )
 
 RESTORE_INTRO = (
-    "Puts your ratings, favourites, tags and play counts back to how they were{when}. "
-    "Your current .info files are backed up first."
+    "Puts your ratings, favorites, tags, play counts and collections back to how they "
+    "were{when}. Your current files are backed up first."
 )
 
 RESTORE_DETAIL = (
@@ -50,6 +50,23 @@ def _refresh_banners() -> None:
         render_info_banners.refresh()
     except Exception:
         logger.debug("Banner refresh skipped", exc_info=True)
+
+
+def _subject(count: int, collections: bool) -> str:
+    """What was upgraded, named the way the user would name it."""
+    if count and collections:
+        return f"{_files(count)} and your collections"
+    if collections:
+        return "your collections"
+    return _files(count)
+
+
+def _collections_restorable() -> bool:
+    try:
+        return table_service.collections_restorable()
+    except Exception:
+        logger.exception("Could not check for a saved collections file")
+        return False
 
 
 def _tables(n: int) -> str:
@@ -202,7 +219,8 @@ def open_restore_dialog(on_done=None) -> None:
         logger.exception("Could not list tables with a saved .info")
         names = []
 
-    if not names:
+    collections = _collections_restorable()
+    if not names and not collections:
         ui.notify("There are no backups to restore.", type='info')
         return
 
@@ -221,13 +239,13 @@ def open_restore_dialog(on_done=None) -> None:
 UPGRADED_NOTICE_SEEN = "info_upgrade_notice_seen"
 
 
-def _strip(icon: str, colour: str, headline: str, detail: str, actions) -> None:
+def _strip(icon: str, color: str, headline: str, detail: str, actions) -> None:
     # grow/min-w-0 and flex-nowrap together: without them a long detail line pushes the
     # icon onto a line of its own.
     with ui.card().classes('w-full mb-3').style(
-            f'background: var(--surface-soft); border: 1px solid {colour};'):
+            f'background: var(--surface-soft); border: 1px solid {color};'):
         with ui.row().classes('w-full items-center gap-4 px-4 py-3 flex-wrap md:flex-nowrap'):
-            ui.icon(icon, size='24px').classes('shrink-0').style(f'color: {colour};')
+            ui.icon(icon, size='24px').classes('shrink-0').style(f'color: {color};')
             with ui.column().classes('gap-1 grow min-w-0'):
                 ui.label(headline).classes('text-sm font-medium').style('color: var(--ink);')
                 ui.label(detail).classes('text-xs').style('color: var(--ink-muted);')
@@ -279,9 +297,9 @@ def _render_newer_warning(newer: int) -> None:
     """
     _strip(
         'history', 'var(--neon-pink)',
-        f'A newer VPinFE upgraded {_files(newer)}.',
+        f'A newer VPinFE upgraded {_subject(newer, _collections_restorable())}.',
         'This version can only read part of them, so some details may be missing. Restore '
-        'puts your ratings, favourites, tags and play counts back to how this version '
+        'puts your ratings, favorites, tags and play counts back to how this version '
         'recorded them.',
         lambda: ui.button('Restore backups', icon='history',
                           on_click=lambda: open_restore_dialog()).style(_ACCENT),

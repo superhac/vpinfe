@@ -20,6 +20,7 @@ from common.tables.table_metadata import section as meta_section
 from common.tables.table_metadata import vpinfe_section
 from common.tables.vpxparser import VPXParser
 
+from common.paths import CONFIG_DIR
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_tables_path
 from managerui.services import table_index_service
 
@@ -420,6 +421,13 @@ def newest_backup_stamp():
     return table_repository.newest_backup_stamp()
 
 
+def collections_restorable():
+    """Whether a newer VPinFE left a collections file this build can put back."""
+    from common.tables.vpxcollections import restorable_collections_backup
+
+    return bool(restorable_collections_backup(CONFIG_DIR))
+
+
 def restorable_table_names():
     return table_repository.restorable_table_names()
 
@@ -442,7 +450,8 @@ def restore_info(progress_cb=None, log_cb=None, **kwargs):
     """Put back the .info files saved before upgrade, for every table that has one."""
     with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as job:
         result = info_maintenance.restore_library(
-            get_tables_path(), progress_cb=job.progress, log_cb=job.log, **kwargs)
+            get_tables_path(), config_dir=CONFIG_DIR,
+            progress_cb=job.progress, log_cb=job.log, **kwargs)
     table_repository.refresh_tables()
     return result
 
