@@ -404,7 +404,7 @@ def build_metadata(*args, progress_cb=None, log_cb=None, job=None, **kwargs):
 
 
 def info_maintenance_counts(reload: bool = False):
-    """What the Tables page needs to decide whether to offer conversion or a restore."""
+    """What the Tables page needs to decide whether to offer upgrade or a restore."""
     return table_repository.info_maintenance_counts(reload=reload)
 
 
@@ -413,22 +413,22 @@ def restorable_table_names():
     return table_repository.restorable_table_names()
 
 
-def convert_info(progress_cb=None, log_cb=None, **kwargs):
-    """Convert every table's .info in one pass.
+def upgrade_info(progress_cb=None, log_cb=None, **kwargs):
+    """Upgrade every table's .info in one pass.
 
     Registered as a library scan rather than a kind of its own: the point of the kind is
     that two things rewriting the same .info files must not overlap, and this rewrites
     exactly the files a scan does.
     """
     with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as job:
-        result = info_maintenance.convert_library(
+        result = info_maintenance.upgrade_library(
             get_tables_path(), progress_cb=job.progress, log_cb=job.log, **kwargs)
     table_repository.refresh_tables()
     return result
 
 
 def restore_info(progress_cb=None, log_cb=None, **kwargs):
-    """Put back the .info files saved before conversion, for every table that has one."""
+    """Put back the .info files saved before upgrade, for every table that has one."""
     with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as job:
         result = info_maintenance.restore_library(
             get_tables_path(), progress_cb=job.progress, log_cb=job.log, **kwargs)

@@ -100,7 +100,7 @@ class TableParser:
 
         info_name = f"{table.tableDirName}.info"
         # Only folders that hold a backup read one, which for a library nothing has
-        # converted is none of them.
+        # upgraded is none of them.
         table.info_restorable = bool(
             backup_names(table_contents, info_name)
             and restorable_backup(table_dir, names=table_contents))
@@ -209,7 +209,7 @@ class TableParser:
             logger.error("Invalid metadata for table '%s': %s", Table.tableDirName, exc)
             raise
         Table.metaConfig = meta.data
-        Table.info_pending_convert = meta.pending_migration
+        Table.info_pending_upgrade = meta.pending_migration
 
     def getTable(self, index):
         return self.tables[index]

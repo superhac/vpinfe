@@ -64,7 +64,7 @@ def is_versioned(data) -> bool:
     Only the section we write today counts. A `schema` in the old PascalCase section is
     a different number that meant something else - the shape of that section alone, from
     a 3.0 build before the rename - and reading it as "already migrated" leaves the file
-    half converted: no game_files, and every consumer of them empty.
+    half upgraded: no game_files, and every consumer of them empty.
     """
     if not isinstance(data, dict):
         return False
@@ -188,7 +188,7 @@ def restorable_backup(table_dir, max_schema: int = CURRENT_SCHEMA, names=None) -
     rather than ending the search - the one behind it is usually what is wanted.
 
     Reads each candidate, so callers pass `names` when they have already listed the folder.
-    Only folders that hold a backup pay for it, which for anyone who never converted is
+    Only folders that hold a backup pay for it, which for anyone who never upgraded is
     none of them.
     """
     table_dir = Path(table_dir)

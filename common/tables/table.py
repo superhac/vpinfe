@@ -50,5 +50,5 @@ class Table:
     # info_restorable means a backup this build can actually read, not merely a backup.
     # After a restore the folder still holds the copies it could not use, and counting
     # those would leave the offer on screen with nothing behind it.
-    info_pending_convert: bool = False
+    info_pending_upgrade: bool = False
     info_restorable: bool = False

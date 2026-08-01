@@ -121,9 +121,9 @@ class MetaConfig:
 
     @property
     def pending_migration(self) -> bool:
-        """Whether this file converted on read and has not been written back yet.
+        """Whether this file upgraded on read and has not been written back yet.
 
-        The lazy path means "has the library converted" has no answer without asking every
+        The lazy path means "has the library upgraded" has no answer without asking every
         file. This is how the caller asks one.
         """
         return bool(self._pre_migration)

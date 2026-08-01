@@ -1,11 +1,11 @@
-"""Converting the library's .info files, and putting them back.
+"""Upgrading the library's .info files, and putting them back.
 
-Tables convert one at a time as they are used, so a library is normally a mix of shapes
+Tables upgrade one at a time as they are used, so a library is normally a mix of shapes
 and the user has no way to see which is which. The banner here is the only place that
-answers "is my library converted yet", and it removes itself once the answer is yes.
+answers "is my library upgraded yet", and it removes itself once the answer is yes.
 
 Both operations are all-or-nothing across the library: the user did not choose which
-tables converted - their play habits did - so they cannot be asked to choose which ones
+tables upgraded - their play habits did - so they cannot be asked to choose which ones
 come back.
 """
 
@@ -28,7 +28,7 @@ _MUTED = ('color: var(--ink-muted) !important; background: var(--surface) !impor
           'border: 1px solid var(--line); border-radius: 18px; padding: 4px 10px;')
 
 CONVERT_INTRO = (
-    "Converts every table's .info file to the format this version uses. Your ratings, "
+    "Upgrades every table's .info file to the format this version uses. Your ratings, "
     "favourites, tags and play counts come across unchanged, and the file being replaced "
     "is saved beside it so this can be undone."
 )
@@ -39,14 +39,13 @@ CONVERT_DETAIL = (
 )
 
 RESTORE_INTRO = (
-    "Puts back the .info file saved before each table was converted. Ratings, favourites, "
-    "tags and play counts go back to what that older version recorded. Your current file "
-    "is saved first, so this can be undone too."
+    "Puts your ratings, favourites, tags and play counts back to how they were before "
+    "the upgrade. Your current .info files are backed up first."
 )
 
 RESTORE_DETAIL = (
-    "This version converts tables again as you use them, so restore if you are about to "
-    "go back to an older VPinFE."
+    "Only worth doing if you are going back to an older VPinFE - this version upgrades "
+    "them again on the next start."
 )
 
 
@@ -55,7 +54,7 @@ def _counts(reload: bool = False) -> dict:
         return table_service.info_maintenance_counts(reload=reload)
     except Exception:
         logger.exception("Could not read info maintenance counts")
-        return {"pending_convert": 0, "restorable": 0}
+        return {"pending_upgrade": 0, "restorable": 0}
 
 
 def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
@@ -157,13 +156,13 @@ def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
     dlg.open()
 
 
-def open_convert_dialog(on_done=None) -> None:
+def open_upgrade_dialog(on_done=None) -> None:
     _run_dialog(
-        title='Convert table info',
+        title='Upgrade .info files',
         intro=CONVERT_INTRO,
         detail=CONVERT_DETAIL,
-        confirm_label='Convert all',
-        action=table_service.convert_info,
+        confirm_label='Upgrade all',
+        action=table_service.upgrade_info,
         on_done=on_done,
     )
 
@@ -176,12 +175,11 @@ def open_restore_dialog(on_done=None) -> None:
         names = []
 
     if not names:
-        ui.notify("No table has an older .info saved, so there is nothing to put back.",
-                  type='info')
+        ui.notify("There are no backups to restore.", type='info')
         return
 
     _run_dialog(
-        title='Restore table info',
+        title='Restore backups',
         intro=RESTORE_INTRO,
         detail=RESTORE_DETAIL,
         confirm_label='Restore all',
@@ -191,14 +189,14 @@ def open_restore_dialog(on_done=None) -> None:
     )
 
 
-def render_convert_banner(on_done=None) -> None:
-    """Offer a one-pass conversion while any table still needs one.
+def render_info_banners(on_done=None) -> None:
+    """Offer a one-pass upgrade while any table still needs one.
 
     Deliberately phrased as an offer rather than a warning: the lazy path is working as
     designed and nothing is wrong. It stops rendering for good once the count is zero,
     which is what makes it an answer rather than a nag.
     """
-    pending = _counts().get('pending_convert', 0)
+    pending = _counts().get('pending_upgrade', 0)
     if not pending:
         return
 
@@ -209,18 +207,18 @@ def render_convert_banner(on_done=None) -> None:
             with ui.row().classes('items-center gap-3'):
                 ui.icon('info', size='20px').style('color: var(--neon-cyan);')
                 with ui.column().classes('gap-1'):
-                    ui.label('Your tables convert to the new info format as you use them.'
+                    ui.label('Your tables upgrade to the new info format as you use them.'
                              ).classes('text-sm').style('color: var(--ink);')
-                    ui.label(f'{tables} still to go — convert them all now if you would '
+                    ui.label(f'{tables} still to go — upgrade them all now if you would '
                              'rather do it in one pass.').classes('text-xs').style(
                         'color: var(--ink-muted);')
-            ui.button('Convert all', icon='check',
-                      on_click=lambda: open_convert_dialog(on_done)).style(_ACCENT)
+            ui.button('Upgrade all', icon='check',
+                      on_click=lambda: open_upgrade_dialog(on_done)).style(_ACCENT)
 
 
 def maintenance_menu(on_done=None) -> None:
     """Both operations, in the same place in every build so a downgrade keeps them there."""
     with ui.button(icon='build_circle').props('flat').tooltip('Table info maintenance'):
         with ui.menu():
-            ui.menu_item('Convert table info', lambda: open_convert_dialog(on_done))
-            ui.menu_item('Restore table info', lambda: open_restore_dialog(on_done))
+            ui.menu_item('Upgrade .info files', lambda: open_upgrade_dialog(on_done))
+            ui.menu_item('Restore backups', lambda: open_restore_dialog(on_done))

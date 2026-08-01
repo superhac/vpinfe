@@ -1,6 +1,6 @@
-"""Converting a whole library at once, and putting it back.
+"""Upgrading a whole library at once, and putting it back.
 
-Both walks exist because the lazy path converts a table only when something writes it, so
+Both walks exist because the lazy path upgrades a table only when something writes it, so
 a library is a mix of shapes and the user cannot tell which is which. What matters here is
 that neither walk stops on one bad folder and that nothing is ever destroyed.
 """
@@ -13,7 +13,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common.tables.info_maintenance import (
-    convert_library,
+    upgrade_library,
     restorable_backup,
     restore_library,
     table_dirs,
@@ -49,14 +49,14 @@ class LibraryTestCase(unittest.TestCase):
         return sorted(p for p in table_dir.iterdir() if ".vpinfe-" in p.name)
 
 
-class ConvertTests(LibraryTestCase):
-    def test_it_converts_every_table_in_one_pass(self):
+class UpgradeTests(LibraryTestCase):
+    def test_it_upgrades_every_table_in_one_pass(self):
         for name in ("Dr. Dude", "Taxi", "Whirlwind"):
             self._table(name)
 
-        result = convert_library(self.root)
+        result = upgrade_library(self.root)
 
-        self.assertEqual(result["converted"], 3)
+        self.assertEqual(result["upgraded"], 3)
         self.assertEqual(result["failed"], 0)
         for name in ("Dr. Dude", "Taxi", "Whirlwind"):
             after = self._info(self.root / name)
@@ -67,19 +67,19 @@ class ConvertTests(LibraryTestCase):
         table = self._table("Dr. Dude")
         original = (table / "Dr. Dude.info").read_text(encoding="utf-8")
 
-        convert_library(self.root)
+        upgrade_library(self.root)
 
         backups = self._backups(table)
         self.assertEqual(len(backups), 1)
         self.assertEqual(backups[0].read_text(encoding="utf-8"), original)
 
-    def test_running_it_twice_converts_nothing_the_second_time(self):
+    def test_running_it_twice_upgrades_nothing_the_second_time(self):
         self._table("Dr. Dude")
-        convert_library(self.root)
+        upgrade_library(self.root)
 
-        result = convert_library(self.root)
+        result = upgrade_library(self.root)
 
-        self.assertEqual(result["converted"], 0)
+        self.assertEqual(result["upgraded"], 0)
         self.assertEqual(result["already_current"], 1)
         self.assertEqual(len(self._backups(self.root / "Dr. Dude")), 1)
 
@@ -90,9 +90,9 @@ class ConvertTests(LibraryTestCase):
         broken = self._table("Broken")
         (broken / "Broken.info").write_text("{ not json", encoding="utf-8")
 
-        result = convert_library(self.root)
+        result = upgrade_library(self.root)
 
-        self.assertEqual(result["converted"], 1)
+        self.assertEqual(result["upgraded"], 1)
         self.assertEqual(result["failed"], 1)
         self.assertEqual(result["failures"][0][0], "Broken")
         self.assertEqual((broken / "Broken.info").read_text(encoding="utf-8"), "{ not json")
@@ -100,26 +100,26 @@ class ConvertTests(LibraryTestCase):
     def test_a_folder_with_no_info_is_left_alone(self):
         self._table("No Meta", meta=None)
 
-        result = convert_library(self.root)
+        result = upgrade_library(self.root)
 
-        self.assertEqual(result["converted"], 0)
+        self.assertEqual(result["upgraded"], 0)
         self.assertEqual(result["failed"], 0)
 
-    def test_one_table_can_be_converted_on_its_own(self):
+    def test_one_table_can_be_upgraded_on_its_own(self):
         self._table("Dr. Dude")
         self._table("Taxi")
 
-        result = convert_library(self.root, table_name="Taxi")
+        result = upgrade_library(self.root, table_name="Taxi")
 
-        self.assertEqual(result["converted"], 1)
+        self.assertEqual(result["upgraded"], 1)
         self.assertNotIn("vpinfe", self._info(self.root / "Dr. Dude"))
 
 
 class RestoreTests(LibraryTestCase):
-    def test_it_puts_back_everything_that_was_converted(self):
+    def test_it_puts_back_everything_that_was_upgraded(self):
         for name in ("Dr. Dude", "Taxi"):
             self._table(name)
-        convert_library(self.root)
+        upgrade_library(self.root)
 
         result = restore_library(self.root)
 
@@ -130,7 +130,7 @@ class RestoreTests(LibraryTestCase):
             self.assertEqual(after["User"]["Rating"], 4)
             self.assertNotIn("vpinfe", after)
 
-    def test_a_table_that_never_converted_is_left_alone(self):
+    def test_a_table_that_never_upgraded_is_left_alone(self):
         self._table("Dr. Dude")
 
         result = restore_library(self.root)
@@ -141,21 +141,21 @@ class RestoreTests(LibraryTestCase):
 
     def test_the_current_file_is_kept_so_the_restore_is_reversible(self):
         table = self._table("Dr. Dude")
-        convert_library(self.root)
-        converted = (table / "Dr. Dude.info").read_text(encoding="utf-8")
+        upgrade_library(self.root)
+        upgraded = (table / "Dr. Dude.info").read_text(encoding="utf-8")
 
         restore_library(self.root)
 
         backups = self._backups(table)
         self.assertEqual(len(backups), 2)
-        self.assertIn(converted, [b.read_text(encoding="utf-8") for b in backups])
+        self.assertIn(upgraded, [b.read_text(encoding="utf-8") for b in backups])
 
     def test_a_backup_this_build_cannot_read_is_passed_over_not_treated_as_the_end(self):
         """A 2.x build must not restore a schema 2 file, but the unversioned copy sitting
         behind it is still exactly what it wants. Newer backups are stepped over, not a
         dead end."""
         table = self._table("Dr. Dude")
-        convert_library(self.root)
+        upgrade_library(self.root)
         restore_library(self.root)          # back to 2.x, and the schema 2 copy is kept
 
         as_2x = restorable_backup(table, max_schema=0)
@@ -165,11 +165,11 @@ class RestoreTests(LibraryTestCase):
 
     def test_the_newest_readable_backup_wins(self):
         table = self._table("Dr. Dude")
-        convert_library(self.root)
+        upgrade_library(self.root)
         restore_library(self.root)
         (table / "Dr. Dude.info").write_text(
             json.dumps({**LEGACY, "User": {"Rating": 1}}), encoding="utf-8")
-        convert_library(self.root)
+        upgrade_library(self.root)
 
         restore_library(self.root, max_schema=0)
 
@@ -177,7 +177,7 @@ class RestoreTests(LibraryTestCase):
 
     def test_an_unreadable_backup_is_skipped_rather_than_restored(self):
         table = self._table("Dr. Dude")
-        convert_library(self.root)
+        upgrade_library(self.root)
         (table / "Dr. Dude.info.vpinfe-20990101T000000Z").write_text("{ broken", "utf-8")
 
         result = restore_library(self.root)
@@ -189,7 +189,7 @@ class RestoreTests(LibraryTestCase):
         """The file most likely to need restoring is the one too broken to parse. Refusing
         to keep it would block the rescue to protect a copy nobody wants back."""
         table = self._table("Dr. Dude")
-        convert_library(self.root)
+        upgrade_library(self.root)
         (table / "Dr. Dude.info").write_text("{ truncated", encoding="utf-8")
 
         result = restore_library(self.root)
