@@ -30,11 +30,15 @@ jobs:
 
       # New files must be clean, so new code is born compliant while older code
       # is cleaned up when it is touched rather than in one enormous diff.
+      #
+      # -M20% because a file that moved packages and was rewritten scores below git's
+      # default 50% and comes back as added, which judges old code by the new-file rule.
+      # The moves on this branch score 20% to 100%; 20 is the floor that catches them all.
       - name: Lint newly added files (blocking)
         if: github.event_name == 'pull_request'
         run: |
           base="${{ github.event.pull_request.base.sha }}"
-          added=$(git diff --diff-filter=A --name-only "$base"...HEAD -- '*.py')
+          added=$(git diff -M20% --diff-filter=A --name-only "$base"...HEAD -- '*.py')
           if [ -z "$added" ]; then
             echo "No new Python files in this PR."
             exit 0
