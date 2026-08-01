@@ -13,7 +13,7 @@ class TestVPinPlayService(unittest.TestCase):
         payload = _build_game_payload({
             "Info": {"VPSId": "vps-123"},
             "User": {"Rating": 4},
-            "game_files": {"t.vpx": {
+            "tables": {"t.vpx": {
                 "detect_nfozzy": True, "detect_fleep": True, "detect_ssf": True,
                 "detect_lut": True, "detect_scorbit": True, "detect_fastflips": True,
                 "detect_flex": True, "save_rev": "7",
@@ -33,7 +33,7 @@ class TestVPinPlayService(unittest.TestCase):
         bound rejects every other table with it.
         """
         payload = _build_game_payload(
-            {"Info": {"VPSId": "vps-123"}, "User": {"Rating": 7}, "game_files": {}, "vpinfe": {}})
+            {"Info": {"VPSId": "vps-123"}, "User": {"Rating": 7}, "tables": {}, "vpinfe": {}})
 
         assert payload is not None
         self.assertEqual(payload["user"]["rating"], 5)

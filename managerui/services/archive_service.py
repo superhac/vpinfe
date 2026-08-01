@@ -36,7 +36,7 @@ def resolve_game_dir(game_dir_name: str, games_path: str | None = None) -> Path:
 
 def create_vpxz_archive(game_dir_name: str, games_path: str | None = None, *,
                         everything: bool = False,
-                        game_file: str | None = None) -> VpxzArchive:
+                        table: str | None = None) -> VpxzArchive:
     """Create a temporary .vpxz archive for a table.
 
     Default is the standalone bundle for one game file - export a game, not a
@@ -50,7 +50,7 @@ def create_vpxz_archive(game_dir_name: str, games_path: str | None = None, *,
     tmp_dir = tempfile.mkdtemp()
     vpxz_path = os.path.join(tmp_dir, f"{game_dir.name}.vpxz")
 
-    contents = list(bundle_paths(game_dir, everything=everything, game_file=game_file))
+    contents = list(bundle_paths(game_dir, everything=everything, table=table))
     # Forward slashes: an arcname carries the OS separator, an assets key never does.
     bundled_arcnames = {str(arcname).replace(os.sep, "/") for _, arcname in contents}
     info_name = f"{game_dir.name}.info"

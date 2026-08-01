@@ -16,10 +16,10 @@ from common.media_paths import MEDIA_SPECS, resolve_media_files
 from managerui.services.media_service import replace_media_file, source_media_path
 
 FOLDER = "Cactus Canyon (Bally 1998)"
-GAME_FILE = "Cactus Canyon (Bally 1998) - VPW 1.2"
+TABLE = "Cactus Canyon (Bally 1998) - VPW 1.2"
 
 
-def _resolve(medias, root=(), stem=GAME_FILE):
+def _resolve(medias, root=(), stem=TABLE):
     return resolve_media_files(f"/games/{FOLDER}", set(root), set(medias),
                                "table", stem)
 
@@ -31,19 +31,19 @@ class TierTests(unittest.TestCase):
         self.assertEqual(resolved["wheel"].name, "wheel.png")
         self.assertEqual(resolved["bg"].name, "bg.png")
 
-    def test_a_game_file_wheel_beats_the_folder_and_default_ones(self) -> None:
-        resolved = _resolve([f"(Wheel) {GAME_FILE}.png", f"(Wheel) {FOLDER}.png",
+    def test_a_table_wheel_beats_the_folder_and_default_ones(self) -> None:
+        resolved = _resolve([f"(Wheel) {TABLE}.png", f"(Wheel) {FOLDER}.png",
                              "wheel.png"])
 
-        self.assertEqual(resolved["wheel"].name, f"(Wheel) {GAME_FILE}.png")
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {TABLE}.png")
 
     def test_a_folder_wheel_beats_the_default_one(self) -> None:
         resolved = _resolve([f"(Wheel) {FOLDER}.png", "wheel.png"])
 
         self.assertEqual(resolved["wheel"].name, f"(Wheel) {FOLDER}.png")
 
-    def test_without_a_game_file_stem_tier_one_is_simply_skipped(self) -> None:
-        resolved = _resolve([f"(Wheel) {GAME_FILE}.png", "wheel.png"], stem=None)
+    def test_without_a_table_stem_tier_one_is_simply_skipped(self) -> None:
+        resolved = _resolve([f"(Wheel) {TABLE}.png", "wheel.png"], stem=None)
 
         self.assertEqual(resolved["wheel"].name, "wheel.png",
                          "a stranger build's spec file is not this table's wheel")
@@ -153,11 +153,11 @@ class TokenAliasTests(unittest.TestCase):
 
         self.assertEqual(resolved["rulecard"].name, f"(RuleCard) {FOLDER}.png")
 
-    def test_a_game_file_alias_still_beats_a_folder_level_preferred_token(self) -> None:
+    def test_a_table_alias_still_beats_a_folder_level_preferred_token(self) -> None:
         """Tier outranks token preference, or "most specific wins" would not hold."""
-        resolved = _resolve([f"(GameHelp) {GAME_FILE}.png", f"(RuleCard) {FOLDER}.png"])
+        resolved = _resolve([f"(GameHelp) {TABLE}.png", f"(RuleCard) {FOLDER}.png"])
 
-        self.assertEqual(resolved["rulecard"].name, f"(GameHelp) {GAME_FILE}.png")
+        self.assertEqual(resolved["rulecard"].name, f"(GameHelp) {TABLE}.png")
 
     def test_aliases_are_only_where_the_published_name_is_opaque(self) -> None:
         aliased = {spec.key for spec in MEDIA_SPECS if spec.alt_tokens}
@@ -192,10 +192,10 @@ class LogoTests(unittest.TestCase):
 
     def test_any_real_wheel_outranks_the_logo_fallback(self) -> None:
         """The fallback sits below every wheel tier - even tier 3."""
-        resolved = _resolve([f"(Logo) {GAME_FILE}.png", "wheel.png"])
+        resolved = _resolve([f"(Logo) {TABLE}.png", "wheel.png"])
 
         self.assertEqual(resolved["wheel"].name, "wheel.png")
-        self.assertEqual(resolved["logo"].name, f"(Logo) {GAME_FILE}.png")
+        self.assertEqual(resolved["logo"].name, f"(Logo) {TABLE}.png")
 
     def test_the_logo_itself_resolves_through_the_full_chain(self) -> None:
         resolved = _resolve([f"(Logo) {FOLDER}.png", "logo.png"])
@@ -217,7 +217,7 @@ class WheelSetTests(unittest.TestCase):
 
     def _resolve_sets(self, medias, active=None, root=()):
         return resolve_media_files(f"/games/{FOLDER}", set(root), set(medias),
-                                   "table", GAME_FILE,
+                                   "table", TABLE,
                                    {"wheel": active} if active else None)
 
     def test_an_active_set_beats_the_plain_default(self) -> None:
@@ -229,11 +229,11 @@ class WheelSetTests(unittest.TestCase):
 
     def test_a_users_spec_named_file_still_beats_the_set(self) -> None:
         """Activating a set never clobbers a hand-made per-version wheel."""
-        resolved = self._resolve_sets([f"(Wheel) {GAME_FILE}.png",
+        resolved = self._resolve_sets([f"(Wheel) {TABLE}.png",
                                        "wheels/tarcisio/wheel.png"],
                                       active="tarcisio")
 
-        self.assertEqual(resolved["wheel"].name, f"(Wheel) {GAME_FILE}.png")
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {TABLE}.png")
 
     def test_the_set_resolves_its_own_full_chain(self) -> None:
         resolved = self._resolve_sets([f"wheels/tarcisio/(Wheel) {FOLDER}.png",
@@ -261,10 +261,10 @@ class WheelSetTests(unittest.TestCase):
         self.assertEqual(resolved["wheel"].name, "logo.png")
 
     def test_the_virtual_logo_set_still_loses_to_a_users_spec_file(self) -> None:
-        resolved = self._resolve_sets([f"(Wheel) {GAME_FILE}.png", "logo.png"],
+        resolved = self._resolve_sets([f"(Wheel) {TABLE}.png", "logo.png"],
                                       active="logo")
 
-        self.assertEqual(resolved["wheel"].name, f"(Wheel) {GAME_FILE}.png")
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {TABLE}.png")
 
     def test_the_virtual_logo_set_falls_back_to_the_wheel_it_shunned(self) -> None:
         """A logo-less table under the logo set keeps its wheel - never a
@@ -351,12 +351,12 @@ class ParserCasingTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / FOLDER
             (root / "medias").mkdir(parents=True)
-            (root / f"{GAME_FILE}.vpx").write_bytes(b"vpx")
+            (root / f"{TABLE}.vpx").write_bytes(b"vpx")
             for name in ("PUPVideos", "Serum", "VNI", "Music"):
                 (root / name).mkdir()
             (root / f"{FOLDER}.info").write_text(json.dumps({
                 "Info": {"Title": "Cactus Canyon"},
-                "VPXFile": {"filename": f"{GAME_FILE}.vpx"},
+                "VPXFile": {"filename": f"{TABLE}.vpx"},
             }), encoding="utf-8")
 
             game = GameParser(tmp).getAllGames()[0]
@@ -436,20 +436,20 @@ class ParserOrderTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / FOLDER
             (root / "medias").mkdir(parents=True)
-            for name in (f"{GAME_FILE}.vpx", "some other build.vpx"):
+            for name in (f"{TABLE}.vpx", "some other build.vpx"):
                 (root / name).write_bytes(b"vpx")
             (root / f"{FOLDER}.info").write_text(json.dumps({
                 "Info": {"Title": "Cactus Canyon"},
-                "VPXFile": {"filename": f"{GAME_FILE}.vpx"},
+                "VPXFile": {"filename": f"{TABLE}.vpx"},
             }), encoding="utf-8")
-            (root / "medias" / f"(Wheel) {GAME_FILE}.png").write_bytes(b"png")
+            (root / "medias" / f"(Wheel) {TABLE}.png").write_bytes(b"png")
             (root / "medias" / "(Wheel) some other build.png").write_bytes(b"png")
 
             parser = GameParser(tmp)
             game = parser.getAllGames()[0]
 
         self.assertEqual(os.path.basename(game.WheelImagePath),
-                         f"(Wheel) {GAME_FILE}.png",
+                         f"(Wheel) {TABLE}.png",
                          "the recorded build's wheel, not the other build's")
 
 

@@ -9,11 +9,11 @@ from typing import Dict, List, Optional
 from common import jobs
 from common.config_access import SettingsConfig
 from common.games import game_repository, info_maintenance, metadata_service
-from common.games.game_files import default_game_file, recorded_default
 from common.games.game_metadata import section as meta_section
 from common.games.game_metadata import vpinfe_section
 from common.games.game_repository import get_game_rows, get_missing_games, refresh_game
 from common.games.metaconfig import VPINFE_SECTION
+from common.games.tables import default_table, recorded_default
 from common.games.vpxcollections import VPXCollections
 from common.games.vpxparser import VPXParser
 from common.iniconfig import IniConfig
@@ -152,7 +152,7 @@ def _safe_upload_name(filename: str) -> str:
 
 def _find_vpx_file(game_dir: Path, preferred_filename: str = "") -> Path:
     names = [path.name for path in game_dir.iterdir() if path.is_file()]
-    chosen = default_game_file(names, game_dir.name, Path(preferred_filename or "").name)
+    chosen = default_table(names, game_dir.name, Path(preferred_filename or "").name)
     if not chosen:
         raise FileNotFoundError(f"No .vpx found in {game_dir}")
     return game_dir / chosen
@@ -191,7 +191,7 @@ def _write_replace(dest_file: Path, content: bytes) -> None:
     os.replace(tmp_file, dest_file)
 
 
-def replace_game_file(game_path: str, filename: str, content: bytes, file_type: str, current_vpx_filename: str = "") -> Dict[str, str]:
+def replace_table(game_path: str, filename: str, content: bytes, file_type: str, current_vpx_filename: str = "") -> Dict[str, str]:
     game_dir = Path(game_path).expanduser()
     if not game_dir.exists() or not game_dir.is_dir():
         raise FileNotFoundError(f"Table folder not found: {game_dir}")

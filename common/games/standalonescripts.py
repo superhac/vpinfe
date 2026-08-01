@@ -65,14 +65,14 @@ class StandaloneScripts:
                             try:
                                 game_dir = os.path.dirname(game.fullPathVPXfile)
                                 meta = MetaConfig(os.path.join(game_dir, game.tableDirName + '.info'))
-                                meta.setGameFileValue(vpxFileName, 'patch_applied', True)
+                                meta.setTableValue(vpxFileName, 'patch_applied', True)
                             except Exception:
                                 pass
                         else:
                             self.downloadPatch(os.path.splitext(game.fullPathVPXfile)[0] + ".vbs", patch["patched"]["url"])
                             # mark the .info file with patch_applied = true
                             try:
-                                meta.setGameFileValue(vpxFileName, 'patch_applied', True)
+                                meta.setTableValue(vpxFileName, 'patch_applied', True)
                             except Exception:
                                 pass
              except KeyError:
@@ -97,7 +97,7 @@ class StandaloneScripts:
                 # The .vbs sits beside the .vpx it patches and shares its stem, so
                 # the flag lands on that game file rather than on the whole table.
                 vpx_name = os.path.splitext(os.path.basename(filename))[0] + '.vpx'
-                meta.setGameFileValue(vpx_name, 'patch_applied', True)
+                meta.setTableValue(vpx_name, 'patch_applied', True)
             except Exception:
                 pass
         except requests.RequestException as exc:

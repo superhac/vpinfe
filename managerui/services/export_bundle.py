@@ -13,13 +13,13 @@ import json
 from collections.abc import Iterator
 from pathlib import Path
 
-from common.games.game_files import (
-    default_game_file,
-    game_file_names,
-    recorded_default,
-)
 from common.games.game_metadata import vpinfe_section
 from common.games.metaconfig import ASSETS_KEY
+from common.games.tables import (
+    default_table,
+    recorded_default,
+    table_names,
+)
 from managerui.services.asset_registry import (
     is_readme,  # noqa: F401  (one matcher, import and export)
 )
@@ -33,15 +33,15 @@ COMPANION_EXTENSIONS = (".ini", ".vbs", ".directb2s", ".pov", ".scv")
 
 
 
-def choose_game_file(game_dir: Path, game_file: str | None = None) -> str | None:
+def choose_table(game_dir: Path, table: str | None = None) -> str | None:
     """The bundle's game file: the caller's pick, else the table's default."""
     try:
         listing = [entry.name for entry in game_dir.iterdir() if entry.is_file()]
     except OSError:
         return None
-    names = game_file_names(listing)
-    if game_file:
-        return game_file if game_file in names else None
+    names = table_names(listing)
+    if table:
+        return table if table in names else None
 
     recorded = ""
     info_path = game_dir / f"{game_dir.name}.info"
@@ -50,7 +50,7 @@ def choose_game_file(game_dir: Path, game_file: str | None = None) -> str | None
             vpinfe_section(json.loads(info_path.read_text(encoding="utf-8"))))
     except (OSError, ValueError):
         pass
-    return default_game_file(listing, game_dir.name, recorded) or (names[0] if names else None)
+    return default_table(listing, game_dir.name, recorded) or (names[0] if names else None)
 
 
 def prune_info(info_text: str, bundled_arcnames: set[str]) -> str:
@@ -76,7 +76,7 @@ def prune_info(info_text: str, bundled_arcnames: set[str]) -> str:
 
 
 def bundle_paths(game_dir: Path, *, everything: bool = False,
-                 game_file: str | None = None) -> Iterator[tuple[Path, str]]:
+                 table: str | None = None) -> Iterator[tuple[Path, str]]:
     """(absolute path, folder-relative arcname) for everything the export holds.
 
     The .info is included here by name; writers call prune_info on its content
@@ -88,7 +88,7 @@ def bundle_paths(game_dir: Path, *, everything: bool = False,
                 yield path, str(path.relative_to(game_dir))
         return
 
-    chosen = choose_game_file(game_dir, game_file)
+    chosen = choose_table(game_dir, table)
     stem = Path(chosen).stem.lower() if chosen else None
     folder_stem = game_dir.name.lower()
 

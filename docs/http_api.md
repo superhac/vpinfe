@@ -56,7 +56,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library table count. The reference for logo packs and alias maps |
 | GET | `/api/v1/games` | List tables (`q`, `limit`, `offset`) |
 | GET | `/api/v1/games/{id}` | One table |
-| GET | `/api/v1/games/{id}/game-files` | The table's game files, with resolved assets and dependencies |
+| GET | `/api/v1/games/{id}/tables` | The table's game files, with resolved assets and dependencies |
 | GET | `/api/v1/games/{id}/media` | Every media kind, present or not |
 | GET | `/api/v1/games/{id}/media/{kind}` | Stream one media file |
 | GET | `/api/v1/games/{id}/archive` | Download the table as `.vpxz` — one game by default; `?file=` picks the build. `?full=true` (whole folder) carries its own scope, `tables:export_full` |
@@ -103,7 +103,7 @@ snake_case for the same reason — GitHub's and Stripe's among them.
 A table resource carries `id` (this install's id) and `vps_id` (correlation with VPSdb and
 friends). Sub-resources are linked from `links` rather than assembled by the client.
 
-Path segments are hyphenated (`/game-files`); JSON field names are `snake_case`
+Path segments are hyphenated (`/tables`); JSON field names are `snake_case`
 (`links.game_files`). Different namespaces, different conventions — hyphens read better in a
 URL and nothing has to be translated on the way into Python.
 
@@ -125,7 +125,7 @@ tell a fallback from the real thing. An unknown kind is an
 
 Assets come in two lenses, both computed from the folder at request time:
 
-- **The launch lens** — each entry in `GET .../game-files` reports what *that* game file
+- **The launch lens** — each entry in `GET .../tables` reports what *that* game file
   would use on launch, mirroring VPX's own lookup order per kind: `dedicated` (a file named
   for the game file), `shared` (the folder-named fallback), or `none` — plus the winning
   filename. A `.pov` never falls back to the folder name, because VPX doesn't.

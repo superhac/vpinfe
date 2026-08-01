@@ -13,17 +13,17 @@ VPX_SUFFIX = ".vpx"
 
 # One entry per .vpx, keyed by filename:
 #
-#   "game_files": {
+#   "tables": {
 #     "Table (VR Room).vpx": {"version": "1.2", "rom": "afm_113b", "hidden": false, ...}
 #   }
 #
 # A missing entry means a game file nothing has parsed, and a missing `hidden` means
 # visible.
-GAME_FILES_KEY = "game_files"
+TABLES_KEY = "tables"
 
 # Which game file is the default, kept in the vpinfe section because it is a table-level
 # choice rather than something a game file says about itself.
-DEFAULT_GAME_FILE_KEY = "default_game_file"
+DEFAULT_TABLE_KEY = "default_table"
 
 # What a game_files entry takes from a parse, in the parser's own names. The .vpx's
 # manufacturer/year/type can disagree with what VPS says in Info; both are kept.
@@ -83,12 +83,12 @@ def is_parsed(entry: dict | None) -> bool:
     return any(key in entry for key in PARSED_KEYS)
 
 
-def game_file_names(names: Iterable[str]) -> list[str]:
+def table_names(names: Iterable[str]) -> list[str]:
     """The game files in a folder listing, sorted case-insensitively."""
     return sorted((n for n in names if n.lower().endswith(VPX_SUFFIX)), key=str.lower)
 
 
-def hidden_game_files(settings: dict | None) -> set[str]:
+def hidden_tables(settings: dict | None) -> set[str]:
     """Filenames the user has hidden from the frontend. Hiding never deletes - a patch
     base has to stay on disk - it only stops the game file being offered.
     """
@@ -100,14 +100,14 @@ def hidden_game_files(settings: dict | None) -> set[str]:
     }
 
 
-def visible_game_files(names: Iterable[str], settings: dict | None = None) -> list[str]:
+def visible_tables(names: Iterable[str], settings: dict | None = None) -> list[str]:
     """The game files a frontend should offer. Each is independently launchable: several
     game files of one table are peers, not a primary with alternates."""
-    hidden = hidden_game_files(settings)
-    return [n for n in game_file_names(names) if n not in hidden]
+    hidden = hidden_tables(settings)
+    return [n for n in table_names(names) if n not in hidden]
 
 
-def default_game_file(names: Iterable[str], folder_name: str = "", recorded: str = "") -> str:
+def default_table(names: Iterable[str], folder_name: str = "", recorded: str = "") -> str:
     """Which game file a single-game-file consumer gets, or "" when there are none.
 
     Not "the one to launch" - every visible game file is launchable. This is for the
@@ -116,7 +116,7 @@ def default_game_file(names: Iterable[str], folder_name: str = "", recorded: str
     Falling through to the first by name is deterministic rather than correct, which is
     the point: the alternative is directory order.
     """
-    candidates = game_file_names(names)
+    candidates = table_names(names)
     if not candidates:
         return ""
 
@@ -133,11 +133,11 @@ def default_game_file(names: Iterable[str], folder_name: str = "", recorded: str
     return candidates[0]
 
 
-def game_file_entries(meta: dict | None) -> dict:
+def table_entries(meta: dict | None) -> dict:
     """The game_files section of a table's metadata, or {} when it has none."""
     if not isinstance(meta, dict):
         return {}
-    entries = meta.get(GAME_FILES_KEY)
+    entries = meta.get(TABLES_KEY)
     return entries if isinstance(entries, dict) else {}
 
 
@@ -150,4 +150,4 @@ def recorded_default(vpinfe: dict | None) -> str:
     """
     if not isinstance(vpinfe, dict):
         return ""
-    return str(vpinfe.get(DEFAULT_GAME_FILE_KEY, "") or "").strip()
+    return str(vpinfe.get(DEFAULT_TABLE_KEY, "") or "").strip()

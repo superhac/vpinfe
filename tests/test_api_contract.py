@@ -43,7 +43,7 @@ def _run_probe() -> dict:
         (game / "Example Table (Bally 1990).info").write_text(json.dumps({
             "Info": {"Title": "Example Table", "Manufacturer": "Bally", "Year": "1990",
                      "Type": "SS", "VPSId": "vps-example"},
-            "game_files": {"Example Table (Bally 1990).vpx": {"rom": "exmpl",
+            "tables": {"Example Table (Bally 1990).vpx": {"rom": "exmpl",
                                                             "detect_pinmame": True}},
             "User": {"Rating": 3},
         }), encoding="utf-8")
@@ -57,7 +57,7 @@ def _run_probe() -> dict:
         (multi / "Multi File (Bally 1991).vbs").write_text("' sidecar", encoding="utf-8")
         (multi / "Multi File (Bally 1991).info").write_text(json.dumps({
             "Info": {"Title": "Multi File", "VPSId": "vps-multi"},
-            "game_files": {
+            "tables": {
                 "Multi File (Bally 1991).vpx": {"rom": "multi"},
                 # Recorded but never parsed: a patched build knows where it came from
                 # before anything has opened it.
@@ -76,7 +76,7 @@ def _run_probe() -> dict:
         (mismatch / "Mismatch (Bally 1992).vpx").write_bytes(b"vpx")
         (mismatch / "Mismatch (Bally 1992).info").write_text(json.dumps({
             "Info": {"Title": "Mismatch", "VPSId": "vps-mismatch"},
-            "game_files": {"does-not-exist.vpx": {"rom": "gone"}},
+            "tables": {"does-not-exist.vpx": {"rom": "gone"}},
         }), encoding="utf-8")
 
         env = dict(os.environ)
@@ -147,7 +147,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(no_launcher["json"]["error"]["code"], "feature_unavailable")
         self.assertIn("vpxbinpath", no_launcher["json"]["error"]["message"])
 
-    def test_launch_rejects_a_game_file_the_game_does_not_have(self) -> None:
+    def test_launch_rejects_a_table_the_game_does_not_have(self) -> None:
         entry = self.probe["launch_unknown_file"]
 
         self.assertEqual(entry["status"], 400)
@@ -189,9 +189,9 @@ class ApiContractTests(unittest.TestCase):
         # The inventory lens attributes each file to the build it serves.
         self.assertEqual(assets["backglass"]["files"][0]["binding"], "dedicated")
 
-    def test_a_game_file_reports_what_it_would_use_on_launch(self) -> None:
+    def test_a_table_reports_what_it_would_use_on_launch(self) -> None:
         """The launch lens: resolved assets and the pinmame chain, per game file."""
-        entry = self.probe["table_files"]["json"]["game_files"][0]
+        entry = self.probe["table_files"]["json"]["tables"][0]
 
         self.assertEqual(entry["assets"]["backglass"]["resolution"], "dedicated")
         self.assertEqual(entry["assets"]["settings"]["resolution"], "dedicated")
@@ -206,7 +206,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertTrue(chain["required"], "the fixture's metadata says the script drives pinmame")
         self.assertFalse(chain["nvram"]["present"], "nothing has been played")
 
-    def test_an_unparsed_game_file_gets_an_honest_unknown_rom(self) -> None:
+    def test_an_unparsed_table_gets_an_honest_unknown_rom(self) -> None:
         """Every build answers for itself now. One that has not been parsed says so
         rather than inheriting the ROM of one that has.
 
@@ -214,7 +214,7 @@ class ApiContractTests(unittest.TestCase):
         VPW build records where it was patched from, and an entry existing is not the
         same as the file having been read. "No rom declared" is a claim about the
         build; "not parsed yet" is the truth about our knowledge of it."""
-        entries = self.probe["multi_file_files"]["json"]["game_files"]
+        entries = self.probe["multi_file_files"]["json"]["tables"]
         by_name = {e["filename"]: e for e in entries}
 
         described = by_name["Multi File (Bally 1991).vpx"]["dependencies"]["pinmame"]
@@ -288,16 +288,16 @@ class ApiContractTests(unittest.TestCase):
         game = self.probe["table_get"]["json"]
 
         self.assertEqual(self.probe["table_get"]["status"], 200)
-        self.assertEqual(game["links"]["game_files"],
-                         f"/api/v1/games/{game['id']}/game-files")
+        self.assertEqual(game["links"]["tables"],
+                         f"/api/v1/games/{game['id']}/tables")
         self.assertEqual(game["links"]["archive"], f"/api/v1/games/{game['id']}/archive")
 
-    def test_game_files_are_a_list_even_though_there_is_one_today(self) -> None:
+    def test_tables_are_a_list_even_though_there_is_one_today(self) -> None:
         """A table is not permanently one .vpx; the shape says so now."""
         entry = self.probe["table_files"]
 
         self.assertEqual(entry["status"], 200)
-        files = entry["json"]["game_files"]
+        files = entry["json"]["tables"]
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0]["format"], "vpx")
         self.assertTrue(files[0]["default"])
@@ -315,7 +315,7 @@ class ApiContractTests(unittest.TestCase):
 
     def test_a_folder_with_several_vpx_reports_all_of_them(self) -> None:
         """A table folder can hold more than one .vpx, and .vbs is not a game file."""
-        files = self.probe["multi_file_files"]["json"]["game_files"]
+        files = self.probe["multi_file_files"]["json"]["tables"]
 
         names = [f["filename"] for f in files]
         self.assertEqual(names, sorted(names, key=str.lower), "order must not depend on the disk")
@@ -327,7 +327,7 @@ class ApiContractTests(unittest.TestCase):
 
     def test_a_recorded_file_that_is_missing_is_reported_but_not_the_default(self) -> None:
         """Reporting it matters; pointing a caller at it to launch does not."""
-        files = self.probe["mismatch_files"]["json"]["game_files"]
+        files = self.probe["mismatch_files"]["json"]["tables"]
 
         by_name = {f["filename"]: f for f in files}
         self.assertFalse(by_name["does-not-exist.vpx"]["available"])

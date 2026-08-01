@@ -8,8 +8,8 @@ from pathlib import Path
 from common.games import game_identity
 from common.games.collections_service import get_collections_manager
 from common.games.game_metadata import (
-    default_game_file_entry,
-    get_or_create_game_file_user,
+    default_table_entry,
+    get_or_create_table_user,
     get_or_create_user_meta,
     load_game_meta,
     normalize_meta,
@@ -48,24 +48,24 @@ def track_game_play(game, collection_name: str = "Last Played", max_items: int =
     logger.info("Tracked table play: %s (now %s in %s)", member_id, len(ids[:max_items]), collection_name)
 
 
-def increment_start_count(game, game_file: str = "") -> None:
+def increment_start_count(game, table: str = "") -> None:
     config = clone_game_meta(game)
     if not config:
         logger.warning("Could not increment StartCount: invalid table metadata for %s", game.tableDirName)
         return
 
-    user = apply_start_count_update(config, game_file=game_file)
+    user = apply_start_count_update(config, table=table)
     persist_game_meta(game, config)
     logger.debug("Updated User.StartCount for %s -> %s", game.tableDirName, user["StartCount"])
 
 
-def add_runtime_minutes(game, elapsed_seconds: float, game_file: str = "") -> None:
+def add_runtime_minutes(game, elapsed_seconds: float, table: str = "") -> None:
     config = clone_game_meta(game)
     if not config:
         logger.warning("Could not update RunTime: invalid table metadata for %s", game.tableDirName)
         return
 
-    user = apply_runtime_update(config, elapsed_seconds, game_file=game_file)
+    user = apply_runtime_update(config, elapsed_seconds, table=table)
     persist_game_meta(game, config)
     logger.info(
         "Updated User.RunTime for %s: +%s min (total=%s)",
@@ -88,7 +88,7 @@ def _plus(mapping: dict, key: str, amount: int) -> None:
 
 
 def apply_start_count_update(config: dict, played_at: int | None = None,
-                             game_file: str = "") -> dict:
+                             table: str = "") -> dict:
     """Count a launch against the table, and against the game file that was launched.
 
     The two accumulate independently rather than one being a rollup of the other:
@@ -98,8 +98,8 @@ def apply_start_count_update(config: dict, played_at: int | None = None,
     _plus(user, "StartCount", 1)
     user["LastRun"] = int(played_at or time.time())
 
-    if game_file:
-        played = get_or_create_game_file_user(config, game_file)
+    if table:
+        played = get_or_create_table_user(config, table)
         _plus(played, "start_count", 1)
         # ISO, where User.LastRun is an epoch integer it cannot stop being: it is a
         # specced key and goes to the VPinPlay API verbatim. Ours says what it is.
@@ -107,14 +107,14 @@ def apply_start_count_update(config: dict, played_at: int | None = None,
     return user
 
 
-def apply_runtime_update(config: dict, elapsed_seconds: float, game_file: str = "") -> dict:
+def apply_runtime_update(config: dict, elapsed_seconds: float, table: str = "") -> dict:
     session_minutes = int((elapsed_seconds + 59) // 60)
     user = get_or_create_user_meta(config)
     _plus(user, "RunTime", session_minutes)
-    if game_file:
+    if table:
         # Seconds, and the name says so. User.RunTime is minutes, undocumented as such
         # and wrong in docs/technical_details.md for as long as it has existed.
-        _plus(get_or_create_game_file_user(config, game_file), "run_time_seconds",
+        _plus(get_or_create_table_user(config, table), "run_time_seconds",
               int(round(elapsed_seconds)))
     return user
 
@@ -126,7 +126,7 @@ def score_rom_from_meta(config: dict) -> str:
     it kept could disagree with the file it claims to describe. A table that has not
     been through a metadata build since has no ROM recorded, which is the truth.
     """
-    return str(default_game_file_entry(config).get("rom", "") or "").strip()
+    return str(default_table_entry(config).get("rom", "") or "").strip()
 
 
 def parse_score_from_nvram(game) -> tuple[dict | None, str | None]:

@@ -61,7 +61,7 @@ def probe() -> dict:
     game_id = games[0]["id"] if games else ""
 
     record("table_get", client.get(f"/api/v1/games/{game_id}"))
-    record("table_files", client.get(f"/api/v1/games/{game_id}/game-files"))
+    record("table_files", client.get(f"/api/v1/games/{game_id}/tables"))
     archive = client.get(f"/api/v1/games/{game_id}/archive?download_token=abc123")
     result["table_archive"] = {
         "status": archive.status_code,
@@ -72,7 +72,7 @@ def probe() -> dict:
     }
     def files_for(name):
         hit = [t for t in games if t["name"] == name]
-        return client.get(f"/api/v1/games/{hit[0]['id']}/game-files") if hit else None
+        return client.get(f"/api/v1/games/{hit[0]['id']}/tables") if hit else None
 
     multi = files_for("Multi File")
     if multi is not None:

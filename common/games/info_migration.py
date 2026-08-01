@@ -15,7 +15,7 @@ import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from common.games.game_files import GAME_FILES_KEY, parse_authors
+from common.games.tables import TABLES_KEY, parse_authors
 from common.timestamps import iso_from_asctime, iso_from_authored_date
 
 logger = logging.getLogger("vpinfe.common.games.info_migration")
@@ -27,7 +27,7 @@ BACKUP_MARKER = ".vpinfe-"
 # What 2.x called each VPXFile field, against what it is called now. Matched
 # case-insensitively: real files carry both `detectnfozzy` and `detectNfozzy`, and a
 # case-sensitive lookup silently drops the flag.
-_GAME_FILE_KEYS = {
+_TABLE_KEYS = {
     "filehash": "file_hash",
     "vbshash": "vbs_hash",
     "version": "version",
@@ -110,8 +110,8 @@ def _rename(source: dict, mapping: dict) -> dict:
     return renamed
 
 
-def _game_file_entry(vpx_file: dict, authors) -> dict:
-    entry = _rename(vpx_file, _GAME_FILE_KEYS)
+def _table_entry(vpx_file: dict, authors) -> dict:
+    entry = _rename(vpx_file, _TABLE_KEYS)
     entry["release_date"] = iso_from_authored_date(entry.get("release_date", ""))
     entry["save_date"] = iso_from_asctime(entry.get("save_date", ""))
     entry["authors"] = parse_authors(authors)
@@ -149,21 +149,21 @@ def migrate(data: dict) -> dict:
     if dof_event is not None:
         vpinfe["frontend_dof_event"] = dof_event
 
-    game_files = dict(data.get(GAME_FILES_KEY) or {})
+    tables = dict(data.get(TABLES_KEY) or {})
     filename = str(vpx_file.get("filename", "") or "").strip()
     if filename:
         # Refresh what VPXFile covers and leave the rest - hidden, source, play stats.
         # Nothing to keep on a first migration; everything to lose when 2.x wrote the
         # file again and this runs over an entry we already built.
-        prior = game_files.get(filename)
+        prior = tables.get(filename)
         prior = prior if isinstance(prior, dict) else {}
-        game_files[filename] = {**prior, **_game_file_entry(vpx_file, authors)}
+        tables[filename] = {**prior, **_table_entry(vpx_file, authors)}
         # Every theme so far assumes one table means one game file, so the file 2.x
         # described stays the one a single-game-file consumer gets.
-        vpinfe.setdefault("default_game_file", filename)
+        vpinfe.setdefault("default_table", filename)
 
-    migrated = {"Info": info, "User": user, "vpinfe": vpinfe, GAME_FILES_KEY: game_files}
-    known = {*_DROPPED_SECTIONS, "Info", "User", "VPinFE", "vpinfe", GAME_FILES_KEY}
+    migrated = {"Info": info, "User": user, "vpinfe": vpinfe, TABLES_KEY: tables}
+    known = {*_DROPPED_SECTIONS, "Info", "User", "VPinFE", "vpinfe", TABLES_KEY}
     migrated.update({k: v for k, v in data.items() if k not in known})
     return migrated
 

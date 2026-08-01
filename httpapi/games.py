@@ -18,18 +18,18 @@ from starlette.responses import FileResponse
 
 from common.config_access import MediaConfig
 from common.games import asset_resolver, game_identity
-from common.games.game_files import (
-    default_game_file,
-    game_file_names,
-    hidden_game_files,
-    is_parsed,
-    recorded_default,
-)
 from common.games.game_metadata import vpinfe_section
 from common.games.game_repository import (
     collections_by_game_id,
     ensure_games_loaded,
     game_to_row,
+)
+from common.games.tables import (
+    default_table,
+    hidden_tables,
+    is_parsed,
+    recorded_default,
+    table_names,
 )
 from common.host import launch, launch_state, pinmame_catalog
 from common.media_paths import MEDIA_SPECS, resolve_media_files
@@ -83,7 +83,7 @@ def _resource(row: dict, game_id: str) -> dict:
         "assets": _asset_summary(row),
         "links": {
             "self": prefix,
-            "game_files": f"{prefix}/game-files",
+            "tables": f"{prefix}/tables",
             "media": f"{prefix}/media",
             "archive": f"{prefix}/archive",
             "launch": f"{prefix}/launch",
@@ -122,7 +122,7 @@ def _inventory_assets(game_dir: Path) -> dict:
     yesterday's folder is worse than none.
     """
     files, subdirs = _listing(game_dir)
-    inv = asset_resolver.inventory(game_dir.name, files, game_file_names(files))
+    inv = asset_resolver.inventory(game_dir.name, files, table_names(files))
     for entry in inv.values():
         entry["present"] = bool(entry["files"])
     subdir_set = {name.lower() for name in subdirs}
@@ -135,7 +135,7 @@ def _inventory_assets(game_dir: Path) -> dict:
     return inv
 
 
-def _game_file_settings(game_dir: Path) -> dict:
+def _table_settings(game_dir: Path) -> dict:
     """Per-game-file settings from the folder's .info, or {} when unreadable.
 
     A folder that cannot be parsed must not make its game files vanish - absent
@@ -151,7 +151,7 @@ def _game_file_settings(game_dir: Path) -> dict:
     return {}
 
 
-def _game_files(game, row: dict) -> list[dict]:
+def _tables(game, row: dict) -> list[dict]:
     """The table's launchable artifacts.
 
     Enumerates what is actually in the folder rather than trusting the single
@@ -163,10 +163,10 @@ def _game_files(game, row: dict) -> list[dict]:
     default falls to one that exists, since the default is what a caller would launch.
     """
     game_dir = Path(row.get("table_path", ""))
-    described = _game_file_settings(game_dir)
+    described = _table_settings(game_dir)
 
     files, subdirs = _listing(game_dir)
-    on_disk = game_file_names(files)
+    on_disk = table_names(files)
 
     names = list(on_disk)
     for name in described:
@@ -176,9 +176,9 @@ def _game_files(game, row: dict) -> list[dict]:
         return []
 
     # Same resolver the launcher and the metadata build use, so all three agree.
-    default = default_game_file(files or names, game_dir.name,
+    default = default_table(files or names, game_dir.name,
                                 recorded_default(vpinfe_section(game.metaConfig)))
-    hidden = hidden_game_files(described)
+    hidden = hidden_tables(described)
 
     # Dependency context, once per request: the alias map and the rom listing are
     # shared by every game file in the folder.
@@ -202,7 +202,7 @@ def _game_files(game, row: dict) -> list[dict]:
             "default": name == default,
             "hidden": name in hidden,
             "available": name in on_disk,
-            "assets": asset_resolver.resolve_for_game_file(name, game_dir.name, files),
+            "assets": asset_resolver.resolve_for_table(name, game_dir.name, files),
         }
         if is_parsed(described_entry):
             # Every game file carries its own ROM and detect flags, so each one answers
@@ -278,11 +278,11 @@ def get_game(game_id: str) -> models.GameResource:
     return resource
 
 
-@router.get("/{game_id}/game-files", summary="A table's game files",
+@router.get("/{game_id}/tables", summary="A table's game files",
             dependencies=[requires(scopes.GAMES_READ)])
-def get_game_files(game_id: str) -> models.GameFileList:
+def get_tables(game_id: str) -> models.TableList:
     game = _game_or_404(game_id)
-    return {"game_files": _game_files(game, game_to_row(game))}
+    return {"tables": _tables(game, game_to_row(game))}
 
 
 def _default_stem(game) -> str | None:
@@ -291,7 +291,7 @@ def _default_stem(game) -> str | None:
     return Path(vpx).stem if vpx else None
 
 
-def _resolved_media(game_dir: Path, game_file_stem: str | None = None) -> dict:
+def _resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
     """Every media kind against the folder as it is right now."""
     import os
 
@@ -312,7 +312,7 @@ def _resolved_media(game_dir: Path, game_file_stem: str | None = None) -> dict:
     wheelset = active_set_for("wheel", media_cfg.wheelset)
     active_sets = {"wheel": wheelset} if wheelset else None
     return resolve_media_files(game_dir, set(files), medias, media_cfg.playfield_variant,
-                               game_file_stem, active_sets)
+                               table_stem, active_sets)
 
 
 @router.get("/{game_id}/media", summary="A table's media",
@@ -364,22 +364,22 @@ def launch_table(game_id: str,
     here counts as a play and releases the peripherals like any other.
     """
     game = _game_or_404(game_id)
-    game_file = (payload.file or None) if payload else None
+    table = (payload.file or None) if payload else None
     ini_config = get_ini_config()
 
     try:
-        resolved = launch.check_launchable(game, ini_config, game_file)
+        resolved = launch.check_launchable(game, ini_config, table)
     except launch.LaunchBusyError as exc:
         raise ConflictError(str(exc)) from exc
-    except launch.UnknownGameFileError as exc:
-        raise InvalidRequestError(str(exc), details={"file": game_file}) from exc
+    except launch.UnknownTableError as exc:
+        raise InvalidRequestError(str(exc), details={"file": table}) from exc
     except launch.LaunchUnavailableError as exc:
         raise FeatureUnavailableError(str(exc)) from exc
 
     def run():
         try:
             launch.launch_table(game, ini_config, source=launch_state.SOURCE_API,
-                                game_file=game_file)
+                                table=table)
         except Exception:
             logger.exception("Launch of %s failed", game_id)
 
@@ -406,7 +406,7 @@ def get_game_archive(request: Request, game_id: str, download_token: str = "",
     game_dir_name = getattr(game, "tableDirName", "")
     try:
         archive = create_vpxz_archive(game_dir_name, everything=full,
-                                      game_file=file or None)
+                                      table=file or None)
     except ValueError as exc:
         raise InvalidRequestError("Invalid table path") from exc
     except FileNotFoundError as exc:

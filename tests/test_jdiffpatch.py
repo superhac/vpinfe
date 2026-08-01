@@ -68,32 +68,32 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class GameFileVisibilityTests(unittest.TestCase):
+class TableVisibilityTests(unittest.TestCase):
     """A patched table leaves its base in the folder, so a folder can hold game files
     the user does not want offered. Hiding never deletes: the patched table cannot be
     rebuilt without the base."""
 
     def test_absent_settings_mean_everything_is_visible(self):
-        from common.games.game_files import visible_game_files
+        from common.games.tables import visible_tables
         names = ["a.vpx", "b.vpx"]
-        self.assertEqual(visible_game_files(names, None), ["a.vpx", "b.vpx"])
-        self.assertEqual(visible_game_files(names, {}), ["a.vpx", "b.vpx"])
+        self.assertEqual(visible_tables(names, None), ["a.vpx", "b.vpx"])
+        self.assertEqual(visible_tables(names, {}), ["a.vpx", "b.vpx"])
 
     def test_hidden_files_are_not_offered(self):
-        from common.games.game_files import hidden_game_files, visible_game_files
+        from common.games.tables import hidden_tables, visible_tables
         settings = {"base.vpx": {"hidden": True}}
         names = ["base.vpx", "table.vpx", "table (VR).vpx"]
-        self.assertEqual(hidden_game_files(settings), {"base.vpx"})
-        self.assertEqual(visible_game_files(names, settings),
+        self.assertEqual(hidden_tables(settings), {"base.vpx"})
+        self.assertEqual(visible_tables(names, settings),
                          ["table (VR).vpx", "table.vpx"])
 
-    def test_several_visible_game_files_are_peers(self):
+    def test_several_visible_tables_are_peers(self):
         """No primary-with-alternates: a VR game file and a desktop one are equals."""
-        from common.games.game_files import visible_game_files
+        from common.games.tables import visible_tables
         names = ["table.vpx", "table (VR).vpx"]
-        self.assertEqual(len(visible_game_files(names, {})), 2)
+        self.assertEqual(len(visible_tables(names, {})), 2)
 
     def test_malformed_settings_do_not_hide_anything(self):
-        from common.games.game_files import hidden_game_files
+        from common.games.tables import hidden_tables
         for bad in (None, [], "nope", {"a.vpx": "yes"}, {"a.vpx": {"hidden": "true"}}):
-            self.assertEqual(hidden_game_files(bad), set(), repr(bad))
+            self.assertEqual(hidden_tables(bad), set(), repr(bad))

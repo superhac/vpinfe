@@ -59,7 +59,7 @@ class TestMetaConfig(unittest.TestCase):
             info_path.write_text(
                 json.dumps(
                     {
-                        "game_files": {
+                        "tables": {
                             "Example Table.vpx": {"file_hash": "old-filehash"},
                         },
                         "vpinfe": {
@@ -86,7 +86,7 @@ class TestMetaConfig(unittest.TestCase):
             info_path.write_text(
                 json.dumps(
                     {
-                        "game_files": {
+                        "tables": {
                             "Example Table.vpx": {"file_hash": "same-filehash"},
                         },
                         "vpinfe": {
@@ -179,7 +179,7 @@ class TestMetaConfig(unittest.TestCase):
             info_path.write_text(
                 json.dumps(
                     {
-                        "game_files": {
+                        "tables": {
                             "Example Table.vpx": {"file_hash": "old-filehash"},
                         },
                         "ThirdParty": {
@@ -285,7 +285,7 @@ class VPinFESchemaTests(unittest.TestCase):
         TestMetaConfig()._write_meta(info)
         saved = json.loads(info.read_text(encoding="utf-8"))
 
-        for name in ("Info", "User", "game_files", "assets"):
+        for name in ("Info", "User", "tables", "assets"):
             self.assertNotIn("schema", saved.get(name, {}),
                              f"{name} is not ours alone; it stays shape-driven")
 
@@ -306,7 +306,7 @@ class PatchSourceTests(unittest.TestCase):
 
     def _source(self, filename: str = "Example Table VPW Mod.vpx") -> dict:
         saved = json.loads(self.info.read_text(encoding="utf-8"))
-        return saved["game_files"][filename]["source"]
+        return saved["tables"][filename]["source"]
 
     def test_the_base_is_named_and_hashed(self) -> None:
         meta = MetaConfig(str(self.info))

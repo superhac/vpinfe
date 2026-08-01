@@ -7,7 +7,7 @@ import requests
 
 from common.app_version import get_version
 from common.config_access import SettingsConfig, VPinPlayConfig
-from common.games.game_metadata import default_game_file, normalize_rating, vpinfe_section
+from common.games.game_metadata import default_table, normalize_rating, vpinfe_section
 from common.games.gameparser import GameParser
 from common.timestamps import utc_now_iso
 
@@ -60,7 +60,7 @@ def _build_game_payload(meta: dict) -> dict | None:
     """
     info = meta.get("Info", {}) if isinstance(meta.get("Info"), dict) else {}
     user = meta.get("User", {}) if isinstance(meta.get("User"), dict) else {}
-    gf_name, vpx = default_game_file(meta)
+    gf_name, vpx = default_table(meta)
     vpinfe = vpinfe_section(meta)
 
     vps_id = str(info.get("VPSId", "") or "").strip()

@@ -40,7 +40,7 @@ def _library(tmp) -> Path:
     (root / "table.nfo").write_text("notes", encoding="utf-8")
     (root / f"{FOLDER}.info").write_text(json.dumps({
         "Info": {"Title": "Cactus Canyon"},
-        "vpinfe": {"default_game_file": CHOSEN},
+        "vpinfe": {"default_table": CHOSEN},
         "assets": {"medias/wheel.png": {"source": {"host": "user"}},
                    "medias/bg.png": {"source": {"host": "vpinmediadb", "hash": "abc"}}},
     }), encoding="utf-8")
@@ -101,9 +101,9 @@ class BundleTests(unittest.TestCase):
         self.assertIn(OTHER, names)
         self.assertIn(str(Path("medias") / "wheel.png"), names)
 
-    def test_a_caller_may_pick_the_game_file(self) -> None:
+    def test_a_caller_may_pick_the_table(self) -> None:
         with TemporaryDirectory() as tmp:
-            names = self._names(_library(tmp), game_file=OTHER)
+            names = self._names(_library(tmp), table=OTHER)
 
         self.assertIn(OTHER, names)
         self.assertNotIn(CHOSEN, names)

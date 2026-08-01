@@ -85,7 +85,7 @@ class SingleGameRefreshTests(unittest.TestCase):
         self.assertEqual(self.parser.getGameCount(), 2)
         self.assertNotIn("Alpha", [t.tableDirName for t in self.parser.getAllGames()])
 
-    def test_a_folder_with_no_game_file_is_not_a_game(self):
+    def test_a_folder_with_no_table_is_not_a_game(self):
         empty = self.root / "Empty"
         empty.mkdir()
         (empty / "readme.txt").write_text("nothing here", encoding="utf-8")

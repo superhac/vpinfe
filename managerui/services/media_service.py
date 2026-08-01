@@ -82,7 +82,7 @@ _SPEC_BY_KEY = {spec.key: spec for spec in MEDIA_SPECS}
 
 
 def source_media_path(game_path: str, media_key: str,
-                      game_file_stem: str | None = None) -> str | None:
+                      table_stem: str | None = None) -> str | None:
     """The file serving a media kind, through the one resolution chain - so the
     Manager UI and the scan can never disagree about which file that is."""
     if media_key not in _SPEC_BY_KEY:
@@ -98,7 +98,7 @@ def source_media_path(game_path: str, media_key: str,
     except OSError:
         medias_contents = set()
     resolved = resolve_media_files(root, game_contents, medias_contents,
-                                   "table", game_file_stem)
+                                   "table", table_stem)
     path = resolved.get(media_key)
     return str(path) if path is not None else None
 

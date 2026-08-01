@@ -4,16 +4,16 @@ import ast
 from pathlib import Path
 from typing import Any, Dict
 
-from common.games.game_files import (
-    DETECT_KEYS,
-    GAME_FILES_KEY,
-    game_file_entries,
-    recorded_default,
-)
-from common.games.game_files import (
-    default_game_file as _resolve_default,
-)
 from common.games.metaconfig import VPINFE_SECTION, MetaConfig
+from common.games.tables import (
+    DETECT_KEYS,
+    TABLES_KEY,
+    recorded_default,
+    table_entries,
+)
+from common.games.tables import (
+    default_table as _resolve_default,
+)
 
 # Re-exported so the theme payload and the Manager UI agree with storage. Sourced
 # from game_files rather than restated, since a second list drifts silently - it
@@ -59,7 +59,7 @@ def first_meta_value(meta: Any, *paths: tuple[str, str], default: Any = "") -> A
     return default
 
 
-def default_game_file(meta: Any, names: Any = None,
+def default_table(meta: Any, names: Any = None,
                       folder_name: str = "") -> tuple[str, Dict[str, Any]]:
     """(filename, entry) for the game file this table defaults to; ("", {}) when it has none.
 
@@ -71,7 +71,7 @@ def default_game_file(meta: Any, names: Any = None,
     longer on disk falls through to one that is.
     """
     normalized = normalize_meta(meta)
-    entries = game_file_entries(normalized)
+    entries = table_entries(normalized)
     candidates = list(names) if names is not None else list(entries)
     name = _resolve_default(candidates, folder_name,
                             recorded_default(vpinfe_section(normalized)))
@@ -79,9 +79,9 @@ def default_game_file(meta: Any, names: Any = None,
     return name, (entry if isinstance(entry, dict) else {})
 
 
-def default_game_file_entry(meta: Any, names: Any = None, folder_name: str = "") -> Dict[str, Any]:
+def default_table_entry(meta: Any, names: Any = None, folder_name: str = "") -> Dict[str, Any]:
     """What the table's default game file says about itself, or {}."""
-    return default_game_file(meta, names, folder_name)[1]
+    return default_table(meta, names, folder_name)[1]
 
 
 def normalize_rating(value: Any) -> int:
@@ -211,13 +211,13 @@ def get_or_create_user_meta(config: Dict[str, Any]) -> Dict[str, Any]:
     return user
 
 
-def get_or_create_game_file_user(config: dict[str, Any], filename: str) -> dict[str, Any]:
+def get_or_create_table_user(config: dict[str, Any], filename: str) -> dict[str, Any]:
     """One game file's play record, created on its first launch.
 
     Counters only. A per-game-file rating and favorite are in the design but nothing
     sets them, and storing a field no producer fills invites a reader to trust it.
     """
-    entry = config.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
+    entry = config.setdefault(TABLES_KEY, {}).setdefault(filename, {})
     user = entry.setdefault("user", {})
     user.setdefault("last_run", None)
     user.setdefault("start_count", 0)

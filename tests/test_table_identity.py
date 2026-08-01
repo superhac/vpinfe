@@ -142,7 +142,7 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
 
         self.assertTrue(rebuilt["vpinfe"]["id"])
 
-    def test_the_id_survives_a_game_file_update_that_clears_altvpsid(self) -> None:
+    def test_the_id_survives_a_table_update_that_clears_altvpsid(self) -> None:
         """altvpsid is cleared when the .vpx changes; the table id must not be."""
         info = self.root / "Example.info"
         first = self._rebuild(info, "hash-a")

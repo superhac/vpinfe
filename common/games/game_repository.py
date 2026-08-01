@@ -10,7 +10,7 @@ from common.games.game_identity import ensure_unique_ids
 from common.games.game_identity import game_id as vpinfe_id
 from common.games.game_metadata import (
     as_string_list,
-    default_game_file,
+    default_table,
     first_meta_value,
     normalize_rating,
     reorder_leading_article,
@@ -165,7 +165,7 @@ def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) ->
     vpsid = first_meta_value(meta, ("Info", "VPSId"), default="")
     # The row describes one game file - the table's default. A folder can hold several,
     # and the API lists them all separately; this is what the table-level views show.
-    gf_name, gf = default_game_file(meta, folder_name=game_name)
+    gf_name, gf = default_table(meta, folder_name=game_name)
 
     def gf_value(key, default=""):
         value = gf.get(key, None)

@@ -166,7 +166,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                                 update_status.set_text(f'Updating {upload_name}...')
                             try:
                                 result = await run.io_bound(
-                                    game_service.replace_game_file,
+                                    game_service.replace_table,
                                     game_path_str,
                                     upload_name,
                                     data,

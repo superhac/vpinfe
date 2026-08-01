@@ -227,7 +227,7 @@ class WhatThePageSaysTests(LibraryTestCase):
         game_dir.mkdir()
         (game_dir / "Dr. Dude.vpx").write_text("x", encoding="utf-8")
         live = {"Info": {}, "User": {"Rating": 4}, "vpinfe": {"schema": schema, "id": "a"},
-                "game_files": {"Dr. Dude.vpx": {"rom": "dd"}}}
+                "tables": {"Dr. Dude.vpx": {"rom": "dd"}}}
         (game_dir / "Dr. Dude.info").write_text(json.dumps(live), encoding="utf-8")
         if with_backup:
             older = {**live, "vpinfe": {"schema": CURRENT_SCHEMA, "id": "a"}}

@@ -164,7 +164,7 @@ def list_media_sets(game_root: str | Path, kind: str = "wheel") -> list[str]:
 def resolve_media_files(game_dir: str | Path, game_contents: set[str],
                         medias_contents: set[str],
                         playfield_variant: str = "table",
-                        game_file_stem: str | None = None,
+                        table_stem: str | None = None,
                         active_sets: dict[str, str] | None = None) -> dict[str, Path | None]:
     """Canonical media key -> the file that serves it, or None.
 
@@ -212,8 +212,8 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
         # folder-level preferred token, or "most specific wins" would not hold.
         tokens = ((spec.token,) + spec.alt_tokens) if spec.token else ()
         user_names: list[str] = []
-        if game_file_stem:
-            user_names += [f"{token} {game_file_stem}{ext}"
+        if table_stem:
+            user_names += [f"{token} {table_stem}{ext}"
                            for token in tokens for ext in spec.family]
         user_names += [f"{token} {folder_name}{ext}"
                        for token in tokens for ext in spec.family]
@@ -252,10 +252,10 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
 
 def apply_media_paths(game, game_contents: set[str], medias_contents: set[str],
                       playfield_variant: str = "table",
-                      game_file_stem: str | None = None,
+                      table_stem: str | None = None,
                       active_sets: dict[str, str] | None = None) -> None:
     resolved = resolve_media_files(game.fullPathTable, game_contents,
-                                   medias_contents, playfield_variant, game_file_stem,
+                                   medias_contents, playfield_variant, table_stem,
                                    active_sets)
     for spec in MEDIA_SPECS:
         path = resolved[spec.key]

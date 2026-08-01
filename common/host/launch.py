@@ -22,7 +22,7 @@ import time
 from common import events
 from common.config_access import SettingsConfig, VPinPlayConfig
 from common.games import game_play_service
-from common.games.game_files import default_game_file, game_file_names
+from common.games.tables import default_table, table_names
 from common.host import launch_state
 from common.host.launcher import (
     build_vpx_launch_command,
@@ -58,7 +58,7 @@ class LaunchUnavailableError(Exception):
     """
 
 
-class UnknownGameFileError(LaunchUnavailableError):
+class UnknownTableError(LaunchUnavailableError):
     """The caller named a file this table does not have. The caller got it wrong,
     rather than the machine being unable, so it is worth telling apart."""
 
@@ -81,14 +81,14 @@ def _resolve_launcher(game, settings) -> str:
     return str(launcher)
 
 
-def _resolve_game_file(game, game_file: str | None) -> str:
+def _resolve_table(game, table: str | None) -> str:
     """The full path of the file to launch.
 
     A named file is checked against what is actually in the folder, so a caller
     cannot talk this into running something outside the table's directory.
     """
     game_dir = str(getattr(game, "fullPathTable", "") or "")
-    if game_file is None:
+    if table is None:
         path = str(getattr(game, "fullPathVPXfile", "") or "")
         if not path:
             raise LaunchUnavailableError("This table has no game file to launch")
@@ -98,9 +98,9 @@ def _resolve_game_file(game, game_file: str | None) -> str:
     if game_dir and os.path.isdir(game_dir):
         listing = [name for name in os.listdir(game_dir)
                    if os.path.isfile(os.path.join(game_dir, name))]
-    if game_file not in game_file_names(listing):
-        raise UnknownGameFileError(f"No game file named {game_file} in this table")
-    return os.path.join(game_dir, game_file)
+    if table not in table_names(listing):
+        raise UnknownTableError(f"No game file named {table} in this table")
+    return os.path.join(game_dir, table)
 
 
 def _launch_env(settings) -> dict:
@@ -132,10 +132,10 @@ def _command(game, vpx_path: str, launcher: str, settings) -> list[str]:
     )
 
 
-def _record_play(game, ini_config, elapsed_seconds: float, profile, game_file: str = "") -> None:
+def _record_play(game, ini_config, elapsed_seconds: float, profile, table: str = "") -> None:
     """Play data for a finished session. Runs on every path, which it did not use to."""
     if profile is None:
-        game_play_service.add_runtime_minutes(game, elapsed_seconds, game_file)
+        game_play_service.add_runtime_minutes(game, elapsed_seconds, table)
         game_play_service.update_score_from_nvram(game)
         return
 
@@ -178,7 +178,7 @@ def _record_play(game, ini_config, elapsed_seconds: float, profile, game_file: s
         logger.exception("Alternate VPinPlay submit failed for %s", game.tableDirName)
 
 
-def check_launchable(game, ini_config, game_file: str | None = None) -> str:
+def check_launchable(game, ini_config, table: str | None = None) -> str:
     """Raise if this launch could not go ahead, otherwise return the file it would run.
 
     Separate from `launch_table` because callers that launch on a thread still have
@@ -188,14 +188,14 @@ def check_launchable(game, ini_config, game_file: str | None = None) -> str:
     # Ordered from the caller's problem outwards: what it asked for, then whether
     # now is a good time, then whether this machine can do it at all. Checking the
     # launcher first would answer a malformed request with a configuration error.
-    resolved = _resolve_game_file(game, game_file)
+    resolved = _resolve_table(game, table)
     if launch_state.current().launching:
         raise LaunchBusyError("A table is already launching on this machine")
     _resolve_launcher(game, SettingsConfig.from_config(ini_config))
     return resolved
 
 
-def launch_table(game, ini_config, *, source: str, game_file: str | None = None,
+def launch_table(game, ini_config, *, source: str, table: str | None = None,
                  popen=None) -> None:
     """Launch a table and stay with it until it exits. Blocking.
 
@@ -207,7 +207,7 @@ def launch_table(game, ini_config, *, source: str, game_file: str | None = None,
     popen = popen or subprocess.Popen
     settings = SettingsConfig.from_config(ini_config)
     launcher = _resolve_launcher(game, settings)
-    vpx_path = _resolve_game_file(game, game_file)
+    vpx_path = _resolve_table(game, table)
 
     delete_vpinball_log_on_start_if_configured(settings)
     game_play_service.track_game_play(game)
@@ -263,14 +263,14 @@ def launch_table(game, ini_config, *, source: str, game_file: str | None = None,
     game_play_service.delete_nvram_if_configured(game)
 
 
-def game_file_for(game, game_file: str | None = None) -> str:
+def table_for(game, table: str | None = None) -> str:
     """The file a launch would use, without launching it."""
-    if game_file is not None:
-        return game_file
+    if table is not None:
+        return table
     game_dir = str(getattr(game, "fullPathTable", "") or "")
     listing = []
     if game_dir and os.path.isdir(game_dir):
         listing = [name for name in os.listdir(game_dir)
                    if os.path.isfile(os.path.join(game_dir, name))]
     recorded = os.path.basename(str(getattr(game, "fullPathVPXfile", "") or ""))
-    return default_game_file(listing, os.path.basename(game_dir), recorded) or recorded
+    return default_table(listing, os.path.basename(game_dir), recorded) or recorded

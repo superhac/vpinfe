@@ -56,7 +56,7 @@ def _by_lower(names) -> dict[str, str]:
     return {name.lower(): name for name in names}
 
 
-def resolve_for_game_file(game_file: str, folder_name: str, files,
+def resolve_for_table(table: str, folder_name: str, files,
                           kinds=VPX_ASSET_KINDS) -> dict:
     """The launch lens: what this game file would use, kind by kind.
 
@@ -65,7 +65,7 @@ def resolve_for_game_file(game_file: str, folder_name: str, files,
     stem-or-nothing.
     """
     lookup = _by_lower(files)
-    stem = _stem(game_file)
+    stem = _stem(table)
     resolved = {}
     for kind in kinds:
         dedicated = lookup.get((stem + kind.extension).lower())
@@ -81,14 +81,14 @@ def resolve_for_game_file(game_file: str, folder_name: str, files,
     return resolved
 
 
-def inventory(folder_name: str, files, game_files, kinds=VPX_ASSET_KINDS) -> dict:
+def inventory(folder_name: str, files, tables, kinds=VPX_ASSET_KINDS) -> dict:
     """The inventory lens: every asset file present, attributed.
 
     `dedicated` names the game file it serves; `shared` is the folder-named
     fallback; `orphaned` is stem-named for a game file that is not there - the
     residue of a deleted or renamed build, which is what an audit wants to see.
     """
-    stems = {_stem(name).lower(): name for name in game_files}
+    stems = {_stem(name).lower(): name for name in tables}
     folder_lower = folder_name.lower()
     result: dict[str, dict] = {kind.key: {"files": []} for kind in kinds}
     for kind in kinds:
@@ -98,7 +98,7 @@ def inventory(folder_name: str, files, game_files, kinds=VPX_ASSET_KINDS) -> dic
             stem_lower = _stem(name).lower()
             if stem_lower in stems:
                 entry = {"file": name, "binding": BINDING_DEDICATED,
-                         "game_file": stems[stem_lower]}
+                         "table": stems[stem_lower]}
             elif stem_lower == folder_lower:
                 entry = {"file": name, "binding": BINDING_SHARED}
             else:

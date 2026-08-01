@@ -328,7 +328,7 @@ def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
 # Medias stays listed although nothing writes it any more: an imported .info written by
 # a 2.x build still carries one, and dropping it from here would let it back in as an
 # unmanaged section and be preserved forever.
-_MANAGED_INFO_SECTIONS = {"Info", "User", VPINFE_SECTION, "game_files", "assets", "Medias"}
+_MANAGED_INFO_SECTIONS = {"Info", "User", VPINFE_SECTION, "tables", "assets", "Medias"}
 _MACHINE_LOCAL_INFO_KEYS = {"alt_launcher", "plugin_profile"}
 
 
@@ -457,7 +457,7 @@ def _replace_vpx_from_file(source, asset: DetectedAsset, base: Path) -> None:
             if new_b2s.exists():
                 new_b2s.unlink()
             os.replace(old_b2s, new_b2s)
-    _record_replaced_game_file(base, new_vpx,
+    _record_replaced_table(base, new_vpx,
                            old_vpx.name if old_vpx and old_vpx.name != new_vpx.name else None)
 
     if old_ini and old_ini.exists():
@@ -507,7 +507,7 @@ def _import_media(source, asset: DetectedAsset, game_path: Path) -> None:
         scratch.unlink(missing_ok=True)
 
 
-def _record_replaced_game_file(game_dir: Path, vpx: Path, removed: str | None) -> None:
+def _record_replaced_table(game_dir: Path, vpx: Path, removed: str | None) -> None:
     """Describe the new .vpx in the table's .info, and drop the entry for the one it
     replaced. Best effort - the table is on disk either way.
     """
@@ -515,13 +515,13 @@ def _record_replaced_game_file(game_dir: Path, vpx: Path, removed: str | None) -
         meta = MetaConfig(str(game_dir / f"{game_dir.name}.info"))
         parsed = VPXParser().singleFileExtract(str(vpx))
         if parsed or removed:
-            meta.replace_game_file(removed, vpx.name, parsed)
+            meta.replace_table(removed, vpx.name, parsed)
     except Exception:
         logger.warning("Replaced the table with %s, but could not record it in the .info",
                        vpx.name, exc_info=True)
 
 
-def _record_patched_game_file(game_dir: Path, vpx: Path, base_file: str, base_hash: str) -> None:
+def _record_patched_table(game_dir: Path, vpx: Path, base_file: str, base_hash: str) -> None:
     """Write the new game file into the table's .info: what it says about itself, and where
     it came from. Best effort - the table is on disk and playable either way.
     """
@@ -530,7 +530,7 @@ def _record_patched_game_file(game_dir: Path, vpx: Path, base_file: str, base_ha
         parsed = VPXParser().singleFileExtract(str(vpx))
         if parsed:
             # A failed parse leaves the entry unparsed rather than filled with empties.
-            meta.refresh_game_file(vpx.name, parsed)
+            meta.refresh_table(vpx.name, parsed)
         meta.record_patch_source(vpx.name, base_file, base_hash, "jojodiff")
     except Exception:
         logger.warning("Patched %s, but could not record it in the .info", vpx.name,
@@ -568,7 +568,7 @@ def _apply_patch(source, asset: DetectedAsset, base: Path, dest: Path) -> None:
         base_hash = _sha256(original)
         logger.info("Patched %s -> %s (base sha256 %s)", original.name, dest.name,
                     base_hash[:16])
-        _record_patched_game_file(base, dest, original.name, base_hash)
+        _record_patched_table(base, dest, original.name, base_hash)
     finally:
         patch_tmp.unlink(missing_ok=True)
 

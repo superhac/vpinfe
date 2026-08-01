@@ -24,7 +24,7 @@ VPSDB_JSON_PATH = game_service.VPSDB_JSON_PATH
 
 # Load vpinfe.ini once to avoid repeated parsing
 from common.games.game_metadata import (
-    default_game_file,
+    default_table,
     reorder_leading_article,
     vpinfe_section,
 )
@@ -161,14 +161,14 @@ def parse_game_info(info_path):
         vpinfe = vpinfe_section(raw)
         # This row describes the table's default build. A folder can hold several;
         # the API lists them all, the table view shows one.
-        gf_name, vpx = default_game_file(raw, folder_name=game_name)
+        gf_name, vpx = default_table(raw, folder_name=game_name)
 
         def get(*paths, default=""):
             """
-            paths = [("game_file","rom"), ("Info","Title"), ...]
+            paths = [("table","rom"), ("Info","Title"), ...]
             """
             for section, key in paths:
-                src = {"Info": info, "game_file": vpx, "User": user,
+                src = {"Info": info, "table": vpx, "User": user,
                        VPINFE_SECTION: vpinfe, "root": raw}.get(section)
                 if src and key in src and src[key] not in ("", None):
                     return src[key]
@@ -185,27 +185,27 @@ def parse_game_info(info_path):
             "pinball_primer_tut": get(("Info", "PinballPrimerTut")),
 
             # Metadata
-            "manufacturer": get(("Info", "Manufacturer"), ("game_file", "manufacturer")),
-            "year": get(("Info", "Year"), ("game_file", "year")),
-            "type": get(("Info", "Type"), ("game_file", "type")),
+            "manufacturer": get(("Info", "Manufacturer"), ("table", "manufacturer")),
+            "year": get(("Info", "Year"), ("table", "year")),
+            "type": get(("Info", "Type"), ("table", "type")),
             "themes": get(("Info", "Themes"), default=[]),
-            "authors": get(("game_file", "authors"), default=[]),
-            "rom": get(("game_file", "rom")),
-            "version": get(("game_file", "version")),
-            "filehash": get(("game_file", "file_hash")),
-            "vbshash": get(("game_file", "vbs_hash")),
+            "authors": get(("table", "authors"), default=[]),
+            "rom": get(("table", "rom")),
+            "version": get(("table", "version")),
+            "filehash": get(("table", "file_hash")),
+            "vbshash": get(("table", "vbs_hash")),
 
             # Detection flags (canonical lowercase keys)
-            "detectnfozzy": get(("game_file", "detect_nfozzy")),
-            "detectfleep": get(("game_file", "detect_fleep")),
-            "detectssf": get(("game_file", "detect_ssf")),
-            "detectlut": get(("game_file", "detect_lut")),
-            "detectscorebit": get(("game_file", "detect_scorbit")),
-            "detectfastflips": get(("game_file", "detect_fastflips")),
-            "detectflex": get(("game_file", "detect_flex")),
+            "detectnfozzy": get(("table", "detect_nfozzy")),
+            "detectfleep": get(("table", "detect_fleep")),
+            "detectssf": get(("table", "detect_ssf")),
+            "detectlut": get(("table", "detect_lut")),
+            "detectscorebit": get(("table", "detect_scorbit")),
+            "detectfastflips": get(("table", "detect_fastflips")),
+            "detectflex": get(("table", "detect_flex")),
 
             # Patching
-            "patch_applied": get(("game_file", "patch_applied"), default=False),
+            "patch_applied": get(("table", "patch_applied"), default=False),
 
             # Internal
             "table_path": game_dir,

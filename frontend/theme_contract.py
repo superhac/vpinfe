@@ -15,7 +15,7 @@ import json
 import logging
 from pathlib import Path
 
-from common.games.game_metadata import DETECTION_KEYS, default_game_file
+from common.games.game_metadata import DETECTION_KEYS, default_table
 
 logger = logging.getLogger("vpinfe.frontend.theme_contract")
 
@@ -25,7 +25,7 @@ CONTRACT_KEY = "contract"
 
 # What contract 1 calls each game-file field. The .info renamed these; a theme written
 # against 2.x still reads the old spelling, so the projection restores it.
-_LEGACY_GAME_FILE_KEYS = {
+_LEGACY_TABLE_KEYS = {
     "file_hash": "filehash",
     "vbs_hash": "vbsHash",
     "release_date": "releaseDate",
@@ -80,13 +80,13 @@ def _to_bool(value) -> bool:
     return value == 1
 
 
-def _legacy_game_file(meta: dict, row: dict) -> dict:
+def _legacy_table(meta: dict, row: dict) -> dict:
     """The table's default game file as VPXFile, plus the addon flags that rode with it."""
-    name, entry = default_game_file(meta)
-    vpx = {_LEGACY_GAME_FILE_KEYS.get(key, key): value for key, value in dict(entry).items()}
+    name, entry = default_table(meta)
+    vpx = {_LEGACY_TABLE_KEYS.get(key, key): value for key, value in dict(entry).items()}
     vpx["filename"] = name
     for key in DETECTION_KEYS:
-        vpx[_LEGACY_GAME_FILE_KEYS.get(key, key)] = _to_bool(entry.get(key, False))
+        vpx[_LEGACY_TABLE_KEYS.get(key, key)] = _to_bool(entry.get(key, False))
     for flag in ("altSoundExists", "altColorExists", "pupPackExists"):
         vpx[flag] = bool(row.get(flag))
     return vpx
@@ -99,7 +99,7 @@ def _to_contract_1(row: dict) -> dict:
     declared, which is the failure this exists to prevent.
     """
     meta = dict(row.get("meta") or {})
-    vpx = _legacy_game_file(meta, row)
+    vpx = _legacy_table(meta, row)
     meta["VPXFile"] = vpx
 
     info = dict(meta.get("Info") or {})
@@ -108,7 +108,7 @@ def _to_contract_1(row: dict) -> dict:
     meta["Info"] = info
 
     meta["VPinFE"] = dict(meta.get("vpinfe") or {})
-    for section in ("game_files", "vpinfe", "assets"):
+    for section in ("tables", "vpinfe", "assets"):
         meta.pop(section, None)
 
     projected = dict(row)

@@ -5,11 +5,6 @@ from time import perf_counter
 
 from common.config_access import MediaConfig
 from common.games.game import Game
-from common.games.game_files import (
-    default_game_file,
-    game_file_names,
-    recorded_default,
-)
 from common.games.game_metadata import section, vpinfe_section
 from common.games.info_migration import (
     BACKUP_MARKER,
@@ -17,6 +12,11 @@ from common.games.info_migration import (
     restorable_backup,
 )
 from common.games.metaconfig import InvalidMetaConfigError, MetaConfig
+from common.games.tables import (
+    default_table,
+    recorded_default,
+    table_names,
+)
 from common.media_paths import apply_media_paths
 
 logger = logging.getLogger("vpinfe.common.games.gameparser")
@@ -101,7 +101,7 @@ class GameParser:
         except OSError:
             logger.exception("Failed to enumerate table directory: %s", game_dir)
 
-        if not game_file_names(game_contents):
+        if not table_names(game_contents):
             logger.warning("No .vpx found in %s directory.", game.tableDirName)
             return None
 
@@ -152,7 +152,7 @@ class GameParser:
         # After the metadata, so a folder with several .vpx launches the one its
         # metadata describes rather than whichever the filesystem listed first.
         recorded = recorded_default(vpinfe_section(game.metaConfig))
-        chosen = default_game_file(game_contents, game_dir.name, recorded)
+        chosen = default_table(game_contents, game_dir.name, recorded)
         game.fullPathVPXfile = str(game_dir / chosen)
 
         # Media after the default pick: tier 1 of the resolution chain keys off
@@ -161,7 +161,7 @@ class GameParser:
             game,
             game_contents=game_contents,
             has_medias_dir="medias" in game_subdirs,
-            game_file_stem=Path(chosen).stem if chosen else None,
+            table_stem=Path(chosen).stem if chosen else None,
         )
         try:
             stat = os.stat(game.fullPathVPXfile)
@@ -197,7 +197,7 @@ class GameParser:
         return game
 
     def loadImagePaths(self, Game, game_contents=None, has_medias_dir=None,
-                       game_file_stem=None):
+                       table_stem=None):
         game_dir = Path(Game.fullPathTable)
         medias_dir = game_dir / "medias"
 
@@ -219,7 +219,7 @@ class GameParser:
             except Exception:
                 medias_contents = set()
         apply_media_paths(Game, game_contents, medias_contents, self.tabletype,
-                          game_file_stem, self.active_sets or None)
+                          table_stem, self.active_sets or None)
 
     def loadMetaData(self, Game):
         meta_path = Path(Game.fullPathTable) / f"{Game.tableDirName}.info"

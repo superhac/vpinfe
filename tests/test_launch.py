@@ -149,7 +149,7 @@ class PlayDataTests(LaunchTests):
         play.update_score_from_nvram.assert_called_once()
         play.delete_nvram_if_configured.assert_called_once()
 
-    def test_the_game_file_that_was_launched_is_the_one_credited(self) -> None:
+    def test_the_table_that_was_launched_is_the_one_credited(self) -> None:
         """A folder can hold several game files, and the API can launch any of them."""
         game = _game()
         game.fullPathVPXfile = "/games/Example/Example (VR).vpx"
@@ -161,14 +161,14 @@ class PlayDataTests(LaunchTests):
 
 
 class RefusalTests(LaunchTests):
-    def _check(self, game=None, game_file=None, launcher_exists=True, launcher=True):
+    def _check(self, game=None, table=None, launcher_exists=True, launcher=True):
         found = types.SimpleNamespace(exists=lambda: launcher_exists) if launcher else None
         with mock.patch.object(launch, "SettingsConfig") as settings_cls, \
                 mock.patch.object(launch, "get_effective_launcher",
                                   lambda binpath, meta: (found, "vpxbinpath", None)):
             settings_cls.from_config.return_value = _settings()
             return launch.check_launchable(game or _game(),
-                                           types.SimpleNamespace(config={}), game_file)
+                                           types.SimpleNamespace(config={}), table)
 
     def test_no_launcher_configured_is_refused_with_a_reason(self) -> None:
         with self.assertRaises(launch.LaunchUnavailableError) as caught:
@@ -187,19 +187,19 @@ class RefusalTests(LaunchTests):
         with self.assertRaises(launch.LaunchBusyError):
             self._check()
 
-    def test_a_game_file_the_game_does_not_have_is_refused(self) -> None:
+    def test_a_table_the_game_does_not_have_is_refused(self) -> None:
         """Named files are checked against the folder, so this cannot reach outside it."""
         with mock.patch.object(launch.os.path, "isdir", return_value=True), \
                 mock.patch.object(launch.os, "listdir", return_value=["Example.vpx"]), \
                 mock.patch.object(launch.os.path, "isfile", return_value=True):
-            with self.assertRaises(launch.UnknownGameFileError):
-                self._check(game_file="../../etc/passwd")
+            with self.assertRaises(launch.UnknownTableError):
+                self._check(table="../../etc/passwd")
 
-    def test_a_game_file_the_game_does_have_is_accepted(self) -> None:
+    def test_a_table_the_game_does_have_is_accepted(self) -> None:
         with mock.patch.object(launch.os.path, "isdir", return_value=True), \
                 mock.patch.object(launch.os, "listdir", return_value=["Other.vpx"]), \
                 mock.patch.object(launch.os.path, "isfile", return_value=True):
-            resolved = self._check(game_file="Other.vpx")
+            resolved = self._check(table="Other.vpx")
 
         self.assertTrue(resolved.endswith("Other.vpx"))
 

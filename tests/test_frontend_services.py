@@ -275,7 +275,7 @@ class FrontendServiceTests(unittest.TestCase):
             self.assertEqual(saved["User"]["Rating"], 4)
             self.assertEqual(saved["User"]["StartCount"], 1)
 
-    def test_parse_score_from_nvram_reads_the_game_files_rom(self) -> None:
+    def test_parse_score_from_nvram_reads_the_tables_rom(self) -> None:
         with TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Example"
             game_dir.mkdir()
@@ -283,7 +283,7 @@ class FrontendServiceTests(unittest.TestCase):
             info_path.write_text(
                 json.dumps(
                     {
-                        "game_files": {"Example.vpx": {"rom": "vpx_rom"}},
+                        "tables": {"Example.vpx": {"rom": "vpx_rom"}},
                     }
                 ),
                 encoding="utf-8",
@@ -303,7 +303,7 @@ class FrontendServiceTests(unittest.TestCase):
             self.assertEqual(score_data, {"rom": "vpx_rom"})
             self.assertEqual(score_path, "/scores/vpx_rom.nv")
 
-    def test_a_migrated_game_reads_its_rom_from_the_game_file(self) -> None:
+    def test_a_migrated_game_reads_its_rom_from_the_table(self) -> None:
         """2.x kept a table-level Info.Rom and the migration drops it. A value carried
         from there could disagree with the file it claims to describe."""
         with TemporaryDirectory() as tmp:
@@ -331,7 +331,7 @@ class FrontendServiceTests(unittest.TestCase):
 
             read_rom.assert_called_once_with("vpx_rom", str(game_dir))
 
-    def test_delete_nvram_if_configured_reads_the_game_files_rom(self) -> None:
+    def test_delete_nvram_if_configured_reads_the_tables_rom(self) -> None:
         with TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Example"
             nvram_dir = game_dir / "pinmame" / "nvram"
@@ -344,7 +344,7 @@ class FrontendServiceTests(unittest.TestCase):
                 fullPathTable=str(game_dir),
                 tableDirName="Example",
                 metaConfig={
-                    "game_files": {"Example.vpx": {"rom": "vpx_rom"}},
+                    "tables": {"Example.vpx": {"rom": "vpx_rom"}},
                     "vpinfe": {"delete_nvram_on_close": True},
                 },
             )
@@ -355,30 +355,30 @@ class FrontendServiceTests(unittest.TestCase):
             self.assertTrue(info_nvram.exists())
 
 
-class PerGameFilePlayStatsTests(unittest.TestCase):
+class PerTablePlayStatsTests(unittest.TestCase):
     """A folder holds several game files and the API can launch any of them, so a play
     is credited to the one that ran as well as to the table."""
 
-    def _launch(self, config, game_file, seconds=90, played_at=1000):
-        game_play_service.apply_start_count_update(config, played_at, game_file)
-        game_play_service.apply_runtime_update(config, seconds, game_file)
+    def _launch(self, config, table, seconds=90, played_at=1000):
+        game_play_service.apply_start_count_update(config, played_at, table)
+        game_play_service.apply_runtime_update(config, seconds, table)
         return config
 
-    def test_a_launch_counts_against_the_game_and_the_game_file(self):
+    def test_a_launch_counts_against_the_game_and_the_table(self):
         config = self._launch({}, "Example (VR).vpx")
 
         self.assertEqual(config["User"]["StartCount"], 1)
         self.assertEqual(config["User"]["LastRun"], 1000)
-        played = config["game_files"]["Example (VR).vpx"]["user"]
+        played = config["tables"]["Example (VR).vpx"]["user"]
         self.assertEqual(played, {"last_run": "1970-01-01T00:16:40Z",
                                   "start_count": 1, "run_time_seconds": 90})
 
-    def test_each_game_file_keeps_its_own_count(self):
+    def test_each_table_keeps_its_own_count(self):
         config = self._launch({}, "Example.vpx")
         self._launch(config, "Example.vpx")
         self._launch(config, "Example (VR).vpx")
 
-        entries = config["game_files"]
+        entries = config["tables"]
         self.assertEqual(entries["Example.vpx"]["user"]["start_count"], 2)
         self.assertEqual(entries["Example (VR).vpx"]["user"]["start_count"], 1)
         self.assertEqual(config["User"]["StartCount"], 3, "the table saw all three")
@@ -388,27 +388,27 @@ class PerGameFilePlayStatsTests(unittest.TestCase):
         a total summed from the entries would do."""
         config = self._launch({}, "Example.vpx")
         self._launch(config, "Gone.vpx")
-        del config["game_files"]["Gone.vpx"]
+        del config["tables"]["Gone.vpx"]
 
         self.assertEqual(config["User"]["StartCount"], 2)
         self.assertEqual(config["User"]["RunTime"], 4, "minutes, as the spec key always was")
 
-    def test_a_hidden_game_file_still_accrues_and_stays_hidden(self):
+    def test_a_hidden_table_still_accrues_and_stays_hidden(self):
         """Hiding is presentation: the API can still launch it, and it is still played."""
-        config = {"game_files": {"Base.vpx": {"hidden": True, "rom": "afm_113b"}}}
+        config = {"tables": {"Base.vpx": {"hidden": True, "rom": "afm_113b"}}}
         self._launch(config, "Base.vpx")
 
-        entry = config["game_files"]["Base.vpx"]
+        entry = config["tables"]["Base.vpx"]
         self.assertEqual(entry["user"]["start_count"], 1)
         self.assertTrue(entry["hidden"])
         self.assertEqual(entry["rom"], "afm_113b", "the parse must survive a play")
 
-    def test_a_launch_with_no_game_file_named_still_counts_for_the_game(self):
+    def test_a_launch_with_no_table_named_still_counts_for_the_game(self):
         """Nothing outside the launch path knows which file ran."""
         config = self._launch({}, "")
 
         self.assertEqual(config["User"]["StartCount"], 1)
-        self.assertNotIn("game_files", config)
+        self.assertNotIn("tables", config)
 
 
 if __name__ == "__main__":

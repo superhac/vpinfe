@@ -89,7 +89,7 @@ class AssetFileBinding(ApiModel):
 
     file: str
     binding: str
-    game_file: str | None = None
+    table: str | None = None
 
 
 class AssetEntry(ApiModel):
@@ -103,7 +103,7 @@ class AssetEntry(ApiModel):
 
 class GameLinks(ApiModel):
     self_: str = Field(alias="self")
-    game_files: str
+    tables: str
     media: str
     archive: str
     launch: str
@@ -187,7 +187,7 @@ class Dependencies(ApiModel):
     flexdmd: FlexDmdState
 
 
-class GameFile(ApiModel):
+class Table(ApiModel):
     """A launchable artifact.
 
     `available` is false for a file the metadata records but which is not on disk -
@@ -212,8 +212,8 @@ class GameFile(ApiModel):
     dependencies: Dependencies
 
 
-class GameFileList(ApiModel):
-    game_files: list[GameFile]
+class TableList(ApiModel):
+    tables: list[Table]
 
 
 # --- Media -----------------------------------------------------------------

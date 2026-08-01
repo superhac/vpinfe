@@ -18,7 +18,7 @@ from managerui.services.game_index_service import (
     set_rows,
     update_row_by_path,
 )
-from managerui.services.game_service import normalize_game_rating, replace_game_file
+from managerui.services.game_service import normalize_game_rating, replace_table
 from managerui.services.media_service import (
     get_media_cache,
     invalidate_media_cache,
@@ -67,7 +67,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             with self.subTest(raw=raw):
                 self.assertEqual(normalize_game_rating(raw), expected)
 
-    def test_replace_game_file_replaces_vpx_and_renames_directb2s(self):
+    def test_replace_table_replaces_vpx_and_renames_directb2s(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
 
@@ -80,7 +80,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             old_b2s.write_bytes(b"old b2s")
 
             with mock.patch("managerui.services.game_service.refresh_game"):
-                result = replace_game_file(
+                result = replace_table(
                     str(game_dir),
                     "New Table.vpx",
                     b"new vpx",
@@ -95,7 +95,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             self.assertEqual(result["filename"], "New Table.vpx")
             self.assertEqual(result["directb2s_filename"], "New Table.directb2s")
 
-    def test_replace_game_file_directb2s_uses_existing_name_or_vpx_stem(self):
+    def test_replace_table_directb2s_uses_existing_name_or_vpx_stem(self):
         from pathlib import Path
         from tempfile import TemporaryDirectory
 
@@ -107,7 +107,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             existing_b2s.write_bytes(b"old b2s")
 
             with mock.patch("managerui.services.game_service.refresh_game"):
-                result = replace_game_file(
+                result = replace_table(
                     str(game_dir),
                     "Uploaded.directb2s",
                     b"new b2s",
@@ -125,7 +125,7 @@ class ManagerUiServiceTests(unittest.TestCase):
             (game_dir / "Example.vpx").write_bytes(b"vpx")
 
             with mock.patch("managerui.services.game_service.refresh_game"):
-                result = replace_game_file(
+                result = replace_table(
                     str(game_dir),
                     "Uploaded.directb2s",
                     b"new b2s",

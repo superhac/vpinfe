@@ -3,19 +3,19 @@ import logging
 import os
 from urllib.parse import parse_qs, urlparse
 
-from common.games.game_files import (
-    DETECT_KEYS,
-    GAME_FILES_KEY,
-    default_game_file,
-    entry_from_parsed,
-    game_file_entries,
-    recorded_default,
-)
 from common.games.info_migration import (
     migrate,
     needs_migration,
     write_backup,
     write_json_atomic,
+)
+from common.games.tables import (
+    DETECT_KEYS,
+    TABLES_KEY,
+    default_table,
+    entry_from_parsed,
+    recorded_default,
+    table_entries,
 )
 from common.timestamps import utc_now_iso
 
@@ -74,7 +74,7 @@ def migrate_vpinfe_section(vpinfe):
     return vpinfe
 
 
-def _default_game_file_changed(chosen, previous_files, game_files):
+def _default_table_changed(chosen, previous_files, tables):
     """Whether the table's default game file is a different file than it was.
 
     A manual VPS override is tied to the table file it was chosen against, so replacing
@@ -82,7 +82,7 @@ def _default_game_file_changed(chosen, previous_files, game_files):
     discard the user's match.
     """
     previous_hash = str(previous_files.get(chosen, {}).get("file_hash", "") or "").strip()
-    new_hash = str(game_files.get(chosen, {}).get("file_hash", "") or "").strip()
+    new_hash = str(tables.get(chosen, {}).get("file_hash", "") or "").strip()
     return bool(previous_hash and new_hash and previous_hash != new_hash)
 
 
@@ -193,8 +193,8 @@ class MetaConfig:
             vpinfe["id"] = new_id()
 
         assets = self.data.get(ASSETS_KEY, {})
-        previous_files = game_file_entries(self.data)
-        game_files = self._build_game_files(configdata)
+        previous_files = table_entries(self.data)
+        tables = self._build_tables(configdata)
 
         # Which game file a single-game-file consumer gets - today's themes all assume
         # one table means one game file. Resolved fresh here and deliberately NOT written back:
@@ -202,9 +202,9 @@ class MetaConfig:
         # permanent one with nothing to change it. The key is written only when
         # somebody chooses (and by the migration, which seeds it from VPXFile.filename
         # so existing tables keep selecting exactly what they select today).
-        chosen = default_game_file(game_files, "", recorded_default(vpinfe))
+        chosen = default_table(tables, "", recorded_default(vpinfe))
 
-        if _default_game_file_changed(chosen, previous_files, game_files):
+        if _default_table_changed(chosen, previous_files, tables):
             vpinfe["alt_vpsid"] = ""
         else:
             vpinfe.setdefault("alt_vpsid", "")
@@ -218,21 +218,21 @@ class MetaConfig:
             k: v
             for k, v in self.data.items()
             if k not in ("Info", "User", "VPXFile", VPINFE_SECTION, "Medias",
-                         GAME_FILES_KEY, ASSETS_KEY)
+                         TABLES_KEY, ASSETS_KEY)
         }
 
         self.data = {
             "Info": info,
             "User": user,
             VPINFE_SECTION: vpinfe,
-            GAME_FILES_KEY: game_files,
+            TABLES_KEY: tables,
             ASSETS_KEY: assets,
             **preserved
         }
 
         self.writeConfig()
 
-    def _build_game_files(self, configdata):
+    def _build_tables(self, configdata):
         """One entry per parsed game file, keyed by filename.
 
         Callers pass `gamefiles` as {filename: parsed}. `vpxdata` alone is still
@@ -249,7 +249,7 @@ class MetaConfig:
             name = str(single.get("filename", "") or "").strip()
             parsed_files = {name: single} if name else {}
 
-        existing = game_file_entries(self.data)
+        existing = table_entries(self.data)
         built = {}
         for filename, parsed in parsed_files.items():
             entry = entry_from_parsed(parsed)
@@ -286,16 +286,16 @@ class MetaConfig:
     def gameFileSettings(self):
         """Per-game-file entries, keyed by filename. A folder can hold several game files
         of one table - desktop, VR, a patched variant - and they are peers."""
-        return game_file_entries(self.data)
+        return table_entries(self.data)
 
-    def setGameFileHidden(self, filename, hidden):
+    def setTableHidden(self, filename, hidden):
         """Hide a game file from the frontend, or unhide it.
 
         Hiding never deletes. A patch base has to stay on disk - the patched table
         cannot be rebuilt without it - it just should not be offered as something to
         play. The same applies to a variant someone may want back later.
         """
-        settings = self.data.setdefault(GAME_FILES_KEY, {})
+        settings = self.data.setdefault(TABLES_KEY, {})
         entry = settings.setdefault(filename, {})
         if hidden:
             entry["hidden"] = True
@@ -309,31 +309,31 @@ class MetaConfig:
 
     def gameFileValue(self, filename, key, default=""):
         """One key off a specific game file's entry."""
-        value = game_file_entries(self.data).get(filename, {})
+        value = table_entries(self.data).get(filename, {})
         return value.get(key, default) if isinstance(value, dict) else default
 
-    def setGameFileValue(self, filename, key, value):
+    def setTableValue(self, filename, key, value):
         """Record something we did to a game file, against that game file."""
-        entry = self.data.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
+        entry = self.data.setdefault(TABLES_KEY, {}).setdefault(filename, {})
         entry[key] = value
         self.writeConfig()
 
-    def refresh_game_file(self, filename, parsed):
+    def refresh_table(self, filename, parsed):
         """Refresh what one game file says about itself. Everything else on the entry - hidden,
         where it came from, later play stats - survives, as it does on a full rebuild.
         """
-        entry = self.data.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
+        entry = self.data.setdefault(TABLES_KEY, {}).setdefault(filename, {})
         entry.update(entry_from_parsed(parsed))
         self.writeConfig()
 
-    def replace_game_file(self, removed, filename, parsed):
+    def replace_table(self, removed, filename, parsed):
         """One game file replaced another on disk: describe the new one, forget the old.
 
         A gone game file's entry is not kept - its history answers nothing once the file
         is gone. If the default is what changed, the manual VPS
         override goes with it, the same rule a rebuild applies.
         """
-        entries = game_file_entries(self.data)
+        entries = table_entries(self.data)
         # Deep enough to survive the update below: a shallow copy shares the entry dicts,
         # so the "before" would change with the "after" and never look different.
         previous = {name: dict(entry) for name, entry in entries.items()
@@ -346,11 +346,11 @@ class MetaConfig:
         elif not dropped:
             return      # nothing to say; do not add an empty section to the .info
 
-        self.data[GAME_FILES_KEY] = entries
+        self.data[TABLES_KEY] = entries
         vpinfe = self.data.get(VPINFE_SECTION)
         if isinstance(vpinfe, dict):
-            chosen = default_game_file(entries, "", recorded_default(vpinfe))
-            if _default_game_file_changed(chosen, previous, entries):
+            chosen = default_table(entries, "", recorded_default(vpinfe))
+            if _default_table_changed(chosen, previous, entries):
                 vpinfe["alt_vpsid"] = ""
         self.writeConfig()
 
@@ -361,7 +361,7 @@ class MetaConfig:
         The base is hashed because a .dif applies to one exact file, and the delta's
         format is recorded rather than the code that applied it.
         """
-        entry = self.data.setdefault(GAME_FILES_KEY, {}).setdefault(filename, {})
+        entry = self.data.setdefault(TABLES_KEY, {}).setdefault(filename, {})
         entry["source"] = {
             "base": {"file": base_file, "hash": base_hash},
             "patch": {"format": patch_format, "applied": utc_now_iso()},
@@ -437,7 +437,7 @@ class MetaConfig:
         The parser has handed back strings at times, and a JSON "false" is truthy to
         anything that reads it without care.
         """
-        for entry in game_file_entries(self.data).values():
+        for entry in table_entries(self.data).values():
             if not isinstance(entry, dict):
                 continue
             for key in DETECT_KEYS:
