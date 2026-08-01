@@ -64,6 +64,11 @@ class VPinFECore {
       joycollectionmenu: ['c'],
     };
     this.previousButtonStates = {};
+    // A held key repeats at whatever rate the OS is set to - often 30 a second - and
+    // every one of those used to become a full wheel move. Deliberate presses are never
+    // throttled; only the automatic repeat is.
+    this.minRepeatIntervalMs = 150;
+    this._lastRepeatAt = 0;
     this.gamepadEnabled = true;
     this.frontendInputEnabled = true;
     this._launchInputSuppressedByLifecycle = false;
@@ -1051,20 +1056,25 @@ class VPinFECore {
   async #triggerInputAction(action) {
     if (!this.frontendInputEnabled) return;
 
-    if(this.tutorialUP) {
-      this.inputHandlerTutorial.forEach(handler => handler(action));
-    }
-    else if(this.collectionMenuUP) {
-      // Collection menu is up, route to its handler
-      this.inputHandlerCollectionMenu.forEach(handler => handler(action));
-    }
-    else if(this.menuUP) {
-      // Menu is up route to its handler
-      this.inputHandlerMenu.forEach(handler => handler(action));
-    }
-    else {
-      // No menu is up, route to theme handler
-      this.inputHandlers.forEach(handler => handler(action));
+    let handlers;
+    if (this.tutorialUP) handlers = this.inputHandlerTutorial;
+    else if (this.collectionMenuUP) handlers = this.inputHandlerCollectionMenu;
+    else if (this.menuUP) handlers = this.inputHandlerMenu;
+    else handlers = this.inputHandlers;   // no menu is up: the theme's own handler
+
+    // Handlers are async and their result was dropped, so a theme that threw did it
+    // in silence - and a theme guarding itself with an "is animating" flag never
+    // cleared it, which is what left the wheel dead until a restart.
+    for (const handler of handlers) {
+      try {
+        const result = handler(action);
+        if (result && typeof result.catch === "function") {
+          result.catch(e => this.call("console_out",
+            `Theme input handler failed on ${action}: ${e && e.message}`));
+        }
+      } catch (e) {
+        this.call("console_out", `Theme input handler threw on ${action}: ${e && e.message}`);
+      }
     }
   }
 
@@ -1107,6 +1117,11 @@ class VPinFECore {
   // Keybaord input processing to handlers
   async #onKeyDown(e) {
     if (!this.frontendInputEnabled) return;
+    if (e.repeat) {
+      const now = Date.now();
+      if (now - this._lastRepeatAt < this.minRepeatIntervalMs) return;
+      this._lastRepeatAt = now;
+    }
 
     if (this._windowName == "table") {
       const action = this.#actionForKeyboardEvent(e);
