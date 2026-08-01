@@ -28,6 +28,7 @@ class TableParser:
         self.tabletype = "table"
         self.tables: list[Table] = []
         self.missing_tables: list[dict] = []
+        self.unreadable_tables: list[dict] = []
         self.active_sets: dict[str, str] = {}
         if iniConfig:
             media_cfg = MediaConfig.from_config(iniConfig)
@@ -45,6 +46,7 @@ class TableParser:
         started_at = perf_counter()
         self.tables.clear()
         self.missing_tables.clear()
+        self.unreadable_tables.clear()
 
         if not self.tablesRootFilePath.exists():
             return
@@ -99,8 +101,7 @@ class TableParser:
             return None
 
         info_name = f"{table.tableDirName}.info"
-        # Only folders that hold a backup read one, which for a library nothing has
-        # upgraded is none of them.
+        # Only folders holding a backup open one.
         table.info_restorable = bool(
             backup_names(table_contents, info_name)
             and restorable_backup(table_dir, names=table_contents))
@@ -128,7 +129,18 @@ class TableParser:
         if "pinmame" in table_subdirs and (table_dir / "pinmame" / "altsound").is_dir():
             table.altSoundExists = True
 
-        self.loadMetaData(table)
+        try:
+            self.loadMetaData(table)
+        except InvalidMetaConfigError as exc:
+            # This used to stop the whole library loading. Excluded rather than loaded
+            # empty, so nothing can write over a file we could not read.
+            self.unreadable_tables.append({
+                'folder': table.tableDirName,
+                'path': str(table_dir),
+                'error': str(exc),
+            })
+            logger.error("Skipping table with unreadable metadata: %s", exc)
+            return None
 
         # After the metadata, so a folder with several .vpx launches the one its
         # metadata describes rather than whichever the filesystem listed first.
@@ -162,6 +174,7 @@ class TableParser:
         table_dir = Path(table_dir)
         target = str(table_dir)
         self.missing_tables = [row for row in self.missing_tables if row["path"] != target]
+        self.unreadable_tables = [r for r in self.unreadable_tables if r["path"] != target]
 
         table = self._build_table(table_dir) if table_dir.is_dir() else None
         for index, existing in enumerate(self.tables):
@@ -219,6 +232,10 @@ class TableParser:
 
     def getAllTables(self):
         return list(self.tables)
+
+    def getUnreadableTables(self):
+        """Folders whose .info could not be read, so the table was left out."""
+        return [dict(row) for row in self.unreadable_tables]
 
     def getMissingTables(self):
         return [dict(row) for row in self.missing_tables]

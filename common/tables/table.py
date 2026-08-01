@@ -43,12 +43,7 @@ class Table:
 
     metaConfig: dict[str, Any] | None = None
 
-    # Read during the scan because the scan already has both: the .info was opened, and
-    # the folder was listed. Asking again later costs a second walk of the library, which
-    # on a network share is the whole cost.
-    #
-    # info_restorable means a backup this build can actually read, not merely a backup.
-    # After a restore the folder still holds the copies it could not use, and counting
-    # those would leave the offer on screen with nothing behind it.
+    # Read during the scan, which already has both. info_restorable means a backup this
+    # build can read, not merely a backup - after a restore the unusable copies remain.
     info_pending_upgrade: bool = False
     info_restorable: bool = False

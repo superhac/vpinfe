@@ -408,8 +408,11 @@ def info_maintenance_counts(reload: bool = False):
     return table_repository.info_maintenance_counts(reload=reload)
 
 
+def unreadable_tables():
+    return table_repository.unreadable_tables()
+
+
 def restorable_table_names():
-    """Folders with a saved .info, for the read-only list the restore dialog shows."""
     return table_repository.restorable_table_names()
 
 

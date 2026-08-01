@@ -237,6 +237,15 @@ def load_table_meta(table) -> Dict[str, Any]:
 
 def persist_table_meta(table, config: Dict[str, Any]) -> None:
     meta_file = MetaConfig(str(meta_file_path(table)))
+    upgraded = meta_file.pending_migration
     meta_file.data = config
     meta_file.writeConfig()
     table.metaConfig = config
+    # Both flags were read during the scan, and this write is what makes them wrong.
+    # Nothing is pending once the file is on disk, and a upgrade has just left a
+    # restore point behind it. Without this the id backfill upgrades the whole library
+    # at startup and every loaded table still claims it needs upgrading - which is what
+    # the Tables page then reports, for as long as the process lives.
+    table.info_pending_upgrade = False
+    if upgraded:
+        table.info_restorable = True

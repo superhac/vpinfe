@@ -57,14 +57,22 @@ def refresh_tables() -> List[Any]:
 def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
     """How many tables could be upgraded, and how many have something to restore.
 
-    Both come off the loaded library, which read every .info and listed every folder to
-    get there. A second walk to answer this would cost what the scan already paid.
+    Off the loaded library, which already read every .info and listed every folder.
     """
     tables = ensure_tables_loaded(reload=reload)
     return {
         "pending_upgrade": sum(1 for t in tables if getattr(t, "info_pending_upgrade", False)),
         "restorable": sum(1 for t in tables if getattr(t, "info_restorable", False)),
     }
+
+
+def unreadable_tables() -> List[Dict[str, str]]:
+    """Folders whose .info could not be read, so the table was left out of the library."""
+    ensure_tables_loaded()
+    with _LOCK:
+        if _PARSER is None:
+            return []
+        return [dict(row) for row in _PARSER.getUnreadableTables()]
 
 
 def restorable_table_names() -> List[str]:

@@ -6,10 +6,12 @@ stamp or predates the idea. See INFO-SCHEMA.local.md for why each section moved.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
 import shutil
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -61,10 +63,8 @@ _DROPPED_INFO_KEYS = ("Rom",)
 def is_versioned(data) -> bool:
     """Whether this file has been through the migration.
 
-    Only the section we write today counts. A `schema` in the old PascalCase section is
-    a different number that meant something else - the shape of that section alone, from
-    a 3.0 build before the rename - and reading it as "already migrated" leaves the file
-    half upgraded: no game_files, and every consumer of them empty.
+    Only the section we write today counts - the old PascalCase `schema` numbered that
+    section's shape, not the file's (5db3f3d).
     """
     if not isinstance(data, dict):
         return False
@@ -75,9 +75,8 @@ def is_versioned(data) -> bool:
 def needs_migration(data) -> bool:
     """An unversioned file carrying anything 2.x wrote, or a migrated one 2.x wrote again.
 
-    We never write VPXFile or Medias, so finding either in a versioned file is proof a 2.x
-    build rebuilt it after the migration - and its game_files went stale the moment that
-    happened. Checked ahead of the version stamp, which is the thing not to trust here.
+    We never write VPXFile or Medias, so either in a stamped file is proof 2.x has been
+    back since - checked ahead of the stamp, which is the thing not to trust here.
     """
     if not isinstance(data, dict):
         return False
@@ -172,24 +171,17 @@ def backup_path(info_path, when: datetime | None = None) -> str:
 def backup_names(names, info_name: str) -> list[str]:
     """The pre-migration copies in a folder listing, newest first.
 
-    Takes names rather than a path so this can ride a scan the caller is already doing:
-    on a network share the listing is the expensive part, and the library walk has it.
-    The timestamp is ISO 8601 basic, so lexical order is chronological.
+    Takes names so it can ride a scan already in progress; the stamp sorts lexically.
     """
     prefix = info_name + BACKUP_MARKER
     return sorted((n for n in names if n.startswith(prefix)), reverse=True)
 
 
 def restorable_backup(table_dir, max_schema: int = CURRENT_SCHEMA, names=None) -> str | None:
-    """The backup this build would restore in this folder, or None.
+    """The backup this build would restore here, or None.
 
-    Newest first, and the first one whose schema this build can read wins. Older ones stay
-    as deeper restore points, and a backup written by a *newer* build is stepped over
-    rather than ending the search - the one behind it is usually what is wanted.
-
-    Reads each candidate, so callers pass `names` when they have already listed the folder.
-    Only folders that hold a backup pay for it, which for anyone who never upgraded is
-    none of them.
+    Newest readable wins; a newer one is stepped over rather than ending the search.
+    Pass `names` when the folder is already listed - only folders with a backup pay.
     """
     table_dir = Path(table_dir)
     if names is None:
@@ -211,13 +203,54 @@ def restorable_backup(table_dir, max_schema: int = CURRENT_SCHEMA, names=None) -
 
 
 def backup_schema(path) -> int | None:
-    """The schema a backup holds, or None when it predates versioning. Raises if unreadable."""
+    """The schema a backup holds, or None when it predates versioning.
+
+    Raises if the file cannot be read at all - the caller decides whether to skip it.
+    """
     with open(path, encoding="utf-8") as handle:
         data = json.load(handle)
     section = data.get("vpinfe") if isinstance(data, dict) else None
     if not isinstance(section, dict):
         return None
     return int(section.get(SCHEMA_KEY) or 0) or None
+
+
+def replace_atomic(source, path) -> None:
+    """Put `source` at `path` with no window where `path` is half written.
+
+    A plain copy truncates first, and restore does that once per table across the library.
+    """
+    directory = os.path.dirname(path) or "."
+    handle_fd, tmp = tempfile.mkstemp(dir=directory, prefix=".vpinfe_write_", suffix=".tmp")
+    os.close(handle_fd)
+    try:
+        shutil.copy2(source, tmp)
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+def write_json_atomic(path, data) -> None:
+    """Write a .info so a reader sees the old file or the new one, never half of one.
+
+    open(path, "w") truncates before writing, and the id backfill rewrites every file in
+    one burst at first launch - the worst moment to be interrupted.
+    """
+    directory = os.path.dirname(path) or "."
+    # Underscores, not the BACKUP_MARKER hyphen: must not read as a restore point.
+    handle_fd, tmp = tempfile.mkstemp(dir=directory, prefix=".vpinfe_write_", suffix=".tmp")
+    try:
+        with os.fdopen(handle_fd, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, indent=4)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
 
 
 def _free_backup_path(info_path, when: datetime | None = None) -> str:
@@ -247,9 +280,8 @@ def write_backup(info_path, original_text: str, when: datetime | None = None) ->
 def copy_aside(info_path, when: datetime | None = None) -> str:
     """Keep the current file before a restore replaces it, whatever state it is in.
 
-    Deliberately does not check the JSON the way write_backup does. A file too broken to
-    parse is a file somebody is restoring *because* it is broken, and refusing to keep it
-    would block the rescue to protect a copy nobody wants back.
+    No JSON check: a file too broken to parse is one somebody is restoring *because* it
+    is broken.
     """
     path = _free_backup_path(info_path, when)
     shutil.copy2(info_path, path)

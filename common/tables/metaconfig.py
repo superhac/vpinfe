@@ -3,7 +3,12 @@ import logging
 import os
 from urllib.parse import urlparse, parse_qs
 
-from common.tables.info_migration import migrate, needs_migration, write_backup
+from common.tables.info_migration import (
+    migrate,
+    needs_migration,
+    write_backup,
+    write_json_atomic,
+)
 from common.tables.game_files import (
     DETECT_KEYS,
     GAME_FILES_KEY,
@@ -121,9 +126,9 @@ class MetaConfig:
 
     @property
     def pending_migration(self) -> bool:
-        """Whether this file upgraded on read and has not been written back yet.
+        """Whether this file converted on read and has not been written back yet.
 
-        The lazy path means "has the library upgraded" has no answer without asking every
+        The lazy path means "has the library converted" has no answer without asking every
         file. This is how the caller asks one.
         """
         return bool(self._pre_migration)
@@ -270,8 +275,7 @@ class MetaConfig:
             saved = write_backup(self.configFilePath, self._pre_migration)
             self._pre_migration = ""
             logger.info("Kept the pre-migration metadata at %s", saved)
-        with open(self.configFilePath, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, indent=4)
+        write_json_atomic(self.configFilePath, self.data)
 
     def getConfig(self):
         return self.data

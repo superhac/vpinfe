@@ -1,32 +1,28 @@
-"""Upgrade a library of `.info` files to schema 2, or put back what a newer build upgraded.
+"""Upgrade a library of `.info` files, or put back what a newer build upgraded.
 
-Both walk the table root one folder at a time and neither stops on a bad file. One
-unreadable `.info` is exactly the state somebody is trying to get out of, so failing the
-whole run over it would withhold the fix from the other 1,300 tables.
-
-Upgrade is a format change only: no `.vpx` is re-read and nothing is downloaded. That is
-what separates this from a metadata build, which upgrades too but pays for a full re-parse.
+Neither walk stops on a bad file, and neither re-reads a `.vpx`. See
+INFO-SCHEMA.local.md §5b/§5c.
 """
 
 from __future__ import annotations
 
 import logging
-import shutil
 from pathlib import Path
 
 from common.jobs import JobReporter
-from common.tables.info_migration import CURRENT_SCHEMA, copy_aside, restorable_backup
+from common.tables.info_migration import (
+    CURRENT_SCHEMA,
+    copy_aside,
+    replace_atomic,
+    restorable_backup,
+)
 from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
 
 logger = logging.getLogger("vpinfe.common.tables.info_maintenance")
 
 
 def table_dirs(table_root, table_name: str | None = None) -> list[Path]:
-    """Table folders under the root, in name order.
-
-    Deliberately not TableParser.loadTables: that raises on the first unreadable `.info`,
-    which is the library this module exists to repair.
-    """
+    """Table folders under the root. Not loadTables: that raises on the first bad `.info`."""
     root = Path(table_root)
     if not root.is_dir():
         return []
@@ -60,10 +56,9 @@ def upgrade_library(
     progress_cb=None,
     log_cb=None,
 ) -> dict:
-    """Upgrade every table's `.info` to the current schema in one pass.
+    """Upgrade every table's `.info` in one pass.
 
-    The lazy path upgrades a table when something writes it, so this is the same work
-    brought forward - not a different upgrade.
+    Startup already does the library, so this is the repair for what it did not reach.
     """
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
     log = reporter.log
@@ -108,8 +103,7 @@ def restore_library(
 ) -> dict:
     """Put back the newest readable backup in every folder that has one.
 
-    All or nothing by design: the user did not choose which tables upgraded, so they
-    cannot be asked to choose which ones come back.
+    All or nothing: nobody chose which tables upgraded, so nobody can choose which return.
     """
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
     log = reporter.log
@@ -132,7 +126,7 @@ def restore_library(
         try:
             if info_path.exists():
                 copy_aside(str(info_path))
-            shutil.copy2(chosen, info_path)
+            replace_atomic(chosen, info_path)
         except OSError as exc:
             result["failed"] += 1
             result["failures"].append((table_dir.name, str(exc)))
@@ -149,13 +143,16 @@ def _tables(count: int) -> str:
     return f"{count} table" if count == 1 else f"{count} tables"
 
 
+def _files(count: int) -> str:
+    return "1 .info file" if count == 1 else f"{count} .info files"
+
+
 def _upgrade_summary(result: dict) -> str:
     if not result["upgraded"]:
         return "Nothing to upgrade - every .info file is already on the current format."
     summary = (
-        f"Upgraded {_tables(result['upgraded'])}. Ratings, favourites, tags and play "
-        "counts came across unchanged, and the old file is saved beside each one if you "
-        "ever want to go back."
+        f"Upgraded {_files(result['upgraded'])}. Ratings, favourites, tags and play "
+        "counts came across unchanged, and a backup of each was saved."
     )
     if result["failed"]:
         summary += (
@@ -169,7 +166,7 @@ def _restore_summary(result: dict) -> str:
     if not result["restored"]:
         return "Nothing to restore - there are no backups."
     summary = (
-        f"Restored {_tables(result['restored'])}. Their ratings, favourites, tags and play "
+        f"Restored {_files(result['restored'])}. Their ratings, favourites, tags and play "
         "counts are back as this version recorded them."
     )
     if result["nothing_to_restore"]:
