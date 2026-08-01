@@ -46,17 +46,17 @@ class StandaloneScripts:
              current += 1
              if self.progress_cb and total:
                  try:
-                     self.progress_cb(current - 1, total, f"Checking {game.tableDirName}")
+                     self.progress_cb(current - 1, total, f"Checking {game.gameDirName}")
                  except Exception:
                      pass
-             basepath = game.fullPathTable
+             basepath = game.fullPathGame
              try:
-                meta = MetaConfig(basepath+"/"+game.tableDirName+".info")
+                meta = MetaConfig(basepath+"/"+game.gameDirName+".info")
                 vpxFileName = os.path.basename(game.fullPathVPXfile)
                 vpxFileVBSHash = meta.gameFileValue(vpxFileName, 'vbs_hash')
                 if not vpxFileVBSHash:
                     raise KeyError('vbs_hash')
-                logger.info("Checking %s", game.tableDirName)
+                logger.info("Checking %s", game.gameDirName)
                 for patch in self.hashes:
                     if patch["sha256"] == vpxFileVBSHash:
                         logger.info("Found a match for %s", game.fullPathVPXfile)
@@ -64,7 +64,7 @@ class StandaloneScripts:
                             logger.info("A .vbs sidecar file already exists for that table. Assuming it is a patch.")
                             try:
                                 game_dir = os.path.dirname(game.fullPathVPXfile)
-                                meta = MetaConfig(os.path.join(game_dir, game.tableDirName + '.info'))
+                                meta = MetaConfig(os.path.join(game_dir, game.gameDirName + '.info'))
                                 meta.setTableValue(vpxFileName, 'patch_applied', True)
                             except Exception:
                                 pass

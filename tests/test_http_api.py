@@ -29,7 +29,7 @@ class ManufacturerEndpointTests(unittest.TestCase):
 
         def _game(folder: str, manufacturer: str) -> SimpleNamespace:
             return SimpleNamespace(
-                fullPathTable=f"/games/{folder}",
+                fullPathGame=f"/games/{folder}",
                 fullPathVPXfile=f"/games/{folder}/{folder}.vpx",
                 metaConfig={"Info": {"Manufacturer": manufacturer}},
             )

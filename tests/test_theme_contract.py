@@ -19,7 +19,7 @@ from frontend.theme_contract import (
 )
 
 ROW = {
-    "tableDirName": "Example",
+    "gameDirName": "Example",
     "WheelImagePath": "/t/wheel.png",
     "meta": {
         "Info": {"Title": "Example", "VPSId": "vps-1"},
@@ -133,10 +133,19 @@ class ProjectionTests(unittest.TestCase):
 
         self.assertEqual(json.dumps(ROW, sort_keys=True), original)
 
-    def test_everything_outside_meta_is_untouched(self):
+    def test_the_renamed_row_keys_come_back_with_their_old_names(self):
+        """PAR-22. The four keys the vocabulary rename moved are the only things
+        outside meta the projection touches, and a contract 1 theme must not be able
+        to tell they moved."""
         projected = project(ROW, 1)
 
         self.assertEqual(projected["tableDirName"], "Example")
+        self.assertNotIn("gameDirName", projected,
+                         "serving both spellings would let a theme work by accident")
+
+    def test_everything_else_outside_meta_is_untouched(self):
+        projected = project(ROW, 1)
+
         self.assertEqual(projected["WheelImagePath"], "/t/wheel.png")
 
     def test_a_game_with_no_table_still_projects(self):

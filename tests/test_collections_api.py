@@ -23,7 +23,7 @@ OTHER_ID = "bbbb2222"
 
 def _game(folder: str, game_id: str) -> SimpleNamespace:
     return SimpleNamespace(
-        fullPathTable=f"/games/{folder}",
+        fullPathGame=f"/games/{folder}",
         fullPathVPXfile=f"/games/{folder}/{folder}.vpx",
         metaConfig={"Info": {"Title": folder, "Manufacturer": "Bally"},
                     "vpinfe": {"id": game_id}},

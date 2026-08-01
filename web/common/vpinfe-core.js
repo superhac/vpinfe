@@ -8,7 +8,7 @@ const originalConsole = {
 };
 
 const MEDIA_PATH_FIELDS = {
-  table: "TableImagePath",
+  table: "PlayfieldImagePath",
   fss: "FSSImagePath",
   bg: "BGImagePath",
   dmd: "DMDImagePath",
@@ -24,7 +24,7 @@ const MEDIA_PATH_FIELDS = {
 };
 
 const MEDIA_VIDEO_PATH_FIELDS = {
-  table: "TableVideoPath",
+  table: "PlayfieldVideoPath",
   bg: "BGVideoPath",
   dmd: "DMDVideoPath",
   loading: "LoadingVideoPath",
@@ -40,9 +40,43 @@ const DEFAULT_MEDIA_PRIORITIES = {
 const MISSING_MEDIA_URL = "/web/images/file_missing.png";
 
 
+
+// Pre-3.0 themes read these names. Aliased rather than removed: the payload behind each
+// is identical, so a theme written against any earlier build keeps working. The contract
+// projects the payload, never this surface, so aliasing is the only mechanism there is.
+// PAR-23.
+const VPINFE_RENAMED_MEMBERS = {
+  tableData: 'gameData',
+  tableRotation: 'playfieldRotation',
+  tableOrientation: 'playfieldOrientation',
+  getTableMeta: 'getGameMeta',
+  getTableData: 'getGameData',
+  getTableCount: 'getGameCount',
+  getCurrentTableIndex: 'getCurrentGameIndex',
+  getAllTables: 'getAllGames',
+  playTableAudio: 'playGameAudio',
+  stopTableAudio: 'stopGameAudio',
+  launchTable: 'launchGame',
+};
+
+function installLegacyAliases(target) {
+  for (const [oldName, newName] of Object.entries(VPINFE_RENAMED_MEMBERS)) {
+    if (oldName in target) continue;
+    Object.defineProperty(target, oldName, {
+      get() {
+        const value = this[newName];
+        return typeof value === 'function' ? value.bind(this) : value;
+      },
+      set(value) { this[newName] = value; },
+      configurable: true,
+    });
+  }
+}
+
 class VPinFECore {
   constructor() {
-    this.tableData = {};
+    this.gameData = {};
+    installLegacyAliases(this);
     this.monitors = [];
     this._resolveReady = null;
     this.ready = new Promise(resolve => this._resolveReady = resolve);
@@ -96,8 +130,8 @@ class VPinFECore {
     this.vpinplayEndpoint = '';
 
     // Display config
-    this.tableOrientation = 'landscape'; // default, will be updated from config
-    this.tableRotation = 0; // default, will be updated from config
+    this.playfieldOrientation = 'landscape'; // default, will be updated from config
+    this.playfieldRotation = 0; // default, will be updated from config
 
     // Remote launch state tracking
     this.remoteLaunchActive = false;
@@ -105,7 +139,7 @@ class VPinFECore {
     // Theme config and centralized audio state
     this.themeConfig = {};
     this.mediaPriorities = Object.assign({}, DEFAULT_MEDIA_PRIORITIES);
-    this._currentTableIndex = 0;
+    this._currentGameIndex = 0;
     this._initialTableRestored = false;
     this._coreAudioEnabled = true;
     this._audioMuted = false;
@@ -203,7 +237,7 @@ class VPinFECore {
 
   // get table image url paths
   getImageURL(index, type) {
-    const table = this.tableData[index];
+    const table = this.gameData[index];
     if (!table) return null;
     const field = MEDIA_PATH_FIELDS[type];
     return field ? this.#convertPathToURL(table[field]) : null;
@@ -215,7 +249,7 @@ class VPinFECore {
 
   // URL of the table manufacturer's logo, or null when none is installed
   getManufacturerLogoURL(index) {
-    const table = this.tableData[index];
+    const table = this.gameData[index];
     const path = table ? table.ManufacturerLogoPath : null;
     return path ? `http://127.0.0.1:${this.themeAssetsPort}${path}` : null;
   }
@@ -225,7 +259,7 @@ class VPinFECore {
   }
 
   getMedia(index, type) {
-    const table = this.tableData[index];
+    const table = this.gameData[index];
     if (!table) return { url: null, kind: null, priority: null, path: null };
 
     const normalizedType = this.#normalizeMediaType(type);
@@ -248,7 +282,7 @@ class VPinFECore {
 
   // get table audio url path (returns null if no audio exists)
   getAudioURL(index) {
-    const table = this.tableData[index];
+    const table = this.gameData[index];
     if (!table) return null;
     if (!table.AudioPath) return null;
     return this.#convertPathToURL(table.AudioPath);
@@ -256,7 +290,7 @@ class VPinFECore {
 
   // Core handles joypageup/joypagedown by default: it asks the backend for the
   // target index ([Input] pagingtype/pagingsize + current sort) and broadcasts a
-  // TableIndexUpdate. Themes that implement their own paging call
+  // GameIndexUpdate. Themes that implement their own paging call
   // enableCorePaging(false) and receive the actions in handleInput instead.
   enableCorePaging(enabled = true) {
     this._corePagingEnabled = !!enabled;
@@ -268,13 +302,13 @@ class VPinFECore {
 
   // Ask the backend where a page next/prev press should land. Available to
   // themes doing their own paging animation.
-  async getPageIndex(direction = "next", index = this._currentTableIndex) {
+  async getPageIndex(direction = "next", index = this._currentGameIndex) {
     return await this.call("get_page_index", index, direction);
   }
 
   enableCoreAudio(enabled = true) {
     this._coreAudioEnabled = !!enabled;
-    if (!this._coreAudioEnabled) this.stopTableAudio({ immediate: true });
+    if (!this._coreAudioEnabled) this.stopGameAudio({ immediate: true });
   }
 
   isCoreAudioEnabled() {
@@ -285,11 +319,11 @@ class VPinFECore {
     this._audioMuted = !!muted;
     if (this._audio) this._audio.muted = this._audioMuted;
     if (this._audioMuted) {
-      this.stopTableAudio({ immediate: true });
+      this.stopGameAudio({ immediate: true });
       return;
     }
     if (this._coreAudioEnabled && this._windowName === "table") {
-      this.playTableAudio(this._currentTableIndex);
+      this.playGameAudio(this._currentGameIndex);
     }
   }
 
@@ -317,11 +351,11 @@ class VPinFECore {
     if (typeof options.loop === 'boolean') this._audio.loop = options.loop;
   }
 
-  playTableAudio(indexOrUrl = this._currentTableIndex, retries = 3) {
+  playGameAudio(indexOrUrl = this._currentGameIndex, retries = 3) {
     if (!this._coreAudioEnabled || this._audioMuted || this._windowName !== "table") return;
     const url = this.#resolveTableAudioUrl(indexOrUrl);
     if (!url) {
-      this.stopTableAudio();
+      this.stopGameAudio();
       return;
     }
     if (this._audioCurrentUrl === url && !this._audio.paused) return;
@@ -339,12 +373,12 @@ class VPinFECore {
         this._audioRetries = retries;
         this.#audioTriggerWhenReady(url);
       } else if (retries > 0 && this._audioCurrentUrl === url) {
-        setTimeout(() => this.playTableAudio(url, retries - 1), 1000);
+        setTimeout(() => this.playGameAudio(url, retries - 1), 1000);
       }
     });
   }
 
-  stopTableAudio(options = {}) {
+  stopGameAudio(options = {}) {
     const immediate = !!(options && options.immediate);
     if (!this._audio || this._audio.paused) {
       clearInterval(this._audioFadeId);
@@ -366,25 +400,25 @@ class VPinFECore {
 
   // get table video url paths
   getVideoURL(index, type) {
-    const table = this.tableData[index];
+    const table = this.gameData[index];
     if (!table) return null;
     const field = MEDIA_VIDEO_PATH_FIELDS[type];
     return field ? this.#convertPathToURL(table[field]) : null;
   }
 
-  getTableMeta(index) {
-    return this.tableData[index];
+  getGameMeta(index) {
+    return this.gameData[index];
   }
 
-  getTableCount() {
-    return this.tableData.length;
+  getGameCount() {
+    return this.gameData.length;
   }
 
-  getCurrentTableIndex() {
-    return this._currentTableIndex;
+  getCurrentGameIndex() {
+    return this._currentGameIndex;
   }
 
-  getCachedVPinPlayRating(index = this._currentTableIndex) {
+  getCachedVPinPlayRating(index = this._currentGameIndex) {
     const table = this.#getTableByIndex(index);
     if (!table) return null;
 
@@ -395,11 +429,11 @@ class VPinFECore {
     return cached && cached.data ? cached.data : null;
   }
 
-  async getVPinPlayRating(index = this._currentTableIndex, options = {}) {
+  async getVPinPlayRating(index = this._currentGameIndex, options = {}) {
     return this.#loadVPinPlayRating(index, !!(options && options.forceRefresh));
   }
 
-  async refreshVPinPlayRating(index = this._currentTableIndex) {
+  async refreshVPinPlayRating(index = this._currentGameIndex) {
     return this.#loadVPinPlayRating(index, true);
   }
 
@@ -432,7 +466,7 @@ class VPinFECore {
   }
 
   // launch a table
-  async launchTable(index) {
+  async launchGame(index) {
     this.#setFrontendInputEnabled(false);
     try {
       await this.call("launch_game", index);
@@ -446,18 +480,18 @@ class VPinFECore {
     }
   }
 
-  async getTableData(reset=false) {
-    this.tableData = JSON.parse(await this.call("get_games", reset));
+  async getGameData(reset=false) {
+    this.gameData = JSON.parse(await this.call("get_games", reset));
     this.#attachCachedVPinPlayRatings();
     if (this._windowName === "table") {
-      const maxIndex = Math.max(0, this.tableData.length - 1);
-      if (this._currentTableIndex > maxIndex) this._currentTableIndex = maxIndex;
-      if (this.tableData.length > 0) {
+      const maxIndex = Math.max(0, this.gameData.length - 1);
+      if (this._currentGameIndex > maxIndex) this._currentGameIndex = maxIndex;
+      if (this.gameData.length > 0) {
         if (!this._initialTableRestored) {
           this._initialTableRestored = true;
           await this.#restoreInitialTable();
         }
-        this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
+        this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
         this.#notifySelectedTable().catch(() => {});
       } else {
         this._lastSelectedIndex = null;
@@ -467,18 +501,18 @@ class VPinFECore {
 
   // On first table-data load, ask the backend for the last-launched table's
   // index and, if it isn't already first, move the wheel there. Sending a
-  // TableIndexUpdate (inc self) drives the theme through the same path its own
+  // GameIndexUpdate (inc self) drives the theme through the same path its own
   // input uses, so no theme changes are needed to honor the restored position.
   async #restoreInitialTable() {
     try {
       const index = await this.call("get_initial_game_index");
-      if (typeof index === "number" && index > 0 && index < this.tableData.length) {
-        this._currentTableIndex = index;
+      if (typeof index === "number" && index > 0 && index < this.gameData.length) {
+        this._currentGameIndex = index;
         // Themes register window.receiveEvent at varying points in their startup
         // (some only after a couple of awaits inside vpin.ready.then). Wait for it
         // so the restore broadcast isn't dropped by the guard in #connectWebSocket.
         await this.#waitForReceiveEvent();
-        this.sendMessageToAllWindowsIncSelf({ type: "TableIndexUpdate", index });
+        this.sendMessageToAllWindowsIncSelf({ type: "GameIndexUpdate", index });
       }
     } catch (e) {
       this.call("console_out", `restoreInitialTable failed: ${e.message}`);
@@ -496,7 +530,7 @@ class VPinFECore {
   }
 
   // Register an event handler for a specific event type
-  // eventType: string (e.g., "TableIndexUpdate", "TableDataChange", etc.)
+  // eventType: string (e.g., "GameIndexUpdate", "GameDataChange", etc.)
   // handler: function to call when event is received
   registerEventHandler(eventType, handler) {
     if (typeof handler === 'function') {
@@ -511,15 +545,15 @@ class VPinFECore {
   // Handle incoming events from window.receiveEvent
   // This should be called from the theme's receiveEvent function
   async handleEvent(message) {
-    if (typeof message.index === "number") this._currentTableIndex = message.index;
+    if (typeof message.index === "number") this._currentGameIndex = message.index;
     if (message.type === "AudioMuteChanged") {
       this.setAudioMuted(!!message.muted);
       return;
     }
     this.#handleFrontendInputLifecycleEvent(message);
 
-    // Default handling for TableDataChange
-    if (message.type === "TableDataChange") {
+    // Default handling for GameDataChange
+    if (message.type === "GameDataChange") {
       if (this._windowName === "table") this._lastSelectedIndex = null;
       await this.#handleTableDataChange(message);
     }
@@ -555,16 +589,16 @@ class VPinFECore {
     return 'Window';
   }
 
-  // Default handler for TableDataChange events
+  // Default handler for GameDataChange events
   async #handleTableDataChange(message) {
     // Check if a collection filter was applied
     if (message.collection) {
       // if collection is "None" then reset to all tables, otherwise set to the selected collection.
       if (message.collection === "None") {
-        await this.getTableData(true);
+        await this.getGameData(true);
       } else {
         await this.call("set_games_by_collection", message.collection);
-        await this.getTableData();
+        await this.getGameData();
       }
     } else if (message.filters) {
       // VPSdb filters - apply them to this window's API instance
@@ -581,40 +615,40 @@ class VPinFECore {
       if (message.sort) {
         await this.call("apply_sort", message.sort, message.order);
       }
-      await this.getTableData();
+      await this.getGameData();
     } else if (message.sort) {
       // Sort order change - apply it to this window's API instance
       await this.call("apply_sort", message.sort, message.order);
-      await this.getTableData();
+      await this.getGameData();
     } else {
       // No filters specified - just refresh table data
-      await this.getTableData();
+      await this.getGameData();
     }
   }
 
   async #handleCoreAudioEvent(message) {
     if (!this._coreAudioEnabled || this._windowName !== "table") return;
 
-    if (message.type === "TableIndexUpdate") {
-      this.playTableAudio(this._currentTableIndex);
+    if (message.type === "GameIndexUpdate") {
+      this.playGameAudio(this._currentGameIndex);
       return;
     }
-    if (message.type === "TableLaunching" || message.type === "RemoteLaunching") {
-      this.stopTableAudio();
+    if (message.type === "GameLaunching" || message.type === "RemoteLaunching") {
+      this.stopGameAudio();
       return;
     }
-    if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
-      this.playTableAudio(this._currentTableIndex);
+    if (message.type === "GameLaunchComplete" || message.type === "RemoteLaunchComplete") {
+      this.playGameAudio(this._currentGameIndex);
       return;
     }
-    if (message.type === "TableDataChange" && typeof message.index === "number") {
-      this.playTableAudio(this._currentTableIndex);
+    if (message.type === "GameDataChange" && typeof message.index === "number") {
+      this.playGameAudio(this._currentGameIndex);
     }
   }
 
   #resolveTableAudioUrl(indexOrUrl) {
     if (typeof indexOrUrl === "number" && Number.isFinite(indexOrUrl)) {
-      this._currentTableIndex = indexOrUrl;
+      this._currentGameIndex = indexOrUrl;
       return this.getAudioURL(indexOrUrl);
     }
     if (typeof indexOrUrl === "string") return indexOrUrl;
@@ -625,8 +659,8 @@ class VPinFECore {
     if (!message || typeof message !== "object") return;
     if (typeof message.index !== "number" || !Number.isFinite(message.index)) return;
     if (message.index < 0) return;
-    if (message.type === "TableIndexUpdate" || message.type === "TableDataChange") {
-      this._currentTableIndex = Math.floor(message.index);
+    if (message.type === "GameIndexUpdate" || message.type === "GameDataChange") {
+      this._currentGameIndex = Math.floor(message.index);
     }
   }
 
@@ -634,30 +668,30 @@ class VPinFECore {
     if (!message || typeof message !== "object") return;
     if (this._windowName !== "table") return;
 
-    if (message.type === "TableIndexUpdate") {
-      this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
+    if (message.type === "GameIndexUpdate") {
+      this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
       this.#notifySelectedTable().catch(() => {});
       return;
     }
-    if (message.type === "TableDataChange") {
+    if (message.type === "GameDataChange") {
       this._lastSelectedIndex = null;
-      this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
+      this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
       this.#notifySelectedTable().catch(() => {});
       return;
     }
-    if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
+    if (message.type === "GameLaunchComplete" || message.type === "RemoteLaunchComplete") {
       this._lastSelectedIndex = null;
-      this.getVPinPlayRating(this._currentTableIndex).catch(() => {});
+      this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
       this.#notifySelectedTable().catch(() => {});
     }
   }
 
   async #notifySelectedTable() {
     if (this._windowName !== "table") return;
-    if (!Array.isArray(this.tableData) || this.tableData.length === 0) return;
+    if (!Array.isArray(this.gameData) || this.gameData.length === 0) return;
 
-    const index = Math.floor(this._currentTableIndex);
-    if (!Number.isFinite(index) || index < 0 || index >= this.tableData.length) return;
+    const index = Math.floor(this._currentGameIndex);
+    if (!Number.isFinite(index) || index < 0 || index >= this.gameData.length) return;
     if (this._lastSelectedIndex === index) return;
 
     this._lastSelectedIndex = index;
@@ -682,8 +716,8 @@ class VPinFECore {
     const numeric = Number(index);
     if (!Number.isFinite(numeric)) return null;
     const normalized = Math.floor(numeric);
-    if (!Array.isArray(this.tableData) || normalized < 0 || normalized >= this.tableData.length) return null;
-    return this.tableData[normalized];
+    if (!Array.isArray(this.gameData) || normalized < 0 || normalized >= this.gameData.length) return null;
+    return this.gameData[normalized];
   }
 
   #getTableVPinPlayVpsId(table) {
@@ -722,30 +756,30 @@ class VPinFECore {
     };
   }
 
-  #setTableVPinPlayRating(table, payload) {
+  #setGameVPinPlayRating(table, payload) {
     if (!table || typeof table !== "object") return;
     table.vpinplay = payload ? { ...payload } : null;
   }
 
   #setCachedVPinPlayRatingForCurrentTables(vpsId, payload) {
-    if (!Array.isArray(this.tableData)) return;
-    this.tableData.forEach((table) => {
+    if (!Array.isArray(this.gameData)) return;
+    this.gameData.forEach((table) => {
       if (this.#getTableVPinPlayVpsId(table) === vpsId) {
-        this.#setTableVPinPlayRating(table, payload);
+        this.#setGameVPinPlayRating(table, payload);
       }
     });
   }
 
   #attachCachedVPinPlayRatings() {
-    if (!Array.isArray(this.tableData)) return;
-    this.tableData.forEach((table) => {
+    if (!Array.isArray(this.gameData)) return;
+    this.gameData.forEach((table) => {
       const vpsId = this.#getTableVPinPlayVpsId(table);
       if (!vpsId) {
-        this.#setTableVPinPlayRating(table, null);
+        this.#setGameVPinPlayRating(table, null);
         return;
       }
       const cached = this._vpinplayRatingCache.get(vpsId);
-      this.#setTableVPinPlayRating(table, cached && cached.data ? cached.data : null);
+      this.#setGameVPinPlayRating(table, cached && cached.data ? cached.data : null);
     });
   }
 
@@ -755,13 +789,13 @@ class VPinFECore {
 
     const vpsId = this.#getTableVPinPlayVpsId(table);
     if (!vpsId) {
-      this.#setTableVPinPlayRating(table, null);
+      this.#setGameVPinPlayRating(table, null);
       return null;
     }
 
     const cached = this._vpinplayRatingCache.get(vpsId);
     if (!forceRefresh && cached && cached.data) {
-      this.#setTableVPinPlayRating(table, cached.data);
+      this.#setGameVPinPlayRating(table, cached.data);
       return cached.data;
     }
 
@@ -771,7 +805,7 @@ class VPinFECore {
     }
 
     if (!this.vpinplayEndpoint) {
-      this.#setTableVPinPlayRating(table, null);
+      this.#setGameVPinPlayRating(table, null);
       return null;
     }
 
@@ -966,10 +1000,10 @@ class VPinFECore {
       this.vpinplayEndpoint = "";
     }
     // Load display config
-    this.tableOrientation = await this.call("get_playfield_orientation");
-    this.tableRotation = await this.call("get_playfield_rotation");
+    this.playfieldOrientation = await this.call("get_playfield_orientation");
+    this.playfieldRotation = await this.call("get_playfield_rotation");
     await this.#loadMonitors();
-    await this.getTableData();
+    await this.getGameData();
    //this.#overrideConsole(); //disabled for now...
 
     // only run on the table window.. Its the master controller for all screens/windows
@@ -1024,10 +1058,10 @@ class VPinFECore {
   #handleFrontendInputLifecycleEvent(message) {
     if (!message || typeof message !== "object") return;
 
-    if (message.type === "TableLaunching" || message.type === "RemoteLaunching") {
+    if (message.type === "GameLaunching" || message.type === "RemoteLaunching") {
       this._launchInputSuppressedByLifecycle = true;
       this.#setFrontendInputEnabled(false);
-    } else if (message.type === "TableLaunchComplete" || message.type === "RemoteLaunchComplete") {
+    } else if (message.type === "GameLaunchComplete" || message.type === "RemoteLaunchComplete") {
       this._launchInputSuppressedByLifecycle = false;
       this.#setFrontendInputEnabled(true);
     }
@@ -1051,11 +1085,11 @@ class VPinFECore {
     try {
       // pageup advances (next letter / forward), pagedown goes back.
       const direction = action === "joypageup" ? "next" : "prev";
-      const index = await this.call("get_page_index", this._currentTableIndex, direction);
-      if (typeof index === "number" && index >= 0 && index !== this._currentTableIndex) {
+      const index = await this.call("get_page_index", this._currentGameIndex, direction);
+      if (typeof index === "number" && index >= 0 && index !== this._currentGameIndex) {
         // Same path restorelasttable uses: themes move their wheel on the
-        // incoming TableIndexUpdate, so no theme changes are needed.
-        this.sendMessageToAllWindowsIncSelf({ type: "TableIndexUpdate", index });
+        // incoming GameIndexUpdate, so no theme changes are needed.
+        this.sendMessageToAllWindowsIncSelf({ type: "GameIndexUpdate", index });
       }
     } catch (e) {
       this.call("console_out", `Core paging failed: ${e.message}`);
@@ -1371,7 +1405,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
       if (iframe && iframe.contentWindow) {
         iframe.contentWindow.postMessage({
           event: "menu_open",
-          table_index: this._currentTableIndex
+          table_index: this._currentGameIndex
         }, "*");
       }
     } else {
@@ -1425,12 +1459,12 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
   }
 
   #getCurrentPinballPrimerTutorialUrl() {
-    const index = Math.floor(this._currentTableIndex);
-    if (!Array.isArray(this.tableData) || index < 0 || index >= this.tableData.length) {
+    const index = Math.floor(this._currentGameIndex);
+    if (!Array.isArray(this.gameData) || index < 0 || index >= this.gameData.length) {
       return "";
     }
 
-    const table = this.tableData[index];
+    const table = this.gameData[index];
     const meta = (table && typeof table === "object") ? table.meta : null;
     const info = (meta && typeof meta === "object" && meta.Info && typeof meta.Info === "object")
       ? meta.Info
@@ -1480,7 +1514,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
           event: "tutorial_open",
           tutorial_url: tutorialUrl,
           tutorial_proxy_url: this.#buildTutorialProxyUrl(tutorialUrl),
-          table_rotation: this.tableRotation,
+          table_rotation: this.playfieldRotation,
         }, "*");
       }
     } else {
@@ -1516,7 +1550,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
       reportedOffline = false;
       const state = JSON.parse(message.data).state || {};
 
-      // Our own launches arrive as TableLaunching over the bridge. Acting on them
+      // Our own launches arrive as GameLaunching over the bridge. Acting on them
       // here as well would raise the remote overlay on a launch from the wheel.
       if (state.source === "frontend") return;
 

@@ -41,7 +41,7 @@ class SingleGameRefreshTests(unittest.TestCase):
         return game.metaConfig.get("User", {}).get("Rating")
 
     def _by_name(self, name):
-        return next(t for t in self.parser.getAllGames() if t.tableDirName == name)
+        return next(t for t in self.parser.getAllGames() if t.gameDirName == name)
 
     def test_a_changed_folder_is_picked_up(self):
         _game_folder(self.root, "Bravo", rating=5)
@@ -83,7 +83,7 @@ class SingleGameRefreshTests(unittest.TestCase):
 
         self.assertIsNone(gone)
         self.assertEqual(self.parser.getGameCount(), 2)
-        self.assertNotIn("Alpha", [t.tableDirName for t in self.parser.getAllGames()])
+        self.assertNotIn("Alpha", [t.gameDirName for t in self.parser.getAllGames()])
 
     def test_a_folder_with_no_table_is_not_a_game(self):
         empty = self.root / "Empty"

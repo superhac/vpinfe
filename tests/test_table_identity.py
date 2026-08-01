@@ -16,9 +16,9 @@ def _game(root: Path, name: str = "Example", meta: dict | None = None):
     if meta is not None:
         (folder / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
     return SimpleNamespace(
-        fullPathTable=str(folder),
+        fullPathGame=str(folder),
         fullPathVPXfile=str(folder / f"{name}.vpx"),
-        tableDirName=name,
+        gameDirName=name,
         metaConfig=meta or {},
     )
 
@@ -61,7 +61,7 @@ class GameIdTests(unittest.TestCase):
 
     def test_reading_an_unassigned_game_returns_empty_and_writes_nothing(self) -> None:
         game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
-        info = Path(game.fullPathTable) / "Example.info"
+        info = Path(game.fullPathGame) / "Example.info"
         before = info.read_text(encoding="utf-8")
 
         self.assertEqual(game_identity.game_id(game), "")
@@ -71,7 +71,7 @@ class GameIdTests(unittest.TestCase):
         game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
 
         minted = game_identity.ensure_id(game)
-        info = Path(game.fullPathTable) / "Example.info"
+        info = Path(game.fullPathGame) / "Example.info"
         on_disk = json.loads(info.read_text(encoding="utf-8"))
 
         self.assertTrue(minted)
@@ -89,7 +89,7 @@ class GameIdTests(unittest.TestCase):
     def test_ensure_id_adopts_an_id_already_on_disk(self) -> None:
         """The in-memory copy can be stale; disk wins over minting a second id."""
         game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
-        info = Path(game.fullPathTable) / "Example.info"
+        info = Path(game.fullPathGame) / "Example.info"
         info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "vpinfe": {"id": "already-here"}}),
                         encoding="utf-8")
 
@@ -103,7 +103,7 @@ class GameIdTests(unittest.TestCase):
         })
 
         game_identity.ensure_id(game)
-        info = Path(game.fullPathTable) / "Example.info"
+        info = Path(game.fullPathGame) / "Example.info"
         on_disk = json.loads(info.read_text(encoding="utf-8"))
 
         self.assertEqual(on_disk["User"]["Rating"], 4)

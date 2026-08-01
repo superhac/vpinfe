@@ -25,7 +25,7 @@ def _game(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", game_id
     if game_id:
         meta["vpinfe"]["id"] = game_id
     (folder / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
-    return SimpleNamespace(fullPathTable=str(folder), tableDirName=name, metaConfig=meta)
+    return SimpleNamespace(fullPathGame=str(folder), gameDirName=name, metaConfig=meta)
 
 
 def _collections(path: Path, sections: dict) -> VPXCollections:
@@ -165,7 +165,7 @@ class MembershipTests(unittest.TestCase):
 
         self.assertEqual(after["vpinfe"]["alt_vpsid"], "", "precondition: altvpsid cleared")
 
-        game = SimpleNamespace(fullPathTable=str(self.root), tableDirName="MM",
+        game = SimpleNamespace(fullPathGame=str(self.root), gameDirName="MM",
                                 metaConfig=after)
         collections = _collections(self.ini, {"Favorites": []})
 

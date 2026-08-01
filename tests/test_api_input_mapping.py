@@ -99,8 +99,8 @@ class TestApiInputMapping(unittest.TestCase):
             game = types.SimpleNamespace(
                 fullPathVPXfile=str(game_path),
                 metaConfig={},
-                tableDirName="Example",
-                fullPathTable=str(Path(tmp)),
+                gameDirName="Example",
+                fullPathGame=str(Path(tmp)),
             )
             mock_games.return_value = [game]
             mock_get_launcher.return_value = (launcher, "Settings", None)

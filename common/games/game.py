@@ -6,8 +6,8 @@ from typing import Any
 
 @dataclass
 class Game:
-    tableDirName: str | None = None
-    fullPathTable: str | None = None
+    gameDirName: str | None = None
+    fullPathGame: str | None = None
     fullPathVPXfile: str | None = None
     creation_time: float | None = None
 
@@ -21,7 +21,7 @@ class Game:
 
     BGImagePath: str | None = None
     DMDImagePath: str | None = None
-    TableImagePath: str | None = None
+    PlayfieldImagePath: str | None = None
     FSSImagePath: str | None = None
     WheelImagePath: str | None = None
     CabImagePath: str | None = None
@@ -29,7 +29,7 @@ class Game:
     realDMDColorImagePath: str | None = None
     FlyerImagePath: str | None = None
 
-    TableVideoPath: str | None = None
+    PlayfieldVideoPath: str | None = None
     BGVideoPath: str | None = None
     DMDVideoPath: str | None = None
 

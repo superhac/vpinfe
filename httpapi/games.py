@@ -321,7 +321,7 @@ def get_game_media(game_id: str) -> models.MediaList:
     """Media is the artwork shown about a table - every kind, present or not,
     so a client can enumerate what is possible instead of guessing."""
     game = _game_or_404(game_id)
-    game_dir = Path(getattr(game, "fullPathTable", "") or "")
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
     prefix = f"/api/v1/games/{game_id}/media"
     resolved = _resolved_media(game_dir, _default_stem(game))
     logo = resolved.get("logo")
@@ -346,7 +346,7 @@ def get_game_media_file(game_id: str, kind: str):
     if kind not in known:
         raise InvalidRequestError("Unknown media kind",
                                   details={"unknown": kind, "known": sorted(known)})
-    game_dir = Path(getattr(game, "fullPathTable", "") or "")
+    game_dir = Path(getattr(game, "fullPathGame", "") or "")
     path = _resolved_media(game_dir, _default_stem(game)).get(kind)
     if path is None or not path.is_file():
         raise NotFoundError(f"This table has no {kind} media")
@@ -403,7 +403,7 @@ def get_game_archive(request: Request, game_id: str, download_token: str = "",
         identity = getattr(request.state, "identity", None)
         if identity is None or not identity.can(scopes.GAMES_EXPORT_FULL):
             raise ForbiddenError(f"Requires {scopes.GAMES_EXPORT_FULL}")
-    game_dir_name = getattr(game, "tableDirName", "")
+    game_dir_name = getattr(game, "gameDirName", "")
     try:
         archive = create_vpxz_archive(game_dir_name, everything=full,
                                       table=file or None)

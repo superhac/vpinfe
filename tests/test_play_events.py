@@ -66,7 +66,7 @@ class PlayEventTests(unittest.TestCase):
         self.assertEqual(self.bridge.messages, ["TableLaunching"])
 
     def test_the_last_game_is_recorded_on_launch(self) -> None:
-        game = types.SimpleNamespace(tableDirName="Example")
+        game = types.SimpleNamespace(gameDirName="Example")
         ini = types.SimpleNamespace(config={})
         self._register(ini)
 

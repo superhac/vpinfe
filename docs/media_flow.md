@@ -65,10 +65,10 @@ Relevant code:
 
 When the browser requests table data, `frontend/api.py` serializes the discovered media paths into each table entry. These are plain string paths such as:
 
-- `TableImagePath`
+- `PlayfieldImagePath`
 - `BGImagePath`
 - `DMDImagePath`
-- `TableVideoPath`
+- `PlayfieldVideoPath`
 - `BGVideoPath`
 - `DMDVideoPath`
 - `AudioPath`
@@ -140,9 +140,9 @@ For table playfield video support, the key flow is:
 
 That means:
 
-1. `common/tableparser.py` finds `table.mp4` or `fss.mp4` and stores it as `TableVideoPath`.
-2. `frontend/api.py` includes `TableVideoPath` in the table payload.
-3. `vpin.getVideoURL(index, "table")` reads `table.TableVideoPath`.
+1. `common/tableparser.py` finds `table.mp4` or `fss.mp4` and stores it as `PlayfieldVideoPath`.
+2. `frontend/api.py` includes `PlayfieldVideoPath` in the table payload.
+3. `vpin.getVideoURL(index, "table")` reads `table.PlayfieldVideoPath`.
 4. `#convertPathToURL()` maps that path to a `/games/.../medias/<file>.mp4` URL.
 
 ## Backglass Video Flow

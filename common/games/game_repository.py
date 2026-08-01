@@ -82,7 +82,7 @@ def unreadable_games() -> List[Dict[str, str]]:
 def pending_upgrade_game_names() -> List[str]:
     """Folders whose .info the upgrade did not reach, for the list its dialog shows."""
     return sorted(
-        (t.tableDirName for t in ensure_games_loaded()
+        (t.gameDirName for t in ensure_games_loaded()
          if getattr(t, "info_pending_upgrade", False)),
         key=str.lower,
     )
@@ -98,7 +98,7 @@ def newest_backup_stamp() -> str:
 def restorable_game_names() -> List[str]:
     """Folders holding a saved copy of their .info, for the list a restore dialog shows."""
     return sorted(
-        (t.tableDirName for t in ensure_games_loaded() if getattr(t, "info_restorable", False)),
+        (t.gameDirName for t in ensure_games_loaded() if getattr(t, "info_restorable", False)),
         key=str.lower,
     )
 
@@ -123,7 +123,7 @@ def refresh_game(game_path: str) -> List[Any]:
         games = ensure_games_loaded(reload=True)
 
     logger.debug("refresh_table %s elapsed=%.3fs", normalized, perf_counter() - started_at)
-    return [game for game in games if str(Path(game.fullPathTable).resolve()) == normalized]
+    return [game for game in games if str(Path(game.fullPathGame).resolve()) == normalized]
 
 
 def get_missing_games(reload: bool = False) -> List[Dict[str, str]]:
@@ -161,7 +161,7 @@ def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) ->
     info = section(meta, "Info")
     user = section(meta, "User")
     vpinfe = vpinfe_section(meta)
-    game_name = Path(game.fullPathTable).name
+    game_name = Path(game.fullPathGame).name
     vpsid = first_meta_value(meta, ("Info", "VPSId"), default="")
     # The row describes one game file - the table's default. A folder can hold several,
     # and the API lists them all separately; this is what the table-level views show.
@@ -205,7 +205,7 @@ def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) ->
         "detectflex": gf_value("detect_flex"),
         "detectpinmame": gf_value("detect_pinmame"),
         "patch_applied": gf_value("patch_applied", False),
-        "table_path": game.fullPathTable,
+        "table_path": game.fullPathGame,
         "b2s_exists": bool(getattr(game, "b2sExists", False)),
         "pup_pack_exists": bool(getattr(game, "pupPackExists", False)),
         "serum_exists": bool(getattr(game, "altColorExists", False)),

@@ -27,8 +27,8 @@ class _FakePopen:
 def _game(name="Example"):
     return types.SimpleNamespace(
         fullPathVPXfile=f"/games/{name}/{name}.vpx",
-        fullPathTable=f"/games/{name}",
-        tableDirName=name,
+        fullPathGame=f"/games/{name}",
+        gameDirName=name,
         metaConfig={},
     )
 

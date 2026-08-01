@@ -208,6 +208,28 @@ against any earlier build keeps working unchanged and gets an identical payload 
 *Why:* VPS calls the machine a game and the `.vpx` a table; ours said the opposite. The
 screen ones are the playfield, which is what `docs/conventions.md` already called it.
 
+**PAR-22 — The theme payload's own keys take the new vocabulary at contract 2.**
+*(machine-checked)*
+`TableImagePath`, `TableVideoPath`, `fullPathTable` and `tableDirName` become
+`PlayfieldImagePath`, `PlayfieldVideoPath`, `fullPathGame` and `gameDirName`.
+**Contract 1 still receives the old four**, restored by the projection in
+`frontend/theme_contract.py`, so every theme written before 3.0 is unaffected - a theme
+only sees the new names by declaring `contract: 2` in its manifest.
+*Why:* three of the four name the machine, which VPS calls a game; the playfield pair is
+the playfield, which `docs/conventions.md` already called it in the media list. These are
+the first top-level row keys ever to move, so the projection had to grow past `meta` to
+reach them.
+
+**PAR-23 — The `vpin.*` JavaScript surface renames, and every old member still works.**
+`vpin.tableData`, `tableRotation`, `tableOrientation`, `getTableMeta`, `getTableData`,
+`getTableCount`, `getCurrentTableIndex`, `getAllTables`, `playTableAudio`,
+`stopTableAudio` and `launchTable` become the `game`/`playfield` spellings. Each old name
+stays as an accessor forwarding to its replacement, so reads, writes and method calls all
+still work from a theme written against any earlier build.
+*Why:* the theme contract projects the **payload**; it has never covered the JS surface,
+so an alias is the only mechanism available. Removing these would be a hard break with no
+migration path, which is why none of them is removed.
+
 **PAR-18 — Addon folders are detected whatever their casing.**
 The library scan matched `pupvideos`, `serum`, `vni`, `music` and `medias` against the
 folder name exactly as stored, so a folder named `PUPVideos` — the casing PinUP Popper

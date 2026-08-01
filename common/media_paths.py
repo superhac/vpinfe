@@ -41,7 +41,7 @@ class MediaSpec:
 MEDIA_SPECS = (
     MediaSpec("bg", "BGImagePath", "bg.png", "1k", token="(Backglass)"),
     MediaSpec("dmd", "DMDImagePath", "dmd.png", "1k", token="(DMD)"),
-    MediaSpec("table", "TableImagePath", "{playfield_variant}.png", "table_resolution",
+    MediaSpec("table", "PlayfieldImagePath", "{playfield_variant}.png", "table_resolution",
               token="(Playfield)"),
     MediaSpec("fss", "FSSImagePath", "fss.png", token="(FSS)"),
     MediaSpec("wheel", "WheelImagePath", "wheel.png", token="(Wheel)",
@@ -52,8 +52,8 @@ MEDIA_SPECS = (
               token="(RealColorDMD)"),
     MediaSpec("flyer", "FlyerImagePath", "flyer.png", token="(Flyer)",
               alt_tokens=("(GameInfo)",)),
-    MediaSpec("table_video", "TableVideoPath", "{playfield_variant}.mp4", "table_video_resolution",
-              token="(Playfield)", family=VIDEO_FAMILY),
+    MediaSpec("table_video", "PlayfieldVideoPath", "{playfield_variant}.mp4",
+              "table_video_resolution", token="(Playfield)", family=VIDEO_FAMILY),
     MediaSpec("bg_video", "BGVideoPath", "bg.mp4", "table_video_resolution",
               token="(Backglass)", family=VIDEO_FAMILY),
     MediaSpec("dmd_video", "DMDVideoPath", "dmd.mp4", "table_video_resolution",
@@ -254,7 +254,7 @@ def apply_media_paths(game, game_contents: set[str], medias_contents: set[str],
                       playfield_variant: str = "table",
                       table_stem: str | None = None,
                       active_sets: dict[str, str] | None = None) -> None:
-    resolved = resolve_media_files(game.fullPathTable, game_contents,
+    resolved = resolve_media_files(game.fullPathGame, game_contents,
                                    medias_contents, playfield_variant, table_stem,
                                    active_sets)
     for spec in MEDIA_SPECS:

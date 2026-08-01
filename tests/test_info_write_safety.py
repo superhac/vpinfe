@@ -160,7 +160,7 @@ class StaleCountTests(unittest.TestCase):
 
         ensure_unique_ids(games)
 
-        self.assertEqual([t.tableDirName for t in games if t.info_pending_upgrade], [])
+        self.assertEqual([t.gameDirName for t in games if t.info_pending_upgrade], [])
         self.assertTrue(all(t.info_restorable for t in games),
                         "each upgrade left a restore point")
 

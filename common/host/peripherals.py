@@ -51,7 +51,7 @@ def show_realdmd_art(*, game=None, ini_config=None, **_payload) -> None:
     if game is None:
         return
     _updater(ini_config).queue_image_update(
-        getattr(game, "tableDirName", ""),
+        getattr(game, "gameDirName", ""),
         realdmd.get_realdmd_image_for_game(game, ini_config),
     )
 

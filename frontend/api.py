@@ -386,7 +386,7 @@ class API:
             launch.launch_game(game, self._iniConfig,
                                 source=launch_state.SOURCE_FRONTEND)
         except launch.LaunchUnavailableError as exc:
-            logger.warning("Cannot launch %s: %s", game.tableDirName, exc)
+            logger.warning("Cannot launch %s: %s", game.gameDirName, exc)
             return {"success": False, "reason": str(exc)}
         return {"success": True}
 
@@ -413,7 +413,7 @@ class API:
     def set_game_rating(self, index, rating):
         """Set User.Rating (0-5) for a table index in the current filtered list."""
         result = game_state.set_game_rating(self.filteredGames, index, rating)
-        logger.info("Updated User.Rating for %s -> %s", self.filteredGames[index].tableDirName, result["rating"])
+        logger.info("Updated User.Rating for %s -> %s", self.filteredGames[index].gameDirName, result["rating"])
         return result
 
     def build_metadata(self, download_media=True, update_all=False):

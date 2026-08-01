@@ -9,8 +9,8 @@ from frontend import last_game
 
 @dataclass
 class FakeGame:
-    fullPathTable: str = ""
-    tableDirName: str = ""
+    fullPathGame: str = ""
+    gameDirName: str = ""
 
 
 def _config(tmp: str) -> IniConfig:
@@ -22,9 +22,9 @@ class TestLastGame(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
             games = [
-                FakeGame(fullPathTable="/games/AAA", tableDirName="AAA"),
-                FakeGame(fullPathTable="/games/BBB", tableDirName="BBB"),
-                FakeGame(fullPathTable="/games/CCC", tableDirName="CCC"),
+                FakeGame(fullPathGame="/games/AAA", gameDirName="AAA"),
+                FakeGame(fullPathGame="/games/BBB", gameDirName="BBB"),
+                FakeGame(fullPathGame="/games/CCC", gameDirName="CCC"),
             ]
 
             last_game.save_last_game(config, games[2])
@@ -35,13 +35,13 @@ class TestLastGame(unittest.TestCase):
     def test_resolve_survives_reordering(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            game = FakeGame(fullPathTable="/games/BBB", tableDirName="BBB")
+            game = FakeGame(fullPathGame="/games/BBB", gameDirName="BBB")
             last_game.save_last_game(config, game)
 
             reordered = [
-                FakeGame(fullPathTable="/games/CCC", tableDirName="CCC"),
-                FakeGame(fullPathTable="/games/BBB", tableDirName="BBB"),
-                FakeGame(fullPathTable="/games/AAA", tableDirName="AAA"),
+                FakeGame(fullPathGame="/games/CCC", gameDirName="CCC"),
+                FakeGame(fullPathGame="/games/BBB", gameDirName="BBB"),
+                FakeGame(fullPathGame="/games/AAA", gameDirName="AAA"),
             ]
             self.assertEqual(last_game.resolve_last_game_index(config, reordered), 1)
 
@@ -50,13 +50,13 @@ class TestLastGame(unittest.TestCase):
             config = _config(tmp)
             config.config.set("State", "lastgame", "/games/GONE")
 
-            games = [FakeGame(fullPathTable="/games/AAA", tableDirName="AAA")]
+            games = [FakeGame(fullPathGame="/games/AAA", gameDirName="AAA")]
             self.assertEqual(last_game.resolve_last_game_index(config, games), 0)
 
     def test_resolve_returns_zero_when_nothing_saved(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            games = [FakeGame(fullPathTable="/games/AAA", tableDirName="AAA")]
+            games = [FakeGame(fullPathGame="/games/AAA", gameDirName="AAA")]
             self.assertEqual(last_game.resolve_last_game_index(config, games), 0)
 
     def test_disabled_skips_save_and_resolve(self) -> None:
@@ -65,8 +65,8 @@ class TestLastGame(unittest.TestCase):
             config.config.set("Settings", "restorelastgame", "false")
 
             games = [
-                FakeGame(fullPathTable="/games/AAA", tableDirName="AAA"),
-                FakeGame(fullPathTable="/games/BBB", tableDirName="BBB"),
+                FakeGame(fullPathGame="/games/AAA", gameDirName="AAA"),
+                FakeGame(fullPathGame="/games/BBB", gameDirName="BBB"),
             ]
             last_game.save_last_game(config, games[1])
 
@@ -77,12 +77,12 @@ class TestLastGame(unittest.TestCase):
     def test_falls_back_to_dir_name_when_path_missing(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            game = FakeGame(fullPathTable="", tableDirName="OnlyDirName")
+            game = FakeGame(fullPathGame="", gameDirName="OnlyDirName")
             last_game.save_last_game(config, game)
 
             self.assertEqual(config.config.get("State", "lastgame"), "OnlyDirName")
             self.assertEqual(
-                last_game.resolve_last_game_index(config, [FakeGame(tableDirName="Other"), game]),
+                last_game.resolve_last_game_index(config, [FakeGame(gameDirName="Other"), game]),
                 1,
             )
 

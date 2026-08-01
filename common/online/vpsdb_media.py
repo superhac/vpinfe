@@ -79,11 +79,11 @@ class VPSMediaDownloader:
 
     def download_media_for_game(self, game, game_id, meta_config=None) -> None:
         if game_id not in self.media_index:
-            logger.info("No media exists for %s (ID %s).", game.fullPathTable, game_id)
+            logger.info("No media exists for %s (ID %s).", game.fullPathGame, game_id)
             return
 
         game_media = self.media_index[game_id]
-        medias_dir = os.path.join(game.fullPathTable, "medias")
+        medias_dir = os.path.join(game.fullPathGame, "medias")
         os.makedirs(medias_dir, exist_ok=True)
 
         def record(result):
@@ -98,19 +98,19 @@ class VPSMediaDownloader:
         def process(metadata, key, filename, default_filename):
             record(self.download_media(game_id, metadata, key, filename, default_filename))
 
-        process(game_media.get("1k"), "bg", game.BGImagePath, str(default_media_path(game.fullPathTable, "bg", self.playfieldvariant)))
-        process(game_media.get("1k"), "dmd", game.DMDImagePath, str(default_media_path(game.fullPathTable, "dmd", self.playfieldvariant)))
-        process(game_media, "wheel", game.WheelImagePath, str(default_media_path(game.fullPathTable, "wheel", self.playfieldvariant)))
-        process(game_media, "cab", game.CabImagePath, str(default_media_path(game.fullPathTable, "cab", self.playfieldvariant)))
-        process(game_media, "realdmd", game.realDMDImagePath, str(default_media_path(game.fullPathTable, "realdmd", self.playfieldvariant)))
-        process(game_media, "realdmd_color", game.realDMDColorImagePath, str(default_media_path(game.fullPathTable, "realdmd_color", self.playfieldvariant)))
-        process(game_media, "flyer", game.FlyerImagePath, str(default_media_path(game.fullPathTable, "flyer", self.playfieldvariant)))
-        process(game_media.get(self.playfieldresolution), self.playfieldvariant, game.TableImagePath, str(default_media_path(game.fullPathTable, self.playfieldvariant, self.playfieldvariant)))
+        process(game_media.get("1k"), "bg", game.BGImagePath, str(default_media_path(game.fullPathGame, "bg", self.playfieldvariant)))
+        process(game_media.get("1k"), "dmd", game.DMDImagePath, str(default_media_path(game.fullPathGame, "dmd", self.playfieldvariant)))
+        process(game_media, "wheel", game.WheelImagePath, str(default_media_path(game.fullPathGame, "wheel", self.playfieldvariant)))
+        process(game_media, "cab", game.CabImagePath, str(default_media_path(game.fullPathGame, "cab", self.playfieldvariant)))
+        process(game_media, "realdmd", game.realDMDImagePath, str(default_media_path(game.fullPathGame, "realdmd", self.playfieldvariant)))
+        process(game_media, "realdmd_color", game.realDMDColorImagePath, str(default_media_path(game.fullPathGame, "realdmd_color", self.playfieldvariant)))
+        process(game_media, "flyer", game.FlyerImagePath, str(default_media_path(game.fullPathGame, "flyer", self.playfieldvariant)))
+        process(game_media.get(self.playfieldresolution), self.playfieldvariant, game.PlayfieldImagePath, str(default_media_path(game.fullPathGame, self.playfieldvariant, self.playfieldvariant)))
         # Videos, and only the ones the index actually carries. There has never been
         # a bg_video at any resolution, so the backglass video is yours to supply.
         # Nor is there an fss_video: under table type fss the playfield video is
         # simply not offered, and asking would quietly fetch nothing.
-        process(game_media.get(self.playfieldvideoresolution), "dmd_video", game.DMDVideoPath, str(default_media_path(game.fullPathTable, "dmd_video", self.playfieldvariant)))
+        process(game_media.get(self.playfieldvideoresolution), "dmd_video", game.DMDVideoPath, str(default_media_path(game.fullPathGame, "dmd_video", self.playfieldvariant)))
         if self.playfieldvariant == "table":
-            process(game_media.get(self.playfieldvideoresolution), "table_video", game.TableVideoPath, str(default_media_path(game.fullPathTable, "table_video", self.playfieldvariant)))
-        process(game_media, "audio", game.AudioPath, str(default_media_path(game.fullPathTable, "audio", self.playfieldvariant)))
+            process(game_media.get(self.playfieldvideoresolution), "table_video", game.PlayfieldVideoPath, str(default_media_path(game.fullPathGame, "table_video", self.playfieldvariant)))
+        process(game_media, "audio", game.AudioPath, str(default_media_path(game.fullPathGame, "audio", self.playfieldvariant)))

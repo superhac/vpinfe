@@ -295,18 +295,18 @@ def associate_vps_to_folder(
 
         class _LightGame:
             def __init__(self, folder: Path, vpx: Path):
-                self.tableDirName = folder.name
-                self.fullPathTable = str(folder)
+                self.gameDirName = folder.name
+                self.fullPathGame = str(folder)
                 self.fullPathVPXfile = str(vpx)
                 self.BGImagePath = None
                 self.DMDImagePath = None
-                self.TableImagePath = None
+                self.PlayfieldImagePath = None
                 self.WheelImagePath = None
                 self.CabImagePath = None
                 self.realDMDImagePath = None
                 self.realDMDColorImagePath = None
                 self.FlyerImagePath = None
-                self.TableVideoPath = None
+                self.PlayfieldVideoPath = None
                 self.BGVideoPath = None
                 self.DMDVideoPath = None
                 self.AudioPath = None

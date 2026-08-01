@@ -235,8 +235,8 @@ class PayloadTests(unittest.TestCase):
         from frontend.game_state import games_json
 
         game = SimpleNamespace(
-            tableDirName="Cactus Canyon (Bally 1998)",
-            fullPathTable="/games/Cactus Canyon (Bally 1998)",
+            gameDirName="Cactus Canyon (Bally 1998)",
+            fullPathGame="/games/Cactus Canyon (Bally 1998)",
             fullPathVPXfile="",
             pupPackExists=False,
             altColorExists=False,

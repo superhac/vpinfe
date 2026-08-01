@@ -91,10 +91,10 @@ class RecordingTests(unittest.TestCase):
                  "WheelImagePath": "wheel.png", "CabImagePath": "cab.png",
                  "realDMDImagePath": "realdmd.png",
                  "realDMDColorImagePath": "realdmd-color.png",
-                 "FlyerImagePath": "flyer.png", "TableImagePath": "table.png",
-                 "DMDVideoPath": "dmd.mp4", "TableVideoPath": "table.mp4",
+                 "FlyerImagePath": "flyer.png", "PlayfieldImagePath": "table.png",
+                 "DMDVideoPath": "dmd.mp4", "PlayfieldVideoPath": "table.mp4",
                  "AudioPath": "audio.mp3"}
-        game = SimpleNamespace(fullPathTable=str(root), tableDirName=root.name)
+        game = SimpleNamespace(fullPathGame=str(root), gameDirName=root.name)
         for attr, name in paths.items():
             setattr(game, attr, str(root / "medias" / name))
         return game

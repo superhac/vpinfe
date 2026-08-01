@@ -113,7 +113,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         """The bus payload is in-process; the Table object and the ini config are not
         things to put on a socket."""
         game = SimpleNamespace(
-            tableDirName="Medieval Madness (Williams 1997)",
+            gameDirName="Medieval Madness (Williams 1997)",
             metaConfig={"vpinfe": {"id": "6f1c9a4e"}},
         )
         stream = self._open()
@@ -138,7 +138,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         await self._hello(stream)
 
         events.emit(events.GAME_SELECTED,
-                    game=SimpleNamespace(tableDirName="Unidentified", metaConfig={}),
+                    game=SimpleNamespace(gameDirName="Unidentified", metaConfig={}),
                     ini_config=None)
         frame = await self._next(stream)
 

@@ -72,7 +72,7 @@ def ensure_id(game, *, force_new: bool = False) -> str:
     minted = new_id()
     vpinfe[ID_KEY] = minted
     persist_game_meta(game, config)
-    logger.debug("Assigned table id %s to %s", minted, getattr(game, "tableDirName", "?"))
+    logger.debug("Assigned table id %s to %s", minted, getattr(game, "gameDirName", "?"))
     return minted
 
 
@@ -92,8 +92,8 @@ def ensure_unique_ids(games: Iterable[Any]) -> dict[str, Any]:
             logger.warning(
                 "Table id %s is used by both %s and %s; assigning a new id to the latter",
                 current,
-                getattr(by_id[current], "tableDirName", "?"),
-                getattr(game, "tableDirName", "?"),
+                getattr(by_id[current], "gameDirName", "?"),
+                getattr(game, "gameDirName", "?"),
             )
             current = ensure_id(game, force_new=True)
             minted += 1

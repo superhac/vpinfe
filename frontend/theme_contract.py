@@ -41,6 +41,15 @@ _LEGACY_TABLE_KEYS = {
     "detect_pinmame": "detectpinmame",
 }
 
+# What contract 1 calls each top-level row key. These are served identically at both
+# contracts until now, so the projection never had to touch anything outside meta.
+_LEGACY_ROW_KEYS = {
+    "PlayfieldImagePath": "TableImagePath",
+    "PlayfieldVideoPath": "TableVideoPath",
+    "fullPathGame": "fullPathTable",
+    "gameDirName": "tableDirName",
+}
+
 # 1  the shape 2.x themes read: meta.VPXFile, and Rom and Authors on meta.Info
 # 2  the .info's own shape: meta.game_files, meta.vpinfe, and neither of those on Info
 
@@ -113,4 +122,9 @@ def _to_contract_1(row: dict) -> dict:
 
     projected = dict(row)
     projected["meta"] = meta
+    # Top-level row keys, not meta - the projection did not reach these until the
+    # vocabulary rename moved them, because nothing above meta had ever changed.
+    for new, old in _LEGACY_ROW_KEYS.items():
+        if new in projected:
+            projected[old] = projected.pop(new)
     return projected

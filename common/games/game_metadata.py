@@ -137,7 +137,7 @@ def game_title(game) -> str:
         if alt_title:
             # A user-set alttitle is left exactly as entered - never reordered.
             return alt_title
-    raw = str(info.get("Title", "") or get_meta_value(meta, "VPSdb", "name", "") or getattr(game, "tableDirName", "") or "").strip()
+    raw = str(info.get("Title", "") or get_meta_value(meta, "VPSdb", "name", "") or getattr(game, "gameDirName", "") or "").strip()
     return reorder_leading_article(raw)
 
 
@@ -226,7 +226,7 @@ def get_or_create_table_user(config: dict[str, Any], filename: str) -> dict[str,
 
 
 def meta_file_path(game) -> Path:
-    return Path(game.fullPathTable) / f"{game.tableDirName}.info"
+    return Path(game.fullPathGame) / f"{game.gameDirName}.info"
 
 
 def load_game_meta(game) -> Dict[str, Any]:

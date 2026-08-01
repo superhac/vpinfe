@@ -21,7 +21,7 @@ blocking.
 | Internal helpers | leading underscore | `_catalog()`, `_resource()` |
 
 Python does not use camelCase. PEP 8 permits it "only in contexts where that's already the
-prevailing style, to retain backwards compatibility" — which is why `tableDirName`,
+prevailing style, to retain backwards compatibility" — which is why `gameDirName`,
 `metaConfig` and `writeConfigMeta()` still exist. They are legacy, not the standard.
 
 ### JavaScript
@@ -180,8 +180,8 @@ Pass arguments to the logger rather than formatting into it, so the work is skip
 level is off:
 
 ```python
-logger.debug("Assigned table id %s to %s", minted, table.tableDirName)   # yes
-logger.debug(f"Assigned table id {minted} to {table.tableDirName}")      # no
+logger.debug("Assigned table id %s to %s", minted, table.gameDirName)   # yes
+logger.debug(f"Assigned table id {minted} to {table.gameDirName}")      # no
 ```
 
 ### What we deliberately do not do

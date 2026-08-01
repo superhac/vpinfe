@@ -87,7 +87,7 @@ def _resolve_table(game, table: str | None) -> str:
     A named file is checked against what is actually in the folder, so a caller
     cannot talk this into running something outside the table's directory.
     """
-    game_dir = str(getattr(game, "fullPathTable", "") or "")
+    game_dir = str(getattr(game, "fullPathGame", "") or "")
     if table is None:
         path = str(getattr(game, "fullPathVPXfile", "") or "")
         if not path:
@@ -139,7 +139,7 @@ def _record_play(game, ini_config, elapsed_seconds: float, profile, table: str =
         game_play_service.update_score_from_nvram(game)
         return
 
-    game_key = str(getattr(game, "fullPathTable", "") or getattr(game, "tableDirName", "") or "")
+    game_key = str(getattr(game, "fullPathGame", "") or getattr(game, "gameDirName", "") or "")
     if not game_key:
         logger.warning("Skipping alternate VPinPlay submission: missing table key")
         return
@@ -149,7 +149,7 @@ def _record_play(game, ini_config, elapsed_seconds: float, profile, table: str =
     if score_data:
         set_game_score(game_key, score_data, profile.profile_key)
         logger.info("Captured alternate User.Score for %s from %s",
-                    game.tableDirName, score_path)
+                    game.gameDirName, score_path)
 
     game_meta = game_play_service.build_runtime_submission_meta(
         game, get_game_user_state(game_key, profile.profile_key))
@@ -170,12 +170,12 @@ def _record_play(game, ini_config, elapsed_seconds: float, profile, table: str =
             game_meta=game_meta,
         )
         logger.info("Alternate VPinPlay submit complete for %s: status=%s ok=%s",
-                    game.tableDirName, result.get("status_code"), result.get("ok"))
+                    game.gameDirName, result.get("status_code"), result.get("ok"))
         if not result.get("ok"):
             logger.warning("Alternate VPinPlay submit failed response: %s",
                            result.get("response_body"))
     except Exception:
-        logger.exception("Alternate VPinPlay submit failed for %s", game.tableDirName)
+        logger.exception("Alternate VPinPlay submit failed for %s", game.gameDirName)
 
 
 def check_launchable(game, ini_config, table: str | None = None) -> str:
@@ -222,7 +222,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
     # anyone who heard game.launching - which is what stops a failure below from
     # leaving the frontend with its input suppressed for the life of the process.
     try:
-        launch_state.set_launching(getattr(game, "tableDirName", None), source=source)
+        launch_state.set_launching(getattr(game, "gameDirName", None), source=source)
         cmd = _command(game, vpx_path, launcher, settings)
         logger.info("Launching: %s", cmd)
         process = popen(
@@ -236,8 +236,8 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
         started_at = time.time()
         profile = get_active_profile()
         if profile is not None:
-            record_game_start(str(getattr(game, "fullPathTable", "")
-                                   or getattr(game, "tableDirName", "") or ""))
+            record_game_start(str(getattr(game, "fullPathGame", "")
+                                   or getattr(game, "gameDirName", "") or ""))
         else:
             game_play_service.increment_start_count(game, os.path.basename(vpx_path))
 
@@ -267,7 +267,7 @@ def table_for(game, table: str | None = None) -> str:
     """The file a launch would use, without launching it."""
     if table is not None:
         return table
-    game_dir = str(getattr(game, "fullPathTable", "") or "")
+    game_dir = str(getattr(game, "fullPathGame", "") or "")
     listing = []
     if game_dir and os.path.isdir(game_dir):
         listing = [name for name in os.listdir(game_dir)

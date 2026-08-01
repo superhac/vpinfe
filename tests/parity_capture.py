@@ -71,7 +71,9 @@ def _capture_theme_payload(games_root: Path) -> dict:
     from frontend.game_state import games_json
 
     parser = GameParser(str(games_root))
-    payload = json.loads(games_json(parser.getAllGames()))
+    # Contract 1: what a theme written before 3.0 receives. Capturing the current
+    # contract would compare master against a shape no existing theme asks for.
+    payload = json.loads(games_json(parser.getAllGames(), contract=1))
     entry = payload[0] if payload else {}
     return {
         "count": len(payload),

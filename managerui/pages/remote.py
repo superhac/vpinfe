@@ -132,7 +132,7 @@ def _launch_game(game: dict):
         ui.notify(str(exc), type='negative')
         return False
 
-    logger.info("Remote launching table: %s", resolved.tableDirName)
+    logger.info("Remote launching table: %s", resolved.gameDirName)
     ui.notify(f'Remote Launching {game_name}...', type='info')
 
     def run_and_wait():

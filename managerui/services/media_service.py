@@ -214,7 +214,7 @@ def scan_media_games(reload: bool = False) -> List[Dict]:
         return []
 
     for game in ensure_games_loaded(reload=reload):
-        root = getattr(game, "fullPathTable", "") or ""
+        root = getattr(game, "fullPathGame", "") or ""
         if not root:
             continue
         current_dir = Path(root).name

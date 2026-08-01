@@ -18,7 +18,7 @@ def game_identity(game) -> str:
     Used both to save the last-launched table and to resolve it back to an
     index, so it must be computed the same way in both directions.
     """
-    return str(getattr(game, "fullPathTable", "") or getattr(game, "tableDirName", "") or "")
+    return str(getattr(game, "fullPathGame", "") or getattr(game, "gameDirName", "") or "")
 
 
 def save_last_game(iniConfig, game) -> None:

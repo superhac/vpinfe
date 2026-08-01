@@ -130,7 +130,7 @@ class TestCommonArchitecture(unittest.TestCase):
 
     def test_metadata_display_helpers_handle_legacy_fields(self) -> None:
         game = SimpleNamespace(
-            tableDirName="Fallback",
+            gameDirName="Fallback",
             metaConfig={
                 "VPSdb": {
                     "name": "Legacy Name",
@@ -232,7 +232,7 @@ class TestCommonArchitecture(unittest.TestCase):
 
     def test_media_paths_apply_and_payload_use_shared_specs(self) -> None:
         root = os.path.join(os.sep, "tmp", "Table")
-        game = SimpleNamespace(fullPathTable=root, TableImagePath=None, BGImagePath=None)
+        game = SimpleNamespace(fullPathGame=root, PlayfieldImagePath=None, BGImagePath=None)
 
         apply_media_paths(
             game,
@@ -242,9 +242,9 @@ class TestCommonArchitecture(unittest.TestCase):
         )
 
         self.assertEqual(game.BGImagePath, os.path.join(root, "bg.png"))
-        self.assertEqual(game.TableImagePath, os.path.join(root, "medias", "fss.png"))
+        self.assertEqual(game.PlayfieldImagePath, os.path.join(root, "medias", "fss.png"))
         self.assertEqual(media_filename_map("fss")["fss"], "fss.png")
-        self.assertEqual(game_media_payload(game)["TableImagePath"],
+        self.assertEqual(game_media_payload(game)["PlayfieldImagePath"],
                          os.path.join(root, "medias", "fss.png"))
 
     def test_job_reporter_wraps_log_and_progress_callbacks(self) -> None:
@@ -275,7 +275,7 @@ class TestCommonArchitecture(unittest.TestCase):
             (without_b2s / "No B2S (Bally 1991).vpx").write_text("")
 
             parser = GameParser(root)
-            by_name = {t.tableDirName: t for t in parser.getAllGames()}
+            by_name = {t.gameDirName: t for t in parser.getAllGames()}
 
             self.assertTrue(by_name["With B2S (Bally 1990)"].b2sExists)
             self.assertFalse(by_name["No B2S (Bally 1991)"].b2sExists)

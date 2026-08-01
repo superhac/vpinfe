@@ -80,8 +80,8 @@ def games_json(games, contract: int = CURRENT_CONTRACT) -> str:
             meta["Info"] = info
 
         row = {
-            "tableDirName": game.tableDirName,
-            "fullPathTable": game.fullPathTable,
+            "gameDirName": game.gameDirName,
+            "fullPathGame": game.fullPathGame,
             "fullPathVPXfile": game.fullPathVPXfile,
             "pupPackExists": game.pupPackExists,
             "altColorExists": game.altColorExists,

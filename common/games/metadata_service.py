@@ -43,7 +43,7 @@ def build_metadata(
     games = tp.getAllGames()
 
     if gameName:
-        games = [game for game in games if game.tableDirName == gameName]
+        games = [game for game in games if game.gameDirName == gameName]
         if not games:
             log(f"Table folder '{gameName}' not found")
             return {"found": 0, "not_found": 0}
@@ -58,20 +58,20 @@ def build_metadata(
         reporter.progress(0, total, "Starting")
 
     for current, game in enumerate(games, 1):
-        info_path = os.path.join(game.fullPathTable, f"{game.tableDirName}.info")
+        info_path = os.path.join(game.fullPathGame, f"{game.gameDirName}.info")
 
         if os.path.exists(info_path) and not updateAll:
             if progress_cb:
-                reporter.progress(current, total, f"Skipping {game.tableDirName}")
+                reporter.progress(current, total, f"Skipping {game.gameDirName}")
             continue
 
         meta = MetaConfig(info_path)
 
-        log(f"Checking VPSdb for {game.tableDirName}")
+        log(f"Checking VPSdb for {game.gameDirName}")
         if progress_cb:
-            reporter.progress(current, total, f"Processing {game.tableDirName}")
+            reporter.progress(current, total, f"Processing {game.gameDirName}")
 
-        vpsSearchData = vps.parseGameNameFromDir(game.tableDirName)
+        vpsSearchData = vps.parseGameNameFromDir(game.gameDirName)
         vpsData = (
             vps.lookupName(
                 vpsSearchData["name"],
@@ -100,7 +100,7 @@ def build_metadata(
             "vpxdata": vpxData,
         })
 
-        log(f"Created {game.tableDirName}.info")
+        log(f"Created {game.gameDirName}.info")
 
         # userMedia suppresses the fetch outright, for somebody supplying the whole
         # library themselves. Media already on disk needs no such flag: the

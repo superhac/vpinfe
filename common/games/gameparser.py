@@ -81,8 +81,8 @@ class GameParser:
         rather than the library.
         """
         game = Game()
-        game.tableDirName = game_dir.name
-        game.fullPathTable = str(game_dir)
+        game.gameDirName = game_dir.name
+        game.fullPathGame = str(game_dir)
 
         game_contents = set()
         game_subdirs = set()
@@ -102,10 +102,10 @@ class GameParser:
             logger.exception("Failed to enumerate table directory: %s", game_dir)
 
         if not table_names(game_contents):
-            logger.warning("No .vpx found in %s directory.", game.tableDirName)
+            logger.warning("No .vpx found in %s directory.", game.gameDirName)
             return None
 
-        info_name = f"{game.tableDirName}.info"
+        info_name = f"{game.gameDirName}.info"
         # Only folders holding a backup open one.
         stamps = backup_names(game_contents, info_name)
         game.info_restorable = bool(
@@ -114,7 +114,7 @@ class GameParser:
             game.info_backup_stamp = stamps[0].rsplit(BACKUP_MARKER, 1)[-1]
         if info_name not in game_contents:
             self.missing_games.append({
-                'folder': game.tableDirName,
+                'folder': game.gameDirName,
                 'path': str(game_dir),
             })
 
@@ -142,7 +142,7 @@ class GameParser:
             # This used to stop the whole library loading. Excluded rather than loaded
             # empty, so nothing can write over a file we could not read.
             self.unreadable_games.append({
-                'folder': game.tableDirName,
+                'folder': game.gameDirName,
                 'path': str(game_dir),
                 'error': str(exc),
             })
@@ -185,7 +185,7 @@ class GameParser:
 
         game = self._build_game(game_dir) if game_dir.is_dir() else None
         for index, existing in enumerate(self.games):
-            if existing.fullPathTable == target:
+            if existing.fullPathGame == target:
                 if game is None:
                     del self.games[index]        # the folder went away
                 else:
@@ -198,7 +198,7 @@ class GameParser:
 
     def loadImagePaths(self, Game, game_contents=None, has_medias_dir=None,
                        table_stem=None):
-        game_dir = Path(Game.fullPathTable)
+        game_dir = Path(Game.fullPathGame)
         medias_dir = game_dir / "medias"
 
         # Batch directory listings to minimize disk calls
@@ -222,11 +222,11 @@ class GameParser:
                           table_stem, self.active_sets or None)
 
     def loadMetaData(self, Game):
-        meta_path = Path(Game.fullPathTable) / f"{Game.tableDirName}.info"
+        meta_path = Path(Game.fullPathGame) / f"{Game.gameDirName}.info"
         try:
             meta = MetaConfig(str(meta_path))
         except InvalidMetaConfigError as exc:
-            logger.error("Invalid metadata for table '%s': %s", Game.tableDirName, exc)
+            logger.error("Invalid metadata for table '%s': %s", Game.gameDirName, exc)
             raise
         Game.metaConfig = meta.data
         Game.info_pending_upgrade = meta.pending_migration

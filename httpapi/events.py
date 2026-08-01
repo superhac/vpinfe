@@ -64,7 +64,7 @@ def _game_event(game=None, **_) -> dict:
         return {"game": None}
 
     game_id = game_identity.game_id(game)
-    reference = {"id": game_id, "name": getattr(game, "tableDirName", "")}
+    reference = {"id": game_id, "name": getattr(game, "gameDirName", "")}
     if game_id:
         reference["links"] = {"self": f"/api/v1/games/{game_id}"}
     return {"game": reference}
