@@ -25,9 +25,9 @@ from common.tables.vpxcollections import (
 logger = logging.getLogger("vpinfe.common.tables.info_maintenance")
 
 
-def table_dirs(table_root, table_name: str | None = None) -> list[Path]:
+def game_dirs(game_root, table_name: str | None = None) -> list[Path]:
     """Table folders under the root. Not loadTables: that raises on the first bad `.info`."""
-    root = Path(table_root)
+    root = Path(game_root)
     if not root.is_dir():
         return []
     if table_name:
@@ -39,23 +39,23 @@ def table_dirs(table_root, table_name: str | None = None) -> list[Path]:
     )
 
 
-def _info_path(table_dir: Path) -> Path:
-    return table_dir / f"{table_dir.name}.info"
+def _info_path(game_dir: Path) -> Path:
+    return game_dir / f"{game_dir.name}.info"
 
 
-def pending_upgrade(table_dir) -> bool:
+def pending_upgrade(game_dir) -> bool:
     """Whether this folder's `.info` still holds the 2.x shape. False if it cannot be read."""
-    table_dir = Path(table_dir)
-    if not _info_path(table_dir).exists():
+    game_dir = Path(game_dir)
+    if not _info_path(game_dir).exists():
         return False
     try:
-        return MetaConfig(str(_info_path(table_dir))).pending_migration
+        return MetaConfig(str(_info_path(game_dir))).pending_migration
     except (InvalidMetaConfigError, OSError):
         return False
 
 
 def upgrade_library(
-    table_root,
+    game_root,
     table_name: str | None = None,
     progress_cb=None,
     log_cb=None,
@@ -67,16 +67,16 @@ def upgrade_library(
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
     log = reporter.log
 
-    folders = table_dirs(table_root, table_name)
+    folders = game_dirs(game_root, table_name)
     total = len(folders)
     result = {"upgraded": 0, "already_current": 0, "failed": 0, "failures": []}
 
     log("Upgrading .info files. Each one is backed up first, so this can be undone.")
     reporter.progress(0, total, "Starting")
 
-    for index, table_dir in enumerate(folders, start=1):
-        reporter.progress(index, total, table_dir.name)
-        info_path = _info_path(table_dir)
+    for index, game_dir in enumerate(folders, start=1):
+        reporter.progress(index, total, game_dir.name)
+        info_path = _info_path(game_dir)
         if not info_path.exists():
             result["already_current"] += 1
             continue
@@ -88,18 +88,18 @@ def upgrade_library(
             meta.writeConfig()
         except (InvalidMetaConfigError, OSError) as exc:
             result["failed"] += 1
-            result["failures"].append((table_dir.name, str(exc)))
-            log(f"Left alone, could not be read: {table_dir.name}")
+            result["failures"].append((game_dir.name, str(exc)))
+            log(f"Left alone, could not be read: {game_dir.name}")
             continue
         result["upgraded"] += 1
-        log(f"Upgraded: {table_dir.name}")
+        log(f"Upgraded: {game_dir.name}")
 
     log(_upgrade_summary(result))
     return result
 
 
 def restore_library(
-    table_root,
+    game_root,
     table_name: str | None = None,
     max_schema: int = CURRENT_SCHEMA,
     config_dir=None,
@@ -113,7 +113,7 @@ def restore_library(
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
     log = reporter.log
 
-    folders = table_dirs(table_root, table_name)
+    folders = game_dirs(game_root, table_name)
     total = len(folders)
     result = {"restored": 0, "nothing_to_restore": 0, "failed": 0, "failures": [],
               "collections_restored": False}
@@ -122,22 +122,22 @@ def restore_library(
         "undone too.")
     reporter.progress(0, total, "Starting")
 
-    for index, table_dir in enumerate(folders, start=1):
-        reporter.progress(index, total, table_dir.name)
-        chosen = restorable_backup(table_dir, max_schema)
+    for index, game_dir in enumerate(folders, start=1):
+        reporter.progress(index, total, game_dir.name)
+        chosen = restorable_backup(game_dir, max_schema)
         if not chosen:
             result["nothing_to_restore"] += 1
             continue
-        info_path = _info_path(table_dir)
+        info_path = _info_path(game_dir)
         try:
             _restore_file(info_path, chosen)
         except OSError as exc:
             result["failed"] += 1
-            result["failures"].append((table_dir.name, str(exc)))
-            log(f"Left as it is, could not be restored: {table_dir.name}")
+            result["failures"].append((game_dir.name, str(exc)))
+            log(f"Left as it is, could not be restored: {game_dir.name}")
             continue
         result["restored"] += 1
-        log(f"Restored: {table_dir.name}")
+        log(f"Restored: {game_dir.name}")
 
     # Collections live in the config directory rather than a table folder, and the id
     # migration rewrites them into something an older build cannot resolve.

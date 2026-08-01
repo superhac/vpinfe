@@ -21,7 +21,7 @@ from common.tables.table_metadata import vpinfe_section
 from common.tables.vpxparser import VPXParser
 
 from common.paths import CONFIG_DIR
-from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_tables_path
+from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_games_path
 from managerui.services import table_index_service
 
 
@@ -85,8 +85,8 @@ def add_table_to_collection(table_id: str, collection_name: str) -> bool:
 
 def update_info_section(table_path: str, section: str, key: str, value) -> bool:
     try:
-        table_dir = Path(table_path)
-        info_file = table_dir / f"{table_dir.name}.info"
+        game_dir = Path(table_path)
+        info_file = game_dir / f"{game_dir.name}.info"
         if not info_file.exists():
             logger.error("Info file not found: %s", info_file)
             return False
@@ -154,16 +154,16 @@ def _safe_upload_name(filename: str) -> str:
     return safe_name
 
 
-def _find_vpx_file(table_dir: Path, preferred_filename: str = "") -> Path:
-    names = [path.name for path in table_dir.iterdir() if path.is_file()]
-    chosen = default_game_file(names, table_dir.name, Path(preferred_filename or "").name)
+def _find_vpx_file(game_dir: Path, preferred_filename: str = "") -> Path:
+    names = [path.name for path in game_dir.iterdir() if path.is_file()]
+    chosen = default_game_file(names, game_dir.name, Path(preferred_filename or "").name)
     if not chosen:
-        raise FileNotFoundError(f"No .vpx found in {table_dir}")
-    return table_dir / chosen
+        raise FileNotFoundError(f"No .vpx found in {game_dir}")
+    return game_dir / chosen
 
 
-def _find_directb2s_file(table_dir: Path, preferred_stem: str = "") -> Optional[Path]:
-    b2s_files = sorted(path for path in table_dir.iterdir() if path.is_file() and path.suffix.lower() == ".directb2s")
+def _find_directb2s_file(game_dir: Path, preferred_stem: str = "") -> Optional[Path]:
+    b2s_files = sorted(path for path in game_dir.iterdir() if path.is_file() and path.suffix.lower() == ".directb2s")
     if not b2s_files:
         return None
 
@@ -175,8 +175,8 @@ def _find_directb2s_file(table_dir: Path, preferred_stem: str = "") -> Optional[
     return b2s_files[0]
 
 
-def _find_ini_file(table_dir: Path, preferred_stem: str = "") -> Optional[Path]:
-    ini_files = sorted(path for path in table_dir.iterdir() if path.is_file() and path.suffix.lower() == ".ini")
+def _find_ini_file(game_dir: Path, preferred_stem: str = "") -> Optional[Path]:
+    ini_files = sorted(path for path in game_dir.iterdir() if path.is_file() and path.suffix.lower() == ".ini")
     if not ini_files:
         return None
 
@@ -196,9 +196,9 @@ def _write_replace(dest_file: Path, content: bytes) -> None:
 
 
 def replace_table_file(table_path: str, filename: str, content: bytes, file_type: str, current_vpx_filename: str = "") -> Dict[str, str]:
-    table_dir = Path(table_path).expanduser()
-    if not table_dir.exists() or not table_dir.is_dir():
-        raise FileNotFoundError(f"Table folder not found: {table_dir}")
+    game_dir = Path(table_path).expanduser()
+    if not game_dir.exists() or not game_dir.is_dir():
+        raise FileNotFoundError(f"Table folder not found: {game_dir}")
 
     safe_name = _safe_upload_name(filename)
     ext = Path(safe_name).suffix.lower()
@@ -207,10 +207,10 @@ def replace_table_file(table_path: str, filename: str, content: bytes, file_type
         if ext != ".vpx":
             raise ValueError("Only .vpx files can update the table file")
 
-        old_vpx = _find_vpx_file(table_dir, current_vpx_filename)
-        new_vpx = table_dir / safe_name
-        old_b2s = _find_directb2s_file(table_dir, old_vpx.stem)
-        old_ini = _find_ini_file(table_dir, old_vpx.stem)
+        old_vpx = _find_vpx_file(game_dir, current_vpx_filename)
+        new_vpx = game_dir / safe_name
+        old_b2s = _find_directb2s_file(game_dir, old_vpx.stem)
+        old_ini = _find_ini_file(game_dir, old_vpx.stem)
 
         if old_vpx.resolve() == new_vpx.resolve():
             _write_replace(new_vpx, content)
@@ -222,7 +222,7 @@ def replace_table_file(table_path: str, filename: str, content: bytes, file_type
 
         renamed_b2s = ""
         if old_b2s and old_b2s.exists():
-            new_b2s = table_dir / f"{new_vpx.stem}.directb2s"
+            new_b2s = game_dir / f"{new_vpx.stem}.directb2s"
             if old_b2s.resolve() != new_b2s.resolve():
                 if new_b2s.exists():
                     new_b2s.unlink()
@@ -231,18 +231,18 @@ def replace_table_file(table_path: str, filename: str, content: bytes, file_type
 
         renamed_ini = ""
         if old_ini and old_ini.exists():
-            new_ini = table_dir / f"{new_vpx.stem}.ini"
+            new_ini = game_dir / f"{new_vpx.stem}.ini"
             if old_ini.resolve() != new_ini.resolve():
                 if new_ini.exists():
                     new_ini.unlink()
                 os.replace(old_ini, new_ini)
             renamed_ini = new_ini.name
 
-        refresh_table(str(table_dir))
+        refresh_table(str(game_dir))
         return {
             "file_type": "vpx",
             "filename": new_vpx.name,
-            "table_path": str(table_dir),
+            "table_path": str(game_dir),
             "directb2s_filename": renamed_b2s,
             "ini_filename": renamed_ini,
         }
@@ -251,32 +251,32 @@ def replace_table_file(table_path: str, filename: str, content: bytes, file_type
         if ext != ".directb2s":
             raise ValueError("Only .directb2s files can update the backglass file")
 
-        current_vpx = _find_vpx_file(table_dir, current_vpx_filename)
-        old_b2s = _find_directb2s_file(table_dir, current_vpx.stem)
-        target_b2s = old_b2s if old_b2s else table_dir / f"{current_vpx.stem}.directb2s"
+        current_vpx = _find_vpx_file(game_dir, current_vpx_filename)
+        old_b2s = _find_directb2s_file(game_dir, current_vpx.stem)
+        target_b2s = old_b2s if old_b2s else game_dir / f"{current_vpx.stem}.directb2s"
         _write_replace(target_b2s, content)
 
-        refresh_table(str(table_dir))
+        refresh_table(str(game_dir))
         return {
             "file_type": "directb2s",
             "filename": target_b2s.name,
-            "table_path": str(table_dir),
+            "table_path": str(game_dir),
         }
 
     raise ValueError("Unsupported table update type")
 
 
 def associate_vps_to_folder(
-    table_folder: Path,
+    game_folder: Path,
     vps_entry: Dict,
     download_media: bool = False,
 ) -> None:
     from common.tables.metaconfig import MetaConfig
 
-    if not table_folder.exists():
-        raise FileNotFoundError(f"Folder not found: {table_folder}")
+    if not game_folder.exists():
+        raise FileNotFoundError(f"Folder not found: {game_folder}")
 
-    meta_path = table_folder / f"{table_folder.name}.info"
+    meta_path = game_folder / f"{game_folder.name}.info"
     recorded = ""
     if meta_path.exists():
         try:
@@ -284,7 +284,7 @@ def associate_vps_to_folder(
         except Exception:
             recorded = ""
 
-    vpx_file = _find_vpx_file(table_folder, recorded)
+    vpx_file = _find_vpx_file(game_folder, recorded)
     parser = VPXParser()
     vpxdata = parser.singleFileExtract(str(vpx_file))
 
@@ -315,11 +315,11 @@ def associate_vps_to_folder(
                 self.DMDVideoPath = None
                 self.AudioPath = None
 
-        vps.downloadMediaForTable(_LightTable(table_folder, vpx_file), vps_entry.get("id"), metaConfig=meta)
+        vps.downloadMediaForTable(_LightTable(game_folder, vpx_file), vps_entry.get("id"), metaConfig=meta)
 
     from managerui.services.media_service import invalidate_media_cache
     invalidate_media_cache()
-    refresh_table(str(table_folder))
+    refresh_table(str(game_folder))
 
 
 def scan_table_rows(reload: bool = False) -> List[Dict]:
@@ -441,7 +441,7 @@ def upgrade_info(progress_cb=None, log_cb=None, **kwargs):
     """
     with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as job:
         result = info_maintenance.upgrade_library(
-            get_tables_path(), progress_cb=job.progress, log_cb=job.log, **kwargs)
+            get_games_path(), progress_cb=job.progress, log_cb=job.log, **kwargs)
     table_repository.refresh_tables()
     return result
 
@@ -450,7 +450,7 @@ def restore_info(progress_cb=None, log_cb=None, **kwargs):
     """Put back the .info files saved before upgrade, for every table that has one."""
     with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as job:
         result = info_maintenance.restore_library(
-            get_tables_path(), config_dir=CONFIG_DIR,
+            get_games_path(), config_dir=CONFIG_DIR,
             progress_cb=job.progress, log_cb=job.log, **kwargs)
     table_repository.refresh_tables()
     return result

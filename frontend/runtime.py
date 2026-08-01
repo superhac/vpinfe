@@ -87,8 +87,8 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
     if not enabled:
         return False
 
-    table_root = settings.table_root_dir
-    if not table_root:
+    game_root = settings.table_root_dir
+    if not game_root:
         logger.warning("Startup media sync enabled, but tablerootdir is empty. Skipping.")
         return False
 

@@ -9,7 +9,7 @@ import urllib.error
 from nicegui import ui, run
 
 from common.iniconfig import IniConfig
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_tables_path
+from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_games_path
 from managerui.services import table_catalog
 from managerui.ui_helpers import load_page_style
 
@@ -45,7 +45,7 @@ def _get_ini_config():
 
 
 def _get_tables_path() -> str:
-    return get_tables_path()
+    return get_games_path()
 
 
 def _scan_tables():
@@ -108,7 +108,7 @@ def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=Non
 def _send_table_to_device(
     host,
     port,
-    table_dir_name,
+    game_dir_name,
     progress_cb=None,
     chunk_size=1048576,
     exclude_ini=True,
@@ -125,8 +125,8 @@ def _send_table_to_device(
     exclude_ini = _to_bool(exclude_ini)
     copy_masked_tableini_as_default = _to_bool(copy_masked_tableini_as_default)
 
-    tables_path = _get_tables_path()
-    table_path = os.path.join(tables_path, table_dir_name)
+    games_path = _get_tables_path()
+    table_path = os.path.join(games_path, game_dir_name)
     base_url = f'http://{host}:{port}'
 
     if not os.path.isdir(table_path):
@@ -177,7 +177,7 @@ def _send_table_to_device(
     pruned_info_path = None
     contents = list(bundle_paths(Path(table_path), everything=False))
     allowed = {arcname.replace(os.sep, '/') for _, arcname in contents}
-    info_name = f'{table_dir_name}.info'
+    info_name = f'{game_dir_name}.info'
     if info_name in allowed:
         source = os.path.join(table_path, info_name)
         try:
@@ -202,7 +202,7 @@ def _send_table_to_device(
     all_files = []
     for dirpath, dirnames, filenames in os.walk(table_path):
         filenames = [f for f in filenames if _in_bundle(dirpath, f)]
-        rel_dir = os.path.relpath(dirpath, tables_path)
+        rel_dir = os.path.relpath(dirpath, games_path)
 
         # For efficient lookup of corresponding .vpx files
         filenames_lower_set = {f.lower() for f in filenames}
@@ -254,7 +254,7 @@ def _send_table_to_device(
     if not exclude_ini and not copy_masked_tableini_as_default:
         existing_keys = {(rel_dir, fname.lower()) for rel_dir, fname, _, _ in all_files}
         for dirpath, _, filenames in os.walk(table_path):
-            rel_dir = os.path.relpath(dirpath, tables_path)
+            rel_dir = os.path.relpath(dirpath, games_path)
             for fname in filenames:
                 if not fname.lower().endswith('.ini'):
                     continue
@@ -271,7 +271,7 @@ def _send_table_to_device(
     if copy_masked_tableini_as_default:
         if masked_ini_name_for_copy and default_ini_name_for_copy:
             masked_ini_path = os.path.join(table_path, masked_ini_name_for_copy)
-            rel_root_dir = os.path.relpath(table_path, tables_path)
+            rel_root_dir = os.path.relpath(table_path, games_path)
 
             default_already_in_file_list = any(
                 rel_dir == rel_root_dir and fname.lower() == default_ini_name_for_copy.lower()
@@ -292,7 +292,7 @@ def _send_table_to_device(
                 )
 
     if pruned_info_path is not None:
-        info_name = f'{table_dir_name}.info'
+        info_name = f'{game_dir_name}.info'
         all_files = [
             (rel_dir, fname,
              pruned_info_path if fname == info_name else full_path,
@@ -316,7 +316,7 @@ def _send_table_to_device(
                 if rel_within != '.' and not any(
                         arc.startswith(rel_within + '/') for arc in allowed):
                     continue
-            rel_dir = os.path.relpath(dirpath, tables_path)
+            rel_dir = os.path.relpath(dirpath, games_path)
             dirs_to_create.add(rel_dir)
 
         # Create directories (sorted so parents come first)
@@ -366,10 +366,10 @@ def _send_table_to_device(
         progress_cb(total_files, total_files, 'Complete')
 
 
-def _delete_table_from_device(host, port, table_dir_name):
+def _delete_table_from_device(host, port, game_dir_name):
     """Delete a table directory from the mobile device via POST /delete?q=<path>."""
     base_url = f'http://{host}:{port}'
-    encoded_dir = urllib.parse.quote(table_dir_name, safe='')
+    encoded_dir = urllib.parse.quote(game_dir_name, safe='')
     url = f'{base_url}/delete?q={encoded_dir}'
     _http_request(url, data=b'', timeout=30)
     # Tell the mobile device to reload its table list

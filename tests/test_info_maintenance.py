@@ -13,9 +13,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common.tables.info_maintenance import (
+    game_dirs,
     restorable_backup,
     restore_library,
-    table_dirs,
     upgrade_library,
 )
 from common.tables.info_migration import CURRENT_SCHEMA, backup_schema, schema_of
@@ -36,18 +36,18 @@ class LibraryTestCase(unittest.TestCase):
         self.root = Path(self._tmp.name)
 
     def _table(self, name: str, meta=LEGACY) -> Path:
-        table_dir = self.root / name
-        table_dir.mkdir()
-        (table_dir / f"{name}.vpx").write_text("not really a vpx", encoding="utf-8")
+        game_dir = self.root / name
+        game_dir.mkdir()
+        (game_dir / f"{name}.vpx").write_text("not really a vpx", encoding="utf-8")
         if meta is not None:
-            (table_dir / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
-        return table_dir
+            (game_dir / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
+        return game_dir
 
-    def _info(self, table_dir: Path) -> dict:
-        return json.loads((table_dir / f"{table_dir.name}.info").read_text(encoding="utf-8"))
+    def _info(self, game_dir: Path) -> dict:
+        return json.loads((game_dir / f"{game_dir.name}.info").read_text(encoding="utf-8"))
 
-    def _backups(self, table_dir: Path) -> list[Path]:
-        return sorted(p for p in table_dir.iterdir() if ".vpinfe-" in p.name)
+    def _backups(self, game_dir: Path) -> list[Path]:
+        return sorted(p for p in game_dir.iterdir() if ".vpinfe-" in p.name)
 
 
 class UpgradeTests(LibraryTestCase):
@@ -205,10 +205,10 @@ class WalkTests(LibraryTestCase):
         self._table("Dr. Dude")
         (self.root / ".hidden").mkdir()
 
-        self.assertEqual([d.name for d in table_dirs(self.root)], ["Dr. Dude"])
+        self.assertEqual([d.name for d in game_dirs(self.root)], ["Dr. Dude"])
 
     def test_a_missing_root_is_not_an_error(self):
-        self.assertEqual(table_dirs(self.root / "nope"), [])
+        self.assertEqual(game_dirs(self.root / "nope"), [])
 
 
 if __name__ == "__main__":
@@ -223,17 +223,17 @@ class WhatThePageSaysTests(LibraryTestCase):
     """
 
     def _table_at(self, schema, with_backup=True):
-        table_dir = self.root / "Dr. Dude"
-        table_dir.mkdir()
-        (table_dir / "Dr. Dude.vpx").write_text("x", encoding="utf-8")
+        game_dir = self.root / "Dr. Dude"
+        game_dir.mkdir()
+        (game_dir / "Dr. Dude.vpx").write_text("x", encoding="utf-8")
         live = {"Info": {}, "User": {"Rating": 4}, "vpinfe": {"schema": schema, "id": "a"},
                 "game_files": {"Dr. Dude.vpx": {"rom": "dd"}}}
-        (table_dir / "Dr. Dude.info").write_text(json.dumps(live), encoding="utf-8")
+        (game_dir / "Dr. Dude.info").write_text(json.dumps(live), encoding="utf-8")
         if with_backup:
             older = {**live, "vpinfe": {"schema": CURRENT_SCHEMA, "id": "a"}}
-            (table_dir / "Dr. Dude.info.vpinfe-20260901T000000Z").write_text(
+            (game_dir / "Dr. Dude.info.vpinfe-20260901T000000Z").write_text(
                 json.dumps(older), encoding="utf-8")
-        return table_dir
+        return game_dir
 
     def _counts(self):
         tables = TableParser(str(self.root)).getAllTables()

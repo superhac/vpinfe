@@ -9,7 +9,7 @@ from typing import Dict, List
 
 from nicegui import context, events, run, ui
 
-from managerui.paths import get_tables_path
+from managerui.paths import get_games_path
 from managerui.services import table_service
 from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import debounced_input
@@ -264,10 +264,10 @@ def open_import_table_dialog(perform_scan_cb=None):
                 # Sanitize
                 folder_name = "".join(c for c in folder_name if c not in '<>:"/\\|?*')
 
-                table_root = get_tables_path()
-                table_dir = Path(table_root) / folder_name
+                game_root = get_games_path()
+                game_dir = Path(game_root) / folder_name
 
-                if table_dir.exists():
+                if game_dir.exists():
                     with client:
                         ui.notify(f'Folder already exists: {folder_name}', type='negative')
                         import_loading_overlay.style(add='display: none;', remove='display: flex;')
@@ -276,34 +276,34 @@ def open_import_table_dialog(perform_scan_cb=None):
                     return
 
                 # Create folder
-                ensure_dir(table_dir)
+                ensure_dir(game_dir)
 
                 # Write VPX file
                 with client:
                     import_loading_label.set_text('Copying table file...')
                 vpx_name, vpx_bytes = import_state['vpx_file']
-                await run.io_bound(save_upload_bytes, table_dir / vpx_name, vpx_bytes)
+                await run.io_bound(save_upload_bytes, game_dir / vpx_name, vpx_bytes)
 
                 # Write directb2s if provided
                 if import_state['directb2s_file']:
                     with client:
                         import_loading_label.set_text('Copying backglass file...')
                     b2s_name, b2s_bytes = import_state['directb2s_file']
-                    await run.io_bound(save_upload_bytes, table_dir / b2s_name, b2s_bytes)
+                    await run.io_bound(save_upload_bytes, game_dir / b2s_name, b2s_bytes)
 
                 # Write ROM if provided
                 if import_state['rom_file']:
                     with client:
                         import_loading_label.set_text('Copying PinMAME ROM...')
                     rom_name, rom_bytes = import_state['rom_file']
-                    await run.io_bound(save_upload_bytes, table_dir / 'pinmame' / 'roms' / rom_name, rom_bytes)
+                    await run.io_bound(save_upload_bytes, game_dir / 'pinmame' / 'roms' / rom_name, rom_bytes)
 
                 # Extract PUP Pack zip if provided
                 if import_state['puppack_zip']:
                     with client:
                         import_loading_label.set_text('Extracting PUP Pack...')
                     pup_name, pup_bytes = import_state['puppack_zip']
-                    dest = table_dir / 'pupvideos'
+                    dest = game_dir / 'pupvideos'
                     ensure_dir(dest)
                     await run.io_bound(lambda: zipfile.ZipFile(io.BytesIO(pup_bytes)).extractall(dest))
 
@@ -312,24 +312,24 @@ def open_import_table_dialog(perform_scan_cb=None):
                     with client:
                         import_loading_label.set_text('Extracting music...')
                     mus_name, mus_bytes = import_state['music_zip']
-                    dest = table_dir / 'music'
+                    dest = game_dir / 'music'
                     ensure_dir(dest)
                     await run.io_bound(lambda: zipfile.ZipFile(io.BytesIO(mus_bytes)).extractall(dest))
 
                 # Create metadata and download media
                 with client:
                     import_loading_label.set_text('Creating metadata and downloading media...')
-                await run.io_bound(associate_vps_to_folder, table_dir, vps_entry, True)
+                await run.io_bound(associate_vps_to_folder, game_dir, vps_entry, True)
 
                 # Rebuild metadata (same as "Rebuild Meta" button in table detail)
-                table_dir_name = table_dir.name
+                game_dir_name = game_dir.name
                 with client:
                     import_loading_label.set_text('Rebuilding metadata...')
                 await run.io_bound(
                     table_service.build_metadata,
                     downloadMedia=True,
                     updateAll=True,
-                    tableName=table_dir_name,
+                    tableName=game_dir_name,
                 )
 
                 # Invalidate media cache

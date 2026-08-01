@@ -64,8 +64,8 @@ class StandaloneScripts:
                         if os.path.exists(os.path.splitext(table.fullPathVPXfile)[0] + ".vbs"):
                             logger.info("A .vbs sidecar file already exists for that table. Assuming it is a patch.")
                             try:
-                                table_dir = os.path.dirname(table.fullPathVPXfile)
-                                meta = MetaConfig(os.path.join(table_dir, table.tableDirName + '.info'))
+                                game_dir = os.path.dirname(table.fullPathVPXfile)
+                                meta = MetaConfig(os.path.join(game_dir, table.tableDirName + '.info'))
                                 meta.setGameFileValue(vpxFileName, 'patch_applied', True)
                             except Exception:
                                 pass
@@ -92,9 +92,9 @@ class StandaloneScripts:
             logger.info("File downloaded successfully: %s", filename)
             # also set patch_applied in .info if possible (derive from filename)
             try:
-                table_dir = os.path.dirname(filename)
-                info_filename = os.path.basename(table_dir) + '.info'
-                meta = MetaConfig(os.path.join(table_dir, info_filename))
+                game_dir = os.path.dirname(filename)
+                info_filename = os.path.basename(game_dir) + '.info'
+                meta = MetaConfig(os.path.join(game_dir, info_filename))
                 # The .vbs sits beside the .vpx it patches and shares its stem, so
                 # the flag lands on that game file rather than on the whole table.
                 vpx_name = os.path.splitext(os.path.basename(filename))[0] + '.vpx'

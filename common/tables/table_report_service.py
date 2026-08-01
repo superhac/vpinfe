@@ -19,13 +19,13 @@ def _config(config: IniConfig | None = None) -> IniConfig:
 def list_missing_tables(iniconfig: IniConfig | None = None, log=None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
-    table_root = SettingsConfig.from_config(config).table_root_dir
-    tp = TableParser(table_root, config)
+    game_root = SettingsConfig.from_config(config).table_root_dir
+    tp = TableParser(game_root, config)
     tables = tp.getAllTables()
-    log("Listing tables missing from %s", table_root)
-    log("Found %s tables in %s", len(tables), table_root)
+    log("Listing tables missing from %s", game_root)
+    log("Found %s tables in %s", len(tables), game_root)
 
-    vps = VPSdb(table_root, config)
+    vps = VPSdb(game_root, config)
     log("Found %s tables in VPSdb", len(vps))
 
     tables_found = []
@@ -59,13 +59,13 @@ def list_missing_tables(iniconfig: IniConfig | None = None, log=None) -> None:
 def list_unknown_tables(iniconfig: IniConfig | None = None, log=None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
-    table_root = SettingsConfig.from_config(config).table_root_dir
-    tp = TableParser(table_root, config)
+    game_root = SettingsConfig.from_config(config).table_root_dir
+    tp = TableParser(game_root, config)
     tables = tp.getAllTables()
-    log("Listing unknown tables from %s", table_root)
-    log("Found %s tables in %s", len(tables), table_root)
+    log("Listing unknown tables from %s", game_root)
+    log("Found %s tables in %s", len(tables), game_root)
 
-    vps = VPSdb(table_root, config)
+    vps = VPSdb(game_root, config)
     log("Found %s tables in VPSdb", len(vps))
 
     current = 0

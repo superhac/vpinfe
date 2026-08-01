@@ -230,7 +230,7 @@ class TestCommonArchitecture(unittest.TestCase):
 
         apply_media_paths(
             table,
-            table_contents={"bg.png"},
+            game_contents={"bg.png"},
             medias_contents={"fss.png"},
             playfield_variant="fss",
         )
@@ -289,9 +289,9 @@ class TestCommonArchitecture(unittest.TestCase):
             real_build = TableParser._build_table
             calls = []
 
-            def counting_build(self, table_dir):
-                calls.append(table_dir)
-                return real_build(self, table_dir)
+            def counting_build(self, game_dir):
+                calls.append(game_dir)
+                return real_build(self, game_dir)
 
             with mock.patch.object(TableParser, "_build_table", counting_build):
                 parser = TableParser(root)

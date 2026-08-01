@@ -123,8 +123,8 @@ def find_by_path(table_path: str) -> Optional[Dict]:
     return _index.by_path.get(_normalize_path(table_path))
 
 
-def find_by_dir(table_dir: str) -> Optional[Dict]:
-    return _index.by_dir.get(table_dir)
+def find_by_dir(game_dir: str) -> Optional[Dict]:
+    return _index.by_dir.get(game_dir)
 
 
 def find_by_table_id(table_id: str) -> Optional[Dict]:

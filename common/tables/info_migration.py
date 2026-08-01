@@ -187,21 +187,21 @@ def backup_names(names, info_name: str) -> list[str]:
     return sorted((n for n in names if n.startswith(prefix)), reverse=True)
 
 
-def restorable_backup(table_dir, max_schema: int = CURRENT_SCHEMA, names=None) -> str | None:
+def restorable_backup(game_dir, max_schema: int = CURRENT_SCHEMA, names=None) -> str | None:
     """The backup this build would restore here, or None.
 
     Newest readable wins; a newer one is stepped over rather than ending the search.
     Pass `names` when the folder is already listed - only folders with a backup pay.
     """
-    table_dir = Path(table_dir)
+    game_dir = Path(game_dir)
     if names is None:
         try:
-            names = os.listdir(table_dir)
+            names = os.listdir(game_dir)
         except OSError:
             return None
-    info_name = f"{table_dir.name}.info"
+    info_name = f"{game_dir.name}.info"
     for name in backup_names(names, info_name):
-        candidate = table_dir / name
+        candidate = game_dir / name
         try:
             schema = backup_schema(candidate)
         except (OSError, ValueError):

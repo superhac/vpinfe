@@ -13,7 +13,7 @@ from common.media_paths import media_filename_map
 from common.tables.metaconfig import VPINFE_SECTION, MetaConfig
 from common.tables.table_repository import refresh_table
 from common.tables.vpxparser import VPXParser
-from managerui.paths import get_tables_path
+from managerui.paths import get_games_path
 from managerui.services.asset_analyzer_service import (
     AnalysisResult,
     DetectedAsset,
@@ -181,7 +181,7 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
 
 def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", table_row: dict | None = None,
                       rom_name: str = "", allow_new_table: bool = False,
-                      tables_path: str | None = None) -> ImportPlan:
+                      games_path: str | None = None) -> ImportPlan:
     """Route detected assets to destinations for an existing table or a new table bundle."""
     items: list[PlannedItem] = []
     blocked: list[BlockedItem] = []
@@ -191,7 +191,7 @@ def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", table_r
         table_asset = next(a for a in analysis.assets if a.kind == "table")
         vpx_stem = Path(_basename(table_asset.entries[0].arcname)).stem
         new_dir_name = _safe_upload_name(vpx_stem)
-        base = Path(tables_path or get_tables_path()).expanduser() / new_dir_name
+        base = Path(games_path or get_games_path()).expanduser() / new_dir_name
         sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
             item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,
@@ -508,12 +508,12 @@ def _import_media(source, asset: DetectedAsset, table_path: Path) -> None:
         scratch.unlink(missing_ok=True)
 
 
-def _record_replaced_game_file(table_dir: Path, vpx: Path, removed: str | None) -> None:
+def _record_replaced_game_file(game_dir: Path, vpx: Path, removed: str | None) -> None:
     """Describe the new .vpx in the table's .info, and drop the entry for the one it
     replaced. Best effort - the table is on disk either way.
     """
     try:
-        meta = MetaConfig(str(table_dir / f"{table_dir.name}.info"))
+        meta = MetaConfig(str(game_dir / f"{game_dir.name}.info"))
         parsed = VPXParser().singleFileExtract(str(vpx))
         if parsed or removed:
             meta.replace_game_file(removed, vpx.name, parsed)
@@ -522,12 +522,12 @@ def _record_replaced_game_file(table_dir: Path, vpx: Path, removed: str | None) 
                        vpx.name, exc_info=True)
 
 
-def _record_patched_game_file(table_dir: Path, vpx: Path, base_file: str, base_hash: str) -> None:
+def _record_patched_game_file(game_dir: Path, vpx: Path, base_file: str, base_hash: str) -> None:
     """Write the new game file into the table's .info: what it says about itself, and where
     it came from. Best effort - the table is on disk and playable either way.
     """
     try:
-        meta = MetaConfig(str(table_dir / f"{table_dir.name}.info"))
+        meta = MetaConfig(str(game_dir / f"{game_dir.name}.info"))
         parsed = VPXParser().singleFileExtract(str(vpx))
         if parsed:
             # A failed parse leaves the entry unparsed rather than filled with empties.

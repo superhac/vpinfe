@@ -87,7 +87,7 @@ def _resolve_game_file(table, game_file: str | None) -> str:
     A named file is checked against what is actually in the folder, so a caller
     cannot talk this into running something outside the table's directory.
     """
-    table_dir = str(getattr(table, "fullPathTable", "") or "")
+    game_dir = str(getattr(table, "fullPathTable", "") or "")
     if game_file is None:
         path = str(getattr(table, "fullPathVPXfile", "") or "")
         if not path:
@@ -95,12 +95,12 @@ def _resolve_game_file(table, game_file: str | None) -> str:
         return path
 
     listing = []
-    if table_dir and os.path.isdir(table_dir):
-        listing = [name for name in os.listdir(table_dir)
-                   if os.path.isfile(os.path.join(table_dir, name))]
+    if game_dir and os.path.isdir(game_dir):
+        listing = [name for name in os.listdir(game_dir)
+                   if os.path.isfile(os.path.join(game_dir, name))]
     if game_file not in game_file_names(listing):
         raise UnknownGameFileError(f"No game file named {game_file} in this table")
-    return os.path.join(table_dir, game_file)
+    return os.path.join(game_dir, game_file)
 
 
 def _launch_env(settings) -> dict:
@@ -119,7 +119,7 @@ def _launch_env(settings) -> dict:
 def _command(table, vpx_path: str, launcher: str, settings) -> list[str]:
     return build_vpx_launch_command(
         launcher_path=launcher,
-        vpx_table_path=vpx_path,
+        vpx_game_path=vpx_path,
         global_ini_override=settings.global_ini_override,
         tableini_override=resolve_launch_tableini_override(
             vpx_path,
@@ -267,10 +267,10 @@ def game_file_for(table, game_file: str | None = None) -> str:
     """The file a launch would use, without launching it."""
     if game_file is not None:
         return game_file
-    table_dir = str(getattr(table, "fullPathTable", "") or "")
+    game_dir = str(getattr(table, "fullPathTable", "") or "")
     listing = []
-    if table_dir and os.path.isdir(table_dir):
-        listing = [name for name in os.listdir(table_dir)
-                   if os.path.isfile(os.path.join(table_dir, name))]
+    if game_dir and os.path.isdir(game_dir):
+        listing = [name for name in os.listdir(game_dir)
+                   if os.path.isfile(os.path.join(game_dir, name))]
     recorded = os.path.basename(str(getattr(table, "fullPathVPXfile", "") or ""))
-    return default_game_file(listing, os.path.basename(table_dir), recorded) or recorded
+    return default_game_file(listing, os.path.basename(game_dir), recorded) or recorded

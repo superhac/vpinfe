@@ -33,10 +33,10 @@ COMPANION_EXTENSIONS = (".ini", ".vbs", ".directb2s", ".pov", ".scv")
 
 
 
-def choose_game_file(table_dir: Path, game_file: str | None = None) -> str | None:
+def choose_game_file(game_dir: Path, game_file: str | None = None) -> str | None:
     """The bundle's game file: the caller's pick, else the table's default."""
     try:
-        listing = [entry.name for entry in table_dir.iterdir() if entry.is_file()]
+        listing = [entry.name for entry in game_dir.iterdir() if entry.is_file()]
     except OSError:
         return None
     names = game_file_names(listing)
@@ -44,13 +44,13 @@ def choose_game_file(table_dir: Path, game_file: str | None = None) -> str | Non
         return game_file if game_file in names else None
 
     recorded = ""
-    info_path = table_dir / f"{table_dir.name}.info"
+    info_path = game_dir / f"{game_dir.name}.info"
     try:
         recorded = recorded_default(
             vpinfe_section(json.loads(info_path.read_text(encoding="utf-8"))))
     except (OSError, ValueError):
         pass
-    return default_game_file(listing, table_dir.name, recorded) or (names[0] if names else None)
+    return default_game_file(listing, game_dir.name, recorded) or (names[0] if names else None)
 
 
 def prune_info(info_text: str, bundled_arcnames: set[str]) -> str:
@@ -75,7 +75,7 @@ def prune_info(info_text: str, bundled_arcnames: set[str]) -> str:
     return json.dumps(data, indent=2)
 
 
-def bundle_paths(table_dir: Path, *, everything: bool = False,
+def bundle_paths(game_dir: Path, *, everything: bool = False,
                  game_file: str | None = None) -> Iterator[tuple[Path, str]]:
     """(absolute path, folder-relative arcname) for everything the export holds.
 
@@ -83,17 +83,17 @@ def bundle_paths(table_dir: Path, *, everything: bool = False,
     rather than copying the file raw.
     """
     if everything:
-        for path in sorted(table_dir.rglob("*")):
+        for path in sorted(game_dir.rglob("*")):
             if path.is_file():
-                yield path, str(path.relative_to(table_dir))
+                yield path, str(path.relative_to(game_dir))
         return
 
-    chosen = choose_game_file(table_dir, game_file)
+    chosen = choose_game_file(game_dir, game_file)
     stem = Path(chosen).stem.lower() if chosen else None
-    folder_stem = table_dir.name.lower()
+    folder_stem = game_dir.name.lower()
 
     try:
-        entries = sorted(table_dir.iterdir())
+        entries = sorted(game_dir.iterdir())
     except OSError:
         return
     for entry in entries:
@@ -102,7 +102,7 @@ def bundle_paths(table_dir: Path, *, everything: bool = False,
             if name.lower() in BUNDLE_DIRS:
                 for path in sorted(entry.rglob("*")):
                     if path.is_file():
-                        yield path, str(path.relative_to(table_dir))
+                        yield path, str(path.relative_to(game_dir))
             continue
 
         lower = name.lower()

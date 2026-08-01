@@ -38,7 +38,7 @@ def build_mobile_table_rows(tables: List[Dict]) -> List[Dict]:
     return rows
 
 
-def scan_launchable_tables(tables_path: str | None = None) -> List[Dict]:
+def scan_launchable_tables(games_path: str | None = None) -> List[Dict]:
     """Return launchable table rows from the shared table index."""
     tables = []
     for row in table_index_service.scan_rows(reload=False):

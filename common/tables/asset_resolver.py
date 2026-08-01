@@ -199,10 +199,10 @@ def apply_audit(chain: dict, entry: dict | None) -> dict:
     return chain
 
 
-def read_alias_map(table_dir: str) -> dict[str, str]:
+def read_alias_map(game_dir: str) -> dict[str, str]:
     """The per-table alias file, when there is one. Standalone reads
     pinmame/alias.txt; the global VPMAlias.txt is a Windows VPinMAME concern."""
-    path = os.path.join(table_dir, "pinmame", "alias.txt")
+    path = os.path.join(game_dir, "pinmame", "alias.txt")
     try:
         with open(path, encoding="utf-8", errors="replace") as handle:
             return parse_alias_file(handle.read())
@@ -210,20 +210,20 @@ def read_alias_map(table_dir: str) -> dict[str, str]:
         return {}
 
 
-def list_rom_files(table_dir: str) -> list[str]:
+def list_rom_files(game_dir: str) -> list[str]:
     try:
-        return os.listdir(os.path.join(table_dir, "pinmame", "roms"))
+        return os.listdir(os.path.join(game_dir, "pinmame", "roms"))
     except OSError:
         return []
 
 
-def nvram_state(table_dir: str, effective_rom: str | None) -> dict:
+def nvram_state(game_dir: str, effective_rom: str | None) -> dict:
     """Play state keyed by the effective rom, computed per request so
     modified_at is live - a tournament harvester's question is "is there a score
     newer than my last visit", which a scan-time answer cannot serve."""
     if not effective_rom:
         return {"present": False}
-    path = os.path.join(table_dir, "pinmame", "nvram", f"{effective_rom}.nv")
+    path = os.path.join(game_dir, "pinmame", "nvram", f"{effective_rom}.nv")
     try:
         stat = os.stat(path)
     except OSError:

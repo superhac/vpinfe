@@ -340,7 +340,7 @@ def render_panel(tab=None):
         launcher = vpxbin or '<VPX Executable Path>'
         command = build_vpx_launch_command(
             launcher_path=launcher,
-            vpx_table_path=sample_vpx,
+            vpx_game_path=sample_vpx,
             global_ini_override=global_ini_override,
             tableini_override=tableini_override,
         )

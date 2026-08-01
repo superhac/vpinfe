@@ -102,8 +102,8 @@ def _get_ini_config():
 
 def _get_tables_path() -> str:
     """Get the tables root directory from config."""
-    from managerui.paths import get_tables_path
-    return get_tables_path()
+    from managerui.paths import get_games_path
+    return get_games_path()
 
 
 def _scan_tables_for_launch():

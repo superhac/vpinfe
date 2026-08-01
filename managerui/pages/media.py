@@ -65,9 +65,9 @@ def render_panel():
 
     # Register media files route once
     if not _media_route_registered:
-        tables_path = media_service.get_tables_path()
-        if os.path.exists(tables_path):
-            app.add_media_files('/media_tables', tables_path)
+        games_path = media_service.get_games_path()
+        if os.path.exists(games_path):
+            app.add_media_files('/media_tables', games_path)
             _media_route_registered = True
     if not _thumb_route_registered:
         THUMB_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
@@ -375,7 +375,7 @@ def render_panel():
 
         # --- Media replacement logic ---
 
-        def open_replace_dialog(table_dir: str, table_path: str, table_name: str, media_key: str, media_label: str):
+        def open_replace_dialog(game_dir: str, table_path: str, table_name: str, media_key: str, media_label: str):
             """Open a dialog to replace a media file for a table."""
             target_filename = MEDIA_KEY_TO_FILENAME[media_key]
             is_video = target_filename.endswith('.mp4')
@@ -386,7 +386,7 @@ def render_panel():
             # Find current media URL from cache
             if _media_cache():
                 for row in _media_cache():
-                    if row['table_dir'] == table_dir:
+                    if row['table_dir'] == game_dir:
                         current_url = row['media'].get(media_key)
                         break
 
@@ -436,12 +436,12 @@ def render_panel():
                             return
                         try:
                             src = upload_state['path']
-                            target_path = await run.io_bound(media_service.replace_media_file, table_path, table_dir, media_key, src)
+                            target_path = await run.io_bound(media_service.replace_media_file, table_path, game_dir, media_key, src)
 
                             # Build the URL for the new media (now in medias/ subfolder)
-                            new_url = media_service.media_url('media_tables', table_dir, 'medias', target_filename)
-                            new_thumb = await run.io_bound(media_service.ensure_thumb, table_dir, media_key, target_path)
-                            media_service.update_cache_entry(table_dir, media_key, new_url, new_thumb)
+                            new_url = media_service.media_url('media_tables', game_dir, 'medias', target_filename)
+                            new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir, media_key, target_path)
+                            media_service.update_cache_entry(game_dir, media_key, new_url, new_thumb)
                             update_table_display()
 
                             # Cleanup temp
@@ -620,13 +620,13 @@ def render_panel():
             # Handle media click events from slot templates
             def on_media_click(e):
                 args = e.args
-                table_dir = args[0]
+                game_dir = args[0]
                 table_path = args[1]
                 table_name = args[2]
                 media_key = args[3]
                 media_label = MEDIA_KEY_TO_LABEL.get(media_key, media_key)
                 open_replace_dialog(
-                    table_dir=table_dir,
+                    game_dir=game_dir,
                     table_path=table_path,
                     table_name=table_name,
                     media_key=media_key,
@@ -634,20 +634,20 @@ def render_panel():
                 )
             media_table.on('media_click', on_media_click)
 
-            def _cell_table_path(table_dir: str):
+            def _cell_table_path(game_dir: str):
                 return next((r.get('table_path') for r in (_media_cache() or [])
-                             if r.get('table_dir') == table_dir), None)
+                             if r.get('table_dir') == game_dir), None)
 
             def _on_cell_imported(report):
                 async def _refresh():
                     table_path = report.get('table_path', '')
-                    table_dir = os.path.basename(table_path.rstrip('/'))
+                    game_dir = os.path.basename(table_path.rstrip('/'))
                     for media_key in report.get('media_keys', []):
                         target_filename = MEDIA_KEY_TO_FILENAME[media_key]
                         target_path = os.path.join(table_path, 'medias', target_filename)
-                        new_url = media_service.media_url('media_tables', table_dir, 'medias', target_filename)
-                        new_thumb = await run.io_bound(media_service.ensure_thumb, table_dir, media_key, target_path)
-                        media_service.update_cache_entry(table_dir, media_key, new_url, new_thumb)
+                        new_url = media_service.media_url('media_tables', game_dir, 'medias', target_filename)
+                        new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir, media_key, target_path)
+                        media_service.update_cache_entry(game_dir, media_key, new_url, new_thumb)
                     update_table_display()
                 asyncio.create_task(_refresh())
 

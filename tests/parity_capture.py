@@ -58,7 +58,7 @@ def _capture_ws_allowlist() -> list[str]:
     return sorted(API_ALLOWED_METHODS)
 
 
-def _capture_theme_payload(tables_root: Path) -> dict:
+def _capture_theme_payload(games_root: Path) -> dict:
     """The shape a theme receives: tables_json keys and which media paths resolve.
 
     Keys only, plus a few stable values - file paths and scan order are
@@ -70,7 +70,7 @@ def _capture_theme_payload(tables_root: Path) -> dict:
         from common.tableparser import TableParser  # 2.x layout
     from frontend.table_state import tables_json
 
-    parser = TableParser(str(tables_root))
+    parser = TableParser(str(games_root))
     payload = json.loads(tables_json(parser.getAllTables()))
     entry = payload[0] if payload else {}
     return {
@@ -116,20 +116,20 @@ def _capture_legacy_endpoints() -> dict:
 
 def capture() -> dict:
     with TemporaryDirectory() as tmp:
-        tables_root = Path(tmp) / "tables"
-        tables_root.mkdir()
-        _build_fixture_library(tables_root)
+        games_root = Path(tmp) / "tables"
+        games_root.mkdir()
+        _build_fixture_library(games_root)
 
         config_dir = Path(tmp) / "config"
         config_dir.mkdir()
         (config_dir / "vpinfe.ini").write_text(
-            f"[Settings]\ntablerootdir = {tables_root}\nvpxbinpath = \n",
+            f"[Settings]\ntablerootdir = {games_root}\nvpxbinpath = \n",
             encoding="utf-8")
         os.environ["VPINFE_CONFIG_DIR"] = str(config_dir)
 
-        before = _tree_snapshot(tables_root)
-        theme_payload = _capture_theme_payload(tables_root)
-        after = _tree_snapshot(tables_root)
+        before = _tree_snapshot(games_root)
+        theme_payload = _capture_theme_payload(games_root)
+        after = _tree_snapshot(games_root)
 
         return {
             "ws_allowlist": _capture_ws_allowlist(),

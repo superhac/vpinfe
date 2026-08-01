@@ -17,7 +17,7 @@ from common.tables.metaconfig import MetaConfig
 from common.tables.table_metadata import reorder_leading_article, vpinfe_section
 from common.tables.table_repository import ensure_tables_loaded
 
-from managerui.paths import CONFIG_DIR, get_tables_path
+from managerui.paths import CONFIG_DIR, get_games_path
 
 
 logger = logging.getLogger("vpinfe.manager.media_service")
@@ -91,7 +91,7 @@ def source_media_path(table_path: str, media_key: str,
         return None
     root = Path(table_path)
     try:
-        table_contents = {e.name for e in os.scandir(root) if e.is_file()}
+        game_contents = {e.name for e in os.scandir(root) if e.is_file()}
     except OSError:
         return None
     medias_dir = root / "medias"
@@ -99,7 +99,7 @@ def source_media_path(table_path: str, media_key: str,
         medias_contents = {e.name for e in os.scandir(medias_dir) if e.is_file()}
     except OSError:
         medias_contents = set()
-    resolved = resolve_media_files(root, table_contents, medias_contents,
+    resolved = resolve_media_files(root, game_contents, medias_contents,
                                    "table", game_file_stem)
     path = resolved.get(media_key)
     return str(path) if path is not None else None
@@ -110,8 +110,8 @@ def _build_thumb_sig(source_path: str) -> str:
     return f"{st.st_mtime_ns}_{st.st_size}"
 
 
-def thumb_file_path(table_dir: str, media_key: str, source_path: str) -> Path:
-    return THUMB_CACHE_ROOT / table_dir / f"{media_key}_{_build_thumb_sig(source_path)}.png"
+def thumb_file_path(game_dir: str, media_key: str, source_path: str) -> Path:
+    return THUMB_CACHE_ROOT / game_dir / f"{media_key}_{_build_thumb_sig(source_path)}.png"
 
 
 def thumb_url(path: Path) -> str:
@@ -119,11 +119,11 @@ def thumb_url(path: Path) -> str:
     return f"/media_thumbs/{rel}"
 
 
-def get_cached_thumb_url(table_dir: str, media_key: str, source_path: str) -> Optional[str]:
+def get_cached_thumb_url(game_dir: str, media_key: str, source_path: str) -> Optional[str]:
     if not is_image_media_key(media_key) or not os.path.exists(source_path):
         return None
     try:
-        path = thumb_file_path(table_dir, media_key, source_path)
+        path = thumb_file_path(game_dir, media_key, source_path)
         if path.exists():
             os.utime(path, None)
             return thumb_url(path)
@@ -132,28 +132,28 @@ def get_cached_thumb_url(table_dir: str, media_key: str, source_path: str) -> Op
     return None
 
 
-def thumb_request_key(table_dir: str, media_key: str, source_path: str) -> tuple[str, str, str]:
+def thumb_request_key(game_dir: str, media_key: str, source_path: str) -> tuple[str, str, str]:
     try:
         signature = _build_thumb_sig(source_path)
     except Exception:
         signature = ""
-    return table_dir, media_key, signature
+    return game_dir, media_key, signature
 
 
-def mark_thumb_requested(table_dir: str, media_key: str, source_path: str) -> bool:
+def mark_thumb_requested(game_dir: str, media_key: str, source_path: str) -> bool:
     """Return True if this thumbnail request is new."""
-    key = thumb_request_key(table_dir, media_key, source_path)
+    key = thumb_request_key(game_dir, media_key, source_path)
     if key in _thumb_request_state:
         return False
     _thumb_request_state.add(key)
     return True
 
 
-def clear_thumb_request(table_dir: str, media_key: str, source_path: str) -> None:
-    _thumb_request_state.discard(thumb_request_key(table_dir, media_key, source_path))
+def clear_thumb_request(game_dir: str, media_key: str, source_path: str) -> None:
+    _thumb_request_state.discard(thumb_request_key(game_dir, media_key, source_path))
 
 
-def ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[str]:
+def ensure_thumb(game_dir: str, media_key: str, source_path: str) -> Optional[str]:
     if not is_image_media_key(media_key) or not os.path.exists(source_path):
         return None
     try:
@@ -162,7 +162,7 @@ def ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[s
         return None
 
     try:
-        path = thumb_file_path(table_dir, media_key, source_path)
+        path = thumb_file_path(game_dir, media_key, source_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
             os.utime(path, None)
@@ -199,20 +199,20 @@ def _table_meta_sections(table):
     return info, vpinfe
 
 
-def media_url_from_path(table_dir: str, source_path: str) -> Optional[str]:
+def media_url_from_path(game_dir: str, source_path: str) -> Optional[str]:
     if not source_path:
         return None
     source = Path(source_path)
     if source.parent.name == "medias":
-        return media_url("media_tables", table_dir, "medias", source.name)
-    return media_url("media_tables", table_dir, source.name)
+        return media_url("media_tables", game_dir, "medias", source.name)
+    return media_url("media_tables", game_dir, source.name)
 
 
 def scan_media_tables(reload: bool = False) -> List[Dict]:
-    tables_path = get_tables_path()
+    games_path = get_games_path()
     rows = []
-    if not os.path.exists(tables_path):
-        logger.warning("Tables path does not exist: %s. Skipping media scan.", tables_path)
+    if not os.path.exists(games_path):
+        logger.warning("Tables path does not exist: %s. Skipping media scan.", games_path)
         return []
 
     for table in ensure_tables_loaded(reload=reload):
@@ -255,7 +255,7 @@ def scan_media_tables(reload: bool = False) -> List[Dict]:
     return rows
 
 
-def replace_media_file(table_path: str, table_dir: str, media_key: str, uploaded_path: str) -> str:
+def replace_media_file(table_path: str, game_dir: str, media_key: str, uploaded_path: str) -> str:
     """Install an uploaded file as a table's media, keeping its real extension.
 
     The old behavior copied bytes to the canonical name unchanged, so a .jpg
@@ -284,7 +284,7 @@ def replace_media_file(table_path: str, table_dir: str, media_key: str, uploaded
 
     shutil.copy2(uploaded_path, target_path)
 
-    info_file = os.path.join(table_path, f"{table_dir}.info")
+    info_file = os.path.join(table_path, f"{game_dir}.info")
     if os.path.exists(info_file):
         mc = MetaConfig(info_file)
         # No hash: one is only meaningful as a comparison against a remote, and there
@@ -294,11 +294,11 @@ def replace_media_file(table_path: str, table_dir: str, media_key: str, uploaded
     return target_path
 
 
-def update_cache_entry(table_dir: str, media_key: str, url_path: str, thumb: Optional[str] = None) -> None:
+def update_cache_entry(game_dir: str, media_key: str, url_path: str, thumb: Optional[str] = None) -> None:
     if _media_cache is None:
         return
     for row in _media_cache:
-        if row["table_dir"] == table_dir:
+        if row["table_dir"] == game_dir:
             row["media"][media_key] = url_path
             row.setdefault("thumbs", {})[media_key] = thumb
             row.setdefault("thumb_errors", {}).pop(media_key, None)

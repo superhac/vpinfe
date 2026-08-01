@@ -143,7 +143,7 @@ def _to_bool(value) -> bool:
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")
 
 
-def build_masked_tableini_path(vpx_table_path: str, override_enabled, override_mask: str) -> str:
+def build_masked_tableini_path(vpx_game_path: str, override_enabled, override_mask: str) -> str:
     """
     Build a masked table ini path for VPX -tableini override.
 
@@ -158,7 +158,7 @@ def build_masked_tableini_path(vpx_table_path: str, override_enabled, override_m
         logger.warning("Global tableini override enabled, but mask is empty; skipping -tableini")
         return ""
 
-    table_path = Path(str(vpx_table_path or "").strip())
+    table_path = Path(str(vpx_game_path or "").strip())
     if not table_path.name:
         return ""
 
@@ -166,13 +166,13 @@ def build_masked_tableini_path(vpx_table_path: str, override_enabled, override_m
     return str(table_path.with_name(masked_name))
 
 
-def resolve_launch_tableini_override(vpx_table_path: str, override_enabled, override_mask: str) -> str:
+def resolve_launch_tableini_override(vpx_game_path: str, override_enabled, override_mask: str) -> str:
     """
     Resolve a tableini override for launch-time use.
 
     Returns empty string when disabled, mask is empty, or the resolved ini file does not exist.
     """
-    masked_path = build_masked_tableini_path(vpx_table_path, override_enabled, override_mask)
+    masked_path = build_masked_tableini_path(vpx_game_path, override_enabled, override_mask)
     if not masked_path:
         return ""
 
@@ -185,7 +185,7 @@ def resolve_launch_tableini_override(vpx_table_path: str, override_enabled, over
 
 def build_vpx_launch_command(
     launcher_path: str,
-    vpx_table_path: str,
+    vpx_game_path: str,
     global_ini_override: str = "",
     tableini_override: str = "",
     plugin_profile_override: str = "",
@@ -212,5 +212,5 @@ def build_vpx_launch_command(
     if tableini:
         cmd.extend(["-tableini", tableini])
 
-    cmd.extend(["-play", str(vpx_table_path)])
+    cmd.extend(["-play", str(vpx_game_path)])
     return cmd

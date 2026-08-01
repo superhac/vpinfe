@@ -76,8 +76,8 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                 if manufacturer or year:
                     ui.label(f'{manufacturer} {year}'.strip()).classes('text-sm').style('color: var(--neon-purple);')
             # Rebuild metadata button - anchored to the right
-            table_dir_name = os.path.basename(row_data.get('table_path', ''))
-            if table_dir_name:
+            game_dir_name = os.path.basename(row_data.get('table_path', ''))
+            if game_dir_name:
                 rebuild_btn = ui.button('Rebuild Meta', icon='refresh').props('dense').classes('ml-auto').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 update_btn = ui.button('Update Table', icon='upload_file').props('dense').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                 extract_vbs_btn = ui.button('Extract VBS', icon='code').props('dense').style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
@@ -96,7 +96,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                             table_service.build_metadata,
                             downloadMedia=True,
                             updateAll=True,
-                            tableName=table_dir_name,
+                            tableName=game_dir_name,
                         )
                         with client:
                             not_found = result.get('not_found', 0)
@@ -583,7 +583,7 @@ def _render_table_dialog(row_data: dict, on_close: Optional[Callable[[], None]] 
                         # Alt VPS ID because build_metadata clears altvpsid whenever the
                         # VPX file hash changed (see metaconfig.writeConfigMeta); saving
                         # afterwards ensures the value the user entered survives.
-                        if table_dir_name:
+                        if game_dir_name:
                             await on_rebuild_meta()
                         with save_client:
                             if update_vpinfe_setting(table_path_str, 'alt_vpsid', new_value):

@@ -106,11 +106,11 @@ def media_attr_map(playfield_variant: str = "table") -> dict[str, str]:
             for spec in specs_for_playfield_variant(playfield_variant)}
 
 
-def default_media_path(table_dir: str | Path, key: str, playfield_variant: str = "table") -> Path:
+def default_media_path(game_dir: str | Path, key: str, playfield_variant: str = "table") -> Path:
     filenames = media_filename_map(playfield_variant)
     if key not in filenames:
         raise KeyError(f"Unknown media key: {key}")
-    return Path(table_dir) / "medias" / filenames[key]
+    return Path(game_dir) / "medias" / filenames[key]
 
 
 # Theme-side set overrides. common/ cannot import frontend/, so the frontend
@@ -138,20 +138,20 @@ def available_sets(kind: str, medias_tree: set[str]) -> list[str]:
     return sorted(names)
 
 
-def list_media_sets(table_root: str | Path, kind: str = "wheel") -> list[str]:
+def list_media_sets(game_root: str | Path, kind: str = "wheel") -> list[str]:
     """Every set name across the library, plus the reserved virtual ones.
 
     "logo" is always offered for the wheel: it needs no wheels/ folder because
     it resolves from each table's logo media directly.
     """
     names: set[str] = set()
-    root = Path(table_root)
+    root = Path(game_root)
     try:
-        table_dirs = [d for d in root.iterdir() if d.is_dir()]
+        game_dirs = [d for d in root.iterdir() if d.is_dir()]
     except OSError:
-        table_dirs = []
-    for table_dir in table_dirs:
-        sets_dir = table_dir / "medias" / f"{kind}s"
+        game_dirs = []
+    for game_dir in game_dirs:
+        sets_dir = game_dir / "medias" / f"{kind}s"
         try:
             names.update(d.name for d in sets_dir.iterdir() if d.is_dir())
         except OSError:
@@ -161,7 +161,7 @@ def list_media_sets(table_root: str | Path, kind: str = "wheel") -> list[str]:
     return sorted(names, key=str.lower)
 
 
-def resolve_media_files(table_dir: str | Path, table_contents: set[str],
+def resolve_media_files(game_dir: str | Path, game_contents: set[str],
                         medias_contents: set[str],
                         playfield_variant: str = "table",
                         game_file_stem: str | None = None,
@@ -190,11 +190,11 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
     hand-made per-version file, and a media refresh never beats the set. The
     reserved set name "logo" prefers the logo kind in that middle slot.
     """
-    table_dir = Path(table_dir)
-    medias_dir = table_dir / "medias"
+    game_dir = Path(game_dir)
+    medias_dir = game_dir / "medias"
     in_medias = {name.lower(): name for name in medias_contents}
-    in_root = {name.lower(): name for name in table_contents}
-    folder_name = table_dir.name
+    in_root = {name.lower(): name for name in game_contents}
+    folder_name = game_dir.name
 
     def find(name: str) -> Path | None:
         hit = in_medias.get(name.lower())
@@ -202,7 +202,7 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
             return medias_dir / hit
         hit = in_root.get(name.lower())
         if hit is not None:
-            return table_dir / hit
+            return game_dir / hit
         return None
 
     resolved: dict[str, Path | None] = {}
@@ -250,11 +250,11 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
     return resolved
 
 
-def apply_media_paths(table, table_contents: set[str], medias_contents: set[str],
+def apply_media_paths(table, game_contents: set[str], medias_contents: set[str],
                       playfield_variant: str = "table",
                       game_file_stem: str | None = None,
                       active_sets: dict[str, str] | None = None) -> None:
-    resolved = resolve_media_files(table.fullPathTable, table_contents,
+    resolved = resolve_media_files(table.fullPathTable, game_contents,
                                    medias_contents, playfield_variant, game_file_stem,
                                    active_sets)
     for spec in MEDIA_SPECS:

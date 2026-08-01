@@ -6,7 +6,7 @@ from unittest import mock
 
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
 from managerui.filters import ALL_VALUE, apply_table_filters, build_table_filter_options
-from managerui.services.archive_service import resolve_table_dir
+from managerui.services.archive_service import resolve_game_dir
 from managerui.services.collections_service import get_filter_options, search_tables
 from managerui.services.media_service import media_url, update_cache_entry, set_media_cache, get_media_cache, invalidate_media_cache
 from managerui.services.system_service import format_bytes, metric_tone
@@ -66,16 +66,16 @@ class ManagerUiServiceTests(unittest.TestCase):
         from pathlib import Path
 
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir) / "Example"
-            table_dir.mkdir()
-            old_vpx = table_dir / "Old Table.vpx"
-            old_b2s = table_dir / "Old Table.directb2s"
+            game_dir = Path(temp_dir) / "Example"
+            game_dir.mkdir()
+            old_vpx = game_dir / "Old Table.vpx"
+            old_b2s = game_dir / "Old Table.directb2s"
             old_vpx.write_bytes(b"old vpx")
             old_b2s.write_bytes(b"old b2s")
 
             with mock.patch("managerui.services.table_service.refresh_table"):
                 result = replace_table_file(
-                    str(table_dir),
+                    str(game_dir),
                     "New Table.vpx",
                     b"new vpx",
                     "vpx",
@@ -83,9 +83,9 @@ class ManagerUiServiceTests(unittest.TestCase):
                 )
 
             self.assertFalse(old_vpx.exists())
-            self.assertEqual((table_dir / "New Table.vpx").read_bytes(), b"new vpx")
+            self.assertEqual((game_dir / "New Table.vpx").read_bytes(), b"new vpx")
             self.assertFalse(old_b2s.exists())
-            self.assertEqual((table_dir / "New Table.directb2s").read_bytes(), b"old b2s")
+            self.assertEqual((game_dir / "New Table.directb2s").read_bytes(), b"old b2s")
             self.assertEqual(result["filename"], "New Table.vpx")
             self.assertEqual(result["directb2s_filename"], "New Table.directb2s")
 
@@ -94,15 +94,15 @@ class ManagerUiServiceTests(unittest.TestCase):
         from pathlib import Path
 
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir) / "Example"
-            table_dir.mkdir()
-            (table_dir / "Example.vpx").write_bytes(b"vpx")
-            existing_b2s = table_dir / "Custom Backglass.directb2s"
+            game_dir = Path(temp_dir) / "Example"
+            game_dir.mkdir()
+            (game_dir / "Example.vpx").write_bytes(b"vpx")
+            existing_b2s = game_dir / "Custom Backglass.directb2s"
             existing_b2s.write_bytes(b"old b2s")
 
             with mock.patch("managerui.services.table_service.refresh_table"):
                 result = replace_table_file(
-                    str(table_dir),
+                    str(game_dir),
                     "Uploaded.directb2s",
                     b"new b2s",
                     "directb2s",
@@ -110,24 +110,24 @@ class ManagerUiServiceTests(unittest.TestCase):
                 )
 
             self.assertEqual(existing_b2s.read_bytes(), b"new b2s")
-            self.assertFalse((table_dir / "Uploaded.directb2s").exists())
+            self.assertFalse((game_dir / "Uploaded.directb2s").exists())
             self.assertEqual(result["filename"], "Custom Backglass.directb2s")
 
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir) / "Example"
-            table_dir.mkdir()
-            (table_dir / "Example.vpx").write_bytes(b"vpx")
+            game_dir = Path(temp_dir) / "Example"
+            game_dir.mkdir()
+            (game_dir / "Example.vpx").write_bytes(b"vpx")
 
             with mock.patch("managerui.services.table_service.refresh_table"):
                 result = replace_table_file(
-                    str(table_dir),
+                    str(game_dir),
                     "Uploaded.directb2s",
                     b"new b2s",
                     "directb2s",
                     "Example.vpx",
                 )
 
-            self.assertEqual((table_dir / "Example.directb2s").read_bytes(), b"new b2s")
+            self.assertEqual((game_dir / "Example.directb2s").read_bytes(), b"new b2s")
             self.assertEqual(result["filename"], "Example.directb2s")
 
     def test_resolve_table_dir_rejects_path_traversal(self):
@@ -136,14 +136,14 @@ class ManagerUiServiceTests(unittest.TestCase):
             from pathlib import Path
 
             with TemporaryDirectory() as temp_dir:
-                tables_root = Path(temp_dir) / "tables"
-                good_table = tables_root / "Good Table"
+                games_root = Path(temp_dir) / "tables"
+                good_table = games_root / "Good Table"
                 good_table.mkdir(parents=True)
 
-                self.assertEqual(resolve_table_dir("Good Table", str(tables_root)), good_table.resolve())
+                self.assertEqual(resolve_game_dir("Good Table", str(games_root)), good_table.resolve())
 
                 with self.assertRaises(ValueError):
-                    resolve_table_dir("../outside", str(tables_root))
+                    resolve_game_dir("../outside", str(games_root))
 
     def test_mobile_table_rows_format_display_names(self):
         rows = build_mobile_table_rows([

@@ -106,23 +106,23 @@ def _asset_summary(row: dict) -> dict:
     }
 
 
-def _listing(table_dir: Path) -> tuple[list[str], list[str]]:
+def _listing(game_dir: Path) -> tuple[list[str], list[str]]:
     files: list[str] = []
     subdirs: list[str] = []
-    if table_dir.is_dir():
-        for entry in table_dir.iterdir():
+    if game_dir.is_dir():
+        for entry in game_dir.iterdir():
             (files if entry.is_file() else subdirs).append(entry.name)
     return files, subdirs
 
 
-def _inventory_assets(table_dir: Path) -> dict:
+def _inventory_assets(game_dir: Path) -> dict:
     """The inventory lens: every asset file attributed, plus the folder-wide kinds.
 
     Computed fresh per request, not from the scan - an audit that reports
     yesterday's folder is worse than none.
     """
-    files, subdirs = _listing(table_dir)
-    inv = asset_resolver.inventory(table_dir.name, files, game_file_names(files))
+    files, subdirs = _listing(game_dir)
+    inv = asset_resolver.inventory(game_dir.name, files, game_file_names(files))
     for entry in inv.values():
         entry["present"] = bool(entry["files"])
     subdir_set = {name.lower() for name in subdirs}
@@ -130,12 +130,12 @@ def _inventory_assets(table_dir: Path) -> dict:
                if folder in subdir_set]
     inv["pup_pack"] = {"present": "pupvideos" in subdir_set}
     inv["alt_color"] = {"present": bool(formats), "formats": formats}
-    inv["alt_sound"] = {"present": (table_dir / "pinmame" / "altsound").is_dir()}
+    inv["alt_sound"] = {"present": (game_dir / "pinmame" / "altsound").is_dir()}
     inv["music"] = {"present": "music" in subdir_set}
     return inv
 
 
-def _game_file_settings(table_dir: Path) -> dict:
+def _game_file_settings(game_dir: Path) -> dict:
     """Per-game-file settings from the folder's .info, or {} when unreadable.
 
     A folder that cannot be parsed must not make its game files vanish - absent
@@ -143,11 +143,11 @@ def _game_file_settings(table_dir: Path) -> dict:
     """
     try:
         from common.tables.metaconfig import MetaConfig
-        info = table_dir / f"{table_dir.name}.info"
+        info = game_dir / f"{game_dir.name}.info"
         if info.is_file():
             return MetaConfig(str(info)).gameFileSettings()
     except Exception:  # noqa: BLE001 - settings are advisory; never block the listing
-        logger.debug("Could not read game file settings for %s", table_dir, exc_info=True)
+        logger.debug("Could not read game file settings for %s", game_dir, exc_info=True)
     return {}
 
 
@@ -162,10 +162,10 @@ def _game_files(table, row: dict) -> list[dict]:
     table pointing at a missing file is something the caller should see - but the
     default falls to one that exists, since the default is what a caller would launch.
     """
-    table_dir = Path(row.get("table_path", ""))
-    described = _game_file_settings(table_dir)
+    game_dir = Path(row.get("table_path", ""))
+    described = _game_file_settings(game_dir)
 
-    files, subdirs = _listing(table_dir)
+    files, subdirs = _listing(game_dir)
     on_disk = game_file_names(files)
 
     names = list(on_disk)
@@ -176,14 +176,14 @@ def _game_files(table, row: dict) -> list[dict]:
         return []
 
     # Same resolver the launcher and the metadata build use, so all three agree.
-    default = default_game_file(files or names, table_dir.name,
+    default = default_game_file(files or names, game_dir.name,
                                 recorded_default(vpinfe_section(table.metaConfig)))
     hidden = hidden_game_files(described)
 
     # Dependency context, once per request: the alias map and the rom listing are
     # shared by every game file in the folder.
-    aliases = asset_resolver.read_alias_map(str(table_dir))
-    rom_files = asset_resolver.list_rom_files(str(table_dir))
+    aliases = asset_resolver.read_alias_map(str(game_dir))
+    rom_files = asset_resolver.list_rom_files(str(game_dir))
 
     def _tristate(value):
         """detect* flags are three-valued: yes, no, and never parsed."""
@@ -202,7 +202,7 @@ def _game_files(table, row: dict) -> list[dict]:
             "default": name == default,
             "hidden": name in hidden,
             "available": name in on_disk,
-            "assets": asset_resolver.resolve_for_game_file(name, table_dir.name, files),
+            "assets": asset_resolver.resolve_for_game_file(name, game_dir.name, files),
         }
         if is_parsed(described_entry):
             # Every game file carries its own ROM and detect flags, so each one answers
@@ -217,7 +217,7 @@ def _game_files(table, row: dict) -> list[dict]:
                 from common.config_access import SettingsConfig
                 audit = pinmame_catalog.lookup(
                     SettingsConfig.from_config(get_ini_config()).vpx_bin_path,
-                    str(table_dir / "pinmame" / "roms"), chain["effective"])
+                    str(game_dir / "pinmame" / "roms"), chain["effective"])
                 asset_resolver.apply_audit(chain, audit)
             flex = asset_resolver.flexdmd_state(
                 subdirs, _tristate(described_entry.get("detect_flex")))
@@ -230,7 +230,7 @@ def _game_files(table, row: dict) -> list[dict]:
                      "audit": None, "installed": None,
                      "reason": "unknown: this game file has not been parsed yet"}
             flex = asset_resolver.flexdmd_state(subdirs, None)
-        chain["nvram"] = asset_resolver.nvram_state(str(table_dir), chain["effective"])
+        chain["nvram"] = asset_resolver.nvram_state(str(game_dir), chain["effective"])
         entry["dependencies"] = {"pinmame": chain, "flexdmd": flex}
         entries.append(entry)
     return entries
@@ -291,14 +291,14 @@ def _default_stem(table) -> str | None:
     return Path(vpx).stem if vpx else None
 
 
-def _resolved_media(table_dir: Path, game_file_stem: str | None = None) -> dict:
+def _resolved_media(game_dir: Path, game_file_stem: str | None = None) -> dict:
     """Every media kind against the folder as it is right now."""
     import os
 
-    files, subdirs = _listing(table_dir)
+    files, subdirs = _listing(game_dir)
     medias: set[str] = set()
     if "medias" in {name.lower() for name in subdirs}:
-        medias_dir = table_dir / "medias"
+        medias_dir = game_dir / "medias"
         try:
             for dirpath, _dirs, filenames in os.walk(medias_dir):
                 rel = os.path.relpath(dirpath, medias_dir)
@@ -311,7 +311,7 @@ def _resolved_media(table_dir: Path, game_file_stem: str | None = None) -> dict:
     from common.media_paths import active_set_for
     wheelset = active_set_for("wheel", media_cfg.wheelset)
     active_sets = {"wheel": wheelset} if wheelset else None
-    return resolve_media_files(table_dir, set(files), medias, media_cfg.playfield_variant,
+    return resolve_media_files(game_dir, set(files), medias, media_cfg.playfield_variant,
                                game_file_stem, active_sets)
 
 
@@ -321,9 +321,9 @@ def get_table_media(table_id: str) -> models.MediaList:
     """Media is the artwork shown about a table - every kind, present or not,
     so a client can enumerate what is possible instead of guessing."""
     table = _table_or_404(table_id)
-    table_dir = Path(getattr(table, "fullPathTable", "") or "")
+    game_dir = Path(getattr(table, "fullPathTable", "") or "")
     prefix = f"/api/v1/tables/{table_id}/media"
-    resolved = _resolved_media(table_dir, _default_stem(table))
+    resolved = _resolved_media(game_dir, _default_stem(table))
     logo = resolved.get("logo")
     return {"media": {
         key: {
@@ -346,8 +346,8 @@ def get_table_media_file(table_id: str, kind: str):
     if kind not in known:
         raise InvalidRequestError("Unknown media kind",
                                   details={"unknown": kind, "known": sorted(known)})
-    table_dir = Path(getattr(table, "fullPathTable", "") or "")
-    path = _resolved_media(table_dir, _default_stem(table)).get(kind)
+    game_dir = Path(getattr(table, "fullPathTable", "") or "")
+    path = _resolved_media(game_dir, _default_stem(table)).get(kind)
     if path is None or not path.is_file():
         raise NotFoundError(f"This table has no {kind} media")
     return FileResponse(path)
@@ -403,9 +403,9 @@ def get_table_archive(request: Request, table_id: str, download_token: str = "",
         identity = getattr(request.state, "identity", None)
         if identity is None or not identity.can(scopes.TABLES_EXPORT_FULL):
             raise ForbiddenError(f"Requires {scopes.TABLES_EXPORT_FULL}")
-    table_dir_name = getattr(table, "tableDirName", "")
+    game_dir_name = getattr(table, "tableDirName", "")
     try:
-        archive = create_vpxz_archive(table_dir_name, everything=full,
+        archive = create_vpxz_archive(game_dir_name, everything=full,
                                       game_file=file or None)
     except ValueError as exc:
         raise InvalidRequestError("Invalid table path") from exc

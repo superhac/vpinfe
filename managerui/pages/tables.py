@@ -7,7 +7,7 @@ import json
 from typing import List, Dict, Optional, Callable
 from queue import Queue
 from managerui.filters import apply_table_filters, build_table_filter_options
-from managerui.paths import VPINFE_INI_PATH, get_tables_path as resolve_tables_path
+from managerui.paths import VPINFE_INI_PATH, get_games_path as resolve_tables_path
 from managerui.pages.table_detail_dialog import open_table_dialog
 from managerui.pages.table_import_dialog import open_import_table_dialog
 from managerui.pages.dnd_drop_zone import create_drop_zone, enable_row_drops, DropContext
@@ -129,16 +129,16 @@ def save_upload_bytes(dest_file: Path, content: bytes) -> None:
 
 # --- helper to create a .info file with a chosen VPS record for one folder ---
 
-def associate_vps_to_folder(table_folder: Path, vps_entry: Dict, download_media: bool = False) -> None:
+def associate_vps_to_folder(game_folder: Path, vps_entry: Dict, download_media: bool = False) -> None:
     """
     Creates a `.info` file inside `table_folder` using the selected vps_entry and the VPX metadata.
     """
-    table_service.associate_vps_to_folder(table_folder, vps_entry, download_media)
+    table_service.associate_vps_to_folder(game_folder, vps_entry, download_media)
 
 
 logger = logging.getLogger("vpinfe.manager.tables")
 
-def get_tables_path() -> str:
+def get_games_path() -> str:
     """Resolve tables path from vpinfe.ini [Settings] tablerootdir, fallback to ~/tables."""
     return resolve_tables_path()
 
@@ -150,8 +150,8 @@ def parse_table_info(info_path):
         with open(info_path, "r", encoding="utf-8") as f:
             raw = json.load(f)
 
-        table_dir = os.path.dirname(info_path)
-        table_name = os.path.basename(table_dir)
+        game_dir = os.path.dirname(info_path)
+        table_name = os.path.basename(game_dir)
 
         info = raw.get("Info", {})
         user = raw.get("User", {})
@@ -205,13 +205,13 @@ def parse_table_info(info_path):
             "patch_applied": get(("game_file", "patch_applied"), default=False),
 
             # Internal
-            "table_path": table_dir,
+            "table_path": game_dir,
 
             # Addon detection (check for directories)
-            "pup_pack_exists": (Path(table_dir) / "pupvideos").is_dir(),
-            "serum_exists": (Path(table_dir) / "serum").is_dir(),
-            "vni_exists": (Path(table_dir) / "vni").is_dir(),
-            "alt_sound_exists": (Path(table_dir) / "pinmame" / "altsound").is_dir(),
+            "pup_pack_exists": (Path(game_dir) / "pupvideos").is_dir(),
+            "serum_exists": (Path(game_dir) / "serum").is_dir(),
+            "vni_exists": (Path(game_dir) / "vni").is_dir(),
+            "alt_sound_exists": (Path(game_dir) / "pinmame" / "altsound").is_dir(),
 
             # VPinFE settings
             "delete_nvram_on_close": vpinfe.get("delete_nvram_on_close", False),
@@ -230,9 +230,9 @@ def parse_table_info(info_path):
         return {}
 
 def scan_tables(silent: bool = False):
-    tables_path = get_tables_path()
-    if not os.path.exists(tables_path):
-        logger.warning(f"Tables path does not exist: {tables_path}. Skipping scan.")
+    games_path = get_games_path()
+    if not os.path.exists(games_path):
+        logger.warning(f"Tables path does not exist: {games_path}. Skipping scan.")
         if not silent:
             ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
         return []

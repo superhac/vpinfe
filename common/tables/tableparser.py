@@ -57,12 +57,12 @@ class TableParser:
             return
 
         logger.info("Loading tables and image paths...")
-        for table_dir in sorted(self.tablesRootFilePath.iterdir()):
-            if not table_dir.is_dir():
+        for game_dir in sorted(self.tablesRootFilePath.iterdir()):
+            if not game_dir.is_dir():
                 continue
-            if table_dir.name.startswith('.'):
+            if game_dir.name.startswith('.'):
                 continue
-            table = self._build_table(table_dir)
+            table = self._build_table(game_dir)
             if table is not None:
                 self.tables.append(table)
 
@@ -74,66 +74,66 @@ class TableParser:
             len(self.missing_tables)
         )
 
-    def _build_table(self, table_dir):
+    def _build_table(self, game_dir):
         """One table folder, read from disk. Returns None when it holds no game file.
 
         The whole of what a scan does per table, so refreshing one costs one folder
         rather than the library.
         """
         table = Table()
-        table.tableDirName = table_dir.name
-        table.fullPathTable = str(table_dir)
+        table.tableDirName = game_dir.name
+        table.fullPathTable = str(game_dir)
 
-        table_contents = set()
-        table_subdirs = set()
+        game_contents = set()
+        game_subdirs = set()
 
         # Search with scandir to avoid per-entry pathlib stat calls on slow volumes.
         try:
-            with os.scandir(table_dir) as entries:
+            with os.scandir(game_dir) as entries:
                 for entry in entries:
                     if entry.is_dir():
                         # Folded like the extension checks below, and like the
                         # API's own listing: a folder someone named PUPVideos
                         # holds a PUP pack whatever the shift key was doing.
-                        table_subdirs.add(entry.name.lower())
+                        game_subdirs.add(entry.name.lower())
                         continue
-                    table_contents.add(entry.name)
+                    game_contents.add(entry.name)
         except OSError:
-            logger.exception("Failed to enumerate table directory: %s", table_dir)
+            logger.exception("Failed to enumerate table directory: %s", game_dir)
 
-        if not game_file_names(table_contents):
+        if not game_file_names(game_contents):
             logger.warning("No .vpx found in %s directory.", table.tableDirName)
             return None
 
         info_name = f"{table.tableDirName}.info"
         # Only folders holding a backup open one.
-        stamps = backup_names(table_contents, info_name)
+        stamps = backup_names(game_contents, info_name)
         table.info_restorable = bool(
-            stamps and restorable_backup(table_dir, names=table_contents))
+            stamps and restorable_backup(game_dir, names=game_contents))
         if stamps:
             table.info_backup_stamp = stamps[0].rsplit(BACKUP_MARKER, 1)[-1]
-        if info_name not in table_contents:
+        if info_name not in game_contents:
             self.missing_tables.append({
                 'folder': table.tableDirName,
-                'path': str(table_dir),
+                'path': str(game_dir),
             })
 
         # Assets: what this table needs to play as intended, beyond the game
         # file. Media is a different thing and is loaded below. See
         # docs/conventions.md.
-        if any(name.lower().endswith(".directb2s") for name in table_contents):
+        if any(name.lower().endswith(".directb2s") for name in game_contents):
             table.b2sExists = True
-        if "pupvideos" in table_subdirs:
+        if "pupvideos" in game_subdirs:
             table.pupPackExists = True
-        if "serum" in table_subdirs:
+        if "serum" in game_subdirs:
             table.altColorExists = True
-        if "vni" in table_subdirs:
+        if "vni" in game_subdirs:
             table.vniExists = True
-        if "music" in table_subdirs:
+        if "music" in game_subdirs:
             table.musicExists = True
-        if any(name.lower().endswith(".ini") for name in table_contents):
+        if any(name.lower().endswith(".ini") for name in game_contents):
             table.iniExists = True
-        if "pinmame" in table_subdirs and (table_dir / "pinmame" / "altsound").is_dir():
+        if "pinmame" in game_subdirs and (game_dir / "pinmame" / "altsound").is_dir():
             table.altSoundExists = True
 
         try:
@@ -143,7 +143,7 @@ class TableParser:
             # empty, so nothing can write over a file we could not read.
             self.unreadable_tables.append({
                 'folder': table.tableDirName,
-                'path': str(table_dir),
+                'path': str(game_dir),
                 'error': str(exc),
             })
             logger.error("Skipping table with unreadable metadata: %s", exc)
@@ -152,15 +152,15 @@ class TableParser:
         # After the metadata, so a folder with several .vpx launches the one its
         # metadata describes rather than whichever the filesystem listed first.
         recorded = recorded_default(vpinfe_section(table.metaConfig))
-        chosen = default_game_file(table_contents, table_dir.name, recorded)
-        table.fullPathVPXfile = str(table_dir / chosen)
+        chosen = default_game_file(game_contents, game_dir.name, recorded)
+        table.fullPathVPXfile = str(game_dir / chosen)
 
         # Media after the default pick: tier 1 of the resolution chain keys off
         # the game file that actually launches.
         self.loadImagePaths(
             table,
-            table_contents=table_contents,
-            has_medias_dir="medias" in table_subdirs,
+            game_contents=game_contents,
+            has_medias_dir="medias" in game_subdirs,
             game_file_stem=Path(chosen).stem if chosen else None,
         )
         try:
@@ -172,18 +172,18 @@ class TableParser:
         return table
 
 
-    def reload_table(self, table_dir):
+    def reload_table(self, game_dir):
         """Re-read one table folder in place. Returns the table, or None if it is gone.
 
         A rating, a rename or an import changes one folder, and rescanning the library
         to see it costs the whole library - on a network share, minutes of it.
         """
-        table_dir = Path(table_dir)
-        target = str(table_dir)
+        game_dir = Path(game_dir)
+        target = str(game_dir)
         self.missing_tables = [row for row in self.missing_tables if row["path"] != target]
         self.unreadable_tables = [r for r in self.unreadable_tables if r["path"] != target]
 
-        table = self._build_table(table_dir) if table_dir.is_dir() else None
+        table = self._build_table(game_dir) if game_dir.is_dir() else None
         for index, existing in enumerate(self.tables):
             if existing.fullPathTable == target:
                 if table is None:
@@ -196,17 +196,17 @@ class TableParser:
             self.tables.append(table)             # a folder that was not there before
         return table
 
-    def loadImagePaths(self, Table, table_contents=None, has_medias_dir=None,
+    def loadImagePaths(self, Table, game_contents=None, has_medias_dir=None,
                        game_file_stem=None):
-        table_dir = Path(Table.fullPathTable)
-        medias_dir = table_dir / "medias"
+        game_dir = Path(Table.fullPathTable)
+        medias_dir = game_dir / "medias"
 
         # Batch directory listings to minimize disk calls
-        if table_contents is None:
+        if game_contents is None:
             try:
-                table_contents = set(os.listdir(str(table_dir)))
+                game_contents = set(os.listdir(str(game_dir)))
             except Exception:
-                table_contents = set()
+                game_contents = set()
 
         medias_contents: set[str] = set()
         if has_medias_dir if has_medias_dir is not None else medias_dir.is_dir():
@@ -218,7 +218,7 @@ class TableParser:
                             fname if rel == "." else f"{rel}/{fname}".replace(os.sep, "/"))
             except Exception:
                 medias_contents = set()
-        apply_media_paths(Table, table_contents, medias_contents, self.tabletype,
+        apply_media_paths(Table, game_contents, medias_contents, self.tabletype,
                           game_file_stem, self.active_sets or None)
 
     def loadMetaData(self, Table):

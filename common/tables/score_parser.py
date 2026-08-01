@@ -293,9 +293,9 @@ def resolve_score_input_path(rom_name: str, source_path: str) -> str:
     if source.exists() and source.is_file():
         return str(source)
 
-    table_dir = source if source.is_dir() else source.parent
+    game_dir = source if source.is_dir() else source.parent
 
-    nvram_dir = table_dir / "pinmame" / "nvram"
+    nvram_dir = game_dir / "pinmame" / "nvram"
     # Check the resolved (canonical-cased) ROM name before the raw input. On a
     # case-insensitive filesystem (macOS/APFS) a probe for "matrix.nv" matches a
     # "Matrix.nv" file, so checking the raw name first would return the wrong
@@ -305,7 +305,7 @@ def resolve_score_input_path(rom_name: str, source_path: str) -> str:
     if rom_name != resolved_rom_name:
         score_names.append(rom_name)
     score_candidates = [nvram_dir / f"{name}.nv" for name in score_names]
-    fallback_score_path = table_dir / "user" / "VPReg.ini"
+    fallback_score_path = game_dir / "user" / "VPReg.ini"
     checked_paths.extend(score_candidates)
     checked_paths.append(fallback_score_path)
 
@@ -317,7 +317,7 @@ def resolve_score_input_path(rom_name: str, source_path: str) -> str:
         return str(fallback_score_path)
 
     if uses_special_text_score_file(rom_name):
-        resolved = resolve_special_text_score_file(rom_name, str(table_dir))
+        resolved = resolve_special_text_score_file(rom_name, str(game_dir))
         if resolved is None:
             raise KeyError(f"Unknown special text score ROM: {rom_name}")
         _, resolved_filename = resolved
@@ -1679,15 +1679,15 @@ if __name__ == "__main__":
         "mtl_180hc": "/home/superhac/tables/Metallica Premium Monsters (Stern 2013)/pinmame/nvram/mtl_180h.nv",
     }
 
-    for rom_name, table_dir in rom_files.items():
+    for rom_name, game_dir in rom_files.items():
         try:
-            result, resolved_path = read_rom_with_source(rom_name, table_dir)
+            result, resolved_path = read_rom_with_source(rom_name, game_dir)
         except FileNotFoundError:
             print(f"{rom_name}: file not found, skipping")
             print()
             continue
         except Exception as exc:
-            logging.error("Failed to parse ROM '%s' from '%s': %s", rom_name, table_dir, exc)
+            logging.error("Failed to parse ROM '%s' from '%s': %s", rom_name, game_dir, exc)
             sys.exit(1)
 
         print(f"Using score source: {resolved_path}")

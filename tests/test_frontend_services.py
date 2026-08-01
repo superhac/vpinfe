@@ -195,9 +195,9 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_frontend_rating_write_preserves_newer_on_disk_stats(self):
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir) / "Example"
-            table_dir.mkdir()
-            info_path = table_dir / "Example.info"
+            game_dir = Path(temp_dir) / "Example"
+            game_dir.mkdir()
+            info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(
                     {
@@ -210,7 +210,7 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
             table = types.SimpleNamespace(
-                fullPathTable=str(table_dir),
+                fullPathTable=str(game_dir),
                 tableDirName="Example",
                 metaConfig=json.loads(info_path.read_text(encoding="utf-8")),
             )
@@ -237,9 +237,9 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_play_tracking_preserves_newer_on_disk_rating(self):
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir) / "Example"
-            table_dir.mkdir()
-            info_path = table_dir / "Example.info"
+            game_dir = Path(temp_dir) / "Example"
+            game_dir.mkdir()
+            info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(
                     {
@@ -252,7 +252,7 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
             table = types.SimpleNamespace(
-                fullPathTable=str(table_dir),
+                fullPathTable=str(game_dir),
                 tableDirName="Example",
                 metaConfig=json.loads(info_path.read_text(encoding="utf-8")),
             )
@@ -277,9 +277,9 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_parse_score_from_nvram_reads_the_game_files_rom(self) -> None:
         with TemporaryDirectory() as tmp:
-            table_dir = Path(tmp) / "Example"
-            table_dir.mkdir()
-            info_path = table_dir / "Example.info"
+            game_dir = Path(tmp) / "Example"
+            game_dir.mkdir()
+            info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(
                     {
@@ -289,7 +289,7 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
             table = types.SimpleNamespace(
-                fullPathTable=str(table_dir),
+                fullPathTable=str(game_dir),
                 tableDirName="Example",
                 metaConfig={},
             )
@@ -298,7 +298,7 @@ class FrontendServiceTests(unittest.TestCase):
                     mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}) as to_json:
                 score_data, score_path = table_play_service.parse_score_from_nvram(table)
 
-            read_rom.assert_called_once_with("vpx_rom", str(table_dir))
+            read_rom.assert_called_once_with("vpx_rom", str(game_dir))
             to_json.assert_called_once_with("vpx_rom", 123, "/scores/vpx_rom.nv")
             self.assertEqual(score_data, {"rom": "vpx_rom"})
             self.assertEqual(score_path, "/scores/vpx_rom.nv")
@@ -307,9 +307,9 @@ class FrontendServiceTests(unittest.TestCase):
         """2.x kept a table-level Info.Rom and the migration drops it. A value carried
         from there could disagree with the file it claims to describe."""
         with TemporaryDirectory() as tmp:
-            table_dir = Path(tmp) / "Example"
-            table_dir.mkdir()
-            info_path = table_dir / "Example.info"
+            game_dir = Path(tmp) / "Example"
+            game_dir.mkdir()
+            info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(
                     {
@@ -320,7 +320,7 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
             table = types.SimpleNamespace(
-                fullPathTable=str(table_dir),
+                fullPathTable=str(game_dir),
                 tableDirName="Example",
                 metaConfig={},
             )
@@ -329,19 +329,19 @@ class FrontendServiceTests(unittest.TestCase):
                     mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}):
                 table_play_service.parse_score_from_nvram(table)
 
-            read_rom.assert_called_once_with("vpx_rom", str(table_dir))
+            read_rom.assert_called_once_with("vpx_rom", str(game_dir))
 
     def test_delete_nvram_if_configured_reads_the_game_files_rom(self) -> None:
         with TemporaryDirectory() as tmp:
-            table_dir = Path(tmp) / "Example"
-            nvram_dir = table_dir / "pinmame" / "nvram"
+            game_dir = Path(tmp) / "Example"
+            nvram_dir = game_dir / "pinmame" / "nvram"
             nvram_dir.mkdir(parents=True)
             vpx_nvram = nvram_dir / "vpx_rom.nv"
             info_nvram = nvram_dir / "info_rom.nv"
             vpx_nvram.write_bytes(b"vpx")
             info_nvram.write_bytes(b"info")
             table = types.SimpleNamespace(
-                fullPathTable=str(table_dir),
+                fullPathTable=str(game_dir),
                 tableDirName="Example",
                 metaConfig={
                     "game_files": {"Example.vpx": {"rom": "vpx_rom"}},

@@ -169,8 +169,8 @@ def sync_installed_tables(
     if not table_root_dir:
         raise ValueError("Tables Directory is required.")
 
-    table_root = Path(table_root_dir)
-    if not table_root.exists() or not table_root.is_dir():
+    game_root = Path(table_root_dir)
+    if not game_root.exists() or not game_root.is_dir():
         raise ValueError(f"Tables Directory does not exist: {table_root_dir}")
 
     parser = TableParser(table_root_dir)

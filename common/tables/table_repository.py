@@ -6,7 +6,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, List, Optional
 
-from common.paths import COLLECTIONS_PATH, get_ini_config, get_tables_path
+from common.paths import COLLECTIONS_PATH, get_games_path, get_ini_config
 from common.tables.info_migration import CURRENT_SCHEMA, schema_of
 from common.tables.table_identity import ensure_unique_ids
 from common.tables.table_identity import table_id as vpinfe_id
@@ -31,10 +31,10 @@ def ensure_tables_loaded(reload: bool = False) -> List[Any]:
     global _PARSER
     started_at = perf_counter()
     with _LOCK:
-        tables_root = get_tables_path()
-        needs_new_parser = _PARSER is None or str(_PARSER.tablesRootFilePath) != tables_root
+        games_root = get_games_path()
+        needs_new_parser = _PARSER is None or str(_PARSER.tablesRootFilePath) != games_root
         if needs_new_parser:
-            _PARSER = TableParser(tables_root, get_ini_config())
+            _PARSER = TableParser(games_root, get_ini_config())
         elif reload:
             _PARSER.loadTables(reload=True)
         tables = list(_PARSER.getAllTables())
