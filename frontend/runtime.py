@@ -192,7 +192,7 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
         displays = DisplayConfig.from_config(iniconfig)
         manager_ui_port = network.manager_ui_port
         setup_url = f"http://localhost:{manager_ui_port}/"
-        screen_id = displays.table_screen_id
+        screen_id = displays.playfield_screen_id
         monitors = get_display_monitors()
         monitor = monitors[screen_id] if screen_id < len(monitors) else monitors[0]
         logger.info("First run: loading Manager UI in chromium window for initial configuration.")

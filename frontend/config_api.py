@@ -178,11 +178,11 @@ def get_media_priorities(config):
 
 
 def get_table_orientation(config):
-    return DisplayConfig.from_config(config).table_orientation
+    return DisplayConfig.from_config(config).playfield_orientation
 
 
 def get_table_rotation(config):
-    return DisplayConfig.from_config(config).table_rotation
+    return DisplayConfig.from_config(config).playfield_rotation
 
 
 def get_cab_mode(config):

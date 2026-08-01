@@ -31,17 +31,17 @@ class MediaSpec:
     # Whether medias/<kind>s/<set>/ folders participate in resolution.
     supports_sets: bool = False
 
-    def filename(self, table_type: str = "table") -> str:
-        return self.filename_template.format(tabletype=table_type)
+    def filename(self, playfield_variant: str = "table") -> str:
+        return self.filename_template.format(playfield_variant=playfield_variant)
 
-    def stem(self, table_type: str = "table") -> str:
-        return self.filename(table_type).rsplit(".", 1)[0]
+    def stem(self, playfield_variant: str = "table") -> str:
+        return self.filename(playfield_variant).rsplit(".", 1)[0]
 
 
 MEDIA_SPECS = (
     MediaSpec("bg", "BGImagePath", "bg.png", "1k", token="(Backglass)"),
     MediaSpec("dmd", "DMDImagePath", "dmd.png", "1k", token="(DMD)"),
-    MediaSpec("table", "TableImagePath", "{tabletype}.png", "table_resolution",
+    MediaSpec("table", "TableImagePath", "{playfield_variant}.png", "table_resolution",
               token="(Playfield)"),
     MediaSpec("fss", "FSSImagePath", "fss.png", token="(FSS)"),
     MediaSpec("wheel", "WheelImagePath", "wheel.png", token="(Wheel)",
@@ -52,7 +52,7 @@ MEDIA_SPECS = (
               token="(RealColorDMD)"),
     MediaSpec("flyer", "FlyerImagePath", "flyer.png", token="(Flyer)",
               alt_tokens=("(GameInfo)",)),
-    MediaSpec("table_video", "TableVideoPath", "{tabletype}.mp4", "table_video_resolution",
+    MediaSpec("table_video", "TableVideoPath", "{playfield_variant}.mp4", "table_video_resolution",
               token="(Playfield)", family=VIDEO_FAMILY),
     MediaSpec("bg_video", "BGVideoPath", "bg.mp4", "table_video_resolution",
               token="(Backglass)", family=VIDEO_FAMILY),
@@ -78,8 +78,8 @@ MEDIA_SPECS = (
 )
 
 
-def specs_for_table_type(table_type: str = "table") -> list[MediaSpec]:
-    """The spec list with the playfield keys renamed for this table type.
+def specs_for_playfield_variant(playfield_variant: str = "table") -> list[MediaSpec]:
+    """The spec list with the playfield keys renamed for this playfield variant.
 
     Only the key changes: replace() copies the rest, so a spec from here still
     carries its token, extension family, fallback and set support. Rebuilding one
@@ -87,25 +87,27 @@ def specs_for_table_type(table_type: str = "table") -> list[MediaSpec]:
     """
     specs: list[MediaSpec] = []
     for spec in MEDIA_SPECS:
-        key = table_type if spec.key == "table" else f"{table_type}_video" if spec.key == "table_video" else spec.key
+        key = playfield_variant if spec.key == "table" else f"{playfield_variant}_video" if spec.key == "table_video" else spec.key
         specs.append(replace(spec, key=key))
     return specs
 
 
-def media_filename_map(table_type: str = "table") -> dict[str, str]:
-    return {spec.key: spec.filename(table_type) for spec in specs_for_table_type(table_type)}
+def media_filename_map(playfield_variant: str = "table") -> dict[str, str]:
+    return {spec.key: spec.filename(playfield_variant)
+            for spec in specs_for_playfield_variant(playfield_variant)}
 
 
-def media_attr_key_map(table_type: str = "table") -> dict[str, str]:
-    return {spec.attr: spec.key for spec in specs_for_table_type(table_type)}
+def media_attr_key_map(playfield_variant: str = "table") -> dict[str, str]:
+    return {spec.attr: spec.key for spec in specs_for_playfield_variant(playfield_variant)}
 
 
-def media_attr_map(table_type: str = "table") -> dict[str, str]:
-    return {spec.attr: spec.filename(table_type) for spec in specs_for_table_type(table_type)}
+def media_attr_map(playfield_variant: str = "table") -> dict[str, str]:
+    return {spec.attr: spec.filename(playfield_variant)
+            for spec in specs_for_playfield_variant(playfield_variant)}
 
 
-def default_media_path(table_dir: str | Path, key: str, table_type: str = "table") -> Path:
-    filenames = media_filename_map(table_type)
+def default_media_path(table_dir: str | Path, key: str, playfield_variant: str = "table") -> Path:
+    filenames = media_filename_map(playfield_variant)
     if key not in filenames:
         raise KeyError(f"Unknown media key: {key}")
     return Path(table_dir) / "medias" / filenames[key]
@@ -161,7 +163,7 @@ def list_media_sets(table_root: str | Path, kind: str = "wheel") -> list[str]:
 
 def resolve_media_files(table_dir: str | Path, table_contents: set[str],
                         medias_contents: set[str],
-                        table_type: str = "table",
+                        playfield_variant: str = "table",
                         game_file_stem: str | None = None,
                         active_sets: dict[str, str] | None = None) -> dict[str, Path | None]:
     """Canonical media key -> the file that serves it, or None.
@@ -178,7 +180,7 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
     folder is canonical and the folder root is the fallback at every tier, which
     keeps tier 3 exactly as it always behaved.
 
-    Keyed by MEDIA_SPECS keys, stable across table types - under table_type "fss"
+    Keyed by MEDIA_SPECS keys, stable across variants - under playfield_variant "fss"
     the playfield's *filename* changes but its key stays "table".
 
     `medias_contents` may carry relative paths (wheels/tarcisio/wheel.png) for
@@ -215,7 +217,7 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
                            for token in tokens for ext in spec.family]
         user_names += [f"{token} {folder_name}{ext}"
                        for token in tokens for ext in spec.family]
-        fixed_stem = spec.stem(table_type)
+        fixed_stem = spec.stem(playfield_variant)
         fixed_names = [f"{fixed_stem}{ext}" for ext in spec.family]
 
         active = (active_sets or {}).get(spec.key) if spec.supports_sets else None
@@ -249,11 +251,11 @@ def resolve_media_files(table_dir: str | Path, table_contents: set[str],
 
 
 def apply_media_paths(table, table_contents: set[str], medias_contents: set[str],
-                      table_type: str = "table",
+                      playfield_variant: str = "table",
                       game_file_stem: str | None = None,
                       active_sets: dict[str, str] | None = None) -> None:
     resolved = resolve_media_files(table.fullPathTable, table_contents,
-                                   medias_contents, table_type, game_file_stem,
+                                   medias_contents, playfield_variant, game_file_stem,
                                    active_sets)
     for spec in MEDIA_SPECS:
         path = resolved[spec.key]

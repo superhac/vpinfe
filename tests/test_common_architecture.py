@@ -187,8 +187,8 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertTrue(SettingsConfig.from_config(parser).vpx_log_delete_on_start)
         self.assertFalse(SettingsConfig.from_config(parser).disable_default_chrome_options)
         media_config = MediaConfig.from_config(parser)
-        self.assertEqual(media_config.table_type, "fss")
-        self.assertEqual(media_config.table_media_priority, "image")
+        self.assertEqual(media_config.playfield_variant, "fss")
+        self.assertEqual(media_config.playfield_media_priority, "image")
         self.assertEqual(media_config.bg_media_priority, "video")
         self.assertEqual(media_config.dmd_media_priority, "video")
         self.assertEqual(media_config.realdmd_media_priority, "standard")
@@ -198,7 +198,7 @@ class TestCommonArchitecture(unittest.TestCase):
         )
         self.assertEqual(NetworkConfig.from_config(parser).ws_port, 9002)
         self.assertEqual(NetworkConfig.from_config(parser).theme_assets_port, 8000)
-        self.assertEqual(DisplayConfig.from_config(parser).table_screen_id, 2)
+        self.assertEqual(DisplayConfig.from_config(parser).playfield_screen_id, 2)
         self.assertEqual(DisplayConfig.from_config(parser).window_screen_id("tablescreenid"), "2")
         self.assertTrue(DisplayConfig.from_config(parser).cab_mode)
         self.assertEqual(VPinPlayConfig.from_config(parser).api_endpoint, "http://example.test")
@@ -210,7 +210,7 @@ class TestCommonArchitecture(unittest.TestCase):
 
         display = DisplayConfig.from_config(parser)
 
-        self.assertEqual(display.table_screen_id, 0)
+        self.assertEqual(display.playfield_screen_id, 0)
         self.assertEqual(display.window_screen_id("tablescreenid"), "")
 
     def test_settings_config_defaults_splashscreen_off(self) -> None:
@@ -232,7 +232,7 @@ class TestCommonArchitecture(unittest.TestCase):
             table,
             table_contents={"bg.png"},
             medias_contents={"fss.png"},
-            table_type="fss",
+            playfield_variant="fss",
         )
 
         self.assertEqual(table.BGImagePath, os.path.join(root, "bg.png"))

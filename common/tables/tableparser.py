@@ -36,7 +36,7 @@ class TableParser:
         self.active_sets: dict[str, str] = {}
         if iniConfig:
             media_cfg = MediaConfig.from_config(iniConfig)
-            self.tabletype = media_cfg.table_type
+            self.tabletype = media_cfg.playfield_variant
             from common.media_paths import active_set_for
             wheelset = active_set_for("wheel", media_cfg.wheelset)
             if wheelset:

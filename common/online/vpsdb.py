@@ -45,9 +45,9 @@ class VPSdb:
 
         # Setup preferences
         media_config = MediaConfig.from_config(self._vpinfeIniConfig)
-        self.tabletype = media_config.table_type
-        self.tableresolution = media_config.table_resolution
-        self.tablevideoresolution = media_config.table_video_resolution
+        self.tabletype = media_config.playfield_variant
+        self.tableresolution = media_config.playfield_resolution
+        self.tablevideoresolution = media_config.playfield_video_resolution
         logger.info(
             "Using %s/%s tables (video: %s)",
             self.tableresolution,

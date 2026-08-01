@@ -91,10 +91,10 @@ class SettingsConfig:
 
 @dataclass(frozen=True)
 class MediaConfig:
-    table_type: str = "table"
-    table_resolution: str = "4k"
-    table_video_resolution: str = "1k"
-    table_media_priority: str = "video"
+    playfield_variant: str = "table"
+    playfield_resolution: str = "4k"
+    playfield_video_resolution: str = "1k"
+    playfield_media_priority: str = "video"
     bg_media_priority: str = "video"
     dmd_media_priority: str = "video"
     realdmd_media_priority: str = "color"
@@ -104,10 +104,11 @@ class MediaConfig:
     def from_config(cls, source: Any) -> "MediaConfig":
         return cls(
             wheelset=cfg_get(source, "Media", "wheelset", "").strip(),
-            table_type=cfg_get(source, "Media", "tabletype", "table").strip().lower() or "table",
-            table_resolution=cfg_get(source, "Media", "tableresolution", "4k").strip().lower() or "4k",
-            table_video_resolution=cfg_get(source, "Media", "tablevideoresolution", "1k").strip().lower() or "1k",
-            table_media_priority=_media_priority(source, "tablemediapriority", ("image", "video"), "video"),
+            playfield_variant=(cfg_get(source, "Media", "tabletype", "table").strip().lower()
+                            or "table"),
+            playfield_resolution=cfg_get(source, "Media", "tableresolution", "4k").strip().lower() or "4k",
+            playfield_video_resolution=cfg_get(source, "Media", "tablevideoresolution", "1k").strip().lower() or "1k",
+            playfield_media_priority=_media_priority(source, "tablemediapriority", ("image", "video"), "video"),
             bg_media_priority=_media_priority(source, "bgmediapriority", ("image", "video"), "video"),
             dmd_media_priority=_media_priority(source, "dmdmediapriority", ("image", "video"), "video"),
             realdmd_media_priority=_media_priority(source, "realdmdmediapriority", ("standard", "color"), "color"),
@@ -115,7 +116,7 @@ class MediaConfig:
 
     def priority_payload(self) -> dict[str, str]:
         return {
-            "table": self.table_media_priority,
+            "table": self.playfield_media_priority,
             "bg": self.bg_media_priority,
             "dmd": self.dmd_media_priority,
             "realdmd": self.realdmd_media_priority,
@@ -155,24 +156,24 @@ class NetworkConfig:
 
 @dataclass(frozen=True)
 class DisplayConfig:
-    table_screen_id: int = 0
-    table_screen_id_raw: str = "0"
+    playfield_screen_id: int = 0
+    playfield_screen_id_raw: str = "0"
     bg_screen_id: str = ""
     dmd_screen_id: str = ""
-    table_orientation: str = "landscape"
-    table_rotation: int = 0
+    playfield_orientation: str = "landscape"
+    playfield_rotation: int = 0
     cab_mode: bool = False
 
     @classmethod
     def from_config(cls, source: Any) -> "DisplayConfig":
-        table_screen_id_raw = cfg_get(source, "Displays", "tablescreenid", "0").strip()
+        playfield_screen_id_raw = cfg_get(source, "Displays", "tablescreenid", "0").strip()
         return cls(
-            table_screen_id=cfg_int(source, "Displays", "tablescreenid", 0),
-            table_screen_id_raw=table_screen_id_raw,
+            playfield_screen_id=cfg_int(source, "Displays", "tablescreenid", 0),
+            playfield_screen_id_raw=playfield_screen_id_raw,
             bg_screen_id=cfg_get(source, "Displays", "bgscreenid", "").strip(),
             dmd_screen_id=cfg_get(source, "Displays", "dmdscreenid", "").strip(),
-            table_orientation=cfg_get(source, "Displays", "tableorientation", "landscape"),
-            table_rotation=cfg_int(source, "Displays", "tablerotation", 0),
+            playfield_orientation=cfg_get(source, "Displays", "tableorientation", "landscape"),
+            playfield_rotation=cfg_int(source, "Displays", "tablerotation", 0),
             cab_mode=cfg_bool(source, "Displays", "cabmode", SettingsConfig.from_config(source).cab_mode),
         )
 
@@ -182,7 +183,7 @@ class DisplayConfig:
         if config_key == "dmdscreenid":
             return self.dmd_screen_id
         if config_key == "tablescreenid":
-            return self.table_screen_id_raw
+            return self.playfield_screen_id_raw
         return ""
 
 

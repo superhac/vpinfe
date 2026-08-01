@@ -311,7 +311,7 @@ def _resolved_media(table_dir: Path, game_file_stem: str | None = None) -> dict:
     from common.media_paths import active_set_for
     wheelset = active_set_for("wheel", media_cfg.wheelset)
     active_sets = {"wheel": wheelset} if wheelset else None
-    return resolve_media_files(table_dir, set(files), medias, media_cfg.table_type,
+    return resolve_media_files(table_dir, set(files), medias, media_cfg.playfield_variant,
                                game_file_stem, active_sets)
 
 

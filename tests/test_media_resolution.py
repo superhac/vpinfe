@@ -309,10 +309,10 @@ class SpecCopyTests(unittest.TestCase):
     def test_a_table_type_copy_keeps_every_field_but_the_key(self) -> None:
         """It used to be rebuilt from four fields, so the copies quietly reported
         no token, no fallback, no set support, and the image family for videos."""
-        from common.media_paths import MEDIA_SPECS, specs_for_table_type
+        from common.media_paths import MEDIA_SPECS, specs_for_playfield_variant
 
         # One copy per spec, in order, so they pair up exactly.
-        for original, copy in zip(MEDIA_SPECS, specs_for_table_type("fss"), strict=True):
+        for original, copy in zip(MEDIA_SPECS, specs_for_playfield_variant("fss"), strict=True):
             self.assertEqual(copy.token, original.token, original.key)
             self.assertEqual(copy.family, original.family, original.key)
             self.assertEqual(copy.fallback_kind, original.fallback_kind, original.key)
@@ -323,18 +323,18 @@ class SpecCopyTests(unittest.TestCase):
         """Under table type fss the playfield spec is renamed onto the fss key, so
         two specs share it. Benign only because both resolve the same filename -
         worth pinning, since a divergence would be silent."""
-        from common.media_paths import media_filename_map, specs_for_table_type
+        from common.media_paths import media_filename_map, specs_for_playfield_variant
 
-        keyed_fss = [spec for spec in specs_for_table_type("fss") if spec.key == "fss"]
+        keyed_fss = [spec for spec in specs_for_playfield_variant("fss") if spec.key == "fss"]
 
         self.assertEqual(len(keyed_fss), 2)
         self.assertEqual({spec.filename("fss") for spec in keyed_fss}, {"fss.png"})
         self.assertEqual(media_filename_map("fss")["fss"], "fss.png")
 
     def test_the_video_copies_keep_the_video_family(self) -> None:
-        from common.media_paths import VIDEO_FAMILY, specs_for_table_type
+        from common.media_paths import VIDEO_FAMILY, specs_for_playfield_variant
 
-        by_key = {spec.key: spec for spec in specs_for_table_type("table")}
+        by_key = {spec.key: spec for spec in specs_for_playfield_variant("table")}
 
         self.assertEqual(by_key["table_video"].family, VIDEO_FAMILY)
         self.assertEqual(by_key["dmd_video"].family, VIDEO_FAMILY)
