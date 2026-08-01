@@ -30,14 +30,14 @@ def _broadcast(message: dict) -> None:
         _bridge.send_event_all_with_iframe(message)
 
 
-def on_launching(*, table=None, **_payload) -> None:
+def on_launching(*, game=None, **_payload) -> None:
     """Suppress frontend input and record where the player was.
 
     Runs after every hook, so a peripheral that refused the launch has already
     stopped this - input is never suppressed for a launch that is not happening.
     """
-    if table is not None and _ini_config is not None:
-        save_last_table(_ini_config, table)
+    if game is not None and _ini_config is not None:
+        save_last_table(_ini_config, game)
     _broadcast({"type": "TableLaunching"})
 
 

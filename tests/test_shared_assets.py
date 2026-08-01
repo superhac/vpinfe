@@ -234,7 +234,7 @@ class PayloadTests(unittest.TestCase):
 
         from frontend.table_state import tables_json
 
-        table = SimpleNamespace(
+        game = SimpleNamespace(
             tableDirName="Cactus Canyon (Bally 1998)",
             fullPathTable="/tables/Cactus Canyon (Bally 1998)",
             fullPathVPXfile="",
@@ -251,7 +251,7 @@ class PayloadTests(unittest.TestCase):
             configure_shared_assets(root)
             self.addCleanup(configure_shared_assets, None)
 
-            rows = _json.loads(tables_json([table]))
+            rows = _json.loads(tables_json([game]))
 
         self.assertEqual(rows[0]["ManufacturerLogoPath"],
                          "/assets/manufacturers/user/bally.png")

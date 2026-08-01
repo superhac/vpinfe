@@ -18,16 +18,16 @@ class TableListFilters:
         self.tables = list(tables or [])
 
     @staticmethod
-    def _get_meta_value(table, section, key, fallback=""):
+    def _get_meta_value(game, section, key, fallback=""):
         """Helper to safely extract metadata values."""
-        return get_meta_value(getattr(table, "metaConfig", {}), section, key, fallback)
+        return get_meta_value(getattr(game, "metaConfig", {}), section, key, fallback)
 
     def get_available_letters(self):
         """Return sorted list of unique starting letters from table names."""
         letters = set()
-        for table in self.tables:
+        for game in self.tables:
             # Try Info.Title first (JSON format), then VPSdb.name (legacy)
-            name = table_title(table)
+            name = table_title(game)
             if name:
                 first_char = name[0].upper()
                 # Only include alphanumeric characters
@@ -38,15 +38,15 @@ class TableListFilters:
     def get_available_themes(self):
         """Return sorted list of unique themes from all tables."""
         themes = set()
-        for table in self.tables:
-            themes.update(table_themes(table))
+        for game in self.tables:
+            themes.update(table_themes(game))
         return sorted(themes)
 
     def get_available_types(self):
         """Return sorted list of unique table types."""
         types = set()
-        for table in self.tables:
-            current_type = table_type(table)
+        for game in self.tables:
+            current_type = table_type(game)
             if current_type:
                 types.add(current_type)
         return sorted(types)
@@ -54,8 +54,8 @@ class TableListFilters:
     def get_available_manufacturers(self):
         """Return sorted list of unique manufacturers."""
         manufacturers = set()
-        for table in self.tables:
-            manufacturer = table_manufacturer(table)
+        for game in self.tables:
+            manufacturer = table_manufacturer(game)
             if manufacturer:
                 manufacturers.add(manufacturer)
         return sorted(manufacturers)
@@ -63,40 +63,40 @@ class TableListFilters:
     def get_available_years(self):
         """Return sorted list of unique years."""
         years = set()
-        for table in self.tables:
-            year = table_year(table)
+        for game in self.tables:
+            year = table_year(game)
             if year:
                 years.add(str(year))
         return sorted(years)
 
-    def _get_table_name(self, table):
+    def _get_table_name(self, game):
         """Get table name from either JSON or legacy format."""
-        return table_title(table)
+        return table_title(game)
 
-    def _get_table_theme(self, table):
+    def _get_table_theme(self, game):
         """Get table theme(s) from either JSON or legacy format."""
-        return table_themes(table)
+        return table_themes(game)
 
-    def _get_table_type(self, table):
+    def _get_table_type(self, game):
         """Get table type from either JSON or legacy format."""
-        return table_type(table)
+        return table_type(game)
 
-    def _get_table_manufacturer(self, table):
+    def _get_table_manufacturer(self, game):
         """Get table manufacturer from either JSON or legacy format."""
-        return table_manufacturer(table)
+        return table_manufacturer(game)
 
-    def _get_table_year(self, table):
+    def _get_table_year(self, game):
         """Get table year from either JSON or legacy format."""
-        return table_year(table)
+        return table_year(game)
 
     @staticmethod
     def _normalize_rating(value):
         """Normalize rating values to an integer in the range 0..5."""
         return normalize_rating(value)
 
-    def _get_table_rating(self, table):
+    def _get_table_rating(self, game):
         """Get table rating from User.Rating metadata."""
-        return table_rating(table)
+        return table_rating(game)
 
     def filter_by_letter(self, tables, letter):
         """Filter tables by starting letter of name. Supports comma-separated values."""
@@ -105,10 +105,10 @@ class TableListFilters:
 
         letters = {l.strip().upper() for l in str(letter).split(',')}
         filtered = []
-        for table in tables:
-            name = self._get_table_name(table)
+        for game in tables:
+            name = self._get_table_name(game)
             if name and name[0].upper() in letters:
-                filtered.append(table)
+                filtered.append(game)
         return filtered
 
     def filter_by_theme(self, tables, theme):
@@ -118,10 +118,10 @@ class TableListFilters:
 
         themes = {t.strip() for t in str(theme).split(',')}
         filtered = []
-        for table in tables:
-            table_themes = self._get_table_theme(table)
+        for game in tables:
+            table_themes = self._get_table_theme(game)
             if themes & set(table_themes):
-                filtered.append(table)
+                filtered.append(game)
         return filtered
 
     def filter_by_type(self, tables, table_type):
@@ -131,10 +131,10 @@ class TableListFilters:
 
         types = {t.strip() for t in str(table_type).split(',')}
         filtered = []
-        for table in tables:
-            current_type = self._get_table_type(table)
+        for game in tables:
+            current_type = self._get_table_type(game)
             if current_type in types:
-                filtered.append(table)
+                filtered.append(game)
         return filtered
 
     def filter_by_manufacturer(self, tables, manufacturer):
@@ -144,10 +144,10 @@ class TableListFilters:
 
         manufacturers = {m.strip() for m in str(manufacturer).split(',')}
         filtered = []
-        for table in tables:
-            current_manufacturer = self._get_table_manufacturer(table)
+        for game in tables:
+            current_manufacturer = self._get_table_manufacturer(game)
             if current_manufacturer in manufacturers:
-                filtered.append(table)
+                filtered.append(game)
         return filtered
 
     def filter_by_year(self, tables, year):
@@ -157,10 +157,10 @@ class TableListFilters:
 
         years = {y.strip() for y in str(year).split(',')}
         filtered = []
-        for table in tables:
-            current_year = self._get_table_year(table)
+        for game in tables:
+            current_year = self._get_table_year(game)
             if current_year in years:
-                filtered.append(table)
+                filtered.append(game)
         return filtered
 
     def filter_by_rating(self, tables, rating, rating_or_higher=False):
@@ -180,10 +180,10 @@ class TableListFilters:
 
         if is_truthy(rating_or_higher):
             min_rating = min(selected_ratings)
-            return [table for table in tables if self._get_table_rating(table) >= min_rating]
+            return [game for game in tables if self._get_table_rating(game) >= min_rating]
 
         rating_set = set(selected_ratings)
-        return [table for table in tables if self._get_table_rating(table) in rating_set]
+        return [game for game in tables if self._get_table_rating(game) in rating_set]
 
     def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=False):
         """

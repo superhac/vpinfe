@@ -26,21 +26,21 @@ def _run_probe() -> dict:
     with TemporaryDirectory() as tmp:
         config_dir = Path(tmp) / "config"
         tables_dir = Path(tmp) / "tables"
-        table = tables_dir / "Example Table (Bally 1990)"
-        table.mkdir(parents=True)
-        (table / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
+        game = tables_dir / "Example Table (Bally 1990)"
+        game.mkdir(parents=True)
+        (game / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
         # Assets the parser should find: a backglass, a per-table ini, a ROM and music.
-        (table / "Example Table (Bally 1990).directb2s").write_bytes(b"b2s")
-        (table / "Example Table (Bally 1990).ini").write_text("[Standalone]", encoding="utf-8")
-        (table / "pinmame" / "roms").mkdir(parents=True)
-        (table / "pinmame" / "roms" / "exmpl.zip").write_bytes(b"rom")
-        (table / "music").mkdir()
-        (table / "music" / "theme.mp3").write_bytes(b"music")
+        (game / "Example Table (Bally 1990).directb2s").write_bytes(b"b2s")
+        (game / "Example Table (Bally 1990).ini").write_text("[Standalone]", encoding="utf-8")
+        (game / "pinmame" / "roms").mkdir(parents=True)
+        (game / "pinmame" / "roms" / "exmpl.zip").write_bytes(b"rom")
+        (game / "music").mkdir()
+        (game / "music" / "theme.mp3").write_bytes(b"music")
         # Media: one canonical, one root-fallback, most kinds absent.
-        (table / "medias").mkdir()
-        (table / "medias" / "wheel.png").write_bytes(b"\x89PNG wheel")
-        (table / "bg.png").write_bytes(b"\x89PNG bg at root")
-        (table / "Example Table (Bally 1990).info").write_text(json.dumps({
+        (game / "medias").mkdir()
+        (game / "medias" / "wheel.png").write_bytes(b"\x89PNG wheel")
+        (game / "bg.png").write_bytes(b"\x89PNG bg at root")
+        (game / "Example Table (Bally 1990).info").write_text(json.dumps({
             "Info": {"Title": "Example Table", "Manufacturer": "Bally", "Year": "1990",
                      "Type": "SS", "VPSId": "vps-example"},
             "game_files": {"Example Table (Bally 1990).vpx": {"rom": "exmpl",
@@ -170,11 +170,11 @@ class ApiContractTests(unittest.TestCase):
         """Assets are what the table needs to play; media is the artwork shown
         while browsing - see docs/conventions.md. The detail endpoint is the
         inventory lens: every kind, files attributed."""
-        table = self.probe["table_get"]["json"]
+        game = self.probe["table_get"]["json"]
 
-        self.assertIn("assets", table)
-        self.assertNotIn("media", table, "these were mislabelled as media")
-        self.assertEqual(set(table["assets"]),
+        self.assertIn("assets", game)
+        self.assertNotIn("media", game, "these were mislabelled as media")
+        self.assertEqual(set(game["assets"]),
                          {"backglass", "settings", "script", "pov", "scv",
                           "pup_pack", "alt_color", "alt_sound", "music"})
 
@@ -233,10 +233,10 @@ class ApiContractTests(unittest.TestCase):
         """A declared ROM name may be a PinMAME dependency or just a DOF key. Until
         the two can be told apart, "no ROM file" would read as broken on every EM
         table, which is most of the ones that declare a name."""
-        table = self.probe["table_get"]["json"]
+        game = self.probe["table_get"]["json"]
 
-        self.assertNotIn("rom", table["assets"])
-        self.assertIn("rom", table, "the declared name is still metadata on the table")
+        self.assertNotIn("rom", game["assets"])
+        self.assertIn("rom", game, "the declared name is still metadata on the table")
 
     def test_media_lists_every_kind_present_or_not(self) -> None:
         """Media is the artwork about a table - exactly the media_paths kinds. A
@@ -279,18 +279,18 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(entry["status"], 200)
         body = entry["json"]
         self.assertEqual(body["total"], 3)
-        table = [t for t in body["tables"] if t["name"] == "Example Table"][0]
-        self.assertTrue(table["id"], "every listed table is addressable")
-        self.assertEqual(table["vps_id"], "vps-example", "correlation, not identity")
-        self.assertEqual(table["name"], "Example Table")
+        game = [t for t in body["tables"] if t["name"] == "Example Table"][0]
+        self.assertTrue(game["id"], "every listed table is addressable")
+        self.assertEqual(game["vps_id"], "vps-example", "correlation, not identity")
+        self.assertEqual(game["name"], "Example Table")
 
     def test_a_table_resource_links_to_its_sub_resources(self) -> None:
-        table = self.probe["table_get"]["json"]
+        game = self.probe["table_get"]["json"]
 
         self.assertEqual(self.probe["table_get"]["status"], 200)
-        self.assertEqual(table["links"]["game_files"],
-                         f"/api/v1/tables/{table['id']}/game-files")
-        self.assertEqual(table["links"]["archive"], f"/api/v1/tables/{table['id']}/archive")
+        self.assertEqual(game["links"]["game_files"],
+                         f"/api/v1/tables/{game['id']}/game-files")
+        self.assertEqual(game["links"]["archive"], f"/api/v1/tables/{game['id']}/archive")
 
     def test_game_files_are_a_list_even_though_there_is_one_today(self) -> None:
         """A table is not permanently one .vpx; the shape says so now."""

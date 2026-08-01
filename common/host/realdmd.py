@@ -16,13 +16,13 @@ from common.config_access import MediaConfig
 logger = logging.getLogger("vpinfe.common.host.realdmd")
 
 
-def get_realdmd_image_for_table(table, iniconfig=None) -> Path | None:
+def get_realdmd_image_for_table(game, iniconfig=None) -> Path | None:
     priority = "color"
     if iniconfig is not None:
         priority = MediaConfig.from_config(iniconfig).realdmd_media_priority
 
-    standard_path = str(getattr(table, "realDMDImagePath", "") or "").strip()
-    color_path = str(getattr(table, "realDMDColorImagePath", "") or "").strip()
+    standard_path = str(getattr(game, "realDMDImagePath", "") or "").strip()
+    color_path = str(getattr(game, "realDMDColorImagePath", "") or "").strip()
     candidates = (
         (standard_path, color_path)
         if priority == "standard"

@@ -305,8 +305,8 @@ def render_panel(tab=None):
                     update_table_display()
                 except NameError:
                     # Filters not yet created, just show all rows
-                    table._props['rows'] = table_rows
-                    table.update()
+                    game._props['rows'] = table_rows
+                    game.update()
                     title_label.set_text(f"Tables ({len(table_rows)})")
 
                 # Force browser layout recalculation to ensure table rows display properly
@@ -619,7 +619,7 @@ def render_panel(tab=None):
         render_info_banners(on_done=lambda: asyncio.create_task(perform_scan(silent=True)))
 
         def _dnd_context() -> DropContext:
-            selected = table.selected or []
+            selected = game.selected or []
             if len(selected) == 1:
                 row = selected[0]
                 return DropContext(table_path=row.get('table_path', ''), table_row=row,
@@ -675,8 +675,8 @@ def render_panel(tab=None):
         def update_table_display():
             """Update the table with filtered results."""
             filtered = apply_filters()
-            table._props['rows'] = filtered
-            table.update()
+            game._props['rows'] = filtered
+            game.update()
             # Update title with filtered count
             total = len(_tables_cache() or [])
             shown = len(filtered)
@@ -728,7 +728,7 @@ def render_panel(tab=None):
             table_type_select.value = 'All'
             pup_pack_checkbox.value = False
             b2s_checkbox.value = False
-            table._props['pagination']['page'] = 1
+            game._props['pagination']['page'] = 1
             update_table_display()
 
         def refresh_filter_options():
@@ -824,8 +824,8 @@ def render_panel(tab=None):
         table_container = ui.column().classes("w-full").style("flex: 1; overflow: hidden; display: flex;")
 
         with table_container:
-            table = (
-                ui.table(columns=columns, rows=initial_rows, row_key='vpinfe_id', selection='multiple',
+            game = (
+                ui.game(columns=columns, rows=initial_rows, row_key='vpinfe_id', selection='multiple',
                          on_select=on_selection_change, pagination={'rowsPerPage': 25})
                   .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
                   .on('row-click', on_row_click)
@@ -833,7 +833,7 @@ def render_panel(tab=None):
                   .style("flex: 1; overflow: auto;")
             )
             # Add custom slot for name column to include status badges, links, and collections
-            table.add_slot('body-cell-name', '''
+            game.add_slot('body-cell-name', '''
                 <q-td :props="props" :data-drop-table-id="props.row.vpinfe_id">
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -908,7 +908,7 @@ def render_panel(tab=None):
                 </q-td>
             ''')
             # Add top pagination controls (styled to match bottom)
-            table.add_slot('top', '''
+            game.add_slot('top', '''
                 <div class="row full-width items-center justify-end q-pa-sm"
                      style="background-color: var(--surface); color: var(--ink); border-bottom: 1px solid var(--line); border-radius: var(--radius);">
                     <q-btn flat round dense icon="first_page" :disable="props.isFirstPage" @click="props.firstPage" size="sm" style="color: var(--ink-muted);" />
@@ -921,7 +921,7 @@ def render_panel(tab=None):
                 </div>
             ''')
             # Add bottom with Select All checkbox alongside pagination
-            table.add_slot('bottom', '''
+            game.add_slot('bottom', '''
                 <div class="row full-width items-center q-pa-sm"
                      style="background-color: var(--surface); color: var(--ink); border-top: 1px solid var(--line);">
                     <q-checkbox
@@ -967,7 +967,7 @@ def render_panel(tab=None):
                 </div>
             ''')
 
-            enable_row_drops(drop_zone, table, _dnd_row_context)
+            enable_row_drops(drop_zone, game, _dnd_row_context)
 
         # Wire up batch add-to-collection button
         def on_batch_add():
@@ -975,7 +975,7 @@ def render_panel(tab=None):
             if not collection:
                 ui.notify('Please select a collection', type='warning')
                 return
-            selected = table.selected
+            selected = game.selected
             if not selected:
                 ui.notify('No tables selected', type='warning')
                 return
@@ -993,8 +993,8 @@ def render_panel(tab=None):
                 if skipped > 0:
                     msg += f' ({skipped} skipped - no table id)'
                 ui.notify(msg, type='positive')
-                table.selected.clear()
-                table.update()
+                game.selected.clear()
+                game.update()
                 batch_bar.visible = False
                 batch_collection_select.value = None
                 update_table_display()
@@ -1005,8 +1005,8 @@ def render_panel(tab=None):
 
         # Handle Select All toggle from the bottom slot checkbox (current page only)
         def on_toggle_select_all(e):
-            rows = table._props.get('rows', [])
-            pagination = table._props.get('pagination', {})
+            rows = game._props.get('rows', [])
+            pagination = game._props.get('pagination', {})
             page = pagination.get('page', 1)
             per_page = pagination.get('rowsPerPage', 25)
             start = (page - 1) * per_page
@@ -1014,28 +1014,28 @@ def render_panel(tab=None):
             page_rows = rows[start:end]
 
             # If all current page rows are already selected, deselect them; otherwise select them
-            selected_keys = {r.get('vpinfe_id') for r in table.selected}
+            selected_keys = {r.get('vpinfe_id') for r in game.selected}
             page_keys = {r.get('vpinfe_id') for r in page_rows}
             all_page_selected = page_keys.issubset(selected_keys) and len(page_keys) > 0
 
             if all_page_selected:
                 # Deselect current page rows (keep others)
-                table.selected = [r for r in table.selected if r.get('vpinfe_id') not in page_keys]
+                game.selected = [r for r in game.selected if r.get('vpinfe_id') not in page_keys]
             else:
                 # Add current page rows to selection (avoid duplicates)
                 for r in page_rows:
                     if r.get('vpinfe_id') not in selected_keys:
-                        table.selected.append(r)
-            table.update()
+                        game.selected.append(r)
+            game.update()
             # Update batch bar
-            if table.selected:
+            if game.selected:
                 batch_bar.visible = True
-                count = len(table.selected)
+                count = len(game.selected)
                 batch_label.set_text(f'{count} table{"s" if count != 1 else ""} selected')
             else:
                 batch_bar.visible = False
 
-        table.on('toggle_select_all', on_toggle_select_all)
+        game.on('toggle_select_all', on_toggle_select_all)
 
         # Update missing button if we have cached data
         cached_missing = _missing_cache()

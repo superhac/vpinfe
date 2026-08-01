@@ -28,14 +28,14 @@ warnings.filterwarnings("ignore")
 
 def _build_fixture_library(root: Path) -> None:
     """A tiny table library exercising the surfaces themes and tools depend on."""
-    table = root / "Example Table (Bally 1990)"
-    medias = table / "medias"
+    game = root / "Example Table (Bally 1990)"
+    medias = game / "medias"
     medias.mkdir(parents=True)
-    (table / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
-    (table / "Example Table (Bally 1990).directb2s").write_bytes(b"b2s")
+    (game / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
+    (game / "Example Table (Bally 1990).directb2s").write_bytes(b"b2s")
     (medias / "wheel.png").write_bytes(b"\x89PNG wheel")
     (medias / "bg.png").write_bytes(b"\x89PNG bg")
-    (table / "Example Table (Bally 1990).info").write_text(json.dumps({
+    (game / "Example Table (Bally 1990).info").write_text(json.dumps({
         "Info": {"Title": "Example Table", "Manufacturer": "Bally", "Year": "1990",
                  "Type": "SS", "VPSId": "vps-example"},
         "VPXFile": {"filename": "Example Table (Bally 1990).vpx", "rom": "exmpl"},

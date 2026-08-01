@@ -62,9 +62,9 @@ class TableParser:
                 continue
             if game_dir.name.startswith('.'):
                 continue
-            table = self._build_table(game_dir)
-            if table is not None:
-                self.tables.append(table)
+            game = self._build_table(game_dir)
+            if game is not None:
+                self.tables.append(game)
 
         elapsed = perf_counter() - started_at
         logger.debug(
@@ -80,9 +80,9 @@ class TableParser:
         The whole of what a scan does per table, so refreshing one costs one folder
         rather than the library.
         """
-        table = Game()
-        table.tableDirName = game_dir.name
-        table.fullPathTable = str(game_dir)
+        game = Game()
+        game.tableDirName = game_dir.name
+        game.fullPathTable = str(game_dir)
 
         game_contents = set()
         game_subdirs = set()
@@ -102,19 +102,19 @@ class TableParser:
             logger.exception("Failed to enumerate table directory: %s", game_dir)
 
         if not game_file_names(game_contents):
-            logger.warning("No .vpx found in %s directory.", table.tableDirName)
+            logger.warning("No .vpx found in %s directory.", game.tableDirName)
             return None
 
-        info_name = f"{table.tableDirName}.info"
+        info_name = f"{game.tableDirName}.info"
         # Only folders holding a backup open one.
         stamps = backup_names(game_contents, info_name)
-        table.info_restorable = bool(
+        game.info_restorable = bool(
             stamps and restorable_backup(game_dir, names=game_contents))
         if stamps:
-            table.info_backup_stamp = stamps[0].rsplit(BACKUP_MARKER, 1)[-1]
+            game.info_backup_stamp = stamps[0].rsplit(BACKUP_MARKER, 1)[-1]
         if info_name not in game_contents:
             self.missing_tables.append({
-                'folder': table.tableDirName,
+                'folder': game.tableDirName,
                 'path': str(game_dir),
             })
 
@@ -122,27 +122,27 @@ class TableParser:
         # file. Media is a different thing and is loaded below. See
         # docs/conventions.md.
         if any(name.lower().endswith(".directb2s") for name in game_contents):
-            table.b2sExists = True
+            game.b2sExists = True
         if "pupvideos" in game_subdirs:
-            table.pupPackExists = True
+            game.pupPackExists = True
         if "serum" in game_subdirs:
-            table.altColorExists = True
+            game.altColorExists = True
         if "vni" in game_subdirs:
-            table.vniExists = True
+            game.vniExists = True
         if "music" in game_subdirs:
-            table.musicExists = True
+            game.musicExists = True
         if any(name.lower().endswith(".ini") for name in game_contents):
-            table.iniExists = True
+            game.iniExists = True
         if "pinmame" in game_subdirs and (game_dir / "pinmame" / "altsound").is_dir():
-            table.altSoundExists = True
+            game.altSoundExists = True
 
         try:
-            self.loadMetaData(table)
+            self.loadMetaData(game)
         except InvalidMetaConfigError as exc:
             # This used to stop the whole library loading. Excluded rather than loaded
             # empty, so nothing can write over a file we could not read.
             self.unreadable_tables.append({
-                'folder': table.tableDirName,
+                'folder': game.tableDirName,
                 'path': str(game_dir),
                 'error': str(exc),
             })
@@ -151,25 +151,25 @@ class TableParser:
 
         # After the metadata, so a folder with several .vpx launches the one its
         # metadata describes rather than whichever the filesystem listed first.
-        recorded = recorded_default(vpinfe_section(table.metaConfig))
+        recorded = recorded_default(vpinfe_section(game.metaConfig))
         chosen = default_game_file(game_contents, game_dir.name, recorded)
-        table.fullPathVPXfile = str(game_dir / chosen)
+        game.fullPathVPXfile = str(game_dir / chosen)
 
         # Media after the default pick: tier 1 of the resolution chain keys off
         # the game file that actually launches.
         self.loadImagePaths(
-            table,
+            game,
             game_contents=game_contents,
             has_medias_dir="medias" in game_subdirs,
             game_file_stem=Path(chosen).stem if chosen else None,
         )
         try:
-            stat = os.stat(table.fullPathVPXfile)
-            table.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
+            stat = os.stat(game.fullPathVPXfile)
+            game.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
         except OSError:
-            logger.warning("Could not stat game file: %s", table.fullPathVPXfile)
+            logger.warning("Could not stat game file: %s", game.fullPathVPXfile)
 
-        return table
+        return game
 
 
     def reload_table(self, game_dir):
@@ -183,18 +183,18 @@ class TableParser:
         self.missing_tables = [row for row in self.missing_tables if row["path"] != target]
         self.unreadable_tables = [r for r in self.unreadable_tables if r["path"] != target]
 
-        table = self._build_table(game_dir) if game_dir.is_dir() else None
+        game = self._build_table(game_dir) if game_dir.is_dir() else None
         for index, existing in enumerate(self.tables):
             if existing.fullPathTable == target:
-                if table is None:
+                if game is None:
                     del self.tables[index]        # the folder went away
                 else:
-                    self.tables[index] = table
-                return table
+                    self.tables[index] = game
+                return game
 
-        if table is not None:
-            self.tables.append(table)             # a folder that was not there before
-        return table
+        if game is not None:
+            self.tables.append(game)             # a folder that was not there before
+        return game
 
     def loadImagePaths(self, Game, game_contents=None, has_medias_dir=None,
                        game_file_stem=None):

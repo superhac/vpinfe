@@ -118,9 +118,9 @@ def get_vpsdb_rows_for_filter_options(cached_vpsdb_rows: list[dict] | None = Non
 def get_table_name_map(cached_tables: list[dict] | None = None) -> Dict[str, str]:
     tables = get_table_rows_for_collections(cached_tables)
     return {
-        table["vpinfe_id"]: table.get("name") or table["vpinfe_id"]
-        for table in tables
-        if table.get("vpinfe_id")
+        game["vpinfe_id"]: game.get("name") or game["vpinfe_id"]
+        for game in tables
+        if game.get("vpinfe_id")
     }
 
 
@@ -170,26 +170,26 @@ def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> Dict[str,
     manufacturers = set()
     years = set()
 
-    for table in tables:
-        name = table.get("name", "")
+    for game in tables:
+        name = game.get("name", "")
         if name:
             first_char = name[0].upper()
             if first_char.isalnum():
                 letters.add(first_char)
 
-        table_type = table.get("type", "") or table.get("tableType", "")
+        table_type = game.get("type", "") or game.get("tableType", "")
         if table_type:
             types.add(str(table_type).strip())
 
-        manufacturer = table.get("manufacturer", "") or table.get("mfg", "")
+        manufacturer = game.get("manufacturer", "") or game.get("mfg", "")
         if manufacturer:
             manufacturers.add(str(manufacturer).strip())
 
-        year = table.get("year", "")
+        year = game.get("year", "")
         if year:
             years.add(str(year))
 
-        themes.update(_as_values(table.get("theme", table.get("themes", []))))
+        themes.update(_as_values(game.get("theme", game.get("themes", []))))
 
     return {
         "letters": ["All"] + sorted(letters),
@@ -255,6 +255,6 @@ def search_tables(term: str, cached_tables: list[dict] | None = None, limit: int
     if not term:
         return []
     return [
-        table for table in get_table_rows_for_collections(cached_tables)
-        if term in (table.get("name") or "").lower()
+        game for game in get_table_rows_for_collections(cached_tables)
+        if term in (game.get("name") or "").lower()
     ][:limit]

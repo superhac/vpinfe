@@ -24,11 +24,11 @@ from common.tables.table_metadata import (
 logger = logging.getLogger("vpinfe.common.tables.table_play_service")
 
 
-def track_table_play(table, collection_name: str = "Last Played", max_items: int = 30) -> None:
-    meta = normalize_meta(getattr(table, "metaConfig", {}))
+def track_table_play(game, collection_name: str = "Last Played", max_items: int = 30) -> None:
+    meta = normalize_meta(getattr(game, "metaConfig", {}))
     # Membership is the table's own id; VPSId is a fallback for a table that has
     # not been assigned one yet.
-    member_id = table_identity.table_id(table) or section(meta, "Info").get("VPSId")
+    member_id = table_identity.table_id(game) or section(meta, "Info").get("VPSId")
     if not member_id:
         logger.debug("Table has no id, cannot track play")
         return
@@ -49,35 +49,35 @@ def track_table_play(table, collection_name: str = "Last Played", max_items: int
     logger.info("Tracked table play: %s (now %s in %s)", member_id, len(ids[:max_items]), collection_name)
 
 
-def increment_start_count(table, game_file: str = "") -> None:
-    config = clone_table_meta(table)
+def increment_start_count(game, game_file: str = "") -> None:
+    config = clone_table_meta(game)
     if not config:
-        logger.warning("Could not increment StartCount: invalid table metadata for %s", table.tableDirName)
+        logger.warning("Could not increment StartCount: invalid table metadata for %s", game.tableDirName)
         return
 
     user = apply_start_count_update(config, game_file=game_file)
-    persist_table_meta(table, config)
-    logger.debug("Updated User.StartCount for %s -> %s", table.tableDirName, user["StartCount"])
+    persist_table_meta(game, config)
+    logger.debug("Updated User.StartCount for %s -> %s", game.tableDirName, user["StartCount"])
 
 
-def add_runtime_minutes(table, elapsed_seconds: float, game_file: str = "") -> None:
-    config = clone_table_meta(table)
+def add_runtime_minutes(game, elapsed_seconds: float, game_file: str = "") -> None:
+    config = clone_table_meta(game)
     if not config:
-        logger.warning("Could not update RunTime: invalid table metadata for %s", table.tableDirName)
+        logger.warning("Could not update RunTime: invalid table metadata for %s", game.tableDirName)
         return
 
     user = apply_runtime_update(config, elapsed_seconds, game_file=game_file)
-    persist_table_meta(table, config)
+    persist_table_meta(game, config)
     logger.info(
         "Updated User.RunTime for %s: +%s min (total=%s)",
-        table.tableDirName,
+        game.tableDirName,
         int((elapsed_seconds + 59) // 60),
         user["RunTime"],
     )
 
 
-def clone_table_meta(table) -> dict:
-    config = load_table_meta(table)
+def clone_table_meta(game) -> dict:
+    config = load_table_meta(game)
     return deepcopy(config) if isinstance(config, dict) else {}
 
 
@@ -130,34 +130,34 @@ def score_rom_from_meta(config: dict) -> str:
     return str(default_game_file_entry(config).get("rom", "") or "").strip()
 
 
-def parse_score_from_nvram(table) -> tuple[dict | None, str | None]:
-    config = clone_table_meta(table)
+def parse_score_from_nvram(game) -> tuple[dict | None, str | None]:
+    config = clone_table_meta(game)
     if not config:
-        logger.warning("Could not parse Score: invalid table metadata for %s", table.tableDirName)
+        logger.warning("Could not parse Score: invalid table metadata for %s", game.tableDirName)
         return None, None
 
     rom = score_rom_from_meta(config)
     if not rom:
-        logger.debug("No ROM name found for %s, skipping score update", table.tableDirName)
+        logger.debug("No ROM name found for %s, skipping score update", game.tableDirName)
         return None, None
 
     try:
         from common.tables.score_parser import read_rom_with_source, result_to_jsonable
 
-        parsed_result, score_path = read_rom_with_source(rom, table.fullPathTable)
+        parsed_result, score_path = read_rom_with_source(rom, game.fullPathTable)
         score_data = result_to_jsonable(rom, parsed_result, score_path)
     except FileNotFoundError:
-        logger.debug("No score source found for %s and ROM %s", table.tableDirName, rom)
+        logger.debug("No score source found for %s and ROM %s", game.tableDirName, rom)
         return None, None
     except KeyError:
         logger.debug("ROM %s is not supported for score parsing", rom)
         return None, None
     except Exception:
-        logger.exception("Failed to parse score data for %s", table.tableDirName)
+        logger.exception("Failed to parse score data for %s", game.tableDirName)
         return None, None
 
     if not score_data:
-        logger.debug("Parsed score data for %s was empty, skipping metadata update", table.tableDirName)
+        logger.debug("Parsed score data for %s was empty, skipping metadata update", game.tableDirName)
         return None, None
 
     return score_data, score_path
@@ -169,10 +169,10 @@ def apply_score_update(config: dict, score_data: dict) -> dict:
     return user
 
 
-def build_runtime_submission_meta(table, user_state: dict) -> dict:
-    config = clone_table_meta(table)
+def build_runtime_submission_meta(game, user_state: dict) -> dict:
+    config = clone_table_meta(game)
     if not config:
-        logger.warning("Could not build runtime submission metadata for %s", table.tableDirName)
+        logger.warning("Could not build runtime submission metadata for %s", game.tableDirName)
         return {}
 
     user = get_or_create_user_meta(config)
@@ -192,23 +192,23 @@ def build_runtime_submission_meta(table, user_state: dict) -> dict:
     return config
 
 
-def update_score_from_nvram(table) -> None:
-    config = clone_table_meta(table)
+def update_score_from_nvram(game) -> None:
+    config = clone_table_meta(game)
     if not config:
-        logger.warning("Could not update Score: invalid table metadata for %s", table.tableDirName)
+        logger.warning("Could not update Score: invalid table metadata for %s", game.tableDirName)
         return
 
-    score_data, score_path = parse_score_from_nvram(table)
+    score_data, score_path = parse_score_from_nvram(game)
     if not score_data:
         return
 
     apply_score_update(config, score_data)
-    persist_table_meta(table, config)
-    logger.info("Updated User.Score for %s from %s", table.tableDirName, score_path)
+    persist_table_meta(game, config)
+    logger.info("Updated User.Score for %s from %s", game.tableDirName, score_path)
 
 
-def delete_nvram_if_configured(table) -> None:
-    config = normalize_meta(getattr(table, "metaConfig", {}))
+def delete_nvram_if_configured(game) -> None:
+    config = normalize_meta(getattr(game, "metaConfig", {}))
     vpinfe = vpinfe_section(config)
     if not vpinfe.get("delete_nvram_on_close", False):
         return
@@ -218,7 +218,7 @@ def delete_nvram_if_configured(table) -> None:
         logger.warning("No ROM name found for table, skipping NVRAM deletion")
         return
 
-    nvram_path = Path(table.fullPathTable) / "pinmame" / "nvram" / f"{rom}.nv"
+    nvram_path = Path(game.fullPathTable) / "pinmame" / "nvram" / f"{rom}.nv"
     if nvram_path.exists():
         nvram_path.unlink()
         logger.info("Deleted NVRAM file: %s", nvram_path)

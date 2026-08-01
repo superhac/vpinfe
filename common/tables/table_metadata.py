@@ -127,8 +127,8 @@ def reorder_leading_article(title: Any) -> str:
     return text
 
 
-def table_title(table) -> str:
-    meta = normalize_meta(getattr(table, "metaConfig", {}))
+def table_title(game) -> str:
+    meta = normalize_meta(getattr(game, "metaConfig", {}))
     vpinfe = vpinfe_section(meta)
     info = section(meta, "Info")
     if str(vpinfe.get("alt_vpsid", "") or "").strip():
@@ -136,12 +136,12 @@ def table_title(table) -> str:
         if alt_title:
             # A user-set alttitle is left exactly as entered - never reordered.
             return alt_title
-    raw = str(info.get("Title", "") or get_meta_value(meta, "VPSdb", "name", "") or getattr(table, "tableDirName", "") or "").strip()
+    raw = str(info.get("Title", "") or get_meta_value(meta, "VPSdb", "name", "") or getattr(game, "tableDirName", "") or "").strip()
     return reorder_leading_article(raw)
 
 
-def table_themes(table) -> list[str]:
-    meta = normalize_meta(getattr(table, "metaConfig", {}))
+def table_themes(game) -> list[str]:
+    meta = normalize_meta(getattr(game, "metaConfig", {}))
     value = get_meta_value(meta, "Info", "Themes", None)
     if value:
         return value if isinstance(value, list) else [value]
@@ -160,43 +160,43 @@ def table_themes(table) -> list[str]:
     return [legacy]
 
 
-def table_type(table) -> str:
-    meta = normalize_meta(getattr(table, "metaConfig", {}))
+def table_type(game) -> str:
+    meta = normalize_meta(getattr(game, "metaConfig", {}))
     return str(first_meta_value(meta, ("Info", "Type"), ("VPSdb", "type"), default="") or "")
 
 
-def table_manufacturer(table) -> str:
-    meta = normalize_meta(getattr(table, "metaConfig", {}))
+def table_manufacturer(game) -> str:
+    meta = normalize_meta(getattr(game, "metaConfig", {}))
     return str(first_meta_value(meta, ("Info", "Manufacturer"), ("VPSdb", "manufacturer"), default="") or "")
 
 
-def table_year(table) -> str:
-    meta = normalize_meta(getattr(table, "metaConfig", {}))
+def table_year(game) -> str:
+    meta = normalize_meta(getattr(game, "metaConfig", {}))
     value = first_meta_value(meta, ("Info", "Year"), ("VPSdb", "year"), default="")
     return str(value) if value else ""
 
 
-def table_rating(table) -> int:
-    meta = normalize_meta(getattr(table, "metaConfig", {}))
+def table_rating(game) -> int:
+    meta = normalize_meta(getattr(game, "metaConfig", {}))
     return normalize_rating(get_meta_value(meta, "User", "Rating", 0))
 
 
-def table_frontend_dof_event(table) -> str:
+def table_frontend_dof_event(game) -> str:
     """The DOF effect a table asks for when selected, or "" to use the default."""
-    meta = normalize_meta(getattr(table, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "metaConfig", {}))
     return str(vpinfe_section(meta).get("frontend_dof_event", "") or "").strip()
 
 
-def table_vps_id(table) -> str:
-    meta = normalize_meta(getattr(table, "metaConfig", {}))
+def table_vps_id(game) -> str:
+    meta = normalize_meta(getattr(game, "metaConfig", {}))
     alt_vpsid = str(vpinfe_section(meta).get("alt_vpsid", "") or "").strip()
     if alt_vpsid:
         return alt_vpsid
     return str(section(meta, "Info").get("VPSId", "") or "").strip()
 
 
-def base_table_vps_id(table) -> str:
-    return str(section(getattr(table, "metaConfig", {}), "Info").get("VPSId", "") or "").strip()
+def base_table_vps_id(game) -> str:
+    return str(section(getattr(game, "metaConfig", {}), "Info").get("VPSId", "") or "").strip()
 
 
 def get_or_create_user_meta(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -224,28 +224,28 @@ def get_or_create_game_file_user(config: dict[str, Any], filename: str) -> dict[
     return user
 
 
-def meta_file_path(table) -> Path:
-    return Path(table.fullPathTable) / f"{table.tableDirName}.info"
+def meta_file_path(game) -> Path:
+    return Path(game.fullPathTable) / f"{game.tableDirName}.info"
 
 
-def load_table_meta(table) -> Dict[str, Any]:
-    meta_path = meta_file_path(table)
+def load_table_meta(game) -> Dict[str, Any]:
+    meta_path = meta_file_path(game)
     if meta_path.exists():
         return normalize_meta(MetaConfig(str(meta_path)).data)
-    return normalize_meta(getattr(table, "metaConfig", {}))
+    return normalize_meta(getattr(game, "metaConfig", {}))
 
 
-def persist_table_meta(table, config: Dict[str, Any]) -> None:
-    meta_file = MetaConfig(str(meta_file_path(table)))
+def persist_table_meta(game, config: Dict[str, Any]) -> None:
+    meta_file = MetaConfig(str(meta_file_path(game)))
     upgraded = meta_file.pending_migration
     meta_file.data = config
     meta_file.writeConfig()
-    table.metaConfig = config
+    game.metaConfig = config
     # Both flags were read during the scan, and this write is what makes them wrong.
     # Nothing is pending once the file is on disk, and a upgrade has just left a
     # restore point behind it. Without this the id backfill upgrades the whole library
     # at startup and every loaded table still claims it needs upgrading - which is what
     # the Tables page then reports, for as long as the process lives.
-    table.info_pending_upgrade = False
+    game.info_pending_upgrade = False
     if upgraded:
-        table.info_restorable = True
+        game.info_restorable = True

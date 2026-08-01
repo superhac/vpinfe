@@ -419,7 +419,7 @@ def _build_vpxz_download_panel():
         ]
 
         with table_container:
-            tbl = ui.table(
+            tbl = ui.game(
                 columns=columns,
                 rows=rows,
                 row_key='table_dir_name',
@@ -723,7 +723,7 @@ def _build_web_send_panel():
         ]
 
         with table_container:
-            tbl = ui.table(
+            tbl = ui.game(
                 columns=columns,
                 rows=rows,
                 row_key='table_dir_name',

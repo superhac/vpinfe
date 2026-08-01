@@ -35,8 +35,8 @@ class TestLastTable(unittest.TestCase):
     def test_resolve_survives_reordering(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            table = FakeTable(fullPathTable="/tables/BBB", tableDirName="BBB")
-            last_table.save_last_table(config, table)
+            game = FakeTable(fullPathTable="/tables/BBB", tableDirName="BBB")
+            last_table.save_last_table(config, game)
 
             reordered = [
                 FakeTable(fullPathTable="/tables/CCC", tableDirName="CCC"),
@@ -77,12 +77,12 @@ class TestLastTable(unittest.TestCase):
     def test_falls_back_to_dir_name_when_path_missing(self) -> None:
         with TemporaryDirectory() as tmp:
             config = _config(tmp)
-            table = FakeTable(fullPathTable="", tableDirName="OnlyDirName")
-            last_table.save_last_table(config, table)
+            game = FakeTable(fullPathTable="", tableDirName="OnlyDirName")
+            last_table.save_last_table(config, game)
 
             self.assertEqual(config.config.get("State", "lasttable"), "OnlyDirName")
             self.assertEqual(
-                last_table.resolve_last_table_index(config, [FakeTable(tableDirName="Other"), table]),
+                last_table.resolve_last_table_index(config, [FakeTable(tableDirName="Other"), game]),
                 1,
             )
 

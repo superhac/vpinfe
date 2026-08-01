@@ -74,15 +74,15 @@ class BusTests(unittest.TestCase):
         seen = {}
         events.hook("t.e", lambda **payload: seen.update(payload))
 
-        events.emit("t.e", table="Medieval Madness", ini_config=None)
+        events.emit("t.e", game="Medieval Madness", ini_config=None)
 
-        self.assertEqual(seen["table"], "Medieval Madness")
+        self.assertEqual(seen["game"], "Medieval Madness")
 
     def test_handlers_tolerate_a_growing_payload(self) -> None:
         """Handlers take **payload, so adding a field later is not a breaking change."""
-        events.hook("t.e", lambda *, table=None, **_: None)
+        events.hook("t.e", lambda *, game=None, **_: None)
 
-        events.emit("t.e", table="x", ini_config=None, something_added_later=1)
+        events.emit("t.e", game="x", ini_config=None, something_added_later=1)
 
     def test_emitting_an_event_nobody_listens_to_is_fine(self) -> None:
         events.emit("t.nobody.cares", anything=1)
@@ -131,7 +131,7 @@ class PeripheralLaunchTests(unittest.TestCase):
                 mock.patch.object(peripherals, "stop_libdmdutil_service",
                                   side_effect=lambda clear=False: order.append("dmd released")):
             peripherals.register()
-            events.emit(events.TABLE_LAUNCHING, table=None, ini_config=None)
+            events.emit(events.TABLE_LAUNCHING, game=None, ini_config=None)
 
         self.assertEqual(order, ["dof released", "dmd released", "other"])
 
@@ -142,14 +142,14 @@ class PeripheralLaunchTests(unittest.TestCase):
             peripherals.register()
 
             with self.assertRaises(RuntimeError):
-                events.emit(events.TABLE_LAUNCHING, table=None, ini_config=None)
+                events.emit(events.TABLE_LAUNCHING, game=None, ini_config=None)
 
     def test_the_hardware_is_taken_back_when_the_table_exits(self) -> None:
         taken_back = []
         with mock.patch.object(peripherals, "start_dof_service_if_enabled",
                                side_effect=lambda cfg: taken_back.append(cfg)):
             peripherals.register()
-            events.emit(events.TABLE_EXITED, table=None, ini_config="the-config")
+            events.emit(events.TABLE_EXITED, game=None, ini_config="the-config")
 
         self.assertEqual(taken_back, ["the-config"])
 
@@ -185,7 +185,7 @@ class TableSelectionTests(unittest.TestCase):
             updater.return_value.queue_image_update.side_effect = (
                 lambda name, path: shown.append(name))
             peripherals.register()
-            events.emit(events.TABLE_SELECTED, table=self._table(), ini_config="cfg")
+            events.emit(events.TABLE_SELECTED, game=self._table(), ini_config="cfg")
 
         self.assertEqual(sent, ["E901"], "the table's own effect, not the default")
         self.assertEqual(shown, ["Medieval Madness"])
@@ -198,7 +198,7 @@ class TableSelectionTests(unittest.TestCase):
             updater.return_value.queue_image_update.side_effect = (
                 lambda name, path: shown.append(name))
             peripherals.register()
-            events.emit(events.TABLE_SELECTED, table=self._table(), ini_config="cfg")
+            events.emit(events.TABLE_SELECTED, game=self._table(), ini_config="cfg")
 
         self.assertEqual(shown, ["Medieval Madness"])
 
@@ -209,7 +209,7 @@ class TableSelectionTests(unittest.TestCase):
                 mock.patch.object(peripherals, "_updater",
                                   side_effect=RuntimeError("no panel attached")):
             peripherals.register()
-            events.emit(events.TABLE_SELECTED, table=self._table(), ini_config="cfg")
+            events.emit(events.TABLE_SELECTED, game=self._table(), ini_config="cfg")
 
         self.assertEqual(sent, ["E901"])
 

@@ -43,34 +43,34 @@ class StandaloneScripts:
              return
          total = len(self.tables) if self.tables else 0
          current = 0
-         for table in self.tables:
+         for game in self.tables:
              current += 1
              if self.progress_cb and total:
                  try:
-                     self.progress_cb(current - 1, total, f"Checking {table.tableDirName}")
+                     self.progress_cb(current - 1, total, f"Checking {game.tableDirName}")
                  except Exception:
                      pass
-             basepath = table.fullPathTable
+             basepath = game.fullPathTable
              try:
-                meta = MetaConfig(basepath+"/"+table.tableDirName+".info")
-                vpxFileName = os.path.basename(table.fullPathVPXfile)
+                meta = MetaConfig(basepath+"/"+game.tableDirName+".info")
+                vpxFileName = os.path.basename(game.fullPathVPXfile)
                 vpxFileVBSHash = meta.gameFileValue(vpxFileName, 'vbs_hash')
                 if not vpxFileVBSHash:
                     raise KeyError('vbs_hash')
-                logger.info("Checking %s", table.tableDirName)
+                logger.info("Checking %s", game.tableDirName)
                 for patch in self.hashes:
                     if patch["sha256"] == vpxFileVBSHash:
-                        logger.info("Found a match for %s", table.fullPathVPXfile)
-                        if os.path.exists(os.path.splitext(table.fullPathVPXfile)[0] + ".vbs"):
+                        logger.info("Found a match for %s", game.fullPathVPXfile)
+                        if os.path.exists(os.path.splitext(game.fullPathVPXfile)[0] + ".vbs"):
                             logger.info("A .vbs sidecar file already exists for that table. Assuming it is a patch.")
                             try:
-                                game_dir = os.path.dirname(table.fullPathVPXfile)
-                                meta = MetaConfig(os.path.join(game_dir, table.tableDirName + '.info'))
+                                game_dir = os.path.dirname(game.fullPathVPXfile)
+                                meta = MetaConfig(os.path.join(game_dir, game.tableDirName + '.info'))
                                 meta.setGameFileValue(vpxFileName, 'patch_applied', True)
                             except Exception:
                                 pass
                         else:
-                            self.downloadPatch(os.path.splitext(table.fullPathVPXfile)[0] + ".vbs", patch["patched"]["url"])
+                            self.downloadPatch(os.path.splitext(game.fullPathVPXfile)[0] + ".vbs", patch["patched"]["url"])
                             # mark the .info file with patch_applied = true
                             try:
                                 meta.setGameFileValue(vpxFileName, 'patch_applied', True)

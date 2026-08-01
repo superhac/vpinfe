@@ -95,18 +95,18 @@ class VPSdb:
         if not all((name, manufacturer, year)):
             return None
 
-        for table in self.data or []:
+        for game in self.data or []:
             # Compare table names
-            if SequenceMatcher(None, name.lower(), table["name"].lower()).ratio() < 0.8:
+            if SequenceMatcher(None, name.lower(), game["name"].lower()).ratio() < 0.8:
                 continue
 
             # Compare manufacturers
-            if SequenceMatcher(None, manufacturer.lower(), table["manufacturer"].lower()).ratio() < 0.8:
+            if SequenceMatcher(None, manufacturer.lower(), game["manufacturer"].lower()).ratio() < 0.8:
                 continue
 
             # Compare year
-            if SequenceMatcher(None, str(year), str(table["year"])).ratio() >= 0.8:
-                return table
+            if SequenceMatcher(None, str(year), str(game["year"])).ratio() >= 0.8:
+                return game
 
         logger.debug("No match found for: %s", name)
         return None
@@ -150,9 +150,9 @@ class VPSdb:
     def fileExists(self, path):
         return self._media_downloader.file_exists(path)
 
-    def downloadMediaForTable(self, table, id, metaConfig=None):
+    def downloadMediaForTable(self, game, id, metaConfig=None):
         """Download all associated media for a given table."""
-        self._media_downloader.download_media_for_table(table, id, metaConfig)
+        self._media_downloader.download_media_for_table(game, id, metaConfig)
 
     # ----------------------------------------------------------------------
     def updateTable(self, name, manufacturer, year):

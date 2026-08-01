@@ -178,8 +178,8 @@ def sync_installed_tables(
 
     payload_tables = []
     skipped = 0
-    for table in tables:
-        meta = table.metaConfig if isinstance(table.metaConfig, dict) else {}
+    for game in tables:
+        meta = game.metaConfig if isinstance(game.metaConfig, dict) else {}
         table_payload = _build_table_payload(meta)
         if table_payload is None:
             skipped += 1

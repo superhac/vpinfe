@@ -87,9 +87,9 @@ def _get_collection_filters(collection_name):
     return remote_launch.get_collection_filters(collection_name)
 
 
-def _table_matches_filters(table, filters):
+def _table_matches_filters(game, filters):
     """Check if a table matches the given filter criteria."""
-    return remote_launch.table_matches_filters(table, filters)
+    return remote_launch.table_matches_filters(game, filters)
 
 
 def _get_ini_config():
@@ -111,12 +111,12 @@ def _scan_tables_for_launch():
     return remote_launch.scan_tables_for_launch()
 
 
-def _launch_table(table: dict):
+def _launch_table(game: dict):
     """Hand a table to the launch service and let the bus tell everyone else."""
     import threading
 
-    table_name = table.get('name', 'table')
-    resolved = table_identity.find_by_id(ensure_tables_loaded(), table.get('vpinfe_id', ''))
+    table_name = game.get('name', 'table')
+    resolved = table_identity.find_by_id(ensure_tables_loaded(), game.get('vpinfe_id', ''))
     if resolved is None:
         # Every launchable table has an id, so this means the library moved under us.
         ui.notify(f'Could not find {table_name} in the library', type='negative')
@@ -463,9 +463,9 @@ def show_vpx_game_controls():
                 selected = ui_refs['table_select'].value
                 if selected:
                     # Find the table by vpx_path (which is the value)
-                    table = next((t for t in launch_state['tables'] if t['vpx_path'] == selected), None)
-                    if table:
-                        _launch_table(table)
+                    game = next((t for t in launch_state['tables'] if t['vpx_path'] == selected), None)
+                    if game:
+                        _launch_table(game)
                     else:
                         ui.notify('Please select a table first', type='warning')
                 else:
@@ -579,9 +579,9 @@ def show_vpx_game_controls():
         # Launch on Enter key
         def on_enter():
             if table_select.value:
-                table = next((t for t in launch_state['tables'] if t['vpx_path'] == table_select.value), None)
-                if table:
-                    _launch_table(table)
+                game = next((t for t in launch_state['tables'] if t['vpx_path'] == table_select.value), None)
+                if game:
+                    _launch_table(game)
 
         filter_input.on('keydown.enter', on_enter)
 

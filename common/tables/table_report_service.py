@@ -29,8 +29,8 @@ def list_missing_tables(iniconfig: IniConfig | None = None, log=None) -> None:
     log("Found %s tables in VPSdb", len(vps))
 
     tables_found = []
-    for table in tables:
-        vps_search_data = vps.parseTableNameFromDir(table.tableDirName)
+    for game in tables:
+        vps_search_data = vps.parseTableNameFromDir(game.tableDirName)
         vps_data = (
             vps.lookupName(
                 vps_search_data["name"],
@@ -69,8 +69,8 @@ def list_unknown_tables(iniconfig: IniConfig | None = None, log=None) -> None:
     log("Found %s tables in VPSdb", len(vps))
 
     current = 0
-    for table in tables:
-        vps_search_data = vps.parseTableNameFromDir(table.tableDirName)
+    for game in tables:
+        vps_search_data = vps.parseTableNameFromDir(game.tableDirName)
         vps_data = (
             vps.lookupName(
                 vps_search_data["name"],
@@ -82,4 +82,4 @@ def list_unknown_tables(iniconfig: IniConfig | None = None, log=None) -> None:
         )
         if vps_data is None:
             current += 1
-            log("Unknown table %s: %s Not found in VPSdb", current, table.tableDirName)
+            log("Unknown table %s: %s Not found in VPSdb", current, game.tableDirName)

@@ -94,10 +94,10 @@ class RecordingTests(unittest.TestCase):
                  "FlyerImagePath": "flyer.png", "TableImagePath": "table.png",
                  "DMDVideoPath": "dmd.mp4", "TableVideoPath": "table.mp4",
                  "AudioPath": "audio.mp3"}
-        table = SimpleNamespace(fullPathTable=str(root), tableDirName=root.name)
+        game = SimpleNamespace(fullPathTable=str(root), tableDirName=root.name)
         for attr, name in paths.items():
-            setattr(table, attr, str(root / "medias" / name))
-        return table
+            setattr(game, attr, str(root / "medias" / name))
+        return game
 
     def _downloader(self, remote_md5: str):
         return VPSMediaDownloader(

@@ -55,31 +55,31 @@ def _normalize_rating(value) -> int:
     return max(0, min(5, normalized))
 
 
-def table_matches_filters(table: dict, filters) -> bool:
+def table_matches_filters(game: dict, filters) -> bool:
     if not filters:
         return False
 
     letter = filters.get("letter", "All")
     if letter != "All":
-        table_name = table.get("name", "")
+        table_name = game.get("name", "")
         if table_name and table_name[0].upper() != letter.upper():
             return False
 
     manufacturer = filters.get("manufacturer", "All")
-    if manufacturer != "All" and table.get("manufacturer", "") != manufacturer:
+    if manufacturer != "All" and game.get("manufacturer", "") != manufacturer:
         return False
 
     year = filters.get("year", "All")
-    if year != "All" and str(table.get("year", "")) != str(year):
+    if year != "All" and str(game.get("year", "")) != str(year):
         return False
 
     table_type = filters.get("table_type", "All")
-    if table_type != "All" and table.get("type", "") != table_type:
+    if table_type != "All" and game.get("type", "") != table_type:
         return False
 
     theme = filters.get("theme", "All")
     if theme != "All":
-        table_theme = table.get("theme", "")
+        table_theme = game.get("theme", "")
         if isinstance(table_theme, list):
             if theme not in table_theme:
                 return False
@@ -94,7 +94,7 @@ def table_matches_filters(table: dict, filters) -> bool:
                 selected.append(_normalize_rating(raw_rating.strip()))
             except Exception:
                 continue
-        table_rating = _normalize_rating(table.get("rating", 0))
+        table_rating = _normalize_rating(game.get("rating", 0))
         if is_truthy(filters.get("rating_or_higher", "false")):
             if not selected or table_rating < min(selected):
                 return False

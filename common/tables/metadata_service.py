@@ -44,7 +44,7 @@ def build_metadata(
     tables = tp.getAllTables()
 
     if tableName:
-        tables = [table for table in tables if table.tableDirName == tableName]
+        tables = [game for game in tables if game.tableDirName == tableName]
         if not tables:
             log(f"Table folder '{tableName}' not found")
             return {"found": 0, "not_found": 0}
@@ -58,21 +58,21 @@ def build_metadata(
     if progress_cb:
         reporter.progress(0, total, "Starting")
 
-    for current, table in enumerate(tables, 1):
-        info_path = os.path.join(table.fullPathTable, f"{table.tableDirName}.info")
+    for current, game in enumerate(tables, 1):
+        info_path = os.path.join(game.fullPathTable, f"{game.tableDirName}.info")
 
         if os.path.exists(info_path) and not updateAll:
             if progress_cb:
-                reporter.progress(current, total, f"Skipping {table.tableDirName}")
+                reporter.progress(current, total, f"Skipping {game.tableDirName}")
             continue
 
         meta = MetaConfig(info_path)
 
-        log(f"Checking VPSdb for {table.tableDirName}")
+        log(f"Checking VPSdb for {game.tableDirName}")
         if progress_cb:
-            reporter.progress(current, total, f"Processing {table.tableDirName}")
+            reporter.progress(current, total, f"Processing {game.tableDirName}")
 
-        vpsSearchData = vps.parseTableNameFromDir(table.tableDirName)
+        vpsSearchData = vps.parseTableNameFromDir(game.tableDirName)
         vpsData = (
             vps.lookupName(
                 vpsSearchData["name"],
@@ -88,11 +88,11 @@ def build_metadata(
             not_found_tables += 1
             continue
 
-        log(f"Parsing VPX file: {table.fullPathVPXfile}")
-        vpxData = parservpx.singleFileExtract(table.fullPathVPXfile)
+        log(f"Parsing VPX file: {game.fullPathVPXfile}")
+        vpxData = parservpx.singleFileExtract(game.fullPathVPXfile)
 
         if not vpxData:
-            log(f"  - VPX file not found or failed to parse: {table.fullPathVPXfile}")
+            log(f"  - VPX file not found or failed to parse: {game.fullPathVPXfile}")
             not_found_tables += 1
             continue
 
@@ -101,7 +101,7 @@ def build_metadata(
             "vpxdata": vpxData,
         })
 
-        log(f"Created {table.tableDirName}.info")
+        log(f"Created {game.tableDirName}.info")
 
         # userMedia suppresses the fetch outright, for somebody supplying the whole
         # library themselves. Media already on disk needs no such flag: the
@@ -109,7 +109,7 @@ def build_metadata(
         # alone (common/online/vpsdb_media.py).
         if downloadMedia and not userMedia:
             try:
-                vps.downloadMediaForTable(table, vpsData["id"], metaConfig=meta)
+                vps.downloadMediaForTable(game, vpsData["id"], metaConfig=meta)
                 log("Downloaded media")
             except KeyError:
                 log("No media found")

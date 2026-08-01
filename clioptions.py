@@ -170,15 +170,15 @@ def parseArgs():
         sys.exit()
 
     if args.upgrade_info:
-        upgrade_info_files(table_name=args.table)
+        upgrade_info_files(table_name=args.game)
         sys.exit()
 
     if args.restore_info:
-        restore_info_files(table_name=args.table)
+        restore_info_files(table_name=args.game)
         sys.exit()
 
     if args.buildmeta:
-        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all, tableName=args.table, userMedia=args.user_media)
+        buildMetaData(downloadMedia=not args.no_media, updateAll=args.update_all, tableName=args.game, userMedia=args.user_media)
         sys.exit()
 
     if args.gamepadtest:

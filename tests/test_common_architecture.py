@@ -124,7 +124,7 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertEqual(parser.missing_tables[0]["folder"], "missing")
 
     def test_metadata_display_helpers_handle_legacy_fields(self) -> None:
-        table = SimpleNamespace(
+        game = SimpleNamespace(
             tableDirName="Fallback",
             metaConfig={
                 "VPSdb": {
@@ -135,9 +135,9 @@ class TestCommonArchitecture(unittest.TestCase):
             },
         )
 
-        self.assertEqual(table_title(table), "Legacy Name")
-        self.assertEqual(table_themes(table), ["Music", "Movies"])
-        self.assertEqual(table_type(table), "SS")
+        self.assertEqual(table_title(game), "Legacy Name")
+        self.assertEqual(table_themes(game), ["Music", "Movies"])
+        self.assertEqual(table_type(game), "SS")
 
     def test_standalone_scripts_can_be_constructed_without_running_network_work(self) -> None:
         with mock.patch("common.tables.standalonescripts.StandaloneScripts.apply_patches") as apply_patches:
@@ -226,19 +226,19 @@ class TestCommonArchitecture(unittest.TestCase):
 
     def test_media_paths_apply_and_payload_use_shared_specs(self) -> None:
         root = os.path.join(os.sep, "tmp", "Table")
-        table = SimpleNamespace(fullPathTable=root, TableImagePath=None, BGImagePath=None)
+        game = SimpleNamespace(fullPathTable=root, TableImagePath=None, BGImagePath=None)
 
         apply_media_paths(
-            table,
+            game,
             game_contents={"bg.png"},
             medias_contents={"fss.png"},
             playfield_variant="fss",
         )
 
-        self.assertEqual(table.BGImagePath, os.path.join(root, "bg.png"))
-        self.assertEqual(table.TableImagePath, os.path.join(root, "medias", "fss.png"))
+        self.assertEqual(game.BGImagePath, os.path.join(root, "bg.png"))
+        self.assertEqual(game.TableImagePath, os.path.join(root, "medias", "fss.png"))
         self.assertEqual(media_filename_map("fss")["fss"], "fss.png")
-        self.assertEqual(table_media_payload(table)["TableImagePath"],
+        self.assertEqual(table_media_payload(game)["TableImagePath"],
                          os.path.join(root, "medias", "fss.png"))
 
     def test_job_reporter_wraps_log_and_progress_callbacks(self) -> None:

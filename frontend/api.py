@@ -126,8 +126,8 @@ class API:
     def _finish_setup(self):
         pass
 
-    def _normalize_table_meta(self, table):
-        return normalize_meta(table.metaConfig)
+    def _normalize_table_meta(self, game):
+        return normalize_meta(game.metaConfig)
 
     def _theme_contract(self) -> int:
         """Which shape the active theme asked for. Read per payload rather than cached,
@@ -348,16 +348,16 @@ class API:
         here has to tell them.
         """
         try:
-            table = self.filteredTables[int(index)]
+            game = self.filteredTables[int(index)]
         except Exception:
             logger.warning("Ignoring launch for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
 
         try:
-            launch.launch_table(table, self._iniConfig,
+            launch.launch_table(game, self._iniConfig,
                                 source=launch_state.SOURCE_FRONTEND)
         except launch.LaunchUnavailableError as exc:
-            logger.warning("Cannot launch %s: %s", table.tableDirName, exc)
+            logger.warning("Cannot launch %s: %s", game.tableDirName, exc)
             return {"success": False, "reason": str(exc)}
         return {"success": True}
 
@@ -369,12 +369,12 @@ class API:
         fail in a way the wheel should care about.
         """
         try:
-            table = self.filteredTables[int(index)]
+            game = self.filteredTables[int(index)]
         except Exception:
             logger.debug("Ignoring table selection for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
 
-        events.emit(events.TABLE_SELECTED, table=table, ini_config=self._iniConfig)
+        events.emit(events.TABLE_SELECTED, game=game, ini_config=self._iniConfig)
         return {"success": True}
 
     def get_table_rating(self, index):

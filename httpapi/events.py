@@ -51,7 +51,7 @@ RETRY_MS = 3000
 HELLO_EVENT = "stream.hello"
 
 
-def _table_event(table=None, **_) -> dict:
+def _table_event(game=None, **_) -> dict:
     """The wire shape of a table lifecycle event.
 
     The bus carries the Table object and the whole ini config because its handlers
@@ -60,11 +60,11 @@ def _table_event(table=None, **_) -> dict:
     the rest. That link is what keeps this a pointer instead of a second, thinner
     answer to "what does a table look like".
     """
-    if table is None:
+    if game is None:
         return {"table": None}
 
-    table_id = table_identity.table_id(table)
-    reference = {"id": table_id, "name": getattr(table, "tableDirName", "")}
+    table_id = table_identity.table_id(game)
+    reference = {"id": table_id, "name": getattr(game, "tableDirName", "")}
     if table_id:
         reference["links"] = {"self": f"/api/v1/tables/{table_id}"}
     return {"table": reference}

@@ -104,8 +104,8 @@ def collection_tables(name: str) -> models.TableList:
     catalog = _catalog()
     members, _filters = filter_tables_by_collection(list(catalog.values()), name)
     by_collection = collections_by_table_id()
-    resources = [_resource(table_to_row(table, by_collection), table_identity.table_id(table))
-                 for table in members]
+    resources = [_resource(table_to_row(game, by_collection), table_identity.table_id(game))
+                 for game in members]
     return {"total": len(resources), "offset": 0, "count": len(resources),
             "tables": resources}
 

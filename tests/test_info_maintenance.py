@@ -65,12 +65,12 @@ class UpgradeTests(LibraryTestCase):
             self.assertNotIn("VPXFile", after)
 
     def test_it_keeps_a_restore_point_for_each_table(self):
-        table = self._table("Dr. Dude")
-        original = (table / "Dr. Dude.info").read_text(encoding="utf-8")
+        game = self._table("Dr. Dude")
+        original = (game / "Dr. Dude.info").read_text(encoding="utf-8")
 
         upgrade_library(self.root)
 
-        backups = self._backups(table)
+        backups = self._backups(game)
         self.assertEqual(len(backups), 1)
         self.assertEqual(backups[0].read_text(encoding="utf-8"), original)
 
@@ -141,13 +141,13 @@ class RestoreTests(LibraryTestCase):
         self.assertIn("VPXFile", self._info(self.root / "Dr. Dude"))
 
     def test_the_current_file_is_kept_so_the_restore_is_reversible(self):
-        table = self._table("Dr. Dude")
+        game = self._table("Dr. Dude")
         upgrade_library(self.root)
-        upgraded = (table / "Dr. Dude.info").read_text(encoding="utf-8")
+        upgraded = (game / "Dr. Dude.info").read_text(encoding="utf-8")
 
         restore_library(self.root)
 
-        backups = self._backups(table)
+        backups = self._backups(game)
         self.assertEqual(len(backups), 2)
         self.assertIn(upgraded, [b.read_text(encoding="utf-8") for b in backups])
 
@@ -155,48 +155,48 @@ class RestoreTests(LibraryTestCase):
         """A 2.x build must not restore a schema 2 file, but the unversioned copy sitting
         behind it is still exactly what it wants. Newer backups are stepped over, not a
         dead end."""
-        table = self._table("Dr. Dude")
+        game = self._table("Dr. Dude")
         upgrade_library(self.root)
         restore_library(self.root)          # back to 2.x, and the schema 2 copy is kept
 
-        as_2x = restorable_backup(table, max_schema=0)
+        as_2x = restorable_backup(game, max_schema=0)
         self.assertIsNotNone(as_2x)
         self.assertIsNone(backup_schema(as_2x), "2.x takes the unversioned copy")
-        self.assertEqual(backup_schema(restorable_backup(table, max_schema=2)), 2)
+        self.assertEqual(backup_schema(restorable_backup(game, max_schema=2)), 2)
 
     def test_the_newest_readable_backup_wins(self):
-        table = self._table("Dr. Dude")
+        game = self._table("Dr. Dude")
         upgrade_library(self.root)
         restore_library(self.root)
-        (table / "Dr. Dude.info").write_text(
+        (game / "Dr. Dude.info").write_text(
             json.dumps({**LEGACY, "User": {"Rating": 1}}), encoding="utf-8")
         upgrade_library(self.root)
 
         restore_library(self.root, max_schema=0)
 
-        self.assertEqual(self._info(table)["User"]["Rating"], 1)
+        self.assertEqual(self._info(game)["User"]["Rating"], 1)
 
     def test_an_unreadable_backup_is_skipped_rather_than_restored(self):
-        table = self._table("Dr. Dude")
+        game = self._table("Dr. Dude")
         upgrade_library(self.root)
-        (table / "Dr. Dude.info.vpinfe-20990101T000000Z").write_text("{ broken", "utf-8")
+        (game / "Dr. Dude.info.vpinfe-20990101T000000Z").write_text("{ broken", "utf-8")
 
         result = restore_library(self.root)
 
         self.assertEqual(result["restored"], 1)
-        self.assertEqual(self._info(table)["User"]["Rating"], 4)
+        self.assertEqual(self._info(game)["User"]["Rating"], 4)
 
     def test_a_corrupt_current_file_is_still_kept_before_being_replaced(self):
         """The file most likely to need restoring is the one too broken to parse. Refusing
         to keep it would block the rescue to protect a copy nobody wants back."""
-        table = self._table("Dr. Dude")
+        game = self._table("Dr. Dude")
         upgrade_library(self.root)
-        (table / "Dr. Dude.info").write_text("{ truncated", encoding="utf-8")
+        (game / "Dr. Dude.info").write_text("{ truncated", encoding="utf-8")
 
         result = restore_library(self.root)
 
         self.assertEqual(result["restored"], 1)
-        kept = [b.read_text(encoding="utf-8") for b in self._backups(table)]
+        kept = [b.read_text(encoding="utf-8") for b in self._backups(game)]
         self.assertIn("{ truncated", kept)
 
 

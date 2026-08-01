@@ -54,11 +54,11 @@ def normalize_sort_order(order_by, sort_type="Alpha"):
 def tables_json(tables, contract: int = CURRENT_CONTRACT) -> str:
     result = []
     logo_cache: dict[str, str | None] = {}
-    for table in tables:
+    for game in tables:
         # A copy: what follows adds fields the theme contract defines, and writing those
         # into the shared metaConfig would put a dropped section back on disk at the next
         # rebuild.
-        meta = dict(normalize_meta(table.metaConfig))
+        meta = dict(normalize_meta(game.metaConfig))
 
         vpinfe = vpinfe_section(meta)
         info = section(meta, "Info")
@@ -77,15 +77,15 @@ def tables_json(tables, contract: int = CURRENT_CONTRACT) -> str:
             meta["Info"] = info
 
         row = {
-            "tableDirName": table.tableDirName,
-            "fullPathTable": table.fullPathTable,
-            "fullPathVPXfile": table.fullPathVPXfile,
-            "pupPackExists": table.pupPackExists,
-            "altColorExists": table.altColorExists,
-            "altSoundExists": table.altSoundExists,
+            "tableDirName": game.tableDirName,
+            "fullPathTable": game.fullPathTable,
+            "fullPathVPXfile": game.fullPathVPXfile,
+            "pupPackExists": game.pupPackExists,
+            "altColorExists": game.altColorExists,
+            "altSoundExists": game.altSoundExists,
             "meta": meta,
         }
-        row.update(table_media_payload(table))
+        row.update(table_media_payload(game))
         maker = str(info.get("Manufacturer", "") or "")
         if maker not in logo_cache:
             logo_cache[maker] = manufacturer_logo_web_path(maker)
@@ -163,10 +163,10 @@ def apply_filters(api, letter=None, theme=None, table_type=None, manufacturer=No
 def apply_sort(tables, sort_type, order_by=None):
     reverse = normalize_sort_order(order_by, sort_type) == "Descending"
     if sort_type == "Alpha":
-        tables.sort(key=lambda table: table_title(table).lower(), reverse=reverse)
+        tables.sort(key=lambda game: table_title(game).lower(), reverse=reverse)
     elif sort_type == "Newest":
-        tables.sort(key=lambda table: table_title(table).lower())
-        tables.sort(key=lambda table: table.creation_time if table.creation_time is not None else 0, reverse=reverse)
+        tables.sort(key=lambda game: table_title(game).lower())
+        tables.sort(key=lambda game: game.creation_time if game.creation_time is not None else 0, reverse=reverse)
     elif sort_type == "LastRun":
         _sort_by_numeric_meta(tables, "LastRun", reverse)
     elif sort_type == "Highest StartCount":
@@ -176,11 +176,11 @@ def apply_sort(tables, sort_type, order_by=None):
     return len(tables)
 
 
-def _paging_group_key(table):
+def _paging_group_key(game):
     # Letter groups for alpha paging. Titles starting with a digit or symbol all
     # land in one '#' bucket so a big collection doesn't take several presses to
     # cross the numeric titles.
-    title = table_title(table).strip()
+    title = table_title(game).strip()
     if title and title[0].isalpha():
         return title[0].upper()
     return "#"
@@ -202,7 +202,7 @@ def page_jump_index(tables, index, direction, sort_type="Alpha", paging_type="al
     forward = direction != "prev"
 
     if paging_type == "alpha" and sort_type == "Alpha":
-        keys = [_paging_group_key(table) for table in tables]
+        keys = [_paging_group_key(game) for game in tables]
         if len(set(keys)) > 1:
             step = 1 if forward else -1
             pos = (index + step) % count
@@ -219,12 +219,12 @@ def page_jump_index(tables, index, direction, sort_type="Alpha", paging_type="al
 
 
 def _sort_by_numeric_meta(tables, field, reverse):
-    tables.sort(key=lambda table: table_title(table).lower())
-    tables.sort(key=lambda table: _numeric_meta_value(table, field), reverse=reverse)
+    tables.sort(key=lambda game: table_title(game).lower())
+    tables.sort(key=lambda game: _numeric_meta_value(game, field), reverse=reverse)
 
 
-def _numeric_meta_value(table, field):
-    meta = normalize_meta(getattr(table, "metaConfig", {}))
+def _numeric_meta_value(game, field):
+    meta = normalize_meta(getattr(game, "metaConfig", {}))
     user = section(meta, "User")
     info = section(meta, "Info")
     try:
@@ -236,17 +236,17 @@ def _numeric_meta_value(table, field):
 
 def get_table_rating(tables, index):
     try:
-        table = tables[index]
+        game = tables[index]
     except Exception:
         return 0
-    return normalize_rating(section(load_table_meta(table), "User").get("Rating", 0))
+    return normalize_rating(section(load_table_meta(game), "User").get("Rating", 0))
 
 
 def set_table_rating(tables, index, rating):
-    table = tables[index]
-    config = load_table_meta(table)
+    game = tables[index]
+    config = load_table_meta(game)
     user = get_or_create_user_meta(config)
     normalized = normalize_rating(rating)
     user["Rating"] = normalized
-    persist_table_meta(table, config)
+    persist_table_meta(game, config)
     return {"success": True, "rating": normalized}

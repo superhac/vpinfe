@@ -112,14 +112,14 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
     async def test_a_table_event_carries_identity_not_the_table(self) -> None:
         """The bus payload is in-process; the Table object and the ini config are not
         things to put on a socket."""
-        table = SimpleNamespace(
+        game = SimpleNamespace(
             tableDirName="Medieval Madness (Williams 1997)",
             metaConfig={"vpinfe": {"id": "6f1c9a4e"}},
         )
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.TABLE_SELECTED, table=table, ini_config="secret-ini-config")
+        events.emit(events.TABLE_SELECTED, game=game, ini_config="secret-ini-config")
         frame = await self._next(stream)
 
         self.assertEqual(_payload(frame), {
@@ -138,7 +138,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         await self._hello(stream)
 
         events.emit(events.TABLE_SELECTED,
-                    table=SimpleNamespace(tableDirName="Unidentified", metaConfig={}),
+                    game=SimpleNamespace(tableDirName="Unidentified", metaConfig={}),
                     ini_config=None)
         frame = await self._next(stream)
 
@@ -150,7 +150,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.TABLE_LAUNCHING, table=None, ini_config="cfg")
+        events.emit(events.TABLE_LAUNCHING, game=None, ini_config="cfg")
         frame = await self._next(stream)
 
         self.assertEqual(_payload(frame), {"table": None})
@@ -171,7 +171,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         stream = self._open(PLAY_STATE)
         await self._hello(stream)
 
-        events.emit(events.TABLE_SELECTED, table=None, ini_config=None)
+        events.emit(events.TABLE_SELECTED, game=None, ini_config=None)
         events.emit(events.PLAY_STATE_CHANGED, state={"launching": True, "table_name": "Taxi"})
         frame = await self._next(stream)
 

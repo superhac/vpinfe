@@ -37,8 +37,8 @@ class SingleTableRefreshTests(unittest.TestCase):
         self.parser = TableParser(str(self.root), config)
         self.parser.loadTables(reload=True)
 
-    def _rating(self, table):
-        return table.metaConfig.get("User", {}).get("Rating")
+    def _rating(self, game):
+        return game.metaConfig.get("User", {}).get("Rating")
 
     def _by_name(self, name):
         return next(t for t in self.parser.getAllTables() if t.tableDirName == name)

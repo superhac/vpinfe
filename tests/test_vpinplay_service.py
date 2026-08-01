@@ -97,15 +97,15 @@ class TestVPinPlayService(unittest.TestCase):
         _mock_get_version,
         mock_post,
     ) -> None:
-        table = MagicMock()
-        table.metaConfig = {
+        game = MagicMock()
+        game.metaConfig = {
             "Info": {"VPSId": "vps-123", "Rom": "agent777"},
             "User": {},
             "VPXFile": {},
             "vpinfe": {},
         }
         parser_instance = mock_table_parser.return_value
-        parser_instance.getAllTables.return_value = [table]
+        parser_instance.getAllTables.return_value = [game]
 
         response = MagicMock()
         response.status_code = 200

@@ -36,12 +36,12 @@ MEMBERS_KEY = "vpsids"
 _warned_newer_schema = set()
 
 
-def _get_display_title(table):
-    return table_title(table)
+def _get_display_title(game):
+    return table_title(game)
 
 
-def _get_last_run_value(table):
-    user = section(getattr(table, "metaConfig", {}), "User")
+def _get_last_run_value(game):
+    user = section(getattr(game, "metaConfig", {}), "User")
     raw = user.get("LastRun")
     try:
         return int(raw)
@@ -224,12 +224,12 @@ class VPXCollections:
             return 0
 
         by_vps: dict[str, str] = {}
-        for table in tables:
-            tid = table_id(table)
+        for game in tables:
+            tid = table_id(game)
             if not tid:
                 continue
-            vpinfe = vpinfe_section(getattr(table, "metaConfig", {}))
-            for candidate in (base_table_vps_id(table),
+            vpinfe = vpinfe_section(getattr(game, "metaConfig", {}))
+            for candidate in (base_table_vps_id(game),
                               str(vpinfe.get("alt_vpsid", "") or "").strip()):
                 if candidate:
                     by_vps.setdefault(candidate, tid)
@@ -272,7 +272,7 @@ class VPXCollections:
     # NEW JSON METADATA AWARE FILTERING
     # ------------------------------------------------------------------
 
-    def is_member(self, table, member_ids) -> bool:
+    def is_member(self, game, member_ids) -> bool:
         """Whether a table belongs to a collection whose membership is `member_ids`.
 
         Membership is the table's own id. VPS ids are still accepted because a file
@@ -280,11 +280,11 @@ class VPXCollections:
         when it ran, still holds one - and because a table with no VPSdb match has
         no VPS id at all, which is one of the reasons membership moved off it.
         """
-        if table_id(table) and table_id(table) in member_ids:
+        if table_id(game) and table_id(game) in member_ids:
             return True
 
-        vpinfe = vpinfe_section(getattr(table, "metaConfig", {}))
-        base_vpsid = base_table_vps_id(table)
+        vpinfe = vpinfe_section(getattr(game, "metaConfig", {}))
+        base_vpsid = base_table_vps_id(game)
         alt_vpsid = str(vpinfe.get("alt_vpsid", "") or "").strip()
         return bool(
             (base_vpsid and base_vpsid in member_ids)

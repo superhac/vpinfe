@@ -50,7 +50,7 @@ class LaunchTests(unittest.TestCase):
         self.addCleanup(events.clear)
         self.addCleanup(launch_state.clear)
 
-    def _run(self, popen=None, table=None, **overrides):
+    def _run(self, popen=None, game=None, **overrides):
         """Launch with every collaborator stubbed, so only the orchestration runs."""
         popen = popen or (lambda cmd, **kwargs: _FakePopen())
         launcher = types.SimpleNamespace(exists=lambda: True)
@@ -70,7 +70,7 @@ class LaunchTests(unittest.TestCase):
                 mock.patch.object(launch, "table_play_service") as play, \
                 mock.patch.multiple(launch, **patches):
             settings_cls.from_config.return_value = _settings()
-            launch.launch_table(table or _table(), types.SimpleNamespace(config={}),
+            launch.launch_table(game or _table(), types.SimpleNamespace(config={}),
                                 source=launch_state.SOURCE_API, popen=popen)
         return play
 
@@ -151,23 +151,23 @@ class PlayDataTests(LaunchTests):
 
     def test_the_game_file_that_was_launched_is_the_one_credited(self) -> None:
         """A folder can hold several game files, and the API can launch any of them."""
-        table = _table()
-        table.fullPathVPXfile = "/tables/Example/Example (VR).vpx"
+        game = _table()
+        game.fullPathVPXfile = "/tables/Example/Example (VR).vpx"
 
-        play = self._run(table=table)
+        play = self._run(game=game)
 
         self.assertEqual(play.increment_start_count.call_args.args[1], "Example (VR).vpx")
         self.assertEqual(play.add_runtime_minutes.call_args.args[2], "Example (VR).vpx")
 
 
 class RefusalTests(LaunchTests):
-    def _check(self, table=None, game_file=None, launcher_exists=True, launcher=True):
+    def _check(self, game=None, game_file=None, launcher_exists=True, launcher=True):
         found = types.SimpleNamespace(exists=lambda: launcher_exists) if launcher else None
         with mock.patch.object(launch, "SettingsConfig") as settings_cls, \
                 mock.patch.object(launch, "get_effective_launcher",
                                   lambda binpath, meta: (found, "vpxbinpath", None)):
             settings_cls.from_config.return_value = _settings()
-            return launch.check_launchable(table or _table(),
+            return launch.check_launchable(game or _table(),
                                            types.SimpleNamespace(config={}), game_file)
 
     def test_no_launcher_configured_is_refused_with_a_reason(self) -> None:

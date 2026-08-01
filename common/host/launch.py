@@ -69,9 +69,9 @@ class LaunchBusyError(LaunchUnavailableError):
     so differently."""
 
 
-def _resolve_launcher(table, settings) -> str:
+def _resolve_launcher(game, settings) -> str:
     launcher, source_key, _ = get_effective_launcher(settings.vpx_bin_path,
-                                                     getattr(table, "metaConfig", {}))
+                                                     getattr(game, "metaConfig", {}))
     if not launcher:
         raise LaunchUnavailableError(
             "No launcher configured. Set Settings.vpxbinpath, or VPinFE.altlauncher "
@@ -81,15 +81,15 @@ def _resolve_launcher(table, settings) -> str:
     return str(launcher)
 
 
-def _resolve_game_file(table, game_file: str | None) -> str:
+def _resolve_game_file(game, game_file: str | None) -> str:
     """The full path of the file to launch.
 
     A named file is checked against what is actually in the folder, so a caller
     cannot talk this into running something outside the table's directory.
     """
-    game_dir = str(getattr(table, "fullPathTable", "") or "")
+    game_dir = str(getattr(game, "fullPathTable", "") or "")
     if game_file is None:
-        path = str(getattr(table, "fullPathVPXfile", "") or "")
+        path = str(getattr(game, "fullPathVPXfile", "") or "")
         if not path:
             raise LaunchUnavailableError("This table has no game file to launch")
         return path
@@ -116,7 +116,7 @@ def _launch_env(settings) -> dict:
     return env
 
 
-def _command(table, vpx_path: str, launcher: str, settings) -> list[str]:
+def _command(game, vpx_path: str, launcher: str, settings) -> list[str]:
     return build_vpx_launch_command(
         launcher_path=launcher,
         vpx_game_path=vpx_path,
@@ -127,32 +127,32 @@ def _command(table, vpx_path: str, launcher: str, settings) -> list[str]:
             settings.global_table_ini_override_mask,
         ),
         plugin_profile_override=resolve_launch_plugin_profile(
-            get_plugin_profile_from_meta(getattr(table, "metaConfig", {}))
+            get_plugin_profile_from_meta(getattr(game, "metaConfig", {}))
         ),
     )
 
 
-def _record_play(table, ini_config, elapsed_seconds: float, profile, game_file: str = "") -> None:
+def _record_play(game, ini_config, elapsed_seconds: float, profile, game_file: str = "") -> None:
     """Play data for a finished session. Runs on every path, which it did not use to."""
     if profile is None:
-        table_play_service.add_runtime_minutes(table, elapsed_seconds, game_file)
-        table_play_service.update_score_from_nvram(table)
+        table_play_service.add_runtime_minutes(game, elapsed_seconds, game_file)
+        table_play_service.update_score_from_nvram(game)
         return
 
-    table_key = str(getattr(table, "fullPathTable", "") or getattr(table, "tableDirName", "") or "")
+    table_key = str(getattr(game, "fullPathTable", "") or getattr(game, "tableDirName", "") or "")
     if not table_key:
         logger.warning("Skipping alternate VPinPlay submission: missing table key")
         return
 
     add_table_runtime(table_key, elapsed_seconds, profile.profile_key)
-    score_data, score_path = table_play_service.parse_score_from_nvram(table)
+    score_data, score_path = table_play_service.parse_score_from_nvram(game)
     if score_data:
         set_table_score(table_key, score_data, profile.profile_key)
         logger.info("Captured alternate User.Score for %s from %s",
-                    table.tableDirName, score_path)
+                    game.tableDirName, score_path)
 
     table_meta = table_play_service.build_runtime_submission_meta(
-        table, get_table_user_state(table_key, profile.profile_key))
+        game, get_table_user_state(table_key, profile.profile_key))
     if not table_meta:
         return
 
@@ -170,15 +170,15 @@ def _record_play(table, ini_config, elapsed_seconds: float, profile, game_file: 
             table_meta=table_meta,
         )
         logger.info("Alternate VPinPlay submit complete for %s: status=%s ok=%s",
-                    table.tableDirName, result.get("status_code"), result.get("ok"))
+                    game.tableDirName, result.get("status_code"), result.get("ok"))
         if not result.get("ok"):
             logger.warning("Alternate VPinPlay submit failed response: %s",
                            result.get("response_body"))
     except Exception:
-        logger.exception("Alternate VPinPlay submit failed for %s", table.tableDirName)
+        logger.exception("Alternate VPinPlay submit failed for %s", game.tableDirName)
 
 
-def check_launchable(table, ini_config, game_file: str | None = None) -> str:
+def check_launchable(game, ini_config, game_file: str | None = None) -> str:
     """Raise if this launch could not go ahead, otherwise return the file it would run.
 
     Separate from `launch_table` because callers that launch on a thread still have
@@ -188,14 +188,14 @@ def check_launchable(table, ini_config, game_file: str | None = None) -> str:
     # Ordered from the caller's problem outwards: what it asked for, then whether
     # now is a good time, then whether this machine can do it at all. Checking the
     # launcher first would answer a malformed request with a configuration error.
-    resolved = _resolve_game_file(table, game_file)
+    resolved = _resolve_game_file(game, game_file)
     if launch_state.current().launching:
         raise LaunchBusyError("A table is already launching on this machine")
-    _resolve_launcher(table, SettingsConfig.from_config(ini_config))
+    _resolve_launcher(game, SettingsConfig.from_config(ini_config))
     return resolved
 
 
-def launch_table(table, ini_config, *, source: str, game_file: str | None = None,
+def launch_table(game, ini_config, *, source: str, game_file: str | None = None,
                  popen=None) -> None:
     """Launch a table and stay with it until it exits. Blocking.
 
@@ -206,15 +206,15 @@ def launch_table(table, ini_config, *, source: str, game_file: str | None = None
     # Looked up here rather than in the signature so a test can patch it.
     popen = popen or subprocess.Popen
     settings = SettingsConfig.from_config(ini_config)
-    launcher = _resolve_launcher(table, settings)
-    vpx_path = _resolve_game_file(table, game_file)
+    launcher = _resolve_launcher(game, settings)
+    vpx_path = _resolve_game_file(game, game_file)
 
     delete_vpinball_log_on_start_if_configured(settings)
-    table_play_service.track_table_play(table)
+    table_play_service.track_table_play(game)
 
     # Hooks run first and can still stop this - releasing the peripherals is one.
     # Nothing below has happened yet, so a refusal here leaves nothing to undo.
-    events.emit(events.TABLE_LAUNCHING, table=table, ini_config=ini_config)
+    events.emit(events.TABLE_LAUNCHING, game=game, ini_config=ini_config)
 
     started_at = None
     profile = None
@@ -222,8 +222,8 @@ def launch_table(table, ini_config, *, source: str, game_file: str | None = None
     # anyone who heard table.launching - which is what stops a failure below from
     # leaving the frontend with its input suppressed for the life of the process.
     try:
-        launch_state.set_launching(getattr(table, "tableDirName", None), source=source)
-        cmd = _command(table, vpx_path, launcher, settings)
+        launch_state.set_launching(getattr(game, "tableDirName", None), source=source)
+        cmd = _command(game, vpx_path, launcher, settings)
         logger.info("Launching: %s", cmd)
         process = popen(
             cmd,
@@ -236,10 +236,10 @@ def launch_table(table, ini_config, *, source: str, game_file: str | None = None
         started_at = time.time()
         profile = get_active_profile()
         if profile is not None:
-            record_table_start(str(getattr(table, "fullPathTable", "")
-                                   or getattr(table, "tableDirName", "") or ""))
+            record_table_start(str(getattr(game, "fullPathTable", "")
+                                   or getattr(game, "tableDirName", "") or ""))
         else:
-            table_play_service.increment_start_count(table, os.path.basename(vpx_path))
+            table_play_service.increment_start_count(game, os.path.basename(vpx_path))
 
         # Draining stdout is not optional: the pipe fills and VPX blocks on a write
         # if nobody reads it.
@@ -247,7 +247,7 @@ def launch_table(table, ini_config, *, source: str, game_file: str | None = None
         for line in process.stdout:
             if not running and STARTUP_MARKER in line:
                 running = True
-                events.emit(events.TABLE_LAUNCHED, table=table, ini_config=ini_config)
+                events.emit(events.TABLE_LAUNCHED, game=game, ini_config=ini_config)
                 logger.info("table running")
 
         process.wait()
@@ -255,22 +255,22 @@ def launch_table(table, ini_config, *, source: str, game_file: str | None = None
         # Before the play data below, so the peripherals come back promptly rather
         # than waiting on an NVRAM parse and possibly a network call.
         launch_state.clear()
-        events.emit(events.TABLE_EXITED, table=table, ini_config=ini_config)
+        events.emit(events.TABLE_EXITED, game=game, ini_config=ini_config)
 
     if started_at is not None:
-        _record_play(table, ini_config, max(0.0, time.time() - started_at), profile,
+        _record_play(game, ini_config, max(0.0, time.time() - started_at), profile,
                      os.path.basename(vpx_path))
-    table_play_service.delete_nvram_if_configured(table)
+    table_play_service.delete_nvram_if_configured(game)
 
 
-def game_file_for(table, game_file: str | None = None) -> str:
+def game_file_for(game, game_file: str | None = None) -> str:
     """The file a launch would use, without launching it."""
     if game_file is not None:
         return game_file
-    game_dir = str(getattr(table, "fullPathTable", "") or "")
+    game_dir = str(getattr(game, "fullPathTable", "") or "")
     listing = []
     if game_dir and os.path.isdir(game_dir):
         listing = [name for name in os.listdir(game_dir)
                    if os.path.isfile(os.path.join(game_dir, name))]
-    recorded = os.path.basename(str(getattr(table, "fullPathVPXfile", "") or ""))
+    recorded = os.path.basename(str(getattr(game, "fullPathVPXfile", "") or ""))
     return default_game_file(listing, os.path.basename(game_dir), recorded) or recorded

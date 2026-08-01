@@ -190,8 +190,8 @@ def ensure_thumb(game_dir: str, media_key: str, source_path: str) -> Optional[st
         return None
 
 
-def _table_meta_sections(table):
-    raw = table.metaConfig or {}
+def _table_meta_sections(game):
+    raw = game.metaConfig or {}
     if not isinstance(raw, dict):
         raw = {}
     info = raw.get("Info", {}) if isinstance(raw.get("Info", {}), dict) else {}
@@ -215,19 +215,19 @@ def scan_media_tables(reload: bool = False) -> List[Dict]:
         logger.warning("Tables path does not exist: %s. Skipping media scan.", games_path)
         return []
 
-    for table in ensure_tables_loaded(reload=reload):
-        root = getattr(table, "fullPathTable", "") or ""
+    for game in ensure_tables_loaded(reload=reload):
+        root = getattr(game, "fullPathTable", "") or ""
         if not root:
             continue
         current_dir = Path(root).name
-        info, vpinfe = _table_meta_sections(table)
+        info, vpinfe = _table_meta_sections(game)
         name = ((vpinfe.get("alt_title") or "").strip()
                 or reorder_leading_article(info.get("Title") or current_dir))
 
         media_info = {}
         thumb_info = {}
         for attr_name, media_key in TABLE_ATTR_TO_MEDIA_KEY.items():
-            source_path = getattr(table, attr_name, None)
+            source_path = getattr(game, attr_name, None)
             if source_path:
                 media_info[media_key] = media_url_from_path(current_dir, source_path)
                 thumb_info[media_key] = get_cached_thumb_url(current_dir, media_key, source_path)

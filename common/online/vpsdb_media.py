@@ -78,13 +78,13 @@ class VPSMediaDownloader:
             return default_filename, remote_md5
         return None
 
-    def download_media_for_table(self, table, table_id, meta_config=None) -> None:
+    def download_media_for_table(self, game, table_id, meta_config=None) -> None:
         if table_id not in self.media_index:
-            logger.info("No media exists for %s (ID %s).", table.fullPathTable, table_id)
+            logger.info("No media exists for %s (ID %s).", game.fullPathTable, table_id)
             return
 
         table_media = self.media_index[table_id]
-        medias_dir = os.path.join(table.fullPathTable, "medias")
+        medias_dir = os.path.join(game.fullPathTable, "medias")
         os.makedirs(medias_dir, exist_ok=True)
 
         def record(result):
@@ -99,19 +99,19 @@ class VPSMediaDownloader:
         def process(metadata, key, filename, default_filename):
             record(self.download_media(table_id, metadata, key, filename, default_filename))
 
-        process(table_media.get("1k"), "bg", table.BGImagePath, str(default_media_path(table.fullPathTable, "bg", self.tabletype)))
-        process(table_media.get("1k"), "dmd", table.DMDImagePath, str(default_media_path(table.fullPathTable, "dmd", self.tabletype)))
-        process(table_media, "wheel", table.WheelImagePath, str(default_media_path(table.fullPathTable, "wheel", self.tabletype)))
-        process(table_media, "cab", table.CabImagePath, str(default_media_path(table.fullPathTable, "cab", self.tabletype)))
-        process(table_media, "realdmd", table.realDMDImagePath, str(default_media_path(table.fullPathTable, "realdmd", self.tabletype)))
-        process(table_media, "realdmd_color", table.realDMDColorImagePath, str(default_media_path(table.fullPathTable, "realdmd_color", self.tabletype)))
-        process(table_media, "flyer", table.FlyerImagePath, str(default_media_path(table.fullPathTable, "flyer", self.tabletype)))
-        process(table_media.get(self.tableresolution), self.tabletype, table.TableImagePath, str(default_media_path(table.fullPathTable, self.tabletype, self.tabletype)))
+        process(table_media.get("1k"), "bg", game.BGImagePath, str(default_media_path(game.fullPathTable, "bg", self.tabletype)))
+        process(table_media.get("1k"), "dmd", game.DMDImagePath, str(default_media_path(game.fullPathTable, "dmd", self.tabletype)))
+        process(table_media, "wheel", game.WheelImagePath, str(default_media_path(game.fullPathTable, "wheel", self.tabletype)))
+        process(table_media, "cab", game.CabImagePath, str(default_media_path(game.fullPathTable, "cab", self.tabletype)))
+        process(table_media, "realdmd", game.realDMDImagePath, str(default_media_path(game.fullPathTable, "realdmd", self.tabletype)))
+        process(table_media, "realdmd_color", game.realDMDColorImagePath, str(default_media_path(game.fullPathTable, "realdmd_color", self.tabletype)))
+        process(table_media, "flyer", game.FlyerImagePath, str(default_media_path(game.fullPathTable, "flyer", self.tabletype)))
+        process(table_media.get(self.tableresolution), self.tabletype, game.TableImagePath, str(default_media_path(game.fullPathTable, self.tabletype, self.tabletype)))
         # Videos, and only the ones the index actually carries. There has never been
         # a bg_video at any resolution, so the backglass video is yours to supply.
         # Nor is there an fss_video: under table type fss the playfield video is
         # simply not offered, and asking would quietly fetch nothing.
-        process(table_media.get(self.tablevideoresolution), "dmd_video", table.DMDVideoPath, str(default_media_path(table.fullPathTable, "dmd_video", self.tabletype)))
+        process(table_media.get(self.tablevideoresolution), "dmd_video", game.DMDVideoPath, str(default_media_path(game.fullPathTable, "dmd_video", self.tabletype)))
         if self.tabletype == "table":
-            process(table_media.get(self.tablevideoresolution), "table_video", table.TableVideoPath, str(default_media_path(table.fullPathTable, "table_video", self.tabletype)))
-        process(table_media, "audio", table.AudioPath, str(default_media_path(table.fullPathTable, "audio", self.tabletype)))
+            process(table_media.get(self.tablevideoresolution), "table_video", game.TableVideoPath, str(default_media_path(game.fullPathTable, "table_video", self.tabletype)))
+        process(table_media, "audio", game.AudioPath, str(default_media_path(game.fullPathTable, "audio", self.tabletype)))

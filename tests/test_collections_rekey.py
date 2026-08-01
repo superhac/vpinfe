@@ -47,52 +47,52 @@ class MigrationTests(unittest.TestCase):
         self.ini = self.root / "collections.ini"
 
     def test_membership_moves_onto_table_ids(self) -> None:
-        table = _table(self.root, "Medieval Madness", vpsid="vps-mm", table_id="id-mm")
+        game = _table(self.root, "Medieval Madness", vpsid="vps-mm", table_id="id-mm")
         collections = _collections(self.ini, {"Favorites": ["vps-mm"]})
 
-        moved = collections.migrate_membership_to_table_ids([table])
+        moved = collections.migrate_membership_to_table_ids([game])
 
         self.assertEqual(moved, 1)
         self.assertEqual(collections.get_members("Favorites"), ["id-mm"])
 
     def test_it_runs_once(self) -> None:
-        table = _table(self.root, "MM", vpsid="vps-mm", table_id="id-mm")
+        game = _table(self.root, "MM", vpsid="vps-mm", table_id="id-mm")
         collections = _collections(self.ini, {"Favorites": ["vps-mm"]})
-        collections.migrate_membership_to_table_ids([table])
+        collections.migrate_membership_to_table_ids([game])
 
         again = VPXCollections(str(self.ini))
 
         self.assertEqual(again.schema_version(), CURRENT_SCHEMA)
-        self.assertEqual(again.migrate_membership_to_table_ids([table]), 0)
+        self.assertEqual(again.migrate_membership_to_table_ids([game]), 0)
         self.assertEqual(again.get_members("Favorites"), ["id-mm"])
 
     def test_a_newer_file_is_left_alone(self) -> None:
         """An older build must not rewrite membership it does not understand."""
-        table = _table(self.root, "MM", vpsid="vps-mm", table_id="id-mm")
+        game = _table(self.root, "MM", vpsid="vps-mm", table_id="id-mm")
         collections = _collections(self.ini, {"Favorites": ["something-new"]})
         collections._stamp_schema(CURRENT_SCHEMA + 5)
         collections.save()
 
         reopened = VPXCollections(str(self.ini))
         with self.assertLogs("vpinfe.common.tables.vpxcollections", level="WARNING"):
-            moved = reopened.migrate_membership_to_table_ids([table])
+            moved = reopened.migrate_membership_to_table_ids([game])
 
         self.assertEqual(moved, 0)
         self.assertEqual(reopened.get_members("Favorites"), ["something-new"])
 
     def test_an_entry_with_no_matching_table_is_kept(self) -> None:
         """The table may just not be here now; dropping it loses the membership."""
-        table = _table(self.root, "MM", vpsid="vps-mm", table_id="id-mm")
+        game = _table(self.root, "MM", vpsid="vps-mm", table_id="id-mm")
         collections = _collections(self.ini, {"Favorites": ["vps-mm", "vps-gone"]})
 
-        collections.migrate_membership_to_table_ids([table])
+        collections.migrate_membership_to_table_ids([game])
 
         self.assertEqual(sorted(collections.get_members("Favorites")), ["id-mm", "vps-gone"])
 
     def test_the_reserved_section_is_not_a_collection(self) -> None:
-        table = _table(self.root, "MM", vpsid="vps-mm", table_id="id-mm")
+        game = _table(self.root, "MM", vpsid="vps-mm", table_id="id-mm")
         collections = _collections(self.ini, {"Favorites": ["vps-mm"]})
-        collections.migrate_membership_to_table_ids([table])
+        collections.migrate_membership_to_table_ids([game])
 
         reopened = VPXCollections(str(self.ini))
 
@@ -100,10 +100,10 @@ class MigrationTests(unittest.TestCase):
         self.assertIn(SCHEMA_SECTION, reopened.config.sections())
 
     def test_membership_recorded_under_an_alt_vpsid_still_migrates(self) -> None:
-        table = _table(self.root, "MM", vpsid="vps-base", altvpsid="vps-alt", table_id="id-mm")
+        game = _table(self.root, "MM", vpsid="vps-base", altvpsid="vps-alt", table_id="id-mm")
         collections = _collections(self.ini, {"Favorites": ["vps-alt"]})
 
-        collections.migrate_membership_to_table_ids([table])
+        collections.migrate_membership_to_table_ids([game])
 
         self.assertEqual(collections.get_members("Favorites"), ["id-mm"])
 
@@ -119,10 +119,10 @@ class MembershipTests(unittest.TestCase):
 
     def test_a_table_vpsdb_never_matched_can_join_a_collection(self) -> None:
         """Defect 1: its VPS id is empty, so it could not be a member at all."""
-        table = _table(self.root, "Homebrew", vpsid="", table_id="id-home")
+        game = _table(self.root, "Homebrew", vpsid="", table_id="id-home")
         collections = _collections(self.ini, {"Favorites": ["id-home"]})
 
-        self.assertTrue(collections.is_member(table, set(collections.get_members("Favorites"))))
+        self.assertTrue(collections.is_member(game, set(collections.get_members("Favorites"))))
 
     def test_two_tables_sharing_a_vps_id_are_distinguishable(self) -> None:
         """Defect 2: one VPS id, two tables - membership could not tell them apart."""
@@ -165,17 +165,17 @@ class MembershipTests(unittest.TestCase):
 
         self.assertEqual(after["vpinfe"]["alt_vpsid"], "", "precondition: altvpsid cleared")
 
-        table = SimpleNamespace(fullPathTable=str(self.root), tableDirName="MM",
+        game = SimpleNamespace(fullPathTable=str(self.root), tableDirName="MM",
                                 metaConfig=after)
         collections = _collections(self.ini, {"Favorites": []})
 
         # Keyed the old way - the alt VPS id the user had set - membership is gone,
         # because that value now matches neither the base nor the (cleared) alt.
-        self.assertFalse(collections.is_member(table, {"vps-override"}),
+        self.assertFalse(collections.is_member(game, {"vps-override"}),
                          "this is the orphaning the re-key exists to fix")
 
         # Keyed by the table's own id, it survives.
-        self.assertTrue(collections.is_member(table, {table_id_value}))
+        self.assertTrue(collections.is_member(game, {table_id_value}))
 
 
 class DisplayPathTests(unittest.TestCase):
@@ -192,19 +192,19 @@ class DisplayPathTests(unittest.TestCase):
         self.root = Path(self._tmp.name)
         self.ini = self.root / "collections.ini"
 
-    def _row_for(self, table):
+    def _row_for(self, game):
         with mock.patch.object(table_repository, "COLLECTIONS_PATH", self.ini):
             mapping = table_repository.collections_by_table_id()
-        return table_repository.table_to_row(table, mapping)
+        return table_repository.table_to_row(game, mapping)
 
     def test_a_migrated_collection_still_shows_on_the_table_row(self) -> None:
-        table = _table(self.root, "Medieval Madness", vpsid="vps-mm", table_id="id-mm")
-        table.fullPathVPXfile = str(self.root / "Medieval Madness" / "MM.vpx")
+        game = _table(self.root, "Medieval Madness", vpsid="vps-mm", table_id="id-mm")
+        game.fullPathVPXfile = str(self.root / "Medieval Madness" / "MM.vpx")
         collections = _collections(self.ini, {"Favorites": ["vps-mm"]})
 
-        collections.migrate_membership_to_table_ids([table])
+        collections.migrate_membership_to_table_ids([game])
 
-        self.assertEqual(self._row_for(table)["collections"], ["Favorites"],
+        self.assertEqual(self._row_for(game)["collections"], ["Favorites"],
                          "the migration must not empty the collections column")
 
     def test_an_entry_the_migration_could_not_resolve_still_shows(self) -> None:
@@ -213,31 +213,31 @@ class DisplayPathTests(unittest.TestCase):
         Happens when the table was not installed at migration time. is_member()
         tolerates this, so the row lookup has to as well or the two disagree.
         """
-        table = _table(self.root, "Late Arrival", vpsid="vps-late", table_id="id-late")
-        table.fullPathVPXfile = str(self.root / "Late Arrival" / "Late.vpx")
+        game = _table(self.root, "Late Arrival", vpsid="vps-late", table_id="id-late")
+        game.fullPathVPXfile = str(self.root / "Late Arrival" / "Late.vpx")
         collections = _collections(self.ini, {"Favorites": ["vps-late"]})
         collections._stamp_schema()
         collections.save()
 
         self.assertEqual(collections.get_members("Favorites"), ["vps-late"],
                          "precondition: the entry was never rewritten")
-        self.assertEqual(self._row_for(table)["collections"], ["Favorites"])
+        self.assertEqual(self._row_for(game)["collections"], ["Favorites"])
 
     def test_an_entry_keyed_by_alt_vps_id_still_shows(self) -> None:
-        table = _table(self.root, "Repointed", vpsid="vps-base",
+        game = _table(self.root, "Repointed", vpsid="vps-base",
                        altvpsid="vps-alt", table_id="id-repointed")
-        table.fullPathVPXfile = str(self.root / "Repointed" / "Repointed.vpx")
+        game.fullPathVPXfile = str(self.root / "Repointed" / "Repointed.vpx")
         _collections(self.ini, {"Favorites": ["vps-alt"]})
 
-        self.assertEqual(self._row_for(table)["collections"], ["Favorites"])
+        self.assertEqual(self._row_for(game)["collections"], ["Favorites"])
 
     def test_a_table_with_no_vps_id_shows_its_collections(self) -> None:
         """The row lookup has to key on the table id, not on anything VPS-derived."""
-        table = _table(self.root, "Homebrew", vpsid="", table_id="id-home")
-        table.fullPathVPXfile = str(self.root / "Homebrew" / "Homebrew.vpx")
+        game = _table(self.root, "Homebrew", vpsid="", table_id="id-home")
+        game.fullPathVPXfile = str(self.root / "Homebrew" / "Homebrew.vpx")
         _collections(self.ini, {"Favorites": ["id-home"]})
 
-        self.assertEqual(self._row_for(table)["collections"], ["Favorites"])
+        self.assertEqual(self._row_for(game)["collections"], ["Favorites"])
 
     def test_filter_collections_are_not_in_the_map(self) -> None:
         """They have no member list; membership is decided per table when displayed."""

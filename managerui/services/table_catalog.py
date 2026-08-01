@@ -26,14 +26,14 @@ def scan_mobile_tables(reload: bool = False) -> List[Dict]:
 def build_mobile_table_rows(tables: List[Dict]) -> List[Dict]:
     """Build mobile page display rows from scanned tables."""
     rows = []
-    for table in tables:
-        parts = [part for part in [table.get("manufacturer"), table.get("year")] if part]
-        name = table.get("name", "")
+    for game in tables:
+        parts = [part for part in [game.get("manufacturer"), game.get("year")] if part]
+        name = game.get("name", "")
         display = f"{name} ({' '.join(parts)})" if parts else name
         rows.append({
             "display_name": display,
-            "table_dir_name": table.get("table_dir_name", ""),
-            "vpinfe_id": table.get("vpinfe_id", ""),
+            "table_dir_name": game.get("table_dir_name", ""),
+            "vpinfe_id": game.get("vpinfe_id", ""),
         })
     return rows
 
@@ -79,5 +79,5 @@ def scan_launchable_tables(games_path: str | None = None) -> List[Dict]:
             },
         })
 
-    tables.sort(key=lambda table: table["name"].lower())
+    tables.sort(key=lambda game: game["name"].lower())
     return tables

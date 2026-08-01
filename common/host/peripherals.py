@@ -39,20 +39,20 @@ def reacquire_after_exit(*, ini_config=None, **_payload) -> None:
     start_dof_service_if_enabled(ini_config)
 
 
-def play_dof_effect(*, table=None, ini_config=None, **_payload) -> None:
+def play_dof_effect(*, game=None, ini_config=None, **_payload) -> None:
     """Fire the table's DOF effect - solenoids and lights."""
-    if table is None:
+    if game is None:
         return
-    send_frontend_dof_event(ini_config, table_frontend_dof_event(table))
+    send_frontend_dof_event(ini_config, table_frontend_dof_event(game))
 
 
-def show_realdmd_art(*, table=None, ini_config=None, **_payload) -> None:
+def show_realdmd_art(*, game=None, ini_config=None, **_payload) -> None:
     """Put the table's art on the real DMD panel."""
-    if table is None:
+    if game is None:
         return
     _updater(ini_config).queue_image_update(
-        getattr(table, "tableDirName", ""),
-        realdmd.get_realdmd_image_for_table(table, ini_config),
+        getattr(game, "tableDirName", ""),
+        realdmd.get_realdmd_image_for_table(game, ini_config),
     )
 
 

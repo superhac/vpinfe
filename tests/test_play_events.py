@@ -49,9 +49,9 @@ class PlayEventTests(unittest.TestCase):
         self._register()
 
         with mock.patch.object(play_events, "save_last_table"):
-            events.emit(events.TABLE_LAUNCHING, table=None, ini_config=None)
-            events.emit(events.TABLE_LAUNCHED, table=None, ini_config=None)
-            events.emit(events.TABLE_EXITED, table=None, ini_config=None)
+            events.emit(events.TABLE_LAUNCHING, game=None, ini_config=None)
+            events.emit(events.TABLE_LAUNCHED, game=None, ini_config=None)
+            events.emit(events.TABLE_EXITED, game=None, ini_config=None)
 
         self.assertEqual(self.bridge.messages,
                          ["TableLaunching", "TableRunning", "TableLaunchComplete"])
@@ -61,19 +61,19 @@ class PlayEventTests(unittest.TestCase):
         self._register()
 
         with mock.patch.object(play_events, "save_last_table"):
-            events.emit(events.TABLE_LAUNCHING, table=None, ini_config=None)
+            events.emit(events.TABLE_LAUNCHING, game=None, ini_config=None)
 
         self.assertEqual(self.bridge.messages, ["TableLaunching"])
 
     def test_the_last_table_is_recorded_on_launch(self) -> None:
-        table = types.SimpleNamespace(tableDirName="Example")
+        game = types.SimpleNamespace(tableDirName="Example")
         ini = types.SimpleNamespace(config={})
         self._register(ini)
 
         with mock.patch.object(play_events, "save_last_table") as save:
-            events.emit(events.TABLE_LAUNCHING, table=table, ini_config=None)
+            events.emit(events.TABLE_LAUNCHING, game=game, ini_config=None)
 
-        save.assert_called_once_with(ini, table)
+        save.assert_called_once_with(ini, game)
 
     def test_a_broken_window_message_cannot_stop_a_launch(self) -> None:
         """These are subscribers, so the bus contains them. As hooks they could
@@ -82,7 +82,7 @@ class PlayEventTests(unittest.TestCase):
         self.bridge.send_event_all_with_iframe = mock.Mock(side_effect=RuntimeError("bridge down"))
 
         with self.assertLogs("vpinfe.common.events", level="ERROR"):
-            events.emit(events.TABLE_LAUNCHED, table=None, ini_config=None)
+            events.emit(events.TABLE_LAUNCHED, game=None, ini_config=None)
 
 
 if __name__ == "__main__":

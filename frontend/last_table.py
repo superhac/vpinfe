@@ -13,20 +13,20 @@ STATE_SECTION = "State"
 STATE_KEY = "lasttable"
 
 
-def table_identity(table) -> str:
+def table_identity(game) -> str:
     """Stable id for a table, preferring its absolute path over its dir name.
 
     Used both to save the last-launched table and to resolve it back to an
     index, so it must be computed the same way in both directions.
     """
-    return str(getattr(table, "fullPathTable", "") or getattr(table, "tableDirName", "") or "")
+    return str(getattr(game, "fullPathTable", "") or getattr(game, "tableDirName", "") or "")
 
 
-def save_last_table(iniConfig, table) -> None:
+def save_last_table(iniConfig, game) -> None:
     """Persist `table` as the last-launched table when the feature is enabled."""
     if not SettingsConfig.from_config(iniConfig).restore_last_table:
         return
-    identity = table_identity(table)
+    identity = table_identity(game)
     if not identity:
         return
     parser = iniConfig.config
@@ -52,7 +52,7 @@ def resolve_last_table_index(iniConfig, tables) -> int:
     saved = cfg_get(iniConfig, STATE_SECTION, STATE_KEY, "").strip()
     if not saved:
         return 0
-    for index, table in enumerate(tables):
-        if table_identity(table) == saved:
+    for index, game in enumerate(tables):
+        if table_identity(game) == saved:
             return index
     return 0

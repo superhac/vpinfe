@@ -96,13 +96,13 @@ class TestApiInputMapping(unittest.TestCase):
             table_path = Path(tmp) / "Example.vpx"
             table_path.write_text("", encoding="utf-8")
 
-            table = types.SimpleNamespace(
+            game = types.SimpleNamespace(
                 fullPathVPXfile=str(table_path),
                 metaConfig={},
                 tableDirName="Example",
                 fullPathTable=str(Path(tmp)),
             )
-            mock_tables.return_value = [table]
+            mock_tables.return_value = [game]
             mock_get_launcher.return_value = (launcher, "Settings", None)
 
             process = types.SimpleNamespace(stdout=[], wait=lambda: 0)

@@ -146,7 +146,7 @@ class FrontendServiceTests(unittest.TestCase):
         self.assertEqual(events, [{"type": "AudioMuteChanged", "muted": True}])
 
     def test_realdmd_helpers_and_updater_process_pending(self):
-        table = types.SimpleNamespace(
+        game = types.SimpleNamespace(
             tableDirName="Example",
             realDMDImagePath="/tmp/realdmd.png",
             realDMDColorImagePath="/tmp/realdmd-color.png",
@@ -161,13 +161,13 @@ class FrontendServiceTests(unittest.TestCase):
         # symlink to /private/tmp, so compare against the resolved expectation.
         color_expected = Path("/tmp/realdmd-color.png").resolve()
         standard_expected = Path("/tmp/realdmd.png").resolve()
-        self.assertEqual(table_frontend_dof_event(table), "E901")
-        self.assertEqual(realdmd.get_realdmd_image_for_table(table), color_expected)
-        self.assertEqual(realdmd.get_realdmd_image_for_table(table, color_config), color_expected)
-        self.assertEqual(realdmd.get_realdmd_image_for_table(table, standard_config), standard_expected)
+        self.assertEqual(table_frontend_dof_event(game), "E901")
+        self.assertEqual(realdmd.get_realdmd_image_for_table(game), color_expected)
+        self.assertEqual(realdmd.get_realdmd_image_for_table(game, color_config), color_expected)
+        self.assertEqual(realdmd.get_realdmd_image_for_table(game, standard_config), standard_expected)
 
-        table.realDMDColorImagePath = ""
-        self.assertEqual(realdmd.get_realdmd_image_for_table(table, color_config), standard_expected)
+        game.realDMDColorImagePath = ""
+        self.assertEqual(realdmd.get_realdmd_image_for_table(game, color_config), standard_expected)
 
         calls = []
         updater = realdmd.RealDmdUpdater("ini", "table", lambda ini, image: calls.append((ini, image)) or True)
@@ -178,8 +178,8 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_table_report_service_logs_unknown_table(self):
         parser_instance = mock.Mock()
-        table = types.SimpleNamespace(tableDirName="Unknown")
-        parser_instance.getAllTables.return_value = [table]
+        game = types.SimpleNamespace(tableDirName="Unknown")
+        parser_instance.getAllTables.return_value = [game]
         vps_instance = mock.Mock()
         vps_instance.__len__ = mock.Mock(return_value=0)
         vps_instance.parseTableNameFromDir.return_value = {"name": "Unknown", "manufacturer": "", "year": ""}
@@ -209,7 +209,7 @@ class FrontendServiceTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            table = types.SimpleNamespace(
+            game = types.SimpleNamespace(
                 fullPathTable=str(game_dir),
                 tableDirName="Example",
                 metaConfig=json.loads(info_path.read_text(encoding="utf-8")),
@@ -227,7 +227,7 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = table_state.set_table_rating([table], 0, 5)
+            result = table_state.set_table_rating([game], 0, 5)
 
             self.assertEqual(result, {"success": True, "rating": 5})
             saved = json.loads(info_path.read_text(encoding="utf-8"))
@@ -251,7 +251,7 @@ class FrontendServiceTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            table = types.SimpleNamespace(
+            game = types.SimpleNamespace(
                 fullPathTable=str(game_dir),
                 tableDirName="Example",
                 metaConfig=json.loads(info_path.read_text(encoding="utf-8")),
@@ -269,7 +269,7 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            table_play_service.increment_start_count(table)
+            table_play_service.increment_start_count(game)
 
             saved = json.loads(info_path.read_text(encoding="utf-8"))
             self.assertEqual(saved["User"]["Rating"], 4)
@@ -288,7 +288,7 @@ class FrontendServiceTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            table = types.SimpleNamespace(
+            game = types.SimpleNamespace(
                 fullPathTable=str(game_dir),
                 tableDirName="Example",
                 metaConfig={},
@@ -296,7 +296,7 @@ class FrontendServiceTests(unittest.TestCase):
 
             with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
                     mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}) as to_json:
-                score_data, score_path = table_play_service.parse_score_from_nvram(table)
+                score_data, score_path = table_play_service.parse_score_from_nvram(game)
 
             read_rom.assert_called_once_with("vpx_rom", str(game_dir))
             to_json.assert_called_once_with("vpx_rom", 123, "/scores/vpx_rom.nv")
@@ -319,7 +319,7 @@ class FrontendServiceTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            table = types.SimpleNamespace(
+            game = types.SimpleNamespace(
                 fullPathTable=str(game_dir),
                 tableDirName="Example",
                 metaConfig={},
@@ -327,7 +327,7 @@ class FrontendServiceTests(unittest.TestCase):
 
             with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
                     mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}):
-                table_play_service.parse_score_from_nvram(table)
+                table_play_service.parse_score_from_nvram(game)
 
             read_rom.assert_called_once_with("vpx_rom", str(game_dir))
 
@@ -340,7 +340,7 @@ class FrontendServiceTests(unittest.TestCase):
             info_nvram = nvram_dir / "info_rom.nv"
             vpx_nvram.write_bytes(b"vpx")
             info_nvram.write_bytes(b"info")
-            table = types.SimpleNamespace(
+            game = types.SimpleNamespace(
                 fullPathTable=str(game_dir),
                 tableDirName="Example",
                 metaConfig={
@@ -349,7 +349,7 @@ class FrontendServiceTests(unittest.TestCase):
                 },
             )
 
-            table_play_service.delete_nvram_if_configured(table)
+            table_play_service.delete_nvram_if_configured(game)
 
             self.assertFalse(vpx_nvram.exists())
             self.assertTrue(info_nvram.exists())

@@ -54,7 +54,7 @@ class TestCollectionSorting(unittest.TestCase):
             result = manager.filter_tables(tables, "Last Played")
 
             self.assertEqual(
-                [table.metaConfig["Info"]["Title"] for table in result],
+                [game.metaConfig["Info"]["Title"] for game in result],
                 ["Alpha", "Bravo", "Charlie"],
             )
 
@@ -81,7 +81,7 @@ class TestCollectionSorting(unittest.TestCase):
             result = manager.filter_tables(tables, "Favorites")
 
             self.assertEqual(
-                [table.metaConfig["Info"]["Title"] for table in result],
+                [game.metaConfig["Info"]["Title"] for game in result],
                 ["Alpha", "Zulu"],
             )
 
@@ -99,7 +99,7 @@ class TestCollectionSorting(unittest.TestCase):
         self.assertEqual(count, 3)
         self.assertEqual(api.current_sort, "LastRun")
         self.assertEqual(
-            [table.metaConfig["Info"]["Title"] for table in api.filteredTables],
+            [game.metaConfig["Info"]["Title"] for game in api.filteredTables],
             ["Alpha", "Bravo", "Charlie"],
         )
 
@@ -119,7 +119,7 @@ class TestCollectionSorting(unittest.TestCase):
         self.assertEqual(api.current_sort, "RunTime")
         self.assertEqual(api.current_order, "Descending")
         self.assertEqual(
-            [table.metaConfig["Info"]["Title"] for table in api.filteredTables],
+            [game.metaConfig["Info"]["Title"] for game in api.filteredTables],
             ["Long", "Medium", "Short"],
         )
 
@@ -127,7 +127,7 @@ class TestCollectionSorting(unittest.TestCase):
 
         self.assertEqual(api.current_order, "Ascending")
         self.assertEqual(
-            [table.metaConfig["Info"]["Title"] for table in api.filteredTables],
+            [game.metaConfig["Info"]["Title"] for game in api.filteredTables],
             ["Short", "Medium", "Long"],
         )
 

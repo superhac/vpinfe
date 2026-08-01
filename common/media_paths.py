@@ -250,21 +250,21 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
     return resolved
 
 
-def apply_media_paths(table, game_contents: set[str], medias_contents: set[str],
+def apply_media_paths(game, game_contents: set[str], medias_contents: set[str],
                       playfield_variant: str = "table",
                       game_file_stem: str | None = None,
                       active_sets: dict[str, str] | None = None) -> None:
-    resolved = resolve_media_files(table.fullPathTable, game_contents,
+    resolved = resolve_media_files(game.fullPathTable, game_contents,
                                    medias_contents, playfield_variant, game_file_stem,
                                    active_sets)
     for spec in MEDIA_SPECS:
         path = resolved[spec.key]
         if path is not None:
-            setattr(table, spec.attr, str(path))
+            setattr(game, spec.attr, str(path))
 
 
-def table_media_payload(table) -> dict[str, str | None]:
+def table_media_payload(game) -> dict[str, str | None]:
     return {
-        spec.attr: getattr(table, spec.attr, None)
+        spec.attr: getattr(game, spec.attr, None)
         for spec in MEDIA_SPECS
     }

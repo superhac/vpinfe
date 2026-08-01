@@ -296,10 +296,10 @@ class WheelSetTests(unittest.TestCase):
         from common.media_paths import list_media_sets
 
         with TemporaryDirectory() as tmp:
-            for table, sets in (("Table A", ["tarcisio"]),
+            for game, sets in (("Table A", ["tarcisio"]),
                                 ("Table B", ["tarcisio", "colorful"])):
                 for name in sets:
-                    (Path(tmp) / table / "medias" / "wheels" / name).mkdir(parents=True)
+                    (Path(tmp) / game / "medias" / "wheels" / name).mkdir(parents=True)
 
             self.assertEqual(list_media_sets(tmp, "wheel"),
                              ["colorful", "logo", "tarcisio"])
@@ -359,12 +359,12 @@ class ParserCasingTests(unittest.TestCase):
                 "VPXFile": {"filename": f"{GAME_FILE}.vpx"},
             }), encoding="utf-8")
 
-            table = TableParser(tmp).getAllTables()[0]
+            game = TableParser(tmp).getAllTables()[0]
 
-        self.assertTrue(table.pupPackExists, "PUPVideos holds a PUP pack")
-        self.assertTrue(table.altColorExists)
-        self.assertTrue(table.vniExists)
-        self.assertTrue(table.musicExists)
+        self.assertTrue(game.pupPackExists, "PUPVideos holds a PUP pack")
+        self.assertTrue(game.altColorExists)
+        self.assertTrue(game.vniExists)
+        self.assertTrue(game.musicExists)
 
 
 class ImportSideTests(unittest.TestCase):
@@ -446,9 +446,9 @@ class ParserOrderTests(unittest.TestCase):
             (root / "medias" / "(Wheel) some other build.png").write_bytes(b"png")
 
             parser = TableParser(tmp)
-            table = parser.getAllTables()[0]
+            game = parser.getAllTables()[0]
 
-        self.assertEqual(os.path.basename(table.WheelImagePath),
+        self.assertEqual(os.path.basename(game.WheelImagePath),
                          f"(Wheel) {GAME_FILE}.png",
                          "the recorded build's wheel, not the other build's")
 

@@ -270,15 +270,15 @@ class VPXParser:
     # Matchers
     # -------------------------------
     def findFileSHAMatch(self, tables, vpxFileValues):
-        for table in tables:
-            if vpxFileValues['file_hash'] == table['file_hash']:
+        for game in tables:
+            if vpxFileValues['file_hash'] == game['file_hash']:
                 logger.info("Found FILE hash match.")
-                return table
+                return game
         return None
 
     def findCodeSHAMatch(self, tables, vpxFileValues):
-        for table in tables:
-            if vpxFileValues['vbs_hash'] == table['vbs_hash']:
+        for game in tables:
+            if vpxFileValues['vbs_hash'] == game['vbs_hash']:
                 logger.info("Found CODE hash match.")
-                return table
+                return game
         return None

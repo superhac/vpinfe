@@ -123,7 +123,7 @@ def refresh_table(table_path: str) -> List[Any]:
         tables = ensure_tables_loaded(reload=True)
 
     logger.debug("refresh_table %s elapsed=%.3fs", normalized, perf_counter() - started_at)
-    return [table for table in tables if str(Path(table.fullPathTable).resolve()) == normalized]
+    return [game for game in tables if str(Path(game.fullPathTable).resolve()) == normalized]
 
 
 def get_missing_tables(reload: bool = False) -> List[Dict[str, str]]:
@@ -156,12 +156,12 @@ def collections_by_table_id() -> Dict[str, List[str]]:
     return mapping
 
 
-def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
-    meta = table.metaConfig or {}
+def table_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
+    meta = game.metaConfig or {}
     info = section(meta, "Info")
     user = section(meta, "User")
     vpinfe = vpinfe_section(meta)
-    table_name = Path(table.fullPathTable).name
+    table_name = Path(game.fullPathTable).name
     vpsid = first_meta_value(meta, ("Info", "VPSId"), default="")
     # The row describes one game file - the table's default. A folder can hold several,
     # and the API lists them all separately; this is what the table-level views show.
@@ -174,13 +174,13 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
     row = {
         "name": (str(vpinfe.get("alt_title", "") or "").strip()
                  or reorder_leading_article(first_meta_value(meta, ("Info", "Title"), default=table_name) or "")),
-        "filename": gf_name or Path(table.fullPathVPXfile).name,
+        "filename": gf_name or Path(game.fullPathVPXfile).name,
         # vpsid and altvpsid correlate with VPSdb, VPinPlay and anything else keyed
         # by them. vpinfe_id is this install's own id (common/table_identity.py) and
         # is what identifies the table here - in the API, in events, in collection
         # membership. Empty until the table has been assigned one; reading never mints.
         "vpsid": vpsid,
-        "vpinfe_id": vpinfe_id(table),
+        "vpinfe_id": vpinfe_id(game),
         "ipdb_id": first_meta_value(meta, ("Info", "IPDBId")),
         "pinball_primer_tut": first_meta_value(meta, ("Info", "PinballPrimerTut")),
         # Info carries what VPS knows; the game file's own claim is the fallback and can
@@ -205,14 +205,14 @@ def table_to_row(table, collections_map: Optional[Dict[str, List[str]]] = None) 
         "detectflex": gf_value("detect_flex"),
         "detectpinmame": gf_value("detect_pinmame"),
         "patch_applied": gf_value("patch_applied", False),
-        "table_path": table.fullPathTable,
-        "b2s_exists": bool(getattr(table, "b2sExists", False)),
-        "pup_pack_exists": bool(getattr(table, "pupPackExists", False)),
-        "serum_exists": bool(getattr(table, "altColorExists", False)),
-        "vni_exists": bool(getattr(table, "vniExists", False)),
-        "alt_sound_exists": bool(getattr(table, "altSoundExists", False)),
-        "ini_exists": bool(getattr(table, "iniExists", False)),
-        "music_exists": bool(getattr(table, "musicExists", False)),
+        "table_path": game.fullPathTable,
+        "b2s_exists": bool(getattr(game, "b2sExists", False)),
+        "pup_pack_exists": bool(getattr(game, "pupPackExists", False)),
+        "serum_exists": bool(getattr(game, "altColorExists", False)),
+        "vni_exists": bool(getattr(game, "vniExists", False)),
+        "alt_sound_exists": bool(getattr(game, "altSoundExists", False)),
+        "ini_exists": bool(getattr(game, "iniExists", False)),
+        "music_exists": bool(getattr(game, "musicExists", False)),
         "delete_nvram_on_close": vpinfe.get("delete_nvram_on_close", False),
         "alt_launcher": str(vpinfe.get("alt_launcher", "") or "").strip(),
         "plugin_profile": str(vpinfe.get("plugin_profile", "") or "").strip(),
@@ -248,7 +248,7 @@ def get_table_rows(reload: bool = False) -> List[Dict[str, Any]]:
     # this only touches disk for a table that has no id yet.
     tables = ensure_unique_ids(ensure_tables_loaded(reload=reload)).values()
     collections_map = collections_by_table_id()
-    rows = [table_to_row(table, collections_map) for table in tables]
+    rows = [table_to_row(game, collections_map) for game in tables]
     rows.sort(key=lambda row: (row.get("name") or "").lower())
     return rows
 

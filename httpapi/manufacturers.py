@@ -29,8 +29,8 @@ def _vps_names() -> list[str]:
 
 
 def _library_counts() -> Counter:
-    return Counter(str(table_to_row(table).get("manufacturer", "") or "").strip()
-                   for table in _catalog().values())
+    return Counter(str(table_to_row(game).get("manufacturer", "") or "").strip()
+                   for game in _catalog().values())
 
 
 @router.get("", summary="Manufacturers, their slugs and logo coverage",
