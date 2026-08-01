@@ -5,7 +5,7 @@ from typing import Any
 
 
 @dataclass
-class Table:
+class Game:
     tableDirName: str | None = None
     fullPathTable: str | None = None
     fullPathVPXfile: str | None = None

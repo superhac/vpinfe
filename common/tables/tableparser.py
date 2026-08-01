@@ -16,7 +16,7 @@ from common.tables.info_migration import (
     restorable_backup,
 )
 from common.tables.metaconfig import InvalidMetaConfigError, MetaConfig
-from common.tables.table import Table
+from common.tables.game import Game
 from common.tables.table_metadata import section, vpinfe_section
 
 logger = logging.getLogger("vpinfe.common.tables.tableparser")
@@ -30,7 +30,7 @@ class TableParser:
     def __init__(self, tablesRootFilePath, iniConfig=None):
         self.tablesRootFilePath = Path(tablesRootFilePath)
         self.tabletype = "table"
-        self.tables: list[Table] = []
+        self.tables: list[Game] = []
         self.missing_tables: list[dict] = []
         self.unreadable_tables: list[dict] = []
         self.active_sets: dict[str, str] = {}
@@ -80,7 +80,7 @@ class TableParser:
         The whole of what a scan does per table, so refreshing one costs one folder
         rather than the library.
         """
-        table = Table()
+        table = Game()
         table.tableDirName = game_dir.name
         table.fullPathTable = str(game_dir)
 
@@ -196,9 +196,9 @@ class TableParser:
             self.tables.append(table)             # a folder that was not there before
         return table
 
-    def loadImagePaths(self, Table, game_contents=None, has_medias_dir=None,
+    def loadImagePaths(self, Game, game_contents=None, has_medias_dir=None,
                        game_file_stem=None):
-        game_dir = Path(Table.fullPathTable)
+        game_dir = Path(Game.fullPathTable)
         medias_dir = game_dir / "medias"
 
         # Batch directory listings to minimize disk calls
@@ -218,18 +218,18 @@ class TableParser:
                             fname if rel == "." else f"{rel}/{fname}".replace(os.sep, "/"))
             except Exception:
                 medias_contents = set()
-        apply_media_paths(Table, game_contents, medias_contents, self.tabletype,
+        apply_media_paths(Game, game_contents, medias_contents, self.tabletype,
                           game_file_stem, self.active_sets or None)
 
-    def loadMetaData(self, Table):
-        meta_path = Path(Table.fullPathTable) / f"{Table.tableDirName}.info"
+    def loadMetaData(self, Game):
+        meta_path = Path(Game.fullPathTable) / f"{Game.tableDirName}.info"
         try:
             meta = MetaConfig(str(meta_path))
         except InvalidMetaConfigError as exc:
-            logger.error("Invalid metadata for table '%s': %s", Table.tableDirName, exc)
+            logger.error("Invalid metadata for table '%s': %s", Game.tableDirName, exc)
             raise
-        Table.metaConfig = meta.data
-        Table.info_pending_upgrade = meta.pending_migration
+        Game.metaConfig = meta.data
+        Game.info_pending_upgrade = meta.pending_migration
 
     def getTable(self, index):
         return self.tables[index]
@@ -247,5 +247,5 @@ class TableParser:
     def getMissingTables(self):
         return [dict(row) for row in self.missing_tables]
 
-    def isFavorite(self, Table):
-        return vpinfe_section(Table.metaConfig).get("favorite", "").lower() == "true"
+    def isFavorite(self, Game):
+        return vpinfe_section(Game.metaConfig).get("favorite", "").lower() == "true"
