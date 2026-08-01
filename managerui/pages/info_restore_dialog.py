@@ -14,8 +14,8 @@ The list is there to answer "what will this touch", not to be picked from.
 from __future__ import annotations
 
 import asyncio
-import logging
 from datetime import datetime
+import logging
 from queue import Queue
 
 from nicegui import run, ui
@@ -31,12 +31,12 @@ _MUTED = ('color: var(--ink-muted) !important; background: var(--surface) !impor
           'border: 1px solid var(--line); border-radius: 18px; padding: 4px 10px;')
 
 INTRO = (
-    "Puts your ratings, favourites, tags and play counts back to how they were{when}. "
-    "Your current .info files are backed up first."
+    "Puts your ratings, favorites, tags, play counts and collections back to how they "
+    "were{when}. Your current files are backed up first."
 )
 
 DETAIL = (
-    "Tables a newer VPinFE never touched are left exactly as they are."
+    "Anything a newer VPinFE never touched is left exactly as it is."
 )
 
 
@@ -56,16 +56,16 @@ def _backup_date(stamp):
     return parsed.strftime("%d %B %Y").lstrip("0")
 
 
-def _strip(icon, colour, headline, detail, actions):
+def _strip(icon, color, headline, detail, actions):
     """One row: icon, text, actions.
 
     The text column needs `grow min-w-0` and the row `flex-nowrap`, or a long detail line
     grows past the available width and pushes the icon onto a line of its own.
     """
     with ui.card().classes('w-full mb-3').style(
-            f'background: var(--surface-soft); border: 1px solid {colour};'):
+            f'background: var(--surface-soft); border: 1px solid {color};'):
         with ui.row().classes('w-full items-center gap-4 px-4 py-3 flex-wrap md:flex-nowrap'):
-            ui.icon(icon, size='24px').classes('shrink-0').style(f'color: {colour};')
+            ui.icon(icon, size='24px').classes('shrink-0').style(f'color: {color};')
             with ui.column().classes('gap-1 grow min-w-0'):
                 ui.label(headline).classes('text-sm font-medium').style('color: var(--ink);')
                 ui.label(detail).classes('text-xs').style('color: var(--ink-muted);')
@@ -86,6 +86,23 @@ def _when():
     return f" on {date}" if date else " before the upgrade"
 
 
+def _collections_restorable():
+    try:
+        return table_service.collections_restorable()
+    except Exception:
+        logger.exception("Could not check for a saved collections file")
+        return False
+
+
+def _subject(count, collections):
+    """What a newer VPinFE upgraded, named as the user would name it."""
+    if count and collections:
+        return f"{_files(count)} and your collections"
+    if collections:
+        return "your collections"
+    return _files(count)
+
+
 def _restorable_names():
     try:
         return table_service.restorable_table_names()
@@ -96,7 +113,8 @@ def _restorable_names():
 
 def open_restore_dialog(on_done=None) -> None:
     names = _restorable_names()
-    if not names:
+    collections = _collections_restorable()
+    if not names and not collections:
         ui.notify("There are no backups to restore.", type='info')
         return
 
@@ -111,7 +129,8 @@ def open_restore_dialog(on_done=None) -> None:
         with intro_container:
             ui.label(INTRO.format(when=_when())).classes('text-sm').style('color: var(--ink);')
             ui.label(DETAIL).classes('text-xs').style('color: var(--ink-muted);')
-            with ui.expansion(f'Show the {len(names)} tables').classes('w-full'):
+            if names:
+              with ui.expansion(f'Show the {len(names)} tables').classes('w-full'):
                 with ui.column().classes('w-full p-2').style(
                         'max-height: 14rem; overflow: auto;'):
                     for name in names:
@@ -197,13 +216,14 @@ def render_restore_banner(on_done=None) -> None:
     """Say something only when a newer VPinFE has been here."""
     _render_unreadable_warning()
     names = _restorable_names()
-    if not names:
+    collections = _collections_restorable()
+    if not names and not collections:
         return
 
     _strip(
         'history', 'var(--neon-cyan)',
-        f'A newer VPinFE upgraded {_files(len(names))}.',
-        'Restore puts your ratings, favourites, tags and play counts back to how this '
+        f'A newer VPinFE upgraded {_subject(len(names), collections)}.',
+        'Restore puts your ratings, favorites, tags and play counts back to how this '
         'version recorded them, and backs up the current files first.',
         lambda: ui.button('Restore backups', icon='history',
                           on_click=lambda: open_restore_dialog(on_done)).style(_ACCENT),
