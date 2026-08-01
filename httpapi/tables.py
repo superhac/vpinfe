@@ -28,7 +28,7 @@ from common.tables.game_files import (
     is_parsed,
     recorded_default,
 )
-from common.tables.table_metadata import section, vpinfe_section
+from common.tables.table_metadata import vpinfe_section
 from common.tables.table_repository import (
     collections_by_table_id,
     ensure_tables_loaded,
