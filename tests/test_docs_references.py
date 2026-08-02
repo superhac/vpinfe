@@ -155,5 +155,43 @@ class DocImportExampleTests(unittest.TestCase):
         self.assertEqual(broken, [], "\n".join(broken))
 
 
+class DocRouteTests(unittest.TestCase):
+    """A route in the docs has to be a route the app serves.
+
+    `GET /api/v1/collections/{name}/tables` was documented after the API had moved to
+    `/games`, so the endpoint table sent a reader to a 404. Routes are worth checking
+    separately from paths on disk: the app can answer what the filesystem cannot.
+    """
+
+    # FastAPI serves these itself, so they are absent from the paths it reports.
+    SERVED_ELSEWHERE = {"/api/v1/openapi.json", "/api/v1/docs"}
+    ROUTE = re.compile(r"`(/api/v1/[A-Za-z0-9_{}/.-]*)`")
+
+    def test_every_documented_route_exists(self) -> None:
+        import httpapi
+
+        real = set(httpapi.create_api_app().openapi()["paths"])
+        # Every literal segment the app actually uses. Anything else in a doc URL is a
+        # stand-in - `{id}` or a sample id like `tuF3WogthK` - and normalizes to one.
+        literals = {seg for route in real for seg in route.split("/") if seg and "{" not in seg}
+
+        def shape(route: str) -> str:
+            route = re.sub(r"^/api/v1", "", route).rstrip("/") or "/"
+            return "/".join(s if s in literals else "{}" for s in route.split("/"))
+
+        known = {shape(r) for r in real}
+        missing = []
+        for doc in _doc_files():
+            if not doc.is_file():
+                continue
+            for number, line in enumerate(doc.read_text(encoding="utf-8").splitlines(), 1):
+                for ref in self.ROUTE.findall(line):
+                    if ref in self.SERVED_ELSEWHERE or shape(ref) in known:
+                        continue
+                    missing.append(f"{doc.name}:{number} documents {ref!r}")
+
+        self.assertEqual(missing, [], "\n".join(missing))
+
+
 if __name__ == "__main__":
     unittest.main()
