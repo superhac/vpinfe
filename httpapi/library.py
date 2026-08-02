@@ -1,7 +1,7 @@
-"""Operations over the library as a whole, rather than one table.
+"""Operations over the library as a whole, rather than one game.
 
-A scan rewrites metadata across every table folder, which is why it lives here and
-not under /tables/{id} - it is not an operation on a table, and pretending it were
+A scan rewrites metadata across every game folder, which is why it lives here and
+not under /games/{id} - it is not an operation on a game, and pretending it were
 would put a library-wide write behind a per-table path.
 """
 
@@ -19,13 +19,13 @@ from .errors import ConflictError
 router = APIRouter(prefix="/library", tags=["library"])
 
 
-@router.post("/scan", summary="Rebuild table metadata from VPSdb", status_code=202,
+@router.post("/scan", summary="Rebuild game metadata from VPSdb", status_code=202,
              dependencies=[requires(scopes.GAMES_WRITE)])
 def scan(response: Response,
          request: models.ScanRequest | None = Body(default=None)) -> models.JobResource:
     """Accepted, not done: the work runs on its own thread and reports on the event
     stream. The scope is tables:write because that is what a scan does - it writes
-    a .info for every table it can match."""
+    a .info for every game it can match."""
     options = request or models.ScanRequest()
 
     # Imported here: the Manager UI service pulls in NiceGUI, and the API is meant

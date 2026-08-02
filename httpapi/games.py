@@ -1,9 +1,8 @@
-"""The table catalog.
+"""The game catalog.
 
-A table is the pinball-machine concept - folder, identity, metadata, media and
-assets. The
-launchable artifact is a game file, exposed as a sub-resource, because a table is
-not permanently one .vpx.
+A game is the pinball-machine concept - folder, identity, metadata, media and
+assets. The launchable artifact is a table, exposed as a sub-resource, because a
+game is not permanently one .vpx.
 """
 
 from __future__ import annotations
@@ -45,9 +44,9 @@ router = APIRouter(prefix="/games", tags=["games"])
 
 
 def _catalog() -> dict:
-    """Every table keyed by id, minting ids for any that lack one.
+    """Every game keyed by id, minting ids for any that lack one.
 
-    Writes only for tables without an id, so this is a no-op once the library has
+    Writes only for games without an id, so this is a no-op once the library has
     been through it. main.py does the same at startup; this keeps the API correct
     when it is driven without a full app boot.
     """
@@ -57,7 +56,7 @@ def _catalog() -> dict:
 def _game_or_404(game_id: str):
     game = _catalog().get(game_id)
     if game is None:
-        raise NotFoundError(f"No table with id {game_id}")
+        raise NotFoundError(f"No game with id {game_id}")
     return game
 
 
@@ -77,7 +76,7 @@ def _resource(row: dict, game_id: str) -> dict:
         "version": row.get("version", ""),
         "rating": row.get("rating", 0),
         "collections": row.get("collections") or [],
-        # Assets, not media: these are what the table needs to play as intended.
+        # Assets, not media: these are what the game needs to play as intended.
         # Media is the artwork VPinFE shows while browsing - see docs/conventions.md.
         # Summary from the scan; the detail endpoint recomputes and attributes files.
         "assets": _asset_summary(row),
@@ -136,9 +135,9 @@ def _inventory_assets(game_dir: Path) -> dict:
 
 
 def _table_settings(game_dir: Path) -> dict:
-    """Per-game-file settings from the folder's .info, or {} when unreadable.
+    """Per-table settings from the folder's .info, or {} when unreadable.
 
-    A folder that cannot be parsed must not make its game files vanish - absent
+    A folder that cannot be parsed must not make its tables vanish - absent
     settings mean everything is visible, which is what an older library looks like.
     """
     try:
@@ -147,15 +146,15 @@ def _table_settings(game_dir: Path) -> dict:
         if info.is_file():
             return MetaConfig(str(info)).gameFileSettings()
     except Exception:  # noqa: BLE001 - settings are advisory; never block the listing
-        logger.debug("Could not read game file settings for %s", game_dir, exc_info=True)
+        logger.debug("Could not read table settings for %s", game_dir, exc_info=True)
     return {}
 
 
 def _tables(game, row: dict) -> list[dict]:
-    """The table's launchable artifacts.
+    """The game's launchable artifacts.
 
     Enumerates what is actually in the folder rather than trusting the single
-    filename recorded in the .info: a table folder can hold several .vpx files.
+    filename recorded in the .info: a game folder can hold several .vpx files.
     Sorted, so the answer does not depend on directory order.
 
     A game file the metadata describes but absent from disk is still reported - a
@@ -181,7 +180,7 @@ def _tables(game, row: dict) -> list[dict]:
     hidden = hidden_tables(described)
 
     # Dependency context, once per request: the alias map and the rom listing are
-    # shared by every game file in the folder.
+    # shared by every table in the folder.
     aliases = asset_resolver.read_alias_map(str(game_dir))
     rom_files = asset_resolver.list_rom_files(str(game_dir))
 
@@ -205,7 +204,7 @@ def _tables(game, row: dict) -> list[dict]:
             "assets": asset_resolver.resolve_for_table(name, game_dir.name, files),
         }
         if is_parsed(described_entry):
-            # Every game file carries its own ROM and detect flags, so each one answers
+            # Every table carries its own ROM and detect flags, so each one answers
             # for itself. This used to be knowable only for the single file the .info
             # described; the rest returned an honest "unknown".
             chain = asset_resolver.resolve_rom_chain(
@@ -228,7 +227,7 @@ def _tables(game, row: dict) -> list[dict]:
             chain = {"declared": None, "alias_of": None, "effective": None,
                      "required": None, "catalog": None, "clone_of": None,
                      "audit": None, "installed": None,
-                     "reason": "unknown: this game file has not been parsed yet"}
+                     "reason": "unknown: this table has not been parsed yet"}
             flex = asset_resolver.flexdmd_state(subdirs, None)
         chain["nvram"] = asset_resolver.nvram_state(str(game_dir), chain["effective"])
         entry["dependencies"] = {"pinmame": chain, "flexdmd": flex}
@@ -236,7 +235,7 @@ def _tables(game, row: dict) -> list[dict]:
     return entries
 
 
-@router.get("", summary="List tables", dependencies=[requires(scopes.GAMES_READ)])
+@router.get("", summary="List games", dependencies=[requires(scopes.GAMES_READ)])
 def list_games(
     q: str = Query("", description="Match against name, manufacturer or rom"),
     limit: int = Query(0, ge=0, description="0 returns everything"),
@@ -269,7 +268,7 @@ def list_games(
     return {"total": total, "offset": offset, "count": len(resources), "games": resources}
 
 
-@router.get("/{game_id}", summary="One table", dependencies=[requires(scopes.GAMES_READ)])
+@router.get("/{game_id}", summary="One game", dependencies=[requires(scopes.GAMES_READ)])
 def get_game(game_id: str) -> models.GameResource:
     game = _game_or_404(game_id)
     row = game_to_row(game, collections_by_game_id())
@@ -278,7 +277,7 @@ def get_game(game_id: str) -> models.GameResource:
     return resource
 
 
-@router.get("/{game_id}/tables", summary="A table's game files",
+@router.get("/{game_id}/tables", summary="A game's tables",
             dependencies=[requires(scopes.GAMES_READ)])
 def get_games(game_id: str) -> models.TableList:
     game = _game_or_404(game_id)
@@ -318,7 +317,7 @@ def _resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
 @router.get("/{game_id}/media", summary="A table's media",
             dependencies=[requires(scopes.GAMES_READ)])
 def get_game_media(game_id: str) -> models.MediaList:
-    """Media is the artwork shown about a table - every kind, present or not,
+    """Media is the artwork shown about a game - every kind, present or not,
     so a client can enumerate what is possible instead of guessing."""
     game = _game_or_404(game_id)
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
@@ -349,16 +348,16 @@ def get_game_media_file(game_id: str, kind: str):
     game_dir = Path(getattr(game, "fullPathGame", "") or "")
     path = _resolved_media(game_dir, _default_stem(game)).get(kind)
     if path is None or not path.is_file():
-        raise NotFoundError(f"This table has no {kind} media")
+        raise NotFoundError(f"This game has no {kind} media")
     return FileResponse(path)
 
 
-@router.post("/{game_id}/launch", summary="Launch a table on this play host",
+@router.post("/{game_id}/launch", summary="Launch a game on this play host",
              status_code=202, dependencies=[requires(scopes.LAUNCH_INVOKE)])
 def launch_game(game_id: str,
                  payload: models.LaunchRequest | None = Body(default=None),
                  ) -> models.LaunchAccepted:
-    """Start a table and return once it is starting, not once it is over.
+    """Start a game and return once it is starting, not once it is over.
 
     The same service the wheel and the Remote Control page use, so a launch from
     here counts as a play and releases the peripherals like any other.
@@ -390,7 +389,7 @@ def launch_game(game_id: str,
             "links": {"state": "/api/v1/play/state", "events": "/api/v1/events"}}
 
 
-@router.get("/{game_id}/archive", summary="Download the table folder as an archive",
+@router.get("/{game_id}/archive", summary="Download the game folder as an archive",
             dependencies=[requires(scopes.GAMES_READ)])
 def get_game_archive(request: Request, game_id: str, download_token: str = "",
                       full: bool = False, file: str = ""):
@@ -408,9 +407,9 @@ def get_game_archive(request: Request, game_id: str, download_token: str = "",
         archive = create_vpxz_archive(game_dir_name, everything=full,
                                       table=file or None)
     except ValueError as exc:
-        raise InvalidRequestError("Invalid table path") from exc
+        raise InvalidRequestError("Invalid game path") from exc
     except FileNotFoundError as exc:
-        raise NotFoundError("Table not found") from exc
+        raise NotFoundError("Game not found") from exc
 
     logger.info("Created download archive: %s", archive.path)
 

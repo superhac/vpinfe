@@ -81,10 +81,10 @@ class PlayState(ApiModel):
     source: str | None
 
 
-# --- Tables ----------------------------------------------------------------
+# --- Games -----------------------------------------------------------------
 
 class AssetFileBinding(ApiModel):
-    """One asset file, attributed: dedicated to a game file, shared (folder-named),
+    """One asset file, attributed: dedicated to a table, shared (folder-named),
     or orphaned - stem-named for a build that is no longer there."""
 
     file: str
@@ -93,7 +93,7 @@ class AssetFileBinding(ApiModel):
 
 
 class AssetEntry(ApiModel):
-    """One asset kind on a table. The list endpoint carries presence only; the
+    """One asset kind on a game. The list endpoint carries presence only; the
     detail endpoint adds the attributed files; alt_color carries its formats."""
 
     present: bool
@@ -110,8 +110,8 @@ class GameLinks(ApiModel):
 
 
 class GameResource(ApiModel):
-    """A table: the pinball-machine concept, not a launchable file. vps_id correlates
-    with VPSdb and anything keyed by it; `id` is what identifies the table here."""
+    """A game: the pinball-machine concept, not a launchable file. vps_id correlates
+    with VPSdb and anything keyed by it; `id` is what identifies the game here."""
 
     id: str
     vps_id: str
@@ -139,7 +139,7 @@ class GameList(ApiModel):
 
 
 class ResolvedAsset(ApiModel):
-    """What this game file would use for one kind: dedicated, shared, or none,
+    """What this table would use for one kind: dedicated, shared, or none,
     plus the winning file."""
 
     resolution: str
@@ -261,9 +261,9 @@ class CollectionLinks(ApiModel):
 
 
 class CollectionResource(ApiModel):
-    """`type` is `manual` (an explicit list of tables) or `filter` (criteria applied
+    """`type` is `manual` (an explicit list of games) or `filter` (criteria applied
     at display time). `game_count` is null for a filter collection, whose membership
-    is not a stored list - ask /tables for its current members. `filters` is set only
+    is not a stored list - ask /collections/{name}/games for its current members. `filters` is set only
     for a filter collection."""
 
     name: str
@@ -279,7 +279,7 @@ class CollectionList(ApiModel):
 
 
 class CreateCollectionRequest(ApiModel):
-    """Supplying `filters` makes a filter collection; supplying `tables` (or neither)
+    """Supplying `filters` makes a filter collection; supplying `games` (or neither)
     makes a manual one. Sending both is refused rather than guessed at."""
 
     name: str
@@ -344,7 +344,7 @@ class ManufacturerList(ApiModel):
 # --- Launch ----------------------------------------------------------------
 
 class LaunchRequest(ApiModel):
-    """`file` picks one of the table's game files; absent means the default."""
+    """`file` picks one of the game's tables; absent means the default."""
 
     file: str | None = None
 
@@ -458,7 +458,7 @@ class PlanRequest(ApiModel):
 
 class ImportRequest(PlanRequest):
     """`selected` picks plan items by index; omitted means the plan's own defaults.
-    `new_table_dir_name` omitted falls back to the VPS-derived name, then the vpx stem."""
+    `new_game_dir_name` omitted falls back to the VPS-derived name, then the vpx stem."""
 
     new_game_dir_name: str | None = None
     selected: list[int] | None = None

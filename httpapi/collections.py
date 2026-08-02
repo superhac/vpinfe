@@ -1,8 +1,8 @@
 """Collections: the groupings a user makes over their library.
 
 Two kinds behind one resource. A **manual** collection stores an explicit list of
-table ids. A **filter** collection stores criteria and resolves to whatever matches
-when you ask - so it has no member list to add to, and `PUT .../tables/{id}` on one
+game ids. A **filter** collection stores criteria and resolves to whatever matches
+when you ask - so it has no member list to add to, and `PUT .../games/{id}` on one
 is refused rather than silently doing nothing.
 
 Membership is the table's own id (`VPinFE.id`), not its VPS id: a table with no
@@ -65,7 +65,7 @@ def _resource_for(row: dict) -> dict:
     return {
         "name": name,
         # On the wire this is "manual"; on disk it is still "vpsid", from before
-        # membership moved onto table ids. The honest name belongs in the contract.
+        # membership moved onto game ids. The honest name belongs in the contract.
         "type": "filter" if row["is_filter"] else "manual",
         "image": row.get("image") or None,
         "game_count": row.get("game_count"),
@@ -93,7 +93,7 @@ def get_collection(name: str) -> models.CollectionResource:
     return _resource_for(_row_or_404(name))
 
 
-@router.get("/{name}/games", summary="The tables in a collection",
+@router.get("/{name}/games", summary="The games in a collection",
             dependencies=[requires(scopes.COLLECTIONS_READ)])
 def collection_games(name: str) -> models.GameList:
     """Resolved membership, so a filter collection answers the same question a
@@ -120,7 +120,7 @@ def create_collection(response: Response,
         raise InvalidRequestError("A collection needs a name")
     if request.filters is not None and request.games:
         raise InvalidRequestError(
-            "A collection is either filter-based or an explicit list of tables, not both")
+            "A collection is either filter-based or an explicit list of games, not both")
 
     with _write_lock:
         manager = get_collections_manager()
@@ -138,7 +138,7 @@ def create_collection(response: Response,
             known = set(_catalog())
             unknown = [game_id for game_id in request.games if game_id not in known]
             if unknown:
-                raise InvalidRequestError("Unknown table ids", details={"ids": unknown})
+                raise InvalidRequestError("Unknown game ids", details={"ids": unknown})
             manager.add_collection(name, request.games)
         manager.save()
 
@@ -159,13 +159,13 @@ def delete_collection(name: str) -> Response:
     return Response(status_code=204)
 
 
-@router.put("/{name}/games/{game_id}", summary="Add a table to a collection",
+@router.put("/{name}/games/{game_id}", summary="Add a game to a collection",
             status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
 def add_member(name: str, game_id: str) -> Response:
-    """Idempotent: adding a table that is already a member is a success, because the
+    """Idempotent: adding a game that is already a member is a success, because the
     caller's intent - that it be in there - is satisfied either way."""
     if game_id not in _catalog():
-        raise NotFoundError(f"No table with id {game_id}")
+        raise NotFoundError(f"No game with id {game_id}")
     with _write_lock:
         manager = get_collections_manager()
         manager.reload()
@@ -179,7 +179,7 @@ def add_member(name: str, game_id: str) -> Response:
     return Response(status_code=204)
 
 
-@router.delete("/{name}/games/{game_id}", summary="Remove a table from a collection",
+@router.delete("/{name}/games/{game_id}", summary="Remove a game from a collection",
                status_code=204, dependencies=[requires(scopes.COLLECTIONS_WRITE)])
 def remove_member(name: str, game_id: str) -> Response:
     with _write_lock:

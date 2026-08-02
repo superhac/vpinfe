@@ -52,9 +52,9 @@ HELLO_EVENT = "stream.hello"
 
 
 def _game_event(game=None, **_) -> dict:
-    """The wire shape of a table lifecycle event.
+    """The wire shape of a game lifecycle event.
 
-    The bus carries the Table object and the whole ini config because its handlers
+    The bus carries the Game object and the whole ini config because its handlers
     are in-process. Neither belongs on a socket, so the stream sends a reference to
     the table rather than the table: an id, a name to show, and the link to fetch
     the rest. That link is what keeps this a pointer instead of a second, thinner
@@ -86,7 +86,7 @@ def _as_published(**payload) -> dict:
 
 
 # Which bus events reach the network, and the shape each one takes when it does.
-# An explicit table rather than "whatever was emitted": an extension will one day
+# An explicit list rather than "whatever was emitted": an extension will one day
 # publish onto the same bus, and what it may broadcast is a scope question that
 # has to be answered before anything is streamed.
 STREAMED_EVENTS: dict[str, Callable[..., dict]] = {

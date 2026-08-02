@@ -187,9 +187,9 @@ def import_upload(upload_id: str,
         allow_new_game=payload.allow_new_game,
     )
     if vps_entry is not None and not plan.new_game_dir_name:
-        raise InvalidRequestError("vps_id only applies to new-table imports")
+        raise InvalidRequestError("vps_id only applies to new-game imports")
 
-    # Folder naming precedence: explicit new_table_dir_name > VPS-derived > vpx stem.
+    # Folder naming precedence: explicit new_game_dir_name > VPS-derived > vpx stem.
     new_name = payload.new_game_dir_name
     if new_name is None and vps_entry is not None:
         new_name = vps_folder_name(vps_entry)
