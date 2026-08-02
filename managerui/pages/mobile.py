@@ -434,7 +434,7 @@ def _build_vpxz_download_panel():
                         icon="download"
                         class="q-mr-sm"
                         style="color: var(--neon-cyan) !important;"
-                        :href="'/api/v1/tables/' + encodeURIComponent(props.row.vpinfe_id) + '/archive?download_token=' + encodeURIComponent(props.row.download_token)"
+                        :href="'/api/v1/games/' + encodeURIComponent(props.row.vpinfe_id) + '/archive?download_token=' + encodeURIComponent(props.row.download_token)"
                         :download="props.row.game_dir_name + '.vpxz'"
                         @click.stop="$parent.$emit('download', props.row)"
                     />
