@@ -19,7 +19,7 @@ class VpxzArchive:
 
 
 def resolve_game_dir(game_dir_name: str, games_path: str | None = None) -> Path:
-    """Resolve a table directory name under the configured table root."""
+    """Resolve a game directory name under the configured game root."""
     root = Path(games_path or get_games_path()).expanduser().resolve()
     game_dir = (root / game_dir_name).resolve()
 
@@ -37,7 +37,7 @@ def resolve_game_dir(game_dir_name: str, games_path: str | None = None) -> Path:
 def create_vpxz_archive(game_dir_name: str, games_path: str | None = None, *,
                         everything: bool = False,
                         table: str | None = None) -> VpxzArchive:
-    """Create a temporary .vpxz archive for a table.
+    """Create a temporary .vpxz archive for a game.
 
     Default is the standalone bundle for one table - export a game, not a
     folder. `everything=True` archives the whole directory. Either way the

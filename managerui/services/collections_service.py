@@ -130,7 +130,7 @@ def get_game_collections_map() -> Dict[str, List[str]]:
 def member_to_name(member_id: str, game_map: Dict[str, str] | None = None) -> str:
     """Display name for a collection member, falling back to the raw id.
 
-    An entry that has not been migrated yet, or points at a table that is not
+    An entry that has not been migrated yet, or points at a game that is not
     installed, has no name to show - so show what is recorded rather than nothing.
     """
     if game_map is None:

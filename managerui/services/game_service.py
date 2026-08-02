@@ -75,7 +75,7 @@ def add_game_to_collection(game_id: str, collection_name: str) -> bool:
         collections.save()
         return True
     except Exception as e:
-        logger.error("Failed to add table to collection: %s", e)
+        logger.error("Failed to add game to collection: %s", e)
         return False
 
 
@@ -329,7 +329,7 @@ def scan_missing_game_rows(reload: bool = False) -> List[Dict]:
 def extract_vbs(game_path: str, vpx_filename: str, altlauncher: str = "") -> dict:
     """Run the VPX binary with -extractvbs to extract a table's .vbs script.
 
-    VPX writes the extracted .vbs next to the .vpx file (the table's root dir)
+    VPX writes the extracted .vbs next to the .vpx file (the game's root dir)
     automatically, so we only need to invoke the binary and report the result.
 
     Returns {'vbs_path': str} on success. Raises on failure.
@@ -430,7 +430,7 @@ def restorable_game_names():
 
 
 def upgrade_info(progress_cb=None, log_cb=None, **kwargs):
-    """Upgrade every table's .info in one pass.
+    """Upgrade every game's .info in one pass.
 
     Registered as a library scan rather than a kind of its own: the point of the kind is
     that two things rewriting the same .info files must not overlap, and this rewrites
@@ -444,7 +444,7 @@ def upgrade_info(progress_cb=None, log_cb=None, **kwargs):
 
 
 def restore_info(progress_cb=None, log_cb=None, **kwargs):
-    """Put back the .info files saved before upgrade, for every table that has one."""
+    """Put back the .info files saved before upgrade, for every game that has one."""
     with jobs.track(jobs.KIND_LIBRARY_SCAN, progress_cb=progress_cb, log_cb=log_cb) as job:
         result = info_maintenance.restore_library(
             get_games_path(), config_dir=CONFIG_DIR,

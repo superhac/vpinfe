@@ -210,7 +210,7 @@ def scan_media_games(reload: bool = False) -> List[Dict]:
     games_path = get_games_path()
     rows = []
     if not os.path.exists(games_path):
-        logger.warning("Tables path does not exist: %s. Skipping media scan.", games_path)
+        logger.warning("Games path does not exist: %s. Skipping media scan.", games_path)
         return []
 
     for game in ensure_games_loaded(reload=reload):
@@ -254,7 +254,7 @@ def scan_media_games(reload: bool = False) -> List[Dict]:
 
 
 def replace_media_file(game_path: str, game_dir: str, media_key: str, uploaded_path: str) -> str:
-    """Install an uploaded file as a table's media, keeping its real extension.
+    """Install an uploaded file as a game's media, keeping its real extension.
 
     The old behavior copied bytes to the canonical name unchanged, so a .jpg
     became JPEG bytes inside wheel.png - a file that lies. The name now keeps the

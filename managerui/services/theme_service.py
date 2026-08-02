@@ -106,7 +106,7 @@ def _normalize_select_options(raw_options: Any) -> list[Any]:
 def _dynamic_select_options(source: str) -> list[dict[str, Any]] | None:
     """Options a theme cannot know ahead of time, discovered from the library.
 
-    "wheelsets" is every wheel set folder across the tables plus the virtual
+    "wheelsets" is every wheel set folder across the games plus the virtual
     "logo" set. The leading Default entry saves as "" - no set, plain wheels.
     """
     if source != "wheelsets":

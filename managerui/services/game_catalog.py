@@ -8,7 +8,7 @@ from managerui.services import game_index_service
 
 
 def scan_mobile_games(reload: bool = False) -> List[Dict]:
-    """Return the compact table shape used by the mobile transfer page."""
+    """Return the compact game shape used by the mobile transfer page."""
     games = []
     for row in game_index_service.scan_rows(reload=reload):
         game_path = row.get("table_path", "")
@@ -24,7 +24,7 @@ def scan_mobile_games(reload: bool = False) -> List[Dict]:
 
 
 def build_mobile_game_rows(games: List[Dict]) -> List[Dict]:
-    """Build mobile page display rows from scanned tables."""
+    """Build mobile page display rows from scanned games."""
     rows = []
     for game in games:
         parts = [part for part in [game.get("manufacturer"), game.get("year")] if part]
@@ -39,7 +39,7 @@ def build_mobile_game_rows(games: List[Dict]) -> List[Dict]:
 
 
 def scan_launchable_games(games_path: str | None = None) -> List[Dict]:
-    """Return launchable table rows from the shared table index."""
+    """Return launchable game rows from the shared game index."""
     games = []
     for row in game_index_service.scan_rows(reload=False):
         game_path = row.get("table_path", "")

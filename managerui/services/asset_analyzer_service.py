@@ -402,7 +402,7 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
             vpx_dirs.add(_parent(e.arcname))
             assets.append(DetectedAsset("table", "Table", (e,), size=e.size, detail=_basename(e.arcname)))
 
-    # 1b. Table metadata — bundle-scoped only: a .info beside a claimed .vpx. A lone
+    # 1b. Game metadata — bundle-scoped only: a .info beside a claimed .vpx. A lone
     # .info stays unrecognized (wholesale metadata replacement is never inferred).
     for e in list(unclaimed()):
         if _suffix(e.arcname) == ".info" and _parent(e.arcname) in vpx_dirs:
@@ -477,7 +477,8 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
                 claimed.add(e.path)
                 assets.append(DetectedAsset("rom", "ROM", (e,), size=e.size, detail=_basename(e.arcname)))
 
-    # 7b. Patch. A .dif is a delta against one exact base table, not a table - it is
+    # 7b. Patch. A .dif is a delta against one exact base table, not an installable
+    # artifact - it is
     # claimed so the user is told what it is, never so it can be installed alone.
     for e in list(unclaimed()):
         if _suffix(e.arcname) == ".dif":

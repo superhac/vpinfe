@@ -52,8 +52,8 @@ class BlockedItem:
 
 @dataclass(frozen=True)
 class ImportPlan:
-    game_path: str          # target table dir (existing, or the resolved new-table dir)
-    new_game_dir_name: str  # non-empty only for new-table bundle imports
+    game_path: str          # target game dir (existing, or the resolved new-game dir)
+    new_game_dir_name: str  # non-empty only for new-game bundle imports
     rom_name: str
     items: tuple[PlannedItem, ...]
     blocked: tuple[BlockedItem, ...]
@@ -181,7 +181,7 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
 def build_import_plan(analysis: AnalysisResult, *, game_path: str = "", game_row: dict | None = None,
                       rom_name: str = "", allow_new_game: bool = False,
                       games_path: str | None = None) -> ImportPlan:
-    """Route detected assets to destinations for an existing table or a new table bundle."""
+    """Route detected assets to destinations for an existing game or a new game bundle."""
     items: list[PlannedItem] = []
     blocked: list[BlockedItem] = []
     new_bundle = analysis.has_game and allow_new_game
@@ -204,8 +204,8 @@ def build_import_plan(analysis: AnalysisResult, *, game_path: str = "", game_row
             vpx_stem = _find_vpx_file(base).stem
         except (FileNotFoundError, OSError):
             vpx_stem = ""
-        # A table dropped onto an existing table replaces its .vpx (the "update table" case).
-        # New-table creation is handled by the new_bundle branch above.
+        # A table dropped onto an existing game replaces its .vpx (the "update table" case).
+        # New-game creation is handled by the new_bundle branch above.
         sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
             item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,
@@ -262,12 +262,12 @@ def build_media_slot_plan(source_path: Path, *, game_path: str, media_key: str) 
 
 
 def sanitize_dir_name(name: str) -> str:
-    """Strip filesystem-reserved characters from a proposed table folder name."""
+    """Strip filesystem-reserved characters from a proposed game folder name."""
     return "".join(c for c in (name or "") if c not in '<>:"/\\|?*').strip()
 
 
 def vps_folder_name(vps_entry: dict) -> str:
-    """Derive the canonical table folder name from a VPS entry (same shape the
+    """Derive the canonical game folder name from a VPS entry (same shape the
     Import Table dialog builds: "Name (Manufacturer Year)")."""
     name = vps_entry.get("name", "")
     mfg = vps_entry.get("manufacturer") or vps_entry.get("mfg") or ""
@@ -298,9 +298,9 @@ def find_vps_entry(vps_id: str) -> dict | None:
 
 def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
                       new_game_dir_name: str | None = None) -> ImportPlan:
-    """Narrow a plan to the chosen item indices and optionally rename a new-table target.
+    """Narrow a plan to the chosen item indices and optionally rename a new-game target.
 
-    indices=None keeps every item. For new-table bundles, passing a new name rebases all
+    indices=None keeps every item. For new-game bundles, passing a new name rebases all
     item destinations under the renamed folder. Shared by the confirm dialog and the HTTP
     import endpoint so both honor selection and rename identically.
     """
@@ -356,7 +356,7 @@ def _resolves_locally(key: str, value) -> bool:
 def merge_info(incoming: dict, existing: dict) -> dict:
     """Merge an imported .info into an existing one: fill gaps, never replace.
 
-    Info is adopted wholesale only when the existing table has no VPS association.
+    Info is adopted wholesale only when the existing game has no VPS association.
     User and VPinFE fill empty fields (machine-specific overrides only if they resolve
     locally). tables and assets always keep the local version: tables describes
     the builds on THIS disk and carries decisions made here — what is hidden, what has
@@ -508,7 +508,7 @@ def _import_media(source, asset: DetectedAsset, game_path: Path) -> None:
 
 
 def _record_replaced_table(game_dir: Path, vpx: Path, removed: str | None) -> None:
-    """Describe the new .vpx in the table's .info, and drop the entry for the one it
+    """Describe the new .vpx in the game's .info, and drop the entry for the one it
     replaced. Best effort - the table is on disk either way.
     """
     try:
