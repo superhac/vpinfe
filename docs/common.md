@@ -1,7 +1,7 @@
 # Common Architecture
 
 The `common/` package is the shared application layer used by the frontend,
-manager UI, CLI, startup/shutdown flow, and table metadata jobs. Code in this
+manager UI, CLI, startup/shutdown flow, and game metadata jobs. Code in this
 folder should stay UI-independent and should expose stable service functions or
 small facade classes for older call sites.
 
@@ -11,30 +11,30 @@ Three domain packages over an infrastructure layer, grouped by what a module kno
 about. The boundaries were drawn from the import graph rather than by hand: 92% of
 the domain-to-domain edges stay inside one package.
 
-**`common/` itself is the infrastructure layer.** Nothing here knows about tables,
+**`common/` itself is the infrastructure layer.** Nothing here knows about games,
 hardware or any outside service, so anything may depend on it - and nothing in it may
 import from a domain package. That rule is the point of the layer; breaking it is how
-`config_access` ended up importing `table_metadata` to read a boolean.
+`config_access` ended up importing `game_metadata` to read a boolean.
 
-- `paths.py`: canonical user config, themes, collections, and table-root paths. `CONFIG_DIR` is resolved once at import time; set `VPINFE_CONFIG_DIR` before import (main.py maps the `--configdir` flag onto it) to relocate the whole config directory. `APP_ROOT` is where the app itself lives - use it for bundled assets instead of counting directory levels from `__file__`.
+- `paths.py`: canonical user config, themes, collections, and game-root paths. `CONFIG_DIR` is resolved once at import time; set `VPINFE_CONFIG_DIR` before import (main.py maps the `--configdir` flag onto it) to relocate the whole config directory. `APP_ROOT` is where the app itself lives - use it for bundled assets instead of counting directory levels from `__file__`.
 - `config_access.py`: typed, UI-independent accessors for common INI sections.
 - `values.py`: value coercion (`is_truthy`) shared by config, metadata and filters.
 - `iniconfig.py`, `config_bootstrap.py`: ini reading and first-run config creation.
 - `events.py`: the in-process event bus. Hooks are part of an operation; subscribers are told about it.
-- `media_paths.py`: canonical media keys, filenames, table attributes, and path resolution.
+- `media_paths.py`: canonical media keys, filenames, playfield attributes, and path resolution.
 - `jobs.py`: slow work as a job — one at a time per kind, progress published on the bus, answerable by id after it finishes.
 - `http_client.py`: shared request/download helpers.
 - `third_party.py`: finding and loading the third-party libraries the build bundles.
 - `logging_config.py`, `app_version.py`.
 
-**`common/tables/`** - tables, their metadata, and the collections built from them.
+**`common/games/`** - games, their metadata, and the collections built from them.
 
-- `table.py`, `tableparser.py`, `table_repository.py`: table discovery and cached table rows.
-- `table_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
-- `table_identity.py`: the stable per-install table id that addresses a table everywhere.
-- `game_files.py`: which .vpx in a table folder is the table. Every caller resolves through it.
-- `metadata_service.py`, `table_report_service.py`, `table_play_service.py`: workflows over tables and metadata.
-- `collections_service.py`, `vpxcollections.py`, `tablelistfilters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
+- `game.py`, `gameparser.py`, `game_repository.py`: game discovery and cached game rows.
+- `game_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
+- `game_identity.py`: the stable per-install game id that addresses a game everywhere.
+- `tables.py`: which .vpx in a game folder is the default table. Every caller resolves through it.
+- `metadata_service.py`, `game_report_service.py`, `game_play_service.py`: workflows over games and metadata.
+- `collections_service.py`, `vpxcollections.py`, `gamelistfilters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
 - `vpxparser.py`, `standalonescripts.py`: reading and patching the .vpx itself.
 - `score_parser.py`: PinMAME NVRAM score extraction.
 
@@ -50,13 +50,13 @@ import from a domain package. That rule is the point of the layer; breaking it i
 **`common/host/`** - this machine: attached hardware, the launcher, the running session.
 
 - `dof_service.py`, `dof_service_worker.py`, `libdmdutil_service.py`: hardware service facades.
-- `peripherals.py`: DOF and real-DMD, driven by table lifecycle events. Each device is its own handler, so a new one is a new subscriber rather than an edit.
-- `realdmd.py`: which image a table shows on a real DMD panel, sent on a worker thread.
-- `launcher.py`, `launch_state.py`: starting a table, and whether a launch was requested from outside the frontend.
+- `peripherals.py`: DOF and real-DMD, driven by game lifecycle events. Each device is its own handler, so a new one is a new subscriber rather than an edit.
+- `realdmd.py`: which image a game shows on a real DMD panel, sent on a worker thread.
+- `launcher.py`, `launch_state.py`: starting a game, and whether a launch was requested from outside the frontend.
 - `display_service.py`, `system_actions.py`, `vpx_log.py`.
 
-Three cross-package edges are deliberate: `tables` reads VPSdb through `online`
-when building metadata, and `online`'s VPinPlay client reaches into `tables` to
+Three cross-package edges are deliberate: `games` reads VPSdb through `online`
+when building metadata, and `online`'s VPinPlay client reaches into `games` to
 enumerate the library. That last one is the wrong direction; VPinPlay predates the
 extension model and is expected to become a plugin.
 
@@ -72,48 +72,48 @@ Prefer facade compatibility over broad caller churn. Existing imports like
 `from common.vpsdb import VPSdb` and `from common.themes import ThemeRegistry`
 remain valid, while new behavior can live in smaller modules behind them.
 
-Use `table_metadata.py` for display and fallback accessors. New table filtering,
+Use `game_metadata.py` for display and fallback accessors. New game filtering,
 sorting, or row-building code should use helpers like `table_title`,
 `table_themes`, `table_type`, `table_manufacturer`, `table_year`, and
 `table_rating` instead of repeating `Info`/legacy `VPSdb` fallback logic.
 
-Know which table id you want. A table row carries several, and they are not
+Know which game id you want. A game row carries several, and they are not
 interchangeable:
 
-- `vpinfe_id` is this install's stable local id from `table_identity.py`. It
-  identifies the table - in the HTTP API, in events, in jobs, in collection
-  membership, and as the row key in the manager UI tables grid.
+- `vpinfe_id` is this install's stable local id from `game_identity.py`. It
+  identifies the game - in the HTTP API, in events, in jobs, in collection
+  membership, and as the row key in the manager UI games grid.
 - `vpsid` and `altvpsid` are VPS-derived (`Info.VPSId` and `VPinFE.altvpsid`).
   They correlate with VPSdb, VPinPlay and other services keyed by them. Read the
   one you mean; there is deliberately no combined `id` field to reach for by
   accident.
 
-Use `table_identity.table_id()` to read one, `ensure_id()` when you need a table
-to have one. Reading never mints, so table scans stay a read path.
-`table_repository.get_table_rows()` is the exception and calls `ensure_unique_ids`:
-a row is addressed by its id, so a table imported since startup has to be given one
-rather than appear with an empty key that collides with every other such table.
+Use `game_identity.game_id()` to read one, `ensure_id()` when you need a game
+to have one. Reading never mints, so game scans stay a read path.
+`game_repository.get_game_rows()` is the exception and calls `ensure_unique_ids`:
+a row is addressed by its id, so a game imported since startup has to be given one
+rather than appear with an empty key that collides with every other such game.
 
 Collection membership is keyed by `vpinfe_id`. A VPS id could not do the job: it is
-empty for a table VPSdb never matched, it is not unique, and it is cleared when the
-.vpx changes - so membership recorded under one was orphaned by an ordinary table
+empty for a game VPSdb never matched, it is not unique, and it is cleared when the
+.vpx changes - so membership recorded under one was orphaned by an ordinary game
 update.
 
 Both membership paths tolerate VPS-keyed entries, and both have to. The migration
-leaves an entry alone when no table matched it - the table may simply not be
+leaves an entry alone when no game matched it - the game may simply not be
 installed yet - and it runs only once, so such an entry can stay VPS-keyed
 indefinitely. `VPXCollections.is_member` covers the frontend;
-`table_repository._collections_for` covers the manager UI row. If only one of them
-did, a table would show its collections in one place and not the other.
+`game_repository._collections_for` covers the manager UI row. If only one of them
+did, a game would show its collections in one place and not the other.
 
-Launch tables through `host/launch.py`. It is the only place that starts a game
+Launch games through `host/launch.py`. It is the only place that starts a game
 file, and it is what makes a launch mean the same thing wherever it came from -
 the wheel, the Remote Control page and the HTTP API all call it. When there were
-two implementations they drifted, and only one of them recorded that a table had
+two implementations they drifted, and only one of them recorded that a game had
 been played.
 
 Anything a particular caller needs around a launch is a subscriber, not an
-argument. The frontend's window messages and its last-table record live in
+argument. The frontend's window messages and its last-game record live in
 `frontend/play_events.py`; the peripherals live in `host/peripherals.py`. Nothing
 about a specific caller belongs inside the launch itself, which is how the window
 messages ended up firing only for launches the wheel started.
@@ -125,26 +125,26 @@ logged and contained. Releasing the peripherals is a hook because launching with
 them still held would be wrong; anything that merely wants to know about a launch
 is a subscriber and must not be able to prevent one.
 
-`table.selected` is deliberately subscribers-only. It fires once per wheel stop and
+`game.selected` is deliberately subscribers-only. It fires once per wheel stop and
 drives decoration - a DOF effect, the art on a DMD panel - so a handler that raises
 has failed to decorate a selection, not failed to select. Registering a hook on it
 would let a dead device stop the wheel.
 
-An event payload is in-process, so it can hold whatever a handler needs - a `Table`,
+An event payload is in-process, so it can hold whatever a handler needs - a `Game`,
 the ini config. What reaches the network is a separate decision: `httpapi/events.py`
 projects each streamed event into its own shape, so adding an argument here does not
 change what an outside subscriber sees. Adding an event means deciding whether it is
 streamed at all.
 
-Never pick a table's `.vpx` yourself. A folder can hold several, and picking
+Never pick a game's `.vpx` yourself. A folder can hold several, and picking
 differently from everyone else means the metadata a user sees describes a different
-file than the one that launches. Use `game_files.default_game_file()`.
+file than the one that launches. Use `tables.default_table()`.
 
 Use `config_access.py` when reading common INI values from code outside the
 configuration editor itself. This keeps defaults and bool/int coercion in one
 place while preserving `IniConfig.config` for compatibility.
 
-Use `media_paths.py` for media keys, filenames, and table path attributes.
+Use `media_paths.py` for media keys, filenames, and playfield path attributes.
 Frontend payloads, parser discovery, and VPS media downloads should not each
 carry their own filename table.
 
@@ -178,8 +178,8 @@ libdmdutil should not each carry their own copy of that reasoning.
 ## Adding Metadata Fields
 
 1. Add the default or normalization rule in `metaconfig.py` or
-   `table_metadata.py`.
-2. Add display/read helpers in `table_metadata.py` when multiple callers need the
+   `game_metadata.py`.
+2. Add display/read helpers in `game_metadata.py` when multiple callers need the
    value.
 3. Update row builders or filters to consume the helper rather than reading raw
    JSON directly.
@@ -187,7 +187,7 @@ libdmdutil should not each carry their own copy of that reasoning.
 
 ## Adding Media Types
 
-1. Add the media key, table attribute, and filename template to
+1. Add the media key, playfield attribute, and filename template to
    `common.media_paths.MEDIA_SPECS`.
 2. Use the shared filename/key maps in manager UI, parser, and download code.
 3. Update theme documentation if the media becomes part of the frontend API.

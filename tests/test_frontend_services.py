@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import configparser
 import json
-import types
 import os
+import types
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
+from common.games import game_play_service, game_report_service
+from common.games.game_metadata import game_frontend_dof_event
 from common.host import realdmd, system_actions
-from common.tables import table_play_service, table_report_service
-from common.tables.table_metadata import table_frontend_dof_event
-from frontend import config_api, table_state, theme_api
+from frontend import config_api, game_state, theme_api
 
 
 class FrontendServiceTests(unittest.TestCase):
@@ -146,8 +146,8 @@ class FrontendServiceTests(unittest.TestCase):
         self.assertEqual(events, [{"type": "AudioMuteChanged", "muted": True}])
 
     def test_realdmd_helpers_and_updater_process_pending(self):
-        table = types.SimpleNamespace(
-            tableDirName="Example",
+        game = types.SimpleNamespace(
+            gameDirName="Example",
             realDMDImagePath="/tmp/realdmd.png",
             realDMDColorImagePath="/tmp/realdmd-color.png",
             metaConfig={"vpinfe": {"frontend_dof_event": "E901"}},
@@ -157,47 +157,47 @@ class FrontendServiceTests(unittest.TestCase):
         standard_config = configparser.ConfigParser()
         standard_config.read_dict({"Media": {"realdmdmediapriority": "standard"}})
 
-        # get_realdmd_image_for_table returns path.resolve(); on macOS /tmp is a
+        # get_realdmd_image_for_game returns path.resolve(); on macOS /tmp is a
         # symlink to /private/tmp, so compare against the resolved expectation.
         color_expected = Path("/tmp/realdmd-color.png").resolve()
         standard_expected = Path("/tmp/realdmd.png").resolve()
-        self.assertEqual(table_frontend_dof_event(table), "E901")
-        self.assertEqual(realdmd.get_realdmd_image_for_table(table), color_expected)
-        self.assertEqual(realdmd.get_realdmd_image_for_table(table, color_config), color_expected)
-        self.assertEqual(realdmd.get_realdmd_image_for_table(table, standard_config), standard_expected)
+        self.assertEqual(game_frontend_dof_event(game), "E901")
+        self.assertEqual(realdmd.get_realdmd_image_for_game(game), color_expected)
+        self.assertEqual(realdmd.get_realdmd_image_for_game(game, color_config), color_expected)
+        self.assertEqual(realdmd.get_realdmd_image_for_game(game, standard_config), standard_expected)
 
-        table.realDMDColorImagePath = ""
-        self.assertEqual(realdmd.get_realdmd_image_for_table(table, color_config), standard_expected)
+        game.realDMDColorImagePath = ""
+        self.assertEqual(realdmd.get_realdmd_image_for_game(game, color_config), standard_expected)
 
         calls = []
         updater = realdmd.RealDmdUpdater("ini", "table", lambda ini, image: calls.append((ini, image)) or True)
-        updater._table_name = "Example"
+        updater._game_name = "Example"
         updater._image_path = Path("/tmp/realdmd.png")
         updater._process_pending()
         self.assertEqual(calls, [("ini", Path("/tmp/realdmd.png"))])
 
-    def test_table_report_service_logs_unknown_table(self):
+    def test_game_report_service_logs_unknown_game(self):
         parser_instance = mock.Mock()
-        table = types.SimpleNamespace(tableDirName="Unknown")
-        parser_instance.getAllTables.return_value = [table]
+        game = types.SimpleNamespace(gameDirName="Unknown")
+        parser_instance.getAllGames.return_value = [game]
         vps_instance = mock.Mock()
         vps_instance.__len__ = mock.Mock(return_value=0)
-        vps_instance.parseTableNameFromDir.return_value = {"name": "Unknown", "manufacturer": "", "year": ""}
+        vps_instance.parseGameNameFromDir.return_value = {"name": "Unknown", "manufacturer": "", "year": ""}
         vps_instance.lookupName.return_value = None
         logs = []
-        ini = types.SimpleNamespace(config={"Settings": {"tablerootdir": "/tables"}})
+        ini = types.SimpleNamespace(config={"Settings": {"gamerootdir": "/games"}})
 
-        with mock.patch("common.tables.table_report_service.TableParser", return_value=parser_instance), \
-            mock.patch("common.tables.table_report_service.VPSdb", return_value=vps_instance):
-            table_report_service.list_unknown_tables(iniconfig=ini, log=lambda msg, *args: logs.append(msg % args if args else msg))
+        with mock.patch("common.games.game_report_service.GameParser", return_value=parser_instance), \
+            mock.patch("common.games.game_report_service.VPSdb", return_value=vps_instance):
+            game_report_service.list_unknown_games(iniconfig=ini, log=lambda msg, *args: logs.append(msg % args if args else msg))
 
         self.assertTrue(any("Unknown table 1: Unknown" in line for line in logs))
 
     def test_frontend_rating_write_preserves_newer_on_disk_stats(self):
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir) / "Example"
-            table_dir.mkdir()
-            info_path = table_dir / "Example.info"
+            game_dir = Path(temp_dir) / "Example"
+            game_dir.mkdir()
+            info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(
                     {
@@ -209,9 +209,9 @@ class FrontendServiceTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            table = types.SimpleNamespace(
-                fullPathTable=str(table_dir),
-                tableDirName="Example",
+            game = types.SimpleNamespace(
+                fullPathGame=str(game_dir),
+                gameDirName="Example",
                 metaConfig=json.loads(info_path.read_text(encoding="utf-8")),
             )
 
@@ -227,7 +227,7 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            result = table_state.set_table_rating([table], 0, 5)
+            result = game_state.set_game_rating([game], 0, 5)
 
             self.assertEqual(result, {"success": True, "rating": 5})
             saved = json.loads(info_path.read_text(encoding="utf-8"))
@@ -237,9 +237,9 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_play_tracking_preserves_newer_on_disk_rating(self):
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir) / "Example"
-            table_dir.mkdir()
-            info_path = table_dir / "Example.info"
+            game_dir = Path(temp_dir) / "Example"
+            game_dir.mkdir()
+            info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(
                     {
@@ -251,9 +251,9 @@ class FrontendServiceTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            table = types.SimpleNamespace(
-                fullPathTable=str(table_dir),
-                tableDirName="Example",
+            game = types.SimpleNamespace(
+                fullPathGame=str(game_dir),
+                gameDirName="Example",
                 metaConfig=json.loads(info_path.read_text(encoding="utf-8")),
             )
 
@@ -269,47 +269,47 @@ class FrontendServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            table_play_service.increment_start_count(table)
+            game_play_service.increment_start_count(game)
 
             saved = json.loads(info_path.read_text(encoding="utf-8"))
             self.assertEqual(saved["User"]["Rating"], 4)
             self.assertEqual(saved["User"]["StartCount"], 1)
 
-    def test_parse_score_from_nvram_reads_the_game_files_rom(self) -> None:
+    def test_parse_score_from_nvram_reads_the_tables_rom(self) -> None:
         with TemporaryDirectory() as tmp:
-            table_dir = Path(tmp) / "Example"
-            table_dir.mkdir()
-            info_path = table_dir / "Example.info"
+            game_dir = Path(tmp) / "Example"
+            game_dir.mkdir()
+            info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(
                     {
-                        "game_files": {"Example.vpx": {"rom": "vpx_rom"}},
+                        "tables": {"Example.vpx": {"rom": "vpx_rom"}},
                     }
                 ),
                 encoding="utf-8",
             )
-            table = types.SimpleNamespace(
-                fullPathTable=str(table_dir),
-                tableDirName="Example",
+            game = types.SimpleNamespace(
+                fullPathGame=str(game_dir),
+                gameDirName="Example",
                 metaConfig={},
             )
 
-            with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
-                    mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}) as to_json:
-                score_data, score_path = table_play_service.parse_score_from_nvram(table)
+            with mock.patch("common.games.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
+                    mock.patch("common.games.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}) as to_json:
+                score_data, score_path = game_play_service.parse_score_from_nvram(game)
 
-            read_rom.assert_called_once_with("vpx_rom", str(table_dir))
+            read_rom.assert_called_once_with("vpx_rom", str(game_dir))
             to_json.assert_called_once_with("vpx_rom", 123, "/scores/vpx_rom.nv")
             self.assertEqual(score_data, {"rom": "vpx_rom"})
             self.assertEqual(score_path, "/scores/vpx_rom.nv")
 
-    def test_a_migrated_table_reads_its_rom_from_the_game_file(self) -> None:
-        """2.x kept a table-level Info.Rom and the migration drops it. A value carried
+    def test_a_migrated_game_reads_its_rom_from_the_table(self) -> None:
+        """2.x kept a game-level Info.Rom and the migration drops it. A value carried
         from there could disagree with the file it claims to describe."""
         with TemporaryDirectory() as tmp:
-            table_dir = Path(tmp) / "Example"
-            table_dir.mkdir()
-            info_path = table_dir / "Example.info"
+            game_dir = Path(tmp) / "Example"
+            game_dir.mkdir()
+            info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(
                     {
@@ -319,96 +319,96 @@ class FrontendServiceTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            table = types.SimpleNamespace(
-                fullPathTable=str(table_dir),
-                tableDirName="Example",
+            game = types.SimpleNamespace(
+                fullPathGame=str(game_dir),
+                gameDirName="Example",
                 metaConfig={},
             )
 
-            with mock.patch("common.tables.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
-                    mock.patch("common.tables.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}):
-                table_play_service.parse_score_from_nvram(table)
+            with mock.patch("common.games.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
+                    mock.patch("common.games.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}):
+                game_play_service.parse_score_from_nvram(game)
 
-            read_rom.assert_called_once_with("vpx_rom", str(table_dir))
+            read_rom.assert_called_once_with("vpx_rom", str(game_dir))
 
-    def test_delete_nvram_if_configured_reads_the_game_files_rom(self) -> None:
+    def test_delete_nvram_if_configured_reads_the_tables_rom(self) -> None:
         with TemporaryDirectory() as tmp:
-            table_dir = Path(tmp) / "Example"
-            nvram_dir = table_dir / "pinmame" / "nvram"
+            game_dir = Path(tmp) / "Example"
+            nvram_dir = game_dir / "pinmame" / "nvram"
             nvram_dir.mkdir(parents=True)
             vpx_nvram = nvram_dir / "vpx_rom.nv"
             info_nvram = nvram_dir / "info_rom.nv"
             vpx_nvram.write_bytes(b"vpx")
             info_nvram.write_bytes(b"info")
-            table = types.SimpleNamespace(
-                fullPathTable=str(table_dir),
-                tableDirName="Example",
+            game = types.SimpleNamespace(
+                fullPathGame=str(game_dir),
+                gameDirName="Example",
                 metaConfig={
-                    "game_files": {"Example.vpx": {"rom": "vpx_rom"}},
+                    "tables": {"Example.vpx": {"rom": "vpx_rom"}},
                     "vpinfe": {"delete_nvram_on_close": True},
                 },
             )
 
-            table_play_service.delete_nvram_if_configured(table)
+            game_play_service.delete_nvram_if_configured(game)
 
             self.assertFalse(vpx_nvram.exists())
             self.assertTrue(info_nvram.exists())
 
 
-class PerGameFilePlayStatsTests(unittest.TestCase):
-    """A folder holds several game files and the API can launch any of them, so a play
+class PerTablePlayStatsTests(unittest.TestCase):
+    """A folder holds several tables and the API can launch any of them, so a play
     is credited to the one that ran as well as to the table."""
 
-    def _launch(self, config, game_file, seconds=90, played_at=1000):
-        table_play_service.apply_start_count_update(config, played_at, game_file)
-        table_play_service.apply_runtime_update(config, seconds, game_file)
+    def _launch(self, config, table, seconds=90, played_at=1000):
+        game_play_service.apply_start_count_update(config, played_at, table)
+        game_play_service.apply_runtime_update(config, seconds, table)
         return config
 
-    def test_a_launch_counts_against_the_table_and_the_game_file(self):
+    def test_a_launch_counts_against_the_game_and_the_table(self):
         config = self._launch({}, "Example (VR).vpx")
 
         self.assertEqual(config["User"]["StartCount"], 1)
         self.assertEqual(config["User"]["LastRun"], 1000)
-        played = config["game_files"]["Example (VR).vpx"]["user"]
+        played = config["tables"]["Example (VR).vpx"]["user"]
         self.assertEqual(played, {"last_run": "1970-01-01T00:16:40Z",
                                   "start_count": 1, "run_time_seconds": 90})
 
-    def test_each_game_file_keeps_its_own_count(self):
+    def test_each_table_keeps_its_own_count(self):
         config = self._launch({}, "Example.vpx")
         self._launch(config, "Example.vpx")
         self._launch(config, "Example (VR).vpx")
 
-        entries = config["game_files"]
+        entries = config["tables"]
         self.assertEqual(entries["Example.vpx"]["user"]["start_count"], 2)
         self.assertEqual(entries["Example (VR).vpx"]["user"]["start_count"], 1)
         self.assertEqual(config["User"]["StartCount"], 3, "the table saw all three")
 
-    def test_the_table_total_is_not_a_rollup(self):
-        """Deleting a game file must not un-play hours that were played, which is what
+    def test_the_game_total_is_not_a_rollup(self):
+        """Deleting a table must not un-play hours that were played, which is what
         a total summed from the entries would do."""
         config = self._launch({}, "Example.vpx")
         self._launch(config, "Gone.vpx")
-        del config["game_files"]["Gone.vpx"]
+        del config["tables"]["Gone.vpx"]
 
         self.assertEqual(config["User"]["StartCount"], 2)
         self.assertEqual(config["User"]["RunTime"], 4, "minutes, as the spec key always was")
 
-    def test_a_hidden_game_file_still_accrues_and_stays_hidden(self):
+    def test_a_hidden_table_still_accrues_and_stays_hidden(self):
         """Hiding is presentation: the API can still launch it, and it is still played."""
-        config = {"game_files": {"Base.vpx": {"hidden": True, "rom": "afm_113b"}}}
+        config = {"tables": {"Base.vpx": {"hidden": True, "rom": "afm_113b"}}}
         self._launch(config, "Base.vpx")
 
-        entry = config["game_files"]["Base.vpx"]
+        entry = config["tables"]["Base.vpx"]
         self.assertEqual(entry["user"]["start_count"], 1)
         self.assertTrue(entry["hidden"])
         self.assertEqual(entry["rom"], "afm_113b", "the parse must survive a play")
 
-    def test_a_launch_with_no_game_file_named_still_counts_for_the_table(self):
+    def test_a_launch_with_no_table_named_still_counts_for_the_game(self):
         """Nothing outside the launch path knows which file ran."""
         config = self._launch({}, "")
 
         self.assertEqual(config["User"]["StartCount"], 1)
-        self.assertNotIn("game_files", config)
+        self.assertNotIn("tables", config)
 
 
 if __name__ == "__main__":

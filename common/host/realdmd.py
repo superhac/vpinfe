@@ -1,4 +1,4 @@
-"""Showing a table's art on a real DMD panel.
+"""Showing a game's art on a real DMD panel.
 
 Nothing here draws anything itself - it resolves which image a table should
 show and hands it to libdmdutil on a worker thread, because the panel is slow
@@ -16,13 +16,13 @@ from common.config_access import MediaConfig
 logger = logging.getLogger("vpinfe.common.host.realdmd")
 
 
-def get_realdmd_image_for_table(table, iniconfig=None) -> Path | None:
+def get_realdmd_image_for_game(game, iniconfig=None) -> Path | None:
     priority = "color"
     if iniconfig is not None:
         priority = MediaConfig.from_config(iniconfig).realdmd_media_priority
 
-    standard_path = str(getattr(table, "realDMDImagePath", "") or "").strip()
-    color_path = str(getattr(table, "realDMDColorImagePath", "") or "").strip()
+    standard_path = str(getattr(game, "realDMDImagePath", "") or "").strip()
+    color_path = str(getattr(game, "realDMDColorImagePath", "") or "").strip()
     candidates = (
         (standard_path, color_path)
         if priority == "standard"
@@ -46,13 +46,13 @@ class RealDmdUpdater:
         self._lock = threading.Lock()
         self._event = threading.Event()
         self._image_path: Path | None = None
-        self._table_name = ""
+        self._game_name = ""
         self._thread: threading.Thread | None = None
 
-    def queue_image_update(self, table_name: str, image_path: Path | None) -> None:
+    def queue_image_update(self, game_name: str, image_path: Path | None) -> None:
         self._ensure_worker()
         with self._lock:
-            self._table_name = table_name
+            self._game_name = game_name
             self._image_path = image_path
             self._event.set()
 
@@ -75,20 +75,20 @@ class RealDmdUpdater:
     def _process_pending(self) -> None:
         with self._lock:
             image_path = self._image_path
-            table_name = self._table_name
+            game_name = self._game_name
             self._event.clear()
 
         try:
             image_sent = self._show_image(self._iniconfig, image_path)
             logger.debug(
                 "Async real DMD update for %s -> sent=%s image=%s",
-                table_name,
+                game_name,
                 image_sent,
                 image_path,
             )
         except Exception:
             logger.exception(
                 "Async real DMD update failed for %s (image=%s)",
-                table_name,
+                game_name,
                 image_path,
             )

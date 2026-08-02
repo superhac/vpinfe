@@ -10,27 +10,26 @@ import requests
 from common.http_client import download_file
 from common.media_paths import default_media_path
 
-
 logger = logging.getLogger("vpinfe.common.online.vpsdb_media")
 
 
 class VPSMediaDownloader:
-    def __init__(self, media_index: dict | None, *, tabletype: str, tableresolution: str, tablevideoresolution: str) -> None:
+    def __init__(self, media_index: dict | None, *, playfieldvariant: str, playfieldresolution: str, playfieldvideoresolution: str) -> None:
         self.media_index = media_index or {}
-        self.tabletype = tabletype
-        self.tableresolution = tableresolution
-        self.tablevideoresolution = tablevideoresolution
+        self.playfieldvariant = playfieldvariant
+        self.playfieldresolution = playfieldresolution
+        self.playfieldvideoresolution = playfieldvideoresolution
 
     def file_exists(self, path) -> bool:
         return bool(path and os.path.exists(path))
 
-    def download_media_file(self, table_id, url, filename) -> None:
+    def download_media_file(self, game_id, url, filename) -> None:
         logger.info("Downloading %s from %s", filename, url)
         try:
             download_file(url, Path(filename))
             logger.info("Successfully downloaded %s from VPinMedia", filename)
         except requests.RequestException as exc:
-            logger.warning("Failed to download %s for table %s: %s", filename, table_id, exc)
+            logger.warning("Failed to download %s for table %s: %s", filename, game_id, exc)
 
     def local_md5(self, path) -> str:
         """The file's own hash, or "" when it cannot be read."""
@@ -48,7 +47,7 @@ class VPSMediaDownloader:
         """Whether a file on disk is the one vpinmediadb publishes.
 
         Decided by comparing hashes, not by whether we have a ledger entry for it.
-        Absence proves nothing - a copied table folder, a regenerated .info or media
+        Absence proves nothing - a copied game folder, a regenerated .info or media
         fetched with another tool all leave vpinmediadb art with no record - and
         treating "no entry" as "the user's" would freeze that art forever with no
         way for anyone to notice.
@@ -57,7 +56,7 @@ class VPSMediaDownloader:
         """
         return bool(remote_md5) and self.local_md5(path) == remote_md5
 
-    def download_media(self, table_id, metadata, key, filename, default_filename):
+    def download_media(self, game_id, metadata, key, filename, default_filename):
         if not metadata or key not in metadata:
             return None
 
@@ -73,18 +72,18 @@ class VPSMediaDownloader:
             # Ours and already current - the hashes match, so there is nothing to fetch.
             return actual_path, remote_md5
 
-        self.download_media_file(table_id, metadata[key], default_filename)
+        self.download_media_file(game_id, metadata[key], default_filename)
         if self.file_exists(default_filename):
             return default_filename, remote_md5
         return None
 
-    def download_media_for_table(self, table, table_id, meta_config=None) -> None:
-        if table_id not in self.media_index:
-            logger.info("No media exists for %s (ID %s).", table.fullPathTable, table_id)
+    def download_media_for_game(self, game, game_id, meta_config=None) -> None:
+        if game_id not in self.media_index:
+            logger.info("No media exists for %s (ID %s).", game.fullPathGame, game_id)
             return
 
-        table_media = self.media_index[table_id]
-        medias_dir = os.path.join(table.fullPathTable, "medias")
+        game_media = self.media_index[game_id]
+        medias_dir = os.path.join(game.fullPathGame, "medias")
         os.makedirs(medias_dir, exist_ok=True)
 
         def record(result):
@@ -97,21 +96,21 @@ class VPSMediaDownloader:
         # The ledger is keyed by path now, so the kind no longer has to be passed along
         # to be recorded - it was the same value as `key` at every call site anyway.
         def process(metadata, key, filename, default_filename):
-            record(self.download_media(table_id, metadata, key, filename, default_filename))
+            record(self.download_media(game_id, metadata, key, filename, default_filename))
 
-        process(table_media.get("1k"), "bg", table.BGImagePath, str(default_media_path(table.fullPathTable, "bg", self.tabletype)))
-        process(table_media.get("1k"), "dmd", table.DMDImagePath, str(default_media_path(table.fullPathTable, "dmd", self.tabletype)))
-        process(table_media, "wheel", table.WheelImagePath, str(default_media_path(table.fullPathTable, "wheel", self.tabletype)))
-        process(table_media, "cab", table.CabImagePath, str(default_media_path(table.fullPathTable, "cab", self.tabletype)))
-        process(table_media, "realdmd", table.realDMDImagePath, str(default_media_path(table.fullPathTable, "realdmd", self.tabletype)))
-        process(table_media, "realdmd_color", table.realDMDColorImagePath, str(default_media_path(table.fullPathTable, "realdmd_color", self.tabletype)))
-        process(table_media, "flyer", table.FlyerImagePath, str(default_media_path(table.fullPathTable, "flyer", self.tabletype)))
-        process(table_media.get(self.tableresolution), self.tabletype, table.TableImagePath, str(default_media_path(table.fullPathTable, self.tabletype, self.tabletype)))
+        process(game_media.get("1k"), "bg", game.BGImagePath, str(default_media_path(game.fullPathGame, "bg", self.playfieldvariant)))
+        process(game_media.get("1k"), "dmd", game.DMDImagePath, str(default_media_path(game.fullPathGame, "dmd", self.playfieldvariant)))
+        process(game_media, "wheel", game.WheelImagePath, str(default_media_path(game.fullPathGame, "wheel", self.playfieldvariant)))
+        process(game_media, "cab", game.CabImagePath, str(default_media_path(game.fullPathGame, "cab", self.playfieldvariant)))
+        process(game_media, "realdmd", game.realDMDImagePath, str(default_media_path(game.fullPathGame, "realdmd", self.playfieldvariant)))
+        process(game_media, "realdmd_color", game.realDMDColorImagePath, str(default_media_path(game.fullPathGame, "realdmd_color", self.playfieldvariant)))
+        process(game_media, "flyer", game.FlyerImagePath, str(default_media_path(game.fullPathGame, "flyer", self.playfieldvariant)))
+        process(game_media.get(self.playfieldresolution), self.playfieldvariant, game.PlayfieldImagePath, str(default_media_path(game.fullPathGame, self.playfieldvariant, self.playfieldvariant)))
         # Videos, and only the ones the index actually carries. There has never been
         # a bg_video at any resolution, so the backglass video is yours to supply.
         # Nor is there an fss_video: under table type fss the playfield video is
         # simply not offered, and asking would quietly fetch nothing.
-        process(table_media.get(self.tablevideoresolution), "dmd_video", table.DMDVideoPath, str(default_media_path(table.fullPathTable, "dmd_video", self.tabletype)))
-        if self.tabletype == "table":
-            process(table_media.get(self.tablevideoresolution), "table_video", table.TableVideoPath, str(default_media_path(table.fullPathTable, "table_video", self.tabletype)))
-        process(table_media, "audio", table.AudioPath, str(default_media_path(table.fullPathTable, "audio", self.tabletype)))
+        process(game_media.get(self.playfieldvideoresolution), "dmd_video", game.DMDVideoPath, str(default_media_path(game.fullPathGame, "dmd_video", self.playfieldvariant)))
+        if self.playfieldvariant == "table":
+            process(game_media.get(self.playfieldvideoresolution), "table_video", game.PlayfieldVideoPath, str(default_media_path(game.fullPathGame, "table_video", self.playfieldvariant)))
+        process(game_media, "audio", game.AudioPath, str(default_media_path(game.fullPathGame, "audio", self.playfieldvariant)))

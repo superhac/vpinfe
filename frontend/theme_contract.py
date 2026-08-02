@@ -15,7 +15,7 @@ import json
 import logging
 from pathlib import Path
 
-from common.tables.table_metadata import DETECTION_KEYS, default_game_file
+from common.games.game_metadata import DETECTION_KEYS, default_table
 
 logger = logging.getLogger("vpinfe.frontend.theme_contract")
 
@@ -23,9 +23,9 @@ CURRENT_CONTRACT = 2
 OLDEST_CONTRACT = 1
 CONTRACT_KEY = "contract"
 
-# What contract 1 calls each game-file field. The .info renamed these; a theme written
+# What contract 1 calls each table field. The .info renamed these; a theme written
 # against 2.x still reads the old spelling, so the projection restores it.
-_LEGACY_GAME_FILE_KEYS = {
+_LEGACY_TABLE_KEYS = {
     "file_hash": "filehash",
     "vbs_hash": "vbsHash",
     "release_date": "releaseDate",
@@ -41,8 +41,17 @@ _LEGACY_GAME_FILE_KEYS = {
     "detect_pinmame": "detectpinmame",
 }
 
+# What contract 1 calls each top-level row key. These are served identically at both
+# contracts until now, so the projection never had to touch anything outside meta.
+_LEGACY_ROW_KEYS = {
+    "PlayfieldImagePath": "TableImagePath",
+    "PlayfieldVideoPath": "TableVideoPath",
+    "fullPathGame": "fullPathTable",
+    "gameDirName": "tableDirName",
+}
+
 # 1  the shape 2.x themes read: meta.VPXFile, and Rom and Authors on meta.Info
-# 2  the .info's own shape: meta.game_files, meta.vpinfe, and neither of those on Info
+# 2  the .info's own shape: meta.tables, meta.vpinfe, and neither of those on Info
 
 
 def declared_contract(theme_dir) -> int:
@@ -80,13 +89,13 @@ def _to_bool(value) -> bool:
     return value == 1
 
 
-def _legacy_game_file(meta: dict, row: dict) -> dict:
-    """The table's default game file as VPXFile, plus the addon flags that rode with it."""
-    name, entry = default_game_file(meta)
-    vpx = {_LEGACY_GAME_FILE_KEYS.get(key, key): value for key, value in dict(entry).items()}
+def _legacy_table(meta: dict, row: dict) -> dict:
+    """The game's default table as VPXFile, plus the addon flags that rode with it."""
+    name, entry = default_table(meta)
+    vpx = {_LEGACY_TABLE_KEYS.get(key, key): value for key, value in dict(entry).items()}
     vpx["filename"] = name
     for key in DETECTION_KEYS:
-        vpx[_LEGACY_GAME_FILE_KEYS.get(key, key)] = _to_bool(entry.get(key, False))
+        vpx[_LEGACY_TABLE_KEYS.get(key, key)] = _to_bool(entry.get(key, False))
     for flag in ("altSoundExists", "altColorExists", "pupPackExists"):
         vpx[flag] = bool(row.get(flag))
     return vpx
@@ -99,7 +108,7 @@ def _to_contract_1(row: dict) -> dict:
     declared, which is the failure this exists to prevent.
     """
     meta = dict(row.get("meta") or {})
-    vpx = _legacy_game_file(meta, row)
+    vpx = _legacy_table(meta, row)
     meta["VPXFile"] = vpx
 
     info = dict(meta.get("Info") or {})
@@ -108,9 +117,14 @@ def _to_contract_1(row: dict) -> dict:
     meta["Info"] = info
 
     meta["VPinFE"] = dict(meta.get("vpinfe") or {})
-    for section in ("game_files", "vpinfe", "assets"):
+    for section in ("tables", "vpinfe", "assets"):
         meta.pop(section, None)
 
     projected = dict(row)
     projected["meta"] = meta
+    # Top-level row keys, not meta - the projection did not reach these until the
+    # vocabulary rename moved them, because nothing above meta had ever changed.
+    for new, old in _LEGACY_ROW_KEYS.items():
+        if new in projected:
+            projected[old] = projected.pop(new)
     return projected

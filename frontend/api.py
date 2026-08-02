@@ -1,6 +1,13 @@
 import logging
 
 from common import events
+from common.games.collections_service import (
+    get_collection_image_url,
+    get_collection_names,
+    get_collections_metadata,
+)
+from common.games.game_metadata import normalize_meta
+from common.games.game_repository import ensure_games_loaded
 from common.host import launch, launch_state, system_actions
 from common.host.display_service import monitors_as_dicts
 from common.online.vpinplay_runtime import (
@@ -8,19 +15,12 @@ from common.online.vpinplay_runtime import (
     clear_alternate_profile,
     get_alternate_profile_state,
 )
-from common.tables.collections_service import (
-    get_collection_image_url,
-    get_collection_names,
-    get_collections_metadata,
-)
-from common.tables.table_metadata import normalize_meta
-from common.tables.table_repository import ensure_tables_loaded
 from frontend import (
     config_api,
+    game_state,
     input_api,
-    last_table,
+    last_game,
     metadata_build_service,
-    table_state,
     theme_api,
 )
 from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
@@ -41,12 +41,12 @@ API_ALLOWED_METHODS = {
     'close_app',
     'shutdown_system',
     'get_monitors',
-    'get_tables',
-    'get_initial_table_index',
+    'get_games',
+    'get_initial_game_index',
     'get_collections',
     'get_collections_metadata',
     'get_collection_image_url',
-    'set_tables_by_collection',
+    'set_games_by_collection',
     'save_filter_collection',
     'get_current_filter_state',
     'get_current_sort_state',
@@ -66,10 +66,10 @@ API_ALLOWED_METHODS = {
     'get_keymapping',
     'get_mainmenu_config',
     'set_button_mapping',
-    'launch_table',
-    'notify_table_selected',
-    'get_table_rating',
-    'set_table_rating',
+    'launch_game',
+    'notify_game_selected',
+    'get_game_rating',
+    'set_game_rating',
     'build_metadata',
     'get_theme_config',
     'get_theme_name',
@@ -78,8 +78,8 @@ API_ALLOWED_METHODS = {
     'get_temporary_vpinplay_profile',
     'set_temporary_vpinplay_profile',
     'clear_temporary_vpinplay_profile',
-    'get_table_orientation',
-    'get_table_rotation',
+    'get_playfield_orientation',
+    'get_playfield_rotation',
     'get_splashscreen_enabled',
     'get_audio_muted',
     'set_audio_muted',
@@ -94,16 +94,45 @@ API_ALLOWED_METHODS = {
 }
 
 
+
+# Themes written before the vocabulary rename call these names. The allowlist carries
+# both spellings and __getattr__ forwards the old one, so an existing theme keeps working
+# without a contract bump - the payload it gets back is identical either way.
+_RENAMED_METHODS = {
+    'get_tables': 'get_games',
+    'get_initial_table_index': 'get_initial_game_index',
+    'set_tables_by_collection': 'set_games_by_collection',
+    'launch_table': 'launch_game',
+    'notify_table_selected': 'notify_game_selected',
+    'get_table_rating': 'get_game_rating',
+    'set_table_rating': 'set_game_rating',
+    'get_table_orientation': 'get_playfield_orientation',
+    'get_table_rotation': 'get_playfield_rotation',
+}
+
+API_ALLOWED_METHODS |= set(_RENAMED_METHODS)
+
+
 class API:
+
+    def __getattr__(self, name):
+        """Forward a pre-rename method name to its replacement.
+
+        Only reached when normal lookup fails, so it costs nothing for current names.
+        """
+        renamed = _RENAMED_METHODS.get(name)
+        if renamed is None:
+            raise AttributeError(name)
+        return getattr(self, renamed)
     def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None):
         self._iniConfig = iniConfig
         self.window_name = window_name          # 'bg', 'dmd', or 'table'
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
         self.frontend_browser = frontend_browser  # ChromiumManager instance
-        self.allTables = ensure_tables_loaded()
-        self.jsTableDictData = None
+        self.allGames = ensure_games_loaded()
+        self.jsGameDictData = None
         # Track current filter state
-        self.current_filters = table_state.default_filter_state()
+        self.current_filters = game_state.default_filter_state()
         # Track current collection
         self.current_collection = None
         # Establish the default view: alphabetical by (article-reordered) title,
@@ -115,7 +144,7 @@ class API:
         startup_collection = self._iniConfig.config['Settings'].get('startup_collection', '').strip()
         if startup_collection:
             try:
-                self.set_tables_by_collection(startup_collection)
+                self.set_games_by_collection(startup_collection)
             except Exception:
                 logger.exception("Could not load startup collection '%s'", startup_collection)
 
@@ -126,8 +155,8 @@ class API:
     def _finish_setup(self):
         pass
 
-    def _normalize_table_meta(self, table):
-        return normalize_meta(table.metaConfig)
+    def _normalize_game_meta(self, game):
+        return normalize_meta(game.metaConfig)
 
     def _theme_contract(self) -> int:
         """Which shape the active theme asked for. Read per payload rather than cached,
@@ -139,15 +168,15 @@ class API:
         """Reset the current view to the default order: alphabetical by the
         (article-reordered) title, ascending.
 
-        filteredTables is a fresh shallow copy of allTables so later in-place
-        sorts never disturb the master list (the Table objects stay shared, so
+        filteredGames is a fresh shallow copy of allGames so later in-place
+        sorts never disturb the master list (the Game objects stay shared, so
         rating/meta updates still propagate). Shared by startup and every reset
         path so they all agree on the default order.
         """
-        self.filteredTables = list(self.allTables)
+        self.filteredGames = list(self.allGames)
         self.current_sort = 'Alpha'
         self.current_order = 'Ascending'
-        table_state.apply_sort(self.filteredTables, self.current_sort, self.current_order)
+        game_state.apply_sort(self.filteredGames, self.current_sort, self.current_order)
 
 
     ###################
@@ -184,17 +213,17 @@ class API:
         if self.ws_bridge:
             self.ws_bridge.send_event_all_with_iframe(message)
 
-    def get_tables(self, reset=False):
+    def get_games(self, reset=False):
         if reset:
             self._reset_to_default_view()
-        self.jsTableDictData = table_state.tables_json(self.filteredTables,
+        self.jsGameDictData = game_state.games_json(self.filteredGames,
                                                        self._theme_contract())
-        return self.jsTableDictData
+        return self.jsGameDictData
 
-    def get_initial_table_index(self):
-        # Position the wheel on the last-launched table at startup. Resolved
+    def get_initial_game_index(self):
+        # Position the wheel on the last-launched game at startup. Resolved
         # against the current (possibly filtered) view; 0 when disabled or unfound.
-        return last_table.resolve_last_table_index(self._iniConfig, self.filteredTables)
+        return last_game.resolve_last_game_index(self._iniConfig, self.filteredGames)
 
 
     def get_collections(self):
@@ -206,16 +235,16 @@ class API:
     def get_collection_image_url(self, collection):
         return get_collection_image_url(collection)
 
-    def set_tables_by_collection(self, collection):
-        """Set filtered tables based on collection from collections.ini."""
-        table_state.apply_collection(self, collection)
+    def set_games_by_collection(self, collection):
+        """Set filtered games based on collection from collections.ini."""
+        game_state.apply_collection(self, collection)
 
     def save_filter_collection(
         self,
         name,
         letter="All",
         theme="All",
-        table_type="All",
+        game_type="All",
         manufacturer="All",
         year="All",
         sort_by="Alpha",
@@ -225,8 +254,8 @@ class API:
     ):
         """Save current filter settings as a named collection."""
         try:
-            return table_state.save_current_filter_collection(
-                self, name, letter, theme, table_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by
+            return game_state.save_current_filter_collection(
+                self, name, letter, theme, game_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by
             )
         except ValueError as e:
             return {"success": False, "message": str(e)}
@@ -248,7 +277,7 @@ class API:
         return self.current_collection or 'None'
 
     def _filter_option(self, key: str):
-        return table_state.filter_options(self.allTables)[key]
+        return game_state.filter_options(self.allGames)[key]
 
     def get_filter_letters(self):
         return self._filter_option(_FILTER_OPTION_KEYS["letters"])
@@ -265,59 +294,59 @@ class API:
     def get_filter_years(self):
         return self._filter_option(_FILTER_OPTION_KEYS["years"])
 
-    def apply_filters(self, letter=None, theme=None, table_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
+    def apply_filters(self, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
         """
-        Apply VPSdb filters to the full table list.
+        Apply VPSdb filters to the full game list.
         These filters work independently of collections.
-        Returns the count of filtered tables.
+        Returns the count of filtered games.
         """
         logger.debug(
             "Applying filters: letter=%s, theme=%s, type=%s, manufacturer=%s, year=%s, rating=%s, rating_or_higher=%s",
             letter,
             theme,
-            table_type,
+            game_type,
             manufacturer,
             year,
             rating,
             rating_or_higher,
         )
-        count = table_state.apply_filters(self, letter, theme, table_type, manufacturer, year, rating, rating_or_higher)
-        logger.debug("Filtered tables count: %s", count)
+        count = game_state.apply_filters(self, letter, theme, game_type, manufacturer, year, rating, rating_or_higher)
+        logger.debug("Filtered games count: %s", count)
         return count
 
     def reset_filters(self):
-        """Reset all VPSdb filters back to full table list."""
-        self.current_filters = table_state.default_filter_state()
+        """Reset all VPSdb filters back to full game list."""
+        self.current_filters = game_state.default_filter_state()
         self._reset_to_default_view()
 
     def apply_sort(self, sort_type, order_by=None):
         """
-        Sort the current filtered tables.
+        Sort the current filtered games.
         sort_type: 'Alpha', 'Newest', 'LastRun', 'Highest StartCount', or 'RunTime'
         order_by: 'Ascending' or 'Descending'
-        Returns the count of sorted tables.
+        Returns the count of sorted games.
         """
         self.current_sort = sort_type
-        self.current_order = table_state.normalize_sort_order(order_by, sort_type)
+        self.current_order = game_state.normalize_sort_order(order_by, sort_type)
         logger.debug("Applying sort: %s %s", sort_type, self.current_order)
 
-        count = table_state.apply_sort(self.filteredTables, sort_type, self.current_order)
-        logger.debug("Sorted %s tables by %s %s", count, sort_type, self.current_order)
+        count = game_state.apply_sort(self.filteredGames, sort_type, self.current_order)
+        logger.debug("Sorted %s games by %s %s", count, sort_type, self.current_order)
         return count
 
     def get_page_index(self, index, direction):
         """
         Compute the target wheel index for a page next/prev request.
         Paging behavior comes from [Input] pagingtype/pagingsize and the
-        current sort; see table_state.page_jump_index.
+        current sort; see game_state.page_jump_index.
         """
         try:
             index = int(index)
         except (TypeError, ValueError):
             index = 0
         paging_type, page_size = input_api.get_paging_config(self._iniConfig.config)
-        return table_state.page_jump_index(
-            self.filteredTables, index, direction, self.current_sort, paging_type, page_size
+        return game_state.page_jump_index(
+            self.filteredGames, index, direction, self.current_sort, paging_type, page_size
         )
 
     def console_out(self, output):
@@ -341,50 +370,50 @@ class API:
         """Set a gamepad button mapping and save to config."""
         return input_api.set_button_mapping(self._iniConfig, button_name, button_index)
 
-    def launch_table(self, index):
+    def launch_game(self, index):
         """Launch what the wheel is sitting on.
 
         The windows hear about it through the bus like everyone else, so nothing
         here has to tell them.
         """
         try:
-            table = self.filteredTables[int(index)]
+            game = self.filteredGames[int(index)]
         except Exception:
             logger.warning("Ignoring launch for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
 
         try:
-            launch.launch_table(table, self._iniConfig,
+            launch.launch_game(game, self._iniConfig,
                                 source=launch_state.SOURCE_FRONTEND)
         except launch.LaunchUnavailableError as exc:
-            logger.warning("Cannot launch %s: %s", table.tableDirName, exc)
+            logger.warning("Cannot launch %s: %s", game.gameDirName, exc)
             return {"success": False, "reason": str(exc)}
         return {"success": True}
 
-    def notify_table_selected(self, index):
-        """Announce that the player moved to this table.
+    def notify_game_selected(self, index):
+        """Announce that the player moved to this game.
 
         Whatever reacts - a DOF effect, the real DMD, something not written yet -
         subscribes to the event. Nothing is reported back, because none of it can
         fail in a way the wheel should care about.
         """
         try:
-            table = self.filteredTables[int(index)]
+            game = self.filteredGames[int(index)]
         except Exception:
-            logger.debug("Ignoring table selection for invalid index: %s", index)
+            logger.debug("Ignoring game selection for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
 
-        events.emit(events.TABLE_SELECTED, table=table, ini_config=self._iniConfig)
+        events.emit(events.GAME_SELECTED, game=game, ini_config=self._iniConfig)
         return {"success": True}
 
-    def get_table_rating(self, index):
-        """Get User.Rating for a table index in the current filtered list."""
-        return table_state.get_table_rating(self.filteredTables, index)
+    def get_game_rating(self, index):
+        """Get User.Rating for a game index in the current filtered list."""
+        return game_state.get_game_rating(self.filteredGames, index)
 
-    def set_table_rating(self, index, rating):
-        """Set User.Rating (0-5) for a table index in the current filtered list."""
-        result = table_state.set_table_rating(self.filteredTables, index, rating)
-        logger.info("Updated User.Rating for %s -> %s", self.filteredTables[index].tableDirName, result["rating"])
+    def set_game_rating(self, index, rating):
+        """Set User.Rating (0-5) for a game index in the current filtered list."""
+        result = game_state.set_game_rating(self.filteredGames, index, rating)
+        logger.info("Updated User.Rating for %s -> %s", self.filteredGames[index].gameDirName, result["rating"])
         return result
 
     def build_metadata(self, download_media=True, update_all=False):
@@ -394,17 +423,17 @@ class API:
 
         Args:
             download_media: Whether to download media files
-            update_all: Whether to update all tables (even if meta.ini exists)
+            update_all: Whether to update all games (even if the .info exists)
 
         Returns:
             dict with success status and message
         """
-        from common.tables.metadata_service import build_metadata
+        from common.games.metadata_service import build_metadata
 
         return metadata_build_service.start_build(
             self,
             build_metadata_func=lambda **kwargs: build_metadata(iniconfig=self._iniConfig, **kwargs),
-            ensure_tables_loaded_func=ensure_tables_loaded,
+            ensure_games_loaded_func=ensure_games_loaded,
             download_media=download_media,
             update_all=update_all,
         )
@@ -453,11 +482,11 @@ class API:
         })
         return result
 
-    def get_table_orientation(self):
-        return config_api.get_table_orientation(self._iniConfig.config)
+    def get_playfield_orientation(self):
+        return config_api.get_playfield_orientation(self._iniConfig.config)
 
-    def get_table_rotation(self):
-        return config_api.get_table_rotation(self._iniConfig.config)
+    def get_playfield_rotation(self):
+        return config_api.get_playfield_rotation(self._iniConfig.config)
 
     def get_cab_mode(self):
         return config_api.get_cab_mode(self._iniConfig.config)

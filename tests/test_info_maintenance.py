@@ -12,14 +12,14 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.tables.info_maintenance import (
+from common.games.gameparser import GameParser
+from common.games.info_maintenance import (
+    game_dirs,
     restorable_backup,
     restore_library,
-    table_dirs,
     upgrade_library,
 )
-from common.tables.info_migration import CURRENT_SCHEMA, backup_schema, schema_of
-from common.tables.tableparser import TableParser
+from common.games.info_migration import CURRENT_SCHEMA, backup_schema, schema_of
 
 LEGACY = {
     "Info": {"Title": "Dr. Dude", "Rom": "dd_l2", "Authors": "someone"},
@@ -35,25 +35,25 @@ class LibraryTestCase(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.root = Path(self._tmp.name)
 
-    def _table(self, name: str, meta=LEGACY) -> Path:
-        table_dir = self.root / name
-        table_dir.mkdir()
-        (table_dir / f"{name}.vpx").write_text("not really a vpx", encoding="utf-8")
+    def _game(self, name: str, meta=LEGACY) -> Path:
+        game_dir = self.root / name
+        game_dir.mkdir()
+        (game_dir / f"{name}.vpx").write_text("not really a vpx", encoding="utf-8")
         if meta is not None:
-            (table_dir / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
-        return table_dir
+            (game_dir / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
+        return game_dir
 
-    def _info(self, table_dir: Path) -> dict:
-        return json.loads((table_dir / f"{table_dir.name}.info").read_text(encoding="utf-8"))
+    def _info(self, game_dir: Path) -> dict:
+        return json.loads((game_dir / f"{game_dir.name}.info").read_text(encoding="utf-8"))
 
-    def _backups(self, table_dir: Path) -> list[Path]:
-        return sorted(p for p in table_dir.iterdir() if ".vpinfe-" in p.name)
+    def _backups(self, game_dir: Path) -> list[Path]:
+        return sorted(p for p in game_dir.iterdir() if ".vpinfe-" in p.name)
 
 
 class UpgradeTests(LibraryTestCase):
-    def test_it_upgrades_every_table_in_one_pass(self):
+    def test_it_upgrades_every_game_in_one_pass(self):
         for name in ("Dr. Dude", "Taxi", "Whirlwind"):
-            self._table(name)
+            self._game(name)
 
         result = upgrade_library(self.root)
 
@@ -64,18 +64,18 @@ class UpgradeTests(LibraryTestCase):
             self.assertEqual(after["vpinfe"]["schema"], 2)
             self.assertNotIn("VPXFile", after)
 
-    def test_it_keeps_a_restore_point_for_each_table(self):
-        table = self._table("Dr. Dude")
-        original = (table / "Dr. Dude.info").read_text(encoding="utf-8")
+    def test_it_keeps_a_restore_point_for_each_game(self):
+        game = self._game("Dr. Dude")
+        original = (game / "Dr. Dude.info").read_text(encoding="utf-8")
 
         upgrade_library(self.root)
 
-        backups = self._backups(table)
+        backups = self._backups(game)
         self.assertEqual(len(backups), 1)
         self.assertEqual(backups[0].read_text(encoding="utf-8"), original)
 
     def test_running_it_twice_upgrades_nothing_the_second_time(self):
-        self._table("Dr. Dude")
+        self._game("Dr. Dude")
         upgrade_library(self.root)
 
         result = upgrade_library(self.root)
@@ -87,8 +87,8 @@ class UpgradeTests(LibraryTestCase):
     def test_one_unreadable_file_does_not_stop_the_others(self):
         """The state somebody is trying to get out of. Failing the run would withhold the
         fix from every other table in the library."""
-        self._table("Dr. Dude")
-        broken = self._table("Broken")
+        self._game("Dr. Dude")
+        broken = self._game("Broken")
         (broken / "Broken.info").write_text("{ not json", encoding="utf-8")
 
         result = upgrade_library(self.root)
@@ -99,18 +99,18 @@ class UpgradeTests(LibraryTestCase):
         self.assertEqual((broken / "Broken.info").read_text(encoding="utf-8"), "{ not json")
 
     def test_a_folder_with_no_info_is_left_alone(self):
-        self._table("No Meta", meta=None)
+        self._game("No Meta", meta=None)
 
         result = upgrade_library(self.root)
 
         self.assertEqual(result["upgraded"], 0)
         self.assertEqual(result["failed"], 0)
 
-    def test_one_table_can_be_upgraded_on_its_own(self):
-        self._table("Dr. Dude")
-        self._table("Taxi")
+    def test_one_game_can_be_upgraded_on_its_own(self):
+        self._game("Dr. Dude")
+        self._game("Taxi")
 
-        result = upgrade_library(self.root, table_name="Taxi")
+        result = upgrade_library(self.root, game_name="Taxi")
 
         self.assertEqual(result["upgraded"], 1)
         self.assertNotIn("vpinfe", self._info(self.root / "Dr. Dude"))
@@ -119,7 +119,7 @@ class UpgradeTests(LibraryTestCase):
 class RestoreTests(LibraryTestCase):
     def test_it_puts_back_everything_that_was_upgraded(self):
         for name in ("Dr. Dude", "Taxi"):
-            self._table(name)
+            self._game(name)
         upgrade_library(self.root)
 
         result = restore_library(self.root)
@@ -131,8 +131,8 @@ class RestoreTests(LibraryTestCase):
             self.assertEqual(after["User"]["Rating"], 4)
             self.assertNotIn("vpinfe", after)
 
-    def test_a_table_that_never_upgraded_is_left_alone(self):
-        self._table("Dr. Dude")
+    def test_a_game_that_never_upgraded_is_left_alone(self):
+        self._game("Dr. Dude")
 
         result = restore_library(self.root)
 
@@ -141,13 +141,13 @@ class RestoreTests(LibraryTestCase):
         self.assertIn("VPXFile", self._info(self.root / "Dr. Dude"))
 
     def test_the_current_file_is_kept_so_the_restore_is_reversible(self):
-        table = self._table("Dr. Dude")
+        game = self._game("Dr. Dude")
         upgrade_library(self.root)
-        upgraded = (table / "Dr. Dude.info").read_text(encoding="utf-8")
+        upgraded = (game / "Dr. Dude.info").read_text(encoding="utf-8")
 
         restore_library(self.root)
 
-        backups = self._backups(table)
+        backups = self._backups(game)
         self.assertEqual(len(backups), 2)
         self.assertIn(upgraded, [b.read_text(encoding="utf-8") for b in backups])
 
@@ -155,60 +155,60 @@ class RestoreTests(LibraryTestCase):
         """A 2.x build must not restore a schema 2 file, but the unversioned copy sitting
         behind it is still exactly what it wants. Newer backups are stepped over, not a
         dead end."""
-        table = self._table("Dr. Dude")
+        game = self._game("Dr. Dude")
         upgrade_library(self.root)
         restore_library(self.root)          # back to 2.x, and the schema 2 copy is kept
 
-        as_2x = restorable_backup(table, max_schema=0)
+        as_2x = restorable_backup(game, max_schema=0)
         self.assertIsNotNone(as_2x)
         self.assertIsNone(backup_schema(as_2x), "2.x takes the unversioned copy")
-        self.assertEqual(backup_schema(restorable_backup(table, max_schema=2)), 2)
+        self.assertEqual(backup_schema(restorable_backup(game, max_schema=2)), 2)
 
     def test_the_newest_readable_backup_wins(self):
-        table = self._table("Dr. Dude")
+        game = self._game("Dr. Dude")
         upgrade_library(self.root)
         restore_library(self.root)
-        (table / "Dr. Dude.info").write_text(
+        (game / "Dr. Dude.info").write_text(
             json.dumps({**LEGACY, "User": {"Rating": 1}}), encoding="utf-8")
         upgrade_library(self.root)
 
         restore_library(self.root, max_schema=0)
 
-        self.assertEqual(self._info(table)["User"]["Rating"], 1)
+        self.assertEqual(self._info(game)["User"]["Rating"], 1)
 
     def test_an_unreadable_backup_is_skipped_rather_than_restored(self):
-        table = self._table("Dr. Dude")
+        game = self._game("Dr. Dude")
         upgrade_library(self.root)
-        (table / "Dr. Dude.info.vpinfe-20990101T000000Z").write_text("{ broken", "utf-8")
+        (game / "Dr. Dude.info.vpinfe-20990101T000000Z").write_text("{ broken", "utf-8")
 
         result = restore_library(self.root)
 
         self.assertEqual(result["restored"], 1)
-        self.assertEqual(self._info(table)["User"]["Rating"], 4)
+        self.assertEqual(self._info(game)["User"]["Rating"], 4)
 
     def test_a_corrupt_current_file_is_still_kept_before_being_replaced(self):
         """The file most likely to need restoring is the one too broken to parse. Refusing
         to keep it would block the rescue to protect a copy nobody wants back."""
-        table = self._table("Dr. Dude")
+        game = self._game("Dr. Dude")
         upgrade_library(self.root)
-        (table / "Dr. Dude.info").write_text("{ truncated", encoding="utf-8")
+        (game / "Dr. Dude.info").write_text("{ truncated", encoding="utf-8")
 
         result = restore_library(self.root)
 
         self.assertEqual(result["restored"], 1)
-        kept = [b.read_text(encoding="utf-8") for b in self._backups(table)]
+        kept = [b.read_text(encoding="utf-8") for b in self._backups(game)]
         self.assertIn("{ truncated", kept)
 
 
 class WalkTests(LibraryTestCase):
-    def test_dot_folders_are_not_tables(self):
-        self._table("Dr. Dude")
+    def test_dot_folders_are_not_games(self):
+        self._game("Dr. Dude")
         (self.root / ".hidden").mkdir()
 
-        self.assertEqual([d.name for d in table_dirs(self.root)], ["Dr. Dude"])
+        self.assertEqual([d.name for d in game_dirs(self.root)], ["Dr. Dude"])
 
     def test_a_missing_root_is_not_an_error(self):
-        self.assertEqual(table_dirs(self.root / "nope"), [])
+        self.assertEqual(game_dirs(self.root / "nope"), [])
 
 
 if __name__ == "__main__":
@@ -222,30 +222,30 @@ class WhatThePageSaysTests(LibraryTestCase):
     there is actively wrong, and it is the state every future schema bump creates.
     """
 
-    def _table_at(self, schema, with_backup=True):
-        table_dir = self.root / "Dr. Dude"
-        table_dir.mkdir()
-        (table_dir / "Dr. Dude.vpx").write_text("x", encoding="utf-8")
+    def _game_at(self, schema, with_backup=True):
+        game_dir = self.root / "Dr. Dude"
+        game_dir.mkdir()
+        (game_dir / "Dr. Dude.vpx").write_text("x", encoding="utf-8")
         live = {"Info": {}, "User": {"Rating": 4}, "vpinfe": {"schema": schema, "id": "a"},
-                "game_files": {"Dr. Dude.vpx": {"rom": "dd"}}}
-        (table_dir / "Dr. Dude.info").write_text(json.dumps(live), encoding="utf-8")
+                "tables": {"Dr. Dude.vpx": {"rom": "dd"}}}
+        (game_dir / "Dr. Dude.info").write_text(json.dumps(live), encoding="utf-8")
         if with_backup:
             older = {**live, "vpinfe": {"schema": CURRENT_SCHEMA, "id": "a"}}
-            (table_dir / "Dr. Dude.info.vpinfe-20260901T000000Z").write_text(
+            (game_dir / "Dr. Dude.info.vpinfe-20260901T000000Z").write_text(
                 json.dumps(older), encoding="utf-8")
-        return table_dir
+        return game_dir
 
     def _counts(self):
-        tables = TableParser(str(self.root)).getAllTables()
+        games = GameParser(str(self.root)).getAllGames()
         return {
-            "pending_upgrade": sum(1 for t in tables if t.info_pending_upgrade),
-            "restorable": sum(1 for t in tables if t.info_restorable),
-            "newer_than_us": sum(1 for t in tables
+            "pending_upgrade": sum(1 for t in games if t.info_pending_upgrade),
+            "restorable": sum(1 for t in games if t.info_restorable),
+            "newer_than_us": sum(1 for t in games
                                  if (schema_of(t.metaConfig) or 0) > CURRENT_SCHEMA),
         }
 
     def test_a_library_a_newer_build_upgraded_is_reported_as_that(self):
-        self._table_at(CURRENT_SCHEMA + 1)
+        self._game_at(CURRENT_SCHEMA + 1)
 
         counts = self._counts()
 
@@ -253,7 +253,7 @@ class WhatThePageSaysTests(LibraryTestCase):
         self.assertEqual(counts["pending_upgrade"], 0)
 
     def test_a_library_this_build_upgraded_is_not(self):
-        self._table_at(CURRENT_SCHEMA)
+        self._game_at(CURRENT_SCHEMA)
 
         counts = self._counts()
 
@@ -261,7 +261,7 @@ class WhatThePageSaysTests(LibraryTestCase):
         self.assertEqual(counts["restorable"], 1)
 
     def test_a_library_nobody_has_upgraded_says_nothing(self):
-        self._table_at(CURRENT_SCHEMA, with_backup=False)
+        self._game_at(CURRENT_SCHEMA, with_backup=False)
 
         counts = self._counts()
 

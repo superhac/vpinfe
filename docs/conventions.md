@@ -14,14 +14,14 @@ blocking.
 | Thing | Convention | Example |
 |-------|-----------|---------|
 | Functions, methods, variables | `snake_case` | `table_id`, `ensure_unique_ids` |
-| Modules and packages | `snake_case` | `table_identity.py`, `httpapi/` |
+| Modules and packages | `snake_case` | `game_identity.py`, `httpapi/` |
 | Classes | `CapWords` | `MetaConfig`, `TableParser` |
 | Exceptions | `CapWords` ending in `Error` | `NotFoundError`, `InvalidRequestError` |
 | Constants | `UPPER_SNAKE_CASE` | `API_PREFIX`, `CURRENT_VPINFE_SCHEMA` |
 | Internal helpers | leading underscore | `_catalog()`, `_resource()` |
 
 Python does not use camelCase. PEP 8 permits it "only in contexts where that's already the
-prevailing style, to retain backwards compatibility" — which is why `tableDirName`,
+prevailing style, to retain backwards compatibility" — which is why `gameDirName`,
 `metaConfig` and `writeConfigMeta()` still exist. They are legacy, not the standard.
 
 ### JavaScript
@@ -53,10 +53,10 @@ change there would be a breaking change for a caller.
 
 ### Config keys
 
-`vpinfe.ini` keys are lowercase and unseparated (`tablerootdir`, `manageruiport`). That is
+`vpinfe.ini` keys are lowercase and unseparated (`gamerootdir`, `manageruiport`). That is
 established and user-facing; leave it alone.
 
-`.info` keys are `snake_case` in the sections we own — `vpinfe`, `game_files`, `assets`,
+`.info` keys are `snake_case` in the sections we own — `vpinfe`, `tables`, `assets`,
 and so are those section names.
 `Info` and `User` keep PascalCase: other frontends read them, so their shape is a contract
 rather than a style choice.
@@ -88,7 +88,7 @@ feature-detect them. That is what keeps bumps rare enough to be worth doing prop
 - A new subsystem gets its own top-level package, not another module in `common/`. `httpapi/`
   is the current example.
 - Keep `common/` UI-independent.
-- `common/` is a layer, not a bucket. Domain code goes in `common/tables/`, `common/online/`
+- `common/` is a layer, not a bucket. Domain code goes in `common/games/`, `common/online/`
   or `common/host/`; `common/` itself holds only what knows nothing about any of them, and may
   never import from those packages. See `docs/common.md`.
 - Route handlers stay thin. Logic belongs in a service where the other callers can reach it.
@@ -110,7 +110,7 @@ caller cannot infer from the name and signature, which is worth keeping.
 
   ```python
   # Outside the filehash check below on purpose: the id must survive the table
-  # file changing, which is exactly when altvpsid is cleared.
+  # changing, which is exactly when alt_vpsid is cleared.
   ```
 
 - **No docstring where the name and signature already say it.** Write one when there is a real
@@ -131,12 +131,12 @@ The level is a promise about who needs to read the line.
 - **WARNING** — degraded, unavailable, or ignored, but we carried on. A configured feature
   that silently does nothing belongs here, not at INFO.
 - **INFO** — state changes worth having in a timeline afterwards: startup and shutdown, a
-  table launched or exited, an import finished, an extension loaded, config changed.
+  game launched or exited, an import finished, an extension loaded, config changed.
 - **DEBUG** — everything else, including per-item detail and progress narration.
 
 **Summarise bulk work at INFO, never one line per item.** Assigning ids to a library once
-wrote a line per table and buried the rest of the log; it is one line with a count now, and
-the per-table detail is DEBUG.
+wrote a line per game and buried the rest of the log; it is one line with a count now, and
+the per-game detail is DEBUG.
 
 The bar to hold: an idle startup produces tens of INFO lines, not hundreds. Measure it rather
 than guess — start the app and count.
@@ -146,8 +146,8 @@ than guess — start the app and count.
 `vpinfe.<area>.<module>`, matching where the code lives:
 
 ```python
-logger = logging.getLogger("vpinfe.common.table_identity")
-logger = logging.getLogger("vpinfe.httpapi.tables")
+logger = logging.getLogger("vpinfe.common.games.game_identity")
+logger = logging.getLogger("vpinfe.httpapi.games")
 ```
 
 Areas are `common`, `frontend`, `manager`, `httpapi`. Extensions get `vpinfe.ext.<name>`,
@@ -161,12 +161,12 @@ Use `logger.exception` inside an `except` block. It keeps the traceback;
 
 ```python
 except OSError:
-    logger.exception("Failed to enumerate table directory: %s", table_dir)
+    logger.exception("Failed to enumerate game directory: %s", game_dir)
 ```
 
 ### Say which thing
 
-When a message is about one unit of work, name it — table id, job id, upload id. Someone
+When a message is about one unit of work, name it — game id, job id, upload id. Someone
 reporting "my import failed" has to be findable in the file.
 
 ### Never log secrets
@@ -180,8 +180,8 @@ Pass arguments to the logger rather than formatting into it, so the work is skip
 level is off:
 
 ```python
-logger.debug("Assigned table id %s to %s", minted, table.tableDirName)   # yes
-logger.debug(f"Assigned table id {minted} to {table.tableDirName}")      # no
+logger.debug("Assigned game id %s to %s", minted, game.gameDirName)     # yes
+logger.debug(f"Assigned game id {minted} to {game.gameDirName}")        # no
 ```
 
 ### What we deliberately do not do
@@ -206,15 +206,24 @@ a problem no longer destroys the log of the run that showed it.
 
 ## Vocabulary
 
-- **Table** — the pinball-machine concept: folder, identity, metadata, media, assets.
-- **Game file** — a launchable artifact for a specific app (`.vpx` today).
-- **Media** — artwork VPinFE shows *about* a table while you browse: playfield, backglass,
+These follow the Virtual Pinball Spreadsheet, because VPS is where a user goes to identify
+what they have. Ours used to say the opposite of VPS on both nouns, which meant anyone
+reading both had to invert twice.
+
+- **Game** — the pinball-machine concept: folder, identity, metadata, media, assets.
+  VPS's top-level entry. One game, one folder.
+- **Table** — a launchable artifact for a specific app (`.vpx` today). VPS's `tableFiles`:
+  a game has several, by different authors, at different versions. A game is not
+  permanently one table.
+- **Playfield** — the main screen, and the media shown on it. Not "table": the playfield is
+  a facet of a game, and `table` now means the file.
+- **Media** — artwork VPinFE shows *about* a game while you browse: playfield, backglass,
   DMD, wheel, logo, cab, FSS, flyer, rule card, topper, loading video, launch audio,
   rulesheet, their video variants, audio. The logo is the game's title art - usually what a
-  wheel is derived from, which is why a wheel-less table shows its logo in the wheel slot. This is `common/media_paths.py` and nothing else. Rule card
+  wheel is derived from, which is why a wheel-less game shows its logo in the wheel slot. This is `common/media_paths.py` and nothing else. Rule card
   (apron instruction card image), game flyer (promo art) and rulesheet (a document you
   read) are three different things - keep the words apart.
-- **Asset** — content a table needs to *play* as intended, beyond its game file:
+- **Asset** — content a game needs to *play* as intended, beyond its table:
   `.directb2s`, ROM, alt colour, alt sound, PUP pack, music, the per-table `.ini`.
   The per-table `.ini` is config-shaped but is still an asset: without it the table
   plays differently than intended, which is the whole definition.
@@ -223,14 +232,14 @@ A **declared ROM name is not a ROM asset.** A table's script sets `cGameName`, a
 `vpxparser` records it, but that name means one of two different things:
 
 - **A PinMAME dependency (hard).** The script drives the emulator, and without the ROM
-  set in `<table>/pinmame/roms` the table does not run.
-- **A DOF key (soft).** The table needs no emulator — EM tables have no ROM to have —
+  set in `<game>/pinmame/roms` the table does not run.
+- **A DOF key (soft).** The table needs no emulator — EM games have no ROM to have —
   and the name exists only so DOF can map feedback effects to it.
 
 Nothing recorded today tells the two apart, and the shape of the name is a hint rather
 than a rule: PinMAME sets look like `mm_109c`, DOF keys like `GTB2001_1971`. Measured
 across a large library, **most tables that declare a name have no ROM file, and they are
-overwhelmingly EM tables that never needed one.** So "declares a ROM, has no ROM file" is
+overwhelmingly EM games that never needed one.** So "declares a ROM, has no ROM file" is
 a normal, healthy state for most of a library, and reporting ROM presence as a plain
 missing/present flag would call hundreds of working tables broken.
 
@@ -246,7 +255,7 @@ dead VPM code, and a commented-out `LoadVPM` is not a dependency. Measured again
 validation set covering both cases: every ROM-installed table hits, every DOF-key EM
 table misses. One known ambiguity: some EM/PM recreations *conditionally* drive PinMAME for
 chime sounds (the `cOptRom` pattern), and read as required when the player may run
-happily without the ROM. The flag lands on the game file on the next metadata rebuild;
+happily without the ROM. The flag lands on the table on the next metadata rebuild;
 until then the chain reports `required: null`.
 - **App** — the application that plays a format (VPX standalone today).
 - **Theme** — a player-facing frontend package.
@@ -258,23 +267,24 @@ until then the chain reports `required: null`.
   nothing declared) nor plugins (that word belongs to VPX standalone), so say "third-party"
   and not "integration" or "external service".
 
-A table is not permanently one `.vpx`; prefer "game file" when that is what is meant.
+A game is not permanently one `.vpx`; say "table" when the file is what is meant.
 
 Media and assets are not the same thing, and the line is what each is *for*: media is what
 you look at while browsing, assets are what the table consumes while playing. A backglass is
 the case worth knowing — the `.directb2s` is an asset, because the B2S server runs it, while
 the backglass *art* the wheel renders is media. Do not call an asset "media" because it
-happens to be a file in the table folder.
+happens to be a file in the game folder.
 
 `asset_registry.ASSET_SPECS` uses "asset" more broadly, as the lifecycle role of anything
-being imported — including the game file and media. That is the import pipeline's word for
+being imported — including the table and its media. That is the import pipeline's word for
 "a thing being added", not a content category, and it never reaches the HTTP contract, whose
 endpoints are `/uploads/*`. Prefer the definitions above anywhere the distinction matters.
 
-Two table identifiers exist and are not interchangeable:
+Two game identifiers exist and are not interchangeable:
 
-- `vpinfe_id` — this install's stable id. Addresses a table in the API, in events, in jobs.
-- `vpsid` / `altvpsid` — correlation with VPSdb and services keyed by it.
+- `vpinfe_id` — this install's stable id. Addresses a game in the API, in events, in jobs.
+- `vpsid` / `altvpsid` — correlation with VPSdb and services keyed by it. Note this
+  identifies the VPS **game**, not which of its tables you have.
 
 ## Linting
 

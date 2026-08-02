@@ -45,22 +45,22 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/play/state` | What this play host is doing. The snapshot you take once; `play.state_changed` on the stream is how you hear about it after that |
 | GET | `/api/v1/collections` | List collections |
 | GET | `/api/v1/collections/{name}` | One collection |
-| GET | `/api/v1/collections/{name}/tables` | Its tables, resolved — works for both kinds |
-| POST | `/api/v1/collections` | Create one. `filters` makes it filter-based, `tables` makes it manual |
+| GET | `/api/v1/collections/{name}/games` | Its games, resolved — works for both kinds |
+| POST | `/api/v1/collections` | Create one. `filters` makes it filter-based, `games` makes it manual |
 | DELETE | `/api/v1/collections/{name}` | Delete it |
-| PUT | `/api/v1/collections/{name}/tables/{id}` | Add a table (idempotent) |
-| DELETE | `/api/v1/collections/{name}/tables/{id}` | Remove a table |
+| PUT | `/api/v1/collections/{name}/games/{id}` | Add a game (idempotent) |
+| DELETE | `/api/v1/collections/{name}/games/{id}` | Remove a game |
 | GET | `/api/v1/jobs` | Slow work, running first. `?kind=` filters |
 | GET | `/api/v1/jobs/{id}` | One job — state, last progress, outcome |
-| POST | `/api/v1/library/scan` | Rebuild table metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
-| GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library table count. The reference for logo packs and alias maps |
-| GET | `/api/v1/tables` | List tables (`q`, `limit`, `offset`) |
-| GET | `/api/v1/tables/{id}` | One table |
-| GET | `/api/v1/tables/{id}/game-files` | The table's game files, with resolved assets and dependencies |
-| GET | `/api/v1/tables/{id}/media` | Every media kind, present or not |
-| GET | `/api/v1/tables/{id}/media/{kind}` | Stream one media file |
-| GET | `/api/v1/tables/{id}/archive` | Download the table as `.vpxz` — one game by default; `?file=` picks the build. `?full=true` (whole folder) carries its own scope, `tables:export_full` |
-| POST | `/api/v1/tables/{id}/launch` | Launch a table here. Optional `{"file": "..."}` picks a game file |
+| POST | `/api/v1/library/scan` | Rebuild game metadata from VPSdb. Returns `202` and a job; optional `{"download_media": bool, "update_all": bool}` |
+| GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library game count. The reference for logo packs and alias maps |
+| GET | `/api/v1/games` | List games (`q`, `limit`, `offset`) |
+| GET | `/api/v1/games/{id}` | One game |
+| GET | `/api/v1/games/{id}/tables` | The game's tables, with resolved assets and dependencies |
+| GET | `/api/v1/games/{id}/media` | Every media kind, present or not |
+| GET | `/api/v1/games/{id}/media/{kind}` | Stream one media file |
+| GET | `/api/v1/games/{id}/archive` | Download a game as `.vpxz` — one table by default; `?file=` picks which table. `?full=true` (whole folder) carries its own scope, `games:export_full` |
+| POST | `/api/v1/games/{id}/launch` | Launch a game here. Optional `{"file": "..."}` picks which table |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
 | GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count", "total_bytes"}` |
@@ -100,49 +100,49 @@ Field names are `snake_case` (see `docs/conventions.md`), matching Python's own 
 translated on the way out, and matching the repo's existing JSON. Plenty of JSON APIs use
 snake_case for the same reason — GitHub's and Stripe's among them.
 
-A table resource carries `id` (this install's id) and `vps_id` (correlation with VPSdb and
+A game resource carries `id` (this install's id) and `vps_id` (correlation with VPSdb and
 friends). Sub-resources are linked from `links` rather than assembled by the client.
 
-Path segments are hyphenated (`/game-files`); JSON field names are `snake_case`
-(`links.game_files`). Different namespaces, different conventions — hyphens read better in a
+Path segments are hyphenated (`/games`); JSON field names are `snake_case`
+(`links.tables`). Different namespaces, different conventions — hyphens read better in a
 URL and nothing has to be translated on the way into Python.
 
 **Media and assets are not the same thing** (`docs/conventions.md`). Media is the artwork
-VPinFE shows you while browsing; assets are what the table needs to *play* as intended.
+VPinFE shows you while browsing; assets are what the game needs to *play* as intended.
 
-Media is served under `GET /tables/{id}/media`: every kind from `common/media_paths.py`,
+Media is served under `GET /games/{id}/media`: every kind from `common/media_paths.py`,
 present or not, so a client enumerates what is possible instead of guessing from omissions.
 A present kind links to `/media/{kind}`, which streams the file with its real content type.
 Resolution is the same three-tier chain the scan uses, applied to the folder as it is at
-request time: a spec-named file for the launching game file (`(Wheel) <game-file>.png`) beats a
+request time: a spec-named file for the launching table (`(Wheel) <table>.png`) beats a
 folder-named one (`(Wheel) <folder>.png`) beats the fixed default (`wheel.png`), each kind
 trying its extension family in order, `medias/` before the folder root throughout.
 Consumers never learn these rules — every kind still reports exactly one winning file.
-One cross-kind rule: a table with a `logo` and no wheel serves the logo in the wheel slot,
+One cross-kind rule: a game with a `logo` and no wheel serves the logo in the wheel slot,
 below every real wheel tier; such an entry carries `via: "logo"` so a client that cares can
 tell a fallback from the real thing. An unknown kind is an
 `invalid_request` naming the known kinds; a known-but-absent kind is a `not_found`.
 
 Assets come in two lenses, both computed from the folder at request time:
 
-- **The launch lens** — each entry in `GET .../game-files` reports what *that* game file
+- **The launch lens** — each entry in `GET .../tables` reports what *that* table
   would use on launch, mirroring VPX's own lookup order per kind: `dedicated` (a file named
-  for the game file), `shared` (the folder-named fallback), or `none` — plus the winning
+  for the table), `shared` (the folder-named fallback), or `none` — plus the winning
   filename. A `.pov` never falls back to the folder name, because VPX doesn't.
-- **The inventory lens** — `GET /tables/{id}` attributes every asset file in the folder:
-  `dedicated` to the game file it serves, `shared`, or `orphaned` (stem-named for a game
-  file that is no longer there — what an audit wants to see). The list endpoint carries a
+- **The inventory lens** — `GET /games/{id}` attributes every asset file in the folder:
+  `dedicated` to the table it serves, `shared`, or `orphaned` (stem-named for a table
+  that is no longer there — what an audit wants to see). The list endpoint carries a
   presence summary only.
 
-Game files also carry `dependencies` — things the *script* declares and content on disk
+Games also carry `dependencies` — things the *script* declares and content on disk
 satisfies, which is a different mechanism from an asset found by naming rule:
 
 - `pinmame` is a chain: `declared` (the script's ROM name) → `alias_of` (rewritten by the
-  table's `pinmame/alias.txt`, the way PinMAME itself does) → `effective` → `installed`,
+  game's `pinmame/alias.txt`, the way PinMAME itself does) → `effective` → `installed`,
   with `required` saying whether the script actually drives the emulator — measured from
   the script, not guessed from the name's shape. `required: true` with `installed: null`
   is the case worth surfacing; `required: false` means the declared name is a DOF key;
-  `null` means the table's metadata predates the detector and a rebuild will fill it in.
+  `null` means the game's metadata predates the detector and a rebuild will fill it in.
 
   When the machine's own VPX install ships `libpinmame` (discovery declares this as the
   `rom_audit` capability), the chain also carries PinMAME's own answer: `catalog` (the
@@ -154,18 +154,18 @@ satisfies, which is a different mechanism from an asset found by naming rule:
   conclusion standing. The library is borrowed from the configured launcher's install,
   never bundled — a machine that can't launch has no use for the audit.
   `installed` is true or null, never false: the name may be a DOF key on a ROM-less EM
-  table, an unmerged set may need a parent zip, and global ROM locations aren't searched —
+  game, an unmerged set may need a parent zip, and global ROM locations aren't searched —
   so "not found here" is not "missing". `nvram` rides the chain (`present`, `file`,
   `modified_at`, stat-ed live) because a competition harvester's question is "is there a
   score newer than my last visit".
 - `flexdmd` reports whether the script uses FlexDMD and what `.UltraDMD` content exists;
   `declared` stays null until the project-folder extraction is built.
 
-The script-declared facts are only known for the game file the table's metadata records;
-other game files report `null` with a reason rather than inheriting the wrong answer.
+The script-declared facts are only known for the table the game's metadata records;
+other tables report `null` with a reason rather than inheriting the wrong answer.
 
-`rom` on the table resource is the recorded game file's **declared** ROM name kept as plain
-metadata; the full chain (alias, effective, installed, nvram) lives on the game file's
+`rom` on the game resource is the recorded table's **declared** ROM name kept as plain
+metadata; the full chain (alias, effective, installed, nvram) lives on the table's
 `dependencies.pinmame`.
 
 ## Errors
@@ -173,7 +173,7 @@ metadata; the full chain (alias, effective, installed, nvram) lives on the game 
 Every failure under `/api/v1` comes back in one shape, with a real HTTP status:
 
 ```json
-{"error": {"code": "not_found", "message": "No such table", "details": null}}
+{"error": {"code": "not_found", "message": "No such game", "details": null}}
 ```
 
 `code` is the contract. Branch on it; don't parse `message`, which is meant for humans and
@@ -185,7 +185,7 @@ Raise, don't build responses by hand:
 ```python
 from httpapi.errors import NotFoundError, InvalidRequestError, FeatureUnavailableError
 
-raise NotFoundError(f"No table with id {table_id}")
+raise NotFoundError(f"No game with id {game_id}")
 raise InvalidRequestError("sort must be one of: name, year", details={"got": sort})
 raise FeatureUnavailableError("DOF is not configured on this instance")
 ```
@@ -204,7 +204,7 @@ Every request into `/api/v1` passes one middleware that stamps an identity on it
 route declares the scope it needs:
 
 ```python
-@router.get("/tables", dependencies=[requires(scopes.TABLES_READ)])
+@router.get("/games", dependencies=[requires(scopes.TABLES_READ)])
 ```
 
 **The policy is dormant.** Today whoever can reach the instance is granted every scope, which
@@ -251,7 +251,7 @@ shown to users, so say what's missing and how to fix it.
 
 `residency` records which roles a capability lives in: `catalog` for things that only need
 the library (location-independent, cacheable) and `play_host` for things tied to the machine
-where tables launch and hardware lives.
+where games launch and hardware lives.
 
 It's a list because some capabilities belong to both — the event stream carries library
 events and launch events alike. Listing both means each role serves its own, not that one
@@ -261,29 +261,29 @@ each have an event stream, carrying their own events. Test for a role with
 
 ## Launching
 
-`POST /api/v1/tables/{id}/launch` starts a table on this play host. It returns `202` as soon
-as the launch is under way — not when the table exits, which can be hours later. Watch
+`POST /api/v1/games/{id}/launch` starts a game on this play host. It returns `202` as soon
+as the launch is under way — not when the game exits, which can be hours later. Watch
 `/api/v1/events` to find out what happens next.
 
 ```
-POST /api/v1/tables/6f1c9a4e.../launch
+POST /api/v1/games/6f1c9a4e.../launch
 {"file": "Table Name VPW Mod.vpx"}
 ```
 
-`file` is optional and names one of the table's game files (`GET .../files` lists them);
-leave it out for the table's default. A name that isn't in the table's own folder is refused,
+`file` is optional and names one of the game's tables (`GET .../tables` lists them);
+leave it out for the game's default. A name that isn't in the game's own folder is refused,
 so this can't be talked into running something else.
 
 Every refusal happens before anything starts, and comes back synchronously:
 
 | Status | Code | Means |
 |--------|------|-------|
-| 404 | `not_found` | no table with that id |
-| 400 | `invalid_request` | the named `file` isn't one of this table's game files |
+| 404 | `not_found` | no game with that id |
+| 400 | `invalid_request` | the named `file` isn't one of this game's tables |
 | 409 | `conflict` | something is already playing — two VPX processes would fight over the same hardware |
 | 501 | `feature_unavailable` | this machine can't launch at all, e.g. no `vpxbinpath` configured |
 
-The endpoint carries `launch:invoke`, which is deliberately not `tables:write`: reading the
+The endpoint carries `launch:invoke`, which is deliberately not `games:write`: reading the
 library, changing it, and making the machine do something are three different permissions.
 
 Discovery declares a `launch` capability separately from `play`, because reading what's
@@ -316,19 +316,19 @@ What's on it:
 
 | Event | Payload |
 |-------|---------|
-| `table.launching` / `table.launched` / `table.exited` / `table.selected` | `{"table": {"id", "name", "links"}}`, or `{"table": null}` when the launch didn't come from the wheel |
+| `game.launching` / `game.launched` / `game.exited` / `game.selected` | `{"game": {"id", "name", "links"}}`, or `{"game": null}` when the launch didn't come from the wheel |
 | `play.state_changed` | `{"state": {"launching", "table_name", "source"}}` |
 | `job.progress` | `{"job_id", "pct", "message"}` |
 | `job.done` | `{"job_id"}` |
 | `job.failed` | `{"job_id", "error"}` |
 
-A table on the stream is a *reference*, not a resource: an id, a name to show, and
-`links.self` to fetch the rest. Events stay small and there is one answer to what a table
-looks like, at `GET /api/v1/tables/{id}`. A table that hasn't been assigned an id yet carries
+A game on the stream is a *reference*, not a resource: an id, a name to show, and
+`links.self` to fetch the rest. Events stay small and there is one answer to what a game
+looks like, at `GET /api/v1/games/{id}`. A game that hasn't been assigned an id yet carries
 an empty one and no link rather than a broken one.
 
-The bus carries more than that per event — `table.launching` hands its handlers the whole
-`Table` object and the ini config, because its handlers are in-process. The stream projects
+The bus carries more than that per event — `game.launching` hands its handlers the whole
+`Game` object and the ini config, because its handlers are in-process. The stream projects
 each event into the shape above instead of forwarding what was published, which is what makes
 the wire shape a contract rather than a consequence: adding a keyword argument at a publisher
 doesn't change what subscribers receive, and nothing internal leaks onto a socket. Streaming a
@@ -371,17 +371,17 @@ recovers by itself.
 
 ## Collections
 
-Two kinds behind one resource. A **manual** collection stores an explicit list of table
+Two kinds behind one resource. A **manual** collection stores an explicit list of game
 ids; a **filter** collection stores criteria and resolves to whatever matches when you ask.
 `type` says which, and `table_count` is null for a filter collection because there is no
-stored list to count — ask `/collections/{name}/tables`, which answers the same question
+stored list to count — ask `/collections/{name}/games`, which answers the same question
 for both kinds and applies the collection's own ordering.
 
 Editing membership only makes sense for the manual kind, so `PUT`/`DELETE` on a filter
-collection's tables is a `409` rather than a silent no-op. Adding a table that is already a
+collection's games is a `409` rather than a silent no-op. Adding a game that is already a
 member is a success: the caller wanted it in there, and it is.
 
-Membership is the table's own id, not its VPS id — a table with no VPSdb match still
+Membership is the game's own id, not its VPS id — a game with no VPSdb match still
 belongs to collections, which is why membership moved off the VPS id. The key on disk is
 still `vpsids` for files written before that migration, and `type` is still `vpsid` there;
 the wire uses the honest names.
@@ -393,8 +393,8 @@ Collection names are the identity, so they are URL-encoded in paths (`Last%20Pla
 
 Work that takes minutes is a job: you ask for the work, get `202` and a job resource back,
 and follow it on the event stream. `POST /library/scan` is the first one — a metadata
-rebuild across every table folder, which is why it sits under `/library` rather than
-`/tables/{id}`; it isn't an operation on a table.
+rebuild across every game folder, which is why it sits under `/library` rather than
+`/games/{id}`; it isn't an operation on a game.
 
 The job resource exists because the stream isn't the only way in. A client that connected
 late, missed `job.done`, or simply wants to know what is running asks `GET /jobs` or
@@ -404,7 +404,7 @@ correct without having seen a single event. Finished jobs stay answerable for a 
 feature).
 
 Starting work is never a `POST /jobs`. The permission to run something is the permission of
-the thing itself, so a scan is `tables:write` because that is what a scan does. `jobs:read`
+the thing itself, so a scan is `games:write` because that is what a scan does. `jobs:read`
 covers only asking; the right to watch is not the right to cause.
 
 **One job of a kind at a time**, and the rule is shared with the rest of the app rather than
@@ -413,46 +413,46 @@ two library scans can't rewrite the same `.info` files at once, and a scan start
 UI shows up on the stream exactly like one started here. A second request gets `409 conflict`
 rather than being queued — queueing would mean a double-click costs two full scans.
 
-## Table identity
+## Game identity
 
-Tables are addressed by an opaque local id — `common/table_identity.py`, stored per table in
+Games are addressed by an opaque local id — `common/games/game_identity.py`, stored per game in
 its `.info` under `vpinfe.id`:
 
 ```
-GET /api/v1/tables/tuF3WogthK
+GET /api/v1/games/tuF3WogthK
 ```
 
 The id is minted once and then stays put. It survives renames, VPSdb re-matches, and table
 updates, which is what an id in a URL, an event, or a job has to do.
 
-`VPSId` is not that id, and can't be. It's empty for any table VPSdb hasn't matched, it isn't
+`VPSId` is not that id, and can't be. It's empty for any game VPSdb hasn't matched, it isn't
 guaranteed unique, and the effective id used elsewhere (`vpinfe.alt_vpsid or Info.VPSId`) is
-deliberately cleared when the .vpx file changes — so updating a table would silently change
-its identity. `vpsId` is still exposed on the table resource, because correlating with VPSdb,
+deliberately cleared when the .vpx file changes — so updating a game would silently change
+its identity. `vpsId` is still exposed on the game resource, because correlating with VPSdb,
 VPinPlay, and other outside services is exactly what it's good for. It's an attribute, not
 the key.
 
 Two consequences worth knowing:
 
-- Copying a table folder copies its id. The duplicate is spotted and re-minted the next time
-  ids are checked across the library, so an id always addresses one table.
-- Deleting a table's `.info` loses its id, the same way it loses that table's rating and play
+- Copying a game folder copies its id. The duplicate is spotted and re-minted the next time
+  ids are checked across the library, so an id always addresses one game.
+- Deleting a game's `.info` loses its id, the same way it loses that game's rating and play
   counts. A new one is minted; anything holding the old id won't resolve.
 
-Existing tables get an id on their next metadata rebuild, or on demand. Reading a table never
+Existing games get an id on their next metadata rebuild, or on demand. Reading a game never
 mints one — a scan is a read path and stays one.
 
-In Manager UI table rows the field is `vpinfe_id`, pairing with `vpsid` so each name says who
+In Manager UI game rows the field is `vpinfe_id`, pairing with `vpsid` so each name says who
 issued the id. The API exposes it as the resource's `id`.
 
 ### Schema version
 
-The `vpinfe` section of a table's `.info` carries a `schema` number, bumped when the shape of
+The `vpinfe` section of a game's `.info` carries a `schema` number, bumped when the shape of
 the file changes. `Info` and `User` are the interop contract other frontends read and write, so
 they stay shape-driven and tolerant; the sections we own carry the version.
 
 A file with no `schema` at all was written by 2.x. It is migrated on read and, on the first
-write after that, the original is kept alongside it as `<Table>.info.vpinfe-<timestamp>`.
+write after that, the original is kept alongside it as `<Game>.info.vpinfe-<timestamp>`.
 
 Migration runs on read, in memory, and never writes — the stamp reaches disk on the next real
 write. A section written by a *newer* VPinFE is left exactly as it is: downgrading someone's
@@ -467,14 +467,14 @@ Build an `APIRouter`, include it in `create_api_app()`, and let the envelope han
 from fastapi import APIRouter
 from httpapi.errors import NotFoundError
 
-router = APIRouter(prefix="/tables", tags=["tables"])
+router = APIRouter(prefix="/games", tags=["games"])
 
-@router.get("/{table_id}")
-def get_table(table_id: str) -> dict:
-    table = table_repository.find(table_id)
-    if table is None:
-        raise NotFoundError(f"No table with id {table_id}")
-    return table
+@router.get("/{game_id}")
+def get_game(game_id: str) -> dict:
+    game = game_repository.find(game_id)
+    if game is None:
+        raise NotFoundError(f"No game with id {game_id}")
+    return game
 ```
 
 Routes stay thin. The logic already lives in the service layer (`common/`,

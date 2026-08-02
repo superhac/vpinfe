@@ -2,7 +2,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.tables.vpxparser import VPXParser
+from common.games.vpxparser import VPXParser
 
 
 class TestVPXParser(unittest.TestCase):

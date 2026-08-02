@@ -77,14 +77,14 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         """Otherwise a client connecting mid-launch sees nothing until it ends."""
         event_stream.declare_snapshot(
             events.PLAY_STATE_CHANGED,
-            lambda: {"state": {"launching": True, "table_name": "Medieval Madness"}})
+            lambda: {"state": {"launching": True, "game_name": "Medieval Madness"}})
         stream = self._open()
         await self._hello(stream)
 
         snapshot = await self._next(stream)
 
         self.assertEqual(_fields(snapshot)["event"], events.PLAY_STATE_CHANGED)
-        self.assertEqual(_payload(snapshot)["state"]["table_name"], "Medieval Madness")
+        self.assertEqual(_payload(snapshot)["state"]["game_name"], "Medieval Madness")
         self.assertNotIn("id", _fields(snapshot), "a snapshot is not a resume point")
 
     async def test_a_published_event_reaches_a_connected_client(self) -> None:
@@ -109,51 +109,51 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(_payload(frame), {"state": {"launching": False, "table_name": None}})
 
-    async def test_a_table_event_carries_identity_not_the_table(self) -> None:
-        """The bus payload is in-process; the Table object and the ini config are not
+    async def test_a_game_event_carries_identity_not_the_game(self) -> None:
+        """The bus payload is in-process; the Game object and the ini config are not
         things to put on a socket."""
-        table = SimpleNamespace(
-            tableDirName="Medieval Madness (Williams 1997)",
+        game = SimpleNamespace(
+            gameDirName="Medieval Madness (Williams 1997)",
             metaConfig={"vpinfe": {"id": "6f1c9a4e"}},
         )
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.TABLE_SELECTED, table=table, ini_config="secret-ini-config")
+        events.emit(events.GAME_SELECTED, game=game, ini_config="secret-ini-config")
         frame = await self._next(stream)
 
         self.assertEqual(_payload(frame), {
-            "table": {
+            "game": {
                 "id": "6f1c9a4e",
                 "name": "Medieval Madness (Williams 1997)",
-                # A pointer to the table, not a second answer to what a table is.
-                "links": {"self": "/api/v1/tables/6f1c9a4e"},
+                # A pointer to the game, not a second answer to what a game is.
+                "links": {"self": "/api/v1/games/6f1c9a4e"},
             },
         })
         self.assertNotIn("secret-ini-config", frame)
 
-    async def test_a_table_with_no_id_yet_is_referenced_without_a_broken_link(self) -> None:
-        """Ids are minted on a write path, so a scan can hand us a table without one."""
+    async def test_a_game_with_no_id_yet_is_referenced_without_a_broken_link(self) -> None:
+        """Ids are minted on a write path, so a scan can hand us a game without one."""
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.TABLE_SELECTED,
-                    table=SimpleNamespace(tableDirName="Unidentified", metaConfig={}),
+        events.emit(events.GAME_SELECTED,
+                    game=SimpleNamespace(gameDirName="Unidentified", metaConfig={}),
                     ini_config=None)
         frame = await self._next(stream)
 
-        self.assertEqual(_payload(frame)["table"],
+        self.assertEqual(_payload(frame)["game"],
                          {"id": "", "name": "Unidentified"})
 
-    async def test_a_table_event_without_a_table_still_streams(self) -> None:
+    async def test_a_game_event_without_a_game_still_streams(self) -> None:
         """The Remote Control page launches without one."""
         stream = self._open()
         await self._hello(stream)
 
-        events.emit(events.TABLE_LAUNCHING, table=None, ini_config="cfg")
+        events.emit(events.GAME_LAUNCHING, game=None, ini_config="cfg")
         frame = await self._next(stream)
 
-        self.assertEqual(_payload(frame), {"table": None})
+        self.assertEqual(_payload(frame), {"game": None})
 
     async def test_a_job_event_keeps_the_documented_shape(self) -> None:
         """The shape is a contract, so a caller's extra keyword does not become one."""
@@ -171,7 +171,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         stream = self._open(PLAY_STATE)
         await self._hello(stream)
 
-        events.emit(events.TABLE_SELECTED, table=None, ini_config=None)
+        events.emit(events.GAME_SELECTED, game=None, ini_config=None)
         events.emit(events.PLAY_STATE_CHANGED, state={"launching": True, "table_name": "Taxi"})
         frame = await self._next(stream)
 

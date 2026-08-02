@@ -100,14 +100,14 @@ class TestIniConfig(unittest.TestCase):
             self.assertTrue(config.config.has_section("Settings"))
             self.assertEqual(config.config.get("Settings", "vpxlogdeleteonstart"), "false")
 
-    def test_restore_last_table_defaults_on(self) -> None:
+    def test_restore_last_game_defaults_on(self) -> None:
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
             config = IniConfig(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
-            self.assertEqual(config.config.get("Settings", "restorelasttable"), "true")
+            self.assertEqual(config.config.get("Settings", "restorelastgame"), "true")
 
     def test_state_section_lasttable_defaults_empty(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -116,7 +116,7 @@ class TestIniConfig(unittest.TestCase):
             config = IniConfig(str(ini_path))
 
             self.assertTrue(config.config.has_section("State"))
-            self.assertEqual(config.config.get("State", "lasttable"), "")
+            self.assertEqual(config.config.get("State", "lastgame"), "")
 
     def test_existing_splashscreen_setting_is_preserved(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -126,6 +126,71 @@ class TestIniConfig(unittest.TestCase):
             config = IniConfig(str(ini_path))
 
             self.assertEqual(config.config.get("Settings", "splashscreen"), "true")
+
+    def test_a_renamed_key_keeps_the_users_value(self) -> None:
+        """The rename must run before defaults are filled in.
+
+        With the default already present, "copy only if the new key is absent" copies
+        nothing, and removing the old key then throws the user's setting away. Every
+        value below was silently reset to its default before this was fixed.
+        """
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+            ini_path.write_text(
+                "[Settings]\ntablerootdir = /old/path\nrestorelasttable = false\n"
+                "[Media]\ntabletype = fss\n"
+                "[Displays]\ntablerotation = 270\n"
+                "[State]\nlasttable = Foo\n", encoding="utf-8")
+
+            config = IniConfig(str(ini_path))
+
+            self.assertEqual(config.config.get("Settings", "gamerootdir"), "/old/path")
+            self.assertEqual(config.config.get("Settings", "restorelastgame"), "false")
+            self.assertEqual(config.config.get("Media", "playfieldvariant"), "fss")
+            self.assertEqual(config.config.get("Displays", "playfieldrotation"), "270")
+            self.assertEqual(config.config.get("State", "lastgame"), "Foo")
+            self.assertFalse(config.config.has_option("Settings", "tablerootdir"),
+                             "the old key should be gone once it has been read")
+
+
+    def test_a_moved_option_keeps_the_users_value(self) -> None:
+        """The move has to happen before the defaults are written.
+
+        Every moved key has a default. Once one is in place, "copy only if absent"
+        copies nothing and remove_option drops the real value - so an upgrade turned
+        cab mode and DOF off and left nothing to explain why.
+        """
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+            ini_path.write_text(
+                "[Settings]\ncabmode = true\nenabledof = true\n"
+                "[Displays]\nsplashscreen = true\n",
+                encoding="utf-8",
+            )
+
+            config = IniConfig(str(ini_path))
+
+            self.assertEqual(config.config.get("Displays", "cabmode"), "true")
+            self.assertEqual(config.config.get("DOF", "enabledof"), "true")
+            self.assertEqual(config.config.get("Settings", "splashscreen"), "true")
+            # and the old spellings are gone, so the move is not repeated
+            self.assertFalse(config.config.has_option("Settings", "cabmode"))
+            self.assertFalse(config.config.has_option("Settings", "enabledof"))
+            self.assertFalse(config.config.has_option("Displays", "splashscreen"))
+
+    def test_a_moved_option_does_not_overwrite_a_value_already_there(self) -> None:
+        """If both spellings exist, the one in the current section wins."""
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+            ini_path.write_text(
+                "[Settings]\ncabmode = true\n[Displays]\ncabmode = false\n",
+                encoding="utf-8",
+            )
+
+            config = IniConfig(str(ini_path))
+
+            self.assertEqual(config.config.get("Displays", "cabmode"), "false")
+            self.assertFalse(config.config.has_option("Settings", "cabmode"))
 
 
 if __name__ == "__main__":

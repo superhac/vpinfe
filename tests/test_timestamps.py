@@ -26,7 +26,7 @@ class AuthoredDateTests(unittest.TestCase):
                 self.assertEqual(iso_from_authored_date(text), expected)
 
     def test_an_ambiguous_pair_falls_back_to_the_year(self):
-        """Both orders occur in real tables, so 01/04/2017 has no answer. The year is
+        """Both orders occur in real games, so 01/04/2017 has no answer. The year is
         true; a guess would be a coin flip between January and April."""
         for text in ("01/04/2017", "9-4-2012", "02.06.2019", "8/1/16"):
             with self.subTest(text=text):

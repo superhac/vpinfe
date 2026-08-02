@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import logging
 
+from common.games.vpxcollections import VPXCollections
 from common.values import is_truthy
-from common.tables.vpxcollections import VPXCollections
-
 from managerui.paths import COLLECTIONS_PATH
-from managerui.services import table_catalog
-
+from managerui.services import game_catalog
 
 logger = logging.getLogger("vpinfe.manager.remote_launch")
 
@@ -55,35 +53,35 @@ def _normalize_rating(value) -> int:
     return max(0, min(5, normalized))
 
 
-def table_matches_filters(table: dict, filters) -> bool:
+def game_matches_filters(game: dict, filters) -> bool:
     if not filters:
         return False
 
     letter = filters.get("letter", "All")
     if letter != "All":
-        table_name = table.get("name", "")
-        if table_name and table_name[0].upper() != letter.upper():
+        game_name = game.get("name", "")
+        if game_name and game_name[0].upper() != letter.upper():
             return False
 
     manufacturer = filters.get("manufacturer", "All")
-    if manufacturer != "All" and table.get("manufacturer", "") != manufacturer:
+    if manufacturer != "All" and game.get("manufacturer", "") != manufacturer:
         return False
 
     year = filters.get("year", "All")
-    if year != "All" and str(table.get("year", "")) != str(year):
+    if year != "All" and str(game.get("year", "")) != str(year):
         return False
 
-    table_type = filters.get("table_type", "All")
-    if table_type != "All" and table.get("type", "") != table_type:
+    game_type = filters.get("table_type", "All")
+    if game_type != "All" and game.get("type", "") != game_type:
         return False
 
     theme = filters.get("theme", "All")
     if theme != "All":
-        table_theme = table.get("theme", "")
-        if isinstance(table_theme, list):
-            if theme not in table_theme:
+        game_theme = game.get("theme", "")
+        if isinstance(game_theme, list):
+            if theme not in game_theme:
                 return False
-        elif table_theme != theme:
+        elif game_theme != theme:
             return False
 
     rating = filters.get("rating", "All")
@@ -94,15 +92,15 @@ def table_matches_filters(table: dict, filters) -> bool:
                 selected.append(_normalize_rating(raw_rating.strip()))
             except Exception:
                 continue
-        table_rating = _normalize_rating(table.get("rating", 0))
+        game_rating = _normalize_rating(game.get("rating", 0))
         if is_truthy(filters.get("rating_or_higher", "false")):
-            if not selected or table_rating < min(selected):
+            if not selected or game_rating < min(selected):
                 return False
-        elif table_rating not in set(selected):
+        elif game_rating not in set(selected):
             return False
 
     return True
 
 
-def scan_tables_for_launch() -> list[dict]:
-    return table_catalog.scan_launchable_tables()
+def scan_games_for_launch() -> list[dict]:
+    return game_catalog.scan_launchable_games()

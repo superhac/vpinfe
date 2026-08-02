@@ -22,7 +22,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import StreamingResponse
 
 from common import events
-from common.tables import table_identity
+from common.games import game_identity
 
 from . import scopes
 from .auth import requires
@@ -51,23 +51,23 @@ RETRY_MS = 3000
 HELLO_EVENT = "stream.hello"
 
 
-def _table_event(table=None, **_) -> dict:
-    """The wire shape of a table lifecycle event.
+def _game_event(game=None, **_) -> dict:
+    """The wire shape of a game lifecycle event.
 
-    The bus carries the Table object and the whole ini config because its handlers
+    The bus carries the Game object and the whole ini config because its handlers
     are in-process. Neither belongs on a socket, so the stream sends a reference to
     the table rather than the table: an id, a name to show, and the link to fetch
     the rest. That link is what keeps this a pointer instead of a second, thinner
     answer to "what does a table look like".
     """
-    if table is None:
-        return {"table": None}
+    if game is None:
+        return {"game": None}
 
-    table_id = table_identity.table_id(table)
-    reference = {"id": table_id, "name": getattr(table, "tableDirName", "")}
-    if table_id:
-        reference["links"] = {"self": f"/api/v1/tables/{table_id}"}
-    return {"table": reference}
+    game_id = game_identity.game_id(game)
+    reference = {"id": game_id, "name": getattr(game, "gameDirName", "")}
+    if game_id:
+        reference["links"] = {"self": f"/api/v1/games/{game_id}"}
+    return {"game": reference}
 
 
 def _job_event(**payload) -> dict:
@@ -86,14 +86,14 @@ def _as_published(**payload) -> dict:
 
 
 # Which bus events reach the network, and the shape each one takes when it does.
-# An explicit table rather than "whatever was emitted": an extension will one day
+# An explicit list rather than "whatever was emitted": an extension will one day
 # publish onto the same bus, and what it may broadcast is a scope question that
 # has to be answered before anything is streamed.
 STREAMED_EVENTS: dict[str, Callable[..., dict]] = {
-    events.TABLE_LAUNCHING: _table_event,
-    events.TABLE_LAUNCHED: _table_event,
-    events.TABLE_EXITED: _table_event,
-    events.TABLE_SELECTED: _table_event,
+    events.GAME_LAUNCHING: _game_event,
+    events.GAME_LAUNCHED: _game_event,
+    events.GAME_EXITED: _game_event,
+    events.GAME_SELECTED: _game_event,
     events.PLAY_STATE_CHANGED: _as_published,
     events.JOB_PROGRESS: _job_event,
     events.JOB_DONE: _job_event,

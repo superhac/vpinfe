@@ -87,7 +87,7 @@ Next you must configure these three essential settings in the `[Settings]` secti
 <img width="1307" height="591" alt="1-settings-panel" src="https://github.com/user-attachments/assets/4c774005-a6a6-4970-b85e-d4f26ea18941" />
 
 1. **vpxbinpath** - Full path to your VPinball executable (e.g., `/home/user/vpinball/build/VPinballX_BGFX`)
-2. **tablerootdir** - Root directory where all your tables are located (e.g., `/home/user/tables/`)
+2. **gamerootdir** - Root directory where all your tables are located (e.g., `/home/user/tables/`)
 3. **vpxinipath** - Path to your VPinballX.ini file (e.g., `~/.vpinball/VPinballX.ini`)
 
 Once these are configured you can exit the ManagerUI by clicking the shutdown button in the UI (upper left area).  Anytime you want to return to the ManagerUI look in the console for its webserver address.  Its a line that looks like this:
@@ -224,7 +224,7 @@ Core startup and launch behavior:
 - **Active Theme**: currently selected frontend theme
 - **Startup Collection**: collection opened when VPinFE starts
 - **Auto Update Media On Startup**: enables startup media refresh behavior
-- **Restore Last Table**: opens the wheel on the last table you launched instead of the first; on by default, saved as `Settings.restorelasttable`
+- **Restore Last Table**: opens the wheel on the last table you launched instead of the first; on by default, saved as `Settings.restorelastgame`
 - **Enable splashscreen**: shows the frontend splash screen during startup
 - **Mute Frontend Audio**: mutes frontend audio playback
 - **Hide Quit from MainMenu**: hides the **Quit** item from the frontend main menu; saved as `Settings.MMhideQuitButton` in `vpinfe.ini`
@@ -818,21 +818,34 @@ Notes:
 ```
 options:
   -h, --help            show this help message and exit
+  --version             Show the app version
   --listres             ID and list your screens
-  --listmissing         List the tables from VPSdb
-  --listunknown         List the tables we can't match in VPSdb
+  --listmissing         List the games from VPSdb
+  --listunknown         List the games we can't match in VPSdb
   --configdir DIR       Use DIR as the config directory (vpinfe.ini, themes,
                         caches, logs) instead of the OS default. Same as the
-                        VPINFE_CONFIG_DIR env var; applied at startup in main.py.
-  --buildmeta           Builds the meta.ini file in each table dir
-  --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
-  --gamepadtest         Testing and mapping your gamepad via js api
-  --headless            Run web servers/services only, skip the Chromium frontend
-  --claim-user-media    Deprecated and does nothing; your own media is protected automatically
-  --no-media            When building meta.ini files don't download the images at the same time.
-  --update-all          When building meta.ini reparse all tables to recreate the meta.ini file.
-  --user-media          With --buildmeta: skip vpinmediadb downloads entirely and supply all media yourself
-  --table TABLE         Specify a single table folder name to process with --buildmeta
+                        VPINFE_CONFIG_DIR env var; applied at startup in
+                        main.py.
+  --buildmeta           Builds the .info file in each game dir
+  --vpxpatch            Attempt to apply patches automatically
+  --gamepadtest         Test and map your gamepad via JS API
+  --headless            Run web servers/services only, skip the Chromium
+                        frontend
+  --claim-user-media    Deprecated and does nothing; your own media is
+                        protected automatically
+  --no-media            Do not download images when building the .info files
+  --update-all          Reparse all games when building the .info files
+  --user-media          With --buildmeta: skip vpinmediadb downloads entirely
+                        and supply all media yourself
+  --upgrade-info        Upgrade every game's .info file to the current format,
+                        backing up each one first. Normally done automatically
+                        at startup; use this to finish an upgrade that was
+                        interrupted
+  --restore-info        Put back the .info files saved before they were
+                        upgraded, for every game that has one. Your current
+                        .info is kept first
+  --game, --table GAME  Specify a single game folder name to process with
+                        --buildmeta, --upgrade-info or --restore-info
 ```
 
 ## Server Listeners

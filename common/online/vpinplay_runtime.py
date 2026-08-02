@@ -24,7 +24,7 @@ class AlternateVPinPlayProfile:
 _LOCK = threading.Lock()
 _PROFILES: dict[str, AlternateVPinPlayProfile] = {}
 _ACTIVE_PROFILE_KEY: str | None = None
-_TABLE_USER_STATE_BY_PROFILE: dict[str, dict[str, dict[str, Any]]] = {}
+_GAME_USER_STATE_BY_PROFILE: dict[str, dict[str, dict[str, Any]]] = {}
 
 
 def _normalize_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -69,7 +69,7 @@ def _build_profile_key(user_id: str, machine_id: str) -> str:
 
 
 def _profile_to_dict(profile: AlternateVPinPlayProfile) -> dict[str, Any]:
-    table_states = _TABLE_USER_STATE_BY_PROFILE.get(profile.profile_key, {})
+    game_states = _GAME_USER_STATE_BY_PROFILE.get(profile.profile_key, {})
     return {
         "profileKey": profile.profile_key,
         "userId": profile.user_id,
@@ -77,7 +77,7 @@ def _profile_to_dict(profile: AlternateVPinPlayProfile) -> dict[str, Any]:
         "machineId": profile.machine_id,
         "sourceName": profile.source_name,
         "activatedAt": profile.activated_at,
-        "trackedTables": len(table_states),
+        "trackedTables": len(game_states),
     }
 
 
@@ -100,7 +100,7 @@ def activate_alternate_profile(payload: dict[str, Any], source_name: str = "") -
     with _LOCK:
         global _ACTIVE_PROFILE_KEY
         _PROFILES[profile_key] = profile
-        _TABLE_USER_STATE_BY_PROFILE.setdefault(profile_key, {})
+        _GAME_USER_STATE_BY_PROFILE.setdefault(profile_key, {})
         _ACTIVE_PROFILE_KEY = profile_key
     return get_alternate_profile_state()
 
@@ -120,13 +120,13 @@ def clear_alternate_profile(profile_key: str | None = None) -> dict[str, Any]:
         global _ACTIVE_PROFILE_KEY
         if profile_key is None:
             _PROFILES.clear()
-            _TABLE_USER_STATE_BY_PROFILE.clear()
+            _GAME_USER_STATE_BY_PROFILE.clear()
             _ACTIVE_PROFILE_KEY = None
         else:
             normalized_key = str(profile_key or "").strip()
             if normalized_key:
                 _PROFILES.pop(normalized_key, None)
-                _TABLE_USER_STATE_BY_PROFILE.pop(normalized_key, None)
+                _GAME_USER_STATE_BY_PROFILE.pop(normalized_key, None)
                 if _ACTIVE_PROFILE_KEY == normalized_key:
                     _ACTIVE_PROFILE_KEY = next(iter(_PROFILES.keys()), None)
     return get_alternate_profile_state()
@@ -137,11 +137,11 @@ def get_alternate_profile_state() -> dict[str, Any]:
         active_profile = _PROFILES.get(_ACTIVE_PROFILE_KEY) if _ACTIVE_PROFILE_KEY else None
         profiles = [_profile_to_dict(profile) for profile in _PROFILES.values()]
         profiles.sort(key=lambda item: (item.get("userId") or "").lower())
-        active_table_count = len(_TABLE_USER_STATE_BY_PROFILE.get(_ACTIVE_PROFILE_KEY or "", {}))
+        active_game_count = len(_GAME_USER_STATE_BY_PROFILE.get(_ACTIVE_PROFILE_KEY or "", {}))
         return {
             "active": active_profile is not None,
             "profile": _profile_to_dict(active_profile) if active_profile is not None else None,
-            "active_tables": active_table_count,
+            "active_games": active_game_count,
             "profiles": profiles,
             "activeProfileKey": active_profile.profile_key if active_profile is not None else "",
         }
@@ -156,14 +156,14 @@ def has_active_profile() -> bool:
     return get_active_profile() is not None
 
 
-def _ensure_profile_table_state(profile_key: str) -> dict[str, dict[str, Any]]:
-    return _TABLE_USER_STATE_BY_PROFILE.setdefault(profile_key, {})
+def _ensure_profile_game_state(profile_key: str) -> dict[str, dict[str, Any]]:
+    return _GAME_USER_STATE_BY_PROFILE.setdefault(profile_key, {})
 
 
-def _ensure_table_user_state(profile_key: str, table_key: str) -> dict[str, Any]:
-    profile_state = _ensure_profile_table_state(profile_key)
+def _ensure_game_user_state(profile_key: str, game_key: str) -> dict[str, Any]:
+    profile_state = _ensure_profile_game_state(profile_key)
     state = profile_state.setdefault(
-        table_key,
+        game_key,
         {
             "Rating": 0,
             "Favorite": 0,
@@ -176,12 +176,12 @@ def _ensure_table_user_state(profile_key: str, table_key: str) -> dict[str, Any]
     return state
 
 
-def record_table_start(table_key: str, played_at: int | None = None) -> dict[str, Any]:
+def record_game_start(game_key: str, played_at: int | None = None) -> dict[str, Any]:
     timestamp = int(played_at or time.time())
     with _LOCK:
         if _ACTIVE_PROFILE_KEY is None:
             return {}
-        state = _ensure_table_user_state(_ACTIVE_PROFILE_KEY, table_key)
+        state = _ensure_game_user_state(_ACTIVE_PROFILE_KEY, game_key)
         try:
             state["StartCount"] = int(state.get("StartCount", 0)) + 1
         except (TypeError, ValueError):
@@ -190,13 +190,13 @@ def record_table_start(table_key: str, played_at: int | None = None) -> dict[str
         return copy.deepcopy(state)
 
 
-def add_table_runtime(table_key: str, elapsed_seconds: float, profile_key: str | None = None) -> dict[str, Any]:
+def add_game_runtime(game_key: str, elapsed_seconds: float, profile_key: str | None = None) -> dict[str, Any]:
     session_minutes = int((max(0.0, float(elapsed_seconds)) + 59) // 60)
     with _LOCK:
         resolved_profile_key = str(profile_key or _ACTIVE_PROFILE_KEY or "").strip()
         if not resolved_profile_key:
             return {}
-        state = _ensure_table_user_state(resolved_profile_key, table_key)
+        state = _ensure_game_user_state(resolved_profile_key, game_key)
         try:
             prior_runtime = int(state.get("RunTime", 0))
         except (TypeError, ValueError):
@@ -205,20 +205,20 @@ def add_table_runtime(table_key: str, elapsed_seconds: float, profile_key: str |
         return copy.deepcopy(state)
 
 
-def set_table_score(table_key: str, score_data: Any, profile_key: str | None = None) -> dict[str, Any]:
+def set_game_score(game_key: str, score_data: Any, profile_key: str | None = None) -> dict[str, Any]:
     with _LOCK:
         resolved_profile_key = str(profile_key or _ACTIVE_PROFILE_KEY or "").strip()
         if not resolved_profile_key:
             return {}
-        state = _ensure_table_user_state(resolved_profile_key, table_key)
+        state = _ensure_game_user_state(resolved_profile_key, game_key)
         state["Score"] = score_data
         return copy.deepcopy(state)
 
 
-def get_table_user_state(table_key: str, profile_key: str | None = None) -> dict[str, Any]:
+def get_game_user_state(game_key: str, profile_key: str | None = None) -> dict[str, Any]:
     with _LOCK:
         resolved_profile_key = str(profile_key or _ACTIVE_PROFILE_KEY or "").strip()
         if not resolved_profile_key:
             return {}
-        state = _ensure_table_user_state(resolved_profile_key, table_key)
+        state = _ensure_game_user_state(resolved_profile_key, game_key)
         return copy.deepcopy(state)

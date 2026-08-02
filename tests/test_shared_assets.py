@@ -228,15 +228,15 @@ class ConfigTests(unittest.TestCase):
 
 
 class PayloadTests(unittest.TestCase):
-    def test_every_table_row_carries_the_logo_path_or_null(self) -> None:
+    def test_every_game_row_carries_the_logo_path_or_null(self) -> None:
         import json as _json
         from types import SimpleNamespace
 
-        from frontend.table_state import tables_json
+        from frontend.game_state import games_json
 
-        table = SimpleNamespace(
-            tableDirName="Cactus Canyon (Bally 1998)",
-            fullPathTable="/tables/Cactus Canyon (Bally 1998)",
+        game = SimpleNamespace(
+            gameDirName="Cactus Canyon (Bally 1998)",
+            fullPathGame="/games/Cactus Canyon (Bally 1998)",
             fullPathVPXfile="",
             pupPackExists=False,
             altColorExists=False,
@@ -251,7 +251,7 @@ class PayloadTests(unittest.TestCase):
             configure_shared_assets(root)
             self.addCleanup(configure_shared_assets, None)
 
-            rows = _json.loads(tables_json([table]))
+            rows = _json.loads(games_json([game]))
 
         self.assertEqual(rows[0]["ManufacturerLogoPath"],
                          "/assets/manufacturers/user/bally.png")

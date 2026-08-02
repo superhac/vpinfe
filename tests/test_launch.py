@@ -24,11 +24,11 @@ class _FakePopen:
         return 0
 
 
-def _table(name="Example"):
+def _game(name="Example"):
     return types.SimpleNamespace(
-        fullPathVPXfile=f"/tables/{name}/{name}.vpx",
-        fullPathTable=f"/tables/{name}",
-        tableDirName=name,
+        fullPathVPXfile=f"/games/{name}/{name}.vpx",
+        fullPathGame=f"/games/{name}",
+        gameDirName=name,
         metaConfig={},
     )
 
@@ -37,8 +37,8 @@ def _settings():
     return types.SimpleNamespace(
         vpx_bin_path="/opt/vpx",
         global_ini_override="",
-        global_table_ini_override_enabled=False,
-        global_table_ini_override_mask="",
+        global_game_ini_override_enabled=False,
+        global_game_ini_override_mask="",
         vpx_launch_env="",
     )
 
@@ -50,7 +50,7 @@ class LaunchTests(unittest.TestCase):
         self.addCleanup(events.clear)
         self.addCleanup(launch_state.clear)
 
-    def _run(self, popen=None, table=None, **overrides):
+    def _run(self, popen=None, game=None, **overrides):
         """Launch with every collaborator stubbed, so only the orchestration runs."""
         popen = popen or (lambda cmd, **kwargs: _FakePopen())
         launcher = types.SimpleNamespace(exists=lambda: True)
@@ -67,10 +67,10 @@ class LaunchTests(unittest.TestCase):
         patches.update(overrides)
 
         with mock.patch.object(launch, "SettingsConfig") as settings_cls, \
-                mock.patch.object(launch, "table_play_service") as play, \
+                mock.patch.object(launch, "game_play_service") as play, \
                 mock.patch.multiple(launch, **patches):
             settings_cls.from_config.return_value = _settings()
-            launch.launch_table(table or _table(), types.SimpleNamespace(config={}),
+            launch.launch_game(game or _game(), types.SimpleNamespace(config={}),
                                 source=launch_state.SOURCE_API, popen=popen)
         return play
 
@@ -78,28 +78,28 @@ class LaunchTests(unittest.TestCase):
 class LifecycleTests(LaunchTests):
     def test_the_lifecycle_events_go_out_in_order(self) -> None:
         seen = []
-        for name in (events.TABLE_LAUNCHING, events.TABLE_LAUNCHED, events.TABLE_EXITED):
+        for name in (events.GAME_LAUNCHING, events.GAME_LAUNCHED, events.GAME_EXITED):
             events.subscribe(name, lambda _n=name, **_: seen.append(_n))
 
         self._run(popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
 
-        self.assertEqual(seen, ["table.launching", "table.launched", "table.exited"])
+        self.assertEqual(seen, ["game.launching", "game.launched", "game.exited"])
 
-    def test_a_table_that_never_starts_reports_no_launched(self) -> None:
-        """table.launched means the table is up, not that a process exists."""
+    def test_a_game_that_never_starts_reports_no_launched(self) -> None:
+        """game.launched means the table is up, not that a process exists."""
         seen = []
-        for name in (events.TABLE_LAUNCHING, events.TABLE_LAUNCHED, events.TABLE_EXITED):
+        for name in (events.GAME_LAUNCHING, events.GAME_LAUNCHED, events.GAME_EXITED):
             events.subscribe(name, lambda _n=name, **_: seen.append(_n))
 
         self._run(popen=lambda cmd, **k: _FakePopen(["some other output\n"]))
 
-        self.assertEqual(seen, ["table.launching", "table.exited"])
+        self.assertEqual(seen, ["game.launching", "game.exited"])
 
     def test_exited_still_fires_when_the_launch_blows_up(self) -> None:
         """Whoever heard launching has to hear exited, or the frontend never gets
         its input back."""
         seen = []
-        events.subscribe(events.TABLE_EXITED, lambda **_: seen.append("exited"))
+        events.subscribe(events.GAME_EXITED, lambda **_: seen.append("exited"))
 
         def boom(cmd, **kwargs):
             raise RuntimeError("popen failed")
@@ -112,7 +112,7 @@ class LifecycleTests(LaunchTests):
     def test_a_hook_that_refuses_stops_the_launch_before_anything_starts(self) -> None:
         """Releasing the peripherals is a hook. If it fails, VPX must not start."""
         started = []
-        events.hook(events.TABLE_LAUNCHING, lambda **_: (_ for _ in ()).throw(
+        events.hook(events.GAME_LAUNCHING, lambda **_: (_ for _ in ()).throw(
             RuntimeError("device busy")))
 
         with self.assertRaises(RuntimeError):
@@ -123,12 +123,12 @@ class LifecycleTests(LaunchTests):
 
     def test_the_launch_is_announced_and_then_cleared(self) -> None:
         during = []
-        events.subscribe(events.TABLE_LAUNCHED,
+        events.subscribe(events.GAME_LAUNCHED,
                          lambda **_: during.append(launch_state.current().as_dict()))
 
         self._run(popen=lambda cmd, **k: _FakePopen(["Startup done\n"]))
 
-        self.assertEqual(during, [{"launching": True, "table_name": "Example",
+        self.assertEqual(during, [{"launching": True, "game_name": "Example",
                                    "source": "api"}])
         self.assertFalse(launch_state.current().launching)
 
@@ -139,36 +139,36 @@ class PlayDataTests(LaunchTests):
     def test_a_launch_from_any_source_is_recorded_as_a_play(self) -> None:
         play = self._run()
 
-        play.track_table_play.assert_called_once()
+        play.track_game_play.assert_called_once()
         play.increment_start_count.assert_called_once()
 
-    def test_runtime_and_score_are_recorded_when_the_table_exits(self) -> None:
+    def test_runtime_and_score_are_recorded_when_the_game_exits(self) -> None:
         play = self._run()
 
         play.add_runtime_minutes.assert_called_once()
         play.update_score_from_nvram.assert_called_once()
         play.delete_nvram_if_configured.assert_called_once()
 
-    def test_the_game_file_that_was_launched_is_the_one_credited(self) -> None:
-        """A folder can hold several game files, and the API can launch any of them."""
-        table = _table()
-        table.fullPathVPXfile = "/tables/Example/Example (VR).vpx"
+    def test_the_table_that_was_launched_is_the_one_credited(self) -> None:
+        """A folder can hold several tables, and the API can launch any of them."""
+        game = _game()
+        game.fullPathVPXfile = "/games/Example/Example (VR).vpx"
 
-        play = self._run(table=table)
+        play = self._run(game=game)
 
         self.assertEqual(play.increment_start_count.call_args.args[1], "Example (VR).vpx")
         self.assertEqual(play.add_runtime_minutes.call_args.args[2], "Example (VR).vpx")
 
 
 class RefusalTests(LaunchTests):
-    def _check(self, table=None, game_file=None, launcher_exists=True, launcher=True):
+    def _check(self, game=None, table=None, launcher_exists=True, launcher=True):
         found = types.SimpleNamespace(exists=lambda: launcher_exists) if launcher else None
         with mock.patch.object(launch, "SettingsConfig") as settings_cls, \
                 mock.patch.object(launch, "get_effective_launcher",
                                   lambda binpath, meta: (found, "vpxbinpath", None)):
             settings_cls.from_config.return_value = _settings()
-            return launch.check_launchable(table or _table(),
-                                           types.SimpleNamespace(config={}), game_file)
+            return launch.check_launchable(game or _game(),
+                                           types.SimpleNamespace(config={}), table)
 
     def test_no_launcher_configured_is_refused_with_a_reason(self) -> None:
         with self.assertRaises(launch.LaunchUnavailableError) as caught:
@@ -187,24 +187,24 @@ class RefusalTests(LaunchTests):
         with self.assertRaises(launch.LaunchBusyError):
             self._check()
 
-    def test_a_game_file_the_table_does_not_have_is_refused(self) -> None:
+    def test_a_table_the_game_does_not_have_is_refused(self) -> None:
         """Named files are checked against the folder, so this cannot reach outside it."""
         with mock.patch.object(launch.os.path, "isdir", return_value=True), \
                 mock.patch.object(launch.os, "listdir", return_value=["Example.vpx"]), \
                 mock.patch.object(launch.os.path, "isfile", return_value=True):
-            with self.assertRaises(launch.UnknownGameFileError):
-                self._check(game_file="../../etc/passwd")
+            with self.assertRaises(launch.UnknownTableError):
+                self._check(table="../../etc/passwd")
 
-    def test_a_game_file_the_table_does_have_is_accepted(self) -> None:
+    def test_a_table_the_game_does_have_is_accepted(self) -> None:
         with mock.patch.object(launch.os.path, "isdir", return_value=True), \
                 mock.patch.object(launch.os, "listdir", return_value=["Other.vpx"]), \
                 mock.patch.object(launch.os.path, "isfile", return_value=True):
-            resolved = self._check(game_file="Other.vpx")
+            resolved = self._check(table="Other.vpx")
 
         self.assertTrue(resolved.endswith("Other.vpx"))
 
-    def test_the_default_is_the_table_s_own_file(self) -> None:
-        self.assertEqual(self._check(), "/tables/Example/Example.vpx")
+    def test_the_default_is_the_game_s_own_file(self) -> None:
+        self.assertEqual(self._check(), "/games/Example/Example.vpx")
 
 
 if __name__ == "__main__":

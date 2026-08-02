@@ -32,7 +32,7 @@ def _peripherals_available() -> bool | tuple[bool, str]:
 
 
 def _launch_available() -> bool | tuple[bool, str]:
-    """Whether this machine can actually start a table.
+    """Whether this machine can actually start a game.
 
     Reading play state works without a launcher; starting one does not. Discovery
     has to say so, or an instance advertises a Play button that always fails.
@@ -44,7 +44,7 @@ def _launch_available() -> bool | tuple[bool, str]:
         configured = (SettingsConfig.from_config(get_ini_config()).vpx_bin_path or "").strip()
         if not configured:
             return False, ("No launcher configured. Set Settings.vpxbinpath, or "
-                           "VPinFE.altlauncher on individual tables.")
+                           "VPinFE.altlauncher on individual games.")
         if not Path(configured).exists():
             return False, f"Configured launcher does not exist: {configured}"
         return True
@@ -70,7 +70,7 @@ def declare_core() -> None:
     capabilities.declare(capabilities.Capability(
         name="library",
         residency=[capabilities.RESIDENCY_CATALOG],
-        description="Table inventory, identity, metadata and media",
+        description="Game inventory, identity, metadata and media",
     ))
     capabilities.declare(capabilities.Capability(
         name="acquisition",
@@ -85,7 +85,7 @@ def declare_core() -> None:
     capabilities.declare(capabilities.Capability(
         name="launch",
         residency=[capabilities.RESIDENCY_PLAY_HOST],
-        description="Starting a table on this machine",
+        description="Starting a game on this machine",
         is_available=_launch_available,
     ))
     capabilities.declare(capabilities.Capability(
@@ -103,7 +103,7 @@ def declare_core() -> None:
     capabilities.declare(capabilities.Capability(
         name="events",
         residency=[capabilities.RESIDENCY_CATALOG, capabilities.RESIDENCY_PLAY_HOST],
-        description="Table lifecycle, play state and job progress as they happen",
+        description="Game lifecycle, play state and job progress as they happen",
     ))
     capabilities.declare(capabilities.Capability(
         name="jobs",

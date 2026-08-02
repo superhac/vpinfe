@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, List
 from pathlib import Path
+from typing import Dict, List
 from urllib.parse import quote
 
-from common.tables import table_repository
-from common.tables.vpxcollections import MEMBERS_KEY, VPXCollections
-
+from common.games import game_repository
+from common.games.vpxcollections import MEMBERS_KEY, VPXCollections
 from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR
-from managerui.services import table_index_service
+from managerui.services import game_index_service
 
 COLLECTION_ICONS_DIR = CONFIG_DIR / "collection_icons"
 COLLECTION_IMAGE_KEY = "image"
@@ -99,44 +98,44 @@ def set_collection_image(name: str, filename: str | None) -> None:
     manager.save()
 
 
-def get_table_rows_for_collections(cached_tables: list[dict] | None = None) -> list[dict]:
-    return cached_tables if cached_tables is not None else table_index_service.scan_rows(reload=False)
+def get_game_rows_for_collections(cached_games: list[dict] | None = None) -> list[dict]:
+    return cached_games if cached_games is not None else game_index_service.scan_rows(reload=False)
 
 
 def get_vpsdb_rows_for_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> list[dict]:
     if cached_vpsdb_rows is not None:
         return cached_vpsdb_rows
 
-    from managerui.services import table_service
+    from managerui.services import game_service
 
-    rows = table_service.load_vpsdb()
-    if not rows and table_service.ensure_vpsdb_downloaded():
-        rows = table_service.load_vpsdb()
+    rows = game_service.load_vpsdb()
+    if not rows and game_service.ensure_vpsdb_downloaded():
+        rows = game_service.load_vpsdb()
     return rows
 
 
-def get_table_name_map(cached_tables: list[dict] | None = None) -> Dict[str, str]:
-    tables = get_table_rows_for_collections(cached_tables)
+def get_game_name_map(cached_games: list[dict] | None = None) -> Dict[str, str]:
+    games = get_game_rows_for_collections(cached_games)
     return {
-        table["vpinfe_id"]: table.get("name") or table["vpinfe_id"]
-        for table in tables
-        if table.get("vpinfe_id")
+        game["vpinfe_id"]: game.get("name") or game["vpinfe_id"]
+        for game in games
+        if game.get("vpinfe_id")
     }
 
 
-def get_table_collections_map() -> Dict[str, List[str]]:
-    return table_repository.collections_by_table_id()
+def get_game_collections_map() -> Dict[str, List[str]]:
+    return game_repository.collections_by_game_id()
 
 
-def member_to_name(member_id: str, table_map: Dict[str, str] | None = None) -> str:
+def member_to_name(member_id: str, game_map: Dict[str, str] | None = None) -> str:
     """Display name for a collection member, falling back to the raw id.
 
-    An entry that has not been migrated yet, or points at a table that is not
+    An entry that has not been migrated yet, or points at a game that is not
     installed, has no name to show - so show what is recorded rather than nothing.
     """
-    if table_map is None:
-        table_map = get_table_name_map()
-    return table_map.get(member_id, member_id)
+    if game_map is None:
+        game_map = get_game_name_map()
+    return game_map.get(member_id, member_id)
 
 
 def _as_values(value) -> list[str]:
@@ -150,9 +149,9 @@ def _as_values(value) -> list[str]:
 
 
 def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> Dict[str, List[str]]:
-    tables = get_vpsdb_rows_for_filter_options(cached_vpsdb_rows)
+    games = get_vpsdb_rows_for_filter_options(cached_vpsdb_rows)
 
-    if not tables:
+    if not games:
         return {
             "letters": ["All"],
             "themes": ["All"],
@@ -170,26 +169,26 @@ def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> Dict[str,
     manufacturers = set()
     years = set()
 
-    for table in tables:
-        name = table.get("name", "")
+    for game in games:
+        name = game.get("name", "")
         if name:
             first_char = name[0].upper()
             if first_char.isalnum():
                 letters.add(first_char)
 
-        table_type = table.get("type", "") or table.get("tableType", "")
-        if table_type:
-            types.add(str(table_type).strip())
+        game_type = game.get("type", "") or game.get("tableType", "")
+        if game_type:
+            types.add(str(game_type).strip())
 
-        manufacturer = table.get("manufacturer", "") or table.get("mfg", "")
+        manufacturer = game.get("manufacturer", "") or game.get("mfg", "")
         if manufacturer:
             manufacturers.add(str(manufacturer).strip())
 
-        year = table.get("year", "")
+        year = game.get("year", "")
         if year:
             years.add(str(year))
 
-        themes.update(_as_values(table.get("theme", table.get("themes", []))))
+        themes.update(_as_values(game.get("theme", game.get("themes", []))))
 
     return {
         "letters": ["All"] + sorted(letters),
@@ -215,9 +214,9 @@ def rename_collection(name: str, new_name: str) -> None:
     manager.save()
 
 
-def create_table_collection(name: str, table_ids: list[str], image: str | None = None) -> None:
+def create_game_collection(name: str, game_ids: list[str], image: str | None = None) -> None:
     manager = get_collections_manager()
-    manager.add_collection(name, table_ids)
+    manager.add_collection(name, game_ids)
     if image:
         _set_section_image(manager.config[name], image)
     manager.save()
@@ -242,19 +241,19 @@ def update_filter_collection(name: str, **filters) -> None:
     manager.save()
 
 
-def update_table_collection(name: str, table_ids: list[str], image: str | None = None) -> None:
+def update_game_collection(name: str, game_ids: list[str], image: str | None = None) -> None:
     manager = get_collections_manager()
-    manager.config[name][MEMBERS_KEY] = ",".join(table_ids)
+    manager.config[name][MEMBERS_KEY] = ",".join(game_ids)
     if image is not None:
         _set_section_image(manager.config[name], image)
     manager.save()
 
 
-def search_tables(term: str, cached_tables: list[dict] | None = None, limit: int = 20) -> list[dict]:
+def search_games(term: str, cached_games: list[dict] | None = None, limit: int = 20) -> list[dict]:
     term = (term or "").strip().lower()
     if not term:
         return []
     return [
-        table for table in get_table_rows_for_collections(cached_tables)
-        if term in (table.get("name") or "").lower()
+        game for game in get_game_rows_for_collections(cached_games)
+        if term in (game.get("name") or "").lower()
     ][:limit]

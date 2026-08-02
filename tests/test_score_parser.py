@@ -1,9 +1,9 @@
+import json
+import tempfile
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
-import json
-import tempfile
 
 _test_config_dir = Path(tempfile.mkdtemp(prefix="vpinfe-score-parser-test-"))
 (_test_config_dir / "roms.json").write_text(
@@ -18,10 +18,11 @@ _test_config_dir = Path(tempfile.mkdtemp(prefix="vpinfe-score-parser-test-"))
 )
 
 from common import paths
+
 paths.USER_ROMS_PATH = _test_config_dir / "roms.json"
 paths.USER_CONFIG_PATH = _test_config_dir / "vpinfe.ini"
-from common.tables import score_parser
-from common.tables.score_parser import ParsedEntry, result_to_jsonable
+from common.games import score_parser
+from common.games.score_parser import ParsedEntry, result_to_jsonable
 
 
 class TestScoreParser(unittest.TestCase):
@@ -171,28 +172,28 @@ class TestScoreParser(unittest.TestCase):
 
         self.assertEqual(result["entries"][0]["initials"], "")
 
-    def test_resolve_score_input_path_prefers_nvram_for_table_directory(self) -> None:
+    def test_resolve_score_input_path_prefers_nvram_for_game_directory(self) -> None:
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir)
-            nvram_path = table_dir / "pinmame" / "nvram" / "agent777.nv"
-            vpreg_path = table_dir / "user" / "VPReg.ini"
+            game_dir = Path(temp_dir)
+            nvram_path = game_dir / "pinmame" / "nvram" / "agent777.nv"
+            vpreg_path = game_dir / "user" / "VPReg.ini"
             nvram_path.parent.mkdir(parents=True)
             vpreg_path.parent.mkdir(parents=True)
             nvram_path.write_bytes(b"nv")
             vpreg_path.write_text("[Dummy]\n", encoding="utf-8")
 
-            resolved = score_parser.resolve_score_input_path("agent777", str(table_dir))
+            resolved = score_parser.resolve_score_input_path("agent777", str(game_dir))
 
         self.assertEqual(resolved, str(nvram_path))
 
     def test_resolve_score_input_path_falls_back_to_vpreg_ini(self) -> None:
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir)
-            vpreg_path = table_dir / "user" / "VPReg.ini"
+            game_dir = Path(temp_dir)
+            vpreg_path = game_dir / "user" / "VPReg.ini"
             vpreg_path.parent.mkdir(parents=True)
             vpreg_path.write_text("[Dummy]\n", encoding="utf-8")
 
-            resolved = score_parser.resolve_score_input_path("agent777", str(table_dir))
+            resolved = score_parser.resolve_score_input_path("agent777", str(game_dir))
 
         self.assertEqual(resolved, str(vpreg_path))
 
@@ -201,24 +202,24 @@ class TestScoreParser(unittest.TestCase):
 
     def test_resolve_score_input_path_matches_nvram_case_insensitively(self) -> None:
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir)
-            nvram_path = table_dir / "pinmame" / "nvram" / "Matrix.nv"
+            game_dir = Path(temp_dir)
+            nvram_path = game_dir / "pinmame" / "nvram" / "Matrix.nv"
             nvram_path.parent.mkdir(parents=True)
             nvram_path.write_bytes(b"nv")
 
-            resolved = score_parser.resolve_score_input_path("matrix", str(table_dir))
+            resolved = score_parser.resolve_score_input_path("matrix", str(game_dir))
 
         self.assertEqual(resolved, str(nvram_path))
 
     def test_read_rom_with_source_returns_resolved_special_text_path(self) -> None:
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir)
-            text_path = table_dir / "user" / "OKIES.txt"
+            game_dir = Path(temp_dir)
+            text_path = game_dir / "user" / "OKIES.txt"
             text_path.parent.mkdir(parents=True)
             text_path.write_text("123456\n", encoding="utf-8")
 
             with mock.patch.object(score_parser, "decode_special_text_score_file", return_value=123456) as decoder:
-                result, resolved = score_parser.read_rom_with_source("OKIES_TornadoRally", str(table_dir))
+                result, resolved = score_parser.read_rom_with_source("OKIES_TornadoRally", str(game_dir))
 
         decoder.assert_called_once_with("OKIES_TornadoRally", str(text_path))
         self.assertEqual(result, 123456)
@@ -226,12 +227,12 @@ class TestScoreParser(unittest.TestCase):
 
     def test_read_rom_with_source_parses_expressway_score_text(self) -> None:
         with TemporaryDirectory() as temp_dir:
-            table_dir = Path(temp_dir)
-            text_path = table_dir / "user" / "Expressway.txt"
+            game_dir = Path(temp_dir)
+            text_path = game_dir / "user" / "Expressway.txt"
             text_path.parent.mkdir(parents=True)
             text_path.write_text("playerscore1    10100\n", encoding="utf-8")
 
-            result, resolved = score_parser.read_rom_with_source("Expressway", str(table_dir))
+            result, resolved = score_parser.read_rom_with_source("Expressway", str(game_dir))
 
         self.assertEqual(resolved, str(text_path))
         self.assertEqual(result, [ParsedEntry(section="", rank=None, initials="", score=10100)])

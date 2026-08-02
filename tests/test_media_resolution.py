@@ -1,4 +1,4 @@
-"""The media resolution chain: game-file > folder > default, families per kind.
+"""The media resolution chain: table > folder > default, families per kind.
 
 The rules under test are MEDIA.local design decisions 1-5 made concrete: spec
 naming resolves above the fixed names vpinmediadb writes, a kind accepts its
@@ -16,11 +16,11 @@ from common.media_paths import MEDIA_SPECS, resolve_media_files
 from managerui.services.media_service import replace_media_file, source_media_path
 
 FOLDER = "Cactus Canyon (Bally 1998)"
-GAME_FILE = "Cactus Canyon (Bally 1998) - VPW 1.2"
+TABLE = "Cactus Canyon (Bally 1998) - VPW 1.2"
 
 
-def _resolve(medias, root=(), stem=GAME_FILE):
-    return resolve_media_files(f"/tables/{FOLDER}", set(root), set(medias),
+def _resolve(medias, root=(), stem=TABLE):
+    return resolve_media_files(f"/games/{FOLDER}", set(root), set(medias),
                                "table", stem)
 
 
@@ -31,19 +31,19 @@ class TierTests(unittest.TestCase):
         self.assertEqual(resolved["wheel"].name, "wheel.png")
         self.assertEqual(resolved["bg"].name, "bg.png")
 
-    def test_a_game_file_wheel_beats_the_folder_and_default_ones(self) -> None:
-        resolved = _resolve([f"(Wheel) {GAME_FILE}.png", f"(Wheel) {FOLDER}.png",
+    def test_a_table_wheel_beats_the_folder_and_default_ones(self) -> None:
+        resolved = _resolve([f"(Wheel) {TABLE}.png", f"(Wheel) {FOLDER}.png",
                              "wheel.png"])
 
-        self.assertEqual(resolved["wheel"].name, f"(Wheel) {GAME_FILE}.png")
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {TABLE}.png")
 
     def test_a_folder_wheel_beats_the_default_one(self) -> None:
         resolved = _resolve([f"(Wheel) {FOLDER}.png", "wheel.png"])
 
         self.assertEqual(resolved["wheel"].name, f"(Wheel) {FOLDER}.png")
 
-    def test_without_a_game_file_stem_tier_one_is_simply_skipped(self) -> None:
-        resolved = _resolve([f"(Wheel) {GAME_FILE}.png", "wheel.png"], stem=None)
+    def test_without_a_table_stem_tier_one_is_simply_skipped(self) -> None:
+        resolved = _resolve([f"(Wheel) {TABLE}.png", "wheel.png"], stem=None)
 
         self.assertEqual(resolved["wheel"].name, "wheel.png",
                          "a stranger build's spec file is not this table's wheel")
@@ -153,11 +153,11 @@ class TokenAliasTests(unittest.TestCase):
 
         self.assertEqual(resolved["rulecard"].name, f"(RuleCard) {FOLDER}.png")
 
-    def test_a_game_file_alias_still_beats_a_folder_level_preferred_token(self) -> None:
+    def test_a_table_alias_still_beats_a_folder_level_preferred_token(self) -> None:
         """Tier outranks token preference, or "most specific wins" would not hold."""
-        resolved = _resolve([f"(GameHelp) {GAME_FILE}.png", f"(RuleCard) {FOLDER}.png"])
+        resolved = _resolve([f"(GameHelp) {TABLE}.png", f"(RuleCard) {FOLDER}.png"])
 
-        self.assertEqual(resolved["rulecard"].name, f"(GameHelp) {GAME_FILE}.png")
+        self.assertEqual(resolved["rulecard"].name, f"(GameHelp) {TABLE}.png")
 
     def test_aliases_are_only_where_the_published_name_is_opaque(self) -> None:
         aliased = {spec.key for spec in MEDIA_SPECS if spec.alt_tokens}
@@ -184,7 +184,7 @@ class LogoTests(unittest.TestCase):
 
         self.assertEqual(resolved["logo"].name, "logo.png")
 
-    def test_a_wheel_less_table_shows_its_logo_in_the_wheel_slot(self) -> None:
+    def test_a_wheel_less_game_shows_its_logo_in_the_wheel_slot(self) -> None:
         resolved = _resolve(["logo.png"])
 
         self.assertEqual(resolved["wheel"].name, "logo.png",
@@ -192,10 +192,10 @@ class LogoTests(unittest.TestCase):
 
     def test_any_real_wheel_outranks_the_logo_fallback(self) -> None:
         """The fallback sits below every wheel tier - even tier 3."""
-        resolved = _resolve([f"(Logo) {GAME_FILE}.png", "wheel.png"])
+        resolved = _resolve([f"(Logo) {TABLE}.png", "wheel.png"])
 
         self.assertEqual(resolved["wheel"].name, "wheel.png")
-        self.assertEqual(resolved["logo"].name, f"(Logo) {GAME_FILE}.png")
+        self.assertEqual(resolved["logo"].name, f"(Logo) {TABLE}.png")
 
     def test_the_logo_itself_resolves_through_the_full_chain(self) -> None:
         resolved = _resolve([f"(Logo) {FOLDER}.png", "logo.png"])
@@ -216,8 +216,8 @@ class WheelSetTests(unittest.TestCase):
     6-8), plus the reserved virtual set "logo"."""
 
     def _resolve_sets(self, medias, active=None, root=()):
-        return resolve_media_files(f"/tables/{FOLDER}", set(root), set(medias),
-                                   "table", GAME_FILE,
+        return resolve_media_files(f"/games/{FOLDER}", set(root), set(medias),
+                                   "table", TABLE,
                                    {"wheel": active} if active else None)
 
     def test_an_active_set_beats_the_plain_default(self) -> None:
@@ -229,11 +229,11 @@ class WheelSetTests(unittest.TestCase):
 
     def test_a_users_spec_named_file_still_beats_the_set(self) -> None:
         """Activating a set never clobbers a hand-made per-version wheel."""
-        resolved = self._resolve_sets([f"(Wheel) {GAME_FILE}.png",
+        resolved = self._resolve_sets([f"(Wheel) {TABLE}.png",
                                        "wheels/tarcisio/wheel.png"],
                                       active="tarcisio")
 
-        self.assertEqual(resolved["wheel"].name, f"(Wheel) {GAME_FILE}.png")
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {TABLE}.png")
 
     def test_the_set_resolves_its_own_full_chain(self) -> None:
         resolved = self._resolve_sets([f"wheels/tarcisio/(Wheel) {FOLDER}.png",
@@ -261,13 +261,13 @@ class WheelSetTests(unittest.TestCase):
         self.assertEqual(resolved["wheel"].name, "logo.png")
 
     def test_the_virtual_logo_set_still_loses_to_a_users_spec_file(self) -> None:
-        resolved = self._resolve_sets([f"(Wheel) {GAME_FILE}.png", "logo.png"],
+        resolved = self._resolve_sets([f"(Wheel) {TABLE}.png", "logo.png"],
                                       active="logo")
 
-        self.assertEqual(resolved["wheel"].name, f"(Wheel) {GAME_FILE}.png")
+        self.assertEqual(resolved["wheel"].name, f"(Wheel) {TABLE}.png")
 
     def test_the_virtual_logo_set_falls_back_to_the_wheel_it_shunned(self) -> None:
-        """A logo-less table under the logo set keeps its wheel - never a
+        """A logo-less game under the logo set keeps its wheel - never a
         blank slot where art exists."""
         resolved = self._resolve_sets(["wheel.png"], active="logo")
 
@@ -296,23 +296,23 @@ class WheelSetTests(unittest.TestCase):
         from common.media_paths import list_media_sets
 
         with TemporaryDirectory() as tmp:
-            for table, sets in (("Table A", ["tarcisio"]),
+            for game, sets in (("Table A", ["tarcisio"]),
                                 ("Table B", ["tarcisio", "colorful"])):
                 for name in sets:
-                    (Path(tmp) / table / "medias" / "wheels" / name).mkdir(parents=True)
+                    (Path(tmp) / game / "medias" / "wheels" / name).mkdir(parents=True)
 
             self.assertEqual(list_media_sets(tmp, "wheel"),
                              ["colorful", "logo", "tarcisio"])
 
 
 class SpecCopyTests(unittest.TestCase):
-    def test_a_table_type_copy_keeps_every_field_but_the_key(self) -> None:
+    def test_a_game_type_copy_keeps_every_field_but_the_key(self) -> None:
         """It used to be rebuilt from four fields, so the copies quietly reported
         no token, no fallback, no set support, and the image family for videos."""
-        from common.media_paths import MEDIA_SPECS, specs_for_table_type
+        from common.media_paths import MEDIA_SPECS, specs_for_playfield_variant
 
         # One copy per spec, in order, so they pair up exactly.
-        for original, copy in zip(MEDIA_SPECS, specs_for_table_type("fss"), strict=True):
+        for original, copy in zip(MEDIA_SPECS, specs_for_playfield_variant("fss"), strict=True):
             self.assertEqual(copy.token, original.token, original.key)
             self.assertEqual(copy.family, original.family, original.key)
             self.assertEqual(copy.fallback_kind, original.fallback_kind, original.key)
@@ -320,21 +320,21 @@ class SpecCopyTests(unittest.TestCase):
             self.assertEqual(copy.attr, original.attr, original.key)
 
     def test_the_fss_key_collision_stays_harmless(self) -> None:
-        """Under table type fss the playfield spec is renamed onto the fss key, so
+        """Under playfield variant fss the playfield spec is renamed onto the fss key, so
         two specs share it. Benign only because both resolve the same filename -
         worth pinning, since a divergence would be silent."""
-        from common.media_paths import media_filename_map, specs_for_table_type
+        from common.media_paths import media_filename_map, specs_for_playfield_variant
 
-        keyed_fss = [spec for spec in specs_for_table_type("fss") if spec.key == "fss"]
+        keyed_fss = [spec for spec in specs_for_playfield_variant("fss") if spec.key == "fss"]
 
         self.assertEqual(len(keyed_fss), 2)
         self.assertEqual({spec.filename("fss") for spec in keyed_fss}, {"fss.png"})
         self.assertEqual(media_filename_map("fss")["fss"], "fss.png")
 
     def test_the_video_copies_keep_the_video_family(self) -> None:
-        from common.media_paths import VIDEO_FAMILY, specs_for_table_type
+        from common.media_paths import VIDEO_FAMILY, specs_for_playfield_variant
 
-        by_key = {spec.key: spec for spec in specs_for_table_type("table")}
+        by_key = {spec.key: spec for spec in specs_for_playfield_variant("table")}
 
         self.assertEqual(by_key["table_video"].family, VIDEO_FAMILY)
         self.assertEqual(by_key["dmd_video"].family, VIDEO_FAMILY)
@@ -346,29 +346,29 @@ class ParserCasingTests(unittest.TestCase):
         miss it while the API found it - the same table, two answers."""
         import json
 
-        from common.tables.tableparser import TableParser
+        from common.games.gameparser import GameParser
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / FOLDER
             (root / "medias").mkdir(parents=True)
-            (root / f"{GAME_FILE}.vpx").write_bytes(b"vpx")
+            (root / f"{TABLE}.vpx").write_bytes(b"vpx")
             for name in ("PUPVideos", "Serum", "VNI", "Music"):
                 (root / name).mkdir()
             (root / f"{FOLDER}.info").write_text(json.dumps({
                 "Info": {"Title": "Cactus Canyon"},
-                "VPXFile": {"filename": f"{GAME_FILE}.vpx"},
+                "VPXFile": {"filename": f"{TABLE}.vpx"},
             }), encoding="utf-8")
 
-            table = TableParser(tmp).getAllTables()[0]
+            game = GameParser(tmp).getAllGames()[0]
 
-        self.assertTrue(table.pupPackExists, "PUPVideos holds a PUP pack")
-        self.assertTrue(table.altColorExists)
-        self.assertTrue(table.vniExists)
-        self.assertTrue(table.musicExists)
+        self.assertTrue(game.pupPackExists, "PUPVideos holds a PUP pack")
+        self.assertTrue(game.altColorExists)
+        self.assertTrue(game.vniExists)
+        self.assertTrue(game.musicExists)
 
 
 class ImportSideTests(unittest.TestCase):
-    def _table(self, tmp, *files):
+    def _game(self, tmp, *files):
         root = Path(tmp) / FOLDER
         (root / "medias").mkdir(parents=True)
         for rel in files:
@@ -380,7 +380,7 @@ class ImportSideTests(unittest.TestCase):
     def test_an_imported_jpg_keeps_being_a_jpg(self) -> None:
         """The other live bug: JPEG bytes were written into wheel.png."""
         with TemporaryDirectory() as tmp:
-            root = self._table(tmp)
+            root = self._game(tmp)
             upload = Path(tmp) / "upload.jpg"
             upload.write_bytes(b"jpeg bytes")
 
@@ -392,7 +392,7 @@ class ImportSideTests(unittest.TestCase):
         """wheel.png sits earlier in the family than wheel.jpg, so leaving it
         behind would make the replacement invisible."""
         with TemporaryDirectory() as tmp:
-            root = self._table(tmp, "medias/wheel.png", "wheel.webp")
+            root = self._game(tmp, "medias/wheel.png", "wheel.webp")
             upload = Path(tmp) / "upload.jpg"
             upload.write_bytes(b"jpeg bytes")
 
@@ -407,7 +407,7 @@ class ImportSideTests(unittest.TestCase):
 
     def test_an_unknown_extension_falls_back_to_the_canonical_name(self) -> None:
         with TemporaryDirectory() as tmp:
-            root = self._table(tmp)
+            root = self._game(tmp)
             upload = Path(tmp) / "upload.tiff"
             upload.write_bytes(b"tiff bytes")
 
@@ -418,7 +418,7 @@ class ImportSideTests(unittest.TestCase):
     def test_source_media_path_sees_spec_named_files(self) -> None:
         """It used to be a second, fixed-names-only copy of the resolution rule."""
         with TemporaryDirectory() as tmp:
-            root = self._table(tmp, f"medias/(Wheel) {FOLDER}.png")
+            root = self._game(tmp, f"medias/(Wheel) {FOLDER}.png")
 
             resolved = source_media_path(str(root), "wheel")
 
@@ -427,29 +427,29 @@ class ImportSideTests(unittest.TestCase):
 
 class ParserOrderTests(unittest.TestCase):
     def test_media_resolves_against_the_build_that_launches(self) -> None:
-        """Tier 1 keys off the default game file, so the parser picks the default
+        """Tier 1 keys off the default table, so the parser picks the default
         before it resolves media - the same reordering the launcher needed."""
         import json
 
-        from common.tables.tableparser import TableParser
+        from common.games.gameparser import GameParser
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / FOLDER
             (root / "medias").mkdir(parents=True)
-            for name in (f"{GAME_FILE}.vpx", "some other build.vpx"):
+            for name in (f"{TABLE}.vpx", "some other build.vpx"):
                 (root / name).write_bytes(b"vpx")
             (root / f"{FOLDER}.info").write_text(json.dumps({
                 "Info": {"Title": "Cactus Canyon"},
-                "VPXFile": {"filename": f"{GAME_FILE}.vpx"},
+                "VPXFile": {"filename": f"{TABLE}.vpx"},
             }), encoding="utf-8")
-            (root / "medias" / f"(Wheel) {GAME_FILE}.png").write_bytes(b"png")
+            (root / "medias" / f"(Wheel) {TABLE}.png").write_bytes(b"png")
             (root / "medias" / "(Wheel) some other build.png").write_bytes(b"png")
 
-            parser = TableParser(tmp)
-            table = parser.getAllTables()[0]
+            parser = GameParser(tmp)
+            game = parser.getAllGames()[0]
 
-        self.assertEqual(os.path.basename(table.WheelImagePath),
-                         f"(Wheel) {GAME_FILE}.png",
+        self.assertEqual(os.path.basename(game.WheelImagePath),
+                         f"(Wheel) {TABLE}.png",
                          "the recorded build's wheel, not the other build's")
 
 

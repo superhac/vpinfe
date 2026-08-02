@@ -1,8 +1,8 @@
-"""What belongs in a table export - one answer for every transport.
+"""What belongs in a game export - one answer for every transport.
 
 The VPXZ download and the mobile Web Send are the same operation with different
-plumbing, and both used to ship the entire folder: every alternate build, all
-media, everything. The default is now a standalone bundle for one game file -
+plumbing, and both used to ship the entire folder: every alternate table, all
+media, everything. The default is now a standalone bundle for one table -
 export a game, not a folder - which also makes multi-.vpx folders come out
 right. `everything=True` keeps the full-folder behavior as the explicit choice.
 """
@@ -13,13 +13,13 @@ import json
 from collections.abc import Iterator
 from pathlib import Path
 
-from common.tables.game_files import (
-    default_game_file,
-    game_file_names,
+from common.games.game_metadata import vpinfe_section
+from common.games.metaconfig import ASSETS_KEY
+from common.games.tables import (
+    default_table,
     recorded_default,
+    table_names,
 )
-from common.tables.metaconfig import ASSETS_KEY
-from common.tables.table_metadata import vpinfe_section
 from managerui.services.asset_registry import (
     is_readme,  # noqa: F401  (one matcher, import and export)
 )
@@ -28,29 +28,29 @@ from managerui.services.asset_registry import (
 # of playing the game, so medias/ is deliberately absent.
 BUNDLE_DIRS = ("pinmame", "music", "serum", "vni", "altsound", "pupvideos")
 
-# Stem-matched companions of the chosen game file, per the engine's own lookup.
+# Stem-matched companions of the chosen table, per the engine's own lookup.
 COMPANION_EXTENSIONS = (".ini", ".vbs", ".directb2s", ".pov", ".scv")
 
 
 
-def choose_game_file(table_dir: Path, game_file: str | None = None) -> str | None:
-    """The bundle's game file: the caller's pick, else the table's default."""
+def choose_table(game_dir: Path, table: str | None = None) -> str | None:
+    """The bundle's table: the caller's pick, else the game's default."""
     try:
-        listing = [entry.name for entry in table_dir.iterdir() if entry.is_file()]
+        listing = [entry.name for entry in game_dir.iterdir() if entry.is_file()]
     except OSError:
         return None
-    names = game_file_names(listing)
-    if game_file:
-        return game_file if game_file in names else None
+    names = table_names(listing)
+    if table:
+        return table if table in names else None
 
     recorded = ""
-    info_path = table_dir / f"{table_dir.name}.info"
+    info_path = game_dir / f"{game_dir.name}.info"
     try:
         recorded = recorded_default(
             vpinfe_section(json.loads(info_path.read_text(encoding="utf-8"))))
     except (OSError, ValueError):
         pass
-    return default_game_file(listing, table_dir.name, recorded) or (names[0] if names else None)
+    return default_table(listing, game_dir.name, recorded) or (names[0] if names else None)
 
 
 def prune_info(info_text: str, bundled_arcnames: set[str]) -> str:
@@ -75,25 +75,25 @@ def prune_info(info_text: str, bundled_arcnames: set[str]) -> str:
     return json.dumps(data, indent=2)
 
 
-def bundle_paths(table_dir: Path, *, everything: bool = False,
-                 game_file: str | None = None) -> Iterator[tuple[Path, str]]:
+def bundle_paths(game_dir: Path, *, everything: bool = False,
+                 table: str | None = None) -> Iterator[tuple[Path, str]]:
     """(absolute path, folder-relative arcname) for everything the export holds.
 
     The .info is included here by name; writers call prune_info on its content
     rather than copying the file raw.
     """
     if everything:
-        for path in sorted(table_dir.rglob("*")):
+        for path in sorted(game_dir.rglob("*")):
             if path.is_file():
-                yield path, str(path.relative_to(table_dir))
+                yield path, str(path.relative_to(game_dir))
         return
 
-    chosen = choose_game_file(table_dir, game_file)
+    chosen = choose_table(game_dir, table)
     stem = Path(chosen).stem.lower() if chosen else None
-    folder_stem = table_dir.name.lower()
+    folder_stem = game_dir.name.lower()
 
     try:
-        entries = sorted(table_dir.iterdir())
+        entries = sorted(game_dir.iterdir())
     except OSError:
         return
     for entry in entries:
@@ -102,7 +102,7 @@ def bundle_paths(table_dir: Path, *, everything: bool = False,
             if name.lower() in BUNDLE_DIRS:
                 for path in sorted(entry.rglob("*")):
                     if path.is_file():
-                        yield path, str(path.relative_to(table_dir))
+                        yield path, str(path.relative_to(game_dir))
             continue
 
         lower = name.lower()
@@ -114,7 +114,7 @@ def bundle_paths(table_dir: Path, *, everything: bool = False,
             yield entry, name
         elif lower.endswith(COMPANION_EXTENSIONS):
             companion_stem = Path(name).stem.lower()
-            # The chosen build's own companions, and the folder-named shared
+            # The chosen table's own companions, and the folder-named shared
             # fallbacks the engine would resolve for it.
             if companion_stem in (stem, folder_stem):
                 yield entry, name

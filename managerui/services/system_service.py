@@ -18,9 +18,9 @@ def resolve_usage_path() -> Path:
     candidate = Path.home()
     try:
         config = IniConfig(str(VPINFE_INI_PATH))
-        tableroot = config.config.get("Settings", "tablerootdir", fallback="").strip()
-        if tableroot:
-            candidate = Path(tableroot).expanduser()
+        gameroot = config.config.get("Settings", "gamerootdir", fallback="").strip()
+        if gameroot:
+            candidate = Path(gameroot).expanduser()
     except Exception:
         pass
 

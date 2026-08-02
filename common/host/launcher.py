@@ -1,11 +1,11 @@
-import sys
 import logging
 import re
 import shlex
+import sys
 from pathlib import Path
 
+from common.games.game_metadata import vpinfe_section
 from common.paths import PLUGIN_PROFILES_DIR
-from common.tables.table_metadata import vpinfe_section
 
 logger = logging.getLogger("vpinfe.common.host.launcher")
 _ENV_KEY_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
@@ -16,7 +16,7 @@ DEFAULT_PROFILE_NAME = "Default"
 
 
 def get_altlauncher_from_meta(meta_config) -> str:
-    """Read VPinFE.altlauncher from table metadata, normalized as a stripped string."""
+    """Read VPinFE.altlauncher from game metadata, normalized as a stripped string."""
     if not isinstance(meta_config, dict):
         return ""
     vpinfe = vpinfe_section(meta_config)
@@ -26,7 +26,7 @@ def get_altlauncher_from_meta(meta_config) -> str:
 
 
 def get_plugin_profile_from_meta(meta_config) -> str:
-    """Read VPinFE.pluginprofile from table metadata, normalized as a stripped string."""
+    """Read VPinFE.pluginprofile from game metadata, normalized as a stripped string."""
     if not isinstance(meta_config, dict):
         return ""
     vpinfe = vpinfe_section(meta_config)
@@ -143,7 +143,7 @@ def _to_bool(value) -> bool:
     return str(value or "").strip().lower() in ("1", "true", "yes", "on")
 
 
-def build_masked_tableini_path(vpx_table_path: str, override_enabled, override_mask: str) -> str:
+def build_masked_tableini_path(vpx_game_path: str, override_enabled, override_mask: str) -> str:
     """
     Build a masked table ini path for VPX -tableini override.
 
@@ -158,21 +158,21 @@ def build_masked_tableini_path(vpx_table_path: str, override_enabled, override_m
         logger.warning("Global tableini override enabled, but mask is empty; skipping -tableini")
         return ""
 
-    table_path = Path(str(vpx_table_path or "").strip())
-    if not table_path.name:
+    game_path = Path(str(vpx_game_path or "").strip())
+    if not game_path.name:
         return ""
 
-    masked_name = f"{table_path.stem}.{mask}.ini"
-    return str(table_path.with_name(masked_name))
+    masked_name = f"{game_path.stem}.{mask}.ini"
+    return str(game_path.with_name(masked_name))
 
 
-def resolve_launch_tableini_override(vpx_table_path: str, override_enabled, override_mask: str) -> str:
+def resolve_launch_tableini_override(vpx_game_path: str, override_enabled, override_mask: str) -> str:
     """
     Resolve a tableini override for launch-time use.
 
     Returns empty string when disabled, mask is empty, or the resolved ini file does not exist.
     """
-    masked_path = build_masked_tableini_path(vpx_table_path, override_enabled, override_mask)
+    masked_path = build_masked_tableini_path(vpx_game_path, override_enabled, override_mask)
     if not masked_path:
         return ""
 
@@ -185,7 +185,7 @@ def resolve_launch_tableini_override(vpx_table_path: str, override_enabled, over
 
 def build_vpx_launch_command(
     launcher_path: str,
-    vpx_table_path: str,
+    vpx_game_path: str,
     global_ini_override: str = "",
     tableini_override: str = "",
     plugin_profile_override: str = "",
@@ -193,7 +193,7 @@ def build_vpx_launch_command(
     """
     Build VPX launch command and guarantee '-play <table>' is the last argument pair.
 
-    A table's plugin profile and the global ini override both drive VPX's single
+    A game's plugin profile and the global ini override both drive VPX's single
     -ini argument, so they cannot both be passed. The per-table profile wins when
     set, mirroring how VPinFE.altlauncher takes precedence over Settings.vpxbinpath.
     """
@@ -208,9 +208,9 @@ def build_vpx_launch_command(
     if ini_override:
         cmd.extend(["-ini", ini_override])
 
-    tableini = str(tableini_override or "").strip()
-    if tableini:
-        cmd.extend(["-tableini", tableini])
+    gameini = str(tableini_override or "").strip()
+    if gameini:
+        cmd.extend(["-tableini", gameini])
 
-    cmd.extend(["-play", str(vpx_table_path)])
+    cmd.extend(["-play", str(vpx_game_path)])
     return cmd

@@ -20,7 +20,7 @@ from common.online.vpinplay_runtime import clear_alternate_profile
 WINDOW_CONFIGS = (
     ("bg", "bgscreenid"),
     ("dmd", "dmdscreenid"),
-    ("table", "tablescreenid"),
+    ("table", "playfieldscreenid"),
 )
 
 
@@ -87,9 +87,9 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
     if not enabled:
         return False
 
-    table_root = settings.table_root_dir
-    if not table_root:
-        logger.warning("Startup media sync enabled, but tablerootdir is empty. Skipping.")
+    game_root = settings.game_root_dir
+    if not game_root:
+        logger.warning("Startup media sync enabled, but gamerootdir is empty. Skipping.")
         return False
 
     def _worker():
@@ -98,7 +98,7 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
             result = build_metadata_func(downloadMedia=True, updateAll=True, userMedia=False)
             if isinstance(result, dict):
                 logger.info(
-                    "Startup media sync complete. Scanned %s table(s); %s not found in VPSdb.",
+                    "Startup media sync complete. Scanned %s game(s); %s not found in VPSdb.",
                     result.get("found", 0),
                     result.get("not_found", 0),
                 )
@@ -122,8 +122,8 @@ def build_mount_points(base_path: str, config_dir: Path, iniconfig):
         "/collection_icons/": collection_icons_dir,
     }
     settings = SettingsConfig.from_config(iniconfig)
-    if settings.table_root_dir:
-        mount_points["/tables/"] = os.path.abspath(settings.table_root_dir)
+    if settings.game_root_dir:
+        mount_points["/tables/"] = os.path.abspath(settings.game_root_dir)
 
     from common.shared_assets import configure_shared_assets, resolve_assets_dir
 
@@ -192,7 +192,7 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
         displays = DisplayConfig.from_config(iniconfig)
         manager_ui_port = network.manager_ui_port
         setup_url = f"http://localhost:{manager_ui_port}/"
-        screen_id = displays.table_screen_id
+        screen_id = displays.playfield_screen_id
         monitors = get_display_monitors()
         monitor = monitors[screen_id] if screen_id < len(monitors) else monitors[0]
         logger.info("First run: loading Manager UI in chromium window for initial configuration.")

@@ -424,7 +424,7 @@
     }
 
     function updateTableCount() {
-      const tableCount = window.parent.vpin.tableData ? window.parent.vpin.tableData.length : 0;
+      const tableCount = window.parent.vpin.gameData ? window.parent.vpin.gameData.length : 0;
       document.getElementById('table-count').textContent = `Table Count: ${tableCount}`;
     }
 
@@ -483,7 +483,7 @@
       );
       await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
       window.parent.vpin.sendMessageToAllWindowsIncSelf({
-        type: "TableDataChange",
+        type: "GameDataChange",
         index: 0,
         filters,
         sort: sortOptions[sortByIndex],
@@ -578,7 +578,7 @@
 
             await window.parent.vpin.call("get_tables", true);
             window.parent.vpin.sendMessageToAllWindowsIncSelf({
-              type: "TableDataChange",
+              type: "GameDataChange",
               index: 0,
               collection: "None"
             });
@@ -624,7 +624,7 @@
                 order: orderState || 'Descending',
               });
               window.parent.vpin.sendMessageToAllWindowsIncSelf({
-                type: "TableDataChange",
+                type: "GameDataChange",
                 index: 0,
                 collection: selectedValue
               });
@@ -640,7 +640,7 @@
               orderByIndex = 0;
 
               window.parent.vpin.sendMessageToAllWindowsIncSelf({
-                type: "TableDataChange",
+                type: "GameDataChange",
                 index: 0,
                 collection: selectedValue
               });
@@ -701,7 +701,7 @@
           }
           const sortCount = await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
           window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
+            type: "GameDataChange",
             index: 0,
             sort: sortOptions[sortByIndex],
             order: orderOptions[orderByIndex]
@@ -716,7 +716,7 @@
           }
           const orderCount = await window.parent.vpin.call("apply_sort", sortOptions[sortByIndex], orderOptions[orderByIndex]);
           window.parent.vpin.sendMessageToAllWindowsIncSelf({
-            type: "TableDataChange",
+            type: "GameDataChange",
             index: 0,
             sort: sortOptions[sortByIndex],
             order: orderOptions[orderByIndex]

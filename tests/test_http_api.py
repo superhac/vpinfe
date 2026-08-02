@@ -27,17 +27,17 @@ class ManufacturerEndpointTests(unittest.TestCase):
 
         from common.shared_assets import configure_shared_assets
 
-        def _table(folder: str, manufacturer: str) -> SimpleNamespace:
+        def _game(folder: str, manufacturer: str) -> SimpleNamespace:
             return SimpleNamespace(
-                fullPathTable=f"/tables/{folder}",
-                fullPathVPXfile=f"/tables/{folder}/{folder}.vpx",
+                fullPathGame=f"/games/{folder}",
+                fullPathVPXfile=f"/games/{folder}/{folder}.vpx",
                 metaConfig={"Info": {"Manufacturer": manufacturer}},
             )
 
         catalog = {
-            "id-1": _table("Eight Ball (Bally 1977)", "Bally Manufacturing"),
-            "id-2": _table("Eight Ball Deluxe (Bally 1981)", "Bally Manufacturing"),
-            "id-3": _table("Garage Build (Homebrew 2020)", "Homebrew Works"),
+            "id-1": _game("Eight Ball (Bally 1977)", "Bally Manufacturing"),
+            "id-2": _game("Eight Ball Deluxe (Bally 1981)", "Bally Manufacturing"),
+            "id-3": _game("Garage Build (Homebrew 2020)", "Homebrew Works"),
         }
 
         with TemporaryDirectory() as tmp:
@@ -57,10 +57,10 @@ class ManufacturerEndpointTests(unittest.TestCase):
         self.assertEqual(rows["Bally Manufacturing"]["slug"], "bally")
         self.assertEqual(rows["Bally Manufacturing"]["logo"],
                          "/assets/manufacturers/default/bally.png")
-        self.assertEqual(rows["Bally Manufacturing"]["tables"], 2)
+        self.assertEqual(rows["Bally Manufacturing"]["games"], 2)
         self.assertIsNone(rows["Bally Wulff"]["logo"])
-        self.assertEqual(rows["Bally Wulff"]["tables"], 0)
-        self.assertEqual(rows["Homebrew Works"]["tables"], 1,
+        self.assertEqual(rows["Bally Wulff"]["games"], 0)
+        self.assertEqual(rows["Homebrew Works"]["games"], 1,
                          "a library-only name still gets a row")
 
 
@@ -150,7 +150,7 @@ class DiscoveryTests(unittest.TestCase):
             capabilities.Capability(name="library", residency=[])
 
     def test_launch_declares_whether_this_machine_can_do_it(self) -> None:
-        """Reading play state works without a launcher; starting a table does not.
+        """Reading play state works without a launcher; starting a game does not.
         Discovery has to say so, or a client shows a Play button that always 501s."""
         declared = {c["name"]: c for c in self.client.get("/").json()["capabilities"]}
 

@@ -1,6 +1,6 @@
 """Upgrading the library's .info files, and putting them back.
 
-A library upgrades all at once at first launch, so a table still on the old format means
+A library upgrades all at once at first launch, so a game still on the old format means
 that did not finish. See INFO-SCHEMA.local.md §5b.
 """
 
@@ -13,7 +13,7 @@ from queue import Queue
 
 from nicegui import run, ui
 
-from managerui.services import table_service, ui_state
+from managerui.services import game_service, ui_state
 from managerui.ui_helpers import dialog_card
 
 logger = logging.getLogger("vpinfe.manager.info_maintenance")
@@ -63,13 +63,13 @@ def _subject(count: int, collections: bool) -> str:
 
 def _collections_restorable() -> bool:
     try:
-        return table_service.collections_restorable()
+        return game_service.collections_restorable()
     except Exception:
         logger.exception("Could not check for a saved collections file")
         return False
 
 
-def _tables(n: int) -> str:
+def _games(n: int) -> str:
     return "1 table" if n == 1 else f"{n} tables"
 
 
@@ -88,14 +88,14 @@ def _backup_date(stamp: str) -> str:
 
 def _counts(reload: bool = False) -> dict:
     try:
-        return table_service.info_maintenance_counts(reload=reload)
+        return game_service.info_maintenance_counts(reload=reload)
     except Exception:
         logger.exception("Could not read info maintenance counts")
         return {"pending_upgrade": 0, "restorable": 0, "newer_than_us": 0}
 
 
 def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
-                table_names=None, on_done=None) -> None:
+                game_names=None, on_done=None) -> None:
     """Explain, confirm, report - shaped like the metadata build dialog."""
     dlg = ui.dialog().props('persistent max-width=700px')
     state = {'running': False, 'lines': [], 'progress_q': Queue(), 'log_q': Queue()}
@@ -108,11 +108,11 @@ def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
         with intro_container:
             ui.label(intro).classes('text-sm').style('color: var(--ink);')
             ui.label(detail).classes('text-xs').style('color: var(--ink-muted);')
-            if table_names:
-                with ui.expansion(f'Show the {len(table_names)} tables').classes('w-full'):
+            if game_names:
+                with ui.expansion(f'Show the {len(game_names)} tables').classes('w-full'):
                     with ui.column().classes('w-full p-2').style(
                             'max-height: 14rem; overflow: auto;'):
-                        for name in table_names:
+                        for name in game_names:
                             ui.label(name).classes('text-xs').style('color: var(--ink-muted);')
 
         progress_container = ui.column().classes('w-full gap-2')
@@ -192,7 +192,7 @@ def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
 
 def open_upgrade_dialog(on_done=None) -> None:
     try:
-        names = table_service.pending_upgrade_table_names()
+        names = game_service.pending_upgrade_game_names()
     except Exception:
         logger.exception("Could not list the .info files still to upgrade")
         names = []
@@ -206,17 +206,17 @@ def open_upgrade_dialog(on_done=None) -> None:
         intro=UPGRADE_INTRO,
         detail=UPGRADE_DETAIL,
         confirm_label='Upgrade all',
-        action=table_service.upgrade_info,
-        table_names=names,
+        action=game_service.upgrade_info,
+        game_names=names,
         on_done=on_done,
     )
 
 
 def open_restore_dialog(on_done=None) -> None:
     try:
-        names = table_service.restorable_table_names()
+        names = game_service.restorable_game_names()
     except Exception:
-        logger.exception("Could not list tables with a saved .info")
+        logger.exception("Could not list games with a saved .info")
         names = []
 
     collections = _collections_restorable()
@@ -224,14 +224,14 @@ def open_restore_dialog(on_done=None) -> None:
         ui.notify("There are no backups to restore.", type='info')
         return
 
-    date = _backup_date(table_service.newest_backup_stamp())
+    date = _backup_date(game_service.newest_backup_stamp())
     _run_dialog(
         title='Restore backups',
         intro=RESTORE_INTRO.format(when=f" on {date}" if date else " before the upgrade"),
         detail=RESTORE_DETAIL,
         confirm_label='Restore all',
-        action=table_service.restore_info,
-        table_names=names,
+        action=game_service.restore_info,
+        game_names=names,
         on_done=on_done,
     )
 
@@ -255,7 +255,7 @@ def _strip(icon: str, color: str, headline: str, detail: str, actions) -> None:
 
 @ui.refreshable
 def render_info_banners(on_done=None) -> None:
-    """A table the scan could not read, tables the upgrade missed, then news that it ran."""
+    """A game the scan could not read, games the upgrade missed, then news that it ran."""
     _render_unreadable_warning()
     counts = _counts()
     if counts.get('newer_than_us', 0):
@@ -267,11 +267,11 @@ def render_info_banners(on_done=None) -> None:
 
 
 def _render_unreadable_warning() -> None:
-    """Not dismissible: the table is missing from the frontend until somebody deals with it."""
+    """Not dismissible: the game is missing from the frontend until somebody deals with it."""
     try:
-        broken = table_service.unreadable_tables()
+        broken = game_service.unreadable_games()
     except Exception:
-        logger.exception("Could not read the unreadable-table list")
+        logger.exception("Could not read the unreadable-game list")
         return
     if not broken:
         return
@@ -279,10 +279,10 @@ def _render_unreadable_warning() -> None:
     names = ", ".join(row.get("folder", "?") for row in broken[:3])
     if len(broken) > 3:
         names += f" and {len(broken) - 3} more"
-    tables = "1 table is" if len(broken) == 1 else f"{len(broken)} tables are"
+    games = "1 table is" if len(broken) == 1 else f"{len(broken)} tables are"
     _strip(
         'warning', 'var(--neon-pink)',
-        f'{tables} missing because the .info file could not be read.',
+        f'{games} missing because the .info file could not be read.',
         f'{names}. The files were left untouched — a backup may hold a working copy.',
         lambda: ui.button('Restore backups', icon='history',
                           on_click=lambda: open_restore_dialog()).style(_ACCENT),

@@ -1,4 +1,4 @@
-"""The asset model: what a game file would use, and what the folder holds for whom.
+"""The asset model: what a table would use, and what the folder holds for whom.
 
 The rules under test mirror VPX's own lookup code - GetSettingsFileName in
 pintable.h, the B2SServer constructor, pinmame's Alias.cpp. A regression here means
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import unittest
 
-from common.tables import asset_resolver as res
+from common.games import asset_resolver as res
 
 FOLDER = "Attack from Mars (Bally 1995)"
 BIGUS = "Attack from Mars (Bally 1995) - bigus1 (1) - VPF_14317.vpx"
@@ -21,22 +21,22 @@ class LaunchLensTests(unittest.TestCase):
         files = [BIGUS, "Attack from Mars (Bally 1995) - bigus1 (1) - VPF_14317.directb2s",
                  f"{FOLDER}.directb2s"]
 
-        resolved = res.resolve_for_game_file(BIGUS, FOLDER, files)
+        resolved = res.resolve_for_table(BIGUS, FOLDER, files)
 
         self.assertEqual(resolved["backglass"]["resolution"], "dedicated")
         self.assertIn("bigus1", resolved["backglass"]["file"])
 
-    def test_a_game_file_without_its_own_asset_inherits_the_folder_named_one(self) -> None:
+    def test_a_table_without_its_own_asset_inherits_the_folder_named_one(self) -> None:
         """VPX's fallback: the folder-named file is shared between all builds."""
         files = [BIGUS, CYBER, f"{FOLDER}.directb2s"]
 
-        resolved = res.resolve_for_game_file(CYBER, FOLDER, files)
+        resolved = res.resolve_for_table(CYBER, FOLDER, files)
 
         self.assertEqual(resolved["backglass"],
                          {"resolution": "shared", "file": f"{FOLDER}.directb2s"})
 
     def test_nothing_resolves_to_none(self) -> None:
-        resolved = res.resolve_for_game_file(BIGUS, FOLDER, [BIGUS])
+        resolved = res.resolve_for_table(BIGUS, FOLDER, [BIGUS])
 
         for kind in ("backglass", "settings", "script", "pov", "scv"):
             self.assertEqual(resolved[kind], {"resolution": "none"})
@@ -44,7 +44,7 @@ class LaunchLensTests(unittest.TestCase):
     def test_matching_is_case_insensitive_like_vpx(self) -> None:
         files = [BIGUS, BIGUS.replace(".vpx", ".DirectB2S")]
 
-        resolved = res.resolve_for_game_file(BIGUS, FOLDER, files)
+        resolved = res.resolve_for_table(BIGUS, FOLDER, files)
 
         self.assertEqual(resolved["backglass"]["resolution"], "dedicated")
 
@@ -52,7 +52,7 @@ class LaunchLensTests(unittest.TestCase):
         """pintable.cpp auto-imports a stem-named .pov only - no folder fallback."""
         files = [BIGUS, f"{FOLDER}.pov"]
 
-        resolved = res.resolve_for_game_file(BIGUS, FOLDER, files)
+        resolved = res.resolve_for_table(BIGUS, FOLDER, files)
 
         self.assertEqual(resolved["pov"], {"resolution": "none"})
 
@@ -60,7 +60,7 @@ class LaunchLensTests(unittest.TestCase):
         """GetSettingsFileName step 3: <folder-name>.ini, case-insensitively."""
         files = [BIGUS, f"{FOLDER}.INI"]
 
-        resolved = res.resolve_for_game_file(BIGUS, FOLDER, files)
+        resolved = res.resolve_for_table(BIGUS, FOLDER, files)
 
         self.assertEqual(resolved["settings"]["resolution"], "shared")
 
@@ -79,7 +79,7 @@ class InventoryLensTests(unittest.TestCase):
         bindings = {e["binding"] for e in inv["backglass"]["files"]}
         self.assertEqual(bindings, {"dedicated", "shared", "orphaned"})
         dedicated = [e for e in inv["backglass"]["files"] if e["binding"] == "dedicated"]
-        self.assertEqual(dedicated[0]["game_file"], BIGUS)
+        self.assertEqual(dedicated[0]["table"], BIGUS)
 
     def test_an_orphan_is_the_residue_of_a_deleted_build(self) -> None:
         inv = res.inventory(FOLDER, ["Old Build.directb2s"], [BIGUS])
@@ -111,7 +111,7 @@ class RomChainTests(unittest.TestCase):
         self.assertTrue(chain["installed"])
 
     def test_not_found_is_reported_as_unknown_not_missing(self) -> None:
-        """A DOF-only name on an EM table, or a rom in a global folder: neither is
+        """A DOF-only name on an EM game, or a rom in a global folder: neither is
         a defect, so the answer is null-with-reason, never False."""
         chain = res.resolve_rom_chain("GTB2001_1971", {}, [])
 

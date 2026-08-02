@@ -64,7 +64,7 @@ def render_panel():
                             "color: var(--ink-muted) !important;"
                         )
                     ui.label(
-                        f"Tracked Session Tables: {int(status.get('active_tables', 0) or 0)}"
+                        f"Tracked Session Tables: {int(status.get('active_games', 0) or 0)}"
                     ).style("color: var(--ink-muted) !important;")
                     ui.label(
                         "While this is active, VPinFE submits the alternate player's post-game VPinPlay data without modifying the machine's real table .info files."

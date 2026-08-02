@@ -27,7 +27,7 @@ class AssetSpec:
     label: str
     icon: str
     extensions: tuple[str, ...]     # lowercase; () for marker/folder-detected kinds
-    requires_table: bool
+    requires_game: bool
     requires_rom: bool
     allow_multiple: bool
 
@@ -41,11 +41,11 @@ def is_readme(name: str) -> bool:
 
 ASSET_SPECS = (
     AssetSpec("table", "Table", "casino", (".vpx",), False, False, False),
-    AssetSpec("table_info", "Metadata", "description", (), True, False, False),
+    AssetSpec("game_info", "Metadata", "description", (), True, False, False),
     AssetSpec("backglass", "Backglass", "wallpaper", (".directb2s",), True, False, False),
     AssetSpec("ini", "Table INI", "tune", (".ini",), True, False, False),
     # A patch is a delta against one exact base table, not an installable artifact.
-    # requires_table is doing real work here: applying it without the right base
+    # requires_game is doing real work here: applying it without the right base
     # produces a corrupt file rather than an error.
     AssetSpec("patch", "Table Patch", "difference", (".dif",), True, False, True),
     AssetSpec("rom", "ROM", "memory", (), True, False, True),

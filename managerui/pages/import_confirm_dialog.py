@@ -7,7 +7,7 @@ from typing import Callable
 
 from nicegui import context, run, ui
 
-from managerui.services import table_service, upload_session_service
+from managerui.services import game_service, upload_session_service
 from managerui.services.asset_analyzer_service import AnalysisResult
 from managerui.services.asset_import_service import (
     ImportPlan,
@@ -19,7 +19,6 @@ from managerui.services.asset_import_service import (
 from managerui.services.asset_registry import spec_for
 from managerui.services.media_service import MEDIA_TYPES, invalidate_media_cache
 from managerui.ui_helpers import debounced_input, dialog_card
-
 
 logger = logging.getLogger("vpinfe.manager.dnd_ui")
 
@@ -73,8 +72,8 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
         return f"{len(entries)} files"
 
     def _row_destination(item) -> str:
-        # Relative to the table folder; the folder itself is stated by the title/name field.
-        base = Path(plan.table_path)
+        # Relative to the game folder; the folder itself is stated by the title/name field.
+        base = Path(plan.game_path)
         dest = Path(item.destination)
         try:
             rel = dest.relative_to(base)
@@ -92,14 +91,14 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
 
     def _replace_note(item) -> str:
         if item.action == "write_info":
-            if plan.new_table_dir_name:
+            if plan.new_game_dir_name:
                 return "adopts bundle metadata"
-            if Path(plan.table_path, f"{Path(plan.table_path).name}.info").exists():
+            if Path(plan.game_path, f"{Path(plan.game_path).name}.info").exists():
                 return "merges into existing metadata — fills gaps only · backup kept"
             return "adopts bundle metadata"
-        if plan.new_table_dir_name:
+        if plan.new_game_dir_name:
             return ""   # brand-new folder; nothing can be replaced
-        base = Path(plan.table_path)
+        base = Path(plan.game_path)
         if item.action == "replace_vpx":
             existing = sorted(base.glob("*.vpx"))
             if existing:
@@ -113,17 +112,17 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
 
     dlg = ui.dialog().props("persistent")
     with dlg, dialog_card("640px"):
-        if plan.new_table_dir_name:
+        if plan.new_game_dir_name:
             ui.label(f"Import from {title_source}").classes("text-lg font-bold").style("color: var(--ink);")
             ui.label("Files keep their names — only the folder is named here").classes(
                 "text-xs").style("color: var(--ink-muted);")
         else:
-            ui.label(f"Import to {Path(plan.table_path).name}").classes("text-lg font-bold").style("color: var(--ink);")
+            ui.label(f"Import to {Path(plan.game_path).name}").classes("text-lg font-bold").style("color: var(--ink);")
             if not single:
                 ui.label(f"from {title_source}").classes("text-xs").style("color: var(--ink-muted);")
 
-        if plan.new_table_dir_name:
-            name_input = ui.input("New table folder", value=plan.new_table_dir_name).props("outlined dense").classes("w-full")
+        if plan.new_game_dir_name:
+            name_input = ui.input("New table folder", value=plan.new_game_dir_name).props("outlined dense").classes("w-full")
 
             def _on_name_edit(e) -> None:
                 value = e.args if isinstance(e.args, str) else name_input.value
@@ -132,7 +131,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                 if value != vps_state.get("last_set"):
                     vps_state["name_dirty"] = True
 
-            vps_state["last_set"] = plan.new_table_dir_name
+            vps_state["last_set"] = plan.new_game_dir_name
             name_input.on("update:model-value", _on_name_edit)
 
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
@@ -156,7 +155,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                     vps_label.style("color: var(--ink-muted);")
                     vps_clear_btn.visible = False
                     if not vps_state["name_dirty"]:
-                        _set_name(plan.new_table_dir_name)
+                        _set_name(plan.new_game_dir_name)
                     return
                 label = vps_folder_name(entry) or entry.get("name", "")
                 vps_label.set_text(f"VPS: {label}")
@@ -169,7 +168,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                 picker = ui.dialog()
                 with picker, dialog_card("560px"):
                     ui.label("Select VPS entry").classes("text-lg font-bold").style("color: var(--ink);")
-                    search_input = ui.input("Search", value=_vps_search_term(plan.new_table_dir_name)).props(
+                    search_input = ui.input("Search", value=_vps_search_term(plan.new_game_dir_name)).props(
                         "outlined dense clearable").classes("w-full")
                     results_column = ui.column().classes("w-full gap-1").style("max-height: 320px; overflow-y: auto;")
 
@@ -187,7 +186,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                                     "w-full").style("color: var(--ink);")
 
                     async def _do_search() -> None:
-                        entries = await run.io_bound(table_service.search_vpsdb, search_input.value or "", 20)
+                        entries = await run.io_bound(game_service.search_vpsdb, search_input.value or "", 20)
                         _render_results(entries)
 
                     debounced_input(search_input, 300)
@@ -209,7 +208,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                             with state["client"]:
                                 _set_association(entry)
                         return
-                term = _vps_search_term(plan.new_table_dir_name)
+                term = _vps_search_term(plan.new_game_dir_name)
                 if not term:
                     return
                 # vpx names often carry author/version tails ("Medieval Madness VPW v2"),
@@ -217,7 +216,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                 words = term.split()
                 for count in range(len(words), 0, -1):
                     candidate = " ".join(words[:count])
-                    entries = await run.io_bound(table_service.search_vpsdb, candidate, 5)
+                    entries = await run.io_bound(game_service.search_vpsdb, candidate, 5)
                     if entries:
                         if vps_state["entry"] is None:
                             with state["client"]:
@@ -328,10 +327,10 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                 with client:
                     loading_label.set_text("Associating with VPS and downloading media...")
                 try:
-                    await run.io_bound(table_service.associate_vps_to_folder,
+                    await run.io_bound(game_service.associate_vps_to_folder,
                                        Path(report["table_path"]), vps_entry, True)
-                    await run.io_bound(table_service.build_metadata, downloadMedia=True,
-                                       updateAll=True, tableName=resolved.new_table_dir_name)
+                    await run.io_bound(game_service.build_metadata, downloadMedia=True,
+                                       updateAll=True, gameName=resolved.new_game_dir_name)
                 except Exception:
                     # The files are already imported; a failed association must not read as a failed import.
                     logger.exception("VPS association failed after import")

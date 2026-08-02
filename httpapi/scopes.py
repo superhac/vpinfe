@@ -10,11 +10,11 @@ from __future__ import annotations
 # data - the answer to "what am I talking to", which is what discovery exists for.
 INSTANCE_READ = "instance:read"
 
-TABLES_READ = "tables:read"
-TABLES_WRITE = "tables:write"
-# Deliberately not part of tables:read: reading the library and extracting
-# complete table folders are different permissions.
-TABLES_EXPORT_FULL = "tables:export_full"
+GAMES_READ = "games:read"
+GAMES_WRITE = "games:write"
+# Deliberately not part of games:read: reading the library and extracting
+# complete game folders are different permissions.
+GAMES_EXPORT_FULL = "games:export_full"
 
 COLLECTIONS_READ = "collections:read"
 COLLECTIONS_WRITE = "collections:write"
@@ -24,8 +24,8 @@ PLAY_READ = "play:read"
 LAUNCH_INVOKE = "launch:invoke"
 
 UPLOADS_WRITE = "uploads:write"
-# Separate from tables:read on purpose: this one makes an outbound call to VPSdb
-# on the caller's behalf, which is not the same permission as reading local tables.
+# Separate from games:read on purpose: this one makes an outbound call to VPSdb
+# on the caller's behalf, which is not the same permission as reading local games.
 VPS_READ = "vps:read"
 
 CONFIG_READ = "config:read"
@@ -39,13 +39,13 @@ SYSTEM_ADMIN = "system:admin"
 EVENTS_SUBSCRIBE = "events:subscribe"
 
 # Asking what slow work is running. Starting it carries the scope of what it does -
-# a library scan writes table metadata, so it is tables:write - because the right to
+# a library scan writes game metadata, so it is games:write - because the right to
 # watch a job is not the right to cause one.
 JOBS_READ = "jobs:read"
 
 CORE = frozenset({
     INSTANCE_READ,
-    TABLES_READ, TABLES_WRITE, TABLES_EXPORT_FULL,
+    GAMES_READ, GAMES_WRITE, GAMES_EXPORT_FULL,
     COLLECTIONS_READ, COLLECTIONS_WRITE,
     PLAY_READ, LAUNCH_INVOKE,
     UPLOADS_WRITE, VPS_READ,

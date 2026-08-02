@@ -3,12 +3,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
-from common.tables.vpxcollections import VPXCollections
-
+from common.games.vpxcollections import VPXCollections
 from frontend.api import API
 
 
-def _table(title, vpsid, last_run=None, altvpsid="", alttitle="", runtime=0, start_count=0, creation_time=0):
+def _game(title, vpsid, last_run=None, altvpsid="", alttitle="", runtime=0, start_count=0, creation_time=0):
     return SimpleNamespace(
         metaConfig={
             "Info": {
@@ -45,16 +44,16 @@ class TestCollectionSorting(unittest.TestCase):
             )
 
             manager = VPXCollections(str(ini_path))
-            tables = [
-                _table("Bravo", "vps-1", last_run=100),
-                _table("Alpha", "vps-2", last_run=300),
-                _table("Charlie", "vps-3", last_run=None),
+            games = [
+                _game("Bravo", "vps-1", last_run=100),
+                _game("Alpha", "vps-2", last_run=300),
+                _game("Charlie", "vps-3", last_run=None),
             ]
 
-            result = manager.filter_tables(tables, "Last Played")
+            result = manager.filter_games(games, "Last Played")
 
             self.assertEqual(
-                [table.metaConfig["Info"]["Title"] for table in result],
+                [game.metaConfig["Info"]["Title"] for game in result],
                 ["Alpha", "Bravo", "Charlie"],
             )
 
@@ -73,24 +72,24 @@ class TestCollectionSorting(unittest.TestCase):
             )
 
             manager = VPXCollections(str(ini_path))
-            tables = [
-                _table("Zulu", "vps-1", last_run=999),
-                _table("Alpha", "vps-2", last_run=1),
+            games = [
+                _game("Zulu", "vps-1", last_run=999),
+                _game("Alpha", "vps-2", last_run=1),
             ]
 
-            result = manager.filter_tables(tables, "Favorites")
+            result = manager.filter_games(games, "Favorites")
 
             self.assertEqual(
-                [table.metaConfig["Info"]["Title"] for table in result],
+                [game.metaConfig["Info"]["Title"] for game in result],
                 ["Alpha", "Zulu"],
             )
 
     def test_api_last_run_sort_orders_all_collections_by_user_last_run(self) -> None:
         api = API.__new__(API)
-        api.filteredTables = [
-            _table("Bravo", "vps-1", last_run=100),
-            _table("Alpha", "vps-2", last_run=300),
-            _table("Charlie", "vps-3", last_run="bad-value"),
+        api.filteredGames = [
+            _game("Bravo", "vps-1", last_run=100),
+            _game("Alpha", "vps-2", last_run=300),
+            _game("Charlie", "vps-3", last_run="bad-value"),
         ]
         api.current_sort = "Alpha"
 
@@ -99,16 +98,16 @@ class TestCollectionSorting(unittest.TestCase):
         self.assertEqual(count, 3)
         self.assertEqual(api.current_sort, "LastRun")
         self.assertEqual(
-            [table.metaConfig["Info"]["Title"] for table in api.filteredTables],
+            [game.metaConfig["Info"]["Title"] for game in api.filteredGames],
             ["Alpha", "Bravo", "Charlie"],
         )
 
     def test_api_runtime_sort_supports_descending_and_ascending_order(self) -> None:
         api = API.__new__(API)
-        api.filteredTables = [
-            _table("Short", "vps-1", runtime=10),
-            _table("Long", "vps-2", runtime=120),
-            _table("Medium", "vps-3", runtime=45),
+        api.filteredGames = [
+            _game("Short", "vps-1", runtime=10),
+            _game("Long", "vps-2", runtime=120),
+            _game("Medium", "vps-3", runtime=45),
         ]
         api.current_sort = "Alpha"
         api.current_order = "Descending"
@@ -119,7 +118,7 @@ class TestCollectionSorting(unittest.TestCase):
         self.assertEqual(api.current_sort, "RunTime")
         self.assertEqual(api.current_order, "Descending")
         self.assertEqual(
-            [table.metaConfig["Info"]["Title"] for table in api.filteredTables],
+            [game.metaConfig["Info"]["Title"] for game in api.filteredGames],
             ["Long", "Medium", "Short"],
         )
 
@@ -127,7 +126,7 @@ class TestCollectionSorting(unittest.TestCase):
 
         self.assertEqual(api.current_order, "Ascending")
         self.assertEqual(
-            [table.metaConfig["Info"]["Title"] for table in api.filteredTables],
+            [game.metaConfig["Info"]["Title"] for game in api.filteredGames],
             ["Short", "Medium", "Long"],
         )
 

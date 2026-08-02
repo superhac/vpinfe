@@ -1,18 +1,18 @@
-import os
 import json
 import logging
-from pathlib import Path
-import uuid
-import urllib.request
-import urllib.parse
+import os
 import urllib.error
-from nicegui import ui, run
+import urllib.parse
+import urllib.request
+import uuid
+from pathlib import Path
+
+from nicegui import run, ui
 
 from common.iniconfig import IniConfig
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_tables_path
-from managerui.services import table_catalog
+from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_games_path
+from managerui.services import game_catalog
 from managerui.ui_helpers import load_page_style
-
 
 logger = logging.getLogger("vpinfe.manager.mobile")
 
@@ -44,17 +44,17 @@ def _get_ini_config():
     return _INI_CFG
 
 
-def _get_tables_path() -> str:
-    return get_tables_path()
+def _get_games_path() -> str:
+    return get_games_path()
 
 
-def _scan_tables():
-    return table_catalog.scan_mobile_tables(reload=False)
+def _scan_games():
+    return game_catalog.scan_mobile_games(reload=False)
 
 
-def _build_table_rows(tables):
-    """Build display rows from scanned tables."""
-    return table_catalog.build_mobile_table_rows(tables)
+def _build_game_rows(games):
+    """Build display rows from scanned games."""
+    return game_catalog.build_mobile_game_rows(games)
 
 
 def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=None):
@@ -62,8 +62,8 @@ def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=Non
     Uses http.client directly to avoid urllib URL re-encoding issues.
     Pass a persistent conn (http.client.HTTPConnection) to reuse the TCP connection.
     """
-    import time
     import http.client
+    import time
     from urllib.parse import urlparse
     parsed = urlparse(url)
     own_conn = conn is None
@@ -105,17 +105,17 @@ def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=Non
                 raise
 
 
-def _send_table_to_device(
+def _send_game_to_device(
     host,
     port,
-    table_dir_name,
+    game_dir_name,
     progress_cb=None,
     chunk_size=1048576,
     exclude_ini=True,
     copy_masked_tableini_as_default=False,
     masked_tableini_mask='',
 ):
-    """Send all files in a table folder to the mobile device via its HTTP API.
+    """Send all files in a game folder to the mobile device via its HTTP API.
 
     Protocol (Mongoose-based WebServer on mobile device):
       - POST /folder?q=<relative_dir>        -> create directory
@@ -125,12 +125,12 @@ def _send_table_to_device(
     exclude_ini = _to_bool(exclude_ini)
     copy_masked_tableini_as_default = _to_bool(copy_masked_tableini_as_default)
 
-    tables_path = _get_tables_path()
-    table_path = os.path.join(tables_path, table_dir_name)
+    games_path = _get_games_path()
+    game_path = os.path.join(games_path, game_dir_name)
     base_url = f'http://{host}:{port}'
 
-    if not os.path.isdir(table_path):
-        raise FileNotFoundError(f"Table directory not found: {table_path}")
+    if not os.path.isdir(game_path):
+        raise FileNotFoundError(f"Table directory not found: {game_path}")
 
     masked_ini_name_for_copy = ''
     default_ini_name_for_copy = ''
@@ -143,7 +143,7 @@ def _send_table_to_device(
         mask = mask.strip().strip('.')
         if mask:
             try:
-                root_entries = os.listdir(table_path)
+                root_entries = os.listdir(game_path)
             except Exception:
                 root_entries = []
             root_vpx_files = sorted([f for f in root_entries if f.lower().endswith('.vpx')])
@@ -158,28 +158,28 @@ def _send_table_to_device(
                     expected_masked_ini_name,
                 )
                 masked_ini_exists_for_copy = os.path.isfile(
-                    os.path.join(table_path, masked_ini_name_for_copy)
+                    os.path.join(game_path, masked_ini_name_for_copy)
                 )
     else:
         # When the mobile rename-mask option is disabled, prefer the default
         # table ini and avoid sending masked table ini variants.
         try:
-            root_entries = os.listdir(table_path)
+            root_entries = os.listdir(game_path)
         except Exception:
             root_entries = []
         root_vpx_files = sorted([f for f in root_entries if f.lower().endswith('.vpx')])
         if root_vpx_files:
             primary_vpx_base_name = os.path.splitext(root_vpx_files[0])[0]
 
-    # The standalone bundle for the table's game file - the same answer the VPXZ
+    # The standalone bundle for the game's default table - the same answer the VPXZ
     # download gives. Whole-folder export is API-only, under its own scope.
     from managerui.services.export_bundle import bundle_paths, prune_info
     pruned_info_path = None
-    contents = list(bundle_paths(Path(table_path), everything=False))
+    contents = list(bundle_paths(Path(game_path), everything=False))
     allowed = {arcname.replace(os.sep, '/') for _, arcname in contents}
-    info_name = f'{table_dir_name}.info'
+    info_name = f'{game_dir_name}.info'
     if info_name in allowed:
-        source = os.path.join(table_path, info_name)
+        source = os.path.join(game_path, info_name)
         try:
             import tempfile as _tempfile
             with open(source, encoding='utf-8', errors='replace') as fh:
@@ -195,14 +195,14 @@ def _send_table_to_device(
     def _in_bundle(dirpath, fname):
         if allowed is None:
             return True
-        rel = os.path.relpath(os.path.join(dirpath, fname), table_path)
+        rel = os.path.relpath(os.path.join(dirpath, fname), game_path)
         return rel.replace(os.sep, '/') in allowed
 
     # Collect all files first to calculate total count
     all_files = []
-    for dirpath, dirnames, filenames in os.walk(table_path):
+    for dirpath, dirnames, filenames in os.walk(game_path):
         filenames = [f for f in filenames if _in_bundle(dirpath, f)]
-        rel_dir = os.path.relpath(dirpath, tables_path)
+        rel_dir = os.path.relpath(dirpath, games_path)
 
         # For efficient lookup of corresponding .vpx files
         filenames_lower_set = {f.lower() for f in filenames}
@@ -212,7 +212,7 @@ def _send_table_to_device(
             # original masked ini; we optionally upload it only as the default ini name.
             if (
                 masked_ini_name_for_copy
-                and dirpath == table_path
+                and dirpath == game_path
                 and fname.lower() == masked_ini_name_for_copy.lower()
             ):
                 continue
@@ -220,7 +220,7 @@ def _send_table_to_device(
                 copy_masked_tableini_as_default
                 and masked_ini_exists_for_copy
                 and default_ini_name_for_copy
-                and dirpath == table_path
+                and dirpath == game_path
                 and fname.lower() == default_ini_name_for_copy.lower()
             ):
                 # In mask-copy mode, when masked ini exists, suppress local default ini.
@@ -253,8 +253,8 @@ def _send_table_to_device(
     # Safety rule: when both options are OFF, transfer all .ini files as-is.
     if not exclude_ini and not copy_masked_tableini_as_default:
         existing_keys = {(rel_dir, fname.lower()) for rel_dir, fname, _, _ in all_files}
-        for dirpath, _, filenames in os.walk(table_path):
-            rel_dir = os.path.relpath(dirpath, tables_path)
+        for dirpath, _, filenames in os.walk(game_path):
+            rel_dir = os.path.relpath(dirpath, games_path)
             for fname in filenames:
                 if not fname.lower().endswith('.ini'):
                     continue
@@ -270,8 +270,8 @@ def _send_table_to_device(
 
     if copy_masked_tableini_as_default:
         if masked_ini_name_for_copy and default_ini_name_for_copy:
-            masked_ini_path = os.path.join(table_path, masked_ini_name_for_copy)
-            rel_root_dir = os.path.relpath(table_path, tables_path)
+            masked_ini_path = os.path.join(game_path, masked_ini_name_for_copy)
+            rel_root_dir = os.path.relpath(game_path, games_path)
 
             default_already_in_file_list = any(
                 rel_dir == rel_root_dir and fname.lower() == default_ini_name_for_copy.lower()
@@ -292,7 +292,7 @@ def _send_table_to_device(
                 )
 
     if pruned_info_path is not None:
-        info_name = f'{table_dir_name}.info'
+        info_name = f'{game_dir_name}.info'
         all_files = [
             (rel_dir, fname,
              pruned_info_path if fname == info_name else full_path,
@@ -310,13 +310,13 @@ def _send_table_to_device(
     try:
         # Collect unique directories to create
         dirs_to_create = set()
-        for dirpath, _, _ in os.walk(table_path):
+        for dirpath, _, _ in os.walk(game_path):
             if allowed is not None:
-                rel_within = os.path.relpath(dirpath, table_path).replace(os.sep, '/')
+                rel_within = os.path.relpath(dirpath, game_path).replace(os.sep, '/')
                 if rel_within != '.' and not any(
                         arc.startswith(rel_within + '/') for arc in allowed):
                     continue
-            rel_dir = os.path.relpath(dirpath, tables_path)
+            rel_dir = os.path.relpath(dirpath, games_path)
             dirs_to_create.add(rel_dir)
 
         # Create directories (sorted so parents come first)
@@ -354,7 +354,7 @@ def _send_table_to_device(
                         conn = _http_request(url, data=chunk, conn=conn)
                         offset += len(chunk)
 
-        # Tell the mobile device to reload its table list
+        # Tell the mobile device to reload its list
         try:
             conn = _http_request(f'{base_url}/command?cmd=refresh_tables', data=b'', timeout=10, conn=conn)
         except Exception:
@@ -366,13 +366,13 @@ def _send_table_to_device(
         progress_cb(total_files, total_files, 'Complete')
 
 
-def _delete_table_from_device(host, port, table_dir_name):
-    """Delete a table directory from the mobile device via POST /delete?q=<path>."""
+def _delete_game_from_device(host, port, game_dir_name):
+    """Delete a game directory from the mobile device via POST /delete?q=<path>."""
     base_url = f'http://{host}:{port}'
-    encoded_dir = urllib.parse.quote(table_dir_name, safe='')
+    encoded_dir = urllib.parse.quote(game_dir_name, safe='')
     url = f'{base_url}/delete?q={encoded_dir}'
     _http_request(url, data=b'', timeout=30)
-    # Tell the mobile device to reload its table list
+    # Tell the mobile device to reload its list
     try:
         _http_request(f'{base_url}/command?cmd=refresh_tables', data=b'', timeout=10)
     except Exception:
@@ -407,10 +407,10 @@ def _build_vpxz_download_panel():
     loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
     table_container = ui.column().classes('w-full')
 
-    async def load_tables():
-        tables = await run.io_bound(_scan_tables)
+    async def load_games():
+        games = await run.io_bound(_scan_games)
         loading.set_visibility(False)
-        rows = _build_table_rows(tables)
+        rows = _build_game_rows(games)
         for row in rows:
             row['download_token'] = uuid.uuid4().hex
 
@@ -422,7 +422,7 @@ def _build_vpxz_download_panel():
             tbl = ui.table(
                 columns=columns,
                 rows=rows,
-                row_key='table_dir_name',
+                row_key='game_dir_name',
                 pagination={'rowsPerPage': 25},
             ).classes('w-full').props('dense').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);')
 
@@ -434,8 +434,8 @@ def _build_vpxz_download_panel():
                         icon="download"
                         class="q-mr-sm"
                         style="color: var(--neon-cyan) !important;"
-                        :href="'/api/v1/tables/' + encodeURIComponent(props.row.vpinfe_id) + '/archive?download_token=' + encodeURIComponent(props.row.download_token)"
-                        :download="props.row.table_dir_name + '.vpxz'"
+                        :href="'/api/v1/games/' + encodeURIComponent(props.row.vpinfe_id) + '/archive?download_token=' + encodeURIComponent(props.row.download_token)"
+                        :download="props.row.game_dir_name + '.vpxz'"
                         @click.stop="$parent.$emit('download', props.row)"
                     />
                     {{ props.row.display_name }}
@@ -443,7 +443,7 @@ def _build_vpxz_download_panel():
             ''')
 
             async def handle_download(e):
-                name = e.args['table_dir_name']
+                name = e.args['game_dir_name']
                 filename = f'{name}.vpxz'
                 cookie_name = f"vpinfe_vpxz_download_{e.args.get('download_token', '')}"
 
@@ -475,7 +475,7 @@ def _build_vpxz_download_panel():
 
             tbl.on('download', handle_download)
 
-    ui.timer(0.1, load_tables, once=True)
+    ui.timer(0.1, load_games, once=True)
 
 
 def _fetch_device_folders(host, port):
@@ -568,7 +568,7 @@ def _build_web_send_panel():
     loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
     table_container = ui.column().classes('w-full')
 
-    # Shared state for the table reference and device folders
+    # Shared state for the ui.table reference and device folders
     panel_state = {
         'tbl': None, 'rows': [], 'device_folders': set(),
         'filter_installed': False,
@@ -608,15 +608,15 @@ def _build_web_send_panel():
             panel_state['device_folders'] = folders
             # Update rows with installed status
             for row in panel_state['rows']:
-                row['installed'] = row['table_dir_name'] in folders
+                row['installed'] = row['game_dir_name'] in folders
             _apply_filter()
             installed_count = sum(1 for r in panel_state['rows'] if r.get('installed'))
             _safe_notify(f'Found {installed_count} of {len(panel_state["rows"])} tables on device', type='info')
         except Exception as e:
             _safe_notify(f'Could not connect: {e}', type='negative')
 
-    async def _send_single_table(host, port, name, exclude_ini, masked_ini_copy_enabled, masked_ini_mask):
-        """Send a single table with progress dialog. Returns True on success."""
+    async def _send_single_game(host, port, name, exclude_ini, masked_ini_copy_enabled, masked_ini_mask):
+        """Send a single game with progress dialog. Returns True on success."""
         # Progress dialog
         with ui.dialog() as dlg, ui.card().classes('p-6').style('min-width: 400px; background: var(--surface) !important;'):
             with ui.column().classes('w-full gap-3'):
@@ -637,7 +637,7 @@ def _build_web_send_panel():
         def do_send():
             try:
                 cs = int(chunk_input.value.strip() or '1048576')
-                _send_table_to_device(
+                _send_game_to_device(
                     host,
                     port,
                     name,
@@ -692,9 +692,9 @@ def _build_web_send_panel():
         total = len(selected)
         success = 0
         for i, row in enumerate(selected):
-            name = row['table_dir_name']
+            name = row['game_dir_name']
             _safe_notify(f'Batch send: {i+1}/{total} - {name}', type='info')
-            ok = await _send_single_table(
+            ok = await _send_single_game(
                 host,
                 port,
                 name,
@@ -709,10 +709,10 @@ def _build_web_send_panel():
         panel_state['tbl'].update()
         await check_device()
 
-    async def load_tables():
-        tables = await run.io_bound(_scan_tables)
+    async def load_games():
+        games = await run.io_bound(_scan_games)
         loading.set_visibility(False)
-        rows = _build_table_rows(tables)
+        rows = _build_game_rows(games)
         # Add installed field
         for row in rows:
             row['installed'] = False
@@ -726,7 +726,7 @@ def _build_web_send_panel():
             tbl = ui.table(
                 columns=columns,
                 rows=rows,
-                row_key='table_dir_name',
+                row_key='game_dir_name',
                 selection='multiple',
                 pagination={'rowsPerPage': 25},
             ).classes('w-full').props('dense').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);')
@@ -746,7 +746,7 @@ def _build_web_send_panel():
             ''')
 
             async def handle_send(e):
-                name = e.args['table_dir_name']
+                name = e.args['game_dir_name']
                 host = ip_input.value.strip()
                 port = port_input.value.strip()
 
@@ -758,7 +758,7 @@ def _build_web_send_panel():
                 exclude_ini = _to_bool(exclude_ini)
                 masked_ini_copy_enabled = _to_bool(masked_ini_copy_checkbox.value)
                 masked_ini_mask = (masked_ini_input.value or '').strip()
-                ok = await _send_single_table(
+                ok = await _send_single_game(
                     host,
                     port,
                     name,
@@ -773,7 +773,7 @@ def _build_web_send_panel():
             tbl.on('websend', handle_send)
 
             async def handle_delete(e):
-                name = e.args['table_dir_name']
+                name = e.args['game_dir_name']
                 host = ip_input.value.strip()
                 port = port_input.value.strip()
 
@@ -793,7 +793,7 @@ def _build_web_send_panel():
                     return
 
                 try:
-                    await run.io_bound(lambda: _delete_table_from_device(host, port, name))
+                    await run.io_bound(lambda: _delete_game_from_device(host, port, name))
                     _safe_notify(f'Deleted "{name}" from device', type='positive')
                     await check_device()
                 except Exception as ex:
@@ -801,8 +801,8 @@ def _build_web_send_panel():
 
             tbl.on('webdelete', handle_delete)
 
-        # Auto-check device after tables load if IP is configured
+        # Auto-check device after games load if IP is configured
         if saved_ip:
             await check_device()
 
-    ui.timer(0.1, load_tables, once=True)
+    ui.timer(0.1, load_games, once=True)

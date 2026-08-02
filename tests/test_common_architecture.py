@@ -1,50 +1,55 @@
 import ast
-import os
 import configparser
 import json
+import os
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import mock
 
-from common.config_access import DisplayConfig, MediaConfig, NetworkConfig, SettingsConfig, VPinPlayConfig
-from common.third_party import find_named_path, import_module_from_path
+from common.config_access import (
+    DisplayConfig,
+    MediaConfig,
+    NetworkConfig,
+    SettingsConfig,
+    VPinPlayConfig,
+)
+from common.games.game_metadata import game_themes, game_title, game_type
+from common.games.game_repository import game_to_row
+from common.games.gameparser import GameParser
+from common.games.standalonescripts import StandaloneScripts
 from common.jobs import JobReporter
-from common.media_paths import apply_media_paths, media_filename_map, table_media_payload
-from common.tables.standalonescripts import StandaloneScripts
-from common.tables.table_metadata import table_themes, table_title, table_type
-from common.tables.table_repository import table_to_row
-from common.tables.tableparser import TableParser
+from common.media_paths import apply_media_paths, game_media_payload, media_filename_map
 from common.online.theme_installer import ThemeInstallStore
 from common.online.vpsdb_cache import VPSDatabaseCache
-
+from common.third_party import find_named_path, import_module_from_path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _tableparser_target(node) -> str | None:
-    """The variable name, if this statement is `x = TableParser(...)`."""
+    """The variable name, if this statement is `x = GameParser(...)`."""
     if not isinstance(node, ast.Assign) or len(node.targets) != 1:
         return None
     if not isinstance(node.value, ast.Call):
         return None
     func = node.value.func
     name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
-    if name != "TableParser":
+    if name != "GameParser":
         return None
     target = node.targets[0]
     return target.id if isinstance(target, ast.Name) else None
 
 
 def _is_reload_of(node, name: str) -> bool:
-    """Whether this statement is `name.loadTables(...)`."""
+    """Whether this statement is `name.loadGames(...)`."""
     if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Call):
         return False
     func = node.value.func
     return (
         isinstance(func, ast.Attribute)
-        and func.attr == "loadTables"
+        and func.attr == "loadGames"
         and isinstance(func.value, ast.Name)
         and func.value.id == name
     )
@@ -110,22 +115,22 @@ class TestCommonArchitecture(unittest.TestCase):
             self.assertEqual(store.installed_version("ExampleTheme"), "1.2.3")
             self.assertTrue(store.is_version_newer("1.2.4", "1.2.3"))
 
-    def test_table_parser_accessors_return_copies(self) -> None:
-        parser = TableParser.__new__(TableParser)
-        parser.tables = [SimpleNamespace(name="one")]
-        parser.missing_tables = [{"folder": "missing"}]
+    def test_game_parser_accessors_return_copies(self) -> None:
+        parser = GameParser.__new__(GameParser)
+        parser.games = [SimpleNamespace(name="one")]
+        parser.missing_games = [{"folder": "missing"}]
 
-        tables = parser.getAllTables()
-        missing = parser.getMissingTables()
-        tables.clear()
+        games = parser.getAllGames()
+        missing = parser.getMissingGames()
+        games.clear()
         missing[0]["folder"] = "changed"
 
-        self.assertEqual(len(parser.tables), 1)
-        self.assertEqual(parser.missing_tables[0]["folder"], "missing")
+        self.assertEqual(len(parser.games), 1)
+        self.assertEqual(parser.missing_games[0]["folder"], "missing")
 
     def test_metadata_display_helpers_handle_legacy_fields(self) -> None:
-        table = SimpleNamespace(
-            tableDirName="Fallback",
+        game = SimpleNamespace(
+            gameDirName="Fallback",
             metaConfig={
                 "VPSdb": {
                     "name": "Legacy Name",
@@ -135,12 +140,12 @@ class TestCommonArchitecture(unittest.TestCase):
             },
         )
 
-        self.assertEqual(table_title(table), "Legacy Name")
-        self.assertEqual(table_themes(table), ["Music", "Movies"])
-        self.assertEqual(table_type(table), "SS")
+        self.assertEqual(game_title(game), "Legacy Name")
+        self.assertEqual(game_themes(game), ["Music", "Movies"])
+        self.assertEqual(game_type(game), "SS")
 
     def test_standalone_scripts_can_be_constructed_without_running_network_work(self) -> None:
-        with mock.patch("common.tables.standalonescripts.StandaloneScripts.apply_patches") as apply_patches:
+        with mock.patch("common.games.standalonescripts.StandaloneScripts.apply_patches") as apply_patches:
             scripts = StandaloneScripts([], auto_run=False)
 
         self.assertIsNone(scripts.hashes)
@@ -150,7 +155,7 @@ class TestCommonArchitecture(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser.read_dict({
             "Settings": {
-                "tablerootdir": "/tables",
+                "gamerootdir": "/games",
                 "vpxinipath": "/home/player/.vpinball/VPinballX.ini",
                 "vpxlogdeleteonstart": "yes",
                 "theme": "",
@@ -158,10 +163,10 @@ class TestCommonArchitecture(unittest.TestCase):
                 "cabmode": "true",
             },
             "Media": {
-                "tabletype": "FSS",
-                "tableresolution": "4K",
-                "tablevideoresolution": "1080p",
-                "tablemediapriority": "image",
+                "playfieldvariant": "FSS",
+                "playfieldresolution": "4K",
+                "playfieldvideoresolution": "1080p",
+                "playfieldmediapriority": "image",
                 "bgmediapriority": "mp4",
                 "dmdmediapriority": "invalid",
                 "realdmdmediapriority": "realdmd.png",
@@ -171,8 +176,8 @@ class TestCommonArchitecture(unittest.TestCase):
                 "themeassetsport": "bad",
             },
             "Displays": {
-                "tablescreenid": "2",
-                "tablerotation": "270",
+                "playfieldscreenid": "2",
+                "playfieldrotation": "270",
             },
             "vpinplay": {
                 "apiendpoint": " http://example.test ",
@@ -180,15 +185,15 @@ class TestCommonArchitecture(unittest.TestCase):
             },
         })
 
-        self.assertEqual(SettingsConfig.from_config(parser).table_root_dir, "/tables")
+        self.assertEqual(SettingsConfig.from_config(parser).game_root_dir, "/games")
         self.assertEqual(SettingsConfig.from_config(parser).vpx_ini_path, "/home/player/.vpinball/VPinballX.ini")
         self.assertEqual(SettingsConfig.from_config(parser).theme, "Revolution")
         self.assertTrue(SettingsConfig.from_config(parser).auto_update_media_on_startup)
         self.assertTrue(SettingsConfig.from_config(parser).vpx_log_delete_on_start)
         self.assertFalse(SettingsConfig.from_config(parser).disable_default_chrome_options)
         media_config = MediaConfig.from_config(parser)
-        self.assertEqual(media_config.table_type, "fss")
-        self.assertEqual(media_config.table_media_priority, "image")
+        self.assertEqual(media_config.playfield_variant, "fss")
+        self.assertEqual(media_config.playfield_media_priority, "image")
         self.assertEqual(media_config.bg_media_priority, "video")
         self.assertEqual(media_config.dmd_media_priority, "video")
         self.assertEqual(media_config.realdmd_media_priority, "standard")
@@ -198,20 +203,21 @@ class TestCommonArchitecture(unittest.TestCase):
         )
         self.assertEqual(NetworkConfig.from_config(parser).ws_port, 9002)
         self.assertEqual(NetworkConfig.from_config(parser).theme_assets_port, 8000)
-        self.assertEqual(DisplayConfig.from_config(parser).table_screen_id, 2)
-        self.assertEqual(DisplayConfig.from_config(parser).window_screen_id("tablescreenid"), "2")
+        self.assertEqual(DisplayConfig.from_config(parser).playfield_screen_id, 2)
+        self.assertEqual(
+            DisplayConfig.from_config(parser).window_screen_id("playfieldscreenid"), "2")
         self.assertTrue(DisplayConfig.from_config(parser).cab_mode)
         self.assertEqual(VPinPlayConfig.from_config(parser).api_endpoint, "http://example.test")
         self.assertTrue(VPinPlayConfig.from_config(parser).sync_on_exit)
 
-    def test_display_config_preserves_empty_table_screen_for_window_discovery(self) -> None:
+    def test_display_config_preserves_empty_game_screen_for_window_discovery(self) -> None:
         parser = configparser.ConfigParser()
-        parser.read_dict({"Displays": {"tablescreenid": ""}})
+        parser.read_dict({"Displays": {"playfieldscreenid": ""}})
 
         display = DisplayConfig.from_config(parser)
 
-        self.assertEqual(display.table_screen_id, 0)
-        self.assertEqual(display.window_screen_id("tablescreenid"), "")
+        self.assertEqual(display.playfield_screen_id, 0)
+        self.assertEqual(display.window_screen_id("playfieldscreenid"), "")
 
     def test_settings_config_defaults_splashscreen_off(self) -> None:
         parser = configparser.ConfigParser()
@@ -226,19 +232,19 @@ class TestCommonArchitecture(unittest.TestCase):
 
     def test_media_paths_apply_and_payload_use_shared_specs(self) -> None:
         root = os.path.join(os.sep, "tmp", "Table")
-        table = SimpleNamespace(fullPathTable=root, TableImagePath=None, BGImagePath=None)
+        game = SimpleNamespace(fullPathGame=root, PlayfieldImagePath=None, BGImagePath=None)
 
         apply_media_paths(
-            table,
-            table_contents={"bg.png"},
+            game,
+            game_contents={"bg.png"},
             medias_contents={"fss.png"},
-            table_type="fss",
+            playfield_variant="fss",
         )
 
-        self.assertEqual(table.BGImagePath, os.path.join(root, "bg.png"))
-        self.assertEqual(table.TableImagePath, os.path.join(root, "medias", "fss.png"))
+        self.assertEqual(game.BGImagePath, os.path.join(root, "bg.png"))
+        self.assertEqual(game.PlayfieldImagePath, os.path.join(root, "medias", "fss.png"))
         self.assertEqual(media_filename_map("fss")["fss"], "fss.png")
-        self.assertEqual(table_media_payload(table)["TableImagePath"],
+        self.assertEqual(game_media_payload(game)["PlayfieldImagePath"],
                          os.path.join(root, "medias", "fss.png"))
 
     def test_job_reporter_wraps_log_and_progress_callbacks(self) -> None:
@@ -268,17 +274,17 @@ class TestCommonArchitecture(unittest.TestCase):
             without_b2s.mkdir()
             (without_b2s / "No B2S (Bally 1991).vpx").write_text("")
 
-            parser = TableParser(root)
-            by_name = {t.tableDirName: t for t in parser.getAllTables()}
+            parser = GameParser(root)
+            by_name = {t.gameDirName: t for t in parser.getAllGames()}
 
             self.assertTrue(by_name["With B2S (Bally 1990)"].b2sExists)
             self.assertFalse(by_name["No B2S (Bally 1991)"].b2sExists)
 
-            # table_to_row mirrors the flag for the UI
-            self.assertTrue(table_to_row(by_name["With B2S (Bally 1990)"])["b2s_exists"])
-            self.assertFalse(table_to_row(by_name["No B2S (Bally 1991)"])["b2s_exists"])
+            # game_to_row mirrors the flag for the UI
+            self.assertTrue(game_to_row(by_name["With B2S (Bally 1990)"])["b2s_exists"])
+            self.assertFalse(game_to_row(by_name["No B2S (Bally 1991)"])["b2s_exists"])
 
-    def test_constructing_a_tableparser_reads_each_table_once(self) -> None:
+    def test_constructing_a_gameparser_reads_each_game_once(self) -> None:
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             for name in ("A Table (Bally 1990)", "B Table (Bally 1991)"):
@@ -286,18 +292,18 @@ class TestCommonArchitecture(unittest.TestCase):
                 folder.mkdir()
                 (folder / f"{name}.vpx").write_text("")
 
-            real_build = TableParser._build_table
+            real_build = GameParser._build_game
             calls = []
 
-            def counting_build(self, table_dir):
-                calls.append(table_dir)
-                return real_build(self, table_dir)
+            def counting_build(self, game_dir):
+                calls.append(game_dir)
+                return real_build(self, game_dir)
 
-            with mock.patch.object(TableParser, "_build_table", counting_build):
-                parser = TableParser(root)
-                tables = parser.getAllTables()
+            with mock.patch.object(GameParser, "_build_game", counting_build):
+                parser = GameParser(root)
+                games = parser.getAllGames()
 
-            self.assertEqual(len(tables), 2)
+            self.assertEqual(len(games), 2)
             self.assertEqual(len(calls), 2, "the library was read more than once")
 
     def test_no_caller_reloads_a_freshly_constructed_tableparser(self) -> None:

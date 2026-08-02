@@ -25,11 +25,11 @@ _lock = threading.Lock()
 @dataclass(frozen=True)
 class LaunchState:
     launching: bool = False
-    table_name: str | None = None
+    game_name: str | None = None
     source: str | None = None
 
     def as_dict(self) -> dict:
-        return {"launching": self.launching, "table_name": self.table_name,
+        return {"launching": self.launching, "game_name": self.game_name,
                 "source": self.source}
 
 
@@ -58,13 +58,13 @@ def _replace(new_state: LaunchState) -> LaunchState:
     return new_state
 
 
-def set_launching(table_name: str | None, *, source: str) -> LaunchState:
-    """Record that a launch is starting, for which table, and who asked.
+def set_launching(game_name: str | None, *, source: str) -> LaunchState:
+    """Record that a launch is starting, for which game, and who asked.
 
     `source` is required rather than defaulted: a caller that does not say is a
     caller the frontend cannot tell apart from itself.
     """
-    return _replace(LaunchState(launching=True, table_name=table_name, source=source))
+    return _replace(LaunchState(launching=True, game_name=game_name, source=source))
 
 
 def clear() -> LaunchState:

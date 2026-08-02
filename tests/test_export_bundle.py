@@ -40,7 +40,7 @@ def _library(tmp) -> Path:
     (root / "table.nfo").write_text("notes", encoding="utf-8")
     (root / f"{FOLDER}.info").write_text(json.dumps({
         "Info": {"Title": "Cactus Canyon"},
-        "vpinfe": {"default_game_file": CHOSEN},
+        "vpinfe": {"default_table": CHOSEN},
         "assets": {"medias/wheel.png": {"source": {"host": "user"}},
                    "medias/bg.png": {"source": {"host": "vpinmediadb", "hash": "abc"}}},
     }), encoding="utf-8")
@@ -101,9 +101,9 @@ class BundleTests(unittest.TestCase):
         self.assertIn(OTHER, names)
         self.assertIn(str(Path("medias") / "wheel.png"), names)
 
-    def test_a_caller_may_pick_the_game_file(self) -> None:
+    def test_a_caller_may_pick_the_table(self) -> None:
         with TemporaryDirectory() as tmp:
-            names = self._names(_library(tmp), game_file=OTHER)
+            names = self._names(_library(tmp), table=OTHER)
 
         self.assertIn(OTHER, names)
         self.assertNotIn(CHOSEN, names)
@@ -138,14 +138,14 @@ class PrunedInfoTests(unittest.TestCase):
 class FullExportScopeTests(unittest.TestCase):
     def test_the_full_export_scope_is_reserved_and_granted_locally(self) -> None:
         """full=true carries its own permission, so a future token holding only
-        tables:read cannot pull whole folders. Local trust grants everything, so
+        games:read cannot pull whole folders. Local trust grants everything, so
         nothing changes for anyone today."""
         from httpapi import scopes
         from httpapi.auth import LocalTrustPolicy
 
-        self.assertIn(scopes.TABLES_EXPORT_FULL, scopes.CORE)
+        self.assertIn(scopes.GAMES_EXPORT_FULL, scopes.CORE)
         identity = LocalTrustPolicy().identify(None)
-        self.assertTrue(identity.can(scopes.TABLES_EXPORT_FULL))
+        self.assertTrue(identity.can(scopes.GAMES_EXPORT_FULL))
 
 
 class ArchiveTests(unittest.TestCase):

@@ -41,7 +41,7 @@ def cfg_int(source, section: str, key: str, fallback: int = 0) -> int:
 
 @dataclass(frozen=True)
 class SettingsConfig:
-    table_root_dir: str = ""
+    game_root_dir: str = ""
     assets_dir: str = ""
     vpx_bin_path: str = ""
     vpx_ini_path: str = ""
@@ -51,8 +51,8 @@ class SettingsConfig:
     startup_collection: str = ""
     auto_update_media_on_startup: bool = False
     global_ini_override: str = ""
-    global_table_ini_override_enabled: bool = False
-    global_table_ini_override_mask: str = ""
+    global_game_ini_override_enabled: bool = False
+    global_game_ini_override_mask: str = ""
     vpx_launch_env: str = ""
     mute_audio: bool = False
     splashscreen: bool = False
@@ -60,13 +60,13 @@ class SettingsConfig:
     disable_default_chrome_options: bool = False
     cab_mode: bool = False
     hide_quit_button: bool = False
-    restore_last_table: bool = True
+    restore_last_game: bool = True
 
     @classmethod
     def from_config(cls, source: Any) -> "SettingsConfig":
         theme = cfg_get(source, "Settings", "theme", "Revolution").strip() or "Revolution"
         return cls(
-            table_root_dir=cfg_get(source, "Settings", "tablerootdir", "").strip(),
+            game_root_dir=cfg_get(source, "Settings", "gamerootdir", "").strip(),
             assets_dir=cfg_get(source, "Settings", "assetsdir", "").strip(),
             vpx_bin_path=cfg_get(source, "Settings", "vpxbinpath", "").strip(),
             vpx_ini_path=cfg_get(source, "Settings", "vpxinipath", "").strip(),
@@ -76,8 +76,8 @@ class SettingsConfig:
             startup_collection=cfg_get(source, "Settings", "startup_collection", "").strip(),
             auto_update_media_on_startup=cfg_bool(source, "Settings", "autoupdatemediaonstartup", False),
             global_ini_override=cfg_get(source, "Settings", "globalinioverride", "").strip(),
-            global_table_ini_override_enabled=cfg_bool(source, "Settings", "globaltableinioverrideenabled", False),
-            global_table_ini_override_mask=cfg_get(source, "Settings", "globaltableinioverridemask", ""),
+            global_game_ini_override_enabled=cfg_bool(source, "Settings", "globaltableinioverrideenabled", False),
+            global_game_ini_override_mask=cfg_get(source, "Settings", "globaltableinioverridemask", ""),
             vpx_launch_env=cfg_get(source, "Settings", "vpxlaunchenv", ""),
             mute_audio=cfg_bool(source, "Settings", "muteaudio", False),
             splashscreen=cfg_bool(source, "Settings", "splashscreen", False),
@@ -85,16 +85,16 @@ class SettingsConfig:
             disable_default_chrome_options=cfg_bool(source, "Settings", "disabledefaultchromeoptions", False),
             cab_mode=cfg_bool(source, "Settings", "cabmode", False),
             hide_quit_button=cfg_bool(source, "Settings", "MMhideQuitButton", False),
-            restore_last_table=cfg_bool(source, "Settings", "restorelasttable", True),
+            restore_last_game=cfg_bool(source, "Settings", "restorelastgame", True),
         )
 
 
 @dataclass(frozen=True)
 class MediaConfig:
-    table_type: str = "table"
-    table_resolution: str = "4k"
-    table_video_resolution: str = "1k"
-    table_media_priority: str = "video"
+    playfield_variant: str = "table"
+    playfield_resolution: str = "4k"
+    playfield_video_resolution: str = "1k"
+    playfield_media_priority: str = "video"
     bg_media_priority: str = "video"
     dmd_media_priority: str = "video"
     realdmd_media_priority: str = "color"
@@ -104,10 +104,11 @@ class MediaConfig:
     def from_config(cls, source: Any) -> "MediaConfig":
         return cls(
             wheelset=cfg_get(source, "Media", "wheelset", "").strip(),
-            table_type=cfg_get(source, "Media", "tabletype", "table").strip().lower() or "table",
-            table_resolution=cfg_get(source, "Media", "tableresolution", "4k").strip().lower() or "4k",
-            table_video_resolution=cfg_get(source, "Media", "tablevideoresolution", "1k").strip().lower() or "1k",
-            table_media_priority=_media_priority(source, "tablemediapriority", ("image", "video"), "video"),
+            playfield_variant=(cfg_get(source, "Media", "playfieldvariant", "table").strip().lower()
+                            or "table"),
+            playfield_resolution=cfg_get(source, "Media", "playfieldresolution", "4k").strip().lower() or "4k",
+            playfield_video_resolution=cfg_get(source, "Media", "playfieldvideoresolution", "1k").strip().lower() or "1k",
+            playfield_media_priority=_media_priority(source, "playfieldmediapriority", ("image", "video"), "video"),
             bg_media_priority=_media_priority(source, "bgmediapriority", ("image", "video"), "video"),
             dmd_media_priority=_media_priority(source, "dmdmediapriority", ("image", "video"), "video"),
             realdmd_media_priority=_media_priority(source, "realdmdmediapriority", ("standard", "color"), "color"),
@@ -115,7 +116,7 @@ class MediaConfig:
 
     def priority_payload(self) -> dict[str, str]:
         return {
-            "table": self.table_media_priority,
+            "table": self.playfield_media_priority,
             "bg": self.bg_media_priority,
             "dmd": self.dmd_media_priority,
             "realdmd": self.realdmd_media_priority,
@@ -155,24 +156,24 @@ class NetworkConfig:
 
 @dataclass(frozen=True)
 class DisplayConfig:
-    table_screen_id: int = 0
-    table_screen_id_raw: str = "0"
+    playfield_screen_id: int = 0
+    playfield_screen_id_raw: str = "0"
     bg_screen_id: str = ""
     dmd_screen_id: str = ""
-    table_orientation: str = "landscape"
-    table_rotation: int = 0
+    playfield_orientation: str = "landscape"
+    playfield_rotation: int = 0
     cab_mode: bool = False
 
     @classmethod
     def from_config(cls, source: Any) -> "DisplayConfig":
-        table_screen_id_raw = cfg_get(source, "Displays", "tablescreenid", "0").strip()
+        playfield_screen_id_raw = cfg_get(source, "Displays", "playfieldscreenid", "0").strip()
         return cls(
-            table_screen_id=cfg_int(source, "Displays", "tablescreenid", 0),
-            table_screen_id_raw=table_screen_id_raw,
+            playfield_screen_id=cfg_int(source, "Displays", "playfieldscreenid", 0),
+            playfield_screen_id_raw=playfield_screen_id_raw,
             bg_screen_id=cfg_get(source, "Displays", "bgscreenid", "").strip(),
             dmd_screen_id=cfg_get(source, "Displays", "dmdscreenid", "").strip(),
-            table_orientation=cfg_get(source, "Displays", "tableorientation", "landscape"),
-            table_rotation=cfg_int(source, "Displays", "tablerotation", 0),
+            playfield_orientation=cfg_get(source, "Displays", "playfieldorientation", "landscape"),
+            playfield_rotation=cfg_int(source, "Displays", "playfieldrotation", 0),
             cab_mode=cfg_bool(source, "Displays", "cabmode", SettingsConfig.from_config(source).cab_mode),
         )
 
@@ -181,8 +182,8 @@ class DisplayConfig:
             return self.bg_screen_id
         if config_key == "dmdscreenid":
             return self.dmd_screen_id
-        if config_key == "tablescreenid":
-            return self.table_screen_id_raw
+        if config_key == "playfieldscreenid":
+            return self.playfield_screen_id_raw
         return ""
 
 

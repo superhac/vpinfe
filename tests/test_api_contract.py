@@ -1,9 +1,9 @@
-"""Pins the HTTP behaviour every in-repo consumer depends on.
+"""Pins the HTTP behavior every in-repo consumer depends on.
 
 The drag-and-drop client, the theme frontend's remote-launch poll and the mobile
 page's download link all speak to these routes, so a change here is a change a
 user can see. Endpoints keep their entry once they move under /api/v1, which is
-what makes a move provably behaviour-preserving.
+what makes a move provably behavior-preserving.
 
 Runs the app in a subprocess with a throwaway config dir: common.paths resolves
 CONFIG_DIR at import time, so isolation is only reliable in a fresh interpreter.
@@ -25,31 +25,31 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 def _run_probe() -> dict:
     with TemporaryDirectory() as tmp:
         config_dir = Path(tmp) / "config"
-        tables_dir = Path(tmp) / "tables"
-        table = tables_dir / "Example Table (Bally 1990)"
-        table.mkdir(parents=True)
-        (table / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
+        games_dir = Path(tmp) / "games"
+        game = games_dir / "Example Table (Bally 1990)"
+        game.mkdir(parents=True)
+        (game / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
         # Assets the parser should find: a backglass, a per-table ini, a ROM and music.
-        (table / "Example Table (Bally 1990).directb2s").write_bytes(b"b2s")
-        (table / "Example Table (Bally 1990).ini").write_text("[Standalone]", encoding="utf-8")
-        (table / "pinmame" / "roms").mkdir(parents=True)
-        (table / "pinmame" / "roms" / "exmpl.zip").write_bytes(b"rom")
-        (table / "music").mkdir()
-        (table / "music" / "theme.mp3").write_bytes(b"music")
+        (game / "Example Table (Bally 1990).directb2s").write_bytes(b"b2s")
+        (game / "Example Table (Bally 1990).ini").write_text("[Standalone]", encoding="utf-8")
+        (game / "pinmame" / "roms").mkdir(parents=True)
+        (game / "pinmame" / "roms" / "exmpl.zip").write_bytes(b"rom")
+        (game / "music").mkdir()
+        (game / "music" / "theme.mp3").write_bytes(b"music")
         # Media: one canonical, one root-fallback, most kinds absent.
-        (table / "medias").mkdir()
-        (table / "medias" / "wheel.png").write_bytes(b"\x89PNG wheel")
-        (table / "bg.png").write_bytes(b"\x89PNG bg at root")
-        (table / "Example Table (Bally 1990).info").write_text(json.dumps({
+        (game / "medias").mkdir()
+        (game / "medias" / "wheel.png").write_bytes(b"\x89PNG wheel")
+        (game / "bg.png").write_bytes(b"\x89PNG bg at root")
+        (game / "Example Table (Bally 1990).info").write_text(json.dumps({
             "Info": {"Title": "Example Table", "Manufacturer": "Bally", "Year": "1990",
                      "Type": "SS", "VPSId": "vps-example"},
-            "game_files": {"Example Table (Bally 1990).vpx": {"rom": "exmpl",
+            "tables": {"Example Table (Bally 1990).vpx": {"rom": "exmpl",
                                                             "detect_pinmame": True}},
             "User": {"Rating": 3},
         }), encoding="utf-8")
 
-        # A folder holding several .vpx, plus a .vbs that is not a game file.
-        multi = tables_dir / "Multi File (Bally 1991)"
+        # A folder holding several .vpx, plus a .vbs that is not a table.
+        multi = games_dir / "Multi File (Bally 1991)"
         multi.mkdir()
         for name in ("Multi File (Bally 1991).vpx", "Multi File (Bally 1991) - alt.vpx",
                      "Multi File (Bally 1991) - VPW.vpx"):
@@ -57,7 +57,7 @@ def _run_probe() -> dict:
         (multi / "Multi File (Bally 1991).vbs").write_text("' sidecar", encoding="utf-8")
         (multi / "Multi File (Bally 1991).info").write_text(json.dumps({
             "Info": {"Title": "Multi File", "VPSId": "vps-multi"},
-            "game_files": {
+            "tables": {
                 "Multi File (Bally 1991).vpx": {"rom": "multi"},
                 # Recorded but never parsed: a patched build knows where it came from
                 # before anything has opened it.
@@ -71,12 +71,12 @@ def _run_probe() -> dict:
         }), encoding="utf-8")
 
         # .info names a .vpx that is not on disk.
-        mismatch = tables_dir / "Mismatch (Bally 1992)"
+        mismatch = games_dir / "Mismatch (Bally 1992)"
         mismatch.mkdir()
         (mismatch / "Mismatch (Bally 1992).vpx").write_bytes(b"vpx")
         (mismatch / "Mismatch (Bally 1992).info").write_text(json.dumps({
             "Info": {"Title": "Mismatch", "VPSId": "vps-mismatch"},
-            "game_files": {"does-not-exist.vpx": {"rom": "gone"}},
+            "tables": {"does-not-exist.vpx": {"rom": "gone"}},
         }), encoding="utf-8")
 
         env = dict(os.environ)
@@ -85,7 +85,7 @@ def _run_probe() -> dict:
 
         config_dir.mkdir(parents=True)
         (config_dir / "vpinfe.ini").write_text(
-            f"[Settings]\ntablerootdir = {tables_dir}\n", encoding="utf-8")
+            f"[Settings]\ngamerootdir = {games_dir}\n", encoding="utf-8")
 
         proc = subprocess.run(
             [sys.executable, "-m", "tests.api_probe"],
@@ -99,7 +99,7 @@ def _run_probe() -> dict:
 
 
 class ApiContractTests(unittest.TestCase):
-    """Each assertion describes behaviour a consumer relies on. A failure after a
+    """Each assertion describes behavior a consumer relies on. A failure after a
     route move means the move changed something visible."""
 
     @classmethod
@@ -115,7 +115,7 @@ class ApiContractTests(unittest.TestCase):
 
         self.assertEqual(entry["status"], 200)
         self.assertEqual(entry["json"],
-                         {"launching": False, "table_name": None, "source": None})
+                         {"launching": False, "game_name": None, "source": None})
         self.assertEqual(entry["cors"], "*", "themes call this from another origin")
         # Same-origin callers get no CORS header, which is correct and not a regression:
         # the header only has meaning in a cross-origin response.
@@ -134,10 +134,10 @@ class ApiContractTests(unittest.TestCase):
         cleared = self.probe["play_state_cleared"]["json"]
 
         self.assertEqual(launching, {"launching": True,
-                                     "table_name": "Medieval Madness (Williams 1997)",
+                                     "game_name": "Medieval Madness (Williams 1997)",
                                      "source": "remote"})
         self.assertEqual(cleared,
-                         {"launching": False, "table_name": None, "source": None})
+                         {"launching": False, "game_name": None, "source": None})
 
     def test_launch_refuses_before_it_starts_anything(self) -> None:
         """Every refusal is answered synchronously. A launch that returns 202 and
@@ -147,7 +147,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(no_launcher["json"]["error"]["code"], "feature_unavailable")
         self.assertIn("vpxbinpath", no_launcher["json"]["error"]["message"])
 
-    def test_launch_rejects_a_game_file_the_table_does_not_have(self) -> None:
+    def test_launch_rejects_a_table_the_game_does_not_have(self) -> None:
         entry = self.probe["launch_unknown_file"]
 
         self.assertEqual(entry["status"], 400)
@@ -160,26 +160,26 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(entry["status"], 409)
         self.assertEqual(entry["json"]["error"]["code"], "conflict")
 
-    def test_launch_of_an_unknown_table_is_a_not_found(self) -> None:
+    def test_launch_of_an_unknown_game_is_a_not_found(self) -> None:
         entry = self.probe["launch_unknown_table"]
 
         self.assertEqual(entry["status"], 404)
         self.assertEqual(entry["json"]["error"]["code"], "not_found")
 
-    def test_a_table_reports_its_assets_not_its_media(self) -> None:
-        """Assets are what the table needs to play; media is the artwork shown
+    def test_a_game_reports_its_assets_not_its_media(self) -> None:
+        """Assets are what the game needs to play; media is the artwork shown
         while browsing - see docs/conventions.md. The detail endpoint is the
         inventory lens: every kind, files attributed."""
-        table = self.probe["table_get"]["json"]
+        game = self.probe["table_get"]["json"]
 
-        self.assertIn("assets", table)
-        self.assertNotIn("media", table, "these were mislabelled as media")
-        self.assertEqual(set(table["assets"]),
+        self.assertIn("assets", game)
+        self.assertNotIn("media", game, "these were mislabelled as media")
+        self.assertEqual(set(game["assets"]),
                          {"backglass", "settings", "script", "pov", "scv",
                           "pup_pack", "alt_color", "alt_sound", "music"})
 
     def test_assets_present_in_the_folder_are_reported(self) -> None:
-        """The fixture table ships a backglass, a per-table ini and music."""
+        """The fixture game ships a backglass, a per-table ini and music."""
         assets = self.probe["table_get"]["json"]["assets"]
 
         self.assertTrue(assets["backglass"]["present"])
@@ -189,9 +189,9 @@ class ApiContractTests(unittest.TestCase):
         # The inventory lens attributes each file to the build it serves.
         self.assertEqual(assets["backglass"]["files"][0]["binding"], "dedicated")
 
-    def test_a_game_file_reports_what_it_would_use_on_launch(self) -> None:
-        """The launch lens: resolved assets and the pinmame chain, per game file."""
-        entry = self.probe["table_files"]["json"]["game_files"][0]
+    def test_a_table_reports_what_it_would_use_on_launch(self) -> None:
+        """The launch lens: resolved assets and the pinmame chain, per table."""
+        entry = self.probe["table_files"]["json"]["tables"][0]
 
         self.assertEqual(entry["assets"]["backglass"]["resolution"], "dedicated")
         self.assertEqual(entry["assets"]["settings"]["resolution"], "dedicated")
@@ -206,7 +206,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertTrue(chain["required"], "the fixture's metadata says the script drives pinmame")
         self.assertFalse(chain["nvram"]["present"], "nothing has been played")
 
-    def test_an_unparsed_game_file_gets_an_honest_unknown_rom(self) -> None:
+    def test_an_unparsed_table_gets_an_honest_unknown_rom(self) -> None:
         """Every build answers for itself now. One that has not been parsed says so
         rather than inheriting the ROM of one that has.
 
@@ -214,7 +214,7 @@ class ApiContractTests(unittest.TestCase):
         VPW build records where it was patched from, and an entry existing is not the
         same as the file having been read. "No rom declared" is a claim about the
         build; "not parsed yet" is the truth about our knowledge of it."""
-        entries = self.probe["multi_file_files"]["json"]["game_files"]
+        entries = self.probe["multi_file_files"]["json"]["tables"]
         by_name = {e["filename"]: e for e in entries}
 
         described = by_name["Multi File (Bally 1991).vpx"]["dependencies"]["pinmame"]
@@ -233,13 +233,13 @@ class ApiContractTests(unittest.TestCase):
         """A declared ROM name may be a PinMAME dependency or just a DOF key. Until
         the two can be told apart, "no ROM file" would read as broken on every EM
         table, which is most of the ones that declare a name."""
-        table = self.probe["table_get"]["json"]
+        game = self.probe["table_get"]["json"]
 
-        self.assertNotIn("rom", table["assets"])
-        self.assertIn("rom", table, "the declared name is still metadata on the table")
+        self.assertNotIn("rom", game["assets"])
+        self.assertIn("rom", game, "the declared name is still metadata on the table")
 
     def test_media_lists_every_kind_present_or_not(self) -> None:
-        """Media is the artwork about a table - exactly the media_paths kinds. A
+        """Media is the artwork about a game - exactly the media_paths kinds. A
         client enumerates what is possible instead of guessing from omissions."""
         media = self.probe["media_list"]["json"]["media"]
 
@@ -271,33 +271,33 @@ class ApiContractTests(unittest.TestCase):
     def test_the_old_remote_launch_route_is_gone(self) -> None:
         self.assertGreaterEqual(self.probe["legacy_remote_launch_gone"]["status"], 400)
 
-    # --- tables, and the archive that used to be /api/download-table-vpxz -----
+    # --- games, and the archive that used to be /api/download-table-vpxz -----
 
-    def test_listing_tables_returns_addressable_resources(self) -> None:
+    def test_listing_games_returns_addressable_resources(self) -> None:
         entry = self.probe["tables_list"]
 
         self.assertEqual(entry["status"], 200)
         body = entry["json"]
         self.assertEqual(body["total"], 3)
-        table = [t for t in body["tables"] if t["name"] == "Example Table"][0]
-        self.assertTrue(table["id"], "every listed table is addressable")
-        self.assertEqual(table["vps_id"], "vps-example", "correlation, not identity")
-        self.assertEqual(table["name"], "Example Table")
+        game = [t for t in body["games"] if t["name"] == "Example Table"][0]
+        self.assertTrue(game["id"], "every listed table is addressable")
+        self.assertEqual(game["vps_id"], "vps-example", "correlation, not identity")
+        self.assertEqual(game["name"], "Example Table")
 
-    def test_a_table_resource_links_to_its_sub_resources(self) -> None:
-        table = self.probe["table_get"]["json"]
+    def test_a_game_resource_links_to_its_sub_resources(self) -> None:
+        game = self.probe["table_get"]["json"]
 
         self.assertEqual(self.probe["table_get"]["status"], 200)
-        self.assertEqual(table["links"]["game_files"],
-                         f"/api/v1/tables/{table['id']}/game-files")
-        self.assertEqual(table["links"]["archive"], f"/api/v1/tables/{table['id']}/archive")
+        self.assertEqual(game["links"]["tables"],
+                         f"/api/v1/games/{game['id']}/tables")
+        self.assertEqual(game["links"]["archive"], f"/api/v1/games/{game['id']}/archive")
 
-    def test_game_files_are_a_list_even_though_there_is_one_today(self) -> None:
-        """A table is not permanently one .vpx; the shape says so now."""
+    def test_tables_are_a_list_even_though_there_is_one_today(self) -> None:
+        """A game is not permanently one .vpx; the shape says so now."""
         entry = self.probe["table_files"]
 
         self.assertEqual(entry["status"], 200)
-        files = entry["json"]["game_files"]
+        files = entry["json"]["tables"]
         self.assertEqual(len(files), 1)
         self.assertEqual(files[0]["format"], "vpx")
         self.assertTrue(files[0]["default"])
@@ -314,8 +314,8 @@ class ApiContractTests(unittest.TestCase):
         self.assertGreater(entry["bytes"], 0)
 
     def test_a_folder_with_several_vpx_reports_all_of_them(self) -> None:
-        """A table folder can hold more than one .vpx, and .vbs is not a game file."""
-        files = self.probe["multi_file_files"]["json"]["game_files"]
+        """A game folder can hold more than one .vpx, and .vbs is not a table."""
+        files = self.probe["multi_file_files"]["json"]["tables"]
 
         names = [f["filename"] for f in files]
         self.assertEqual(names, sorted(names, key=str.lower), "order must not depend on the disk")
@@ -327,7 +327,7 @@ class ApiContractTests(unittest.TestCase):
 
     def test_a_recorded_file_that_is_missing_is_reported_but_not_the_default(self) -> None:
         """Reporting it matters; pointing a caller at it to launch does not."""
-        files = self.probe["mismatch_files"]["json"]["game_files"]
+        files = self.probe["mismatch_files"]["json"]["tables"]
 
         by_name = {f["filename"]: f for f in files}
         self.assertFalse(by_name["does-not-exist.vpx"]["available"])
@@ -335,7 +335,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertTrue(by_name["Mismatch (Bally 1992).vpx"]["available"])
         self.assertTrue(by_name["Mismatch (Bally 1992).vpx"]["default"])
 
-    def test_an_unknown_table_is_a_404_in_the_envelope(self) -> None:
+    def test_an_unknown_game_is_a_404_in_the_envelope(self) -> None:
         for key in ("table_unknown", "archive_unknown"):
             with self.subTest(endpoint=key):
                 entry = self.probe[key]
@@ -396,6 +396,69 @@ class ApiContractTests(unittest.TestCase):
                 continue  # NiceGUI's own 404s, and the file downloads
             with self.subTest(endpoint=name):
                 self.assertEqual(entry["content_type"], "application/json")
+
+
+class HandlerKeysMatchTheModelsTests(unittest.TestCase):
+    """A handler that builds its response as a dict literal must use the field names
+    its response model declares.
+
+    Four endpoints shipped broken because the vocabulary rename moved model fields and
+    dataclass attributes - both identifiers - and left the dict keys, which are strings
+    the codemod never sees. `{"has_table": analysis.has_game}` reads fine and returns a
+    500, because FastAPI validates the return against the annotation. Three did exactly
+    that; the fourth silently dropped a filter.
+
+    So this checks the shape of the mistake rather than the four instances: a key no
+    model declares, whose table/game counterpart one does.
+    """
+
+    def test_a_handler_returning_a_dict_uses_its_models_field_names(self) -> None:
+        import ast
+
+        from httpapi import models
+
+        def dict_keys(node):
+            return {k.value for k in node.keys
+                    if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+
+        offenders = []
+        for path in sorted((Path(__file__).resolve().parent.parent / "httpapi").glob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            functions = [n for n in ast.walk(tree)
+                         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+
+            # Helpers like _plan_to_dict build the payload the endpoint returns, so the
+            # keys are one call away from the annotation that validates them.
+            builders = {fn.name: {key for ret in ast.walk(fn)
+                                  if isinstance(ret, ast.Return)
+                                  and isinstance(ret.value, ast.Dict)
+                                  for key in dict_keys(ret.value)}
+                        for fn in functions}
+
+            for fn in functions:
+                ann = fn.returns
+                if not (isinstance(ann, ast.Attribute) and isinstance(ann.value, ast.Name)
+                        and ann.value.id == "models"):
+                    continue
+                model = getattr(models, ann.attr, None)
+                if model is None or not hasattr(model, "model_fields"):
+                    continue
+                declared = set(model.model_fields)
+
+                emitted = set()
+                for ret in ast.walk(fn):
+                    if not isinstance(ret, ast.Return):
+                        continue
+                    if isinstance(ret.value, ast.Dict):
+                        emitted |= dict_keys(ret.value)
+                    elif isinstance(ret.value, ast.Call) and isinstance(ret.value.func, ast.Name):
+                        emitted |= builders.get(ret.value.func.id, set())
+
+                for key in sorted(emitted - declared):
+                    offenders.append(f"{path.name}:{fn.name} returns {key!r}, "
+                                     f"but {ann.attr} declares {sorted(declared)}")
+
+        self.assertEqual(offenders, [], "\n".join(offenders))
 
 
 if __name__ == "__main__":

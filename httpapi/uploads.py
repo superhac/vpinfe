@@ -55,7 +55,7 @@ def _analysis_to_dict(analysis: AnalysisResult) -> dict:
     return {
         "source_kind": analysis.source_kind,
         "source_name": analysis.source_name,
-        "has_table": analysis.has_table,
+        "has_game": analysis.has_game,
         "assets": [_asset_to_dict(a) for a in analysis.assets],
         "notes": list(analysis.notes),
         "error": analysis.error,
@@ -66,8 +66,8 @@ def _analysis_to_dict(analysis: AnalysisResult) -> dict:
 
 def _plan_to_dict(plan: ImportPlan) -> dict:
     return {
-        "table_path": plan.table_path,
-        "new_table_dir_name": plan.new_table_dir_name,
+        "game_path": plan.game_path,
+        "new_game_dir_name": plan.new_game_dir_name,
         "rom_name": plan.rom_name,
         "items": [
             {
@@ -164,11 +164,11 @@ def plan_upload(upload_id: str,
     vps_entry = _vps_entry(payload.vps_id)
     plan = build_import_plan(
         analysis,
-        table_path=payload.table_path,
+        game_path=payload.game_path,
         rom_name=payload.rom_name,
-        allow_new_table=payload.allow_new_table,
+        allow_new_game=payload.allow_new_game,
     )
-    if vps_entry is not None and plan.new_table_dir_name:
+    if vps_entry is not None and plan.new_game_dir_name:
         plan = select_plan_items(plan, None, vps_folder_name(vps_entry))
     return _plan_to_dict(plan)
 
@@ -182,15 +182,15 @@ def import_upload(upload_id: str,
     vps_entry = _vps_entry(payload.vps_id)
     plan = build_import_plan(
         analysis,
-        table_path=payload.table_path,
+        game_path=payload.game_path,
         rom_name=payload.rom_name,
-        allow_new_table=payload.allow_new_table,
+        allow_new_game=payload.allow_new_game,
     )
-    if vps_entry is not None and not plan.new_table_dir_name:
-        raise InvalidRequestError("vps_id only applies to new-table imports")
+    if vps_entry is not None and not plan.new_game_dir_name:
+        raise InvalidRequestError("vps_id only applies to new-game imports")
 
-    # Folder naming precedence: explicit new_table_dir_name > VPS-derived > vpx stem.
-    new_name = payload.new_table_dir_name
+    # Folder naming precedence: explicit new_game_dir_name > VPS-derived > vpx stem.
+    new_name = payload.new_game_dir_name
     if new_name is None and vps_entry is not None:
         new_name = vps_folder_name(vps_entry)
     try:
@@ -211,12 +211,12 @@ def import_upload(upload_id: str,
 
     if vps_entry is not None and report.get("new_table"):
         # Files are on disk; association failure is reported, not fatal.
-        from managerui.services.table_service import associate_vps_to_folder, build_metadata
+        from managerui.services.game_service import associate_vps_to_folder, build_metadata
 
         try:
             associate_vps_to_folder(Path(report["table_path"]), vps_entry, True)
             build_metadata(downloadMedia=True, updateAll=True,
-                           tableName=Path(report["table_path"]).name)
+                           gameName=Path(report["table_path"]).name)
             report["vps_associated"] = True
         except Exception as exc:
             logger.exception("VPS association failed after import")
@@ -227,7 +227,7 @@ def import_upload(upload_id: str,
 
 @vps_router.get("/search", summary="Search VPSdb", dependencies=[requires(scopes.VPS_READ)])
 def search_vps(q: str = "", limit: int = 20) -> models.VpsSearchResults:
-    from managerui.services.table_service import search_vpsdb
+    from managerui.services.game_service import search_vpsdb
 
     return {
         "results": [

@@ -7,10 +7,9 @@ import requests
 
 from common.app_version import get_version
 from common.config_access import SettingsConfig, VPinPlayConfig
-from common.tables.table_metadata import default_game_file, normalize_rating, vpinfe_section
-from common.tables.tableparser import TableParser
+from common.games.game_metadata import default_table, normalize_rating, vpinfe_section
+from common.games.gameparser import GameParser
 from common.timestamps import utc_now_iso
-
 
 logger = logging.getLogger("vpinfe.common.online.vpinplay_service")
 
@@ -52,8 +51,8 @@ def _normalize_service_endpoint(service_ip: str) -> str:
     return f"{base}/api/v1/sync"
 
 
-def _build_table_payload(meta: dict) -> dict | None:
-    """One table in the shape the VPinPlay service accepts.
+def _build_game_payload(meta: dict) -> dict | None:
+    """One game in the shape the VPinPlay service accepts.
 
     This is an adapter, and the only place the service's vocabulary belongs: every key
     and every bound here is theirs, read from a value that is ours. Their models reject
@@ -61,7 +60,7 @@ def _build_table_payload(meta: dict) -> dict | None:
     """
     info = meta.get("Info", {}) if isinstance(meta.get("Info"), dict) else {}
     user = meta.get("User", {}) if isinstance(meta.get("User"), dict) else {}
-    gf_name, vpx = default_game_file(meta)
+    gf_name, vpx = default_table(meta)
     vpinfe = vpinfe_section(meta)
 
     vps_id = str(info.get("VPSId", "") or "").strip()
@@ -74,7 +73,7 @@ def _build_table_payload(meta: dict) -> dict | None:
             "rom": str(vpx.get("rom", "") or ""),
         },
         "user": {
-            # Their bound is 0-5, and one table outside it fails the whole request.
+            # Their bound is 0-5, and one game outside it fails the whole request.
             "rating": normalize_rating(user.get("Rating", 0)),
             "lastRun": _normalize_last_run(user.get("LastRun")),
             "startCount": _to_int(user.get("StartCount", 0), default=0),
@@ -111,7 +110,7 @@ def _build_table_payload(meta: dict) -> dict | None:
     }
 
 
-def _build_sync_payload(user_id: str, initials: str, machine_id: str, tables: list[dict]) -> dict:
+def _build_sync_payload(user_id: str, initials: str, machine_id: str, games: list[dict]) -> dict:
     return {
         "source": {
             "program": "VPinFE",
@@ -123,7 +122,7 @@ def _build_sync_payload(user_id: str, initials: str, machine_id: str, tables: li
             "machineId": machine_id,
         },
         "sentAt": utc_now_iso(),
-        "tables": tables,
+        "games": games,
     }
 
 
@@ -146,19 +145,19 @@ def _post_sync_payload(endpoint: str, payload: dict, timeout_seconds: int) -> di
     }
 
 
-def sync_installed_tables(
+def sync_installed_games(
     service_ip: str,
     user_id: str,
     initials: str,
     machine_id: str,
-    table_root_dir: str,
+    game_root_dir: str,
     timeout_seconds: int = 30,
 ) -> dict:
     endpoint = _normalize_service_endpoint(service_ip)
     user_id = str(user_id or "").strip()
     initials = str(initials or "").strip()
     machine_id = str(machine_id or "").strip()
-    table_root_dir = str(table_root_dir or "").strip()
+    game_root_dir = str(game_root_dir or "").strip()
 
     if not user_id:
         raise ValueError("User ID is required.")
@@ -166,31 +165,31 @@ def sync_installed_tables(
         raise ValueError("Initials is required.")
     if not machine_id:
         raise ValueError("Machine ID is required.")
-    if not table_root_dir:
+    if not game_root_dir:
         raise ValueError("Tables Directory is required.")
 
-    table_root = Path(table_root_dir)
-    if not table_root.exists() or not table_root.is_dir():
-        raise ValueError(f"Tables Directory does not exist: {table_root_dir}")
+    game_root = Path(game_root_dir)
+    if not game_root.exists() or not game_root.is_dir():
+        raise ValueError(f"Tables Directory does not exist: {game_root_dir}")
 
-    parser = TableParser(table_root_dir)
-    tables = parser.getAllTables()
+    parser = GameParser(game_root_dir)
+    games = parser.getAllGames()
 
-    payload_tables = []
+    payload_games = []
     skipped = 0
-    for table in tables:
-        meta = table.metaConfig if isinstance(table.metaConfig, dict) else {}
-        table_payload = _build_table_payload(meta)
-        if table_payload is None:
+    for game in games:
+        meta = game.metaConfig if isinstance(game.metaConfig, dict) else {}
+        game_payload = _build_game_payload(meta)
+        if game_payload is None:
             skipped += 1
             continue
-        payload_tables.append(table_payload)
+        payload_games.append(game_payload)
 
-    payload = _build_sync_payload(user_id, initials, machine_id, payload_tables)
+    payload = _build_sync_payload(user_id, initials, machine_id, payload_games)
 
     logger.info(
         "Syncing %s table(s) to %s for user=%s (skipped=%s)",
-        len(payload_tables),
+        len(payload_games),
         endpoint,
         user_id,
         skipped,
@@ -199,19 +198,19 @@ def sync_installed_tables(
     post_result = _post_sync_payload(endpoint, payload, timeout_seconds)
 
     return {
-        "tables_scanned": len(tables),
-        "tables_sent": len(payload_tables),
-        "tables_skipped": skipped,
+        "games_scanned": len(games),
+        "games_sent": len(payload_games),
+        "games_skipped": skipped,
         **post_result,
     }
 
 
-def sync_single_table_meta(
+def sync_single_game_meta(
     service_ip: str,
     user_id: str,
     initials: str,
     machine_id: str,
-    table_meta: dict,
+    game_meta: dict,
     timeout_seconds: int = 30,
 ) -> dict:
     endpoint = _normalize_service_endpoint(service_ip)
@@ -225,20 +224,20 @@ def sync_single_table_meta(
         raise ValueError("Initials is required.")
     if not machine_id:
         raise ValueError("Machine ID is required.")
-    if not isinstance(table_meta, dict):
+    if not isinstance(game_meta, dict):
         raise ValueError("Table metadata is required.")
 
-    table_payload = _build_table_payload(table_meta)
-    if table_payload is None:
+    game_payload = _build_game_payload(game_meta)
+    if game_payload is None:
         raise ValueError("Table metadata is missing VPSId.")
 
-    payload = _build_sync_payload(user_id, initials, machine_id, [table_payload])
+    payload = _build_sync_payload(user_id, initials, machine_id, [game_payload])
     logger.info("Syncing alternate VPinPlay payload for user=%s to %s", user_id, endpoint)
     result = _post_sync_payload(endpoint, payload, timeout_seconds)
     return {
-        "tables_scanned": 1,
-        "tables_sent": 1,
-        "tables_skipped": 0,
+        "games_scanned": 1,
+        "games_sent": 1,
+        "games_skipped": 0,
         **result,
     }
 
@@ -265,34 +264,34 @@ def sync_on_shutdown(iniconfig, timeout_seconds: int = 10) -> dict | None:
     user_id = vpinplay.user_id
     initials = vpinplay.initials
     machine_id = vpinplay.machine_id
-    table_root_dir = settings.table_root_dir
+    game_root_dir = settings.game_root_dir
 
-    if not service_ip or not user_id or not initials or not machine_id or not table_root_dir:
+    if not service_ip or not user_id or not initials or not machine_id or not game_root_dir:
         logger.warning(
             "Skipping VPinPlay shutdown sync: missing required settings "
-            "(apiendpoint=%s, userid=%s, initials=%s, machineid=%s, tablerootdir=%s).",
+            "(apiendpoint=%s, userid=%s, initials=%s, machineid=%s, gamerootdir=%s).",
             bool(service_ip),
             bool(user_id),
             bool(initials),
             bool(machine_id),
-            bool(table_root_dir),
+            bool(game_root_dir),
         )
         return None
 
     try:
-        result = sync_installed_tables(
+        result = sync_installed_games(
             service_ip=service_ip,
             user_id=user_id,
             initials=initials,
             machine_id=machine_id,
-            table_root_dir=table_root_dir,
+            game_root_dir=game_root_dir,
             timeout_seconds=timeout_seconds,
         )
         logger.info(
             "VPinPlay shutdown sync complete: status=%s sent=%s skipped=%s",
             result.get("status_code"),
-            result.get("tables_sent"),
-            result.get("tables_skipped"),
+            result.get("games_sent"),
+            result.get("games_skipped"),
         )
         if not result.get("ok"):
             logger.warning("VPinPlay shutdown sync failed response: %s", result.get("response_body"))

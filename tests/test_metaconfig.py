@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.tables.metaconfig import (
+from common.games.metaconfig import (
     CURRENT_VPINFE_SCHEMA,
     InvalidMetaConfigError,
     MetaConfig,
@@ -40,7 +40,7 @@ class TestMetaConfig(unittest.TestCase):
                     "vbs_hash": "vbshash",
                     "rom": "example",
                     "author_name": "Author One, Author Two",
-                    "table_blurb": "Line 1\nLine 2",
+                    "game_blurb": "Line 1\nLine 2",
                     "detect_nfozzy": False,
                     "detect_fleep": False,
                     "detect_ssf": True,
@@ -59,7 +59,7 @@ class TestMetaConfig(unittest.TestCase):
             info_path.write_text(
                 json.dumps(
                     {
-                        "game_files": {
+                        "tables": {
                             "Example Table.vpx": {"file_hash": "old-filehash"},
                         },
                         "vpinfe": {
@@ -86,7 +86,7 @@ class TestMetaConfig(unittest.TestCase):
             info_path.write_text(
                 json.dumps(
                     {
-                        "game_files": {
+                        "tables": {
                             "Example Table.vpx": {"file_hash": "same-filehash"},
                         },
                         "vpinfe": {
@@ -179,7 +179,7 @@ class TestMetaConfig(unittest.TestCase):
             info_path.write_text(
                 json.dumps(
                     {
-                        "game_files": {
+                        "tables": {
                             "Example Table.vpx": {"file_hash": "old-filehash"},
                         },
                         "ThirdParty": {
@@ -251,7 +251,7 @@ class VPinFESchemaTests(unittest.TestCase):
         """Running an older build must not downgrade or strip a newer file."""
         future = {"schema": CURRENT_VPINFE_SCHEMA + 5, "somethingNew": "keep me"}
 
-        with self.assertLogs("vpinfe.common.tables.metaconfig", level="WARNING"):
+        with self.assertLogs("vpinfe.common.games.metaconfig", level="WARNING"):
             migrated = migrate_vpinfe_section(dict(future))
 
         self.assertEqual(migrated, future)
@@ -285,7 +285,7 @@ class VPinFESchemaTests(unittest.TestCase):
         TestMetaConfig()._write_meta(info)
         saved = json.loads(info.read_text(encoding="utf-8"))
 
-        for name in ("Info", "User", "game_files", "assets"):
+        for name in ("Info", "User", "tables", "assets"):
             self.assertNotIn("schema", saved.get(name, {}),
                              f"{name} is not ours alone; it stays shape-driven")
 
@@ -306,7 +306,7 @@ class PatchSourceTests(unittest.TestCase):
 
     def _source(self, filename: str = "Example Table VPW Mod.vpx") -> dict:
         saved = json.loads(self.info.read_text(encoding="utf-8"))
-        return saved["game_files"][filename]["source"]
+        return saved["tables"][filename]["source"]
 
     def test_the_base_is_named_and_hashed(self) -> None:
         meta = MetaConfig(str(self.info))
@@ -380,7 +380,7 @@ class AssetLedgerTests(unittest.TestCase):
         self.assertEqual(self._saved()["medias/bg.png"], {"source": {"host": "user"}})
 
     def test_a_per_build_asset_is_describable(self) -> None:
-        """The reason the ledger moved off media kinds: two wheels, one table."""
+        """The reason the ledger moved off media kinds: two wheels, one game."""
         meta = MetaConfig(str(self.info))
         meta.add_asset(str(self.root / "medias" / "(Wheel) Cactus Canyon.png"), "user")
         meta.add_asset(str(self.root / "medias" / "(Wheel) Cactus Canyon VR.png"), "user")

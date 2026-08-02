@@ -19,13 +19,13 @@ from frontend.theme_contract import (
 )
 
 ROW = {
-    "tableDirName": "Example",
+    "gameDirName": "Example",
     "WheelImagePath": "/t/wheel.png",
     "meta": {
         "Info": {"Title": "Example", "VPSId": "vps-1"},
         "User": {"Rating": 4},
         "vpinfe": {"schema": 2, "id": "tuF3WogthK", "alt_title": "Alt"},
-        "game_files": {"E.vpx": {"rom": "afm_113b", "authors": ["jpsalas"]}},
+        "tables": {"E.vpx": {"rom": "afm_113b", "authors": ["jpsalas"]}},
         "assets": {"medias/bg.png": {"source": {"host": "user"}}},
     },
     "pupPackExists": True,
@@ -77,7 +77,7 @@ class ProjectionTests(unittest.TestCase):
         self.assertIs(project(ROW, CURRENT_CONTRACT), ROW)
 
     def test_contract_1_reads_the_shape_it_was_written_against(self):
-        """VPXFile is synthesised from the default game file - the payload itself has
+        """VPXFile is synthesised from the default table - the payload itself has
         not carried that section since the .info stopped having one."""
         meta = project(ROW, 1)["meta"]
 
@@ -89,7 +89,7 @@ class ProjectionTests(unittest.TestCase):
 
     def test_contract_1_keeps_the_old_spelling_of_the_detect_flags(self):
         row = {**ROW, "meta": {**ROW["meta"],
-                               "game_files": {"E.vpx": {"detect_ssf": True,
+                               "tables": {"E.vpx": {"detect_ssf": True,
                                                         "detect_scorbit": True}}}}
 
         vpx = project(row, 1)["meta"]["VPXFile"]
@@ -101,7 +101,7 @@ class ProjectionTests(unittest.TestCase):
     def test_a_detect_flag_written_as_a_string_is_still_a_boolean(self):
         """A JSON "false" is truthy to anything that reads it without care."""
         row = {**ROW, "meta": {**ROW["meta"],
-                               "game_files": {"E.vpx": {"detect_ssf": "false",
+                               "tables": {"E.vpx": {"detect_ssf": "false",
                                                         "detect_lut": "true"}}}}
 
         vpx = project(row, 1)["meta"]["VPXFile"]
@@ -123,7 +123,7 @@ class ProjectionTests(unittest.TestCase):
         declared, which is the failure this exists to prevent."""
         meta = project(ROW, 1)["meta"]
 
-        for section in ("game_files", "vpinfe", "assets"):
+        for section in ("tables", "vpinfe", "assets"):
             self.assertNotIn(section, meta, section)
 
     def test_projecting_does_not_touch_the_payload_it_was_given(self):
@@ -133,19 +133,28 @@ class ProjectionTests(unittest.TestCase):
 
         self.assertEqual(json.dumps(ROW, sort_keys=True), original)
 
-    def test_everything_outside_meta_is_untouched(self):
+    def test_the_renamed_row_keys_come_back_with_their_old_names(self):
+        """PAR-22. The four keys the vocabulary rename moved are the only things
+        outside meta the projection touches, and a contract 1 theme must not be able
+        to tell they moved."""
         projected = project(ROW, 1)
 
         self.assertEqual(projected["tableDirName"], "Example")
+        self.assertNotIn("gameDirName", projected,
+                         "serving both spellings would let a theme work by accident")
+
+    def test_everything_else_outside_meta_is_untouched(self):
+        projected = project(ROW, 1)
+
         self.assertEqual(projected["WheelImagePath"], "/t/wheel.png")
 
-    def test_a_table_with_no_game_file_still_projects(self):
-        row = {"meta": {"Info": {"Title": "x"}, "vpinfe": {}, "game_files": {}}}
+    def test_a_game_with_no_table_still_projects(self):
+        row = {"meta": {"Info": {"Title": "x"}, "vpinfe": {}, "tables": {}}}
 
         meta = project(row, 1)["meta"]
 
         self.assertEqual(meta["Info"]["Rom"], "")
-        self.assertNotIn("game_files", meta)
+        self.assertNotIn("tables", meta)
 
 
 if __name__ == "__main__":

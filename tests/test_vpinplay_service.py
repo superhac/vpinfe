@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from common.online.vpinplay_service import _build_table_payload, sync_installed_tables
+from common.online.vpinplay_service import _build_game_payload, sync_installed_games
 
 
 class TestVPinPlayService(unittest.TestCase):
@@ -10,10 +10,10 @@ class TestVPinPlayService(unittest.TestCase):
         app/models.py). It rejects nothing it does not recognize, so a key we spell our
         way is dropped in silence and stored as the field's default.
         """
-        payload = _build_table_payload({
+        payload = _build_game_payload({
             "Info": {"VPSId": "vps-123"},
             "User": {"Rating": 4},
-            "game_files": {"t.vpx": {
+            "tables": {"t.vpx": {
                 "detect_nfozzy": True, "detect_fleep": True, "detect_ssf": True,
                 "detect_lut": True, "detect_scorbit": True, "detect_fastflips": True,
                 "detect_flex": True, "save_rev": "7",
@@ -29,17 +29,17 @@ class TestVPinPlayService(unittest.TestCase):
         self.assertIn("saveRev", payload["vpxFile"])
 
     def test_a_rating_outside_the_services_bounds_cannot_fail_the_whole_sync(self) -> None:
-        """Their rating is validated 0-5 across the whole request, so one table over the
+        """Their rating is validated 0-5 across the whole request, so one game over the
         bound rejects every other table with it.
         """
-        payload = _build_table_payload(
-            {"Info": {"VPSId": "vps-123"}, "User": {"Rating": 7}, "game_files": {}, "vpinfe": {}})
+        payload = _build_game_payload(
+            {"Info": {"VPSId": "vps-123"}, "User": {"Rating": 7}, "tables": {}, "vpinfe": {}})
 
         assert payload is not None
         self.assertEqual(payload["user"]["rating"], 5)
 
-    def test_build_table_payload_includes_user_score(self) -> None:
-        payload = _build_table_payload(
+    def test_build_game_payload_includes_user_score(self) -> None:
+        payload = _build_game_payload(
             {
                 "Info": {
                     "VPSId": "vps-123",
@@ -69,8 +69,8 @@ class TestVPinPlayService(unittest.TestCase):
         self.assertEqual(payload["user"]["startCount"], 12)
         self.assertEqual(payload["user"]["runTime"], 34)
 
-    def test_build_table_payload_ignores_non_dict_user_score(self) -> None:
-        payload = _build_table_payload(
+    def test_build_game_payload_ignores_non_dict_user_score(self) -> None:
+        payload = _build_game_payload(
             {
                 "Info": {
                     "VPSId": "vps-123",
@@ -90,22 +90,22 @@ class TestVPinPlayService(unittest.TestCase):
 
     @patch("common.online.vpinplay_service.requests.post")
     @patch("common.online.vpinplay_service.get_version", return_value="test-version")
-    @patch("common.online.vpinplay_service.TableParser")
-    def test_sync_installed_tables_includes_initials_in_client_payload(
+    @patch("common.online.vpinplay_service.GameParser")
+    def test_sync_installed_games_includes_initials_in_client_payload(
         self,
-        mock_table_parser,
+        mock_game_parser,
         _mock_get_version,
         mock_post,
     ) -> None:
-        table = MagicMock()
-        table.metaConfig = {
+        game = MagicMock()
+        game.metaConfig = {
             "Info": {"VPSId": "vps-123", "Rom": "agent777"},
             "User": {},
             "VPXFile": {},
             "vpinfe": {},
         }
-        parser_instance = mock_table_parser.return_value
-        parser_instance.getAllTables.return_value = [table]
+        parser_instance = mock_game_parser.return_value
+        parser_instance.getAllGames.return_value = [game]
 
         response = MagicMock()
         response.status_code = 200
@@ -117,12 +117,12 @@ class TestVPinPlayService(unittest.TestCase):
         with patch("common.online.vpinplay_service.Path.exists", return_value=True), patch(
             "common.online.vpinplay_service.Path.is_dir", return_value=True
         ):
-            sync_installed_tables(
+            sync_installed_games(
                 service_ip="https://api.vpinplay.com:8888",
                 user_id="user-123",
                 initials="ABC",
                 machine_id="machine-123",
-                table_root_dir="/tables",
+                game_root_dir="/games",
             )
 
         payload = mock_post.call_args.kwargs["json"]

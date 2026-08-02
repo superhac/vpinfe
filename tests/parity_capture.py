@@ -27,15 +27,15 @@ warnings.filterwarnings("ignore")
 
 
 def _build_fixture_library(root: Path) -> None:
-    """A tiny table library exercising the surfaces themes and tools depend on."""
-    table = root / "Example Table (Bally 1990)"
-    medias = table / "medias"
+    """A tiny game library exercising the surfaces themes and tools depend on."""
+    game = root / "Example Table (Bally 1990)"
+    medias = game / "medias"
     medias.mkdir(parents=True)
-    (table / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
-    (table / "Example Table (Bally 1990).directb2s").write_bytes(b"b2s")
+    (game / "Example Table (Bally 1990).vpx").write_bytes(b"not really a vpx")
+    (game / "Example Table (Bally 1990).directb2s").write_bytes(b"b2s")
     (medias / "wheel.png").write_bytes(b"\x89PNG wheel")
     (medias / "bg.png").write_bytes(b"\x89PNG bg")
-    (table / "Example Table (Bally 1990).info").write_text(json.dumps({
+    (game / "Example Table (Bally 1990).info").write_text(json.dumps({
         "Info": {"Title": "Example Table", "Manufacturer": "Bally", "Year": "1990",
                  "Type": "SS", "VPSId": "vps-example"},
         "VPXFile": {"filename": "Example Table (Bally 1990).vpx", "rom": "exmpl"},
@@ -58,20 +58,22 @@ def _capture_ws_allowlist() -> list[str]:
     return sorted(API_ALLOWED_METHODS)
 
 
-def _capture_theme_payload(tables_root: Path) -> dict:
-    """The shape a theme receives: tables_json keys and which media paths resolve.
+def _capture_theme_payload(games_root: Path) -> dict:
+    """The shape a theme receives: games_json keys and which media paths resolve.
 
     Keys only, plus a few stable values - file paths and scan order are
     environment noise, but a missing key breaks every theme the same way.
     """
     try:
-        from common.tables.tableparser import TableParser  # 3.0 layout
+        from common.games.gameparser import GameParser  # 3.0 layout
     except ImportError:
-        from common.tableparser import TableParser  # 2.x layout
-    from frontend.table_state import tables_json
+        from common.gameparser import GameParser  # 2.x layout
+    from frontend.game_state import games_json
 
-    parser = TableParser(str(tables_root))
-    payload = json.loads(tables_json(parser.getAllTables()))
+    parser = GameParser(str(games_root))
+    # Contract 1: what a theme written before 3.0 receives. Capturing the current
+    # contract would compare master against a shape no existing theme asks for.
+    payload = json.loads(games_json(parser.getAllGames(), contract=1))
     entry = payload[0] if payload else {}
     return {
         "count": len(payload),
@@ -116,20 +118,20 @@ def _capture_legacy_endpoints() -> dict:
 
 def capture() -> dict:
     with TemporaryDirectory() as tmp:
-        tables_root = Path(tmp) / "tables"
-        tables_root.mkdir()
-        _build_fixture_library(tables_root)
+        games_root = Path(tmp) / "games"
+        games_root.mkdir()
+        _build_fixture_library(games_root)
 
         config_dir = Path(tmp) / "config"
         config_dir.mkdir()
         (config_dir / "vpinfe.ini").write_text(
-            f"[Settings]\ntablerootdir = {tables_root}\nvpxbinpath = \n",
+            f"[Settings]\ngamerootdir = {games_root}\nvpxbinpath = \n",
             encoding="utf-8")
         os.environ["VPINFE_CONFIG_DIR"] = str(config_dir)
 
-        before = _tree_snapshot(tables_root)
-        theme_payload = _capture_theme_payload(tables_root)
-        after = _tree_snapshot(tables_root)
+        before = _tree_snapshot(games_root)
+        theme_payload = _capture_theme_payload(games_root)
+        after = _tree_snapshot(games_root)
 
         return {
             "ws_allowlist": _capture_ws_allowlist(),

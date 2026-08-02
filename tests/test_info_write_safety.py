@@ -13,9 +13,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from common.tables.info_migration import write_json_atomic
-from common.tables.metaconfig import MetaConfig
-from common.tables.tableparser import TableParser
+from common.games.gameparser import GameParser
+from common.games.info_migration import write_json_atomic
+from common.games.metaconfig import MetaConfig
 
 
 class AtomicWriteTests(unittest.TestCase):
@@ -46,7 +46,7 @@ class AtomicWriteTests(unittest.TestCase):
         self.assertEqual([p.name for p in self.root.iterdir()], ["Example.info"])
 
     def test_the_temp_file_is_never_mistaken_for_metadata(self):
-        """It lands in the table folder, so a scan must not read it as an .info or a
+        """It lands in the game folder, so a scan must not read it as an .info or a
         backup while it is there."""
         seen = {}
 
@@ -70,60 +70,60 @@ class AtomicWriteTests(unittest.TestCase):
         self.assertIsInstance(json.loads(self.info.read_text(encoding="utf-8")), dict)
 
 
-class UnreadableTableTests(unittest.TestCase):
+class UnreadableGameTests(unittest.TestCase):
     def setUp(self):
         self._tmp = TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.root = Path(self._tmp.name)
 
-    def _table(self, name, info_text):
+    def _game(self, name, info_text):
         d = self.root / name
         d.mkdir()
         (d / f"{name}.vpx").write_text("not really a vpx", encoding="utf-8")
         (d / f"{name}.info").write_text(info_text, encoding="utf-8")
         return d
 
-    def test_one_truncated_file_costs_one_table_not_the_library(self):
-        """It used to cost all of them: the error came out of loadTables and the app saw
+    def test_one_truncated_file_costs_one_game_not_the_library(self):
+        """It used to cost all of them: the error came out of loadGames and the app saw
         zero tables, so a single bad file looked like an empty library."""
         good = json.dumps({"Info": {}, "User": {}})
-        self._table("Good One", good)
-        self._table("Bad One", "{ truncated")
-        self._table("Good Two", good)
+        self._game("Good One", good)
+        self._game("Bad One", "{ truncated")
+        self._game("Good Two", good)
 
-        parser = TableParser(str(self.root))
+        parser = GameParser(str(self.root))
 
-        self.assertEqual(parser.getTableCount(), 2)
-        self.assertEqual([r["folder"] for r in parser.getUnreadableTables()], ["Bad One"])
+        self.assertEqual(parser.getGameCount(), 2)
+        self.assertEqual([r["folder"] for r in parser.getUnreadableGames()], ["Bad One"])
 
     def test_an_empty_file_counts_as_unreadable_too(self):
-        self._table("Good One", json.dumps({"Info": {}}))
-        self._table("Empty One", "")
+        self._game("Good One", json.dumps({"Info": {}}))
+        self._game("Empty One", "")
 
-        parser = TableParser(str(self.root))
+        parser = GameParser(str(self.root))
 
-        self.assertEqual(parser.getTableCount(), 1)
-        self.assertEqual(len(parser.getUnreadableTables()), 1)
+        self.assertEqual(parser.getGameCount(), 1)
+        self.assertEqual(len(parser.getUnreadableGames()), 1)
 
     def test_the_unreadable_file_is_left_alone(self):
         """Excluded rather than loaded empty, so nothing can write over a file we could
         not read."""
-        bad = self._table("Bad One", "{ truncated")
+        bad = self._game("Bad One", "{ truncated")
 
-        TableParser(str(self.root))
+        GameParser(str(self.root))
 
         self.assertEqual((bad / "Bad One.info").read_text(encoding="utf-8"), "{ truncated")
 
     def test_a_fixed_file_comes_back_on_the_next_scan(self):
-        bad = self._table("Bad One", "{ truncated")
-        parser = TableParser(str(self.root))
-        self.assertEqual(parser.getTableCount(), 0)
+        bad = self._game("Bad One", "{ truncated")
+        parser = GameParser(str(self.root))
+        self.assertEqual(parser.getGameCount(), 0)
 
         (bad / "Bad One.info").write_text(json.dumps({"Info": {}}), encoding="utf-8")
-        parser.loadTables(reload=True)
+        parser.loadGames(reload=True)
 
-        self.assertEqual(parser.getTableCount(), 1)
-        self.assertEqual(parser.getUnreadableTables(), [])
+        self.assertEqual(parser.getGameCount(), 1)
+        self.assertEqual(parser.getUnreadableGames(), [])
 
 
 
@@ -150,18 +150,18 @@ class StaleCountTests(unittest.TestCase):
             (d / f"{name}.vpx").write_text("x", encoding="utf-8")
             (d / f"{name}.info").write_text(json.dumps(legacy), encoding="utf-8")
 
-    def test_the_backfill_leaves_no_table_still_claiming_it_needs_upgrading(self):
-        from common.tables.table_identity import ensure_unique_ids
+    def test_the_backfill_leaves_no_game_still_claiming_it_needs_upgrading(self):
+        from common.games.game_identity import ensure_unique_ids
 
-        parser = TableParser(str(self.root))
-        tables = parser.getAllTables()
-        self.assertTrue(all(t.info_pending_upgrade for t in tables),
+        parser = GameParser(str(self.root))
+        games = parser.getAllGames()
+        self.assertTrue(all(t.info_pending_upgrade for t in games),
                         "they do need upgrading before the backfill runs")
 
-        ensure_unique_ids(tables)
+        ensure_unique_ids(games)
 
-        self.assertEqual([t.tableDirName for t in tables if t.info_pending_upgrade], [])
-        self.assertTrue(all(t.info_restorable for t in tables),
+        self.assertEqual([t.gameDirName for t in games if t.info_pending_upgrade], [])
+        self.assertTrue(all(t.info_restorable for t in games),
                         "each upgrade left a restore point")
 
 

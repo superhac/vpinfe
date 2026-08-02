@@ -77,23 +77,23 @@ class PlayState(ApiModel):
     own launches on it, so dropping the field breaks the remote overlay."""
 
     launching: bool
-    table_name: str | None
+    game_name: str | None
     source: str | None
 
 
-# --- Tables ----------------------------------------------------------------
+# --- Games -----------------------------------------------------------------
 
 class AssetFileBinding(ApiModel):
-    """One asset file, attributed: dedicated to a game file, shared (folder-named),
-    or orphaned - stem-named for a build that is no longer there."""
+    """One asset file, attributed: dedicated to a table, shared (folder-named),
+    or orphaned - stem-named for a table that is no longer there."""
 
     file: str
     binding: str
-    game_file: str | None = None
+    table: str | None = None
 
 
 class AssetEntry(ApiModel):
-    """One asset kind on a table. The list endpoint carries presence only; the
+    """One asset kind on a game. The list endpoint carries presence only; the
     detail endpoint adds the attributed files; alt_color carries its formats."""
 
     present: bool
@@ -101,17 +101,17 @@ class AssetEntry(ApiModel):
     files: list[AssetFileBinding] | None = None
 
 
-class TableLinks(ApiModel):
+class GameLinks(ApiModel):
     self_: str = Field(alias="self")
-    game_files: str
+    tables: str
     media: str
     archive: str
     launch: str
 
 
-class TableResource(ApiModel):
-    """A table: the pinball-machine concept, not a launchable file. vps_id correlates
-    with VPSdb and anything keyed by it; `id` is what identifies the table here."""
+class GameResource(ApiModel):
+    """A game: the pinball-machine concept, not a launchable file. vps_id correlates
+    with VPSdb and anything keyed by it; `id` is what identifies the game here."""
 
     id: str
     vps_id: str
@@ -126,20 +126,20 @@ class TableResource(ApiModel):
     rating: int
     collections: list[str]
     assets: dict[str, AssetEntry]
-    links: TableLinks
+    links: GameLinks
 
 
-class TableList(ApiModel):
+class GameList(ApiModel):
     """`total` counts what matched before limit and offset were applied."""
 
     total: int
     offset: int
     count: int
-    tables: list[TableResource]
+    games: list[GameResource]
 
 
 class ResolvedAsset(ApiModel):
-    """What this game file would use for one kind: dedicated, shared, or none,
+    """What this table would use for one kind: dedicated, shared, or none,
     plus the winning file."""
 
     resolution: str
@@ -187,19 +187,19 @@ class Dependencies(ApiModel):
     flexdmd: FlexDmdState
 
 
-class GameFile(ApiModel):
+class Table(ApiModel):
     """A launchable artifact.
 
     `available` is false for a file the metadata records but which is not on disk -
     worth reporting rather than hiding.
 
-    `hidden` is the user's choice not to be offered this build in the frontend; the
+    `hidden` is the user's choice not to be offered this table in the frontend; the
     file stays on disk, because a patch base has to (the patched table cannot be
     rebuilt without it) and a variant may be wanted back. Consumers listing what to
     play should skip these; consumers managing a library should not.
 
     `default` names the file the table's metadata was derived from, not the one to
-    launch - every visible game file is independently launchable.
+    launch - every visible table is independently launchable.
     """
 
     format: str
@@ -212,8 +212,8 @@ class GameFile(ApiModel):
     dependencies: Dependencies
 
 
-class GameFileList(ApiModel):
-    game_files: list[GameFile]
+class TableList(ApiModel):
+    tables: list[Table]
 
 
 # --- Media -----------------------------------------------------------------
@@ -246,7 +246,7 @@ class CollectionFilters(ApiModel):
 
     letter: str = "All"
     theme: str = "All"
-    table_type: str = "All"
+    game_type: str = "All"
     manufacturer: str = "All"
     year: str = "All"
     rating: str = "All"
@@ -257,19 +257,19 @@ class CollectionFilters(ApiModel):
 
 class CollectionLinks(ApiModel):
     self_: str = Field(alias="self")
-    tables: str
+    games: str
 
 
 class CollectionResource(ApiModel):
-    """`type` is `manual` (an explicit list of tables) or `filter` (criteria applied
-    at display time). `table_count` is null for a filter collection, whose membership
-    is not a stored list - ask /tables for its current members. `filters` is set only
+    """`type` is `manual` (an explicit list of games) or `filter` (criteria applied
+    at display time). `game_count` is null for a filter collection, whose membership
+    is not a stored list - ask /collections/{name}/games for its current members. `filters` is set only
     for a filter collection."""
 
     name: str
     type: str
     image: str | None
-    table_count: int | None
+    game_count: int | None
     filters: CollectionFilters | None
     links: CollectionLinks
 
@@ -279,12 +279,12 @@ class CollectionList(ApiModel):
 
 
 class CreateCollectionRequest(ApiModel):
-    """Supplying `filters` makes a filter collection; supplying `tables` (or neither)
+    """Supplying `filters` makes a filter collection; supplying `games` (or neither)
     makes a manual one. Sending both is refused rather than guessed at."""
 
     name: str
     filters: CollectionFilters | None = None
-    tables: list[str] = Field(default_factory=list)
+    games: list[str] = Field(default_factory=list)
 
 
 # --- Jobs ------------------------------------------------------------------
@@ -334,7 +334,7 @@ class ManufacturerEntry(ApiModel):
     slug: str
     aliased_to: str | None
     logo: str | None
-    tables: int
+    games: int
 
 
 class ManufacturerList(ApiModel):
@@ -344,7 +344,7 @@ class ManufacturerList(ApiModel):
 # --- Launch ----------------------------------------------------------------
 
 class LaunchRequest(ApiModel):
-    """`file` picks one of the table's game files; absent means the default."""
+    """`file` picks one of the game's tables; absent means the default."""
 
     file: str | None = None
 
@@ -358,7 +358,7 @@ class LaunchAccepted(ApiModel):
     """202: the launch is under way, not finished - watch /events for the rest."""
 
     launching: bool
-    table_id: str
+    game_id: str
     file: str
     links: LaunchLinks
 
@@ -398,7 +398,7 @@ class Analysis(ApiModel):
 
     source_kind: str
     source_name: str
-    has_table: bool
+    has_game: bool
     assets: list[DetectedAssetInfo]
     notes: list[str]
     error: str
@@ -426,8 +426,8 @@ class PlanItem(ApiModel):
 
 
 class ImportPlanResource(ApiModel):
-    table_path: str
-    new_table_dir_name: str
+    game_path: str
+    new_game_dir_name: str
     rom_name: str
     items: list[PlanItem]
     blocked: list[BlockedAsset]
@@ -439,8 +439,8 @@ class ImportReport(ApiModel):
 
     imported: list[str]
     skipped: list[str]
-    table_path: str
-    new_table: bool
+    game_path: str
+    new_game: bool
     media_keys: list[str]
     blocked: list[BlockedAsset]
     vps_associated: bool | None = None
@@ -451,16 +451,16 @@ class PlanRequest(ApiModel):
     """Every field optional: an empty body plans the upload as it stands."""
 
     vps_id: str = ""
-    table_path: str = ""
+    game_path: str = ""
     rom_name: str = ""
-    allow_new_table: bool = False
+    allow_new_game: bool = False
 
 
 class ImportRequest(PlanRequest):
     """`selected` picks plan items by index; omitted means the plan's own defaults.
-    `new_table_dir_name` omitted falls back to the VPS-derived name, then the vpx stem."""
+    `new_game_dir_name` omitted falls back to the VPS-derived name, then the vpx stem."""
 
-    new_table_dir_name: str | None = None
+    new_game_dir_name: str | None = None
     selected: list[int] | None = None
 
 

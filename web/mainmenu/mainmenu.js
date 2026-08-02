@@ -5,8 +5,8 @@ let dialogState = null; // 'options' | 'progress' | 'rating' | null
 let dialogSelectedIndex = 0;
 let dialogItems = [];
 let ratingDraft = 0;
-let ratingTableIndex = 0;
-let currentTableIndex = 0;
+let ratingGameIndex = 0;
+let currentGameIndex = 0;
 let ratingLabelRequestSeq = 0;
 let audioMuted = false;
 let menuConfigLoaded = false;
@@ -38,14 +38,14 @@ window.addEventListener('message', async (event) => {
 
   if (message.event === 'menu_open') {
     if (typeof message.table_index === 'number' && Number.isFinite(message.table_index) && message.table_index >= 0) {
-      currentTableIndex = Math.floor(message.table_index);
+      currentGameIndex = Math.floor(message.table_index);
     } else {
-      currentTableIndex = resolveCurrentTableIndex();
+      currentGameIndex = resolveCurrentGameIndex();
     }
     selectedIndex = 0;
     await applyMainMenuConfig();
     updateMenu();
-    refreshRatingMenuLabel(currentTableIndex);
+    refreshRatingMenuLabel(currentGameIndex);
     refreshAudioMenuLabel();
     scheduleMenuRelayout();
     return;
@@ -55,7 +55,7 @@ window.addEventListener('message', async (event) => {
     selectedIndex = 0;
     await applyMainMenuConfig();
     updateMenu();
-    refreshRatingMenuLabel(resolveCurrentTableIndex());
+    refreshRatingMenuLabel(resolveCurrentGameIndex());
     refreshAudioMenuLabel();
     scheduleMenuRelayout();
     return;
@@ -64,13 +64,13 @@ window.addEventListener('message', async (event) => {
   if (message.vpinfeEvent) {
     const ev = message.vpinfeEvent;
     if (
-      (ev.type === 'TableIndexUpdate' || ev.type === 'TableDataChange') &&
+      (ev.type === 'GameIndexUpdate' || ev.type === 'GameDataChange') &&
       typeof ev.index === 'number' &&
       Number.isFinite(ev.index) &&
       ev.index >= 0
     ) {
-      currentTableIndex = Math.floor(ev.index);
-      refreshRatingMenuLabel(currentTableIndex);
+      currentGameIndex = Math.floor(ev.index);
+      refreshRatingMenuLabel(currentGameIndex);
     }
   }
 });
@@ -161,39 +161,39 @@ function rotateMenu(degrees) {
   document.getElementById('menu-container').style.transform = `rotate(${rotationAngle}deg)`;
 }
 
-function resolveCurrentTableIndex() {
+function resolveCurrentGameIndex() {
   try {
-    const evalIndex = Number(window.parent.eval('typeof currentTableIndex !== "undefined" ? currentTableIndex : undefined'));
+    const evalIndex = Number(window.parent.eval('typeof currentGameIndex !== "undefined" ? currentGameIndex : undefined'));
     if (Number.isFinite(evalIndex) && evalIndex >= 0) {
-      currentTableIndex = Math.floor(evalIndex);
-      return currentTableIndex;
+      currentGameIndex = Math.floor(evalIndex);
+      return currentGameIndex;
     }
   } catch (_e) {}
 
   try {
     const evalSelected = Number(window.parent.eval('typeof selectedIndex !== "undefined" ? selectedIndex : undefined'));
     if (Number.isFinite(evalSelected) && evalSelected >= 0) {
-      currentTableIndex = Math.floor(evalSelected);
-      return currentTableIndex;
+      currentGameIndex = Math.floor(evalSelected);
+      return currentGameIndex;
     }
   } catch (_e) {}
 
   try {
-    const themeIndex = Number(window.parent.currentTableIndex);
+    const themeIndex = Number(window.parent.currentGameIndex);
     if (Number.isFinite(themeIndex) && themeIndex >= 0) {
-      currentTableIndex = Math.floor(themeIndex);
-      return currentTableIndex;
+      currentGameIndex = Math.floor(themeIndex);
+      return currentGameIndex;
     }
   } catch (_e) {}
 
   try {
-    const parentIndex = Number(window.parent.vpin.getCurrentTableIndex());
+    const parentIndex = Number(window.parent.vpin.getCurrentGameIndex());
     if (Number.isFinite(parentIndex) && parentIndex >= 0) {
-      currentTableIndex = Math.floor(parentIndex);
+      currentGameIndex = Math.floor(parentIndex);
     }
   } catch (_e) {}
 
-  return currentTableIndex;
+  return currentGameIndex;
 }
 
 function normalizeRating(value) {
@@ -287,13 +287,13 @@ async function refreshRatingMenuLabel(indexHint = null) {
   try {
     let idx = Number(indexHint);
     if (!Number.isFinite(idx) || idx < 0) {
-      idx = resolveCurrentTableIndex();
+      idx = resolveCurrentGameIndex();
     } else {
       idx = Math.floor(idx);
-      currentTableIndex = idx;
+      currentGameIndex = idx;
     }
 
-    const savedRating = await window.parent.vpin.call('get_table_rating', idx);
+    const savedRating = await window.parent.vpin.call('get_game_rating', idx);
     if (requestSeq !== ratingLabelRequestSeq) return;
     ratingItem.innerHTML = `Rating (<span style="color:#ffd84d;">${ratingStarsText(savedRating)}</span>)`;
     syncMenuWidthFromLongestLabel();
@@ -453,11 +453,11 @@ function renderRatingStars() {
 
 async function showRatingDialog() {
   try {
-    ratingTableIndex = resolveCurrentTableIndex();
-    const savedRating = await window.parent.vpin.call('get_table_rating', ratingTableIndex);
+    ratingGameIndex = resolveCurrentGameIndex();
+    const savedRating = await window.parent.vpin.call('get_game_rating', ratingGameIndex);
     ratingDraft = normalizeRating(savedRating);
   } catch (_e) {
-    ratingTableIndex = resolveCurrentTableIndex();
+    ratingGameIndex = resolveCurrentGameIndex();
     ratingDraft = 0;
   }
 
@@ -483,12 +483,12 @@ function hideRatingDialog() {
 
 async function saveRatingDialog() {
   try {
-    await window.parent.vpin.call('set_table_rating', ratingTableIndex, ratingDraft);
+    await window.parent.vpin.call('set_game_rating', ratingGameIndex, ratingDraft);
     window.parent.vpin.sendMessageToAllWindowsIncSelf({
-      type: 'TableDataChange',
-      index: ratingTableIndex,
+      type: 'GameDataChange',
+      index: ratingGameIndex,
     });
-    await refreshRatingMenuLabel(ratingTableIndex);
+    await refreshRatingMenuLabel(ratingGameIndex);
   } catch (_e) {}
   hideRatingDialog();
 }
@@ -584,12 +584,12 @@ async function toggleAudioMute() {
 }
 
 window.onload = async () => {
-  currentTableIndex = resolveCurrentTableIndex();
+  currentGameIndex = resolveCurrentGameIndex();
   await applyMainMenuConfig();
   await loadRemoteQrPanel();
   rebuildMenuItems();
   syncMenuWidthFromLongestLabel();
-  await refreshRatingMenuLabel(currentTableIndex);
+  await refreshRatingMenuLabel(currentGameIndex);
   await refreshAudioMenuLabel();
   updateMenu();
   scheduleMenuRelayout();

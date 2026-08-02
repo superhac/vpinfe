@@ -12,14 +12,14 @@ from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.tables.info_migration import (
+from common.games.info_migration import (
     backup_path,
     is_versioned,
     migrate,
     needs_migration,
     write_backup,
 )
-from common.tables.metaconfig import MetaConfig
+from common.games.metaconfig import MetaConfig
 
 LEGACY = {
     "Info": {"Title": "Dr. Dude", "VPSId": "vps-1", "Rom": "dd_l2",
@@ -43,13 +43,13 @@ class DetectionTests(unittest.TestCase):
         self.assertTrue(needs_migration(LEGACY))
 
     def test_a_stamped_file_is_left_alone(self):
-        self.assertFalse(needs_migration({"vpinfe": {"schema": 2}, "game_files": {}}))
+        self.assertFalse(needs_migration({"vpinfe": {"schema": 2}, "tables": {}}))
 
     def test_a_stamped_file_2x_wrote_again_is_migrated_again(self):
         """We never write VPXFile, so finding one in a stamped file means a 2.x build
-        rebuilt it after the migration and its game_files is stale. Trusting the stamp
+        rebuilt it after the migration and its tables section is stale. Trusting the stamp
         here is the bug 5db3f3d fixed, one release later."""
-        rolled_back = {"vpinfe": {"schema": 2}, "game_files": {"X.vpx": {"rom": "old"}},
+        rolled_back = {"vpinfe": {"schema": 2}, "tables": {"X.vpx": {"rom": "old"}},
                        "VPXFile": {"filename": "X.vpx", "rom": "new"}}
 
         self.assertTrue(needs_migration(rolled_back))
@@ -70,8 +70,8 @@ class DetectionTests(unittest.TestCase):
         self.assertTrue(needs_migration(half))
 
         after = migrate(half)
-        self.assertEqual(after["game_files"]["X.vpx"]["rom"], "afm")
-        self.assertTrue(after["game_files"]["X.vpx"]["detect_ssf"])
+        self.assertEqual(after["tables"]["X.vpx"]["rom"], "afm")
+        self.assertTrue(after["tables"]["X.vpx"]["detect_ssf"])
         self.assertNotIn("VPXFile", after)
         self.assertEqual(after["vpinfe"]["id"], "mJ8F4RqD8U",
                          "the id this build already minted wins over the old one")
@@ -120,50 +120,50 @@ class WhatSurvivesTests(unittest.TestCase):
         replacing the entry outright would delete them."""
         rolled_back = dict(LEGACY)
         rolled_back["vpinfe"] = {"schema": 2}
-        rolled_back["game_files"] = {"Dr. Dude.vpx": {
+        rolled_back["tables"] = {"Dr. Dude.vpx": {
             "hidden": True,
             "source": {"vps_file_id": "f-1"},
             "play": {"start_count": 9},
             "rom": "stale",
         }}
 
-        entry = migrate(rolled_back)["game_files"]["Dr. Dude.vpx"]
+        entry = migrate(rolled_back)["tables"]["Dr. Dude.vpx"]
 
         self.assertTrue(entry["hidden"])
         self.assertEqual(entry["source"], {"vps_file_id": "f-1"})
         self.assertEqual(entry["play"], {"start_count": 9})
         self.assertEqual(entry["rom"], "dd_l2", "the fresher parse wins on parsed fields")
 
-    def test_the_table_file_becomes_a_game_file(self):
-        entry = self.after["game_files"]["Dr. Dude.vpx"]
+    def test_the_table_becomes_a_table(self):
+        entry = self.after["tables"]["Dr. Dude.vpx"]
         self.assertEqual(entry["file_hash"], "abc123")
         self.assertEqual(entry["vbs_hash"], "def456")
         self.assertEqual(entry["rom"], "dd_l2")
         self.assertEqual(entry["save_rev"], "4")
 
     def test_dates_are_normalised_on_the_way_through(self):
-        entry = self.after["game_files"]["Dr. Dude.vpx"]
+        entry = self.after["tables"]["Dr. Dude.vpx"]
         self.assertEqual(entry["release_date"], "2019-06-22")
         self.assertEqual(entry["save_date"], "2022-12-13T16:03:21")
 
     def test_the_scorbit_typo_is_corrected(self):
-        self.assertTrue(self.after["game_files"]["Dr. Dude.vpx"]["detect_scorbit"])
+        self.assertTrue(self.after["tables"]["Dr. Dude.vpx"]["detect_scorbit"])
 
     def test_camel_case_detect_keys_are_not_dropped(self):
         """Real files carry both detectssf and detectSSF."""
         after = migrate({**LEGACY, "VPXFile": {**LEGACY["VPXFile"],
                                                "detectSSF": True, "detectFleep": True}})
-        entry = after["game_files"]["Dr. Dude.vpx"]
+        entry = after["tables"]["Dr. Dude.vpx"]
         self.assertTrue(entry["detect_ssf"])
         self.assertTrue(entry["detect_fleep"])
 
-    def test_authors_land_on_the_game_file(self):
-        """Table-level authors only worked while a folder held one game file."""
-        self.assertEqual(self.after["game_files"]["Dr. Dude.vpx"]["authors"],
+    def test_authors_land_on_the_table(self):
+        """Game-level authors only worked while a folder held one table."""
+        self.assertEqual(self.after["tables"]["Dr. Dude.vpx"]["authors"],
                          ["someone", "someone else"])
 
     def test_the_described_file_becomes_the_default(self):
-        self.assertEqual(self.after["vpinfe"]["default_game_file"], "Dr. Dude.vpx")
+        self.assertEqual(self.after["vpinfe"]["default_table"], "Dr. Dude.vpx")
 
     def test_a_section_we_do_not_own_is_left_alone(self):
         after = migrate({**LEGACY, "SomeOtherTool": {"note": "keep me"}})
@@ -175,11 +175,11 @@ class WhatSurvivesTests(unittest.TestCase):
         self.assertNotIn("Rom", self.after["Info"])
         self.assertNotIn("Authors", self.after["Info"])
 
-    def test_a_folder_with_no_table_file_still_migrates(self):
+    def test_a_folder_with_no_table_still_migrates(self):
         """Nine files in the corpus have no VPXFile at all."""
         after = migrate({"Info": {"Title": "x"}, "User": {"Rating": 2},
                          "Medias": {}, "VPinFE": {"altlauncher": "/opt/vpx"}})
-        self.assertEqual(after["game_files"], {})
+        self.assertEqual(after["tables"], {})
         self.assertEqual(after["User"]["Rating"], 2)
         self.assertTrue(is_versioned(after))
 
@@ -196,9 +196,9 @@ class BackupTests(unittest.TestCase):
         return sorted(p for p in self.root.iterdir() if ".vpinfe-" in p.name)
 
     def test_the_name_carries_a_sortable_utc_stamp(self):
-        path = backup_path("/tables/X/X.info", datetime(2026, 7, 29, 14, 30, 22, tzinfo=UTC))
+        path = backup_path("/games/X/X.info", datetime(2026, 7, 29, 14, 30, 22, tzinfo=UTC))
 
-        self.assertEqual(path, "/tables/X/X.info.vpinfe-20260729T143022Z")
+        self.assertEqual(path, "/games/X/X.info.vpinfe-20260729T143022Z")
         self.assertNotIn(":", path, "Windows will not have a colon in a filename")
 
     def test_reading_does_not_write_anything(self):

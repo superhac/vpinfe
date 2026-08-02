@@ -29,7 +29,7 @@ class OwnershipTests(unittest.TestCase):
         return VPSMediaDownloader(
             {"vps-1": {"wheel": "https://example.invalid/wheel.png",
                        "wheel_md5": remote_md5}},
-            tabletype="table", tableresolution="1k", tablevideoresolution="1k",
+            playfieldvariant="table", playfieldresolution="1k", playfieldvideoresolution="1k",
         )
 
     def _run(self, on_disk: bytes, remote_md5: str):
@@ -84,26 +84,26 @@ class OwnershipTests(unittest.TestCase):
 class RecordingTests(unittest.TestCase):
     """What reaches the assets ledger, going through the real recording path."""
 
-    def _table(self, root: Path):
-        """Enough of a Table for download_media_for_table. Every media path points at
+    def _game(self, root: Path):
+        """Enough of a Game for download_media_for_game. Every media path points at
         the canonical name; only the wheel exists on disk in these tests."""
         paths = {"BGImagePath": "bg.png", "DMDImagePath": "dmd.png",
                  "WheelImagePath": "wheel.png", "CabImagePath": "cab.png",
                  "realDMDImagePath": "realdmd.png",
                  "realDMDColorImagePath": "realdmd-color.png",
-                 "FlyerImagePath": "flyer.png", "TableImagePath": "table.png",
-                 "DMDVideoPath": "dmd.mp4", "TableVideoPath": "table.mp4",
+                 "FlyerImagePath": "flyer.png", "PlayfieldImagePath": "table.png",
+                 "DMDVideoPath": "dmd.mp4", "PlayfieldVideoPath": "table.mp4",
                  "AudioPath": "audio.mp3"}
-        table = SimpleNamespace(fullPathTable=str(root), tableDirName=root.name)
+        game = SimpleNamespace(fullPathGame=str(root), gameDirName=root.name)
         for attr, name in paths.items():
-            setattr(table, attr, str(root / "medias" / name))
-        return table
+            setattr(game, attr, str(root / "medias" / name))
+        return game
 
     def _downloader(self, remote_md5: str):
         return VPSMediaDownloader(
             {"vps-1": {"wheel": "https://example.invalid/wheel.png",
                        "wheel_md5": remote_md5}},
-            tabletype="table", tableresolution="1k", tablevideoresolution="1k")
+            playfieldvariant="table", playfieldresolution="1k", playfieldvideoresolution="1k")
 
     def test_a_file_we_never_wrote_is_not_recorded_as_ours(self) -> None:
         """download_media returns None for anything it declined to touch, and record()
@@ -115,7 +115,7 @@ class RecordingTests(unittest.TestCase):
             dl = self._downloader(_md5(OURS))
             meta = mock.Mock()
             with mock.patch.object(dl, "download_media_file"):
-                dl.download_media_for_table(self._table(root), "vps-1", meta)
+                dl.download_media_for_game(self._game(root), "vps-1", meta)
 
             meta.add_asset.assert_not_called()
 
@@ -129,7 +129,7 @@ class RecordingTests(unittest.TestCase):
             dl = self._downloader(_md5(OURS))
             meta = mock.Mock()
             with mock.patch.object(dl, "download_media_file"):
-                dl.download_media_for_table(self._table(root), "vps-1", meta)
+                dl.download_media_for_game(self._game(root), "vps-1", meta)
 
             meta.add_asset.assert_called_once_with(
                 str(root / "medias" / "wheel.png"), "vpinmediadb", _md5(OURS))
