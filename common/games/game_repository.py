@@ -41,7 +41,7 @@ def ensure_games_loaded(reload: bool = False) -> List[Any]:
 
     elapsed = perf_counter() - started_at
     logger.debug(
-        "ensure_tables_loaded reload=%s count=%s elapsed=%.3fs",
+        "ensure_games_loaded reload=%s count=%s elapsed=%.3fs",
         reload,
         len(games),
         elapsed,

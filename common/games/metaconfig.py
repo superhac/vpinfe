@@ -61,7 +61,7 @@ def migrate_vpinfe_section(vpinfe):
         if version not in _warned_newer_schema:
             _warned_newer_schema.add(version)
             logger.warning(
-                "Table metadata uses VPinFE schema %s, newer than this build's %s. "
+                "Game metadata uses VPinFE schema %s, newer than this build's %s. "
                 "Leaving it untouched; unknown settings are preserved.",
                 version, CURRENT_VPINFE_SCHEMA,
             )

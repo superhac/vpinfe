@@ -56,7 +56,7 @@ class GameParser:
         if not self.gamesRootFilePath.exists():
             return
 
-        logger.info("Loading tables and image paths...")
+        logger.info("Loading games and image paths...")
         for game_dir in sorted(self.gamesRootFilePath.iterdir()):
             if not game_dir.is_dir():
                 continue
@@ -99,7 +99,7 @@ class GameParser:
                         continue
                     game_contents.add(entry.name)
         except OSError:
-            logger.exception("Failed to enumerate table directory: %s", game_dir)
+            logger.exception("Failed to enumerate game directory: %s", game_dir)
 
         if not table_names(game_contents):
             logger.warning("No .vpx found in %s directory.", game.gameDirName)
@@ -146,7 +146,7 @@ class GameParser:
                 'path': str(game_dir),
                 'error': str(exc),
             })
-            logger.error("Skipping table with unreadable metadata: %s", exc)
+            logger.error("Skipping game with unreadable metadata: %s", exc)
             return None
 
         # After the metadata, so a folder with several .vpx launches the one its
@@ -167,7 +167,7 @@ class GameParser:
             stat = os.stat(game.fullPathVPXfile)
             game.creation_time = getattr(stat, 'st_birthtime', stat.st_ctime)
         except OSError:
-            logger.warning("Could not stat game file: %s", game.fullPathVPXfile)
+            logger.warning("Could not stat table: %s", game.fullPathVPXfile)
 
         return game
 
@@ -226,7 +226,7 @@ class GameParser:
         try:
             meta = MetaConfig(str(meta_path))
         except InvalidMetaConfigError as exc:
-            logger.error("Invalid metadata for table '%s': %s", Game.gameDirName, exc)
+            logger.error("Invalid metadata for game '%s': %s", Game.gameDirName, exc)
             raise
         Game.metaConfig = meta.data
         Game.info_pending_upgrade = meta.pending_migration

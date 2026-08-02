@@ -45,13 +45,13 @@ def track_game_play(game, collection_name: str = "Last Played", max_items: int =
     ids.insert(0, member_id)
     collections.config[collection_name][MEMBERS_KEY] = ",".join(ids[:max_items])
     collections.save()
-    logger.info("Tracked table play: %s (now %s in %s)", member_id, len(ids[:max_items]), collection_name)
+    logger.info("Tracked game play: %s (now %s in %s)", member_id, len(ids[:max_items]), collection_name)
 
 
 def increment_start_count(game, table: str = "") -> None:
     config = clone_game_meta(game)
     if not config:
-        logger.warning("Could not increment StartCount: invalid table metadata for %s", game.gameDirName)
+        logger.warning("Could not increment StartCount: invalid game metadata for %s", game.gameDirName)
         return
 
     user = apply_start_count_update(config, table=table)
@@ -62,7 +62,7 @@ def increment_start_count(game, table: str = "") -> None:
 def add_runtime_minutes(game, elapsed_seconds: float, table: str = "") -> None:
     config = clone_game_meta(game)
     if not config:
-        logger.warning("Could not update RunTime: invalid table metadata for %s", game.gameDirName)
+        logger.warning("Could not update RunTime: invalid game metadata for %s", game.gameDirName)
         return
 
     user = apply_runtime_update(config, elapsed_seconds, table=table)
@@ -132,7 +132,7 @@ def score_rom_from_meta(config: dict) -> str:
 def parse_score_from_nvram(game) -> tuple[dict | None, str | None]:
     config = clone_game_meta(game)
     if not config:
-        logger.warning("Could not parse Score: invalid table metadata for %s", game.gameDirName)
+        logger.warning("Could not parse Score: invalid game metadata for %s", game.gameDirName)
         return None, None
 
     rom = score_rom_from_meta(config)
@@ -194,7 +194,7 @@ def build_runtime_submission_meta(game, user_state: dict) -> dict:
 def update_score_from_nvram(game) -> None:
     config = clone_game_meta(game)
     if not config:
-        logger.warning("Could not update Score: invalid table metadata for %s", game.gameDirName)
+        logger.warning("Could not update Score: invalid game metadata for %s", game.gameDirName)
         return
 
     score_data, score_path = parse_score_from_nvram(game)

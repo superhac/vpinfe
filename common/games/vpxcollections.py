@@ -260,8 +260,8 @@ class VPXCollections:
                         copy_aside(str(self.ini_path)))
         self._stamp_schema()
         self.save()
-        logger.info("Collection membership moved onto table ids: %s moved, %s left "
-                    "as VPS ids because no table matched", moved, unresolved)
+        logger.info("Collection membership moved onto game ids: %s moved, %s left "
+                    "as VPS ids because no game matched", moved, unresolved)
         return moved
 
     def save(self):
