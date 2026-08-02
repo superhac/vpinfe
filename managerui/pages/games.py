@@ -497,7 +497,7 @@ def render_panel(tab=None):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
                 ui.label('Tables Management').classes('text-2xl font-bold').style('color: var(--ink);').style('flex-shrink: 0;')
                 with ui.row().classes('gap-3 items-center flex-wrap'):
-                    scan_btn = ui.button("Scan Games", icon="refresh", on_click=open_build_metadata_dialog).style('color: var(--ink) !important; background: var(--neon-purple) !important; border-radius: 0;')
+                    scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).style('color: var(--ink) !important; background: var(--neon-purple) !important; border-radius: 0;')
                     patch_btn = ui.button("Apply Patches", icon="construction").props("color=secondary").style('border-radius: 0;')
                     # Start with green if no cached missing, will update after scan
                     cached_missing = _missing_cache()
@@ -609,7 +609,7 @@ def render_panel(tab=None):
 
                     patch_btn.on_click(open_patch_dialog)
 
-                    import_btn = ui.button("Import Game", icon="upload").props("color=accent").style('border-radius: 0;')
+                    import_btn = ui.button("Import Table", icon="upload").props("color=accent").style('border-radius: 0;')
 
                     import_btn.on_click(lambda: open_import_game_dialog(perform_scan))
 

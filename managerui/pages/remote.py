@@ -442,7 +442,7 @@ def show_vpx_game_controls():
 
     # Launch Game Section
     with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
-        ui.label("Launch Game").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
+        ui.label("Launch Table").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
         # State for the selection - also store UI element references
         launch_state = {'games': [], 'all_options': {}, 'filtered_options': {}, 'collection': 'All', 'last_term': ''}
