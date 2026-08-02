@@ -818,21 +818,34 @@ Notes:
 ```
 options:
   -h, --help            show this help message and exit
+  --version             Show the app version
   --listres             ID and list your screens
-  --listmissing         List the tables from VPSdb
-  --listunknown         List the tables we can't match in VPSdb
+  --listmissing         List the games from VPSdb
+  --listunknown         List the games we can't match in VPSdb
   --configdir DIR       Use DIR as the config directory (vpinfe.ini, themes,
                         caches, logs) instead of the OS default. Same as the
-                        VPINFE_CONFIG_DIR env var; applied at startup in main.py.
-  --buildmeta           Builds the .info file in each table dir
-  --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
-  --gamepadtest         Testing and mapping your gamepad via js api
-  --headless            Run web servers/services only, skip the Chromium frontend
-  --claim-user-media    Deprecated and does nothing; your own media is protected automatically
-  --no-media            When building the .info files don't download the images at the same time.
-  --update-all          When building the .info files reparse all tables to recreate them.
-  --user-media          With --buildmeta: skip vpinmediadb downloads entirely and supply all media yourself
-  --table TABLE         Specify a single table folder name to process with --buildmeta
+                        VPINFE_CONFIG_DIR env var; applied at startup in
+                        main.py.
+  --buildmeta           Builds the .info file in each game dir
+  --vpxpatch            Attempt to apply patches automatically
+  --gamepadtest         Test and map your gamepad via JS API
+  --headless            Run web servers/services only, skip the Chromium
+                        frontend
+  --claim-user-media    Deprecated and does nothing; your own media is
+                        protected automatically
+  --no-media            Do not download images when building the .info files
+  --update-all          Reparse all games when building the .info files
+  --user-media          With --buildmeta: skip vpinmediadb downloads entirely
+                        and supply all media yourself
+  --upgrade-info        Upgrade every game's .info file to the current format,
+                        backing up each one first. Normally done automatically
+                        at startup; use this to finish an upgrade that was
+                        interrupted
+  --restore-info        Put back the .info files saved before they were
+                        upgraded, for every game that has one. Your current
+                        .info is kept first
+  --game, --table GAME  Specify a single game folder name to process with
+                        --buildmeta, --upgrade-info or --restore-info
 ```
 
 ## Server Listeners
