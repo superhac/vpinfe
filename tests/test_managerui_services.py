@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
@@ -370,6 +371,36 @@ class ManagerUiServiceTests(unittest.TestCase):
             options_by_key = {item["key"]: item for item in saved["options"]}
             self.assertEqual(options_by_key["audio.enabled"]["value"], False)
             self.assertEqual(options_by_key["layout.mode"]["value"], "compact")
+
+
+class PageStylesheetTests(unittest.TestCase):
+    """Every stylesheet a page asks for has to be on disk.
+
+    load_page_style only writes a <link> tag, so a name that does not exist fails as a
+    404 the browser never mentions and the page quietly renders unstyled. The games
+    page did exactly that: it was renamed to ask for games.css while the file was
+    still called tables.css.
+    """
+
+    def test_every_requested_stylesheet_exists(self) -> None:
+        import ast
+
+        managerui = Path(__file__).resolve().parent.parent / "managerui"
+        static = managerui / "static"
+
+        missing = []
+        for path in sorted(managerui.rglob("*.py")):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                        and node.func.id == "load_page_style" and node.args):
+                    continue
+                arg = node.args[0]
+                if not (isinstance(arg, ast.Constant) and isinstance(arg.value, str)):
+                    continue  # computed at runtime; nothing to check statically
+                if not (static / arg.value).is_file():
+                    missing.append(f"{path.name}:{node.lineno} asks for {arg.value!r}")
+
+        self.assertEqual(missing, [], "\n".join(missing))
 
 
 if __name__ == "__main__":
