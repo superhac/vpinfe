@@ -21,14 +21,14 @@ git worktree remove /tmp/parity-master
 ## The exceptions
 
 **PAR-01 — First run writes `VPinFE.id` into `.info` files.**
-Every table gets a stable id, minted once and persisted. One-time, versioned via
+Every game gets a stable id, minted once and persisted. One-time, versioned via
 `VPinFE.schema`; files written by a newer build are left alone. Users see a burst of
 `.info` writes on first 3.0 start and nothing after.
 *Why:* an id-addressed API, events and collections need an identity that survives
 renames and table updates, which VPSId cannot provide. Covered by
 `tests/test_table_identity.py`.
 
-**PAR-02 — First run rewrites `collections.ini` membership onto table ids.**
+**PAR-02 — First run rewrites `collections.ini` membership onto game ids.**
 One-time migration, keyed by a schema version so it runs once; entries that don't
 resolve are kept rather than dropped.
 *Why:* membership keyed on VPSId was orphaned by an ordinary `.vpx` update. Covered
@@ -50,7 +50,7 @@ selection is now an event with independent subscribers.
 
 **PAR-05 — A folder with several `.vpx` files may launch a different one than before.**
 Master picked by directory scan order, which is filesystem-dependent; 3.0 picks the
-file the table's own metadata describes, with a deterministic fallback.
+file the game's own metadata describes, with a deterministic fallback.
 *Why:* three code paths chose three different files, so the metadata a user saw
 could describe a different table than the one that launched. Covered by
 `tests/test_game_files.py`.
@@ -116,7 +116,7 @@ circulates for other frontends works here unchanged. Covered by
 
 **PAR-12 — `logo` is its own media kind, and the wheel falls back to it.**
 *(machine-checked)* `logo.png` used to import as a wheel; it now imports as the game's
-logo, its own slot with the full chain (token `(Logo)`). A table with a logo and no wheel
+logo, its own slot with the full chain (token `(Logo)`). A game with a logo and no wheel
 shows the logo wherever the wheel would appear — themes, Manager UI, API — because the
 fallback lives at the bottom of the wheel's resolution, below every real wheel tier. The
 API marks such a wheel `via: "logo"`. Themes gain `LogoImagePath`.
@@ -124,10 +124,10 @@ API marks such a wheel `via: "logo"`. Themes gain `LogoImagePath`.
 blank slot everywhere at once; making it a kind keeps it addressable instead of buried in
 wheel semantics. Covered by `tests/test_media_resolution.py`.
 
-**PAR-13 — A table export is one game by default, not the whole folder.**
+**PAR-13 — A game export is one table by default, not the whole folder.**
 The `.vpxz` download and the mobile Web Send used to ship everything: every alternate
-game file, all media, every extra. The default is now a standalone bundle for the table's
-game file — the chosen `.vpx`, its stem-matched and folder-named companions, `pinmame/`,
+table, all media, every extra. The default is now a standalone bundle for the game's
+default table — the chosen `.vpx`, its stem-matched and folder-named companions, `pinmame/`,
 `music/`, colorization and sound folders, the author's readme files, and a `.info` whose
 `assets` section lists only what actually shipped. The whole-folder form remains
 available to callers through the API (`?full=true`), under its own permission scope.
@@ -135,11 +135,11 @@ available to callers through the API (`?full=true`), under its own permission sc
 folder finally exports the game file you meant instead of all of them. Covered by
 `tests/test_export_bundle.py`.
 
-**PAR-14 — Readme files import, display, and travel with the table.**
+**PAR-14 — Readme files import, display, and travel with the game.**
 Files named `readme*` (any extension) and `.nfo` used to fall into the import dialog's
 "didn't recognize these" list and were never copied. They're now detected, shown inline in
 the import confirmation so the author's notes are readable before anything is written,
-copied to the table folder root under their original names (on by default), and included
+copied to the game folder root under their original names (on by default), and included
 in the standalone export bundle. Detection is deliberately narrow — never a blanket
 `.txt`, which would misfile `alias.txt` and its kin.
 *Why:* whoever made the table wrote those notes for whoever installs it; now they arrive.
@@ -147,7 +147,7 @@ Covered by `tests/test_asset_upload_services.py` and `tests/test_export_bundle.p
 
 **PAR-15 — Manufacturer logos, served from a shared assets root.**
 *(machine-checked)* Themes gain one payload field, `ManufacturerLogoPath`: a
-`/assets/`-relative web path to the table manufacturer's logo, or `null` when there is
+`/assets/`-relative web path to the game manufacturer's logo, or `null` when there is
 none — which is every install today, since nothing ships and nothing downloads yet. The
 assets root is `[Settings] assetsdir` (default: `assets/` under the config dir), served
 at `/assets/`, with `manufacturers/user/` overriding `manufacturers/default/`. Lookup
@@ -155,17 +155,17 @@ normalizes the VPSdb manufacturer string ("Williams Electronics" finds `williams
 with a `manufacturers.json` alias map for the exceptions.
 *Why:* manufacturer is already a first-class metadata and filter dimension; themes just
 had nothing to render for it. A shared root exists because a manufacturer logo is neither
-per-table nor per-theme. Covered by `tests/test_shared_assets.py`.
+per-game nor per-theme. Covered by `tests/test_shared_assets.py`.
 
 **PAR-16 — Game files can be hidden, and several are peers rather than one default.**
-A table folder can hold more than one launchable `.vpx` — a desktop game file and a VR build,
+A game folder can hold more than one launchable `.vpx` — a desktop table and a VR build,
 or a table and a patched variant. Every visible one is independently launchable; there is
 no primary-with-alternates. The `.info` gains a `GameFiles` section keyed by filename
 (`{"hidden": true}`), absent meaning visible, so an existing library is unchanged. The
 game-files API response gains `hidden`.
 
 `default` in that response no longer means "the one to launch". It names the file the
-table's metadata was derived from, which is what export and the metadata build need when
+game's metadata was derived from, which is what export and the metadata build need when
 they have to pick one. Consumers listing what to play should filter on `hidden`.
 *Why:* applying a patch leaves the base table on disk — it has to stay, since the patched
 table cannot be rebuilt without it — but nobody wants to be offered it. Deleting it would
@@ -189,7 +189,7 @@ could previously be pinned by claiming it, and can no longer be pinned at all. C
 `VPXFile` becomes `game_files` (one entry per `.vpx`, since a folder can hold several),
 `Medias` becomes `assets`, the `VPinFE` section becomes `vpinfe` with snake_case keys, and
 `Info` gives up `Rom` and `Authors` to the game file that owns them. A 2.x file is migrated
-on read, keeping the original alongside it as `<Table>.info.vpinfe-<timestamp>`.
+on read, keeping the original alongside it as `<Game>.info.vpinfe-<timestamp>`.
 *Why:* the format described one game file per folder, which stopped being true the first
 time anybody patched a table. Themes are unaffected unless they opt in: the payload is
 served in the shape a theme declares as `contract` in its `manifest.json`, and absent means
@@ -234,10 +234,10 @@ migration path, which is why none of them is removed.
 The library scan matched `pupvideos`, `serum`, `vni`, `music` and `medias` against the
 folder name exactly as stored, so a folder named `PUPVideos` — the casing PinUP Popper
 itself writes — was not detected. The API had always lowercased before comparing, so the
-same table reported a PUP pack there and none in the Manager UI and themes. The scan now
-folds case too. Tables whose folders are not all-lowercase will start reporting addons
+same game reported a PUP pack there and none in the Manager UI and themes. The scan now
+folds case too. Games whose folders are not all-lowercase will start reporting addons
 they always had (`pupPackExists`, `altColorExists`, `vniExists`, `altSoundExists`).
-*Why:* one table cannot have two answers, and the scan was already case-insensitive about
+*Why:* one game cannot have two answers, and the scan was already case-insensitive about
 `.directb2s` and `.ini` three lines away. Covered by `tests/test_media_resolution.py`.
 
 **PAR-20 — The 2.x restore module is removed; 3.0 restores through its own.**
