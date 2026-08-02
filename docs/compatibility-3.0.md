@@ -26,7 +26,7 @@ Every game gets a stable id, minted once and persisted. One-time, versioned via
 `.info` writes on first 3.0 start and nothing after.
 *Why:* an id-addressed API, events and collections need an identity that survives
 renames and table updates, which VPSId cannot provide. Covered by
-`tests/test_table_identity.py`.
+`tests/test_game_identity.py`.
 
 **PAR-02 — First run rewrites `collections.ini` membership onto game ids.**
 One-time migration, keyed by a schema version so it runs once; entries that don't
@@ -53,7 +53,7 @@ Master picked by directory scan order, which is filesystem-dependent; 3.0 picks 
 file the game's own metadata describes, with a deterministic fallback.
 *Why:* three code paths chose three different files, so the metadata a user saw
 could describe a different table than the one that launched. Covered by
-`tests/test_game_files.py`.
+`tests/test_tables.py`.
 
 **PAR-06 — Launches from the Remote page and the API now record play data.**
 Start count, Last Played, runtime, NVRAM score — previously only wheel launches
