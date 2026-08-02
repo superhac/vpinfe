@@ -14,7 +14,7 @@ the domain-to-domain edges stay inside one package.
 **`common/` itself is the infrastructure layer.** Nothing here knows about games,
 hardware or any outside service, so anything may depend on it - and nothing in it may
 import from a domain package. That rule is the point of the layer; breaking it is how
-`config_access` ended up importing `table_metadata` to read a boolean.
+`config_access` ended up importing `game_metadata` to read a boolean.
 
 - `paths.py`: canonical user config, themes, collections, and game-root paths. `CONFIG_DIR` is resolved once at import time; set `VPINFE_CONFIG_DIR` before import (main.py maps the `--configdir` flag onto it) to relocate the whole config directory. `APP_ROOT` is where the app itself lives - use it for bundled assets instead of counting directory levels from `__file__`.
 - `config_access.py`: typed, UI-independent accessors for common INI sections.
@@ -90,7 +90,7 @@ interchangeable:
 
 Use `game_identity.game_id()` to read one, `ensure_id()` when you need a game
 to have one. Reading never mints, so game scans stay a read path.
-`table_repository.get_table_rows()` is the exception and calls `ensure_unique_ids`:
+`game_repository.get_game_rows()` is the exception and calls `ensure_unique_ids`:
 a row is addressed by its id, so a game imported since startup has to be given one
 rather than appear with an empty key that collides with every other such game.
 
@@ -103,7 +103,7 @@ Both membership paths tolerate VPS-keyed entries, and both have to. The migratio
 leaves an entry alone when no game matched it - the game may simply not be
 installed yet - and it runs only once, so such an entry can stay VPS-keyed
 indefinitely. `VPXCollections.is_member` covers the frontend;
-`table_repository._collections_for` covers the manager UI row. If only one of them
+`game_repository._collections_for` covers the manager UI row. If only one of them
 did, a game would show its collections in one place and not the other.
 
 Launch games through `host/launch.py`. It is the only place that starts a game
@@ -138,7 +138,7 @@ streamed at all.
 
 Never pick a game's `.vpx` yourself. A folder can hold several, and picking
 differently from everyone else means the metadata a user sees describes a different
-file than the one that launches. Use `game_files.default_game_file()`.
+file than the one that launches. Use `tables.default_table()`.
 
 Use `config_access.py` when reading common INI values from code outside the
 configuration editor itself. This keeps defaults and bool/int coercion in one

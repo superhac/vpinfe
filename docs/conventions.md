@@ -56,7 +56,7 @@ change there would be a breaking change for a caller.
 `vpinfe.ini` keys are lowercase and unseparated (`gamerootdir`, `manageruiport`). That is
 established and user-facing; leave it alone.
 
-`.info` keys are `snake_case` in the sections we own — `vpinfe`, `game_files`, `assets`,
+`.info` keys are `snake_case` in the sections we own — `vpinfe`, `tables`, `assets`,
 and so are those section names.
 `Info` and `User` keep PascalCase: other frontends read them, so their shape is a contract
 rather than a style choice.

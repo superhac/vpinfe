@@ -99,7 +99,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
     "vpinfe": {
         "schema": 2,
         "id": "tuF3WogthK",
-        "default_game_file": "123(Talleres de Llobregat 1973) v601.vpx",
+        "default_table": "123(Talleres de Llobregat 1973) v601.vpx",
         "delete_nvram_on_close": false,
         "alt_launcher": "",
         "plugin_profile": "",
@@ -107,7 +107,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
         "alt_vpsid": "",
         "frontend_dof_event": ""
     },
-    "game_files": {
+    "tables": {
         "123(Talleres de Llobregat 1973) v601.vpx": {
             "file_hash": "d685ce54d659fadcafd90a296473fb126754aa23b1145f457c6626aa5baa75d9",
             "vbs_hash": "bd6dcb7e0c618e4553d230095e73c7ca8e17f31def4595c38a8439b279977b45",
@@ -171,7 +171,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 
   Authors and Rom used to live here too. Both are properties of a table rather than of
   the machine — a folder can hold several, and they can disagree — so they moved to
-  `game_files`.
+  `tables`.
 
 - User
 
@@ -183,7 +183,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   - RunTime: Total playtime in minutes
   - Tags: Array of custom tags
 
-- game_files
+- tables
 
   One entry per `.vpx` in the folder, keyed by filename. A game folder can hold a desktop
   build, a VR build and a patched one, and every visible entry is independently launchable —
@@ -231,7 +231,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 #### Upgrading from a 2.x file
 
 Files written before schema 2 have no `schema` key, and are migrated the first time VPinFE
-reads them: `VPXFile` becomes the first `game_files` entry, `VPinFE` becomes `vpinfe` with
+reads them: `VPXFile` becomes the first `tables` entry, `VPinFE` becomes `vpinfe` with
 snake_case keys, `User.FrontendDOFEvent` moves to `vpinfe.frontend_dof_event`, and `Medias`
 is dropped.
 
