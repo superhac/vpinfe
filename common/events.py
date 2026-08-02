@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger("vpinfe.common.events")
 
-# Table lifecycle. Every hook on `launching` has finished before the game file starts.
+# Game lifecycle. Every hook on `launching` has finished before the table starts.
 GAME_LAUNCHING = "game.launching"
 GAME_LAUNCHED = "game.launched"
 GAME_EXITED = "game.exited"

@@ -23,7 +23,7 @@ CURRENT_CONTRACT = 2
 OLDEST_CONTRACT = 1
 CONTRACT_KEY = "contract"
 
-# What contract 1 calls each game-file field. The .info renamed these; a theme written
+# What contract 1 calls each table field. The .info renamed these; a theme written
 # against 2.x still reads the old spelling, so the projection restores it.
 _LEGACY_TABLE_KEYS = {
     "file_hash": "filehash",
@@ -51,7 +51,7 @@ _LEGACY_ROW_KEYS = {
 }
 
 # 1  the shape 2.x themes read: meta.VPXFile, and Rom and Authors on meta.Info
-# 2  the .info's own shape: meta.game_files, meta.vpinfe, and neither of those on Info
+# 2  the .info's own shape: meta.tables, meta.vpinfe, and neither of those on Info
 
 
 def declared_contract(theme_dir) -> int:
@@ -90,7 +90,7 @@ def _to_bool(value) -> bool:
 
 
 def _legacy_table(meta: dict, row: dict) -> dict:
-    """The table's default game file as VPXFile, plus the addon flags that rode with it."""
+    """The game's default table as VPXFile, plus the addon flags that rode with it."""
     name, entry = default_table(meta)
     vpx = {_LEGACY_TABLE_KEYS.get(key, key): value for key, value in dict(entry).items()}
     vpx["filename"] = name

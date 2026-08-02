@@ -29,13 +29,13 @@ _realdmd_updater: realdmd.RealDmdUpdater | None = None
 
 
 def release_for_launch(**_payload) -> None:
-    """Hand the devices over before the game file starts."""
+    """Hand the devices over before the table starts."""
     stop_dof_service()
     stop_libdmdutil_service(clear=False)
 
 
 def reacquire_after_exit(*, ini_config=None, **_payload) -> None:
-    """Take the devices back once the game file has exited."""
+    """Take the devices back once the table has exited."""
     start_dof_service_if_enabled(ini_config)
 
 

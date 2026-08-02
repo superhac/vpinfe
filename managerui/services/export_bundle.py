@@ -28,13 +28,13 @@ from managerui.services.asset_registry import (
 # of playing the game, so medias/ is deliberately absent.
 BUNDLE_DIRS = ("pinmame", "music", "serum", "vni", "altsound", "pupvideos")
 
-# Stem-matched companions of the chosen game file, per the engine's own lookup.
+# Stem-matched companions of the chosen table, per the engine's own lookup.
 COMPANION_EXTENSIONS = (".ini", ".vbs", ".directb2s", ".pov", ".scv")
 
 
 
 def choose_table(game_dir: Path, table: str | None = None) -> str | None:
-    """The bundle's game file: the caller's pick, else the table's default."""
+    """The bundle's table: the caller's pick, else the game's default."""
     try:
         listing = [entry.name for entry in game_dir.iterdir() if entry.is_file()]
     except OSError:

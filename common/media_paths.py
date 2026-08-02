@@ -170,8 +170,8 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
 
     Three tiers, most specific wins, per kind:
 
-      1. "(Token) <game-file-stem>.<ext>"  - this game file's own media
-      2. "(Token) <folder-name>.<ext>"     - shared by every game file in the folder
+      1. "(Token) <table-stem>.<ext>"      - this table's own media
+      2. "(Token) <folder-name>.<ext>"     - shared by every table in the folder
       3. "wheel.png"-style fixed names     - what vpinmediadb writes
 
     Within a tier the kind's extension family is tried in order, first hit wins -
@@ -208,7 +208,7 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
     resolved: dict[str, Path | None] = {}
     virtual_pending: dict[str, Path | None] = {}
     for spec in MEDIA_SPECS:
-        # Tier outranks token preference: a game-file-specific alias still beats a
+        # Tier outranks token preference: a table-specific alias still beats a
         # folder-level preferred token, or "most specific wins" would not hold.
         tokens = ((spec.token,) + spec.alt_tokens) if spec.token else ()
         user_names: list[str] = []

@@ -39,7 +39,7 @@ def create_vpxz_archive(game_dir_name: str, games_path: str | None = None, *,
                         table: str | None = None) -> VpxzArchive:
     """Create a temporary .vpxz archive for a table.
 
-    Default is the standalone bundle for one game file - export a game, not a
+    Default is the standalone bundle for one table - export a game, not a
     folder. `everything=True` archives the whole directory. Either way the
     layout is folder-wrapped, which is what the mobile importers expect, and
     the shipped .info describes only what the archive actually holds.

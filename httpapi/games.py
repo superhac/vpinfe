@@ -157,7 +157,7 @@ def _tables(game, row: dict) -> list[dict]:
     filename recorded in the .info: a game folder can hold several .vpx files.
     Sorted, so the answer does not depend on directory order.
 
-    A game file the metadata describes but absent from disk is still reported - a
+    A table the metadata describes but absent from disk is still reported - a
     table pointing at a missing file is something the caller should see - but the
     default falls to one that exists, since the default is what a caller would launch.
     """

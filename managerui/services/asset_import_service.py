@@ -118,7 +118,7 @@ def _patched_vpx_name(asset: DetectedAsset, base: Path, vpx_stem: str) -> str:
 
 
 def _sidecar_stem(assets, base: Path, vpx_stem: str) -> str:
-    """Which game file a bundle's .directb2s and .ini belong to: the patched table when the
+    """Which table a bundle's .directb2s and .ini belong to: the patched table when the
     bundle carries a patch, since they describe what the patch produces, not the base.
 
     Deselecting the patch afterwards leaves them named for a .vpx that never gets built.
@@ -358,7 +358,7 @@ def merge_info(incoming: dict, existing: dict) -> dict:
 
     Info is adopted wholesale only when the existing table has no VPS association.
     User and VPinFE fill empty fields (machine-specific overrides only if they resolve
-    locally). game_files and assets always keep the local version: game_files describes
+    locally). tables and assets always keep the local version: tables describes
     the builds on THIS disk and carries decisions made here — what is hidden, what has
     been patched, and later play stats — none of which an imported file can speak for.
     assets records what we placed in THIS folder, so an imported list describes files
@@ -522,7 +522,7 @@ def _record_replaced_table(game_dir: Path, vpx: Path, removed: str | None) -> No
 
 
 def _record_patched_table(game_dir: Path, vpx: Path, base_file: str, base_hash: str) -> None:
-    """Write the new game file into the table's .info: what it says about itself, and where
+    """Write the new table into the game's .info: what it says about itself, and where
     it came from. Best effort - the table is on disk and playable either way.
     """
     try:

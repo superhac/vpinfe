@@ -199,7 +199,7 @@ class Table(ApiModel):
     play should skip these; consumers managing a library should not.
 
     `default` names the file the table's metadata was derived from, not the one to
-    launch - every visible game file is independently launchable.
+    launch - every visible table is independently launchable.
     """
 
     format: str
