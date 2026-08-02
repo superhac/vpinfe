@@ -29,7 +29,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _tableparser_target(node) -> str | None:
-    """The variable name, if this statement is `x = TableParser(...)`."""
+    """The variable name, if this statement is `x = GameParser(...)`."""
     if not isinstance(node, ast.Assign) or len(node.targets) != 1:
         return None
     if not isinstance(node.value, ast.Call):
@@ -43,7 +43,7 @@ def _tableparser_target(node) -> str | None:
 
 
 def _is_reload_of(node, name: str) -> bool:
-    """Whether this statement is `name.loadTables(...)`."""
+    """Whether this statement is `name.loadGames(...)`."""
     if not isinstance(node, ast.Expr) or not isinstance(node.value, ast.Call):
         return False
     func = node.value.func

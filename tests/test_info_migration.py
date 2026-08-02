@@ -47,7 +47,7 @@ class DetectionTests(unittest.TestCase):
 
     def test_a_stamped_file_2x_wrote_again_is_migrated_again(self):
         """We never write VPXFile, so finding one in a stamped file means a 2.x build
-        rebuilt it after the migration and its game_files is stale. Trusting the stamp
+        rebuilt it after the migration and its tables section is stale. Trusting the stamp
         here is the bug 5db3f3d fixed, one release later."""
         rolled_back = {"vpinfe": {"schema": 2}, "tables": {"X.vpx": {"rom": "old"}},
                        "VPXFile": {"filename": "X.vpx", "rom": "new"}}
