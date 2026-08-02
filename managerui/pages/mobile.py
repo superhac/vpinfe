@@ -53,7 +53,7 @@ def _scan_games():
 
 
 def _build_game_rows(games):
-    """Build display rows from scanned tables."""
+    """Build display rows from scanned games."""
     return game_catalog.build_mobile_game_rows(games)
 
 
@@ -115,7 +115,7 @@ def _send_game_to_device(
     copy_masked_tableini_as_default=False,
     masked_tableini_mask='',
 ):
-    """Send all files in a table folder to the mobile device via its HTTP API.
+    """Send all files in a game folder to the mobile device via its HTTP API.
 
     Protocol (Mongoose-based WebServer on mobile device):
       - POST /folder?q=<relative_dir>        -> create directory
@@ -171,7 +171,7 @@ def _send_game_to_device(
         if root_vpx_files:
             primary_vpx_base_name = os.path.splitext(root_vpx_files[0])[0]
 
-    # The standalone bundle for the table's game file - the same answer the VPXZ
+    # The standalone bundle for the game's default table - the same answer the VPXZ
     # download gives. Whole-folder export is API-only, under its own scope.
     from managerui.services.export_bundle import bundle_paths, prune_info
     pruned_info_path = None
@@ -354,7 +354,7 @@ def _send_game_to_device(
                         conn = _http_request(url, data=chunk, conn=conn)
                         offset += len(chunk)
 
-        # Tell the mobile device to reload its table list
+        # Tell the mobile device to reload its list
         try:
             conn = _http_request(f'{base_url}/command?cmd=refresh_tables', data=b'', timeout=10, conn=conn)
         except Exception:
@@ -367,12 +367,12 @@ def _send_game_to_device(
 
 
 def _delete_game_from_device(host, port, game_dir_name):
-    """Delete a table directory from the mobile device via POST /delete?q=<path>."""
+    """Delete a game directory from the mobile device via POST /delete?q=<path>."""
     base_url = f'http://{host}:{port}'
     encoded_dir = urllib.parse.quote(game_dir_name, safe='')
     url = f'{base_url}/delete?q={encoded_dir}'
     _http_request(url, data=b'', timeout=30)
-    # Tell the mobile device to reload its table list
+    # Tell the mobile device to reload its list
     try:
         _http_request(f'{base_url}/command?cmd=refresh_tables', data=b'', timeout=10)
     except Exception:
@@ -568,7 +568,7 @@ def _build_web_send_panel():
     loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
     table_container = ui.column().classes('w-full')
 
-    # Shared state for the table reference and device folders
+    # Shared state for the ui.table reference and device folders
     panel_state = {
         'tbl': None, 'rows': [], 'device_folders': set(),
         'filter_installed': False,
@@ -616,7 +616,7 @@ def _build_web_send_panel():
             _safe_notify(f'Could not connect: {e}', type='negative')
 
     async def _send_single_game(host, port, name, exclude_ini, masked_ini_copy_enabled, masked_ini_mask):
-        """Send a single table with progress dialog. Returns True on success."""
+        """Send a single game with progress dialog. Returns True on success."""
         # Progress dialog
         with ui.dialog() as dlg, ui.card().classes('p-6').style('min-width: 400px; background: var(--surface) !important;'):
             with ui.column().classes('w-full gap-3'):
@@ -801,7 +801,7 @@ def _build_web_send_panel():
 
             tbl.on('webdelete', handle_delete)
 
-        # Auto-check device after tables load if IP is configured
+        # Auto-check device after games load if IP is configured
         if saved_ip:
             await check_device()
 

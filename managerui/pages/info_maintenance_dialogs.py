@@ -1,6 +1,6 @@
 """Upgrading the library's .info files, and putting them back.
 
-A library upgrades all at once at first launch, so a table still on the old format means
+A library upgrades all at once at first launch, so a game still on the old format means
 that did not finish. See INFO-SCHEMA.local.md §5b.
 """
 
@@ -216,7 +216,7 @@ def open_restore_dialog(on_done=None) -> None:
     try:
         names = game_service.restorable_game_names()
     except Exception:
-        logger.exception("Could not list tables with a saved .info")
+        logger.exception("Could not list games with a saved .info")
         names = []
 
     collections = _collections_restorable()
@@ -255,7 +255,7 @@ def _strip(icon: str, color: str, headline: str, detail: str, actions) -> None:
 
 @ui.refreshable
 def render_info_banners(on_done=None) -> None:
-    """A table the scan could not read, tables the upgrade missed, then news that it ran."""
+    """A game the scan could not read, games the upgrade missed, then news that it ran."""
     _render_unreadable_warning()
     counts = _counts()
     if counts.get('newer_than_us', 0):
@@ -267,11 +267,11 @@ def render_info_banners(on_done=None) -> None:
 
 
 def _render_unreadable_warning() -> None:
-    """Not dismissible: the table is missing from the frontend until somebody deals with it."""
+    """Not dismissible: the game is missing from the frontend until somebody deals with it."""
     try:
         broken = game_service.unreadable_games()
     except Exception:
-        logger.exception("Could not read the unreadable-table list")
+        logger.exception("Could not read the unreadable-game list")
         return
     if not broken:
         return

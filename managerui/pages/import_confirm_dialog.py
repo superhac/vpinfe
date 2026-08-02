@@ -72,7 +72,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
         return f"{len(entries)} files"
 
     def _row_destination(item) -> str:
-        # Relative to the table folder; the folder itself is stated by the title/name field.
+        # Relative to the game folder; the folder itself is stated by the title/name field.
         base = Path(plan.game_path)
         dest = Path(item.destination)
         try:

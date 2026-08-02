@@ -376,7 +376,7 @@ def render_panel():
         # --- Media replacement logic ---
 
         def open_replace_dialog(game_dir: str, game_path: str, game_name: str, media_key: str, media_label: str):
-            """Open a dialog to replace a media file for a table."""
+            """Open a dialog to replace a media file for a game."""
             target_filename = MEDIA_KEY_TO_FILENAME[media_key]
             is_video = target_filename.endswith('.mp4')
             is_audio = target_filename.endswith('.mp3')
@@ -524,11 +524,11 @@ def render_panel():
                     cb = ui.checkbox(media_label, value=False, on_change=make_handler(media_key)).style('color: var(--ink) !important;')
                     missing_checkboxes[media_key] = cb
 
-        # Table count label
+        # Game count label
         total = len(initial_rows)
         count_label = ui.label(f"Tables ({total})").classes('text-lg font-semibold py-1 text-center w-full').style('color: var(--ink-muted) !important;')
 
-        # Table with image thumbnails
+        # Media table with image thumbnails
         table_container = ui.column().classes("w-full media-table").style("flex: 1; overflow: hidden; display: flex;")
 
         with table_container:

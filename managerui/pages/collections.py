@@ -16,12 +16,12 @@ def get_collections_manager():
 
 
 def get_game_name_map() -> Dict[str, str]:
-    """Table names keyed by table id, for showing what is in a collection."""
+    """Game names keyed by game id, for showing what is in a collection."""
     return collections_service.get_game_name_map()
 
 
 def member_to_name(member_id: str, game_map: Dict[str, str] = None) -> str:
-    """Name of a collection member, or the raw id when no table matches."""
+    """Name of a collection member, or the raw id when no game matches."""
     return collections_service.member_to_name(member_id, game_map)
 
 
@@ -275,7 +275,7 @@ def render_panel(tab=None):
 
                 ui.label('Add tables to this collection:').classes('text-sm text-gray-400 mt-4')
 
-                # Selected tables list
+                # Selected games list
                 selected_games = {'items': []}  # {id, name}
                 selected_container = ui.column().classes('w-full gap-1 mt-2').style('max-height: 150px; overflow-y: auto;')
 
@@ -296,7 +296,7 @@ def render_panel(tab=None):
 
                 update_selected_display()
 
-                # Table search and selection
+                # Game search and selection
                 ui.label('Search installed tables:').classes('text-sm text-gray-400 mt-4')
                 search_input = debounced_input(ui.input('Search...', placeholder='Type to search tables')).classes('w-full')
                 search_results = ui.column().classes('w-full gap-1 mt-2').style('max-height: 200px; overflow-y: auto;')
@@ -590,7 +590,7 @@ def render_panel(tab=None):
                 ui.separator()
                 image_state = create_image_picker(image_state_value)
 
-                # Track current tables in collection
+                # Track current games in collection
                 selected_games = {'items': []}
 
                 # Try to resolve VPS IDs to names from cache
@@ -622,7 +622,7 @@ def render_panel(tab=None):
 
                 update_selected_display()
 
-                # Table search and add
+                # Game search and add
                 ui.label('Add more tables:').classes('text-sm text-gray-400 mt-4')
                 search_input = debounced_input(ui.input('Search...', placeholder='Type to search tables')).classes('w-full')
                 search_results = ui.column().classes('w-full gap-1 mt-2').style('max-height: 150px; overflow-y: auto;')

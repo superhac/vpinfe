@@ -189,7 +189,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                                 if on_close:
                                     on_close()
                             except Exception as ex:
-                                logger.exception('Table update failed')
+                                logger.exception('Game update failed')
                                 with client:
                                     update_status.set_text('Update failed')
                                     ui.notify(f'Update failed: {ex}', type='negative')
@@ -467,7 +467,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
 
                         refresh_rating_ui()
 
-            # Collections section - add table to collection
+            # Collections section - add game to collection
             game_id = row_data.get('vpinfe_id', '')
             current_collections = row_data.get('collections', [])
             available_collections = get_game_collections()
@@ -484,7 +484,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                                 ui.badge(col_name, color='purple').props('rounded')
 
                     # Dropdown to add to collection
-                    # Filter out collections the table is already in
+                    # Filter out collections the game is already in
                     collections_to_add = [c for c in available_collections if c not in current_collections]
 
                     if collections_to_add:
@@ -502,7 +502,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                                     return
                                 if add_game_to_collection(game_id, selected):
                                     ui.notify(f'Added to {selected}', type='positive')
-                                    # add_table_to_collection already updates the cache,
+                                    # add_game_to_collection already updates the cache,
                                     # just update the dropdown options
                                     new_options = [c for c in collection_select.options if c != selected]
                                     collection_select.options = new_options
@@ -622,7 +622,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
 
                 with ui.row().classes('items-center gap-3 w-full'):
                     # A profile the user deleted would otherwise vanish from the
-                    # dropdown with no sign it is still saved on this table.
+                    # dropdown with no sign it is still saved on this game.
                     profile_options = plugin_profile_service.list_profiles()
                     if pluginprofile_value and pluginprofile_value not in profile_options:
                         profile_options = profile_options + [pluginprofile_value]

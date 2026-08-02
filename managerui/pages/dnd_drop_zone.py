@@ -79,7 +79,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
 
             cell_resolver = state.get("resolve_cell")
             if cell_row and cell_media_key and cell_resolver is not None:
-                # Slot-targeted drop: the cell dictates table and media key; no analysis.
+                # Slot-targeted drop: the cell dictates game and media key; no analysis.
                 game_path = cell_resolver(cell_row)
                 files = [p for p in session_dir.iterdir() if p.is_file()]
                 dirs = [p for p in session_dir.iterdir() if p.is_dir()]
@@ -107,7 +107,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
             analysis, source_path = await run.io_bound(analyze_upload_session, session_dir)
             resolver = state.get("resolve_row")
             if row_key and resolver is not None:
-                # A drop on a row targets that row's table, regardless of selection.
+                # A drop on a row targets that row's game, regardless of selection.
                 ctx = resolver(row_key)
                 if ctx is None:
                     with client:
@@ -189,7 +189,7 @@ def enable_cell_drops(zone: ui.element, container: ui.element,
     """Make media cells inside container slot-targeted drop targets.
 
     Cells must carry data-drop-media-key and data-drop-media-row attributes; the cell
-    dictates both the target table (resolved via resolve_table_path) and the media slot.
+    dictates both the target game (resolved via resolve_game_path) and the media slot.
     """
     zone.dnd_state["resolve_cell"] = resolve_game_path
     container.classes(f"vpinfe-dnd-cells-{zone.dnd_token}")

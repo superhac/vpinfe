@@ -104,7 +104,7 @@ def _render_match_vps_dialog(
     """
     missing_row: {'folder': '<name>', 'path': '<abs path>'}
     refresh_missing: callback to refresh the missing list/count after success
-    refresh_installed: callback to refresh the installed tables list after success
+    refresh_installed: callback to refresh the installed games list after success
     """
     dlg = ui.dialog().props('max-width=1080px persistent')
     dialog_state = {'busy': False}
@@ -167,7 +167,7 @@ def _render_match_vps_dialog(
                                 folder_path = old_path
                                 if rename_folder_switch.value:
                                     loading_label.set_text('Renaming folder...')
-                                    # Build new folder name: TABLE_NAME (MANUFACTURER YEAR)
+                                    # Build new folder name: GAME_NAME (MANUFACTURER YEAR)
                                     new_name = it.get('name', '')
                                     new_manuf = it.get('manufacturer') or it.get('mfg') or ''
                                     new_year = it.get('year') or ''

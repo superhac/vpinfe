@@ -11,7 +11,7 @@ ks = None
 content_area = None
 category_select = None
 
-# Config for launching tables
+# Config for launching games
 # Import config
 from common.games import game_identity
 from common.games.game_repository import ensure_games_loaded
@@ -76,7 +76,7 @@ def _get_collections():
 
 
 def _get_collection_members(collection_name):
-    """Table ids in a collection with an explicit member list."""
+    """Game ids in a collection with an explicit member list."""
     return remote_launch.get_collection_members(collection_name)
 
 
@@ -91,7 +91,7 @@ def _get_collection_filters(collection_name):
 
 
 def _game_matches_filters(game, filters):
-    """Check if a table matches the given filter criteria."""
+    """Check if a game matches the given filter criteria."""
     return remote_launch.game_matches_filters(game, filters)
 
 
@@ -104,24 +104,24 @@ def _get_ini_config():
 
 
 def _get_games_path() -> str:
-    """Get the tables root directory from config."""
+    """Get the games root directory from config."""
     from managerui.paths import get_games_path
     return get_games_path()
 
 
 def _scan_games_for_launch():
-    """Scan for tables that can be launched (have .info and .vpx files)."""
+    """Scan for games that can be launched (have .info and .vpx files)."""
     return remote_launch.scan_games_for_launch()
 
 
 def _launch_game(game: dict):
-    """Hand a table to the launch service and let the bus tell everyone else."""
+    """Hand a game to the launch service and let the bus tell everyone else."""
     import threading
 
     game_name = game.get('name', 'table')
     resolved = game_identity.find_by_id(ensure_games_loaded(), game.get('vpinfe_id', ''))
     if resolved is None:
-        # Every launchable table has an id, so this means the library moved under us.
+        # Every launchable game has an id, so this means the library moved under us.
         ui.notify(f'Could not find {game_name} in the library', type='negative')
         return False
 
@@ -132,7 +132,7 @@ def _launch_game(game: dict):
         ui.notify(str(exc), type='negative')
         return False
 
-    logger.info("Remote launching table: %s", resolved.gameDirName)
+    logger.info("Remote launching game: %s", resolved.gameDirName)
     ui.notify(f'Remote Launching {game_name}...', type='info')
 
     def run_and_wait():
@@ -440,7 +440,7 @@ def show_vpx_game_controls():
                     ui.icon("paid", size="xs").style("color: var(--neon-yellow) !important;")
                     ui.label(f"Credit {i}").classes("text-xs md:text-sm")
 
-    # Launch Table Section
+    # Launch Game Section
     with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
         ui.label("Launch Game").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
@@ -450,7 +450,7 @@ def show_vpx_game_controls():
 
         # Dropdown and launch button row (first)
         with ui.row().classes("w-full items-center gap-2 mb-2"):
-            # Dropdown select for tables
+            # Dropdown select for games
             game_select = ui.select(
                 options=[],
                 on_change=lambda e: None
@@ -465,7 +465,7 @@ def show_vpx_game_controls():
             def do_launch():
                 selected = ui_refs['game_select'].value
                 if selected:
-                    # Find the table by vpx_path (which is the value)
+                    # Find the game by vpx_path (which is the value)
                     game = next((t for t in launch_state['games'] if t['vpx_path'] == selected), None)
                     if game:
                         _launch_game(game)
@@ -483,7 +483,7 @@ def show_vpx_game_controls():
             """Apply collection filter to get base options."""
             collection = launch_state.get('collection', 'All')
             if collection == 'All':
-                # Use all tables
+                # Use all games
                 launch_state['filtered_options'] = {
                     t['vpx_path']: t['display_name'] for t in launch_state['games']
                 }
@@ -507,7 +507,7 @@ def show_vpx_game_controls():
         def on_collection_change(e):
             launch_state['collection'] = e.value
             apply_collection_filter()
-            # Clear search and update table list
+            # Clear search and update the games list
             ui_refs['filter_input'].value = ''
             launch_state['last_term'] = ''
             ui_refs['game_select'].options = launch_state['filtered_options']
@@ -588,7 +588,7 @@ def show_vpx_game_controls():
 
         filter_input.on('keydown.enter', on_enter)
 
-        # Load tables and collections on first render
+        # Load games and collections on first render
         async def load_games():
             # Load collections
             collections = await run.io_bound(_get_collections)
@@ -597,7 +597,7 @@ def show_vpx_game_controls():
             collection_select.options = collection_options
             collection_select.update()
 
-            # Load tables
+            # Load games
             games = await run.io_bound(_scan_games_for_launch)
             launch_state['games'] = games
             # Build options as dict: {vpx_path: display_name}
@@ -605,7 +605,7 @@ def show_vpx_game_controls():
             launch_state['all_options'] = options
             launch_state['filtered_options'] = options
             game_select.options = options
-            # Select first table by default
+            # Select first game by default
             if options:
                 first_key = next(iter(options))
                 game_select.value = first_key

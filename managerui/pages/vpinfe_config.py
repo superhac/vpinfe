@@ -559,7 +559,7 @@ def render_panel(tab=None):
                 from managerui.services import game_index_service
                 game_index_service.invalidate()
             except Exception:
-                logger.exception("Failed to invalidate table index after saving configuration")
+                logger.exception("Failed to invalidate game index after saving configuration")
             ui.notify('Configuration Saved', type='positive')
         except Exception as e:
             logger.exception("Failed to save configuration to %s", INI_PATH)

@@ -46,9 +46,9 @@ def ensure_vpsdb_downloaded() -> bool:
     ok = game_service.ensure_vpsdb_downloaded()
     _vpsdb_cache = None
     return ok
-# Ensure only one Missing Tables dialog at a time
+# Ensure only one missing-games dialog at a time
 _missing_games_dialog: Optional[ui.dialog] = None
-# Cache compatibility helpers. Ownership lives in table_index_service.
+# Cache compatibility helpers. Ownership lives in game_index_service.
 def _games_cache() -> Optional[List[Dict]]:
     return game_index_service.get_rows()
 
@@ -63,41 +63,41 @@ def normalize_game_rating(value) -> int:
 
 
 def get_game_collections_map() -> Dict[str, List[str]]:
-    """Collection names keyed by table id, for collections with explicit members."""
+    """Collection names keyed by game id, for collections with explicit members."""
     return game_service.get_game_collections_map()
 
 
 def get_game_collections() -> List[str]:
-    """Names of the collections a table can be added to by hand."""
+    """Names of the collections a game can be added to by hand."""
     return game_service.get_game_collections()
 
 
 def add_game_to_collection(game_id: str, collection_name: str) -> bool:
-    """Add a table to a collection. Returns True on success."""
+    """Add a game to a collection. Returns True on success."""
     try:
         if not game_service.add_game_to_collection(game_id, collection_name):
             return False
         game_index_service.add_collection_membership(game_id, collection_name)
         return True
     except Exception as e:
-        logger.error(f"Failed to add table to collection: {e}")
+        logger.error(f"Failed to add game to collection: {e}")
         return False
 
 
 def sync_collections_to_cache():
-    """Sync the tables cache with current collection memberships from disk.
+    """Sync the games cache with current collection memberships from disk.
 
-    Call this after modifying collections outside of add_table_to_collection(),
-    such as when removing tables from collections or deleting/renaming collections.
+    Call this after modifying collections outside of add_game_to_collection(),
+    such as when removing games from collections or deleting/renaming collections.
     """
     game_index_service.sync_collection_memberships(get_game_collections_map())
 
 
 def update_vpinfe_setting(game_path: str, key: str, value) -> bool:
-    """Update a VPinFE setting in the table's .info file.
+    """Update a VPinFE setting in the game's .info file.
 
     Args:
-        table_path: Path to the table directory
+        game_path: Path to the game directory
         key: The setting key (e.g., 'delete_nvram_on_close')
         value: The value to set
 
@@ -134,7 +134,7 @@ def save_upload_bytes(dest_file: Path, content: bytes) -> None:
 
 def associate_vps_to_folder(game_folder: Path, vps_entry: Dict, download_media: bool = False) -> None:
     """
-    Creates a `.info` file inside `table_folder` using the selected vps_entry and the VPX metadata.
+    Creates a `.info` file inside `game_folder` using the selected vps_entry and the VPX metadata.
     """
     game_service.associate_vps_to_folder(game_folder, vps_entry, download_media)
 
@@ -142,7 +142,7 @@ def associate_vps_to_folder(game_folder: Path, vps_entry: Dict, download_media: 
 logger = logging.getLogger("vpinfe.manager.games")
 
 def get_games_path() -> str:
-    """Resolve tables path from vpinfe.ini [Settings] gamerootdir, fallback to ~/tables."""
+    """Resolve the games path from vpinfe.ini [Settings] gamerootdir, fallback to ~/tables."""
     return resolve_games_path()
 
 def parse_game_info(info_path):
@@ -159,8 +159,8 @@ def parse_game_info(info_path):
         info = raw.get("Info", {})
         user = raw.get("User", {})
         vpinfe = vpinfe_section(raw)
-        # This row describes the table's default build. A folder can hold several;
-        # the API lists them all, the table view shows one.
+        # This row describes the game's default table. A folder can hold several;
+        # the API lists them all, the games list shows one.
         gf_name, vpx = default_table(raw, folder_name=game_name)
 
         def get(*paths, default=""):
@@ -235,7 +235,7 @@ def parse_game_info(info_path):
 def scan_games(silent: bool = False):
     games_path = get_games_path()
     if not os.path.exists(games_path):
-        logger.warning(f"Tables path does not exist: {games_path}. Skipping scan.")
+        logger.warning(f"Games path does not exist: {games_path}. Skipping scan.")
         if not silent:
             ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
         return []
@@ -251,7 +251,7 @@ def load_metadata_from_ini():
 def render_panel(tab=None):
     with ui.column().classes('w-full'):
         load_page_style("games.css")
-        # Define columns for the table
+        # Define columns for the games table
         columns = [
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
             {'name': 'manufacturer', 'label': 'Manufacturer', 'field': 'manufacturer', 'align': 'left', 'sortable': True},
@@ -271,13 +271,13 @@ def render_panel(tab=None):
                 cached_row = game_index_service.find_by_path(game_path) if game_path else None
                 if cached_row is not None:
                     row_data = cached_row
-                # Pass update_table_display as callback to refresh table when dialog closes
+                # Pass update_game_display as callback to refresh the grid when the dialog closes
                 open_game_dialog(row_data, on_close=lambda: update_game_display())
             else:
                 ui.notify("Error: Unexpected row click event format.", type="negative")
 
         async def perform_scan(*_, silent: bool = False):
-            """Scans for tables asynchronously and updates the UI.
+            """Scans for games asynchronously and updates the UI.
             If silent=True, suppress user notifications.
             """
             logger.info("Scanning games...")
@@ -325,7 +325,7 @@ def render_panel(tab=None):
                 missing_button._props['color'] = btn_color
                 missing_button.update()
 
-                # Update the click handler for the missing tables button with the new data
+                # Update the click handler for the missing-games button with the new data
                 missing_button.on('click', None) # Remove old handler
                 missing_button.on('click', lambda: open_missing_games_dialog(
                     missing_rows,
@@ -335,7 +335,7 @@ def render_panel(tab=None):
                 if not silent:
                     ui.notify('Scan complete!', type='positive')
             except Exception as e:
-                logger.exception("Failed to scan tables")
+                logger.exception("Failed to scan games")
                 if not silent:
                     ui.notify(f"Error during scan: {e}", type='negative')
             finally:
@@ -471,7 +471,7 @@ def render_panel(tab=None):
                         # Invalidate media cache so media page shows fresh data
                         invalidate_media_cache()
 
-                        # Refresh table list after completion
+                        # Refresh the games list after completion
                         await perform_scan(silent=True)
                     except Exception as e:
                         logger.exception('buildMetaData failed')
@@ -589,7 +589,7 @@ def render_panel(tab=None):
                                         patch_progressbar.value = 1.0
                                         ui.notify('VPX patches applied', type='positive')
 
-                                    # Refresh tables silently to reflect patch_applied flag
+                                    # Refresh games silently to reflect patch_applied flag
                                     await perform_scan(silent=True)
                                 except Exception as e:
                                     logger.exception('vpxPatches failed')
@@ -617,7 +617,7 @@ def render_panel(tab=None):
                     # every release: whoever needs the restore has just downgraded.
                     maintenance_menu(on_done=lambda: asyncio.create_task(perform_scan(silent=True)))
 
-        # What the page has to say about the .info files themselves: a table it could
+        # What the page has to say about the .info files themselves: a game it could
         # not read, news that the library was converted, or an offer to finish one.
         render_info_banners(on_done=lambda: asyncio.create_task(perform_scan(silent=True)))
 
@@ -658,11 +658,11 @@ def render_panel(tab=None):
         }
 
         def get_filter_options_from_cache():
-            """Extract unique filter values from cached tables."""
+            """Extract unique filter values from cached games."""
             return build_game_filter_options(_games_cache() or [])
 
         def apply_filters():
-            """Filter the cached tables based on current filter state."""
+            """Filter the cached games based on current filter state."""
             extra_predicates = []
             if filter_state['has_pup_pack']:
                 extra_predicates.append(lambda row: row.get('pup_pack_exists', False))
@@ -676,7 +676,7 @@ def render_panel(tab=None):
             )
 
         def update_game_display():
-            """Update the table with filtered results."""
+            """Update the games table with filtered results."""
             filtered = apply_filters()
             games_table._props['rows'] = filtered
             games_table.update()

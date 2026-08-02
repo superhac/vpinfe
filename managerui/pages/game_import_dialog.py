@@ -22,7 +22,7 @@ search_vpsdb = game_service.search_vpsdb
 
 
 def open_import_game_dialog(perform_scan_cb=None):
-    """Top-level dialog for importing a new table with associated files."""
+    """Top-level dialog for importing a new game with associated files."""
     dlg = ui.dialog().props('persistent max-width=900px')
     import_state = {
         'vps_entry': None,
@@ -320,7 +320,7 @@ def open_import_game_dialog(perform_scan_cb=None):
                     import_loading_label.set_text('Creating metadata and downloading media...')
                 await run.io_bound(associate_vps_to_folder, game_dir, vps_entry, True)
 
-                # Rebuild metadata (same as "Rebuild Meta" button in table detail)
+                # Rebuild metadata (same as "Rebuild Meta" button in game detail)
                 game_dir_name = game_dir.name
                 with client:
                     import_loading_label.set_text('Rebuilding metadata...')
@@ -338,12 +338,12 @@ def open_import_game_dialog(perform_scan_cb=None):
                     ui.notify(f'Table imported successfully: {folder_name}', type='positive')
                 dlg.close()
 
-                # Refresh table list
+                # Refresh the games list
                 if callable(perform_scan_cb):
                     await perform_scan_cb(silent=True)
 
             except Exception as ex:
-                logger.exception('Table import failed')
+                logger.exception('Game import failed')
                 with client:
                     ui.notify(f'Import failed: {ex}', type='negative')
                     import_loading_overlay.style(add='display: none;', remove='display: flex;')
