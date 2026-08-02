@@ -67,7 +67,7 @@ def render_panel():
     if not _media_route_registered:
         games_path = media_service.get_games_path()
         if os.path.exists(games_path):
-            app.add_media_files('/media_tables', games_path)
+            app.add_media_files('/media_games', games_path)
             _media_route_registered = True
     if not _thumb_route_registered:
         THUMB_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
@@ -81,14 +81,14 @@ def render_panel():
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
             {'name': 'bg', 'label': 'BG', 'field': 'has_bg', 'align': 'center', 'sortable': True},
             {'name': 'dmd', 'label': 'DMD', 'field': 'has_dmd', 'align': 'center', 'sortable': True},
-            {'name': 'table_img', 'label': 'Table', 'field': 'has_table', 'align': 'center', 'sortable': True},
+            {'name': 'game_img', 'label': 'Table', 'field': 'has_table', 'align': 'center', 'sortable': True},
             {'name': 'fss', 'label': 'FSS', 'field': 'has_fss', 'align': 'center', 'sortable': True},
             {'name': 'wheel', 'label': 'Wheel', 'field': 'has_wheel', 'align': 'center', 'sortable': True},
             {'name': 'cab', 'label': 'Cab', 'field': 'has_cab', 'align': 'center', 'sortable': True},
             {'name': 'flyer', 'label': 'Flyer', 'field': 'has_flyer', 'align': 'center', 'sortable': True},
             {'name': 'realdmd', 'label': 'Real DMD', 'field': 'has_realdmd', 'align': 'center', 'sortable': True},
             {'name': 'realdmd_color', 'label': 'Real DMD Color', 'field': 'has_realdmd_color', 'align': 'center', 'sortable': True},
-            {'name': 'table_video', 'label': 'Table Video', 'field': 'has_table_video', 'align': 'center', 'sortable': True},
+            {'name': 'table_video', 'label': 'Table Video', 'field': 'has_game_video', 'align': 'center', 'sortable': True},
             {'name': 'bg_video', 'label': 'BG Video', 'field': 'has_bg_video', 'align': 'center', 'sortable': True},
             {'name': 'dmd_video', 'label': 'DMD Video', 'field': 'has_dmd_video', 'align': 'center', 'sortable': True},
             {'name': 'audio', 'label': 'Audio', 'field': 'has_audio', 'align': 'center', 'sortable': True},
@@ -103,7 +103,7 @@ def render_panel():
             'table_type': 'All',
             'missing_bg': False,
             'missing_dmd': False,
-            'missing_table': False,
+            'missing_game': False,
             'missing_fss': False,
             'missing_wheel': False,
             'missing_cab': False,
@@ -192,7 +192,7 @@ def render_panel():
                         if thumbs.get(media_key) or errors.get(media_key):
                             continue
                         source_path = media_service.source_media_path(row.get('table_path', ''), media_key)
-                        if source_path and media_service.mark_thumb_requested(row.get('table_dir', ''), media_key, source_path):
+                        if source_path and media_service.mark_thumb_requested(row.get('game_dir', ''), media_key, source_path):
                             pending.append((row, media_key, source_path))
 
                 if not pending:
@@ -206,7 +206,7 @@ def render_panel():
                     changed = False
                     try:
                         async with sem:
-                            thumb = await run.io_bound(media_service.ensure_thumb, row.get('table_dir', ''), media_key, source_path)
+                            thumb = await run.io_bound(media_service.ensure_thumb, row.get('game_dir', ''), media_key, source_path)
                         if thumb:
                             if row['thumbs'].get(media_key) != thumb:
                                 row['thumbs'][media_key] = thumb
@@ -217,7 +217,7 @@ def render_panel():
                     except Exception:
                         row.setdefault('thumb_errors', {})[media_key] = True
                     finally:
-                        media_service.clear_thumb_request(row.get('table_dir', ''), media_key, source_path)
+                        media_service.clear_thumb_request(row.get('game_dir', ''), media_key, source_path)
                     return changed
 
                 for i in range(0, len(pending), THUMB_WARM_CHUNK_SIZE):
@@ -386,7 +386,7 @@ def render_panel():
             # Find current media URL from cache
             if _media_cache():
                 for row in _media_cache():
-                    if row['table_dir'] == game_dir:
+                    if row['game_dir'] == game_dir:
                         current_url = row['media'].get(media_key)
                         break
 
@@ -439,7 +439,7 @@ def render_panel():
                             target_path = await run.io_bound(media_service.replace_media_file, game_path, game_dir, media_key, src)
 
                             # Build the URL for the new media (now in medias/ subfolder)
-                            new_url = media_service.media_url('media_tables', game_dir, 'medias', target_filename)
+                            new_url = media_service.media_url('media_games', game_dir, 'medias', target_filename)
                             new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir, media_key, target_path)
                             media_service.update_cache_entry(game_dir, media_key, new_url, new_thumb)
                             update_game_display()
@@ -533,7 +533,7 @@ def render_panel():
 
         with game_container:
             media_game = (
-                ui.game(columns=columns, rows=initial_rows, row_key='table_dir', pagination=dict(pagination_state))
+                ui.game(columns=columns, rows=initial_rows, row_key='game_dir', pagination=dict(pagination_state))
                   .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
                   .classes("w-full")
                   .style("flex: 1; overflow: auto;")
@@ -546,13 +546,13 @@ def render_panel():
             for media_key, media_label, media_filename in MEDIA_TYPES:
                 col_name = media_key
                 if media_key == 'table':
-                    col_name = 'table_img'
-                emit_expr = "$parent.$emit('media_click', [props.row.table_dir, props.row.table_path, props.row.name, '" + media_key + "'])"
+                    col_name = 'game_img'
+                emit_expr = "$parent.$emit('media_click', [props.row.game_dir, props.row.table_path, props.row.name, '" + media_key + "'])"
                 is_video = media_filename.endswith('.mp4')
                 is_audio = media_filename.endswith('.mp3')
 
                 cell_td = ('<q-td :props="props" data-drop-media-key="' + media_key
-                           + '" :data-drop-media-row="props.row.table_dir">')
+                           + '" :data-drop-media-row="props.row.game_dir">')
 
                 if is_audio:
                     media_game.add_slot(f'body-cell-{col_name}', cell_td + '''
@@ -636,7 +636,7 @@ def render_panel():
 
             def _cell_game_path(game_dir: str):
                 return next((r.get('table_path') for r in (_media_cache() or [])
-                             if r.get('table_dir') == game_dir), None)
+                             if r.get('game_dir') == game_dir), None)
 
             def _on_cell_imported(report):
                 async def _refresh():
@@ -645,7 +645,7 @@ def render_panel():
                     for media_key in report.get('media_keys', []):
                         target_filename = MEDIA_KEY_TO_FILENAME[media_key]
                         target_path = os.path.join(game_path, 'medias', target_filename)
-                        new_url = media_service.media_url('media_tables', game_dir, 'medias', target_filename)
+                        new_url = media_service.media_url('media_games', game_dir, 'medias', target_filename)
                         new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir, media_key, target_path)
                         media_service.update_cache_entry(game_dir, media_key, new_url, new_thumb)
                     update_game_display()

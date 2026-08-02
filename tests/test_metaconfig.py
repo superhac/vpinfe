@@ -40,7 +40,7 @@ class TestMetaConfig(unittest.TestCase):
                     "vbs_hash": "vbshash",
                     "rom": "example",
                     "author_name": "Author One, Author Two",
-                    "table_blurb": "Line 1\nLine 2",
+                    "game_blurb": "Line 1\nLine 2",
                     "detect_nfozzy": False,
                     "detect_fleep": False,
                     "detect_ssf": True,

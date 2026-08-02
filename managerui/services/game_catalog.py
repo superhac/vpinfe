@@ -16,7 +16,7 @@ def scan_mobile_games(reload: bool = False) -> List[Dict]:
             "name": row.get("name", ""),
             "manufacturer": row.get("manufacturer", ""),
             "year": str(row.get("year", "") or ""),
-            "table_dir_name": Path(game_path).name if game_path else "",
+            "game_dir_name": Path(game_path).name if game_path else "",
             "table_path": game_path,
             "vpinfe_id": row.get("vpinfe_id", ""),
         })
@@ -32,7 +32,7 @@ def build_mobile_game_rows(games: List[Dict]) -> List[Dict]:
         display = f"{name} ({' '.join(parts)})" if parts else name
         rows.append({
             "display_name": display,
-            "table_dir_name": game.get("table_dir_name", ""),
+            "game_dir_name": game.get("game_dir_name", ""),
             "vpinfe_id": game.get("vpinfe_id", ""),
         })
     return rows

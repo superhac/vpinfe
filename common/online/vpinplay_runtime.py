@@ -141,7 +141,7 @@ def get_alternate_profile_state() -> dict[str, Any]:
         return {
             "active": active_profile is not None,
             "profile": _profile_to_dict(active_profile) if active_profile is not None else None,
-            "active_tables": active_game_count,
+            "active_games": active_game_count,
             "profiles": profiles,
             "activeProfileKey": active_profile.profile_key if active_profile is not None else "",
         }

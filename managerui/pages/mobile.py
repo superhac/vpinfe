@@ -422,7 +422,7 @@ def _build_vpxz_download_panel():
             tbl = ui.game(
                 columns=columns,
                 rows=rows,
-                row_key='table_dir_name',
+                row_key='game_dir_name',
                 pagination={'rowsPerPage': 25},
             ).classes('w-full').props('dense').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);')
 
@@ -435,7 +435,7 @@ def _build_vpxz_download_panel():
                         class="q-mr-sm"
                         style="color: var(--neon-cyan) !important;"
                         :href="'/api/v1/tables/' + encodeURIComponent(props.row.vpinfe_id) + '/archive?download_token=' + encodeURIComponent(props.row.download_token)"
-                        :download="props.row.table_dir_name + '.vpxz'"
+                        :download="props.row.game_dir_name + '.vpxz'"
                         @click.stop="$parent.$emit('download', props.row)"
                     />
                     {{ props.row.display_name }}
@@ -443,7 +443,7 @@ def _build_vpxz_download_panel():
             ''')
 
             async def handle_download(e):
-                name = e.args['table_dir_name']
+                name = e.args['game_dir_name']
                 filename = f'{name}.vpxz'
                 cookie_name = f"vpinfe_vpxz_download_{e.args.get('download_token', '')}"
 
@@ -608,7 +608,7 @@ def _build_web_send_panel():
             panel_state['device_folders'] = folders
             # Update rows with installed status
             for row in panel_state['rows']:
-                row['installed'] = row['table_dir_name'] in folders
+                row['installed'] = row['game_dir_name'] in folders
             _apply_filter()
             installed_count = sum(1 for r in panel_state['rows'] if r.get('installed'))
             _safe_notify(f'Found {installed_count} of {len(panel_state["rows"])} tables on device', type='info')
@@ -692,7 +692,7 @@ def _build_web_send_panel():
         total = len(selected)
         success = 0
         for i, row in enumerate(selected):
-            name = row['table_dir_name']
+            name = row['game_dir_name']
             _safe_notify(f'Batch send: {i+1}/{total} - {name}', type='info')
             ok = await _send_single_game(
                 host,
@@ -726,7 +726,7 @@ def _build_web_send_panel():
             tbl = ui.game(
                 columns=columns,
                 rows=rows,
-                row_key='table_dir_name',
+                row_key='game_dir_name',
                 selection='multiple',
                 pagination={'rowsPerPage': 25},
             ).classes('w-full').props('dense').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);')
@@ -746,7 +746,7 @@ def _build_web_send_panel():
             ''')
 
             async def handle_send(e):
-                name = e.args['table_dir_name']
+                name = e.args['game_dir_name']
                 host = ip_input.value.strip()
                 port = port_input.value.strip()
 
@@ -773,7 +773,7 @@ def _build_web_send_panel():
             tbl.on('websend', handle_send)
 
             async def handle_delete(e):
-                name = e.args['table_dir_name']
+                name = e.args['game_dir_name']
                 host = ip_input.value.strip()
                 port = port_input.value.strip()
 

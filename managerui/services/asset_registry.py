@@ -41,7 +41,7 @@ def is_readme(name: str) -> bool:
 
 ASSET_SPECS = (
     AssetSpec("table", "Table", "casino", (".vpx",), False, False, False),
-    AssetSpec("table_info", "Metadata", "description", (), True, False, False),
+    AssetSpec("game_info", "Metadata", "description", (), True, False, False),
     AssetSpec("backglass", "Backglass", "wallpaper", (".directb2s",), True, False, False),
     AssetSpec("ini", "Table INI", "tune", (".ini",), True, False, False),
     # A patch is a delta against one exact base table, not an installable artifact.

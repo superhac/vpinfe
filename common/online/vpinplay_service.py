@@ -198,9 +198,9 @@ def sync_installed_games(
     post_result = _post_sync_payload(endpoint, payload, timeout_seconds)
 
     return {
-        "tables_scanned": len(games),
-        "tables_sent": len(payload_games),
-        "tables_skipped": skipped,
+        "games_scanned": len(games),
+        "games_sent": len(payload_games),
+        "games_skipped": skipped,
         **post_result,
     }
 
@@ -235,9 +235,9 @@ def sync_single_game_meta(
     logger.info("Syncing alternate VPinPlay payload for user=%s to %s", user_id, endpoint)
     result = _post_sync_payload(endpoint, payload, timeout_seconds)
     return {
-        "tables_scanned": 1,
-        "tables_sent": 1,
-        "tables_skipped": 0,
+        "games_scanned": 1,
+        "games_sent": 1,
+        "games_skipped": 0,
         **result,
     }
 
@@ -290,8 +290,8 @@ def sync_on_shutdown(iniconfig, timeout_seconds: int = 10) -> dict | None:
         logger.info(
             "VPinPlay shutdown sync complete: status=%s sent=%s skipped=%s",
             result.get("status_code"),
-            result.get("tables_sent"),
-            result.get("tables_skipped"),
+            result.get("games_sent"),
+            result.get("games_skipped"),
         )
         if not result.get("ok"):
             logger.warning("VPinPlay shutdown sync failed response: %s", result.get("response_body"))

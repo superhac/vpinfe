@@ -287,9 +287,9 @@ def render_panel():
                 games_dir,
             )
             output_area.value = (
-                f"Scanned: {result['tables_scanned']}\n"
-                f"Sent: {result['tables_sent']}\n"
-                f"Skipped (missing VPSId): {result['tables_skipped']}\n\n"
+                f"Scanned: {result['games_scanned']}\n"
+                f"Sent: {result['games_sent']}\n"
+                f"Skipped (missing VPSId): {result['games_skipped']}\n\n"
                 f"HTTP status: {result['status_code']}\n\n"
                 f"{result['response_body']}"
             )

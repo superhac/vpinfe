@@ -153,13 +153,13 @@ class ManagerUiServiceTests(unittest.TestCase):
 
     def test_mobile_game_rows_format_display_names(self):
         rows = build_mobile_game_rows([
-            {"name": "Centaur", "manufacturer": "Bally", "year": "1981", "table_dir_name": "Centaur"},
-            {"name": "No Frills", "manufacturer": "", "year": "", "table_dir_name": "No Frills"},
+            {"name": "Centaur", "manufacturer": "Bally", "year": "1981", "game_dir_name": "Centaur"},
+            {"name": "No Frills", "manufacturer": "", "year": "", "game_dir_name": "No Frills"},
         ])
 
         self.assertEqual(rows, [
-            {"display_name": "Centaur (Bally 1981)", "table_dir_name": "Centaur", "vpinfe_id": ""},
-            {"display_name": "No Frills", "table_dir_name": "No Frills", "vpinfe_id": ""},
+            {"display_name": "Centaur (Bally 1981)", "game_dir_name": "Centaur", "vpinfe_id": ""},
+            {"display_name": "No Frills", "game_dir_name": "No Frills", "vpinfe_id": ""},
         ])
 
     def test_config_field_metadata(self):
@@ -230,11 +230,11 @@ class ManagerUiServiceTests(unittest.TestCase):
 
     def test_media_service_url_and_cache_update(self):
         invalidate_media_cache()
-        self.assertEqual(media_url("media_tables", "A B", "medias", "bg.png"), "/media_tables/A%20B/medias/bg.png")
-        set_media_cache([{"table_dir": "A B", "media": {}, "thumbs": {}, "thumb_errors": {"bg": True}}])
-        update_cache_entry("A B", "bg", "/media_tables/A%20B/medias/bg.png", "/media_thumbs/A%20B/bg.png")
+        self.assertEqual(media_url("media_games", "A B", "medias", "bg.png"), "/media_games/A%20B/medias/bg.png")
+        set_media_cache([{"game_dir": "A B", "media": {}, "thumbs": {}, "thumb_errors": {"bg": True}}])
+        update_cache_entry("A B", "bg", "/media_games/A%20B/medias/bg.png", "/media_thumbs/A%20B/bg.png")
         row = get_media_cache()[0]
-        self.assertEqual(row["media"]["bg"], "/media_tables/A%20B/medias/bg.png")
+        self.assertEqual(row["media"]["bg"], "/media_games/A%20B/medias/bg.png")
         self.assertTrue(row["has_bg"])
         self.assertNotIn("bg", row["thumb_errors"])
 

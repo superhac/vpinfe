@@ -708,7 +708,7 @@ class GameInfoDetectionTests(unittest.TestCase):
                 archive.writestr("Foo (Bar 1999)/Foo.vpx", b"x")
                 archive.writestr("Foo (Bar 1999)/Foo (Bar 1999).info", json.dumps(info))
             result = analyze_path(zip_path)
-            self.assertIn("table_info", _kinds(result))
+            self.assertIn("game_info", _kinds(result))
             self.assertEqual(result.bundle_info["Info"]["VPSId"], "abc123")
 
     def test_lone_info_stays_unrecognized(self):
@@ -719,7 +719,7 @@ class GameInfoDetectionTests(unittest.TestCase):
             info_file = Path(tmp) / "Foo.info"
             info_file.write_text(json.dumps({"Info": {}}))
             result = analyze_path(info_file)
-            self.assertNotIn("table_info", _kinds(result))
+            self.assertNotIn("game_info", _kinds(result))
 
     def test_invalid_info_is_dropped_with_note(self):
         import zipfile
@@ -731,7 +731,7 @@ class GameInfoDetectionTests(unittest.TestCase):
                 archive.writestr("Foo.vpx", b"x")
                 archive.writestr("Foo.info", b"this is not json {{{")
             result = analyze_path(zip_path)
-            self.assertNotIn("table_info", _kinds(result))
+            self.assertNotIn("game_info", _kinds(result))
             self.assertIsNone(result.bundle_info)
             self.assertIn("Foo.info", result.unrecognized)
 

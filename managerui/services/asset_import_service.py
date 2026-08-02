@@ -140,7 +140,7 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
     if kind == "table":
         dest = base / _safe_upload_name(_basename(asset.entries[0].arcname))
         return PlannedItem(asset, str(dest), game_kind_action), None
-    if kind == "table_info":
+    if kind == "game_info":
         # Always written as <folder>.info — the parser matches it by folder name.
         return PlannedItem(asset, str(base / f"{base.name}.info"), "write_info"), None
     if kind == "backglass":

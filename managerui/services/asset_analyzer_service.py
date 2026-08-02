@@ -407,7 +407,7 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
     for e in list(unclaimed()):
         if _suffix(e.arcname) == ".info" and _parent(e.arcname) in vpx_dirs:
             claimed.add(e.path)
-            assets.append(DetectedAsset("table_info", "Metadata", (e,), size=e.size,
+            assets.append(DetectedAsset("game_info", "Metadata", (e,), size=e.size,
                                         detail=_basename(e.arcname)))
 
     # 2. Backglass
@@ -668,11 +668,11 @@ def analyze_path(path: Path) -> AnalysisResult:
                   for a in assets]
 
         bundle_info = None
-        info_assets = [a for a in assets if a.kind == "table_info"]
+        info_assets = [a for a in assets if a.kind == "game_info"]
         if info_assets:
             bundle_info = _read_bundle_info(source, info_assets[0])
             if bundle_info is None:
-                assets = [a for a in assets if a.kind != "table_info"]
+                assets = [a for a in assets if a.kind != "game_info"]
                 unrecognized = unrecognized + tuple(e.arcname for e in info_assets[0].entries)
                 notes = list(notes) + ["bundle .info is not valid metadata and was skipped"]
     finally:

@@ -25,7 +25,7 @@ class VPXParser:
         'version': 'tableinfo/tableversion',
         'author_name': 'tableinfo/authorname',
         'release_date': 'tableinfo/releasedate',
-        'table_blurb': 'tableinfo/tableblurb',
+        'game_blurb': 'tableinfo/tableblurb',
         'table_rules': 'tableinfo/tablerules',
         'save_date': 'tableinfo/tablesavedate',
         'save_rev': 'tableinfo/tablesaverev',

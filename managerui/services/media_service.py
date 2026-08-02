@@ -202,8 +202,8 @@ def media_url_from_path(game_dir: str, source_path: str) -> Optional[str]:
         return None
     source = Path(source_path)
     if source.parent.name == "medias":
-        return media_url("media_tables", game_dir, "medias", source.name)
-    return media_url("media_tables", game_dir, source.name)
+        return media_url("media_games", game_dir, "medias", source.name)
+    return media_url("media_games", game_dir, source.name)
 
 
 def scan_media_games(reload: bool = False) -> List[Dict]:
@@ -235,7 +235,7 @@ def scan_media_games(reload: bool = False) -> List[Dict]:
 
         row = {
             "name": name,
-            "table_dir": current_dir,
+            "game_dir": current_dir,
             "table_path": root,
             "manufacturer": info.get("Manufacturer", ""),
             "year": info.get("Year", ""),
@@ -296,7 +296,7 @@ def update_cache_entry(game_dir: str, media_key: str, url_path: str, thumb: Opti
     if _media_cache is None:
         return
     for row in _media_cache:
-        if row["table_dir"] == game_dir:
+        if row["game_dir"] == game_dir:
             row["media"][media_key] = url_path
             row.setdefault("thumbs", {})[media_key] = thumb
             row.setdefault("thumb_errors", {}).pop(media_key, None)
