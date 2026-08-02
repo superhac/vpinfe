@@ -1,6 +1,7 @@
 import logging
 
 from common import events
+from common.deprecations import announce
 from common.games.collections_service import (
     get_collection_image_url,
     get_collection_names,

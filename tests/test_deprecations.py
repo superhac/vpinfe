@@ -124,6 +124,22 @@ class ShimAnnouncementTests(unittest.TestCase):
 
         self.assertEqual(len(caught.output), 2)
 
+    def test_calling_a_renamed_method_announces_through_the_real_forwarder(self) -> None:
+        """Through API.__getattr__, not by calling announce() directly.
+
+        The first version of this file announced by hand and proved only that the
+        logger works. The wiring in api.py was missing its import, and the cabinet
+        found it: NameError on every legacy call a theme made.
+        """
+        from frontend.api import API
+
+        api = object.__new__(API)
+        with self.assertLogs("vpinfe.deprecations", level="INFO") as caught:
+            forwarded = api.get_tables
+
+        self.assertEqual(forwarded, api.get_games)
+        self.assertIn("get_tables", "\n".join(caught.output))
+
     def test_a_contract_1_theme_announces_the_projection(self) -> None:
         from frontend import theme_contract
 
