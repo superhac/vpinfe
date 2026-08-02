@@ -84,7 +84,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
         if item.action == "replace_media":
             return rel.as_posix()   # canonical name is the point (wheel.png, bg.mp4, ...)
         if str(rel.parent) == ".":
-            return "table folder root"
+            return "game folder root"
         if rel.name == _row_primary(item):
             return f"{rel.parent.as_posix()}/"
         return rel.as_posix()
@@ -137,7 +137,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
             with ui.row().classes("items-center gap-2 w-full no-wrap"):
                 ui.icon("travel_explore").style("color: var(--neon-purple);")
                 vps_label = ui.label("No VPS association — naming from file").style("color: var(--ink-muted);")
-                vps_label.tooltip("Link this table to its Virtual Pinball Spreadsheet entry to name the "
+                vps_label.tooltip("Link this game to its Virtual Pinball Spreadsheet entry to name the "
                                   "folder canonically and download its media and metadata.")
                 ui.space()
                 vps_change_btn = ui.button("Search VPS").props("flat dense").style("color: var(--neon-cyan);")

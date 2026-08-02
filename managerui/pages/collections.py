@@ -107,7 +107,7 @@ def render_panel(tab=None):
                         with ui.column().classes('w-full items-center gap-4'):
                             ui.icon('folder_off', size='48px').classes('text-gray-500')
                             ui.label('No collections yet').classes('text-lg text-gray-400')
-                            ui.label('Create a collection to organize your tables').classes('text-sm text-gray-500')
+                            ui.label('Create a collection to organize your games').classes('text-sm text-gray-500')
                 return
 
             with collections_container:
@@ -144,7 +144,7 @@ def render_panel(tab=None):
                                         ui.label('Filter').classes('filter-badge text-white self-start')
                                     else:
                                         members = manager.get_members(name)
-                                        ui.label(f'{len(members)}\u00a0Tables').classes('member-count-badge text-white self-start')
+                                        ui.label(f'{len(members)}\u00a0Games').classes('member-count-badge text-white self-start')
 
                             with ui.row().classes('gap-2'):
                                 ui.button(icon='drive_file_rename_outline', on_click=lambda n=name: open_rename_dialog(n)).props('flat round color=white').tooltip('Rename')
@@ -273,7 +273,7 @@ def render_panel(tab=None):
                 name_input = ui.input('Collection Name', placeholder='My Favorites').classes('w-full mt-4')
                 image_state = create_image_picker()
 
-                ui.label('Add tables to this collection:').classes('text-sm text-gray-400 mt-4')
+                ui.label('Add games to this collection:').classes('text-sm text-gray-400 mt-4')
 
                 # Selected games list
                 selected_games = {'items': []}  # {id, name}
@@ -283,7 +283,7 @@ def render_panel(tab=None):
                     selected_container.clear()
                     with selected_container:
                         if not selected_games['items']:
-                            ui.label('No tables selected').classes('text-gray-500 text-sm')
+                            ui.label('No games selected').classes('text-gray-500 text-sm')
                         else:
                             for item in selected_games['items']:
                                 with ui.row().classes('w-full items-center justify-between p-2 bg-gray-800 rounded'):
@@ -297,8 +297,8 @@ def render_panel(tab=None):
                 update_selected_display()
 
                 # Game search and selection
-                ui.label('Search installed tables:').classes('text-sm text-gray-400 mt-4')
-                search_input = debounced_input(ui.input('Search...', placeholder='Type to search tables')).classes('w-full')
+                ui.label('Search installed games:').classes('text-sm text-gray-400 mt-4')
+                search_input = debounced_input(ui.input('Search...', placeholder='Type to search games')).classes('w-full')
                 search_results = ui.column().classes('w-full gap-1 mt-2').style('max-height: 200px; overflow-y: auto;')
 
                 async def do_search(e: events.ValueChangeEventArguments):
@@ -311,7 +311,7 @@ def render_panel(tab=None):
                     with search_results:
                         matches = await run.io_bound(collections_service.search_games, term)
                         if not matches:
-                            ui.label('No tables found').classes('text-gray-500 text-sm')
+                            ui.label('No games found').classes('text-gray-500 text-sm')
                         else:
                             for t in matches:
                                 game_id = t.get('vpinfe_id', '')
@@ -367,7 +367,7 @@ def render_panel(tab=None):
                 ui.label('New Filter Collection').classes('text-xl font-bold text-white')
                 ui.separator()
 
-                name_input = ui.input('Collection Name', placeholder='80s Tables').classes('w-full mt-4')
+                name_input = ui.input('Collection Name', placeholder='80s Games').classes('w-full mt-4')
                 image_state = create_image_picker()
 
                 ui.label('Filter Criteria:').classes('text-sm text-gray-400 mt-4 mb-2')
@@ -384,8 +384,8 @@ def render_panel(tab=None):
                 letter_input.on_value_change(_make_label_updater(letter_input, 'Starting Letter'))
                 theme_input = ui.select(label='Theme (All)', options=filter_opts['themes'][1:], value=[], multiple=True).props(_ms_props).classes('w-full')
                 theme_input.on_value_change(_make_label_updater(theme_input, 'Theme'))
-                type_input = ui.select(label='Table Type (All)', options=filter_opts['types'][1:], value=[], multiple=True).props(_ms_props).classes('w-full')
-                type_input.on_value_change(_make_label_updater(type_input, 'Table Type'))
+                type_input = ui.select(label='Game Type (All)', options=filter_opts['types'][1:], value=[], multiple=True).props(_ms_props).classes('w-full')
+                type_input.on_value_change(_make_label_updater(type_input, 'Game Type'))
                 manufacturer_input = ui.select(label='Manufacturer (All)', options=filter_opts['manufacturers'][1:], value=[], multiple=True).props(_ms_props).classes('w-full')
                 manufacturer_input.on_value_change(_make_label_updater(manufacturer_input, 'Manufacturer'))
                 year_input = ui.select(label='Year (All)', options=filter_opts['years'][1:], value=[], multiple=True).props(_ms_props).classes('w-full')
@@ -517,8 +517,8 @@ def render_panel(tab=None):
                 letter_input.on_value_change(_make_label_updater(letter_input, 'Starting Letter'))
                 theme_input = ui.select(label=_init_label('Theme', saved_themes), options=theme_opts, value=saved_themes, multiple=True).props(_ms_props).classes('w-full')
                 theme_input.on_value_change(_make_label_updater(theme_input, 'Theme'))
-                type_input = ui.select(label=_init_label('Table Type', saved_types), options=type_opts, value=saved_types, multiple=True).props(_ms_props).classes('w-full')
-                type_input.on_value_change(_make_label_updater(type_input, 'Table Type'))
+                type_input = ui.select(label=_init_label('Game Type', saved_types), options=type_opts, value=saved_types, multiple=True).props(_ms_props).classes('w-full')
+                type_input.on_value_change(_make_label_updater(type_input, 'Game Type'))
                 manufacturer_input = ui.select(label=_init_label('Manufacturer', saved_manufacturers), options=manufacturer_opts, value=saved_manufacturers, multiple=True).props(_ms_props).classes('w-full')
                 manufacturer_input.on_value_change(_make_label_updater(manufacturer_input, 'Manufacturer'))
                 year_input = ui.select(label=_init_label('Year', saved_years), options=year_opts, value=saved_years, multiple=True).props(_ms_props).classes('w-full')
@@ -602,14 +602,14 @@ def render_panel(tab=None):
                         'name': game_map.get(vid, vid)
                     })
 
-                ui.label('Tables in this collection:').classes('text-sm text-gray-400 mt-4')
+                ui.label('Games in this collection:').classes('text-sm text-gray-400 mt-4')
                 selected_container = ui.column().classes('w-full gap-1 mt-2').style('max-height: 200px; overflow-y: auto;')
 
                 def update_selected_display():
                     selected_container.clear()
                     with selected_container:
                         if not selected_games['items']:
-                            ui.label('No tables in collection').classes('text-gray-500 text-sm')
+                            ui.label('No games in collection').classes('text-gray-500 text-sm')
                         else:
                             for item in selected_games['items']:
                                 with ui.row().classes('w-full items-center justify-between p-2 bg-gray-800 rounded'):
@@ -623,8 +623,8 @@ def render_panel(tab=None):
                 update_selected_display()
 
                 # Game search and add
-                ui.label('Add more tables:').classes('text-sm text-gray-400 mt-4')
-                search_input = debounced_input(ui.input('Search...', placeholder='Type to search tables')).classes('w-full')
+                ui.label('Add more games:').classes('text-sm text-gray-400 mt-4')
+                search_input = debounced_input(ui.input('Search...', placeholder='Type to search games')).classes('w-full')
                 search_results = ui.column().classes('w-full gap-1 mt-2').style('max-height: 150px; overflow-y: auto;')
 
                 async def do_search(e: events.ValueChangeEventArguments):
@@ -637,7 +637,7 @@ def render_panel(tab=None):
                     with search_results:
                         matches = await run.io_bound(collections_service.search_games, term)
                         if not matches:
-                            ui.label('No tables found').classes('text-gray-500 text-sm')
+                            ui.label('No games found').classes('text-gray-500 text-sm')
                         else:
                             for t in matches:
                                 game_id = t.get('vpinfe_id', '')

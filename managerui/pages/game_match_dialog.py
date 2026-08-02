@@ -58,17 +58,17 @@ def _render_missing_games_dialog(missing_rows: list[dict], on_close: Optional[Ca
     dlg = ui.dialog().props('max-width=1080px')
     _missing_games_dialog = dlg
     with dlg, ui.card().classes('w-[960px] max-w-[95vw]'):
-        title = ui.label(f'Missing Tables ({len(missing_rows)})').classes('text-lg font-bold')
+        title = ui.label(f'Missing Games ({len(missing_rows)})').classes('text-lg font-bold')
         ui.separator()
 
         container = ui.column().classes('w-full')
 
         def render(items: list[dict]):
             container.clear()
-            title.set_text(f'Missing Tables ({len(items)})')
+            title.set_text(f'Missing Games ({len(items)})')
             if not items:
                 with container:
-                    ui.label('No tables without .info metadata.').classes('q-my-md')
+                    ui.label('No games without .info metadata.').classes('q-my-md')
                 return
             for r in items:
                 with container, ui.row().classes('justify-between items-center w-full q-py-xs border-b'):
@@ -117,7 +117,7 @@ def _render_match_vps_dialog(
         with ui.row().classes('w-full items-start gap-2 q-pa-sm').style('background: rgba(59, 130, 246, 0.15); border-radius: 6px; border-left: 3px solid #3b82f6;'):
             ui.icon('info', size='sm').style('color: var(--neon-purple);')
             ui.label(
-                'Clicking "Associate" will: optionally rename the folder to "TABLE NAME (MANUFACTURER YEAR)" format, '
+                'Clicking "Associate" will: optionally rename the folder to "GAME NAME (MANUFACTURER YEAR)" format, '
                 'create a `.info` metadata file, and download media images from vpinmediadb.'
             ).classes('text-sm').style('color: var(--ink-muted);')
         rename_folder_switch = ui.switch('Rename folder to VPS format', value=True)
@@ -141,7 +141,7 @@ def _render_match_vps_dialog(
             results_container.clear()
             if not items:
                 with results_container:
-                    ui.label('Search by Table Name').classes('text-sm').style('color: var(--ink-muted);')
+                    ui.label('Search by Game Name').classes('text-sm').style('color: var(--ink-muted);')
                 return
 
             for it in items:

@@ -81,14 +81,14 @@ def render_panel():
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
             {'name': 'bg', 'label': 'BG', 'field': 'has_bg', 'align': 'center', 'sortable': True},
             {'name': 'dmd', 'label': 'DMD', 'field': 'has_dmd', 'align': 'center', 'sortable': True},
-            {'name': 'game_img', 'label': 'Table', 'field': 'has_table', 'align': 'center', 'sortable': True},
+            {'name': 'game_img', 'label': 'Playfield', 'field': 'has_table', 'align': 'center', 'sortable': True},
             {'name': 'fss', 'label': 'FSS', 'field': 'has_fss', 'align': 'center', 'sortable': True},
             {'name': 'wheel', 'label': 'Wheel', 'field': 'has_wheel', 'align': 'center', 'sortable': True},
             {'name': 'cab', 'label': 'Cab', 'field': 'has_cab', 'align': 'center', 'sortable': True},
             {'name': 'flyer', 'label': 'Flyer', 'field': 'has_flyer', 'align': 'center', 'sortable': True},
             {'name': 'realdmd', 'label': 'Real DMD', 'field': 'has_realdmd', 'align': 'center', 'sortable': True},
             {'name': 'realdmd_color', 'label': 'Real DMD Color', 'field': 'has_realdmd_color', 'align': 'center', 'sortable': True},
-            {'name': 'table_video', 'label': 'Table Video', 'field': 'has_game_video', 'align': 'center', 'sortable': True},
+            {'name': 'table_video', 'label': 'Playfield Video', 'field': 'has_game_video', 'align': 'center', 'sortable': True},
             {'name': 'bg_video', 'label': 'BG Video', 'field': 'has_bg_video', 'align': 'center', 'sortable': True},
             {'name': 'dmd_video', 'label': 'DMD Video', 'field': 'has_dmd_video', 'align': 'center', 'sortable': True},
             {'name': 'audio', 'label': 'Audio', 'field': 'has_audio', 'align': 'center', 'sortable': True},
@@ -392,7 +392,7 @@ def render_panel():
 
             with ui.dialog() as dlg, ui.card().style('min-width: 500px; background: var(--surface) !important; border: 1px solid var(--line) !important;'):
                 ui.label(f'Replace {media_label}').classes('text-xl font-bold mb-2').style('color: var(--ink)')
-                ui.label(f'Table: {game_name}').classes('mb-1').style('color: var(--ink-muted)')
+                ui.label(f'Game: {game_name}').classes('mb-1').style('color: var(--ink-muted)')
                 ui.label(f'Target: {target_filename}').classes('text-sm mb-4').style('color: var(--ink-muted)')
 
                 # Show current media if exists
@@ -474,7 +474,7 @@ def render_panel():
         # Filter UI
         with ui.card().classes('w-full mb-4').style('border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line);'):
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
-                search_input = debounced_input(ui.input(placeholder='Search tables...')).props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
+                search_input = debounced_input(ui.input(placeholder='Search games...')).props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
                 search_input.on_value_change(on_search_change)
 
                 filter_opts = get_filter_options_from_cache()
@@ -526,7 +526,7 @@ def render_panel():
 
         # Game count label
         total = len(initial_rows)
-        count_label = ui.label(f"Tables ({total})").classes('text-lg font-semibold py-1 text-center w-full').style('color: var(--ink-muted) !important;')
+        count_label = ui.label(f"Games ({total})").classes('text-lg font-semibold py-1 text-center w-full').style('color: var(--ink-muted) !important;')
 
         # Media table with image thumbnails
         table_container = ui.column().classes("w-full media-table").style("flex: 1; overflow: hidden; display: flex;")

@@ -12,7 +12,7 @@ class ManagerPage:
 
 
 NAV_PAGES: tuple[ManagerPage, ...] = (
-    ManagerPage("games", "Tables", "view_list"),
+    ManagerPage("games", "Games", "view_list"),
     ManagerPage("collections", "Collections", "collections_bookmark"),
     ManagerPage("media", "Media", "image"),
     ManagerPage("themes", "Themes", "palette"),
