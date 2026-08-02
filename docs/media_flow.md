@@ -8,7 +8,7 @@ Themes do not receive image or video bytes directly over the WebSocket bridge. I
 
 High-level flow:
 
-1. `common/tableparser.py` scans each table folder for standard media filenames.
+1. `common/games/gameparser.py` scans each table folder for standard media filenames.
 2. `frontend/api.py` includes the discovered file paths in the table JSON returned to the browser.
 3. `web/common/vpinfe-core.js` stores that table data in `this.tableData`.
 4. Theme code calls helper methods such as `vpin.getImageURL(index, type)` or `vpin.getVideoURL(index, type)`.
@@ -17,7 +17,7 @@ High-level flow:
 
 ## Media Discovery
 
-`common/tableparser.py` checks the table's `medias/` subfolder first, then falls back to the table root folder.
+`common/games/gameparser.py` checks the table's `medias/` subfolder first, then falls back to the table root folder.
 
 Standard filenames include:
 
@@ -59,7 +59,7 @@ A table can carry alternate wheel art in named folders under `medias/wheels/<set
 
 Relevant code:
 
-- [common/tableparser.py](/home/superhac/repos/testing/vpinfe/common/tableparser.py#L67)
+- [common/games/gameparser.py](/home/superhac/repos/testing/vpinfe/common/games/gameparser.py#L67)
 
 ## Backend To Browser Payload
 
@@ -117,14 +117,14 @@ The HTTP server mount that makes this work is configured here:
 
 For `dmd.mp4` support specifically, the key flow is:
 
-- [common/tableparser.py](/home/superhac/repos/testing/vpinfe/common/tableparser.py#L85)
+- [common/games/gameparser.py](/home/superhac/repos/testing/vpinfe/common/games/gameparser.py#L85)
 - [frontend/api.py](/home/superhac/repos/testing/vpinfe/frontend/api.py#L269)
 - [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L271)
 - [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L808)
 
 That means:
 
-1. `common/tableparser.py` finds `dmd.mp4` and stores it as `DMDVideoPath`.
+1. `common/games/gameparser.py` finds `dmd.mp4` and stores it as `DMDVideoPath`.
 2. `frontend/api.py` includes `DMDVideoPath` in the table payload.
 3. `vpin.getVideoURL(index, "dmd")` reads `table.DMDVideoPath`.
 4. `#convertPathToURL()` maps that path to `http://127.0.0.1:<port>/tables/<table>/medias/dmd.mp4`.
@@ -133,14 +133,14 @@ That means:
 
 For table playfield video support, the key flow is:
 
-- [common/tableparser.py](/home/superhac/repos/testing/vpinfe/common/tableparser.py#L83)
+- [common/games/gameparser.py](/home/superhac/repos/testing/vpinfe/common/games/gameparser.py#L83)
 - [frontend/api.py](/home/superhac/repos/testing/vpinfe/frontend/api.py#L267)
 - [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L265)
 - [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L808)
 
 That means:
 
-1. `common/tableparser.py` finds `table.mp4` or `fss.mp4` and stores it as `PlayfieldVideoPath`.
+1. `common/games/gameparser.py` finds `table.mp4` or `fss.mp4` and stores it as `PlayfieldVideoPath`.
 2. `frontend/api.py` includes `PlayfieldVideoPath` in the table payload.
 3. `vpin.getVideoURL(index, "table")` reads `table.PlayfieldVideoPath`.
 4. `#convertPathToURL()` maps that path to a `/games/.../medias/<file>.mp4` URL.
@@ -149,14 +149,14 @@ That means:
 
 For `bg.mp4` support specifically, the key flow is:
 
-- [common/tableparser.py](/home/superhac/repos/testing/vpinfe/common/tableparser.py#L84)
+- [common/games/gameparser.py](/home/superhac/repos/testing/vpinfe/common/games/gameparser.py#L84)
 - [frontend/api.py](/home/superhac/repos/testing/vpinfe/frontend/api.py#L268)
 - [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L268)
 - [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L808)
 
 That means:
 
-1. `common/tableparser.py` finds `bg.mp4` and stores it as `BGVideoPath`.
+1. `common/games/gameparser.py` finds `bg.mp4` and stores it as `BGVideoPath`.
 2. `frontend/api.py` includes `BGVideoPath` in the table payload.
 3. `vpin.getVideoURL(index, "bg")` reads `table.BGVideoPath`.
 4. `#convertPathToURL()` maps that path to `http://127.0.0.1:<port>/tables/<table>/medias/bg.mp4`.

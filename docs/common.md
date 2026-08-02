@@ -27,14 +27,14 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `third_party.py`: finding and loading the third-party libraries the build bundles.
 - `logging_config.py`, `app_version.py`.
 
-**`common/tables/`** - tables, their metadata, and the collections built from them.
+**`common/games/`** - tables, their metadata, and the collections built from them.
 
-- `table.py`, `tableparser.py`, `table_repository.py`: table discovery and cached table rows.
-- `table_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
-- `table_identity.py`: the stable per-install table id that addresses a table everywhere.
-- `game_files.py`: which .vpx in a table folder is the table. Every caller resolves through it.
-- `metadata_service.py`, `table_report_service.py`, `table_play_service.py`: workflows over tables and metadata.
-- `collections_service.py`, `vpxcollections.py`, `tablelistfilters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
+- `table.py`, `gameparser.py`, `game_repository.py`: table discovery and cached table rows.
+- `game_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
+- `game_identity.py`: the stable per-install table id that addresses a table everywhere.
+- `tables.py`: which .vpx in a table folder is the table. Every caller resolves through it.
+- `metadata_service.py`, `game_report_service.py`, `game_play_service.py`: workflows over tables and metadata.
+- `collections_service.py`, `vpxcollections.py`, `gamelistfilters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
 - `vpxparser.py`, `standalonescripts.py`: reading and patching the .vpx itself.
 - `score_parser.py`: PinMAME NVRAM score extraction.
 
@@ -72,7 +72,7 @@ Prefer facade compatibility over broad caller churn. Existing imports like
 `from common.vpsdb import VPSdb` and `from common.themes import ThemeRegistry`
 remain valid, while new behavior can live in smaller modules behind them.
 
-Use `table_metadata.py` for display and fallback accessors. New table filtering,
+Use `game_metadata.py` for display and fallback accessors. New table filtering,
 sorting, or row-building code should use helpers like `table_title`,
 `table_themes`, `table_type`, `table_manufacturer`, `table_year`, and
 `table_rating` instead of repeating `Info`/legacy `VPSdb` fallback logic.
@@ -80,7 +80,7 @@ sorting, or row-building code should use helpers like `table_title`,
 Know which table id you want. A table row carries several, and they are not
 interchangeable:
 
-- `vpinfe_id` is this install's stable local id from `table_identity.py`. It
+- `vpinfe_id` is this install's stable local id from `game_identity.py`. It
   identifies the table - in the HTTP API, in events, in jobs, in collection
   membership, and as the row key in the manager UI tables grid.
 - `vpsid` and `altvpsid` are VPS-derived (`Info.VPSId` and `VPinFE.altvpsid`).
@@ -178,8 +178,8 @@ libdmdutil should not each carry their own copy of that reasoning.
 ## Adding Metadata Fields
 
 1. Add the default or normalization rule in `metaconfig.py` or
-   `table_metadata.py`.
-2. Add display/read helpers in `table_metadata.py` when multiple callers need the
+   `game_metadata.py`.
+2. Add display/read helpers in `game_metadata.py` when multiple callers need the
    value.
 3. Update row builders or filters to consume the helper rather than reading raw
    JSON directly.

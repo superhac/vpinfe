@@ -46,7 +46,7 @@ load_page_style("tables.css")
 Some older page-specific styles can remain in page modules during the transition, but the target architecture is:
 
 - shared tokens and common components in `manager.css`
-- page-specific classes grouped by feature, for example `tables.css`
+- page-specific classes grouped by feature, for example `games.css`
 - minimal inline styles in page rendering code
 
 ## Shared Paths
@@ -70,9 +70,9 @@ Current services:
 - `collections_service.py`: collection manager access, table search, filter option building, and collection mutations.
 - `media_service.py`: media scanning, thumbnail cache paths, media replacement, and media cache invalidation.
 - `system_service.py`: reusable system-page formatters, disk target resolution, and platform helpers.
-- `table_catalog.py`: shared table scanning and row shaping for mobile transfers and remote launching.
-- `table_index_service.py`: shared Manager UI table cache and lookup indexes (`table_path`, folder, VPS ID, search blobs, missing rows).
-- `table_service.py`: shared table metadata, VPSdb, collection, upload, and table-association operations.
+- `game_catalog.py`: shared table scanning and row shaping for mobile transfers and remote launching.
+- `game_index_service.py`: shared Manager UI table cache and lookup indexes (`table_path`, folder, VPS ID, search blobs, missing rows).
+- `game_service.py`: shared table metadata, VPSdb, collection, upload, and table-association operations.
 - `theme_service.py`: active theme, theme registry, install, and delete operations.
 - `vpx_config_service.py`: VPX config path lookup and backup management.
 
@@ -239,7 +239,7 @@ UI pieces:
 - `pages/dnd_drop_zone.py` exposes `create_drop_zone(...)` plus `enable_row_drops` and `enable_cell_drops` to make table rows and media cells targets. Pages pass a context resolver so a drop knows its target table.
 - `pages/import_confirm_dialog.py` is the confirm dialog: detected assets and destinations, VPS association for new tables, and the selection/rename that produces the final plan.
 
-To add a new asset kind: register it in `asset_registry.py`, add a detection rule in `asset_analyzer_service.py`, and a destination plus import action in `asset_import_service.py`. The UI and API pick it up with no changes. Drop targets are opt-in per page — only the Tables page, `table_detail_dialog.py`, and the Media view call the drop-zone helpers.
+To add a new asset kind: register it in `asset_registry.py`, add a detection rule in `asset_analyzer_service.py`, and a destination plus import action in `asset_import_service.py`. The UI and API pick it up with no changes. Drop targets are opt-in per page — only the Tables page, `game_detail_dialog.py`, and the Media view call the drop-zone helpers.
 
 ## Guidelines
 

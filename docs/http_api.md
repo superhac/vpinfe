@@ -415,7 +415,7 @@ rather than being queued — queueing would mean a double-click costs two full s
 
 ## Table identity
 
-Tables are addressed by an opaque local id — `common/table_identity.py`, stored per table in
+Tables are addressed by an opaque local id — `common/games/game_identity.py`, stored per table in
 its `.info` under `vpinfe.id`:
 
 ```

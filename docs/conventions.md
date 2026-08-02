@@ -14,7 +14,7 @@ blocking.
 | Thing | Convention | Example |
 |-------|-----------|---------|
 | Functions, methods, variables | `snake_case` | `table_id`, `ensure_unique_ids` |
-| Modules and packages | `snake_case` | `table_identity.py`, `httpapi/` |
+| Modules and packages | `snake_case` | `game_identity.py`, `httpapi/` |
 | Classes | `CapWords` | `MetaConfig`, `TableParser` |
 | Exceptions | `CapWords` ending in `Error` | `NotFoundError`, `InvalidRequestError` |
 | Constants | `UPPER_SNAKE_CASE` | `API_PREFIX`, `CURRENT_VPINFE_SCHEMA` |
@@ -88,7 +88,7 @@ feature-detect them. That is what keeps bumps rare enough to be worth doing prop
 - A new subsystem gets its own top-level package, not another module in `common/`. `httpapi/`
   is the current example.
 - Keep `common/` UI-independent.
-- `common/` is a layer, not a bucket. Domain code goes in `common/tables/`, `common/online/`
+- `common/` is a layer, not a bucket. Domain code goes in `common/games/`, `common/online/`
   or `common/host/`; `common/` itself holds only what knows nothing about any of them, and may
   never import from those packages. See `docs/common.md`.
 - Route handlers stay thin. Logic belongs in a service where the other callers can reach it.

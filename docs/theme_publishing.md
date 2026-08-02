@@ -29,7 +29,7 @@ The central registry is currently:
 - `https://github.com/superhac/vpinfe-themes`
 - Raw registry file: `https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json`
 
-VPinFE loads that registry in [`common/themes.py`](/home/superhac/repos/testing/vpinfe/common/themes.py).
+VPinFE loads that registry in [`common/online/themes.py`](/home/superhac/repos/testing/vpinfe/common/online/themes.py).
 
 ### Registry format
 
@@ -83,7 +83,7 @@ The current install code assumes:
 - The publish branch is `master`
 - The repository can be downloaded as `https://github.com/<owner>/<repo>/archive/refs/heads/master.zip`
 
-This behavior comes from [`common/themes.py`](/home/superhac/repos/testing/vpinfe/common/themes.py), which builds ZIP URLs as:
+This behavior comes from [`common/online/themes.py`](/home/superhac/repos/testing/vpinfe/common/online/themes.py), which builds ZIP URLs as:
 
 ```text
 <theme_base_url>/archive/refs/heads/master.zip
@@ -127,7 +127,7 @@ Optional files are allowed, such as:
 
 Each published theme repository must include a `manifest.json` at the repository root.
 
-VPinFE validates the manifest in [`common/themes.py`](/home/superhac/repos/testing/vpinfe/common/themes.py).
+VPinFE validates the manifest in [`common/online/themes.py`](/home/superhac/repos/testing/vpinfe/common/online/themes.py).
 
 ### Required manifest fields
 
@@ -311,7 +311,7 @@ These conventions are not strictly required by the current code, but they will m
 
 The implementation described above lives here:
 
-- Registry loading and install logic: [common/themes.py](/home/superhac/repos/testing/vpinfe/common/themes.py)
+- Registry loading and install logic: [common/online/themes.py](/home/superhac/repos/testing/vpinfe/common/online/themes.py)
 - Theme page in the Manager UI: [managerui/pages/themes.py](/home/superhac/repos/testing/vpinfe/managerui/pages/themes.py)
 - Static theme file mounting and startup auto-install: [main.py](/home/superhac/repos/testing/vpinfe/main.py)
 - Active theme page URL generation: [frontend/api.py](/home/superhac/repos/testing/vpinfe/frontend/api.py)
