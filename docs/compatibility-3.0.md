@@ -230,6 +230,16 @@ still work from a theme written against any earlier build.
 so an alias is the only mechanism available. Removing these would be a hard break with no
 migration path, which is why none of them is removed.
 
+**PAR-27 — One WebSocket method is added so the browser can report a deprecated name.**
+`report_deprecated_use(key, name)` takes a shim key and the legacy name a theme reached,
+and hands both to `common/deprecations.py`. Purely additive: a theme that never calls it
+is unaffected, and no existing method changes.
+*Why:* the WebSocket methods and the ini keys announce their own legacy use into the log,
+so a maintainer can see what is still needed before retiring a shim. The `vpin.*` aliases
+could not - a theme runs in Chromium, and a console line on a cabinet is invisible. This
+is the one surface that had no evidence behind it, and it is the surface a theme is most
+likely to be using. Covered by `tests/test_deprecations.py`.
+
 **PAR-26 — `--table` still works on the CLI; the flag is `--game`.**
 `--game` takes the folder name for `--buildmeta`, `--upgrade-info` and `--restore-info`.
 `--table` is accepted as an alias and kept out of `--help`, so a script written against
