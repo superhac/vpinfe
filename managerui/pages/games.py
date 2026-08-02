@@ -828,7 +828,7 @@ def render_panel(tab=None):
 
         with game_container:
             game = (
-                ui.game(columns=columns, rows=initial_rows, row_key='vpinfe_id', selection='multiple',
+                ui.table(columns=columns, rows=initial_rows, row_key='vpinfe_id', selection='multiple',
                          on_select=on_selection_change, pagination={'rowsPerPage': 25})
                   .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
                   .on('row-click', on_row_click)

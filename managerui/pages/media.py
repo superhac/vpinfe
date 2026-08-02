@@ -533,7 +533,7 @@ def render_panel():
 
         with game_container:
             media_game = (
-                ui.game(columns=columns, rows=initial_rows, row_key='game_dir', pagination=dict(pagination_state))
+                ui.table(columns=columns, rows=initial_rows, row_key='game_dir', pagination=dict(pagination_state))
                   .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
                   .classes("w-full")
                   .style("flex: 1; overflow: auto;")
