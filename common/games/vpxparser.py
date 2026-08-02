@@ -213,7 +213,7 @@ class VPXParser:
 
         # Whether the script drives the PinMAME emulator, as opposed to declaring a
         # rom name only as a DOF key. On the comment-stripped script, unlike the
-        # detectors above: EM games commonly carry commented-out VPM code, and a
+        # detectors above: EM tables commonly carry commented-out VPM code, and a
         # dead LoadVPM must not read as a live dependency.
         stripped_lower = self.stripVBScriptComments(vpxFileValues['game_data']).lower()
         drives_pinmame = ("loadvpm" in stripped_lower
