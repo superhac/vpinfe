@@ -40,7 +40,7 @@ Page-specific styles should move into `managerui/static/<page>.css` and be loade
 ```python
 from managerui.ui_helpers import load_page_style
 
-load_page_style("tables.css")
+load_page_style("games.css")
 ```
 
 Some older page-specific styles can remain in page modules during the transition, but the target architecture is:
@@ -54,7 +54,7 @@ Some older page-specific styles can remain in page modules during the transition
 Use `common.paths` for shared app config paths, or `managerui.paths` when Manager UI-specific exports are needed:
 
 ```python
-from common.paths import CONFIG_DIR, VPINFE_INI_PATH, COLLECTIONS_PATH, get_tables_path
+from common.paths import CONFIG_DIR, VPINFE_INI_PATH, COLLECTIONS_PATH, get_games_path
 ```
 
 Avoid redefining `Path(user_config_dir("vpinfe", "vpinfe"))` in new Manager UI code.
@@ -83,7 +83,7 @@ Use services from page event handlers instead of reaching into another page modu
 Use `managerui.filters` when a page filters table-shaped rows by name, manufacturer, year, theme, or type:
 
 ```python
-from managerui.filters import apply_table_filters, build_table_filter_options
+from managerui.filters import apply_game_filters, build_game_filter_options
 ```
 
 Pages can pass extra predicates for page-specific filters such as "has PUP pack" or "missing DMD media".
@@ -167,20 +167,20 @@ For a new special field renderer, keep the NiceGUI component creation in `pages/
 
 Large table dialogs live outside the table-list page:
 
-- `pages/table_detail_dialog.py`
-- `pages/table_import_dialog.py`
-- `pages/table_match_dialog.py`
+- `pages/game_detail_dialog.py`
+- `pages/game_import_dialog.py`
+- `pages/game_match_dialog.py`
 
-These modules are the public import points for dialog entry functions and own the dialog bodies. `pages/tables.py` owns table scanning/list rendering and keeps only compatibility wrappers for older private dialog names.
+These modules are the public import points for dialog entry functions and own the dialog bodies. `pages/games.py` owns table scanning/list rendering and keeps only compatibility wrappers for older private dialog names.
 
-`pages/table_dialog_context.py` provides a small context object for refresh callbacks. New table dialog code should accept callbacks through this context or explicit function parameters instead of importing another page to trigger refreshes.
+`pages/game_dialog_context.py` provides a small context object for refresh callbacks. New table dialog code should accept callbacks through this context or explicit function parameters instead of importing another page to trigger refreshes.
 
 When changing table dialogs:
 
 - keep NiceGUI layout and event wiring in the dialog module
-- put filesystem, metadata, VPSdb, and cache behavior in `services/table_service.py` or `services/table_index_service.py`
+- put filesystem, metadata, VPSdb, and cache behavior in `services/game_service.py` or `services/game_index_service.py`
 - use `services/media_service.invalidate_media_cache()` after changes that affect media listings
-- avoid adding more dialog body code to `pages/tables.py`
+- avoid adding more dialog body code to `pages/games.py`
 
 ## Remote Imports
 
@@ -198,7 +198,7 @@ When adding a new cache:
 
 ## Table Index
 
-Use `managerui.services.table_index_service` for table rows that need to be reused across pages. It owns the Manager UI table cache and derived lookup maps, so pages should avoid keeping their own long-lived table lists.
+Use `managerui.services.game_index_service` for table rows that need to be reused across pages. It owns the Manager UI table cache and derived lookup maps, so pages should avoid keeping their own long-lived table lists.
 
 Good uses:
 
@@ -219,7 +219,7 @@ Suggested pattern:
 - `managerui/services/<feature>.py`: data and side-effect functions
 - `managerui/pages/<feature>.py`: NiceGUI layout and event wiring
 
-For example, table import and VPS matching logic should live in table-focused service/dialog modules instead of growing `pages/tables.py`.
+For example, table import and VPS matching logic should live in table-focused service/dialog modules instead of growing `pages/games.py`.
 
 ## Drag And Drop Imports
 
