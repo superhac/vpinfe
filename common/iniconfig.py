@@ -5,6 +5,8 @@ import secrets
 import string
 
 
+from common.deprecations import announce
+
 logger = logging.getLogger("vpinfe.common.iniconfig")
 
 # (from, to, key) for options that changed section. Applied on every read, so an ini
@@ -45,6 +47,7 @@ class IniConfig:
 		"""
 		if not self.config.has_option(old_section, key):
 			return False
+		announce('ini-moved-options', f'{old_section}.{key}')
 		if not self.config.has_section(new_section):
 			self.config.add_section(new_section)
 		if not self.config.has_option(new_section, key):
@@ -188,6 +191,7 @@ class IniConfig:
 		# key once and write the new one, so an existing vpinfe.ini is corrected in place.
 		for section, old, new in _RENAMED_KEYS:
 			if self.config.has_option(section, old):
+				announce('ini-renamed-keys', old)
 				if not self.config.has_option(section, new):
 					self.config.set(section, new, self.config.get(section, old))
 				self.config.remove_option(section, old)

@@ -17,6 +17,8 @@ from pathlib import Path
 
 from common.games.game_metadata import DETECTION_KEYS, default_table
 
+from common.deprecations import announce
+
 logger = logging.getLogger("vpinfe.frontend.theme_contract")
 
 CURRENT_CONTRACT = 2
@@ -76,6 +78,7 @@ def project(row: dict, level: int) -> dict:
     """One table's payload as the given contract expects it."""
     if level >= CURRENT_CONTRACT:
         return row
+    announce("theme-payload-keys", f"contract {level}")
     return _to_contract_1(row)
 
 

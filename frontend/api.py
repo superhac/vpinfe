@@ -123,6 +123,7 @@ class API:
         renamed = _RENAMED_METHODS.get(name)
         if renamed is None:
             raise AttributeError(name)
+        announce("ws-methods", name)
         return getattr(self, renamed)
     def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None):
         self._iniConfig = iniConfig

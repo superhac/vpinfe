@@ -19,6 +19,7 @@ import re
 import unittest
 from pathlib import Path
 
+from common import deprecations
 from common.deprecations import SHIMS
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -84,6 +85,52 @@ class ShimRegistryTests(unittest.TestCase):
                 if new not in doc:
                     undocumented.append(f"{shim.key}: {new} is emitted but not documented")
         self.assertEqual(undocumented, [], "\n".join(undocumented))
+
+
+class ShimAnnouncementTests(unittest.TestCase):
+    """A wired shim has to say it was used, or the registry is the only evidence.
+
+    Knowing what shims exist is not the same as knowing whether any is still needed.
+    Without this, retiring one is a guess.
+    """
+
+    def setUp(self) -> None:
+        deprecations.reset_for_tests()
+        self.addCleanup(deprecations.reset_for_tests)
+
+    def test_an_old_ini_key_announces_itself(self) -> None:
+        from tempfile import TemporaryDirectory
+
+        from common.iniconfig import IniConfig
+
+        with TemporaryDirectory() as tmp:
+            ini = Path(tmp) / "vpinfe.ini"
+            ini.write_text("[Settings]\ntablerootdir = /tmp/x\ncabmode = true\n",
+                           encoding="utf-8")
+            with self.assertLogs("vpinfe.deprecations", level="INFO") as caught:
+                IniConfig(str(ini))
+
+        joined = "\n".join(caught.output)
+        self.assertIn("tablerootdir", joined)
+        self.assertIn("gamerootdir", joined)
+        self.assertIn("Settings.cabmode", joined)
+
+    def test_it_says_so_once_and_then_stays_quiet(self) -> None:
+        """The payload projection runs per game per refresh."""
+        with self.assertLogs("vpinfe.deprecations", level="INFO") as caught:
+            deprecations.announce("ws-methods", "get_tables")
+            deprecations.announce("ws-methods", "get_tables")
+            deprecations.announce("ws-methods", "launch_table")
+
+        self.assertEqual(len(caught.output), 2)
+
+    def test_a_contract_1_theme_announces_the_projection(self) -> None:
+        from frontend import theme_contract
+
+        with self.assertLogs("vpinfe.deprecations", level="INFO") as caught:
+            theme_contract.project({"meta": {}}, 1)
+
+        self.assertIn("contract 1", "\n".join(caught.output))
 
 
 if __name__ == "__main__":

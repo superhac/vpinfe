@@ -4,6 +4,7 @@ import sys
 
 from screeninfo import get_monitors
 
+from common.deprecations import announce
 from common.games import game_report_service, info_maintenance, metadata_service
 from common.iniconfig import IniConfig
 from common.logging_config import get_logger
@@ -125,6 +126,10 @@ def parseArgs():
                              "--buildmeta, --upgrade-info or --restore-info")
 
     args, unknown = parser.parse_known_args()  # macOS-friendly parsing
+
+    # argparse does not report which spelling reached it, so ask argv directly.
+    if any(a == "--table" or a.startswith("--table=") for a in sys.argv[1:]):
+        announce("cli-game-flag", "--table")
 
     if unknown:
         parser.error(f"Unknown arguments: {' '.join(unknown)}")

@@ -86,15 +86,26 @@ const VPINFE_RENAMED_MEMBERS = {
   launchTable: 'launchGame',
 };
 
+// Say it once per name, not once per access - a wheel reads gameData every frame. The
+// backend keeps the same list in common/deprecations.py and logs there; a theme runs in
+// the browser, so this is the only place its use of an old name is visible.
+const announcedLegacy = new Set();
+function announceLegacy(oldName, newName) {
+  if (announcedLegacy.has(oldName)) return;
+  announcedLegacy.add(oldName);
+  console.info(`vpinfe: deprecated theme JavaScript '${oldName}' is in use; the current name is ${newName} (PAR-23)`);
+}
+
 function installLegacyAliases(target) {
   for (const [oldName, newName] of Object.entries(VPINFE_RENAMED_MEMBERS)) {
     if (oldName in target) continue;
     Object.defineProperty(target, oldName, {
       get() {
+        announceLegacy(oldName, newName);
         const value = this[newName];
         return typeof value === 'function' ? value.bind(this) : value;
       },
-      set(value) { this[newName] = value; },
+      set(value) { announceLegacy(oldName, newName); this[newName] = value; },
       configurable: true,
     });
   }

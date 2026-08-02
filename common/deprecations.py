@@ -176,15 +176,32 @@ SHIMS: tuple[Shim, ...] = (
 SHIMS_BY_KEY = {shim.key: shim for shim in SHIMS}
 
 
-def announce(key: str, used: str) -> None:
-    """Record that something reached a legacy name.
+_seen: set[tuple[str, str]] = set()
 
-    Debug, not warning: these are working paths, and a cabinet running a 2.x theme
-    would otherwise fill its log with a line per frame. The point is to be able to
-    answer "is anything still on the old name" before removing one - which nothing
-    could do before, because only the .info migration said anything at all.
+
+def announce(key: str, used: str) -> None:
+    """Record that something reached a legacy name. Once per name, per process.
+
+    The question a maintainer has is "is anything still on the old name", not "how
+    often" - and the payload projection runs per game per refresh, so counting would
+    bury the answer. First use says so; the rest are silent.
+
+    INFO rather than WARNING: every one of these is a working, supported path. Warning
+    about them would train people to ignore warnings.
     """
+    pair = (key, used)
+    if pair in _seen:
+        return
+    _seen.add(pair)
+
     shim = SHIMS_BY_KEY.get(key)
     replacement = dict(shim.names).get(used, "") if shim else ""
-    logger.debug("deprecated %s %r used%s", shim.surface if shim else key, used,
-                 f"; use {replacement}" if replacement else "")
+    logger.info("deprecated: %s %r is in use%s (%s)",
+                shim.surface if shim else key, used,
+                f"; the current name is {replacement}" if replacement else "",
+                shim.par if shim and shim.par else "unledgered")
+
+
+def reset_for_tests() -> None:
+    """Forget what has been announced, so one test cannot silence the next."""
+    _seen.clear()
