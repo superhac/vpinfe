@@ -385,7 +385,7 @@ def launch_game(game_id: str,
 
     threading.Thread(target=run, daemon=True,
                      name=f"api-launch-{game_id[:8]}").start()
-    return {"launching": True, "table_id": game_id,
+    return {"launching": True, "game_id": game_id,
             "file": Path(resolved).name,
             "links": {"state": "/api/v1/play/state", "events": "/api/v1/events"}}
 

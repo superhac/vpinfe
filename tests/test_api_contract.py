@@ -1,9 +1,9 @@
-"""Pins the HTTP behaviour every in-repo consumer depends on.
+"""Pins the HTTP behavior every in-repo consumer depends on.
 
 The drag-and-drop client, the theme frontend's remote-launch poll and the mobile
 page's download link all speak to these routes, so a change here is a change a
 user can see. Endpoints keep their entry once they move under /api/v1, which is
-what makes a move provably behaviour-preserving.
+what makes a move provably behavior-preserving.
 
 Runs the app in a subprocess with a throwaway config dir: common.paths resolves
 CONFIG_DIR at import time, so isolation is only reliable in a fresh interpreter.
@@ -99,7 +99,7 @@ def _run_probe() -> dict:
 
 
 class ApiContractTests(unittest.TestCase):
-    """Each assertion describes behaviour a consumer relies on. A failure after a
+    """Each assertion describes behavior a consumer relies on. A failure after a
     route move means the move changed something visible."""
 
     @classmethod
@@ -396,6 +396,69 @@ class ApiContractTests(unittest.TestCase):
                 continue  # NiceGUI's own 404s, and the file downloads
             with self.subTest(endpoint=name):
                 self.assertEqual(entry["content_type"], "application/json")
+
+
+class HandlerKeysMatchTheModelsTests(unittest.TestCase):
+    """A handler that builds its response as a dict literal must use the field names
+    its response model declares.
+
+    Four endpoints shipped broken because the vocabulary rename moved model fields and
+    dataclass attributes - both identifiers - and left the dict keys, which are strings
+    the codemod never sees. `{"has_table": analysis.has_game}` reads fine and returns a
+    500, because FastAPI validates the return against the annotation. Three did exactly
+    that; the fourth silently dropped a filter.
+
+    So this checks the shape of the mistake rather than the four instances: a key no
+    model declares, whose table/game counterpart one does.
+    """
+
+    def test_a_handler_returning_a_dict_uses_its_models_field_names(self) -> None:
+        import ast
+
+        from httpapi import models
+
+        def dict_keys(node):
+            return {k.value for k in node.keys
+                    if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+
+        offenders = []
+        for path in sorted((Path(__file__).resolve().parent.parent / "httpapi").glob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            functions = [n for n in ast.walk(tree)
+                         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+
+            # Helpers like _plan_to_dict build the payload the endpoint returns, so the
+            # keys are one call away from the annotation that validates them.
+            builders = {fn.name: {key for ret in ast.walk(fn)
+                                  if isinstance(ret, ast.Return)
+                                  and isinstance(ret.value, ast.Dict)
+                                  for key in dict_keys(ret.value)}
+                        for fn in functions}
+
+            for fn in functions:
+                ann = fn.returns
+                if not (isinstance(ann, ast.Attribute) and isinstance(ann.value, ast.Name)
+                        and ann.value.id == "models"):
+                    continue
+                model = getattr(models, ann.attr, None)
+                if model is None or not hasattr(model, "model_fields"):
+                    continue
+                declared = set(model.model_fields)
+
+                emitted = set()
+                for ret in ast.walk(fn):
+                    if not isinstance(ret, ast.Return):
+                        continue
+                    if isinstance(ret.value, ast.Dict):
+                        emitted |= dict_keys(ret.value)
+                    elif isinstance(ret.value, ast.Call) and isinstance(ret.value.func, ast.Name):
+                        emitted |= builders.get(ret.value.func.id, set())
+
+                for key in sorted(emitted - declared):
+                    offenders.append(f"{path.name}:{fn.name} returns {key!r}, "
+                                     f"but {ann.attr} declares {sorted(declared)}")
+
+        self.assertEqual(offenders, [], "\n".join(offenders))
 
 
 if __name__ == "__main__":

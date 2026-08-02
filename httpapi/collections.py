@@ -53,7 +53,7 @@ def _resource_for(row: dict) -> dict:
         filters = {
             "letter": raw.get("letter", "All"),
             "theme": raw.get("theme", "All"),
-            "table_type": raw.get("table_type", "All"),
+            "game_type": raw.get("table_type", "All"),
             "manufacturer": raw.get("manufacturer", "All"),
             "year": raw.get("year", "All"),
             "rating": raw.get("rating", "All"),

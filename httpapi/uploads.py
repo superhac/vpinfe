@@ -55,7 +55,7 @@ def _analysis_to_dict(analysis: AnalysisResult) -> dict:
     return {
         "source_kind": analysis.source_kind,
         "source_name": analysis.source_name,
-        "has_table": analysis.has_game,
+        "has_game": analysis.has_game,
         "assets": [_asset_to_dict(a) for a in analysis.assets],
         "notes": list(analysis.notes),
         "error": analysis.error,
@@ -66,8 +66,8 @@ def _analysis_to_dict(analysis: AnalysisResult) -> dict:
 
 def _plan_to_dict(plan: ImportPlan) -> dict:
     return {
-        "table_path": plan.game_path,
-        "new_table_dir_name": plan.new_game_dir_name,
+        "game_path": plan.game_path,
+        "new_game_dir_name": plan.new_game_dir_name,
         "rom_name": plan.rom_name,
         "items": [
             {
