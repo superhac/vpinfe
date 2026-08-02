@@ -1,4 +1,4 @@
-"""Shared assets: files keyed by metadata, not by table or theme.
+"""Shared assets: files keyed by metadata, not by game or theme.
 
 A manufacturer logo belongs to hundreds of tables and outlives any one theme,
 so it lives in its own root - [Settings] assetsdir, defaulting to assets/

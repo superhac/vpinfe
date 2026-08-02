@@ -177,7 +177,7 @@ try:
 except Exception:
     logger.exception("Theme registry initialization failed")
 
-# Give every table a stable id. One-time cost per library; a no-op afterwards.
+# Give every game a stable id. One-time cost per library; a no-op afterwards.
 try:
     from common.games.game_identity import ensure_unique_ids
     from common.games.game_repository import ensure_games_loaded
@@ -185,7 +185,7 @@ try:
 except Exception:
     logger.exception("Table id backfill failed; tables without an id are not addressable")
 
-# Collection membership moves onto table ids once the ids exist. Resolvable entries
+# Collection membership moves onto game ids once the ids exist. Resolvable entries
 # are rewritten; anything that does not resolve is left alone rather than dropped.
 try:
     from common.games.vpxcollections import VPXCollections
@@ -197,7 +197,7 @@ except Exception:
 
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
-# Feedback hardware follows table lifecycle events from here on, so both launch
+# Feedback hardware follows game lifecycle events from here on, so both launch
 # paths get the same behaviour without either of them knowing about DOF.
 from common.host import peripherals
 

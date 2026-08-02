@@ -1,4 +1,4 @@
-"""Launching a table, once, for everybody.
+"""Launching a game, once, for everybody.
 
 The wheel, the Remote Control page and the HTTP API all arrive here. They used to
 each run their own version, which is how one of them ended up recording play data
@@ -50,7 +50,7 @@ STARTUP_MARKER = "Startup done"
 
 
 class LaunchUnavailableError(Exception):
-    """The table cannot be launched here, and the message says why.
+    """The game cannot be launched here, and the message says why.
 
     Raised rather than logged-and-returned so every caller can tell its own user -
     a notification on a page, an error envelope on the API - instead of each one
@@ -59,7 +59,7 @@ class LaunchUnavailableError(Exception):
 
 
 class UnknownTableError(LaunchUnavailableError):
-    """The caller named a file this table does not have. The caller got it wrong,
+    """The caller named a file this game does not have. The caller got it wrong,
     rather than the machine being unable, so it is worth telling apart."""
 
 
@@ -181,7 +181,7 @@ def _record_play(game, ini_config, elapsed_seconds: float, profile, table: str =
 def check_launchable(game, ini_config, table: str | None = None) -> str:
     """Raise if this launch could not go ahead, otherwise return the file it would run.
 
-    Separate from `launch_table` because callers that launch on a thread still have
+    Separate from `launch_game` because callers that launch on a thread still have
     to answer their own user now: the Remote page shows a notification and the API
     returns an error, and neither can do that from inside a thread it just started.
     """
@@ -197,7 +197,7 @@ def check_launchable(game, ini_config, table: str | None = None) -> str:
 
 def launch_game(game, ini_config, *, source: str, table: str | None = None,
                  popen=None) -> None:
-    """Launch a table and stay with it until it exits. Blocking.
+    """Launch a game and stay with it until it exits. Blocking.
 
     Callers that must not block run this on a thread; the API and the Remote page
     both do. Raises LaunchUnavailableError before anything is announced if the table

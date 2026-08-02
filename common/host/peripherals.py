@@ -1,4 +1,4 @@
-"""DOF and real-DMD, driven by table lifecycle events.
+"""DOF and real-DMD, driven by game lifecycle events.
 
 Handing the devices over for a launch is a hook: VPX drives the same hardware, so
 releasing them is part of launching rather than a notification about it. Reacting
@@ -59,7 +59,7 @@ def show_realdmd_art(*, game=None, ini_config=None, **_payload) -> None:
 def _updater(ini_config) -> realdmd.RealDmdUpdater:
     """One updater for the process, not one per frontend window.
 
-    Three windows each hold an API instance. Only the table window used to make
+    Three windows each hold an API instance. Only the `table` window used to make
     this call, enforced in the theme-served JS; on the bus every subscriber hears
     every event, so the panel would be written three times over.
     """

@@ -47,7 +47,7 @@ class VPSMediaDownloader:
         """Whether a file on disk is the one vpinmediadb publishes.
 
         Decided by comparing hashes, not by whether we have a ledger entry for it.
-        Absence proves nothing - a copied table folder, a regenerated .info or media
+        Absence proves nothing - a copied game folder, a regenerated .info or media
         fetched with another tool all leave vpinmediadb art with no record - and
         treating "no entry" as "the user's" would freeze that art forever with no
         way for anyone to notice.

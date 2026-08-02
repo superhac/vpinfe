@@ -88,14 +88,14 @@ class VPSdb:
         return self.data
 
     # ----------------------------------------------------------------------
-    # Table lookups
+    # Game lookups
     def lookupName(self, name, manufacturer, year):
-        """Fuzzy search for a table by name, manufacturer, and year."""
+        """Fuzzy search for a game by name, manufacturer, and year."""
         if not all((name, manufacturer, year)):
             return None
 
         for game in self.data or []:
-            # Compare table names
+            # Compare game names
             if SequenceMatcher(None, name.lower(), game["name"].lower()).ratio() < 0.8:
                 continue
 
@@ -150,7 +150,7 @@ class VPSdb:
         return self._media_downloader.file_exists(path)
 
     def downloadMediaForGame(self, game, id, metaConfig=None):
-        """Download all associated media for a given table."""
+        """Download all associated media for a given game."""
         self._media_downloader.download_media_for_game(game, id, metaConfig)
 
     # ----------------------------------------------------------------------

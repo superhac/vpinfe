@@ -52,7 +52,7 @@ def _normalize_service_endpoint(service_ip: str) -> str:
 
 
 def _build_game_payload(meta: dict) -> dict | None:
-    """One table in the shape the VPinPlay service accepts.
+    """One game in the shape the VPinPlay service accepts.
 
     This is an adapter, and the only place the service's vocabulary belongs: every key
     and every bound here is theirs, read from a value that is ours. Their models reject
@@ -73,7 +73,7 @@ def _build_game_payload(meta: dict) -> dict | None:
             "rom": str(vpx.get("rom", "") or ""),
         },
         "user": {
-            # Their bound is 0-5, and one table outside it fails the whole request.
+            # Their bound is 0-5, and one game outside it fails the whole request.
             "rating": normalize_rating(user.get("Rating", 0)),
             "lastRun": _normalize_last_run(user.get("LastRun")),
             "startCount": _to_int(user.get("StartCount", 0), default=0),

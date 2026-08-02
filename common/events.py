@@ -18,7 +18,7 @@ GAME_LAUNCHING = "game.launching"
 GAME_LAUNCHED = "game.launched"
 GAME_EXITED = "game.exited"
 
-# The player moved to a table in the wheel. Fires once per wheel stop and nothing may
+# The player moved to a game in the wheel. Fires once per wheel stop and nothing may
 # block on it, so subscribers only.
 GAME_SELECTED = "game.selected"
 

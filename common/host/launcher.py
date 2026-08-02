@@ -16,7 +16,7 @@ DEFAULT_PROFILE_NAME = "Default"
 
 
 def get_altlauncher_from_meta(meta_config) -> str:
-    """Read VPinFE.altlauncher from table metadata, normalized as a stripped string."""
+    """Read VPinFE.altlauncher from game metadata, normalized as a stripped string."""
     if not isinstance(meta_config, dict):
         return ""
     vpinfe = vpinfe_section(meta_config)
@@ -26,7 +26,7 @@ def get_altlauncher_from_meta(meta_config) -> str:
 
 
 def get_plugin_profile_from_meta(meta_config) -> str:
-    """Read VPinFE.pluginprofile from table metadata, normalized as a stripped string."""
+    """Read VPinFE.pluginprofile from game metadata, normalized as a stripped string."""
     if not isinstance(meta_config, dict):
         return ""
     vpinfe = vpinfe_section(meta_config)
@@ -193,7 +193,7 @@ def build_vpx_launch_command(
     """
     Build VPX launch command and guarantee '-play <table>' is the last argument pair.
 
-    A table's plugin profile and the global ini override both drive VPX's single
+    A game's plugin profile and the global ini override both drive VPX's single
     -ini argument, so they cannot both be passed. The per-table profile wins when
     set, mirroring how VPinFE.altlauncher takes precedence over Settings.vpxbinpath.
     """

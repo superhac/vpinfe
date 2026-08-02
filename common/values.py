@@ -1,6 +1,6 @@
 """Value coercion shared across the codebase.
 
-Infrastructure: nothing here knows about tables, hardware or any outside service,
+Infrastructure: nothing here knows about games, hardware or any outside service,
 so anything may depend on it. It exists because `is_truthy` lived in
 `table_metadata` and `config_access` had to reach up into the domain to read a
 boolean out of an ini file.

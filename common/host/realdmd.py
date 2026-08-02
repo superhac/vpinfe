@@ -1,4 +1,4 @@
-"""Showing a table's art on a real DMD panel.
+"""Showing a game's art on a real DMD panel.
 
 Nothing here draws anything itself - it resolves which image a table should
 show and hands it to libdmdutil on a worker thread, because the panel is slow

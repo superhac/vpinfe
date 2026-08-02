@@ -59,7 +59,7 @@ def _replace(new_state: LaunchState) -> LaunchState:
 
 
 def set_launching(game_name: str | None, *, source: str) -> LaunchState:
-    """Record that a launch is starting, for which table, and who asked.
+    """Record that a launch is starting, for which game, and who asked.
 
     `source` is required rather than defaulted: a caller that does not say is a
     caller the frontend cannot tell apart from itself.
