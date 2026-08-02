@@ -483,10 +483,11 @@ class VPinFECore {
     this.#syncLocalIndexFromOutgoingMessage(message);
     this.#syncSelectionFromMessage(message);
     this.call("send_event_all_windows_incself", message);
-    // A pre-3.0 theme listens for the Table* name and never sees the Game* one, so the
-    // wheel stops responding to its own paging buttons unless both go out.
+    // The legacy copy has to use the SAME delivery as the message it mirrors. Sending it
+    // without _incself delivered to bg and dmd but never back to the playfield window,
+    // so paging updated the backglass and DMD while the wheel and playfield sat still.
     const legacy = MESSAGE_TYPE_ALIASES[message.type];
-    if (legacy) this.call("send_event_all_windows", { ...message, type: legacy });
+    if (legacy) this.call("send_event_all_windows_incself", { ...message, type: legacy });
   }
 
   // Toggle collection menu (public method callable from collection menu)
