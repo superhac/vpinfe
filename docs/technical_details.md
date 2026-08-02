@@ -16,11 +16,11 @@ VPinFE uses a platform-specific configuration directory to store its settings. O
 | Key               | Description |
 | ----------------- | ------------------------------------------------------------------------- |
 | vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
-| gamerootdir      | The root folder where all your tables are located.  e.g /vpx/tables/      |
+| gamerootdir      | The root folder where all your games are located.  e.g /vpx/tables/      |
 | assetsdir         | Root folder for shared assets such as manufacturer logos, served at `/assets/`. Defaults to `assets/` under the VPinFE config dir. Put your own logos in `manufacturers/user/` (e.g. `bally.png`); files there win over a downloaded pack in `manufacturers/default/`. The generated `manufacturers/manufacturers-reference.json` lists every known manufacturer with the filename it looks for. |
 | startup_collection| Set the collection VPinFE starts up with.  Case sensitive, match collection name. |
 | splashscreen      | Enable or disable the splash screen at startup. Default is `false`. |
-| restorelastgame  | Open the wheel on the last table you launched instead of the first. Default is `true`. |
+| restorelastgame  | Open the wheel on the last game you launched instead of the first. Default is `true`. |
 
 ### [Input]
 | Key               | Description |
@@ -31,8 +31,8 @@ VPinFE uses a platform-specific configuration directory to store its settings. O
 | joydown           | Move down. Button mapping ids from `--gamepadtest`.                      |
 | joypageup         | Page the wheel forward. Button mapping ids from `--gamepadtest`.         |
 | joypagedown       | Page the wheel backward. Button mapping ids from `--gamepadtest`.        |
-| pagingtype        | `alpha` (default) pages by letter; `numeric` pages by `pagingsize` tables. Alpha falls back to numeric on non-Alpha sorts. |
-| pagingsize        | Tables per numeric page jump. Default is `10`.                           |
+| pagingtype        | `alpha` (default) pages by letter; `numeric` pages by `pagingsize` games. Alpha falls back to numeric on non-Alpha sorts. |
+| pagingsize        | Games per numeric page jump. Default is `10`.                           |
 | joyselect         | Select button / Launch. Button mapping ids from `--gamepadtest`.        |
 | joymenu           | Pop Menu. Button mapping ids from `--gamepadtest`.                       |
 | joyback           | Go Back. Button mapping ids from `--gamepadtest`.                        |
@@ -49,14 +49,14 @@ VPinFE uses a platform-specific configuration directory to store its settings. O
 Internal state written by VPinFE, not shown in the Manager UI.
 | Key               | Description |
 | ----------------- | ------------------------------------------------------------------------- |
-| lastgame         | Path of the last table you launched. Used by `restorelastgame` to reopen on that table. |
+| lastgame         | Path of the last game you launched. Used by `restorelastgame` to reopen on that game. |
 
 ### [Media]
 | Key               | Description |
 | ----------------- | ------------------------------------------------------------------------- |
-| playfieldvariant         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait table images. |
+| playfieldvariant         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait playfield images. |
 | playfieldresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
-| wheelset          | Name of the wheel set to use library-wide. A set is a folder of alternate wheel art at `medias/wheels/<set>/` inside a table folder. The reserved name `logo` shows each table's game logo in the wheel slot. Blank means plain wheels. The active theme can override this with its own `wheelSet` option. |
+| wheelset          | Name of the wheel set to use library-wide. A set is a folder of alternate wheel art at `medias/wheels/<set>/` inside a game folder. The reserved name `logo` shows each game's logo in the wheel slot. Blank means plain wheels. The active theme can override this with its own `wheelSet` option. |
 
 ### [Network]
 | Key               | Description |
@@ -71,8 +71,8 @@ Internal state written by VPinFE, not shown in the Manager UI.
 | deviceport | Port of the mobile device's web server. Default is `2112` |
 | chunksize  | Upload chunk size in bytes. Default is `1048576` (1MB)    |
 
-## Table Metadata File (based on the Zero install table format)
-When you run VPinFE with the `--buildmeta` option it recursively goes through your table directory attempts to match your tables to their VPSDB id.  When matched, it will then parse the VPX for the table for more meta information and produce a `TABLE FOLDER NAME(manufactuer year).info` in that tables directory.  Heres an example for the table 1-2-3:
+## Game Metadata File (based on the Zero install table format)
+When you run VPinFE with the `--buildmeta` option it recursively goes through your game directory attempts to match your games to their VPSDB id.  When matched, it will then parse the VPX for the game for more meta information and produce a `GAME FOLDER NAME(manufactuer year).info` in that game's directory.  Heres an example for the game 1-2-3:
 
 ```
 {
@@ -161,13 +161,13 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 
 - Info
 
-  Contains the core table metadata sourced from VPSdb and the VPX file:
+  Contains the core game metadata sourced from VPSdb and the VPX file:
   - IPDBId: Internet Pinball Database ID (if available)
-  - Title: Table name
+  - Title: Game name
   - Manufacturer, Year, Type (EM, SS, etc.)
   - Themes: Array of themes
   - VPSId: Internal VPS database ID
-  - Description: Table description/blurb
+  - Description: Game description/blurb
 
   Authors and Rom used to live here too. Both are properties of a table rather than of
   the machine — a folder can hold several, and they can disagree — so they moved to
@@ -175,7 +175,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 
 - User
 
-  Stores per-user data for the table. Preserved across `--buildmeta --update-all`:
+  Stores per-user data for the game. Preserved across `--buildmeta --update-all`:
   - Rating: User rating (0–10)
   - Favorite: Favorite flag (0/1)
   - LastRun: Timestamp of last play
@@ -185,7 +185,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 
 - game_files
 
-  One entry per `.vpx` in the folder, keyed by filename. A table folder can hold a desktop
+  One entry per `.vpx` in the folder, keyed by filename. A game folder can hold a desktop
   build, a VR build and a patched one, and every visible entry is independently launchable —
   they are peers, not a primary with alternates. Each entry holds what that file says about
   itself:
@@ -200,18 +200,18 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   - hidden: set to keep a table out of the frontend without deleting it — a patch base
     has to stay on disk, but should not be offered
   - user: play history for this table alone (last_run, start_count, run_time_seconds).
-    It accumulates separately from `User`, which is the table's own history.
+    It accumulates separately from `User`, which is the game's own history.
 
 - vpinfe
 
-  VPinFE-specific settings for the table, preserved across `--buildmeta --update-all`:
+  VPinFE-specific settings for the game, preserved across `--buildmeta --update-all`:
   - schema: the version of this file's shape. Absent means a 2.x file, which is migrated on
     first read — see below.
-  - id: the table's stable local identity, used in the API, in events and in collections
-  - default_game_file: which table a consumer that can only take one should get
-  - delete_nvram_on_close: (true/false) Some tables, like Taito machines, retain the game
+  - id: the game's stable local identity, used in the API, in events and in collections
+  - default_table: which table a consumer that can only take one should get
+  - delete_nvram_on_close: (true/false) Some games, like Taito machines, retain the game
     state when you quit. Enabling this deletes the NVRAM file on close. Default is false.
-  - alt_launcher: Optional executable path override for this table alone. If set, it is used
+  - alt_launcher: Optional executable path override for this game alone. If set, it is used
     instead of `vpinfe.ini` `Settings.vpxbinpath`.
   - plugin_profile, alt_title, alt_vpsid, frontend_dof_event
 
@@ -220,7 +220,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
 
 - assets
 
-  One entry per file VPinFE placed in the table folder, keyed by the file's path relative to that folder, with forward slashes. Preserved across `--buildmeta --update-all`. Replaces the old `Medias` section, which was keyed by media type and so could hold only one entry per type — no way to describe artwork belonging to one specific table, and the same question applies to backglasses, ROMs and colorizations. Each entry holds a `source`:
+  One entry per file VPinFE placed in the game folder, keyed by the file's path relative to that folder, with forward slashes. Preserved across `--buildmeta --update-all`. Replaces the old `Medias` section, which was keyed by media type and so could hold only one entry per type — no way to describe artwork belonging to one specific table, and the same question applies to backglasses, ROMs and colorizations. Each entry holds a `source`:
   - host: who supplied the bytes — a remote such as "vpinmediadb", or "user" for a file uploaded through the Manager UI
   - hash: the MD5 the host published, when it published one. Absent for a user upload, since a hash is only meaningful compared against a remote.
 
@@ -236,13 +236,13 @@ snake_case keys, `User.FrontendDOFEvent` moves to `vpinfe.frontend_dof_event`, a
 is dropped.
 
 Nothing is written until something would have written anyway, and when it does, the original
-is kept first as `<Table>.info.vpinfe-<timestamp>` — for example
+is kept first as `<Game>.info.vpinfe-<timestamp>` — for example
 `Table Name (Bally 1995).info.vpinfe-20260729T143022Z`. The timestamp is UTC, so restore
 points sort and accumulate rather than overwriting each other. **To go back, rename one over
 the `.info`.** Which schema a backup holds is read from its contents, not its name: no
 `schema` key means it is a 2.x file.
 
-After that file is created it then attempts to download the media artwork for that table from [VPinMediaDB](https://github.com/superhac/vpinmediadb). All media images are stored in a `medias/` subfolder within each table's directory:
+After that file is created it then attempts to download the media artwork for that game from [VPinMediaDB](https://github.com/superhac/vpinmediadb). All media images are stored in a `medias/` subfolder within each game's directory:
 
 ```
 Table Folder Name (Manufacturer Year)/

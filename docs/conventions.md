@@ -110,7 +110,7 @@ caller cannot infer from the name and signature, which is worth keeping.
 
   ```python
   # Outside the filehash check below on purpose: the id must survive the table
-  # file changing, which is exactly when altvpsid is cleared.
+  # changing, which is exactly when alt_vpsid is cleared.
   ```
 
 - **No docstring where the name and signature already say it.** Write one when there is a real
@@ -131,12 +131,12 @@ The level is a promise about who needs to read the line.
 - **WARNING** — degraded, unavailable, or ignored, but we carried on. A configured feature
   that silently does nothing belongs here, not at INFO.
 - **INFO** — state changes worth having in a timeline afterwards: startup and shutdown, a
-  table launched or exited, an import finished, an extension loaded, config changed.
+  game launched or exited, an import finished, an extension loaded, config changed.
 - **DEBUG** — everything else, including per-item detail and progress narration.
 
 **Summarise bulk work at INFO, never one line per item.** Assigning ids to a library once
-wrote a line per table and buried the rest of the log; it is one line with a count now, and
-the per-table detail is DEBUG.
+wrote a line per game and buried the rest of the log; it is one line with a count now, and
+the per-game detail is DEBUG.
 
 The bar to hold: an idle startup produces tens of INFO lines, not hundreds. Measure it rather
 than guess — start the app and count.
@@ -146,8 +146,8 @@ than guess — start the app and count.
 `vpinfe.<area>.<module>`, matching where the code lives:
 
 ```python
-logger = logging.getLogger("vpinfe.common.table_identity")
-logger = logging.getLogger("vpinfe.httpapi.tables")
+logger = logging.getLogger("vpinfe.common.games.game_identity")
+logger = logging.getLogger("vpinfe.httpapi.games")
 ```
 
 Areas are `common`, `frontend`, `manager`, `httpapi`. Extensions get `vpinfe.ext.<name>`,
@@ -161,12 +161,12 @@ Use `logger.exception` inside an `except` block. It keeps the traceback;
 
 ```python
 except OSError:
-    logger.exception("Failed to enumerate table directory: %s", table_dir)
+    logger.exception("Failed to enumerate game directory: %s", game_dir)
 ```
 
 ### Say which thing
 
-When a message is about one unit of work, name it — table id, job id, upload id. Someone
+When a message is about one unit of work, name it — game id, job id, upload id. Someone
 reporting "my import failed" has to be findable in the file.
 
 ### Never log secrets
@@ -180,8 +180,8 @@ Pass arguments to the logger rather than formatting into it, so the work is skip
 level is off:
 
 ```python
-logger.debug("Assigned table id %s to %s", minted, table.gameDirName)   # yes
-logger.debug(f"Assigned table id {minted} to {table.gameDirName}")      # no
+logger.debug("Assigned game id %s to %s", minted, game.gameDirName)     # yes
+logger.debug(f"Assigned game id {minted} to {game.gameDirName}")        # no
 ```
 
 ### What we deliberately do not do
@@ -220,7 +220,7 @@ reading both had to invert twice.
 - **Media** — artwork VPinFE shows *about* a game while you browse: playfield, backglass,
   DMD, wheel, logo, cab, FSS, flyer, rule card, topper, loading video, launch audio,
   rulesheet, their video variants, audio. The logo is the game's title art - usually what a
-  wheel is derived from, which is why a wheel-less table shows its logo in the wheel slot. This is `common/media_paths.py` and nothing else. Rule card
+  wheel is derived from, which is why a wheel-less game shows its logo in the wheel slot. This is `common/media_paths.py` and nothing else. Rule card
   (apron instruction card image), game flyer (promo art) and rulesheet (a document you
   read) are three different things - keep the words apart.
 - **Asset** — content a game needs to *play* as intended, beyond its table:
@@ -232,14 +232,14 @@ A **declared ROM name is not a ROM asset.** A table's script sets `cGameName`, a
 `vpxparser` records it, but that name means one of two different things:
 
 - **A PinMAME dependency (hard).** The script drives the emulator, and without the ROM
-  set in `<table>/pinmame/roms` the table does not run.
-- **A DOF key (soft).** The table needs no emulator — EM tables have no ROM to have —
+  set in `<game>/pinmame/roms` the table does not run.
+- **A DOF key (soft).** The table needs no emulator — EM games have no ROM to have —
   and the name exists only so DOF can map feedback effects to it.
 
 Nothing recorded today tells the two apart, and the shape of the name is a hint rather
 than a rule: PinMAME sets look like `mm_109c`, DOF keys like `GTB2001_1971`. Measured
 across a large library, **most tables that declare a name have no ROM file, and they are
-overwhelmingly EM tables that never needed one.** So "declares a ROM, has no ROM file" is
+overwhelmingly EM games that never needed one.** So "declares a ROM, has no ROM file" is
 a normal, healthy state for most of a library, and reporting ROM presence as a plain
 missing/present flag would call hundreds of working tables broken.
 
@@ -273,14 +273,14 @@ Media and assets are not the same thing, and the line is what each is *for*: med
 you look at while browsing, assets are what the table consumes while playing. A backglass is
 the case worth knowing — the `.directb2s` is an asset, because the B2S server runs it, while
 the backglass *art* the wheel renders is media. Do not call an asset "media" because it
-happens to be a file in the table folder.
+happens to be a file in the game folder.
 
 `asset_registry.ASSET_SPECS` uses "asset" more broadly, as the lifecycle role of anything
 being imported — including the table and its media. That is the import pipeline's word for
 "a thing being added", not a content category, and it never reaches the HTTP contract, whose
 endpoints are `/uploads/*`. Prefer the definitions above anywhere the distinction matters.
 
-Two table identifiers exist and are not interchangeable:
+Two game identifiers exist and are not interchangeable:
 
 - `vpinfe_id` — this install's stable id. Addresses a game in the API, in events, in jobs.
 - `vpsid` / `altvpsid` — correlation with VPSdb and services keyed by it. Note this

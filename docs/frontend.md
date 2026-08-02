@@ -11,18 +11,18 @@ The frontend starts at `main.py`, but most runtime responsibilities now live in 
 
 ## Core Modules
 
-- `common/paths.py`: shared config paths, `vpinfe.ini`, `collections.ini`, themes directory, and table root lookup.
-- `common/games/game.py`: dataclass representation of a parsed table folder.
+- `common/paths.py`: shared config paths, `vpinfe.ini`, `collections.ini`, themes directory, and game root lookup.
+- `common/games/game.py`: dataclass representation of a parsed game folder.
 - `common/games/game_metadata.py`: shared metadata normalization, section lookup, rating/truthy helpers, and metadata persistence.
-- `common/games/game_repository.py`: table parser/cache ownership and table row shaping.
-- `common/games/gamelistfilters.py`: instance-based table filtering with no hidden singleton state.
+- `common/games/game_repository.py`: game parser/cache ownership and game row shaping.
+- `common/games/gamelistfilters.py`: instance-based game filtering with no hidden singleton state.
 - `common/games/collections_service.py`: shared collection manager access and filter-collection helpers.
 - `common/games/game_play_service.py`: Last Played tracking, start count, runtime, score update, and NVRAM cleanup.
 - `common/host/display_service.py`: shared monitor discovery.
 - `common/games/metadata_service.py`: build metadata and VPX patch orchestration shared by CLI, frontend, and Manager UI.
-- `common/games/game_report_service.py`: CLI-oriented missing/unknown table reports backed by the shared parser and VPSdb lookup.
+- `common/games/game_report_service.py`: CLI-oriented missing/unknown game reports backed by the shared parser and VPSdb lookup.
 - `common/host/system_actions.py`: shared app restart sentinel/execution, clean OS command environment, shutdown, and reboot commands.
-- `frontend/game_state.py`: table JSON serialization, filtering, sorting, collections, and rating mutations for the JS API.
+- `frontend/game_state.py`: game JSON serialization, filtering, sorting, collections, and rating mutations for the JS API.
 - `common/host/launch.py`: VPX launch lifecycle, DOF/DMD stop-start, and frontend launch events.
 - `frontend/input_api.py`: input mapping reads/writes.
 - `frontend/theme_api.py`: theme name/config/index URL and audio-muted helpers.
