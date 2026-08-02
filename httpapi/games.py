@@ -397,7 +397,7 @@ def get_game_archive(request: Request, game_id: str, download_token: str = "",
 
     game = _game_or_404(game_id)
     if full:
-        # The default bundle rides tables:read; the whole folder is its own
+        # The default bundle rides games:read; the whole folder is its own
         # permission. Local trust grants both today.
         identity = getattr(request.state, "identity", None)
         if identity is None or not identity.can(scopes.GAMES_EXPORT_FULL):

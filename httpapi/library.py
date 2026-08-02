@@ -24,7 +24,7 @@ router = APIRouter(prefix="/library", tags=["library"])
 def scan(response: Response,
          request: models.ScanRequest | None = Body(default=None)) -> models.JobResource:
     """Accepted, not done: the work runs on its own thread and reports on the event
-    stream. The scope is tables:write because that is what a scan does - it writes
+    stream. The scope is games:write because that is what a scan does - it writes
     a .info for every game it can match."""
     options = request or models.ScanRequest()
 

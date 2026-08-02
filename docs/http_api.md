@@ -59,7 +59,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/games/{id}/tables` | The game's tables, with resolved assets and dependencies |
 | GET | `/api/v1/games/{id}/media` | Every media kind, present or not |
 | GET | `/api/v1/games/{id}/media/{kind}` | Stream one media file |
-| GET | `/api/v1/games/{id}/archive` | Download the table as `.vpxz` — one game by default; `?file=` picks the build. `?full=true` (whole folder) carries its own scope, `tables:export_full` |
+| GET | `/api/v1/games/{id}/archive` | Download the table as `.vpxz` — one game by default; `?file=` picks the build. `?full=true` (whole folder) carries its own scope, `games:export_full` |
 | POST | `/api/v1/games/{id}/launch` | Launch a game here. Optional `{"file": "..."}` picks which table |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
@@ -283,7 +283,7 @@ Every refusal happens before anything starts, and comes back synchronously:
 | 409 | `conflict` | something is already playing — two VPX processes would fight over the same hardware |
 | 501 | `feature_unavailable` | this machine can't launch at all, e.g. no `vpxbinpath` configured |
 
-The endpoint carries `launch:invoke`, which is deliberately not `tables:write`: reading the
+The endpoint carries `launch:invoke`, which is deliberately not `games:write`: reading the
 library, changing it, and making the machine do something are three different permissions.
 
 Discovery declares a `launch` capability separately from `play`, because reading what's
@@ -404,7 +404,7 @@ correct without having seen a single event. Finished jobs stay answerable for a 
 feature).
 
 Starting work is never a `POST /jobs`. The permission to run something is the permission of
-the thing itself, so a scan is `tables:write` because that is what a scan does. `jobs:read`
+the thing itself, so a scan is `games:write` because that is what a scan does. `jobs:read`
 covers only asking; the right to watch is not the right to cause.
 
 **One job of a kind at a time**, and the rule is shared with the rest of the app rather than

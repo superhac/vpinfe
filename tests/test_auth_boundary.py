@@ -86,7 +86,7 @@ class EnforcementTests(unittest.TestCase):
         self.assertEqual(_client().get("/health").status_code, 200)
 
     def test_scopes_are_not_interchangeable(self) -> None:
-        """tables:read must not open the door to the outbound VPSdb lookup."""
+        """games:read must not open the door to the outbound VPSdb lookup."""
         self._grant(scopes.GAMES_READ)
         client = _client(_app_with_guarded_routes())
 
