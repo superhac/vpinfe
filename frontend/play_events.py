@@ -25,9 +25,27 @@ _browser = None
 _ini_config = None
 
 
+# The same map vpinfe-core.js keeps as MESSAGE_TYPE_ALIASES, and it has to stay the same:
+# a theme matches on whichever spelling it was written against, so both have to arrive.
+# The JS sends the legacy copy for messages a theme originates; these three come from the
+# backend and were left out, so a theme written against 3.0's names saw no launch at all
+# while every 2.x theme kept working. PAR-24.
+_LEGACY_MESSAGE_TYPES = {
+    "GameIndexUpdate": "TableIndexUpdate",
+    "GameDataChange": "TableDataChange",
+    "GameLaunching": "TableLaunching",
+    "GameRunning": "TableRunning",
+    "GameLaunchComplete": "TableLaunchComplete",
+}
+
+
 def _broadcast(message: dict) -> None:
-    if _bridge is not None:
-        _bridge.send_event_all_with_iframe(message)
+    if _bridge is None:
+        return
+    _bridge.send_event_all_with_iframe(message)
+    legacy = _LEGACY_MESSAGE_TYPES.get(message.get("type"))
+    if legacy is not None:
+        _bridge.send_event_all_with_iframe({**message, "type": legacy})
 
 
 def on_launching(*, game=None, **_payload) -> None:
@@ -38,17 +56,17 @@ def on_launching(*, game=None, **_payload) -> None:
     """
     if game is not None and _ini_config is not None:
         save_last_game(_ini_config, game)
-    _broadcast({"type": "TableLaunching"})
+    _broadcast({"type": "GameLaunching"})
 
 
 def on_launched(**_payload) -> None:
     """The table is actually up, not merely started."""
-    _broadcast({"type": "TableRunning"})
+    _broadcast({"type": "GameRunning"})
 
 
 def on_exited(**_payload) -> None:
     """Always reached once a launch was announced, so input always comes back."""
-    _broadcast({"type": "TableLaunchComplete"})
+    _broadcast({"type": "GameLaunchComplete"})
     if sys.platform == "darwin" and _browser is not None:
         try:
             _browser.activate_all_mac()

@@ -230,6 +230,20 @@ still work from a theme written against any earlier build.
 so an alias is the only mechanism available. Removing these would be a hard break with no
 migration path, which is why none of them is removed.
 
+**PAR-24 — Window messages carry both spellings, and inbound is accepted either way.**
+`TableIndexUpdate`, `TableDataChange`, `TableLaunching`, `TableRunning` and
+`TableLaunchComplete` become the `Game*` spellings. Every one is broadcast twice — current
+name then legacy — so a theme matching either receives it, and `vpin.handleEvent` maps an
+inbound legacy name onto the current one before anything matches on it.
+*Why:* a message type is a string a theme compares against, so there is no projection to
+hang this on and both have to arrive. The dual send first landed in `vpinfe-core.js` alone,
+which covers only the messages a theme originates; the launch lifecycle is broadcast by
+`frontend/play_events.py`, so it kept sending the 2.x names by themselves. Installed themes
+match those and were unaffected, which is exactly why it went unnoticed — but a theme
+written against the names `docs/theme.md` documents received no launch events at all.
+Covered by `tests/test_play_events.py`, which also asserts the Python and JavaScript alias
+maps are the same map.
+
 **PAR-18 — Addon folders are detected whatever their casing.**
 The library scan matched `pupvideos`, `serum`, `vni`, `music` and `medias` against the
 folder name exactly as stored, so a folder named `PUPVideos` — the casing PinUP Popper

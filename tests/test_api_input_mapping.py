@@ -133,5 +133,7 @@ class TestApiInputMapping(unittest.TestCase):
                 api.launch_game(0)
 
             self.assertEqual(call_order[:2], ["delete_log", "popen"])
-            self.assertEqual(window_messages[0]["type"], "TableLaunching")
+            # Current spelling first, the 2.x copy behind it. PAR-24.
+            self.assertEqual(window_messages[0]["type"], "GameLaunching")
+            self.assertEqual(window_messages[1]["type"], "TableLaunching")
             self.assertEqual(window_messages[-1]["type"], "TableLaunchComplete")
