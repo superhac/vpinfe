@@ -86,7 +86,7 @@ def inventory(folder_name: str, files, tables, kinds=VPX_ASSET_KINDS) -> dict:
 
     `dedicated` names the table it serves; `shared` is the folder-named
     fallback; `orphaned` is stem-named for a table that is not there - the
-    residue of a deleted or renamed build, which is what an audit wants to see.
+    residue of a deleted or renamed table, which is what an audit wants to see.
     """
     stems = {_stem(name).lower(): name for name in tables}
     folder_lower = folder_name.lower()

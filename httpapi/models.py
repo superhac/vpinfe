@@ -85,7 +85,7 @@ class PlayState(ApiModel):
 
 class AssetFileBinding(ApiModel):
     """One asset file, attributed: dedicated to a table, shared (folder-named),
-    or orphaned - stem-named for a build that is no longer there."""
+    or orphaned - stem-named for a table that is no longer there."""
 
     file: str
     binding: str
@@ -193,7 +193,7 @@ class Table(ApiModel):
     `available` is false for a file the metadata records but which is not on disk -
     worth reporting rather than hiding.
 
-    `hidden` is the user's choice not to be offered this build in the frontend; the
+    `hidden` is the user's choice not to be offered this table in the frontend; the
     file stays on disk, because a patch base has to (the patched table cannot be
     rebuilt without it) and a variant may be wanted back. Consumers listing what to
     play should skip these; consumers managing a library should not.

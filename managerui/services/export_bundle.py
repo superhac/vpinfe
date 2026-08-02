@@ -1,8 +1,8 @@
-"""What belongs in a table export - one answer for every transport.
+"""What belongs in a game export - one answer for every transport.
 
 The VPXZ download and the mobile Web Send are the same operation with different
-plumbing, and both used to ship the entire folder: every alternate build, all
-media, everything. The default is now a standalone bundle for one game file -
+plumbing, and both used to ship the entire folder: every alternate table, all
+media, everything. The default is now a standalone bundle for one table -
 export a game, not a folder - which also makes multi-.vpx folders come out
 right. `everything=True` keeps the full-folder behavior as the explicit choice.
 """
@@ -114,7 +114,7 @@ def bundle_paths(game_dir: Path, *, everything: bool = False,
             yield entry, name
         elif lower.endswith(COMPANION_EXTENSIONS):
             companion_stem = Path(name).stem.lower()
-            # The chosen build's own companions, and the folder-named shared
+            # The chosen table's own companions, and the folder-named shared
             # fallbacks the engine would resolve for it.
             if companion_stem in (stem, folder_stem):
                 yield entry, name
