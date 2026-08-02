@@ -92,7 +92,7 @@ class InvalidMetaConfigError(ValueError):
     def __init__(self, path, reason):
         self.path = path
         self.reason = reason
-        super().__init__(f"Invalid table metadata file: {path} ({reason})")
+        super().__init__(f"Invalid game metadata file: {path} ({reason})")
 
 
 class MetaConfig:

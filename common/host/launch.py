@@ -91,7 +91,7 @@ def _resolve_table(game, table: str | None) -> str:
     if table is None:
         path = str(getattr(game, "fullPathVPXfile", "") or "")
         if not path:
-            raise LaunchUnavailableError("This table has no game file to launch")
+            raise LaunchUnavailableError("This game has no table to launch")
         return path
 
     listing = []
@@ -99,7 +99,7 @@ def _resolve_table(game, table: str | None) -> str:
         listing = [name for name in os.listdir(game_dir)
                    if os.path.isfile(os.path.join(game_dir, name))]
     if table not in table_names(listing):
-        raise UnknownTableError(f"No game file named {table} in this table")
+        raise UnknownTableError(f"No table named {table} in this game")
     return os.path.join(game_dir, table)
 
 
