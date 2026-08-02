@@ -12,7 +12,7 @@ from common.values import is_truthy
 
 
 class GameListFilters:
-    """Filter tables by various criteria: starting letter, theme, type, and rating."""
+    """Filter games by various criteria: starting letter, theme, type, and rating."""
 
     def __init__(self, games=None):
         self.games = list(games or [])
@@ -23,7 +23,7 @@ class GameListFilters:
         return get_meta_value(getattr(game, "metaConfig", {}), section, key, fallback)
 
     def get_available_letters(self):
-        """Return sorted list of unique starting letters from table names."""
+        """Return sorted list of unique starting letters from game names."""
         letters = set()
         for game in self.games:
             # Try Info.Title first (JSON format), then VPSdb.name (legacy)
@@ -36,14 +36,14 @@ class GameListFilters:
         return sorted(letters)
 
     def get_available_themes(self):
-        """Return sorted list of unique themes from all tables."""
+        """Return sorted list of unique themes from all games."""
         themes = set()
         for game in self.games:
             themes.update(game_themes(game))
         return sorted(themes)
 
     def get_available_types(self):
-        """Return sorted list of unique table types."""
+        """Return sorted list of unique game types."""
         types = set()
         for game in self.games:
             current_type = game_type(game)
@@ -70,23 +70,23 @@ class GameListFilters:
         return sorted(years)
 
     def _get_game_name(self, game):
-        """Get table name from either JSON or legacy format."""
+        """Get game name from either JSON or legacy format."""
         return game_title(game)
 
     def _get_game_theme(self, game):
-        """Get table theme(s) from either JSON or legacy format."""
+        """Get game theme(s) from either JSON or legacy format."""
         return game_themes(game)
 
     def _get_game_type(self, game):
-        """Get table type from either JSON or legacy format."""
+        """Get game type from either JSON or legacy format."""
         return game_type(game)
 
     def _get_game_manufacturer(self, game):
-        """Get table manufacturer from either JSON or legacy format."""
+        """Get game manufacturer from either JSON or legacy format."""
         return game_manufacturer(game)
 
     def _get_game_year(self, game):
-        """Get table year from either JSON or legacy format."""
+        """Get game year from either JSON or legacy format."""
         return game_year(game)
 
     @staticmethod
@@ -95,11 +95,11 @@ class GameListFilters:
         return normalize_rating(value)
 
     def _get_game_rating(self, game):
-        """Get table rating from User.Rating metadata."""
+        """Get game rating from User.Rating metadata."""
         return game_rating(game)
 
     def filter_by_letter(self, games, letter):
-        """Filter tables by starting letter of name. Supports comma-separated values."""
+        """Filter games by starting letter of name. Supports comma-separated values."""
         if not letter or letter == "All":
             return games
 
@@ -112,7 +112,7 @@ class GameListFilters:
         return filtered
 
     def filter_by_theme(self, games, theme):
-        """Filter tables by theme. Supports comma-separated values."""
+        """Filter games by theme. Supports comma-separated values."""
         if not theme or theme == "All":
             return games
 
@@ -125,7 +125,7 @@ class GameListFilters:
         return filtered
 
     def filter_by_type(self, games, game_type):
-        """Filter tables by type (EM, SS, etc.). Supports comma-separated values."""
+        """Filter games by type (EM, SS, etc.). Supports comma-separated values."""
         if not game_type or game_type == "All":
             return games
 
@@ -138,7 +138,7 @@ class GameListFilters:
         return filtered
 
     def filter_by_manufacturer(self, games, manufacturer):
-        """Filter tables by manufacturer. Supports comma-separated values."""
+        """Filter games by manufacturer. Supports comma-separated values."""
         if not manufacturer or manufacturer == "All":
             return games
 
@@ -151,7 +151,7 @@ class GameListFilters:
         return filtered
 
     def filter_by_year(self, games, year):
-        """Filter tables by year. Supports comma-separated values."""
+        """Filter games by year. Supports comma-separated values."""
         if not year or year == "All":
             return games
 
@@ -164,7 +164,7 @@ class GameListFilters:
         return filtered
 
     def filter_by_rating(self, games, rating, rating_or_higher=False):
-        """Filter tables by rating. Supports comma-separated values and optional 'or higher' mode."""
+        """Filter games by rating. Supports comma-separated values and optional 'or higher' mode."""
         if not rating or rating == "All":
             return games
 
@@ -188,7 +188,7 @@ class GameListFilters:
     def apply_filters(self, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=False):
         """
         Apply multiple filters in combination.
-        Returns filtered and sorted list of tables.
+        Returns filtered and sorted list of games.
         """
         result = list(self.games)  # Make a copy to avoid modifying original
 

@@ -25,11 +25,11 @@ logger = logging.getLogger("vpinfe.common.games.game_play_service")
 
 def track_game_play(game, collection_name: str = "Last Played", max_items: int = 30) -> None:
     meta = normalize_meta(getattr(game, "metaConfig", {}))
-    # Membership is the table's own id; VPSId is a fallback for a table that has
+    # Membership is the game's own id; VPSId is a fallback for a game that has
     # not been assigned one yet.
     member_id = game_identity.game_id(game) or section(meta, "Info").get("VPSId")
     if not member_id:
-        logger.debug("Table has no id, cannot track play")
+        logger.debug("Game has no id, cannot track play")
         return
 
     collections = get_collections_manager()
@@ -89,10 +89,10 @@ def _plus(mapping: dict, key: str, amount: int) -> None:
 
 def apply_start_count_update(config: dict, played_at: int | None = None,
                              table: str = "") -> dict:
-    """Count a launch against the table, and against the game file that was launched.
+    """Count a launch against the game, and against the table that was launched.
 
     The two accumulate independently rather than one being a rollup of the other:
-    deleting a game file would otherwise un-play hours that were played.
+    deleting a table would otherwise un-play hours that were played.
     """
     user = get_or_create_user_meta(config)
     _plus(user, "StartCount", 1)
@@ -120,10 +120,10 @@ def apply_runtime_update(config: dict, elapsed_seconds: float, table: str = "") 
 
 
 def score_rom_from_meta(config: dict) -> str:
-    """The ROM of the game file we would launch, or "".
+    """The ROM of the table we would launch, or "".
 
-    No fall back to a table-level Info.Rom: the migration drops that key, and a value
-    it kept could disagree with the file it claims to describe. A table that has not
+    No fall back to a game-level Info.Rom: the migration drops that key, and a value
+    it kept could disagree with the file it claims to describe. A game that has not
     been through a metadata build since has no ROM recorded, which is the truth.
     """
     return str(default_table_entry(config).get("rom", "") or "").strip()

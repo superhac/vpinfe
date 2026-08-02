@@ -25,18 +25,18 @@ logger = logging.getLogger("vpinfe.common.games.metaconfig")
 # shape can be reasoned about from a version. Other sections stay shape-driven.
 #   1  original shape (deletedNVRamOnClose, altlauncher, pluginprofile, alttitle,
 #      altvpsid). Implied when no version is recorded.
-#   2  adds `id`, the stable local table id (see common/table_identity.py).
+#   2  adds `id`, the stable local game id (see common/games/game_identity.py).
 CURRENT_VPINFE_SCHEMA = 2
 VPINFE_SCHEMA_KEY = "schema"
 
-# The section we own outright: app configuration and table-level bookkeeping. 2.x wrote
-# it as `VPinFE`; the
-# migration renames it, since the sections we own are snake_case - which it now has.
+# The section we own outright: app configuration and game-level bookkeeping. 2.x wrote
+# it as `VPinFE`; the migration renames it, since the sections we own are snake_case -
+# which it now has.
 VPINFE_SECTION = "vpinfe"
 
 # One entry per file VPinFE placed, keyed by the path it was written to. Supersedes
 # Medias, which was keyed by media kind and so held at most one entry per kind - it
-# could not say which game file's wheel it meant once artwork could belong to a
+# could not say which table's wheel it meant once artwork could belong to a
 # specific one, and the same question applies to backglasses, ROMs and colorizations.
 ASSETS_KEY = "assets"
 
@@ -75,10 +75,10 @@ def migrate_vpinfe_section(vpinfe):
 
 
 def _default_table_changed(chosen, previous_files, tables):
-    """Whether the table's default game file is a different file than it was.
+    """Whether the game's default table is a different file than it was.
 
-    A manual VPS override is tied to the table file it was chosen against, so replacing
-    that file drops it. Scoped to the default: ADDING a game file is not a reason to
+    A manual VPS override is tied to the table it was chosen against, so replacing
+    that file drops it. Scoped to the default: ADDING a table is not a reason to
     discard the user's match.
     """
     previous_hash = str(previous_files.get(chosen, {}).get("file_hash", "") or "").strip()
@@ -87,7 +87,7 @@ def _default_table_changed(chosen, previous_files, tables):
 
 
 class InvalidMetaConfigError(ValueError):
-    """Raised when a table .info file exists but cannot be read as metadata."""
+    """Raised when a game's .info file exists but cannot be read as metadata."""
 
     def __init__(self, path, reason):
         self.path = path
@@ -142,8 +142,8 @@ class MetaConfig:
         )
 
         # Info is wholly what VPS knows about the machine. Rom and Authors used to be
-        # copied in from the parsed .vpx and were per-game-file values all along - they
-        # live on their own game_files entry now.
+        # copied in from the parsed .vpx and were per-table values all along - they
+        # live on their own tables entry now.
         info = {
             "IPDBId": parse_qs(urlparse(configdata.get("vpsdata", {}).get("ipdbUrl", "")).query).get("id", [""])[0],
             "Title": configdata.get("vpsdata", {}).get("name", ""),
@@ -181,12 +181,12 @@ class MetaConfig:
         vpinfe.setdefault("alt_launcher", "")
         vpinfe.setdefault("plugin_profile", "")
         vpinfe.setdefault("alt_title", "")
-        # Configuration, not a play record - see table_metadata.game_frontend_dof_event.
+        # Configuration, not a play record - see game_metadata.game_frontend_dof_event.
         vpinfe.setdefault("frontend_dof_event", "")
         # Outside the filehash check below on purpose: the id must survive the table
-        # file changing, which is exactly when altvpsid is cleared.
+        # changing, which is exactly when alt_vpsid is cleared.
         if not str(vpinfe.get("id", "") or "").strip():
-            # Imported here because table_identity reaches back through table_metadata
+            # Imported here because game_identity reaches back through game_metadata
             # to this module. One minting rule, one place, no cycle.
             from common.games.game_identity import new_id
 
@@ -196,12 +196,12 @@ class MetaConfig:
         previous_files = table_entries(self.data)
         tables = self._build_tables(configdata)
 
-        # Which game file a single-game-file consumer gets - today's themes all assume
-        # one table means one game file. Resolved fresh here and deliberately NOT written back:
+        # Which table a single-table consumer gets - today's themes all assume one game
+        # means one table. Resolved fresh here and deliberately NOT written back:
         # seeding it on every rebuild would turn an arbitrary first pick into a
         # permanent one with nothing to change it. The key is written only when
         # somebody chooses (and by the migration, which seeds it from VPXFile.filename
-        # so existing tables keep selecting exactly what they select today).
+        # so existing games keep selecting exactly what they select today).
         chosen = default_table(tables, "", recorded_default(vpinfe))
 
         if _default_table_changed(chosen, previous_files, tables):
@@ -233,10 +233,10 @@ class MetaConfig:
         self.writeConfig()
 
     def _build_tables(self, configdata):
-        """One entry per parsed game file, keyed by filename.
+        """One entry per parsed table, keyed by filename.
 
         Callers pass `gamefiles` as {filename: parsed}. `vpxdata` alone is still
-        accepted for the single-game-file case, which is most of the library.
+        accepted for the single-table case, which is most of the library.
 
         Anything already recorded against a filename and not covered by the parse -
         the user's `hidden`, a `patch_applied` flag, later play stats and match
@@ -284,12 +284,12 @@ class MetaConfig:
         return text.replace("\r\n", "").replace("\n", "")
 
     def gameFileSettings(self):
-        """Per-game-file entries, keyed by filename. A folder can hold several game files
-        of one table - desktop, VR, a patched variant - and they are peers."""
+        """Per-table entries, keyed by filename. A folder can hold several tables
+        of one game - desktop, VR, a patched variant - and they are peers."""
         return table_entries(self.data)
 
     def setTableHidden(self, filename, hidden):
-        """Hide a game file from the frontend, or unhide it.
+        """Hide a table from the frontend, or unhide it.
 
         Hiding never deletes. A patch base has to stay on disk - the patched table
         cannot be rebuilt without it - it just should not be offered as something to
@@ -301,37 +301,38 @@ class MetaConfig:
             entry["hidden"] = True
         else:
             entry.pop("hidden", None)
-            # An entry that only ever carried `hidden` came from a game file we never
+            # An entry that only ever carried `hidden` came from a table we never
             # parsed; drop it rather than leave an empty record behind.
             if not entry:
                 settings.pop(filename, None)
         self.writeConfig()
 
     def gameFileValue(self, filename, key, default=""):
-        """One key off a specific game file's entry."""
+        """One key off a specific table's entry."""
         value = table_entries(self.data).get(filename, {})
         return value.get(key, default) if isinstance(value, dict) else default
 
     def setTableValue(self, filename, key, value):
-        """Record something we did to a game file, against that game file."""
+        """Record something we did to a table, against that table."""
         entry = self.data.setdefault(TABLES_KEY, {}).setdefault(filename, {})
         entry[key] = value
         self.writeConfig()
 
     def refresh_table(self, filename, parsed):
-        """Refresh what one game file says about itself. Everything else on the entry - hidden,
-        where it came from, later play stats - survives, as it does on a full rebuild.
+        """Refresh what one table says about itself. Everything else on the entry -
+        hidden, where it came from, later play stats - survives, as it does on a full
+        rebuild.
         """
         entry = self.data.setdefault(TABLES_KEY, {}).setdefault(filename, {})
         entry.update(entry_from_parsed(parsed))
         self.writeConfig()
 
     def replace_table(self, removed, filename, parsed):
-        """One game file replaced another on disk: describe the new one, forget the old.
+        """One table replaced another on disk: describe the new one, forget the old.
 
-        A gone game file's entry is not kept - its history answers nothing once the file
-        is gone. If the default is what changed, the manual VPS
-        override goes with it, the same rule a rebuild applies.
+        A gone table's entry is not kept - its history answers nothing once the file is
+        gone. If the default is what changed, the manual VPS override goes with it, the
+        same rule a rebuild applies.
         """
         entries = table_entries(self.data)
         # Deep enough to survive the update below: a shallow copy shares the entry dicts,
@@ -355,7 +356,7 @@ class MetaConfig:
         self.writeConfig()
 
     def record_patch_source(self, filename, base_file, base_hash, patch_format):
-        """Record a game file we made ourselves: the base it came from, and the patch that
+        """Record a table we made ourselves: the base it came from, and the patch that
         made it. An ordinary .vpx has no source, which is the normal case.
 
         The base is hashed because a .dif applies to one exact file, and the delta's
@@ -371,7 +372,7 @@ class MetaConfig:
     def add_asset(self, path, host, md5=""):
         """Record a file we placed, against the path we wrote it to.
 
-        Origin only. What kind of media it is and which game file it belongs to are read
+        Origin only. What kind of media it is and which table it belongs to are read
         off the filename by resolve_media_files on every run, so a stored copy could
         only ever agree with it or be wrong - and resolution wins either way.
         """
@@ -382,7 +383,7 @@ class MetaConfig:
         self.writeConfig()
 
     def _asset_key(self, path):
-        """A path relative to the table folder, with forward slashes.
+        """A path relative to the game folder, with forward slashes.
 
         The .info travels with its folder, so an absolute path stops meaning anything
         the moment the library moves. Separators are normalized because a key written
@@ -432,7 +433,7 @@ class MetaConfig:
         return val == 1
 
     def _normalize_detection_flags(self):
-        """Detect flags as real booleans, on every game file entry.
+        """Detect flags as real booleans, on every table entry.
 
         The parser has handed back strings at times, and a JSON "false" is truthy to
         anything that reads it without care.

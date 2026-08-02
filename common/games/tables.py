@@ -1,6 +1,6 @@
-"""Game files: the launchable artifacts inside a table folder.
+"""Tables: the launchable artifacts inside a game folder.
 
-A folder can hold several .vpx, so everything asks here which one is the table.
+A folder can hold several .vpx, so everything asks here which one is the default.
 """
 
 from __future__ import annotations
@@ -17,15 +17,15 @@ VPX_SUFFIX = ".vpx"
 #     "Table (VR Room).vpx": {"version": "1.2", "rom": "afm_113b", "hidden": false, ...}
 #   }
 #
-# A missing entry means a game file nothing has parsed, and a missing `hidden` means
+# A missing entry means a table nothing has parsed, and a missing `hidden` means
 # visible.
 TABLES_KEY = "tables"
 
-# Which game file is the default, kept in the vpinfe section because it is a table-level
-# choice rather than something a game file says about itself.
+# Which table is the default, kept in the vpinfe section because it is a game-level
+# choice rather than something a table says about itself.
 DEFAULT_TABLE_KEY = "default_table"
 
-# What a game_files entry takes from a parse, in the parser's own names. The .vpx's
+# What a tables entry takes from a parse, in the parser's own names. The .vpx's
 # manufacturer/year/type can disagree with what VPS says in Info; both are kept.
 PARSED_KEYS = (
     "file_hash", "vbs_hash", "version", "release_date", "save_date", "save_rev",
@@ -47,7 +47,7 @@ def _as_bool(value) -> bool:
 
 
 def parse_authors(value) -> list[str]:
-    """Authors as the .vpx records them. Per game file, never rolled up to the table."""
+    """Authors as the .vpx records them. Per table, never rolled up to the game."""
     if not value:
         return []
     if isinstance(value, list):
@@ -56,7 +56,7 @@ def parse_authors(value) -> list[str]:
 
 
 def entry_from_parsed(parsed: dict | None) -> dict:
-    """A game_files entry from one VPXParser result.
+    """A tables entry from one VPXParser result.
 
     A failed parse resolves to empty values rather than borrowing from elsewhere in
     the .info: a half-filled entry reads as fact and isn't.
@@ -74,9 +74,9 @@ def entry_from_parsed(parsed: dict | None) -> dict:
 
 
 def is_parsed(entry: dict | None) -> bool:
-    """Whether an entry describes a game file we have read, rather than one we only recorded
-    something about - hidden, or where it came from. Reading those as parsed answers "no
-    rom declared" for a file nothing has opened.
+    """Whether an entry describes a table we have read, rather than one we only
+    recorded something about - hidden, or where it came from. Reading those as parsed
+    answers "no rom declared" for a file nothing has opened.
     """
     if not isinstance(entry, dict):
         return False
@@ -84,13 +84,13 @@ def is_parsed(entry: dict | None) -> bool:
 
 
 def table_names(names: Iterable[str]) -> list[str]:
-    """The game files in a folder listing, sorted case-insensitively."""
+    """The tables in a folder listing, sorted case-insensitively."""
     return sorted((n for n in names if n.lower().endswith(VPX_SUFFIX)), key=str.lower)
 
 
 def hidden_tables(settings: dict | None) -> set[str]:
     """Filenames the user has hidden from the frontend. Hiding never deletes - a patch
-    base has to stay on disk - it only stops the game file being offered.
+    base has to stay on disk - it only stops the table being offered.
     """
     if not isinstance(settings, dict):
         return set()
@@ -101,17 +101,17 @@ def hidden_tables(settings: dict | None) -> set[str]:
 
 
 def visible_tables(names: Iterable[str], settings: dict | None = None) -> list[str]:
-    """The game files a frontend should offer. Each is independently launchable: several
-    game files of one table are peers, not a primary with alternates."""
+    """The tables a frontend should offer. Each is independently launchable: several
+    tables of one game are peers, not a primary with alternates."""
     hidden = hidden_tables(settings)
     return [n for n in table_names(names) if n not in hidden]
 
 
 def default_table(names: Iterable[str], folder_name: str = "", recorded: str = "") -> str:
-    """Which game file a single-game-file consumer gets, or "" when there are none.
+    """Which table a single-table consumer gets, or "" when there are none.
 
-    Not "the one to launch" - every visible game file is launchable. This is for the
-    places that must pick exactly one: an export, a table row, any theme written so far.
+    Not "the one to launch" - every visible table is launchable. This is for the
+    places that must pick exactly one: an export, a game row, any theme written so far.
 
     Falling through to the first by name is deterministic rather than correct, which is
     the point: the alternative is directory order.
@@ -134,7 +134,7 @@ def default_table(names: Iterable[str], folder_name: str = "", recorded: str = "
 
 
 def table_entries(meta: dict | None) -> dict:
-    """The game_files section of a table's metadata, or {} when it has none."""
+    """The tables section of a game's metadata, or {} when it has none."""
     if not isinstance(meta, dict):
         return {}
     entries = meta.get(TABLES_KEY)
@@ -142,7 +142,7 @@ def table_entries(meta: dict | None) -> dict:
 
 
 def recorded_default(vpinfe: dict | None) -> str:
-    """A default someone chose for this table, or "". Takes the vpinfe section itself, so
+    """A default someone chose for this game, or "". Takes the vpinfe section itself, so
     this module stays out of what that section is called.
 
     Absent is the normal case and means "resolve from what is in the folder" - it is

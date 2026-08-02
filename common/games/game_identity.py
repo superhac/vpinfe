@@ -1,6 +1,6 @@
-"""Stable local identity for tables: an opaque id in the .info at `VPinFE.id`.
+"""Stable local identity for games: an opaque id in the .info at `vpinfe.id`.
 
-Addresses a table in the HTTP API, in events and in jobs. VPSId cannot do that job
+Addresses a game in the HTTP API, in events and in jobs. VPSId cannot do that job
 and keeps its own. Reading never writes; minting is explicit. See docs/http_api.md.
 """
 
@@ -77,9 +77,9 @@ def ensure_id(game, *, force_new: bool = False) -> str:
 
 
 def ensure_unique_ids(games: Iterable[Any]) -> dict[str, Any]:
-    """Give every table an id, re-minting collisions so an id addresses one table.
+    """Give every game an id, re-minting collisions so an id addresses one game.
 
-    Two tables share an id when a table folder was copied.
+    Two games share an id when a game folder was copied.
     """
     by_id: dict[str, Any] = {}
     minted = 0
@@ -104,7 +104,7 @@ def ensure_unique_ids(games: Iterable[Any]) -> dict[str, Any]:
 
 
 def find_by_id(games: Iterable[Any], wanted: str) -> Any | None:
-    """The table with this id, or None. A table with no id can't match."""
+    """The game with this id, or None. A game with no id can't match."""
     wanted = (wanted or "").strip()
     if not wanted:
         return None

@@ -26,7 +26,7 @@ logger = logging.getLogger("vpinfe.common.games.vpxcollections")
 SCHEMA_SECTION = VPINFE_SECTION
 SCHEMA_KEY = "schema"
 #   0  membership keyed by VPS id. Implied when no version is recorded.
-#   1  membership keyed by the table's own id (common/table_identity.py).
+#   1  membership keyed by the game's own id (common/games/game_identity.py).
 CURRENT_SCHEMA = 1
 
 # The on-disk key and the non-filter type marker both still say "vpsid". They are
@@ -108,7 +108,7 @@ class VPXCollections:
     def get_members(self, section: str):
         """Return the member ids of a collection.
 
-        The key on disk is still `vpsids` even though the values are table ids now.
+        The key on disk is still `vpsids` even though the values are game ids now.
         Renaming it would strand every file written before the migration for no gain
         the user can see; the schema version already records which one it holds.
         """
@@ -123,7 +123,7 @@ class VPXCollections:
         return {s: self.get_members(s) for s in self.get_collections_name()}
 
     def add_collection(self, section: str, members=None):
-        """Add a collection whose membership is an explicit list of tables."""
+        """Add a collection whose membership is an explicit list of games."""
         if self.config.has_section(section):
             raise ValueError(f"Section '{section}' already exists")
 
@@ -184,13 +184,13 @@ class VPXCollections:
         self.config.remove_section(old_name)
 
     def add_member(self, section: str, member_id: str):
-        """Add a table to a collection."""
+        """Add a game to a collection."""
         members = set(self.get_members(section))
         members.add(member_id.strip())
         self.config[section][MEMBERS_KEY] = ",".join(sorted(members))
 
     def remove_member(self, section: str, member_id: str):
-        """Remove a table from a collection."""
+        """Remove a game from a collection."""
         members = self.get_members(section)
         if member_id not in members:
             raise ValueError(f"'{member_id}' is not in collection '{section}'")
@@ -199,14 +199,14 @@ class VPXCollections:
         self.config[section][MEMBERS_KEY] = ",".join(members)
 
     def migrate_membership_to_game_ids(self, games) -> int:
-        """Move VPS-keyed membership onto table ids. Returns how many entries moved.
+        """Move VPS-keyed membership onto game ids. Returns how many entries moved.
 
         Runs once: the file records that it has been through this, so later startups
         do not rescan. A file written by a newer VPinFE is left alone - an older
         build of VPinFE must not rewrite membership it does not understand.
 
-        Entries that resolve to a table are rewritten; entries that do not are kept
-        as they are, because the table may simply not be present right now and
+        Entries that resolve to a game are rewritten; entries that do not are kept
+        as they are, because the game may simply not be present right now and
         dropping it would lose that membership for good. The file converges as
         tables are seen.
         """
@@ -273,11 +273,11 @@ class VPXCollections:
     # ------------------------------------------------------------------
 
     def is_member(self, game, member_ids) -> bool:
-        """Whether a table belongs to a collection whose membership is `member_ids`.
+        """Whether a game belongs to a collection whose membership is `member_ids`.
 
-        Membership is the table's own id. VPS ids are still accepted because a file
-        written before the migration, or an entry for a table that was not present
-        when it ran, still holds one - and because a table with no VPSdb match has
+        Membership is the game's own id. VPS ids are still accepted because a file
+        written before the migration, or an entry for a game that was not present
+        when it ran, still holds one - and because a game with no VPSdb match has
         no VPS id at all, which is one of the reasons membership moved off it.
         """
         if game_id(game) and game_id(game) in member_ids:
@@ -292,12 +292,12 @@ class VPXCollections:
         )
 
     def filter_games(self, games, collection):
-        """Tables belonging to a collection, ordered for display."""
+        """Games belonging to a collection, ordered for display."""
         filter_ids = set(self.get_members(collection))
         result = [t for t in games if self.is_member(t, filter_ids)]
 
         if collection == "Last Played":
-            # Automatic recents collection should surface the most recently run tables first.
+            # Automatic recents collection should surface the most recently run games first.
             result.sort(
                 key=lambda t: (-_get_last_run_value(t), _get_display_title(t).lower())
             )

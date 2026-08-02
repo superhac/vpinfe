@@ -41,10 +41,10 @@ class GameParser:
             wheelset = active_set_for("wheel", media_cfg.wheelset)
             if wheelset:
                 self.active_sets["wheel"] = wheelset
-        # Constructing reads the library; a loadTables(reload=True) after it reads it twice.
+        # Constructing reads the library; a loadGames(reload=True) after it reads it twice.
         self.loadGames()
 
-    def loadGames(self, reload=False):  # reload if you want to rescan the tables
+    def loadGames(self, reload=False):  # reload if you want to rescan the games
         if not reload and self.games:
             return
 
@@ -75,9 +75,9 @@ class GameParser:
         )
 
     def _build_game(self, game_dir):
-        """One table folder, read from disk. Returns None when it holds no game file.
+        """One game folder, read from disk. Returns None when it holds no table.
 
-        The whole of what a scan does per table, so refreshing one costs one folder
+        The whole of what a scan does per game, so refreshing one costs one folder
         rather than the library.
         """
         game = Game()
@@ -118,8 +118,8 @@ class GameParser:
                 'path': str(game_dir),
             })
 
-        # Assets: what this table needs to play as intended, beyond the game
-        # file. Media is a different thing and is loaded below. See
+        # Assets: what this game needs to play as intended, beyond the table
+        # itself. Media is a different thing and is loaded below. See
         # docs/conventions.md.
         if any(name.lower().endswith(".directb2s") for name in game_contents):
             game.b2sExists = True
@@ -156,7 +156,7 @@ class GameParser:
         game.fullPathVPXfile = str(game_dir / chosen)
 
         # Media after the default pick: tier 1 of the resolution chain keys off
-        # the game file that actually launches.
+        # the table that actually launches.
         self.loadImagePaths(
             game,
             game_contents=game_contents,
@@ -173,7 +173,7 @@ class GameParser:
 
 
     def reload_game(self, game_dir):
-        """Re-read one table folder in place. Returns the table, or None if it is gone.
+        """Re-read one game folder in place. Returns the game, or None if it is gone.
 
         A rating, a rename or an import changes one folder, and rescanning the library
         to see it costs the whole library - on a network share, minutes of it.
@@ -241,7 +241,7 @@ class GameParser:
         return list(self.games)
 
     def getUnreadableGames(self):
-        """Folders whose .info could not be read, so the table was left out."""
+        """Folders whose .info could not be read, so the game was left out."""
         return [dict(row) for row in self.unreadable_games]
 
     def getMissingGames(self):

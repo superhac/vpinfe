@@ -95,7 +95,7 @@ class StandaloneScripts:
                 info_filename = os.path.basename(game_dir) + '.info'
                 meta = MetaConfig(os.path.join(game_dir, info_filename))
                 # The .vbs sits beside the .vpx it patches and shares its stem, so
-                # the flag lands on that game file rather than on the whole table.
+                # the flag lands on that table rather than on the whole game.
                 vpx_name = os.path.splitext(os.path.basename(filename))[0] + '.vpx'
                 meta.setTableValue(vpx_name, 'patch_applied', True)
             except Exception:

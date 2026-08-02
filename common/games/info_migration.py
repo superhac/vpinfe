@@ -127,7 +127,7 @@ def migrate(data: dict) -> dict:
     vpx_file = data.get("VPXFile")
     vpx_file = dict(vpx_file) if isinstance(vpx_file, dict) else {}
 
-    # Authors were table-level, which only worked while a folder held one game file.
+    # Authors were game-level, which only worked while a folder held one table.
     # With exactly one, they are that file's - a real recorded fact, so it carries.
     authors = info.pop("Authors", None)
     for key in _DROPPED_INFO_KEYS:
@@ -158,8 +158,8 @@ def migrate(data: dict) -> dict:
         prior = tables.get(filename)
         prior = prior if isinstance(prior, dict) else {}
         tables[filename] = {**prior, **_table_entry(vpx_file, authors)}
-        # Every theme so far assumes one table means one game file, so the file 2.x
-        # described stays the one a single-game-file consumer gets.
+        # Every theme so far assumes one game means one table, so the file 2.x
+        # described stays the one a single-table consumer gets.
         vpinfe.setdefault("default_table", filename)
 
     migrated = {"Info": info, "User": user, "vpinfe": vpinfe, TABLES_KEY: tables}
@@ -224,7 +224,7 @@ def backup_schema(path) -> int | None:
 def replace_atomic(source, path) -> None:
     """Put `source` at `path` with no window where `path` is half written.
 
-    A plain copy truncates first, and restore does that once per table across the library.
+    A plain copy truncates first, and restore does that once per game across the library.
     """
     directory = os.path.dirname(path) or "."
     handle_fd, tmp = tempfile.mkstemp(dir=directory, prefix=".vpinfe_write_", suffix=".tmp")

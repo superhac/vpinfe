@@ -54,7 +54,7 @@ def refresh_games() -> List[Any]:
 
 
 def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
-    """How many tables could be upgraded, and how many have something to restore.
+    """How many games could be upgraded, and how many have something to restore.
 
     Off the loaded library, which already read every .info and listed every folder.
     """
@@ -71,7 +71,7 @@ def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
 
 
 def unreadable_games() -> List[Dict[str, str]]:
-    """Folders whose .info could not be read, so the table was left out of the library."""
+    """Folders whose .info could not be read, so the game was left out of the library."""
     ensure_games_loaded()
     with _LOCK:
         if _PARSER is None:
@@ -104,7 +104,7 @@ def restorable_game_names() -> List[str]:
 
 
 def refresh_game(game_path: str) -> List[Any]:
-    """Re-read one table folder, not the library.
+    """Re-read one game folder, not the library.
 
     The whole-library reload this used to do is why setting a star rating on a big
     network share took minutes: every caller changes one folder and then paid to look
@@ -119,10 +119,10 @@ def refresh_game(game_path: str) -> List[Any]:
             reloaded = _PARSER.reload_game(normalized)
             games = list(_PARSER.getAllGames())
     if reloaded is None:
-        # Nothing loaded yet, so there is no one table to refresh - read the library.
+        # Nothing loaded yet, so there is no single game to refresh - read the library.
         games = ensure_games_loaded(reload=True)
 
-    logger.debug("refresh_table %s elapsed=%.3fs", normalized, perf_counter() - started_at)
+    logger.debug("refresh_game %s elapsed=%.3fs", normalized, perf_counter() - started_at)
     return [game for game in games if str(Path(game.fullPathGame).resolve()) == normalized]
 
 
@@ -135,10 +135,10 @@ def get_missing_games(reload: bool = False) -> List[Dict[str, str]]:
 
 
 def collections_by_game_id() -> Dict[str, List[str]]:
-    """Collection names keyed by the table id membership is recorded under.
+    """Collection names keyed by the game id membership is recorded under.
 
     Only explicit-membership collections. A filter collection has no member list to
-    key on - what belongs to it is decided per table when it is displayed.
+    key on - what belongs to it is decided per game when it is displayed.
     """
     mapping: Dict[str, List[str]] = {}
     try:
@@ -163,8 +163,8 @@ def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) ->
     vpinfe = vpinfe_section(meta)
     game_name = Path(game.fullPathGame).name
     vpsid = first_meta_value(meta, ("Info", "VPSId"), default="")
-    # The row describes one game file - the table's default. A folder can hold several,
-    # and the API lists them all separately; this is what the table-level views show.
+    # The row describes one table - the game's default. A folder can hold several,
+    # and the API lists them all separately; this is what the game-level views show.
     gf_name, gf = default_table(meta, folder_name=game_name)
 
     def gf_value(key, default=""):
@@ -175,21 +175,21 @@ def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) ->
         "name": (str(vpinfe.get("alt_title", "") or "").strip()
                  or reorder_leading_article(first_meta_value(meta, ("Info", "Title"), default=game_name) or "")),
         "filename": gf_name or Path(game.fullPathVPXfile).name,
-        # vpsid and altvpsid correlate with VPSdb, VPinPlay and anything else keyed
-        # by them. vpinfe_id is this install's own id (common/table_identity.py) and
-        # is what identifies the table here - in the API, in events, in collection
-        # membership. Empty until the table has been assigned one; reading never mints.
+        # vpsid and alt_vpsid correlate with VPSdb, VPinPlay and anything else keyed
+        # by them. vpinfe_id is this install's own id (common/games/game_identity.py)
+        # and is what identifies the game here - in the API, in events, in collection
+        # membership. Empty until the game has been assigned one; reading never mints.
         "vpsid": vpsid,
         "vpinfe_id": vpinfe_id(game),
         "ipdb_id": first_meta_value(meta, ("Info", "IPDBId")),
         "pinball_primer_tut": first_meta_value(meta, ("Info", "PinballPrimerTut")),
-        # Info carries what VPS knows; the game file's own claim is the fallback and can
+        # Info carries what VPS knows; the table's own claim is the fallback and can
         # legitimately differ from it.
         "manufacturer": first_meta_value(meta, ("Info", "Manufacturer")) or gf_value("manufacturer"),
         "year": first_meta_value(meta, ("Info", "Year")) or gf_value("year"),
         "type": first_meta_value(meta, ("Info", "Type")) or gf_value("type"),
         "themes": as_string_list(first_meta_value(meta, ("Info", "Themes"), default=[])),
-        # Authors are per game file, never rolled up: multi-game-file folders often
+        # Authors are per table, never rolled up: multi-table folders often
         # name different authors in different ones.
         "authors": as_string_list(gf_value("authors", [])),
         "rom": gf_value("rom"),
@@ -231,7 +231,7 @@ def _collections_for(row: Dict[str, Any], collections_map: Dict[str, List[str]])
     """Which collections a row belongs to, tolerating entries not yet migrated.
 
     Matches VPXCollections.is_member. The migration leaves an entry alone when no
-    table matched it - the table may simply not be installed yet - and it only runs
+    game matched it - the game may simply not be installed yet - and it only runs
     once, so an entry can stay VPS-keyed indefinitely. Without the fallbacks the
     frontend would show that membership and the Manager UI would not.
     """
@@ -242,10 +242,10 @@ def _collections_for(row: Dict[str, Any], collections_map: Dict[str, List[str]])
 
 
 def get_game_rows(reload: bool = False) -> List[Dict[str, Any]]:
-    # A row is addressed by its table id, so every row has to have one - a table
+    # A row is addressed by its game id, so every row has to have one - a game
     # imported since startup would otherwise carry an empty id and collide with
-    # every other table that has none. Already-assigned libraries pay nothing:
-    # this only touches disk for a table that has no id yet.
+    # every other game that has none. Already-assigned libraries pay nothing:
+    # this only touches disk for a game that has no id yet.
     games = ensure_unique_ids(ensure_games_loaded(reload=reload)).values()
     collections_map = collections_by_game_id()
     rows = [game_to_row(game, collections_map) for game in games]
@@ -254,7 +254,7 @@ def get_game_rows(reload: bool = False) -> List[Dict[str, Any]]:
 
 
 def get_game_name_map(reload: bool = False) -> Dict[str, str]:
-    """Display names keyed by table id, for showing what is in a collection."""
+    """Display names keyed by game id, for showing what is in a collection."""
     return {
         row["vpinfe_id"]: row.get("name") or row["vpinfe_id"]
         for row in get_game_rows(reload=reload)

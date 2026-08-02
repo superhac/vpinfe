@@ -26,7 +26,7 @@ logger = logging.getLogger("vpinfe.common.games.info_maintenance")
 
 
 def game_dirs(game_root, game_name: str | None = None) -> list[Path]:
-    """Table folders under the root. Not loadTables: that raises on the first bad `.info`."""
+    """Game folders under the root. Not loadGames: that raises on the first bad `.info`."""
     root = Path(game_root)
     if not root.is_dir():
         return []
@@ -108,7 +108,7 @@ def restore_library(
 ) -> dict:
     """Put back the newest readable backup in every folder that has one.
 
-    All or nothing: nobody chose which tables upgraded, so nobody can choose which return.
+    All or nothing: nobody chose which games upgraded, so nobody can choose which return.
     """
     reporter = JobReporter(logger, progress_cb=progress_cb, log_cb=log_cb)
     log = reporter.log
@@ -139,7 +139,7 @@ def restore_library(
         result["restored"] += 1
         log(f"Restored: {game_dir.name}")
 
-    # Collections live in the config directory rather than a table folder, and the id
+    # Collections live in the config directory rather than a game folder, and the id
     # migration rewrites them into something an older build cannot resolve.
     if config_dir:
         chosen = restorable_collections_backup(config_dir, max_schema)

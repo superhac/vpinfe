@@ -16,8 +16,8 @@ from common.games.tables import (
 )
 
 # Re-exported so the theme payload and the Manager UI agree with storage. Sourced
-# from game_files rather than restated, since a second list drifts silently - it
-# already did: these held the pre-rename names and were writing dead `detectssf`
+# from the tables module rather than restated, since a second list drifts silently -
+# it already did: these held the old spellings and were writing dead `detectssf`
 # keys over the top of the real `detect_ssf` ones.
 DETECTION_KEYS = DETECT_KEYS
 
@@ -61,11 +61,11 @@ def first_meta_value(meta: Any, *paths: tuple[str, str], default: Any = "") -> A
 
 def default_table(meta: Any, names: Any = None,
                       folder_name: str = "") -> tuple[str, Dict[str, Any]]:
-    """(filename, entry) for the game file this table defaults to; ("", {}) when it has none.
+    """(filename, entry) for the table this game defaults to; ("", {}) when it has none.
 
-    Returns both because the callers that need one usually need the other - a table row
-    shows the filename and the version off the same game file - and resolving twice would
-    be doing the same work to answer half the question each time.
+    Returns both because the callers that need one usually need the other - a row on the
+    games list shows the filename and the version off the same table - and resolving
+    twice would be doing the same work to answer half the question each time.
 
     Callers holding a folder listing should pass it, so a recorded default that is no
     longer on disk falls through to one that is.
@@ -80,7 +80,7 @@ def default_table(meta: Any, names: Any = None,
 
 
 def default_table_entry(meta: Any, names: Any = None, folder_name: str = "") -> Dict[str, Any]:
-    """What the table's default game file says about itself, or {}."""
+    """What the game's default table says about itself, or {}."""
     return default_table(meta, names, folder_name)[1]
 
 
@@ -97,7 +97,7 @@ def as_string_list(value: Any) -> list[str]:
 
     These come back as lists from a normal metadata build, but a hand-edited or
     badly-written .info can hold a scalar - including a stringified list. One such
-    table used to be enough to make every consumer's type assumption wrong; now it
+    game used to be enough to make every consumer's type assumption wrong; now it
     is contained here.
 
     A scalar becomes a one-item list rather than being parsed. Reading
@@ -183,7 +183,7 @@ def game_rating(game) -> int:
 
 
 def game_frontend_dof_event(game) -> str:
-    """The DOF effect a table asks for when selected, or "" to use the default."""
+    """The DOF effect a game asks for when selected, or "" to use the default."""
     meta = normalize_meta(getattr(game, "metaConfig", {}))
     return str(vpinfe_section(meta).get("frontend_dof_event", "") or "").strip()
 
@@ -212,9 +212,9 @@ def get_or_create_user_meta(config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def get_or_create_table_user(config: dict[str, Any], filename: str) -> dict[str, Any]:
-    """One game file's play record, created on its first launch.
+    """One table's play record, created on its first launch.
 
-    Counters only. A per-game-file rating and favorite are in the design but nothing
+    Counters only. A per-table rating and favorite are in the design but nothing
     sets them, and storing a field no producer fills invites a reader to trust it.
     """
     entry = config.setdefault(TABLES_KEY, {}).setdefault(filename, {})
@@ -243,10 +243,10 @@ def persist_game_meta(game, config: Dict[str, Any]) -> None:
     meta_file.writeConfig()
     game.metaConfig = config
     # Both flags were read during the scan, and this write is what makes them wrong.
-    # Nothing is pending once the file is on disk, and a upgrade has just left a
+    # Nothing is pending once the file is on disk, and an upgrade has just left a
     # restore point behind it. Without this the id backfill upgrades the whole library
-    # at startup and every loaded table still claims it needs upgrading - which is what
-    # the Tables page then reports, for as long as the process lives.
+    # at startup and every loaded game still claims it needs upgrading - which is what
+    # the Manager UI then reports, for as long as the process lives.
     game.info_pending_upgrade = False
     if upgraded:
         game.info_restorable = True

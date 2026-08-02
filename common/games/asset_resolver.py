@@ -1,4 +1,4 @@
-"""What a game file would use on launch, and what the folder holds for whom.
+"""What a table would use on launch, and what the folder holds for whom.
 
 Two families, split by how the engine finds the thing. An *asset* is resolved by
 naming rule - VPX finds it with no help from the script. A *dependency* is declared
@@ -13,7 +13,7 @@ import os
 from dataclasses import dataclass
 
 
-# Asset kinds resolved by naming rule. `folder_fallback` mirrors VPX: the table .ini
+# Asset kinds resolved by naming rule. `folder_fallback` mirrors VPX: the table's .ini
 # and the backglass fall back to a folder-named file; a .pov is stem-only.
 @dataclass(frozen=True)
 class AssetKind:
@@ -30,7 +30,7 @@ VPX_ASSET_KINDS = (
     AssetKind("scv", ".scv", True),
 )
 
-# Directory-scoped: one per table folder, shared by every game file in it.
+# Directory-scoped: one per game folder, shared by every table in it.
 GAME_DIRECTORY_KINDS = {
     "pup_pack": "pupvideos",
     "alt_color_serum": "serum",
@@ -58,9 +58,9 @@ def _by_lower(names) -> dict[str, str]:
 
 def resolve_for_table(table: str, folder_name: str, files,
                           kinds=VPX_ASSET_KINDS) -> dict:
-    """The launch lens: what this game file would use, kind by kind.
+    """The launch lens: what this table would use, kind by kind.
 
-    Mirrors VPX's search order - a file named for the game file wins, a file named
+    Mirrors VPX's search order - a file named for the table wins, a file named
     for the folder is the shared fallback, and a kind without a fallback (pov) is
     stem-or-nothing.
     """
@@ -84,8 +84,8 @@ def resolve_for_table(table: str, folder_name: str, files,
 def inventory(folder_name: str, files, tables, kinds=VPX_ASSET_KINDS) -> dict:
     """The inventory lens: every asset file present, attributed.
 
-    `dedicated` names the game file it serves; `shared` is the folder-named
-    fallback; `orphaned` is stem-named for a game file that is not there - the
+    `dedicated` names the table it serves; `shared` is the folder-named
+    fallback; `orphaned` is stem-named for a table that is not there - the
     residue of a deleted or renamed build, which is what an audit wants to see.
     """
     stems = {_stem(name).lower(): name for name in tables}
@@ -200,7 +200,7 @@ def apply_audit(chain: dict, entry: dict | None) -> dict:
 
 
 def read_alias_map(game_dir: str) -> dict[str, str]:
-    """The per-table alias file, when there is one. Standalone reads
+    """The per-game alias file, when there is one. Standalone reads
     pinmame/alias.txt; the global VPMAlias.txt is a Windows VPinMAME concern."""
     path = os.path.join(game_dir, "pinmame", "alias.txt")
     try:
