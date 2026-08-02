@@ -27,7 +27,7 @@ warnings.filterwarnings("ignore")
 
 
 def _build_fixture_library(root: Path) -> None:
-    """A tiny table library exercising the surfaces themes and tools depend on."""
+    """A tiny game library exercising the surfaces themes and tools depend on."""
     game = root / "Example Table (Bally 1990)"
     medias = game / "medias"
     medias.mkdir(parents=True)
@@ -59,7 +59,7 @@ def _capture_ws_allowlist() -> list[str]:
 
 
 def _capture_theme_payload(games_root: Path) -> dict:
-    """The shape a theme receives: tables_json keys and which media paths resolve.
+    """The shape a theme receives: games_json keys and which media paths resolve.
 
     Keys only, plus a few stable values - file paths and scan order are
     environment noise, but a missing key breaks every theme the same way.

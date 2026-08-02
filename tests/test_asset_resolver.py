@@ -1,4 +1,4 @@
-"""The asset model: what a game file would use, and what the folder holds for whom.
+"""The asset model: what a table would use, and what the folder holds for whom.
 
 The rules under test mirror VPX's own lookup code - GetSettingsFileName in
 pintable.h, the B2SServer constructor, pinmame's Alias.cpp. A regression here means
@@ -111,7 +111,7 @@ class RomChainTests(unittest.TestCase):
         self.assertTrue(chain["installed"])
 
     def test_not_found_is_reported_as_unknown_not_missing(self) -> None:
-        """A DOF-only name on an EM table, or a rom in a global folder: neither is
+        """A DOF-only name on an EM game, or a rom in a global folder: neither is
         a defect, so the answer is null-with-reason, never False."""
         chain = res.resolve_rom_chain("GTB2001_1971", {}, [])
 

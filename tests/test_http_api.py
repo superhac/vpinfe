@@ -150,7 +150,7 @@ class DiscoveryTests(unittest.TestCase):
             capabilities.Capability(name="library", residency=[])
 
     def test_launch_declares_whether_this_machine_can_do_it(self) -> None:
-        """Reading play state works without a launcher; starting a table does not.
+        """Reading play state works without a launcher; starting a game does not.
         Discovery has to say so, or a client shows a Play button that always 501s."""
         declared = {c["name"]: c for c in self.client.get("/").json()["capabilities"]}
 

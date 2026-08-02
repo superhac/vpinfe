@@ -280,7 +280,7 @@ class TestCommonArchitecture(unittest.TestCase):
             self.assertTrue(by_name["With B2S (Bally 1990)"].b2sExists)
             self.assertFalse(by_name["No B2S (Bally 1991)"].b2sExists)
 
-            # table_to_row mirrors the flag for the UI
+            # game_to_row mirrors the flag for the UI
             self.assertTrue(game_to_row(by_name["With B2S (Bally 1990)"])["b2s_exists"])
             self.assertFalse(game_to_row(by_name["No B2S (Bally 1991)"])["b2s_exists"])
 

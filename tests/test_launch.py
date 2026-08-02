@@ -150,7 +150,7 @@ class PlayDataTests(LaunchTests):
         play.delete_nvram_if_configured.assert_called_once()
 
     def test_the_table_that_was_launched_is_the_one_credited(self) -> None:
-        """A folder can hold several game files, and the API can launch any of them."""
+        """A folder can hold several tables, and the API can launch any of them."""
         game = _game()
         game.fullPathVPXfile = "/games/Example/Example (VR).vpx"
 

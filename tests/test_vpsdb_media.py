@@ -85,7 +85,7 @@ class RecordingTests(unittest.TestCase):
     """What reaches the assets ledger, going through the real recording path."""
 
     def _game(self, root: Path):
-        """Enough of a Table for download_media_for_table. Every media path points at
+        """Enough of a Game for download_media_for_game. Every media path points at
         the canonical name; only the wheel exists on disk in these tests."""
         paths = {"BGImagePath": "bg.png", "DMDImagePath": "dmd.png",
                  "WheelImagePath": "wheel.png", "CabImagePath": "cab.png",

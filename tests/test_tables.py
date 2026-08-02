@@ -76,11 +76,11 @@ class IsParsedTests(unittest.TestCase):
         self.assertTrue(is_parsed({"file_hash": "3a77427e", "rom": "afm_113b"}))
 
     def test_an_empty_rom_still_counts_as_parsed(self) -> None:
-        """An EM table declares no ROM. That is an answer, not an absence of one."""
+        """An EM game declares no ROM. That is an answer, not an absence of one."""
         self.assertTrue(is_parsed({"file_hash": "3a77427e", "rom": ""}))
 
     def test_a_decision_alone_is_not_a_parse(self) -> None:
-        """Hiding a game file records what the user wants, not what the file says."""
+        """Hiding a table records what the user wants, not what the file says."""
         self.assertFalse(is_parsed({"hidden": True}))
 
     def test_junk_is_not_a_parse(self) -> None:

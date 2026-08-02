@@ -155,7 +155,7 @@ class PeripheralLaunchTests(unittest.TestCase):
 
 
 class GameSelectionTests(unittest.TestCase):
-    """Selecting a table drives two devices that must not be able to break each other."""
+    """Selecting a game drives two devices that must not be able to break each other."""
 
     def setUp(self) -> None:
         events.clear()

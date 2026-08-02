@@ -1,4 +1,4 @@
-"""Refreshing one table reads one folder.
+"""Refreshing one game reads one folder.
 
 Setting a rating, importing a file or renaming a table changes one folder. Rescanning
 the library to notice costs the whole library, which on a network share is minutes.

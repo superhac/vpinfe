@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
 
 class TableVisibilityTests(unittest.TestCase):
-    """A patched table leaves its base in the folder, so a folder can hold game files
+    """A patched table leaves its base in the folder, so a folder can hold tables
     the user does not want offered. Hiding never deletes: the patched table cannot be
     rebuilt without the base."""
 
@@ -88,7 +88,7 @@ class TableVisibilityTests(unittest.TestCase):
                          ["table (VR).vpx", "table.vpx"])
 
     def test_several_visible_tables_are_peers(self):
-        """No primary-with-alternates: a VR game file and a desktop one are equals."""
+        """No primary-with-alternates: a VR table and a desktop one are equals."""
         from common.games.tables import visible_tables
         names = ["table.vpx", "table (VR).vpx"]
         self.assertEqual(len(visible_tables(names, {})), 2)

@@ -10,7 +10,7 @@ from common.games.metaconfig import MetaConfig
 
 
 def _game(root: Path, name: str = "Example", meta: dict | None = None):
-    """A table folder with a .info file, shaped like TableParser produces."""
+    """A game folder with a .info file, shaped like GameParser produces."""
     folder = root / name
     folder.mkdir(parents=True, exist_ok=True)
     if meta is not None:
@@ -143,12 +143,12 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
         self.assertTrue(rebuilt["vpinfe"]["id"])
 
     def test_the_id_survives_a_table_update_that_clears_altvpsid(self) -> None:
-        """altvpsid is cleared when the .vpx changes; the table id must not be."""
+        """alt_vpsid is cleared when the .vpx changes; the game id must not be."""
         info = self.root / "Example.info"
         first = self._rebuild(info, "hash-a")
         game_id = first["vpinfe"]["id"]
 
-        # User re-points the table at different VPSdb metadata, then updates the .vpx.
+        # User re-points the game at different VPSdb metadata, then updates the .vpx.
         data = json.loads(info.read_text(encoding="utf-8"))
         data["vpinfe"]["alt_vpsid"] = "vps-override"
         info.write_text(json.dumps(data), encoding="utf-8")
@@ -233,7 +233,7 @@ class RowFieldTests(unittest.TestCase):
         self.root = Path(self._tmp.name)
 
     def test_a_row_carries_correlation_ids_and_identity_separately(self) -> None:
-        """VPS ids correlate with other services; vpinfe_id is what identifies the table."""
+        """VPS ids correlate with other services; vpinfe_id is what identifies the game."""
         game = _game(self.root, meta={
             "Info": {"VPSId": "vps-1"},
             "vpinfe": {"alt_vpsid": "vps-override"},

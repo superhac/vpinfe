@@ -54,7 +54,7 @@ def probe() -> dict:
     record("play_state_cleared", client.get("/api/v1/play/state"))
     record("legacy_remote_launch_gone", client.get("/api/remote-launch"))
 
-    # Tables, and the sub-resources that used to be /api/download-table-vpxz.
+    # Games, and the sub-resources that used to be /api/download-table-vpxz.
     listing = client.get("/api/v1/games")
     record("tables_list", listing)
     games = (listing.json() or {}).get("games") or []

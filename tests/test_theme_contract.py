@@ -77,7 +77,7 @@ class ProjectionTests(unittest.TestCase):
         self.assertIs(project(ROW, CURRENT_CONTRACT), ROW)
 
     def test_contract_1_reads_the_shape_it_was_written_against(self):
-        """VPXFile is synthesised from the default game file - the payload itself has
+        """VPXFile is synthesised from the default table - the payload itself has
         not carried that section since the .info stopped having one."""
         meta = project(ROW, 1)["meta"]
 

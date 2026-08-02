@@ -29,7 +29,7 @@ class TestVPinPlayService(unittest.TestCase):
         self.assertIn("saveRev", payload["vpxFile"])
 
     def test_a_rating_outside_the_services_bounds_cannot_fail_the_whole_sync(self) -> None:
-        """Their rating is validated 0-5 across the whole request, so one table over the
+        """Their rating is validated 0-5 across the whole request, so one game over the
         bound rejects every other table with it.
         """
         payload = _build_game_payload(

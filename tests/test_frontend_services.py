@@ -157,7 +157,7 @@ class FrontendServiceTests(unittest.TestCase):
         standard_config = configparser.ConfigParser()
         standard_config.read_dict({"Media": {"realdmdmediapriority": "standard"}})
 
-        # get_realdmd_image_for_table returns path.resolve(); on macOS /tmp is a
+        # get_realdmd_image_for_game returns path.resolve(); on macOS /tmp is a
         # symlink to /private/tmp, so compare against the resolved expectation.
         color_expected = Path("/tmp/realdmd-color.png").resolve()
         standard_expected = Path("/tmp/realdmd.png").resolve()
@@ -304,7 +304,7 @@ class FrontendServiceTests(unittest.TestCase):
             self.assertEqual(score_path, "/scores/vpx_rom.nv")
 
     def test_a_migrated_game_reads_its_rom_from_the_table(self) -> None:
-        """2.x kept a table-level Info.Rom and the migration drops it. A value carried
+        """2.x kept a game-level Info.Rom and the migration drops it. A value carried
         from there could disagree with the file it claims to describe."""
         with TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Example"
@@ -356,7 +356,7 @@ class FrontendServiceTests(unittest.TestCase):
 
 
 class PerTablePlayStatsTests(unittest.TestCase):
-    """A folder holds several game files and the API can launch any of them, so a play
+    """A folder holds several tables and the API can launch any of them, so a play
     is credited to the one that ran as well as to the table."""
 
     def _launch(self, config, table, seconds=90, played_at=1000):
@@ -384,7 +384,7 @@ class PerTablePlayStatsTests(unittest.TestCase):
         self.assertEqual(config["User"]["StartCount"], 3, "the table saw all three")
 
     def test_the_game_total_is_not_a_rollup(self):
-        """Deleting a game file must not un-play hours that were played, which is what
+        """Deleting a table must not un-play hours that were played, which is what
         a total summed from the entries would do."""
         config = self._launch({}, "Example.vpx")
         self._launch(config, "Gone.vpx")

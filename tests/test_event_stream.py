@@ -110,7 +110,7 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(_payload(frame), {"state": {"launching": False, "table_name": None}})
 
     async def test_a_game_event_carries_identity_not_the_game(self) -> None:
-        """The bus payload is in-process; the Table object and the ini config are not
+        """The bus payload is in-process; the Game object and the ini config are not
         things to put on a socket."""
         game = SimpleNamespace(
             gameDirName="Medieval Madness (Williams 1997)",
@@ -126,14 +126,14 @@ class StreamTests(unittest.IsolatedAsyncioTestCase):
             "game": {
                 "id": "6f1c9a4e",
                 "name": "Medieval Madness (Williams 1997)",
-                # A pointer to the table, not a second answer to what a table is.
+                # A pointer to the game, not a second answer to what a game is.
                 "links": {"self": "/api/v1/games/6f1c9a4e"},
             },
         })
         self.assertNotIn("secret-ini-config", frame)
 
     async def test_a_game_with_no_id_yet_is_referenced_without_a_broken_link(self) -> None:
-        """Ids are minted on a write path, so a scan can hand us a table without one."""
+        """Ids are minted on a write path, so a scan can hand us a game without one."""
         stream = self._open()
         await self._hello(stream)
 

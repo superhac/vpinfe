@@ -48,7 +48,7 @@ def _run_probe() -> dict:
             "User": {"Rating": 3},
         }), encoding="utf-8")
 
-        # A folder holding several .vpx, plus a .vbs that is not a game file.
+        # A folder holding several .vpx, plus a .vbs that is not a table.
         multi = games_dir / "Multi File (Bally 1991)"
         multi.mkdir()
         for name in ("Multi File (Bally 1991).vpx", "Multi File (Bally 1991) - alt.vpx",
@@ -167,7 +167,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(entry["json"]["error"]["code"], "not_found")
 
     def test_a_game_reports_its_assets_not_its_media(self) -> None:
-        """Assets are what the table needs to play; media is the artwork shown
+        """Assets are what the game needs to play; media is the artwork shown
         while browsing - see docs/conventions.md. The detail endpoint is the
         inventory lens: every kind, files attributed."""
         game = self.probe["table_get"]["json"]
@@ -179,7 +179,7 @@ class ApiContractTests(unittest.TestCase):
                           "pup_pack", "alt_color", "alt_sound", "music"})
 
     def test_assets_present_in_the_folder_are_reported(self) -> None:
-        """The fixture table ships a backglass, a per-table ini and music."""
+        """The fixture game ships a backglass, a per-table ini and music."""
         assets = self.probe["table_get"]["json"]["assets"]
 
         self.assertTrue(assets["backglass"]["present"])
@@ -190,7 +190,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(assets["backglass"]["files"][0]["binding"], "dedicated")
 
     def test_a_table_reports_what_it_would_use_on_launch(self) -> None:
-        """The launch lens: resolved assets and the pinmame chain, per game file."""
+        """The launch lens: resolved assets and the pinmame chain, per table."""
         entry = self.probe["table_files"]["json"]["tables"][0]
 
         self.assertEqual(entry["assets"]["backglass"]["resolution"], "dedicated")
@@ -239,7 +239,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertIn("rom", game, "the declared name is still metadata on the table")
 
     def test_media_lists_every_kind_present_or_not(self) -> None:
-        """Media is the artwork about a table - exactly the media_paths kinds. A
+        """Media is the artwork about a game - exactly the media_paths kinds. A
         client enumerates what is possible instead of guessing from omissions."""
         media = self.probe["media_list"]["json"]["media"]
 
@@ -271,7 +271,7 @@ class ApiContractTests(unittest.TestCase):
     def test_the_old_remote_launch_route_is_gone(self) -> None:
         self.assertGreaterEqual(self.probe["legacy_remote_launch_gone"]["status"], 400)
 
-    # --- tables, and the archive that used to be /api/download-table-vpxz -----
+    # --- games, and the archive that used to be /api/download-table-vpxz -----
 
     def test_listing_games_returns_addressable_resources(self) -> None:
         entry = self.probe["tables_list"]
@@ -293,7 +293,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(game["links"]["archive"], f"/api/v1/games/{game['id']}/archive")
 
     def test_tables_are_a_list_even_though_there_is_one_today(self) -> None:
-        """A table is not permanently one .vpx; the shape says so now."""
+        """A game is not permanently one .vpx; the shape says so now."""
         entry = self.probe["table_files"]
 
         self.assertEqual(entry["status"], 200)
@@ -314,7 +314,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertGreater(entry["bytes"], 0)
 
     def test_a_folder_with_several_vpx_reports_all_of_them(self) -> None:
-        """A table folder can hold more than one .vpx, and .vbs is not a game file."""
+        """A game folder can hold more than one .vpx, and .vbs is not a table."""
         files = self.probe["multi_file_files"]["json"]["tables"]
 
         names = [f["filename"] for f in files]

@@ -46,7 +46,7 @@ class AtomicWriteTests(unittest.TestCase):
         self.assertEqual([p.name for p in self.root.iterdir()], ["Example.info"])
 
     def test_the_temp_file_is_never_mistaken_for_metadata(self):
-        """It lands in the table folder, so a scan must not read it as an .info or a
+        """It lands in the game folder, so a scan must not read it as an .info or a
         backup while it is there."""
         seen = {}
 
@@ -84,7 +84,7 @@ class UnreadableGameTests(unittest.TestCase):
         return d
 
     def test_one_truncated_file_costs_one_game_not_the_library(self):
-        """It used to cost all of them: the error came out of loadTables and the app saw
+        """It used to cost all of them: the error came out of loadGames and the app saw
         zero tables, so a single bad file looked like an empty library."""
         good = json.dumps({"Info": {}, "User": {}})
         self._game("Good One", good)

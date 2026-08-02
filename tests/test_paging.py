@@ -69,7 +69,7 @@ class TestPageJumpIndexNumeric(unittest.TestCase):
         self.assertEqual(page_jump_index(games, 5, "prev", paging_type="numeric", page_size=10), 25)
 
     def test_step_caps_at_half_the_list(self):
-        # 15 tables, size 10: uncapped this would land 10 ahead, which reads as
+        # 15 games, size 10: uncapped this would land 10 ahead, which reads as
         # moving backward 5 on a circular wheel. Cap keeps it at 7.
         games = _games(*[f"T{i:02d}" for i in range(15)])
         self.assertEqual(page_jump_index(games, 0, "next", paging_type="numeric", page_size=10), 7)

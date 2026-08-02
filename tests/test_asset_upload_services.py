@@ -104,7 +104,7 @@ class PatchAssetTests(unittest.TestCase):
             self.assertEqual(dest.name, "cactus canyon [patched].vpx")
 
     def test_a_patch_named_after_another_table_is_tagged_too(self):
-        """The base is whichever .vpx the patch applies to; any other game file in the
+        """The base is whichever .vpx the patch applies to; any other table in the
         folder is just as much somebody's table."""
         import tempfile
         from pathlib import Path
@@ -136,7 +136,7 @@ class PatchAssetTests(unittest.TestCase):
             self.assertEqual(by_kind["backglass"], "CC VPW Mod 1.2.directb2s")
 
     def test_sidecars_without_a_patch_still_follow_the_game(self):
-        """Only a mod bundle redirects them. A backglass dropped on a table is for the
+        """Only a mod bundle redirects them. A backglass dropped on a game is for the
         table that is there."""
         import tempfile
         from pathlib import Path
@@ -210,7 +210,7 @@ class PatchAssetTests(unittest.TestCase):
             self.assertIn("source", entry, "the parse must not displace where it came from")
 
     def test_a_table_we_cannot_parse_is_not_recorded_as_empty(self):
-        """"Nothing has read this game file" is true; "it declares no ROM" is not."""
+        """"Nothing has read this table" is true; "it declares no ROM" is not."""
         import json
         import tempfile
         import zipfile
@@ -438,7 +438,7 @@ class AssetAnalyzerTests(unittest.TestCase):
             self.assertTrue(result.error)
 
     def test_readme_files_are_claimed_with_a_preview(self):
-        """The author's notes reach the person installing the table."""
+        """The author's notes reach the person installing the game."""
         from pathlib import Path
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:
@@ -573,7 +573,7 @@ class ImportPlanTests(unittest.TestCase):
             actions = _plan_kinds_by_action(plan)
             self.assertEqual(actions["table"], "copy")
             self.assertEqual(actions["backglass"], "replace_b2s")
-            # serum color needs a ROM name the fresh table doesn't have yet
+            # serum color needs a ROM name the fresh game doesn't have yet
             self.assertIn("altcolor_serum", _blocked_reasons(plan))
 
     def test_existing_game_routing(self):
@@ -914,7 +914,7 @@ class ImportExecuteTests(unittest.TestCase):
                 self.assertFalse((game_dir / "Old.directb2s").exists())
 
     def _replace_game(self, tmp, game_dir, info: dict, new_name: str, parsed):
-        """Drop new_name onto an existing table, and hand back the resulting .info."""
+        """Drop new_name onto an existing game, and hand back the resulting .info."""
         import json
         from pathlib import Path
         (game_dir / "Old.vpx").write_bytes(b"old")
@@ -963,7 +963,7 @@ class ImportExecuteTests(unittest.TestCase):
             self.assertEqual(saved["vpinfe"]["alt_vpsid"], "")
 
     def test_adding_a_table_does_not_drop_the_vps_override(self):
-        """A second game file is not a reason to discard the user's match."""
+        """A second table is not a reason to discard the user's match."""
         from pathlib import Path
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:

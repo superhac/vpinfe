@@ -1,4 +1,4 @@
-"""The media resolution chain: game-file > folder > default, families per kind.
+"""The media resolution chain: table > folder > default, families per kind.
 
 The rules under test are MEDIA.local design decisions 1-5 made concrete: spec
 naming resolves above the fixed names vpinmediadb writes, a kind accepts its
@@ -267,7 +267,7 @@ class WheelSetTests(unittest.TestCase):
         self.assertEqual(resolved["wheel"].name, f"(Wheel) {TABLE}.png")
 
     def test_the_virtual_logo_set_falls_back_to_the_wheel_it_shunned(self) -> None:
-        """A logo-less table under the logo set keeps its wheel - never a
+        """A logo-less game under the logo set keeps its wheel - never a
         blank slot where art exists."""
         resolved = self._resolve_sets(["wheel.png"], active="logo")
 
@@ -320,7 +320,7 @@ class SpecCopyTests(unittest.TestCase):
             self.assertEqual(copy.attr, original.attr, original.key)
 
     def test_the_fss_key_collision_stays_harmless(self) -> None:
-        """Under table type fss the playfield spec is renamed onto the fss key, so
+        """Under playfield variant fss the playfield spec is renamed onto the fss key, so
         two specs share it. Benign only because both resolve the same filename -
         worth pinning, since a divergence would be silent."""
         from common.media_paths import media_filename_map, specs_for_playfield_variant
@@ -427,7 +427,7 @@ class ImportSideTests(unittest.TestCase):
 
 class ParserOrderTests(unittest.TestCase):
     def test_media_resolves_against_the_build_that_launches(self) -> None:
-        """Tier 1 keys off the default game file, so the parser picks the default
+        """Tier 1 keys off the default table, so the parser picks the default
         before it resolves media - the same reordering the launcher needed."""
         import json
 

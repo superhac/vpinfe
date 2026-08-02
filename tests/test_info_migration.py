@@ -158,7 +158,7 @@ class WhatSurvivesTests(unittest.TestCase):
         self.assertTrue(entry["detect_fleep"])
 
     def test_authors_land_on_the_table(self):
-        """Table-level authors only worked while a folder held one game file."""
+        """Game-level authors only worked while a folder held one table."""
         self.assertEqual(self.after["tables"]["Dr. Dude.vpx"]["authors"],
                          ["someone", "someone else"])
 

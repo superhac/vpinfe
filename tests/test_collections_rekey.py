@@ -81,7 +81,7 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(reopened.get_members("Favorites"), ["something-new"])
 
     def test_an_entry_with_no_matching_game_is_kept(self) -> None:
-        """The table may just not be here now; dropping it loses the membership."""
+        """The game may just not be here now; dropping it loses the membership."""
         game = _game(self.root, "MM", vpsid="vps-mm", game_id="id-mm")
         collections = _collections(self.ini, {"Favorites": ["vps-mm", "vps-gone"]})
 
@@ -125,7 +125,7 @@ class MembershipTests(unittest.TestCase):
         self.assertTrue(collections.is_member(game, set(collections.get_members("Favorites"))))
 
     def test_two_games_sharing_a_vps_id_are_distinguishable(self) -> None:
-        """Defect 2: one VPS id, two tables - membership could not tell them apart."""
+        """Defect 2: one VPS id, two games - membership could not tell them apart."""
         a = _game(self.root, "A", vpsid="shared", game_id="id-a")
         b = _game(self.root, "B", vpsid="shared", game_id="id-b")
         collections = _collections(self.ini, {"Favorites": ["id-a"]})
@@ -157,7 +157,7 @@ class MembershipTests(unittest.TestCase):
         first = rebuild("hash-a")
         game_id_value = first["vpinfe"]["id"]
 
-        # User re-points the table, then updates the .vpx - which clears altvpsid.
+        # User re-points the game, then updates the .vpx - which clears alt_vpsid.
         data = json.loads(info.read_text(encoding="utf-8"))
         data["vpinfe"]["alt_vpsid"] = "vps-override"
         info.write_text(json.dumps(data), encoding="utf-8")
@@ -232,7 +232,7 @@ class DisplayPathTests(unittest.TestCase):
         self.assertEqual(self._row_for(game)["collections"], ["Favorites"])
 
     def test_a_game_with_no_vps_id_shows_its_collections(self) -> None:
-        """The row lookup has to key on the table id, not on anything VPS-derived."""
+        """The row lookup has to key on the game id, not on anything VPS-derived."""
         game = _game(self.root, "Homebrew", vpsid="", game_id="id-home")
         game.fullPathVPXfile = str(self.root / "Homebrew" / "Homebrew.vpx")
         _collections(self.ini, {"Favorites": ["id-home"]})
@@ -240,7 +240,7 @@ class DisplayPathTests(unittest.TestCase):
         self.assertEqual(self._row_for(game)["collections"], ["Favorites"])
 
     def test_filter_collections_are_not_in_the_map(self) -> None:
-        """They have no member list; membership is decided per table when displayed."""
+        """They have no member list; membership is decided per game when displayed."""
         self.ini.write_text("[Recent]\ntype = filter\nletter = All\n", encoding="utf-8")
 
         with mock.patch.object(game_repository, "COLLECTIONS_PATH", self.ini):

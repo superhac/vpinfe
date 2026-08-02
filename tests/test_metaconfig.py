@@ -380,7 +380,7 @@ class AssetLedgerTests(unittest.TestCase):
         self.assertEqual(self._saved()["medias/bg.png"], {"source": {"host": "user"}})
 
     def test_a_per_build_asset_is_describable(self) -> None:
-        """The reason the ledger moved off media kinds: two wheels, one table."""
+        """The reason the ledger moved off media kinds: two wheels, one game."""
         meta = MetaConfig(str(self.info))
         meta.add_asset(str(self.root / "medias" / "(Wheel) Cactus Canyon.png"), "user")
         meta.add_asset(str(self.root / "medias" / "(Wheel) Cactus Canyon VR.png"), "user")
