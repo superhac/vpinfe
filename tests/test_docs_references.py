@@ -13,6 +13,7 @@ first segment has to be a real top-level directory before a missing file counts.
 from __future__ import annotations
 
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -86,7 +87,12 @@ class DocPathReferenceTests(unittest.TestCase):
         self.assertEqual(missing, [], "\n".join(missing))
 
     def test_every_bare_source_filename_a_doc_cites_exists(self) -> None:
-        files = [p for p in REPO_ROOT.rglob("*") if p.is_file() and ".git" not in p.parts]
+        # Tracked files only. rglob walks .venv too, where NiceGUI ships its own
+        # elements/table.py - which was enough to make a dead `table.py` reference look
+        # resolved.
+        listed = subprocess.run(["git", "-C", str(REPO_ROOT), "ls-files"],
+                                capture_output=True, text=True, check=True).stdout.split()
+        files = [REPO_ROOT / item for item in listed]
         present = {p.name for p in files}
         # `pages/games.py` has to match on the tail, not the name: `tables.py` is a real
         # file under common/games/, so a name-only check calls `pages/tables.py` fine.
