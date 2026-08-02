@@ -23,6 +23,14 @@ const MEDIA_PATH_FIELDS = {
   logo: "LogoImagePath",
 };
 
+// This file is served to themes of every contract, so it cannot assume which spelling
+// the payload carries: contract 1 receives TableImagePath, contract 2 PlayfieldImagePath.
+// Look up the current key, fall back to the one the projection sends. PAR-22.
+const MEDIA_FIELD_FALLBACK = {
+  PlayfieldImagePath: "TableImagePath",
+  PlayfieldVideoPath: "TableVideoPath",
+};
+
 const MEDIA_VIDEO_PATH_FIELDS = {
   table: "PlayfieldVideoPath",
   bg: "BGVideoPath",
@@ -236,11 +244,17 @@ class VPinFECore {
   }
 
   // get table image url paths
+  #mediaField(game, field) {
+    if (!field) return null;
+    if (game[field] != null) return game[field];
+    const legacy = MEDIA_FIELD_FALLBACK[field];
+    return legacy ? game[legacy] : null;
+  }
+
   getImageURL(index, type) {
-    const table = this.gameData[index];
-    if (!table) return null;
-    const field = MEDIA_PATH_FIELDS[type];
-    return field ? this.#convertPathToURL(table[field]) : null;
+    const game = this.gameData[index];
+    if (!game) return null;
+    return this.#convertPathToURL(this.#mediaField(game, MEDIA_PATH_FIELDS[type]));
   }
 
   getMediaURL(index, type) {
@@ -400,10 +414,9 @@ class VPinFECore {
 
   // get table video url paths
   getVideoURL(index, type) {
-    const table = this.gameData[index];
-    if (!table) return null;
-    const field = MEDIA_VIDEO_PATH_FIELDS[type];
-    return field ? this.#convertPathToURL(table[field]) : null;
+    const game = this.gameData[index];
+    if (!game) return null;
+    return this.#convertPathToURL(this.#mediaField(game, MEDIA_VIDEO_PATH_FIELDS[type]));
   }
 
   getGameMeta(index) {
