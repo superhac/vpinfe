@@ -98,7 +98,7 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
             result = build_metadata_func(downloadMedia=True, updateAll=True, userMedia=False)
             if isinstance(result, dict):
                 logger.info(
-                    "Startup media sync complete. Scanned %s table(s); %s not found in VPSdb.",
+                    "Startup media sync complete. Scanned %s game(s); %s not found in VPSdb.",
                     result.get("found", 0),
                     result.get("not_found", 0),
                 )

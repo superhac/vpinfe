@@ -192,7 +192,7 @@ def _paging_group_key(game):
 def page_jump_index(games, index, direction, sort_type="Alpha", paging_type="alpha", page_size=10):
     """Return the target wheel index for a joypageup/joypagedown press.
 
-    Alpha paging jumps to the first table of the adjacent letter group in the
+    Alpha paging jumps to the first game of the adjacent letter group in the
     current list order. It only applies when the list is title-ordered (Alpha
     sort); otherwise, or when the whole list is one letter group, it falls back
     to numeric paging. Numeric paging steps by pagingsize, capped at half the

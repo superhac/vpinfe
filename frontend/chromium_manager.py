@@ -489,10 +489,10 @@ class ChromiumManager:
                     ns_app.activateWithOptions_(
                         AppKit.NSApplicationActivateIgnoringOtherApps
                     )
-                    logger.debug("macOS: activating table window focus")
+                    logger.debug("macOS: activating playfield window focus")
                     return
 
-            logger.debug("macOS: table app process not available for focus activation")
+            logger.debug("macOS: playfield app process not available for focus activation")
         except Exception:
             logger.exception("macOS focus activation failed")
 

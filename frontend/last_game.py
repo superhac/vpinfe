@@ -13,16 +13,16 @@ STATE_KEY = "lastgame"
 
 
 def game_identity(game) -> str:
-    """Stable id for a table, preferring its absolute path over its dir name.
+    """Stable id for a game, preferring its absolute path over its dir name.
 
-    Used both to save the last-launched table and to resolve it back to an
+    Used both to save the last-launched game and to resolve it back to an
     index, so it must be computed the same way in both directions.
     """
     return str(getattr(game, "fullPathGame", "") or getattr(game, "gameDirName", "") or "")
 
 
 def save_last_game(iniConfig, game) -> None:
-    """Persist `table` as the last-launched table when the feature is enabled."""
+    """Persist `game` as the last-launched game when the feature is enabled."""
     if not SettingsConfig.from_config(iniConfig).restore_last_game:
         return
     identity = game_identity(game)
@@ -37,13 +37,13 @@ def save_last_game(iniConfig, game) -> None:
     try:
         iniConfig.save()
     except Exception:
-        logger.exception("Could not persist last table selection")
+        logger.exception("Could not persist last game selection")
 
 
 def resolve_last_game_index(iniConfig, games) -> int:
-    """Return the index of the saved last table within `tables`, else 0.
+    """Return the index of the saved last game within `games`, else 0.
 
-    Returns 0 when the feature is off, nothing is saved, or the saved table
+    Returns 0 when the feature is off, nothing is saved, or the saved game
     isn't in the current view (e.g. filtered out by a startup collection).
     """
     if not SettingsConfig.from_config(iniConfig).restore_last_game:

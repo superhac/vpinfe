@@ -168,8 +168,8 @@ class API:
         """Reset the current view to the default order: alphabetical by the
         (article-reordered) title, ascending.
 
-        filteredTables is a fresh shallow copy of allTables so later in-place
-        sorts never disturb the master list (the Table objects stay shared, so
+        filteredGames is a fresh shallow copy of allGames so later in-place
+        sorts never disturb the master list (the Game objects stay shared, so
         rating/meta updates still propagate). Shared by startup and every reset
         path so they all agree on the default order.
         """
@@ -221,7 +221,7 @@ class API:
         return self.jsGameDictData
 
     def get_initial_game_index(self):
-        # Position the wheel on the last-launched table at startup. Resolved
+        # Position the wheel on the last-launched game at startup. Resolved
         # against the current (possibly filtered) view; 0 when disabled or unfound.
         return last_game.resolve_last_game_index(self._iniConfig, self.filteredGames)
 
@@ -236,7 +236,7 @@ class API:
         return get_collection_image_url(collection)
 
     def set_games_by_collection(self, collection):
-        """Set filtered tables based on collection from collections.ini."""
+        """Set filtered games based on collection from collections.ini."""
         game_state.apply_collection(self, collection)
 
     def save_filter_collection(
@@ -296,9 +296,9 @@ class API:
 
     def apply_filters(self, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=None):
         """
-        Apply VPSdb filters to the full table list.
+        Apply VPSdb filters to the full game list.
         These filters work independently of collections.
-        Returns the count of filtered tables.
+        Returns the count of filtered games.
         """
         logger.debug(
             "Applying filters: letter=%s, theme=%s, type=%s, manufacturer=%s, year=%s, rating=%s, rating_or_higher=%s",
@@ -311,34 +311,34 @@ class API:
             rating_or_higher,
         )
         count = game_state.apply_filters(self, letter, theme, game_type, manufacturer, year, rating, rating_or_higher)
-        logger.debug("Filtered tables count: %s", count)
+        logger.debug("Filtered games count: %s", count)
         return count
 
     def reset_filters(self):
-        """Reset all VPSdb filters back to full table list."""
+        """Reset all VPSdb filters back to full game list."""
         self.current_filters = game_state.default_filter_state()
         self._reset_to_default_view()
 
     def apply_sort(self, sort_type, order_by=None):
         """
-        Sort the current filtered tables.
+        Sort the current filtered games.
         sort_type: 'Alpha', 'Newest', 'LastRun', 'Highest StartCount', or 'RunTime'
         order_by: 'Ascending' or 'Descending'
-        Returns the count of sorted tables.
+        Returns the count of sorted games.
         """
         self.current_sort = sort_type
         self.current_order = game_state.normalize_sort_order(order_by, sort_type)
         logger.debug("Applying sort: %s %s", sort_type, self.current_order)
 
         count = game_state.apply_sort(self.filteredGames, sort_type, self.current_order)
-        logger.debug("Sorted %s tables by %s %s", count, sort_type, self.current_order)
+        logger.debug("Sorted %s games by %s %s", count, sort_type, self.current_order)
         return count
 
     def get_page_index(self, index, direction):
         """
         Compute the target wheel index for a page next/prev request.
         Paging behavior comes from [Input] pagingtype/pagingsize and the
-        current sort; see table_state.page_jump_index.
+        current sort; see game_state.page_jump_index.
         """
         try:
             index = int(index)
@@ -391,7 +391,7 @@ class API:
         return {"success": True}
 
     def notify_game_selected(self, index):
-        """Announce that the player moved to this table.
+        """Announce that the player moved to this game.
 
         Whatever reacts - a DOF effect, the real DMD, something not written yet -
         subscribes to the event. Nothing is reported back, because none of it can
@@ -400,18 +400,18 @@ class API:
         try:
             game = self.filteredGames[int(index)]
         except Exception:
-            logger.debug("Ignoring table selection for invalid index: %s", index)
+            logger.debug("Ignoring game selection for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
 
         events.emit(events.GAME_SELECTED, game=game, ini_config=self._iniConfig)
         return {"success": True}
 
     def get_game_rating(self, index):
-        """Get User.Rating for a table index in the current filtered list."""
+        """Get User.Rating for a game index in the current filtered list."""
         return game_state.get_game_rating(self.filteredGames, index)
 
     def set_game_rating(self, index, rating):
-        """Set User.Rating (0-5) for a table index in the current filtered list."""
+        """Set User.Rating (0-5) for a game index in the current filtered list."""
         result = game_state.set_game_rating(self.filteredGames, index, rating)
         logger.info("Updated User.Rating for %s -> %s", self.filteredGames[index].gameDirName, result["rating"])
         return result
@@ -423,7 +423,7 @@ class API:
 
         Args:
             download_media: Whether to download media files
-            update_all: Whether to update all tables (even if meta.ini exists)
+            update_all: Whether to update all games (even if the .info exists)
 
         Returns:
             dict with success status and message

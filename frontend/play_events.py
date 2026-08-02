@@ -75,7 +75,7 @@ def on_exited(**_payload) -> None:
 
 
 def register(ws_bridge, frontend_browser=None, ini_config=None) -> None:
-    """Attach the frontend's reaction to the table lifecycle. Idempotent."""
+    """Attach the frontend's reaction to the game lifecycle. Idempotent."""
     global _registered, _bridge, _browser, _ini_config
     _bridge = ws_bridge
     _browser = frontend_browser
