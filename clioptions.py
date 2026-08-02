@@ -106,15 +106,15 @@ def parseArgs():
     parser.add_argument("--listmissing", action="store_true", help="List the games from VPSdb")
     parser.add_argument("--listunknown", action="store_true", help="List the games we can't match in VPSdb")
     parser.add_argument("--configdir", metavar="DIR", help="Use DIR as the config directory (vpinfe.ini, themes, caches, logs) instead of the OS default. Same as the VPINFE_CONFIG_DIR env var; applied at startup in main.py.")
-    parser.add_argument("--buildmeta", action="store_true", help="Builds the meta.ini file in each game dir")
+    parser.add_argument("--buildmeta", action="store_true", help="Builds the .info file in each game dir")
     parser.add_argument("--vpxpatch", action="store_true", help="Attempt to apply patches automatically")
     parser.add_argument("--gamepadtest", action="store_true", help="Test and map your gamepad via JS API")
     parser.add_argument("--headless", action="store_true", help="Run web servers/services only, skip the Chromium frontend")
     parser.add_argument("--claim-user-media", action="store_true", help="Deprecated and does nothing; your own media is protected automatically")
 
     # Secondary args
-    parser.add_argument("--no-media", action="store_true", help="Do not download images when building meta.ini")
-    parser.add_argument("--update-all", action="store_true", help="Reparse all games when building meta.ini")
+    parser.add_argument("--no-media", action="store_true", help="Do not download images when building the .info files")
+    parser.add_argument("--update-all", action="store_true", help="Reparse all games when building the .info files")
     parser.add_argument("--user-media", action="store_true", help="With --buildmeta: skip vpinmediadb downloads entirely and supply all media yourself")
     parser.add_argument("--upgrade-info", action="store_true", help="Upgrade every game's .info file to the current format, backing up each one first. Normally done automatically at startup; use this to finish an upgrade that was interrupted")
     parser.add_argument("--restore-info", action="store_true", help="Put back the .info files saved before they were upgraded, for every game that has one. Your current .info is kept first")

@@ -824,13 +824,13 @@ options:
   --configdir DIR       Use DIR as the config directory (vpinfe.ini, themes,
                         caches, logs) instead of the OS default. Same as the
                         VPINFE_CONFIG_DIR env var; applied at startup in main.py.
-  --buildmeta           Builds the meta.ini file in each table dir
+  --buildmeta           Builds the .info file in each table dir
   --vpxpatch            Using vpx-standalone-scripts will attempt to load patches automatically
   --gamepadtest         Testing and mapping your gamepad via js api
   --headless            Run web servers/services only, skip the Chromium frontend
   --claim-user-media    Deprecated and does nothing; your own media is protected automatically
-  --no-media            When building meta.ini files don't download the images at the same time.
-  --update-all          When building meta.ini reparse all tables to recreate the meta.ini file.
+  --no-media            When building the .info files don't download the images at the same time.
+  --update-all          When building the .info files reparse all tables to recreate them.
   --user-media          With --buildmeta: skip vpinmediadb downloads entirely and supply all media yourself
   --table TABLE         Specify a single table folder name to process with --buildmeta
 ```
