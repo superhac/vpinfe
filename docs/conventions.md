@@ -206,15 +206,24 @@ a problem no longer destroys the log of the run that showed it.
 
 ## Vocabulary
 
-- **Table** — the pinball-machine concept: folder, identity, metadata, media, assets.
-- **Game file** — a launchable artifact for a specific app (`.vpx` today).
-- **Media** — artwork VPinFE shows *about* a table while you browse: playfield, backglass,
+These follow the Virtual Pinball Spreadsheet, because VPS is where a user goes to identify
+what they have. Ours used to say the opposite of VPS on both nouns, which meant anyone
+reading both had to invert twice.
+
+- **Game** — the pinball-machine concept: folder, identity, metadata, media, assets.
+  VPS's top-level entry. One game, one folder.
+- **Table** — a launchable artifact for a specific app (`.vpx` today). VPS's `tableFiles`:
+  a game has several, by different authors, at different versions. A game is not
+  permanently one table.
+- **Playfield** — the main screen, and the media shown on it. Not "table": the playfield is
+  a facet of a game, and `table` now means the file.
+- **Media** — artwork VPinFE shows *about* a game while you browse: playfield, backglass,
   DMD, wheel, logo, cab, FSS, flyer, rule card, topper, loading video, launch audio,
   rulesheet, their video variants, audio. The logo is the game's title art - usually what a
   wheel is derived from, which is why a wheel-less table shows its logo in the wheel slot. This is `common/media_paths.py` and nothing else. Rule card
   (apron instruction card image), game flyer (promo art) and rulesheet (a document you
   read) are three different things - keep the words apart.
-- **Asset** — content a table needs to *play* as intended, beyond its game file:
+- **Asset** — content a game needs to *play* as intended, beyond its table:
   `.directb2s`, ROM, alt colour, alt sound, PUP pack, music, the per-table `.ini`.
   The per-table `.ini` is config-shaped but is still an asset: without it the table
   plays differently than intended, which is the whole definition.
@@ -246,7 +255,7 @@ dead VPM code, and a commented-out `LoadVPM` is not a dependency. Measured again
 validation set covering both cases: every ROM-installed table hits, every DOF-key EM
 table misses. One known ambiguity: some EM/PM recreations *conditionally* drive PinMAME for
 chime sounds (the `cOptRom` pattern), and read as required when the player may run
-happily without the ROM. The flag lands on the game file on the next metadata rebuild;
+happily without the ROM. The flag lands on the table on the next metadata rebuild;
 until then the chain reports `required: null`.
 - **App** — the application that plays a format (VPX standalone today).
 - **Theme** — a player-facing frontend package.
@@ -258,7 +267,7 @@ until then the chain reports `required: null`.
   nothing declared) nor plugins (that word belongs to VPX standalone), so say "third-party"
   and not "integration" or "external service".
 
-A table is not permanently one `.vpx`; prefer "game file" when that is what is meant.
+A game is not permanently one `.vpx`; say "table" when the file is what is meant.
 
 Media and assets are not the same thing, and the line is what each is *for*: media is what
 you look at while browsing, assets are what the table consumes while playing. A backglass is
@@ -267,14 +276,15 @@ the backglass *art* the wheel renders is media. Do not call an asset "media" bec
 happens to be a file in the table folder.
 
 `asset_registry.ASSET_SPECS` uses "asset" more broadly, as the lifecycle role of anything
-being imported — including the game file and media. That is the import pipeline's word for
+being imported — including the table and its media. That is the import pipeline's word for
 "a thing being added", not a content category, and it never reaches the HTTP contract, whose
 endpoints are `/uploads/*`. Prefer the definitions above anywhere the distinction matters.
 
 Two table identifiers exist and are not interchangeable:
 
-- `vpinfe_id` — this install's stable id. Addresses a table in the API, in events, in jobs.
-- `vpsid` / `altvpsid` — correlation with VPSdb and services keyed by it.
+- `vpinfe_id` — this install's stable id. Addresses a game in the API, in events, in jobs.
+- `vpsid` / `altvpsid` — correlation with VPSdb and services keyed by it. Note this
+  identifies the VPS **game**, not which of its tables you have.
 
 ## Linting
 

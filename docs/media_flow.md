@@ -26,7 +26,7 @@ Standard filenames include:
 - Audio: `audio.mp3`, `audiolaunch.mp3`
 - Documents: `rulesheet.pdf`
 
-Each kind also accepts the rest of its extension family (for images: `.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`), and spec-named files outrank the fixed names: `(Wheel) <game file name>.png` beats `(Wheel) <folder name>.png` beats `wheel.png`. The full precedence rules live in `common/media_paths.py`.
+Each kind also accepts the rest of its extension family (for images: `.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`), and spec-named files outrank the fixed names: `(Wheel) <table name>.png` beats `(Wheel) <folder name>.png` beats `wheel.png`. The full precedence rules live in `common/media_paths.py`.
 
 ### Media tokens
 
@@ -45,7 +45,7 @@ The token in brackets names the kind. Visual Pinball publishes these in its own 
 
 A video uses its image counterpart's token and is told apart by extension, so `(Topper) Name.png` and `(Topper) Name.mp4` are different kinds.
 
-Two of these differ from the published names. Visual Pinball calls the rule card `(GameHelp)` and the game flyer `(GameInfo)`; VPinFE leads with `(RuleCard)` and `(Flyer)` because they say what the file is, and **still accepts `(GameHelp)` and `(GameInfo)`** so media packaged either way works. If both are present the preferred name wins, but a game-file-specific file always beats a folder-level one whichever token it uses. `(Cabinet)`, `(FSS)`, `(Logo)` and `(RuleSheet)` have no published equivalent and are VPinFE's own.
+Two of these differ from the published names. Visual Pinball calls the rule card `(GameHelp)` and the game flyer `(GameInfo)`; VPinFE leads with `(RuleCard)` and `(Flyer)` because they say what the file is, and **still accepts `(GameHelp)` and `(GameInfo)`** so media packaged either way works. If both are present the preferred name wins, but a table-specific file always beats a folder-level one whichever token it uses. `(Cabinet)`, `(FSS)`, `(Logo)` and `(RuleSheet)` have no published equivalent and are VPinFE's own.
 
 ### Manufacturer logos
 

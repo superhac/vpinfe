@@ -56,11 +56,11 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/manufacturers` | Every manufacturer VPSdb or the library knows: computed slug, effective alias, resolved logo (or `null`), library table count. The reference for logo packs and alias maps |
 | GET | `/api/v1/games` | List tables (`q`, `limit`, `offset`) |
 | GET | `/api/v1/games/{id}` | One table |
-| GET | `/api/v1/games/{id}/tables` | The table's game files, with resolved assets and dependencies |
+| GET | `/api/v1/games/{id}/tables` | The game's tables, with resolved assets and dependencies |
 | GET | `/api/v1/games/{id}/media` | Every media kind, present or not |
 | GET | `/api/v1/games/{id}/media/{kind}` | Stream one media file |
 | GET | `/api/v1/games/{id}/archive` | Download the table as `.vpxz` — one game by default; `?file=` picks the build. `?full=true` (whole folder) carries its own scope, `tables:export_full` |
-| POST | `/api/v1/games/{id}/launch` | Launch a table here. Optional `{"file": "..."}` picks a game file |
+| POST | `/api/v1/games/{id}/launch` | Launch a game here. Optional `{"file": "..."}` picks which table |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
 | GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count", "total_bytes"}` |
@@ -114,7 +114,7 @@ Media is served under `GET /tables/{id}/media`: every kind from `common/media_pa
 present or not, so a client enumerates what is possible instead of guessing from omissions.
 A present kind links to `/media/{kind}`, which streams the file with its real content type.
 Resolution is the same three-tier chain the scan uses, applied to the folder as it is at
-request time: a spec-named file for the launching game file (`(Wheel) <game-file>.png`) beats a
+request time: a spec-named file for the launching table (`(Wheel) <table>.png`) beats a
 folder-named one (`(Wheel) <folder>.png`) beats the fixed default (`wheel.png`), each kind
 trying its extension family in order, `medias/` before the folder root throughout.
 Consumers never learn these rules — every kind still reports exactly one winning file.
@@ -125,16 +125,16 @@ tell a fallback from the real thing. An unknown kind is an
 
 Assets come in two lenses, both computed from the folder at request time:
 
-- **The launch lens** — each entry in `GET .../tables` reports what *that* game file
+- **The launch lens** — each entry in `GET .../tables` reports what *that* table
   would use on launch, mirroring VPX's own lookup order per kind: `dedicated` (a file named
-  for the game file), `shared` (the folder-named fallback), or `none` — plus the winning
+  for the table), `shared` (the folder-named fallback), or `none` — plus the winning
   filename. A `.pov` never falls back to the folder name, because VPX doesn't.
 - **The inventory lens** — `GET /tables/{id}` attributes every asset file in the folder:
-  `dedicated` to the game file it serves, `shared`, or `orphaned` (stem-named for a game
+  `dedicated` to the table it serves, `shared`, or `orphaned` (stem-named for a game
   file that is no longer there — what an audit wants to see). The list endpoint carries a
   presence summary only.
 
-Game files also carry `dependencies` — things the *script* declares and content on disk
+Tables also carry `dependencies` — things the *script* declares and content on disk
 satisfies, which is a different mechanism from an asset found by naming rule:
 
 - `pinmame` is a chain: `declared` (the script's ROM name) → `alias_of` (rewritten by the
@@ -161,11 +161,11 @@ satisfies, which is a different mechanism from an asset found by naming rule:
 - `flexdmd` reports whether the script uses FlexDMD and what `.UltraDMD` content exists;
   `declared` stays null until the project-folder extraction is built.
 
-The script-declared facts are only known for the game file the table's metadata records;
-other game files report `null` with a reason rather than inheriting the wrong answer.
+The script-declared facts are only known for the table the table's metadata records;
+other tables report `null` with a reason rather than inheriting the wrong answer.
 
-`rom` on the table resource is the recorded game file's **declared** ROM name kept as plain
-metadata; the full chain (alias, effective, installed, nvram) lives on the game file's
+`rom` on the table resource is the recorded table's **declared** ROM name kept as plain
+metadata; the full chain (alias, effective, installed, nvram) lives on the table's
 `dependencies.pinmame`.
 
 ## Errors
@@ -270,7 +270,7 @@ POST /api/v1/games/6f1c9a4e.../launch
 {"file": "Table Name VPW Mod.vpx"}
 ```
 
-`file` is optional and names one of the table's game files (`GET .../files` lists them);
+`file` is optional and names one of the game's tables (`GET .../tables` lists them);
 leave it out for the table's default. A name that isn't in the table's own folder is refused,
 so this can't be talked into running something else.
 
@@ -279,7 +279,7 @@ Every refusal happens before anything starts, and comes back synchronously:
 | Status | Code | Means |
 |--------|------|-------|
 | 404 | `not_found` | no table with that id |
-| 400 | `invalid_request` | the named `file` isn't one of this table's game files |
+| 400 | `invalid_request` | the named `file` isn't one of this table's tables |
 | 409 | `conflict` | something is already playing — two VPX processes would fight over the same hardware |
 | 501 | `feature_unavailable` | this machine can't launch at all, e.g. no `vpxbinpath` configured |
 

@@ -169,7 +169,7 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   - VPSId: Internal VPS database ID
   - Description: Table description/blurb
 
-  Authors and Rom used to live here too. Both are properties of a game file rather than of
+  Authors and Rom used to live here too. Both are properties of a table rather than of
   the machine — a folder can hold several, and they can disagree — so they moved to
   `game_files`.
 
@@ -197,9 +197,9 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
     in `Info`. Both are kept: the disagreement is a signal.
   - rom, authors
   - detect_* flags: what was found in the table's script
-  - hidden: set to keep a game file out of the frontend without deleting it — a patch base
+  - hidden: set to keep a table out of the frontend without deleting it — a patch base
     has to stay on disk, but should not be offered
-  - user: play history for this game file alone (last_run, start_count, run_time_seconds).
+  - user: play history for this table alone (last_run, start_count, run_time_seconds).
     It accumulates separately from `User`, which is the table's own history.
 
 - vpinfe
@@ -208,23 +208,23 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   - schema: the version of this file's shape. Absent means a 2.x file, which is migrated on
     first read — see below.
   - id: the table's stable local identity, used in the API, in events and in collections
-  - default_game_file: which game file a consumer that can only take one should get
+  - default_game_file: which table a consumer that can only take one should get
   - delete_nvram_on_close: (true/false) Some tables, like Taito machines, retain the game
     state when you quit. Enabling this deletes the NVRAM file on close. Default is false.
   - alt_launcher: Optional executable path override for this table alone. If set, it is used
     instead of `vpinfe.ini` `Settings.vpxbinpath`.
   - plugin_profile, alt_title, alt_vpsid, frontend_dof_event
 
-  `alt_vpsid` is cleared when the default game file's hash changes during a rebuild, since a
+  `alt_vpsid` is cleared when the default table's hash changes during a rebuild, since a
   manual VPS match was chosen against the file that was there.
 
 - assets
 
-  One entry per file VPinFE placed in the table folder, keyed by the file's path relative to that folder, with forward slashes. Preserved across `--buildmeta --update-all`. Replaces the old `Medias` section, which was keyed by media type and so could hold only one entry per type — no way to describe artwork belonging to one specific game file, and the same question applies to backglasses, ROMs and colorizations. Each entry holds a `source`:
+  One entry per file VPinFE placed in the table folder, keyed by the file's path relative to that folder, with forward slashes. Preserved across `--buildmeta --update-all`. Replaces the old `Medias` section, which was keyed by media type and so could hold only one entry per type — no way to describe artwork belonging to one specific table, and the same question applies to backglasses, ROMs and colorizations. Each entry holds a `source`:
   - host: who supplied the bytes — a remote such as "vpinmediadb", or "user" for a file uploaded through the Manager UI
   - hash: the MD5 the host published, when it published one. Absent for a user upload, since a hash is only meaningful compared against a remote.
 
-  Nothing else is stored. Which media kind a file is, and which game file it belongs to, are read off its name every time media resolves, so a stored copy could only agree or be wrong.
+  Nothing else is stored. Which media kind a file is, and which table it belongs to, are read off its name every time media resolves, so a stored copy could only agree or be wrong.
 
   **A file with no entry is not ours.** Ownership is not decided from this section — the downloader hashes what is already on disk and compares it to the MD5 vpinmediadb publishes, so your own artwork is safe whether or not it appears here.
 
