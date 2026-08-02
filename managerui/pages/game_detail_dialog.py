@@ -53,7 +53,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
 
     dlg = ui.dialog()
     with dlg, ui.card().classes('table-dialog-card').style('width: 1000px; max-width: 85vw;'):
-        game_name = row_data.get('name') or row_data.get('filename') or 'Game'
+        game_name = row_data.get('name') or row_data.get('filename') or 'Table'
         game_path_str = row_data.get('table_path', '')
         row_data['rating'] = normalize_game_rating(row_data.get('rating', 0))
         # Holds the VBS-indicator refresh callback (assigned when the panel below
@@ -101,7 +101,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             not_found = result.get('not_found', 0)
                             if not_found > 0:
                                 rebuild_status.set_text('Not found in VPS')
-                                ui.notify('Game not found in VPSdb', type='warning')
+                                ui.notify('Table not found in VPSdb', type='warning')
                             else:
                                 rebuild_status.visible = False
                                 ui.notify('Metadata rebuilt successfully', type='positive')
@@ -120,7 +120,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                     filename = row_data.get('filename', '')
                     if not filename:
                         with client:
-                            ui.notify('No table to extract VBS from', type='warning')
+                            ui.notify('No table file to extract VBS from', type='warning')
                         return
                     with client:
                         extract_vbs_btn.disable()
@@ -154,7 +154,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                     with update_dlg, ui.card().classes('table-dialog-card').style('width: 620px; max-width: 92vw;'):
                         ui.label('Update Table').classes('text-lg font-semibold').style('color: var(--ink);')
                         ui.label(game_name).classes('text-sm').style('color: var(--ink-muted);')
-                        update_status = ui.label('Choose a .vpx table or a .directb2s backglass file.').classes('text-xs').style('color: var(--ink-muted);')
+                        update_status = ui.label('Choose a .vpx table file or .directb2s backglass file.').classes('text-xs').style('color: var(--ink-muted);')
 
                         async def handle_game_update(e: events.UploadEventArguments, file_type: str):
                             upload_name = e.file.name
@@ -177,8 +177,8 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                                     row_data['filename'] = result.get('filename', row_data.get('filename', ''))
                                     game_index_service.update_row_by_path(game_path_str, {'filename': row_data['filename']})
                                     with client:
-                                        update_status.set_text('Table updated. Rebuilding metadata...')
-                                        ui.notify('Table updated', type='positive')
+                                        update_status.set_text('Table file updated. Rebuilding metadata...')
+                                        ui.notify('Table file updated', type='positive')
                                     await on_rebuild_meta()
                                 else:
                                     with client:
@@ -236,7 +236,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                         ui.separator()
                         with ui.column().classes('w-full gap-3'):
                             with ui.column().classes('w-full gap-1'):
-                                ui.label('Replace table (.vpx)').classes('text-sm').style('color: var(--ink);')
+                                ui.label('Replace table file (.vpx)').classes('text-sm').style('color: var(--ink);')
                                 ui.upload(
                                     on_upload=on_vpx_update,
                                     auto_upload=True,
@@ -267,7 +267,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             'background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px;'
                         ):
                             ui.label('How updates work').classes('text-sm font-semibold').style('color: var(--ink);')
-                            ui.label('.vpx: deletes the old table, saves the uploaded table, renames any existing .directb2s and .ini to match the new filename, then rebuilds metadata.').classes('text-xs').style('color: var(--ink-muted);')
+                            ui.label('.vpx: deletes the old table file, saves the uploaded table file, renames any existing .directb2s and .ini to match the new table filename, then rebuilds metadata.').classes('text-xs').style('color: var(--ink-muted);')
                             ui.label('.directb2s: saves the uploaded backglass using the existing .directb2s filename. If none exists, it uses the current .vpx filename with a .directb2s extension.').classes('text-xs').style('color: var(--ink-muted);')
                             ui.label('.zip (ROM): saves the uploaded ROM into pinmame/roms. If a ROM with the same filename already exists it is replaced, otherwise it is added.').classes('text-xs').style('color: var(--ink-muted);')
 
@@ -284,7 +284,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
         with ui.column().classes('w-full gap-4 p-4'):
             # Key details in a grid
             with ui.card().classes('w-full p-4').style('background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);'):
-                ui.label('Game Information').classes('text-lg font-semibold mb-3').style('color: var(--ink);')
+                ui.label('Table Information').classes('text-lg font-semibold mb-3').style('color: var(--ink);')
 
                 # Define which fields to show and their display names
                 display_fields = [
@@ -441,7 +441,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                         def save_rating(new_rating: int) -> None:
                             clamped = normalize_game_rating(new_rating)
                             if not game_path_str:
-                                ui.notify('Unable to save rating: missing game path', type='negative')
+                                ui.notify('Unable to save rating: missing table path', type='negative')
                                 return
                             if update_user_setting(game_path_str, 'Rating', clamped):
                                 rating_state['value'] = clamped
@@ -513,7 +513,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
 
                             ui.button('Add', icon='add', on_click=on_add_to_collection).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                     else:
-                        ui.label('Game is in all available collections').classes('text-sm').style('color: var(--ink-muted);')
+                        ui.label('Table is in all available collections').classes('text-sm').style('color: var(--ink-muted);')
 
             # VPinFE Settings section
             with ui.card().classes('w-full p-4').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);'):
@@ -537,7 +537,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                         new_value = (alttitle_input.value or '').strip()
                         if update_vpinfe_setting(game_path_str, 'alt_title', new_value):
                             row_data['alt_title'] = new_value
-                            fallback_name = (row_data.get('filename') or 'Game').strip()
+                            fallback_name = (row_data.get('filename') or 'Table').strip()
                             try:
                                 info_path = Path(game_path_str) / f"{Path(game_path_str).name}.info"
                                 with open(info_path, 'r', encoding='utf-8') as f:
@@ -562,7 +562,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             ui.notify('Failed to save alt title', type='negative')
 
                     ui.button('Save', icon='save', on_click=on_alttitle_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
-                ui.label('When set, this overrides the game name shown in Manager UI lists').classes('text-xs').style('color: var(--ink-muted);')
+                ui.label('When set, this overrides the table name shown in Manager UI lists').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 w-full'):
                     altvpsid_input = ui.input(
@@ -605,7 +605,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                     altlauncher_input = ui.input(
                         label='Alt Launcher',
                         value=altlauncher_value,
-                        placeholder='Optional executable override for this game'
+                        placeholder='Optional executable override for this table'
                     ).props('outlined dense clearable').classes('flex-grow')
 
                     def on_altlauncher_save():
@@ -618,7 +618,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             ui.notify('Failed to save alt launcher', type='negative')
 
                     ui.button('Save', icon='save', on_click=on_altlauncher_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
-                ui.label('When set, this overrides Settings.vpxbinpath for this game only').classes('text-xs').style('color: var(--ink-muted);')
+                ui.label('When set, this overrides Settings.vpxbinpath for this table only').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 w-full'):
                     # A profile the user deleted would otherwise vanish from the
@@ -646,7 +646,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             ui.notify('Failed to save plugin profile', type='negative')
 
                     ui.button('Save', icon='save', on_click=on_pluginprofile_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
-                ui.label('When set, this game launches with -ini pointed at that plugin profile instead of VPinballX.ini').classes('text-xs').style('color: var(--ink-muted);')
+                ui.label('When set, this table launches with -ini pointed at that plugin profile instead of VPinballX.ini').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 w-full'):
                     frontend_dof_event_input = ui.input(
@@ -665,7 +665,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             ui.notify('Failed to save Frontend DOF event', type='negative')
 
                     ui.button('Save', icon='save', on_click=on_frontend_dof_event_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink) !important; border-radius: 18px; padding: 4px 10px;')
-                ui.label('The DOF effect this game asks for when selected. Empty uses the default.').classes('text-xs').style('color: var(--ink-muted);')
+                ui.label('The DOF effect this table asks for when selected. Empty uses the default.').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 mt-3'):
                     def on_delete_nvram_change(e):
@@ -691,7 +691,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
 
                 with ui.column().classes('gap-4 p-2').style('background: var(--surface); border-radius: 8px;'):
                     create_drop_zone(
-                        label='Drop asset files or archives for this game',
+                        label='Drop asset files or archives for this table',
                         get_context=lambda: DropContext(game_path=str(game_path), game_row=row_data,
                                                         rom_name=rom_name),
                         on_imported=lambda _report: (on_close() if on_close else None),

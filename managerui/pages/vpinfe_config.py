@@ -742,7 +742,7 @@ def render_panel(tab=None):
                                                     with ui.element('div').classes('config-display-column'):
                                                         ui.label('Paths').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                                         ui.label(
-                                                            'Set the main Visual Pinball executable, game location, and ini file.'
+                                                            'Set the main Visual Pinball executable, table location, and ini file.'
                                                         ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                                         with ui.element('div').classes('config-paths-list mt-3').style(
                                                             f'--path-field-width: {path_field_width_ch}ch;'

@@ -404,7 +404,7 @@ def build(standalone=True):
 
 
 def _build_vpxz_download_panel():
-    loading = ui.label('Loading games...').style('color: var(--ink-muted) !important;')
+    loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
     table_container = ui.column().classes('w-full')
 
     async def load_games():
@@ -415,7 +415,7 @@ def _build_vpxz_download_panel():
             row['download_token'] = uuid.uuid4().hex
 
         columns = [
-            {'name': 'display_name', 'label': 'Game', 'field': 'display_name', 'align': 'left', 'sortable': True},
+            {'name': 'display_name', 'label': 'Table', 'field': 'display_name', 'align': 'left', 'sortable': True},
         ]
 
         with table_container:
@@ -524,7 +524,7 @@ def _build_web_send_panel():
         cfg.config.set('Mobile', 'renamemasktodefaultinimask', mask_val)
         cfg.save()
 
-    ui.label("This uses the built in web server on the mobile version of vpx for Android and iOS. It allows you seamlessly transfer your games onto your mobile device.  You must turn it on in the settings in VPX on your mobile device.  Also note this same location will show you your IP and PORT.  Thats what you put into the device configuration settings below.  The device must be kept on and VPX running when doing transfers. ").classes('text-sm mb-4').style('color: var(--ink-muted) !important;')
+    ui.label("This uses the the built in web server on the mobile version of vpx for Android and iOS. It allows you seamlessly transfer your tables onto your mobile device.  You must turn it on in the settings in VPX on your mobile device.  Also note this same location will show you your IP and PORT.  Thats what you put into the device configuration settings below.  The device must be kept on and VPX running when doing transfers. ").classes('text-sm mb-4').style('color: var(--ink-muted) !important;')
 
     # Connection settings
     with ui.card().classes('w-full p-4 mb-4').style('color: var(--ink) !important; background-color: var(--surface) !important; border: 1px solid var(--line); border-radius: var(--radius);'):
@@ -565,7 +565,7 @@ def _build_web_send_panel():
                                       on_click=lambda: batch_send()) \
             .props('dense').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
 
-    loading = ui.label('Loading games...').style('color: var(--ink-muted) !important;')
+    loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
     table_container = ui.column().classes('w-full')
 
     # Shared state for the ui.table reference and device folders
@@ -611,7 +611,7 @@ def _build_web_send_panel():
                 row['installed'] = row['game_dir_name'] in folders
             _apply_filter()
             installed_count = sum(1 for r in panel_state['rows'] if r.get('installed'))
-            _safe_notify(f'Found {installed_count} of {len(panel_state["rows"])} games on device', type='info')
+            _safe_notify(f'Found {installed_count} of {len(panel_state["rows"])} tables on device', type='info')
         except Exception as e:
             _safe_notify(f'Could not connect: {e}', type='negative')
 
@@ -676,7 +676,7 @@ def _build_web_send_panel():
 
     async def batch_send():
         if not panel_state['tbl'] or not panel_state['tbl'].selected:
-            _safe_notify('No games selected', type='warning')
+            _safe_notify('No tables selected', type='warning')
             return
         host = ip_input.value.strip()
         port = port_input.value.strip()
@@ -704,7 +704,7 @@ def _build_web_send_panel():
             )
             if ok:
                 success += 1
-        _safe_notify(f'Batch complete: {success}/{total} games sent', type='positive')
+        _safe_notify(f'Batch complete: {success}/{total} tables sent', type='positive')
         panel_state['tbl'].selected.clear()
         panel_state['tbl'].update()
         await check_device()
@@ -719,7 +719,7 @@ def _build_web_send_panel():
         panel_state['rows'] = rows
 
         columns = [
-            {'name': 'display_name', 'label': 'Game', 'field': 'display_name', 'align': 'left', 'sortable': True},
+            {'name': 'display_name', 'label': 'Table', 'field': 'display_name', 'align': 'left', 'sortable': True},
         ]
 
         with table_container:
@@ -783,7 +783,7 @@ def _build_web_send_panel():
 
                 with ui.dialog() as dlg, ui.card().classes('p-6').style('background: var(--surface) !important;'):
                     ui.label(f'Delete "{name}" from device?').classes('font-bold').style('color: var(--ink) !important;')
-                    ui.label('This will permanently remove the game from the mobile device.').classes('text-sm').style('color: var(--ink-muted) !important;')
+                    ui.label('This will permanently remove the table from the mobile device.').classes('text-sm').style('color: var(--ink-muted) !important;')
                     with ui.row().classes('w-full justify-end gap-2 mt-4'):
                         ui.button('Cancel', on_click=dlg.close).props('flat').style('color: var(--ink-muted) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
                         ui.button('Delete', on_click=lambda: dlg.submit(True)).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')

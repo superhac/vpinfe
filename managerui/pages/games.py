@@ -108,7 +108,7 @@ def update_vpinfe_setting(game_path: str, key: str, value) -> bool:
 
 
 def update_user_setting(game_path: str, key: str, value) -> bool:
-    """Update a User setting in the game's .info file."""
+    """Update a User setting in the table's .info file."""
     return game_service.update_user_setting(game_path, key, value)
 
 
@@ -237,7 +237,7 @@ def scan_games(silent: bool = False):
     if not os.path.exists(games_path):
         logger.warning(f"Games path does not exist: {games_path}. Skipping scan.")
         if not silent:
-            ui.notify("Games path does not exist. Please, verify your vpinfe.ini settings", type="negative")
+            ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
         return []
     return game_service.scan_game_rows(reload=False)
 
@@ -319,7 +319,7 @@ def render_panel(tab=None):
                     ui.run_javascript('window.dispatchEvent(new Event("resize"));')
                 except RuntimeError:
                     pass  # Ignore if not in a valid UI context
-                missing_button.text = f"Unmatched Games ({len(missing_rows)})"
+                missing_button.text = f"Unmatched Tables ({len(missing_rows)})"
                 # Update button color: green if 0, red if > 0
                 btn_color = "positive" if len(missing_rows) == 0 else "negative"
                 missing_button._props['color'] = btn_color
@@ -371,10 +371,10 @@ def render_panel(tab=None):
                 options_container = ui.column().classes('gap-4 q-my-md w-full')
                 with options_container:
                     update_all_switch = ui.switch('Update All Tables', value=False).classes('text-sm')
-                    ui.label('Reparse all games, even if .info already exists').classes('text-xs q-ml-lg').style('color: var(--ink-muted);')
+                    ui.label('Reparse all tables, even if .info already exists').classes('text-xs q-ml-lg').style('color: var(--ink-muted);')
 
                     download_media_switch = ui.switch('Download Media', value=True).classes('text-sm')
-                    ui.label('Automatically download game images and media from VPinMediaDB').classes('text-xs q-ml-lg').style('color: var(--ink-muted);')
+                    ui.label('Automatically download table images and media from VPinMediaDB').classes('text-xs q-ml-lg').style('color: var(--ink-muted);')
 
                 # Progress section (shown during build)
                 progress_container = ui.column().classes('w-full gap-2')
@@ -495,7 +495,7 @@ def render_panel(tab=None):
         # Header section with page title and action buttons
         with ui.card().classes('w-full mb-4 manager-page-header'):
             with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
-                ui.label('Games Management').classes('text-2xl font-bold').style('color: var(--ink);').style('flex-shrink: 0;')
+                ui.label('Tables Management').classes('text-2xl font-bold').style('color: var(--ink);').style('flex-shrink: 0;')
                 with ui.row().classes('gap-3 items-center flex-wrap'):
                     scan_btn = ui.button("Scan Games", icon="refresh", on_click=open_build_metadata_dialog).style('color: var(--ink) !important; background: var(--neon-purple) !important; border-radius: 0;')
                     patch_btn = ui.button("Apply Patches", icon="construction").props("color=secondary").style('border-radius: 0;')
@@ -637,7 +637,7 @@ def render_panel(tab=None):
                                rom_name=(row.get('rom') or '').strip())
 
         drop_zone = create_drop_zone(
-            label='Drop a game archive, folder, or asset file here to import',
+            label='Drop a table archive, folder, or asset file here to import',
             get_context=_dnd_context,
             on_imported=lambda _report: asyncio.create_task(perform_scan(silent=True)),
         )
@@ -751,7 +751,7 @@ def render_panel(tab=None):
             ui.label('Filtering').classes('text-lg font-semibold px-4 pt-4').style('color: var(--ink);')
             with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
                 # Search input
-                search_input = debounced_input(ui.input(placeholder='Search games...')).props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
+                search_input = debounced_input(ui.input(placeholder='Search tables...')).props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
                 search_input.on_value_change(on_search_change)
 
                 # Filter dropdowns
@@ -797,7 +797,7 @@ def render_panel(tab=None):
                 ui.button(icon='clear_all', on_click=clear_filters).props('flat round').tooltip('Clear all filters')
 
         # Table title - centered below the filters
-        title_label = ui.label("Games").classes('text-xl font-semibold text-center w-full py-2')
+        title_label = ui.label("Tables").classes('text-xl font-semibold text-center w-full py-2')
 
         # Batch action bar for adding multiple tables to a collection at once
         batch_bar = ui.card().classes('w-full mb-2').style(
@@ -806,7 +806,7 @@ def render_panel(tab=None):
         batch_bar.visible = False
         with batch_bar:
             with ui.row().classes('w-full items-center gap-4 p-3'):
-                batch_label = ui.label('0 games selected').classes('font-medium').style('color: var(--ink);')
+                batch_label = ui.label('0 tables selected').classes('font-medium').style('color: var(--ink);')
                 batch_collection_select = ui.select(
                     label='Add to Collection',
                     options=get_game_collections(),
@@ -819,7 +819,7 @@ def render_panel(tab=None):
             if selected:
                 batch_bar.visible = True
                 count = len(selected)
-                batch_label.set_text(f'{count} game{"s" if count != 1 else ""} selected')
+                batch_label.set_text(f'{count} table{"s" if count != 1 else ""} selected')
             else:
                 batch_bar.visible = False
 
@@ -980,7 +980,7 @@ def render_panel(tab=None):
                 return
             selected = games_table.selected
             if not selected:
-                ui.notify('No games selected', type='warning')
+                ui.notify('No tables selected', type='warning')
                 return
             added = 0
             skipped = 0
@@ -992,7 +992,7 @@ def render_panel(tab=None):
                 else:
                     skipped += 1
             if added > 0:
-                msg = f'Added {added} game{"s" if added != 1 else ""} to {collection}'
+                msg = f'Added {added} table{"s" if added != 1 else ""} to {collection}'
                 if skipped > 0:
                     msg += f' ({skipped} skipped - no table id)'
                 ui.notify(msg, type='positive')
@@ -1002,7 +1002,7 @@ def render_panel(tab=None):
                 batch_collection_select.value = None
                 update_game_display()
             else:
-                ui.notify('No games could be added (missing VPS IDs)', type='warning')
+                ui.notify('No tables could be added (missing VPS IDs)', type='warning')
 
         batch_add_btn.on_click(on_batch_add)
 
@@ -1034,7 +1034,7 @@ def render_panel(tab=None):
             if games_table.selected:
                 batch_bar.visible = True
                 count = len(games_table.selected)
-                batch_label.set_text(f'{count} game{"s" if count != 1 else ""} selected')
+                batch_label.set_text(f'{count} table{"s" if count != 1 else ""} selected')
             else:
                 batch_bar.visible = False
 
@@ -1043,7 +1043,7 @@ def render_panel(tab=None):
         # Update missing button if we have cached data
         cached_missing = _missing_cache()
         if cached_missing is not None:
-            missing_button.text = f"Unmatched Games ({len(cached_missing)})"
+            missing_button.text = f"Unmatched Tables ({len(cached_missing)})"
             # Update button color: green if 0, red if > 0
             btn_color = "positive" if len(cached_missing) == 0 else "negative"
             missing_button._props['color'] = btn_color

@@ -70,7 +70,7 @@ def _collections_restorable() -> bool:
 
 
 def _games(n: int) -> str:
-    return "1 game" if n == 1 else f"{n} games"
+    return "1 table" if n == 1 else f"{n} tables"
 
 
 def _files(n: int) -> str:
@@ -109,7 +109,7 @@ def _run_dialog(title: str, intro: str, detail: str, confirm_label: str, action,
             ui.label(intro).classes('text-sm').style('color: var(--ink);')
             ui.label(detail).classes('text-xs').style('color: var(--ink-muted);')
             if game_names:
-                with ui.expansion(f'Show the {len(game_names)} games').classes('w-full'):
+                with ui.expansion(f'Show the {len(game_names)} tables').classes('w-full'):
                     with ui.column().classes('w-full p-2').style(
                             'max-height: 14rem; overflow: auto;'):
                         for name in game_names:
@@ -279,7 +279,7 @@ def _render_unreadable_warning() -> None:
     names = ", ".join(row.get("folder", "?") for row in broken[:3])
     if len(broken) > 3:
         names += f" and {len(broken) - 3} more"
-    games = "1 game is" if len(broken) == 1 else f"{len(broken)} games are"
+    games = "1 table is" if len(broken) == 1 else f"{len(broken)} tables are"
     _strip(
         'warning', 'var(--neon-pink)',
         f'{games} missing because the .info file could not be read.',

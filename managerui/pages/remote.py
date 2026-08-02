@@ -118,7 +118,7 @@ def _launch_game(game: dict):
     """Hand a game to the launch service and let the bus tell everyone else."""
     import threading
 
-    game_name = game.get('name', 'game')
+    game_name = game.get('name', 'table')
     resolved = game_identity.find_by_id(ensure_games_loaded(), game.get('vpinfe_id', ''))
     if resolved is None:
         # Every launchable game has an id, so this means the library moved under us.
@@ -470,9 +470,9 @@ def show_vpx_game_controls():
                     if game:
                         _launch_game(game)
                     else:
-                        ui.notify('Please select a game first', type='warning')
+                        ui.notify('Please select a table first', type='warning')
                 else:
-                    ui.notify('Please select a game first', type='warning')
+                    ui.notify('Please select a table first', type='warning')
 
             with ui.button(on_click=do_launch).props("flat round dense").classes("icon-button").style(
                 "width: 40px !important; height: 40px !important; background: var(--surface-soft) !important;"

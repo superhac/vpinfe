@@ -85,7 +85,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                 dirs = [p for p in session_dir.iterdir() if p.is_dir()]
                 with client:
                     if not game_path:
-                        ui.notify("Could not resolve the drop target game", type="negative")
+                        ui.notify("Could not resolve the drop target table", type="negative")
                         upload_session_service.cleanup_session(upload_id)
                         return
                     if dirs or len(files) != 1:
@@ -111,7 +111,7 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                 ctx = resolver(row_key)
                 if ctx is None:
                     with client:
-                        ui.notify("Could not resolve the drop target game", type="negative")
+                        ui.notify("Could not resolve the drop target table", type="negative")
                     upload_session_service.cleanup_session(upload_id)
                     return
             else:

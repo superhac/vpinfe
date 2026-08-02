@@ -268,7 +268,7 @@ def render_panel():
             ui.notify("Machine ID is required.", type="warning")
             return
         if not games_dir:
-            ui.notify("Games Directory is required in Configuration > Settings.", type="warning")
+            ui.notify("Tables Directory is required in Configuration > Settings.", type="warning")
             return
 
         command_label, status_label, output_area, close_button = show_live_command_dialog(
@@ -360,14 +360,14 @@ def render_panel():
 
                     with ui.column().classes("w-full gap-3"):
                         with ui.card().classes("config-side-card w-full p-4"):
-                            ui.label("Game Metadata Sync").classes("text-lg font-semibold").style(
+                            ui.label("Table Metadata Sync").classes("text-lg font-semibold").style(
                                 "color: var(--ink) !important;"
                             )
                             ui.label(
-                                "Sends installed game metadata to the configured VPinPlay service endpoint."
+                                "Sends installed table metadata to the configured VPinPlay service endpoint."
                             ).classes("text-sm text-slate-300")
                             sync_vpinplay_button = ui.button(
-                                "Sync Installed Games",
+                                "Sync Installed Tables",
                                 icon="sync",
                                 on_click=run_vpinplay_sync,
                             ).classes("mt-3").style(

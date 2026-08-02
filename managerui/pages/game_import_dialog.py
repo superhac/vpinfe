@@ -52,7 +52,7 @@ def open_import_game_dialog(perform_scan_cb=None):
         ui.label('Step 1: Associate with VPS Database').classes('text-md font-semibold text-blue-300')
 
         with ui.row().classes('w-full items-center gap-3'):
-            selected_label = ui.label('No game selected').classes('text-sm').style('color: var(--ink-muted);')
+            selected_label = ui.label('No table selected').classes('text-sm').style('color: var(--ink-muted);')
 
             def open_vps_search_dialog():
                 """Open a separate dialog to search and select a VPS entry."""
@@ -68,7 +68,7 @@ def open_import_game_dialog(perform_scan_cb=None):
                         results_container.clear()
                         if not items:
                             with results_container:
-                                ui.label('Search by Game Name').classes('text-sm').style('color: var(--ink-muted);')
+                                ui.label('Search by Table Name').classes('text-sm').style('color: var(--ink-muted);')
                             return
                         for it in items:
                             name = it.get('name', '')
@@ -118,7 +118,7 @@ def open_import_game_dialog(perform_scan_cb=None):
 
         # VPX file (required)
         with ui.row().classes('w-full items-center gap-3'):
-            ui.label('Table (.vpx) *').classes('text-sm').style('color: var(--ink); min-width: 160px;')
+            ui.label('Table File (.vpx) *').classes('text-sm').style('color: var(--ink); min-width: 160px;')
             vpx_status = ui.label('No file selected').classes('text-xs').style('color: var(--ink-muted);')
 
         async def on_vpx_upload(e: events.UploadEventArguments):
@@ -221,7 +221,7 @@ def open_import_game_dialog(perform_scan_cb=None):
         with import_loading_overlay:
             with ui.column().classes('items-center justify-center gap-4 w-full'):
                 ui.spinner('dots', size='xl', color='blue')
-                import_loading_label = ui.label('Importing game...').classes('text-lg text-center').style('color: var(--ink);')
+                import_loading_label = ui.label('Importing table...').classes('text-lg text-center').style('color: var(--ink);')
 
         ui.separator()
 
@@ -243,7 +243,7 @@ def open_import_game_dialog(perform_scan_cb=None):
 
             with client:
                 import_loading_overlay.style(add='display: flex;', remove='display: none;')
-                import_loading_label.set_text('Creating game folder...')
+                import_loading_label.set_text('Creating table folder...')
                 do_import_btn.disable()
 
             try:
@@ -279,7 +279,7 @@ def open_import_game_dialog(perform_scan_cb=None):
 
                 # Write VPX file
                 with client:
-                    import_loading_label.set_text('Copying table...')
+                    import_loading_label.set_text('Copying table file...')
                 vpx_name, vpx_bytes = import_state['vpx_file']
                 await run.io_bound(save_upload_bytes, game_dir / vpx_name, vpx_bytes)
 
@@ -335,7 +335,7 @@ def open_import_game_dialog(perform_scan_cb=None):
                 invalidate_media_cache()
 
                 with client:
-                    ui.notify(f'Game imported successfully: {folder_name}', type='positive')
+                    ui.notify(f'Table imported successfully: {folder_name}', type='positive')
                 dlg.close()
 
                 # Refresh the games list
