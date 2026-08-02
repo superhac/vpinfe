@@ -90,6 +90,58 @@ A contract only goes up when something a theme already reads is **removed or res
 bumps are rare. If you declare a contract newer than the VPinFE you are running on, you get
 the newest that build has and a warning in the log.
 
+### Names that changed in 3.0
+
+3.0 takes its nouns from the Virtual Pinball Spreadsheet: the machine is a **game**, the
+`.vpx` is a **table**, and the main screen is the **playfield**. Nothing was removed, and a
+2.x theme needs no edits. Two different mechanisms keep it working, and which one you are
+leaning on decides whether declaring `contract: 2` changes anything for you.
+
+**The payload follows the contract you declare.** At `2` you get the new keys; at `1` —
+which is what you get by declaring nothing — VPinFE projects them back on the way out:
+
+| contract 2 | contract 1 |
+|---|---|
+| `gameDirName` | `tableDirName` |
+| `fullPathGame` | `fullPathTable` |
+| `PlayfieldImagePath` | `TableImagePath` |
+| `PlayfieldVideoPath` | `TableVideoPath` |
+| `meta.tables` | `meta.VPXFile` |
+| `meta.vpinfe` | `meta.VPinFE` |
+
+**The `vpin.*` surface does not follow the contract.** The projection reshapes the payload
+and has never covered the JavaScript API, so the old names are aliases on the same object
+instead. They work at every contract, for reads, writes and calls alike:
+
+| use | still works |
+|---|---|
+| `vpin.gameData` | `vpin.tableData` |
+| `vpin.playfieldRotation` | `vpin.tableRotation` |
+| `vpin.playfieldOrientation` | `vpin.tableOrientation` |
+| `vpin.getGameMeta()` | `vpin.getTableMeta()` |
+| `vpin.getGameData()` | `vpin.getTableData()` |
+| `vpin.getGameCount()` | `vpin.getTableCount()` |
+| `vpin.getCurrentGameIndex()` | `vpin.getCurrentTableIndex()` |
+| `vpin.getAllGames()` | `vpin.getAllTables()` |
+| `vpin.playGameAudio()` | `vpin.playTableAudio()` |
+| `vpin.stopGameAudio()` | `vpin.stopTableAudio()` |
+| `vpin.launchGame()` | `vpin.launchTable()` |
+
+**Window messages carry both spellings.** Every one below is broadcast under its new name
+and its old one, so a theme listening for either keeps receiving it. Inbound messages are
+accepted either way too.
+
+| new | legacy |
+|---|---|
+| `GameIndexUpdate` | `TableIndexUpdate` |
+| `GameDataChange` | `TableDataChange` |
+| `GameLaunching` | `TableLaunching` |
+| `GameRunning` | `TableRunning` |
+| `GameLaunchComplete` | `TableLaunchComplete` |
+
+The aliases are not a second API. Write new themes against the `game` and `playfield`
+names — those are what the rest of this document uses.
+
 ---
 
 ## HTML Files
@@ -1158,18 +1210,23 @@ Each element in `vpin.gameData` (and the return of `vpin.getGameMeta(index)`) is
 | `AudioLaunchPath` | `string\|null` | Local path to the launch audio file (`audiolaunch.mp3`). |
 | `RuleSheetPath` | `string\|null` | Local path to the rulesheet document (`rulesheet.pdf`). |
 | `ManufacturerLogoPath` | `string\|null` | Web path to the manufacturer's logo under `/assets/`; use `vpin.getManufacturerLogoURL(index)`. |
-| `meta` | `object` | Nested metadata object (see below). |
+| `meta` | `object` | The game's `.info`, reshaped to your contract and with `Title` adjusted for display (see [meta.Info](#metainfo)). |
 | `vpinplay` | `object\|null` | Cached VPinPlay cumulative rating payload for the game, or `null` until fetched/unavailable. |
 
 > **Note:** You typically don't use the path properties directly. Use `vpin.getImageURL()`, `vpin.getVideoURL()`, and `vpin.getAudioURL()` which convert these paths to HTTP URLs. Direct access to path properties is useful for checking existence (e.g., `if (game.PlayfieldVideoPath)` to decide whether to show video or image).
 
 ### meta.Info
 
-VPSdb and user-edited metadata:
+VPSdb and user-edited metadata.
+
+`meta` is the game's `.info`, but not a raw copy of it: `Title` is adjusted for display
+before you see it, and the sections are reshaped to your contract. It also carries any
+section VPinFE does not own, because the `.info` is written back with unknown sections
+preserved.
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `Title` | `string` | Game display name. |
+| `Title` | `string` | Game display name. **Not the stored title.** A user-set alternate title replaces it, and otherwise a leading "The " is moved to the end so themes sort by the second word — "The Addams Family" arrives as "Addams Family, The". Read `vpin.getGameMeta(index)` for display; do not treat it as the value on disk. |
 | `Manufacturer` | `string` | Game manufacturer (e.g., "Williams", "Bally"). |
 | `Year` | `string` | Year of manufacture. |
 | `Type` | `string` | Game type code: `"SS"` (Solid State), `"EM"` (Electro Mechanical), `"PM"` (Pure Mechanical). |
