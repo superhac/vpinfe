@@ -45,7 +45,7 @@ def open_import_game_dialog(perform_scan_cb=None):
     with dlg, ui.card().classes('w-[850px] max-w-[95vw]').style(
         'position: relative; max-height: 90vh; overflow-y: auto;'
     ):
-        ui.label('Import Table').classes('text-xl font-bold').style('color: var(--ink);')
+        ui.label('Import Game').classes('text-xl font-bold').style('color: var(--ink);')
         ui.separator()
 
         # --- Step 1: VPS Search & Selection ---

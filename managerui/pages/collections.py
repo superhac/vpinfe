@@ -48,7 +48,7 @@ def render_panel(tab=None):
                     ui.icon('collections_bookmark', size='32px').classes('text-white').style('filter: drop-shadow(var(--glow-purple));')
                     ui.label('Collections Manager').classes('text-2xl font-bold text-white').style('text-shadow: var(--glow-purple);')
                 with ui.row().classes('gap-3'):
-                    add_game_collection_btn = ui.button("New Table Collection", icon="add").props("color=primary rounded")
+                    add_game_collection_btn = ui.button("New Game Collection", icon="add").props("color=primary rounded")
                     add_filter_btn = ui.button("New Filter Collection", icon="filter_list").props("color=secondary rounded")
 
         # Collections list container
@@ -267,7 +267,7 @@ def render_panel(tab=None):
             """Dialog to create a new VPS ID-based collection."""
             dlg = ui.dialog().props('persistent max-width=800px')
             with dlg, ui.card().classes('w-[750px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
-                ui.label('New Table Collection').classes('text-xl font-bold text-white')
+                ui.label('New Game Collection').classes('text-xl font-bold text-white')
                 ui.separator()
 
                 name_input = ui.input('Collection Name', placeholder='My Favorites').classes('w-full mt-4')

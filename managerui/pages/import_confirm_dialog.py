@@ -122,7 +122,7 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
                 ui.label(f"from {title_source}").classes("text-xs").style("color: var(--ink-muted);")
 
         if plan.new_game_dir_name:
-            name_input = ui.input("New table folder", value=plan.new_game_dir_name).props("outlined dense").classes("w-full")
+            name_input = ui.input("New game folder", value=plan.new_game_dir_name).props("outlined dense").classes("w-full")
 
             def _on_name_edit(e) -> None:
                 value = e.args if isinstance(e.args, str) else name_input.value
