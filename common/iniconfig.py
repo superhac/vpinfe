@@ -7,6 +7,14 @@ import string
 
 logger = logging.getLogger("vpinfe.common.iniconfig")
 
+# (from, to, key) for options that changed section. Applied on every read, so an ini
+# written by any earlier build lands in the right place.
+_MOVED_OPTIONS = (
+	('Settings', 'Displays', 'cabmode'),
+	('Settings', 'DOF', 'enabledof'),
+	('Displays', 'Settings', 'splashscreen'),
+)
+
 
 def _generate_machine_id(length: int = 64) -> str:
 	alphabet = string.ascii_letters + string.digits
@@ -28,6 +36,21 @@ _RENAMED_KEYS = (
 )
 
 class IniConfig:
+
+	def _move_option(self, old_section, new_section, key) -> bool:
+		"""Move one option to the section it lives in now, keeping the user's value.
+
+		The destination section may not exist yet: this runs before the defaults are
+		filled in, and filling them in is what creates sections.
+		"""
+		if not self.config.has_option(old_section, key):
+			return False
+		if not self.config.has_section(new_section):
+			self.config.add_section(new_section)
+		if not self.config.has_option(new_section, key):
+			self.config.set(new_section, key, self.config.get(old_section, key))
+		self.config.remove_option(old_section, key)
+		return True
 
 	def __init__(self, configfilepath):
 		
@@ -156,18 +179,23 @@ class IniConfig:
 		self.config.read(configfilepath)
 		changed = False
 
-		# The vocabulary rename, BEFORE defaults are filled in: once a default
-		# exists for the new key, "copy only if absent" copies nothing and the
-		# user's real value is dropped when the old key is removed.
-		# The vocabulary rename: a table folder is a game, and the table screen is the
-		# playfield. Read the old key once and write the new one, so an existing
-		# vpinfe.ini keeps working and is corrected in place on first load.
+		# Both of these run BEFORE the defaults are filled in. Each copies only when the
+		# target key is absent, and these keys have defaults - so with a default already
+		# written the guard finds one, copies nothing, and remove_option then drops what
+		# the user actually set. cabmode and enabledof shipped doing exactly that.
+
+		# A table folder is a game, and the table screen is the playfield. Read the old
+		# key once and write the new one, so an existing vpinfe.ini is corrected in place.
 		for section, old, new in _RENAMED_KEYS:
 			if self.config.has_option(section, old):
 				if not self.config.has_option(section, new):
 					self.config.set(section, new, self.config.get(section, old))
 				self.config.remove_option(section, old)
 				changed = True
+
+		# Options that changed section rather than name.
+		for old_section, new_section, key in _MOVED_OPTIONS:
+			changed |= self._move_option(old_section, new_section, key)
 
 		# Add any missing default options
 		for section, defaults in self.defaults.items():
@@ -178,27 +206,6 @@ class IniConfig:
 				if not self.config.has_option(section, key):
 					self.config.set(section, key, value)
 					changed = True
-
-		# Migrate cabmode from [Settings] to [Displays] if present.
-		if self.config.has_option('Settings', 'cabmode'):
-			if not self.config.has_option('Displays', 'cabmode'):
-				self.config.set('Displays', 'cabmode', self.config.get('Settings', 'cabmode'))
-			self.config.remove_option('Settings', 'cabmode')
-			changed = True
-
-		# Migrate enabledof from [Settings] to [DOF] if present.
-		if self.config.has_option('Settings', 'enabledof'):
-			if not self.config.has_option('DOF', 'enabledof'):
-				self.config.set('DOF', 'enabledof', self.config.get('Settings', 'enabledof'))
-			self.config.remove_option('Settings', 'enabledof')
-			changed = True
-
-		# Migrate splashscreen from [Displays] to [Settings] if present.
-		if self.config.has_option('Displays', 'splashscreen'):
-			if not self.config.has_option('Settings', 'splashscreen'):
-				self.config.set('Settings', 'splashscreen', self.config.get('Displays', 'splashscreen'))
-			self.config.remove_option('Displays', 'splashscreen')
-			changed = True
 
 		# Remove legacy Logger.file option; logs always go to the standard config dir file.
 		if self.config.has_option('Logger', 'file'):
