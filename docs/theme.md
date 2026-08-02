@@ -9,8 +9,8 @@ Themes interact with the backend through `vpinfe-core.js`, so theme code calls `
 VPinFE runs up to 3 browser windows, one per monitor:
 
 - `table` — The main screen. Controller for all other screens and input. Handles gamepad/keyboard input and hosts the in-theme menu overlays.
-- `bg` — Backglass screen. Receives events from the table window.
-- `dmd` — DMD screen (not a "real DMD" like ZeDMD). Receives events from the table window.
+- `bg` — Backglass screen. Receives events from the `table` window.
+- `dmd` — DMD screen (not a "real DMD" like ZeDMD). Receives events from the `table` window.
 
 Each window has its own webpage but shares an instance of the VPinFE API ([frontend/api.py](https://github.com/superhac/vpinfe/blob/master/frontend/api.py)), accessed via [vpinfe-core.js](#vpinfe-corejs).
 
@@ -68,13 +68,13 @@ They are different questions and they move independently.
 
 ### Theme contract
 
-VPinFE serves the table payload in the shape your theme declares, so a theme keeps working
+VPinFE serves the game payload in the shape your theme declares, so a theme keeps working
 when the data behind it is reshaped.
 
 | Contract | What the payload looks like |
 |---|---|
-| `1` (default) | `meta.VPXFile` holds the table's game file, with `filename`, `manufacturer`, `year`, `type`, the `detect*` flags and `altSoundExists` / `altColorExists` / `pupPackExists`. `meta.Info` carries `Rom` and `Authors`. `meta.VPinFE` holds VPinFE's own settings. |
-| `2` | `meta.game_files` holds every `.vpx` in the folder, keyed by filename — a folder can hold several and each answers for itself. `meta.vpinfe` replaces `meta.VPinFE`. `Rom` and `Authors` live on the game file, not on `Info`. `meta.assets` records where files came from. |
+| `1` (default) | `meta.VPXFile` holds the game's default table, with `filename`, `manufacturer`, `year`, `type`, the `detect*` flags and `altSoundExists` / `altColorExists` / `pupPackExists`. `meta.Info` carries `Rom` and `Authors`. `meta.VPinFE` holds VPinFE's own settings. |
+| `2` | `meta.tables` holds every `.vpx` in the folder, keyed by filename — a folder can hold several and each answers for itself. `meta.vpinfe` replaces `meta.VPinFE`. `Rom` and `Authors` live on the table, not on `Info`. `meta.assets` records where files came from. |
 
 **You do not need to bump `contract` when VPinFE adds things.** New media kinds, new fields
 and new `vpin.*` methods are visible at every contract — check for what you want and use it
@@ -159,18 +159,18 @@ Your theme's own `style.css` and `theme.js` can be named whatever you want.
 
 | Element | Purpose |
 |---------|---------|
-| `<div id="fadeContainer">` | Wrap your content for fade-to-black transitions on table launch/return. Style with `transition: opacity` in CSS. |
+| `<div id="fadeContainer">` | Wrap your content for fade-to-black transitions on game launch/return. Style with `transition: opacity` in CSS. |
 | `<div id="fadeOverlay">` | Alternative fade pattern: a fixed full-screen black overlay that fades in/out via a CSS class (e.g., `.show { opacity: 1 }`). |
-| `<div id="remote-launch-overlay">` | Overlay shown when the manager UI triggers a remote table launch. Include `<div id="remote-launch-table-name">` inside for the table name. |
+| `<div id="remote-launch-overlay">` | Overlay shown when the manager UI triggers a remote game launch. Include `<div id="remote-launch-table-name">` inside for the game name. |
 
-### Table Rotation, Cab Mode, And Menu Overlays
+### Playfield Rotation, Cab Mode, And Menu Overlays
 
-If your theme supports cabinets or portrait-style table layouts, build that into the `table` window deliberately. In practice, the `table` window is usually the only screen that needs rotation-aware layout changes. `bg` and `dmd` often stay unrotated.
+If your theme supports cabinets or portrait-style playfield layouts, build that into the `table` window deliberately. In practice, the `table` window is usually the only screen that needs rotation-aware layout changes. `bg` and `dmd` often stay unrotated.
 
 There are two different rotation concepts to keep separate:
 
 - **OS monitor orientation**: If the user sets the playfield monitor to Portrait in the operating system, Chromium receives a portrait-shaped window. For example, CSS `100vw` is the narrow edge and `100vh` is the long edge.
-- **VPinFE table rotation**: `[Displays] playfieldrotation` is exposed to themes as `vpin.playfieldRotation` and `get_playfield_rotation`. This tells the theme how to rotate its playfield UI inside that Chromium window.
+- **VPinFE playfield rotation**: `[Displays] playfieldrotation` is exposed to themes as `vpin.playfieldRotation` and `get_playfield_rotation`. This tells the theme how to rotate its playfield UI inside that Chromium window.
 
 VPinFE does not automatically rotate arbitrary theme markup. The backend launches Chromium on the configured monitor and `vpinfe-core.js` loads display values during `vpin.ready`; the theme decides how to use those values.
 
@@ -200,11 +200,11 @@ const normalizedRotation = ((playfieldRotation % 360) + 360) % 360;
 When adapting an existing landscape theme to OS-level Portrait mode, decide separately how each layer should behave:
 
 - The page/layout surface may need to rotate as a whole, like Basic Cab.
-- A portrait-aware layout may stay upright while only table media is corrected.
+- A portrait-aware layout may stay upright while only playfield media is corrected.
 - Table media (`table.png` / `table.mp4`) may need its own per-theme correction even when the surrounding page is right. Do this in the table media element only, not in `bg` or `dmd`.
-- Avoid guessing from screenshots alone whether the media needs a mirror. If table text is backwards, that is a flip/mirror problem. If the apron/top are on the wrong end but text is still readable, that is a rotation problem.
+- Avoid guessing from screenshots alone whether the media needs a mirror. If playfield text is backwards, that is a flip/mirror problem. If the apron/top are on the wrong end but text is still readable, that is a rotation problem.
 
-For themes that correct table media separately, keep the media transform isolated and size rotated media from the untransformed layout box, not from `getBoundingClientRect()` after parent transforms:
+For themes that correct playfield media separately, keep the media transform isolated and size rotated media from the untransformed layout box, not from `getBoundingClientRect()` after parent transforms:
 
 ```javascript
 function sizeRotatedTableMedia(mediaEl) {
@@ -219,21 +219,21 @@ function sizeRotatedTableMedia(mediaEl) {
 }
 ```
 
-`getBoundingClientRect()` includes CSS transforms from rotated parents. That makes it easy to feed already-rotated visual dimensions back into your media sizing and produce narrow, clipped, or badly scaled table images.
+`getBoundingClientRect()` includes CSS transforms from rotated parents. That makes it easy to feed already-rotated visual dimensions back into your media sizing and produce narrow, clipped, or badly scaled playfield images.
 
 Good questions to answer up front when starting a new theme:
 
 - Should the theme declare `type: "cab"` or `type: "both"`?
 - Should portrait mode use a different layout, or just rotate the landscape one?
-- Should only the main table UI rotate, or should table-only overlays rotate too?
-- Is the table media orientation tied to the whole page surface, or does it need a theme-specific correction?
+- Should only the main playfield UI rotate, or should playfield-only overlays rotate too?
+- Is the playfield media orientation tied to the whole page surface, or does it need a theme-specific correction?
 
 #### Basic Cab portrait pattern
 
 The Basic Cab theme works on an OS-level Portrait playfield by treating the page as layers:
 
-- `#fadeContainer` contains the table UI and media.
-- `#remote-launch-overlay` is rotated with the table UI so launch feedback appears in the same orientation.
+- `#fadeContainer` contains the playfield UI and media.
+- `#remote-launch-overlay` is rotated with the playfield UI so launch feedback appears in the same orientation.
 - `#overlay-root` stays as the injected menu host, but a child wrapper (`#menu-overlay-container`) catches the menu iframes and applies menu-specific rotation.
 
 The key trick is that a 90-degree or 270-degree rotated surface must swap its CSS dimensions before rotation:
@@ -259,13 +259,13 @@ const rotatedHeight = swapAxes ? "100vw" : "100vh";
 
 Without the width/height swap, the rotated landscape surface is clipped inside the portrait browser window. With the swap, the theme gets a full-size virtual playfield surface and then rotates it into the monitor.
 
-One easy thing to miss: the built-in menus are injected into `#overlay-root`, not inside your main theme container. If you rotate only your main table wrapper, the menus will still appear unrotated.
+One easy thing to miss: the built-in menus are injected into `#overlay-root`, not inside your main theme container. If you rotate only your main playfield wrapper, the menus will still appear unrotated.
 
 In other words:
 
-- Rotating your table wrapper rotates your theme content
+- Rotating your playfield wrapper rotates your theme content
 - Rotating `#overlay-root` rotates `mainmenu.html` and `collectionmenu.html`
-- If you only do the first one, rotated table themes will have mismatched menus
+- If you only do the first one, rotated playfield themes will have mismatched menus
 
 Basic Cab handles this by keeping `#overlay-root` aligned to the same virtual surface and moving injected children into a stable wrapper:
 
@@ -326,7 +326,7 @@ if (menuOverlay) {
 }
 ```
 
-`menuRotation` is theme-specific. Basic Cab uses a separate menu rotation because its table UI, wheel art, and metadata panel are already designed for cabinet viewing, while the injected menus have their own landscape assumptions. When extending this to another theme, copy the layer structure and dimension swap first, then tune `menuRotation` until the main and collection menus read correctly on the cabinet.
+`menuRotation` is theme-specific. Basic Cab uses a separate menu rotation because its playfield UI, wheel art, and metadata panel are already designed for cabinet viewing, while the injected menus have their own landscape assumptions. When extending this to another theme, copy the layer structure and dimension swap first, then tune `menuRotation` until the main and collection menus read correctly on the cabinet.
 
 For more advanced themes, it helps to think in layers:
 
@@ -556,13 +556,13 @@ async function receiveEvent(message) {
         await fadeOut();
     }
     else if (message.type == "GameRunning") {
-        // Table has finished loading and is now running
+        // Game has finished loading and is now running
     }
     else if (message.type == "GameLaunchComplete") {
         fadeIn();
     }
     else if (message.type == "RemoteLaunching") {
-        // Remote launch from manager UI - message.table_name has the table name
+        // Remote launch from manager UI - message.table_name has the game name
         showRemoteLaunchOverlay(message.table_name);
         await fadeOut();
     }
@@ -609,7 +609,7 @@ async function handleInput(input) {
 
 function updateScreen() {
     if (windowName === "table") {
-        // Update table window: images, carousel, info, audio
+        // Update the table window: images, carousel, info, audio
         vpin.playGameAudio(currentGameIndex);
     } else if (windowName === "bg") {
         // Update backglass image
@@ -618,7 +618,7 @@ function updateScreen() {
     }
 }
 
-// circular table index helper
+// circular game index helper
 function wrapIndex(index, length) {
     return (index + length) % length;
 }
@@ -643,7 +643,7 @@ function showRemoteLaunchOverlay(gameName) {
     const overlay = document.getElementById('remote-launch-overlay');
     const nameEl = document.getElementById('remote-launch-table-name');
     if (overlay && nameEl) {
-        nameEl.textContent = gameName || 'Unknown Table';
+        nameEl.textContent = gameName || 'Unknown Game';
         overlay.style.display = 'flex';
     }
 }
@@ -658,13 +658,13 @@ function hideRemoteLaunchOverlay() {
 
 > **Important:** Set `window.vpin = vpin` so the in-theme menu system can call back into your VPinFECore instance.
 
-### Strong Recommendation: Keep The Table DOM Persistent
+### Strong Recommendation: Keep The Playfield DOM Persistent
 
-For anything beyond a very simple theme, especially carousel-style table screens, avoid rebuilding the entire table window DOM on every table change.
+For anything beyond a very simple theme, especially carousel-style playfield screens, avoid rebuilding the entire `table` window DOM on every game change.
 
 A much smoother pattern is:
 
-1. Create the table view scaffold once
+1. Create the playfield view scaffold once
 2. Keep references to the important nodes
 3. Update wheel art, title text, media, and tags in place
 4. Only swap the specific media layer or text nodes that actually changed
@@ -684,13 +684,13 @@ The fastest-looking theme is usually the one doing the least work during browsin
 
 Things that helped in practice:
 
-- preload nearby media such as the current, previous, and next table images
+- preload nearby media such as the current, previous, and next game images
 - prefer updating existing `<img>` / `<video>` nodes or swapping a small media layer instead of rerendering the whole screen
 - keep fades simple; a plain crossfade is usually smoother than blur-heavy "dissolve" effects
 - be careful with simultaneous animation systems; CSS transitions plus a JS animation library or canvas effects can stack up quickly
 - if wheel browsing feels sluggish, test without heavy motion libraries first
 
-For table video specifically, image-first browsing with delayed video start is often smoother than immediately starting video while the user is rapidly scrolling.
+For playfield video specifically, image-first browsing with delayed video start is often smoother than immediately starting video while the user is rapidly scrolling.
 
 ### Carousel Motion Guidance
 
@@ -708,17 +708,17 @@ Events are sent between windows via `receiveEvent()`. These are the built-in eve
 
 | Event Type | Properties | Description |
 |------------|------------|-------------|
-| `GameIndexUpdate` | `index` | User navigated to a different table. Sent by the table window to all others. |
-| `GameLaunching` | — | A table is about to launch. Frontend keyboard/gamepad routing is suspended until `GameLaunchComplete`; use this to fade out, stop audio, etc. |
-| `GameRunning` | — | The launched table has finished loading and is now running. Sent when the table process outputs "Startup done". |
-| `GameLaunchComplete` | — | The launched table has exited and frontend input routing is restored. Use this to fade back in, resume audio. |
-| `RemoteLaunching` | `table_name` | The manager UI triggered a remote table launch. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. |
-| `RemoteLaunchComplete` | — | The remote-launched table has exited and frontend input routing is restored. Hide the overlay. |
-| `GameDataChange` | `index`, `collection?`, `filters?`, `sort?` | Table data changed (collection switch, filter/sort update). Handled automatically by `vpin.handleEvent()`. |
+| `GameIndexUpdate` | `index` | User navigated to a different game. Sent by the `table` window to all others. |
+| `GameLaunching` | — | A game is about to launch. Frontend keyboard/gamepad routing is suspended until `GameLaunchComplete`; use this to fade out, stop audio, etc. |
+| `GameRunning` | — | The launched game has finished loading and is now running. Sent when the table process outputs "Startup done". |
+| `GameLaunchComplete` | — | The launched game has exited and frontend input routing is restored. Use this to fade back in, resume audio. |
+| `RemoteLaunching` | `table_name` | The manager UI triggered a remote game launch. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. |
+| `RemoteLaunchComplete` | — | The remote-launched game has exited and frontend input routing is restored. Hide the overlay. |
+| `GameDataChange` | `index`, `collection?`, `filters?`, `sort?` | Game data changed (collection switch, filter/sort update). Handled automatically by `vpin.handleEvent()`. |
 
 You can also define custom event types and send them with `vpin.sendMessageToAllWindows()`.
 
-### Loading Overlay During Table Launch
+### Loading Overlay During Game Launch
 
 Themes can show a loading image or animation while VPX is starting. Use the built-in launch lifecycle instead of guessing with timers:
 
@@ -794,11 +794,11 @@ async function receiveEvent(message) {
 }
 ```
 
-If the table window launches the table from local input, remember that `vpin.sendMessageToAllWindows(...)` excludes the sender. Call `showTableLoadingOverlay()` directly in the local `joyselect` path before `await vpin.launchGame(...)`, or send the event with `vpin.sendMessageToAllWindowsIncSelf(...)`.
+If the `table` window launches the game from local input, remember that `vpin.sendMessageToAllWindows(...)` excludes the sender. Call `showTableLoadingOverlay()` directly in the local `joyselect` path before `await vpin.launchGame(...)`, or send the event with `vpin.sendMessageToAllWindowsIncSelf(...)`.
 
-### Attract Mode During Table Launch
+### Attract Mode During Game Launch
 
-If your theme implements attract mode, treat table launch as a hard suspension boundary. Clearing the current timer is not enough, because user-activity listeners, menu events, or `GameRunning` handling can accidentally schedule a new idle timer while VPX is still open.
+If your theme implements attract mode, treat game launch as a hard suspension boundary. Clearing the current timer is not enough, because user-activity listeners, menu events, or `GameRunning` handling can accidentally schedule a new idle timer while VPX is still open.
 
 Use a separate launch/remote-launch suspension flag:
 
@@ -851,7 +851,7 @@ async function receiveEvent(message) {
 
 ### Input Actions
 
-The following input actions are passed to your `handleInput` function (table window only):
+The following input actions are passed to your `handleInput` function (`table` window only):
 
 | Action | Gamepad | Keyboard |
 |--------|---------|----------|
@@ -871,7 +871,7 @@ The following actions are handled internally by VPinFECore and do **not** reach 
 | `joycollectionmenu` | Mapped button | `[Input] keycollectionmenu` (default `c`) | Toggles the collection menu overlay |
 | `joytutorial` | Mapped button | `[Input] keytutorial` (default `t`) | Toggles the Pinball Primer tutorial overlay |
 | `joyexit` | Mapped button | `[Input] keyexit` (default `Escape,q`) | Closes the application |
-| `joypageup` / `joypagedown` | Mapped button | `[Input] keypageup`/`keypagedown` (defaults `PageUp`/`PageDown`) | Pages the table wheel (see below) |
+| `joypageup` / `joypagedown` | Mapped button | `[Input] keypageup`/`keypagedown` (defaults `PageUp`/`PageDown`) | Pages the game wheel (see below) |
 
 #### Wheel Paging
 
@@ -884,9 +884,9 @@ The user controls the behavior with two `[Input]` settings in `vpinfe.ini`:
 
 - `pagingtype` — `alpha` (default) jumps to the next/previous letter of the current
   Alpha sort (numbers and symbols share one `#` group); `numeric` jumps by a fixed
-  number of tables. Alpha paging falls back to numeric when the active sort isn't
+  number of games. Alpha paging falls back to numeric when the active sort isn't
   `Alpha` or the list is all one letter.
-- `pagingsize` — how many tables a numeric jump moves (default `10`). All paging wraps
+- `pagingsize` — how many games a numeric jump moves (default `10`). All paging wraps
   around.
 
 A theme that wants its own paging behavior calls `vpin.enableCorePaging(false)`;
@@ -911,10 +911,10 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `vpin.gameData` | `array` | The current (possibly filtered) table list. Each element is a table object (see [Table Data Object](#table-data-object)). |
+| `vpin.gameData` | `array` | The current (possibly filtered) game list. Each element is a game object (see [Game Data Object](#game-data-object)). |
 | `vpin.monitors` | `array` | List of monitor objects with `name`, `x`, `y`, `width`, `height`. Loaded during init. |
-| `vpin.playfieldOrientation` | `string` | Table playfield orientation from config: `"landscape"` or `"portrait"`. |
-| `vpin.playfieldRotation` | `number` | Table playfield rotation in degrees from config (default `0`). |
+| `vpin.playfieldOrientation` | `string` | Playfield orientation from config: `"landscape"` or `"portrait"`. |
+| `vpin.playfieldRotation` | `number` | Playfield rotation in degrees from config (default `0`). |
 | `vpin.themeAssetsPort` | `number` | HTTP server port (default `8000`). |
 | `vpin.menuUP` | `boolean` | Whether the main menu overlay is currently visible. |
 | `vpin.collectionMenuUP` | `boolean` | Whether the collection menu overlay is currently visible. |
@@ -953,12 +953,12 @@ The following methods are available via `vpin.call()`:
 | `get_monitors` | — | `array` | Returns list of monitor objects with `name`, `x`, `y`, `width`, `height`. |
 | `console_out` | `output` | `string` | Prints a message to the Python CLI console. Useful for debugging. Returns the same string. |
 
-##### Table Data
+##### Game Data
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `get_games` | `reset=false` | `string` (JSON) | Returns JSON string of the current (filtered) table list. Pass `true` to reset to the full unfiltered list. Each table object includes paths, media paths, addon flags, and metadata. |
-| `launch_game` | `index` | — | Launches the VPX table at the given index. Blocks until the table exits. Automatically tracks play in the "Last Played" collection. Sends `GameLaunching` before launch, `GameRunning` when the table finishes loading, and `GameLaunchComplete` when it exits. |
+| `get_games` | `reset=false` | `string` (JSON) | Returns JSON string of the current (filtered) game list. Pass `true` to reset to the full unfiltered list. Each game object includes paths, media paths, addon flags, and metadata. |
+| `launch_game` | `index` | — | Launches the game at the given index. Blocks until the table exits. Automatically tracks play in the "Last Played" collection. Sends `GameLaunching` before launch, `GameRunning` when the table finishes loading, and `GameLaunchComplete` when it exits. |
 | `build_metadata` | `download_media=true`, `update_all=false` | `object` | Triggers a background metadata build/refresh. Sends progress events (`buildmeta_progress`, `buildmeta_log`, `buildmeta_complete`, `buildmeta_error`) to all windows. Returns `{success, message}`. |
 
 ##### Collections
@@ -968,7 +968,7 @@ The following methods are available via `vpin.call()`:
 | `get_collections` | — | `array` | Returns list of collection names from `collections.ini`. |
 | `get_collections_metadata` | — | `array` | Returns collection objects with `name`, `type`, `is_filter`, `image`, `image_url`, and `table_count`. `image_url` is a theme-server URL such as `/collection_icons/favorites.png`, or an empty string when no image is set. |
 | `get_collection_image_url` | `collection` | `string` | Returns the image URL for one collection, or an empty string when no image is set. |
-| `set_games_by_collection` | `collection` | — | Filters the table list by the named collection. Supports both VPS ID-based and filter-based collections. |
+| `set_games_by_collection` | `collection` | — | Filters the game list by the named collection. Supports both VPS ID-based and filter-based collections. |
 | `save_filter_collection` | `name`, `letter`, `theme`, `table_type`, `manufacturer`, `year`, `sort_by`, `rating`, `rating_or_higher`, `order_by` | `object` | Saves the current filter settings as a named collection. `order_by` is `"Descending"` or `"Ascending"` and defaults to `"Descending"`. Returns `{success, message}`. |
 | `get_current_collection` | — | `string` | Returns the name of the currently active collection, or `"None"`. |
 
@@ -977,16 +977,16 @@ The following methods are available via `vpin.call()`:
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
 | `apply_filters` | `letter`, `theme`, `table_type`, `manufacturer`, `year`, `rating`, `rating_or_higher` | `number` | Applies VPSdb filters to the full table list. Each arg is optional (pass `null` to keep current). Returns the filtered count. |
-| `reset_filters` | — | — | Resets all filters back to the full table list. |
-| `apply_sort` | `sort_type`, `order_by` | `number` | Sorts the current filtered tables. `sort_type` is `"Alpha"`, `"Newest"`, `"LastRun"`, `"Highest StartCount"`, or `"RunTime"`; `order_by` is `"Descending"` or `"Ascending"`. Returns the count. |
+| `reset_filters` | — | — | Resets all filters back to the full game list. |
+| `apply_sort` | `sort_type`, `order_by` | `number` | Sorts the current filtered games. `sort_type` is `"Alpha"`, `"Newest"`, `"LastRun"`, `"Highest StartCount"`, or `"RunTime"`; `order_by` is `"Descending"` or `"Ascending"`. Returns the count. |
 | `get_current_filter_state` | — | `object` | Returns the current filter state: `{letter, theme, type, manufacturer, year, rating, rating_or_higher}`. |
 | `get_current_sort_state` | — | `string` | Returns the current sort type. |
 | `get_current_order_state` | — | `string` | Returns the current sort order (`"Descending"` or `"Ascending"`). |
-| `get_filter_letters` | — | `array` | Returns available starting letters from all tables (for filter UI). |
-| `get_filter_themes` | — | `array` | Returns available themes/categories from all tables. |
-| `get_filter_types` | — | `array` | Returns available table types (SS, EM, PM, etc.) from all tables. |
-| `get_filter_manufacturers` | — | `array` | Returns available manufacturers from all tables. |
-| `get_filter_years` | — | `array` | Returns available years from all tables. |
+| `get_filter_letters` | — | `array` | Returns available starting letters from all games (for filter UI). |
+| `get_filter_themes` | — | `array` | Returns available themes/categories from all games. |
+| `get_filter_types` | — | `array` | Returns available game types (SS, EM, PM, etc.) from all games. |
+| `get_filter_manufacturers` | — | `array` | Returns available manufacturers from all games. |
+| `get_filter_years` | — | `array` | Returns available years from all games. |
 
 ##### Events & Messaging
 
@@ -1013,8 +1013,8 @@ The following methods are available via `vpin.call()`:
 | `get_theme_config` | — | `object\|null` | Loads and returns the theme's current configuration values. When a theme provides `theme.json`, VPinFE flattens the option `value` fields into the object returned to theme code. |
 | `get_theme_assets_port` | — | `number` | Returns the HTTP server port (default `8000`). |
 | `get_theme_index_page` | — | `string` | Returns the full URL for this window's theme index page. |
-| `get_playfield_orientation` | — | `string` | Returns the table orientation from config (`"landscape"` or `"portrait"`). |
-| `get_playfield_rotation` | — | `number` | Returns the table rotation angle in degrees from config (default `0`). |
+| `get_playfield_orientation` | — | `string` | Returns the playfield orientation from config (`"landscape"` or `"portrait"`). |
+| `get_playfield_rotation` | — | `number` | Returns the playfield rotation angle in degrees from config (default `0`). |
 
 ##### URL Query Parameters
 
@@ -1055,7 +1055,7 @@ If `override` is present, themes that position or scale BG/DMD content based on 
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `playGameAudio` | `indexOrUrl`, `retries=3` | — | Plays table audio using VPinFECore's centralized audio manager. Pass a table index (recommended) or URL string. |
+| `playGameAudio` | `indexOrUrl`, `retries=3` | — | Plays game audio using VPinFECore's centralized audio manager. Pass a game index (recommended) or URL string. |
 | `stopGameAudio` | `options={}` | — | Stops audio via centralized manager. Supports fade-out; pass `{ immediate: true }` for an immediate stop. |
 | `enableCoreAudio` | `enabled=true` | — | Enables or disables centralized audio handling for the current window. Core audio is opt-in by default unless enabled in theme config. |
 | `isCoreAudioEnabled` | — | `boolean` | Returns whether centralized audio handling is currently enabled. |
@@ -1074,13 +1074,13 @@ Returns an HTTP URL using the user's configured media priority from Manager UI >
 Returns the same priority-aware selection with metadata: `{ url, kind, priority, path }`. Real DMD selections also include `variant` with `"color"` or `"standard"`.
 
 #### getAudioURL(index)
-Returns an HTTP URL for a table's audio file, or `null` if no audio exists. See [Audio Support](#audio-support).
+Returns an HTTP URL for a game's audio file, or `null` if no audio exists. See [Audio Support](#audio-support).
 
 #### getManufacturerLogoURL(index)
-Returns an HTTP URL for the table manufacturer's logo, or `null` if none is installed. Logos live in the shared assets folder (`[Settings] assetsdir`, `manufacturers/` subfolder) and are matched to the table's `Info.Manufacturer` metadata, so "Williams Electronics" and "Williams" find the same file. Always handle `null` — a fresh install has no logos.
+Returns an HTTP URL for the game manufacturer's logo, or `null` if none is installed. Logos live in the shared assets folder (`[Settings] assetsdir`, `manufacturers/` subfolder) and are matched to the game's `Info.Manufacturer` metadata, so "Williams Electronics" and "Williams" find the same file. Always handle `null` — a fresh install has no logos.
 
 #### playGameAudio(indexOrUrl, retries=3)
-Plays table audio via VPinFECore's centralized audio manager. Normally you pass `currentGameIndex`; passing a URL string is also supported.
+Plays game audio via VPinFECore's centralized audio manager. Normally you pass `currentGameIndex`; passing a URL string is also supported.
 
 #### stopGameAudio(options={})
 Stops centralized audio playback. Default behavior is fade-out, or pass `{ immediate: true }` for an immediate stop.
@@ -1104,10 +1104,10 @@ Returns `true` when core-handled wheel paging is enabled.
 Asks the backend where a page press should land and returns the target index. Convenience wrapper around the `get_page_index` API method for themes doing their own paging animation.
 
 #### getGameMeta(index)
-Returns the full table object for a given table index. This is the same object as `vpin.gameData[index]`. See [Table Data Object](#table-data-object).
+Returns the full game object for a given game index. This is the same object as `vpin.gameData[index]`. See [Game Data Object](#game-data-object).
 
 #### getGameCount()
-Returns the number of tables in the current (possibly filtered) table list.
+Returns the number of games in the current (possibly filtered) game list.
 
 #### sendMessageToAllWindows(message)
 Sends an event to all windows except the current one. Convenience wrapper around `vpin.call("send_event_all_windows", message)`.
@@ -1116,10 +1116,10 @@ Sends an event to all windows except the current one. Convenience wrapper around
 Sends an event to all windows including the current one and forwarding to iframes.
 
 #### launchGame(index)
-Suspends frontend keyboard/gamepad routing, calls backend to launch the selected table, then restores input after the launch lifecycle completes. The launch lifecycle is `GameLaunching` before the process starts, `GameRunning` when the table finishes loading, and `GameLaunchComplete` when it exits.
+Suspends frontend keyboard/gamepad routing, calls backend to launch the selected game, then restores input after the launch lifecycle completes. The launch lifecycle is `GameLaunching` before the process starts, `GameRunning` when the table finishes loading, and `GameLaunchComplete` when it exits.
 
 #### getGameData(reset=false)
-Loads table data from the backend into `vpin.gameData`. Pass `reset=true` to reload from the full unfiltered table list.
+Loads game data from the backend into `vpin.gameData`. Pass `reset=true` to reload from the full unfiltered game list.
 
 #### handleEvent(message)
 Handles incoming events with built-in logic for:
@@ -1133,7 +1133,7 @@ Registers a custom event handler for a specific event type. The handler is calle
 
 ---
 
-## Table Data Object
+## Game Data Object
 
 Each element in `vpin.gameData` (and the return of `vpin.getGameMeta(index)`) is an object with the following structure:
 
@@ -1141,7 +1141,7 @@ Each element in `vpin.gameData` (and the return of `vpin.getGameMeta(index)`) is
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `gameDirName` | `string` | The table's directory name. |
+| `gameDirName` | `string` | The game's directory name. |
 | `PlayfieldImagePath` | `string\|null` | Local path to the table playfield image (`table.png` or `fss.png`). |
 | `BGImagePath` | `string\|null` | Local path to the backglass image (`bg.png`). |
 | `DMDImagePath` | `string\|null` | Local path to the DMD image (`dmd.png`). |
@@ -1159,9 +1159,9 @@ Each element in `vpin.gameData` (and the return of `vpin.getGameMeta(index)`) is
 | `RuleSheetPath` | `string\|null` | Local path to the rulesheet document (`rulesheet.pdf`). |
 | `ManufacturerLogoPath` | `string\|null` | Web path to the manufacturer's logo under `/assets/`; use `vpin.getManufacturerLogoURL(index)`. |
 | `meta` | `object` | Nested metadata object (see below). |
-| `vpinplay` | `object\|null` | Cached VPinPlay cumulative rating payload for the table, or `null` until fetched/unavailable. |
+| `vpinplay` | `object\|null` | Cached VPinPlay cumulative rating payload for the game, or `null` until fetched/unavailable. |
 
-> **Note:** You typically don't use the path properties directly. Use `vpin.getImageURL()`, `vpin.getVideoURL()`, and `vpin.getAudioURL()` which convert these paths to HTTP URLs. Direct access to path properties is useful for checking existence (e.g., `if (table.PlayfieldVideoPath)` to decide whether to show video or image).
+> **Note:** You typically don't use the path properties directly. Use `vpin.getImageURL()`, `vpin.getVideoURL()`, and `vpin.getAudioURL()` which convert these paths to HTTP URLs. Direct access to path properties is useful for checking existence (e.g., `if (game.PlayfieldVideoPath)` to decide whether to show video or image).
 
 ### meta.Info
 
@@ -1169,35 +1169,35 @@ VPSdb and user-edited metadata:
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `Title` | `string` | Table display name. |
-| `Manufacturer` | `string` | Table manufacturer (e.g., "Williams", "Bally"). |
+| `Title` | `string` | Game display name. |
+| `Manufacturer` | `string` | Game manufacturer (e.g., "Williams", "Bally"). |
 | `Year` | `string` | Year of manufacture. |
-| `Type` | `string` | Table type code: `"SS"` (Solid State), `"EM"` (Electro Mechanical), `"PM"` (Pure Mechanical). |
+| `Type` | `string` | Game type code: `"SS"` (Solid State), `"EM"` (Electro Mechanical), `"PM"` (Pure Mechanical). |
 | `Authors` | `array` | List of VPX table author names. |
-| `Theme` | `string` | Table theme/category. |
+| `Theme` | `string` | Game theme/category. |
 
 ### meta.User
 
-Per-user stats and preferences stored in each table's `.info` file:
+Per-user stats and preferences stored in each game's `.info` file:
 
 | Property | Type | Description |
 |----------|------|-------------|
 | `Rating` | `number` | User rating from `0` to `5`. |
 | `Favorite` | `number` | Favorite flag (`0` or `1`). |
 | `LastRun` | `number\|null` | Unix timestamp (seconds) of the last launch, or `null` if never played. |
-| `StartCount` | `number` | Number of times the table has been launched. |
+| `StartCount` | `number` | Number of times the game has been launched. |
 | `RunTime` | `number` | Total accumulated play time in minutes. |
 | `Tags` | `array` | User-defined tags (string list). |
 
-### meta.game_files *(contract 2)*
+### meta.tables *(contract 2)*
 
-Every `.vpx` in the table folder, keyed by filename — a desktop build and a VR build, or a
+Every `.vpx` in the game folder, keyed by filename — a desktop build and a VR build, or a
 table and a patched variant, are peers and each answers for itself. At contract 1 this
 section does not exist; read `meta.VPXFile`, which describes only one.
 
 ```javascript
 const meta = vpin.getGameMeta(currentGameIndex).meta;
-const playable = Object.entries(meta.game_files || {})
+const playable = Object.entries(meta.tables || {})
     .filter(([, entry]) => !entry.hidden);
 ```
 
@@ -1221,17 +1221,17 @@ Detection flags ride on each entry too, as real booleans: `detect_nfozzy`, `dete
 `detect_ssf`, `detect_lut`, `detect_scorbit`, `detect_fastflips`, `detect_flex`,
 `detect_pinmame`. Note the snake_case — contract 1 spells the same flags `detectnfozzy`
 and so on. The addon flags `altSoundExists` / `altColorExists` / `pupPackExists` describe
-the folder rather than one file, so they stay on the table row at both contracts.
+the folder rather than one file, so they stay on the game row at both contracts.
 
-**Which one is "the" game file.** `meta.vpinfe.default_game_file` names it when somebody
+**Which one is "the" table.** `meta.vpinfe.default_table` names it when somebody
 chose; absent means resolve from the folder, which is the normal case. It is what the
-places that must pick exactly one use — an export, a table row, contract 1's `VPXFile`.
-It is *not* "the one to launch": every visible game file is launchable, so filter on
+places that must pick exactly one use — an export, a game row, contract 1's `VPXFile`.
+It is *not* "the one to launch": every visible table is launchable, so filter on
 `hidden` to decide what to offer.
 
 ### meta.VPXFile *(contract 1)*
 
-The table's game file. At contract 2 this section does not exist — read `meta.game_files`
+The game's default table. At contract 2 this section does not exist — read `meta.tables`
 instead, which describes every `.vpx` in the folder rather than only one.
 
 Data extracted from the `.vpx` file itself:
@@ -1284,25 +1284,25 @@ features.forEach(({ key, label }) => {
 });
 ```
 
-### Reading Table Info
+### Reading Game Info
 
-Common pattern for getting display-ready table information. This one is written to work at
-either contract — `VPXFile` is what contract 1 receives, `game_files` what contract 2 does,
+Common pattern for getting display-ready game information. This one is written to work at
+either contract — `VPXFile` is what contract 1 receives, `tables` what contract 2 does,
 and only one of them is ever present:
 
 ```javascript
-const table = vpin.getGameMeta(currentGameIndex);
-const info = table.meta.Info || {};
-const user = table.meta.User || {};
+const game = vpin.getGameMeta(currentGameIndex);
+const info = game.meta.Info || {};
+const user = game.meta.User || {};
 
-// Contract 1 serves meta.VPXFile; contract 2 serves meta.game_files, so pick the
-// chosen entry. Authors and Rom move onto the game file at contract 2.
-const files = table.meta.game_files;
-const chosenName = table.meta.vpinfe?.default_game_file || Object.keys(files || {})[0];
+// Contract 1 serves meta.VPXFile; contract 2 serves meta.tables, so pick the
+// chosen entry. Authors and Rom move onto the table at contract 2.
+const files = game.meta.tables;
+const chosenName = game.meta.vpinfe?.default_table || Object.keys(files || {})[0];
 const vpx = files ? { filename: chosenName, ...(files[chosenName] || {}) }
-                  : (table.meta.VPXFile || {});
+                  : (game.meta.VPXFile || {});
 
-const title = info.Title || vpx.filename || table.gameDirName || 'Unknown Table';
+const title = info.Title || vpx.filename || game.gameDirName || 'Unknown Game';
 const manufacturer = info.Manufacturer || vpx.manufacturer || 'Unknown';
 const year = info.Year || vpx.year || '';
 const authors = Array.isArray(info.Authors) && info.Authors.length ? info.Authors.join(', ')
@@ -1318,7 +1318,7 @@ const ratingCount = vpinplay?.ratingCount ?? 0;
 
 ### VPinPlay Rating
 
-`vpinfe-core.js` can fetch the selected table's VPinPlay cumulative rating from the configured `vpinplay.apiendpoint`.
+`vpinfe-core.js` can fetch the selected game's VPinPlay cumulative rating from the configured `vpinplay.apiendpoint`.
 
 | Method | Returns | Description |
 |--------|---------|-------------|
