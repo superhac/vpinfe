@@ -26,6 +26,25 @@ const MEDIA_PATH_FIELDS = {
 // This file is served to themes of every contract, so it cannot assume which spelling
 // the payload carries: contract 1 receives TableImagePath, contract 2 PlayfieldImagePath.
 // Look up the current key, fall back to the one the projection sends. PAR-22.
+// Window message types are a theme-facing contract: a theme both listens for these and
+// posts them. Pre-3.0 themes use the Table* spelling, so every broadcast goes out under
+// both names and every receipt is normalized to the current one. PAR-24.
+const MESSAGE_TYPE_ALIASES = {
+  GameIndexUpdate: "TableIndexUpdate",
+  GameDataChange: "TableDataChange",
+  GameLaunching: "TableLaunching",
+  GameRunning: "TableRunning",
+  GameLaunchComplete: "TableLaunchComplete",
+};
+
+const MESSAGE_TYPE_CANONICAL = Object.fromEntries(
+  Object.entries(MESSAGE_TYPE_ALIASES).map(([current, legacy]) => [legacy, current]),
+);
+
+function canonicalMessageType(type) {
+  return MESSAGE_TYPE_CANONICAL[type] || type;
+}
+
 const MEDIA_FIELD_FALLBACK = {
   PlayfieldImagePath: "TableImagePath",
   PlayfieldVideoPath: "TableVideoPath",
@@ -455,6 +474,8 @@ class VPinFECore {
     this.#syncLocalIndexFromOutgoingMessage(message);
     this.#syncSelectionFromMessage(message);
     this.call("send_event_all_windows", message);
+    const legacy = MESSAGE_TYPE_ALIASES[message.type];
+    if (legacy) this.call("send_event_all_windows", { ...message, type: legacy });
   }
 
   // send a message to all windows including "self"
@@ -462,6 +483,10 @@ class VPinFECore {
     this.#syncLocalIndexFromOutgoingMessage(message);
     this.#syncSelectionFromMessage(message);
     this.call("send_event_all_windows_incself", message);
+    // A pre-3.0 theme listens for the Table* name and never sees the Game* one, so the
+    // wheel stops responding to its own paging buttons unless both go out.
+    const legacy = MESSAGE_TYPE_ALIASES[message.type];
+    if (legacy) this.call("send_event_all_windows", { ...message, type: legacy });
   }
 
   // Toggle collection menu (public method callable from collection menu)
@@ -558,6 +583,10 @@ class VPinFECore {
   // Handle incoming events from window.receiveEvent
   // This should be called from the theme's receiveEvent function
   async handleEvent(message) {
+    // A theme may post the pre-3.0 spelling; normalize before anything matches on it.
+    if (message && MESSAGE_TYPE_CANONICAL[message.type]) {
+      message = { ...message, type: canonicalMessageType(message.type) };
+    }
     if (typeof message.index === "number") this._currentGameIndex = message.index;
     if (message.type === "AudioMuteChanged") {
       this.setAudioMuted(!!message.muted);
