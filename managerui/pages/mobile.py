@@ -405,7 +405,7 @@ def build(standalone=True):
 
 def _build_vpxz_download_panel():
     loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
-    game_container = ui.column().classes('w-full')
+    table_container = ui.column().classes('w-full')
 
     async def load_games():
         games = await run.io_bound(_scan_games)
@@ -418,7 +418,7 @@ def _build_vpxz_download_panel():
             {'name': 'display_name', 'label': 'Table', 'field': 'display_name', 'align': 'left', 'sortable': True},
         ]
 
-        with game_container:
+        with table_container:
             tbl = ui.table(
                 columns=columns,
                 rows=rows,
@@ -566,7 +566,7 @@ def _build_web_send_panel():
             .props('dense').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
 
     loading = ui.label('Loading tables...').style('color: var(--ink-muted) !important;')
-    game_container = ui.column().classes('w-full')
+    table_container = ui.column().classes('w-full')
 
     # Shared state for the table reference and device folders
     panel_state = {
@@ -722,7 +722,7 @@ def _build_web_send_panel():
             {'name': 'display_name', 'label': 'Table', 'field': 'display_name', 'align': 'left', 'sortable': True},
         ]
 
-        with game_container:
+        with table_container:
             tbl = ui.table(
                 columns=columns,
                 rows=rows,

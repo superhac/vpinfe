@@ -200,7 +200,7 @@ def render_panel():
 
                 page_state['thumb_warm_in_progress'] = True
                 sem = asyncio.Semaphore(4)
-                current_pagination = dict(media_game._props.get('pagination', {}))
+                current_pagination = dict(media_table._props.get('pagination', {}))
 
                 async def _build_one(row: Dict, media_key: str, source_path: str):
                     changed = False
@@ -228,7 +228,7 @@ def render_panel():
                             # Rebuild rows from cache (same path as revisit), but keep current pagination.
                             update_game_display(schedule_warm=False)
                             if current_pagination:
-                                media_game.run_method('setPagination', current_pagination)
+                                media_table.run_method('setPagination', current_pagination)
             finally:
                 page_state['thumb_warm_in_progress'] = False
                 pending_rows = page_state.get('pending_warm_rows')
@@ -241,10 +241,10 @@ def render_panel():
             rows_per_page = max(1, int(pagination_state.get('rowsPerPage', 25) or 25))
             max_page = max(1, (len(filtered) + rows_per_page - 1) // rows_per_page)
             pagination_state['page'] = min(max(1, int(pagination_state.get('page', 1) or 1)), max_page)
-            media_game._props['pagination'] = dict(pagination_state)
-            media_game._props['rows'] = filtered
-            media_game.update()
-            media_game.run_method('setPagination', dict(pagination_state))
+            media_table._props['pagination'] = dict(pagination_state)
+            media_table._props['rows'] = filtered
+            media_table.update()
+            media_table.run_method('setPagination', dict(pagination_state))
             total = len(_media_cache() or [])
             shown = len(filtered)
             if shown == total:
@@ -305,7 +305,7 @@ def render_panel():
             for cb in missing_checkboxes.values():
                 cb.value = False
             pagination_state['page'] = 1
-            media_game._props['pagination'] = dict(pagination_state)
+            media_table._props['pagination'] = dict(pagination_state)
             update_game_display()
 
         def refresh_filter_options():
@@ -346,8 +346,8 @@ def render_panel():
                             refresh_filter_options()
                             update_game_display()
                         except NameError:
-                            media_game._props['rows'] = media_rows
-                            media_game.update()
+                            media_table._props['rows'] = media_rows
+                            media_table.update()
 
                 await asyncio.sleep(0.05)
                 if can_update_ui():
@@ -518,7 +518,7 @@ def render_panel():
                     def make_handler(key):
                         def handler(e: events.ValueChangeEventArguments):
                             filter_state[f'missing_{key}'] = e.value
-                            media_game._props['pagination']['page'] = 1
+                            media_table._props['pagination']['page'] = 1
                             update_game_display()
                         return handler
                     cb = ui.checkbox(media_label, value=False, on_change=make_handler(media_key)).style('color: var(--ink) !important;')
@@ -529,10 +529,10 @@ def render_panel():
         count_label = ui.label(f"Tables ({total})").classes('text-lg font-semibold py-1 text-center w-full').style('color: var(--ink-muted) !important;')
 
         # Table with image thumbnails
-        game_container = ui.column().classes("w-full media-table").style("flex: 1; overflow: hidden; display: flex;")
+        table_container = ui.column().classes("w-full media-table").style("flex: 1; overflow: hidden; display: flex;")
 
-        with game_container:
-            media_game = (
+        with table_container:
+            media_table = (
                 ui.table(columns=columns, rows=initial_rows, row_key='game_dir', pagination=dict(pagination_state))
                   .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
                   .classes("w-full")
@@ -555,7 +555,7 @@ def render_panel():
                            + '" :data-drop-media-row="props.row.game_dir">')
 
                 if is_audio:
-                    media_game.add_slot(f'body-cell-{col_name}', cell_td + '''
+                    media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
                             <div v-if="props.row.media.''' + media_key + '''"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
@@ -568,7 +568,7 @@ def render_panel():
                         </q-td>
                     ''')
                 elif is_video:
-                    media_game.add_slot(f'body-cell-{col_name}', cell_td + '''
+                    media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
                             <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
@@ -592,7 +592,7 @@ def render_panel():
                         </q-td>
                     ''')
                 else:
-                    media_game.add_slot(f'body-cell-{col_name}', cell_td + '''
+                    media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
                             <div v-if="props.row.media.''' + media_key + '''" class="media-thumb-wrapper"
                                  @click.stop="''' + emit_expr + '''"
                                  style="cursor: pointer;">
@@ -632,7 +632,7 @@ def render_panel():
                     media_key=media_key,
                     media_label=media_label,
                 )
-            media_game.on('media_click', on_media_click)
+            media_table.on('media_click', on_media_click)
 
             def _cell_game_path(game_dir: str):
                 return next((r.get('table_path') for r in (_media_cache() or [])
@@ -657,9 +657,9 @@ def render_panel():
                 on_imported=_on_cell_imported,
                 visible=False,
             )
-            enable_cell_drops(media_drop_zone, media_game, _cell_game_path)
+            enable_cell_drops(media_drop_zone, media_table, _cell_game_path)
 
-            media_game.add_slot('bottom', '''
+            media_table.add_slot('bottom', '''
                 <div class="row full-width items-center q-pa-sm"
                      style="background-color: var(--surface); color: var(--ink-muted); border-top: 1px solid var(--line);">
                     <span class="q-mr-sm" style="font-size: 0.85rem;">Rows per page:</span>
@@ -693,14 +693,14 @@ def render_panel():
                     pagination = _extract_pagination(e.args)
                     if pagination:
                         _store_pagination(pagination)
-                        media_game._props['pagination'] = dict(pagination_state)
-                        media_game.run_method('setPagination', dict(pagination_state))
+                        media_table._props['pagination'] = dict(pagination_state)
+                        media_table.run_method('setPagination', dict(pagination_state))
                 except Exception:
                     pass
                 if is_page_active():
                     asyncio.create_task(warm_visible_thumbnails(apply_filters()))
 
-            media_game.on('update:pagination', on_pagination_change)
+            media_table.on('update:pagination', on_pagination_change)
 
         # Startup scan
         async def refresh_on_startup():
