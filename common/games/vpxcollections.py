@@ -5,6 +5,7 @@ import logging
 import os
 from pathlib import Path
 
+from common.games import collection_filters
 from common.games.game_identity import game_id
 from common.games.game_metadata import (
     base_game_vps_id,
@@ -255,6 +256,19 @@ class VPXCollections:
         """Membership as stored: an ordered list of refs, each naming a game and
         optionally one of its tables. This is the list the resolver walks."""
         return [dict(ref) for ref in _member_refs(self._require(section).get("members"))]
+
+    def unknown_filter_axes(self, section: str) -> list[str]:
+        """Criteria in this collection that this build cannot resolve.
+
+        Non-empty means refuse the collection rather than resolve what is left: skipping
+        a constraint answers a different question and does it silently. Every other
+        collection in the file is unaffected, which is what lets an axis be added
+        without a schema bump.
+        """
+        record = self._record(section)
+        if not record:
+            return []
+        return collection_filters.unknown_axes(record.get("filters"))
 
     def get_members(self, section: str):
         """The game ids a collection contains, in order and de-duplicated.

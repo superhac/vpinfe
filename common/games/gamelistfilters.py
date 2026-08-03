@@ -1,3 +1,4 @@
+from common.games import collection_filters
 from common.games.game_metadata import (
     game_manufacturer,
     game_rating,
@@ -98,92 +99,43 @@ class GameListFilters:
         """Get game rating from User.Rating metadata."""
         return game_rating(game)
 
+    # The predicates live in collection_filters, so a filter collection and this class
+    # cannot disagree about what "manufacturer = Williams" selects. These stay because
+    # the Manager UI and the frontend both call them one axis at a time.
+
+    def _by_axis(self, games, axis_name, criterion):
+        if collection_filters.is_unconstrained(criterion):
+            return games
+        axis = collection_filters.AXES_BY_NAME[axis_name]
+        return [game for game in games if axis.matches(criterion, game, {})]
+
     def filter_by_letter(self, games, letter):
         """Filter games by starting letter of name. Supports comma-separated values."""
-        if not letter or letter == "All":
-            return games
-
-        letters = {l.strip().upper() for l in str(letter).split(',')}
-        filtered = []
-        for game in games:
-            name = self._get_game_name(game)
-            if name and name[0].upper() in letters:
-                filtered.append(game)
-        return filtered
+        return self._by_axis(games, "letter", letter)
 
     def filter_by_theme(self, games, theme):
         """Filter games by theme. Supports comma-separated values."""
-        if not theme or theme == "All":
-            return games
-
-        themes = {t.strip() for t in str(theme).split(',')}
-        filtered = []
-        for game in games:
-            game_themes = self._get_game_theme(game)
-            if themes & set(game_themes):
-                filtered.append(game)
-        return filtered
+        return self._by_axis(games, "theme", theme)
 
     def filter_by_type(self, games, game_type):
         """Filter games by type (EM, SS, etc.). Supports comma-separated values."""
-        if not game_type or game_type == "All":
-            return games
-
-        types = {t.strip() for t in str(game_type).split(',')}
-        filtered = []
-        for game in games:
-            current_type = self._get_game_type(game)
-            if current_type in types:
-                filtered.append(game)
-        return filtered
+        return self._by_axis(games, "game_type", game_type)
 
     def filter_by_manufacturer(self, games, manufacturer):
         """Filter games by manufacturer. Supports comma-separated values."""
-        if not manufacturer or manufacturer == "All":
-            return games
-
-        manufacturers = {m.strip() for m in str(manufacturer).split(',')}
-        filtered = []
-        for game in games:
-            current_manufacturer = self._get_game_manufacturer(game)
-            if current_manufacturer in manufacturers:
-                filtered.append(game)
-        return filtered
+        return self._by_axis(games, "manufacturer", manufacturer)
 
     def filter_by_year(self, games, year):
         """Filter games by year. Supports comma-separated values."""
-        if not year or year == "All":
-            return games
-
-        years = {y.strip() for y in str(year).split(',')}
-        filtered = []
-        for game in games:
-            current_year = self._get_game_year(game)
-            if current_year in years:
-                filtered.append(game)
-        return filtered
+        return self._by_axis(games, "year", year)
 
     def filter_by_rating(self, games, rating, rating_or_higher=False):
-        """Filter games by rating. Supports comma-separated values and optional 'or higher' mode."""
-        if not rating or rating == "All":
+        """Filter games by rating, optionally reading it as a floor."""
+        if collection_filters.is_unconstrained(rating):
             return games
-
-        selected_ratings = []
-        for r in str(rating).split(','):
-            try:
-                selected_ratings.append(self._normalize_rating(r.strip()))
-            except Exception:
-                continue
-
-        if not selected_ratings:
-            return games
-
-        if is_truthy(rating_or_higher):
-            min_rating = min(selected_ratings)
-            return [game for game in games if self._get_game_rating(game) >= min_rating]
-
-        rating_set = set(selected_ratings)
-        return [game for game in games if self._get_game_rating(game) in rating_set]
+        axis = collection_filters.AXES_BY_NAME[
+            "rating_or_higher" if is_truthy(rating_or_higher) else "rating"]
+        return [game for game in games if axis.matches(rating, game, {})]
 
     def apply_filters(self, letter=None, theme=None, game_type=None, manufacturer=None, year=None, rating=None, rating_or_higher=False):
         """
