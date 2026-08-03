@@ -80,7 +80,7 @@ def default_table(meta: Any, names: Any = None,
     entries = table_entries(normalized)
     candidates = list(names) if names is not None else table_filenames(entries)
     name = _resolve_default(candidates, folder_name,
-                            recorded_default(vpinfe_section(normalized)))
+                            recorded_default(vpinfe_section(normalized), entries))
     return name, entry_for_filename(entries, name)[1]
 
 

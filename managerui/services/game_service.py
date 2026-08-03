@@ -13,7 +13,7 @@ from common.games.game_metadata import section as meta_section
 from common.games.game_metadata import vpinfe_section
 from common.games.game_repository import get_game_rows, get_missing_games, refresh_game
 from common.games.metaconfig import VPINFE_SECTION
-from common.games.tables import default_table, recorded_default
+from common.games.tables import default_table, recorded_default, table_entries
 from common.games.vpxcollections import VPXCollections
 from common.games.vpxparser import VPXParser
 from common.iniconfig import IniConfig
@@ -276,7 +276,8 @@ def associate_vps_to_folder(
     recorded = ""
     if meta_path.exists():
         try:
-            recorded = recorded_default(vpinfe_section(MetaConfig(str(meta_path)).data))
+            meta = MetaConfig(str(meta_path)).data
+            recorded = recorded_default(vpinfe_section(meta), table_entries(meta))
         except Exception:
             recorded = ""
 

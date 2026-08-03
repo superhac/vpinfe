@@ -12,10 +12,13 @@ from typing import Any
 
 from common.games.game_metadata import load_game_meta, persist_game_meta
 from common.games.ids import new_id
+from common.games.metaconfig import VPINFE_SECTION
 from common.games.tables import (
+    DEFAULT_TABLE_KEY,
     TABLE_ID_KEY,
     TABLES_KEY,
     entry_filename,
+    entry_for_filename,
     rekey_by_id,
     table_id,
 )
@@ -32,16 +35,18 @@ def table_ids(game) -> dict[str, str]:
 
 
 def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
-    """Give every table an id and a filename field, re-minting collisions.
+    """Bring a library's table identity up to date, in one pass over every game.
 
-    Returns {id: (game, filename)}. Writes a .info only when that game changed: this
-    runs at startup over the whole library, and on a share a needless write is a round
-    trip each.
+    Mints missing ids, re-mints collisions, converts the filename-keyed map, and
+    rewrites a recorded default that still names a file. Returns {id: (game, filename)}.
+
+    Writes a .info only when that game changed: this runs at startup over the whole
+    library, and on a share a needless write is a round trip each.
 
     A collision is not chance at this length - it means a game folder was copied.
     """
     by_id: dict[str, tuple[Any, str]] = {}
-    minted = remixed = rekeyed = 0
+    minted = remixed = rekeyed = defaults = 0
 
     for game in games:
         stored = (getattr(game, "metaConfig", None) or {}).get(TABLES_KEY)
@@ -82,6 +87,21 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
             by_id[fresh] = (game, filename)
             changed = True
 
+        # The recorded default is a table id. The 2.x migration seeds it with the
+        # filename 2.x described, so convert it here rather than teaching every reader
+        # to accept both. A name matching no table is left alone: `default_table`
+        # already falls through to one that exists.
+        vpinfe = (getattr(game, "metaConfig", None) or {}).get(VPINFE_SECTION)
+        new_default = ""
+        if isinstance(vpinfe, dict):
+            recorded = str(vpinfe.get(DEFAULT_TABLE_KEY, "") or "").strip()
+            if recorded and recorded not in resolved:
+                new_default = entry_for_filename(resolved, recorded)[0]
+                if new_default:
+                    vpinfe[DEFAULT_TABLE_KEY] = new_default
+                    defaults += 1
+                    changed = True
+
         if not changed:
             continue
 
@@ -90,11 +110,14 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
         # re-deriving here would mint different ids than the ones just handed out.
         config = load_game_meta(game)
         config[TABLES_KEY] = resolved
+        if new_default:
+            config.setdefault(VPINFE_SECTION, {})[DEFAULT_TABLE_KEY] = new_default
         persist_game_meta(game, config)
 
-    if minted or remixed or rekeyed:
-        logger.info("Assigned ids to %s tables, re-minted %s collisions, "
-                    "re-keyed %s games", minted, remixed, rekeyed)
+    if minted or remixed or rekeyed or defaults:
+        logger.info("Assigned ids to %s tables, re-minted %s collisions, re-keyed %s "
+                    "games, converted %s recorded defaults",
+                    minted, remixed, rekeyed, defaults)
     return by_id
 
 

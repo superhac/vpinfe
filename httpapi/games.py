@@ -178,7 +178,8 @@ def _tables(game, row: dict) -> list[dict]:
 
     # Same resolver the launcher and the metadata build use, so all three agree.
     default = default_table(files or names, game_dir.name,
-                                recorded_default(vpinfe_section(game.metaConfig)))
+                                recorded_default(vpinfe_section(game.metaConfig),
+                                             described))
     hidden = hidden_tables(described)
 
     # Dependency context, once per request: the alias map and the rom listing are

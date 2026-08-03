@@ -15,6 +15,7 @@ from common.games.metaconfig import InvalidMetaConfigError, MetaConfig
 from common.games.tables import (
     default_table,
     recorded_default,
+    table_entries,
     table_names,
 )
 from common.media_paths import apply_media_paths
@@ -151,7 +152,8 @@ class GameParser:
 
         # After the metadata, so a folder with several .vpx launches the one its
         # metadata describes rather than whichever the filesystem listed first.
-        recorded = recorded_default(vpinfe_section(game.metaConfig))
+        recorded = recorded_default(vpinfe_section(game.metaConfig),
+                                    table_entries(game.metaConfig))
         chosen = default_table(game_contents, game_dir.name, recorded)
         game.fullPathVPXfile = str(game_dir / chosen)
 

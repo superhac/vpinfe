@@ -210,7 +210,8 @@ class MetaConfig:
         # permanent one with nothing to change it. The key is written only when
         # somebody chooses (and by the migration, which seeds it from VPXFile.filename
         # so existing games keep selecting exactly what they select today).
-        chosen = default_table(table_filenames(tables), "", recorded_default(vpinfe))
+        chosen = default_table(table_filenames(tables), "",
+                               recorded_default(vpinfe, tables))
 
         if _default_table_changed(chosen, previous_files, tables):
             vpinfe["alt_vpsid"] = ""
@@ -379,7 +380,8 @@ class MetaConfig:
         self.data[TABLES_KEY] = entries
         vpinfe = self.data.get(VPINFE_SECTION)
         if isinstance(vpinfe, dict):
-            chosen = default_table(table_filenames(entries), "", recorded_default(vpinfe))
+            chosen = default_table(table_filenames(entries), "",
+                                   recorded_default(vpinfe, entries))
             if _default_table_changed(chosen, previous, entries):
                 vpinfe["alt_vpsid"] = ""
         self.writeConfig()

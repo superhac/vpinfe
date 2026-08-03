@@ -18,6 +18,7 @@ from common.games.metaconfig import ASSETS_KEY
 from common.games.tables import (
     default_table,
     recorded_default,
+    table_entries,
     table_names,
 )
 from managerui.services.asset_registry import (
@@ -46,8 +47,8 @@ def choose_table(game_dir: Path, table: str | None = None) -> str | None:
     recorded = ""
     info_path = game_dir / f"{game_dir.name}.info"
     try:
-        recorded = recorded_default(
-            vpinfe_section(json.loads(info_path.read_text(encoding="utf-8"))))
+        meta = json.loads(info_path.read_text(encoding="utf-8"))
+        recorded = recorded_default(vpinfe_section(meta), table_entries(meta))
     except (OSError, ValueError):
         pass
     return default_table(listing, game_dir.name, recorded) or (names[0] if names else None)

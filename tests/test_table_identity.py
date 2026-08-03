@@ -146,6 +146,44 @@ class BackfillTests(unittest.TestCase):
         self.assertTrue(entry["hidden"])
         self.assertEqual(entry["user"], {"start_count": 4})
 
+    def test_a_recorded_default_naming_a_file_becomes_the_id(self) -> None:
+        """The 2.x migration seeds default_table with a filename. It has to become an
+        id, or renaming that .vpx would silently change which table the game defaults to."""
+        meta = _meta(("chosen.vpx", {TABLE_ID_KEY: "chosen1234"}),
+                     ("other.vpx", {TABLE_ID_KEY: "other12345"}))
+        meta["vpinfe"]["default_table"] = "chosen.vpx"
+        game = _game(self.root, "Seeded", meta)
+
+        table_identity.ensure_unique_table_ids([game])
+
+        stored = json.loads(
+            (self.root / "Seeded" / "Seeded.info").read_text(encoding="utf-8"))
+        self.assertEqual(stored["vpinfe"]["default_table"], "chosen1234")
+
+    def test_a_default_already_an_id_is_left_alone(self) -> None:
+        meta = _meta(("chosen.vpx", {TABLE_ID_KEY: "chosen1234"}))
+        meta["vpinfe"]["default_table"] = "chosen1234"
+        game = _game(self.root, "Done", meta)
+        info = self.root / "Done" / "Done.info"
+        before = info.stat().st_mtime_ns
+
+        table_identity.ensure_unique_table_ids([game])
+
+        self.assertEqual(info.stat().st_mtime_ns, before, "nothing to convert")
+
+    def test_a_default_naming_no_table_is_left_alone(self) -> None:
+        """default_table() already falls through to something that exists, so a stale
+        name is not worth a write."""
+        meta = _meta(("present.vpx", {TABLE_ID_KEY: "present123"}))
+        meta["vpinfe"]["default_table"] = "deleted.vpx"
+        game = _game(self.root, "Stale", meta)
+
+        table_identity.ensure_unique_table_ids([game])
+
+        stored = json.loads(
+            (self.root / "Stale" / "Stale.info").read_text(encoding="utf-8"))
+        self.assertEqual(stored["vpinfe"]["default_table"], "deleted.vpx")
+
     def test_a_game_with_no_tables_is_not_rewritten_every_startup(self) -> None:
         """Found on the cabinet: one game in 653 has no .vpx, and an empty map was
         being treated as needing conversion, so it was rewritten on every launch."""

@@ -220,13 +220,21 @@ def table_entries(meta: dict | None) -> dict:
     return rekey_by_id(entries) if isinstance(entries, dict) else {}
 
 
-def recorded_default(vpinfe: dict | None) -> str:
-    """A default someone chose for this game, or "". Takes the vpinfe section itself, so
-    this module stays out of what that section is called.
+def recorded_default(vpinfe: dict | None, entries: dict | None = None) -> str:
+    """The filename of the default someone chose for this game, or "".
+
+    Stored as a table id so the choice survives a rename; resolved to a name here
+    because every caller is about to match it against a folder listing. A value that
+    is not a known id is read as a filename - that is what the 2.x migration seeds,
+    and what a hand-edited .info is likely to hold.
 
     Absent is the normal case and means "resolve from what is in the folder" - it is
     never written on a rebuild, which would freeze an arbitrary pick as a choice.
     """
     if not isinstance(vpinfe, dict):
         return ""
-    return str(vpinfe.get(DEFAULT_TABLE_KEY, "") or "").strip()
+    recorded = str(vpinfe.get(DEFAULT_TABLE_KEY, "") or "").strip()
+    if not recorded:
+        return ""
+    entry = (entries or {}).get(recorded)
+    return entry_filename(entry) if isinstance(entry, dict) else recorded
