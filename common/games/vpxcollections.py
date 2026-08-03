@@ -61,6 +61,31 @@ MEMBER_TABLE_KEY = "table"
 # and neither substitutes for the other.
 EXCLUDED_KEY = "excluded"
 
+# How a collection is ordered, as its own block rather than mixed in with the criteria.
+#
+#   {"by": "title", "direction": "asc"}
+#
+# `manual` means the member array is the order. It is never the default: a collection
+# curated before curated order existed was displayed alphabetically, and honouring its
+# insertion order would silently reshuffle a list the user is used to. The editor sets
+# it when somebody actually arranges one.
+ORDER_KEY = "order"
+ORDER_BY_KEY = "by"
+ORDER_DIRECTION_KEY = "direction"
+DEFAULT_ORDER_BY = "title"
+DEFAULT_DIRECTION = "asc"
+MANUAL_ORDER = "manual"
+
+# The stored sort names, in the vocabulary the rest of 3.0 uses. Nothing writes the old
+# spellings any more; a file written before this block existed still holds them.
+ORDER_ALIASES = {
+    "Alpha": "title",
+    "Newest": "added",
+    "LastRun": "last_played",
+    "Highest StartCount": "play_count",
+    "RunTime": "play_time",
+}
+
 
 def _member_ref(value) -> dict | None:
     """One stored member as a ref, or None if there is nothing addressable in it."""
@@ -220,6 +245,33 @@ class VPXCollections:
             return None
         stored = self._require(section).get("filters") or {}
         return {key: stored.get(key, default) for key, default in _FILTER_DEFAULTS.items()}
+
+    def get_order(self, section: str) -> dict:
+        """How to order this collection: {"by": ..., "direction": "asc"|"desc"}.
+
+        Falls back to the sort a filter collection stored beside its criteria, and then
+        to title. Never falls back to `manual` - see ORDER_KEY.
+        """
+        record = self._require(section)
+        stored = record.get(ORDER_KEY)
+        if isinstance(stored, dict) and str(stored.get(ORDER_BY_KEY, "") or "").strip():
+            by = str(stored[ORDER_BY_KEY]).strip()
+            direction = str(stored.get(ORDER_DIRECTION_KEY, "") or DEFAULT_DIRECTION)
+        else:
+            criteria = record.get("filters") or {}
+            raw = str(criteria.get("sort_by", "") or "").strip()
+            by = ORDER_ALIASES.get(raw, raw) or DEFAULT_ORDER_BY
+            direction = str(criteria.get("order_by", "") or DEFAULT_DIRECTION)
+        return {ORDER_BY_KEY: by,
+                ORDER_DIRECTION_KEY: "desc" if direction.lower().startswith("desc")
+                                     else "asc"}
+
+    def set_order(self, section: str, by: str, direction: str = DEFAULT_DIRECTION) -> None:
+        """Record how this collection is ordered. `manual` means the member array."""
+        self._require(section)[ORDER_KEY] = {
+            ORDER_BY_KEY: by,
+            ORDER_DIRECTION_KEY: "desc" if str(direction).lower().startswith("desc")
+                                 else "asc"}
 
     def get_excluded_refs(self, section: str) -> list[dict]:
         """What this collection removes, whatever put it there. Applied after members

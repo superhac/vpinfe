@@ -121,6 +121,11 @@ AXES: tuple[FilterAxis, ...] = (
 
 AXES_BY_NAME = {axis.name: axis for axis in AXES}
 
+# Stored beside the criteria but not criteria: they say how to order what matched, not
+# what matches. Reserved so an older build does not read them as an axis it lacks and
+# refuse a collection it can resolve perfectly well.
+ORDERING_KEYS = frozenset({"sort_by", "order_by"})
+
 # `table_type` was the game's type under the old vocabulary. Reading it keeps a stored
 # filter working; nothing writes it.
 LEGACY_AXIS_NAMES = {"table_type": "game_type"}
@@ -142,7 +147,8 @@ def unknown_axes(stored: dict | None) -> list[str]:
     ignoring a constraint answers a different question, and does it silently.
     """
     return sorted(name for name in (stored or {})
-                  if canonical_axis(name) not in AXES_BY_NAME)
+                  if name not in ORDERING_KEYS
+                  and canonical_axis(name) not in AXES_BY_NAME)
 
 
 def matches(stored: dict | None, game, table: dict | None = None) -> bool:
