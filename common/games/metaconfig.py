@@ -3,6 +3,7 @@ import logging
 import os
 from urllib.parse import parse_qs, urlparse
 
+from common.games.ids import new_id
 from common.games.info_migration import (
     migrate,
     needs_migration,
@@ -11,7 +12,9 @@ from common.games.info_migration import (
 )
 from common.games.tables import (
     DETECT_KEYS,
+    TABLE_ID_KEY,
     TABLES_KEY,
+    adopted_entry,
     default_table,
     entry_from_parsed,
     recorded_default,
@@ -239,9 +242,9 @@ class MetaConfig:
         accepted for the single-table case, which is most of the library.
 
         Anything already recorded against a filename and not covered by the parse -
-        the user's `hidden`, a `patch_applied` flag, later play stats and match
-        records - survives untouched. Parsed fields are refreshed, so a stale value
-        can never outlive what the .vpx actually says.
+        the user's `hidden`, a `patch_applied` flag, play stats and match records -
+        survives untouched, and follows the file across a rename. Parsed fields are
+        refreshed, so a stale value can never outlive what the .vpx actually says.
         """
         parsed_files = configdata.get("gamefiles")
         if not isinstance(parsed_files, dict) or not parsed_files:
@@ -253,14 +256,16 @@ class MetaConfig:
         built = {}
         for filename, parsed in parsed_files.items():
             entry = entry_from_parsed(parsed)
-            prior = existing.get(filename)
+            prior = adopted_entry(existing, filename, entry.get("file_hash", ""),
+                                  parsed_files)
             if isinstance(prior, dict):
                 # Refresh what the parse covers; leave everything else alone. Doing it
                 # the other way - naming the keys worth keeping - means every field we
                 # add later has to be remembered here, and forgetting one silently
-                # deletes it on the next rebuild. Play stats and match records are
-                # coming; neither should depend on somebody updating a list.
+                # deletes it on the next rebuild. Play stats and match records live
+                # here; neither should depend on somebody updating a list.
                 entry = {**prior, **entry}
+            entry.setdefault(TABLE_ID_KEY, new_id())
             built[filename] = entry
         return built
 

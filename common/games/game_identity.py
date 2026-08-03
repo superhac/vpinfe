@@ -7,7 +7,6 @@ and keeps its own. Reading never writes; minting is explicit. See docs/http_api.
 from __future__ import annotations
 
 import logging
-import secrets
 from collections.abc import Iterable
 from typing import Any
 
@@ -17,6 +16,9 @@ from common.games.game_metadata import (
     persist_game_meta,
     section,
 )
+from common.games.ids import ALPHABET as ID_ALPHABET
+from common.games.ids import LENGTH as ID_LENGTH
+from common.games.ids import new_id
 from common.games.metaconfig import VPINFE_SECTION
 
 logger = logging.getLogger("vpinfe.common.games.game_identity")
@@ -25,15 +27,8 @@ logger = logging.getLogger("vpinfe.common.games.game_identity")
 ID_SECTION = VPINFE_SECTION
 ID_KEY = "id"
 
-# No 0/O or I/l, so an id survives being read down a phone or retyped out of a bug
-# report. Ten of these is ~4e17 values; ensure_unique_ids re-mints the collision that
-# will not happen.
-ID_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-ID_LENGTH = 10
-
-
-def new_id() -> str:
-    return "".join(secrets.choice(ID_ALPHABET) for _ in range(ID_LENGTH))
+__all__ = ["ID_ALPHABET", "ID_LENGTH", "ID_KEY", "ID_SECTION", "new_id",
+           "game_id", "ensure_id", "ensure_unique_ids", "find_by_id"]
 
 
 def game_id(game) -> str:

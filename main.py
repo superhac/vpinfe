@@ -177,13 +177,17 @@ try:
 except Exception:
     logger.exception("Theme registry initialization failed")
 
-# Give every game a stable id. One-time cost per library; a no-op afterwards.
+# Give every game and every table a stable id. One-time cost per library; a no-op
+# afterwards, and neither pass writes a .info it did not change.
 try:
     from common.games.game_identity import ensure_unique_ids
     from common.games.game_repository import ensure_games_loaded
-    ensure_unique_ids(ensure_games_loaded())
+    from common.games.table_identity import ensure_unique_table_ids
+    games = ensure_games_loaded()
+    ensure_unique_ids(games)
+    ensure_unique_table_ids(games)
 except Exception:
-    logger.exception("Table id backfill failed; tables without an id are not addressable")
+    logger.exception("Id backfill failed; games or tables without an id are not addressable")
 
 # Collection membership moves onto game ids once the ids exist. Resolvable entries
 # are rewritten; anything that does not resolve is left alone rather than dropped.

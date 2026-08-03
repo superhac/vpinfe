@@ -14,12 +14,16 @@ VPX_SUFFIX = ".vpx"
 # One entry per .vpx, keyed by filename:
 #
 #   "tables": {
-#     "Table (VR Room).vpx": {"version": "1.2", "rom": "afm_113b", "hidden": false, ...}
+#     "Table (VR Room).vpx": {"id": "9kRm2QvT8x", "version": "1.2", "hidden": false, ...}
 #   }
 #
 # A missing entry means a table nothing has parsed, and a missing `hidden` means
 # visible.
 TABLES_KEY = "tables"
+
+# Minted on the first rebuild that sees the file, and outlives its name - see
+# `adopted_entry`, which is what carries it across a rename.
+TABLE_ID_KEY = "id"
 
 # Which table is the default, kept in the vpinfe section because it is a game-level
 # choice rather than something a table says about itself.
@@ -71,6 +75,37 @@ def entry_from_parsed(parsed: dict | None) -> dict:
     for key in DETECT_KEYS:
         entry[key] = _as_bool(parsed.get(key, False))
     return entry
+
+
+def table_id(entry: dict | None) -> str:
+    """An entry's id, or "" if it predates ids. Never mints."""
+    if not isinstance(entry, dict):
+        return ""
+    return str(entry.get(TABLE_ID_KEY, "") or "").strip()
+
+
+def adopted_entry(entries: dict, filename: str, file_hash: str,
+                  seen: Iterable[str]) -> dict | None:
+    """The prior entry this file should keep, matched by content when it was renamed.
+
+    A rename is a new key and a lost one, so matching by name alone would mint a fresh
+    id and abandon the play stats, `hidden` and patch records recorded against the old
+    name. The hash says it is the same file; that the old name is absent from this
+    scan says it is gone rather than copied.
+    """
+    direct = entries.get(filename)
+    if isinstance(direct, dict):
+        return direct
+    if not file_hash:
+        return None
+
+    seen = set(seen)
+    for name, entry in entries.items():
+        if name in seen or not isinstance(entry, dict):
+            continue
+        if entry.get("file_hash") == file_hash:
+            return entry
+    return None
 
 
 def is_parsed(entry: dict | None) -> bool:
