@@ -566,3 +566,76 @@ class MemberRefTests(unittest.TestCase):
 
         with self.assertNoLogs("vpinfe.common.games.vpxcollections", "WARNING"):
             collections.set_members("Fav", ["mm", "afm"])
+
+
+class ExclusionTests(unittest.TestCase):
+    """Exclusions are the other half of membership: filters and members say what is in,
+    exclusions overrule both. Excluding a table is not the inverse of pinning one."""
+
+    def setUp(self) -> None:
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.path = Path(tmp.name) / "collections.json"
+        self.collections = VPXCollections(str(self.path))
+        self.collections.add_collection("90s Bally")
+
+    def test_a_game_and_a_table_are_both_excludable(self) -> None:
+        self.collections.exclude("90s Bally", "popeye")
+        self.collections.exclude("90s Bally", "afm", table_id="vr")
+
+        self.assertEqual(self.collections.get_excluded_refs("90s Bally"),
+                         [{"game": "popeye"}, {"game": "afm", "table": "vr"}])
+
+    def test_the_same_exclusion_is_not_recorded_twice(self) -> None:
+        self.collections.exclude("90s Bally", "popeye")
+        self.collections.exclude("90s Bally", "popeye")
+
+        self.assertEqual(len(self.collections.get_excluded_refs("90s Bally")), 1)
+
+    def test_unexcluding_a_game_brings_back_its_tables_too(self) -> None:
+        """Wanting the game back means wanting all of it back."""
+        self.collections.exclude("90s Bally", "afm")
+        self.collections.exclude("90s Bally", "afm", table_id="vr")
+        self.collections.exclude("90s Bally", "popeye")
+
+        self.collections.unexclude("90s Bally", "afm")
+
+        self.assertEqual(self.collections.get_excluded_refs("90s Bally"),
+                         [{"game": "popeye"}])
+
+    def test_unexcluding_one_table_leaves_the_others(self) -> None:
+        self.collections.exclude("90s Bally", "afm", table_id="vr")
+        self.collections.exclude("90s Bally", "afm", table_id="beta")
+
+        self.collections.unexclude("90s Bally", "afm", table_id="vr")
+
+        self.assertEqual(self.collections.get_excluded_refs("90s Bally"),
+                         [{"game": "afm", "table": "beta"}])
+
+    def test_the_key_is_dropped_when_nothing_is_excluded(self) -> None:
+        """An empty list in every record is noise in a file people read."""
+        self.collections.exclude("90s Bally", "popeye")
+        self.collections.unexclude("90s Bally", "popeye")
+        self.collections.save()
+
+        stored = json.loads(self.path.read_text(encoding="utf-8"))["collections"][0]
+        self.assertNotIn("excluded", stored)
+
+    def test_exclusions_survive_a_round_trip(self) -> None:
+        self.collections.exclude("90s Bally", "popeye")
+        self.collections.exclude("90s Bally", "afm", table_id="vr")
+        self.collections.save()
+
+        reopened = VPXCollections(str(self.path))
+        self.assertEqual(reopened.get_excluded_refs("90s Bally"),
+                         [{"game": "popeye"}, {"game": "afm", "table": "vr"}])
+
+    def test_a_collection_can_hold_members_and_exclusions_at_once(self) -> None:
+        """The hybrid the storage has to support even before the UI exposes it."""
+        self.collections.add_member("90s Bally", "addams")
+        self.collections.exclude("90s Bally", "popeye")
+        self.collections.save()
+
+        reopened = VPXCollections(str(self.path))
+        self.assertEqual(reopened.get_member_refs("90s Bally"), [{"game": "addams"}])
+        self.assertEqual(reopened.get_excluded_refs("90s Bally"), [{"game": "popeye"}])

@@ -52,6 +52,14 @@ COLLECTION_IMAGE_KEY = "image"
 MEMBER_GAME_KEY = "game"
 MEMBER_TABLE_KEY = "table"
 
+# Same shape, opposite sign. An excluded ref naming only a game removes the game; one
+# naming a table removes that table and leaves the rest of the game alone.
+#
+# Excluding a table is not the inverse of pinning one. A pin is frozen - a build added
+# next month does not appear. An exclusion still follows - it does. Both are wanted,
+# and neither substitutes for the other.
+EXCLUDED_KEY = "excluded"
+
 
 def _member_ref(value) -> dict | None:
     """One stored member as a ref, or None if there is nothing addressable in it."""
@@ -155,8 +163,9 @@ class VPXCollections:
         for record in records:
             if not isinstance(record, dict) or not record.get("name"):
                 continue
-            if "members" in record:
-                record["members"] = _member_refs(record["members"])
+            for key in ("members", EXCLUDED_KEY):
+                if key in record:
+                    record[key] = _member_refs(record[key])
             self.records.append(record)
 
     def _load_ini(self) -> None:
@@ -210,6 +219,37 @@ class VPXCollections:
             return None
         stored = self._require(section).get("filters") or {}
         return {key: stored.get(key, default) for key, default in _FILTER_DEFAULTS.items()}
+
+    def get_excluded_refs(self, section: str) -> list[dict]:
+        """What this collection removes, whatever put it there. Applied after members
+        and filters, so it overrules both."""
+        return [dict(ref) for ref in _member_refs(self._require(section).get(EXCLUDED_KEY))]
+
+    def exclude(self, section: str, game_id: str, table_id: str = "") -> None:
+        """Remove a game, or one of its tables, from this collection."""
+        record = self._require(section)
+        excluded = _member_refs(record.get(EXCLUDED_KEY))
+        ref = _member_ref({MEMBER_GAME_KEY: game_id, MEMBER_TABLE_KEY: table_id})
+        if ref and ref not in excluded:
+            excluded.append(ref)
+        record[EXCLUDED_KEY] = excluded
+
+    def unexclude(self, section: str, game_id: str, table_id: str = "") -> None:
+        """Undo an exclusion. Without a table, drops every exclusion naming this game -
+        including the per-table ones, since the game is wanted back whole."""
+        record = self._require(section)
+        excluded = _member_refs(record.get(EXCLUDED_KEY))
+        if table_id:
+            keep = [e for e in excluded
+                    if not (e[MEMBER_GAME_KEY] == game_id
+                            and e.get(MEMBER_TABLE_KEY) == table_id)]
+        else:
+            keep = [e for e in excluded if e[MEMBER_GAME_KEY] != game_id]
+        if keep:
+            record[EXCLUDED_KEY] = keep
+        else:
+            # Nothing left to say; an empty list in every record is noise in the file.
+            record.pop(EXCLUDED_KEY, None)
 
     def get_member_refs(self, section: str) -> list[dict]:
         """Membership as stored: an ordered list of refs, each naming a game and
