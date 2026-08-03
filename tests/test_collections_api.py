@@ -8,6 +8,7 @@ creating one is refused rather than guessed at when the request says both things
 from __future__ import annotations
 
 import unittest
+
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -207,3 +208,78 @@ class CollectionsApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CollectionEntriesTests(CollectionsApiTests):
+    """The play lens. Same resolution the theme payload uses, serialized for REST."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        # The base fixture's games have no tables, which is a real state - a folder
+        # nothing has parsed - but it produces no entries by design. Give them one
+        # each so there is something for the play lens to answer with.
+        for index, game in enumerate(self.catalog.values()):
+            game.metaConfig["tables"] = {
+                f"tbl{index}": {"id": f"tbl{index}", "filename": f"game{index}.vpx",
+                                "version": "1.0", "rom": ""}}
+
+    def test_entries_answer_one_per_game_by_default(self) -> None:
+        self.client.post("/collections", json={"name": "Manual", "games": [GAME_ID]})
+
+        body = self.client.get("/collections/Manual/entries").json()
+
+        self.assertFalse(body["expanded"])
+        self.assertEqual(body["count"], len(body["entries"]))
+        for entry in body["entries"]:
+            self.assertTrue(entry["table"]["id"], "every entry names a table")
+            self.assertIn("launch", entry["links"])
+
+    def test_expanded_is_echoed_back(self) -> None:
+        self.client.post("/collections", json={"name": "Manual", "games": [GAME_ID]})
+
+        body = self.client.get("/collections/Manual/entries?expanded=true").json()
+
+        self.assertTrue(body["expanded"])
+
+    def test_a_collection_that_does_not_exist_is_a_404(self) -> None:
+        self.assertEqual(self.client.get("/collections/Nope/entries").status_code, 404)
+
+    def test_a_filter_this_build_cannot_read_is_refused_by_name(self) -> None:
+        """Answering with what is left would be a different question, silently."""
+        self.client.post("/collections",
+                         json={"name": "VR", "filters": {"manufacturer": "Bally"}})
+        self.manager.set_filter("VR", "app", "VPX VR")
+        self.manager.save()
+
+        response = self.client.get("/collections/VR/entries")
+
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("app", response.json()["error"]["details"]["unknown_filters"])
+
+    def test_the_two_lenses_agree_on_order(self) -> None:
+        """The defect this replaced: REST answered in one order, the frontend another."""
+        self.client.post("/collections",
+                         json={"name": "Smart", "filters": {"manufacturer": "Bally"}})
+
+        games = [row["id"] for row in
+                 self.client.get("/collections/Smart/games").json()["games"]]
+        entries = [e["game"]["id"] for e in
+                   self.client.get("/collections/Smart/entries").json()["entries"]]
+
+        self.assertEqual(games, entries)
+
+    def test_the_default_table_is_computed_not_read_off_the_entry(self) -> None:
+        """`default` is the game's own choice, stored in its vpinfe section. Reading it
+        off the table entry - where nothing writes it - answers false for everything."""
+        game = next(iter(self.catalog.values()))
+        game.metaConfig["tables"] = {
+            "aa": {"id": "aa", "filename": "z-later.vpx"},
+            "bb": {"id": "bb", "filename": "a-earlier.vpx"},
+        }
+        self.client.post("/collections", json={"name": "Manual",
+                                               "games": [list(self.catalog)[0]]})
+
+        entries = self.client.get("/collections/Manual/entries?expanded=true").json()
+        defaults = [e["table"]["id"] for e in entries["entries"] if e["table"]["default"]]
+
+        self.assertEqual(defaults, ["bb"], "the resolved default, exactly one of them")

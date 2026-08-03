@@ -18,6 +18,13 @@ import threading
 from fastapi import APIRouter, Body, Response
 
 from common.games import game_identity
+from common.games.game_metadata import game_rating, game_title
+from common.games.collection_resolver import (
+    UnresolvableCollectionError,
+    resolve,
+    resolve_games,
+    visible_entries,
+)
 from common.games.collections_service import (
     filter_games_by_collection,
     get_collections_manager,
@@ -101,13 +108,81 @@ def collection_games(name: str) -> models.GameList:
     _row_or_404(name)
     from common.games.game_repository import collections_by_game_id, game_to_row
 
-    catalog = _catalog()
-    members, _filters = filter_games_by_collection(list(catalog.values()), name)
     by_collection = collections_by_game_id()
+    # The management lens: same membership and order as the play lens, but a game with
+    # nothing launchable still belongs here. Sharing the resolver is what stops this
+    # answering in one order while the frontend answers in another.
+    try:
+        members = resolve_games(name, get_collections_manager(), list(_catalog().values()))
+    except UnresolvableCollectionError as exc:
+        raise ConflictError(str(exc), details={"unknown_filters": exc.axes}) from exc
     resources = [_resource(game_to_row(game, by_collection), game_identity.game_id(game))
                  for game in members]
     return {"total": len(resources), "offset": 0, "count": len(resources),
             "games": resources}
+
+
+def _entry_resource(entry) -> dict:
+    """One entry as REST serves it.
+
+    `default` is computed, never read off the entry: it is the game's own choice and
+    lives in the vpinfe section, not on the table. visible_entries puts it first.
+    """
+    game_ident = game_identity.game_id(entry.game)
+    offered = visible_entries(entry.game)
+    default_id = offered[0].get("id", "") if offered else ""
+    meta = entry.game.metaConfig or {}
+    info = meta.get("Info") or {}
+    prefix = f"/api/v1/games/{game_ident}"
+    return {
+        "game": {
+            "id": game_ident,
+            "vps_id": str(info.get("VPSId", "") or ""),
+            "name": game_title(entry.game),
+            "manufacturer": str(info.get("Manufacturer", "") or ""),
+            "year": str(info.get("Year", "") or ""),
+            "type": str(info.get("Type", "") or ""),
+            "rating": game_rating(entry.game),
+        },
+        "table": {
+            "id": entry.table_id,
+            "filename": entry.filename,
+            "version": str(entry.table.get("version", "") or ""),
+            "rom": str(entry.table.get("rom", "") or ""),
+            "default": entry.table_id == default_id,
+        },
+        "siblings": entry.siblings,
+        "links": {"game": prefix, "launch": f"{prefix}/launch",
+                  "media": f"{prefix}/media"},
+    }
+
+
+def _resolved(name: str, expanded: bool):
+    """The collection's entries, or a 409 naming what this build could not read.
+
+    Refusing beats resolving what is left: dropping a criterion answers a different
+    question and does it silently. Every other collection still answers.
+    """
+    try:
+        return resolve(name, get_collections_manager(),
+                       list(_catalog().values()), expanded=expanded)
+    except UnresolvableCollectionError as exc:
+        raise ConflictError(
+            str(exc), details={"unknown_filters": exc.axes}) from exc
+
+
+@router.get("/{name}/entries", summary="The entries a collection resolves to",
+            dependencies=[requires(scopes.COLLECTIONS_READ)])
+def collection_entries(name: str, expanded: bool = False) -> models.EntryList:
+    """The play lens: what a frontend would show, in the order it would show it.
+
+    One entry per game by default; `expanded=true` gives one per included table. The
+    theme payload is this same resolution, serialized differently.
+    """
+    _row_or_404(name)
+    entries = _resolved(name, expanded)
+    return {"collection": name, "expanded": expanded, "count": len(entries),
+            "entries": [_entry_resource(e) for e in entries]}
 
 
 @router.post("", summary="Create a collection", status_code=201,

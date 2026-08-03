@@ -216,6 +216,58 @@ class TableList(ApiModel):
     tables: list[Table]
 
 
+class EntryGame(ApiModel):
+    """The game half of an entry - identity, not the full resource. A client wanting
+    the rest follows `links.game`."""
+
+    id: str
+    vps_id: str
+    name: str
+    manufacturer: str
+    year: str
+    type: str
+    rating: int
+
+
+class EntryTable(ApiModel):
+    """The table half. `default` is the game's own default, not this entry's position."""
+
+    id: str
+    filename: str
+    version: str
+    rom: str
+    default: bool
+
+
+class EntryLinks(ApiModel):
+    game: str
+    launch: str
+    media: str
+
+
+class Entry(ApiModel):
+    """One row of a resolved collection: a table, with the game it belongs to.
+
+    There is no entry id - `table.id` is the identity, and a table appears at most once
+    in a collection. `siblings` is how many tables its game offers, so a client can tell
+    whether there is anything to switch to without walking the list.
+    """
+
+    game: EntryGame
+    table: EntryTable
+    siblings: int
+    links: EntryLinks
+
+
+class EntryList(ApiModel):
+    """`expanded` echoes which lens answered: false is one entry per game."""
+
+    collection: str
+    expanded: bool
+    count: int
+    entries: list[Entry]
+
+
 # --- Media -----------------------------------------------------------------
 
 class MediaEntryLinks(ApiModel):

@@ -143,6 +143,72 @@ def _sort_key(order_by: str):
     return _sort_key(DEFAULT_ORDER)
 
 
+def resolve_games(name: str, collections, games) -> list[Any]:
+    """The games a collection contains, for the management lens.
+
+    Not the play lens: a game whose only .vpx is hidden, or which has none at all,
+    still belongs to the collection. It produces no entry - there is nothing to
+    launch - but hiding it from the list you would go to in order to fix it is how a
+    library grows a game nobody can find.
+
+    Same membership and the same ordering as `resolve`, so the two lenses cannot
+    disagree about what a collection holds or what order it is in.
+    """
+    unknown = collections.unknown_filter_axes(name)
+    if unknown:
+        raise UnresolvableCollectionError(name, unknown)
+
+    by_id = {}
+    for game in games:
+        found = game_id(game)
+        if found:
+            by_id.setdefault(found, game)
+
+    member_refs = collections.get_member_refs(name)
+    named = {ref[MEMBER_GAME_KEY] for ref in member_refs}
+    stored_filters = collections.get_filters(name) or {}
+    dropped_games, _ = _excluded(collections.get_excluded_refs(name))
+
+    picked, seen = [], set()
+
+    def _add(game):
+        found = game_id(game)
+        if found in seen or found in dropped_games:
+            return
+        seen.add(found)
+        picked.append(game)
+
+    for ref in member_refs:
+        game = by_id.get(ref[MEMBER_GAME_KEY])
+        if game is not None:
+            _add(game)
+
+    from_filters = []
+    if stored_filters:
+        for game in games:
+            if game_id(game) in named or game_id(game) in dropped_games:
+                continue
+            if collection_filters.matches(stored_filters, game):
+                before = len(picked)
+                _add(game)
+                from_filters.extend(picked[before:])
+                del picked[before:]
+
+    order = collections.get_order(name)
+    order_by = order["by"] or DEFAULT_ORDER
+    key = _sort_key(order_by)
+    as_entries = {id(g): Entry(game=g, table={}, siblings=0) for g in picked + from_filters}
+
+    if order_by == "manual":
+        from_filters.sort(key=lambda g: key(as_entries[id(g)]))
+        return picked + from_filters
+    result = picked + from_filters
+    result.sort(key=lambda g: key(as_entries[id(g)]))
+    if order["direction"] == "desc" and order_by in ("title", "year"):
+        result.reverse()
+    return result
+
+
 def resolve(name: str, collections, games, *, expanded: bool = False) -> list[Entry]:
     """The ordered entries a collection contains.
 
