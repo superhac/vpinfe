@@ -1,6 +1,7 @@
 import logging
 
 from common import events
+from common.deprecations import announce
 from common.games.collections_service import (
     get_collection_image_url,
     get_collection_names,
@@ -91,6 +92,8 @@ API_ALLOWED_METHODS = {
     'send_event',
     'send_event_all_windows',
     'send_event_all_windows_incself',
+    # Additive, so no contract bump: a theme that never calls it is unaffected.
+    'report_deprecated_use',
 }
 
 
@@ -123,7 +126,21 @@ class API:
         renamed = _RENAMED_METHODS.get(name)
         if renamed is None:
             raise AttributeError(name)
+        announce("ws-methods", name)
         return getattr(self, renamed)
+
+    def report_deprecated_use(self, key, name):
+        """Let the browser tell the log it used a legacy name.
+
+        A theme runs in Chromium, so its use of a vpin.* alias is only visible in a
+        console nobody reads on a cabinet. The WebSocket methods announce themselves
+        here already; without this the eleven JS aliases are the one surface that
+        cannot be judged from the machine, which is where they would be retired from.
+
+        vpinfe-core.js calls this once per name. Untrusted input, so it only ever
+        reaches announce(), which looks both up in the registry and logs.
+        """
+        announce(str(key), str(name))
     def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None):
         self._iniConfig = iniConfig
         self.window_name = window_name          # 'bg', 'dmd', or 'table'

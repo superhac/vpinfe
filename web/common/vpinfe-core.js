@@ -86,15 +86,38 @@ const VPINFE_RENAMED_MEMBERS = {
   launchTable: 'launchGame',
 };
 
+// Say it once per name, not once per access - a wheel reads gameData every frame. The
+// backend keeps the same list in common/deprecations.py and logs there; a theme runs in
+// the browser, so this is the only place its use of an old name is visible.
+const announcedLegacy = new Set();
+function announceLegacy(target, oldName, newName) {
+  if (announcedLegacy.has(oldName)) return;
+  announcedLegacy.add(oldName);
+  console.info(`vpinfe: deprecated theme JavaScript '${oldName}' is in use; the current name is ${newName} (PAR-23)`);
+  // Also tell the backend, so the log on the machine can answer "is anything still
+  // on the old name". A console line is invisible on a cabinet. Best effort: this is
+  // reporting, and it must never be the reason a theme fails.
+  // call() is async, so a rejection has to be caught on the promise as well as around
+  // the invocation - the bridge may not be connected yet, and an unhandled rejection in
+  // a property getter is a poor trade for a log line.
+  try {
+    Promise.resolve(target.call("report_deprecated_use", "vpin-members", oldName))
+      .catch(() => {});
+  } catch (err) {
+    /* nothing to do; the console line already went out */
+  }
+}
+
 function installLegacyAliases(target) {
   for (const [oldName, newName] of Object.entries(VPINFE_RENAMED_MEMBERS)) {
     if (oldName in target) continue;
     Object.defineProperty(target, oldName, {
       get() {
+        announceLegacy(this, oldName, newName);
         const value = this[newName];
         return typeof value === 'function' ? value.bind(this) : value;
       },
-      set(value) { this[newName] = value; },
+      set(value) { announceLegacy(this, oldName, newName); this[newName] = value; },
       configurable: true,
     });
   }

@@ -230,6 +230,37 @@ still work from a theme written against any earlier build.
 so an alias is the only mechanism available. Removing these would be a hard break with no
 migration path, which is why none of them is removed.
 
+**PAR-27 — One WebSocket method is added so the browser can report a deprecated name.**
+`report_deprecated_use(key, name)` takes a shim key and the legacy name a theme reached,
+and hands both to `common/deprecations.py`. Purely additive: a theme that never calls it
+is unaffected, and no existing method changes.
+*Why:* the WebSocket methods and the ini keys announce their own legacy use into the log,
+so a maintainer can see what is still needed before retiring a shim. The `vpin.*` aliases
+could not - a theme runs in Chromium, and a console line on a cabinet is invisible. This
+is the one surface that had no evidence behind it, and it is the surface a theme is most
+likely to be using. Covered by `tests/test_deprecations.py`.
+
+**PAR-26 — `--table` still works on the CLI; the flag is `--game`.**
+`--game` takes the folder name for `--buildmeta`, `--upgrade-info` and `--restore-info`.
+`--table` is accepted as an alias and kept out of `--help`, so a script written against
+2.x keeps running while the documented flag is the current one.
+*Why:* the CLI sits with the API rather than with the Manager UI, which keeps saying
+Tables for 3.0 — see the Manager UI note in `docs/conventions.md`. A flag in somebody's
+script is exactly the kind of thing that should not need editing to survive an upgrade.
+
+**PAR-25 — `vpinfe.ini` keys are read under their old names and written under the new.**
+`tablescreenid`, `tableorientation`, `tablerotation`, `tablerootdir`, `restorelasttable`,
+`tabletype`, `tableresolution`, `tablevideoresolution`, `tablemediapriority` and
+`lasttable` become the `playfield*` and `game*` spellings. The old key is read once and
+the new one written, so an existing `vpinfe.ini` keeps working and is corrected in place
+on first load. `cabmode`, `enabledof` and `splashscreen` are moved between sections by
+the same pass — that one predates 3.0.
+*Why:* an ini is hand-edited and lives in the user's config directory, so the rename has
+to be invisible. Both passes run *before* the defaults are filled in: every key here has
+a default, and with one already written "copy only if absent" copies nothing and the
+user's real value is dropped. That was a live bug for the section moves.
+Covered by `tests/test_iniconfig.py`.
+
 **PAR-24 — Window messages carry both spellings, and inbound is accepted either way.**
 `TableIndexUpdate`, `TableDataChange`, `TableLaunching`, `TableRunning` and
 `TableLaunchComplete` become the `Game*` spellings. Every one is broadcast twice — current
