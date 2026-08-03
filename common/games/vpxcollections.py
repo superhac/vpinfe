@@ -42,6 +42,37 @@ MEMBERS_KEY = "vpsids"
 COLLECTIONS_KEY = "collections"
 COLLECTION_IMAGE_KEY = "image"
 
+# A member names a game, and optionally one of its tables:
+#
+#   {"game": "tuF3WogthK"}                        follow - every visible table
+#   {"game": "tuF3WogthK", "table": "9kRm2QvT8x"} pin - exactly this one, frozen
+#
+# Two members may name the same game, which is how one game appears twice in a
+# curated order with a different table each time. A bare id is read as a follow.
+MEMBER_GAME_KEY = "game"
+MEMBER_TABLE_KEY = "table"
+
+
+def _member_ref(value) -> dict | None:
+    """One stored member as a ref, or None if there is nothing addressable in it."""
+    if isinstance(value, str):
+        value = value.strip()
+        return {MEMBER_GAME_KEY: value} if value else None
+    if not isinstance(value, dict):
+        return None
+    game = str(value.get(MEMBER_GAME_KEY, "") or "").strip()
+    if not game:
+        return None
+    ref = {MEMBER_GAME_KEY: game}
+    table = str(value.get(MEMBER_TABLE_KEY, "") or "").strip()
+    if table:
+        ref[MEMBER_TABLE_KEY] = table
+    return ref
+
+
+def _member_refs(values) -> list[dict]:
+    return [ref for ref in (_member_ref(v) for v in (values or [])) if ref]
+
 # What a filter collection stores, with the value meaning "unconstrained on this axis".
 _FILTER_DEFAULTS = {
     "letter": "All", "theme": "All", "table_type": "All", "manufacturer": "All",
@@ -119,8 +150,14 @@ class VPXCollections:
             return
         self._schema = int(data.get(SCHEMA_KEY, CURRENT_SCHEMA) or CURRENT_SCHEMA)
         records = data.get(COLLECTIONS_KEY)
-        if isinstance(records, list):
-            self.records = [r for r in records if isinstance(r, dict) and r.get("name")]
+        if not isinstance(records, list):
+            return
+        for record in records:
+            if not isinstance(record, dict) or not record.get("name"):
+                continue
+            if "members" in record:
+                record["members"] = _member_refs(record["members"])
+            self.records.append(record)
 
     def _load_ini(self) -> None:
         """Read a schema 0/1 file into the current shape. Nothing is written here -
@@ -139,8 +176,8 @@ class VPXCollections:
                 record["filters"] = {k: sec.get(k, d) for k, d in _FILTER_DEFAULTS.items()}
             else:
                 record["type"] = "manual"
-                record["members"] = [v.strip() for v in sec.get(MEMBERS_KEY, "").split(",")
-                                     if v.strip()]
+                record["members"] = _member_refs(
+                    sec.get(MEMBERS_KEY, "").split(","))
             self.records.append(record)
 
     def _record(self, name: str) -> dict | None:
@@ -174,9 +211,23 @@ class VPXCollections:
         stored = self._require(section).get("filters") or {}
         return {key: stored.get(key, default) for key, default in _FILTER_DEFAULTS.items()}
 
+    def get_member_refs(self, section: str) -> list[dict]:
+        """Membership as stored: an ordered list of refs, each naming a game and
+        optionally one of its tables. This is the list the resolver walks."""
+        return [dict(ref) for ref in _member_refs(self._require(section).get("members"))]
+
     def get_members(self, section: str):
-        """The member ids of a collection. A filter collection has no stored list."""
-        return list(self._require(section).get("members") or [])
+        """The game ids a collection contains, in order and de-duplicated.
+
+        The same game can appear more than once - two tables of it, at two positions -
+        so this is not the same length as the stored list. Callers that need to know
+        which table want get_member_refs().
+        """
+        seen = []
+        for ref in _member_refs(self._require(section).get("members")):
+            if ref[MEMBER_GAME_KEY] not in seen:
+                seen.append(ref[MEMBER_GAME_KEY])
+        return seen
 
     def get_all(self):
         return {name: self.get_members(name) for name in self.get_collections_name()}
@@ -225,23 +276,50 @@ class VPXCollections:
             raise ValueError("New name cannot be empty")
         record["name"] = new_name
 
-    def add_member(self, section: str, member_id: str):
+    def add_member(self, section: str, member_id: str, table_id: str = ""):
+        """Add a game, or one specific table of it. Adding the same pairing twice is
+        a no-op; adding a second table of a game already present is not."""
         record = self._require(section)
-        members = record.setdefault("members", [])
-        member_id = member_id.strip()
-        if member_id not in members:
-            members.append(member_id)
+        members = _member_refs(record.get("members"))
+        ref = _member_ref({MEMBER_GAME_KEY: member_id, MEMBER_TABLE_KEY: table_id})
+        if ref and ref not in members:
+            members.append(ref)
+        record["members"] = members
 
-    def remove_member(self, section: str, member_id: str):
-        members = self._require(section).setdefault("members", [])
-        if member_id not in members:
+    def remove_member(self, section: str, member_id: str, table_id: str = ""):
+        """Remove a pairing, or every ref naming this game when no table is given."""
+        record = self._require(section)
+        members = _member_refs(record.get("members"))
+        if table_id:
+            keep = [m for m in members
+                    if not (m[MEMBER_GAME_KEY] == member_id
+                            and m.get(MEMBER_TABLE_KEY) == table_id)]
+        else:
+            keep = [m for m in members if m[MEMBER_GAME_KEY] != member_id]
+        if len(keep) == len(members):
             raise ValueError(f"'{member_id}' is not in collection '{section}'")
-        members.remove(member_id)
+        record["members"] = keep
 
-    def set_members(self, section: str, member_ids) -> None:
-        """Replace the membership outright. For the callers where order is the point -
-        Last Played writes most-recent-first, and the Manager UI saves a whole edit."""
-        self._require(section)["members"] = list(member_ids)
+    def set_members(self, section: str, members) -> None:
+        """Replace the membership outright, taking game ids or refs. For the callers
+        where order is the point - Last Played writes most-recent-first, and the
+        Manager UI saves a whole edit.
+
+        A caller passing bare ids is saying "these games, following each", so any pin
+        this collection held is gone. That is the right meaning for an editor that
+        cannot show pins, but it is not something to lose quietly.
+        """
+        record = self._require(section)
+        replacement = _member_refs(members)
+        pinned = {m[MEMBER_GAME_KEY] for m in _member_refs(record.get("members"))
+                  if MEMBER_TABLE_KEY in m}
+        lost = pinned - {m[MEMBER_GAME_KEY] for m in replacement if MEMBER_TABLE_KEY in m}
+        if lost:
+            logger.warning(
+                "Collection %r: replacing membership dropped the table pinned for %s; "
+                "those games follow every visible table now",
+                section, ", ".join(sorted(lost)))
+        record["members"] = replacement
 
     def __contains__(self, section: str) -> bool:
         return self._record(section) is not None

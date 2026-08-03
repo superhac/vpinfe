@@ -358,7 +358,7 @@ class JsonConversionTests(unittest.TestCase):
 
         stored = json.loads(self.json.read_text(encoding="utf-8"))
         self.assertEqual(stored["schema"], CURRENT_SCHEMA)
-        self.assertEqual(stored["collections"][0]["members"], ["id-one"])
+        self.assertEqual(stored["collections"][0]["members"], [{"game": "id-one"}])
         self.assertEqual(stored["collections"][0]["image"], "fav.png")
         self.assertTrue(self.ini.exists(), "2.x still reads the ini; do not delete it")
         self.assertTrue(any(p.name.startswith("collections.ini.vpinfe-")
@@ -436,3 +436,133 @@ class JsonConversionTests(unittest.TestCase):
             encoding="utf-8")
 
         self.assertEqual(VPXCollections(str(self.ini)).get_members("Favorites"), ["x"])
+
+
+class MemberRefTests(unittest.TestCase):
+    """A member names a game, and optionally one of its tables.
+
+    This is what lets the same game sit in two collections with a different table in
+    each, and appear twice in one curated order.
+    """
+
+    def setUp(self) -> None:
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.path = Path(tmp.name) / "collections.json"
+
+    def _saved(self, collections) -> list:
+        collections.save()
+        return json.loads(self.path.read_text(encoding="utf-8"))["collections"]
+
+    def test_a_bare_id_is_read_as_following_the_game(self) -> None:
+        """Everything written before refs existed is a game id and no more."""
+        self.path.write_text(json.dumps(
+            {"schema": CURRENT_SCHEMA,
+             "collections": [{"name": "Favorites", "type": "manual",
+                              "members": ["id-one", "id-two"]}]}), encoding="utf-8")
+
+        collections = VPXCollections(str(self.path))
+
+        self.assertEqual(collections.get_member_refs("Favorites"),
+                         [{"game": "id-one"}, {"game": "id-two"}])
+        self.assertEqual(collections.get_members("Favorites"), ["id-one", "id-two"])
+
+    def test_one_game_can_appear_twice_with_different_tables(self) -> None:
+        """The case the refs exist for: two builds of a game at two positions."""
+        collections = VPXCollections(str(self.path))
+        collections.add_collection("Friday Night")
+        collections.add_member("Friday Night", "mm", table_id="vpw")
+        collections.add_member("Friday Night", "afm")
+        collections.add_member("Friday Night", "mm", table_id="jp")
+
+        refs = collections.get_member_refs("Friday Night")
+        self.assertEqual(refs, [{"game": "mm", "table": "vpw"},
+                                {"game": "afm"},
+                                {"game": "mm", "table": "jp"}])
+        self.assertEqual(collections.get_members("Friday Night"), ["mm", "afm"],
+                         "game ids are de-duplicated; the refs are not")
+
+    def test_the_same_pairing_is_not_added_twice(self) -> None:
+        collections = VPXCollections(str(self.path))
+        collections.add_collection("Favorites")
+        collections.add_member("Favorites", "mm", table_id="vpw")
+        collections.add_member("Favorites", "mm", table_id="vpw")
+
+        self.assertEqual(len(collections.get_member_refs("Favorites")), 1)
+
+    def test_removing_a_game_removes_every_table_of_it(self) -> None:
+        collections = VPXCollections(str(self.path))
+        collections.add_collection("Favorites")
+        collections.add_member("Favorites", "mm", table_id="vpw")
+        collections.add_member("Favorites", "mm", table_id="jp")
+        collections.add_member("Favorites", "afm")
+
+        collections.remove_member("Favorites", "mm")
+
+        self.assertEqual(collections.get_member_refs("Favorites"), [{"game": "afm"}])
+
+    def test_removing_one_table_leaves_the_others(self) -> None:
+        collections = VPXCollections(str(self.path))
+        collections.add_collection("Favorites")
+        collections.add_member("Favorites", "mm", table_id="vpw")
+        collections.add_member("Favorites", "mm", table_id="jp")
+
+        collections.remove_member("Favorites", "mm", table_id="vpw")
+
+        self.assertEqual(collections.get_member_refs("Favorites"),
+                         [{"game": "mm", "table": "jp"}])
+
+    def test_curated_order_survives_a_round_trip(self) -> None:
+        collections = VPXCollections(str(self.path))
+        collections.add_collection("Tournament")
+        for game, table in (("c", "c1"), ("a", ""), ("b", "b2"), ("a", "a9")):
+            collections.add_member("Tournament", game, table_id=table)
+        self._saved(collections)
+
+        self.assertEqual(VPXCollections(str(self.path)).get_member_refs("Tournament"),
+                         [{"game": "c", "table": "c1"}, {"game": "a"},
+                          {"game": "b", "table": "b2"}, {"game": "a", "table": "a9"}])
+
+    def test_set_members_takes_ids_or_refs(self) -> None:
+        """game_play_service writes ids; a curated save writes refs."""
+        collections = VPXCollections(str(self.path))
+        collections.add_collection("Last Played")
+
+        collections.set_members("Last Played", ["b", "a"])
+        self.assertEqual(collections.get_member_refs("Last Played"),
+                         [{"game": "b"}, {"game": "a"}])
+
+        collections.set_members("Last Played", [{"game": "x", "table": "x1"}])
+        self.assertEqual(collections.get_member_refs("Last Played"),
+                         [{"game": "x", "table": "x1"}])
+
+    def test_a_member_with_no_game_is_dropped(self) -> None:
+        self.path.write_text(json.dumps(
+            {"schema": CURRENT_SCHEMA,
+             "collections": [{"name": "Odd", "type": "manual",
+                              "members": ["", {"table": "orphan"}, {"game": "ok"}, 7]}]}),
+            encoding="utf-8")
+
+        self.assertEqual(VPXCollections(str(self.path)).get_member_refs("Odd"),
+                         [{"game": "ok"}])
+
+    def test_replacing_membership_with_ids_says_it_dropped_a_pin(self) -> None:
+        """The Manager UI saves game ids, so editing a collection that holds a pin
+        loses it. Correct for an editor that cannot show pins - but say so."""
+        collections = VPXCollections(str(self.path))
+        collections.add_collection("Fav")
+        collections.add_member("Fav", "mm", table_id="vpw")
+
+        with self.assertLogs("vpinfe.common.games.vpxcollections", "WARNING") as caught:
+            collections.set_members("Fav", ["mm"])
+
+        self.assertIn("mm", "\n".join(caught.output))
+        self.assertEqual(collections.get_member_refs("Fav"), [{"game": "mm"}])
+
+    def test_replacing_membership_that_holds_no_pin_is_quiet(self) -> None:
+        collections = VPXCollections(str(self.path))
+        collections.add_collection("Fav")
+        collections.add_member("Fav", "mm")
+
+        with self.assertNoLogs("vpinfe.common.games.vpxcollections", "WARNING"):
+            collections.set_members("Fav", ["mm", "afm"])
