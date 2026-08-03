@@ -75,26 +75,22 @@ def _validated_icon_filename(filename: str | None) -> str:
     return value
 
 
-def _set_section_image(section, filename: str | None) -> None:
-    value = _validated_icon_filename(filename)
-    if value:
-        section[COLLECTION_IMAGE_KEY] = value
-    elif COLLECTION_IMAGE_KEY in section:
-        del section[COLLECTION_IMAGE_KEY]
+def _set_section_image(manager, name: str, filename: str | None) -> None:
+    manager.set_image(name, _validated_icon_filename(filename))
 
 
 def get_collection_image(name: str) -> str:
     manager = get_collections_manager()
-    if name not in manager.config:
+    if name not in manager:
         return ""
-    return manager.config[name].get(COLLECTION_IMAGE_KEY, "").strip()
+    return manager.get_image(name)
 
 
 def set_collection_image(name: str, filename: str | None) -> None:
     manager = get_collections_manager()
-    if name not in manager.config:
+    if name not in manager:
         raise KeyError(f"Section '{name}' not found")
-    _set_section_image(manager.config[name], filename)
+    _set_section_image(manager, name, filename)
     manager.save()
 
 
@@ -218,7 +214,7 @@ def create_game_collection(name: str, game_ids: list[str], image: str | None = N
     manager = get_collections_manager()
     manager.add_collection(name, game_ids)
     if image:
-        _set_section_image(manager.config[name], image)
+        _set_section_image(manager, name, image)
     manager.save()
 
 
@@ -227,7 +223,7 @@ def create_filter_collection(name: str, **filters) -> None:
     manager = get_collections_manager()
     manager.add_filter_collection(name, **filters)
     if image:
-        _set_section_image(manager.config[name], image)
+        _set_section_image(manager, name, image)
     manager.save()
 
 
@@ -235,17 +231,17 @@ def update_filter_collection(name: str, **filters) -> None:
     image = filters.pop(COLLECTION_IMAGE_KEY, None)
     manager = get_collections_manager()
     for key, value in filters.items():
-        manager.config[name][key] = value
+        manager.set_filter(name, key, value)
     if image is not None:
-        _set_section_image(manager.config[name], image)
+        _set_section_image(manager, name, image)
     manager.save()
 
 
 def update_game_collection(name: str, game_ids: list[str], image: str | None = None) -> None:
     manager = get_collections_manager()
-    manager.config[name][MEMBERS_KEY] = ",".join(game_ids)
+    manager.set_members(name, game_ids)
     if image is not None:
-        _set_section_image(manager.config[name], image)
+        _set_section_image(manager, name, image)
     manager.save()
 
 

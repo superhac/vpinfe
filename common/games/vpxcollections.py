@@ -1,5 +1,6 @@
 # vpxcollections.py
 import configparser
+import json
 import logging
 import os
 from pathlib import Path
@@ -20,18 +21,45 @@ from common.games.metaconfig import VPINFE_SECTION
 
 logger = logging.getLogger("vpinfe.common.games.vpxcollections")
 
-# collections.ini is entirely ours, so it carries a version like the VPinFE section
-# of a table's .info does. In an ini the sections are collection names, so the
-# version lives in a reserved section that is filtered out of the collection list.
-SCHEMA_SECTION = VPINFE_SECTION
-SCHEMA_KEY = "schema"
-#   0  membership keyed by VPS id. Implied when no version is recorded.
-#   1  membership keyed by the game's own id (common/games/game_identity.py).
-CURRENT_SCHEMA = 1
+# The collections file is entirely ours, so it carries a version.
+#   0  ini, membership keyed by VPS id. Implied when no version is recorded.
+#   1  ini, membership keyed by the game's own id (common/games/game_identity.py).
+#   2  JSON. Members and filters are nested and ordered, which an ini can only encode.
+CURRENT_SCHEMA = 2
 
-# The on-disk key and the non-filter type marker both still say "vpsid". They are
-# file format, not meaning - see get_members().
+# Schema 0/1 only: in an ini the sections are collection names, so the version lived
+# in a reserved section filtered out of the collection list. Both spellings are
+# reserved - real files carry `[VPinFE]` and `[vpinfe]` side by side, because the
+# section was renamed without the old one being removed. Reading only the new name
+# turns the old one into a collection called "VPinFE".
+SCHEMA_SECTION = VPINFE_SECTION
+SCHEMA_SECTIONS = (VPINFE_SECTION, "VPinFE")
+SCHEMA_KEY = "schema"
+
+# The ini's membership key. Kept for reading a schema 0/1 file - see get_members().
 MEMBERS_KEY = "vpsids"
+
+COLLECTIONS_KEY = "collections"
+COLLECTION_IMAGE_KEY = "image"
+
+# What a filter collection stores, with the value meaning "unconstrained on this axis".
+_FILTER_DEFAULTS = {
+    "letter": "All", "theme": "All", "table_type": "All", "manufacturer": "All",
+    "year": "All", "rating": "All", "rating_or_higher": "false",
+    "sort_by": "Alpha", "order_by": "Descending",
+}
+
+
+def _ini_schema(parser) -> int:
+    """The highest version either reserved section declares."""
+    found = []
+    for name in SCHEMA_SECTIONS:
+        if name in parser:
+            try:
+                found.append(int(parser[name].get(SCHEMA_KEY, 0) or 0))
+            except (TypeError, ValueError):
+                pass
+    return max(found, default=0)
 
 _warned_newer_schema = set()
 
@@ -50,86 +78,115 @@ def _get_last_run_value(game):
 
 
 class VPXCollections:
-    def __init__(self, ini_path: str):
-        """Load and parse the collections ini file."""
-        self.ini_path = Path(ini_path)
-        self.config = configparser.ConfigParser()
+    """The user's collections, stored as JSON.
 
-        if self.ini_path.exists():
-            self.config.read(self.ini_path)
+    Records are dicts in a list, so their order is the order they are shown in and a
+    filter collection's criteria nest instead of being flattened into ini keys. A
+    schema 0/1 `collections.ini` beside the JSON is read once and converted on save.
+    """
+
+    def __init__(self, path: str):
+        # Either name is accepted: the JSON file is what we read and write, and a
+        # caller still holding the ini path - a script, an old config - gets the same
+        # collections rather than an empty list.
+        path = Path(path)
+        if path.suffix == ".ini":
+            self.ini_path, self.path = path, path.with_name(COLLECTIONS_NAME)
+        else:
+            self.path, self.ini_path = path, path.with_name(COLLECTIONS_NAME_INI)
+        self._converted_from_ini = False
+        self.reload()
 
     def reload(self):
-        """Reload the ini file from disk (discard unsaved changes)."""
-        self.config = configparser.ConfigParser()
-        if self.ini_path.exists():
-            self.config.read(self.ini_path)
+        """Load from disk, discarding unsaved changes."""
+        self.records: list[dict] = []
+        self._schema = CURRENT_SCHEMA
+        self._converted_from_ini = False
+
+        if self.path.exists():
+            self._load_json()
+        elif self.ini_path.exists():
+            self._load_ini()
+            self._converted_from_ini = True
+
+    def _load_json(self) -> None:
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            logger.exception("Could not read %s; starting from no collections", self.path)
+            return
+        if not isinstance(data, dict):
+            return
+        self._schema = int(data.get(SCHEMA_KEY, CURRENT_SCHEMA) or CURRENT_SCHEMA)
+        records = data.get(COLLECTIONS_KEY)
+        if isinstance(records, list):
+            self.records = [r for r in records if isinstance(r, dict) and r.get("name")]
+
+    def _load_ini(self) -> None:
+        """Read a schema 0/1 file into the current shape. Nothing is written here -
+        the conversion reaches disk on the next save, which keeps reading side-effect
+        free for the callers that only ever look."""
+        parser = configparser.ConfigParser()
+        parser.read(self.ini_path, encoding="utf-8")
+        self._schema = _ini_schema(parser)
+        for name in parser.sections():
+            if name in SCHEMA_SECTIONS:
+                continue
+            sec = parser[name]
+            record = {"name": name, "image": sec.get("image", "")}
+            if sec.get("type", "vpsid") == "filter":
+                record["type"] = "filter"
+                record["filters"] = {k: sec.get(k, d) for k, d in _FILTER_DEFAULTS.items()}
+            else:
+                record["type"] = "manual"
+                record["members"] = [v.strip() for v in sec.get(MEMBERS_KEY, "").split(",")
+                                     if v.strip()]
+            self.records.append(record)
+
+    def _record(self, name: str) -> dict | None:
+        for record in self.records:
+            if record.get("name") == name:
+                return record
+        return None
+
+    def _require(self, name: str) -> dict:
+        record = self._record(name)
+        if record is None:
+            raise KeyError(f"Section '{name}' not found")
+        return record
 
     def get_collections_name(self):
-        """Return a list of collection names."""
-        return [s for s in self.config.sections() if s != SCHEMA_SECTION]
+        return [r["name"] for r in self.records]
 
     def schema_version(self) -> int:
-        if SCHEMA_SECTION not in self.config:
-            return 0
-        try:
-            return int(self.config[SCHEMA_SECTION].get(SCHEMA_KEY, 0) or 0)
-        except (TypeError, ValueError):
-            return 0
+        return self._schema
 
     def _stamp_schema(self, version: int = CURRENT_SCHEMA) -> None:
-        if SCHEMA_SECTION not in self.config:
-            self.config[SCHEMA_SECTION] = {}
-        self.config[SCHEMA_SECTION][SCHEMA_KEY] = str(version)
+        self._schema = version
 
     def is_filter_based(self, section: str):
-        """Check if a collection is filter-based."""
-        if section not in self.config:
-            return False
-        return self.config[section].get("type", "vpsid") == "filter"
+        record = self._record(section)
+        return bool(record) and record.get("type") == "filter"
 
     def get_filters(self, section: str):
-        """Return filters for a filter-based collection."""
         if not self.is_filter_based(section):
             return None
-
-        sec = self.config[section]
-        return {
-            "letter": sec.get("letter", "All"),
-            "theme": sec.get("theme", "All"),
-            "table_type": sec.get("table_type", "All"),
-            "manufacturer": sec.get("manufacturer", "All"),
-            "year": sec.get("year", "All"),
-            "rating": sec.get("rating", "All"),
-            "rating_or_higher": sec.get("rating_or_higher", "false"),
-            "sort_by": sec.get("sort_by", "Alpha"),
-            "order_by": sec.get("order_by", "Descending"),
-        }
+        stored = self._require(section).get("filters") or {}
+        return {key: stored.get(key, default) for key, default in _FILTER_DEFAULTS.items()}
 
     def get_members(self, section: str):
-        """Return the member ids of a collection.
-
-        The key on disk is still `vpsids` even though the values are game ids now.
-        Renaming it would strand every file written before the migration for no gain
-        the user can see; the schema version already records which one it holds.
-        """
-        if section not in self.config:
-            raise KeyError(f"Section '{section}' not found")
-
-        raw = self.config[section].get(MEMBERS_KEY, "")
-        return [v.strip() for v in raw.split(",") if v.strip()]
+        """The member ids of a collection. A filter collection has no stored list."""
+        return list(self._require(section).get("members") or [])
 
     def get_all(self):
-        """Return dict of section -> member ids."""
-        return {s: self.get_members(s) for s in self.get_collections_name()}
+        return {name: self.get_members(name) for name in self.get_collections_name()}
 
     def add_collection(self, section: str, members=None):
         """Add a collection whose membership is an explicit list of games."""
-        if self.config.has_section(section):
+        if self._record(section) is not None:
             raise ValueError(f"Section '{section}' already exists")
-
-        self.config.add_section(section)
-        self.config[section]["type"] = "vpsid"
-        self.config[section][MEMBERS_KEY] = ",".join(members) if members else ""
+        self.records.append({"name": section, "type": "manual",
+                             "image": "", "members": list(members or [])})
 
     def add_filter_collection(
         self,
@@ -145,58 +202,65 @@ class VPXCollections:
         order_by="Descending",
     ):
         """Add a filter-based collection."""
-        if self.config.has_section(section):
+        if self._record(section) is not None:
             raise ValueError(f"Section '{section}' already exists")
-
-        self.config.add_section(section)
-        sec = self.config[section]
-        sec["type"] = "filter"
-        sec["letter"] = letter
-        sec["theme"] = theme
-        sec["table_type"] = game_type
-        sec["manufacturer"] = manufacturer
-        sec["year"] = year
-        sec["rating"] = rating
-        sec["rating_or_higher"] = rating_or_higher
-        sec["sort_by"] = sort_by
-        sec["order_by"] = order_by or "Descending"
+        self.records.append({
+            "name": section, "type": "filter", "image": "",
+            "filters": {
+                "letter": letter, "theme": theme, "table_type": game_type,
+                "manufacturer": manufacturer, "year": year, "rating": rating,
+                "rating_or_higher": rating_or_higher, "sort_by": sort_by,
+                "order_by": order_by or "Descending",
+            },
+        })
 
     def delete_collection(self, section: str):
-        """Delete a collection."""
-        if not self.config.remove_section(section):
-            raise KeyError(f"Section '{section}' not found")
+        self.records.remove(self._require(section))
 
     def rename_collection(self, old_name: str, new_name: str):
-        """Rename a collection."""
-        if old_name not in self.config:
-            raise KeyError(f"Section '{old_name}' not found")
-        if new_name in self.config:
+        record = self._require(old_name)
+        if self._record(new_name) is not None:
             raise ValueError(f"Section '{new_name}' already exists")
         if not new_name.strip():
             raise ValueError("New name cannot be empty")
-
-        # Copy all items from old section to new section
-        self.config.add_section(new_name)
-        for key, value in self.config.items(old_name):
-            self.config.set(new_name, key, value)
-
-        # Remove old section
-        self.config.remove_section(old_name)
+        record["name"] = new_name
 
     def add_member(self, section: str, member_id: str):
-        """Add a game to a collection."""
-        members = set(self.get_members(section))
-        members.add(member_id.strip())
-        self.config[section][MEMBERS_KEY] = ",".join(sorted(members))
+        record = self._require(section)
+        members = record.setdefault("members", [])
+        member_id = member_id.strip()
+        if member_id not in members:
+            members.append(member_id)
 
     def remove_member(self, section: str, member_id: str):
-        """Remove a game from a collection."""
-        members = self.get_members(section)
+        members = self._require(section).setdefault("members", [])
         if member_id not in members:
             raise ValueError(f"'{member_id}' is not in collection '{section}'")
-
         members.remove(member_id)
-        self.config[section][MEMBERS_KEY] = ",".join(members)
+
+    def set_members(self, section: str, member_ids) -> None:
+        """Replace the membership outright. For the callers where order is the point -
+        Last Played writes most-recent-first, and the Manager UI saves a whole edit."""
+        self._require(section)["members"] = list(member_ids)
+
+    def __contains__(self, section: str) -> bool:
+        return self._record(section) is not None
+
+    def get_image(self, section: str) -> str:
+        record = self._record(section)
+        return str((record or {}).get(COLLECTION_IMAGE_KEY, "") or "").strip()
+
+    def set_image(self, section: str, filename: str | None) -> None:
+        """Set the collection's icon, or clear it when given nothing."""
+        record = self._require(section)
+        if filename:
+            record[COLLECTION_IMAGE_KEY] = filename
+        else:
+            record.pop(COLLECTION_IMAGE_KEY, None)
+
+    def set_filter(self, section: str, key: str, value) -> None:
+        """One criterion on a filter collection."""
+        self._require(section).setdefault("filters", {})[key] = value
 
     def migrate_membership_to_game_ids(self, games) -> int:
         """Move VPS-keyed membership onto game ids. Returns how many entries moved.
@@ -251,13 +315,8 @@ class VPXCollections:
                     rewritten.append(member)
                     unresolved += 1
             if rewritten != members:
-                self.config[name][MEMBERS_KEY] = ",".join(rewritten)
+                self._require(name)["members"] = rewritten
 
-        # Keep what was there before the ids move. This is the other file a newer
-        # VPinFE rewrites, and until now it had no copy to go back to.
-        if self.ini_path.exists():
-            logger.info("Kept the pre-migration collections at %s",
-                        copy_aside(str(self.ini_path)))
         self._stamp_schema()
         self.save()
         logger.info("Collection membership moved onto game ids: %s moved, %s left "
@@ -265,8 +324,21 @@ class VPXCollections:
         return moved
 
     def save(self):
-        """Write collections back to disk, atomically."""
-        write_atomic(self.ini_path, self.config.write)
+        """Write collections back to disk, atomically.
+
+        The first save after reading an ini keeps a copy of it and leaves the original
+        in place: a user who goes back to 2.x needs the file 2.x reads.
+        """
+        if self._converted_from_ini and self.ini_path.exists():
+            logger.info("Kept the pre-JSON collections at %s",
+                        copy_aside(str(self.ini_path)))
+            self._converted_from_ini = False
+        # Never stamp a newer file down to what this build writes. A newer VPinFE owns
+        # that number, and claiming it would tell the next reader we understood the file.
+        payload = {SCHEMA_KEY: max(self._schema, CURRENT_SCHEMA),
+                   COLLECTIONS_KEY: self.records}
+        write_atomic(self.path,
+                     lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
 
     # ------------------------------------------------------------------
     # NEW JSON METADATA AWARE FILTERING
@@ -307,19 +379,26 @@ class VPXCollections:
         return result
 
 
-COLLECTIONS_NAME = "collections.ini"
+COLLECTIONS_NAME = "collections.json"
+COLLECTIONS_NAME_INI = "collections.ini"
 
 
 def collections_schema(path) -> int | None:
-    """The schema a saved collections file declares, or None if it predates versioning."""
-    parser = configparser.ConfigParser()
-    parser.read(path, encoding="utf-8")
-    if SCHEMA_SECTION not in parser:
-        return None
+    """The schema a saved collections file declares, or None if it predates versioning.
+
+    Reads either format, because backups of both exist: a restore has to be able to
+    look at a `collections.ini` copy written before the move to JSON.
+    """
+    path = Path(path)
+    if COLLECTIONS_NAME_INI in path.name:
+        parser = configparser.ConfigParser()
+        parser.read(path, encoding="utf-8")
+        return _ini_schema(parser) or None
     try:
-        return int(parser[SCHEMA_SECTION].get(SCHEMA_KEY, 0) or 0) or None
-    except (TypeError, ValueError):
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
         return None
+    return int(data.get(SCHEMA_KEY, 0) or 0) or None if isinstance(data, dict) else None
 
 
 def restorable_collections_backup(config_dir, max_schema: int = CURRENT_SCHEMA) -> str | None:
@@ -332,7 +411,8 @@ def restorable_collections_backup(config_dir, max_schema: int = CURRENT_SCHEMA) 
         names = os.listdir(config_dir)
     except OSError:
         return None
-    for name in backup_names(names, COLLECTIONS_NAME):
+    candidates = backup_names(names, COLLECTIONS_NAME) + backup_names(names, COLLECTIONS_NAME_INI)
+    for name in sorted(candidates, reverse=True):
         candidate = config_dir / name
         try:
             schema = collections_schema(candidate)

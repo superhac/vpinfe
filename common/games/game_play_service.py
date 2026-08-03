@@ -43,7 +43,7 @@ def track_game_play(game, collection_name: str = "Last Played", max_items: int =
     if member_id in ids:
         ids.remove(member_id)
     ids.insert(0, member_id)
-    collections.config[collection_name][MEMBERS_KEY] = ",".join(ids[:max_items])
+    collections.set_members(collection_name, ids[:max_items])
     collections.save()
     logger.info("Tracked game play: %s (now %s in %s)", member_id, len(ids[:max_items]), collection_name)
 

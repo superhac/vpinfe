@@ -33,7 +33,7 @@ class TestConfigDirEnvOverride(unittest.TestCase):
         self.assertEqual(paths.CONFIG_DIR, Path("/tmp/vpinfe-override"))
         self.assertEqual(paths.VPINFE_INI_PATH, Path("/tmp/vpinfe-override/vpinfe.ini"))
         self.assertEqual(paths.THEMES_DIR, Path("/tmp/vpinfe-override/themes"))
-        self.assertEqual(paths.COLLECTIONS_PATH, Path("/tmp/vpinfe-override/collections.ini"))
+        self.assertEqual(paths.COLLECTIONS_PATH, Path("/tmp/vpinfe-override/collections.json"))
 
     def test_override_expands_user_home(self) -> None:
         os.environ[ENV_VAR] = "~/vpinfe-home"

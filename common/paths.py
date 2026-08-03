@@ -27,7 +27,9 @@ APP_ROOT = Path(__file__).resolve().parent.parent
 
 CONFIG_DIR = _resolve_config_dir()
 VPINFE_INI_PATH = CONFIG_DIR / "vpinfe.ini"
-COLLECTIONS_PATH = CONFIG_DIR / "collections.ini"
+COLLECTIONS_PATH = CONFIG_DIR / "collections.json"
+# Read once and converted; kept as a name so a restore can still find its backups.
+COLLECTIONS_INI_PATH = CONFIG_DIR / "collections.ini"
 THEMES_DIR = CONFIG_DIR / "themes"
 PLUGIN_PROFILES_DIR = CONFIG_DIR / "plugin_profiles"
 USER_CONFIG_PATH = VPINFE_INI_PATH

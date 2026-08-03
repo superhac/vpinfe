@@ -34,9 +34,9 @@ def collection_icon_url(filename: str | None) -> str:
 
 def get_collection_image(collection: str) -> str:
     manager = get_collections_manager()
-    if collection not in manager.config:
+    if collection not in manager:
         return ""
-    return manager.config[collection].get(COLLECTION_IMAGE_KEY, "").strip()
+    return manager.get_image(collection)
 
 
 def get_collection_image_url(collection: str) -> str:
@@ -48,7 +48,7 @@ def get_collections_metadata() -> list[dict]:
     rows = []
     for name in manager.get_collections_name():
         is_filter = manager.is_filter_based(name)
-        image = manager.config[name].get(COLLECTION_IMAGE_KEY, "").strip()
+        image = manager.get_image(name)
         rows.append({
             "name": name,
             "type": "filter" if is_filter else "vpsid",

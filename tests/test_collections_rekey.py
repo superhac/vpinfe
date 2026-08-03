@@ -1,4 +1,5 @@
 import json
+import textwrap
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -97,7 +98,8 @@ class MigrationTests(unittest.TestCase):
         reopened = VPXCollections(str(self.ini))
 
         self.assertEqual(reopened.get_collections_name(), ["Favorites"])
-        self.assertIn(SCHEMA_SECTION, reopened.config.sections())
+        self.assertEqual(reopened.schema_version(), CURRENT_SCHEMA,
+                         "the version is a field, not a collection")
 
     def test_membership_recorded_under_an_alt_vpsid_still_migrates(self) -> None:
         game = _game(self.root, "MM", vpsid="vps-base", altvpsid="vps-alt", game_id="id-mm")
@@ -302,12 +304,135 @@ class BackupTests(unittest.TestCase):
 
     def test_an_interrupted_save_leaves_the_previous_file_intact(self):
         collections = _collections(self.ini, {"Favorites": ["vps-1"]})
-        before = self.ini.read_text(encoding="utf-8")
+        collections.save()
+        before = collections.path.read_text(encoding="utf-8")
 
-        with mock.patch.object(collections.config, "write",
-                               side_effect=OSError("disk went away")):
+        collections.add_collection("Later", ["vps-2"])
+        with mock.patch("common.games.vpxcollections.json.dump",
+                        side_effect=OSError("disk went away")):
             with self.assertRaises(OSError):
                 collections.save()
 
-        self.assertEqual(self.ini.read_text(encoding="utf-8"), before)
-        self.assertEqual([p.name for p in self.root.iterdir()], ["collections.ini"])
+        self.assertEqual(collections.path.read_text(encoding="utf-8"), before)
+        self.assertNotIn("Later", collections.path.read_text(encoding="utf-8"))
+
+
+class JsonConversionTests(unittest.TestCase):
+    """The move off collections.ini. A user's curation is in that file, so the only
+    thing that matters is that all of it survives and the ini stays where 2.x reads it."""
+
+    def setUp(self) -> None:
+        tmp = TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.root = Path(tmp.name)
+        self.ini = self.root / "collections.ini"
+        self.json = self.root / "collections.json"
+
+    def _write_ini(self, text: str) -> None:
+        self.ini.write_text(textwrap.dedent(text).lstrip(), encoding="utf-8")
+
+    def test_an_ini_is_read_without_being_written(self) -> None:
+        """Reading must not have a side effect: plenty of callers only ever look."""
+        self._write_ini("""
+            [vpinfe]
+            schema = 1
+            [Favorites]
+            type = vpsid
+            vpsids = id-one,id-two
+        """)
+        collections = VPXCollections(str(self.json))
+
+        self.assertEqual(collections.get_members("Favorites"), ["id-one", "id-two"])
+        self.assertFalse(self.json.exists(), "reading wrote a file")
+
+    def test_saving_converts_and_leaves_the_ini_for_2x(self) -> None:
+        self._write_ini("""
+            [vpinfe]
+            schema = 1
+            [Favorites]
+            type = vpsid
+            vpsids = id-one
+            image = fav.png
+        """)
+        VPXCollections(str(self.json)).save()
+
+        stored = json.loads(self.json.read_text(encoding="utf-8"))
+        self.assertEqual(stored["schema"], CURRENT_SCHEMA)
+        self.assertEqual(stored["collections"][0]["members"], ["id-one"])
+        self.assertEqual(stored["collections"][0]["image"], "fav.png")
+        self.assertTrue(self.ini.exists(), "2.x still reads the ini; do not delete it")
+        self.assertTrue(any(p.name.startswith("collections.ini.vpinfe-")
+                            for p in self.root.iterdir()), "no copy kept")
+
+    def test_a_filter_collection_keeps_every_criterion(self) -> None:
+        self._write_ini("""
+            [80s Williams]
+            type = filter
+            manufacturer = Williams
+            year = 1985
+            sort_by = Newest
+            order_by = Ascending
+        """)
+        VPXCollections(str(self.json)).save()
+
+        filters = VPXCollections(str(self.json)).get_filters("80s Williams")
+        self.assertEqual(filters["manufacturer"], "Williams")
+        self.assertEqual(filters["year"], "1985")
+        self.assertEqual(filters["sort_by"], "Newest")
+        self.assertEqual(filters["order_by"], "Ascending")
+        self.assertEqual(filters["theme"], "All", "an unset axis is unconstrained")
+
+    def test_the_order_collections_were_in_is_kept(self) -> None:
+        self._write_ini("""
+            [Zeta]
+            vpsids = a
+            [Alpha]
+            vpsids = b
+            [Mid]
+            vpsids = c
+        """)
+        VPXCollections(str(self.json)).save()
+
+        self.assertEqual(VPXCollections(str(self.json)).get_collections_name(),
+                         ["Zeta", "Alpha", "Mid"])
+
+    def test_json_wins_when_both_files_exist(self) -> None:
+        """After the conversion the ini is stale; it must never be read again."""
+        self._write_ini("[Stale]\nvpsids = old\n")
+        self.json.write_text(json.dumps(
+            {"schema": CURRENT_SCHEMA,
+             "collections": [{"name": "Current", "type": "manual", "members": ["new"]}]}),
+            encoding="utf-8")
+
+        collections = VPXCollections(str(self.json))
+
+        self.assertEqual(collections.get_collections_name(), ["Current"])
+
+    def test_both_reserved_section_spellings_are_filtered(self) -> None:
+        """Real files carry [VPinFE] and [vpinfe] side by side - the section was renamed
+        without the old one being removed. Reading only the new name turns the old one
+        into a collection called "VPinFE". Found on the cabinet."""
+        self._write_ini("""
+            [Last Played]
+            type = vpsid
+            vpsids = a,b
+
+            [VPinFE]
+            schema = 1
+
+            [vpinfe]
+            schema = 1
+        """)
+        collections = VPXCollections(str(self.json))
+
+        self.assertEqual(collections.get_collections_name(), ["Last Played"])
+        self.assertEqual(collections.schema_version(), 1)
+
+    def test_the_ini_path_still_finds_the_collections(self) -> None:
+        """A script or an old config may still name collections.ini."""
+        self.json.write_text(json.dumps(
+            {"schema": CURRENT_SCHEMA,
+             "collections": [{"name": "Favorites", "type": "manual", "members": ["x"]}]}),
+            encoding="utf-8")
+
+        self.assertEqual(VPXCollections(str(self.ini)).get_members("Favorites"), ["x"])
