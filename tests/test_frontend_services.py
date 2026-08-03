@@ -5,6 +5,8 @@ import json
 import os
 import types
 import unittest
+
+from common.games.tables import entry_for_filename
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
@@ -369,7 +371,7 @@ class PerTablePlayStatsTests(unittest.TestCase):
 
         self.assertEqual(config["User"]["StartCount"], 1)
         self.assertEqual(config["User"]["LastRun"], 1000)
-        played = config["tables"]["Example (VR).vpx"]["user"]
+        played = entry_for_filename(config["tables"], "Example (VR).vpx")[1]["user"]
         self.assertEqual(played, {"last_run": "1970-01-01T00:16:40Z",
                                   "start_count": 1, "run_time_seconds": 90})
 
@@ -379,8 +381,10 @@ class PerTablePlayStatsTests(unittest.TestCase):
         self._launch(config, "Example (VR).vpx")
 
         entries = config["tables"]
-        self.assertEqual(entries["Example.vpx"]["user"]["start_count"], 2)
-        self.assertEqual(entries["Example (VR).vpx"]["user"]["start_count"], 1)
+        self.assertEqual(
+            entry_for_filename(entries, "Example.vpx")[1]["user"]["start_count"], 2)
+        self.assertEqual(
+            entry_for_filename(entries, "Example (VR).vpx")[1]["user"]["start_count"], 1)
         self.assertEqual(config["User"]["StartCount"], 3, "the table saw all three")
 
     def test_the_game_total_is_not_a_rollup(self):
@@ -388,7 +392,7 @@ class PerTablePlayStatsTests(unittest.TestCase):
         a total summed from the entries would do."""
         config = self._launch({}, "Example.vpx")
         self._launch(config, "Gone.vpx")
-        del config["tables"]["Gone.vpx"]
+        del config["tables"][entry_for_filename(config["tables"], "Gone.vpx")[0]]
 
         self.assertEqual(config["User"]["StartCount"], 2)
         self.assertEqual(config["User"]["RunTime"], 4, "minutes, as the spec key always was")
@@ -398,7 +402,7 @@ class PerTablePlayStatsTests(unittest.TestCase):
         config = {"tables": {"Base.vpx": {"hidden": True, "rom": "afm_113b"}}}
         self._launch(config, "Base.vpx")
 
-        entry = config["tables"]["Base.vpx"]
+        entry = entry_for_filename(config["tables"], "Base.vpx")[1]
         self.assertEqual(entry["user"]["start_count"], 1)
         self.assertTrue(entry["hidden"])
         self.assertEqual(entry["rom"], "afm_113b", "the parse must survive a play")

@@ -25,9 +25,11 @@ from common.games.game_repository import (
 )
 from common.games.tables import (
     default_table,
+    entry_for_filename,
     hidden_tables,
     is_parsed,
     recorded_default,
+    table_filenames,
     table_names,
 )
 from common.host import launch, launch_state, pinmame_catalog
@@ -168,7 +170,7 @@ def _tables(game, row: dict) -> list[dict]:
     on_disk = table_names(files)
 
     names = list(on_disk)
-    for name in described:
+    for name in table_filenames(described):
         if name not in names:
             names.append(name)
     if not names:
@@ -193,7 +195,7 @@ def _tables(game, row: dict) -> list[dict]:
 
     entries = []
     for name in names:
-        described_entry = described.get(name) if isinstance(described.get(name), dict) else {}
+        described_entry = entry_for_filename(described, name)[1]
         entry = {
             "format": "vpx",
             "app": "vpx",

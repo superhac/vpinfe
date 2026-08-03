@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import unittest
+
+from common.games.tables import entry_for_filename, table_filenames
 from unittest import mock
 
 from common.games.tables import is_parsed
@@ -173,7 +175,7 @@ class PatchAssetTests(unittest.TestCase):
             patched = game_dir / "Mod.vpx"
             self.assertEqual(patched.read_bytes(), b"ABCDEF")
             saved = json.loads((game_dir / "Foo (Bar 1999).info").read_text())
-            source = saved["tables"][patched.name]["source"]
+            source = entry_for_filename(saved["tables"], patched.name)[1]["source"]
             self.assertEqual(source["base"], {"file": "Table.vpx",
                                               "hash": hashlib.sha256(b"ABCDEF").hexdigest()})
             self.assertEqual(source["patch"]["format"], "jojodiff")
@@ -202,7 +204,9 @@ class PatchAssetTests(unittest.TestCase):
                 parser.return_value.singleFileExtract.return_value = parsed
                 execute_import_plan(plan, zip_path)
 
-            entry = json.loads((game_dir / "Foo (Bar 1999).info").read_text())["tables"]["Mod.vpx"]
+            entry = entry_for_filename(
+                json.loads((game_dir / "Foo (Bar 1999).info").read_text())["tables"],
+                "Mod.vpx")[1]
             self.assertEqual(entry["rom"], "mod_rom")
             self.assertEqual(entry["version"], "1.2")
             self.assertEqual(entry["authors"], ["VPW"])
@@ -230,8 +234,12 @@ class PatchAssetTests(unittest.TestCase):
                 parser.return_value.singleFileExtract.return_value = None
                 execute_import_plan(plan, zip_path)
 
-            entry = json.loads((game_dir / "Foo (Bar 1999).info").read_text())["tables"]["Mod.vpx"]
-            self.assertEqual(list(entry), ["source"])
+            entry = entry_for_filename(
+                json.loads((game_dir / "Foo (Bar 1999).info").read_text())["tables"],
+                "Mod.vpx")[1]
+            # Identity and the name are bookkeeping; what must be absent is any
+            # parsed field, which would read as "we opened it and it said nothing".
+            self.assertEqual(set(entry) - {"id", "filename"}, {"source"})
             self.assertFalse(is_parsed(entry))
 
     def test_an_unrecordable_source_does_not_fail_the_import(self):
@@ -943,8 +951,9 @@ class ImportExecuteTests(unittest.TestCase):
                 {"tables": {"Old.vpx": {"file_hash": "old-hash", "rom": "old_rom"}}},
                 "New.vpx", {"file_hash": "new-hash", "rom": "new_rom"})
 
-            self.assertEqual(list(saved["tables"]), ["New.vpx"])
-            self.assertEqual(saved["tables"]["New.vpx"]["rom"], "new_rom")
+            self.assertEqual(table_filenames(saved["tables"]), ["New.vpx"])
+            self.assertEqual(
+                entry_for_filename(saved["tables"], "New.vpx")[1]["rom"], "new_rom")
 
     def test_replacing_the_default_table_still_drops_the_vps_override(self):
         """Writing the new hash in at import time must not rob the rebuild of the change

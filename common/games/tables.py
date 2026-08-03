@@ -11,19 +11,19 @@ from common.timestamps import iso_from_asctime, iso_from_authored_date
 
 VPX_SUFFIX = ".vpx"
 
-# One entry per .vpx, keyed by filename:
+# One entry per .vpx, keyed by the table's id so a rename rewrites one field:
 #
 #   "tables": {
-#     "Table (VR Room).vpx": {"id": "9kRm2QvT8x", "version": "1.2", "hidden": false, ...}
+#     "9kRm2QvT8x": {"filename": "Table (VR Room).vpx", "version": "1.2", ...}
 #   }
 #
-# A missing entry means a table nothing has parsed, and a missing `hidden` means
-# visible.
+# A missing entry means a table nothing has parsed, and a missing `hidden` means visible.
 TABLES_KEY = "tables"
 
 # Minted on the first rebuild that sees the file, and outlives its name - see
 # `adopted_entry`, which is what carries it across a rename.
 TABLE_ID_KEY = "id"
+TABLE_FILENAME_KEY = "filename"
 
 # Which table is the default, kept in the vpinfe section because it is a game-level
 # choice rather than something a table says about itself.
@@ -88,20 +88,18 @@ def adopted_entry(entries: dict, filename: str, file_hash: str,
                   seen: Iterable[str]) -> dict | None:
     """The prior entry this file should keep, matched by content when it was renamed.
 
-    A rename is a new key and a lost one, so matching by name alone would mint a fresh
-    id and abandon the play stats, `hidden` and patch records recorded against the old
-    name. The hash says it is the same file; that the old name is absent from this
-    scan says it is gone rather than copied.
+    The hash says it is the same file; its recorded name being absent from this scan says
+    it moved rather than that a copy was made beside it.
     """
-    direct = entries.get(filename)
-    if isinstance(direct, dict):
+    _, direct = entry_for_filename(entries, filename)
+    if direct:
         return direct
     if not file_hash:
         return None
 
     seen = set(seen)
-    for name, entry in entries.items():
-        if name in seen or not isinstance(entry, dict):
+    for entry in entries.values():
+        if not isinstance(entry, dict) or entry_filename(entry) in seen:
             continue
         if entry.get("file_hash") == file_hash:
             return entry
@@ -123,15 +121,59 @@ def table_names(names: Iterable[str]) -> list[str]:
     return sorted((n for n in names if n.lower().endswith(VPX_SUFFIX)), key=str.lower)
 
 
-def hidden_tables(settings: dict | None) -> set[str]:
-    """Filenames the user has hidden from the frontend. Hiding never deletes - a patch
-    base has to stay on disk - it only stops the table being offered.
+def entry_filename(entry: dict | None) -> str:
+    """The .vpx an entry describes, or ""."""
+    if not isinstance(entry, dict):
+        return ""
+    return str(entry.get(TABLE_FILENAME_KEY, "") or "").strip()
+
+
+def entry_for_filename(entries: dict | None, filename: str) -> tuple[str, dict]:
+    """(id, entry) for the table with this filename, or ("", {}). Callers arrive holding
+    a name off a directory listing; the storage is keyed by id."""
+    for found_id, entry in (entries or {}).items():
+        if entry_filename(entry) == filename:
+            return found_id, entry
+    return "", {}
+
+
+def table_filenames(entries: dict | None) -> list[str]:
+    """Every .vpx the entries describe. What `default_table` and the disk both speak."""
+    return [n for n in (entry_filename(e) for e in (entries or {}).values()) if n]
+
+
+def rekey_by_id(entries: dict | None) -> dict:
+    """The tables map keyed by id, converting the filename-keyed shape on the way.
+
+    An entry with no `filename` predates the re-key and its key is the name. One with no
+    id yet keeps that name as its key until the minting pass assigns one - dropping it
+    would destroy the `hidden` and play stats the id exists to protect.
     """
-    if not isinstance(settings, dict):
-        return set()
+    if not isinstance(entries, dict):
+        return {}
+    # Callers test identity to mean "nothing to convert", so an empty map belongs here
+    # too: a game with no .vpx would otherwise be rewritten on every startup.
+    if all(isinstance(e, dict) and TABLE_FILENAME_KEY in e for e in entries.values()):
+        return entries
+
+    rekeyed = {}
+    for key, entry in entries.items():
+        if not isinstance(entry, dict):
+            continue    # not a record; there is nothing to address or carry
+        entry = dict(entry)
+        entry.setdefault(TABLE_FILENAME_KEY, key)
+        rekeyed[table_id(entry) or key] = entry
+    return rekeyed
+
+
+def hidden_tables(entries: dict | None) -> set[str]:
+    """Filenames the user has hidden - never ids, because the caller is comparing against
+    a folder listing. Hiding never deletes; a patch base has to stay on disk."""
     return {
-        name for name, entry in settings.items()
-        if isinstance(entry, dict) and entry.get("hidden") is True
+        name for name in (entry_filename(entry)
+                          for entry in rekey_by_id(entries).values()
+                          if isinstance(entry, dict) and entry.get("hidden") is True)
+        if name
     }
 
 
@@ -169,11 +211,13 @@ def default_table(names: Iterable[str], folder_name: str = "", recorded: str = "
 
 
 def table_entries(meta: dict | None) -> dict:
-    """The tables section of a game's metadata, or {} when it has none."""
+    """The tables section keyed by id, or {}. Normalizes the pre-re-key shape on the way
+    out, so a reader sees the current shape whether or not the file has been rewritten -
+    only `table_identity.ensure_unique_table_ids` persists the conversion."""
     if not isinstance(meta, dict):
         return {}
     entries = meta.get(TABLES_KEY)
-    return entries if isinstance(entries, dict) else {}
+    return rekey_by_id(entries) if isinstance(entries, dict) else {}
 
 
 def recorded_default(vpinfe: dict | None) -> str:

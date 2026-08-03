@@ -12,7 +12,13 @@ from typing import Any
 
 from common.games.game_metadata import load_game_meta, persist_game_meta
 from common.games.ids import new_id
-from common.games.tables import TABLE_ID_KEY, TABLES_KEY, table_id
+from common.games.tables import (
+    TABLE_ID_KEY,
+    TABLES_KEY,
+    entry_filename,
+    rekey_by_id,
+    table_id,
+)
 
 logger = logging.getLogger("vpinfe.common.games.table_identity")
 
@@ -21,39 +27,44 @@ def table_ids(game) -> dict[str, str]:
     """{filename: id} for a game's tables, skipping entries with no id yet."""
     entries = getattr(game, "metaConfig", None) or {}
     entries = entries.get(TABLES_KEY) if isinstance(entries, dict) else None
-    if not isinstance(entries, dict):
-        return {}
-    return {name: table_id(entry) for name, entry in entries.items() if table_id(entry)}
+    return {entry_filename(e): i for i, e in rekey_by_id(entries).items()
+            if entry_filename(e)}
 
 
 def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
-    """Give every table an id, re-minting collisions. Returns {id: (game, filename)}.
+    """Give every table an id and a filename field, re-minting collisions.
 
-    Writes a .info only when that game changed: this runs at startup over the whole
-    library, and on a share a needless write is a round trip each.
+    Returns {id: (game, filename)}. Writes a .info only when that game changed: this
+    runs at startup over the whole library, and on a share a needless write is a round
+    trip each.
 
     A collision is not chance at this length - it means a game folder was copied.
     """
     by_id: dict[str, tuple[Any, str]] = {}
-    minted = 0
-    remixed = 0
+    minted = remixed = rekeyed = 0
 
     for game in games:
-        config = None
-        entries = (getattr(game, "metaConfig", None) or {}).get(TABLES_KEY)
-        if not isinstance(entries, dict):
+        stored = (getattr(game, "metaConfig", None) or {}).get(TABLES_KEY)
+        if not isinstance(stored, dict):
             continue
 
-        for filename, entry in entries.items():
-            if not isinstance(entry, dict):
-                continue
+        entries = rekey_by_id(stored)
+        # Same object back means there was nothing to convert.
+        changed = entries is not stored
+        rekeyed += changed
+
+        resolved: dict[str, dict] = {}
+        for entry in entries.values():
+            filename = entry_filename(entry)
+            # The entry's own id, never the map key: an id-less entry is keyed by its
+            # filename, which is truthy and is not an id.
             current = table_id(entry)
-            collided = current in by_id
-            if current and not collided:
+            if current and current not in by_id:
+                resolved[current] = entry
                 by_id[current] = (game, filename)
                 continue
 
-            if collided:
+            if current:
                 other_game, other_file = by_id[current]
                 logger.warning(
                     "Table id %s is used by both %s/%s and %s/%s; assigning a new id "
@@ -64,23 +75,26 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
             else:
                 minted += 1
 
-            # Load lazily so a game that needs no change is never read back off disk.
-            if config is None:
-                config = load_game_meta(game)
-            stored = config.setdefault(TABLES_KEY, {}).setdefault(filename, {})
             fresh = new_id()
             while fresh in by_id:
                 fresh = new_id()
-            stored[TABLE_ID_KEY] = fresh
-            entry[TABLE_ID_KEY] = fresh
+            resolved[fresh] = {**entry, TABLE_ID_KEY: fresh}
             by_id[fresh] = (game, filename)
+            changed = True
 
-        if config is not None:
-            persist_game_meta(game, config)
+        if not changed:
+            continue
 
-    if minted or remixed:
-        logger.info("Assigned ids to %s tables and re-minted %s collisions",
-                    minted, remixed)
+        game.metaConfig[TABLES_KEY] = resolved
+        # Re-read so unrelated sections come from disk, but replace tables outright:
+        # re-deriving here would mint different ids than the ones just handed out.
+        config = load_game_meta(game)
+        config[TABLES_KEY] = resolved
+        persist_game_meta(game, config)
+
+    if minted or remixed or rekeyed:
+        logger.info("Assigned ids to %s tables, re-minted %s collisions, "
+                    "re-keyed %s games", minted, remixed, rekeyed)
     return by_id
 
 

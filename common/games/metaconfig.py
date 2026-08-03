@@ -12,13 +12,16 @@ from common.games.info_migration import (
 )
 from common.games.tables import (
     DETECT_KEYS,
+    TABLE_FILENAME_KEY,
     TABLE_ID_KEY,
     TABLES_KEY,
     adopted_entry,
     default_table,
+    entry_for_filename,
     entry_from_parsed,
     recorded_default,
     table_entries,
+    table_filenames,
 )
 from common.timestamps import utc_now_iso
 
@@ -84,8 +87,10 @@ def _default_table_changed(chosen, previous_files, tables):
     that file drops it. Scoped to the default: ADDING a table is not a reason to
     discard the user's match.
     """
-    previous_hash = str(previous_files.get(chosen, {}).get("file_hash", "") or "").strip()
-    new_hash = str(tables.get(chosen, {}).get("file_hash", "") or "").strip()
+    previous_hash = str(entry_for_filename(previous_files, chosen)[1]
+                        .get("file_hash", "") or "").strip()
+    new_hash = str(entry_for_filename(tables, chosen)[1]
+                   .get("file_hash", "") or "").strip()
     return bool(previous_hash and new_hash and previous_hash != new_hash)
 
 
@@ -205,7 +210,7 @@ class MetaConfig:
         # permanent one with nothing to change it. The key is written only when
         # somebody chooses (and by the migration, which seeds it from VPXFile.filename
         # so existing games keep selecting exactly what they select today).
-        chosen = default_table(tables, "", recorded_default(vpinfe))
+        chosen = default_table(table_filenames(tables), "", recorded_default(vpinfe))
 
         if _default_table_changed(chosen, previous_files, tables):
             vpinfe["alt_vpsid"] = ""
@@ -256,6 +261,7 @@ class MetaConfig:
         built = {}
         for filename, parsed in parsed_files.items():
             entry = entry_from_parsed(parsed)
+            entry[TABLE_FILENAME_KEY] = filename
             prior = adopted_entry(existing, filename, entry.get("file_hash", ""),
                                   parsed_files)
             if isinstance(prior, dict):
@@ -266,8 +272,25 @@ class MetaConfig:
                 # here; neither should depend on somebody updating a list.
                 entry = {**prior, **entry}
             entry.setdefault(TABLE_ID_KEY, new_id())
-            built[filename] = entry
+            built[entry[TABLE_ID_KEY]] = entry
         return built
+
+    def _entries_by_id(self):
+        """The tables map keyed by id, converted in place so the next write persists it."""
+        entries = table_entries(self.data)
+        self.data[TABLES_KEY] = entries
+        return entries
+
+    @staticmethod
+    def _entry_for(entries, filename):
+        """The entry describing this .vpx, minting one if the table is new to us."""
+        _, entry = entry_for_filename(entries, filename)
+        if entry:
+            return entry
+        minted = new_id()
+        entry = {TABLE_ID_KEY: minted, TABLE_FILENAME_KEY: filename}
+        entries[minted] = entry
+        return entry
 
     def writeConfig(self):
         self._normalize_detection_flags()
@@ -300,26 +323,26 @@ class MetaConfig:
         cannot be rebuilt without it - it just should not be offered as something to
         play. The same applies to a variant someone may want back later.
         """
-        settings = self.data.setdefault(TABLES_KEY, {})
-        entry = settings.setdefault(filename, {})
+        settings = self._entries_by_id()
+        entry = self._entry_for(settings, filename)
         if hidden:
             entry["hidden"] = True
         else:
             entry.pop("hidden", None)
-            # An entry that only ever carried `hidden` came from a table we never
-            # parsed; drop it rather than leave an empty record behind.
-            if not entry:
-                settings.pop(filename, None)
+            # An entry that only ever carried `hidden` and a name came from a table we
+            # never parsed; drop it rather than leave an empty record behind.
+            if set(entry) <= {TABLE_ID_KEY, TABLE_FILENAME_KEY}:
+                settings.pop(entry.get(TABLE_ID_KEY), None)
         self.writeConfig()
 
     def gameFileValue(self, filename, key, default=""):
         """One key off a specific table's entry."""
-        value = table_entries(self.data).get(filename, {})
+        _, value = entry_for_filename(table_entries(self.data), filename)
         return value.get(key, default) if isinstance(value, dict) else default
 
     def setTableValue(self, filename, key, value):
         """Record something we did to a table, against that table."""
-        entry = self.data.setdefault(TABLES_KEY, {}).setdefault(filename, {})
+        entry = self._entry_for(self._entries_by_id(), filename)
         entry[key] = value
         self.writeConfig()
 
@@ -328,7 +351,7 @@ class MetaConfig:
         hidden, where it came from, later play stats - survives, as it does on a full
         rebuild.
         """
-        entry = self.data.setdefault(TABLES_KEY, {}).setdefault(filename, {})
+        entry = self._entry_for(self._entries_by_id(), filename)
         entry.update(entry_from_parsed(parsed))
         self.writeConfig()
 
@@ -342,20 +365,21 @@ class MetaConfig:
         entries = table_entries(self.data)
         # Deep enough to survive the update below: a shallow copy shares the entry dicts,
         # so the "before" would change with the "after" and never look different.
-        previous = {name: dict(entry) for name, entry in entries.items()
+        previous = {key: dict(entry) for key, entry in entries.items()
                     if isinstance(entry, dict)}
 
-        dropped = bool(removed and removed != filename and entries.pop(removed, None))
+        gone_id, _ = entry_for_filename(entries, removed) if removed else ("", {})
+        dropped = bool(removed and removed != filename and entries.pop(gone_id, None))
         if parsed:
             # A failed parse leaves the entry unparsed rather than filled with empties.
-            entries.setdefault(filename, {}).update(entry_from_parsed(parsed))
+            self._entry_for(entries, filename).update(entry_from_parsed(parsed))
         elif not dropped:
             return      # nothing to say; do not add an empty section to the .info
 
         self.data[TABLES_KEY] = entries
         vpinfe = self.data.get(VPINFE_SECTION)
         if isinstance(vpinfe, dict):
-            chosen = default_table(entries, "", recorded_default(vpinfe))
+            chosen = default_table(table_filenames(entries), "", recorded_default(vpinfe))
             if _default_table_changed(chosen, previous, entries):
                 vpinfe["alt_vpsid"] = ""
         self.writeConfig()
@@ -367,7 +391,7 @@ class MetaConfig:
         The base is hashed because a .dif applies to one exact file, and the delta's
         format is recorded rather than the code that applied it.
         """
-        entry = self.data.setdefault(TABLES_KEY, {}).setdefault(filename, {})
+        entry = self._entry_for(self._entries_by_id(), filename)
         entry["source"] = {
             "base": {"file": base_file, "hash": base_hash},
             "patch": {"format": patch_format, "applied": utc_now_iso()},

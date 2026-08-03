@@ -4,12 +4,18 @@ import ast
 from pathlib import Path
 from typing import Any, Dict
 
+from common.games.ids import new_id
 from common.games.metaconfig import VPINFE_SECTION, MetaConfig
 from common.games.tables import (
     DETECT_KEYS,
+    TABLE_FILENAME_KEY,
+    TABLE_ID_KEY,
     TABLES_KEY,
+    entry_for_filename,
     recorded_default,
+    rekey_by_id,
     table_entries,
+    table_filenames,
 )
 from common.games.tables import (
     default_table as _resolve_default,
@@ -72,11 +78,10 @@ def default_table(meta: Any, names: Any = None,
     """
     normalized = normalize_meta(meta)
     entries = table_entries(normalized)
-    candidates = list(names) if names is not None else list(entries)
+    candidates = list(names) if names is not None else table_filenames(entries)
     name = _resolve_default(candidates, folder_name,
                             recorded_default(vpinfe_section(normalized)))
-    entry = entries.get(name)
-    return name, (entry if isinstance(entry, dict) else {})
+    return name, entry_for_filename(entries, name)[1]
 
 
 def default_table_entry(meta: Any, names: Any = None, folder_name: str = "") -> Dict[str, Any]:
@@ -217,7 +222,13 @@ def get_or_create_table_user(config: dict[str, Any], filename: str) -> dict[str,
     Counters only. A per-table rating and favorite are in the design but nothing
     sets them, and storing a field no producer fills invites a reader to trust it.
     """
-    entry = config.setdefault(TABLES_KEY, {}).setdefault(filename, {})
+    entries = rekey_by_id(config.setdefault(TABLES_KEY, {}))
+    config[TABLES_KEY] = entries
+    found_id, entry = entry_for_filename(entries, filename)
+    if not entry:
+        found_id = new_id()
+        entry = {TABLE_ID_KEY: found_id, TABLE_FILENAME_KEY: filename}
+        entries[found_id] = entry
     user = entry.setdefault("user", {})
     user.setdefault("last_run", None)
     user.setdefault("start_count", 0)

@@ -13,7 +13,18 @@ from types import SimpleNamespace
 
 from common.games import ids, table_identity
 from common.games.metaconfig import MetaConfig
-from common.games.tables import TABLE_ID_KEY, TABLES_KEY, table_id
+from common.games.tables import (
+    TABLE_FILENAME_KEY,
+    TABLE_ID_KEY,
+    TABLES_KEY,
+    entry_for_filename,
+    table_id,
+)
+
+
+def _by_name(entries: dict, filename: str) -> dict:
+    """The entry for a .vpx. Tests hold names; storage is keyed by id."""
+    return entry_for_filename(entries, filename)[1]
 
 
 def _game(root: Path, name: str, meta: dict | None = None):
@@ -30,6 +41,15 @@ def _game(root: Path, name: str, meta: dict | None = None):
 
 
 def _meta(*tables: tuple[str, dict]) -> dict:
+    """Current shape: keyed by id, filename as a field."""
+    entries = {}
+    for name, entry in tables:
+        entries[entry[TABLE_ID_KEY]] = {**entry, TABLE_FILENAME_KEY: name}
+    return {"vpinfe": {"schema": 2}, TABLES_KEY: entries}
+
+
+def _legacy_meta(*tables: tuple[str, dict]) -> dict:
+    """The pre-re-key shape a real library is still sitting on: keyed by filename."""
     return {"vpinfe": {"schema": 2}, TABLES_KEY: dict(tables)}
 
 
@@ -56,41 +76,41 @@ class RebuildTests(unittest.TestCase):
             self.assertTrue(set(one) <= set(ids.ALPHABET))
 
     def test_a_rebuild_keeps_the_id_it_already_assigned(self) -> None:
-        first = self._rebuild(("a.vpx", {"file_hash": "aaa"}))["a.vpx"][TABLE_ID_KEY]
-        again = self._rebuild(("a.vpx", {"file_hash": "aaa"}))["a.vpx"][TABLE_ID_KEY]
+        first = _by_name(self._rebuild(("a.vpx", {"file_hash": "aaa"})), "a.vpx")[TABLE_ID_KEY]
+        again = _by_name(self._rebuild(("a.vpx", {"file_hash": "aaa"})), "a.vpx")[TABLE_ID_KEY]
 
         self.assertEqual(first, again)
 
     def test_a_renamed_file_keeps_its_id_and_everything_recorded_against_it(self) -> None:
         """The case the id exists for. Matched on content, because the name is what moved."""
         built = self._rebuild(("old.vpx", {"file_hash": "aaa"}))
-        original = built["old.vpx"][TABLE_ID_KEY]
+        original = _by_name(built, "old.vpx")[TABLE_ID_KEY]
 
         # Whatever accumulated against the old name, as a rebuild would leave it.
         stored = json.loads(self.info.read_text(encoding="utf-8"))
-        stored[TABLES_KEY]["old.vpx"].update(
+        stored[TABLES_KEY][original].update(
             {"hidden": True, "user": {"start_count": 7}})
         self.info.write_text(json.dumps(stored), encoding="utf-8")
 
         renamed = self._rebuild(("new.vpx", {"file_hash": "aaa"}))
 
-        self.assertNotIn("old.vpx", renamed)
-        self.assertEqual(renamed["new.vpx"][TABLE_ID_KEY], original)
-        self.assertTrue(renamed["new.vpx"]["hidden"])
-        self.assertEqual(renamed["new.vpx"]["user"], {"start_count": 7})
+        self.assertEqual(_by_name(renamed, "old.vpx"), {}, "the old name is gone")
+        self.assertEqual(_by_name(renamed, "new.vpx")[TABLE_ID_KEY], original)
+        self.assertTrue(_by_name(renamed, "new.vpx")["hidden"])
+        self.assertEqual(_by_name(renamed, "new.vpx")["user"], {"start_count": 7})
 
     def test_a_copy_beside_the_original_is_a_new_table(self) -> None:
         """Both files are present, so neither is a rename - the second is genuinely new."""
         built = self._rebuild(("a.vpx", {"file_hash": "aaa"}),
                               ("copy.vpx", {"file_hash": "aaa"}))
 
-        self.assertNotEqual(built["a.vpx"][TABLE_ID_KEY],
-                            built["copy.vpx"][TABLE_ID_KEY])
+        self.assertNotEqual(_by_name(built, "a.vpx")[TABLE_ID_KEY],
+                            _by_name(built, "copy.vpx")[TABLE_ID_KEY])
 
     def test_a_changed_file_under_the_same_name_keeps_its_id(self) -> None:
         """Editing a .vpx is not a new table."""
-        first = self._rebuild(("a.vpx", {"file_hash": "aaa"}))["a.vpx"][TABLE_ID_KEY]
-        edited = self._rebuild(("a.vpx", {"file_hash": "zzz"}))["a.vpx"][TABLE_ID_KEY]
+        first = _by_name(self._rebuild(("a.vpx", {"file_hash": "aaa"})), "a.vpx")[TABLE_ID_KEY]
+        edited = _by_name(self._rebuild(("a.vpx", {"file_hash": "zzz"})), "a.vpx")[TABLE_ID_KEY]
 
         self.assertEqual(first, edited)
 
@@ -102,12 +122,52 @@ class BackfillTests(unittest.TestCase):
         self.root = Path(self._tmp.name)
 
     def test_entries_written_before_ids_existed_get_one(self) -> None:
-        game = _game(self.root, "Old", _meta(("a.vpx", {"file_hash": "aaa"})))
+        game = _game(self.root, "Old", _legacy_meta(("a.vpx", {"file_hash": "aaa"})))
 
         table_identity.ensure_unique_table_ids([game])
 
         on_disk = json.loads((self.root / "Old" / "Old.info").read_text(encoding="utf-8"))
-        self.assertTrue(table_id(on_disk[TABLES_KEY]["a.vpx"]))
+        self.assertTrue(table_id(_by_name(on_disk[TABLES_KEY], "a.vpx")))
+
+    def test_a_filename_keyed_file_is_rewritten_keyed_by_id(self) -> None:
+        """What every existing library is sitting on. The key becomes the id and the
+        name it used to be keyed by becomes a field; nothing else moves."""
+        game = _game(self.root, "Legacy", _legacy_meta(
+            ("a.vpx", {"file_hash": "aaa", TABLE_ID_KEY: "keepthisid",
+                       "hidden": True, "user": {"start_count": 4}})))
+
+        table_identity.ensure_unique_table_ids([game])
+
+        stored = json.loads(
+            (self.root / "Legacy" / "Legacy.info").read_text(encoding="utf-8"))[TABLES_KEY]
+        self.assertEqual(list(stored), ["keepthisid"], "keyed by id, not by name")
+        entry = stored["keepthisid"]
+        self.assertEqual(entry[TABLE_FILENAME_KEY], "a.vpx")
+        self.assertTrue(entry["hidden"])
+        self.assertEqual(entry["user"], {"start_count": 4})
+
+    def test_a_game_with_no_tables_is_not_rewritten_every_startup(self) -> None:
+        """Found on the cabinet: one game in 653 has no .vpx, and an empty map was
+        being treated as needing conversion, so it was rewritten on every launch."""
+        game = _game(self.root, "Empty", {"vpinfe": {"schema": 2}, TABLES_KEY: {}})
+        info = self.root / "Empty" / "Empty.info"
+        before = info.stat().st_mtime_ns
+
+        table_identity.ensure_unique_table_ids([game])
+
+        self.assertEqual(info.stat().st_mtime_ns, before)
+
+    def test_an_entry_with_no_id_and_no_name_is_dropped(self) -> None:
+        """Nothing can address it, and half a record in front of a reader is worse
+        than none."""
+        game = _game(self.root, "Half", {"vpinfe": {"schema": 2},
+                                         TABLES_KEY: {"a.vpx": "not-a-dict"}})
+
+        table_identity.ensure_unique_table_ids([game])
+
+        stored = json.loads(
+            (self.root / "Half" / "Half.info").read_text(encoding="utf-8"))[TABLES_KEY]
+        self.assertEqual(stored, {})
 
     def test_a_copied_folder_does_not_leave_two_tables_sharing_an_id(self) -> None:
         """The only collision that happens in practice: the .info was copied with the folder."""
@@ -120,8 +180,8 @@ class BackfillTests(unittest.TestCase):
         self.assertEqual(len(by_id), 2)
         kept = json.loads((self.root / "First" / "First.info").read_text(encoding="utf-8"))
         remixed = json.loads((self.root / "Second" / "Second.info").read_text(encoding="utf-8"))
-        self.assertEqual(table_id(kept[TABLES_KEY]["a.vpx"]), "dupdupdup1")
-        self.assertNotEqual(table_id(remixed[TABLES_KEY]["a.vpx"]), "dupdupdup1")
+        self.assertEqual(table_id(_by_name(kept[TABLES_KEY], "a.vpx")), "dupdupdup1")
+        self.assertNotEqual(table_id(_by_name(remixed[TABLES_KEY], "a.vpx")), "dupdupdup1")
 
     def test_a_game_that_needs_nothing_is_not_rewritten(self) -> None:
         """653 games on a network share: a needless write is a round trip each."""

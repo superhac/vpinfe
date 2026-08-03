@@ -1,5 +1,7 @@
 import json
 import unittest
+
+from common.games.tables import entry_for_filename
 from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -306,7 +308,7 @@ class PatchSourceTests(unittest.TestCase):
 
     def _source(self, filename: str = "Example Table VPW Mod.vpx") -> dict:
         saved = json.loads(self.info.read_text(encoding="utf-8"))
-        return saved["tables"][filename]["source"]
+        return entry_for_filename(saved["tables"], filename)[1]["source"]
 
     def test_the_base_is_named_and_hashed(self) -> None:
         meta = MetaConfig(str(self.info))
