@@ -317,3 +317,16 @@ without it leaves a dangling negation.
 This file stays. By then it stops being a gate and becomes the list of what changed in
 3.0 and why: upgrade notes for anyone coming from 2.x, and the first place to look when a
 theme or an API consumer breaks.
+
+**PAR-28 — the theme payload at contract 2 is an entry list, not a row array.**
+
+Contract 1 is unchanged and is what every published theme reads: an array of game rows,
+built from the game exactly as 2.x built it. The parity gate holds it against master.
+
+Contract 2 is an object — `{collection, expanded, count, entries}` — where an entry is a
+table with its game attached. A game offering several tables can appear more than once,
+which a row array cannot express. `meta` is gone at contract 2: it was the `.info` passed
+through, so a storage change reached themes whether or not it meant anything to them.
+
+Nothing published declares contract 2, so this reshapes a surface no theme reads yet.
+

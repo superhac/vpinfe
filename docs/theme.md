@@ -73,8 +73,12 @@ when the data behind it is reshaped.
 
 | Contract | What the payload looks like |
 |---|---|
-| `1` (default) | `meta.VPXFile` holds the game's default table, with `filename`, `manufacturer`, `year`, `type`, the `detect*` flags and `altSoundExists` / `altColorExists` / `pupPackExists`. `meta.Info` carries `Rom` and `Authors`. `meta.VPinFE` holds VPinFE's own settings. |
-| `2` | `meta.tables` holds every `.vpx` in the folder, keyed by filename — a folder can hold several and each answers for itself. `meta.vpinfe` replaces `meta.VPinFE`. `Rom` and `Authors` live on the table, not on `Info`. `meta.assets` records where files came from. |
+| `1` (default) | An **array of game rows**. Each row is one game, with its default table folded into `meta.VPXFile` and a media path per kind at the top level. This is what every theme written before 3.0 reads, and it is unchanged. |
+| `2` | An **object with an `entries` array**. Each entry is one *table*, with the game it belongs to attached. A game that offers several tables can appear more than once. |
+
+These are different shapes, not the same shape with different key names — declaring
+`contract: 2` changes how you iterate the payload, not just what you call things. See
+[Contract 2 payload](#contract-2-payload).
 
 **You do not need to bump `contract` when VPinFE adds things.** New media kinds, new fields
 and new `vpin.*` methods are visible at every contract — check for what you want and use it
@@ -90,6 +94,64 @@ A contract only goes up when something a theme already reads is **removed or res
 bumps are rare. If you declare a contract newer than the VPinFE you are running on, you get
 the newest that build has and a warning in the log.
 
+### Contract 2 payload
+
+At `contract: 2` the payload is an object, and the list you iterate is `entries`:
+
+```json
+{
+  "collection": "Friday Night",
+  "expanded": false,
+  "count": 3,
+  "entries": [
+    {
+      "game": {
+        "id": "tuF3WogthK", "vps_id": "9Paf7-CL",
+        "name": "Attack from Mars", "manufacturer": "Bally",
+        "year": "1995", "type": "SS", "themes": ["Aliens"],
+        "rating": 4, "dir_name": "Attack from Mars (Bally 1995)",
+        "path": "/games/Attack from Mars (Bally 1995)"
+      },
+      "table": {
+        "id": "Ls3JyWq7Fm", "filename": "Attack from Mars VPW Mod 1.2.vpx",
+        "path": "/games/.../Attack from Mars VPW Mod 1.2.vpx",
+        "version": "1.3.0", "rom": "afm_113b", "authors": ["jpsalas"],
+        "detects": { "ssf": true, "nfozzy": false, "fleep": false }
+      },
+      "assets": { "pup_pack": true, "alt_color": false, "alt_sound": false },
+      "siblings": 2,
+      "media": { "PlayfieldImagePath": "…", "BGImagePath": "…" }
+    }
+  ]
+}
+```
+
+**An entry is a table, not a game.** A game folder can hold several `.vpx` — a desktop
+build, a VR build, a patched variant — and they are peers. One entry is one of them, with
+the game it belongs to attached.
+
+| Field | What it is |
+|---|---|
+| `collection` | The collection being shown, or `""` for an ad-hoc filtered view. |
+| `expanded` | `false` means one entry per game — its default table. `true` means one entry per table, so a game with three tables contributes three. The user sets this; your theme does not have to do anything differently either way. |
+| `count` | How many entries. The same as `entries.length`. |
+| `entries[].game` | Identity and metadata for the machine. The same names `/api/v1/games` uses. |
+| `entries[].table` | The `.vpx` this entry is. `id` is stable across renames; `filename` is not. |
+| `entries[].assets` | What the game needs to play as intended, as booleans. |
+| `entries[].siblings` | How many tables this entry's game offers. `1` means there is nothing to switch to. |
+| `entries[].media` | The resolved media paths, the same keys contract 1 puts at the top of a row. |
+
+**`detects` loses the `detect_` prefix.** `table.detects.ssf`, not `detect_ssf` — the
+prefix was storage, not vocabulary.
+
+**There is no `meta` at contract 2.** `meta` was the `.info` file passed through, so a
+storage change reached themes whether or not it meant anything to them. Contract 2 serves
+a payload of its own instead, and `.info` can be reshaped without touching your theme.
+Everything `meta` carried that a theme actually reads has a home above.
+
+**There is no entry id.** `table.id` is the identity — a table appears at most once in a
+collection, so nothing else is needed.
+
 ### Names that changed in 3.0
 
 3.0 takes its nouns from the Virtual Pinball Spreadsheet: the machine is a **game**, the
@@ -97,10 +159,11 @@ the newest that build has and a warning in the log.
 2.x theme needs no edits. Two different mechanisms keep it working, and which one you are
 leaning on decides whether declaring `contract: 2` changes anything for you.
 
-**The payload follows the contract you declare.** At `2` you get the new keys; at `1` —
-which is what you get by declaring nothing — VPinFE projects them back on the way out:
+**The payload follows the contract you declare.** At `1` — which is what you get by
+declaring nothing — VPinFE builds the row shape 2.x themes read, including the names 2.x
+used:
 
-| contract 2 | contract 1 |
+| the 3.0 name | what contract 1 serves |
 |---|---|
 | `gameDirName` | `tableDirName` |
 | `fullPathGame` | `fullPathTable` |
@@ -1210,7 +1273,7 @@ Each element in `vpin.gameData` (and the return of `vpin.getGameMeta(index)`) is
 | `AudioLaunchPath` | `string\|null` | Local path to the launch audio file (`audiolaunch.mp3`). |
 | `RuleSheetPath` | `string\|null` | Local path to the rulesheet document (`rulesheet.pdf`). |
 | `ManufacturerLogoPath` | `string\|null` | Web path to the manufacturer's logo under `/assets/`; use `vpin.getManufacturerLogoURL(index)`. |
-| `meta` | `object` | The game's `.info`, reshaped to your contract and with `Title` adjusted for display (see [meta.Info](#metainfo)). |
+| `meta` | `object` | The game's `.info`, with `Title` adjusted for display (see [meta.Info](#metainfo)). **Contract 1 only** — contract 2 has no `meta`; see [Contract 2 payload](#contract-2-payload). |
 | `vpinplay` | `object\|null` | Cached VPinPlay cumulative rating payload for the game, or `null` until fetched/unavailable. |
 
 > **Note:** You typically don't use the path properties directly. Use `vpin.getImageURL()`, `vpin.getVideoURL()`, and `vpin.getAudioURL()` which convert these paths to HTTP URLs. Direct access to path properties is useful for checking existence (e.g., `if (game.PlayfieldVideoPath)` to decide whether to show video or image).
@@ -1220,9 +1283,9 @@ Each element in `vpin.gameData` (and the return of `vpin.getGameMeta(index)`) is
 VPSdb and user-edited metadata.
 
 `meta` is the game's `.info`, but not a raw copy of it: `Title` is adjusted for display
-before you see it, and the sections are reshaped to your contract. It also carries any
-section VPinFE does not own, because the `.info` is written back with unknown sections
-preserved.
+before you see it. It also carries any section VPinFE does not own, because the `.info` is
+written back with unknown sections preserved — which is exactly why contract 2 stopped
+serving it. A storage change reached themes whether or not it meant anything to them.
 
 | Property | Type | Description |
 |----------|------|-------------|
