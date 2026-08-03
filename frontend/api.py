@@ -2,6 +2,7 @@ import logging
 
 from common import events
 from common.deprecations import announce
+from common.games import collection_resolver
 from common.games.collections_service import (
     get_collection_image_url,
     get_collection_names,
@@ -194,6 +195,43 @@ class API:
         self.current_sort = 'Alpha'
         self.current_order = 'Ascending'
         game_state.apply_sort(self.filteredGames, self.current_sort, self.current_order)
+        self._rebuild_entries()
+
+    @property
+    def _expanded(self) -> bool:
+        """Whether the wheel shows every table of a game or just one.
+
+        Off by default, which is what every theme written so far assumes and what the
+        list looked like before a game could offer more than one.
+        """
+        try:
+            return str(self._iniConfig.config["Settings"].get(
+                "expandtables", "false")).strip().lower() in ("1", "true", "yes", "on")
+        except Exception:
+            return False
+
+    def _rebuild_entries(self) -> None:
+        """Recompute the view. Called whenever the list or its order changes."""
+        games = getattr(self, "filteredGames", []) or []
+        self._entries = collection_resolver.entries_for(games, expanded=self._expanded)
+        self._entries_source = games
+
+    @property
+    def entries(self):
+        """What the wheel steps through, and what an index from a theme addresses.
+
+        filteredGames stays the games the filters and sorts work on - those are
+        game-level questions. Cached rather than derived per access: notify_game_selected
+        fires on every wheel step, and rebuilding 653 games there costs ~2ms a step.
+
+        Rebuilt automatically when the source list is replaced, so a caller that swaps
+        filteredGames cannot leave a stale view behind. An in-place re-sort keeps the
+        same object, which is why apply_sort rebuilds explicitly.
+        """
+        games = getattr(self, "filteredGames", []) or []
+        if getattr(self, "_entries", None) is None or self._entries_source is not games:
+            self._rebuild_entries()
+        return self._entries
 
 
     ###################
@@ -233,14 +271,16 @@ class API:
     def get_games(self, reset=False):
         if reset:
             self._reset_to_default_view()
-        self.jsGameDictData = game_state.games_json(self.filteredGames,
-                                                       self._theme_contract())
+        self.jsGameDictData = game_state.games_json(
+            self.entries, self._theme_contract(),
+            collection=self.current_collection or "", expanded=self._expanded)
         return self.jsGameDictData
 
     def get_initial_game_index(self):
         # Position the wheel on the last-launched game at startup. Resolved
         # against the current (possibly filtered) view; 0 when disabled or unfound.
-        return last_game.resolve_last_game_index(self._iniConfig, self.filteredGames)
+        return last_game.resolve_last_game_index(
+            self._iniConfig, [e.game for e in self.entries])
 
 
     def get_collections(self):
@@ -348,6 +388,7 @@ class API:
         logger.debug("Applying sort: %s %s", sort_type, self.current_order)
 
         count = game_state.apply_sort(self.filteredGames, sort_type, self.current_order)
+        self._rebuild_entries()
         logger.debug("Sorted %s games by %s %s", count, sort_type, self.current_order)
         return count
 
@@ -363,7 +404,8 @@ class API:
             index = 0
         paging_type, page_size = input_api.get_paging_config(self._iniConfig.config)
         return game_state.page_jump_index(
-            self.filteredGames, index, direction, self.current_sort, paging_type, page_size
+            [e.game for e in self.entries], index, direction, self.current_sort,
+            paging_type, page_size
         )
 
     def console_out(self, output):
@@ -394,14 +436,18 @@ class API:
         here has to tell them.
         """
         try:
-            game = self.filteredGames[int(index)]
+            entry = self.entries[int(index)]
         except Exception:
             logger.warning("Ignoring launch for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
 
+        game = entry.game
         try:
+            # The entry names the table, so an expanded list launches the build the
+            # player is looking at rather than whatever the game defaults to.
             launch.launch_game(game, self._iniConfig,
-                                source=launch_state.SOURCE_FRONTEND)
+                                source=launch_state.SOURCE_FRONTEND,
+                                table=entry.filename)
         except launch.LaunchUnavailableError as exc:
             logger.warning("Cannot launch %s: %s", game.gameDirName, exc)
             return {"success": False, "reason": str(exc)}
@@ -415,7 +461,7 @@ class API:
         fail in a way the wheel should care about.
         """
         try:
-            game = self.filteredGames[int(index)]
+            game = self.entries[int(index)].game
         except Exception:
             logger.debug("Ignoring game selection for invalid index: %s", index)
             return {"success": False, "reason": "invalid_index"}
@@ -425,12 +471,14 @@ class API:
 
     def get_game_rating(self, index):
         """Get User.Rating for a game index in the current filtered list."""
-        return game_state.get_game_rating(self.filteredGames, index)
+        return game_state.get_game_rating([e.game for e in self.entries], index)
 
     def set_game_rating(self, index, rating):
         """Set User.Rating (0-5) for a game index in the current filtered list."""
-        result = game_state.set_game_rating(self.filteredGames, index, rating)
-        logger.info("Updated User.Rating for %s -> %s", self.filteredGames[index].gameDirName, result["rating"])
+        games = [e.game for e in self.entries]
+        result = game_state.set_game_rating(games, index, rating)
+        logger.info("Updated User.Rating for %s -> %s",
+                    games[index].gameDirName, result["rating"])
         return result
 
     def build_metadata(self, download_media=True, update_all=False):

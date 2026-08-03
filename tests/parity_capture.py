@@ -73,7 +73,15 @@ def _capture_theme_payload(games_root: Path) -> dict:
     parser = GameParser(str(games_root))
     # Contract 1: what a theme written before 3.0 receives. Capturing the current
     # contract would compare master against a shape no existing theme asks for.
-    payload = json.loads(games_json(parser.getAllGames(), contract=1))
+    games = parser.getAllGames()
+    try:
+        # 3.0 serves the view as entries; master hands games_json the games directly.
+        # This script has to run against both, because the baseline it is compared to
+        # was captured from master.
+        from common.games.collection_resolver import entries_for
+        payload = json.loads(games_json(entries_for(games), contract=1))
+    except ImportError:
+        payload = json.loads(games_json(games, contract=1))
     entry = payload[0] if payload else {}
     return {
         "count": len(payload),

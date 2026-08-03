@@ -19,6 +19,7 @@ because the play lens and the management lens want different amounts of it.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -32,6 +33,7 @@ from common.games.game_metadata import (
     vpinfe_section,
 )
 from common.games.tables import (
+    TABLE_FILENAME_KEY,
     TABLE_ID_KEY,
     entry_filename,
     entry_for_filename,
@@ -96,7 +98,7 @@ def visible_entries(game) -> list[dict]:
     entries = table_entries(getattr(game, "metaConfig", {}))
     visible = [e for e in entries.values() if e.get("hidden") is not True]
     if not visible:
-        return []
+        return _unparsed_entry(game)
 
     meta = getattr(game, "metaConfig", {})
     chosen = recorded_default(vpinfe_section(meta), entries) or resolve_default_name(
@@ -107,6 +109,20 @@ def visible_entries(game) -> list[dict]:
                   key=lambda e: entry_filename(e).lower())
     head = [e for e in visible if e.get(TABLE_ID_KEY) == default_id]
     return head + rest
+
+
+def _unparsed_entry(game) -> list[dict]:
+    """The .vpx the scan found, for a game nothing has parsed yet.
+
+    Its .info has no tables section - a folder that has never been through a metadata
+    build, which is the normal state of a freshly added game. It is still launchable
+    and the frontend has always offered it, so it gets an entry with no id rather than
+    disappearing until somebody runs a scan. The id arrives with the parse.
+    """
+    path = str(getattr(game, "fullPathVPXfile", "") or "").strip()
+    if not path:
+        return []
+    return [{TABLE_ID_KEY: "", TABLE_FILENAME_KEY: os.path.basename(path)}]
 
 
 def _pinned_entry(game, table_id: str) -> dict | None:
@@ -141,6 +157,22 @@ def _sort_key(order_by: str):
         return lambda e: (-_user_value(e.game, stored), game_title(e.game).lower(),
                           e.table_id)
     return _sort_key(DEFAULT_ORDER)
+
+
+def entries_for(games, *, expanded: bool = False) -> list[Entry]:
+    """A list of games as entries, without a collection to resolve.
+
+    The frontend's own filter controls produce an ad-hoc list that belongs to no
+    collection, so there is nothing to resolve - but it still has to become entries,
+    and by the same rule `resolve` uses, or the two would disagree about which table
+    a collapsed game shows.
+    """
+    out: list[Entry] = []
+    for game in games:
+        offered = visible_entries(game)
+        for table in (offered if expanded else offered[:1]):
+            out.append(Entry(game=game, table=table, siblings=len(offered)))
+    return out
 
 
 def resolve_games(name: str, collections, games) -> list[Any]:

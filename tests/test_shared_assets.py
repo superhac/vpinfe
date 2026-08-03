@@ -232,12 +232,13 @@ class PayloadTests(unittest.TestCase):
         import json as _json
         from types import SimpleNamespace
 
+        from common.games.collection_resolver import entries_for
         from frontend.game_state import games_json
 
         game = SimpleNamespace(
             gameDirName="Cactus Canyon (Bally 1998)",
             fullPathGame="/games/Cactus Canyon (Bally 1998)",
-            fullPathVPXfile="",
+            fullPathVPXfile="/games/Cactus Canyon (Bally 1998)/Cactus Canyon.vpx",
             pupPackExists=False,
             altColorExists=False,
             altSoundExists=False,
@@ -251,7 +252,7 @@ class PayloadTests(unittest.TestCase):
             configure_shared_assets(root)
             self.addCleanup(configure_shared_assets, None)
 
-            rows = _json.loads(games_json([game]))
+            rows = _json.loads(games_json(entries_for([game]), contract=1))
 
         self.assertEqual(rows[0]["ManufacturerLogoPath"],
                          "/assets/manufacturers/user/bally.png")

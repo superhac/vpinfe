@@ -8,7 +8,10 @@ from common.games.collections_service import (
     get_collection_names,
     save_filter_collection,
 )
+from common.games import game_identity
 from common.games.game_metadata import (
+    DETECTION_KEYS,
+    game_rating,
     game_title,
     get_or_create_user_meta,
     load_game_meta,
@@ -54,53 +57,116 @@ def normalize_sort_order(order_by, sort_type="Alpha"):
     return default_sort_order(sort_type)
 
 
-def games_json(games, contract: int = CURRENT_CONTRACT) -> str:
-    result = []
+def _legacy_row(game, logo_cache) -> dict:
+    """One row in the shape every published theme reads.
+
+    Built from the game exactly as it always was. Contract 2 is assembled separately
+    rather than projected from this: twelve published themes depend on this shape and
+    the parity gate holds it against master, so it does not go behind a transformation.
+    """
+    # A copy: what follows adds fields the theme contract defines, and writing those
+    # into the shared metaConfig would put a dropped section back on disk at the next
+    # rebuild.
+    meta = dict(normalize_meta(game.metaConfig))
+    vpinfe = vpinfe_section(meta)
+    info = section(meta, "Info")
+
+    used_alttitle = False
+    if (str(vpinfe.get("alt_vpsid", "") or "").strip()
+            and str(vpinfe.get("alt_title", "") or "").strip()):
+        info["Title"] = str(vpinfe.get("alt_title", "") or "").strip()
+        meta["Info"] = info
+        used_alttitle = True
+
+    # Reorder a leading "The " on the canonical Info.Title so the theme displays and
+    # sorts by the second word. A user-set alttitle is left exactly as entered.
+    if not used_alttitle and info.get("Title"):
+        info["Title"] = reorder_leading_article(info["Title"])
+        meta["Info"] = info
+
+    row = {
+        "gameDirName": game.gameDirName,
+        "fullPathGame": game.fullPathGame,
+        "fullPathVPXfile": game.fullPathVPXfile,
+        "pupPackExists": game.pupPackExists,
+        "altColorExists": game.altColorExists,
+        "altSoundExists": game.altSoundExists,
+        "meta": meta,
+    }
+    row.update(game_media_payload(game))
+    maker = str(info.get("Manufacturer", "") or "")
+    if maker not in logo_cache:
+        logo_cache[maker] = manufacturer_logo_web_path(maker)
+    row["ManufacturerLogoPath"] = logo_cache[maker]
+    return row
+
+
+def _entry_row(entry, logo_cache) -> dict:
+    """One entry in contract 2: the game, the table it is, and what resolved for it."""
+    game = entry.game
+    meta = normalize_meta(game.metaConfig)
+    info = section(meta, "Info")
+    maker = str(info.get("Manufacturer", "") or "")
+    if maker not in logo_cache:
+        logo_cache[maker] = manufacturer_logo_web_path(maker)
+    return {
+        "game": {
+            "id": game_identity.game_id(game),
+            "vps_id": str(info.get("VPSId", "") or ""),
+            "name": game_title(game),
+            "manufacturer": maker,
+            "year": str(info.get("Year", "") or ""),
+            "type": str(info.get("Type", "") or ""),
+            "themes": info.get("Themes") or [],
+            "rating": game_rating(game),
+            "dir_name": game.gameDirName,
+            "path": game.fullPathGame,
+        },
+        "table": {
+            "id": entry.table_id,
+            "filename": entry.filename,
+            "path": game.fullPathVPXfile,
+            "version": str(entry.table.get("version", "") or ""),
+            "rom": str(entry.table.get("rom", "") or ""),
+            "authors": entry.table.get("authors") or [],
+            "detects": {key.removeprefix("detect_"): bool(entry.table.get(key, False))
+                        for key in DETECTION_KEYS},
+        },
+        "assets": {
+            "pup_pack": bool(game.pupPackExists),
+            "alt_color": bool(game.altColorExists),
+            "alt_sound": bool(game.altSoundExists),
+        },
+        "siblings": entry.siblings,
+        "media": {**game_media_payload(game),
+                  "ManufacturerLogoPath": logo_cache[maker]},
+    }
+
+
+def games_json(entries, contract: int = CURRENT_CONTRACT, *,
+               collection: str = "", expanded: bool = False) -> str:
+    """The theme payload, at the contract the theme asked for.
+
+    Contract 1 is a bare array of rows, one per game - what every published theme
+    reads, and what the parity gate compares against master.
+    """
     logo_cache: dict[str, str | None] = {}
-    for game in games:
-        # A copy: what follows adds fields the theme contract defines, and writing those
-        # into the shared metaConfig would put a dropped section back on disk at the next
-        # rebuild.
-        meta = dict(normalize_meta(game.metaConfig))
-
-        vpinfe = vpinfe_section(meta)
-        info = section(meta, "Info")
-        used_alttitle = False
-        if str(vpinfe.get("alt_vpsid", "") or "").strip() and str(vpinfe.get("alt_title", "") or "").strip():
-            info["Title"] = str(vpinfe.get("alt_title", "") or "").strip()
-            meta["Info"] = info
-            used_alttitle = True
-
-        # Reorder a leading "The " on the canonical Info.Title so the theme
-        # displays and sorts by the second word, e.g. "The Addams Family" ->
-        # "Addams Family, The". A user-set alttitle is left exactly as entered.
-        # Idempotent, so the in-place mutation of the shared meta dict is safe.
-        if not used_alttitle and info.get("Title"):
-            info["Title"] = reorder_leading_article(info["Title"])
-            meta["Info"] = info
-
-        row = {
-            "gameDirName": game.gameDirName,
-            "fullPathGame": game.fullPathGame,
-            "fullPathVPXfile": game.fullPathVPXfile,
-            "pupPackExists": game.pupPackExists,
-            "altColorExists": game.altColorExists,
-            "altSoundExists": game.altSoundExists,
-            "meta": meta,
-        }
-        row.update(game_media_payload(game))
-        maker = str(info.get("Manufacturer", "") or "")
-        if maker not in logo_cache:
-            logo_cache[maker] = manufacturer_logo_web_path(maker)
-        row["ManufacturerLogoPath"] = logo_cache[maker]
-        result.append(project(row, contract))
-    return json.dumps(result)
+    if contract < CURRENT_CONTRACT:
+        return json.dumps([project(_legacy_row(e.game, logo_cache), contract)
+                           for e in entries])
+    return json.dumps({
+        "collection": collection,
+        "expanded": expanded,
+        "count": len(entries),
+        "entries": [_entry_row(e, logo_cache) for e in entries],
+    })
 
 
 def apply_collection(api, collection):
     api.current_collection = collection
     filtered, filters = filter_games_by_collection(api.allGames, collection)
     api.filteredGames = filtered
+    api._rebuild_entries()
     if filters is None:
         api.current_filters = default_filter_state()
         return
@@ -117,6 +183,7 @@ def apply_collection(api, collection):
     api.current_sort = filters["sort_by"]
     api.current_order = normalize_sort_order(filters.get("order_by"), filters["sort_by"])
     api.apply_sort(filters["sort_by"], api.current_order)
+    api._rebuild_entries()
 
 
 def save_current_filter_collection(api, name, letter, theme, game_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by="Descending"):
@@ -160,6 +227,7 @@ def apply_filters(api, letter=None, theme=None, game_type=None, manufacturer=Non
         rating=api.current_filters["rating"],
         rating_or_higher=api.current_filters["rating_or_higher"],
     )
+    api._rebuild_entries()
     return len(api.filteredGames)
 
 

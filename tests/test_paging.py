@@ -8,7 +8,10 @@ from frontend.game_state import page_jump_index
 
 
 def _game(title):
-    return SimpleNamespace(metaConfig={"Info": {"Title": title}})
+    # fullPathVPXfile is what every game off a real scan carries, and what the view
+    # falls back to for a folder no metadata build has parsed yet.
+    return SimpleNamespace(metaConfig={"Info": {"Title": title}},
+                           fullPathVPXfile=f"/games/{title}/{title}.vpx")
 
 
 def _games(*titles):
