@@ -222,7 +222,8 @@ class API:
 
         filteredGames stays the games the filters and sorts work on - those are
         game-level questions. Cached rather than derived per access: notify_game_selected
-        fires on every wheel step, and rebuilding 653 games there costs ~2ms a step.
+        fires on every wheel step, and rebuilding a large library there costs milliseconds
+        a step.
 
         Rebuilt automatically when the source list is replaced, so a caller that swaps
         filteredGames cannot leave a stale view behind. An in-place re-sort keeps the

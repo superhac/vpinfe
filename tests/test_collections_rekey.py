@@ -10,7 +10,6 @@ from common.games import game_repository
 from common.games.metaconfig import MetaConfig
 from common.games.vpxcollections import (
     CURRENT_SCHEMA,
-    SCHEMA_SECTION,
     VPXCollections,
     collections_schema,
     restorable_collections_backup,
@@ -411,7 +410,7 @@ class JsonConversionTests(unittest.TestCase):
     def test_both_reserved_section_spellings_are_filtered(self) -> None:
         """Real files carry [VPinFE] and [vpinfe] side by side - the section was renamed
         without the old one being removed. Reading only the new name turns the old one
-        into a collection called "VPinFE". Found on the cabinet."""
+        into a collection called "VPinFE"."""
         self._write_ini("""
             [Last Played]
             type = vpsid

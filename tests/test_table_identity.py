@@ -185,8 +185,8 @@ class BackfillTests(unittest.TestCase):
         self.assertEqual(stored["vpinfe"]["default_table"], "deleted.vpx")
 
     def test_a_game_with_no_tables_is_not_rewritten_every_startup(self) -> None:
-        """Found on the cabinet: one game in 653 has no .vpx, and an empty map was
-        being treated as needing conversion, so it was rewritten on every launch."""
+        """A game with no .vpx is rare but real. An empty map was being treated as
+        needing conversion, so that game was rewritten on every launch."""
         game = _game(self.root, "Empty", {"vpinfe": {"schema": 2}, TABLES_KEY: {}})
         info = self.root / "Empty" / "Empty.info"
         before = info.stat().st_mtime_ns
@@ -222,7 +222,7 @@ class BackfillTests(unittest.TestCase):
         self.assertNotEqual(table_id(_by_name(remixed[TABLES_KEY], "a.vpx")), "dupdupdup1")
 
     def test_a_game_that_needs_nothing_is_not_rewritten(self) -> None:
-        """653 games on a network share: a needless write is a round trip each."""
+        """A large library on a network share: a needless write is a round trip each."""
         game = _game(self.root, "Done",
                      _meta(("a.vpx", {"file_hash": "aaa", TABLE_ID_KEY: "alreadyhere"})))
         info = self.root / "Done" / "Done.info"
