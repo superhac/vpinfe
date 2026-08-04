@@ -1180,10 +1180,12 @@ If `override` is present, themes that position or scale BG/DMD content based on 
 Returns an HTTP URL for a table's image. `type` can be `"table"`, `"bg"`, `"dmd"`, `"wheel"`, or `"cab"`. Returns a fallback `/web/images/file_missing.png` URL if the file doesn't exist.
 
 #### getVideoURL(index, type)
-Returns an HTTP URL for a table's video. `type` can be `"table"`, `"bg"`, or `"dmd"`. Returns a fallback `/web/images/file_missing.png` URL if no video exists. See [Video Support](#video-support).
+Returns an HTTP URL for a table's video. `type` can be `"playfield"`, `"bg"`, or `"dmd"`. Returns a fallback `/web/images/file_missing.png` URL if no video exists. See [Video Support](#video-support).
 
 #### getMediaURL(index, type)
-Returns an HTTP URL using the user's configured media priority from Manager UI > Configuration > Media > Media Priorities. For `"table"`, `"bg"`, and `"dmd"`, VPinFE chooses image or video first based on the setting and falls back to the alternate when the preferred file is missing. For `"realdmd"`, VPinFE chooses `realdmd-color.png` or `realdmd.png` first based on the setting and falls back to the other frame.
+Returns an HTTP URL using the user's configured media priority from Manager UI > Configuration > Media > Media Priorities. For `"playfield"`, `"bg"`, and `"dmd"`, VPinFE chooses image or video first based on the setting and falls back to the alternate when the preferred file is missing. For `"real_dmd"`, VPinFE chooses `realdmd-color.png` or `realdmd.png` first based on the setting and falls back to the other frame.
+
+Kind names are snake_case, the same strings the payload and `/api/v1` use. The spellings earlier builds accepted — `table`, `table_video`, `fss`, `realdmd`, `realdmd-color`, `rulecard`, `audiolaunch`, `rulesheet` — still work.
 
 #### getMedia(index, type)
 Returns the same priority-aware selection with metadata: `{ url, kind, priority, path }`. Real DMD selections also include `variant` with `"color"` or `"standard"`.
@@ -1479,7 +1481,7 @@ All media files are stored per-table in either the `medias/` subfolder or the ta
 
 | File | API Type | Description |
 |------|----------|-------------|
-| `table.png` / `fss.png` | `"table"` | Table playfield image |
+| `table.png` / `fss.png` | `"playfield"` | Table playfield image |
 | `bg.png` | `"bg"` | Backglass image |
 | `dmd.png` | `"dmd"` | DMD image |
 | `wheel.png` | `"wheel"` | Wheel/logo image |
@@ -1491,7 +1493,7 @@ Use `vpin.getImageURL(index, type)` to get the URL.
 
 | File | API Type | Description |
 |------|----------|-------------|
-| `table.mp4` / `fss.mp4` | `"table"` | Table playfield video |
+| `table.mp4` / `fss.mp4` | `"playfield"` | Table playfield video |
 | `bg.mp4` | `"bg"` | Backglass video |
 | `dmd.mp4` | `"dmd"` | DMD video |
 
@@ -1534,8 +1536,8 @@ Use `vpin.getVideoURL(index, type)` to get the video URL. The method returns a f
 
 Example with image fallback:
 ```javascript
-const videoUrl = vpin.getVideoURL(currentGameIndex, 'table');
-const imageUrl = vpin.getImageURL(currentGameIndex, 'table');
+const videoUrl = vpin.getVideoURL(currentGameIndex, 'playfield');
+const imageUrl = vpin.getImageURL(currentGameIndex, 'playfield');
 
 if (videoUrl && !videoUrl.includes('file_missing')) {
     const preview = document.createElement('video');

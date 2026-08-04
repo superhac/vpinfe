@@ -91,10 +91,10 @@ _MEDIA_KEYWORDS: tuple[tuple[tuple[str, ...], str, str | None], ...] = (
     (("logo",), "logo", None),
     (("backglass", "b2s"), "bg", "bg_video"),
     (("dmd",), "dmd", "dmd_video"),
-    (("playfield", "table", "pf"), "table", "table_video"),
+    (("playfield", "table", "pf"), "playfield", "playfield_video"),
     (("cabinet", "cab"), "cab", None),
     (("flyer",), "flyer", None),
-    (("fss",), "fss", None),
+    (("fss",), "playfield_fss", None),
 )
 
 

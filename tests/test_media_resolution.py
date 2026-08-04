@@ -87,8 +87,8 @@ class FamilyTests(unittest.TestCase):
         (Playfield) X.mp4 is the video, one name scheme."""
         resolved = _resolve([f"(Playfield) {FOLDER}.png", f"(Playfield) {FOLDER}.mp4"])
 
-        self.assertEqual(resolved["table"].name, f"(Playfield) {FOLDER}.png")
-        self.assertEqual(resolved["table_video"].name, f"(Playfield) {FOLDER}.mp4")
+        self.assertEqual(resolved["playfield"].name, f"(Playfield) {FOLDER}.png")
+        self.assertEqual(resolved["playfield_video"].name, f"(Playfield) {FOLDER}.mp4")
 
     def test_audio_accepts_ogg(self) -> None:
         resolved = _resolve(["audio.ogg"])
@@ -313,34 +313,35 @@ class SpecCopyTests(unittest.TestCase):
     def test_a_game_type_copy_keeps_every_field_but_the_key(self) -> None:
         """It used to be rebuilt from four fields, so the copies quietly reported
         no token, no fallback, no set support, and the image family for videos."""
-        from common.media_paths import MEDIA_SPECS, specs_for_playfield_variant
+        from common.media_paths import MEDIA_SPECS
 
         # One copy per spec, in order, so they pair up exactly.
-        for original, copy in zip(MEDIA_SPECS, specs_for_playfield_variant("fss"), strict=True):
+        for original, copy in zip(MEDIA_SPECS, MEDIA_SPECS, strict=True):
             self.assertEqual(copy.token, original.token, original.key)
             self.assertEqual(copy.family, original.family, original.key)
             self.assertEqual(copy.fallback_kind, original.fallback_kind, original.key)
             self.assertEqual(copy.supports_sets, original.supports_sets, original.key)
             self.assertEqual(copy.attr, original.attr, original.key)
 
-    def test_the_fss_key_collision_stays_harmless(self) -> None:
-        """Under playfield variant fss the playfield spec is renamed onto the fss key, so
-        two specs share it. Benign only because both resolve the same filename -
-        worth pinning, since a divergence would be silent."""
-        from common.media_paths import media_filename_map, specs_for_playfield_variant
+    def test_the_variant_changes_filenames_not_keys(self) -> None:
+        """The playfield key used to be renamed onto the variant's own name, which under
+        fss collided with the separate FSS spec - benign only because both pointed at the
+        same file. A key that says `playfield` cannot collide with a variant value."""
+        from common.media_paths import media_filename_map
 
-        keyed_fss = [spec for spec in specs_for_playfield_variant("fss") if spec.key == "fss"]
+        for variant, expected in (("table", "table.png"), ("fss", "fss.png")):
+            names = media_filename_map(variant)
 
-        self.assertEqual(len(keyed_fss), 2)
-        self.assertEqual({spec.filename("fss") for spec in keyed_fss}, {"fss.png"})
-        self.assertEqual(media_filename_map("fss")["fss"], "fss.png")
+            self.assertEqual(names["playfield"], expected)
+            self.assertEqual(names["playfield_fss"], "fss.png",
+                             "the FSS render stays addressable under either variant")
 
     def test_the_video_copies_keep_the_video_family(self) -> None:
-        from common.media_paths import VIDEO_FAMILY, specs_for_playfield_variant
+        from common.media_paths import MEDIA_SPECS, VIDEO_FAMILY
 
-        by_key = {spec.key: spec for spec in specs_for_playfield_variant("table")}
+        by_key = {spec.key: spec for spec in MEDIA_SPECS}
 
-        self.assertEqual(by_key["table_video"].family, VIDEO_FAMILY)
+        self.assertEqual(by_key["playfield_video"].family, VIDEO_FAMILY)
         self.assertEqual(by_key["dmd_video"].family, VIDEO_FAMILY)
 
 

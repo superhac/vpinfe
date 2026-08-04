@@ -248,7 +248,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertTrue(media["bg"]["present"], "root-level fallback is found")
         self.assertFalse(media["flyer"]["present"])
         self.assertIsNone(media["flyer"]["links"]["self"])
-        self.assertIn("table_video", media)
+        self.assertIn("playfield_video", media)
         self.assertIn("audio", media)
 
     def test_a_media_file_is_streamed_with_its_content_type(self) -> None:

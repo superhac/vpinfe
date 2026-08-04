@@ -105,12 +105,12 @@ class VPSMediaDownloader:
         process(game_media, "realdmd", game.realDMDImagePath, str(default_media_path(game.fullPathGame, "real_dmd", self.playfieldvariant)))
         process(game_media, "realdmd_color", game.realDMDColorImagePath, str(default_media_path(game.fullPathGame, "real_dmd_color", self.playfieldvariant)))
         process(game_media, "flyer", game.FlyerImagePath, str(default_media_path(game.fullPathGame, "flyer", self.playfieldvariant)))
-        process(game_media.get(self.playfieldresolution), self.playfieldvariant, game.PlayfieldImagePath, str(default_media_path(game.fullPathGame, self.playfieldvariant, self.playfieldvariant)))
+        process(game_media.get(self.playfieldresolution), self.playfieldvariant, game.PlayfieldImagePath, str(default_media_path(game.fullPathGame, "playfield", self.playfieldvariant)))
         # Videos, and only the ones the index actually carries. There has never been
         # a bg_video at any resolution, so the backglass video is yours to supply.
         # Nor is there an fss_video: under table type fss the playfield video is
         # simply not offered, and asking would quietly fetch nothing.
         process(game_media.get(self.playfieldvideoresolution), "dmd_video", game.DMDVideoPath, str(default_media_path(game.fullPathGame, "dmd_video", self.playfieldvariant)))
         if self.playfieldvariant == "table":
-            process(game_media.get(self.playfieldvideoresolution), "table_video", game.PlayfieldVideoPath, str(default_media_path(game.fullPathGame, "table_video", self.playfieldvariant)))
+            process(game_media.get(self.playfieldvideoresolution), "table_video", game.PlayfieldVideoPath, str(default_media_path(game.fullPathGame, "playfield_video", self.playfieldvariant)))
         process(game_media, "audio", game.AudioPath, str(default_media_path(game.fullPathGame, "audio", self.playfieldvariant)))

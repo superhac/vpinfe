@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from pathlib import Path
 
 # Extension families, ordered: resolution tries them in order and the first hit
@@ -41,9 +41,12 @@ class MediaSpec:
 MEDIA_SPECS = (
     MediaSpec("bg", "BGImagePath", "bg.png", "1k", token="(Backglass)"),
     MediaSpec("dmd", "DMDImagePath", "dmd.png", "1k", token="(DMD)"),
-    MediaSpec("table", "PlayfieldImagePath", "{playfield_variant}.png", "table_resolution",
-              token="(Playfield)"),
-    MediaSpec("fss", "FSSImagePath", "fss.png", token="(FSS)"),
+    # One kind, two variants: the filename follows [Media] playfieldvariant, the key
+    # never does. playfield_fss is the FSS render on its own, and is what the
+    # playfield falls back to when it has none.
+    MediaSpec("playfield", "PlayfieldImagePath", "{playfield_variant}.png",
+              "table_resolution", token="(Playfield)"),
+    MediaSpec("playfield_fss", "FSSImagePath", "fss.png", token="(FSS)"),
     MediaSpec("wheel", "WheelImagePath", "wheel.png", token="(Wheel)",
               fallback_kind="logo", supports_sets=True),
     MediaSpec("cab", "CabImagePath", "cab.png", token="(Cabinet)"),
@@ -52,7 +55,7 @@ MEDIA_SPECS = (
               token="(RealColorDMD)"),
     MediaSpec("flyer", "FlyerImagePath", "flyer.png", token="(Flyer)",
               alt_tokens=("(GameInfo)",)),
-    MediaSpec("table_video", "PlayfieldVideoPath", "{playfield_variant}.mp4",
+    MediaSpec("playfield_video", "PlayfieldVideoPath", "{playfield_variant}.mp4",
               "table_video_resolution", token="(Playfield)", family=VIDEO_FAMILY),
     MediaSpec("bg_video", "BGVideoPath", "bg.mp4", "table_video_resolution",
               token="(Backglass)", family=VIDEO_FAMILY),
@@ -78,32 +81,17 @@ MEDIA_SPECS = (
 )
 
 
-def specs_for_playfield_variant(playfield_variant: str = "table") -> list[MediaSpec]:
-    """The spec list with the playfield keys renamed for this playfield variant.
-
-    Only the key changes: replace() copies the rest, so a spec from here still
-    carries its token, extension family, fallback and set support. Rebuilding one
-    field by field silently handed back defaults for everything not passed.
-    """
-    specs: list[MediaSpec] = []
-    for spec in MEDIA_SPECS:
-        key = playfield_variant if spec.key == "table" else f"{playfield_variant}_video" if spec.key == "table_video" else spec.key
-        specs.append(replace(spec, key=key))
-    return specs
-
-
 def media_filename_map(playfield_variant: str = "table") -> dict[str, str]:
-    return {spec.key: spec.filename(playfield_variant)
-            for spec in specs_for_playfield_variant(playfield_variant)}
+    """Kind key to the filename it resolves. The variant changes filenames, not keys."""
+    return {spec.key: spec.filename(playfield_variant) for spec in MEDIA_SPECS}
 
 
 def media_attr_key_map(playfield_variant: str = "table") -> dict[str, str]:
-    return {spec.attr: spec.key for spec in specs_for_playfield_variant(playfield_variant)}
+    return {spec.attr: spec.key for spec in MEDIA_SPECS}
 
 
 def media_attr_map(playfield_variant: str = "table") -> dict[str, str]:
-    return {spec.attr: spec.filename(playfield_variant)
-            for spec in specs_for_playfield_variant(playfield_variant)}
+    return {spec.attr: spec.filename(playfield_variant) for spec in MEDIA_SPECS}
 
 
 def default_media_path(game_dir: str | Path, key: str, playfield_variant: str = "table") -> Path:

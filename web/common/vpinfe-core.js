@@ -8,8 +8,8 @@ const originalConsole = {
 };
 
 const MEDIA_PATH_FIELDS = {
-  table: "PlayfieldImagePath",
-  fss: "FSSImagePath",
+  playfield: "PlayfieldImagePath",
+  playfield_fss: "FSSImagePath",
   bg: "BGImagePath",
   dmd: "DMDImagePath",
   wheel: "WheelImagePath",
@@ -50,14 +50,14 @@ const MEDIA_FIELD_FALLBACK = {
 };
 
 const MEDIA_VIDEO_PATH_FIELDS = {
-  table: "PlayfieldVideoPath",
+  playfield: "PlayfieldVideoPath",
   bg: "BGVideoPath",
   dmd: "DMDVideoPath",
   loading: "LoadingVideoPath",
 };
 
 const DEFAULT_MEDIA_PRIORITIES = {
-  table: "video",
+  playfield: "video",
   bg: "video",
   dmd: "video",
   real_dmd: "color",
@@ -65,9 +65,12 @@ const DEFAULT_MEDIA_PRIORITIES = {
 
 // Kind names a theme may pass to getMedia(). The canonical set is snake_case, matching
 // the payload, the HTTP API and common/media_paths.py; these are the spellings earlier
-// builds accepted. Both colour frames of the real DMD collapse onto one kind, which is
+// builds accepted. Both color frames of the real DMD collapse onto one kind, which is
 // why real_dmd_color appears here rather than only in MEDIA_PATH_FIELDS.
 const MEDIA_KIND_ALIASES = {
+  table: "playfield",
+  table_video: "playfield_video",
+  fss: "playfield_fss",
   realdmd: "real_dmd",
   "realdmd-color": "real_dmd",
   realdmd_color: "real_dmd",
@@ -335,7 +338,7 @@ class VPinFECore {
     if (normalizedType === "real_dmd") {
       return this.#resolveRealDmdMedia(table);
     }
-    if (["table", "bg", "dmd"].includes(normalizedType)) {
+    if (["playfield", "bg", "dmd"].includes(normalizedType)) {
       return this.#resolveImageVideoMedia(table, normalizedType);
     }
 
@@ -1272,7 +1275,7 @@ class VPinFECore {
     const normalized = Object.assign({}, DEFAULT_MEDIA_PRIORITIES);
     if (!priorities || typeof priorities !== "object") return normalized;
 
-    for (const key of ["table", "bg", "dmd"]) {
+    for (const key of ["playfield", "bg", "dmd"]) {
       const value = String(priorities[key] || "").trim().toLowerCase();
       if (value === "image" || value === "video") normalized[key] = value;
     }
@@ -1289,7 +1292,9 @@ class VPinFECore {
     // main screen resolve to "missing" for every theme written before 3.0. PAR-22.
     const image = this.#mediaField(table, MEDIA_PATH_FIELDS[type]);
     const videoPath = this.#mediaField(table, MEDIA_VIDEO_PATH_FIELDS[type]);
-    const imagePath = type === "table" ? (image || table.FSSImagePath) : image;
+    // The playfield falling back to its own FSS variant, which is why the two are
+    // named as a pair rather than as unrelated kinds.
+    const imagePath = type === "playfield" ? (image || table.FSSImagePath) : image;
     const candidates = priority === "image"
       ? [
           { kind: "image", path: imagePath },

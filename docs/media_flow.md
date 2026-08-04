@@ -47,6 +47,8 @@ A video uses its image counterpart's token and is told apart by extension, so `(
 
 Two of these differ from the published names. Visual Pinball calls the instruction card `(GameHelp)` and the game flyer `(GameInfo)`; VPinFE leads with `(InstructionCard)` and `(Flyer)` because they say what the file is, and **still accepts `(GameHelp)` and `(GameInfo)`** so media packaged either way works. `(RuleCard)`, which VPinFE recommended earlier in 3.0 development, is accepted too. If both are present the preferred name wins, but a table-specific file always beats a folder-level one whichever token it uses. `(Cabinet)`, `(FSS)`, `(Logo)` and `(RuleSheet)` have no published equivalent and are VPinFE's own.
 
+The playfield is one kind with two variants. `playfield` resolves `table.png` or `fss.png` depending on `[Media] playfieldvariant`; `playfield_fss` is the FSS render on its own, addressable whichever variant is active, and is what the playfield falls back to when it has no render of its own. Full Single Screen is a Visual Pinball view mode, so an `fss.png` is the same subject as a `table.png` photographed differently - not a separate kind.
+
 ### Manufacturer logos
 
 Manufacturer logos are not per-game media: they live in a shared assets root (`[Settings] assetsdir`, defaulting to `assets/` under the config dir) served at `/assets/`. Files in `manufacturers/user/` win over a pack in `manufacturers/default/`; lookup normalizes the game's `Info.Manufacturer` string (so "Williams Electronics" finds `williams.png`) with a `manufacturers.json` alias map for exceptions. The game payload carries the result as `ManufacturerLogoPath`, and themes call `vpin.getManufacturerLogoURL(index)`.

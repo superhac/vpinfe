@@ -199,7 +199,7 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertEqual(media_config.realdmd_media_priority, "standard")
         self.assertEqual(
             media_config.priority_payload(),
-            {"table": "image", "bg": "video", "dmd": "video", "real_dmd": "standard"},
+            {"playfield": "image", "bg": "video", "dmd": "video", "real_dmd": "standard"},
         )
         self.assertEqual(NetworkConfig.from_config(parser).ws_port, 9002)
         self.assertEqual(NetworkConfig.from_config(parser).theme_assets_port, 8000)
@@ -243,7 +243,7 @@ class TestCommonArchitecture(unittest.TestCase):
 
         self.assertEqual(game.BGImagePath, os.path.join(root, "bg.png"))
         self.assertEqual(game.PlayfieldImagePath, os.path.join(root, "medias", "fss.png"))
-        self.assertEqual(media_filename_map("fss")["fss"], "fss.png")
+        self.assertEqual(media_filename_map("fss")["playfield"], "fss.png")
         self.assertEqual(game_media_payload(game)["PlayfieldImagePath"],
                          os.path.join(root, "medias", "fss.png"))
 

@@ -320,6 +320,21 @@ This file stays. By then it stops being a gate and becomes the list of what chan
 3.0 and why: upgrade notes for anyone coming from 2.x, and the first place to look when a
 theme or an API consumer breaks.
 
+**PAR-29 — Media kind names are snake_case, and the old spellings still answer.**
+The strings a theme passes to `vpin.getMedia(index, kind)` — and the ones `/api/v1` uses
+in `/games/{id}/media/{kind}` — are `playfield`, `playfield_fss`, `playfield_video`,
+`real_dmd`, `real_dmd_color`, `instruction_card`, `audio_launch` and `rule_sheet`.
+`table`, `table_video`, `fss`, `realdmd`, `realdmd-color`, `realdmd_color`, `rulecard`,
+`audiolaunch` and `rulesheet` are accepted and map to them, so a theme written against any
+earlier build keeps resolving media.
+*Why:* the set was half converted — `table_video` and `realdmd_color` used underscores
+while the rest ran together — and these keys are JSON over HTTP, which `docs/conventions.md`
+settles as snake_case. The playfield rename also retires a name that collided with the
+`[Media] playfieldvariant` values: `fss` was simultaneously a kind and a variant.
+**Payload attribute names are unchanged** — `TableImagePath` and the rest are contract 1's
+keys and shipped, so only the kind vocabulary moved. Covered by
+`tests/js/media-resolution.test.js` and `tests/test_asset_upload_services.py`.
+
 **PAR-28 — the theme payload at contract 2 is an entry list, not a row array.**
 
 Contract 1 is unchanged and is what every published theme reads: an array of game rows,

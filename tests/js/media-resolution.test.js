@@ -95,7 +95,7 @@ describe("the URL builder handles every layout the scan produces", () => {
 describe("image versus video is the user's preference, and it is honoured", () => {
   test("video wins by default when both exist", () => {
     const vpin = coreWithLibrary();
-    const media = vpin.getMedia(AFM, "table");
+    const media = vpin.getMedia(AFM, "playfield");
 
     assert.equal(media.kind, "video");
     assert.ok(media.url.endsWith(".mp4"));
@@ -103,8 +103,8 @@ describe("image versus video is the user's preference, and it is honoured", () =
 
   test("image wins when the priority says so", () => {
     const vpin = coreWithLibrary();
-    vpin.mediaPriorities = { ...vpin.mediaPriorities, table: "image" };
-    const media = vpin.getMedia(AFM, "table");
+    vpin.mediaPriorities = { ...vpin.mediaPriorities, playfield: "image" };
+    const media = vpin.getMedia(AFM, "playfield");
 
     assert.equal(media.kind, "image");
     assert.ok(media.url.endsWith(".png"));
@@ -133,5 +133,22 @@ describe("realdmd is one kind with two frames", () => {
 
     assert.equal(vpin.getMedia(AFM, "realdmd-color").url,
                  vpin.getMedia(AFM, "realdmd_color").url);
+  });
+});
+
+describe("the kind names earlier builds used still answer", () => {
+  test("table, table_video and fss reach their renamed kinds", () => {
+    const vpin = coreWithLibrary();
+
+    assert.equal(vpin.getMedia(AFM, "table").url, vpin.getMedia(AFM, "playfield").url);
+    assert.equal(vpin.getImageURL(MM, "fss"), vpin.getImageURL(MM, "playfield_fss"));
+  });
+
+  test("a theme naming the playfield by its old key still gets the playfield", () => {
+    // The single most common call in any theme, and the one a rename would break
+    // most visibly.
+    const vpin = coreWithLibrary();
+
+    assert.notEqual(vpin.getMedia(AFM, "table").kind, "missing");
   });
 });
