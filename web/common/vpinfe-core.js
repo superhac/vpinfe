@@ -48,6 +48,61 @@ const OLDEST_CONTRACT = 1;
 const CURRENT_CONTRACT = 2;
 
 
+// How to read one item of the payload at contract 2. An entry is a table with its game
+// attached: it names the media kinds it has rather than locating them, so a URL is the
+// table's id and the kind.
+class ContractTwoReader {
+  constructor(core) { this.core = core; }
+
+  has(entry, kind) { return Array.isArray(entry.media) && entry.media.includes(kind); }
+
+  url(entry, kind) {
+    if (!this.has(entry, kind)) return null;
+    // A folder no metadata build has touched has no table id yet, but it still has art
+    // and still appears in the wheel. The route accepts either id.
+    const id = String(entry.table?.id || entry.game?.id || "");
+    if (!id) return null;
+    return `http://127.0.0.1:${this.core.themeAssetsPort}/media/${encodeURIComponent(id)}/${kind}`;
+  }
+
+  imageURL(entry, kind) { return this.url(entry, kind) || MISSING_MEDIA_URL; }
+  // Contract 2 names kinds; it never locates files, so there is no path to hand back.
+  path()                { return null; }
+  videoURL(entry, kind) { return this.url(entry, VIDEO_KIND[kind] || kind); }
+  audioURL(entry)       { return this.url(entry, "audio"); }
+  logo(entry)           { return entry.game?.manufacturer_logo || null; }
+  vpsId(entry)          { return String(entry.game?.vps_id || "").trim(); }
+
+  imageVideo(entry, kind, priority) {
+    const order = priority === "image" ? ["image", "video"] : ["video", "image"];
+    for (const want of order) {
+      const url = want === "video"
+        ? this.url(entry, VIDEO_KIND[kind] || `${kind}_video`)
+        // The playfield falls back to its own FSS variant, which is why the two are
+        // named as a pair rather than as unrelated kinds.
+        : (this.url(entry, kind)
+           || (kind === "playfield" ? this.url(entry, "playfield_fss") : null));
+      if (url) return { url, kind: want, priority, path: null };
+    }
+    return { url: MISSING_MEDIA_URL, kind: "missing", priority, path: null };
+  }
+
+  realDmd(entry, priority) {
+    const order = priority === "standard"
+      ? [["standard", "real_dmd"], ["color", "real_dmd_color"]]
+      : [["color", "real_dmd_color"], ["standard", "real_dmd"]];
+    for (const [variant, kind] of order) {
+      const url = this.url(entry, kind);
+      if (url) return { url, kind: "image", priority, variant, path: null };
+    }
+    return { url: MISSING_MEDIA_URL, kind: "missing", priority, variant: "missing", path: null };
+  }
+}
+
+const VIDEO_KIND = { playfield: "playfield_video", bg: "bg_video", dmd: "dmd_video",
+                     topper: "topper_video", loading: "loading" };
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  CONTRACT 1 COMPATIBILITY
 //
@@ -165,6 +220,74 @@ function removeLegacyAliases(target) {
   }
 }
 
+
+// How to read one item of the payload at contract 1. A game carries a filesystem path
+// per media kind, so every URL here is built by taking that path apart - which is the
+// reason contract 2 stopped serving paths at all.
+class ContractOneReader {
+  constructor(core) { this.core = core; }
+
+  // The current key, falling back to the spelling the projection sends. PAR-22.
+  field(game, name) {
+    if (!name) return null;
+    if (game[name] != null) return game[name];
+    const legacy = MEDIA_FIELD_FALLBACK[name];
+    return legacy ? game[legacy] : null;
+  }
+
+  has(game, kind)      { return !!this.field(game, MEDIA_PATH_FIELDS[kind]); }
+  path(game, kind)     { return this.field(game, MEDIA_PATH_FIELDS[kind]) || null; }
+  imageURL(game, kind) { return this.pathToURL(this.field(game, MEDIA_PATH_FIELDS[kind])); }
+  videoURL(game, kind) { return this.pathToURL(this.field(game, MEDIA_VIDEO_PATH_FIELDS[kind])); }
+  audioURL(game)       { return game.AudioPath ? this.pathToURL(game.AudioPath) : null; }
+  logo(game)           { return game.ManufacturerLogoPath || null; }
+  vpsId(game)          { return String(game?.meta?.Info?.VPSId || "").trim(); }
+
+  imageVideo(game, kind, priority) {
+    const image = this.field(game, MEDIA_PATH_FIELDS[kind]);
+    const video = this.field(game, MEDIA_VIDEO_PATH_FIELDS[kind]);
+    const imagePath = kind === "playfield" ? (image || game.FSSImagePath) : image;
+    const candidates = priority === "image"
+      ? [{ kind: "image", path: imagePath }, { kind: "video", path: video }]
+      : [{ kind: "video", path: video }, { kind: "image", path: imagePath }];
+    const picked = candidates.find(c => !!c.path) || { kind: "missing", path: null };
+    return { url: this.pathOrMissing(picked.path), kind: picked.kind, priority,
+             path: picked.path || null };
+  }
+
+  realDmd(game, priority) {
+    const candidates = priority === "standard"
+      ? [{ variant: "standard", path: game.realDMDImagePath },
+         { variant: "color", path: game.realDMDColorImagePath }]
+      : [{ variant: "color", path: game.realDMDColorImagePath },
+         { variant: "standard", path: game.realDMDImagePath }];
+    const picked = candidates.find(c => !!c.path) || { variant: "missing", path: null };
+    return { url: this.pathOrMissing(picked.path),
+             kind: picked.variant === "missing" ? "missing" : "image",
+             priority, variant: picked.variant, path: picked.path || null };
+  }
+
+  pathOrMissing(localPath) { return localPath ? this.pathToURL(localPath) : MISSING_MEDIA_URL; }
+
+  pathToURL(localPath) {
+    if (!localPath || typeof localPath !== 'string') return MISSING_MEDIA_URL;
+    const normalized = localPath.replace(/\\/g, '/');       // Windows separators
+    const parts = normalized.split('/');
+    const file = parts[parts.length - 1];
+    const port = this.core.themeAssetsPort;
+    // The file may sit deeper than medias/ itself - wheel sets live in
+    // medias/wheels/<set>/ - so keep everything from medias/ down.
+    const mediasIndex = parts.lastIndexOf('medias');
+    if (mediasIndex > 0) {
+      const gameDir = parts[mediasIndex - 1];
+      const rest = parts.slice(mediasIndex).map(encodeURIComponent).join('/');
+      return `http://127.0.0.1:${port}/tables/${encodeURIComponent(gameDir)}/${rest}`;
+    }
+    const dir = parts[parts.length - 2];        // media sitting in the game folder
+    return `http://127.0.0.1:${port}/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
+  }
+}
+
 // ─────────────────────────── end contract 1 ──────────────────────────────────
 
 
@@ -173,6 +296,7 @@ class VPinFECore {
     this.gameData = {};
     // What the running theme declared. Contract 1 until the bridge says otherwise.
     this.contract = OLDEST_CONTRACT;
+    this._reader = new ContractOneReader(this);
     installLegacyAliases(this);
     this.monitors = [];
     this._resolveReady = null;
@@ -332,38 +456,9 @@ class VPinFECore {
     });
   }
 
-  // The URL of a game's image, by media kind
-  #mediaField(game, field) {
-    if (!field) return null;
-    if (game[field] != null) return game[field];
-    const legacy = MEDIA_FIELD_FALLBACK[field];
-    return legacy ? game[legacy] : null;
-  }
-
-  // An entry names the kinds it has and the table they belong to; the URL follows from
-  // those two. Contract 1 carries a filesystem path per kind instead, which is why this
-  // has to know which shape it is holding.
-  #isEntry(item) {
-    return !!item && Array.isArray(item.media) && !!item.table;
-  }
-
-  #entryMediaURL(entry, kind) {
-    if (!entry.media.includes(kind)) return null;
-    // A folder no metadata build has touched has no table id yet, but it still has art
-    // and still appears in the wheel. The route accepts either id.
-    const id = String(entry.table.id || (entry.game && entry.game.id) || "");
-    if (!id) return null;
-    return `http://127.0.0.1:${this.themeAssetsPort}/media/${encodeURIComponent(id)}/${kind}`;
-  }
-
-  getImageURL(index, type) {
-    const game = this.gameData[index];
-    if (!game) return null;
-    const kind = this.#normalizeMediaType(type);
-    if (this.#isEntry(game)) {
-      return this.#entryMediaURL(game, kind) || MISSING_MEDIA_URL;
-    }
-    return this.#convertPathToURL(this.#mediaField(game, MEDIA_PATH_FIELDS[kind]));
+  getImageURL(index, kind) {
+    const item = this.gameData[index];
+    return item ? this._reader.imageURL(item, this.#normalizeMediaType(kind)) : null;
   }
 
   getMediaURL(index, type) {
@@ -373,12 +468,7 @@ class VPinFECore {
   // URL of the game manufacturer's logo, or null when none is installed
   getManufacturerLogoURL(index) {
     const item = this.gameData[index];
-    if (!item) return null;
-    // Contract 2 keeps it on the game: it is art about the manufacturer, not one of
-    // this game's media kinds.
-    const path = this.#isEntry(item)
-      ? (item.game && item.game.manufacturer_logo)
-      : item.ManufacturerLogoPath;
+    const path = item ? this._reader.logo(item) : null;
     return path ? `http://127.0.0.1:${this.themeAssetsPort}${path}` : null;
   }
 
@@ -398,32 +488,21 @@ class VPinFECore {
       return this.#resolveImageVideoMedia(item, normalizedType);
     }
 
-    if (this.#isEntry(item)) {
-      const url = this.#entryMediaURL(item, normalizedType);
-      return {
-        url: url || MISSING_MEDIA_URL,
-        kind: url ? "image" : "missing",
-        priority: null,
-        // No path at contract 2: the payload names kinds, it does not locate files.
-        path: null,
-      };
-    }
-
-    const imagePath = this.#mediaField(item, MEDIA_PATH_FIELDS[normalizedType]);
+    // Every other kind is a single image, whichever contract it came from.
+    const url = this._reader.imageURL(item, normalizedType);
+    const has = this._reader.has(item, normalizedType);
     return {
-      url: this.#pathToURLOrMissing(imagePath),
-      kind: imagePath ? "image" : "missing",
+      url,
+      kind: has ? "image" : "missing",
       priority: null,
-      path: imagePath || null,
+      path: this._reader.path(item, normalizedType),
     };
   }
 
   // The URL of a game's audio, or null when it has none
   getAudioURL(index) {
     const item = this.gameData[index];
-    if (!item) return null;
-    if (!item.AudioPath) return null;
-    return this.#convertPathToURL(item.AudioPath);
+    return item ? this._reader.audioURL(item) : null;
   }
 
   // Core handles joypageup/joypagedown by default: it asks the backend for the
@@ -537,11 +616,9 @@ class VPinFECore {
   }
 
   // The URL of a game's video, by media kind
-  getVideoURL(index, type) {
-    const game = this.gameData[index];
-    if (!game) return null;
-    const kind = this.#normalizeMediaType(type);
-    return this.#convertPathToURL(this.#mediaField(game, MEDIA_VIDEO_PATH_FIELDS[kind]));
+  getVideoURL(index, kind) {
+    const item = this.gameData[index];
+    return item ? this._reader.videoURL(item, this.#normalizeMediaType(kind)) : null;
   }
 
   // The list, under the name that describes what is in it. At contract 2 the items are
@@ -884,13 +961,7 @@ class VPinFECore {
   }
 
   #vpsIdOf(item) {
-    if (!item || typeof item !== "object") return "";
-    if (item.game && typeof item.game === "object") {
-      return String(item.game.vps_id || "").trim();   // contract 2
-    }
-    const meta = (item.meta && typeof item.meta === "object") ? item.meta : {};
-    const info = (meta.Info && typeof meta.Info === "object") ? meta.Info : {};
-    return String(info.VPSId || "").trim();
+    return item && typeof item === "object" ? this._reader.vpsId(item) : "";
   }
 
   #getVPinPlayUrl(vpsId) {
@@ -1362,6 +1433,9 @@ class VPinFECore {
   #applyContract(level) {
     const declared = Number(level) || OLDEST_CONTRACT;
     this.contract = Math.min(Math.max(declared, OLDEST_CONTRACT), CURRENT_CONTRACT);
+    this._reader = this.contract > OLDEST_CONTRACT
+      ? new ContractTwoReader(this)
+      : new ContractOneReader(this);
     if (this.contract > OLDEST_CONTRACT) removeLegacyAliases(this);
     console.info(`vpinfe: serving theme contract ${this.contract}`);
   }
@@ -1390,89 +1464,14 @@ class VPinFECore {
     return normalized;
   }
 
-  // Image or video is the user's preference, so the choice stays here at either
-  // contract. Only where the answer is read differs: a list of kinds, or a pair of
-  // filesystem paths.
-  #resolveEntryImageVideo(entry, type, priority) {
-    const videoKind = type === "playfield" ? "playfield_video" : `${type}_video`;
-    const order = priority === "image" ? ["image", "video"] : ["video", "image"];
-    for (const want of order) {
-      const kind = want === "video" ? videoKind : type;
-      const url = this.#entryMediaURL(entry, kind)
-        // The playfield falls back to its own FSS variant, the same as at contract 1.
-        || (want === "image" && type === "playfield"
-            ? this.#entryMediaURL(entry, "playfield_fss") : null);
-      if (url) return { url, kind: want, priority, path: null };
-    }
-    return { url: MISSING_MEDIA_URL, kind: "missing", priority, path: null };
-  }
-
-  #resolveImageVideoMedia(item, type) {
-    const priority = this.mediaPriorities[type] || DEFAULT_MEDIA_PRIORITIES[type] || "video";
-    if (this.#isEntry(item)) {
-      return this.#resolveEntryImageVideo(item, type, priority);
-    }
-    // Through #mediaField, not the payload key directly: at contract 1 the playfield
-    // pair still arrives under its old names, and reading the key straight makes the
-    // main screen resolve to "missing" for every theme written before 3.0. PAR-22.
-    const image = this.#mediaField(item, MEDIA_PATH_FIELDS[type]);
-    const videoPath = this.#mediaField(item, MEDIA_VIDEO_PATH_FIELDS[type]);
-    // The playfield falling back to its own FSS variant, which is why the two are
-    // named as a pair rather than as unrelated kinds.
-    const imagePath = type === "playfield" ? (image || item.FSSImagePath) : image;
-    const candidates = priority === "image"
-      ? [
-          { kind: "image", path: imagePath },
-          { kind: "video", path: videoPath },
-        ]
-      : [
-          { kind: "video", path: videoPath },
-          { kind: "image", path: imagePath },
-        ];
-
-    const selected = candidates.find(candidate => !!candidate.path) || { kind: "missing", path: null };
-    return {
-      url: this.#pathToURLOrMissing(selected.path),
-      kind: selected.kind,
-      priority: priority,
-      path: selected.path || null,
-    };
+  #resolveImageVideoMedia(item, kind) {
+    const priority = this.mediaPriorities[kind] || DEFAULT_MEDIA_PRIORITIES[kind] || "video";
+    return this._reader.imageVideo(item, kind, priority);
   }
 
   #resolveRealDmdMedia(item) {
-    const priority = this.mediaPriorities.real_dmd || DEFAULT_MEDIA_PRIORITIES.real_dmd;
-    if (this.#isEntry(item)) {
-      const order = priority === "standard"
-        ? [["standard", "real_dmd"], ["color", "real_dmd_color"]]
-        : [["color", "real_dmd_color"], ["standard", "real_dmd"]];
-      for (const [variant, kind] of order) {
-        const url = this.#entryMediaURL(item, kind);
-        if (url) return { url, kind: "image", priority, variant, path: null };
-      }
-      return { url: MISSING_MEDIA_URL, kind: "missing", priority,
-               variant: "missing", path: null };
-    }
-    const candidates = priority === "standard"
-      ? [
-          { variant: "standard", path: item.realDMDImagePath },
-          { variant: "color", path: item.realDMDColorImagePath },
-        ]
-      : [
-          { variant: "color", path: item.realDMDColorImagePath },
-          { variant: "standard", path: item.realDMDImagePath },
-        ];
-    const selected = candidates.find(candidate => !!candidate.path) || { variant: "missing", path: null };
-    return {
-      url: this.#pathToURLOrMissing(selected.path),
-      kind: selected.variant === "missing" ? "missing" : "image",
-      priority: priority,
-      variant: selected.variant,
-      path: selected.path || null,
-    };
-  }
-
-  #pathToURLOrMissing(localPath) {
-    return localPath ? this.#convertPathToURL(localPath) : MISSING_MEDIA_URL;
+    return this._reader.realDmd(item, this.mediaPriorities.real_dmd
+                                     || DEFAULT_MEDIA_PRIORITIES.real_dmd);
   }
 
   // Gamepad handling
@@ -1569,31 +1568,6 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
   }
 
   // convert the hard full local path to the web servers url map
-  #convertPathToURL(localPath) {
-    if (!localPath || typeof localPath !== 'string') {
-      return MISSING_MEDIA_URL;  // fallback default
-    }
-    // Normalize Windows backslashes to forward slashes
-    const normalized = localPath.replace(/\\/g, '/');
-    const parts = normalized.split('/');
-    const file = parts[parts.length - 1];    // last part = filename
-    const port = this.themeAssetsPort;
-
-    // Check if the path includes a medias/ subfolder. The file may sit deeper
-    // than medias/ itself (wheel sets live in medias/wheels/<set>/), so keep
-    // everything from medias/ down.
-    const mediasIndex = parts.lastIndexOf('medias');
-    if (mediasIndex > 0) {
-      const tableDir = parts[mediasIndex - 1];
-      const rest = parts.slice(mediasIndex).map(encodeURIComponent).join('/');
-      return `http://127.0.0.1:${port}/tables/${encodeURIComponent(tableDir)}/${rest}`;
-    }
-
-    // Fallback: image is directly in table folder
-    const dir = parts[parts.length - 2];     // second-to-last part = folder
-    return `http://127.0.0.1:${port}/tables/${encodeURIComponent(dir)}/${encodeURIComponent(file)}`;
-  }
-
   async #showmenu() {
     const overlayRoot = document.getElementById('overlay-root');
     let iframe = document.getElementById("menu-frame");

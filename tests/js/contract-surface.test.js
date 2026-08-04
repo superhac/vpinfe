@@ -98,14 +98,24 @@ describe("a theme declaring contract 2 gets the current surface only", () => {
 
   test("a legacy media kind stops resolving", async () => {
     const { vpin } = await coreAtContract(2, { get_theme_assets_port: 8000 });
-    vpin.gameData = [{ PlayfieldImagePath: "/lib/Game (M 1990)/medias/table.png" }];
+    vpin.gameData = [{ game: { id: "g1" }, table: { id: "t1" }, media: ["playfield"] }];
 
-    assert.ok(vpin.getImageURL(0, "playfield").includes("/tables/"),
+    assert.ok(vpin.getImageURL(0, "playfield").includes("/media/t1/playfield"),
       "the canonical kind resolves");
     // An unknown kind answers with the missing-media placeholder rather than null, which
     // is the same thing a theme sees for art it does not have.
     assert.equal(vpin.getImageURL(0, "table"), "/web/images/file_missing.png",
       "`table` is contract 1's spelling and is not honoured at 2");
+  });
+
+  test("the reader is chosen by declaration, not by sniffing the payload", async () => {
+    // A contract-1 row handed to a contract-2 theme used to fall through to the old
+    // reader because the shape was inspected. It does not now: the theme said 2, so 2
+    // is what it gets, and a mismatched payload fails visibly instead of half-working.
+    const { vpin } = await coreAtContract(2, { get_theme_assets_port: 8000 });
+    vpin.gameData = [{ PlayfieldImagePath: "/lib/G (M 1990)/medias/table.png" }];
+
+    assert.equal(vpin.getImageURL(0, "playfield"), "/web/images/file_missing.png");
   });
 
   test("window messages go out once, under the current name only", async () => {
