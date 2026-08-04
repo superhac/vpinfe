@@ -152,3 +152,17 @@ describe("the kind names earlier builds used still answer", () => {
     assert.notEqual(vpin.getMedia(AFM, "table").kind, "missing");
   });
 });
+
+describe("a window name is also a media kind", () => {
+  // cab, Basic Cab and Trinidad all call getImageURL(index, windowName). Nothing in
+  // either vocabulary says the two have to line up, but three published themes rely on
+  // it, so renaming a window or a kind has to keep every window name resolvable.
+  for (const windowName of ["table", "bg", "dmd"]) {
+    test(`getImageURL(i, "${windowName}") resolves`, () => {
+      const vpin = coreWithLibrary();
+
+      assert.notEqual(vpin.getImageURL(AFM, windowName), null,
+        `${windowName} is a window name and three themes pass it as a media kind`);
+    });
+  }
+});
