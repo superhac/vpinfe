@@ -242,6 +242,100 @@ class CustomHTTPServer:
             html_text = self._inject_base_tag(response.text, requested_url)
             self._send_pinball_primer_html(200, html_text)
 
+        def _serve_file(self, path, extra_headers=None):
+            """Send a file, honoring a Range request the way video playback needs.
+
+            The static mounts get this through translate_path; a route that resolved its
+            own path needs the same behavior, so both go through here.
+            """
+            headers = extra_headers or {}
+            file_size = os.path.getsize(path)
+            ctype = mimetypes.guess_type(path)[0] or "application/octet-stream"
+            range_header = self.headers.get("Range")
+
+            start, end = 0, file_size - 1
+            partial = False
+            if range_header:
+                try:
+                    spec = range_header.replace("bytes=", "").split("-", 1)
+                    start = int(spec[0]) if spec[0] else 0
+                    end = int(spec[1]) if len(spec) > 1 and spec[1] else file_size - 1
+                except (ValueError, IndexError):
+                    self.send_error(416, "Requested Range Not Satisfiable")
+                    return
+                if start >= file_size or start > end:
+                    self.send_error(416, "Requested Range Not Satisfiable")
+                    return
+                end = min(end, file_size - 1)
+                partial = True
+
+            length = end - start + 1
+            self.send_response(206 if partial else 200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(length))
+            if partial:
+                self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
+            self.send_header("Accept-Ranges", "bytes")
+            for name, value in headers.items():
+                self.send_header(name, value)
+            self.end_headers()
+
+            try:
+                with open(path, "rb") as handle:
+                    handle.seek(start)
+                    remaining = length
+                    while remaining > 0:
+                        chunk = handle.read(min(65536, remaining))
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                        remaining -= len(chunk)
+            except (ConnectionResetError, BrokenPipeError):
+                return
+
+        def _serve_game_media(self, request_path):
+            """/media/<game_id>/<kind> - the art a theme asks for, addressed by id.
+
+            Returns False when the shape does not match, so an unrelated /media/ path
+            still falls through to the static mounts.
+            """
+            parts = [p for p in unquote(request_path)[len("/media/"):].split("/") if p]
+            if len(parts) != 2:
+                return False
+            game_id, kind = parts
+
+            from common.games import game_repository, media_lookup
+            try:
+                games = game_repository.ensure_games_loaded()
+                path = media_lookup.media_path(games, game_id, kind)
+            except Exception:
+                logger.exception("[HTTP] media lookup failed for %s/%s", game_id, kind)
+                self.send_error(500, "Media lookup failed")
+                return True
+            if path is None:
+                self.send_error(404, "No such media")
+                return True
+
+            # Validated by ETag rather than a version baked into the URL: a token in the
+            # payload would mean stat-ing every resolved file of every game on every
+            # build, and the browser already knows how to ask "has this changed".
+            stat = path.stat()
+            etag = f'"{int(stat.st_mtime)}-{stat.st_size}"'
+            if self.headers.get("If-None-Match") == etag:
+                self.send_response(304)
+                self.send_header("ETag", etag)
+                self.end_headers()
+                return True
+
+            self._serve_file(str(path), extra_headers={
+                "ETag": etag,
+                # Revalidate rather than trust: replacing art in the Manager UI has to
+                # show up, and a conditional GET to localhost costs a fraction of a
+                # millisecond.
+                "Cache-Control": "no-cache",
+            })
+            return True
+
         def _serve_app_bootstrap(self, window_name):
             window_labels = {
                 "bg": "BG",
@@ -309,6 +403,9 @@ class CustomHTTPServer:
             if request_path == "/proxy/pinballprimer":
                 self._serve_pinball_primer_proxy()
                 return
+            if request_path.startswith("/media/"):
+                if self._serve_game_media(request_path):
+                    return
 
             range_header = self.headers.get('Range')
             if not range_header:

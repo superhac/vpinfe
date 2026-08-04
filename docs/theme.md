@@ -110,6 +110,7 @@ At `contract: 2` the payload is an object, and the list you iterate is `entries`
         "name": "Attack from Mars", "manufacturer": "Bally",
         "year": "1995", "type": "SS", "themes": ["Aliens"],
         "dir_name": "Attack from Mars (Bally 1995)",
+        "manufacturer_logo": "/assets/manufacturers/bally.png",
         "path": "/games/Attack from Mars (Bally 1995)",
         "user": { "rating": 4, "favorite": false, "tags": [],
                   "last_played": "2026-08-01T20:14:00Z",
@@ -123,7 +124,7 @@ At `contract: 2` the payload is an object, and the list you iterate is `entries`
       },
       "assets": { "pup_pack": true, "alt_color": false, "alt_sound": false },
       "siblings": 2,
-      "media": { "PlayfieldImagePath": "…", "BGImagePath": "…" }
+      "media": ["playfield", "bg", "wheel"]
     }
   ]
 }
@@ -144,10 +145,19 @@ the game it belongs to attached.
 | `entries[].table.user` | The same counters for this table alone — `last_played`, `play_count`, `play_time_seconds`. A game and its tables accumulate independently, so deleting a table does not un-play the game's hours. |
 | `entries[].assets` | What the game needs to play as intended, as booleans. |
 | `entries[].siblings` | How many tables this entry's game offers. `1` means there is nothing to switch to. |
-| `entries[].media` | The resolved media paths, the same keys contract 1 puts at the top of a row. |
+| `entries[].media` | The media kinds this game **has a file for** — `playfield`, `bg`, `wheel` and the rest, the same names `vpin.getMedia(index, kind)` takes. Names, not paths: fetch one from `/media/<game id>/<kind>`. |
+| `entries[].game.manufacturer_logo` | Web path to the manufacturer's shared logo, or `null`. Art about the manufacturer rather than about this game, which is why it is not a media kind. |
 
 **`detects` loses the `detect_` prefix.** `table.detects.ssf`, not `detect_ssf` — the
 prefix was storage, not vocabulary.
+
+**Media is named, not located.** `entries[].media` lists the kinds this game has a file
+for. To show one, request `/media/<game id>/<kind>` from the theme assets port — the same
+server your theme is loaded from. Contract 1 carried a filesystem path per kind and left
+every theme to turn it into a URL; contract 2 does not put the filesystem in a web page,
+and on a large library it keeps several hundred kilobytes off the wire each time the list
+is rebuilt. Responses carry an `ETag` and ask to be revalidated, so replacing art in the
+Manager UI shows up without a hard refresh.
 
 **There is no `meta` at contract 2.** `meta` was the `.info` file passed through, so a
 storage change reached themes whether or not it meant anything to them. Contract 2 serves

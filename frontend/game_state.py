@@ -9,6 +9,7 @@ from common.games.collections_service import (
     save_filter_collection,
 )
 from common.games import game_identity
+from common.games.media_lookup import resolved_kinds
 from common.games.game_metadata import (
     DETECTION_KEYS,
     game_title,
@@ -148,6 +149,7 @@ def _entry_row(entry, logo_cache) -> dict:
             "themes": info.get("Themes") or [],
             "dir_name": game.gameDirName,
             "path": game.fullPathGame,
+            "manufacturer_logo": logo_cache[maker],
             "user": _game_user(meta),
         },
         "table": {
@@ -167,8 +169,10 @@ def _entry_row(entry, logo_cache) -> dict:
             "alt_sound": bool(game.altSoundExists),
         },
         "siblings": entry.siblings,
-        "media": {**game_media_payload(game),
-                  "ManufacturerLogoPath": logo_cache[maker]},
+        # Which art exists, not where it lives. The URL is /media/<game id>/<kind> and the
+        # bytes are fetched when something is shown - naming the files here would put a
+        # filesystem path in a web page and several hundred kilobytes on the wire.
+        "media": resolved_kinds(game),
     }
 
 

@@ -232,6 +232,21 @@ still work from a theme written against any earlier build.
 so an alias is the only mechanism available. Removing these would be a hard break with no
 migration path, which is why none of them is removed.
 
+**PAR-31 — Contract 2 names its media kinds; a route serves them by game id.**
+`entries[].media` is the list of kinds a game has a file for, and the bytes come from
+`GET /media/<game id>/<kind>` on the theme assets port. The manufacturer logo moves onto
+`game.manufacturer_logo`, since it is art about the manufacturer rather than about the
+game. **Contract 1 is unchanged**: it keeps a filesystem path per kind at the top of each
+row, which is what every published theme reads.
+*Why:* the payload used to hand a browser absolute filesystem paths and leave each theme to
+reverse-engineer a URL out of them. That is where the `medias/` string surgery in
+`vpinfe-core.js` came from, and it needed a special case the first time a wheel set put a
+file one level deeper. Naming the kinds instead also takes several hundred kilobytes off a
+large library's payload, which crosses the socket on every filter and sort. Responses carry
+an `ETag` and `Cache-Control: no-cache`, so a media change in the Manager UI is visible
+without a version baked into the URL - which would have meant stat-ing every resolved file
+of every game every time the list was built. Covered by `tests/test_media_route.py`.
+
 **PAR-30 — One WebSocket method is added so the browser can ask which contract it serves.**
 `get_theme_contract()` returns the level the active theme declared. Purely additive: a
 theme never calls it, and no existing method changes.

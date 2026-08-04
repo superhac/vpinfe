@@ -129,11 +129,25 @@ class ContractTwoTests(unittest.TestCase):
         self.assertNotIn("rating", entry["game"],
                          "one home for it, not two")
 
-    def test_media_rides_on_the_entry(self) -> None:
+    def test_media_names_the_kinds_that_resolved(self) -> None:
+        """Names, not paths. A theme composes /media/<game id>/<kind>; naming the files
+        here would leak the filesystem into a web page and cost several hundred kilobytes
+        on a real library."""
         entry = self._payload([_game(tables=TWO_TABLES)])["entries"][0]
 
-        self.assertIn("media", entry)
-        self.assertIn("ManufacturerLogoPath", entry["media"])
+        self.assertIsInstance(entry["media"], list)
+        for name in entry["media"]:
+            self.assertNotIn("/", name, "a kind name, never a path")
+        for attr in ("PlayfieldImagePath", "BGImagePath", "ManufacturerLogoPath"):
+            self.assertNotIn(attr, entry["media"],
+                             "the canonical kind names, not contract 1's attributes")
+
+    def test_the_manufacturer_logo_belongs_to_the_game(self) -> None:
+        """Shared art keyed on the manufacturer, not one of this game's media kinds -
+        it used to sit inside the media block under a PascalCase name of its own."""
+        entry = self._payload([_game(tables=TWO_TABLES)])["entries"][0]
+
+        self.assertIn("manufacturer_logo", entry["game"])
 
 
 class UnparsedGameTests(unittest.TestCase):
