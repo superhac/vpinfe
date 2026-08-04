@@ -5,6 +5,9 @@
 *.json
 # The parity gate's committed master snapshot - see docs/compatibility-3.0.md
 !tests/parity_baseline_master.json
+# The theme payload the JavaScript tests read. Committed on purpose: it is the only
+# thing tying tests/js/ to what Python actually builds.
+!tests/fixtures/theme_payload.json
 !common/resources/roms.json
 third-party/
 

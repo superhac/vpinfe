@@ -1,0 +1,499 @@
+{
+  "contract1": [
+    {
+      "AudioLaunchPath": null,
+      "AudioPath": "/library/Attack from Mars (Bally 1995)/medias/audio.mp3",
+      "BGImagePath": "/library/Attack from Mars (Bally 1995)/medias/bg.png",
+      "BGVideoPath": null,
+      "CabImagePath": null,
+      "DMDImagePath": "/library/Attack from Mars (Bally 1995)/medias/dmd.png",
+      "DMDVideoPath": null,
+      "FSSImagePath": null,
+      "FlyerImagePath": null,
+      "InstructionCardImagePath": null,
+      "LoadingVideoPath": null,
+      "LogoImagePath": null,
+      "ManufacturerLogoPath": null,
+      "RuleSheetPath": null,
+      "TableImagePath": "/library/Attack from Mars (Bally 1995)/medias/table.png",
+      "TableVideoPath": "/library/Attack from Mars (Bally 1995)/medias/table.mp4",
+      "TopperPath": null,
+      "TopperVideoPath": null,
+      "WheelImagePath": "/library/Attack from Mars (Bally 1995)/medias/wheel.png",
+      "altColorExists": false,
+      "altSoundExists": false,
+      "fullPathTable": "/library/Attack from Mars (Bally 1995)",
+      "fullPathVPXfile": "/library/Attack from Mars (Bally 1995)/Attack from Mars (Bally 1995).vpx",
+      "meta": {
+        "Info": {
+          "Authors": [],
+          "Manufacturer": "Bally",
+          "Rom": "",
+          "Title": "Attack from Mars",
+          "Type": "SS",
+          "VPSId": "vps-afm",
+          "Year": "1995"
+        },
+        "User": {
+          "Rating": 4
+        },
+        "VPXFile": {
+          "altColorExists": false,
+          "altSoundExists": false,
+          "detectfastflips": false,
+          "detectfleep": false,
+          "detectflex": false,
+          "detectlut": false,
+          "detectnfozzy": false,
+          "detectpinmame": false,
+          "detectscorebit": false,
+          "detectssf": false,
+          "filename": "",
+          "pupPackExists": false
+        },
+        "VPinFE": {
+          "game_id": "afm0000001",
+          "schema": 2
+        }
+      },
+      "pupPackExists": false,
+      "realDMDColorImagePath": "/library/Attack from Mars (Bally 1995)/medias/realdmd-color.png",
+      "realDMDImagePath": "/library/Attack from Mars (Bally 1995)/medias/realdmd.png",
+      "tableDirName": "Attack from Mars (Bally 1995)"
+    },
+    {
+      "AudioLaunchPath": null,
+      "AudioPath": null,
+      "BGImagePath": null,
+      "BGVideoPath": null,
+      "CabImagePath": null,
+      "DMDImagePath": null,
+      "DMDVideoPath": null,
+      "FSSImagePath": null,
+      "FlyerImagePath": null,
+      "InstructionCardImagePath": null,
+      "LoadingVideoPath": null,
+      "LogoImagePath": null,
+      "ManufacturerLogoPath": null,
+      "RuleSheetPath": null,
+      "TableImagePath": null,
+      "TableVideoPath": null,
+      "TopperPath": null,
+      "TopperVideoPath": null,
+      "WheelImagePath": null,
+      "altColorExists": false,
+      "altSoundExists": false,
+      "fullPathTable": "/library/Bare Table (Gottlieb 1980)",
+      "fullPathVPXfile": "/library/Bare Table (Gottlieb 1980)/Bare Table (Gottlieb 1980).vpx",
+      "meta": {
+        "Info": {
+          "Authors": [],
+          "Manufacturer": "Gottlieb",
+          "Rom": "",
+          "Title": "Bare Table",
+          "Type": "EM",
+          "VPSId": "",
+          "Year": "1980"
+        },
+        "User": {
+          "Rating": 0
+        },
+        "VPXFile": {
+          "altColorExists": false,
+          "altSoundExists": false,
+          "detectfastflips": false,
+          "detectfleep": false,
+          "detectflex": false,
+          "detectlut": false,
+          "detectnfozzy": false,
+          "detectpinmame": false,
+          "detectscorebit": false,
+          "detectssf": false,
+          "filename": "",
+          "pupPackExists": false
+        },
+        "VPinFE": {
+          "game_id": "bar0000001",
+          "schema": 2
+        }
+      },
+      "pupPackExists": false,
+      "realDMDColorImagePath": null,
+      "realDMDImagePath": null,
+      "tableDirName": "Bare Table (Gottlieb 1980)"
+    },
+    {
+      "AudioLaunchPath": null,
+      "AudioPath": null,
+      "BGImagePath": null,
+      "BGVideoPath": null,
+      "CabImagePath": null,
+      "DMDImagePath": null,
+      "DMDVideoPath": null,
+      "FSSImagePath": null,
+      "FlyerImagePath": null,
+      "InstructionCardImagePath": null,
+      "LoadingVideoPath": null,
+      "LogoImagePath": null,
+      "ManufacturerLogoPath": null,
+      "RuleSheetPath": null,
+      "TableImagePath": null,
+      "TableVideoPath": null,
+      "TopperPath": null,
+      "TopperVideoPath": null,
+      "WheelImagePath": "/library/Congo (Williams 1995)/wheel.png",
+      "altColorExists": false,
+      "altSoundExists": false,
+      "fullPathTable": "/library/Congo (Williams 1995)",
+      "fullPathVPXfile": "/library/Congo (Williams 1995)/Congo (Williams 1995).vpx",
+      "meta": {
+        "Info": {
+          "Authors": [],
+          "Manufacturer": "Williams",
+          "Rom": "",
+          "Title": "Congo",
+          "Type": "SS",
+          "VPSId": "vps-congo",
+          "Year": "1995"
+        },
+        "User": {
+          "Rating": 0
+        },
+        "VPXFile": {
+          "altColorExists": false,
+          "altSoundExists": false,
+          "detectfastflips": false,
+          "detectfleep": false,
+          "detectflex": false,
+          "detectlut": false,
+          "detectnfozzy": false,
+          "detectpinmame": false,
+          "detectscorebit": false,
+          "detectssf": false,
+          "filename": "",
+          "pupPackExists": false
+        },
+        "VPinFE": {
+          "game_id": "cng0000001",
+          "schema": 2
+        }
+      },
+      "pupPackExists": false,
+      "realDMDColorImagePath": null,
+      "realDMDImagePath": null,
+      "tableDirName": "Congo (Williams 1995)"
+    },
+    {
+      "AudioLaunchPath": null,
+      "AudioPath": null,
+      "BGImagePath": "/library/Medieval Madness (Williams 1997)/medias/bg.png",
+      "BGVideoPath": null,
+      "CabImagePath": null,
+      "DMDImagePath": null,
+      "DMDVideoPath": null,
+      "FSSImagePath": null,
+      "FlyerImagePath": null,
+      "InstructionCardImagePath": null,
+      "LoadingVideoPath": null,
+      "LogoImagePath": null,
+      "ManufacturerLogoPath": null,
+      "RuleSheetPath": null,
+      "TableImagePath": null,
+      "TableVideoPath": null,
+      "TopperPath": null,
+      "TopperVideoPath": null,
+      "WheelImagePath": "/library/Medieval Madness (Williams 1997)/medias/wheels/monochrome/wheel.png",
+      "altColorExists": false,
+      "altSoundExists": false,
+      "fullPathTable": "/library/Medieval Madness (Williams 1997)",
+      "fullPathVPXfile": "/library/Medieval Madness (Williams 1997)/Medieval Madness (Williams 1997).vpx",
+      "meta": {
+        "Info": {
+          "Authors": [],
+          "Manufacturer": "Williams",
+          "Rom": "",
+          "Title": "Medieval Madness",
+          "Type": "SS",
+          "VPSId": "vps-mm",
+          "Year": "1997"
+        },
+        "User": {
+          "Rating": 5
+        },
+        "VPXFile": {
+          "altColorExists": false,
+          "altSoundExists": false,
+          "detectfastflips": false,
+          "detectfleep": false,
+          "detectflex": false,
+          "detectlut": false,
+          "detectnfozzy": false,
+          "detectpinmame": false,
+          "detectscorebit": false,
+          "detectssf": false,
+          "filename": "",
+          "pupPackExists": false
+        },
+        "VPinFE": {
+          "game_id": "mm00000001",
+          "schema": 2
+        }
+      },
+      "pupPackExists": false,
+      "realDMDColorImagePath": null,
+      "realDMDImagePath": null,
+      "tableDirName": "Medieval Madness (Williams 1997)"
+    }
+  ],
+  "contract2": {
+    "collection": "",
+    "count": 4,
+    "entries": [
+      {
+        "assets": {
+          "alt_color": false,
+          "alt_sound": false,
+          "pup_pack": false
+        },
+        "game": {
+          "dir_name": "Attack from Mars (Bally 1995)",
+          "id": "afm0000001",
+          "manufacturer": "Bally",
+          "name": "Attack from Mars",
+          "path": "/library/Attack from Mars (Bally 1995)",
+          "rating": 4,
+          "themes": [],
+          "type": "SS",
+          "vps_id": "vps-afm",
+          "year": "1995"
+        },
+        "media": {
+          "AudioLaunchPath": null,
+          "AudioPath": "/library/Attack from Mars (Bally 1995)/medias/audio.mp3",
+          "BGImagePath": "/library/Attack from Mars (Bally 1995)/medias/bg.png",
+          "BGVideoPath": null,
+          "CabImagePath": null,
+          "DMDImagePath": "/library/Attack from Mars (Bally 1995)/medias/dmd.png",
+          "DMDVideoPath": null,
+          "FSSImagePath": null,
+          "FlyerImagePath": null,
+          "InstructionCardImagePath": null,
+          "LoadingVideoPath": null,
+          "LogoImagePath": null,
+          "ManufacturerLogoPath": null,
+          "PlayfieldImagePath": "/library/Attack from Mars (Bally 1995)/medias/table.png",
+          "PlayfieldVideoPath": "/library/Attack from Mars (Bally 1995)/medias/table.mp4",
+          "RuleSheetPath": null,
+          "TopperPath": null,
+          "TopperVideoPath": null,
+          "WheelImagePath": "/library/Attack from Mars (Bally 1995)/medias/wheel.png",
+          "realDMDColorImagePath": "/library/Attack from Mars (Bally 1995)/medias/realdmd-color.png",
+          "realDMDImagePath": "/library/Attack from Mars (Bally 1995)/medias/realdmd.png"
+        },
+        "siblings": 1,
+        "table": {
+          "authors": [],
+          "detects": {
+            "fastflips": false,
+            "fleep": false,
+            "flex": false,
+            "lut": false,
+            "nfozzy": false,
+            "pinmame": false,
+            "scorbit": false,
+            "ssf": false
+          },
+          "filename": "Attack from Mars (Bally 1995).vpx",
+          "id": "",
+          "path": "/library/Attack from Mars (Bally 1995)/Attack from Mars (Bally 1995).vpx",
+          "rom": "",
+          "version": ""
+        }
+      },
+      {
+        "assets": {
+          "alt_color": false,
+          "alt_sound": false,
+          "pup_pack": false
+        },
+        "game": {
+          "dir_name": "Bare Table (Gottlieb 1980)",
+          "id": "bar0000001",
+          "manufacturer": "Gottlieb",
+          "name": "Bare Table",
+          "path": "/library/Bare Table (Gottlieb 1980)",
+          "rating": 0,
+          "themes": [],
+          "type": "EM",
+          "vps_id": "",
+          "year": "1980"
+        },
+        "media": {
+          "AudioLaunchPath": null,
+          "AudioPath": null,
+          "BGImagePath": null,
+          "BGVideoPath": null,
+          "CabImagePath": null,
+          "DMDImagePath": null,
+          "DMDVideoPath": null,
+          "FSSImagePath": null,
+          "FlyerImagePath": null,
+          "InstructionCardImagePath": null,
+          "LoadingVideoPath": null,
+          "LogoImagePath": null,
+          "ManufacturerLogoPath": null,
+          "PlayfieldImagePath": null,
+          "PlayfieldVideoPath": null,
+          "RuleSheetPath": null,
+          "TopperPath": null,
+          "TopperVideoPath": null,
+          "WheelImagePath": null,
+          "realDMDColorImagePath": null,
+          "realDMDImagePath": null
+        },
+        "siblings": 1,
+        "table": {
+          "authors": [],
+          "detects": {
+            "fastflips": false,
+            "fleep": false,
+            "flex": false,
+            "lut": false,
+            "nfozzy": false,
+            "pinmame": false,
+            "scorbit": false,
+            "ssf": false
+          },
+          "filename": "Bare Table (Gottlieb 1980).vpx",
+          "id": "",
+          "path": "/library/Bare Table (Gottlieb 1980)/Bare Table (Gottlieb 1980).vpx",
+          "rom": "",
+          "version": ""
+        }
+      },
+      {
+        "assets": {
+          "alt_color": false,
+          "alt_sound": false,
+          "pup_pack": false
+        },
+        "game": {
+          "dir_name": "Congo (Williams 1995)",
+          "id": "cng0000001",
+          "manufacturer": "Williams",
+          "name": "Congo",
+          "path": "/library/Congo (Williams 1995)",
+          "rating": 0,
+          "themes": [],
+          "type": "SS",
+          "vps_id": "vps-congo",
+          "year": "1995"
+        },
+        "media": {
+          "AudioLaunchPath": null,
+          "AudioPath": null,
+          "BGImagePath": null,
+          "BGVideoPath": null,
+          "CabImagePath": null,
+          "DMDImagePath": null,
+          "DMDVideoPath": null,
+          "FSSImagePath": null,
+          "FlyerImagePath": null,
+          "InstructionCardImagePath": null,
+          "LoadingVideoPath": null,
+          "LogoImagePath": null,
+          "ManufacturerLogoPath": null,
+          "PlayfieldImagePath": null,
+          "PlayfieldVideoPath": null,
+          "RuleSheetPath": null,
+          "TopperPath": null,
+          "TopperVideoPath": null,
+          "WheelImagePath": "/library/Congo (Williams 1995)/wheel.png",
+          "realDMDColorImagePath": null,
+          "realDMDImagePath": null
+        },
+        "siblings": 1,
+        "table": {
+          "authors": [],
+          "detects": {
+            "fastflips": false,
+            "fleep": false,
+            "flex": false,
+            "lut": false,
+            "nfozzy": false,
+            "pinmame": false,
+            "scorbit": false,
+            "ssf": false
+          },
+          "filename": "Congo (Williams 1995).vpx",
+          "id": "",
+          "path": "/library/Congo (Williams 1995)/Congo (Williams 1995).vpx",
+          "rom": "",
+          "version": ""
+        }
+      },
+      {
+        "assets": {
+          "alt_color": false,
+          "alt_sound": false,
+          "pup_pack": false
+        },
+        "game": {
+          "dir_name": "Medieval Madness (Williams 1997)",
+          "id": "mm00000001",
+          "manufacturer": "Williams",
+          "name": "Medieval Madness",
+          "path": "/library/Medieval Madness (Williams 1997)",
+          "rating": 5,
+          "themes": [],
+          "type": "SS",
+          "vps_id": "vps-mm",
+          "year": "1997"
+        },
+        "media": {
+          "AudioLaunchPath": null,
+          "AudioPath": null,
+          "BGImagePath": "/library/Medieval Madness (Williams 1997)/medias/bg.png",
+          "BGVideoPath": null,
+          "CabImagePath": null,
+          "DMDImagePath": null,
+          "DMDVideoPath": null,
+          "FSSImagePath": null,
+          "FlyerImagePath": null,
+          "InstructionCardImagePath": null,
+          "LoadingVideoPath": null,
+          "LogoImagePath": null,
+          "ManufacturerLogoPath": null,
+          "PlayfieldImagePath": null,
+          "PlayfieldVideoPath": null,
+          "RuleSheetPath": null,
+          "TopperPath": null,
+          "TopperVideoPath": null,
+          "WheelImagePath": "/library/Medieval Madness (Williams 1997)/medias/wheels/monochrome/wheel.png",
+          "realDMDColorImagePath": null,
+          "realDMDImagePath": null
+        },
+        "siblings": 1,
+        "table": {
+          "authors": [],
+          "detects": {
+            "fastflips": false,
+            "fleep": false,
+            "flex": false,
+            "lut": false,
+            "nfozzy": false,
+            "pinmame": false,
+            "scorbit": false,
+            "ssf": false
+          },
+          "filename": "Medieval Madness (Williams 1997).vpx",
+          "id": "",
+          "path": "/library/Medieval Madness (Williams 1997)/Medieval Madness (Williams 1997).vpx",
+          "rom": "",
+          "version": ""
+        }
+      }
+    ],
+    "expanded": false
+  }
+}

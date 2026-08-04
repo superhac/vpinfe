@@ -1,0 +1,145 @@
+"""Captures the theme payload as JSON, so the JavaScript tests read what Python built.
+
+The JS harness cannot import Python, and hand-written JS fixtures drift from the builder
+silently - which is how a media key lookup shipped broken. So the payload is captured
+here and committed; `tests/test_theme_fixtures.py` fails when the committed copy stops
+matching, and regenerating it makes the JS tests run against the new shape.
+
+Not a test. Regenerate deliberately:
+
+    python tests/theme_fixture_capture.py
+
+Absolute paths are rewritten to a fixed root, because a temp directory would change the
+fixture on every run and the URL builder only reads the last few segments anyway.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from configparser import ConfigParser
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+FIXTURE = REPO_ROOT / "tests" / "fixtures" / "theme_payload.json"
+
+# What the captured paths pretend to live under. The JS side asserts against this.
+STABLE_ROOT = "/library"
+
+
+def _game(root: Path, folder: str, *, info: dict,
+          medias: dict[str, bytes] | None = None,
+          root_files: dict[str, bytes] | None = None) -> None:
+    game = root / folder
+    game.mkdir(parents=True)
+    (game / f"{folder}.vpx").write_bytes(b"not really a vpx")
+    (game / f"{folder}.info").write_text(json.dumps(info), encoding="utf-8")
+    for name, data in (root_files or {}).items():
+        (game / name).write_bytes(data)
+    for name, data in (medias or {}).items():
+        target = game / "medias" / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+
+
+def build_library(root: Path) -> None:
+    """Four games, each covering a case the theme surface has to get right."""
+    # 1. The ordinary case: media under medias/, image and video for the same kind so
+    #    the image-vs-video priority choice has something to choose between.
+    _game(root, "Attack from Mars (Bally 1995)",
+          info={"Info": {"Title": "Attack from Mars", "Manufacturer": "Bally",
+                         "Year": "1995", "Type": "SS", "VPSId": "vps-afm"},
+                "User": {"Rating": 4},
+                "vpinfe": {"game_id": "afm0000001", "schema": 2}},
+          medias={"wheel.png": b"\x89PNG wheel", "bg.png": b"\x89PNG bg",
+                  "table.png": b"\x89PNG playfield", "table.mp4": b"\x00\x00mp4",
+                  "dmd.png": b"\x89PNG dmd", "realdmd.png": b"\x89PNG realdmd",
+                  "realdmd-color.png": b"\x89PNG realdmd color",
+                  "audio.mp3": b"ID3audio"})
+
+    # 2. Media at the folder root rather than under medias/ - the fallback tier, and a
+    #    different branch of the path-to-URL builder.
+    _game(root, "Congo (Williams 1995)",
+          info={"Info": {"Title": "Congo", "Manufacturer": "Williams",
+                         "Year": "1995", "Type": "SS", "VPSId": "vps-congo"},
+                "User": {"Rating": 0},
+                "vpinfe": {"game_id": "cng0000001", "schema": 2}},
+          root_files={"wheel.png": b"\x89PNG wheel at root"})
+
+    # 3. A wheel set: media one level deeper than medias/, which is the case the URL
+    #    builder needed a special branch for.
+    _game(root, "Medieval Madness (Williams 1997)",
+          info={"Info": {"Title": "Medieval Madness", "Manufacturer": "Williams",
+                         "Year": "1997", "Type": "SS", "VPSId": "vps-mm"},
+                "User": {"Rating": 5},
+                "vpinfe": {"game_id": "mm00000001", "schema": 2}},
+          medias={"wheels/monochrome/wheel.png": b"\x89PNG set wheel",
+                  "bg.png": b"\x89PNG bg"})
+
+    # 4. No media at all - every lookup has to answer "missing" rather than undefined.
+    _game(root, "Bare Table (Gottlieb 1980)",
+          info={"Info": {"Title": "Bare Table", "Manufacturer": "Gottlieb",
+                         "Year": "1980", "Type": "EM", "VPSId": ""},
+                "User": {"Rating": 0},
+                "vpinfe": {"game_id": "bar0000001", "schema": 2}})
+
+
+def _stabilize(value, real_root: str):
+    """Swap the temp directory for a fixed root, everywhere it appears."""
+    if isinstance(value, str):
+        return value.replace(real_root, STABLE_ROOT)
+    if isinstance(value, list):
+        return [_stabilize(item, real_root) for item in value]
+    if isinstance(value, dict):
+        return {key: _stabilize(item, real_root) for key, item in value.items()}
+    return value
+
+
+def _config():
+    """An ini selecting the wheel set.
+
+    Sets are opt-in, so without one active the wheel-set folder is invisible - and that
+    folder is the case the path-to-URL builder needed its own branch for. The parser only
+    reads active sets when it is given a config, so this goes through the real path
+    rather than the module-level override.
+    """
+    parser = ConfigParser()
+    parser.read_dict({"Media": {"wheelset": "monochrome"}})
+    return parser
+
+
+def capture() -> dict:
+    from common.games.gameparser import GameParser
+    from frontend.game_state import games_json
+
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        build_library(root)
+        parser = GameParser(str(root), _config())
+        games = parser.getAllGames()
+
+        try:
+            from common.games.collection_resolver import entries_for
+            view = entries_for(games)
+        except ImportError:      # pre-collections layout
+            view = games
+
+        payload = {
+            "contract1": json.loads(games_json(view, contract=1)),
+            "contract2": json.loads(games_json(view, contract=2)),
+        }
+        return _stabilize(payload, str(root))
+
+
+def main() -> int:
+    sys.path.insert(0, str(REPO_ROOT))
+    FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+    FIXTURE.write_text(json.dumps(capture(), indent=2, sort_keys=True) + "\n",
+                       encoding="utf-8")
+    print(f"wrote {FIXTURE.relative_to(REPO_ROOT)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
