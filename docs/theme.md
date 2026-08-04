@@ -151,6 +151,12 @@ the game it belongs to attached.
 **`detects` loses the `detect_` prefix.** `table.detects.ssf`, not `detect_ssf` — the
 prefix was storage, not vocabulary.
 
+**`vpin.entries` is the list you iterate.** `vpin.gameData` holds the same array, but at
+contract 2 its items are entries rather than games, so `entries` is the name that
+describes them. The view they came from travels alongside as `vpin.collection` and
+`vpin.expanded`. Every ordinal helper — `getGameCount()`, `getCurrentGameIndex()`,
+`getGameMeta(index)` — counts and addresses entries.
+
 **Media is named, not located.** `entries[].media` lists the kinds this game has a file
 for. To show one, request `/media/<table id>/<kind>` from the theme assets port — the same
 server your theme is loaded from. Contract 1 carried a filesystem path per kind and left

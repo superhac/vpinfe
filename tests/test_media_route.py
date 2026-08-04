@@ -101,6 +101,30 @@ class PerTableResolutionTests(unittest.TestCase):
         self.assertIsNone(media_lookup.media_path(self.games, "t2", "wheel"))
 
 
+class UnparsedGameTests(unittest.TestCase):
+    """A folder no metadata build has touched has no table ids, but it still has art."""
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        root = Path(self._tmp.name)
+        game = root / "Untouched (Bally 1985)"
+        (game / "medias").mkdir(parents=True)
+        (game / "Untouched (Bally 1985).vpx").write_bytes(b"vpx")
+        (game / "medias" / "wheel.png").write_bytes(b"\x89PNG")
+        (game / "Untouched (Bally 1985).info").write_text(json.dumps({
+            "Info": {"Title": "Untouched"},
+            "vpinfe": {"game_id": "untouched1", "schema": 2},
+        }), encoding="utf-8")
+        self.games = GameParser(str(root)).getAllGames()
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_media_is_reachable_by_the_game_id(self) -> None:
+        path = media_lookup.media_path(self.games, "untouched1", "wheel")
+
+        self.assertIsNotNone(path, "no table id yet, so the game's id addresses it")
+        self.assertEqual(path.name, "wheel.png")
+
+
 class RouteTests(unittest.TestCase):
     """Served for real, because conditional GET and Range are HTTP behavior."""
 

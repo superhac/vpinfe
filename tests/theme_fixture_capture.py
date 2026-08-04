@@ -51,7 +51,11 @@ def build_library(root: Path) -> None:
           info={"Info": {"Title": "Attack from Mars", "Manufacturer": "Bally",
                          "Year": "1995", "Type": "SS", "VPSId": "vps-afm"},
                 "User": {"Rating": 4},
-                "vpinfe": {"game_id": "afm0000001", "schema": 2}},
+                "vpinfe": {"game_id": "afm0000001", "schema": 2,
+                           "default_table": "afmtable01"},
+                "tables": {"afmtable01": {"id": "afmtable01",
+                                          "filename": "Attack from Mars (Bally 1995).vpx",
+                                          "rom": "afm_113b"}}},
           medias={"wheel.png": b"\x89PNG wheel", "bg.png": b"\x89PNG bg",
                   "table.png": b"\x89PNG playfield", "table.mp4": b"\x00\x00mp4",
                   "dmd.png": b"\x89PNG dmd", "realdmd.png": b"\x89PNG realdmd",
@@ -64,7 +68,10 @@ def build_library(root: Path) -> None:
           info={"Info": {"Title": "Congo", "Manufacturer": "Williams",
                          "Year": "1995", "Type": "SS", "VPSId": "vps-congo"},
                 "User": {"Rating": 0},
-                "vpinfe": {"game_id": "cng0000001", "schema": 2}},
+                "vpinfe": {"game_id": "cng0000001", "schema": 2,
+                           "default_table": "cngtable01"},
+                "tables": {"cngtable01": {"id": "cngtable01",
+                                          "filename": "Congo (Williams 1995).vpx"}}},
           root_files={"wheel.png": b"\x89PNG wheel at root"})
 
     # 3. A wheel set: media one level deeper than medias/, which is the case the URL
@@ -73,11 +80,16 @@ def build_library(root: Path) -> None:
           info={"Info": {"Title": "Medieval Madness", "Manufacturer": "Williams",
                          "Year": "1997", "Type": "SS", "VPSId": "vps-mm"},
                 "User": {"Rating": 5},
-                "vpinfe": {"game_id": "mm00000001", "schema": 2}},
+                "vpinfe": {"game_id": "mm00000001", "schema": 2,
+                           "default_table": "mmtable001"},
+                "tables": {"mmtable001": {"id": "mmtable001",
+                                          "filename": "Medieval Madness (Williams 1997).vpx"}}},
           medias={"wheels/monochrome/wheel.png": b"\x89PNG set wheel",
                   "bg.png": b"\x89PNG bg"})
 
-    # 4. No media at all - every lookup has to answer "missing" rather than undefined.
+    # 4. No media at all, and no tables section either - the folder a metadata build has
+    #    never touched. Every lookup has to answer "missing" rather than undefined, and
+    #    the entry still has to exist.
     _game(root, "Bare Table (Gottlieb 1980)",
           info={"Info": {"Title": "Bare Table", "Manufacturer": "Gottlieb",
                          "Year": "1980", "Type": "EM", "VPSId": ""},

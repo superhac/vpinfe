@@ -324,10 +324,29 @@ class VPinFECore {
     return legacy ? game[legacy] : null;
   }
 
+  // An entry names the kinds it has and the table they belong to; the URL follows from
+  // those two. Contract 1 carries a filesystem path per kind instead, which is why this
+  // has to know which shape it is holding.
+  #isEntry(item) {
+    return !!item && Array.isArray(item.media) && !!item.table;
+  }
+
+  #entryMediaURL(entry, kind) {
+    if (!entry.media.includes(kind)) return null;
+    // A folder no metadata build has touched has no table id yet, but it still has art
+    // and still appears in the wheel. The route accepts either id.
+    const id = String(entry.table.id || (entry.game && entry.game.id) || "");
+    if (!id) return null;
+    return `http://127.0.0.1:${this.themeAssetsPort}/media/${encodeURIComponent(id)}/${kind}`;
+  }
+
   getImageURL(index, type) {
     const game = this.gameData[index];
     if (!game) return null;
     const kind = this.#normalizeMediaType(type);
+    if (this.#isEntry(game)) {
+      return this.#entryMediaURL(game, kind) || MISSING_MEDIA_URL;
+    }
     return this.#convertPathToURL(this.#mediaField(game, MEDIA_PATH_FIELDS[kind]));
   }
 
@@ -338,7 +357,12 @@ class VPinFECore {
   // URL of the table manufacturer's logo, or null when none is installed
   getManufacturerLogoURL(index) {
     const table = this.gameData[index];
-    const path = table ? table.ManufacturerLogoPath : null;
+    if (!table) return null;
+    // Contract 2 keeps it on the game: it is art about the manufacturer, not one of
+    // this game's media kinds.
+    const path = this.#isEntry(table)
+      ? (table.game && table.game.manufacturer_logo)
+      : table.ManufacturerLogoPath;
     return path ? `http://127.0.0.1:${this.themeAssetsPort}${path}` : null;
   }
 
@@ -356,6 +380,17 @@ class VPinFECore {
     }
     if (["playfield", "bg", "dmd"].includes(normalizedType)) {
       return this.#resolveImageVideoMedia(table, normalizedType);
+    }
+
+    if (this.#isEntry(table)) {
+      const url = this.#entryMediaURL(table, normalizedType);
+      return {
+        url: url || MISSING_MEDIA_URL,
+        kind: url ? "image" : "missing",
+        priority: null,
+        // No path at contract 2: the payload names kinds, it does not locate files.
+        path: null,
+      };
     }
 
     const imagePath = this.#mediaField(table, MEDIA_PATH_FIELDS[normalizedType]);
@@ -493,6 +528,12 @@ class VPinFECore {
     return this.#convertPathToURL(this.#mediaField(game, MEDIA_VIDEO_PATH_FIELDS[kind]));
   }
 
+  // The list, under the name that describes what is in it. At contract 2 the items are
+  // entries - a table with its game attached - so `entries` is what a theme iterates.
+  get entries() {
+    return this.gameData;
+  }
+
   getGameMeta(index) {
     return this.gameData[index];
   }
@@ -575,7 +616,15 @@ class VPinFECore {
   }
 
   async getGameData(reset=false) {
-    this.gameData = JSON.parse(await this.call("get_games", reset));
+    const payload = JSON.parse(await this.call("get_games", reset));
+    if (Array.isArray(payload)) {
+      this.gameData = payload;                       // contract 1: a row per game
+    } else {
+      // Contract 2 wraps the list so the view it belongs to travels with it.
+      this.gameData = payload.entries || [];
+      this.collection = payload.collection || "";
+      this.expanded = !!payload.expanded;
+    }
     this.#attachCachedVPinPlayRatings();
     if (this._windowName === "table") {
       const maxIndex = Math.max(0, this.gameData.length - 1);
@@ -820,6 +869,9 @@ class VPinFECore {
 
   #getTableVPinPlayVpsId(table) {
     if (!table || typeof table !== "object") return "";
+    if (table.game && typeof table.game === "object") {
+      return String(table.game.vps_id || "").trim();   // contract 2
+    }
     const meta = (table.meta && typeof table.meta === "object") ? table.meta : {};
     const info = (meta.Info && typeof meta.Info === "object") ? meta.Info : {};
     return String(info.VPSId || "").trim();
@@ -1322,8 +1374,28 @@ class VPinFECore {
     return normalized;
   }
 
+  // Image or video is the user's preference, so the choice stays here at either
+  // contract. Only where the answer is read differs: a list of kinds, or a pair of
+  // filesystem paths.
+  #resolveEntryImageVideo(entry, type, priority) {
+    const videoKind = type === "playfield" ? "playfield_video" : `${type}_video`;
+    const order = priority === "image" ? ["image", "video"] : ["video", "image"];
+    for (const want of order) {
+      const kind = want === "video" ? videoKind : type;
+      const url = this.#entryMediaURL(entry, kind)
+        // The playfield falls back to its own FSS variant, the same as at contract 1.
+        || (want === "image" && type === "playfield"
+            ? this.#entryMediaURL(entry, "playfield_fss") : null);
+      if (url) return { url, kind: want, priority, path: null };
+    }
+    return { url: MISSING_MEDIA_URL, kind: "missing", priority, path: null };
+  }
+
   #resolveImageVideoMedia(table, type) {
     const priority = this.mediaPriorities[type] || DEFAULT_MEDIA_PRIORITIES[type] || "video";
+    if (this.#isEntry(table)) {
+      return this.#resolveEntryImageVideo(table, type, priority);
+    }
     // Through #mediaField, not the payload key directly: at contract 1 the playfield
     // pair still arrives under its old names, and reading the key straight makes the
     // main screen resolve to "missing" for every theme written before 3.0. PAR-22.
@@ -1353,6 +1425,17 @@ class VPinFECore {
 
   #resolveRealDmdMedia(table) {
     const priority = this.mediaPriorities.real_dmd || DEFAULT_MEDIA_PRIORITIES.real_dmd;
+    if (this.#isEntry(table)) {
+      const order = priority === "standard"
+        ? [["standard", "real_dmd"], ["color", "real_dmd_color"]]
+        : [["color", "real_dmd_color"], ["standard", "real_dmd"]];
+      for (const [variant, kind] of order) {
+        const url = this.#entryMediaURL(table, kind);
+        if (url) return { url, kind: "image", priority, variant, path: null };
+      }
+      return { url: MISSING_MEDIA_URL, kind: "missing", priority,
+               variant: "missing", path: null };
+    }
     const candidates = priority === "standard"
       ? [
           { variant: "standard", path: table.realDMDImagePath },

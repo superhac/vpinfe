@@ -384,5 +384,10 @@ the play counters. `User.LastRun` is an epoch integer and `User.RunTime` is minu
 fixed by the VPX spec; the payload converts to ISO 8601 and seconds rather than making a
 theme know that.
 
+`vpinfe-core.js` reads it: `vpin.entries` is the list, `vpin.collection` and
+`vpin.expanded` are the view it came from, and the media, metadata and VPinPlay
+accessors take an entry as readily as a row. Contract 1 keeps its array and its
+paths.
+
 Nothing published declares contract 2, so this reshapes a surface no theme reads yet.
 
