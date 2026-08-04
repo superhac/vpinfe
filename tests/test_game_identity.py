@@ -43,7 +43,7 @@ class MintedIdTests(unittest.TestCase):
         info = self.root / "Example.info"
         MetaConfig(str(info)).writeConfigMeta({"vpsdata": {}, "vpxdata": {"filename": "x.vpx"}})
 
-        minted = json.loads(info.read_text(encoding="utf-8"))["vpinfe"]["id"]
+        minted = json.loads(info.read_text(encoding="utf-8"))["vpinfe"]["game_id"]
         self.assertEqual(len(minted), game_identity.ID_LENGTH)
         self.assertTrue(set(minted) <= set(game_identity.ID_ALPHABET))
 
@@ -75,7 +75,7 @@ class GameIdTests(unittest.TestCase):
         on_disk = json.loads(info.read_text(encoding="utf-8"))
 
         self.assertTrue(minted)
-        self.assertEqual(on_disk["vpinfe"]["id"], minted)
+        self.assertEqual(on_disk["vpinfe"]["game_id"], minted)
         self.assertEqual(game_identity.game_id(game), minted)
 
     def test_ensure_id_is_stable_across_calls(self) -> None:
@@ -90,7 +90,7 @@ class GameIdTests(unittest.TestCase):
         """The in-memory copy can be stale; disk wins over minting a second id."""
         game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
         info = Path(game.fullPathGame) / "Example.info"
-        info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "vpinfe": {"id": "already-here"}}),
+        info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "vpinfe": {"game_id": "already-here"}}),
                         encoding="utf-8")
 
         self.assertEqual(game_identity.ensure_id(game), "already-here")
@@ -140,13 +140,13 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
 
         rebuilt = self._rebuild(info, "hash-a")
 
-        self.assertTrue(rebuilt["vpinfe"]["id"])
+        self.assertTrue(rebuilt["vpinfe"]["game_id"])
 
     def test_the_id_survives_a_table_update_that_clears_altvpsid(self) -> None:
         """alt_vpsid is cleared when the .vpx changes; the game id must not be."""
         info = self.root / "Example.info"
         first = self._rebuild(info, "hash-a")
-        game_id = first["vpinfe"]["id"]
+        game_id = first["vpinfe"]["game_id"]
 
         # User re-points the game at different VPSdb metadata, then updates the .vpx.
         data = json.loads(info.read_text(encoding="utf-8"))
@@ -155,13 +155,13 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
         after = self._rebuild(info, "hash-b")
 
         self.assertEqual(after["vpinfe"]["alt_vpsid"], "", "precondition: altvpsid is cleared")
-        self.assertEqual(after["vpinfe"]["id"], game_id)
+        self.assertEqual(after["vpinfe"]["game_id"], game_id)
 
     def test_the_id_survives_repeated_rebuilds(self) -> None:
         info = self.root / "Example.info"
 
-        first = self._rebuild(info, "hash-a")["vpinfe"]["id"]
-        second = self._rebuild(info, "hash-a")["vpinfe"]["id"]
+        first = self._rebuild(info, "hash-a")["vpinfe"]["game_id"]
+        second = self._rebuild(info, "hash-a")["vpinfe"]["game_id"]
 
         self.assertEqual(first, second)
 
@@ -195,7 +195,7 @@ class UniquenessTests(unittest.TestCase):
         original = _game(self.root, "Original", meta={"Info": {}})
         assigned = game_identity.ensure_id(original)
         # Copying the folder copies the .info, and with it the id.
-        copy = _game(self.root, "Copy", meta={"Info": {}, "vpinfe": {"id": assigned}})
+        copy = _game(self.root, "Copy", meta={"Info": {}, "vpinfe": {"game_id": assigned}})
 
         with self.assertLogs("vpinfe.common.games.game_identity", level="WARNING"):
             by_id = game_identity.ensure_unique_ids([original, copy])

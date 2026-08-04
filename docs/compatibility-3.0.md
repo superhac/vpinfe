@@ -20,7 +20,7 @@ git worktree remove /tmp/parity-master
 
 ## The exceptions
 
-**PAR-01 — First run writes `VPinFE.id` into `.info` files.**
+**PAR-01 — First run writes `vpinfe.game_id` into `.info` files.**
 Every game gets a stable id, minted once and persisted. One-time, versioned via
 `VPinFE.schema`; files written by a newer build are left alone. Users see a burst of
 `.info` writes on first 3.0 start and nothing after.

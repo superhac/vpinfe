@@ -1,4 +1,4 @@
-"""Stable local identity for games: an opaque id in the .info at `vpinfe.id`.
+"""Stable local identity for games: an opaque id in the .info at `vpinfe.game_id`.
 
 Addresses a game in the HTTP API, in events and in jobs. VPSId cannot do that job
 and keeps its own. Reading never writes; minting is explicit. See docs/http_api.md.
@@ -19,13 +19,13 @@ from common.games.game_metadata import (
 from common.games.ids import ALPHABET as ID_ALPHABET
 from common.games.ids import LENGTH as ID_LENGTH
 from common.games.ids import new_id
-from common.games.metaconfig import VPINFE_SECTION
+from common.games.metaconfig import GAME_ID_KEY, VPINFE_SECTION
 
 logger = logging.getLogger("vpinfe.common.games.game_identity")
 
 # Also written by MetaConfig.writeConfigMeta, which mints during a metadata rebuild.
 ID_SECTION = VPINFE_SECTION
-ID_KEY = "id"
+ID_KEY = GAME_ID_KEY
 
 __all__ = ["ID_ALPHABET", "ID_LENGTH", "ID_KEY", "ID_SECTION", "new_id",
            "game_id", "ensure_id", "ensure_unique_ids", "find_by_id"]

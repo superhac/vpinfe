@@ -23,7 +23,7 @@ def _game(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", game_id
     if altvpsid:
         meta["vpinfe"]["alt_vpsid"] = altvpsid
     if game_id:
-        meta["vpinfe"]["id"] = game_id
+        meta["vpinfe"]["game_id"] = game_id
     (folder / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
     return SimpleNamespace(fullPathGame=str(folder), gameDirName=name, metaConfig=meta)
 
@@ -156,7 +156,7 @@ class MembershipTests(unittest.TestCase):
             return json.loads(info.read_text(encoding="utf-8"))
 
         first = rebuild("hash-a")
-        game_id_value = first["vpinfe"]["id"]
+        game_id_value = first["vpinfe"]["game_id"]
 
         # User re-points the game, then updates the .vpx - which clears alt_vpsid.
         data = json.loads(info.read_text(encoding="utf-8"))

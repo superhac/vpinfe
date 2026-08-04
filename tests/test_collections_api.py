@@ -27,7 +27,7 @@ def _game(folder: str, game_id: str) -> SimpleNamespace:
         fullPathGame=f"/games/{folder}",
         fullPathVPXfile=f"/games/{folder}/{folder}.vpx",
         metaConfig={"Info": {"Title": folder, "Manufacturer": "Bally"},
-                    "vpinfe": {"id": game_id}},
+                    "vpinfe": {"game_id": game_id}},
     )
 
 

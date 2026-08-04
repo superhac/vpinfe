@@ -31,9 +31,15 @@ logger = logging.getLogger("vpinfe.common.games.metaconfig")
 # shape can be reasoned about from a version. Other sections stay shape-driven.
 #   1  original shape (deletedNVRamOnClose, altlauncher, pluginprofile, alttitle,
 #      altvpsid). Implied when no version is recorded.
-#   2  adds `id`, the stable local game id (see common/games/game_identity.py).
+#   2  adds `game_id`, the stable local game id (see common/games/game_identity.py).
 CURRENT_VPINFE_SCHEMA = 2
 VPINFE_SCHEMA_KEY = "schema"
+
+# Named for what it identifies, because this section holds ids at more than one scope:
+# `default_table` beside it is a *table* id, and the source block will carry VPS and host
+# ids too. A payload can say `game: {"id": ...}` because the object states the scope; this
+# section does not.
+GAME_ID_KEY = "game_id"
 
 # The section we own outright: app configuration and game-level bookkeeping. 2.x wrote
 # it as `VPinFE`; the migration renames it, since the sections we own are snake_case -
@@ -74,7 +80,7 @@ def migrate_vpinfe_section(vpinfe):
         return vpinfe
 
     if version < 2:
-        vpinfe.setdefault("id", "")  # declare only; minting is a writer's job
+        vpinfe.setdefault(GAME_ID_KEY, "")  # declare only; minting is a writer's job
 
     vpinfe[VPINFE_SCHEMA_KEY] = CURRENT_VPINFE_SCHEMA
     return vpinfe
@@ -193,12 +199,12 @@ class MetaConfig:
         vpinfe.setdefault("frontend_dof_event", "")
         # Outside the filehash check below on purpose: the id must survive the table
         # changing, which is exactly when alt_vpsid is cleared.
-        if not str(vpinfe.get("id", "") or "").strip():
+        if not str(vpinfe.get(GAME_ID_KEY, "") or "").strip():
             # Imported here because game_identity reaches back through game_metadata
             # to this module. One minting rule, one place, no cycle.
             from common.games.game_identity import new_id
 
-            vpinfe["id"] = new_id()
+            vpinfe[GAME_ID_KEY] = new_id()
 
         assets = self.data.get(ASSETS_KEY, {})
         previous_files = table_entries(self.data)

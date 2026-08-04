@@ -63,7 +63,7 @@ class DetectionTests(unittest.TestCase):
         the file half converted - VPXFile still there, no game_files, and every consumer
         of them empty."""
         half = {"VPinFE": {"schema": 2, "altvpsid": "", "id": "f7e3e722"},
-                "vpinfe": {"id": "mJ8F4RqD8U"},
+                "vpinfe": {"game_id": "mJ8F4RqD8U"},
                 "VPXFile": {"filename": "X.vpx", "rom": "afm", "detectssf": True},
                 "Medias": {}, "Info": {}, "User": {}}
 
@@ -73,7 +73,7 @@ class DetectionTests(unittest.TestCase):
         self.assertEqual(after["tables"]["X.vpx"]["rom"], "afm")
         self.assertTrue(after["tables"]["X.vpx"]["detect_ssf"])
         self.assertNotIn("VPXFile", after)
-        self.assertEqual(after["vpinfe"]["id"], "mJ8F4RqD8U",
+        self.assertEqual(after["vpinfe"]["game_id"], "mJ8F4RqD8U",
                          "the id this build already minted wins over the old one")
 
     def test_a_file_we_wrote_is_not_migrated_again(self):

@@ -24,7 +24,7 @@ def _game(title="Medieval Madness", tables=None, vpx="/g/MM/MM.vpx"):
             "User": {"Rating": 5},
             # An explicit default, so which table collapses is stated rather than
             # falling out of filename order.
-            "vpinfe": {"id": "mm00000001", "default_table": "t1"},
+            "vpinfe": {"game_id": "mm00000001", "default_table": "t1"},
             **({"tables": tables} if tables is not None else {}),
         },
     )

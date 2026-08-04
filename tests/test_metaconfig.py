@@ -240,8 +240,8 @@ class VPinFESchemaTests(unittest.TestCase):
 
         self.assertEqual(migrated["schema"], CURRENT_VPINFE_SCHEMA)
         self.assertEqual(migrated["alt_title"], "Example", "existing settings survive")
-        self.assertIn("id", migrated, "v2 declares the local id key")
-        self.assertEqual(migrated["id"], "", "declaring is not minting")
+        self.assertIn("game_id", migrated, "v2 declares the local game id key")
+        self.assertEqual(migrated["game_id"], "", "declaring is not minting")
 
     def test_migration_is_idempotent(self) -> None:
         once = migrate_vpinfe_section({"alt_title": "Example"})
@@ -280,7 +280,7 @@ class VPinFESchemaTests(unittest.TestCase):
         saved = json.loads(info.read_text(encoding="utf-8"))
 
         self.assertEqual(saved["vpinfe"]["schema"], CURRENT_VPINFE_SCHEMA)
-        self.assertTrue(saved["vpinfe"]["id"])
+        self.assertTrue(saved["vpinfe"]["game_id"])
 
     def test_other_sections_are_not_versioned(self) -> None:
         info = self.root / "Example.info"

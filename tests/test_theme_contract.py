@@ -24,7 +24,7 @@ ROW = {
     "meta": {
         "Info": {"Title": "Example", "VPSId": "vps-1"},
         "User": {"Rating": 4},
-        "vpinfe": {"schema": 2, "id": "tuF3WogthK", "alt_title": "Alt"},
+        "vpinfe": {"schema": 2, "game_id": "tuF3WogthK", "alt_title": "Alt"},
         "tables": {"E.vpx": {"rom": "afm_113b", "authors": ["jpsalas"]}},
         "assets": {"medias/bg.png": {"source": {"host": "user"}}},
     },

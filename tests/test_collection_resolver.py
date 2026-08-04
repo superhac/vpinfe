@@ -28,7 +28,7 @@ def _game(gid, title, tables, manufacturer="", rating=0, last_run=0, default="")
             "Info": {"Title": title, "Manufacturer": manufacturer, "Year": "1995",
                      "Type": "SS", "Themes": []},
             "User": {"Rating": rating, "LastRun": last_run, "StartCount": 0, "RunTime": 0},
-            "vpinfe": {"id": gid, **({"default_table": default} if default else {})},
+            "vpinfe": {"game_id": gid, **({"default_table": default} if default else {})},
             "tables": tables,
         },
     )
@@ -62,7 +62,7 @@ class ResolverTests(unittest.TestCase):
         self.games = [self.mm, self.afm, self.taf]
 
     def _ids(self, entries):
-        return [(e.game.metaConfig["vpinfe"]["id"], e.table_id) for e in entries]
+        return [(e.game.metaConfig["vpinfe"]["game_id"], e.table_id) for e in entries]
 
     # --- the case the whole design exists for ------------------------------------
 

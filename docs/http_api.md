@@ -416,7 +416,7 @@ rather than being queued — queueing would mean a double-click costs two full s
 ## Game identity
 
 Games are addressed by an opaque local id — `common/games/game_identity.py`, stored per game in
-its `.info` under `vpinfe.id`:
+its `.info` under `vpinfe.game_id`:
 
 ```
 GET /api/v1/games/tuF3WogthK
