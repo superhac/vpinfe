@@ -63,8 +63,9 @@ def tables_json(tables) -> str:
         vpinfe = section(meta, "VPinFE")
         info = section(meta, "Info")
         used_alttitle = False
-        if str(vpinfe.get("altvpsid", "") or "").strip() and str(vpinfe.get("alttitle", "") or "").strip():
-            info["Title"] = str(vpinfe.get("alttitle", "") or "").strip()
+        alt_title = str(vpinfe.get("alttitle", "") or "").strip()
+        if alt_title:
+            info["Title"] = alt_title
             meta["Info"] = info
             used_alttitle = True
 

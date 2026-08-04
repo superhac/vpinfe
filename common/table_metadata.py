@@ -89,11 +89,11 @@ def table_title(table) -> str:
     meta = normalize_meta(getattr(table, "metaConfig", {}))
     vpinfe = section(meta, "VPinFE")
     info = section(meta, "Info")
-    if str(vpinfe.get("altvpsid", "") or "").strip():
-        alt_title = str(vpinfe.get("alttitle", "") or "").strip()
-        if alt_title:
-            # A user-set alttitle is left exactly as entered - never reordered.
-            return alt_title
+    alt_title = str(vpinfe.get("alttitle", "") or "").strip()
+    if alt_title:
+        # A user-set alttitle wins on its own - it does not require an altvpsid -
+        # and is left exactly as entered, never reordered.
+        return alt_title
     raw = str(info.get("Title", "") or get_meta_value(meta, "VPSdb", "name", "") or getattr(table, "tableDirName", "") or "").strip()
     return reorder_leading_article(raw)
 
