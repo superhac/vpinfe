@@ -29,7 +29,10 @@ def _library(root: Path) -> None:
     (game / "medias" / "bg.png").write_bytes(b"\x89PNG backglass bytes")
     (game / "Example Game (Bally 1990).info").write_text(json.dumps({
         "Info": {"Title": "Example Game", "Manufacturer": "Bally", "Year": "1990"},
-        "vpinfe": {"game_id": "exmpl00001", "schema": 2},
+        "vpinfe": {"game_id": "tbl0000001", "schema": 2,
+                   "default_table": "tbl0000001"},
+        "tables": {"tbl0000001": {"id": "tbl0000001",
+                                  "filename": "Example Game (Bally 1990).vpx"}},
     }), encoding="utf-8")
 
 
@@ -42,17 +45,17 @@ class LookupTests(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
 
     def test_it_finds_the_file_behind_a_kind(self) -> None:
-        path = media_lookup.media_path(self.games, "exmpl00001", "wheel")
+        path = media_lookup.media_path(self.games, "tbl0000001", "wheel")
 
         self.assertIsNotNone(path)
         self.assertEqual(path.name, "wheel.png")
 
     def test_an_unknown_game_or_kind_is_none_rather_than_an_error(self) -> None:
-        self.assertIsNone(media_lookup.media_path(self.games, "nosuchgame", "wheel"))
-        self.assertIsNone(media_lookup.media_path(self.games, "exmpl00001", "nosuchkind"))
+        self.assertIsNone(media_lookup.media_path(self.games, "nosuchtable", "wheel"))
+        self.assertIsNone(media_lookup.media_path(self.games, "tbl0000001", "nosuchkind"))
 
     def test_a_kind_with_no_file_is_none(self) -> None:
-        self.assertIsNone(media_lookup.media_path(self.games, "exmpl00001", "topper"))
+        self.assertIsNone(media_lookup.media_path(self.games, "tbl0000001", "topper"))
 
     def test_resolved_kinds_lists_only_what_exists(self) -> None:
         kinds = media_lookup.resolved_kinds(self.games[0])
@@ -60,6 +63,42 @@ class LookupTests(unittest.TestCase):
         self.assertIn("wheel", kinds)
         self.assertIn("bg", kinds)
         self.assertNotIn("topper", kinds)
+
+
+class PerTableResolutionTests(unittest.TestCase):
+    """Tier 1 keys off the table that launches, but the scan only ever runs it for the
+    default table. Pinned so the gap is visible rather than folklore - the URL is already
+    addressed by table, so closing this does not move anything a theme built."""
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        root = Path(self._tmp.name)
+        game = root / "Two Tables (Bally 1990)"
+        (game / "medias").mkdir(parents=True)
+        for name in ("Default.vpx", "Other.vpx"):
+            (game / name).write_bytes(b"vpx")
+        # A tier-1 wheel named for the table that is NOT the default.
+        (game / "medias" / "(Wheel) Other.png").write_bytes(b"\x89PNG other wheel")
+        (game / "Two Tables (Bally 1990).info").write_text(json.dumps({
+            "Info": {"Title": "Two Tables"},
+            "vpinfe": {"game_id": "two0000001", "schema": 2, "default_table": "t1"},
+            "tables": {"t1": {"id": "t1", "filename": "Default.vpx"},
+                       "t2": {"id": "t2", "filename": "Other.vpx"}},
+        }), encoding="utf-8")
+        self.games = GameParser(str(root)).getAllGames()
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_both_tables_answer_with_the_default_tables_media(self) -> None:
+        first = media_lookup.media_path(self.games, "t1", "wheel")
+        second = media_lookup.media_path(self.games, "t2", "wheel")
+
+        self.assertEqual(first, second,
+                         "one resolution per game today, so both tables see the same art")
+
+    def test_a_tier_one_file_for_a_non_default_table_is_not_found(self) -> None:
+        """The scan resolves against the default table's stem, so this file - which the
+        precedence chain says should win for t2 - resolves nowhere."""
+        self.assertIsNone(media_lookup.media_path(self.games, "t2", "wheel"))
 
 
 class RouteTests(unittest.TestCase):
@@ -101,17 +140,17 @@ class RouteTests(unittest.TestCase):
                 return exc.code, dict(exc.headers), exc.read()
 
     def test_it_serves_the_file(self) -> None:
-        status, headers, body = self._get("/media/exmpl00001/wheel")
+        status, headers, body = self._get("/media/tbl0000001/wheel")
 
         self.assertEqual(status, 200)
         self.assertEqual(body, b"\x89PNG wheel bytes")
         self.assertEqual(headers["Content-Type"], "image/png")
 
     def test_it_carries_an_etag_and_honors_it(self) -> None:
-        _, headers, _ = self._get("/media/exmpl00001/wheel")
+        _, headers, _ = self._get("/media/tbl0000001/wheel")
         etag = headers["ETag"]
 
-        status, _, body = self._get("/media/exmpl00001/wheel",
+        status, _, body = self._get("/media/tbl0000001/wheel",
                                     {"If-None-Match": etag})
 
         self.assertEqual(status, 304, "an unchanged file should not be sent twice")
@@ -119,25 +158,25 @@ class RouteTests(unittest.TestCase):
 
     def test_it_asks_to_be_revalidated(self) -> None:
         """Replacing art in the Manager UI has to show up without a hard refresh."""
-        _, headers, _ = self._get("/media/exmpl00001/wheel")
+        _, headers, _ = self._get("/media/tbl0000001/wheel")
 
         self.assertEqual(headers["Cache-Control"], "no-cache")
 
     def test_a_range_request_is_answered_partially(self) -> None:
-        status, headers, body = self._get("/media/exmpl00001/wheel",
+        status, headers, body = self._get("/media/tbl0000001/wheel",
                                           {"Range": "bytes=0-3"})
 
         self.assertEqual(status, 206)
         self.assertEqual(body, b"\x89PNG")
         self.assertEqual(headers["Content-Range"], "bytes 0-3/16")
 
-    def test_an_unknown_game_is_a_404(self) -> None:
-        status, _, _ = self._get("/media/nosuchgame/wheel")
+    def test_an_unknown_table_is_a_404(self) -> None:
+        status, _, _ = self._get("/media/nosuchtable/wheel")
 
         self.assertEqual(status, 404)
 
     def test_a_kind_this_game_lacks_is_a_404(self) -> None:
-        status, _, _ = self._get("/media/exmpl00001/topper")
+        status, _, _ = self._get("/media/tbl0000001/topper")
 
         self.assertEqual(status, 404)
 

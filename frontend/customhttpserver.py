@@ -294,7 +294,7 @@ class CustomHTTPServer:
                 return
 
         def _serve_game_media(self, request_path):
-            """/media/<game_id>/<kind> - the art a theme asks for, addressed by id.
+            """/media/<table_id>/<kind> - the art a theme asks for, addressed by id.
 
             Returns False when the shape does not match, so an unrelated /media/ path
             still falls through to the static mounts.
@@ -302,14 +302,14 @@ class CustomHTTPServer:
             parts = [p for p in unquote(request_path)[len("/media/"):].split("/") if p]
             if len(parts) != 2:
                 return False
-            game_id, kind = parts
+            table_id, kind = parts
 
             from common.games import game_repository, media_lookup
             try:
                 games = game_repository.ensure_games_loaded()
-                path = media_lookup.media_path(games, game_id, kind)
+                path = media_lookup.media_path(games, table_id, kind)
             except Exception:
-                logger.exception("[HTTP] media lookup failed for %s/%s", game_id, kind)
+                logger.exception("[HTTP] media lookup failed for %s/%s", table_id, kind)
                 self.send_error(500, "Media lookup failed")
                 return True
             if path is None:

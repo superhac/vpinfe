@@ -234,7 +234,9 @@ migration path, which is why none of them is removed.
 
 **PAR-31 — Contract 2 names its media kinds; a route serves them by game id.**
 `entries[].media` is the list of kinds a game has a file for, and the bytes come from
-`GET /media/<game id>/<kind>` on the theme assets port. The manufacturer logo moves onto
+`GET /media/<table id>/<kind>` on the theme assets port. Addressed by table because tier 1
+of the media chain keys off the table that launches, even though the scan resolves once
+per game today - so the URL survives that being fixed. The manufacturer logo moves onto
 `game.manufacturer_logo`, since it is art about the manufacturer rather than about the
 game. **Contract 1 is unchanged**: it keeps a filesystem path per kind at the top of each
 row, which is what every published theme reads.

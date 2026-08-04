@@ -145,14 +145,14 @@ the game it belongs to attached.
 | `entries[].table.user` | The same counters for this table alone — `last_played`, `play_count`, `play_time_seconds`. A game and its tables accumulate independently, so deleting a table does not un-play the game's hours. |
 | `entries[].assets` | What the game needs to play as intended, as booleans. |
 | `entries[].siblings` | How many tables this entry's game offers. `1` means there is nothing to switch to. |
-| `entries[].media` | The media kinds this game **has a file for** — `playfield`, `bg`, `wheel` and the rest, the same names `vpin.getMedia(index, kind)` takes. Names, not paths: fetch one from `/media/<game id>/<kind>`. |
+| `entries[].media` | The media kinds this game **has a file for** — `playfield`, `bg`, `wheel` and the rest, the same names `vpin.getMedia(index, kind)` takes. Names, not paths: fetch one from `/media/<table id>/<kind>`. |
 | `entries[].game.manufacturer_logo` | Web path to the manufacturer's shared logo, or `null`. Art about the manufacturer rather than about this game, which is why it is not a media kind. |
 
 **`detects` loses the `detect_` prefix.** `table.detects.ssf`, not `detect_ssf` — the
 prefix was storage, not vocabulary.
 
 **Media is named, not located.** `entries[].media` lists the kinds this game has a file
-for. To show one, request `/media/<game id>/<kind>` from the theme assets port — the same
+for. To show one, request `/media/<table id>/<kind>` from the theme assets port — the same
 server your theme is loaded from. Contract 1 carried a filesystem path per kind and left
 every theme to turn it into a URL; contract 2 does not put the filesystem in a web page,
 and on a large library it keeps several hundred kilobytes off the wire each time the list
