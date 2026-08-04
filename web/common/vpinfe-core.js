@@ -326,8 +326,7 @@ class VPinFECore {
       return this.#resolveImageVideoMedia(table, normalizedType);
     }
 
-    const imageField = MEDIA_PATH_FIELDS[normalizedType];
-    const imagePath = imageField ? table[imageField] : null;
+    const imagePath = this.#mediaField(table, MEDIA_PATH_FIELDS[normalizedType]);
     return {
       url: this.#pathToURLOrMissing(imagePath),
       kind: imagePath ? "image" : "missing",
@@ -1273,18 +1272,19 @@ class VPinFECore {
 
   #resolveImageVideoMedia(table, type) {
     const priority = this.mediaPriorities[type] || DEFAULT_MEDIA_PRIORITIES[type] || "video";
-    const imageField = MEDIA_PATH_FIELDS[type];
-    const videoField = MEDIA_VIDEO_PATH_FIELDS[type];
-    const imagePath = type === "table"
-      ? (table[imageField] || table.FSSImagePath)
-      : table[imageField];
+    // Through #mediaField, not the payload key directly: at contract 1 the playfield
+    // pair still arrives under its old names, and reading the key straight makes the
+    // main screen resolve to "missing" for every theme written before 3.0. PAR-22.
+    const image = this.#mediaField(table, MEDIA_PATH_FIELDS[type]);
+    const videoPath = this.#mediaField(table, MEDIA_VIDEO_PATH_FIELDS[type]);
+    const imagePath = type === "table" ? (image || table.FSSImagePath) : image;
     const candidates = priority === "image"
       ? [
           { kind: "image", path: imagePath },
-          { kind: "video", path: table[videoField] },
+          { kind: "video", path: videoPath },
         ]
       : [
-          { kind: "video", path: table[videoField] },
+          { kind: "video", path: videoPath },
           { kind: "image", path: imagePath },
         ];
 
