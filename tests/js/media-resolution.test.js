@@ -140,8 +140,15 @@ describe("the kind names earlier builds used still answer", () => {
   test("table, table_video and fss reach their renamed kinds", () => {
     const vpin = coreWithLibrary();
 
-    assert.equal(vpin.getMedia(AFM, "table").url, vpin.getMedia(AFM, "playfield").url);
-    assert.equal(vpin.getImageURL(MM, "fss"), vpin.getImageURL(MM, "playfield_fss"));
+    // Assert a real file, not just that two calls agree - both would agree on the
+    // missing-media placeholder, which is how this passed while getImageURL ignored
+    // the alias table entirely.
+    const viaOldName = vpin.getImageURL(AFM, "table");
+    assert.ok(viaOldName.endsWith("table.png"), `expected the playfield, got ${viaOldName}`);
+    assert.equal(viaOldName, vpin.getImageURL(AFM, "playfield"));
+
+    const video = vpin.getVideoURL(AFM, "table");
+    assert.ok(video.endsWith("table.mp4"), `expected the playfield video, got ${video}`);
   });
 
   test("a theme naming the playfield by its old key still gets the playfield", () => {
@@ -150,6 +157,8 @@ describe("the kind names earlier builds used still answer", () => {
     const vpin = coreWithLibrary();
 
     assert.notEqual(vpin.getMedia(AFM, "table").kind, "missing");
+    assert.ok(vpin.getImageURL(AFM, "table").includes("/tables/"),
+      "getImageURL is the call every published theme uses, so it has to alias too");
   });
 });
 
@@ -161,8 +170,9 @@ describe("a window name is also a media kind", () => {
     test(`getImageURL(i, "${windowName}") resolves`, () => {
       const vpin = coreWithLibrary();
 
-      assert.notEqual(vpin.getImageURL(AFM, windowName), null,
-        `${windowName} is a window name and three themes pass it as a media kind`);
+      const url = vpin.getImageURL(AFM, windowName);
+      assert.ok(url.includes("/tables/"),
+        `${windowName} is a window name three themes pass as a media kind; got ${url}`);
     });
   }
 });

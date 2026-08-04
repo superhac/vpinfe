@@ -88,7 +88,10 @@ export function makeBrowser({ windowName = "table", search = null } = {}) {
     WebSocket: FakeWebSocket,
     Audio: FakeAudio,
     fetch: unimplemented("fetch"),
-    EventSource: function EventSource() { return { close() {} }; },
+    // The remote-launch stream. It only ever has listeners attached.
+    EventSource: function EventSource() {
+      return { addEventListener() {}, removeEventListener() {}, close() {} };
+    },
     URLSearchParams,
     Promise,
     Map,
@@ -104,6 +107,10 @@ export function makeBrowser({ windowName = "table", search = null } = {}) {
     Error,
     setTimeout,
     clearTimeout,
+    // A no-op rather than a real frame: the gamepad poll re-arms itself every frame, so
+    // scheduling it for real would spin a test forever. Nothing here asserts on gamepads.
+    requestAnimationFrame: () => 0,
+    cancelAnimationFrame: () => {},
     setInterval,
     clearInterval,
     console,

@@ -36,6 +36,9 @@ LEDGER_ALLOWS = {
     # PAR-27: one method added so the browser can report a deprecated name it used.
     # Additive - a theme that never calls it is unaffected.
     "PAR-27": {"report_deprecated_use"},
+    # PAR-30: one method added so core.js can ask which contract it is serving.
+    # Additive - a theme never calls it.
+    "PAR-30": {"get_theme_contract"},
     # New media kinds add theme-payload keys. Additive only: every key master
     # had must still be present and equal.
     "PAR-11": {"InstructionCardImagePath", "TopperPath", "TopperVideoPath",
@@ -125,7 +128,8 @@ class ParityTests(unittest.TestCase):
                          "keeps its old name as a forwarding alias")
         self.assertEqual(
             current - master,
-            {rename["added"]} | LEDGER_ALLOWS["PAR-21"] | LEDGER_ALLOWS["PAR-27"],
+            {rename["added"]} | LEDGER_ALLOWS["PAR-21"] | LEDGER_ALLOWS["PAR-27"]
+                | LEDGER_ALLOWS["PAR-30"],
             "only PAR-04's, PAR-21's and PAR-27's additions are permitted")
 
     def test_legacy_endpoints_served_on_master_and_do_not_serve_here(self) -> None:

@@ -232,6 +232,17 @@ still work from a theme written against any earlier build.
 so an alias is the only mechanism available. Removing these would be a hard break with no
 migration path, which is why none of them is removed.
 
+**PAR-30 — One WebSocket method is added so the browser can ask which contract it serves.**
+`get_theme_contract()` returns the level the active theme declared. Purely additive: a
+theme never calls it, and no existing method changes.
+*Why:* `contract` used to govern the payload and nothing else, so the `vpin.*` aliases, the
+legacy media kind spellings and the dual-spelling window messages were unconditional - and
+therefore permanent, because nothing ever signalled that a theme had stopped needing them.
+A theme already declares what it was written against; `vpinfe-core.js` now asks once at
+init and serves that surface alone. Contract 1 is unchanged and is what a theme gets by
+declaring nothing, including when the build is too old to answer at all. Covered by
+`tests/js/contract-surface.test.js`.
+
 **PAR-27 — One WebSocket method is added so the browser can report a deprecated name.**
 `report_deprecated_use(key, name)` takes a shim key and the legacy name a theme reached,
 and hands both to `common/deprecations.py`. Purely additive: a theme that never calls it

@@ -124,6 +124,13 @@ function announceLegacy(target, oldName, newName) {
   }
 }
 
+// Contract 1 is what a theme gets by declaring nothing, so it is also what this file
+// assumes until the bridge says otherwise: every legacy surface is installed up front and
+// taken away again at contract 2. Defaulting the other way would leave a theme without its
+// names for the moment between construction and the bridge answering.
+const OLDEST_CONTRACT = 1;
+const CURRENT_CONTRACT = 2;
+
 function installLegacyAliases(target) {
   for (const [oldName, newName] of Object.entries(VPINFE_RENAMED_MEMBERS)) {
     if (oldName in target) continue;
@@ -139,9 +146,17 @@ function installLegacyAliases(target) {
   }
 }
 
+function removeLegacyAliases(target) {
+  for (const oldName of Object.keys(VPINFE_RENAMED_MEMBERS)) {
+    if (Object.getOwnPropertyDescriptor(target, oldName)) delete target[oldName];
+  }
+}
+
 class VPinFECore {
   constructor() {
     this.gameData = {};
+    // What the running theme declared. Contract 1 until the bridge says otherwise.
+    this.contract = OLDEST_CONTRACT;
     installLegacyAliases(this);
     this.monitors = [];
     this._resolveReady = null;
@@ -312,7 +327,8 @@ class VPinFECore {
   getImageURL(index, type) {
     const game = this.gameData[index];
     if (!game) return null;
-    return this.#convertPathToURL(this.#mediaField(game, MEDIA_PATH_FIELDS[type]));
+    const kind = this.#normalizeMediaType(type);
+    return this.#convertPathToURL(this.#mediaField(game, MEDIA_PATH_FIELDS[kind]));
   }
 
   getMediaURL(index, type) {
@@ -473,7 +489,8 @@ class VPinFECore {
   getVideoURL(index, type) {
     const game = this.gameData[index];
     if (!game) return null;
-    return this.#convertPathToURL(this.#mediaField(game, MEDIA_VIDEO_PATH_FIELDS[type]));
+    const kind = this.#normalizeMediaType(type);
+    return this.#convertPathToURL(this.#mediaField(game, MEDIA_VIDEO_PATH_FIELDS[kind]));
   }
 
   getGameMeta(index) {
@@ -512,7 +529,7 @@ class VPinFECore {
     this.#syncLocalIndexFromOutgoingMessage(message);
     this.#syncSelectionFromMessage(message);
     this.call("send_event_all_windows", message);
-    const legacy = MESSAGE_TYPE_ALIASES[message.type];
+    const legacy = this.#servesLegacyNames() && MESSAGE_TYPE_ALIASES[message.type];
     if (legacy) this.call("send_event_all_windows", { ...message, type: legacy });
   }
 
@@ -524,7 +541,7 @@ class VPinFECore {
     // The legacy copy has to use the SAME delivery as the message it mirrors. Sending it
     // without _incself delivered to bg and dmd but never back to the playfield window,
     // so paging updated the backglass and DMD while the wheel and playfield sat still.
-    const legacy = MESSAGE_TYPE_ALIASES[message.type];
+    const legacy = this.#servesLegacyNames() && MESSAGE_TYPE_ALIASES[message.type];
     if (legacy) this.call("send_event_all_windows_incself", { ...message, type: legacy });
   }
 
@@ -1041,6 +1058,11 @@ class VPinFECore {
   async #onBridgeReady() {
     console.log("WebSocket bridge is ready!");
     try {
+      this.#applyContract(await this.call("get_theme_contract"));
+    } catch (_e) {
+      this.#applyContract(OLDEST_CONTRACT);   // an older build cannot answer; assume 1
+    }
+    try {
       this.setAudioMuted(await this.call("get_audio_muted"));
     } catch (_e) {
       this.setAudioMuted(false);
@@ -1266,8 +1288,23 @@ class VPinFECore {
     this.monitors = await this.call("get_monitors");
   }
 
+  // One branch, once, for the whole surface. A theme declares what it was written
+  // against and gets that and nothing else, which is what makes the legacy layer
+  // removable as a unit instead of one alias at a time.
+  #applyContract(level) {
+    const declared = Number(level) || OLDEST_CONTRACT;
+    this.contract = Math.min(Math.max(declared, OLDEST_CONTRACT), CURRENT_CONTRACT);
+    if (this.contract > OLDEST_CONTRACT) removeLegacyAliases(this);
+    console.info(`vpinfe: serving theme contract ${this.contract}`);
+  }
+
+  #servesLegacyNames() {
+    return this.contract <= OLDEST_CONTRACT;
+  }
+
   #normalizeMediaType(type) {
     const value = String(type || "").trim().toLowerCase();
+    if (!this.#servesLegacyNames()) return value;
     return MEDIA_KIND_ALIASES[value] || value;
   }
 

@@ -90,6 +90,9 @@ API_ALLOWED_METHODS = {
     'get_managerui_remote_link',
     'get_managerui_vpinplay_multi_link',
     'get_theme_index_page',
+    # Additive: the contract a theme declared, so vpinfe-core.js can serve the surface
+    # that theme asked for rather than every surface at once.
+    'get_theme_contract',
     'send_event',
     'send_event_all_windows',
     'send_event_all_windows_incself',
@@ -565,6 +568,9 @@ class API:
 
     def get_managerui_vpinplay_multi_link(self):
         return config_api.get_managerui_vpinplay_multi_link(self._iniConfig.config)
+
+    def get_theme_contract(self):
+        return self._theme_contract()
 
     def get_theme_index_page(self):
         return theme_api.get_theme_index_page(self._iniConfig.config, self.get_my_window_name())
