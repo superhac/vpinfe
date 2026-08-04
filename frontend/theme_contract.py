@@ -43,6 +43,18 @@ _LEGACY_TABLE_KEYS = {
     "detect_pinmame": "detectpinmame",
 }
 
+# What contract 1 calls each key in the section VPinFE owns. The .info moved these to
+# snake_case; the projection restores the spellings a 2.x theme could be reading, the
+# same way _LEGACY_TABLE_KEYS does for VPXFile. Keys 3.0 added have no 2.x name and are
+# passed through - the gate allows additions, never removals.
+_LEGACY_VPINFE_KEYS = {
+    "delete_nvram_on_close": "deletedNVRamOnClose",
+    "alt_launcher": "altlauncher",
+    "plugin_profile": "pluginprofile",
+    "alt_title": "alttitle",
+    "alt_vpsid": "altvpsid",
+}
+
 # What contract 1 calls each top-level row key. These are served identically at both
 # contracts until now, so the projection never had to touch anything outside meta.
 _LEGACY_ROW_KEYS = {
@@ -119,7 +131,8 @@ def _to_contract_1(row: dict) -> dict:
     info.setdefault("Authors", vpx.get("authors", []))
     meta["Info"] = info
 
-    meta["VPinFE"] = dict(meta.get("vpinfe") or {})
+    meta["VPinFE"] = {_LEGACY_VPINFE_KEYS.get(key, key): value
+                      for key, value in dict(meta.get("vpinfe") or {}).items()}
     for section in ("tables", "vpinfe", "assets"):
         meta.pop(section, None)
 

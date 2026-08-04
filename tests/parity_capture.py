@@ -40,6 +40,11 @@ def _build_fixture_library(root: Path) -> None:
                  "Type": "SS", "VPSId": "vps-example"},
         "VPXFile": {"filename": "Example Table (Bally 1990).vpx", "rom": "exmpl"},
         "User": {"Rating": 3},
+        # The section 2.x owns. Present so the gate can see it: three of its keys
+        # stopped reaching contract 1 and nothing noticed, because the fixture had
+        # no VPinFE section for the comparison to miss.
+        "VPinFE": {"deletedNVRamOnClose": False, "altlauncher": "", "alttitle": "",
+                   "pluginprofile": "", "altvpsid": ""},
     }), encoding="utf-8")
 
 
@@ -64,28 +69,48 @@ def _capture_theme_payload(games_root: Path) -> dict:
     Keys only, plus a few stable values - file paths and scan order are
     environment noise, but a missing key breaks every theme the same way.
     """
+    # 2.x names these after the machine, which 3.0 calls a game. Both spellings are
+    # tried because this same file has to run in a master worktree to produce the
+    # baseline the gate compares against.
     try:
-        from common.games.gameparser import GameParser  # 3.0 layout
+        from common.games.gameparser import GameParser  # 3.0
+        from frontend.game_state import games_json
     except ImportError:
-        from common.gameparser import GameParser  # 2.x layout
-    from frontend.game_state import games_json
+        from common.tableparser import TableParser as GameParser  # 2.x
+        from frontend.table_state import tables_json as games_json
 
     parser = GameParser(str(games_root))
     # Contract 1: what a theme written before 3.0 receives. Capturing the current
     # contract would compare master against a shape no existing theme asks for.
-    games = parser.getAllGames()
+    games = (parser.getAllGames() if hasattr(parser, "getAllGames")
+             else parser.getAllTables())
     try:
-        # 3.0 serves the view as entries; master hands games_json the games directly.
-        # This script has to run against both, because the baseline it is compared to
-        # was captured from master.
+        # 3.0 serves the view as entries and takes a contract; master hands its builder
+        # the games directly and has no contract to ask for.
         from common.games.collection_resolver import entries_for
         payload = json.loads(games_json(entries_for(games), contract=1))
     except ImportError:
-        payload = json.loads(games_json(games, contract=1))
+        payload = json.loads(games_json(games))
     entry = payload[0] if payload else {}
+
+    def deep_keys(value, prefix=""):
+        """Every key a theme could reach, not just the ones at the top.
+
+        The gate compared top-level keys only, which is how three meta.VPinFE keys
+        stopped existing without anything noticing - meta is exactly where the
+        vocabulary work did its renaming.
+        """
+        found = set()
+        if isinstance(value, dict):
+            for key, item in value.items():
+                found.add(f"{prefix}{key}")
+                found |= deep_keys(item, f"{prefix}{key}.")
+        return found
+
     return {
         "count": len(payload),
         "keys": sorted(entry.keys()),
+        "deep_keys": sorted(deep_keys(entry)),
         "stable_values": {
             key: entry.get(key) for key in ("TableName", "TableManufacturer",
                                             "TableYear", "TableType", "TableRom")

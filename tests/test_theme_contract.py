@@ -85,7 +85,11 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual(meta["VPXFile"]["rom"], "afm_113b")
         self.assertEqual(meta["Info"]["Rom"], "afm_113b")
         self.assertEqual(meta["Info"]["Authors"], ["jpsalas"])
-        self.assertEqual(meta["VPinFE"]["alt_title"], "Alt")
+        # The 2.x spelling, not the .info's. A theme written before 3.0 reads
+        # meta.VPinFE.alttitle, and this asserted the new name until the parity gate
+        # learned to look inside meta.
+        self.assertEqual(meta["VPinFE"]["alttitle"], "Alt")
+        self.assertNotIn("alt_title", meta["VPinFE"])
 
     def test_contract_1_keeps_the_old_spelling_of_the_detect_flags(self):
         row = {**ROW, "meta": {**ROW["meta"],

@@ -214,6 +214,11 @@ screen ones are the playfield, which is what `docs/conventions.md` already calle
 *(machine-checked)*
 `TableImagePath`, `TableVideoPath`, `fullPathTable` and `tableDirName` become
 `PlayfieldImagePath`, `PlayfieldVideoPath`, `fullPathGame` and `gameDirName`.
+The same applies inside `meta.VPinFE`, whose keys moved to snake_case in the `.info`:
+contract 1 gets `deletedNVRamOnClose`, `altlauncher`, `pluginprofile`, `alttitle` and
+`altvpsid` back. That was **broken until 2026-08-04** - the projection restored the section
+name and not the keys inside it, so five keys a 2.x theme could read simply vanished. The
+gate compared only top-level payload keys, so nothing caught it; it compares every key now.
 **Contract 1 still receives the old four**, restored by the projection in
 `frontend/theme_contract.py`, so every theme written before 3.0 is unaffected - a theme
 only sees the new names by declaring `contract: 2` in its manifest.

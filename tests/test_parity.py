@@ -112,6 +112,19 @@ class ParityTests(unittest.TestCase):
         self.assertEqual(current_keys - master_keys, ALLOWED_NEW_PAYLOAD_KEYS,
                          "only the ledger's listed additions are permitted")
 
+    def test_no_key_inside_meta_vanishes_either(self) -> None:
+        """The same rule, applied all the way down.
+
+        Comparing only the top level is how three meta.VPinFE keys stopped reaching
+        contract 1 unnoticed - and meta is exactly where the vocabulary work renamed
+        things, so it is the last place the gate should have been blind.
+        """
+        master = set(self.master["theme_payload"]["deep_keys"])
+        current = set(self.current["theme_payload"]["deep_keys"])
+
+        self.assertEqual(sorted(master - current), [],
+                         "a key a theme may already read has vanished from inside meta")
+
     def test_a_scan_never_writes_on_either_side(self) -> None:
         """Reading the library is a read. The PAR-01/02 migrations are first-run
         writes through their own paths, not scan side effects."""
