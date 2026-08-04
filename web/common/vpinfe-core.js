@@ -7,6 +7,8 @@ const originalConsole = {
   debug: console.debug,
 };
 
+// A media kind to the payload field that carries it. Kind names are snake_case, the
+// same strings /api/v1 and vpin.getMedia() take.
 const MEDIA_PATH_FIELDS = {
   playfield: "PlayfieldImagePath",
   playfield_fss: "FSSImagePath",
@@ -20,33 +22,6 @@ const MEDIA_PATH_FIELDS = {
   instruction_card: "InstructionCardImagePath",
   topper: "TopperPath",
   logo: "LogoImagePath",
-};
-
-// This file is served to themes of every contract, so it cannot assume which spelling
-// the payload carries: contract 1 receives TableImagePath, contract 2 PlayfieldImagePath.
-// Look up the current key, fall back to the one the projection sends. PAR-22.
-// Window message types are a theme-facing contract: a theme both listens for these and
-// posts them. Pre-3.0 themes use the Table* spelling, so every broadcast goes out under
-// both names and every receipt is normalized to the current one. PAR-24.
-const MESSAGE_TYPE_ALIASES = {
-  GameIndexUpdate: "TableIndexUpdate",
-  GameDataChange: "TableDataChange",
-  GameLaunching: "TableLaunching",
-  GameRunning: "TableRunning",
-  GameLaunchComplete: "TableLaunchComplete",
-};
-
-const MESSAGE_TYPE_CANONICAL = Object.fromEntries(
-  Object.entries(MESSAGE_TYPE_ALIASES).map(([current, legacy]) => [legacy, current]),
-);
-
-function canonicalMessageType(type) {
-  return MESSAGE_TYPE_CANONICAL[type] || type;
-}
-
-const MEDIA_FIELD_FALLBACK = {
-  PlayfieldImagePath: "TableImagePath",
-  PlayfieldVideoPath: "TableVideoPath",
 };
 
 const MEDIA_VIDEO_PATH_FIELDS = {
@@ -63,26 +38,27 @@ const DEFAULT_MEDIA_PRIORITIES = {
   real_dmd: "color",
 };
 
-// Kind names a theme may pass to getMedia(). The canonical set is snake_case, matching
-// the payload, the HTTP API and common/media_paths.py; these are the spellings earlier
-// builds accepted. Both color frames of the real DMD collapse onto one kind, which is
-// why real_dmd_color appears here rather than only in MEDIA_PATH_FIELDS.
-const MEDIA_KIND_ALIASES = {
-  table: "playfield",
-  table_video: "playfield_video",
-  fss: "playfield_fss",
-  realdmd: "real_dmd",
-  "realdmd-color": "real_dmd",
-  realdmd_color: "real_dmd",
-  real_dmd_color: "real_dmd",
-  rulecard: "instruction_card",
-  audiolaunch: "audio_launch",
-  rulesheet: "rule_sheet",
-};
-
 const MISSING_MEDIA_URL = "/web/images/file_missing.png";
 
+// The contract a theme declares in its manifest. 1 is what declaring nothing gets, and
+// what this file assumes until the bridge answers: the compatibility layer below is
+// installed up front and taken away again at contract 2, so a theme that touches vpin.*
+// before the bridge is up still finds its names.
+const OLDEST_CONTRACT = 1;
+const CURRENT_CONTRACT = 2;
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CONTRACT 1 COMPATIBILITY
+//
+//  Everything a theme written before 3.0 depends on, in one place: the vpin.*
+//  names it reads, the media kinds it asks for, the payload keys it expects and
+//  the window messages it listens for. All of it is keyed on the 2.x spellings,
+//  so a theme author arriving from 2.x finds their name here.
+//
+//  None of it is reachable at contract 2 - #applyContract takes it away. When
+//  contract 1 is retired, this whole block goes with it and nothing else moves.
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Pre-3.0 themes read these names. Aliased rather than removed: the payload behind each
 // is identical, so a theme written against any earlier build keeps working. The contract
@@ -101,6 +77,50 @@ const VPINFE_RENAMED_MEMBERS = {
   stopTableAudio: 'stopGameAudio',
   launchTable: 'launchGame',
 };
+
+// Kind names earlier builds accepted, against the canonical snake_case set.
+// real_dmd_color is the odd one: at contract 1 both frames collapse onto real_dmd, the
+// way 2.x addressed them, while contract 2 keeps it separately addressable.
+const MEDIA_KIND_ALIASES = {
+  table: "playfield",
+  table_video: "playfield_video",
+  fss: "playfield_fss",
+  realdmd: "real_dmd",
+  "realdmd-color": "real_dmd",
+  realdmd_color: "real_dmd",
+  real_dmd_color: "real_dmd",
+  rulecard: "instruction_card",
+  audiolaunch: "audio_launch",
+  rulesheet: "rule_sheet",
+};
+
+// This file is served to themes of every contract, so it cannot assume which spelling
+// the payload carries: contract 1 receives TableImagePath, contract 2 PlayfieldImagePath.
+// Look up the current key, fall back to the one the projection sends. PAR-22.
+const MEDIA_FIELD_FALLBACK = {
+  PlayfieldImagePath: "TableImagePath",
+  PlayfieldVideoPath: "TableVideoPath",
+};
+
+// Window message types are a theme-facing contract: a theme both listens for these and
+// posts them. Pre-3.0 themes use the Table* spelling, so at contract 1 every broadcast
+// goes out under both names. Receipts are normalized at either contract - a theme
+// posting an old name has to be understood regardless. PAR-24.
+const MESSAGE_TYPE_ALIASES = {
+  GameIndexUpdate: "TableIndexUpdate",
+  GameDataChange: "TableDataChange",
+  GameLaunching: "TableLaunching",
+  GameRunning: "TableRunning",
+  GameLaunchComplete: "TableLaunchComplete",
+};
+
+const MESSAGE_TYPE_CANONICAL = Object.fromEntries(
+  Object.entries(MESSAGE_TYPE_ALIASES).map(([current, legacy]) => [legacy, current]),
+);
+
+function canonicalMessageType(type) {
+  return MESSAGE_TYPE_CANONICAL[type] || type;
+}
 
 // Say it once per name, not once per access - a wheel reads gameData every frame. The
 // backend keeps the same list in common/deprecations.py and logs there; a theme runs in
@@ -124,13 +144,6 @@ function announceLegacy(target, oldName, newName) {
   }
 }
 
-// Contract 1 is what a theme gets by declaring nothing, so it is also what this file
-// assumes until the bridge says otherwise: every legacy surface is installed up front and
-// taken away again at contract 2. Defaulting the other way would leave a theme without its
-// names for the moment between construction and the bridge answering.
-const OLDEST_CONTRACT = 1;
-const CURRENT_CONTRACT = 2;
-
 function installLegacyAliases(target) {
   for (const [oldName, newName] of Object.entries(VPINFE_RENAMED_MEMBERS)) {
     if (oldName in target) continue;
@@ -151,6 +164,9 @@ function removeLegacyAliases(target) {
     if (Object.getOwnPropertyDescriptor(target, oldName)) delete target[oldName];
   }
 }
+
+// ─────────────────────────── end contract 1 ──────────────────────────────────
+
 
 class VPinFECore {
   constructor() {
