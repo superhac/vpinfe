@@ -98,6 +98,37 @@ class ContractTwoTests(unittest.TestCase):
         self.assertEqual([e["table"]["id"] for e in expanded["entries"]], ["t1", "t2"],
                          "the default first, then the rest by filename")
 
+    def test_the_entry_carries_play_stats_at_both_levels(self) -> None:
+        """Texal-Flyer reads meta.User.StartCount and RunTime at contract 1. Contract 2
+        served only the rating, so a theme showing play stats could not be ported."""
+        game = _game(tables=TWO_TABLES)
+        game.metaConfig["User"] = {"Rating": 4, "Favorite": 1, "Tags": ["night"],
+                                   "LastRun": 1754000000, "StartCount": 12, "RunTime": 90}
+        game.metaConfig["tables"]["t1"]["user"] = {
+            "last_run": "2026-08-01T20:14:00Z", "start_count": 5, "run_time_seconds": 3600}
+
+        entry = self._payload([game])["entries"][0]
+
+        self.assertEqual(entry["game"]["user"]["play_count"], 12)
+        self.assertEqual(entry["game"]["user"]["play_time_seconds"], 90 * 60,
+                         "User.RunTime is minutes; the payload names its unit")
+        self.assertTrue(entry["game"]["user"]["last_played"].startswith("20"),
+                        "User.LastRun is an epoch int; the payload serves ISO")
+        self.assertEqual(entry["game"]["user"]["rating"], 4)
+        self.assertTrue(entry["game"]["user"]["favorite"])
+        self.assertEqual(entry["game"]["user"]["tags"], ["night"])
+
+        self.assertEqual(entry["table"]["user"]["play_count"], 5,
+                         "the table keeps its own count, not a share of the game's")
+        self.assertEqual(entry["table"]["user"]["play_time_seconds"], 3600)
+
+    def test_rating_lives_with_the_other_user_values(self) -> None:
+        entry = self._payload([_game(tables=TWO_TABLES)])["entries"][0]
+
+        self.assertIn("rating", entry["game"]["user"])
+        self.assertNotIn("rating", entry["game"],
+                         "one home for it, not two")
+
     def test_media_rides_on_the_entry(self) -> None:
         entry = self._payload([_game(tables=TWO_TABLES)])["entries"][0]
 

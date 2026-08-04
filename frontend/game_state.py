@@ -11,7 +11,6 @@ from common.games.collections_service import (
 from common.games import game_identity
 from common.games.game_metadata import (
     DETECTION_KEYS,
-    game_rating,
     game_title,
     get_or_create_user_meta,
     load_game_meta,
@@ -25,6 +24,7 @@ from common.games.game_metadata import (
 from common.games.gamelistfilters import GameListFilters
 from common.media_paths import game_media_payload
 from common.shared_assets import manufacturer_logo_web_path
+from common.timestamps import epoch_to_iso
 from frontend.theme_contract import CURRENT_CONTRACT, project
 
 logger = logging.getLogger("vpinfe.frontend.game_state")
@@ -101,6 +101,34 @@ def _legacy_row(game, logo_cache) -> dict:
     return row
 
 
+def _game_user(meta) -> dict:
+    """The game's play record, in the payload's units rather than the file's.
+
+    `User` is VPX's own section and keeps its shapes: LastRun is an epoch integer and
+    RunTime is minutes, neither of which a theme should have to know. The names match
+    the collection sort axes, which are already the outward vocabulary for these.
+    """
+    user = section(meta, "User")
+    return {
+        "rating": int(user.get("Rating", 0) or 0),
+        "favorite": bool(user.get("Favorite", 0)),
+        "tags": user.get("Tags") or [],
+        "last_played": epoch_to_iso(user.get("LastRun")) or None,
+        "play_count": int(user.get("StartCount", 0) or 0),
+        "play_time_seconds": int(user.get("RunTime", 0) or 0) * 60,
+    }
+
+
+def _table_user(table) -> dict:
+    """One table's own play record. Counters only - nothing sets a per-table rating."""
+    user = table.get("user") or {}
+    return {
+        "last_played": user.get("last_run") or None,
+        "play_count": int(user.get("start_count", 0) or 0),
+        "play_time_seconds": int(user.get("run_time_seconds", 0) or 0),
+    }
+
+
 def _entry_row(entry, logo_cache) -> dict:
     """One entry in contract 2: the game, the table it is, and what resolved for it."""
     game = entry.game
@@ -118,9 +146,9 @@ def _entry_row(entry, logo_cache) -> dict:
             "year": str(info.get("Year", "") or ""),
             "type": str(info.get("Type", "") or ""),
             "themes": info.get("Themes") or [],
-            "rating": game_rating(game),
             "dir_name": game.gameDirName,
             "path": game.fullPathGame,
+            "user": _game_user(meta),
         },
         "table": {
             "id": entry.table_id,
@@ -131,6 +159,7 @@ def _entry_row(entry, logo_cache) -> dict:
             "authors": entry.table.get("authors") or [],
             "detects": {key.removeprefix("detect_"): bool(entry.table.get(key, False))
                         for key in DETECTION_KEYS},
+            "user": _table_user(entry.table),
         },
         "assets": {
             "pup_pack": bool(game.pupPackExists),

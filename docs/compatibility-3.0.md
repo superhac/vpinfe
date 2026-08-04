@@ -345,5 +345,11 @@ table with its game attached. A game offering several tables can appear more tha
 which a row array cannot express. `meta` is gone at contract 2: it was the `.info` passed
 through, so a storage change reached themes whether or not it meant anything to them.
 
+`meta` going away means contract 2 has to serve what themes actually read out of it, so
+each entry carries a `user` block on both `game` and `table` - rating, favorite, tags, and
+the play counters. `User.LastRun` is an epoch integer and `User.RunTime` is minutes, both
+fixed by the VPX spec; the payload converts to ISO 8601 and seconds rather than making a
+theme know that.
+
 Nothing published declares contract 2, so this reshapes a surface no theme reads yet.
 

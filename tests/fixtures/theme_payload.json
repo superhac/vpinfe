@@ -261,9 +261,16 @@
           "manufacturer": "Bally",
           "name": "Attack from Mars",
           "path": "/library/Attack from Mars (Bally 1995)",
-          "rating": 4,
           "themes": [],
           "type": "SS",
+          "user": {
+            "favorite": false,
+            "last_played": null,
+            "play_count": 0,
+            "play_time_seconds": 0,
+            "rating": 4,
+            "tags": []
+          },
           "vps_id": "vps-afm",
           "year": "1995"
         },
@@ -307,6 +314,11 @@
           "id": "",
           "path": "/library/Attack from Mars (Bally 1995)/Attack from Mars (Bally 1995).vpx",
           "rom": "",
+          "user": {
+            "last_played": null,
+            "play_count": 0,
+            "play_time_seconds": 0
+          },
           "version": ""
         }
       },
@@ -322,9 +334,16 @@
           "manufacturer": "Gottlieb",
           "name": "Bare Table",
           "path": "/library/Bare Table (Gottlieb 1980)",
-          "rating": 0,
           "themes": [],
           "type": "EM",
+          "user": {
+            "favorite": false,
+            "last_played": null,
+            "play_count": 0,
+            "play_time_seconds": 0,
+            "rating": 0,
+            "tags": []
+          },
           "vps_id": "",
           "year": "1980"
         },
@@ -368,6 +387,11 @@
           "id": "",
           "path": "/library/Bare Table (Gottlieb 1980)/Bare Table (Gottlieb 1980).vpx",
           "rom": "",
+          "user": {
+            "last_played": null,
+            "play_count": 0,
+            "play_time_seconds": 0
+          },
           "version": ""
         }
       },
@@ -383,9 +407,16 @@
           "manufacturer": "Williams",
           "name": "Congo",
           "path": "/library/Congo (Williams 1995)",
-          "rating": 0,
           "themes": [],
           "type": "SS",
+          "user": {
+            "favorite": false,
+            "last_played": null,
+            "play_count": 0,
+            "play_time_seconds": 0,
+            "rating": 0,
+            "tags": []
+          },
           "vps_id": "vps-congo",
           "year": "1995"
         },
@@ -429,6 +460,11 @@
           "id": "",
           "path": "/library/Congo (Williams 1995)/Congo (Williams 1995).vpx",
           "rom": "",
+          "user": {
+            "last_played": null,
+            "play_count": 0,
+            "play_time_seconds": 0
+          },
           "version": ""
         }
       },
@@ -444,9 +480,16 @@
           "manufacturer": "Williams",
           "name": "Medieval Madness",
           "path": "/library/Medieval Madness (Williams 1997)",
-          "rating": 5,
           "themes": [],
           "type": "SS",
+          "user": {
+            "favorite": false,
+            "last_played": null,
+            "play_count": 0,
+            "play_time_seconds": 0,
+            "rating": 5,
+            "tags": []
+          },
           "vps_id": "vps-mm",
           "year": "1997"
         },
@@ -490,6 +533,11 @@
           "id": "",
           "path": "/library/Medieval Madness (Williams 1997)/Medieval Madness (Williams 1997).vpx",
           "rom": "",
+          "user": {
+            "last_played": null,
+            "play_count": 0,
+            "play_time_seconds": 0
+          },
           "version": ""
         }
       }

@@ -109,8 +109,11 @@ At `contract: 2` the payload is an object, and the list you iterate is `entries`
         "id": "tuF3WogthK", "vps_id": "9Paf7-CL",
         "name": "Attack from Mars", "manufacturer": "Bally",
         "year": "1995", "type": "SS", "themes": ["Aliens"],
-        "rating": 4, "dir_name": "Attack from Mars (Bally 1995)",
-        "path": "/games/Attack from Mars (Bally 1995)"
+        "dir_name": "Attack from Mars (Bally 1995)",
+        "path": "/games/Attack from Mars (Bally 1995)",
+        "user": { "rating": 4, "favorite": false, "tags": [],
+                  "last_played": "2026-08-01T20:14:00Z",
+                  "play_count": 12, "play_time_seconds": 5400 }
       },
       "table": {
         "id": "Ls3JyWq7Fm", "filename": "Attack from Mars VPW Mod 1.2.vpx",
@@ -136,7 +139,9 @@ the game it belongs to attached.
 | `expanded` | `false` means one entry per game — its default table. `true` means one entry per table, so a game with three tables contributes three. The user sets this; your theme does not have to do anything differently either way. |
 | `count` | How many entries. The same as `entries.length`. |
 | `entries[].game` | Identity and metadata for the machine. The same names `/api/v1/games` uses. |
+| `entries[].game.user` | What this user did with the game: `rating`, `favorite`, `tags`, `last_played`, `play_count`, `play_time_seconds`. Timestamps are ISO 8601 UTC and durations name their unit, whatever the `.info` stores. |
 | `entries[].table` | The `.vpx` this entry is. `id` is stable across renames; `filename` is not. |
+| `entries[].table.user` | The same counters for this table alone — `last_played`, `play_count`, `play_time_seconds`. A game and its tables accumulate independently, so deleting a table does not un-play the game's hours. |
 | `entries[].assets` | What the game needs to play as intended, as booleans. |
 | `entries[].siblings` | How many tables this entry's game offers. `1` means there is nothing to switch to. |
 | `entries[].media` | The resolved media paths, the same keys contract 1 puts at the top of a row. |
