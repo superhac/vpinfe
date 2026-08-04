@@ -218,13 +218,13 @@ reading both had to invert twice.
 - **Playfield** — the main screen, and the media shown on it. Not "table": the playfield is
   a facet of a game, and `table` now means the file.
 - **Media** — artwork VPinFE shows *about* a game while you browse: playfield, backglass,
-  DMD, wheel, logo, cab, FSS, flyer, rule card, topper, loading video, launch audio,
+  DMD, wheel, logo, cab, FSS, flyer, instruction card, topper, loading video, launch audio,
   rulesheet, their video variants, audio. The logo is the game's title art - usually what a
-  wheel is derived from, which is why a wheel-less game shows its logo in the wheel slot. This is `common/media_paths.py` and nothing else. Rule card
-  (apron instruction card image), game flyer (promo art) and rulesheet (a document you
+  wheel is derived from, which is why a wheel-less game shows its logo in the wheel slot. This is `common/media_paths.py` and nothing else. Instruction card
+  (the apron card image), game flyer (promo art) and rulesheet (a document you
   read) are three different things - keep the words apart.
 - **Asset** — content a game needs to *play* as intended, beyond its table:
-  `.directb2s`, ROM, alt colour, alt sound, PUP pack, music, the per-table `.ini`.
+  `.directb2s`, ROM, alt color, alt sound, PUP pack, music, the per-table `.ini`.
   The per-table `.ini` is config-shaped but is still an asset: without it the table
   plays differently than intended, which is the whole definition.
 

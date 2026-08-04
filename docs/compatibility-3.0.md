@@ -77,11 +77,13 @@ Master resolved exactly one fixed name per kind (`wheel.png`). 3.0 resolves
 `(Wheel) <game-file>.png` over `(Wheel) <folder>.png` over `wheel.png`, trying each kind's
 extension family in order — so a spec-named or `.jpg` file that master silently ignored
 now displays. A library using only the fixed names behaves identically.
-Two kinds accept two tokens. Visual Pinball's `FileLayout.md` names the rule card
-`(GameHelp)` and the game flyer `(GameInfo)`; VPinFE leads with `(RuleCard)` and `(Flyer)`
-and accepts the published names as well, so media packaged either way resolves. Within a
-tier the preferred token wins; tier still outranks token, so a game-file-specific
-`(GameHelp)` file beats a folder-level `(RuleCard)` one.
+Two kinds accept more than one token. Visual Pinball's `FileLayout.md` names the
+instruction card `(GameHelp)` and the game flyer `(GameInfo)`; VPinFE leads with
+`(InstructionCard)` and `(Flyer)` and accepts the published names as well, so media
+packaged either way resolves. The instruction card also accepts `(RuleCard)`, which VPinFE
+recommended earlier in 3.0 development. Within a tier the preferred token wins; tier still
+outranks token, so a game-file-specific `(GameHelp)` file beats a folder-level
+`(InstructionCard)` one.
 *Why:* hand-placed media was invisible unless it matched one exact name, and a media
 refresh could clobber a user's own file; the tiers make "mine" and "downloaded"
 structurally distinct. The published tokens for those two say the role rather than the
@@ -96,13 +98,13 @@ shadow it.
 *Why:* the on-disk name should tell the truth; browsers sniffed past it, other tools
 won't. Covered by `tests/test_media_resolution.py`.
 
-**PAR-11 — Six new media kinds: rulecard, topper, topper_video, loading, audiolaunch,
-rulesheet.**
-*(machine-checked)* Themes gain six payload fields (`RuleCardImagePath`, `TopperPath`,
-`TopperVideoPath`, `LoadingVideoPath`, `AudioLaunchPath`, `RuleSheetPath`); every existing
-field is unchanged. The rule card is the apron instruction card image, distinct from the
-flyer (promo art) and the rulesheet (a document you read); loading is the loading-screen
-video; audiolaunch plays when a table starts.
+**PAR-11 — Six new media kinds: instruction_card, topper, topper_video, loading,
+audio_launch, rule_sheet.**
+*(machine-checked)* Themes gain six payload fields (`InstructionCardImagePath`,
+`TopperPath`, `TopperVideoPath`, `LoadingVideoPath`, `AudioLaunchPath`, `RuleSheetPath`);
+every existing field is unchanged. The instruction card is the apron card image, distinct
+from the flyer (promo art) and the rulesheet (a document you read); loading is the
+loading-screen video; audio_launch plays when a table starts.
 
 Topper is two kinds, not one with a mixed extension family. `bg`, `dmd` and `table` each
 split image and video into separate specs sharing a token, and the resolver is built that

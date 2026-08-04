@@ -105,13 +105,17 @@ class NewKindTests(unittest.TestCase):
     """The five 3.0 additions, resolving through the same chain as everyone."""
 
     def test_each_new_kind_resolves_its_fixed_name(self) -> None:
-        resolved = _resolve(["rulecard.png", "topper.png", "loading.mp4",
+        resolved = _resolve(["instructioncard.png", "topper.png", "loading.mp4",
                              "audiolaunch.mp3", "rulesheet.pdf"])
 
-        for kind, name in (("rulecard", "rulecard.png"), ("topper", "topper.png"),
+        # Keys are snake_case; fixed filenames are not. audiolaunch.mp3 and rulesheet.pdf
+        # are the names VPX's own spec uses, so they stay run together - only the kind we
+        # invented ourselves follows its key.
+        for kind, name in (("instruction_card", "instructioncard.png"),
+                           ("topper", "topper.png"),
                            ("loading", "loading.mp4"),
-                           ("audiolaunch", "audiolaunch.mp3"),
-                           ("rulesheet", "rulesheet.pdf")):
+                           ("audio_launch", "audiolaunch.mp3"),
+                           ("rule_sheet", "rulesheet.pdf")):
             self.assertEqual(resolved[kind].name, name)
 
     def test_topper_video_is_its_own_kind(self) -> None:
@@ -126,7 +130,7 @@ class NewKindTests(unittest.TestCase):
     def test_a_rulesheet_can_be_markdown(self) -> None:
         resolved = _resolve([f"(RuleSheet) {FOLDER}.md"])
 
-        self.assertEqual(resolved["rulesheet"].name, f"(RuleSheet) {FOLDER}.md")
+        self.assertEqual(resolved["rule_sheet"].name, f"(RuleSheet) {FOLDER}.md")
 
 
 class TokenAliasTests(unittest.TestCase):
@@ -139,39 +143,39 @@ class TokenAliasTests(unittest.TestCase):
     def test_the_plain_english_token_resolves(self) -> None:
         resolved = _resolve([f"(RuleCard) {FOLDER}.png", f"(Flyer) {FOLDER}.png"])
 
-        self.assertEqual(resolved["rulecard"].name, f"(RuleCard) {FOLDER}.png")
+        self.assertEqual(resolved["instruction_card"].name, f"(RuleCard) {FOLDER}.png")
         self.assertEqual(resolved["flyer"].name, f"(Flyer) {FOLDER}.png")
 
     def test_the_vpx_token_still_resolves(self) -> None:
         resolved = _resolve([f"(GameHelp) {FOLDER}.png", f"(GameInfo) {FOLDER}.png"])
 
-        self.assertEqual(resolved["rulecard"].name, f"(GameHelp) {FOLDER}.png")
+        self.assertEqual(resolved["instruction_card"].name, f"(GameHelp) {FOLDER}.png")
         self.assertEqual(resolved["flyer"].name, f"(GameInfo) {FOLDER}.png")
 
     def test_the_preferred_token_wins_within_a_tier(self) -> None:
         resolved = _resolve([f"(GameHelp) {FOLDER}.png", f"(RuleCard) {FOLDER}.png"])
 
-        self.assertEqual(resolved["rulecard"].name, f"(RuleCard) {FOLDER}.png")
+        self.assertEqual(resolved["instruction_card"].name, f"(RuleCard) {FOLDER}.png")
 
     def test_a_table_alias_still_beats_a_folder_level_preferred_token(self) -> None:
         """Tier outranks token preference, or "most specific wins" would not hold."""
         resolved = _resolve([f"(GameHelp) {TABLE}.png", f"(RuleCard) {FOLDER}.png"])
 
-        self.assertEqual(resolved["rulecard"].name, f"(GameHelp) {TABLE}.png")
+        self.assertEqual(resolved["instruction_card"].name, f"(GameHelp) {TABLE}.png")
 
     def test_aliases_are_only_where_the_published_name_is_opaque(self) -> None:
         aliased = {spec.key for spec in MEDIA_SPECS if spec.alt_tokens}
 
-        self.assertEqual(aliased, {"rulecard", "flyer"})
+        self.assertEqual(aliased, {"instruction_card", "flyer"})
 
     def test_spec_named_new_kinds_import_by_token(self) -> None:
         from managerui.services.asset_registry import match_media_key
 
         self.assertEqual(match_media_key(f"(Topper) {FOLDER}.mp4"), "topper_video")
         self.assertEqual(match_media_key(f"(Topper) {FOLDER}.png"), "topper")
-        self.assertEqual(match_media_key(f"(RuleCard) {FOLDER}.png"), "rulecard")
-        self.assertEqual(match_media_key(f"(GameHelp) {FOLDER}.png"), "rulecard")
-        self.assertEqual(match_media_key("rulesheet.pdf"), "rulesheet")
+        self.assertEqual(match_media_key(f"(RuleCard) {FOLDER}.png"), "instruction_card")
+        self.assertEqual(match_media_key(f"(GameHelp) {FOLDER}.png"), "instruction_card")
+        self.assertEqual(match_media_key("rulesheet.pdf"), "rule_sheet")
         self.assertEqual(match_media_key(f"(Loading) {FOLDER}.mp4"), "loading")
         self.assertEqual(match_media_key("audio.ogg"), "audio")
 

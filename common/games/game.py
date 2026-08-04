@@ -34,7 +34,7 @@ class Game:
     DMDVideoPath: str | None = None
 
     AudioPath: str | None = None
-    RuleCardImagePath: str | None = None
+    InstructionCardImagePath: str | None = None
     TopperPath: str | None = None
     LoadingVideoPath: str | None = None
     AudioLaunchPath: str | None = None

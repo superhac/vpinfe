@@ -152,7 +152,7 @@ def match_media_key(filename: str) -> str | None:
 
     if "realdmd" in stem or "real dmd" in stem or "real-dmd" in stem:
         if ext in IMAGE_EXTENSIONS:
-            return "realdmd_color" if "color" in stem else "realdmd"
+            return "real_dmd_color" if "color" in stem else "real_dmd"
         return None
 
     for keywords, image_key, video_key in _MEDIA_KEYWORDS:

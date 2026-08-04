@@ -31,8 +31,8 @@ build and it changes how your library is stored — read the next section first.
 - **Core** — Apply `.dif` patches directly, with no external tool. The base file stays on
   disk because the patched table cannot be rebuilt without it, and VPinFE records which
   base and which patch produced the result.
-- **Core, Themes** — Six new media kinds: rule card, topper, topper video, loading video,
-  launch audio and rulesheet. Topper image and topper video are separate kinds now, so a
+- **Core, Themes** — Six new media kinds: instruction card, topper, topper video, loading
+  video, launch audio and rulesheet. Topper image and topper video are separate kinds now, so a
   cabinet can hold both instead of one shadowing the other.
 - **Core, Themes** — `logo` is its own media kind. A table with a logo and no wheel shows
   the logo wherever the wheel would appear — themes, Manager UI and API alike.
@@ -41,7 +41,7 @@ build and it changes how your library is stored — read the next section first.
   where the old code only ever looked for one exact `.png`. Art you placed by hand that was
   silently ignored now shows up. The token in brackets names the kind — Visual Pinball
   publishes the list, and VPinFE reads it. Two are named for what they are rather than what
-  Visual Pinball calls them: use `(RuleCard)` and `(Flyer)` if you are naming files
+  Visual Pinball calls them: use `(InstructionCard)` and `(Flyer)` if you are naming files
   yourself, and `(GameHelp)` and `(GameInfo)` keep working if your media came that way.
 - **Core, Themes** — Wheel sets, chosen in the ini or by the theme.
 - **Core, Themes** — Manufacturer logos, served from a shared assets root

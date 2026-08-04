@@ -21,7 +21,7 @@ High-level flow:
 
 Standard filenames include:
 
-- Images: `table.png`, `fss.png`, `bg.png`, `dmd.png`, `wheel.png`, `logo.png`, `cab.png`, `realdmd.png`, `realdmd-color.png`, `flyer.png`, `rulecard.png`, `topper.png`
+- Images: `table.png`, `fss.png`, `bg.png`, `dmd.png`, `wheel.png`, `logo.png`, `cab.png`, `realdmd.png`, `realdmd-color.png`, `flyer.png`, `instructioncard.png`, `topper.png`
 - Videos: `table.mp4`, `fss.mp4`, `bg.mp4`, `dmd.mp4`, `topper.mp4`, `loading.mp4`
 - Audio: `audio.mp3`, `audiolaunch.mp3`
 - Documents: `rulesheet.pdf`
@@ -36,7 +36,7 @@ The token in brackets names the kind. Visual Pinball publishes these in its own 
 |---|---|---|---|
 | Playfield | `(Playfield)` | Wheel | `(Wheel)` |
 | Backglass | `(Backglass)` | Logo | `(Logo)` |
-| DMD | `(DMD)` | Rule card | `(RuleCard)` |
+| DMD | `(DMD)` | Instruction card | `(InstructionCard)` |
 | Real DMD | `(RealDMD)` | Game flyer | `(Flyer)` |
 | Real color DMD | `(RealColorDMD)` | Rulesheet | `(RuleSheet)` |
 | Topper | `(Topper)` | Loading video | `(Loading)` |
@@ -45,7 +45,7 @@ The token in brackets names the kind. Visual Pinball publishes these in its own 
 
 A video uses its image counterpart's token and is told apart by extension, so `(Topper) Name.png` and `(Topper) Name.mp4` are different kinds.
 
-Two of these differ from the published names. Visual Pinball calls the rule card `(GameHelp)` and the game flyer `(GameInfo)`; VPinFE leads with `(RuleCard)` and `(Flyer)` because they say what the file is, and **still accepts `(GameHelp)` and `(GameInfo)`** so media packaged either way works. If both are present the preferred name wins, but a table-specific file always beats a folder-level one whichever token it uses. `(Cabinet)`, `(FSS)`, `(Logo)` and `(RuleSheet)` have no published equivalent and are VPinFE's own.
+Two of these differ from the published names. Visual Pinball calls the instruction card `(GameHelp)` and the game flyer `(GameInfo)`; VPinFE leads with `(InstructionCard)` and `(Flyer)` because they say what the file is, and **still accepts `(GameHelp)` and `(GameInfo)`** so media packaged either way works. `(RuleCard)`, which VPinFE recommended earlier in 3.0 development, is accepted too. If both are present the preferred name wins, but a table-specific file always beats a folder-level one whichever token it uses. `(Cabinet)`, `(FSS)`, `(Logo)` and `(RuleSheet)` have no published equivalent and are VPinFE's own.
 
 ### Manufacturer logos
 

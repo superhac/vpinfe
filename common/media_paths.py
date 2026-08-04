@@ -47,8 +47,8 @@ MEDIA_SPECS = (
     MediaSpec("wheel", "WheelImagePath", "wheel.png", token="(Wheel)",
               fallback_kind="logo", supports_sets=True),
     MediaSpec("cab", "CabImagePath", "cab.png", token="(Cabinet)"),
-    MediaSpec("realdmd", "realDMDImagePath", "realdmd.png", token="(RealDMD)"),
-    MediaSpec("realdmd_color", "realDMDColorImagePath", "realdmd-color.png",
+    MediaSpec("real_dmd", "realDMDImagePath", "realdmd.png", token="(RealDMD)"),
+    MediaSpec("real_dmd_color", "realDMDColorImagePath", "realdmd-color.png",
               token="(RealColorDMD)"),
     MediaSpec("flyer", "FlyerImagePath", "flyer.png", token="(Flyer)",
               alt_tokens=("(GameInfo)",)),
@@ -59,18 +59,18 @@ MEDIA_SPECS = (
     MediaSpec("dmd_video", "DMDVideoPath", "dmd.mp4", "table_video_resolution",
               token="(DMD)", family=VIDEO_FAMILY),
     MediaSpec("audio", "AudioPath", "audio.mp3", token="(Audio)", family=AUDIO_FAMILY),
-    # The 3.0 additions - spec tokens except rulesheet, which the spec keeps
+    # The 3.0 additions - spec tokens except rule_sheet, which the spec keeps
     # outside its media scheme and we bring in so it gets the chain.
-    MediaSpec("rulecard", "RuleCardImagePath", "rulecard.png", token="(RuleCard)",
-              alt_tokens=("(GameHelp)",)),
+    MediaSpec("instruction_card", "InstructionCardImagePath", "instructioncard.png",
+              token="(InstructionCard)", alt_tokens=("(RuleCard)", "(GameHelp)")),
     MediaSpec("topper", "TopperPath", "topper.png", token="(Topper)"),
     MediaSpec("topper_video", "TopperVideoPath", "topper.mp4", token="(Topper)",
               family=VIDEO_FAMILY),
     MediaSpec("loading", "LoadingVideoPath", "loading.mp4", token="(Loading)",
               family=VIDEO_FAMILY),
-    MediaSpec("audiolaunch", "AudioLaunchPath", "audiolaunch.mp3",
+    MediaSpec("audio_launch", "AudioLaunchPath", "audiolaunch.mp3",
               token="(AudioLaunch)", family=AUDIO_FAMILY),
-    MediaSpec("rulesheet", "RuleSheetPath", "rulesheet.pdf", token="(RuleSheet)",
+    MediaSpec("rule_sheet", "RuleSheetPath", "rulesheet.pdf", token="(RuleSheet)",
               family=DOC_FAMILY),
     # The game's title art - usually the source a wheel is derived from, which
     # is why the wheel falls back to it.

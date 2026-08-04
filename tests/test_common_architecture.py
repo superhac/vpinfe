@@ -199,7 +199,7 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertEqual(media_config.realdmd_media_priority, "standard")
         self.assertEqual(
             media_config.priority_payload(),
-            {"table": "image", "bg": "video", "dmd": "video", "realdmd": "standard"},
+            {"table": "image", "bg": "video", "dmd": "video", "real_dmd": "standard"},
         )
         self.assertEqual(NetworkConfig.from_config(parser).ws_port, 9002)
         self.assertEqual(NetworkConfig.from_config(parser).theme_assets_port, 8000)

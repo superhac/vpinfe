@@ -38,7 +38,7 @@ LEDGER_ALLOWS = {
     "PAR-27": {"report_deprecated_use"},
     # New media kinds add theme-payload keys. Additive only: every key master
     # had must still be present and equal.
-    "PAR-11": {"RuleCardImagePath", "TopperPath", "TopperVideoPath",
+    "PAR-11": {"InstructionCardImagePath", "TopperPath", "TopperVideoPath",
                "LoadingVideoPath", "AudioLaunchPath", "RuleSheetPath"},
     "PAR-12": {"LogoImagePath"},
     "PAR-15": {"ManufacturerLogoPath"},

@@ -300,7 +300,7 @@ class AssetRegistryTests(unittest.TestCase):
             ("table.mp4", "table_video"),
             ("wheel.png", "wheel"),
             ("audio.mp3", "audio"),
-            ("realdmd-color.png", "realdmd_color"),
+            ("realdmd-color.png", "real_dmd_color"),
         ]
         for filename, expected in cases:
             with self.subTest(filename=filename):
@@ -311,7 +311,7 @@ class AssetRegistryTests(unittest.TestCase):
             ("MyTable_wheel.png", "wheel"),
             ("Table_backglass.png", "bg"),
             ("Game_dmd.mp4", "dmd_video"),
-            ("realdmd.png", "realdmd"),
+            ("realdmd.png", "real_dmd"),
             ("song.mp3", "audio"),        # any recognized audio file -> audio slot
             ("photo.png", None),          # no keyword -> unrecognized
             ("notes.txt", None),          # non-media extension
@@ -321,9 +321,9 @@ class AssetRegistryTests(unittest.TestCase):
                 self.assertEqual(match_media_key(filename), expected)
 
     def test_realdmd_not_claimed_by_dmd_rule(self):
-        # "realdmd" contains "dmd"; the realdmd rule must win, and a realdmd video
+        # "real_dmd" contains "dmd"; the realdmd rule must win, and a realdmd video
         # (no such slot) must not fall through to dmd_video.
-        self.assertEqual(match_media_key("realdmd.png"), "realdmd")
+        self.assertEqual(match_media_key("realdmd.png"), "real_dmd")
         self.assertIsNone(match_media_key("realdmd.mp4"))
 
     def test_spec_for_flags(self):

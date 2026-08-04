@@ -1267,7 +1267,7 @@ Each element in `vpin.gameData` (and the return of `vpin.getGameMeta(index)`) is
 | `DMDVideoPath` | `string\|null` | Local path to the DMD video (`dmd.mp4`). |
 | `AudioPath` | `string\|null` | Local path to the audio file (`audio.mp3`). |
 | `LogoImagePath` | `string\|null` | Local path to the game logo image (`logo.png`). |
-| `RuleCardImagePath` | `string\|null` | Local path to the apron rule card image (`rulecard.png`, or `(RuleCard) …` / `(GameHelp) …`). |
+| `InstructionCardImagePath` | `string\|null` | Local path to the apron instruction card image (`instructioncard.png`, or `(InstructionCard) …` / `(RuleCard) …` / `(GameHelp) …`). |
 | `TopperPath` | `string\|null` | Local path to the topper image or video (`topper.png` / `topper.mp4`). |
 | `LoadingVideoPath` | `string\|null` | Local path to the loading-screen video (`loading.mp4`). |
 | `AudioLaunchPath` | `string\|null` | Local path to the launch audio file (`audiolaunch.mp3`). |

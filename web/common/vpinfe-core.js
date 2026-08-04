@@ -14,11 +14,10 @@ const MEDIA_PATH_FIELDS = {
   dmd: "DMDImagePath",
   wheel: "WheelImagePath",
   cab: "CabImagePath",
-  realdmd: "realDMDImagePath",
-  "realdmd-color": "realDMDColorImagePath",
-  realdmd_color: "realDMDColorImagePath",
+  real_dmd: "realDMDImagePath",
+  real_dmd_color: "realDMDColorImagePath",
   flyer: "FlyerImagePath",
-  rulecard: "RuleCardImagePath",
+  instruction_card: "InstructionCardImagePath",
   topper: "TopperPath",
   logo: "LogoImagePath",
 };
@@ -61,7 +60,21 @@ const DEFAULT_MEDIA_PRIORITIES = {
   table: "video",
   bg: "video",
   dmd: "video",
-  realdmd: "color",
+  real_dmd: "color",
+};
+
+// Kind names a theme may pass to getMedia(). The canonical set is snake_case, matching
+// the payload, the HTTP API and common/media_paths.py; these are the spellings earlier
+// builds accepted. Both colour frames of the real DMD collapse onto one kind, which is
+// why real_dmd_color appears here rather than only in MEDIA_PATH_FIELDS.
+const MEDIA_KIND_ALIASES = {
+  realdmd: "real_dmd",
+  "realdmd-color": "real_dmd",
+  realdmd_color: "real_dmd",
+  real_dmd_color: "real_dmd",
+  rulecard: "instruction_card",
+  audiolaunch: "audio_launch",
+  rulesheet: "rule_sheet",
 };
 
 const MISSING_MEDIA_URL = "/web/images/file_missing.png";
@@ -319,7 +332,7 @@ class VPinFECore {
     if (!table) return { url: null, kind: null, priority: null, path: null };
 
     const normalizedType = this.#normalizeMediaType(type);
-    if (normalizedType === "realdmd") {
+    if (normalizedType === "real_dmd") {
       return this.#resolveRealDmdMedia(table);
     }
     if (["table", "bg", "dmd"].includes(normalizedType)) {
@@ -1251,9 +1264,8 @@ class VPinFECore {
   }
 
   #normalizeMediaType(type) {
-    const value = String(type || "").trim().toLowerCase().replace(/_/g, "-");
-    if (value === "realdmd-color") return "realdmd";
-    return value;
+    const value = String(type || "").trim().toLowerCase();
+    return MEDIA_KIND_ALIASES[value] || value;
   }
 
   #normalizeMediaPriorities(priorities) {
@@ -1265,8 +1277,8 @@ class VPinFECore {
       if (value === "image" || value === "video") normalized[key] = value;
     }
 
-    const realdmd = String(priorities.realdmd || "").trim().toLowerCase();
-    if (["standard", "color"].includes(realdmd)) normalized.realdmd = realdmd;
+    const realDmd = String(priorities.real_dmd || "").trim().toLowerCase();
+    if (["standard", "color"].includes(realDmd)) normalized.real_dmd = realDmd;
     return normalized;
   }
 
@@ -1298,7 +1310,7 @@ class VPinFECore {
   }
 
   #resolveRealDmdMedia(table) {
-    const priority = this.mediaPriorities.realdmd || DEFAULT_MEDIA_PRIORITIES.realdmd;
+    const priority = this.mediaPriorities.real_dmd || DEFAULT_MEDIA_PRIORITIES.real_dmd;
     const candidates = priority === "standard"
       ? [
           { variant: "standard", path: table.realDMDImagePath },

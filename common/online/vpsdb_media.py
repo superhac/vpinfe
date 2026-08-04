@@ -102,8 +102,8 @@ class VPSMediaDownloader:
         process(game_media.get("1k"), "dmd", game.DMDImagePath, str(default_media_path(game.fullPathGame, "dmd", self.playfieldvariant)))
         process(game_media, "wheel", game.WheelImagePath, str(default_media_path(game.fullPathGame, "wheel", self.playfieldvariant)))
         process(game_media, "cab", game.CabImagePath, str(default_media_path(game.fullPathGame, "cab", self.playfieldvariant)))
-        process(game_media, "realdmd", game.realDMDImagePath, str(default_media_path(game.fullPathGame, "realdmd", self.playfieldvariant)))
-        process(game_media, "realdmd_color", game.realDMDColorImagePath, str(default_media_path(game.fullPathGame, "realdmd_color", self.playfieldvariant)))
+        process(game_media, "realdmd", game.realDMDImagePath, str(default_media_path(game.fullPathGame, "real_dmd", self.playfieldvariant)))
+        process(game_media, "realdmd_color", game.realDMDColorImagePath, str(default_media_path(game.fullPathGame, "real_dmd_color", self.playfieldvariant)))
         process(game_media, "flyer", game.FlyerImagePath, str(default_media_path(game.fullPathGame, "flyer", self.playfieldvariant)))
         process(game_media.get(self.playfieldresolution), self.playfieldvariant, game.PlayfieldImagePath, str(default_media_path(game.fullPathGame, self.playfieldvariant, self.playfieldvariant)))
         # Videos, and only the ones the index actually carries. There has never been
