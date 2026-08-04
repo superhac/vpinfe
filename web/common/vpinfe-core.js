@@ -221,7 +221,7 @@ class VPinFECore {
     this.themeConfig = {};
     this.mediaPriorities = Object.assign({}, DEFAULT_MEDIA_PRIORITIES);
     this._currentGameIndex = 0;
-    this._initialTableRestored = false;
+    this._initialGameRestored = false;
     this._coreAudioEnabled = true;
     this._audioMuted = false;
     this._audio = Object.assign(new Audio(), { loop: true });
@@ -316,7 +316,7 @@ class VPinFECore {
     });
   }
 
-  // get table image url paths
+  // The URL of a game's image, by media kind
   #mediaField(game, field) {
     if (!field) return null;
     if (game[field] != null) return game[field];
@@ -354,15 +354,15 @@ class VPinFECore {
     return this.getMedia(index, type).url;
   }
 
-  // URL of the table manufacturer's logo, or null when none is installed
+  // URL of the game manufacturer's logo, or null when none is installed
   getManufacturerLogoURL(index) {
-    const table = this.gameData[index];
-    if (!table) return null;
+    const item = this.gameData[index];
+    if (!item) return null;
     // Contract 2 keeps it on the game: it is art about the manufacturer, not one of
     // this game's media kinds.
-    const path = this.#isEntry(table)
-      ? (table.game && table.game.manufacturer_logo)
-      : table.ManufacturerLogoPath;
+    const path = this.#isEntry(item)
+      ? (item.game && item.game.manufacturer_logo)
+      : item.ManufacturerLogoPath;
     return path ? `http://127.0.0.1:${this.themeAssetsPort}${path}` : null;
   }
 
@@ -371,19 +371,19 @@ class VPinFECore {
   }
 
   getMedia(index, type) {
-    const table = this.gameData[index];
-    if (!table) return { url: null, kind: null, priority: null, path: null };
+    const item = this.gameData[index];
+    if (!item) return { url: null, kind: null, priority: null, path: null };
 
     const normalizedType = this.#normalizeMediaType(type);
     if (normalizedType === "real_dmd") {
-      return this.#resolveRealDmdMedia(table);
+      return this.#resolveRealDmdMedia(item);
     }
     if (["playfield", "bg", "dmd"].includes(normalizedType)) {
-      return this.#resolveImageVideoMedia(table, normalizedType);
+      return this.#resolveImageVideoMedia(item, normalizedType);
     }
 
-    if (this.#isEntry(table)) {
-      const url = this.#entryMediaURL(table, normalizedType);
+    if (this.#isEntry(item)) {
+      const url = this.#entryMediaURL(item, normalizedType);
       return {
         url: url || MISSING_MEDIA_URL,
         kind: url ? "image" : "missing",
@@ -393,7 +393,7 @@ class VPinFECore {
       };
     }
 
-    const imagePath = this.#mediaField(table, MEDIA_PATH_FIELDS[normalizedType]);
+    const imagePath = this.#mediaField(item, MEDIA_PATH_FIELDS[normalizedType]);
     return {
       url: this.#pathToURLOrMissing(imagePath),
       kind: imagePath ? "image" : "missing",
@@ -402,12 +402,12 @@ class VPinFECore {
     };
   }
 
-  // get table audio url path (returns null if no audio exists)
+  // The URL of a game's audio, or null when it has none
   getAudioURL(index) {
-    const table = this.gameData[index];
-    if (!table) return null;
-    if (!table.AudioPath) return null;
-    return this.#convertPathToURL(table.AudioPath);
+    const item = this.gameData[index];
+    if (!item) return null;
+    if (!item.AudioPath) return null;
+    return this.#convertPathToURL(item.AudioPath);
   }
 
   // Core handles joypageup/joypagedown by default: it asks the backend for the
@@ -475,7 +475,7 @@ class VPinFECore {
 
   playGameAudio(indexOrUrl = this._currentGameIndex, retries = 3) {
     if (!this._coreAudioEnabled || this._audioMuted || this._windowName !== "table") return;
-    const url = this.#resolveTableAudioUrl(indexOrUrl);
+    const url = this.#resolveAudioUrl(indexOrUrl);
     if (!url) {
       this.stopGameAudio();
       return;
@@ -520,7 +520,7 @@ class VPinFECore {
     });
   }
 
-  // get table video url paths
+  // The URL of a game's video, by media kind
   getVideoURL(index, type) {
     const game = this.gameData[index];
     if (!game) return null;
@@ -547,10 +547,10 @@ class VPinFECore {
   }
 
   getCachedVPinPlayRating(index = this._currentGameIndex) {
-    const table = this.#getTableByIndex(index);
-    if (!table) return null;
+    const item = this.#itemByIndex(index);
+    if (!item) return null;
 
-    const vpsId = this.#getTableVPinPlayVpsId(table);
+    const vpsId = this.#vpsIdOf(item);
     if (!vpsId) return null;
 
     const cached = this._vpinplayRatingCache.get(vpsId);
@@ -600,7 +600,7 @@ class VPinFECore {
     this.#showtutorial();
   }
 
-  // launch a table
+  // Launch a game
   async launchGame(index) {
     this.#setFrontendInputEnabled(false);
     try {
@@ -630,23 +630,23 @@ class VPinFECore {
       const maxIndex = Math.max(0, this.gameData.length - 1);
       if (this._currentGameIndex > maxIndex) this._currentGameIndex = maxIndex;
       if (this.gameData.length > 0) {
-        if (!this._initialTableRestored) {
-          this._initialTableRestored = true;
-          await this.#restoreInitialTable();
+        if (!this._initialGameRestored) {
+          this._initialGameRestored = true;
+          await this.#restoreInitialGame();
         }
         this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
-        this.#notifySelectedTable().catch(() => {});
+        this.#notifySelectedGame().catch(() => {});
       } else {
         this._lastSelectedIndex = null;
       }
     }
   }
 
-  // On first table-data load, ask the backend for the last-launched table's
+  // On the first game-data load, ask the backend for the last-launched game's
   // index and, if it isn't already first, move the wheel there. Sending a
   // GameIndexUpdate (inc self) drives the theme through the same path its own
   // input uses, so no theme changes are needed to honor the restored position.
-  async #restoreInitialTable() {
+  async #restoreInitialGame() {
     try {
       const index = await this.call("get_initial_game_index");
       if (typeof index === "number" && index > 0 && index < this.gameData.length) {
@@ -702,7 +702,7 @@ class VPinFECore {
     // Default handling for GameDataChange
     if (message.type === "GameDataChange") {
       if (this._windowName === "table") this._lastSelectedIndex = null;
-      await this.#handleTableDataChange(message);
+      await this.#handleGameDataChange(message);
     }
     this.#syncSelectionFromMessage(message);
     await this.#handleCoreAudioEvent(message);
@@ -737,7 +737,7 @@ class VPinFECore {
   }
 
   // Default handler for GameDataChange events
-  async #handleTableDataChange(message) {
+  async #handleGameDataChange(message) {
     // Check if a collection filter was applied
     if (message.collection) {
       // if collection is "None" then reset to all tables, otherwise set to the selected collection.
@@ -768,7 +768,7 @@ class VPinFECore {
       await this.call("apply_sort", message.sort, message.order);
       await this.getGameData();
     } else {
-      // No filters specified - just refresh table data
+      // No filters specified - just refresh the game data
       await this.getGameData();
     }
   }
@@ -793,7 +793,7 @@ class VPinFECore {
     }
   }
 
-  #resolveTableAudioUrl(indexOrUrl) {
+  #resolveAudioUrl(indexOrUrl) {
     if (typeof indexOrUrl === "number" && Number.isFinite(indexOrUrl)) {
       this._currentGameIndex = indexOrUrl;
       return this.getAudioURL(indexOrUrl);
@@ -817,23 +817,23 @@ class VPinFECore {
 
     if (message.type === "GameIndexUpdate") {
       this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
-      this.#notifySelectedTable().catch(() => {});
+      this.#notifySelectedGame().catch(() => {});
       return;
     }
     if (message.type === "GameDataChange") {
       this._lastSelectedIndex = null;
       this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
-      this.#notifySelectedTable().catch(() => {});
+      this.#notifySelectedGame().catch(() => {});
       return;
     }
     if (message.type === "GameLaunchComplete" || message.type === "RemoteLaunchComplete") {
       this._lastSelectedIndex = null;
       this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
-      this.#notifySelectedTable().catch(() => {});
+      this.#notifySelectedGame().catch(() => {});
     }
   }
 
-  async #notifySelectedTable() {
+  async #notifySelectedGame() {
     if (this._windowName !== "table") return;
     if (!Array.isArray(this.gameData) || this.gameData.length === 0) return;
 
@@ -859,7 +859,7 @@ class VPinFECore {
     return null;
   }
 
-  #getTableByIndex(index) {
+  #itemByIndex(index) {
     const numeric = Number(index);
     if (!Number.isFinite(numeric)) return null;
     const normalized = Math.floor(numeric);
@@ -867,12 +867,12 @@ class VPinFECore {
     return this.gameData[normalized];
   }
 
-  #getTableVPinPlayVpsId(table) {
-    if (!table || typeof table !== "object") return "";
-    if (table.game && typeof table.game === "object") {
-      return String(table.game.vps_id || "").trim();   // contract 2
+  #vpsIdOf(item) {
+    if (!item || typeof item !== "object") return "";
+    if (item.game && typeof item.game === "object") {
+      return String(item.game.vps_id || "").trim();   // contract 2
     }
-    const meta = (table.meta && typeof table.meta === "object") ? table.meta : {};
+    const meta = (item.meta && typeof item.meta === "object") ? item.meta : {};
     const info = (meta.Info && typeof meta.Info === "object") ? meta.Info : {};
     return String(info.VPSId || "").trim();
   }
@@ -906,46 +906,46 @@ class VPinFECore {
     };
   }
 
-  #setGameVPinPlayRating(table, payload) {
-    if (!table || typeof table !== "object") return;
-    table.vpinplay = payload ? { ...payload } : null;
+  #setGameVPinPlayRating(item, payload) {
+    if (!item || typeof item !== "object") return;
+    item.vpinplay = payload ? { ...payload } : null;
   }
 
-  #setCachedVPinPlayRatingForCurrentTables(vpsId, payload) {
+  #applyCachedRatingToList(vpsId, payload) {
     if (!Array.isArray(this.gameData)) return;
-    this.gameData.forEach((table) => {
-      if (this.#getTableVPinPlayVpsId(table) === vpsId) {
-        this.#setGameVPinPlayRating(table, payload);
+    this.gameData.forEach((item) => {
+      if (this.#vpsIdOf(item) === vpsId) {
+        this.#setGameVPinPlayRating(item, payload);
       }
     });
   }
 
   #attachCachedVPinPlayRatings() {
     if (!Array.isArray(this.gameData)) return;
-    this.gameData.forEach((table) => {
-      const vpsId = this.#getTableVPinPlayVpsId(table);
+    this.gameData.forEach((item) => {
+      const vpsId = this.#vpsIdOf(item);
       if (!vpsId) {
-        this.#setGameVPinPlayRating(table, null);
+        this.#setGameVPinPlayRating(item, null);
         return;
       }
       const cached = this._vpinplayRatingCache.get(vpsId);
-      this.#setGameVPinPlayRating(table, cached && cached.data ? cached.data : null);
+      this.#setGameVPinPlayRating(item, cached && cached.data ? cached.data : null);
     });
   }
 
   async #loadVPinPlayRating(index, forceRefresh = false) {
-    const table = this.#getTableByIndex(index);
-    if (!table) return null;
+    const item = this.#itemByIndex(index);
+    if (!item) return null;
 
-    const vpsId = this.#getTableVPinPlayVpsId(table);
+    const vpsId = this.#vpsIdOf(item);
     if (!vpsId) {
-      this.#setGameVPinPlayRating(table, null);
+      this.#setGameVPinPlayRating(item, null);
       return null;
     }
 
     const cached = this._vpinplayRatingCache.get(vpsId);
     if (!forceRefresh && cached && cached.data) {
-      this.#setGameVPinPlayRating(table, cached.data);
+      this.#setGameVPinPlayRating(item, cached.data);
       return cached.data;
     }
 
@@ -955,7 +955,7 @@ class VPinFECore {
     }
 
     if (!this.vpinplayEndpoint) {
-      this.#setGameVPinPlayRating(table, null);
+      this.#setGameVPinPlayRating(item, null);
       return null;
     }
 
@@ -964,16 +964,16 @@ class VPinFECore {
         const data = this.#normalizeVPinPlayRatingPayload(vpsId, payload);
         if (!data) {
           this._vpinplayRatingCache.delete(vpsId);
-          this.#setCachedVPinPlayRatingForCurrentTables(vpsId, null);
+          this.#applyCachedRatingToList(vpsId, null);
           return null;
         }
         this._vpinplayRatingCache.set(vpsId, { data });
-        this.#setCachedVPinPlayRatingForCurrentTables(vpsId, data);
+        this.#applyCachedRatingToList(vpsId, data);
         return data;
       })
       .catch((error) => {
         this.call("console_out", `VPinPlay rating fetch failed for ${vpsId}: ${error.message}`).catch(() => {});
-        this.#setCachedVPinPlayRatingForCurrentTables(vpsId, null);
+        this.#applyCachedRatingToList(vpsId, null);
         return null;
       })
       .finally(() => {
@@ -1391,19 +1391,19 @@ class VPinFECore {
     return { url: MISSING_MEDIA_URL, kind: "missing", priority, path: null };
   }
 
-  #resolveImageVideoMedia(table, type) {
+  #resolveImageVideoMedia(item, type) {
     const priority = this.mediaPriorities[type] || DEFAULT_MEDIA_PRIORITIES[type] || "video";
-    if (this.#isEntry(table)) {
-      return this.#resolveEntryImageVideo(table, type, priority);
+    if (this.#isEntry(item)) {
+      return this.#resolveEntryImageVideo(item, type, priority);
     }
     // Through #mediaField, not the payload key directly: at contract 1 the playfield
     // pair still arrives under its old names, and reading the key straight makes the
     // main screen resolve to "missing" for every theme written before 3.0. PAR-22.
-    const image = this.#mediaField(table, MEDIA_PATH_FIELDS[type]);
-    const videoPath = this.#mediaField(table, MEDIA_VIDEO_PATH_FIELDS[type]);
+    const image = this.#mediaField(item, MEDIA_PATH_FIELDS[type]);
+    const videoPath = this.#mediaField(item, MEDIA_VIDEO_PATH_FIELDS[type]);
     // The playfield falling back to its own FSS variant, which is why the two are
     // named as a pair rather than as unrelated kinds.
-    const imagePath = type === "playfield" ? (image || table.FSSImagePath) : image;
+    const imagePath = type === "playfield" ? (image || item.FSSImagePath) : image;
     const candidates = priority === "image"
       ? [
           { kind: "image", path: imagePath },
@@ -1423,14 +1423,14 @@ class VPinFECore {
     };
   }
 
-  #resolveRealDmdMedia(table) {
+  #resolveRealDmdMedia(item) {
     const priority = this.mediaPriorities.real_dmd || DEFAULT_MEDIA_PRIORITIES.real_dmd;
-    if (this.#isEntry(table)) {
+    if (this.#isEntry(item)) {
       const order = priority === "standard"
         ? [["standard", "real_dmd"], ["color", "real_dmd_color"]]
         : [["color", "real_dmd_color"], ["standard", "real_dmd"]];
       for (const [variant, kind] of order) {
-        const url = this.#entryMediaURL(table, kind);
+        const url = this.#entryMediaURL(item, kind);
         if (url) return { url, kind: "image", priority, variant, path: null };
       }
       return { url: MISSING_MEDIA_URL, kind: "missing", priority,
@@ -1438,12 +1438,12 @@ class VPinFECore {
     }
     const candidates = priority === "standard"
       ? [
-          { variant: "standard", path: table.realDMDImagePath },
-          { variant: "color", path: table.realDMDColorImagePath },
+          { variant: "standard", path: item.realDMDImagePath },
+          { variant: "color", path: item.realDMDColorImagePath },
         ]
       : [
-          { variant: "color", path: table.realDMDColorImagePath },
-          { variant: "standard", path: table.realDMDImagePath },
+          { variant: "color", path: item.realDMDColorImagePath },
+          { variant: "standard", path: item.realDMDImagePath },
         ];
     const selected = candidates.find(candidate => !!candidate.path) || { variant: "missing", path: null };
     return {
@@ -1667,8 +1667,8 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
       return "";
     }
 
-    const table = this.gameData[index];
-    const meta = (table && typeof table === "object") ? table.meta : null;
+    const item = this.gameData[index];
+    const meta = (item && typeof item === "object") ? item.meta : null;
     const info = (meta && typeof meta === "object" && meta.Info && typeof meta.Info === "object")
       ? meta.Info
       : null;
