@@ -1,0 +1,13 @@
+{
+  "name": "vpinfe-frontend-tests",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Test harness for web/common/vpinfe-core.js. Dev-only: nothing here is bundled or served.",
+  "scripts": {
+    "test": "node --test \"tests/js/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

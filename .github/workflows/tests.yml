@@ -33,3 +33,14 @@ jobs:
       # job fetches, so this stays a fast check that runs on its own.
       - name: Run tests
         run: python -m unittest discover tests
+
+      # vpinfe-core.js is the largest single piece of theme-facing code and had no
+      # tests at all until these. Node's built-in runner, so there is nothing to
+      # install: the repo has no JavaScript dependencies and should not gain any.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run frontend tests
+        run: npm test

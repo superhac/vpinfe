@@ -8,6 +8,8 @@
 # The theme payload the JavaScript tests read. Committed on purpose: it is the only
 # thing tying tests/js/ to what Python actually builds.
 !tests/fixtures/theme_payload.json
+# Declares the frontend test runner. No dependencies, nothing installed, not bundled.
+!package.json
 !common/resources/roms.json
 third-party/
 
