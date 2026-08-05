@@ -95,8 +95,8 @@ FRIENDLY_NAMES = {
     'dmdscreenid': 'DMD Monitor ID',
     'bgwindowoverride': 'Backglass Window Override (x,y,width,height)',
     'dmdwindowoverride': 'DMD Window Override (x,y,width,height)',
-    'playfieldrotation': 'Playfield Rotation (0/90/270)',
-    'playfieldorientation': 'Playfield Orientation (Landscape/Portrait)',
+    'playfieldrotation': 'Rotate VPinFE Display',
+    'playfieldorientation': 'Playfield Monitor Mounting',
     'cabmode': 'Cabinet Mode',
 
     # [Network]
@@ -474,6 +474,40 @@ def render_panel(tab=None):
                     text='Enable' if special_label_above else friendly_label,
                     value=(value == "true")
                 ).classes('config-input')
+                if section == 'Displays' and key == 'cabmode':
+                    inp.tooltip(
+                        'Presents VPinFE for playing standing at a cabinet: larger text and '
+                        'targets, and no controls that need a mouse. It does not rotate '
+                        'anything - use Playfield Monitor Mounting and Rotate VPinFE '
+                        'Display for that.'
+                    )
+            elif section == 'Displays' and key == 'playfieldorientation':
+                inp = ui.select(
+                    options={'landscape': 'Landscape', 'portrait': 'Portrait'},
+                    value=(value or 'landscape').strip().lower()
+                ).props('outlined dense options-dense emit-value map-options').classes('config-input')
+                inp.tooltip(
+                    'How the playfield screen is physically mounted. Portrait means it is '
+                    'turned on its side in the cabinet. This does not rotate anything by '
+                    'itself - it tells themes what shape to lay out for.'
+                )
+            elif section == 'Displays' and key == 'playfieldrotation':
+                inp = ui.select(
+                    options={
+                        '0': '0\u00b0 - the screen is already the right way up',
+                        '90': '90\u00b0 clockwise',
+                        '180': '180\u00b0 - upside down',
+                        '270': '270\u00b0 clockwise',
+                    },
+                    value=(value or '0').strip() if (value or '0').strip() in
+                          ('0', '90', '180', '270') else '0'
+                ).props('outlined dense options-dense emit-value map-options').classes('config-input')
+                inp.tooltip(
+                    'How far VPinFE turns its own display so it faces the player. Leave at '
+                    '0 if your operating system already rotates this screen - the desktop '
+                    'appears upright on it. If the desktop appears sideways, or the taskbar '
+                    'runs up the side of the screen, set 90 or 270 here instead.'
+                )
             elif section == 'Displays' and key in (
                     'playfieldscreenid', 'bgscreenid', 'dmdscreenid'):
                 monitor_options = _get_display_id_options(detected_displays, value)
