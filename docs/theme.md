@@ -1107,10 +1107,22 @@ name is `false` rather than an error, so a theme can ask about something a build
 have.
 
 Each capability has one stated default: **core paging is on** (opt out if your theme does
-its own), **core audio is off** (opt in), **core preloading is off** (opt in). A theme's
-`theme.json` can set any of them — core audio reads `use_core_audio`, or
-`audio.use_core_audio`, or `audio.enabled`; core preloading reads `use_core_preload` or
-`preload.enabled`.
+its own), **core audio is off** (opt in), **core preloading is off** (opt in).
+
+Turn one on in your **`config.json`** — the author's file. A capability's settings live in
+a block named after it, and `enabled` is one of those settings:
+
+```json
+{
+  "audio":   { "enabled": true, "max_volume": 0.8 },
+  "preload": { "enabled": true, "kinds": ["playfield", "bg", "wheel"] }
+}
+```
+
+That shape is the one to write, because it is the only one that carries a capability's
+other settings — there is no flat spelling of `preload.kinds`. Core audio also answers to
+`use_core_audio` and `audio.use_core_audio`, which accumulated before anything said which
+was meant; both still work and neither is worth adding to a new theme.
 
 #### Core preloading
 

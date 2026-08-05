@@ -62,7 +62,9 @@ const CAPABILITIES = {
   // without deleting the theme's own loop just doubles the requests.
   core_preload: {
     default: false,
-    config: ["use_core_preload", "preload.enabled"],
+    // One spelling. A capability's settings live in a block named after it, and
+    // `enabled` is one of them - which is also the only shape `kinds` can travel in.
+    config: ["preload.enabled"],
     describe: "Core fetches the media on either side of the selection once it settles.",
   },
 };
