@@ -8,7 +8,7 @@ is refused rather than silently doing nothing.
 Membership is the table's own id (`VPinFE.id`), not its VPS id: a table with no
 VPSdb match still belongs to collections, which is why membership moved off the VPS
 id in the first place. The key on disk is still `vpsids` for files written before
-that migration - see common/tables/vpxcollections.py.
+that migration - see common/tables/collection_store.py.
 """
 
 from __future__ import annotations

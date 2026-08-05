@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
-from common.games.vpxcollections import VPXCollections
+from common.games.collection_store import CollectionStore
 from frontend.api import API
 
 
@@ -43,7 +43,7 @@ class TestCollectionSorting(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            manager = VPXCollections(str(ini_path))
+            manager = CollectionStore(str(ini_path))
             games = [
                 _game("Bravo", "vps-1", last_run=100),
                 _game("Alpha", "vps-2", last_run=300),
@@ -71,7 +71,7 @@ class TestCollectionSorting(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            manager = VPXCollections(str(ini_path))
+            manager = CollectionStore(str(ini_path))
             games = [
                 _game("Zulu", "vps-1", last_run=999),
                 _game("Alpha", "vps-2", last_run=1),
@@ -133,7 +133,7 @@ class TestCollectionSorting(unittest.TestCase):
     def test_filter_collections_default_to_descending_order(self) -> None:
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "collections.ini"
-            manager = VPXCollections(str(ini_path))
+            manager = CollectionStore(str(ini_path))
             manager.add_filter_collection("Played", sort_by="RunTime")
 
             self.assertEqual(manager.get_filters("Played")["order_by"], "Descending")

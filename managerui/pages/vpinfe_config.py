@@ -10,7 +10,7 @@ from pathlib import Path
 
 from nicegui import run, ui
 
-from common.games.vpxcollections import VPXCollections
+from common.games.collection_store import CollectionStore
 from common.host.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
 from common.host.launcher import build_masked_tableini_path, build_vpx_launch_command
 from common.iniconfig import IniConfig
@@ -175,7 +175,7 @@ def get_friendly_name(key: str) -> str:
 def _get_collection_names():
     """Get list of collection names for the dropdown."""
     try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
+        collections = CollectionStore(str(COLLECTIONS_PATH))
         return [''] + collections.get_collections_name()  # Empty option + all collections
     except Exception:
         return ['']

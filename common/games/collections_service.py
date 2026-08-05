@@ -4,7 +4,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from common.games.gamelistfilters import GameListFilters
-from common.games.vpxcollections import VPXCollections
+from common.games.collection_store import CollectionStore
 from common.paths import COLLECTIONS_PATH
 from common.values import is_truthy
 
@@ -12,8 +12,8 @@ COLLECTION_ICONS_DIR = COLLECTIONS_PATH.parent / "collection_icons"
 COLLECTION_IMAGE_KEY = "image"
 
 
-def get_collections_manager() -> VPXCollections:
-    return VPXCollections(str(COLLECTIONS_PATH))
+def get_collections_manager() -> CollectionStore:
+    return CollectionStore(str(COLLECTIONS_PATH))
 
 
 def ensure_collection_icons_dir() -> Path:

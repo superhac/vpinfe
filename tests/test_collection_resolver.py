@@ -16,7 +16,7 @@ from common.games.collection_resolver import (
     resolve,
     visible_entries,
 )
-from common.games.vpxcollections import VPXCollections
+from common.games.collection_store import CollectionStore
 
 
 def _game(gid, title, tables, manufacturer="", rating=0, last_run=0, default=""):
@@ -46,7 +46,7 @@ class ResolverTests(unittest.TestCase):
         tmp = TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.path = Path(tmp.name) / "collections.json"
-        self.collections = VPXCollections(str(self.path))
+        self.collections = CollectionStore(str(self.path))
 
         self.mm = _game("mm", "Medieval Madness",
                         {"vpw": _table("vpw", "MM VPW.vpx"),
@@ -222,7 +222,7 @@ class OrderDefaultTests(unittest.TestCase):
     def setUp(self) -> None:
         tmp = TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        self.collections = VPXCollections(str(Path(tmp.name) / "collections.json"))
+        self.collections = CollectionStore(str(Path(tmp.name) / "collections.json"))
         self.games = [
             _game("zz", "Zaccaria", {"a": _table("a", "z.vpx")}),
             _game("aa", "Apollo 13", {"b": _table("b", "a.vpx")}),
@@ -248,7 +248,7 @@ class OrderDefaultTests(unittest.TestCase):
         self.collections.set_order("Favorites", "manual")
         self.collections.save()
 
-        reopened = VPXCollections(str(self.collections.path))
+        reopened = CollectionStore(str(self.collections.path))
         self.assertEqual(reopened.get_order("Favorites"),
                          {"by": "manual", "direction": "asc"})
 

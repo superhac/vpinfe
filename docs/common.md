@@ -34,7 +34,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `game_identity.py`: the stable per-install game id that addresses a game everywhere.
 - `tables.py`: which .vpx in a game folder is the default table. Every caller resolves through it.
 - `metadata_service.py`, `game_report_service.py`, `game_play_service.py`: workflows over games and metadata.
-- `collections_service.py`, `vpxcollections.py`, `gamelistfilters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
+- `collections_service.py`, `collection_store.py`, `gamelistfilters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
 - `vpxparser.py`, `standalonescripts.py`: reading and patching the .vpx itself.
 - `score_parser.py`: PinMAME NVRAM score extraction.
 
@@ -102,7 +102,7 @@ update.
 Both membership paths tolerate VPS-keyed entries, and both have to. The migration
 leaves an entry alone when no game matched it - the game may simply not be
 installed yet - and it runs only once, so such an entry can stay VPS-keyed
-indefinitely. `VPXCollections.is_member` covers the frontend;
+indefinitely. `CollectionStore.is_member` covers the frontend;
 `game_repository._collections_for` covers the manager UI row. If only one of them
 did, a game would show its collections in one place and not the other.
 

@@ -1,4 +1,4 @@
-# vpxcollections.py
+# collection_store.py
 import configparser
 import json
 import logging
@@ -20,7 +20,7 @@ from common.games.info_migration import (
 )
 from common.games.metaconfig import VPINFE_SECTION
 
-logger = logging.getLogger("vpinfe.common.games.vpxcollections")
+logger = logging.getLogger("vpinfe.common.games.collection_store")
 
 # The collections file is entirely ours, so it carries a version.
 #   0  ini, membership keyed by VPS id. Implied when no version is recorded.
@@ -142,7 +142,7 @@ def _get_last_run_value(game):
         return -1
 
 
-class VPXCollections:
+class CollectionStore:
     """The user's collections, stored as JSON.
 
     Records are dicts in a list, so their order is the order they are shown in and a

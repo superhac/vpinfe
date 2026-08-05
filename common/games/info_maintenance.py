@@ -16,7 +16,7 @@ from common.games.info_migration import (
     restorable_backup,
 )
 from common.games.metaconfig import InvalidMetaConfigError, MetaConfig
-from common.games.vpxcollections import (
+from common.games.collection_store import (
     COLLECTIONS_NAME,
     restorable_collections_backup,
 )

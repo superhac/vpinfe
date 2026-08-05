@@ -19,7 +19,7 @@ from common.games.game_metadata import (
 )
 from common.games.gameparser import GameParser
 from common.games.info_migration import CURRENT_SCHEMA, schema_of
-from common.games.vpxcollections import VPXCollections
+from common.games.collection_store import CollectionStore
 from common.paths import COLLECTIONS_PATH, get_games_path, get_ini_config
 
 _LOCK = threading.Lock()
@@ -142,7 +142,7 @@ def collections_by_game_id() -> Dict[str, List[str]]:
     """
     mapping: Dict[str, List[str]] = {}
     try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
+        collections = CollectionStore(str(COLLECTIONS_PATH))
         for collection_name in collections.get_collections_name():
             if collections.is_filter_based(collection_name):
                 continue
@@ -230,7 +230,7 @@ def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) ->
 def _collections_for(row: Dict[str, Any], collections_map: Dict[str, List[str]]) -> List[str]:
     """Which collections a row belongs to, tolerating entries not yet migrated.
 
-    Matches VPXCollections.is_member. The migration leaves an entry alone when no
+    Matches CollectionStore.is_member. The migration leaves an entry alone when no
     game matched it - the game may simply not be installed yet - and it only runs
     once, so an entry can stay VPS-keyed indefinitely. Without the fallbacks the
     frontend would show that membership and the Manager UI would not.

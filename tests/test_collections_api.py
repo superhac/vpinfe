@@ -16,7 +16,7 @@ from unittest.mock import patch
 from starlette.testclient import TestClient
 
 import httpapi
-from common.games.vpxcollections import VPXCollections
+from common.games.collection_store import CollectionStore
 
 GAME_ID = "aaaa1111"
 OTHER_ID = "bbbb2222"
@@ -42,7 +42,7 @@ class CollectionsApiTests(unittest.TestCase):
                         OTHER_ID: _game("Eight Ball (Bally 1977)", OTHER_ID)}
 
         # One manager over a throwaway file, shared by the service and the test.
-        manager = VPXCollections(self.path)
+        manager = CollectionStore(self.path)
         self.manager = manager
         for target in ("httpapi.collections.get_collections_manager",
                        "common.games.collections_service.get_collections_manager"):

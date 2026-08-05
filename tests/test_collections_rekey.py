@@ -8,9 +8,9 @@ from unittest import mock
 
 from common.games import game_repository
 from common.games.metaconfig import MetaConfig
-from common.games.vpxcollections import (
+from common.games.collection_store import (
     CURRENT_SCHEMA,
-    VPXCollections,
+    CollectionStore,
     collections_schema,
     restorable_collections_backup,
 )
@@ -28,7 +28,7 @@ def _game(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", game_id
     return SimpleNamespace(fullPathGame=str(folder), gameDirName=name, metaConfig=meta)
 
 
-def _collections(path: Path, sections: dict) -> VPXCollections:
+def _collections(path: Path, sections: dict) -> CollectionStore:
     lines = []
     for name, members in sections.items():
         lines.append(f"[{name}]")
@@ -36,7 +36,7 @@ def _collections(path: Path, sections: dict) -> VPXCollections:
         lines.append("type = vpsid")
         lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
-    return VPXCollections(str(path))
+    return CollectionStore(str(path))
 
 
 class MigrationTests(unittest.TestCase):
@@ -60,7 +60,7 @@ class MigrationTests(unittest.TestCase):
         collections = _collections(self.ini, {"Favorites": ["vps-mm"]})
         collections.migrate_membership_to_game_ids([game])
 
-        again = VPXCollections(str(self.ini))
+        again = CollectionStore(str(self.ini))
 
         self.assertEqual(again.schema_version(), CURRENT_SCHEMA)
         self.assertEqual(again.migrate_membership_to_game_ids([game]), 0)
@@ -73,8 +73,8 @@ class MigrationTests(unittest.TestCase):
         collections._stamp_schema(CURRENT_SCHEMA + 5)
         collections.save()
 
-        reopened = VPXCollections(str(self.ini))
-        with self.assertLogs("vpinfe.common.games.vpxcollections", level="WARNING"):
+        reopened = CollectionStore(str(self.ini))
+        with self.assertLogs("vpinfe.common.games.collection_store", level="WARNING"):
             moved = reopened.migrate_membership_to_game_ids([game])
 
         self.assertEqual(moved, 0)
@@ -94,7 +94,7 @@ class MigrationTests(unittest.TestCase):
         collections = _collections(self.ini, {"Favorites": ["vps-mm"]})
         collections.migrate_membership_to_game_ids([game])
 
-        reopened = VPXCollections(str(self.ini))
+        reopened = CollectionStore(str(self.ini))
 
         self.assertEqual(reopened.get_collections_name(), ["Favorites"])
         self.assertEqual(reopened.schema_version(), CURRENT_SCHEMA,
@@ -286,7 +286,7 @@ class BackupTests(unittest.TestCase):
         collections.migrate_membership_to_game_ids(
             [_game(self.root, "Dr. Dude", vpsid="vps-1", game_id="tid-1")])
 
-        VPXCollections(str(self.ini)).migrate_membership_to_game_ids([])
+        CollectionStore(str(self.ini)).migrate_membership_to_game_ids([])
 
         self.assertEqual(len(self._backups()), 1)
 
@@ -307,7 +307,7 @@ class BackupTests(unittest.TestCase):
         before = collections.path.read_text(encoding="utf-8")
 
         collections.add_collection("Later", ["vps-2"])
-        with mock.patch("common.games.vpxcollections.json.dump",
+        with mock.patch("common.games.collection_store.json.dump",
                         side_effect=OSError("disk went away")):
             with self.assertRaises(OSError):
                 collections.save()
@@ -339,7 +339,7 @@ class JsonConversionTests(unittest.TestCase):
             type = vpsid
             vpsids = id-one,id-two
         """)
-        collections = VPXCollections(str(self.json))
+        collections = CollectionStore(str(self.json))
 
         self.assertEqual(collections.get_members("Favorites"), ["id-one", "id-two"])
         self.assertFalse(self.json.exists(), "reading wrote a file")
@@ -353,7 +353,7 @@ class JsonConversionTests(unittest.TestCase):
             vpsids = id-one
             image = fav.png
         """)
-        VPXCollections(str(self.json)).save()
+        CollectionStore(str(self.json)).save()
 
         stored = json.loads(self.json.read_text(encoding="utf-8"))
         self.assertEqual(stored["schema"], CURRENT_SCHEMA)
@@ -372,9 +372,9 @@ class JsonConversionTests(unittest.TestCase):
             sort_by = Newest
             order_by = Ascending
         """)
-        VPXCollections(str(self.json)).save()
+        CollectionStore(str(self.json)).save()
 
-        filters = VPXCollections(str(self.json)).get_filters("80s Williams")
+        filters = CollectionStore(str(self.json)).get_filters("80s Williams")
         self.assertEqual(filters["manufacturer"], "Williams")
         self.assertEqual(filters["year"], "1985")
         self.assertEqual(filters["sort_by"], "Newest")
@@ -390,9 +390,9 @@ class JsonConversionTests(unittest.TestCase):
             [Mid]
             vpsids = c
         """)
-        VPXCollections(str(self.json)).save()
+        CollectionStore(str(self.json)).save()
 
-        self.assertEqual(VPXCollections(str(self.json)).get_collections_name(),
+        self.assertEqual(CollectionStore(str(self.json)).get_collections_name(),
                          ["Zeta", "Alpha", "Mid"])
 
     def test_json_wins_when_both_files_exist(self) -> None:
@@ -403,7 +403,7 @@ class JsonConversionTests(unittest.TestCase):
              "collections": [{"name": "Current", "type": "manual", "members": ["new"]}]}),
             encoding="utf-8")
 
-        collections = VPXCollections(str(self.json))
+        collections = CollectionStore(str(self.json))
 
         self.assertEqual(collections.get_collections_name(), ["Current"])
 
@@ -422,7 +422,7 @@ class JsonConversionTests(unittest.TestCase):
             [vpinfe]
             schema = 1
         """)
-        collections = VPXCollections(str(self.json))
+        collections = CollectionStore(str(self.json))
 
         self.assertEqual(collections.get_collections_name(), ["Last Played"])
         self.assertEqual(collections.schema_version(), 1)
@@ -434,7 +434,7 @@ class JsonConversionTests(unittest.TestCase):
              "collections": [{"name": "Favorites", "type": "manual", "members": ["x"]}]}),
             encoding="utf-8")
 
-        self.assertEqual(VPXCollections(str(self.ini)).get_members("Favorites"), ["x"])
+        self.assertEqual(CollectionStore(str(self.ini)).get_members("Favorites"), ["x"])
 
 
 class MemberRefTests(unittest.TestCase):
@@ -460,7 +460,7 @@ class MemberRefTests(unittest.TestCase):
              "collections": [{"name": "Favorites", "type": "manual",
                               "members": ["id-one", "id-two"]}]}), encoding="utf-8")
 
-        collections = VPXCollections(str(self.path))
+        collections = CollectionStore(str(self.path))
 
         self.assertEqual(collections.get_member_refs("Favorites"),
                          [{"game": "id-one"}, {"game": "id-two"}])
@@ -468,7 +468,7 @@ class MemberRefTests(unittest.TestCase):
 
     def test_one_game_can_appear_twice_with_different_tables(self) -> None:
         """The case the refs exist for: two builds of a game at two positions."""
-        collections = VPXCollections(str(self.path))
+        collections = CollectionStore(str(self.path))
         collections.add_collection("Friday Night")
         collections.add_member("Friday Night", "mm", table_id="vpw")
         collections.add_member("Friday Night", "afm")
@@ -482,7 +482,7 @@ class MemberRefTests(unittest.TestCase):
                          "game ids are de-duplicated; the refs are not")
 
     def test_the_same_pairing_is_not_added_twice(self) -> None:
-        collections = VPXCollections(str(self.path))
+        collections = CollectionStore(str(self.path))
         collections.add_collection("Favorites")
         collections.add_member("Favorites", "mm", table_id="vpw")
         collections.add_member("Favorites", "mm", table_id="vpw")
@@ -490,7 +490,7 @@ class MemberRefTests(unittest.TestCase):
         self.assertEqual(len(collections.get_member_refs("Favorites")), 1)
 
     def test_removing_a_game_removes_every_table_of_it(self) -> None:
-        collections = VPXCollections(str(self.path))
+        collections = CollectionStore(str(self.path))
         collections.add_collection("Favorites")
         collections.add_member("Favorites", "mm", table_id="vpw")
         collections.add_member("Favorites", "mm", table_id="jp")
@@ -501,7 +501,7 @@ class MemberRefTests(unittest.TestCase):
         self.assertEqual(collections.get_member_refs("Favorites"), [{"game": "afm"}])
 
     def test_removing_one_table_leaves_the_others(self) -> None:
-        collections = VPXCollections(str(self.path))
+        collections = CollectionStore(str(self.path))
         collections.add_collection("Favorites")
         collections.add_member("Favorites", "mm", table_id="vpw")
         collections.add_member("Favorites", "mm", table_id="jp")
@@ -512,19 +512,19 @@ class MemberRefTests(unittest.TestCase):
                          [{"game": "mm", "table": "jp"}])
 
     def test_curated_order_survives_a_round_trip(self) -> None:
-        collections = VPXCollections(str(self.path))
+        collections = CollectionStore(str(self.path))
         collections.add_collection("Tournament")
         for game, table in (("c", "c1"), ("a", ""), ("b", "b2"), ("a", "a9")):
             collections.add_member("Tournament", game, table_id=table)
         self._saved(collections)
 
-        self.assertEqual(VPXCollections(str(self.path)).get_member_refs("Tournament"),
+        self.assertEqual(CollectionStore(str(self.path)).get_member_refs("Tournament"),
                          [{"game": "c", "table": "c1"}, {"game": "a"},
                           {"game": "b", "table": "b2"}, {"game": "a", "table": "a9"}])
 
     def test_set_members_takes_ids_or_refs(self) -> None:
         """game_play_service writes ids; a curated save writes refs."""
-        collections = VPXCollections(str(self.path))
+        collections = CollectionStore(str(self.path))
         collections.add_collection("Last Played")
 
         collections.set_members("Last Played", ["b", "a"])
@@ -542,28 +542,28 @@ class MemberRefTests(unittest.TestCase):
                               "members": ["", {"table": "orphan"}, {"game": "ok"}, 7]}]}),
             encoding="utf-8")
 
-        self.assertEqual(VPXCollections(str(self.path)).get_member_refs("Odd"),
+        self.assertEqual(CollectionStore(str(self.path)).get_member_refs("Odd"),
                          [{"game": "ok"}])
 
     def test_replacing_membership_with_ids_says_it_dropped_a_pin(self) -> None:
         """The Manager UI saves game ids, so editing a collection that holds a pin
         loses it. Correct for an editor that cannot show pins - but say so."""
-        collections = VPXCollections(str(self.path))
+        collections = CollectionStore(str(self.path))
         collections.add_collection("Fav")
         collections.add_member("Fav", "mm", table_id="vpw")
 
-        with self.assertLogs("vpinfe.common.games.vpxcollections", "WARNING") as caught:
+        with self.assertLogs("vpinfe.common.games.collection_store", "WARNING") as caught:
             collections.set_members("Fav", ["mm"])
 
         self.assertIn("mm", "\n".join(caught.output))
         self.assertEqual(collections.get_member_refs("Fav"), [{"game": "mm"}])
 
     def test_replacing_membership_that_holds_no_pin_is_quiet(self) -> None:
-        collections = VPXCollections(str(self.path))
+        collections = CollectionStore(str(self.path))
         collections.add_collection("Fav")
         collections.add_member("Fav", "mm")
 
-        with self.assertNoLogs("vpinfe.common.games.vpxcollections", "WARNING"):
+        with self.assertNoLogs("vpinfe.common.games.collection_store", "WARNING"):
             collections.set_members("Fav", ["mm", "afm"])
 
 
@@ -575,7 +575,7 @@ class ExclusionTests(unittest.TestCase):
         tmp = TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.path = Path(tmp.name) / "collections.json"
-        self.collections = VPXCollections(str(self.path))
+        self.collections = CollectionStore(str(self.path))
         self.collections.add_collection("90s Bally")
 
     def test_a_game_and_a_table_are_both_excludable(self) -> None:
@@ -625,7 +625,7 @@ class ExclusionTests(unittest.TestCase):
         self.collections.exclude("90s Bally", "afm", table_id="vr")
         self.collections.save()
 
-        reopened = VPXCollections(str(self.path))
+        reopened = CollectionStore(str(self.path))
         self.assertEqual(reopened.get_excluded_refs("90s Bally"),
                          [{"game": "popeye"}, {"game": "afm", "table": "vr"}])
 
@@ -635,6 +635,6 @@ class ExclusionTests(unittest.TestCase):
         self.collections.exclude("90s Bally", "popeye")
         self.collections.save()
 
-        reopened = VPXCollections(str(self.path))
+        reopened = CollectionStore(str(self.path))
         self.assertEqual(reopened.get_member_refs("90s Bally"), [{"game": "addams"}])
         self.assertEqual(reopened.get_excluded_refs("90s Bally"), [{"game": "popeye"}])

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from common.games.vpxcollections import VPXCollections
+from common.games.collection_store import CollectionStore
 from common.values import is_truthy
 from managerui.paths import COLLECTIONS_PATH
 from managerui.services import game_catalog
@@ -12,7 +12,7 @@ logger = logging.getLogger("vpinfe.manager.remote_launch")
 
 def get_collections() -> list[str]:
     try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
+        collections = CollectionStore(str(COLLECTIONS_PATH))
         names = collections.get_collections_name()
         logger.debug("Loaded collections: %s", names)
         return names
@@ -23,7 +23,7 @@ def get_collections() -> list[str]:
 
 def get_collection_members(collection_name: str) -> set[str]:
     try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
+        collections = CollectionStore(str(COLLECTIONS_PATH))
         return set(collections.get_members(collection_name))
     except Exception:
         return set()
@@ -31,7 +31,7 @@ def get_collection_members(collection_name: str) -> set[str]:
 
 def is_filter_collection(collection_name: str) -> bool:
     try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
+        collections = CollectionStore(str(COLLECTIONS_PATH))
         return collections.is_filter_based(collection_name)
     except Exception:
         return False
@@ -39,7 +39,7 @@ def is_filter_collection(collection_name: str) -> bool:
 
 def get_collection_filters(collection_name: str):
     try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
+        collections = CollectionStore(str(COLLECTIONS_PATH))
         return collections.get_filters(collection_name)
     except Exception:
         return None

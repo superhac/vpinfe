@@ -11,7 +11,7 @@ logger = logging.getLogger("vpinfe.manager.collections")
 _collection_icons_route_registered = False
 
 def get_collections_manager():
-    """Get a fresh VPXCollections instance."""
+    """Get a fresh CollectionStore instance."""
     return collections_service.get_collections_manager()
 
 

@@ -14,7 +14,7 @@ from common.games.game_metadata import vpinfe_section
 from common.games.game_repository import get_game_rows, get_missing_games, refresh_game
 from common.games.metaconfig import VPINFE_SECTION
 from common.games.tables import default_table, recorded_default, table_entries
-from common.games.vpxcollections import VPXCollections
+from common.games.collection_store import CollectionStore
 from common.games.vpxparser import VPXParser
 from common.iniconfig import IniConfig
 from common.paths import CONFIG_DIR
@@ -59,7 +59,7 @@ def get_game_collections_map() -> Dict[str, List[str]]:
 def get_game_collections() -> List[str]:
     result = []
     try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
+        collections = CollectionStore(str(COLLECTIONS_PATH))
         for collection_name in collections.get_collections_name():
             if not collections.is_filter_based(collection_name):
                 result.append(collection_name)
@@ -70,7 +70,7 @@ def get_game_collections() -> List[str]:
 
 def add_game_to_collection(game_id: str, collection_name: str) -> bool:
     try:
-        collections = VPXCollections(str(COLLECTIONS_PATH))
+        collections = CollectionStore(str(COLLECTIONS_PATH))
         collections.add_member(collection_name, game_id)
         collections.save()
         return True
@@ -421,7 +421,7 @@ def newest_backup_stamp():
 
 def collections_restorable():
     """Whether a newer VPinFE left a collections file this build can put back."""
-    from common.games.vpxcollections import restorable_collections_backup
+    from common.games.collection_store import restorable_collections_backup
 
     return bool(restorable_collections_backup(CONFIG_DIR))
 

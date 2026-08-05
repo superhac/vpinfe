@@ -192,9 +192,9 @@ except Exception:
 # Collection membership moves onto game ids once the ids exist. Resolvable entries
 # are rewritten; anything that does not resolve is left alone rather than dropped.
 try:
-    from common.games.vpxcollections import VPXCollections
+    from common.games.collection_store import CollectionStore
     from common.paths import COLLECTIONS_PATH
-    _collections = VPXCollections(str(COLLECTIONS_PATH))
+    _collections = CollectionStore(str(COLLECTIONS_PATH))
     _collections.migrate_membership_to_game_ids(ensure_games_loaded())
 except Exception:
     logger.exception("Collection membership migration failed; memberships left as they were")

@@ -6,7 +6,7 @@ from typing import Dict, List
 from urllib.parse import quote
 
 from common.games import game_repository
-from common.games.vpxcollections import MEMBERS_KEY, VPXCollections
+from common.games.collection_store import MEMBERS_KEY, CollectionStore
 from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR
 from managerui.services import game_index_service
 
@@ -15,8 +15,8 @@ COLLECTION_IMAGE_KEY = "image"
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 
 
-def get_collections_manager() -> VPXCollections:
-    return VPXCollections(str(COLLECTIONS_PATH))
+def get_collections_manager() -> CollectionStore:
+    return CollectionStore(str(COLLECTIONS_PATH))
 
 
 def ensure_collection_icons_dir() -> Path:
