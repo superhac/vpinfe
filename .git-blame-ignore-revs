@@ -54,3 +54,7 @@ cab4dab6023a4d798294383e9f23c7d81b0c121c  # docs: the ledger describes 3.0 in 3.
 1e921138cc5a9acfedc8306d6429d307c522c787  # manager: the words on screen say game
 c6f5a5dc2bd02a4818ec1f6040f76a9f69801f54  # Revert "manager: the words on screen say game"
 62dd67991ec3ca0474d12793279960ea517a0d8a  # manager: revert the rest of the UI wording, from 1649138
+
+# Module names that claimed a specificity they did not have
+b4b95b9aa698a2b845baa4267cf9385b277ff2b5  # collections: the store is not VPX's, so stop naming it that
+7095668e91ecceeb45187cd1484635f713fe4e69  # media: the module declares kinds, so call it media_specs
