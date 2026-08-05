@@ -33,7 +33,7 @@ from common.games.tables import (
     table_names,
 )
 from common.host import launch, launch_state, pinmame_catalog
-from common.media_paths import MEDIA_SPECS, resolve_media_files
+from common.media_specs import MEDIA_SPECS, resolve_media_files
 from common.paths import get_ini_config
 
 from . import models, scopes
@@ -310,7 +310,7 @@ def _resolved_media(game_dir: Path, table_stem: str | None = None) -> dict:
         except OSError:
             medias = set()
     media_cfg = MediaConfig.from_config(get_ini_config())
-    from common.media_paths import active_set_for
+    from common.media_specs import active_set_for
     wheelset = active_set_for("wheel", media_cfg.wheelset)
     active_sets = {"wheel": wheelset} if wheelset else None
     return resolve_media_files(game_dir, set(files), medias, media_cfg.playfield_variant,

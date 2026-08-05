@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.media_paths import MEDIA_SPECS, resolve_media_files
+from common.media_specs import MEDIA_SPECS, resolve_media_files
 from managerui.services.media_service import replace_media_file, source_media_path
 
 FOLDER = "Cactus Canyon (Bally 1998)"
@@ -278,7 +278,7 @@ class WheelSetTests(unittest.TestCase):
         self.assertEqual(resolved["wheel"].name, "wheel.png")
 
     def test_the_override_beats_the_configured_default(self) -> None:
-        from common.media_paths import active_set_for, set_media_set_override
+        from common.media_specs import active_set_for, set_media_set_override
 
         try:
             set_media_set_override("wheel", "tarcisio")
@@ -289,7 +289,7 @@ class WheelSetTests(unittest.TestCase):
         self.assertIsNone(active_set_for("wheel", "  "))
 
     def test_available_sets_reads_the_relative_listing(self) -> None:
-        from common.media_paths import available_sets
+        from common.media_specs import available_sets
 
         tree = {"wheel.png", "wheels/tarcisio/wheel.png",
                 "wheels/colorful/wheel.png", "toppers/x/topper.png"}
@@ -297,7 +297,7 @@ class WheelSetTests(unittest.TestCase):
         self.assertEqual(available_sets("wheel", tree), ["colorful", "tarcisio"])
 
     def test_list_media_sets_unions_the_library_and_adds_logo(self) -> None:
-        from common.media_paths import list_media_sets
+        from common.media_specs import list_media_sets
 
         with TemporaryDirectory() as tmp:
             for game, sets in (("Table A", ["tarcisio"]),
@@ -313,7 +313,7 @@ class SpecCopyTests(unittest.TestCase):
     def test_a_game_type_copy_keeps_every_field_but_the_key(self) -> None:
         """It used to be rebuilt from four fields, so the copies quietly reported
         no token, no fallback, no set support, and the image family for videos."""
-        from common.media_paths import MEDIA_SPECS
+        from common.media_specs import MEDIA_SPECS
 
         # One copy per spec, in order, so they pair up exactly.
         for original, copy in zip(MEDIA_SPECS, MEDIA_SPECS, strict=True):
@@ -327,7 +327,7 @@ class SpecCopyTests(unittest.TestCase):
         """The playfield key used to be renamed onto the variant's own name, which under
         fss collided with the separate FSS spec - benign only because both pointed at the
         same file. A key that says `playfield` cannot collide with a variant value."""
-        from common.media_paths import media_filename_map
+        from common.media_specs import media_filename_map
 
         for variant, expected in (("table", "table.png"), ("fss", "fss.png")):
             names = media_filename_map(variant)
@@ -337,7 +337,7 @@ class SpecCopyTests(unittest.TestCase):
                              "the FSS render stays addressable under either variant")
 
     def test_the_video_copies_keep_the_video_family(self) -> None:
-        from common.media_paths import MEDIA_SPECS, VIDEO_FAMILY
+        from common.media_specs import MEDIA_SPECS, VIDEO_FAMILY
 
         by_key = {spec.key: spec for spec in MEDIA_SPECS}
 

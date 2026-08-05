@@ -12,7 +12,7 @@ from pathlib import Path
 from common.games import game_identity
 from common.games.game_metadata import normalize_meta
 from common.games.tables import table_entries
-from common.media_paths import MEDIA_SPECS
+from common.media_specs import MEDIA_SPECS
 
 _ATTR_BY_KIND = {spec.key: spec.attr for spec in MEDIA_SPECS}
 

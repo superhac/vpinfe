@@ -19,7 +19,7 @@ import json
 import re
 from pathlib import Path
 
-from common.media_paths import IMAGE_FAMILY
+from common.media_specs import IMAGE_FAMILY
 
 _MANUFACTURER_DIR = "manufacturers"
 _LAYERS = ("user", "default")

@@ -71,7 +71,7 @@ def _apply_theme_media_sets(iniconfig, logger) -> None:
     for anything the theme does not override.
     """
     try:
-        from common.media_paths import set_media_set_override
+        from common.media_specs import set_media_set_override
         from frontend.theme_api import get_theme_config
 
         theme_config = get_theme_config(iniconfig) or {}

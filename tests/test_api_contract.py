@@ -239,7 +239,7 @@ class ApiContractTests(unittest.TestCase):
         self.assertIn("rom", game, "the declared name is still metadata on the table")
 
     def test_media_lists_every_kind_present_or_not(self) -> None:
-        """Media is the artwork about a game - exactly the media_paths kinds. A
+        """Media is the artwork about a game - exactly the media_specs kinds. A
         client enumerates what is possible instead of guessing from omissions."""
         media = self.probe["media_list"]["json"]["media"]
 

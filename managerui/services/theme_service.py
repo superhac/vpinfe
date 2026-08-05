@@ -112,7 +112,7 @@ def _dynamic_select_options(source: str) -> list[dict[str, Any]] | None:
     if source != "wheelsets":
         return None
     from common.config_access import SettingsConfig
-    from common.media_paths import list_media_sets
+    from common.media_specs import list_media_sets
 
     names: list[str] = []
     try:

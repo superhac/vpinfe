@@ -21,7 +21,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `values.py`: value coercion (`is_truthy`) shared by config, metadata and filters.
 - `iniconfig.py`, `config_bootstrap.py`: ini reading and first-run config creation.
 - `events.py`: the in-process event bus. Hooks are part of an operation; subscribers are told about it.
-- `media_paths.py`: canonical media keys, filenames, playfield attributes, and path resolution.
+- `media_specs.py`: canonical media keys, filenames, playfield attributes, and path resolution.
 - `jobs.py`: slow work as a job — one at a time per kind, progress published on the bus, answerable by id after it finishes.
 - `http_client.py`: shared request/download helpers.
 - `third_party.py`: finding and loading the third-party libraries the build bundles.
@@ -144,7 +144,7 @@ Use `config_access.py` when reading common INI values from code outside the
 configuration editor itself. This keeps defaults and bool/int coercion in one
 place while preserving `IniConfig.config` for compatibility.
 
-Use `media_paths.py` for media keys, filenames, and playfield path attributes.
+Use `media_specs.py` for media keys, filenames, and playfield path attributes.
 Frontend payloads, parser discovery, and VPS media downloads should not each
 carry their own filename table.
 
@@ -188,7 +188,7 @@ libdmdutil should not each carry their own copy of that reasoning.
 ## Adding Media Types
 
 1. Add the media key, playfield attribute, and filename template to
-   `common.media_paths.MEDIA_SPECS`.
+   `common.media_specs.MEDIA_SPECS`.
 2. Use the shared filename/key maps in manager UI, parser, and download code.
 3. Update theme documentation if the media becomes part of the frontend API.
 

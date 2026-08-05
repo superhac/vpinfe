@@ -220,7 +220,7 @@ reading both had to invert twice.
 - **Media** — artwork VPinFE shows *about* a game while you browse: playfield, backglass,
   DMD, wheel, logo, cab, FSS, flyer, instruction card, topper, loading video, launch audio,
   rulesheet, their video variants, audio. The logo is the game's title art - usually what a
-  wheel is derived from, which is why a wheel-less game shows its logo in the wheel slot. This is `common/media_paths.py` and nothing else. Instruction card
+  wheel is derived from, which is why a wheel-less game shows its logo in the wheel slot. This is `common/media_specs.py` and nothing else. Instruction card
   (the apron card image), game flyer (promo art) and rulesheet (a document you
   read) are three different things - keep the words apart.
 - **Asset** — content a game needs to *play* as intended, beyond its table:

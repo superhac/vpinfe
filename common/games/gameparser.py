@@ -18,7 +18,7 @@ from common.games.tables import (
     table_entries,
     table_names,
 )
-from common.media_paths import apply_media_paths
+from common.media_specs import apply_media_specs
 
 logger = logging.getLogger("vpinfe.common.games.gameparser")
 
@@ -38,7 +38,7 @@ class GameParser:
         if iniConfig:
             media_cfg = MediaConfig.from_config(iniConfig)
             self.playfieldvariant = media_cfg.playfield_variant
-            from common.media_paths import active_set_for
+            from common.media_specs import active_set_for
             wheelset = active_set_for("wheel", media_cfg.wheelset)
             if wheelset:
                 self.active_sets["wheel"] = wheelset
@@ -220,7 +220,7 @@ class GameParser:
                             fname if rel == "." else f"{rel}/{fname}".replace(os.sep, "/"))
             except Exception:
                 medias_contents = set()
-        apply_media_paths(Game, game_contents, medias_contents, self.playfieldvariant,
+        apply_media_specs(Game, game_contents, medias_contents, self.playfieldvariant,
                           table_stem, self.active_sets or None)
 
     def loadMetaData(self, Game):

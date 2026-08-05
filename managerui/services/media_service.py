@@ -10,7 +10,7 @@ from urllib.parse import quote
 from common.games.game_metadata import reorder_leading_article, vpinfe_section
 from common.games.game_repository import ensure_games_loaded
 from common.games.metaconfig import MetaConfig
-from common.media_paths import (
+from common.media_specs import (
     MEDIA_SPECS,
     media_attr_key_map,
     media_filename_map,

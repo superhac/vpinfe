@@ -20,7 +20,7 @@ from common.games.game_repository import game_to_row
 from common.games.gameparser import GameParser
 from common.games.standalonescripts import StandaloneScripts
 from common.jobs import JobReporter
-from common.media_paths import apply_media_paths, game_media_payload, media_filename_map
+from common.media_specs import apply_media_specs, game_media_payload, media_filename_map
 from common.online.theme_installer import ThemeInstallStore
 from common.online.vpsdb_cache import VPSDatabaseCache
 from common.third_party import find_named_path, import_module_from_path
@@ -230,11 +230,11 @@ class TestCommonArchitecture(unittest.TestCase):
 
         self.assertTrue(SettingsConfig.from_config(parser).disable_default_chrome_options)
 
-    def test_media_paths_apply_and_payload_use_shared_specs(self) -> None:
+    def test_media_specs_apply_and_payload_use_shared_specs(self) -> None:
         root = os.path.join(os.sep, "tmp", "Table")
         game = SimpleNamespace(fullPathGame=root, PlayfieldImagePath=None, BGImagePath=None)
 
-        apply_media_paths(
+        apply_media_specs(
             game,
             game_contents={"bg.png"},
             medias_contents={"fss.png"},

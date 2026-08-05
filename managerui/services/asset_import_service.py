@@ -12,7 +12,7 @@ from typing import Callable
 from common.games.game_repository import refresh_game
 from common.games.metaconfig import VPINFE_SECTION, MetaConfig
 from common.games.vpxparser import VPXParser
-from common.media_paths import media_filename_map
+from common.media_specs import media_filename_map
 from managerui.paths import get_games_path
 from managerui.services.asset_analyzer_service import (
     AnalysisResult,

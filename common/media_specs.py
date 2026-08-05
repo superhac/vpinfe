@@ -1,3 +1,10 @@
+"""Every kind of media a game can have, and how to find one on disk.
+
+`MEDIA_SPECS` is the declaration the rest of the tree reads: each kind's key, its
+attribute on a game, the filename it resolves to and the tokens it accepts. Naming
+a kind is what contract 2 hands a theme; the path is ours and stays here.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -238,7 +245,7 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
     return resolved
 
 
-def apply_media_paths(game, game_contents: set[str], medias_contents: set[str],
+def apply_media_specs(game, game_contents: set[str], medias_contents: set[str],
                       playfield_variant: str = "table",
                       table_stem: str | None = None,
                       active_sets: dict[str, str] | None = None) -> None:

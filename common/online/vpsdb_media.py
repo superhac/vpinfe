@@ -8,7 +8,7 @@ from pathlib import Path
 import requests
 
 from common.http_client import download_file
-from common.media_paths import default_media_path
+from common.media_specs import default_media_path
 
 logger = logging.getLogger("vpinfe.common.online.vpsdb_media")
 
