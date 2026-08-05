@@ -44,10 +44,10 @@ Every theme must include a `manifest.json`:
   "author": "Your Name",
   "description": "A brief description of the theme.",
   "preview_image": "preview.png",
-  "supported_screens": 3,
   "type": "desktop",
   "change_log": "Initial release.",
-  "contract": 2
+  "contract": 2,
+  "windows": ["playfield", "bg", "dmd"]
 }
 ```
 
@@ -58,11 +58,11 @@ Every theme must include a `manifest.json`:
 | `author` | Theme author name. |
 | `description` | Brief description shown in the manager UI. |
 | `preview_image` | Filename of the preview image (`.png` or `.gif`). |
-| `supported_screens` | Number of screens the theme supports (typically `3`). |
 | `type` | Theme type: `"desktop"` for desktop/flat-screen setups, `"cab"` for cabinet setups, or `"both"` for themes that adapt to either. |
 | `change_log` | Description of changes in this version. |
 | `contract` | Which VPinFE theme contract this theme is written against. Optional; absent means `1`. See [Theme contract](#theme-contract). |
-| `windows` | The windows your theme wants, **controller first**. Optional; absent means the three VPinFE has always opened. See [Windows](#windows). |
+| `windows` | The windows your theme wants, **controller first**. Optional; absent means the three VPinFE has always opened. See [Declaring windows](#declaring-windows). |
+| `supported_screens` | Legacy. A count of screens, shown in the Manager UI and nothing more - it never decided which windows opened. `windows` replaces it and names them. Still accepted. |
 
 `version` is your theme's own release number. `contract` is the VPinFE surface it reads.
 They are different questions and they move independently.
@@ -72,6 +72,12 @@ They are different questions and they move independently.
 By default a theme gets three windows, named for the contract it declares — `table`, `bg`
 and `dmd` at contract 1, `playfield`, `bg` and `dmd` at contract 2. Declaring nothing keeps
 what you have.
+
+Declaring nothing and shipping fewer pages also works: a default window whose
+`index_<name>.html` is missing is not opened, so a single-screen theme that ships only its
+main page gets one window rather than two that 404. That only applies to the default — a
+window you declare is opened whether or not its page is there, because a declaration is
+intent and hiding a missing page would hide your bug.
 
 ```json
 "windows": ["playfield", "bg", "dmd", "topper"]

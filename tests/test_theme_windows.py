@@ -55,6 +55,50 @@ class DefaultsTests(unittest.TestCase):
                          ("playfield", "bg", "dmd"))
 
 
+class PagesDecideTheDefaultTests(unittest.TestCase):
+    """A theme that declares nothing gets a window per page it ships, not three."""
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def _theme_with(self, pages, manifest=None) -> Path:
+        theme = _theme(self.root, manifest if manifest is not None else {"name": "a-theme"})
+        for page in pages:
+            (theme / f"index_{page}.html").write_text("", encoding="utf-8")
+        return theme
+
+    def test_a_one_screen_theme_gets_one_window(self) -> None:
+        """carousel2 ships only index_table.html; opening bg and dmd served two 404s."""
+        theme = self._theme_with(["table"])
+
+        self.assertEqual(theme_windows.declared_windows(theme, 1), ("table",))
+
+    def test_a_three_screen_theme_is_unchanged(self) -> None:
+        theme = self._theme_with(["table", "bg", "dmd"])
+
+        self.assertEqual(theme_windows.declared_windows(theme, 1), ("table", "bg", "dmd"))
+
+    def test_a_theme_with_no_pages_at_all_still_gets_the_default(self) -> None:
+        """Nothing to learn from, so behave as before rather than opening no windows."""
+        theme = self._theme_with([])
+
+        self.assertEqual(theme_windows.declared_windows(theme, 1), ("table", "bg", "dmd"))
+
+    def test_a_declared_window_is_honored_even_with_no_page(self) -> None:
+        """An explicit declaration is intent; silently dropping it would hide the bug."""
+        theme = self._theme_with(["playfield"], {"windows": ["playfield", "topper"]})
+
+        self.assertEqual(theme_windows.declared_windows(theme, 2), ("playfield", "topper"))
+
+    def test_the_count_in_the_manifest_is_not_what_decides(self) -> None:
+        """`supported_screens` never opened a window; the pages are the real answer."""
+        theme = self._theme_with(["table"], {"name": "a-theme", "supported_screens": 3})
+
+        self.assertEqual(theme_windows.declared_windows(theme, 1), ("table",))
+
+
 class IndexPageTests(unittest.TestCase):
     """The window name picks the file, so the contract decides which file a theme ships."""
 

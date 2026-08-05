@@ -7,6 +7,8 @@ Everything else about a window follows from its name.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from frontend import theme_api
 
 MANIFEST_KEY = "windows"
@@ -40,10 +42,21 @@ def declared_windows(theme_dir, contract: int) -> tuple[str, ...]:
         return default
     manifest = theme_api.read_manifest(theme_dir) or {}
     declared = manifest.get(MANIFEST_KEY)
-    if not isinstance(declared, list):
-        return default
-    names = tuple(str(name).strip() for name in declared if str(name).strip())
-    return names or default
+    if isinstance(declared, list):
+        names = tuple(str(name).strip() for name in declared if str(name).strip())
+        if names:
+            return names
+    return _windows_with_a_page(theme_dir, default)
+
+
+def _windows_with_a_page(theme_dir, default: tuple[str, ...]) -> tuple[str, ...]:
+    """The default, minus any window this theme has no page for.
+
+    Only the default is trimmed - a declared window opens whether its page exists or not.
+    """
+    present = tuple(name for name in default
+                    if (Path(theme_dir) / f"index_{name}.html").is_file())
+    return present or default
 
 
 def controller(windows) -> str:

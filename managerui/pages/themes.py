@@ -212,8 +212,10 @@ def render_panel(tab=None):
                                     else:
                                         ui.label(f'v{remote_version}').classes('text-sm').style('color: var(--ink-muted) !important;')
 
-                                # Supported screens
-                                screens = manifest.get('supported_screens')
+                                # Screens. `windows` names them, so prefer it - a theme
+                                # declaring both is telling us the same thing twice.
+                                screens = (manifest.get('windows')
+                                           or manifest.get('supported_screens'))
                                 if screens is not None:
                                     with ui.row().classes('items-center gap-2'):
                                         ui.icon('monitor', size='16px').style('color: var(--ink-muted) !important;')

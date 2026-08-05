@@ -94,9 +94,12 @@ class ThemeRegistry:
             "author",
             "description",
             "preview_image",
-            "supported_screens",
             "type",
         ]
+        # `windows` names the screens; `supported_screens` only ever counted them. A
+        # theme has to say one or the other, and a 2.x theme said the count.
+        if "windows" not in manifest:
+            required_fields.append("supported_screens")
 
         for field in required_fields:
             if field not in manifest:
