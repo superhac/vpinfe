@@ -59,7 +59,7 @@ Every theme must include a `manifest.json`:
 | `description` | Brief description shown in the manager UI. |
 | `preview_image` | Filename of the preview image (`.png` or `.gif`). |
 | `type` | Theme type: `"desktop"` for desktop/flat-screen setups, `"cab"` for cabinet setups, or `"both"` for themes that adapt to either. |
-| `change_log` | Description of changes in this version. |
+| `change_log` | What changed in this version. Optional. Shown as "What's new" in the Manager UI, and only to someone who has not installed your theme or has an update waiting — so it is worth writing for them, not as a running history. |
 | `contract` | Which VPinFE theme contract this theme is written against. Optional; absent means `1`. See [Theme contract](#theme-contract). |
 | `windows` | The windows your theme wants, **controller first**. Optional; absent means the three VPinFE has always opened. See [Declaring windows](#declaring-windows). |
 | `supported_screens` | Legacy. A count of screens, shown in the Manager UI and nothing more - it never decided which windows opened. `windows` replaces it and names them. Still accepted. |
