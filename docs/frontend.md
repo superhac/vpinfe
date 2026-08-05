@@ -15,7 +15,7 @@ The frontend starts at `main.py`, but most runtime responsibilities now live in 
 - `common/games/game.py`: dataclass representation of a parsed game folder.
 - `common/games/game_metadata.py`: shared metadata normalization, section lookup, rating/truthy helpers, and metadata persistence.
 - `common/games/game_repository.py`: game parser/cache ownership and game row shaping.
-- `common/games/game_list_filters.py`: instance-based game filtering with no hidden singleton state.
+- `common/games/collection_filters.py`: instance-based game filtering with no hidden singleton state.
 - `common/games/collections_service.py`: shared collection manager access and filter-collection helpers.
 - `common/games/game_play_service.py`: Last Played tracking, start count, runtime, score update, and NVRAM cleanup.
 - `common/host/display_service.py`: shared monitor discovery.

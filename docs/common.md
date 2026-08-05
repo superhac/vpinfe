@@ -34,7 +34,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `game_identity.py`: the stable per-install game id that addresses a game everywhere.
 - `tables.py`: which .vpx in a game folder is the default table. Every caller resolves through it.
 - `metadata_service.py`, `game_report_service.py`, `game_play_service.py`: workflows over games and metadata.
-- `collections_service.py`, `collection_store.py`, `game_list_filters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
+- `collections_service.py`, `collection_store.py`, `collection_filters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
 - `vpx_parser.py`, `standalone_scripts.py`: reading and patching the .vpx itself.
 - `score_parser.py`: PinMAME NVRAM score extraction.
 

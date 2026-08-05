@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import quote
 
-from common.games.game_list_filters import GameListFilters
+from common.games.collection_filters import GameListFilters
 from common.games.collection_store import CollectionStore
 from common.paths import COLLECTIONS_PATH
 from common.values import is_truthy

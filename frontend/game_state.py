@@ -22,7 +22,7 @@ from common.games.game_metadata import (
     section,
     vpinfe_section,
 )
-from common.games.game_list_filters import GameListFilters
+from common.games.collection_filters import GameListFilters
 from common.media_specs import game_media_payload
 from common.shared_assets import manufacturer_logo_web_path
 from common.timestamps import epoch_to_iso

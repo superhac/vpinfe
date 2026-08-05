@@ -10,7 +10,7 @@ import unittest
 from types import SimpleNamespace
 
 from common.games import collection_filters as cf
-from common.games.game_list_filters import GameListFilters
+from common.games.collection_filters import GameListFilters
 
 
 def make_game(name="Example", manufacturer="", year="", game_type="",
