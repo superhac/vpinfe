@@ -262,3 +262,21 @@ describe("a legacy message copy uses the same delivery as the original", () => {
     });
   }
 });
+
+describe("a window knows its own name", () => {
+  test("windowName is readable before the bridge answers", () => {
+    // Every published theme awaits get_my_window_name to learn this, which is a round
+    // trip for something core detected from the URL at construction.
+    const { vpin } = newCore({ windowName: "bg" });
+
+    assert.equal(vpin.windowName, "bg");
+  });
+
+  test("the controller's name is whatever the theme declared first", async () => {
+    const { vpin } = await coreAtContract(2, { get_theme_windows: ["playfield", "topper"] });
+
+    assert.equal(vpin.windowName, "table", "this window is still the one the URL named");
+    assert.equal(vpin.isController(), false, "and it is not the declared controller");
+  });
+});
+

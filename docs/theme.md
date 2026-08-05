@@ -354,6 +354,9 @@ const cabMode = await vpin.call("get_cab_mode");
 const rotationDegree = await vpin.call("get_playfield_rotation");
 ```
 
+After `await vpin.ready` all three are properties — `vpin.cabMode`, `vpin.playfieldOrientation`
+and `vpin.playfieldRotation` — with no call to await.
+
 After `await vpin.ready`, the same values are also available as:
 
 ```javascript
@@ -678,7 +681,7 @@ theme = <THEME NAME>
 
 ## theme.js
 
-The main JS file for interacting with VPinFE and controlling the theme UI. Every window loads the same `theme.js`, so use `windowName` to branch logic per window - or `vpin.isController()`, which does not care what the controller is called.
+The main JS file for interacting with VPinFE and controlling the theme UI. Every window loads the same `theme.js`, so use `vpin.windowName` to branch logic per window - or `vpin.isController()`, which does not care what the controller is called. Older themes read a global `windowName` that they set themselves from `get_my_window_name`; `vpin.windowName` is the same answer without the round trip.
 
 VPinFE also passes the current window identity in the page URL as `?window=playfield`, `?window=bg`, or `?window=dmd`. For high-DPI backglass and DMD setups, VPinFE may also include an optional `override` query parameter in the form `x,y,width,height`. Theme authors can read that value when they need to use the configured bounds instead of the auto-detected browser window size.
 
@@ -1088,10 +1091,12 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 | `vpin.monitors` | `array` | List of monitor objects with `name`, `x`, `y`, `width`, `height`. Loaded during init. |
 | `vpin.playfieldOrientation` | `string` | Playfield orientation from config: `"landscape"` or `"portrait"`. |
 | `vpin.playfieldRotation` | `number` | Playfield rotation in degrees from config (default `0`). |
+| `vpin.cabMode` | `boolean` | Whether this is a cabinet, from `[Displays] cabmode`. Read it alongside the two above — a layout usually wants all three at once. |
 | `vpin.themeAssetsPort` | `number` | HTTP server port (default `8000`). |
 | `vpin.menuUP` | `boolean` | Whether the main menu overlay is currently visible. |
 | `vpin.capabilities` | `object` | What this build does on your behalf, and whether each is on — `{ core_paging: true, core_audio: false, core_preload: false }`. A name that is absent is a behavior this build does not have, so check before relying on it. Reading it gives you a copy; use `enableCorePaging()` / `enableCoreAudio()` to change anything. |
 | `vpin.contract` | `number` | Which contract you are being served. |
+| `vpin.windowName` | `string` | This window's name — which page it loaded, and its media kind when it has one. Known before the socket opens, so there is nothing to await. |
 | `vpin.collectionMenuUP` | `boolean` | Whether the collection menu overlay is currently visible. |
 
 ### API Reference

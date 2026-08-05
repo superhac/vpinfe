@@ -333,6 +333,10 @@ class VPinFECore {
     // The theme's windows, controller first. Replaced once the bridge answers; until
     // then the three VPinFE has always opened, under contract 1's names.
     this.windows = ["table", "bg", "dmd"];
+    // The view the entry list came from. Seeded so a theme reading either before the
+    // first payload gets the documented type rather than undefined.
+    this.collection = "";
+    this.expanded = false;
     this._reader = new ContractOneReader(this);
     installLegacyAliases(this);
     this.monitors = [];
@@ -392,6 +396,9 @@ class VPinFECore {
     // Display config
     this.playfieldOrientation = 'landscape'; // default, will be updated from config
     this.playfieldRotation = 0; // default, will be updated from config
+    // Whether this is a cabinet. A property like the two above it, because a theme
+    // deciding its layout wants all three at the same moment.
+    this.cabMode = false;
 
     // Remote launch state tracking
     this.remoteLaunchActive = false;
@@ -1455,6 +1462,7 @@ class VPinFECore {
     // Load display config
     this.playfieldOrientation = await this.call("get_playfield_orientation");
     this.playfieldRotation = await this.call("get_playfield_rotation");
+    this.cabMode = !!await this.call("get_cab_mode");
     await this.#loadMonitors();
     await this.getGameData();
    //this.#overrideConsole(); //disabled for now...
@@ -1649,6 +1657,16 @@ class VPinFECore {
       : new ContractOneReader(this);
     if (this.contract > OLDEST_CONTRACT) removeLegacyAliases(this);
     console.info(`vpinfe: serving theme contract ${this.contract}`);
+  }
+
+  /**
+   * This window's name - which page it loaded, and its media kind when it has one.
+   *
+   * Known before the socket opens. Every published theme asks the backend for it instead,
+   * because until now there was nothing else to ask.
+   */
+  get windowName() {
+    return this._windowName;
   }
 
   /**

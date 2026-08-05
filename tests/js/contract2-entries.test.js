@@ -190,3 +190,14 @@ describe("selection is something you can follow", () => {
     assert.equal(calls, 0);
   });
 });
+
+describe("the view a theme reads before any payload", () => {
+  test("collection and expanded have their documented types from the start", () => {
+    // A theme renders once on boot, before the first GameDataChange. Reading undefined
+    // there is how `collection || "All games"` silently becomes the fallback forever.
+    const { vpin } = newCore({ windowName: "table" });
+
+    assert.equal(vpin.collection, "");
+    assert.equal(vpin.expanded, false);
+  });
+});
