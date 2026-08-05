@@ -61,7 +61,7 @@ class LookupTests(unittest.TestCase):
         kinds = media_lookup.resolved_kinds(self.games[0])
 
         self.assertIn("wheel", kinds)
-        self.assertIn("bg", kinds)
+        self.assertIn("backglass", kinds)
         self.assertNotIn("topper", kinds)
 
 

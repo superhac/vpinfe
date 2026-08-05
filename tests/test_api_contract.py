@@ -245,7 +245,7 @@ class ApiContractTests(unittest.TestCase):
 
         self.assertTrue(media["wheel"]["present"])
         self.assertEqual(media["wheel"]["file"], "wheel.png")
-        self.assertTrue(media["bg"]["present"], "root-level fallback is found")
+        self.assertTrue(media["backglass"]["present"], "root-level fallback is found")
         self.assertFalse(media["flyer"]["present"])
         self.assertIsNone(media["flyer"]["links"]["self"])
         self.assertIn("playfield_video", media)

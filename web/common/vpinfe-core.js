@@ -9,11 +9,12 @@ const originalConsole = {
 
 // A media kind to the payload field that carries it. Kind names are snake_case, the
 // same strings /api/v1 and vpin.getMedia() take.
+// Keyed by canonical kind; the field names are contract 1's payload and are frozen.
 const MEDIA_PATH_FIELDS = {
   playfield: "PlayfieldImagePath",
   playfield_fss: "FSSImagePath",
-  bg: "BGImagePath",
-  dmd: "DMDImagePath",
+  backglass: "BGImagePath",
+  scoreview: "DMDImagePath",
   wheel: "WheelImagePath",
   cab: "CabImagePath",
   real_dmd: "realDMDImagePath",
@@ -26,8 +27,8 @@ const MEDIA_PATH_FIELDS = {
 
 const MEDIA_VIDEO_PATH_FIELDS = {
   playfield: "PlayfieldVideoPath",
-  bg: "BGVideoPath",
-  dmd: "DMDVideoPath",
+  backglass: "BGVideoPath",
+  scoreview: "DMDVideoPath",
   loading: "LoadingVideoPath",
 };
 
@@ -143,8 +144,9 @@ class ContractTwoReader {
   }
 }
 
-const VIDEO_KIND = { playfield: "playfield_video", bg: "bg_video", dmd: "dmd_video",
-                     topper: "topper_video", loading: "loading" };
+const VIDEO_KIND = { playfield: "playfield_video", backglass: "backglass_video",
+                     scoreview: "scoreview_video", topper: "topper_video",
+                     loading: "loading" };
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -183,6 +185,10 @@ const MEDIA_KIND_ALIASES = {
   table: "playfield",
   table_video: "playfield_video",
   fss: "playfield_fss",
+  bg: "backglass",
+  bg_video: "backglass_video",
+  dmd: "scoreview",
+  dmd_video: "scoreview_video",
   realdmd: "real_dmd",
   "realdmd-color": "real_dmd",
   realdmd_color: "real_dmd",
@@ -939,7 +945,7 @@ class VPinFECore {
     // Only the ones a title-cased name gets wrong. Everything else - table, playfield,
     // a declared topper - reads correctly from the name itself. Kept in step with
     // theme_windows.TITLES, which does the same job for the bootstrap page.
-    const known = { bg: "BG", dmd: "DMD" };
+    const known = { bg: "BG", dmd: "DMD", scoreview: "ScoreView" };
     if (known[windowName]) return known[windowName];
     if (!windowName || windowName === "unknown") return "Window";
     return windowName.charAt(0).toUpperCase() + windowName.slice(1);

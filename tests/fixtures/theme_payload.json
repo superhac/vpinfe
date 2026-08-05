@@ -283,8 +283,8 @@
           "year": "1995"
         },
         "media": [
-          "bg",
-          "dmd",
+          "backglass",
+          "scoreview",
           "playfield",
           "wheel",
           "real_dmd",
@@ -450,7 +450,7 @@
           "year": "1997"
         },
         "media": [
-          "bg",
+          "backglass",
           "wheel"
         ],
         "siblings": 1,

@@ -18,16 +18,22 @@ MANIFEST_KEY = "windows"
 # launched last, so it takes focus.
 DEFAULT_WINDOWS = {
     1: ("table", "bg", "dmd"),
-    2: ("playfield", "bg", "dmd"),
+    2: ("playfield", "backglass", "scoreview"),
 }
 
-# Contract 1 calls the playfield window `table`. The ini key never moved, so the two
-# spellings have to agree on which monitor setting they mean.
-CANONICAL = {"table": "playfield"}
+# Contract 1's window names, and what each is called now. The names come from Visual
+# Pinball's plugin contract - Playfield, Backglass, ScoreView - which is where a window
+# name should come from, since VPinFE is a front end for it. In VPX a DMD is a render
+# style rather than a window; the window that shows a score is ScoreView.
+#
+# A contract 1 theme keeps its own spellings: it still gets `table`, `bg` and `dmd`
+# windows and still loads index_bg.html. Only the canonical side moved.
+CANONICAL = {"table": "playfield", "bg": "backglass", "dmd": "scoreview"}
 
 
-# Windows whose label is not just the capitalized name.
-TITLES = {"bg": "BG", "dmd": "DMD"}
+# Windows whose label is not just the capitalized name. The contract 1 spellings keep
+# the titles they shipped with, so a cabinet's window rules keep matching them.
+TITLES = {"bg": "BG", "dmd": "DMD", "scoreview": "ScoreView"}
 
 # A window name reaches the bootstrap page from the URL and is written into its HTML, so
 # it is checked rather than trusted. Theme window names are plain words by construction -

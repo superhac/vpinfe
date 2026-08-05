@@ -29,7 +29,7 @@ class TierTests(unittest.TestCase):
         resolved = _resolve(["wheel.png", "bg.png"])
 
         self.assertEqual(resolved["wheel"].name, "wheel.png")
-        self.assertEqual(resolved["bg"].name, "bg.png")
+        self.assertEqual(resolved["backglass"].name, "bg.png")
 
     def test_a_table_wheel_beats_the_folder_and_default_ones(self) -> None:
         resolved = _resolve([f"(Wheel) {TABLE}.png", f"(Wheel) {FOLDER}.png",
@@ -342,7 +342,7 @@ class SpecCopyTests(unittest.TestCase):
         by_key = {spec.key: spec for spec in MEDIA_SPECS}
 
         self.assertEqual(by_key["playfield_video"].family, VIDEO_FAMILY)
-        self.assertEqual(by_key["dmd_video"].family, VIDEO_FAMILY)
+        self.assertEqual(by_key["scoreview_video"].family, VIDEO_FAMILY)
 
 
 class ParserCasingTests(unittest.TestCase):

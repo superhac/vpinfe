@@ -12,7 +12,7 @@ from pathlib import Path
 from common.games import game_identity
 from common.games.game_metadata import normalize_meta
 from common.games.tables import table_entries
-from common.media_specs import MEDIA_SPECS
+from common.media_specs import MEDIA_SPECS, canonical_kind
 
 _ATTR_BY_KIND = {spec.key: spec.attr for spec in MEDIA_SPECS}
 
@@ -40,7 +40,8 @@ def game_for_table(games, table_id: str):
 
 def media_path(games, table_id: str, kind: str) -> Path | None:
     """The file behind /media/<table_id>/<kind>, or None if there is not one."""
-    attr = _ATTR_BY_KIND.get(kind)
+    # A theme built against an older kind name still addresses media by it.
+    attr = _ATTR_BY_KIND.get(canonical_kind(kind))
     if not attr:
         return None
     game = game_for_table(games, table_id)

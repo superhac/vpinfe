@@ -1,5 +1,11 @@
 """Every kind of media a game can have, and how to find one on disk.
 
+The kind names follow Visual Pinball's window names - `playfield`, `backglass`,
+`scoreview` - because a window name *is* a media kind here, and VPX is where those names
+come from. The files never moved: `bg.png` and `dmd.png` are what VPinMediaDB ships and
+what everyone has on disk, and the contract 1 payload attributes are frozen too. Keys
+renamed, files frozen.
+
 `MEDIA_SPECS` is the declaration the rest of the tree reads: each kind's key, its
 attribute on a game, the filename it resolves to and the tokens it accepts. Naming
 a kind is what contract 2 hands a theme; the path is ours and stays here.
@@ -46,8 +52,8 @@ class MediaSpec:
 
 
 MEDIA_SPECS = (
-    MediaSpec("bg", "BGImagePath", "bg.png", "1k", token="(Backglass)"),
-    MediaSpec("dmd", "DMDImagePath", "dmd.png", "1k", token="(DMD)"),
+    MediaSpec("backglass", "BGImagePath", "bg.png", "1k", token="(Backglass)"),
+    MediaSpec("scoreview", "DMDImagePath", "dmd.png", "1k", token="(DMD)"),
     # One kind, two variants: the filename follows [Media] playfieldvariant, the key
     # never does. playfield_fss is the FSS render on its own, and is what the
     # playfield falls back to when it has none.
@@ -64,9 +70,9 @@ MEDIA_SPECS = (
               alt_tokens=("(GameInfo)",)),
     MediaSpec("playfield_video", "PlayfieldVideoPath", "{playfield_variant}.mp4",
               "table_video_resolution", token="(Playfield)", family=VIDEO_FAMILY),
-    MediaSpec("bg_video", "BGVideoPath", "bg.mp4", "table_video_resolution",
+    MediaSpec("backglass_video", "BGVideoPath", "bg.mp4", "table_video_resolution",
               token="(Backglass)", family=VIDEO_FAMILY),
-    MediaSpec("dmd_video", "DMDVideoPath", "dmd.mp4", "table_video_resolution",
+    MediaSpec("scoreview_video", "DMDVideoPath", "dmd.mp4", "table_video_resolution",
               token="(DMD)", family=VIDEO_FAMILY),
     MediaSpec("audio", "AudioPath", "audio.mp3", token="(Audio)", family=AUDIO_FAMILY),
     # The 3.0 additions - spec tokens except rule_sheet, which the spec keeps
@@ -86,6 +92,30 @@ MEDIA_SPECS = (
     # is why the wheel falls back to it.
     MediaSpec("logo", "LogoImagePath", "logo.png", token="(Logo)"),
 )
+
+
+# Spellings a kind has had. Themes, stored data and the media route all still use them,
+# and a kind name is a published thing - once it has been asked for it answers forever.
+MEDIA_KIND_ALIASES = {
+    "table": "playfield",
+    "table_video": "playfield_video",
+    "fss": "playfield_fss",
+    "bg": "backglass",
+    "bg_video": "backglass_video",
+    "dmd": "scoreview",
+    "dmd_video": "scoreview_video",
+    "realdmd": "real_dmd",
+    "realdmd_color": "real_dmd_color",
+    "rulecard": "instruction_card",
+    "audiolaunch": "audio_launch",
+    "rulesheet": "rule_sheet",
+}
+
+
+def canonical_kind(kind: str) -> str:
+    """The kind a name means now, given any spelling it has been published under."""
+    name = str(kind or "").strip().lower()
+    return MEDIA_KIND_ALIASES.get(name, name)
 
 
 def media_filename_map(playfield_variant: str = "table") -> dict[str, str]:

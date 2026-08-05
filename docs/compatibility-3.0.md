@@ -432,6 +432,25 @@ names follow its plugin contract - `Backglass` and `ScoreView`, not `bg` and `dm
 **This is the config file only.** The window names a *theme* sees are contract 2's and
 move with that work. Covered by `tests/test_config_schema.py` and `tests/test_config_store.py`.
 
+**PAR-39 — At contract 2 the windows and media kinds are `playfield`, `backglass` and
+`scoreview`.** Visual Pinball's plugin ABI declares `VPXWINDOW_Playfield`, `Backglass`,
+`ScoreView` and `Topper`, and VPinFE fronts VPX, so those are the names. A contract 2
+theme's default windows are `playfield` / `backglass` / `scoreview`, it ships
+`index_backglass.html` and `index_scoreview.html`, and `entries[].media` lists `backglass`
+and `scoreview`. In VPX a DMD is a render *style*; the window that shows a score is
+ScoreView, which is why `dmd` is the one that changed word rather than just casing.
+
+**Contract 1 sees none of it.** Its default windows are still `table` / `bg` / `dmd`, it
+still loads `index_bg.html`, its payload still carries `BGImagePath` and `DMDImagePath`,
+and `vpin.getMedia(i, "bg")` still answers - `bg` and `dmd` are permanent aliases, and a
+published kind name answers forever once it has been asked for. All twelve registry themes
+are contract 1.
+
+**No file moves.** `bg.png` and `dmd.png` are what VPinMediaDB ships and what everyone has
+on disk; only the keys moved. Keys renamed, files frozen - the same split every other
+rename on this branch made. Covered by `tests/test_theme_windows.py`,
+`tests/test_media_resolution.py` and `tests/js/media-resolution.test.js`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

@@ -293,9 +293,9 @@ class AssetRegistryTests(unittest.TestCase):
 
     def test_match_media_key_canonical_names(self):
         cases = [
-            ("bg.png", "bg"),
-            ("dmd.png", "dmd"),
-            ("dmd.mp4", "dmd_video"),
+            ("bg.png", "backglass"),
+            ("dmd.png", "scoreview"),
+            ("dmd.mp4", "scoreview_video"),
             ("table.png", "playfield"),
             ("table.mp4", "playfield_video"),
             ("wheel.png", "wheel"),
@@ -309,8 +309,8 @@ class AssetRegistryTests(unittest.TestCase):
     def test_match_media_key_keyword_fallback(self):
         cases = [
             ("MyTable_wheel.png", "wheel"),
-            ("Table_backglass.png", "bg"),
-            ("Game_dmd.mp4", "dmd_video"),
+            ("Table_backglass.png", "backglass"),
+            ("Game_dmd.mp4", "scoreview_video"),
             ("realdmd.png", "real_dmd"),
             ("song.mp3", "audio"),        # any recognized audio file -> audio slot
             ("photo.png", None),          # no keyword -> unrecognized
@@ -321,7 +321,7 @@ class AssetRegistryTests(unittest.TestCase):
                 self.assertEqual(match_media_key(filename), expected)
 
     def test_realdmd_not_claimed_by_dmd_rule(self):
-        # "real_dmd" contains "dmd"; the realdmd rule must win, and a realdmd video
+        # "real_dmd" contains "scoreview"; the realdmd rule must win, and a realdmd video
         # (no such slot) must not fall through to dmd_video.
         self.assertEqual(match_media_key("realdmd.png"), "real_dmd")
         self.assertIsNone(match_media_key("realdmd.mp4"))
@@ -658,12 +658,12 @@ class MediaSlotPlanTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             for filename, media_key, ok in [
                 ("art.png", "wheel", True),
-                ("art.jpg", "bg", True),
-                ("clip.mp4", "dmd_video", True),
+                ("art.jpg", "backglass", True),
+                ("clip.mp4", "scoreview_video", True),
                 ("song.mp3", "audio", True),
-                ("art.png", "dmd_video", False),   # image into a video slot
+                ("art.png", "scoreview_video", False),   # image into a video slot
                 ("clip.mp4", "wheel", False),      # video into an image slot
-                ("song.mp3", "bg", False),
+                ("song.mp3", "backglass", False),
             ]:
                 with self.subTest(filename=filename, media_key=media_key):
                     src = Path(tmp) / filename

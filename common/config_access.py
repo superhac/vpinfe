@@ -308,15 +308,22 @@ class DisplayConfig:
         )
 
     def window_screen_id(self, config_key: str) -> str:
-        """The monitor for a `[Displays]` key, or "" when the user set none.
+        """The monitor for a `<window>screenid` token, or "" when the user set none.
 
-        Read generically so a theme declaring a window VPinFE has never heard of gets
-        its monitor from `<window>screenid` without anything here knowing the name.
+        Keyed by token rather than by location, because a theme can declare a window
+        VPinFE has never heard of and there is nothing here that could know its name.
+        The three VPinFE always opens are read from their own fields; anything else
+        comes from whichever shape the file uses.
         """
         known = {
+            "backglassscreenid": self.bg_screen_id,
+            "scoreviewscreenid": self.dmd_screen_id,
+            "playfieldscreenid": self.playfield_screen_id_raw,
+            # The contract 1 spellings, which screen_key still produces for a
+            # contract 1 theme.
             "bgscreenid": self.bg_screen_id,
             "dmdscreenid": self.dmd_screen_id,
-            "playfieldscreenid": self.playfield_screen_id_raw,
+            "tablescreenid": self.playfield_screen_id_raw,
         }
         if config_key in known:
             return known[config_key]

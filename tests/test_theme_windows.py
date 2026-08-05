@@ -41,7 +41,7 @@ class DefaultsTests(unittest.TestCase):
         theme = _theme(self.root, {"name": "a-theme", "contract": 2})
 
         self.assertEqual(theme_windows.declared_windows(theme, 2),
-                         ("playfield", "bg", "dmd"))
+                         ("playfield", "backglass", "scoreview"))
 
     def test_a_theme_with_no_manifest_still_gets_windows(self) -> None:
         theme = _theme(self.root, None)
@@ -52,7 +52,7 @@ class DefaultsTests(unittest.TestCase):
         theme = _theme(self.root, {"windows": "playfield"})
 
         self.assertEqual(theme_windows.declared_windows(theme, 2),
-                         ("playfield", "bg", "dmd"))
+                         ("playfield", "backglass", "scoreview"))
 
 
 class PagesDecideTheDefaultTests(unittest.TestCase):
@@ -152,7 +152,7 @@ class DeclaredTests(unittest.TestCase):
             theme_windows.declared_windows(theme, 2)), "playfield")
 
     def test_the_controller_is_launched_last_so_it_takes_focus(self) -> None:
-        order = theme_windows.launch_order(("playfield", "bg", "dmd"))
+        order = theme_windows.launch_order(("playfield", "backglass", "scoreview"))
 
         self.assertEqual(order[-1], "playfield")
 
