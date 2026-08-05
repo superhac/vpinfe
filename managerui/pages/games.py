@@ -28,7 +28,7 @@ from common.games.game_metadata import (
     reorder_leading_article,
     vpinfe_section,
 )
-from common.games.metaconfig import VPINFE_SECTION
+from common.games.meta_config import VPINFE_SECTION
 from common.iniconfig import IniConfig
 
 _INI_CFG = IniConfig(str(VPINFE_INI_PATH))

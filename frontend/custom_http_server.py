@@ -15,7 +15,7 @@ import requests
 from frontend.theme_windows import window_title
 
 
-logger = logging.getLogger("vpinfe.frontend.customhttpserver")
+logger = logging.getLogger("vpinfe.frontend.custom_http_server")
 
 class CustomHTTPServer:
     class MultiDirHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):

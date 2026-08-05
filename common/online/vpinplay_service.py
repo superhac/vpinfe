@@ -8,7 +8,7 @@ import requests
 from common.app_version import get_version
 from common.config_access import SettingsConfig, VPinPlayConfig
 from common.games.game_metadata import default_table, normalize_rating, vpinfe_section
-from common.games.gameparser import GameParser
+from common.games.game_parser import GameParser
 from common.timestamps import utc_now_iso
 
 logger = logging.getLogger("vpinfe.common.online.vpinplay_service")

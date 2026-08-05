@@ -17,7 +17,7 @@ from common.games.game_metadata import (
     section,
     vpinfe_section,
 )
-from common.games.gameparser import GameParser
+from common.games.game_parser import GameParser
 from common.games.info_migration import CURRENT_SCHEMA, schema_of
 from common.games.collection_store import CollectionStore
 from common.paths import COLLECTIONS_PATH, get_games_path, get_ini_config

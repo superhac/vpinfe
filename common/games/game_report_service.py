@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from common.config_access import SettingsConfig
-from common.games.gameparser import GameParser
+from common.games.game_parser import GameParser
 from common.iniconfig import IniConfig
 from common.online.vpsdb import VPSdb
 from common.paths import get_ini_config

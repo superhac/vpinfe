@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 from common.games import game_identity
 from common.games.game_repository import game_to_row
-from common.games.metaconfig import MetaConfig
+from common.games.meta_config import MetaConfig
 
 
 def _game(root: Path, name: str = "Example", meta: dict | None = None):

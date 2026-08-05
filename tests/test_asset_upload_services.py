@@ -159,7 +159,7 @@ class PatchAssetTests(unittest.TestCase):
         import zipfile
         from pathlib import Path
 
-        from common.jdiffpatch import EQL, ESC
+        from common.jdiff_patch import EQL, ESC
         with tempfile.TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Foo (Bar 1999)"
             game_dir.mkdir()
@@ -188,7 +188,7 @@ class PatchAssetTests(unittest.TestCase):
         import zipfile
         from pathlib import Path
 
-        from common.jdiffpatch import EQL, ESC
+        from common.jdiff_patch import EQL, ESC
         with tempfile.TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Foo (Bar 1999)"
             game_dir.mkdir()
@@ -220,7 +220,7 @@ class PatchAssetTests(unittest.TestCase):
         import zipfile
         from pathlib import Path
 
-        from common.jdiffpatch import EQL, ESC
+        from common.jdiff_patch import EQL, ESC
         with tempfile.TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Foo (Bar 1999)"
             game_dir.mkdir()
@@ -249,7 +249,7 @@ class PatchAssetTests(unittest.TestCase):
         import zipfile
         from pathlib import Path
 
-        from common.jdiffpatch import EQL, ESC
+        from common.jdiff_patch import EQL, ESC
         with tempfile.TemporaryDirectory() as tmp:
             game_dir = Path(tmp) / "Foo (Bar 1999)"
             game_dir.mkdir()

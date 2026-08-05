@@ -1,6 +1,6 @@
 import unittest
 
-from frontend.customhttpserver import CustomHTTPServer
+from frontend.custom_http_server import CustomHTTPServer
 
 
 class TestCustomHttpServer(unittest.TestCase):

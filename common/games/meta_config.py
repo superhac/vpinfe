@@ -25,7 +25,7 @@ from common.games.tables import (
 )
 from common.timestamps import utc_now_iso
 
-logger = logging.getLogger("vpinfe.common.games.metaconfig")
+logger = logging.getLogger("vpinfe.common.games.meta_config")
 
 # Schema version for the VPinFE section only - we own those keys outright, so their
 # shape can be reasoned about from a version. Other sections stay shape-driven.

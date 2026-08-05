@@ -13,7 +13,7 @@ from pathlib import Path
 
 from common.config_access import MediaConfig
 
-logger = logging.getLogger("vpinfe.common.host.realdmd")
+logger = logging.getLogger("vpinfe.common.host.real_dmd")
 
 
 def get_realdmd_image_for_game(game, iniconfig=None) -> Path | None:

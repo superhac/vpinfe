@@ -12,10 +12,10 @@ from common.games import game_repository, info_maintenance, metadata_service
 from common.games.game_metadata import section as meta_section
 from common.games.game_metadata import vpinfe_section
 from common.games.game_repository import get_game_rows, get_missing_games, refresh_game
-from common.games.metaconfig import VPINFE_SECTION
+from common.games.meta_config import VPINFE_SECTION
 from common.games.tables import default_table, recorded_default, table_entries
 from common.games.collection_store import CollectionStore
-from common.games.vpxparser import VPXParser
+from common.games.vpx_parser import VPXParser
 from common.iniconfig import IniConfig
 from common.paths import CONFIG_DIR
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_games_path
@@ -267,7 +267,7 @@ def associate_vps_to_folder(
     vps_entry: Dict,
     download_media: bool = False,
 ) -> None:
-    from common.games.metaconfig import MetaConfig
+    from common.games.meta_config import MetaConfig
 
     if not game_folder.exists():
         raise FileNotFoundError(f"Folder not found: {game_folder}")

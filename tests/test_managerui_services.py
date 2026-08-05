@@ -290,14 +290,14 @@ class ManagerUiServiceTests(unittest.TestCase):
 
         fake_keyboard = types.SimpleNamespace(Key=FakeKey, Controller=object)
         fake_pynput = types.SimpleNamespace(keyboard=fake_keyboard)
-        original = sys.modules.pop("managerui.keysimulator", None)
+        original = sys.modules.pop("managerui.key_simulator", None)
         try:
             with mock.patch.dict(sys.modules, {"pynput": fake_pynput, "pynput.keyboard": fake_keyboard}):
-                from managerui.keysimulator import KeySimulator
+                from managerui.key_simulator import KeySimulator
         finally:
-            sys.modules.pop("managerui.keysimulator", None)
+            sys.modules.pop("managerui.key_simulator", None)
             if original is not None:
-                sys.modules["managerui.keysimulator"] = original
+                sys.modules["managerui.key_simulator"] = original
 
         for key_id in ("0", "1", "5", "9", "a", "z", "-", "=", "[", "]", "\\", ";", "'", "`", ",", ".", "/"):
             with self.subTest(key_id=key_id):

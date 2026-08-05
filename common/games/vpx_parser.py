@@ -12,7 +12,7 @@ import sys
 
 import olefile
 
-logger = logging.getLogger("vpinfe.common.games.vpxparser")
+logger = logging.getLogger("vpinfe.common.games.vpx_parser")
 
 
 class VPXParser:

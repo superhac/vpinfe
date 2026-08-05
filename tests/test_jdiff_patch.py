@@ -3,7 +3,7 @@ from __future__ import annotations
 import io
 import unittest
 
-from common.jdiffpatch import BKT, DEL, EQL, ESC, INS, MOD, PatchError, _read_int, apply_patch
+from common.jdiff_patch import BKT, DEL, EQL, ESC, INS, MOD, PatchError, _read_int, apply_patch
 
 
 def _apply(source: bytes, patch: bytes) -> bytes:

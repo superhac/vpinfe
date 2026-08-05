@@ -13,9 +13,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from common.games.gameparser import GameParser
+from common.games.game_parser import GameParser
 from common.games.info_migration import write_json_atomic
-from common.games.metaconfig import MetaConfig
+from common.games.meta_config import MetaConfig
 
 
 class AtomicWriteTests(unittest.TestCase):

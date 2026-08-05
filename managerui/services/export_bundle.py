@@ -14,7 +14,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from common.games.game_metadata import vpinfe_section
-from common.games.metaconfig import ASSETS_KEY
+from common.games.meta_config import ASSETS_KEY
 from common.games.tables import (
     default_table,
     recorded_default,

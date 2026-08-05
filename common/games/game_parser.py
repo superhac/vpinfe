@@ -11,7 +11,7 @@ from common.games.info_migration import (
     backup_names,
     restorable_backup,
 )
-from common.games.metaconfig import InvalidMetaConfigError, MetaConfig
+from common.games.meta_config import InvalidMetaConfigError, MetaConfig
 from common.games.tables import (
     default_table,
     recorded_default,
@@ -20,7 +20,7 @@ from common.games.tables import (
 )
 from common.media_specs import apply_media_specs
 
-logger = logging.getLogger("vpinfe.common.games.gameparser")
+logger = logging.getLogger("vpinfe.common.games.game_parser")
 
 
 class GameParser:

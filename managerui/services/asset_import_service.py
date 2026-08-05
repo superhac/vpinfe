@@ -10,8 +10,8 @@ from pathlib import Path, PurePosixPath
 from typing import Callable
 
 from common.games.game_repository import refresh_game
-from common.games.metaconfig import VPINFE_SECTION, MetaConfig
-from common.games.vpxparser import VPXParser
+from common.games.meta_config import VPINFE_SECTION, MetaConfig
+from common.games.vpx_parser import VPXParser
 from common.media_specs import media_filename_map
 from managerui.paths import get_games_path
 from managerui.services.asset_analyzer_service import (
@@ -545,7 +545,7 @@ def _apply_patch(source, asset: DetectedAsset, base: Path, dest: Path) -> None:
     an error, so the base is recorded by name and hash - in the log for whoever has to work
     out what happened, and in the .info because the result cannot be rebuilt without it.
     """
-    from common.jdiffpatch import PatchError, apply_patch
+    from common.jdiff_patch import PatchError, apply_patch
 
     candidates = sorted(base.glob("*.vpx"), key=lambda p: p.stat().st_size, reverse=True)
     candidates = [c for c in candidates if c != dest]

@@ -21,7 +21,7 @@ from tempfile import TemporaryDirectory
 # The functions under test are pure parsing and need none of that; lifting them out of
 # the module that imports pynput would give this coverage back on Linux.
 try:
-    from managerui.keysimulator import KeySimulator
+    from managerui.key_simulator import KeySimulator
 except Exception as exc:                    # no display, or no PyObjC
     KeySimulator = None
     IMPORT_ERROR: Exception | None = exc

@@ -17,8 +17,8 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.games import media_lookup
-from common.games.gameparser import GameParser
-from frontend.customhttpserver import CustomHTTPServer
+from common.games.game_parser import GameParser
+from frontend.custom_http_server import CustomHTTPServer
 
 
 def _library(root: Path) -> None:

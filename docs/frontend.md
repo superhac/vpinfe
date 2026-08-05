@@ -15,7 +15,7 @@ The frontend starts at `main.py`, but most runtime responsibilities now live in 
 - `common/games/game.py`: dataclass representation of a parsed game folder.
 - `common/games/game_metadata.py`: shared metadata normalization, section lookup, rating/truthy helpers, and metadata persistence.
 - `common/games/game_repository.py`: game parser/cache ownership and game row shaping.
-- `common/games/gamelistfilters.py`: instance-based game filtering with no hidden singleton state.
+- `common/games/game_list_filters.py`: instance-based game filtering with no hidden singleton state.
 - `common/games/collections_service.py`: shared collection manager access and filter-collection helpers.
 - `common/games/game_play_service.py`: Last Played tracking, start count, runtime, score update, and NVRAM cleanup.
 - `common/host/display_service.py`: shared monitor discovery.
@@ -43,4 +43,4 @@ The frontend starts at `main.py`, but most runtime responsibilities now live in 
 - Use `common/paths.py` instead of calling `user_config_dir("vpinfe", "vpinfe")` directly in new code.
 - Use `common/games/game_metadata.py` for metadata reads/writes instead of repeating `Info`/`VPinFE`/`User` normalization.
 - Use service modules for behavior shared by Manager UI and the frontend.
-- Keep `clioptions.py` as CLI dispatch and compatibility wrappers; put reusable app behavior in `common/`.
+- Keep `cli_options.py` as CLI dispatch and compatibility wrappers; put reusable app behavior in `common/`.

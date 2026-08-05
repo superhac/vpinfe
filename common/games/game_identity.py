@@ -19,7 +19,7 @@ from common.games.game_metadata import (
 from common.games.ids import ALPHABET as ID_ALPHABET
 from common.games.ids import LENGTH as ID_LENGTH
 from common.games.ids import new_id
-from common.games.metaconfig import GAME_ID_KEY, VPINFE_SECTION
+from common.games.meta_config import GAME_ID_KEY, VPINFE_SECTION
 
 logger = logging.getLogger("vpinfe.common.games.game_identity")
 

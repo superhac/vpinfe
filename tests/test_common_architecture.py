@@ -17,8 +17,8 @@ from common.config_access import (
 )
 from common.games.game_metadata import game_themes, game_title, game_type
 from common.games.game_repository import game_to_row
-from common.games.gameparser import GameParser
-from common.games.standalonescripts import StandaloneScripts
+from common.games.game_parser import GameParser
+from common.games.standalone_scripts import StandaloneScripts
 from common.jobs import JobReporter
 from common.media_specs import apply_media_specs, game_media_payload, media_filename_map
 from common.online.theme_installer import ThemeInstallStore
@@ -145,7 +145,7 @@ class TestCommonArchitecture(unittest.TestCase):
         self.assertEqual(game_type(game), "SS")
 
     def test_standalone_scripts_can_be_constructed_without_running_network_work(self) -> None:
-        with mock.patch("common.games.standalonescripts.StandaloneScripts.apply_patches") as apply_patches:
+        with mock.patch("common.games.standalone_scripts.StandaloneScripts.apply_patches") as apply_patches:
             scripts = StandaloneScripts([], auto_run=False)
 
         self.assertIsNone(scripts.hashes)

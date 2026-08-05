@@ -131,7 +131,7 @@ def _config():
 
 
 def capture() -> dict:
-    from common.games.gameparser import GameParser
+    from common.games.game_parser import GameParser
     from frontend.game_state import games_json
 
     with TemporaryDirectory() as tmp:

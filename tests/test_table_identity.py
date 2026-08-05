@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from common.games import ids, table_identity
-from common.games.metaconfig import MetaConfig
+from common.games.meta_config import MetaConfig
 from common.games.tables import (
     TABLE_FILENAME_KEY,
     TABLE_ID_KEY,

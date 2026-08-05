@@ -143,7 +143,7 @@ def _table_settings(game_dir: Path) -> dict:
     settings mean everything is visible, which is what an older library looks like.
     """
     try:
-        from common.games.metaconfig import MetaConfig
+        from common.games.meta_config import MetaConfig
         info = game_dir / f"{game_dir.name}.info"
         if info.is_file():
             return MetaConfig(str(info)).gameFileSettings()

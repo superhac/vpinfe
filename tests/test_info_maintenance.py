@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.games.gameparser import GameParser
+from common.games.game_parser import GameParser
 from common.games.info_maintenance import (
     game_dirs,
     restorable_backup,

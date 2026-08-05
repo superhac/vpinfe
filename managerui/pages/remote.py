@@ -24,7 +24,7 @@ logger = logging.getLogger("vpinfe.manager.remote")
 
 
 def _get_keysimulator_class():
-    from managerui.keysimulator import KeySimulator
+    from managerui.key_simulator import KeySimulator
     return KeySimulator
 
 

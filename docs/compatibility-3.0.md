@@ -171,7 +171,7 @@ game's metadata was derived from, which is what export and the metadata build ne
 they have to pick one. Consumers listing what to play should filter on `hidden`.
 *Why:* applying a patch leaves the base table on disk — it has to stay, since the patched
 table cannot be rebuilt without it — but nobody wants to be offered it. Deleting it would
-be the wrong fix. Covered by `tests/test_jdiffpatch.py`.
+be the wrong fix. Covered by `tests/test_jdiff_patch.py`.
 
 **PAR-17 — Your own media is protected by hash, and claiming it is gone.**
 On master, artwork was protected by marking it `"Source": "user"` — something you had to

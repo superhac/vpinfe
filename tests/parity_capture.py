@@ -73,7 +73,7 @@ def _capture_theme_payload(games_root: Path) -> dict:
     # tried because this same file has to run in a master worktree to produce the
     # baseline the gate compares against.
     try:
-        from common.games.gameparser import GameParser  # 3.0
+        from common.games.game_parser import GameParser  # 3.0
         from frontend.game_state import games_json
     except ImportError:
         from common.tableparser import TableParser as GameParser  # 2.x

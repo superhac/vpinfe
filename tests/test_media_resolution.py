@@ -351,7 +351,7 @@ class ParserCasingTests(unittest.TestCase):
         miss it while the API found it - the same table, two answers."""
         import json
 
-        from common.games.gameparser import GameParser
+        from common.games.game_parser import GameParser
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / FOLDER
@@ -436,7 +436,7 @@ class ParserOrderTests(unittest.TestCase):
         before it resolves media - the same reordering the launcher needed."""
         import json
 
-        from common.games.gameparser import GameParser
+        from common.games.game_parser import GameParser
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / FOLDER

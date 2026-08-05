@@ -18,7 +18,7 @@ from common.games.info_migration import (
     copy_aside,
     write_atomic,
 )
-from common.games.metaconfig import VPINFE_SECTION
+from common.games.meta_config import VPINFE_SECTION
 
 logger = logging.getLogger("vpinfe.common.games.collection_store")
 

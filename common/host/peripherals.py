@@ -11,7 +11,7 @@ import logging
 
 from common import events
 from common.games.game_metadata import game_frontend_dof_event
-from common.host import realdmd
+from common.host import real_dmd
 from common.host.dof_service import (
     send_frontend_dof_event,
     start_dof_service_if_enabled,
@@ -25,7 +25,7 @@ logger = logging.getLogger("vpinfe.common.host.peripherals")
 PRIORITY = 10
 
 _registered = False
-_realdmd_updater: realdmd.RealDmdUpdater | None = None
+_realdmd_updater: real_dmd.RealDmdUpdater | None = None
 
 
 def release_for_launch(**_payload) -> None:
@@ -52,11 +52,11 @@ def show_realdmd_art(*, game=None, ini_config=None, **_payload) -> None:
         return
     _updater(ini_config).queue_image_update(
         getattr(game, "gameDirName", ""),
-        realdmd.get_realdmd_image_for_game(game, ini_config),
+        real_dmd.get_realdmd_image_for_game(game, ini_config),
     )
 
 
-def _updater(ini_config) -> realdmd.RealDmdUpdater:
+def _updater(ini_config) -> real_dmd.RealDmdUpdater:
     """One updater for the process, not one per frontend window.
 
     Three windows each hold an API instance. Only the `table` window used to make
@@ -65,7 +65,7 @@ def _updater(ini_config) -> realdmd.RealDmdUpdater:
     """
     global _realdmd_updater
     if _realdmd_updater is None:
-        _realdmd_updater = realdmd.RealDmdUpdater(ini_config, "shared", show_image)
+        _realdmd_updater = real_dmd.RealDmdUpdater(ini_config, "shared", show_image)
     return _realdmd_updater
 
 

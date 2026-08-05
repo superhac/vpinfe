@@ -19,7 +19,7 @@ from common.games.info_migration import (
     replace_atomic,
     restorable_backup,
 )
-from common.games.metaconfig import InvalidMetaConfigError, MetaConfig
+from common.games.meta_config import InvalidMetaConfigError, MetaConfig
 from common.jobs import JobReporter
 
 logger = logging.getLogger("vpinfe.common.games.info_maintenance")

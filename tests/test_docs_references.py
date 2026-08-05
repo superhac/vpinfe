@@ -23,10 +23,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 TOP_LEVEL = {"common", "frontend", "httpapi", "managerui", "web", "scripts", "tests",
              "docs", "icon"}
 
-# `common/games/gameparser.py`, `managerui/static/games.css`, `common/host/`
+# `common/games/game_parser.py`, `managerui/static/games.css`, `common/host/`
 PATH_REF = re.compile(r"`([a-z_]+(?:/[A-Za-z0-9_.-]+)+/?)`")
 
-# A bare `games.css` or `gameparser.py` carries no directory, so it is checked by name
+# A bare `games.css` or `game_parser.py` carries no directory, so it is checked by name
 # against the whole tree instead. Without this the stylesheet rename read as clean: the
 # doc still said `tables.css` and nothing had a path to disagree with.
 BARE_REF = re.compile(r"`([A-Za-z0-9_.-]+\.(?:py|css|js))`")

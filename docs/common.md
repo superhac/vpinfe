@@ -29,13 +29,13 @@ import from a domain package. That rule is the point of the layer; breaking it i
 
 **`common/games/`** - games, their metadata, and the collections built from them.
 
-- `game.py`, `gameparser.py`, `game_repository.py`: game discovery and cached game rows.
-- `game_metadata.py`, `metaconfig.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
+- `game.py`, `game_parser.py`, `game_repository.py`: game discovery and cached game rows.
+- `game_metadata.py`, `meta_config.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
 - `game_identity.py`: the stable per-install game id that addresses a game everywhere.
 - `tables.py`: which .vpx in a game folder is the default table. Every caller resolves through it.
 - `metadata_service.py`, `game_report_service.py`, `game_play_service.py`: workflows over games and metadata.
-- `collections_service.py`, `collection_store.py`, `gamelistfilters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
-- `vpxparser.py`, `standalonescripts.py`: reading and patching the .vpx itself.
+- `collections_service.py`, `collection_store.py`, `game_list_filters.py`: collection and filter logic. `collections.ini` carries its own schema version in a reserved `[VPinFE]` section.
+- `vpx_parser.py`, `standalone_scripts.py`: reading and patching the .vpx itself.
 - `score_parser.py`: PinMAME NVRAM score extraction.
 
 **`common/online/`** - services reached over the internet.
@@ -51,7 +51,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 
 - `dof_service.py`, `dof_service_worker.py`, `libdmdutil_service.py`: hardware service facades.
 - `peripherals.py`: DOF and real-DMD, driven by game lifecycle events. Each device is its own handler, so a new one is a new subscriber rather than an edit.
-- `realdmd.py`: which image a game shows on a real DMD panel, sent on a worker thread.
+- `real_dmd.py`: which image a game shows on a real DMD panel, sent on a worker thread.
 - `launcher.py`, `launch_state.py`: starting a game, and whether a launch was requested from outside the frontend.
 - `display_service.py`, `system_actions.py`, `vpx_log.py`.
 
@@ -177,7 +177,7 @@ libdmdutil should not each carry their own copy of that reasoning.
 
 ## Adding Metadata Fields
 
-1. Add the default or normalization rule in `metaconfig.py` or
+1. Add the default or normalization rule in `meta_config.py` or
    `game_metadata.py`.
 2. Add display/read helpers in `game_metadata.py` when multiple callers need the
    value.

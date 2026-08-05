@@ -13,7 +13,7 @@ from unittest import mock
 
 from common.games import game_play_service, game_report_service
 from common.games.game_metadata import game_frontend_dof_event
-from common.host import realdmd, system_actions
+from common.host import real_dmd, system_actions
 from frontend import config_api, game_state, theme_api
 
 
@@ -150,7 +150,7 @@ class FrontendServiceTests(unittest.TestCase):
     def test_realdmd_helpers_and_updater_process_pending(self):
         game = types.SimpleNamespace(
             gameDirName="Example",
-            realDMDImagePath="/tmp/realdmd.png",
+            realDMDImagePath="/tmp/real_dmd.png",
             realDMDColorImagePath="/tmp/realdmd-color.png",
             metaConfig={"vpinfe": {"frontend_dof_event": "E901"}},
         )
@@ -162,21 +162,21 @@ class FrontendServiceTests(unittest.TestCase):
         # get_realdmd_image_for_game returns path.resolve(); on macOS /tmp is a
         # symlink to /private/tmp, so compare against the resolved expectation.
         color_expected = Path("/tmp/realdmd-color.png").resolve()
-        standard_expected = Path("/tmp/realdmd.png").resolve()
+        standard_expected = Path("/tmp/real_dmd.png").resolve()
         self.assertEqual(game_frontend_dof_event(game), "E901")
-        self.assertEqual(realdmd.get_realdmd_image_for_game(game), color_expected)
-        self.assertEqual(realdmd.get_realdmd_image_for_game(game, color_config), color_expected)
-        self.assertEqual(realdmd.get_realdmd_image_for_game(game, standard_config), standard_expected)
+        self.assertEqual(real_dmd.get_realdmd_image_for_game(game), color_expected)
+        self.assertEqual(real_dmd.get_realdmd_image_for_game(game, color_config), color_expected)
+        self.assertEqual(real_dmd.get_realdmd_image_for_game(game, standard_config), standard_expected)
 
         game.realDMDColorImagePath = ""
-        self.assertEqual(realdmd.get_realdmd_image_for_game(game, color_config), standard_expected)
+        self.assertEqual(real_dmd.get_realdmd_image_for_game(game, color_config), standard_expected)
 
         calls = []
-        updater = realdmd.RealDmdUpdater("ini", "table", lambda ini, image: calls.append((ini, image)) or True)
+        updater = real_dmd.RealDmdUpdater("ini", "table", lambda ini, image: calls.append((ini, image)) or True)
         updater._game_name = "Example"
-        updater._image_path = Path("/tmp/realdmd.png")
+        updater._image_path = Path("/tmp/real_dmd.png")
         updater._process_pending()
-        self.assertEqual(calls, [("ini", Path("/tmp/realdmd.png"))])
+        self.assertEqual(calls, [("ini", Path("/tmp/real_dmd.png"))])
 
     def test_game_report_service_logs_unknown_game(self):
         parser_instance = mock.Mock()
