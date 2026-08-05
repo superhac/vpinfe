@@ -16,21 +16,9 @@ let vpinplayMultiQrLoaded = false;
 
 window.parent.vpin.registerInputHandlerMenu(handleInput);
 
-window.addEventListener('keydown', (e) => {
-  if (e.code === 'ShiftLeft' || e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-    handleInput('joyleft');
-    e.preventDefault();
-  } else if (e.code === 'ShiftRight' || e.key === 'ArrowRight' || e.key === 'ArrowDown') {
-    handleInput('joyright');
-    e.preventDefault();
-  } else if (e.key === 'Enter') {
-    handleInput('joyselect');
-    e.preventDefault();
-  } else if (e.key === 'Escape') {
-    handleInput('joyback');
-    e.preventDefault();
-  }
-});
+// Keyboard input is core's, on this window as well as the parent's - see
+// #listenForKeysIn in vpinfe-core.js. This file used to carry its own hardcoded
+// map, which only ran when focus happened to be in here and could not be configured.
 
 window.addEventListener('message', async (event) => {
   const message = event.data;

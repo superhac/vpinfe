@@ -1014,6 +1014,7 @@ class VPinFECore {
       iframe.style.display = "none";                   // start hidden to prevent a flash
       overlayRoot.appendChild(iframe);
       await new Promise(resolve => setTimeout(resolve, 10));   // let the DOM catch up
+      this.#listenForKeysIn(iframe);
     }
 
     iframe.style.display = "block";
@@ -1646,6 +1647,25 @@ class VPinFECore {
     return null;
   }
 
+  // Key events go to whichever document has focus, so once a touch or a click moves
+  // focus into an overlay's iframe the window listener stops seeing them. Each overlay
+  // used to carry its own hardcoded keyboard map for that case - three maps that only
+  // ran sometimes, agreed with nothing, and could not be configured. Core listens on
+  // the overlay's own window instead, so there is one dispatch and one set of bindings
+  // wherever focus happens to be. Same origin, so this is allowed.
+  #listenForKeysIn(iframe) {
+    // Nothing here may throw: this runs while an overlay is opening, and the socket is
+    // not necessarily up - so it cannot report a failure through the bridge either.
+    try {
+      const frameWindow = iframe && iframe.contentWindow;
+      if (!frameWindow || typeof frameWindow.addEventListener !== "function") return;
+      frameWindow.addEventListener("keydown", (e) => this.#onKeyDown(e));
+    } catch {
+      // Cross-origin, or a frame that went away while opening. The parent window's
+      // listener still covers every case except focus being inside the frame.
+    }
+  }
+
   // Which overlay is up, or null. Every overlay is in OVERLAYS, so nothing new has to
   // be added here when one is.
   #overlayUp() {
@@ -1655,10 +1675,25 @@ class VPinFECore {
     return null;
   }
 
+  // A key typed into a text field is text, never an action. This matters most inside an
+  // overlay, where core now listens: b, c, m, q and t are bound by default, so without
+  // this the collection menu's save-filter box could not accept half the alphabet, and
+  // Enter would fire select instead of reaching the field.
+  #isTextEntry(target) {
+    if (!target) return false;
+    const tag = String(target.tagName || "").toLowerCase();
+    if (tag === "textarea" || target.isContentEditable) return true;
+    if (tag !== "input") return false;
+    const type = String(target.type || "text").toLowerCase();
+    return !["button", "checkbox", "radio", "range", "submit", "reset", "file", "color",
+             "image"].includes(type);
+  }
+
   // Keyboard input processing to handlers
   async #onKeyDown(e) {
     if (!this.frontendInputEnabled) return;
     if (!this.isController()) return;
+    if (this.#isTextEntry(e.target)) return;
 
     const action = this.#actionForKeyboardEvent(e);
     if (!action) return;

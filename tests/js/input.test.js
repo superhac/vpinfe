@@ -24,8 +24,8 @@ function controller() {
 
   // The listener is async, so a handler runs on a microtask - a synchronous assert
   // would look at the list before anything reached it.
-  const press = async (key, { code = key, repeat = false } = {}) => {
-    const event = { key, code, repeat, prevented: false,
+  const press = async (key, { code = key, repeat = false, target = null } = {}) => {
+    const event = { key, code, repeat, target, prevented: false,
                     preventDefault() { event.prevented = true; } };
     await Promise.all((listeners.keydown || []).map(fn => fn(event)));
     return event;
@@ -118,5 +118,67 @@ describe("defaults agree across the boundary", () => {
     assert.deepEqual([...vpin.keyActionMap.joyback], ["b"],
       "Python ships keyback=b; an empty fallback meant back did nothing until the "
       + "bridge answered");
+  });
+});
+
+describe("one dispatch, wherever focus is", () => {
+  // Key events go to the focused document, so a touch or click inside an overlay used
+  // to take them away from the window listener - which is why each overlay carried its
+  // own hardcoded map. Core listens on the overlay's window too now, so the configured
+  // bindings apply either way and those three maps could go.
+  test("core listens on an overlay's own window when it opens", async () => {
+    const { VPinFECore, browser } = loadCore({ windowName: "table" });
+    browser.window.addEventListener = () => {};
+    const framed = [];
+    const original = browser.document.createElement;
+    browser.document.createElement = (tag) => {
+      const el = original.call(browser.document, tag);
+      if (tag === "iframe") {
+        el.contentWindow = {
+          addEventListener: (type) => framed.push(type),
+          postMessage: () => {},
+        };
+      }
+      return el;
+    };
+    const vpin = new VPinFECore();
+    vpin.init();
+    vpin.call = () => Promise.resolve(undefined);
+
+    await vpin.toggleMenu();
+
+    assert.equal(framed.includes("keydown"), true,
+      "without this, keys do nothing once focus is inside the overlay");
+  });
+});
+
+describe("typing is typing, not input actions", () => {
+  // b, c, m, q and t are bound by default, and core listens inside overlays now - so
+  // without this guard the collection menu's save-filter box could not accept them,
+  // and Enter would fire select instead of reaching the field.
+  const field = (type = "text") => ({ tagName: "INPUT", type });
+
+  for (const key of ["b", "c", "m", "q", "t", "Enter", "Escape"]) {
+    test(`${key} typed into a text field is left to the field`, async () => {
+      const { vpin, press, calls } = controller();
+      const seen = [];
+      vpin.inputHandlers.push((action) => { seen.push(action); });
+
+      const event = await press(key, { target: field() });
+
+      assert.deepEqual(seen, [], `${key} must reach the field, not the wheel`);
+      assert.equal(event.prevented, false, "the field needs the browser default");
+      assert.equal(calls().includes("close_app"), false);
+    });
+  }
+
+  test("a checkbox is not a text field, so bindings still work", async () => {
+    const { vpin, press } = controller();
+    const seen = [];
+    vpin.inputHandlers.push((action) => { seen.push(action); });
+
+    await press("ArrowLeft", { target: field("checkbox") });
+
+    assert.deepEqual(seen, ["joyleft"]);
   });
 });
