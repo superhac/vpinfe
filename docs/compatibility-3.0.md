@@ -355,6 +355,21 @@ image rather than assuming an authoring convention - there is no reliable one - 
 setting states the turn for what measuring cannot see, such as art that is upside down.
 *(machine-checked)*
 
+**PAR-34 — A contract 2 theme's playfield window is titled and addressed `playfield`.**
+The window a contract 1 theme calls `table` is called `playfield` at contract 2, so its
+page title becomes `VPinFE Playfield` rather than `VPinFE Table` and it is served from
+`/app/playfield` rather than `/app/table`. Chromium runs each window with `--app=<url>`
+and derives the window's application id from that url, so the id moves with it.
+**This only happens when a theme declares contract 2** - every published theme is
+contract 1 and sees no change at all.
+*Why:* the window name determines the page file, the media kind and the `[Displays]` key,
+so one theme cannot have it be `table` in some of those and `playfield` in others.
+*What it costs someone:* window rules keyed on the old title or application id stop
+matching, and a cabinet compositor places the window wrong with no error - windows pile
+onto one screen. Anyone running a Sway or KWin rule for `VPinFE Table` or `app_table`
+wants a second rule before switching a theme to contract 2. Covered by
+`tests/test_theme_windows.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

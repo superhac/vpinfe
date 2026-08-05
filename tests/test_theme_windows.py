@@ -200,3 +200,18 @@ class LabelDriftTests(unittest.TestCase):
 
     def test_a_name_neither_side_lists_is_title_cased(self) -> None:
         self.assertEqual(theme_windows.window_title("topper"), "Topper")
+
+    def test_the_playfield_window_is_renamed_only_at_contract_2(self) -> None:
+        """PAR-34. The name reaches the page title and the /app/<window> url, and
+        Chromium derives a window application id from that url - so a cabinet
+        compositor rule keyed on the old one silently stops matching."""
+        self.assertEqual(theme_windows.DEFAULT_WINDOWS[1][0], "table")
+        self.assertEqual(theme_windows.DEFAULT_WINDOWS[2][0], "playfield")
+
+        self.assertEqual(theme_windows.window_title("table"), "Table")
+        self.assertEqual(theme_windows.window_title("playfield"), "Playfield")
+
+        # Both spellings still name the same monitor setting, which is what keeps a
+        # contract 1 theme's [Displays] key working after the window is renamed.
+        self.assertEqual(theme_windows.screen_key("table"),
+                         theme_windows.screen_key("playfield"))
