@@ -58,3 +58,4 @@ c6f5a5dc2bd02a4818ec1f6040f76a9f69801f54  # Revert "manager: the words on screen
 # Module names that claimed a specificity they did not have
 b4b95b9aa698a2b845baa4267cf9385b277ff2b5  # collections: the store is not VPX's, so stop naming it that
 7095668e91ecceeb45187cd1484635f713fe4e69  # media: the module declares kinds, so call it media_specs
+c16a5058170d14fe9288434f66bbe720c2ddeb84  # repo: module names follow the convention they are held to
