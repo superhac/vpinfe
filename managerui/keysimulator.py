@@ -471,6 +471,7 @@ class KeySimulator:
     def parse_vpinball_key_mappings(self, ini_path: str) -> dict:
         KEY_REGEX = re.compile(r"\bKey;(\d+)\b")
         mappings = {}
+        unbound: list[str] = []
         in_input_section = False
 
         if self.debug:
@@ -510,17 +511,32 @@ class KeySimulator:
                 value = value.strip()
 
                 match = KEY_REGEX.search(value)
-                mappings[name] = int(match.group(1)) if match else None
+                if match:
+                    mappings[name] = int(match.group(1))
+                else:
+                    # VPX writes "Mapping.LeftFlipper = " with no value until the user
+                    # binds that key in its own UI, so an entry existing says nothing
+                    # about whether it can send one. Counted, not stored - storing None
+                    # is what made a fully unbound ini look like 53 mappings.
+                    unbound.append(name)
 
                 if self.debug:
-                    scancode = mappings[name]
-                    logger.debug("  Parsed: %s = %s -> scancode %s", name, value, scancode)
+                    logger.debug("  Parsed: %s = %s -> scancode %s",
+                                 name, value, mappings.get(name))
 
-        if self.debug:
-            if not mappings:
-                logger.warning("No mappings found! Check if [Input] section exists with Mapping.* entries")
+        if not mappings:
+            if unbound:
+                logger.warning(
+                    "None of the %s VPX key mappings in %s are bound to a key, so no "
+                    "VPX button can send one. Assign them in Visual Pinball's own "
+                    "keyboard settings.", len(unbound), ini_file)
             else:
-                logger.debug("Total mappings parsed: %s", len(mappings))
+                logger.warning(
+                    "No Mapping.* entries under [Input] in %s, so no VPX button can "
+                    "send a key.", ini_file)
+        elif self.debug:
+            logger.debug("Total mappings parsed: %s (%s unbound)",
+                         len(mappings), len(unbound))
 
         return mappings
 
@@ -530,14 +546,20 @@ class KeySimulator:
 
     def convert_to_key_ids(self, sdl_mappings: dict) -> dict:
         result = {}
+        untranslated = []
 
         for name, scancode in sdl_mappings.items():
-            if scancode is None:
-                continue
-
             key_id = self.SDL_TO_KEY_ID.get(scancode)
-            if key_id is not None:
-                result[name] = key_id
+            if key_id is None:
+                untranslated.append(f"{name} (scancode {scancode})")
+                continue
+            result[name] = key_id
+
+        # A scancode with no entry in the table used to vanish without a trace, so a
+        # button that never worked looked identical to one nobody had pressed.
+        if untranslated:
+            logger.debug("No key id for %s of %s VPX mappings: %s",
+                         len(untranslated), len(sdl_mappings), ", ".join(untranslated))
 
         return result
 
