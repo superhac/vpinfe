@@ -5,6 +5,7 @@ import secrets
 import string
 
 
+from common import config_schema
 from common.deprecations import announce
 
 logger = logging.getLogger("vpinfe.common.iniconfig")
@@ -57,117 +58,7 @@ class IniConfig:
 
 	def __init__(self, configfilepath):
 		
-		self.defaults = {
-			'Displays': {
-				'bgscreenid': '',
-				'dmdscreenid': '',
-				'bgwindowoverride': '',
-				'dmdwindowoverride': '',
-				'playfieldscreenid': '0',
-				'playfieldorientation': 'landscape',
-				'playfieldrotation': '0',
-				'cabmode': 'false'
-			},
-			'Settings': {
-				'vpxbinpath': '',
-				'vpxlaunchenv': '',
-				'globalinioverride': '',
-				'globaltableinioverrideenabled': 'false',
-				'globaltableinioverridemask': '',
-				'gamerootdir': '',
-				'vpxinipath': '',
-				'rartoolpath': '',
-				'vpxlogdeleteonstart': 'false',
-				'theme': 'Revolution',
-				'startup_collection': '',
-				'autoupdatemediaonstartup': 'false',
-				'splashscreen': 'false',
-				'muteaudio': 'false',
-				'chromeoptions': '',
-				'chromeoptionsexclude': '',
-				'disabledefaultchromeoptions': 'false',
-				'MMhideQuitButton': 'false',
-				'restorelastgame': 'true',
-				},
-			'Input': {
-				'joyleft': '',
-				'keyleft': 'ArrowLeft,ShiftLeft',
-				'joyright': '',
-				'keyright': 'ArrowRight,ShiftRight',
-				'joyup': '',
-				'keyup': 'ArrowUp',
-				'joydown': '',
-				'keydown': 'ArrowDown',
-				'joypageup': '',
-				'keypageup': 'PageUp',
-				'joypagedown': '',
-				'keypagedown': 'PageDown',
-				'pagingtype': 'alpha',
-				'pagingsize': '10',
-				'joyselect': '',
-				'keyselect': 'Enter',
-				'joymenu': '',
-				'keymenu': 'm',
-				'joyback': '',
-				'keyback': 'b',
-				'joytutorial': '',
-				'keytutorial': 't',
-				'joyexit': '',
-				'keyexit': 'Escape,q',
-				'joycollectionmenu': '',
-				'keycollectionmenu': 'c',
-				},
-			'Logger': {
-				'level': 'debug',
-				'console': 'true',
-				},
-				'Media': {
-					'playfieldvariant': 'table',
-					'playfieldresolution': '4k',
-					'playfieldvideoresolution': '1k',
-					'defaultmissingmediaimg': '',
-					'thumbcachemaxmb': '500',
-					'playfieldmediapriority': 'video',
-					'playfieldmediarotation': 'auto',
-					'bgmediapriority': 'video',
-					'dmdmediapriority': 'video',
-					'realdmdmediapriority': 'color',
-					},
-			'VPSdb': {'last': ''},
-			'State': {'lastgame': ''},
-			'pinmame-score-parser': {
-				'romsupdatesha': '',
-				},
-			'Network': {
-				'themeassetsport': '8000',
-				'manageruiport': '8001',
-				},
-			'DOF': {
-				'enabledof': 'false',
-				'dofconfigtoolapikey': '',
-				},
-			'libdmdutil': {
-				'enabled': 'false',
-				'pin2dmdenabled': 'false',
-				'pixelcadedevice': '',
-				'zedmddevice': '',
-				'zedmdwifiaddr': '',
-				},
-			'Mobile': {
-				'deviceip': '',
-				'deviceport': '2112',
-				'chunksize': '1048576',
-				'renamemasktodefaultini': 'false',
-				'renamemasktodefaultinimask': '',
-				},
-				'vpinplay': {
-					'synconexit': 'false',
-					'apiendpoint': 'https://api.vpinplay.com:8888',
-					'userid': '',
-					'initials': '',
-					'machineid': '',
-					},
-		}
+		self.defaults = config_schema.defaults()
 
 		self.config = configparser.ConfigParser()
 		self.configfilepath = configfilepath

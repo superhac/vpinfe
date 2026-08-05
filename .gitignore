@@ -8,6 +8,9 @@
 # The theme payload the JavaScript tests read. Committed on purpose: it is the only
 # thing tying tests/js/ to what Python actually builds.
 !tests/fixtures/theme_payload.json
+# The defaults a new install wrote before config_schema existed. The outside witness
+# that keeps the schema honest once the store reads its defaults from it.
+!tests/fixtures/config_defaults.json
 # Declares the frontend test runner. No dependencies, nothing installed, not bundled.
 !package.json
 !common/resources/roms.json

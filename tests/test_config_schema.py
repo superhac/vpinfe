@@ -8,12 +8,20 @@ format underneath can change without either being a guess.
 
 from __future__ import annotations
 
+import json
 import os
 import unittest
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common import config_schema
 from common.iniconfig import IniConfig
+
+# What a new install wrote before the schema existed, captured once. The store reads its
+# defaults from the schema now, so comparing the two would compare the schema to itself -
+# this is the outside witness that keeps the check meaningful. Changing a default here is
+# changing it for every user, so it should be a visible line in a diff.
+FROZEN = Path(__file__).resolve().parent / "fixtures" / "config_defaults.json"
 
 
 def _shipped_defaults() -> dict[str, dict[str, str]]:
@@ -22,8 +30,13 @@ def _shipped_defaults() -> dict[str, dict[str, str]]:
 
 
 class SchemaMatchesTheStoreTests(unittest.TestCase):
-    def test_the_schema_declares_the_same_defaults(self) -> None:
-        self.assertEqual(config_schema.defaults(), _shipped_defaults())
+    def test_the_schema_declares_the_defaults_we_shipped(self) -> None:
+        frozen = json.loads(FROZEN.read_text(encoding="utf-8"))
+        self.assertEqual(config_schema.defaults(), frozen,
+                         "a default moved; if that is deliberate, update the fixture")
+
+    def test_the_store_fills_a_new_file_from_the_schema(self) -> None:
+        self.assertEqual(_shipped_defaults(), config_schema.defaults())
 
     def test_no_option_is_declared_twice(self) -> None:
         seen = [(entry.section, entry.key) for entry in config_schema.options()]

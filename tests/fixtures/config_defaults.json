@@ -1,0 +1,115 @@
+{
+  "DOF": {
+    "dofconfigtoolapikey": "",
+    "enabledof": "false"
+  },
+  "Displays": {
+    "bgscreenid": "",
+    "bgwindowoverride": "",
+    "cabmode": "false",
+    "dmdscreenid": "",
+    "dmdwindowoverride": "",
+    "playfieldorientation": "landscape",
+    "playfieldrotation": "0",
+    "playfieldscreenid": "0"
+  },
+  "Input": {
+    "joyback": "",
+    "joycollectionmenu": "",
+    "joydown": "",
+    "joyexit": "",
+    "joyleft": "",
+    "joymenu": "",
+    "joypagedown": "",
+    "joypageup": "",
+    "joyright": "",
+    "joyselect": "",
+    "joytutorial": "",
+    "joyup": "",
+    "keyback": "b",
+    "keycollectionmenu": "c",
+    "keydown": "ArrowDown",
+    "keyexit": "Escape,q",
+    "keyleft": "ArrowLeft,ShiftLeft",
+    "keymenu": "m",
+    "keypagedown": "PageDown",
+    "keypageup": "PageUp",
+    "keyright": "ArrowRight,ShiftRight",
+    "keyselect": "Enter",
+    "keytutorial": "t",
+    "keyup": "ArrowUp",
+    "pagingsize": "10",
+    "pagingtype": "alpha"
+  },
+  "Logger": {
+    "console": "true",
+    "level": "debug"
+  },
+  "Media": {
+    "bgmediapriority": "video",
+    "defaultmissingmediaimg": "",
+    "dmdmediapriority": "video",
+    "playfieldmediapriority": "video",
+    "playfieldmediarotation": "auto",
+    "playfieldresolution": "4k",
+    "playfieldvariant": "table",
+    "playfieldvideoresolution": "1k",
+    "realdmdmediapriority": "color",
+    "thumbcachemaxmb": "500"
+  },
+  "Mobile": {
+    "chunksize": "1048576",
+    "deviceip": "",
+    "deviceport": "2112",
+    "renamemasktodefaultini": "false",
+    "renamemasktodefaultinimask": ""
+  },
+  "Network": {
+    "manageruiport": "8001",
+    "themeassetsport": "8000"
+  },
+  "Settings": {
+    "MMhideQuitButton": "false",
+    "autoupdatemediaonstartup": "false",
+    "chromeoptions": "",
+    "chromeoptionsexclude": "",
+    "disabledefaultchromeoptions": "false",
+    "gamerootdir": "",
+    "globalinioverride": "",
+    "globaltableinioverrideenabled": "false",
+    "globaltableinioverridemask": "",
+    "muteaudio": "false",
+    "rartoolpath": "",
+    "restorelastgame": "true",
+    "splashscreen": "false",
+    "startup_collection": "",
+    "theme": "Revolution",
+    "vpxbinpath": "",
+    "vpxinipath": "",
+    "vpxlaunchenv": "",
+    "vpxlogdeleteonstart": "false"
+  },
+  "State": {
+    "lastgame": ""
+  },
+  "VPSdb": {
+    "last": ""
+  },
+  "libdmdutil": {
+    "enabled": "false",
+    "pin2dmdenabled": "false",
+    "pixelcadedevice": "",
+    "zedmddevice": "",
+    "zedmdwifiaddr": ""
+  },
+  "pinmame-score-parser": {
+    "romsupdatesha": ""
+  },
+  "vpinplay": {
+    "apiendpoint": "https://api.vpinplay.com:8888",
+    "initials": "",
+    "machineid": "",
+    "synconexit": "false",
+    "userid": ""
+  }
+}
