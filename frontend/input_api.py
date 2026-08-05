@@ -1,35 +1,13 @@
 from __future__ import annotations
 
+from common import input_actions
 
-JOY_MAPPING_KEYS = [
-    "joyleft",
-    "joyright",
-    "joyup",
-    "joydown",
-    "joypageup",
-    "joypagedown",
-    "joyselect",
-    "joymenu",
-    "joyback",
-    "joytutorial",
-    "joyexit",
-    "joycollectionmenu",
-]
+# The action set lives in common/input_actions.py; these are the two views of it this
+# module needs. They were written out by hand here, which is how the JavaScript defaults
+# came to disagree with them.
+JOY_MAPPING_KEYS = input_actions.joy_config_keys()
 
-KEY_MAPPING_DEFAULTS = {
-    "keyleft": "ArrowLeft,ShiftLeft",
-    "keyright": "ArrowRight,ShiftRight",
-    "keyup": "ArrowUp",
-    "keydown": "ArrowDown",
-    "keypageup": "PageUp",
-    "keypagedown": "PageDown",
-    "keyselect": "Enter",
-    "keymenu": "m",
-    "keyback": "b",
-    "keytutorial": "t",
-    "keyexit": "Escape,q",
-    "keycollectionmenu": "c",
-}
+KEY_MAPPING_DEFAULTS = input_actions.keyboard_defaults()
 
 
 PAGING_TYPES = ("alpha", "numeric")

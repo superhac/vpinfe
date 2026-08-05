@@ -14,6 +14,28 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from common import input_actions
+
+
+def _input_options() -> tuple[ConfigOption, ...]:
+    """`[Input]` comes from the action registry, so the two cannot disagree.
+
+    Written out by hand here until 2026-08-05, which is one of the seven copies of the
+    action set that had already drifted apart.
+    """
+    out = []
+    for action in input_actions.actions():
+        out.append(ConfigOption(input_actions.SECTION, action.joy_config, "string", "",
+                                label=f"Gamepad {action.label.removeprefix('Keyboard ')}"))
+        out.append(ConfigOption(input_actions.SECTION, action.key_config, "string",
+                                action.keyboard, label=action.label))
+    # Not actions: how the paging actions step, which is a setting about them.
+    out.append(ConfigOption(input_actions.SECTION, "pagingtype", "choice", 'alpha',
+                            label='Paging Type', choices=('alpha', 'numeric')))
+    out.append(ConfigOption(input_actions.SECTION, "pagingsize", "int", '10',
+                            label='Paging Size'))
+    return tuple(out)
+
 
 @dataclass(frozen=True)
 class ConfigOption:
@@ -127,59 +149,6 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     ConfigOption("Settings", "restore_last_game", "bool", 'true',
                  label='Restore Last Table',
                  aliases=('restorelastgame',)),
-    ConfigOption("Input", "joyleft", "string", '',
-                 label='Gamepad Left'),
-    ConfigOption("Input", "keyleft", "string", 'ArrowLeft,ShiftLeft',
-                 label='Keyboard Left'),
-    ConfigOption("Input", "joyright", "string", '',
-                 label='Gamepad Right'),
-    ConfigOption("Input", "keyright", "string", 'ArrowRight,ShiftRight',
-                 label='Keyboard Right'),
-    ConfigOption("Input", "joyup", "string", '',
-                 label='Gamepad Up'),
-    ConfigOption("Input", "keyup", "string", 'ArrowUp',
-                 label='Keyboard Up'),
-    ConfigOption("Input", "joydown", "string", '',
-                 label='Gamepad Down'),
-    ConfigOption("Input", "keydown", "string", 'ArrowDown',
-                 label='Keyboard Down'),
-    ConfigOption("Input", "joypageup", "string", '',
-                 label='Gamepad Page Up'),
-    ConfigOption("Input", "keypageup", "string", 'PageUp',
-                 label='Keyboard Page Up'),
-    ConfigOption("Input", "joypagedown", "string", '',
-                 label='Gamepad Page Down'),
-    ConfigOption("Input", "keypagedown", "string", 'PageDown',
-                 label='Keyboard Page Down'),
-    ConfigOption("Input", "pagingtype", "choice", 'alpha',
-                 label='Paging Type',
-                 choices=('alpha', 'number')),
-    ConfigOption("Input", "pagingsize", "int", '10',
-                 label='Paging Size'),
-    ConfigOption("Input", "joyselect", "string", '',
-                 label='Gamepad Select'),
-    ConfigOption("Input", "keyselect", "string", 'Enter',
-                 label='Keyboard Select'),
-    ConfigOption("Input", "joymenu", "string", '',
-                 label='Gamepad Menu'),
-    ConfigOption("Input", "keymenu", "string", 'm',
-                 label='Keyboard Menu'),
-    ConfigOption("Input", "joyback", "string", '',
-                 label='Gamepad Back'),
-    ConfigOption("Input", "keyback", "string", 'b',
-                 label='Keyboard Back'),
-    ConfigOption("Input", "joytutorial", "string", '',
-                 label='Gamepad Tutorial'),
-    ConfigOption("Input", "keytutorial", "string", 't',
-                 label='Keyboard Tutorial'),
-    ConfigOption("Input", "joyexit", "string", '',
-                 label='Gamepad Exit'),
-    ConfigOption("Input", "keyexit", "string", 'Escape,q',
-                 label='Keyboard Exit'),
-    ConfigOption("Input", "joycollectionmenu", "string", '',
-                 label='Gamepad Collection Menu'),
-    ConfigOption("Input", "keycollectionmenu", "string", 'c',
-                 label='Keyboard Collection Menu'),
     ConfigOption("Logger", "level", "choice", 'debug',
                  label='Log Verbosity',
                  choices=('debug', 'info', 'warning', 'error')),
@@ -290,7 +259,7 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     ConfigOption("vpinplay", "machine_id", "string", '',
                  label='Machine ID',
                  aliases=('machineid',)),
-)
+) + _input_options()
 
 
 def options() -> tuple[ConfigOption, ...]:
