@@ -11,6 +11,22 @@ def _parser(source):
     return getattr(source, "config", source)
 
 
+def _candidates(section: str, key: str) -> list[tuple[str, str]]:
+    """Every place this setting could be, most current first.
+
+    Where the schema says it lives now comes first, then every spelling it has had
+    there, then whatever the caller actually asked for - because a parser built by hand
+    in a test holds only the names it was given, not the ones we migrated to.
+    """
+    here, name = config_schema.locate(section, key)
+    out = [(here, spelling) for spelling in config_schema.spellings(here, name)]
+    for pair in ((section, key), *((s, k) for s, k in
+                                   [(section, sp) for sp in config_schema.spellings(section, key)])):
+        if pair not in out:
+            out.append(pair)
+    return out
+
+
 def _has(parser, section: str, key: str) -> bool:
     try:
         return bool(parser.has_option(section, key))
@@ -29,7 +45,7 @@ def cfg_get(source, section: str, key: str, fallback: str = "") -> str:
     `game_root_dir`. Nothing had to be renamed at 143 call sites in one commit.
     """
     parser = _parser(source)
-    for name in config_schema.spellings(section, key):
+    for section, name in _candidates(section, key):
         try:
             if parser.has_option(section, name):
                 return str(parser.get(section, name, fallback=fallback))
@@ -58,8 +74,8 @@ def cfg_options(source, section: str) -> list[str]:
 
 def cfg_bool(source, section: str, key: str, fallback: bool = False) -> bool:
     parser = _parser(source)
-    key = next((n for n in config_schema.spellings(section, key)
-                if _has(parser, section, n)), key)
+    section, key = next(((sec, name) for sec, name in _candidates(section, key)
+                         if _has(parser, sec, name)), (section, key))
     try:
         return bool(parser.getboolean(section, key, fallback=fallback))
     except Exception:
@@ -235,13 +251,27 @@ def _quarter_turn(degrees: int) -> int:
 
 
 def _extra_screen_ids(source: Any) -> dict:
-    """Every `<window>screenid` in [Displays] beyond the three that have their own field.
+    """Monitors for windows beyond the three that have a field of their own.
 
-    A theme can declare windows VPinFE has never heard of, so their monitors cannot be
-    named here in advance.
+    A theme can declare windows VPinFE has never heard of, so these cannot be named in
+    advance. Both shapes are read: `windows.<name>.screen_id`, which is where one goes
+    now, and `<name>screenid` in `[Displays]`, which is where one written before
+    schema 3 still is.
     """
     known = {"bgscreenid", "dmdscreenid", "playfieldscreenid", "tablescreenid"}
     found = {}
+    parser = _parser(source)
+    try:
+        sections = [s for s in parser.sections() if s.startswith("windows.")]
+    except Exception:
+        sections = []
+    for section in sections:
+        window = section.split(".", 1)[1]
+        if window in {"playfield", "backglass", "scoreview"}:
+            continue
+        value = cfg_get(source, section, "screen_id").strip()
+        if value:
+            found[f"{window}screenid"] = value
     for key in cfg_options(source, "Displays"):
         name = str(key).strip().lower()
         if name.endswith("screenid") and name not in known:

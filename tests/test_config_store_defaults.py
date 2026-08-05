@@ -146,8 +146,9 @@ class TestConfigStore(unittest.TestCase):
 
             self.assertEqual(config.config.get("Settings", "game_root_dir"), "/old/path")
             self.assertEqual(config.config.get("Settings", "restore_last_game"), "false")
-            self.assertEqual(config.config.get("Media", "playfield_variant"), "fss")
-            self.assertEqual(config.config.get("Displays", "playfield_rotation"), "270")
+            # Both of these also moved into their window's own section at schema 3.
+            self.assertEqual(config.config.get("windows.playfield", "variant"), "fss")
+            self.assertEqual(config.config.get("windows.playfield", "rotation"), "270")
             self.assertEqual(config.config.get("State", "last_game"), "Foo")
             self.assertFalse(config.config.has_option("Settings", "tablerootdir"),
                              "the old key should be gone once it has been read")

@@ -52,40 +52,47 @@ class ConfigOption:
     # how VPinFE already renames ini keys, and how Visual Pinball does it upstream: the
     # file is rewritten to the canonical name, and the old one keeps resolving forever.
     aliases: tuple[str, ...] = ()
+    # Whole former locations, section and key, for a setting that moved between sections.
+    # `aliases` covers a key that only changed spelling; this covers one that also moved,
+    # which is what per-window config did to the fourteen prefix-simulated keys.
+    legacy: tuple[tuple[str, str], ...] = ()
     # Runtime state that happens to live in the config file - a last-played pointer, a
     # cache marker. Nobody sets these, so nothing should offer them as settings.
     internal: bool = False
 
 
 CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
-    ConfigOption("Displays", "bg_screen_id", "int", '',
+    ConfigOption("windows.backglass", "screen_id", "int", '',
                  label='Backglass Monitor ID',
-                 aliases=('bgscreenid',)),
-    ConfigOption("Displays", "dmd_screen_id", "int", '',
+                 legacy=(('Displays', 'bg_screen_id'), ('Displays', 'bgscreenid'))),
+    ConfigOption("windows.scoreview", "screen_id", "int", '',
                  label='DMD Monitor ID',
-                 aliases=('dmdscreenid',)),
-    ConfigOption("Displays", "bg_window_override", "string", '',
+                 legacy=(('Displays', 'dmd_screen_id'), ('Displays', 'dmdscreenid'))),
+    ConfigOption("windows.backglass", "window_override", "string", '',
                  label='Backglass Window Override (x,y,width,height)',
-                 aliases=('bgwindowoverride',)),
-    ConfigOption("Displays", "dmd_window_override", "string", '',
+                 legacy=(('Displays', 'bg_window_override'), ('Displays', 'bgwindowoverride'))),
+    ConfigOption("windows.scoreview", "window_override", "string", '',
                  label='DMD Window Override (x,y,width,height)',
-                 aliases=('dmdwindowoverride',)),
-    ConfigOption("Displays", "playfield_screen_id", "int", '0',
+                 legacy=(('Displays', 'dmd_window_override'), ('Displays', 'dmdwindowoverride'))),
+    ConfigOption("windows.playfield", "screen_id", "int", '0',
                  label='Playfield Monitor ID',
-                 aliases=('playfieldscreenid',)),
-    ConfigOption("Displays", "playfield_orientation", "choice", 'landscape',
+                 legacy=(('Displays', 'playfield_screen_id'), ('Displays', 'playfieldscreenid'))),
+    ConfigOption("windows.playfield", "orientation", "choice", 'landscape',
                  label='Playfield Monitor Mounting',
                  description='How the playfield screen is physically mounted. Portrait means it is '
                              'turned on its side in the cabinet. This does not rotate anything by '
                              'itself - it tells themes what shape to lay out for.',
                  choices=('landscape', 'portrait'),
-                 aliases=('playfieldorientation',)),
-    ConfigOption("Displays", "playfield_rotation", "choice", '0',
+                 legacy=(
+                     ('Displays', 'playfield_orientation'),
+                     ('Displays', 'playfieldorientation'),
+                 )),
+    ConfigOption("windows.playfield", "rotation", "choice", '0',
                  label='Rotate VPinFE Display',
                  description='How far VPinFE turns its own display so it faces the player. Leave '
                              'at 0 if your operating system already rotates this screen.',
                  choices=('0', '90', '180', '270'),
-                 aliases=('playfieldrotation',)),
+                 legacy=(('Displays', 'playfield_rotation'), ('Displays', 'playfieldrotation'))),
     ConfigOption("Displays", "cab_mode", "bool", 'false',
                  label='Cabinet Mode',
                  description='Presents VPinFE for playing standing at a cabinet: larger text and '
@@ -154,44 +161,53 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                  choices=('debug', 'info', 'warning', 'error')),
     ConfigOption("Logger", "console", "bool", 'true',
                  label='Console Logging'),
-    ConfigOption("Media", "playfield_variant", "choice", 'table',
+    ConfigOption("windows.playfield", "variant", "choice", 'table',
                  label='Table Type',
                  description='Which playfield artwork this library holds: table.png, or fss.png '
                              "for art captured in Visual Pinball's Full Single Screen mode.",
                  choices=('table', 'fss'),
-                 aliases=('playfieldvariant',)),
-    ConfigOption("Media", "playfield_resolution", "choice", '4k',
+                 legacy=(('Media', 'playfield_variant'), ('Media', 'playfieldvariant'))),
+    ConfigOption("windows.playfield", "resolution", "choice", '4k',
                  label='Default Table Resolution',
                  choices=('4k', '1k'),
-                 aliases=('playfieldresolution',)),
-    ConfigOption("Media", "playfield_video_resolution", "choice", '1k',
+                 legacy=(('Media', 'playfield_resolution'), ('Media', 'playfieldresolution'))),
+    ConfigOption("windows.playfield", "video_resolution", "choice", '1k',
                  label='Default Table Video Resolution',
                  choices=('4k', '1k'),
-                 aliases=('playfieldvideoresolution',)),
+                 legacy=(
+                     ('Media', 'playfield_video_resolution'),
+                     ('Media', 'playfieldvideoresolution'),
+                 )),
     ConfigOption("Media", "default_missing_media_image", "string", '',
                  label='Default Missing Media Image',
                  aliases=('defaultmissingmediaimg',)),
     ConfigOption("Media", "thumb_cache_max_mb", "int", '500',
                  label='Thumbnail Cache Max (MB)',
                  aliases=('thumbcachemaxmb',)),
-    ConfigOption("Media", "playfield_media_priority", "choice", 'video',
+    ConfigOption("windows.playfield", "media_priority", "choice", 'video',
                  label='Table Media Priority',
                  choices=('video', 'image'),
-                 aliases=('playfieldmediapriority',)),
-    ConfigOption("Media", "playfield_media_rotation", "choice", 'auto',
+                 legacy=(
+                     ('Media', 'playfield_media_priority'),
+                     ('Media', 'playfieldmediapriority'),
+                 )),
+    ConfigOption("windows.playfield", "media_rotation", "choice", 'auto',
                  description='How far to turn playfield artwork so it fills the screen. auto '
                              'measures each image and turns only when it disagrees with the '
                              'surface.',
                  choices=('auto', '0', '90', '180', '270'),
-                 aliases=('playfieldmediarotation',)),
-    ConfigOption("Media", "bg_media_priority", "choice", 'video',
+                 legacy=(
+                     ('Media', 'playfield_media_rotation'),
+                     ('Media', 'playfieldmediarotation'),
+                 )),
+    ConfigOption("windows.backglass", "media_priority", "choice", 'video',
                  label='Backglass Media Priority',
                  choices=('video', 'image'),
-                 aliases=('bgmediapriority',)),
-    ConfigOption("Media", "dmd_media_priority", "choice", 'video',
+                 legacy=(('Media', 'bg_media_priority'), ('Media', 'bgmediapriority'))),
+    ConfigOption("windows.scoreview", "media_priority", "choice", 'video',
                  label='DMD Media Priority',
                  choices=('video', 'image'),
-                 aliases=('dmdmediapriority',)),
+                 legacy=(('Media', 'dmd_media_priority'), ('Media', 'dmdmediapriority'))),
     ConfigOption("Media", "realdmd_media_priority", "choice", 'color',
                  label='Real DMD Priority',
                  choices=('color', 'video', 'image'),
@@ -292,6 +308,22 @@ def canonical(section: str, key: str) -> str:
     return key
 
 
+def locate(section: str, key: str) -> tuple[str, str]:
+    """Where a setting lives now, given any section and key it has ever lived at.
+
+    Per-window config moved fourteen settings out of `[Displays]` and `[Media]` into a
+    section each, so a caller can be wrong about the section as well as the spelling.
+    """
+    wanted = (str(section or ""), str(key or "").strip().lower())
+    for candidate in CONFIG_OPTIONS:
+        here = [(candidate.section, candidate.key.lower())]
+        here += [(candidate.section, a.lower()) for a in candidate.aliases]
+        here += [(s, k.lower()) for s, k in candidate.legacy]
+        if wanted in here:
+            return candidate.section, candidate.key
+    return section, key
+
+
 def spellings(section: str, key: str) -> tuple[str, ...]:
     """Every name this setting has gone by, canonical first.
 
@@ -325,17 +357,24 @@ def by_key(key: str) -> ConfigOption | None:
     return None
 
 
-def label_for(key: str) -> str:
-    """What to call a setting on screen. Falls back to a readable form of the key."""
-    entry = by_key(key)
+def label_for(key: str, section: str = "") -> str:
+    """What to call a setting on screen. Falls back to a readable form of the key.
+
+    Pass the section when you have it: since each window got a section of its own,
+    `screen_id` exists three times with a different label each, and a key-only lookup
+    cannot tell a backglass monitor from a playfield one.
+    """
+    entry = option(section, key) if section else None
+    if entry is None:
+        entry = by_key(key)
     if entry is not None and entry.label:
         return entry.label
     return str(key or "").replace("_", " ").title()
 
 
-def description_for(key: str) -> str:
+def description_for(key: str, section: str = "") -> str:
     """One line explaining a setting, or "" when nobody has written one yet."""
-    entry = by_key(key)
+    entry = (option(section, key) if section else None) or by_key(key)
     return entry.description if entry is not None else ""
 
 

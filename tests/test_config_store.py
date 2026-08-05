@@ -15,7 +15,13 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common import config_schema
-from common.config_store import CURRENT_SCHEMA, SCHEMA_KEY, SETTINGS_KEY, ConfigStore
+from common.config_store import (
+    CURRENT_SCHEMA,
+    SCHEMA_KEY,
+    SETTINGS_KEY,
+    ConfigStore,
+    _flatten,
+)
 
 
 class ConfigStoreTests(unittest.TestCase):
@@ -41,9 +47,10 @@ class FirstRunTests(ConfigStoreTests):
         self.assertTrue(self.json.exists())
         self.assertFalse(self.ini.exists(), "nothing writes an ini any more")
 
-        # Compared case-folded: configparser lowercases option names, and always did -
-        # MMhideQuitButton reached the old ini lowercase too, so nothing moved here.
-        settings = self._payload()[SETTINGS_KEY]
+        # Flattened first: on disk a window is a nested object, in the schema it is a
+        # dotted section name. Case-folded because configparser lowercases option names
+        # and always did - MMhideQuitButton reached the old ini lowercase too.
+        settings = _flatten(self._payload()[SETTINGS_KEY])
         self.assertEqual(
             {s: {k.lower() for k in v} for s, v in settings.items()},
             {s: {k.lower() for k in v} for s, v in config_schema.defaults().items()})
@@ -76,7 +83,8 @@ class TypedValueTests(ConfigStoreTests):
     def test_a_blank_int_stays_blank_rather_than_becoming_zero(self) -> None:
         """Blank means "no window on this one", which is not the same as screen 0."""
         ConfigStore(str(self.ini))
-        self.assertEqual(self._payload()[SETTINGS_KEY]["Displays"]["bg_screen_id"], "")
+        self.assertEqual(
+            self._payload()[SETTINGS_KEY]["windows"]["backglass"]["screen_id"], "")
 
     def test_values_survive_the_round_trip_as_text(self) -> None:
         first = ConfigStore(str(self.ini))
@@ -119,9 +127,9 @@ class IniConversionTests(ConfigStoreTests):
 
         ConfigStore(str(self.ini))
 
-        displays = self._payload()[SETTINGS_KEY]["Displays"]
-        self.assertEqual(displays["playfield_screen_id"], 2)
-        self.assertIs(displays["cab_mode"], True)
+        settings = self._payload()[SETTINGS_KEY]
+        self.assertEqual(settings["windows"]["playfield"]["screen_id"], 2)
+        self.assertIs(settings["Displays"]["cab_mode"], True)
 
     def test_conversion_happens_once(self) -> None:
         self._write_ini("[Settings]\ngamerootdir = /my/tables\n")

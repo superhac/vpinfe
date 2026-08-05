@@ -414,6 +414,24 @@ be maintained by hand. One name now, and it is the one `docs/conventions.md` ask
 Canonical-plus-alias is the pattern Visual Pinball uses upstream for the same problem.
 Covered by `tests/test_config_schema.py` and `tests/test_config_store.py`.
 
+**PAR-38 — Each window's settings live under that window, named as Visual Pinball names it.**
+The fourteen settings that faked a hierarchy with a prefix - `playfieldscreenid`,
+`bgmediapriority` and the rest - are a section per window now, and the sections use VPX's
+own window names: `windows.playfield`, `windows.backglass`, `windows.scoreview`. On disk
+that is a real object per window rather than fourteen flat keys. Migrated on first read
+(schema 3), and **every previous location keeps resolving**, section and spelling both, so
+a config from any earlier build still loads and code asking for `[Displays] playfieldscreenid`
+still reads. A window a theme invented is unaffected: it has no schema entry, and both
+`windows.<name>.screen_id` and the old `[Displays] <name>screenid` are read.
+`cabmode` stays in `[Displays]` because it is context rather than a window, and
+`realdmd_media_priority` stays in `[Media]` because the real DMD is hardware, not a window.
+*Why:* the prefixes were a hierarchy the format could not express, and the whole
+`playfieldmediarotation` naming argument was spent deciding which tier of an imaginary one
+a key belonged to. VPX models per-window config exactly this way, which is also why the
+names follow its plugin contract - `Backglass` and `ScoreView`, not `bg` and `dmd`.
+**This is the config file only.** The window names a *theme* sees are contract 2's and
+move with that work. Covered by `tests/test_config_schema.py` and `tests/test_config_store.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

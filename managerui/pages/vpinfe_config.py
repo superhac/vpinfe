@@ -68,9 +68,13 @@ MEDIA_PRIORITY_KEYS = (
     'realdmdmediapriority',
 )
 
-def get_friendly_name(key: str) -> str:
-    """What to call a setting on screen, from the schema that declares it."""
-    return config_schema.label_for(key)
+def get_friendly_name(key: str, section: str = "") -> str:
+    """What to call a setting on screen, from the schema that declares it.
+
+    Section is optional only because two callers do not have one; pass it where you do,
+    since `screen_id` means a different monitor in each window's section.
+    """
+    return config_schema.label_for(key, section)
 
 
 def _get_collection_names():

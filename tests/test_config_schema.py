@@ -115,10 +115,37 @@ class AliasTests(unittest.TestCase):
 
 
 class LookupTests(unittest.TestCase):
-    def test_no_key_is_used_in_two_sections(self) -> None:
-        """by_key() depends on this - the Manager UI holds keys without their section."""
+    def test_a_key_repeats_only_across_window_sections(self) -> None:
+        """Giving each window a section made screen_id mean three different monitors.
+
+        Anywhere else a repeated key would make the key-only lookup ambiguous, so this
+        pins the repeats to the place the design intends them.
+        """
         keys = [entry.key.lower() for entry in config_schema.options()]
-        self.assertEqual({k for k in keys if keys.count(k) > 1}, set())
+        repeated = {k for k in keys if keys.count(k) > 1}
+
+        self.assertEqual(repeated, {"screen_id", "window_override", "media_priority"})
+        for entry in config_schema.options():
+            if entry.key.lower() in repeated:
+                self.assertTrue(entry.section.startswith("windows."),
+                                f"{entry.section}.{entry.key} repeats outside a window")
+
+    def test_a_repeated_key_needs_its_section_to_label_it(self) -> None:
+        self.assertEqual(config_schema.label_for("screen_id", "windows.playfield"),
+                         "Playfield Monitor ID")
+        self.assertEqual(config_schema.label_for("screen_id", "windows.backglass"),
+                         "Backglass Monitor ID")
+
+    def test_a_setting_that_moved_section_still_resolves(self) -> None:
+        """Fourteen settings left [Displays] and [Media] for a window of their own."""
+        self.assertEqual(config_schema.locate("Displays", "playfieldscreenid"),
+                         ("windows.playfield", "screen_id"))
+        self.assertEqual(config_schema.locate("Displays", "playfield_screen_id"),
+                         ("windows.playfield", "screen_id"))
+        self.assertEqual(config_schema.locate("Media", "bgmediapriority"),
+                         ("windows.backglass", "media_priority"))
+        self.assertEqual(config_schema.locate("Displays", "cabmode"),
+                         ("Displays", "cab_mode"), "cab_mode is context, not a window")
 
     def test_a_key_resolves_whatever_its_casing(self) -> None:
         """configparser lowercases option names, so a caller rarely has the original."""
@@ -135,7 +162,7 @@ class LookupTests(unittest.TestCase):
 
         for entry in config_schema.settable():
             if entry.label:
-                self.assertEqual(get_friendly_name(entry.key), entry.label)
+                self.assertEqual(get_friendly_name(entry.key, entry.section), entry.label)
 
     def test_an_undescribed_setting_says_so_rather_than_guessing(self) -> None:
         self.assertEqual(config_schema.description_for("no_such_setting"), "")
@@ -147,8 +174,8 @@ class DocumentationCoverageTests(unittest.TestCase):
         missing = sorted(f"{e.section}.{e.key}" for e in config_schema.settable()
                          if not e.label)
 
-        self.assertEqual(missing, ["Media.playfield_media_rotation",
-                                   "Settings.chrome_options_exclude"],
+        self.assertEqual(missing, ["Settings.chrome_options_exclude",
+                                   "windows.playfield.media_rotation"],
                          "either label the new option or update this list deliberately")
 
 

@@ -49,7 +49,12 @@ def canonical(window: str) -> str:
 
 
 def screen_key(window: str) -> str:
-    """The `[Displays]` key naming this window's monitor."""
+    """The name under which this window's monitor is looked up.
+
+    Still `<window>screenid` rather than the `windows.<name>.screen_id` the file now
+    uses, because it is a lookup token here and not a location - `window_screen_id`
+    resolves it either way, and a window a theme invented has no schema entry to move.
+    """
     return f"{canonical(window)}screenid"
 
 

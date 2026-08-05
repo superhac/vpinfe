@@ -4,14 +4,7 @@
     "enable_dof": "false"
   },
   "Displays": {
-    "bg_screen_id": "",
-    "bg_window_override": "",
-    "cab_mode": "false",
-    "dmd_screen_id": "",
-    "dmd_window_override": "",
-    "playfield_orientation": "landscape",
-    "playfield_rotation": "0",
-    "playfield_screen_id": "0"
+    "cab_mode": "false"
   },
   "Input": {
     "joyback": "",
@@ -46,14 +39,7 @@
     "level": "debug"
   },
   "Media": {
-    "bg_media_priority": "video",
     "default_missing_media_image": "",
-    "dmd_media_priority": "video",
-    "playfield_media_priority": "video",
-    "playfield_media_rotation": "auto",
-    "playfield_resolution": "4k",
-    "playfield_variant": "table",
-    "playfield_video_resolution": "1k",
     "realdmd_media_priority": "color",
     "thumb_cache_max_mb": "500"
   },
@@ -111,5 +97,25 @@
     "machine_id": "",
     "sync_on_exit": "false",
     "user_id": ""
+  },
+  "windows.backglass": {
+    "media_priority": "video",
+    "screen_id": "",
+    "window_override": ""
+  },
+  "windows.playfield": {
+    "media_priority": "video",
+    "media_rotation": "auto",
+    "orientation": "landscape",
+    "resolution": "4k",
+    "rotation": "0",
+    "screen_id": "0",
+    "variant": "table",
+    "video_resolution": "1k"
+  },
+  "windows.scoreview": {
+    "media_priority": "video",
+    "screen_id": "",
+    "window_override": ""
   }
 }

@@ -29,8 +29,9 @@ SETTINGS_KEY = "settings"
 
 # 1 is the first JSON version. Schema 0 is the ini, which has no version at all - it is
 # recognized by being an ini rather than by anything written in it. 2 renamed the keys to
-# snake_case; every old spelling is an alias in config_schema and still resolves.
-CURRENT_SCHEMA = 2
+# snake_case; every old spelling is an alias in config_schema and still resolves. 3 gave
+# each window a section of its own, so a setting can have moved as well as been renamed.
+CURRENT_SCHEMA = 3
 
 # (from, to, key) for options that changed section. Applied on every read, so an ini
 # written by any earlier build lands in the right place.
@@ -59,6 +60,34 @@ _RENAMED_KEYS = (
 	('Media', 'tablemediapriority', 'playfieldmediapriority'),
 	('State', 'lasttable', 'lastgame'),
 )
+
+def _nest(sections: dict) -> dict:
+	"""`windows.playfield` becomes a playfield object inside a windows object.
+
+	A ConfigParser section is a flat string, so the hierarchy is spelled with dots in
+	memory and is real on disk - which is the point of giving each window a section.
+	"""
+	out: dict = {}
+	for name, values in sections.items():
+		node = out
+		parts = name.split('.')
+		for part in parts[:-1]:
+			node = node.setdefault(part, {})
+		node[parts[-1]] = values
+	return out
+
+
+def _flatten(tree: dict, prefix: str = '') -> dict:
+	"""The inverse of _nest: nested objects back to dotted section names."""
+	out: dict = {}
+	for name, value in (tree or {}).items():
+		path = f"{prefix}.{name}" if prefix else name
+		if isinstance(value, dict) and any(isinstance(v, dict) for v in value.values()):
+			out.update(_flatten(value, path))
+		else:
+			out[path] = value
+	return out
+
 
 class ConfigStore:
 
@@ -128,13 +157,16 @@ class ConfigStore:
 		# Every spelling a key has ever had lands on the one we store. This runs after the
 		# 2.x renames above, so tablerootdir -> gamerootdir -> game_root_dir is one chain,
 		# and before the defaults are filled in, so nothing is added under an old name.
-		for section in self.config.sections():
+		for section in list(self.config.sections()):
 			for key in list(self.config.options(section)):
-				canon = config_schema.canonical(section, key)
-				if canon != key:
-					self.config.set(section, canon, self.config.get(section, key))
-					self.config.remove_option(section, key)
-					changed = True
+				new_section, new_key = config_schema.locate(section, key)
+				if (new_section, new_key) == (section, key):
+					continue
+				if not self.config.has_section(new_section):
+					self.config.add_section(new_section)
+				self.config.set(new_section, new_key, self.config.get(section, key))
+				self.config.remove_option(section, key)
+				changed = True
 
 		# Add any missing default options
 		for section, defaults in self.defaults.items():
@@ -205,7 +237,7 @@ class ConfigStore:
 		with open(self.json_path, encoding='utf-8') as handle:
 			payload = json.load(handle) or {}
 		self._schema = int(payload.get(SCHEMA_KEY, CURRENT_SCHEMA) or CURRENT_SCHEMA)
-		for section, values in (payload.get(SETTINGS_KEY) or {}).items():
+		for section, values in _flatten(payload.get(SETTINGS_KEY) or {}).items():
 			if not self.config.has_section(section):
 				self.config.add_section(section)
 			for key, value in (values or {}).items():
@@ -219,9 +251,9 @@ class ConfigStore:
 		if self._converted_from_ini and os.path.exists(self.ini_path):
 			logger.info("Kept the pre-JSON settings at %s", copy_aside(str(self.ini_path)))
 			self._converted_from_ini = False
-		settings = {section: {key: self._typed(section, key, value)
-		                      for key, value in self.config.items(section)}
-		            for section in self.config.sections()}
+		settings = _nest({section: {key: self._typed(section, key, value)
+		                            for key, value in self.config.items(section)}
+		                  for section in self.config.sections()})
 		# Never stamp a newer file down to what this build writes - that number belongs to
 		# whichever VPinFE wrote it, and claiming it would say we understood the file.
 		payload = {SCHEMA_KEY: max(getattr(self, '_schema', CURRENT_SCHEMA), CURRENT_SCHEMA),
