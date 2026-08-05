@@ -90,7 +90,8 @@ class GameIdTests(unittest.TestCase):
         """The in-memory copy can be stale; disk wins over minting a second id."""
         game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
         info = Path(game.fullPathGame) / "Example.info"
-        info.write_text(json.dumps({"Info": {"VPSId": "vps-1"}, "vpinfe": {"game_id": "already-here"}}),
+        info.write_text(json.dumps({"Info": {"VPSId": "vps-1"},
+                                    "vpinfe": {"game_id": "already-here"}}),
                         encoding="utf-8")
 
         self.assertEqual(game_identity.ensure_id(game), "already-here")

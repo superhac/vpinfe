@@ -15,9 +15,8 @@ import json
 import logging
 from pathlib import Path
 
-from common.games.game_metadata import DETECTION_KEYS, default_table
-
 from common.deprecations import announce
+from common.games.game_metadata import DETECTION_KEYS, default_table
 
 logger = logging.getLogger("vpinfe.frontend.theme_contract")
 

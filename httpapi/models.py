@@ -315,8 +315,8 @@ class CollectionLinks(ApiModel):
 class CollectionResource(ApiModel):
     """`type` is `manual` (an explicit list of games) or `filter` (criteria applied
     at display time). `game_count` is null for a filter collection, whose membership
-    is not a stored list - ask /collections/{name}/games for its current members. `filters` is set only
-    for a filter collection."""
+    is not a stored list - ask /collections/{name}/games for its current members.
+    `filters` is set only for a filter collection."""
 
     name: str
     type: str

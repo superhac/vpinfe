@@ -13,8 +13,8 @@ import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
-from unittest import mock
 from tempfile import TemporaryDirectory
+from unittest import mock
 
 from common.games import media_lookup
 from common.games.gameparser import GameParser

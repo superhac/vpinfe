@@ -8,7 +8,6 @@ creating one is refused rather than guessed at when the request says both things
 from __future__ import annotations
 
 import unittest
-
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch

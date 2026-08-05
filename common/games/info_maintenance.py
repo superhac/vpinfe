@@ -9,6 +9,10 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from common.games.collection_store import (
+    COLLECTIONS_NAME,
+    restorable_collections_backup,
+)
 from common.games.info_migration import (
     CURRENT_SCHEMA,
     copy_aside,
@@ -16,10 +20,6 @@ from common.games.info_migration import (
     restorable_backup,
 )
 from common.games.metaconfig import InvalidMetaConfigError, MetaConfig
-from common.games.collection_store import (
-    COLLECTIONS_NAME,
-    restorable_collections_backup,
-)
 from common.jobs import JobReporter
 
 logger = logging.getLogger("vpinfe.common.games.info_maintenance")

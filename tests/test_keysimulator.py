@@ -12,7 +12,21 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from managerui.keysimulator import KeySimulator
+# keysimulator imports pynput - and Quartz on macOS - at module scope, so it cannot be
+# imported on a headless Linux runner. Stubbing those out is not an option either: the
+# PyObjC modules run a one-shot _setup at import and do not survive being removed from
+# sys.modules, so a stub here breaks a later test that imports the same module.
+#
+# So it is imported plainly and the suite is skipped when the platform will not have it.
+# The functions under test are pure parsing and need none of that; lifting them out of
+# the module that imports pynput would give this coverage back on Linux.
+try:
+    from managerui.keysimulator import KeySimulator
+except Exception as exc:                    # no display, or no PyObjC
+    KeySimulator = None
+    IMPORT_ERROR: Exception | None = exc
+else:
+    IMPORT_ERROR = None
 
 # What VPX writes before the user has bound anything, and after.
 UNBOUND = "\n".join(["[Input]"] + [f"Mapping.{name} = " for name in
@@ -43,6 +57,7 @@ def _ini(body: str) -> str:
 _ini.keep = []
 
 
+@unittest.skipIf(KeySimulator is None, f"keysimulator will not import here: {IMPORT_ERROR}")
 class ParseKeyMappingTests(unittest.TestCase):
     def test_an_unbound_ini_yields_no_mappings(self) -> None:
         """It used to yield four, every one of them None."""
@@ -70,6 +85,7 @@ class ParseKeyMappingTests(unittest.TestCase):
         self.assertIn("no mapping.* entries", logs.output[0].lower())
 
 
+@unittest.skipIf(KeySimulator is None, f"keysimulator will not import here: {IMPORT_ERROR}")
 class ConvertToKeyIdTests(unittest.TestCase):
     def test_a_scancode_with_no_key_id_is_reported(self) -> None:
         """3 of 45 on a real cabinet ini - VRCenter, VRUp, VRDown - vanished silently."""

@@ -7,7 +7,6 @@ different membership, silently, on somebody's library.
 """
 
 import unittest
-
 from types import SimpleNamespace
 
 from common.games import collection_filters as cf

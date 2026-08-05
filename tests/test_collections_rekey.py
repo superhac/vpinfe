@@ -7,13 +7,13 @@ from types import SimpleNamespace
 from unittest import mock
 
 from common.games import game_repository
-from common.games.metaconfig import MetaConfig
 from common.games.collection_store import (
     CURRENT_SCHEMA,
     CollectionStore,
     collections_schema,
     restorable_collections_backup,
 )
+from common.games.metaconfig import MetaConfig
 
 
 def _game(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", game_id: str = ""):

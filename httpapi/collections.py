@@ -18,7 +18,6 @@ import threading
 from fastapi import APIRouter, Body, Response
 
 from common.games import game_identity
-from common.games.game_metadata import game_rating, game_title
 from common.games.collection_resolver import (
     UnresolvableCollectionError,
     resolve,
@@ -26,10 +25,10 @@ from common.games.collection_resolver import (
     visible_entries,
 )
 from common.games.collections_service import (
-    filter_games_by_collection,
     get_collections_manager,
     get_collections_metadata,
 )
+from common.games.game_metadata import game_rating, game_title
 
 from . import models, scopes
 from .auth import requires

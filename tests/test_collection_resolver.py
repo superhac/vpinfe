@@ -5,7 +5,6 @@ appearing twice with different tables, a pin that outranks a filter, an exclusio
 outranks both, and `hidden` outranking everything.
 """
 
-import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
