@@ -73,9 +73,9 @@ def _legacy_row(game, logo_cache) -> dict:
     info = section(meta, "Info")
 
     used_alttitle = False
-    if (str(vpinfe.get("alt_vpsid", "") or "").strip()
-            and str(vpinfe.get("alt_title", "") or "").strip()):
-        info["Title"] = str(vpinfe.get("alt_title", "") or "").strip()
+    alt_title = str(vpinfe.get("alt_title", "") or "").strip()
+    if alt_title:
+        info["Title"] = alt_title
         meta["Info"] = info
         used_alttitle = True
 

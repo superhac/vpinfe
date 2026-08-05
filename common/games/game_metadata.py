@@ -137,11 +137,11 @@ def game_title(game) -> str:
     meta = normalize_meta(getattr(game, "metaConfig", {}))
     vpinfe = vpinfe_section(meta)
     info = section(meta, "Info")
-    if str(vpinfe.get("alt_vpsid", "") or "").strip():
-        alt_title = str(vpinfe.get("alt_title", "") or "").strip()
-        if alt_title:
-            # A user-set alttitle is left exactly as entered - never reordered.
-            return alt_title
+    alt_title = str(vpinfe.get("alt_title", "") or "").strip()
+    if alt_title:
+        # A user-set alt_title wins on its own - it does not require an alt_vpsid -
+        # and is left exactly as entered, never reordered.
+        return alt_title
     raw = str(info.get("Title", "") or get_meta_value(meta, "VPSdb", "name", "") or getattr(game, "gameDirName", "") or "").strip()
     return reorder_leading_article(raw)
 

@@ -562,7 +562,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             ui.notify('Failed to save alt title', type='negative')
 
                     ui.button('Save', icon='save', on_click=on_alttitle_save).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
-                ui.label('When set, this overrides the table name shown in Manager UI lists').classes('text-xs').style('color: var(--ink-muted);')
+                ui.label('When set, this overrides the table name shown and sorted on in the frontend and Manager UI lists').classes('text-xs').style('color: var(--ink-muted);')
 
                 with ui.row().classes('items-center gap-3 w-full'):
                     altvpsid_input = ui.input(
