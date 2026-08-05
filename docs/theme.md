@@ -8,9 +8,9 @@ Themes interact with the backend through `vpinfe-core.js`, so theme code calls `
 
 VPinFE runs up to 3 browser windows, one per monitor:
 
-- `table` — The main screen. Controller for all other screens and input. Handles gamepad/keyboard input and hosts the in-theme menu overlays.
-- `bg` — Backglass screen. Receives events from the `table` window.
-- `dmd` — DMD screen (not a "real DMD" like ZeDMD). Receives events from the `table` window.
+- `playfield` — The main screen. Controller for all other screens and input. Handles gamepad/keyboard input and hosts the in-theme menu overlays. Contract 1 calls this window `table`.
+- `bg` — Backglass screen. Receives events from the controller.
+- `dmd` — DMD screen (not a "real DMD" like ZeDMD). Receives events from the controller.
 
 Each window has its own webpage but shares an instance of the VPinFE API ([frontend/api.py](https://github.com/superhac/vpinfe/blob/master/frontend/api.py)), accessed via [vpinfe-core.js](#vpinfe-corejs).
 
@@ -333,7 +333,7 @@ Your theme's own `style.css` and `theme.js` can be named whatever you want.
 
 ### Playfield Rotation, Cab Mode, And Menu Overlays
 
-If your theme supports cabinets or portrait-style playfield layouts, build that into the `table` window deliberately. In practice, the `table` window is usually the only screen that needs rotation-aware layout changes. `bg` and `dmd` often stay unrotated.
+If your theme supports cabinets or portrait-style playfield layouts, build that into the `playfield` window deliberately. In practice, the playfield is usually the only screen that needs rotation-aware layout changes. `bg` and `dmd` often stay unrotated.
 
 There are two different rotation concepts to keep separate:
 
@@ -673,9 +673,9 @@ theme = <THEME NAME>
 
 ## theme.js
 
-The main JS file for interacting with VPinFE and controlling the theme UI. All three windows (`table`, `bg`, `dmd`) load the same `theme.js`, so use `windowName` to branch logic per window.
+The main JS file for interacting with VPinFE and controlling the theme UI. Every window loads the same `theme.js`, so use `windowName` to branch logic per window - or `vpin.isController()`, which does not care what the controller is called.
 
-VPinFE also passes the current window identity in the page URL as `?window=table`, `?window=bg`, or `?window=dmd`. For high-DPI backglass and DMD setups, VPinFE may also include an optional `override` query parameter in the form `x,y,width,height`. Theme authors can read that value when they need to use the configured bounds instead of the auto-detected browser window size.
+VPinFE also passes the current window identity in the page URL as `?window=playfield`, `?window=bg`, or `?window=dmd`. For high-DPI backglass and DMD setups, VPinFE may also include an optional `override` query parameter in the form `x,y,width,height`. Theme authors can read that value when they need to use the configured bounds instead of the auto-detected browser window size.
 
 ```javascript
 /*
@@ -744,7 +744,7 @@ async function receiveEvent(message) {
     }
 }
 
-// input handler - only called on the "table" window
+// input handler - only called on the controller window
 /*  joyleft, joyright, joyup, joydown,
     joyselect, joymenu, joyback, joycollectionmenu */
 async function handleInput(input) {
@@ -776,8 +776,8 @@ async function handleInput(input) {
 }
 
 function updateScreen() {
-    if (windowName === "table") {
-        // Update the table window: images, carousel, info, audio
+    if (vpin.isController()) {
+        // Update the playfield window: images, carousel, info, audio
         vpin.playGameAudio(currentGameIndex);
     } else if (windowName === "bg") {
         // Update backglass image
@@ -828,7 +828,7 @@ function hideRemoteLaunchOverlay() {
 
 ### Strong Recommendation: Keep The Playfield DOM Persistent
 
-For anything beyond a very simple theme, especially carousel-style playfield screens, avoid rebuilding the entire `table` window DOM on every game change.
+For anything beyond a very simple theme, especially carousel-style playfield screens, avoid rebuilding the entire playfield window DOM on every game change.
 
 A much smoother pattern is:
 
@@ -876,7 +876,7 @@ Events are sent between windows via `receiveEvent()`. These are the built-in eve
 
 | Event Type | Properties | Description |
 |------------|------------|-------------|
-| `GameIndexUpdate` | `index` | User navigated to a different game. Sent by the `table` window to all others. |
+| `GameIndexUpdate` | `index` | User navigated to a different game. Sent by the controller to all others. |
 | `GameLaunching` | — | A game is about to launch. Frontend keyboard/gamepad routing is suspended until `GameLaunchComplete`; use this to fade out, stop audio, etc. |
 | `GameRunning` | — | The launched game has finished loading and is now running. Sent when the table process outputs "Startup done". |
 | `GameLaunchComplete` | — | The launched game has exited and frontend input routing is restored. Use this to fade back in, resume audio. |
@@ -962,7 +962,7 @@ async function receiveEvent(message) {
 }
 ```
 
-If the `table` window launches the game from local input, remember that `vpin.sendMessageToAllWindows(...)` excludes the sender. Call `showTableLoadingOverlay()` directly in the local `joyselect` path before `await vpin.launchGame(...)`, or send the event with `vpin.sendMessageToAllWindowsIncSelf(...)`.
+If the controller launches the game from local input, remember that `vpin.sendMessageToAllWindows(...)` excludes the sender. Call `showTableLoadingOverlay()` directly in the local `joyselect` path before `await vpin.launchGame(...)`, or send the event with `vpin.sendMessageToAllWindowsIncSelf(...)`.
 
 ### Attract Mode During Game Launch
 
@@ -1019,7 +1019,7 @@ async function receiveEvent(message) {
 
 ### Input Actions
 
-The following input actions are passed to your `handleInput` function (`table` window only):
+The following input actions are passed to your `handleInput` function (controller window only):
 
 | Action | Gamepad | Keyboard |
 |--------|---------|----------|
@@ -1125,7 +1125,7 @@ requests, which is why this is opt-in rather than on by default.
 Sets up keyboard event listener and connects to the backend over the WebSocket bridge.
 
 #### registerInputHandler(handler)
-Registers an input handler for the table screen. Only works when the current window name is `"table"`. The handler receives a single string argument (the action name).
+Registers an input handler for the playfield screen. Only works on the controller - the first window your theme declares, `playfield` unless you say otherwise. The handler receives a single string argument (the action name).
 
 #### registerInputHandlerMenu(handler)
 Registers an input handler for the main menu overlay.
@@ -1148,7 +1148,7 @@ The following methods are available via `vpin.call()`:
 
 | Method | Args | Returns | Description |
 |--------|------|---------|-------------|
-| `get_my_window_name` | — | `string` | Returns the window name for this instance (`"table"`, `"bg"`, or `"dmd"`). |
+| `get_my_window_name` | — | `string` | Returns the window name for this instance (`"playfield"`, `"bg"`, or `"dmd"` by default). |
 | `close_app` | — | — | Shuts down all browser windows and exits the application. |
 | `get_monitors` | — | `array` | Returns list of monitor objects with `name`, `x`, `y`, `width`, `height`. |
 | `console_out` | `output` | `string` | Prints a message to the Python CLI console. Useful for debugging. Returns the same string. |
@@ -1194,7 +1194,7 @@ The following methods are available via `vpin.call()`:
 |--------|------|---------|-------------|
 | `send_event_all_windows` | `message` | — | Sends an event to all windows except the caller. |
 | `send_event_all_windows_incself` | `message` | — | Sends an event to all windows including the caller and iframes. |
-| `send_event` | `window_name`, `message` | — | Sends an event to a specific window by name (`"table"`, `"bg"`, or `"dmd"`). |
+| `send_event` | `window_name`, `message` | — | Sends an event to a specific window by name (`"playfield"`, `"bg"`, or `"dmd"` by default). |
 
 ##### Input
 
@@ -1220,7 +1220,7 @@ The following methods are available via `vpin.call()`:
 
 Theme pages receive the current window name in the `window` query parameter:
 
-- `?window=table`
+- `?window=playfield`
 - `?window=bg`
 - `?window=dmd`
 
@@ -1262,7 +1262,7 @@ If `override` is present, themes that position or scale BG/DMD content based on 
 | `setAudioOptions` | `options` | — | Sets runtime audio options. Supported keys: `maxVolume`/`max_volume`/`volume`, `fadeDuration`/`fade_duration_ms`/`fadeMs`, `loop`. |
 
 #### getImageURL(index, type)
-Returns an HTTP URL for a table's image. `type` can be `"table"`, `"bg"`, `"dmd"`, `"wheel"`, or `"cab"`. Returns a fallback `/web/images/file_missing.png` URL if the file doesn't exist.
+Returns an HTTP URL for a table's image. `type` can be `"playfield"`, `"bg"`, `"dmd"`, `"wheel"`, or `"cab"`. Returns a fallback `/web/images/file_missing.png` URL if the file doesn't exist.
 
 #### getVideoURL(index, type)
 Returns an HTTP URL for a table's video. `type` can be `"playfield"`, `"bg"`, or `"dmd"`. Returns a fallback `/web/images/file_missing.png` URL if no video exists. See [Video Support](#video-support).
@@ -1672,7 +1672,7 @@ Key points:
 
 ## Audio Support
 
-VPinFECore now includes a centralized per-table audio manager. Theme code can use it directly and no longer needs to implement its own `Audio`/fade/retry logic.
+VPinFECore now includes a centralized per-game audio manager. Theme code can use it directly and no longer needs to implement its own `Audio`/fade/retry logic.
 
 ### Audio File
 
@@ -1680,12 +1680,12 @@ Place an `audio.mp3` file in the table's `medias/` folder (or root folder). `vpi
 
 ### Core Behavior
 
-On the `table` window, `await vpin.handleEvent(message)` automatically manages audio transitions when core audio is enabled.
+On the controller, `await vpin.handleEvent(message)` automatically manages audio transitions when core audio is enabled.
 
-Core audio is opt-in by default. If your theme does not explicitly enable it (or call `vpin.enableCoreAudio(true)` at runtime), no automatic table audio playback will occur.
+Core audio is opt-in by default. If your theme does not explicitly enable it (or call `vpin.enableCoreAudio(true)` at runtime), no automatic game audio playback will occur.
 
 When enabled, these transitions are handled automatically:
-- `GameIndexUpdate` -> play selected table audio
+- `GameIndexUpdate` -> play selected game audio
 - `GameLaunching` and `RemoteLaunching` -> fade/stop audio
 - `GameLaunchComplete` and `RemoteLaunchComplete` -> resume audio for current selection
 - `GameDataChange` (with `index`) -> play audio for that index
@@ -1696,7 +1696,7 @@ When enabled, these transitions are handled automatically:
 
 ### Practical Note: Self-Event Caveat
 
-`vpin.sendMessageToAllWindows(...)` excludes the sender. If your `table` window sends `GameLaunching`, it might not receive that same event back, so backend-emitted lifecycle events are the reliable source of truth for launch state.
+`vpin.sendMessageToAllWindows(...)` excludes the sender. If your playfield window sends `GameLaunching`, it might not receive that same event back, so backend-emitted lifecycle events are the reliable source of truth for launch state.
 
 For robust behavior, it is valid to also call:
 - `vpin.stopGameAudio()` directly in your local `joyselect`/launch path
@@ -1714,7 +1714,7 @@ Defaults:
 ```javascript
 function updateScreen() {
     // ... update images, carousel, etc ...
-    if (windowName === "table") {
+    if (vpin.isController()) {
         vpin.playGameAudio(currentGameIndex);
     }
 }
@@ -1755,7 +1755,7 @@ Example:
     {
       "key": "showClock",
       "name": "Show Clock",
-      "description": "Show the clock overlay in the table window.",
+      "description": "Show the clock overlay in the playfield window.",
       "type": "boolean",
       "value": true
     },
@@ -1781,7 +1781,7 @@ Full sample `theme.json` for quick testing:
     {
       "key": "showClock",
       "name": "Show Clock",
-      "description": "Show a clock overlay on the table screen.",
+      "description": "Show a clock overlay on the playfield screen.",
       "type": "boolean",
       "value": true
     },
