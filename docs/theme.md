@@ -232,7 +232,6 @@ instead. They work at every contract, for reads, writes and calls alike:
 | `vpin.getGameData()` | `vpin.getTableData()` |
 | `vpin.getGameCount()` | `vpin.getTableCount()` |
 | `vpin.getCurrentGameIndex()` | `vpin.getCurrentTableIndex()` |
-| `vpin.getAllGames()` | `vpin.getAllTables()` |
 | `vpin.playGameAudio()` | `vpin.playTableAudio()` |
 | `vpin.stopGameAudio()` | `vpin.stopTableAudio()` |
 | `vpin.launchGame()` | `vpin.launchTable()` |

@@ -50,18 +50,17 @@ describe("the vpin.* names 2.x themes read still answer", () => {
     assert.equal(vpin.gameData[0].tableDirName, "written through the old name");
   });
 
-  test("getAllTables/getAllGames is a phantom - neither name has ever existed", () => {
-    // Left deliberately failing-if-fixed rather than deleted, because three places
-    // claim otherwise: the rename map lists it, docs/theme.md documents
-    // vpin.getAllGames(), and PAR-23 says every old name still works. Nothing on
-    // master defines getAllTables either, so this is a stale claim rather than a
-    // regression - but a theme following the docs gets a TypeError.
-    const { vpin } = newCore();
+  test("every renamed name reaches something that exists", () => {
+    // getAllTables got into the map from the Python parser rename, where getAllTables ->
+    // getAllGames is real. On vpin it was neither: calling it warned, named a
+    // replacement that did not exist either, then threw. This is the check that would
+    // have caught it, so a rename cannot be copied onto the wrong surface again.
+    const { vpin, context } = newCore();
 
-    assert.equal(typeof vpin.getAllGames, "undefined",
-      "if getAllGames now exists, drop this test and the phantom note with it");
-    assert.equal(vpin.getAllTables, undefined,
-      "the alias forwards to a method that does not exist");
+    for (const [oldName, newName] of Object.entries(context.VPINFE_RENAMED_MEMBERS)) {
+      assert.notEqual(vpin[newName], undefined,
+        `${oldName} forwards to vpin.${newName}, which does not exist`);
+    }
   });
 
   test("using a legacy name is reported, so the log can answer who still needs it", () => {

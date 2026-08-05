@@ -229,7 +229,7 @@ reach them.
 
 **PAR-23 — The `vpin.*` JavaScript surface renames, and every old member still works.**
 `vpin.tableData`, `tableRotation`, `tableOrientation`, `getTableMeta`, `getTableData`,
-`getTableCount`, `getCurrentTableIndex`, `getAllTables`, `playTableAudio`,
+`getTableCount`, `getCurrentTableIndex`, `playTableAudio`,
 `stopTableAudio` and `launchTable` become the `game`/`playfield` spellings. Each old name
 stays as an accessor forwarding to its replacement, so reads, writes and method calls all
 still work from a theme written against any earlier build.

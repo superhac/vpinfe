@@ -162,7 +162,6 @@ const VPINFE_RENAMED_MEMBERS = {
   getTableData: 'getGameData',
   getTableCount: 'getGameCount',
   getCurrentTableIndex: 'getCurrentGameIndex',
-  getAllTables: 'getAllGames',
   playTableAudio: 'playGameAudio',
   stopTableAudio: 'stopGameAudio',
   launchTable: 'launchGame',
