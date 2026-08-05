@@ -1053,9 +1053,20 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 | `vpin.playfieldRotation` | `number` | Playfield rotation in degrees from config (default `0`). |
 | `vpin.themeAssetsPort` | `number` | HTTP server port (default `8000`). |
 | `vpin.menuUP` | `boolean` | Whether the main menu overlay is currently visible. |
+| `vpin.capabilities` | `object` | What this build does on your behalf, and whether each is on — `{ core_paging: true, core_audio: false }`. A name that is absent is a behaviour this build does not have, so check before relying on it. Reading it gives you a copy; use `enableCorePaging()` / `enableCoreAudio()` to change anything. |
+| `vpin.contract` | `number` | Which contract you are being served. |
 | `vpin.collectionMenuUP` | `boolean` | Whether the collection menu overlay is currently visible. |
 
 ### API Reference
+
+#### enabled(name)
+`true` when core is doing that for you right now. `vpin.enabled("core_audio")`. An unknown
+name is `false` rather than an error, so a theme can ask about something a build might not
+have.
+
+Each capability has one stated default: **core paging is on** (opt out if your theme does
+its own), **core audio is off** (opt in). A theme's `theme.json` can set either — core
+audio reads `use_core_audio`, or `audio.use_core_audio`, or `audio.enabled`.
 
 #### init()
 Sets up keyboard event listener and connects to the backend over the WebSocket bridge.

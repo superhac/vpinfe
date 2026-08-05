@@ -106,31 +106,41 @@ describe("window identity", () => {
   });
 });
 
-describe("core behaviors have defaults, and they disagree", () => {
-  // Recorded rather than endorsed: THEME.local.md §13.2. Core paging is opt-out and core
-  // audio is opt-in, neither is stated anywhere an author would look, and the audio
-  // default contradicts itself between the constructor and init(). These assertions pin
-  // today's answers so the capability registry can change them deliberately.
-  test("core paging is on before a theme says anything", () => {
+describe("core behaviours have one stated default each", () => {
+  // These used to disagree with themselves: core audio read true at construction and
+  // false after init(), because the constructor and init() each decided separately.
+  // CAPABILITIES states each default once and both paths read it.
+  test("core paging is on, core audio is off, before init and after", async () => {
     const { vpin } = newCore();
 
-    assert.equal(vpin.isCorePagingEnabled(), true);
-  });
-
-  test("core audio reads true at construction, though init() makes it opt-in", () => {
-    const { vpin } = newCore();
-
-    assert.equal(vpin.isCoreAudioEnabled(), true,
-      "the constructor says true and init() says false - one registry entry with one "
-      + "stated default is what fixes this");
+    assert.equal(vpin.isCorePagingEnabled(), true, "opt out");
+    assert.equal(vpin.isCoreAudioEnabled(), false, "opt in");
   });
 
   test("a theme can turn each of them off", () => {
     const { vpin } = newCore();
     vpin.enableCorePaging(false);
-    vpin.enableCoreAudio(false);
+    vpin.enableCoreAudio(true);
 
     assert.equal(vpin.isCorePagingEnabled(), false);
-    assert.equal(vpin.isCoreAudioEnabled(), false);
+    assert.equal(vpin.isCoreAudioEnabled(), true);
+  });
+
+  test("capabilities names what this build offers and whether it is on", () => {
+    const { vpin } = newCore();
+
+    assert.ok("core_paging" in vpin.capabilities);
+    assert.ok("core_audio" in vpin.capabilities);
+    assert.equal(vpin.capabilities.core_paging, true);
+    assert.equal(vpin.enabled("no_such_capability"), false,
+      "a name this build does not have reads false rather than throwing");
+  });
+
+  test("the reported set is a copy, not the live one", () => {
+    const { vpin } = newCore();
+    vpin.capabilities.core_paging = false;
+
+    assert.equal(vpin.isCorePagingEnabled(), true,
+      "a theme poking the report must not change what core does");
   });
 });

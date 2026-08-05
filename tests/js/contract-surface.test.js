@@ -151,3 +151,31 @@ describe("what the contract is for", () => {
     assert.equal(vpin.contract, 2, "clamped, not obeyed");
   });
 });
+
+describe("theme.json turns capabilities on and off", () => {
+  test("core audio is off unless the theme asks for it", async () => {
+    const { vpin } = await coreAtContract(1);
+
+    assert.equal(vpin.isCoreAudioEnabled(), false);
+  });
+
+  test("the declared key switches it on", async () => {
+    const { vpin } = await coreAtContract(1, { get_theme_config: { use_core_audio: true } });
+
+    assert.equal(vpin.isCoreAudioEnabled(), true);
+  });
+
+  test("a nested key works too", async () => {
+    const { vpin } = await coreAtContract(1,
+      { get_theme_config: { audio: { enabled: true } } });
+
+    assert.equal(vpin.isCoreAudioEnabled(), true);
+  });
+
+  test("the camelCase spellings earlier builds accepted still work", async () => {
+    const { vpin } = await coreAtContract(1, { get_theme_config: { useCoreAudio: true } });
+
+    assert.equal(vpin.isCoreAudioEnabled(), true,
+      "themes are using these; they stay until contract 1 goes");
+  });
+});

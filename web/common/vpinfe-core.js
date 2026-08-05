@@ -38,6 +38,34 @@ const DEFAULT_MEDIA_PRIORITIES = {
   real_dmd: "color",
 };
 
+
+// What core does on a theme's behalf. One entry per behavior, with its default stated
+// here rather than implied by a constructor - the audio default used to be `true` at
+// construction and `false` after init, and nothing said which was meant.
+//
+// `config` names the theme.json keys that turn it on or off, most specific first. The
+// extra spellings are contract 1's: they accumulated because nothing declared the real
+// one, and they stay only for themes already using them.
+const CAPABILITIES = {
+  core_paging: {
+    default: true,
+    config: [],
+    describe: "Core handles page-up and page-down itself.",
+  },
+  core_audio: {
+    default: false,
+    config: ["use_core_audio", "audio.use_core_audio", "audio.enabled"],
+    legacyConfig: ["useCoreAudio", "audio.useCoreAudio"],
+    describe: "Core plays, fades and mutes per-game audio.",
+  },
+};
+
+// Read a possibly-dotted key out of a theme's config.
+function configValue(config, key) {
+  return key.split(".").reduce((at, part) =>
+    (at && typeof at === "object") ? at[part] : undefined, config);
+}
+
 const MISSING_MEDIA_URL = "/web/images/file_missing.png";
 
 // The contract a theme declares in its manifest. 1 is what declaring nothing gets, and
@@ -332,8 +360,10 @@ class VPinFECore {
     this.frontendInputEnabled = true;
     this._launchInputSuppressedByLifecycle = false;
 
-    // Core-handled wheel paging (joypageup/joypagedown)
-    this._corePagingEnabled = true;
+    // What core is doing on the theme's behalf, seeded from CAPABILITIES so the
+    // default is stated in one place.
+    this._capabilities = Object.fromEntries(
+      Object.entries(CAPABILITIES).map(([name, spec]) => [name, spec.default]));
     this._pagingInFlight = false;
 
     // menu is up?
@@ -362,7 +392,6 @@ class VPinFECore {
     this.mediaPriorities = Object.assign({}, DEFAULT_MEDIA_PRIORITIES);
     this._currentGameIndex = 0;
     this._initialGameRestored = false;
-    this._coreAudioEnabled = true;
     this._audioMuted = false;
     this._audio = Object.assign(new Audio(), { loop: true });
     this._audioFadeId = null;
@@ -511,13 +540,42 @@ class VPinFECore {
   // Core handles joypageup/joypagedown by default: it asks the backend for the
   // target index ([Input] pagingtype/pagingsize + current sort) and broadcasts a
   // GameIndexUpdate. Themes that implement their own paging call
+  /**
+   * What this build does on your behalf, and whether each is on right now. A name that
+   * is absent is a behavior this build does not have - check before using it.
+   */
+  get capabilities() {
+    return { ...this._capabilities };
+  }
+
+  enabled(name) {
+    return !!this._capabilities[name];
+  }
+
+  #setCapability(name, on) {
+    if (!(name in CAPABILITIES)) return;
+    this._capabilities[name] = !!on;
+  }
+
+  // Whatever the theme's config says, against the keys each capability declares.
+  #applyCapabilityConfig() {
+    const config = this.themeConfig || {};
+    for (const [name, spec] of Object.entries(CAPABILITIES)) {
+      const keys = [...(spec.config || []), ...(spec.legacyConfig || [])];
+      const stated = keys.map((key) => configValue(config, key))
+                         .find((value) => value !== undefined);
+      this.#setCapability(name, stated === undefined ? spec.default : !!stated);
+    }
+    if (!this.enabled("core_audio")) this.stopGameAudio({ immediate: true });
+  }
+
   // enableCorePaging(false) and receive the actions in handleInput instead.
   enableCorePaging(enabled = true) {
-    this._corePagingEnabled = !!enabled;
+    this.#setCapability("core_paging", enabled);
   }
 
   isCorePagingEnabled() {
-    return !!this._corePagingEnabled;
+    return this.enabled("core_paging");
   }
 
   // Ask the backend where a page next/prev press should land. Available to
@@ -527,12 +585,12 @@ class VPinFECore {
   }
 
   enableCoreAudio(enabled = true) {
-    this._coreAudioEnabled = !!enabled;
-    if (!this._coreAudioEnabled) this.stopGameAudio({ immediate: true });
+    this.#setCapability("core_audio", enabled);
+    if (!this.enabled("core_audio")) this.stopGameAudio({ immediate: true });
   }
 
   isCoreAudioEnabled() {
-    return !!this._coreAudioEnabled;
+    return this.enabled("core_audio");
   }
 
   setAudioMuted(muted = true) {
@@ -542,7 +600,7 @@ class VPinFECore {
       this.stopGameAudio({ immediate: true });
       return;
     }
-    if (this._coreAudioEnabled && this._windowName === "table") {
+    if (this.enabled("core_audio") && this._windowName === "table") {
       this.playGameAudio(this._currentGameIndex);
     }
   }
@@ -572,7 +630,7 @@ class VPinFECore {
   }
 
   playGameAudio(indexOrUrl = this._currentGameIndex, retries = 3) {
-    if (!this._coreAudioEnabled || this._audioMuted || this._windowName !== "table") return;
+    if (!this.enabled("core_audio") || this._audioMuted || this._windowName !== "table") return;
     const url = this.#resolveAudioUrl(indexOrUrl);
     if (!url) {
       this.stopGameAudio();
@@ -869,7 +927,7 @@ class VPinFECore {
   }
 
   async #handleCoreAudioEvent(message) {
-    if (!this._coreAudioEnabled || this._windowName !== "table") return;
+    if (!this.enabled("core_audio") || this._windowName !== "table") return;
 
     if (message.type === "GameIndexUpdate") {
       this.playGameAudio(this._currentGameIndex);
@@ -1239,15 +1297,7 @@ class VPinFECore {
     const audioCfg = (this.themeConfig && typeof this.themeConfig.audio === "object")
       ? this.themeConfig.audio
       : {};
-    const enabledOpt = [
-      this.themeConfig.use_core_audio,
-      this.themeConfig.useCoreAudio,
-      audioCfg.use_core_audio,
-      audioCfg.useCoreAudio,
-      audioCfg.enabled
-    ].find(v => v !== undefined);
-    // Opt-in by default: themes must explicitly enable core audio.
-    this.enableCoreAudio(enabledOpt === undefined ? false : !!enabledOpt);
+    this.#applyCapabilityConfig();
     this.setAudioOptions(audioCfg);
 
     // Load network config
@@ -1334,7 +1384,7 @@ class VPinFECore {
   // window, and no overlay up (overlays keep receiving the raw action).
   #shouldHandleCorePaging(action) {
     if (action !== "joypageup" && action !== "joypagedown") return false;
-    if (!this._corePagingEnabled) return false;
+    if (!this.enabled("core_paging")) return false;
     if (this._windowName !== "table") return false;
     if (this.menuUP || this.collectionMenuUP || this.tutorialUP) return false;
     return true;
