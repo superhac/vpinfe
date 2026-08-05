@@ -742,16 +742,16 @@ class VPinFECore {
 
   // Toggle collection menu (public method callable from collection menu)
   toggleCollectionMenu() {
-    this.#showcollectionmenu();
+    return this.#showcollectionmenu();
   }
 
   // Toggle main menu (public method callable from main menu)
   toggleMenu() {
-    this.#showmenu();
+    return this.#showmenu();
   }
 
   toggleTutorial() {
-    this.#showtutorial();
+    return this.#showtutorial();
   }
 
   // Launch a game
@@ -890,6 +890,84 @@ class VPinFECore {
   }
 
   // Default handler for GameDataChange events
+  // The three overlays differ in four things: which flag says they are up, which iframe
+  // they own, what they load, and what they are told when opened. Everything else - the
+  // fade class, creating the frame once, the ten-millisecond wait so it does not flash,
+  // hiding rather than destroying - was written out three times and drifted.
+  static OVERLAYS = {
+    menu: {
+      flag: "menuUP",
+      frameId: "menu-frame",
+      src: "/web/mainmenu/mainmenu.html",
+      // table_index is mainmenu.js's own key, not ours to rename.
+      opened: (core) => ({ event: "menu_open", table_index: core._currentGameIndex }),
+    },
+    collectionMenu: {
+      flag: "collectionMenuUP",
+      frameId: "collection-menu-frame",
+      src: "/web/collectionmenu/collectionmenu.html",
+    },
+    tutorial: {
+      flag: "tutorialUP",
+      frameId: "tutorial-frame",
+      src: "/web/tutorial/tutorial.html",
+      // There is nothing to show without a URL, and this runs before anything is
+      // closed - a missing tutorial must leave whatever is open alone.
+      prepare: (core) => core.getCurrentTutorialUrl() || null,
+      opened: (core, url) => ({
+        event: "tutorial_open",
+        tutorial_url: url,
+        tutorial_proxy_url: core.buildTutorialProxyUrl(url),
+        table_rotation: core.playfieldRotation,
+      }),
+    },
+  };
+
+  async #toggleOverlay(name) {
+    const spec = VPinFECore.OVERLAYS[name];
+    const overlayRoot = document.getElementById("overlay-root");
+    let iframe = document.getElementById(spec.frameId);
+
+    if (this[spec.flag]) {
+      this[spec.flag] = false;
+      overlayRoot.classList.remove("active");          // fade out
+      if (iframe) {
+        iframe.style.display = "none";                 // hide, never destroy
+        if (iframe.contentWindow) {
+          iframe.contentWindow.postMessage({ event: "reset state" }, "*");
+        }
+      }
+      return;
+    }
+
+    const context = spec.prepare ? spec.prepare(this) : undefined;
+    if (spec.prepare && context === null) return;
+
+    for (const [other, otherSpec] of Object.entries(VPinFECore.OVERLAYS)) {
+      if (other !== name && this[otherSpec.flag]) await this.#toggleOverlay(other);
+    }
+
+    this[spec.flag] = true;
+    overlayRoot.classList.add("active");               // fade in
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.src = spec.src;
+      iframe.id = spec.frameId;
+      iframe.setAttribute("allowTransparency", "true");
+      iframe.style.display = "none";                   // start hidden to prevent a flash
+      overlayRoot.appendChild(iframe);
+      await new Promise(resolve => setTimeout(resolve, 10));   // let the DOM catch up
+    }
+
+    iframe.style.display = "block";
+    const message = spec.opened && spec.opened(this, context);
+    if (message && iframe.contentWindow) iframe.contentWindow.postMessage(message, "*");
+  }
+
+  #showmenu()           { return this.#toggleOverlay("menu"); }
+  #showcollectionmenu() { return this.#toggleOverlay("collectionMenu"); }
+  #showtutorial()       { return this.#toggleOverlay("tutorial"); }
+
   async #handleGameDataChange(message) {
     // Check if a collection filter was applied
     if (message.collection) {
@@ -1639,90 +1717,7 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
   }
 
   // convert the hard full local path to the web servers url map
-  async #showmenu() {
-    const overlayRoot = document.getElementById('overlay-root');
-    let iframe = document.getElementById("menu-frame");
-
-    // Close collection menu if it's open
-    if (this.collectionMenuUP) {
-      await this.#showcollectionmenu();
-    }
-    if (this.tutorialUP) {
-      await this.#showtutorial();
-    }
-
-    if (!this.menuUP) {
-      this.menuUP = true;
-      overlayRoot.classList.add("active"); // fade in
-
-      if (!iframe) {
-        iframe = document.createElement("iframe");
-        iframe.src = "/web/mainmenu/mainmenu.html";
-        iframe.id = "menu-frame";
-        iframe.setAttribute("allowTransparency", "true");
-        iframe.style.display = "none"; // start hidden to prevent flash
-        overlayRoot.appendChild(iframe);
-        await new Promise(resolve => setTimeout(resolve, 10)); // tiny delay to allow DOM update
-      }
-
-      iframe.style.display = "block"; // show iframe
-      if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage({
-          event: "menu_open",
-          table_index: this._currentGameIndex
-        }, "*");
-      }
-    } else {
-      this.menuUP = false;
-      overlayRoot.classList.remove("active"); // fade out
-
-      if (iframe) {
-        iframe.style.display = "none"; // just hide, don't remove
-        iframe.contentWindow.postMessage({ event: "reset state" }, "*");
-      }
-      //this.#deregisterAllInputHandlersMenu();  // only need this when we destory it.
-    }
-  }
-
-  async #showcollectionmenu() {
-    const overlayRoot = document.getElementById('overlay-root');
-    let iframe = document.getElementById("collection-menu-frame");
-
-    // Close main menu if it's open
-    if (this.menuUP) {
-      await this.#showmenu();
-    }
-    if (this.tutorialUP) {
-      await this.#showtutorial();
-    }
-
-    if (!this.collectionMenuUP) {
-      this.collectionMenuUP = true;
-      overlayRoot.classList.add("active"); // fade in
-
-      if (!iframe) {
-        iframe = document.createElement("iframe");
-        iframe.src = "/web/collectionmenu/collectionmenu.html";
-        iframe.id = "collection-menu-frame";
-        iframe.setAttribute("allowTransparency", "true");
-        iframe.style.display = "none"; // start hidden to prevent flash
-        overlayRoot.appendChild(iframe);
-        await new Promise(resolve => setTimeout(resolve, 10)); // tiny delay to allow DOM update
-      }
-
-      iframe.style.display = "block"; // show iframe
-    } else {
-      this.collectionMenuUP = false;
-      overlayRoot.classList.remove("active"); // fade out
-
-      if (iframe) {
-        iframe.style.display = "none"; // just hide, don't remove
-        iframe.contentWindow.postMessage({ event: "reset state" }, "*");
-      }
-    }
-  }
-
-  #getCurrentPinballPrimerTutorialUrl() {
+  getCurrentTutorialUrl() {
     const index = Math.floor(this._currentGameIndex);
     if (!Array.isArray(this.gameData) || index < 0 || index >= this.gameData.length) {
       return "";
@@ -1737,59 +1732,9 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     return (typeof tutorialUrl === "string") ? tutorialUrl.trim() : "";
   }
 
-  #buildTutorialProxyUrl(tutorialUrl) {
+  buildTutorialProxyUrl(tutorialUrl) {
     if (!tutorialUrl) return "";
     return `/proxy/pinballprimer?url=${encodeURIComponent(tutorialUrl)}`;
-  }
-
-  async #showtutorial() {
-    const overlayRoot = document.getElementById('overlay-root');
-    let iframe = document.getElementById("tutorial-frame");
-
-    if (!this.tutorialUP) {
-      const tutorialUrl = this.#getCurrentPinballPrimerTutorialUrl();
-      if (!tutorialUrl) {
-        return;
-      }
-
-      if (this.menuUP) {
-        await this.#showmenu();
-      }
-      if (this.collectionMenuUP) {
-        await this.#showcollectionmenu();
-      }
-
-      this.tutorialUP = true;
-      overlayRoot.classList.add("active");
-
-      if (!iframe) {
-        iframe = document.createElement("iframe");
-        iframe.src = "/web/tutorial/tutorial.html";
-        iframe.id = "tutorial-frame";
-        iframe.setAttribute("allowTransparency", "true");
-        iframe.style.display = "none";
-        overlayRoot.appendChild(iframe);
-        await new Promise(resolve => setTimeout(resolve, 10));
-      }
-
-      iframe.style.display = "block";
-      if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.postMessage({
-          event: "tutorial_open",
-          tutorial_url: tutorialUrl,
-          tutorial_proxy_url: this.#buildTutorialProxyUrl(tutorialUrl),
-          table_rotation: this.playfieldRotation,
-        }, "*");
-      }
-    } else {
-      this.tutorialUP = false;
-      overlayRoot.classList.remove("active");
-
-      if (iframe) {
-        iframe.style.display = "none";
-        iframe.contentWindow.postMessage({ event: "reset state" }, "*");
-      }
-    }
   }
 
   // Menu deregister for Input Events

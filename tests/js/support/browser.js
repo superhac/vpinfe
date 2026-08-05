@@ -57,14 +57,39 @@ class FakeAudio {
 export function makeBrowser({ windowName = "table", search = null } = {}) {
   const query = search === null ? `?window=${windowName}` : search;
 
+  // Just enough DOM for the overlays: an element that can hold a class and children,
+  // and iframes that record what they were posted. Not a browser - a place for the
+  // overlay logic to leave evidence.
+  function element(id = "") {
+    const el = {
+      id,
+      src: "",
+      style: {},
+      children: [],
+      classes: new Set(),
+      posted: [],
+      attributes: {},
+      classList: {
+        add: (name) => el.classes.add(name),
+        remove: (name) => el.classes.delete(name),
+        contains: (name) => el.classes.has(name),
+      },
+      setAttribute(name, value) { el.attributes[name] = value; },
+      appendChild(child) { el.children.push(child); documentStub._byId[child.id] = child; },
+      contentWindow: { postMessage: (message) => el.posted.push(message) },
+    };
+    return el;
+  }
+
   const documentStub = {
     title: "",
     addEventListener() {},
     removeEventListener() {},
     querySelector: unimplemented("document.querySelector"),
-    getElementById: unimplemented("document.getElementById"),
-    createElement: unimplemented("document.createElement"),
     readyState: "complete",
+    _byId: { "overlay-root": element("overlay-root") },
+    getElementById(id) { return documentStub._byId[id] || null; },
+    createElement() { return element(); },
     body: { appendChild: unimplemented("document.body.appendChild") },
   };
 
