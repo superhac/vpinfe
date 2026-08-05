@@ -1,13 +1,27 @@
+"""Creating, editing and deleting collections, and the icons they carry.
+
+The write side. `common.games.collections_service` is the read side - names, metadata,
+membership - and both are needed here, so the shared helpers are imported rather than
+kept twice. They were kept twice until 2026-08-05, under the same filename in two
+packages, and two of the four copies had drifted apart.
+"""
+
 from __future__ import annotations
 
 import re
 from pathlib import Path
 from typing import Dict, List
-from urllib.parse import quote
 
 from common.games import game_repository
-from common.games.collection_store import MEMBERS_KEY, CollectionStore
-from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR
+# Imported and re-exported: the collections page reaches both halves through this
+# module, and these four were duplicated here until 2026-08-05.
+from common.games.collections_service import (  # noqa: F401  (import and export)
+    collection_icon_url,
+    ensure_collection_icons_dir,
+    get_collection_image,
+    get_collections_manager,
+)
+from managerui.paths import CONFIG_DIR
 from managerui.services import game_index_service
 
 COLLECTION_ICONS_DIR = CONFIG_DIR / "collection_icons"
@@ -15,20 +29,7 @@ COLLECTION_IMAGE_KEY = "image"
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
 
 
-def get_collections_manager() -> CollectionStore:
-    return CollectionStore(str(COLLECTIONS_PATH))
 
-
-def ensure_collection_icons_dir() -> Path:
-    COLLECTION_ICONS_DIR.mkdir(parents=True, exist_ok=True)
-    return COLLECTION_ICONS_DIR
-
-
-def collection_icon_url(filename: str | None) -> str | None:
-    filename = (filename or "").strip()
-    if not filename:
-        return None
-    return f"/collection_icons/{quote(Path(filename).name)}"
 
 
 def list_collection_icons() -> list[str]:
@@ -78,12 +79,6 @@ def _validated_icon_filename(filename: str | None) -> str:
 def _set_section_image(manager, name: str, filename: str | None) -> None:
     manager.set_image(name, _validated_icon_filename(filename))
 
-
-def get_collection_image(name: str) -> str:
-    manager = get_collections_manager()
-    if name not in manager:
-        return ""
-    return manager.get_image(name)
 
 
 def set_collection_image(name: str, filename: str | None) -> None:

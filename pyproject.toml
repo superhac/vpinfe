@@ -19,7 +19,7 @@ select = ["E", "W", "F", "I", "N", "UP", "B"]
 "managerui/pages/remote.py" = ["E402"]
 "tests/*" = ["E402"]
 # Tab-indented throughout; converting it is a diff of its own.
-"common/iniconfig.py" = ["W191", "E101"]
+"common/config_store.py" = ["W191", "E101"]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI's whole DI design is calls in argument defaults - Depends(), Query(),

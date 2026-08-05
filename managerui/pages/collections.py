@@ -4,7 +4,7 @@ from typing import Dict, List
 from nicegui import app, events, run, ui
 
 from common.values import is_truthy
-from managerui.services import collections_service, game_index_service
+from managerui.services import collection_admin, game_index_service
 from managerui.ui_helpers import debounced_input, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.collections")
@@ -12,29 +12,29 @@ _collection_icons_route_registered = False
 
 def get_collections_manager():
     """Get a fresh CollectionStore instance."""
-    return collections_service.get_collections_manager()
+    return collection_admin.get_collections_manager()
 
 
 def get_game_name_map() -> Dict[str, str]:
     """Game names keyed by game id, for showing what is in a collection."""
-    return collections_service.get_game_name_map()
+    return collection_admin.get_game_name_map()
 
 
 def member_to_name(member_id: str, game_map: Dict[str, str] = None) -> str:
     """Name of a collection member, or the raw id when no game matches."""
-    return collections_service.member_to_name(member_id, game_map)
+    return collection_admin.member_to_name(member_id, game_map)
 
 
 def get_filter_options() -> Dict[str, List[str]]:
     """Get filter options (letters, themes, types, manufacturers, years, ratings) from VPSDB."""
-    return collections_service.get_filter_options()
+    return collection_admin.get_filter_options()
 
 
 def render_panel(tab=None):
     global _collection_icons_route_registered
     load_page_style("collections.css")
     if not _collection_icons_route_registered:
-        icon_dir = collections_service.ensure_collection_icons_dir()
+        icon_dir = collection_admin.ensure_collection_icons_dir()
         app.add_media_files('/collection_icons', str(icon_dir))
         _collection_icons_route_registered = True
 
@@ -63,7 +63,7 @@ def render_panel(tab=None):
                 preview_container.clear()
                 with preview_container:
                     if state['filename']:
-                        url = collections_service.collection_icon_url(state['filename'])
+                        url = collection_admin.collection_icon_url(state['filename'])
                         with ui.row().classes('items-center gap-3'):
                             ui.image(url).classes('collection-icon-preview')
                             ui.label(state['filename']).classes('text-sm text-gray-300')
@@ -78,7 +78,7 @@ def render_panel(tab=None):
             async def handle_upload(e: events.UploadEventArguments):
                 try:
                     content = await e.file.read()
-                    filename = await run.io_bound(collections_service.save_collection_icon, e.file.name, content)
+                    filename = await run.io_bound(collection_admin.save_collection_icon, e.file.name, content)
                     state['filename'] = filename
                     render_preview()
                     ui.notify(f'Collection image uploaded: {filename}', type='positive')
@@ -113,12 +113,12 @@ def render_panel(tab=None):
             with collections_container:
                 for name in collection_names:
                     is_filter = manager.is_filter_based(name)
-                    collection_image = collections_service.get_collection_image(name)
+                    collection_image = collection_admin.get_collection_image(name)
 
                     with ui.card().classes('collection-card w-full p-4'):
                         with ui.row().classes('w-full justify-between items-center'):
                             with ui.row().classes('items-center gap-3 min-w-0 flex-nowrap collection-card-heading'):
-                                icon_url = collections_service.collection_icon_url(collection_image)
+                                icon_url = collection_admin.collection_icon_url(collection_image)
                                 if icon_url:
                                     with ui.element('div').classes('collection-list-icon-wrap flex-none'):
                                         ui.element('img').props(
@@ -219,9 +219,9 @@ def render_panel(tab=None):
                     ui.button('Cancel', on_click=dlg.close).props('flat')
                     def do_delete():
                         try:
-                            collections_service.delete_collection(name)
+                            collection_admin.delete_collection(name)
                             # Sync the tables cache with updated collection memberships
-                            game_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
+                            game_index_service.sync_collection_memberships(collection_admin.get_game_collections_map())
                             ui.notify(f'Collection "{name}" deleted', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -251,9 +251,9 @@ def render_panel(tab=None):
                             dlg.close()
                             return
                         try:
-                            collections_service.rename_collection(name, new_name)
+                            collection_admin.rename_collection(name, new_name)
                             # Sync the tables cache with updated collection memberships
-                            game_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
+                            game_index_service.sync_collection_memberships(collection_admin.get_game_collections_map())
                             ui.notify(f'Renamed to "{new_name}"', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -309,7 +309,7 @@ def render_panel(tab=None):
                         return
 
                     with search_results:
-                        matches = await run.io_bound(collections_service.search_games, term)
+                        matches = await run.io_bound(collection_admin.search_games, term)
                         if not matches:
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
@@ -344,9 +344,9 @@ def render_panel(tab=None):
                             return
                         try:
                             game_ids = [t['id'] for t in selected_games['items']]
-                            collections_service.create_game_collection(name, game_ids, image=image_state['filename'])
+                            collection_admin.create_game_collection(name, game_ids, image=image_state['filename'])
                             # Sync the tables cache with updated collection memberships
-                            game_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
+                            game_index_service.sync_collection_memberships(collection_admin.get_game_collections_map())
                             ui.notify(f'Collection "{name}" created', type='positive')
                             dlg.close()
                             refresh_collections()
@@ -423,7 +423,7 @@ def render_panel(tab=None):
                         try:
                             selected_rating = rating_input.value or 'All'
                             selected_rating_or_higher = 'true' if (selected_rating != 'All' and rating_or_higher_input.value) else 'false'
-                            collections_service.create_filter_collection(
+                            collection_admin.create_filter_collection(
                                 name,
                                 letter=_join_or_all(letter_input.value),
                                 theme=_join_or_all(theme_input.value),
@@ -457,7 +457,7 @@ def render_panel(tab=None):
             """Dialog to edit a filter-based collection."""
             manager = get_collections_manager()
             filters = manager.get_filters(name)
-            image_state_value = collections_service.get_collection_image(name)
+            image_state_value = collection_admin.get_collection_image(name)
 
             # Get filter options from VPSDB
             filter_opts = get_filter_options()
@@ -555,7 +555,7 @@ def render_panel(tab=None):
                     def save_changes():
                         try:
                             selected_rating = rating_input.value or 'All'
-                            collections_service.update_filter_collection(
+                            collection_admin.update_filter_collection(
                                 name,
                                 letter=_join_or_all(letter_input.value),
                                 theme=_join_or_all(theme_input.value),
@@ -582,7 +582,7 @@ def render_panel(tab=None):
             """Dialog to edit a VPS ID-based collection."""
             manager = get_collections_manager()
             current_members = manager.get_members(name)
-            image_state_value = collections_service.get_collection_image(name)
+            image_state_value = collection_admin.get_collection_image(name)
 
             dlg = ui.dialog().props('persistent max-width=800px')
             with dlg, ui.card().classes('w-[750px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
@@ -635,7 +635,7 @@ def render_panel(tab=None):
                         return
 
                     with search_results:
-                        matches = await run.io_bound(collections_service.search_games, term)
+                        matches = await run.io_bound(collection_admin.search_games, term)
                         if not matches:
                             ui.label('No tables found').classes('text-gray-500 text-sm')
                         else:
@@ -665,9 +665,9 @@ def render_panel(tab=None):
                     def save_changes():
                         try:
                             game_ids = [t['id'] for t in selected_games['items']]
-                            collections_service.update_game_collection(name, game_ids, image=image_state['filename'])
+                            collection_admin.update_game_collection(name, game_ids, image=image_state['filename'])
                             # Sync the tables cache with updated collection memberships
-                            game_index_service.sync_collection_memberships(collections_service.get_game_collections_map())
+                            game_index_service.sync_collection_memberships(collection_admin.get_game_collections_map())
                             ui.notify(f'Collection "{name}" updated', type='positive')
                             dlg.close()
                             refresh_collections()
