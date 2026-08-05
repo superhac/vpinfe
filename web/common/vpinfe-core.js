@@ -324,6 +324,9 @@ class VPinFECore {
     this.gameData = {};
     // What the running theme declared. Contract 1 until the bridge says otherwise.
     this.contract = OLDEST_CONTRACT;
+    // The theme's windows, controller first. Replaced once the bridge answers; until
+    // then the three VPinFE has always opened, under contract 1's names.
+    this.windows = ["table", "bg", "dmd"];
     this._reader = new ContractOneReader(this);
     installLegacyAliases(this);
     this.monitors = [];
@@ -440,10 +443,12 @@ class VPinFECore {
     this.#connectWebSocket();
   }
 
-  // theme register for Input events - Only for the table screen!
+  // Input goes to the controller window only. The round trip stays because it also
+  // sets the global a theme's own example reads; the decision comes from the window
+  // list, not from a name.
   async registerInputHandler(handler) {
     windowName = await this.call("get_my_window_name");
-    if (typeof handler === 'function' && windowName == "table") {
+    if (typeof handler === 'function' && this.isController()) {
       this.call("console_out", "registered gamepad handler");
       this.inputHandlers.push(handler);
     }
@@ -600,7 +605,7 @@ class VPinFECore {
       this.stopGameAudio({ immediate: true });
       return;
     }
-    if (this.enabled("core_audio") && this._windowName === "table") {
+    if (this.enabled("core_audio") && this.isController()) {
       this.playGameAudio(this._currentGameIndex);
     }
   }
@@ -630,7 +635,7 @@ class VPinFECore {
   }
 
   playGameAudio(indexOrUrl = this._currentGameIndex, retries = 3) {
-    if (!this.enabled("core_audio") || this._audioMuted || this._windowName !== "table") return;
+    if (!this.enabled("core_audio") || this._audioMuted || !this.isController()) return;
     const url = this.#resolveAudioUrl(indexOrUrl);
     if (!url) {
       this.stopGameAudio();
@@ -780,7 +785,7 @@ class VPinFECore {
       this.expanded = !!payload.expanded;
     }
     this.#attachCachedVPinPlayRatings();
-    if (this._windowName === "table") {
+    if (this.isController()) {
       const maxIndex = Math.max(0, this.gameData.length - 1);
       if (this._currentGameIndex > maxIndex) this._currentGameIndex = maxIndex;
       if (this.gameData.length > 0) {
@@ -854,7 +859,7 @@ class VPinFECore {
 
     // Default handling for GameDataChange
     if (message.type === "GameDataChange") {
-      if (this._windowName === "table") this._lastSelectedIndex = null;
+      if (this.isController()) this._lastSelectedIndex = null;
       await this.#handleGameDataChange(message);
     }
     this.#syncSelectionFromMessage(message);
@@ -877,17 +882,14 @@ class VPinFECore {
   }
 
   #getWindowLabel(windowName) {
-    if (windowName === 'bg') {
-      return 'BG';
-    }
-    if (windowName === 'dmd') {
-      return 'DMD';
-    }
-    if (windowName === 'table') {
-      return 'Table';
-    }
-    return 'Window';
+    // Named windows a theme can declare have no label of their own, so a title-cased
+    // name is the fallback: a `topper` window reads "VPinFE Topper".
+    const known = { bg: "BG", dmd: "DMD", table: "Table", playfield: "Playfield" };
+    if (known[windowName]) return known[windowName];
+    if (!windowName || windowName === "unknown") return "Window";
+    return windowName.charAt(0).toUpperCase() + windowName.slice(1);
   }
+
 
   // Default handler for GameDataChange events
   // The three overlays differ in four things: which flag says they are up, which iframe
@@ -1005,7 +1007,7 @@ class VPinFECore {
   }
 
   async #handleCoreAudioEvent(message) {
-    if (!this.enabled("core_audio") || this._windowName !== "table") return;
+    if (!this.enabled("core_audio") || !this.isController()) return;
 
     if (message.type === "GameIndexUpdate") {
       this.playGameAudio(this._currentGameIndex);
@@ -1051,7 +1053,7 @@ class VPinFECore {
 
   #syncSelectionFromMessage(message) {
     if (!message || typeof message !== "object") return;
-    if (this._windowName !== "table") return;
+    if (!this.isController()) return;
     if (!VPinFECore.SELECTION_MESSAGES.has(message.type)) return;
     if (message.type !== "GameIndexUpdate") this._lastSelectedIndex = null;
     this.#selectionChanged();
@@ -1084,7 +1086,7 @@ class VPinFECore {
   }
 
   async #notifySelectedGame() {
-    if (this._windowName !== "table") return;
+    if (!this.isController()) return;
     if (!Array.isArray(this.gameData) || this.gameData.length === 0) return;
 
     const index = Math.floor(this._currentGameIndex);
@@ -1359,6 +1361,12 @@ class VPinFECore {
       this.#applyContract(OLDEST_CONTRACT);   // an older build cannot answer; assume 1
     }
     try {
+      const windows = await this.call("get_theme_windows");
+      if (Array.isArray(windows) && windows.length) this.windows = windows;
+    } catch (_e) {
+      /* an older build cannot answer; the default below already covers it */
+    }
+    try {
       this.setAudioMuted(await this.call("get_audio_muted"));
     } catch (_e) {
       this.setAudioMuted(false);
@@ -1398,7 +1406,7 @@ class VPinFECore {
    //this.#overrideConsole(); //disabled for now...
 
     // only run on the table window.. Its the master controller for all screens/windows
-    if (this._windowName == "table") {
+    if (this.isController()) {
       await this.#initKeyboardMapping();
       await this.#initGamepadMapping();
       this.#setupGamepadListeners();
@@ -1463,7 +1471,7 @@ class VPinFECore {
   #shouldHandleCorePaging(action) {
     if (action !== "joypageup" && action !== "joypagedown") return false;
     if (!this.enabled("core_paging")) return false;
-    if (this._windowName !== "table") return false;
+    if (!this.isController()) return false;
     if (this.menuUP || this.collectionMenuUP || this.tutorialUP) return false;
     return true;
   }
@@ -1559,7 +1567,7 @@ class VPinFECore {
       this._lastRepeatAt = now;
     }
 
-    if (this._windowName == "table") {
+    if (this.isController()) {
       const action = this.#actionForKeyboardEvent(e);
       if (!action) return;
 
@@ -1587,6 +1595,15 @@ class VPinFECore {
       : new ContractOneReader(this);
     if (this.contract > OLDEST_CONTRACT) removeLegacyAliases(this);
     console.info(`vpinfe: serving theme contract ${this.contract}`);
+  }
+
+  /**
+   * Whether this window is the one that owns input, audio and the selection. It is the
+   * first window the theme declared - `table` for a theme that declares nothing, and
+   * `playfield` at contract 2 - so nothing here has to know a name.
+   */
+  isController() {
+    return this._windowName === (this.windows[0] || "table");
   }
 
   #servesLegacyNames() {
@@ -1670,17 +1687,17 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
   // Handle all actions mapped to this button
   for (const action of actions) {
     //this.call("console_out", `Button action: ${action}, windowName: ${this._windowName}`);
-    if (action === "joyexit" && this._windowName == "table") {
+    if (action === "joyexit" && this.isController()) {
       this.call("close_app");
     }
-    else if (action === "joymenu" && this._windowName == "table") {
+    else if (action === "joymenu" && this.isController()) {
       this.#showmenu();
     }
-    else if (action === "joycollectionmenu" && this._windowName == "table") {
+    else if (action === "joycollectionmenu" && this.isController()) {
       this.call("console_out", "Triggering collection menu");
       this.#showcollectionmenu();
     }
-    else if (action === "joytutorial" && this._windowName == "table") {
+    else if (action === "joytutorial" && this.isController()) {
       this.#showtutorial();
     }
     else if (this.#shouldHandleCorePaging(action)) {

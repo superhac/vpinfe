@@ -17,11 +17,21 @@ from common.host.display_service import get_display_monitors
 from common.online.vpinplay_runtime import clear_alternate_profile
 
 
-WINDOW_CONFIGS = (
-    ("bg", "bgscreenid"),
-    ("dmd", "dmdscreenid"),
-    ("table", "playfieldscreenid"),
-)
+def window_configs(iniconfig=None):
+    """(window name, monitor key) for each window the active theme declares.
+
+    Derived rather than fixed: a theme names its own windows, and the default depends on
+    which contract it was written against - which is what keeps index_table.html working
+    without a fallback lookup.
+    """
+    from frontend import theme_api, theme_contract, theme_windows
+
+    theme_dir = None
+    if iniconfig is not None:
+        theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(iniconfig))
+    contract = theme_contract.declared_contract(theme_dir) if theme_dir else 1
+    windows = theme_windows.declared_windows(theme_dir, contract)
+    return [(name, theme_windows.screen_key(name)) for name in windows]
 
 
 def create_api_instances(iniconfig, logger):
@@ -31,7 +41,7 @@ def create_api_instances(iniconfig, logger):
     ws_bridge = WebSocketBridge(port=network.ws_port)
     frontend_browser = ChromiumManager()
 
-    for window_name, config_key in WINDOW_CONFIGS:
+    for window_name, config_key in window_configs(iniconfig):
         screen_id_str = displays.window_screen_id(config_key).strip()
         if not screen_id_str:
             continue

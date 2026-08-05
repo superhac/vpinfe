@@ -403,14 +403,11 @@ class ChromiumManager:
         theme_name = settings.theme
         splash_enabled = settings.splashscreen
 
-        # Launch windows in order: bg, dmd, table (table last so it gets focus)
-        window_configs = [
-            ("bg", "bgscreenid"),
-            ("dmd", "dmdscreenid"),
-            ("table", "playfieldscreenid"),
-        ]
+        # One definition, in runtime. Reversed so the controller - first in the theme's
+        # list - is launched last and takes focus.
+        from frontend.runtime import window_configs
 
-        for window_name, config_key in window_configs:
+        for window_name, config_key in reversed(window_configs(iniconfig)):
             screen_id_str = displays.window_screen_id(config_key).strip()
             if not screen_id_str:
                 continue

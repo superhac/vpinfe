@@ -35,7 +35,13 @@ const EXPOSE = [
 const SOURCE = readFileSync(CORE_PATH, "utf8")
   + "\n" + EXPOSE.map((name) => `globalThis.${name} = ${name};`).join("\n") + "\n";
 
-/** A core instance in its own context, plus the stubs it was built against. */
+/**
+ * A core instance in its own context, plus the stubs it was built against.
+ *
+ * Anything the core creates - arrays, objects, messages - is built with the vm's own
+ * Object.prototype, so `assert.deepEqual` from node:assert/strict reports "same
+ * structure but not reference-equal". Copy it first (`[...value]`) or assert on fields.
+ */
 export function loadCore(options = {}) {
   const browser = makeBrowser(options);
   const context = vm.createContext({ ...browser, globalThis: undefined });

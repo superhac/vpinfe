@@ -254,6 +254,19 @@ an `ETag` and `Cache-Control: no-cache`, so a media change in the Manager UI is 
 without a version baked into the URL - which would have meant stat-ing every resolved file
 of every game every time the list was built. Covered by `tests/test_media_route.py`.
 
+**PAR-32 — A theme may declare its windows, and one method reports them.**
+`get_theme_windows()` returns the windows the active theme declared, controller first.
+A theme that declares nothing gets the three VPinFE has always opened, **under the names
+its contract uses** - `table`, `bg`, `dmd` at contract 1, so `index_table.html` and
+`?window=table` are unchanged and no fallback lookup exists anywhere.
+*Why:* the window list was a literal in two files that had to be kept in step, the name
+decided the HTML file, the `?window=` value, the WebSocket identity and the `<window>screenid`
+key, and a theme could not add one. `topper` and `loading` media shipped in 3.0 with no
+window to show them on. A window's monitor is now read generically from
+`<window>screenid`, so a theme can name a window VPinFE has never heard of. Blank means
+not launched, which is the rule that already applied. Covered by
+`tests/test_theme_windows.py`.
+
 **PAR-30 — One WebSocket method is added so the browser can ask which contract it serves.**
 `get_theme_contract()` returns the level the active theme declared. Purely additive: a
 theme never calls it, and no existing method changes.

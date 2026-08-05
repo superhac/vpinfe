@@ -24,6 +24,7 @@ from frontend import (
     last_game,
     metadata_build_service,
     theme_api,
+    theme_windows,
 )
 from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
 
@@ -93,6 +94,9 @@ API_ALLOWED_METHODS = {
     # Additive: the contract a theme declared, so vpinfe-core.js can serve the surface
     # that theme asked for rather than every surface at once.
     'get_theme_contract',
+    # The windows the theme declared, controller first, so the browser knows which
+    # window it is without a hardcoded name.
+    'get_theme_windows',
     'send_event',
     'send_event_all_windows',
     'send_event_all_windows_incself',
@@ -571,6 +575,10 @@ class API:
 
     def get_theme_contract(self):
         return self._theme_contract()
+
+    def get_theme_windows(self):
+        theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(self._iniConfig.config))
+        return list(theme_windows.declared_windows(theme_dir, self._theme_contract()))
 
     def get_theme_index_page(self):
         return theme_api.get_theme_index_page(self._iniConfig.config, self.get_my_window_name())

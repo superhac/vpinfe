@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from common.values import is_truthy
@@ -19,6 +19,18 @@ def cfg_get(source, section: str, key: str, fallback: str = "") -> str:
             return str(parser[section].get(key, fallback))
         except Exception:
             return fallback
+
+
+def cfg_options(source, section: str) -> list[str]:
+    """Every key present in a section, or [] when it has none."""
+    parser = _parser(source)
+    try:
+        return list(parser.options(section))
+    except Exception:
+        try:
+            return list(parser[section].keys())
+        except Exception:
+            return []
 
 
 def cfg_bool(source, section: str, key: str, fallback: bool = False) -> bool:
@@ -156,6 +168,21 @@ class NetworkConfig:
         )
 
 
+def _extra_screen_ids(source: Any) -> dict:
+    """Every `<window>screenid` in [Displays] beyond the three that have their own field.
+
+    A theme can declare windows VPinFE has never heard of, so their monitors cannot be
+    named here in advance.
+    """
+    known = {"bgscreenid", "dmdscreenid", "playfieldscreenid", "tablescreenid"}
+    found = {}
+    for key in cfg_options(source, "Displays"):
+        name = str(key).strip().lower()
+        if name.endswith("screenid") and name not in known:
+            found[name] = cfg_get(source, "Displays", name, "").strip()
+    return found
+
+
 @dataclass(frozen=True)
 class DisplayConfig:
     playfield_screen_id: int = 0
@@ -165,6 +192,8 @@ class DisplayConfig:
     playfield_orientation: str = "landscape"
     playfield_rotation: int = 0
     cab_mode: bool = False
+    # Monitors for windows beyond the three VPinFE has always opened.
+    extra_screen_ids: dict = field(default_factory=dict)
 
     @classmethod
     def from_config(cls, source: Any) -> "DisplayConfig":
@@ -177,16 +206,23 @@ class DisplayConfig:
             playfield_orientation=cfg_get(source, "Displays", "playfieldorientation", "landscape"),
             playfield_rotation=cfg_int(source, "Displays", "playfieldrotation", 0),
             cab_mode=cfg_bool(source, "Displays", "cabmode", SettingsConfig.from_config(source).cab_mode),
+            extra_screen_ids=_extra_screen_ids(source),
         )
 
     def window_screen_id(self, config_key: str) -> str:
-        if config_key == "bgscreenid":
-            return self.bg_screen_id
-        if config_key == "dmdscreenid":
-            return self.dmd_screen_id
-        if config_key == "playfieldscreenid":
-            return self.playfield_screen_id_raw
-        return ""
+        """The monitor for a `[Displays]` key, or "" when the user set none.
+
+        Read generically so a theme declaring a window VPinFE has never heard of gets
+        its monitor from `<window>screenid` without anything here knowing the name.
+        """
+        known = {
+            "bgscreenid": self.bg_screen_id,
+            "dmdscreenid": self.dmd_screen_id,
+            "playfieldscreenid": self.playfield_screen_id_raw,
+        }
+        if config_key in known:
+            return known[config_key]
+        return str(self.extra_screen_ids.get(config_key, "") or "").strip()
 
 
 @dataclass(frozen=True)

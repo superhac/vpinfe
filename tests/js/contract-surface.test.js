@@ -179,3 +179,65 @@ describe("theme.json turns capabilities on and off", () => {
       "themes are using these; they stay until contract 1 goes");
   });
 });
+
+describe("the controller window comes from the theme's list", () => {
+  test("a theme that declares nothing keeps table as the controller", async () => {
+    const { vpin } = await coreAtContract(1);
+
+    assert.deepEqual([...vpin.windows], ["table", "bg", "dmd"]);
+    assert.equal(vpin.isController(), true, "?window=table is the controller");
+  });
+
+  test("a secondary window is not the controller", async () => {
+    const { vpin, browser } = newCore({ windowName: "bg" });
+    vpin.call = (method) => Promise.resolve(
+      method === "get_theme_contract" ? 1
+      : method === "get_games" ? "[]" : BRIDGE_DEFAULTS[method]);
+    vpin.init();
+    await browser.WebSocket.instances.at(-1).onopen();
+
+    assert.equal(vpin.isController(), false);
+  });
+
+  test("at contract 2 the controller is the playfield window", async () => {
+    const { vpin, browser } = newCore({ windowName: "playfield" });
+    vpin.call = (method) => Promise.resolve(
+      method === "get_theme_contract" ? 2
+      : method === "get_theme_windows" ? ["playfield", "bg", "dmd"]
+      : method === "get_games" ? JSON.stringify({ entries: [], count: 0 })
+      : BRIDGE_DEFAULTS[method]);
+    vpin.init();
+    await browser.WebSocket.instances.at(-1).onopen();
+
+    assert.equal(vpin.isController(), true);
+  });
+
+  test("a theme can declare a window VPinFE never had", async () => {
+    const { vpin, browser } = newCore({ windowName: "topper" });
+    vpin.call = (method) => Promise.resolve(
+      method === "get_theme_contract" ? 2
+      : method === "get_theme_windows" ? ["playfield", "bg", "dmd", "topper"]
+      : method === "get_games" ? JSON.stringify({ entries: [], count: 0 })
+      : BRIDGE_DEFAULTS[method]);
+    vpin.init();
+    await browser.WebSocket.instances.at(-1).onopen();
+
+    assert.ok(vpin.windows.includes("topper"));
+    assert.equal(vpin.isController(), false, "it is a display, not the controller");
+    assert.equal(browser.document.title, "VPinFE Topper", "titled from its own name");
+  });
+
+  test("a build too old to report windows keeps the 2.x three", async () => {
+    const { vpin, browser } = newCore();
+    vpin.call = (method) => {
+      if (method === "get_theme_windows") return Promise.reject(new Error("Method not allowed"));
+      return Promise.resolve(method === "get_theme_contract" ? 1
+                             : method === "get_games" ? "[]" : BRIDGE_DEFAULTS[method]);
+    };
+    vpin.init();
+    await browser.WebSocket.instances.at(-1).onopen();
+
+    assert.deepEqual([...vpin.windows], ["table", "bg", "dmd"]);
+    assert.equal(vpin.isController(), true);
+  });
+});

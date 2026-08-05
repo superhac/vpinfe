@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 from urllib.parse import quote
 
 from common.config_access import NetworkConfig, SettingsConfig
@@ -18,6 +19,11 @@ def get_theme_name(config) -> str:
 def resolve_theme_dir(theme_name: str):
     theme_dir = THEMES_DIR / theme_name
     return theme_dir if theme_dir.is_dir() else None
+
+
+def read_manifest(theme_dir) -> dict | None:
+    """A theme's manifest.json, or None when it has none or it is unreadable."""
+    return _read_json_object(Path(theme_dir) / "manifest.json")
 
 
 def _read_json_object(path) -> dict | None:

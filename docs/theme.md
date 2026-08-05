@@ -62,9 +62,35 @@ Every theme must include a `manifest.json`:
 | `type` | Theme type: `"desktop"` for desktop/flat-screen setups, `"cab"` for cabinet setups, or `"both"` for themes that adapt to either. |
 | `change_log` | Description of changes in this version. |
 | `contract` | Which VPinFE theme contract this theme is written against. Optional; absent means `1`. See [Theme contract](#theme-contract). |
+| `windows` | The windows your theme wants, **controller first**. Optional; absent means the three VPinFE has always opened. See [Windows](#windows). |
 
 `version` is your theme's own release number. `contract` is the VPinFE surface it reads.
 They are different questions and they move independently.
+
+### Declaring windows
+
+By default a theme gets three windows, named for the contract it declares — `table`, `bg`
+and `dmd` at contract 1, `playfield`, `bg` and `dmd` at contract 2. Declaring nothing keeps
+what you have.
+
+```json
+"windows": ["playfield", "bg", "dmd", "topper"]
+```
+
+Everything about a window follows from its name:
+
+| | |
+|---|---|
+| the file it loads | `index_<name>.html` |
+| what it is passed | `?window=<name>` |
+| the monitor it opens on | `[Displays] <name>screenid` |
+
+**The first window is the controller.** It owns input, audio and the selection, and
+`vpin.isController()` is how a window knows. A window with no monitor set is not opened,
+so declaring four on a two-monitor machine is fine.
+
+Name a window after a media kind and `vpin.getImageURL(index, windowName)` gives you that
+kind's art — which is what several published themes already rely on for `bg` and `dmd`.
 
 ### Theme contract
 
