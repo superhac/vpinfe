@@ -371,6 +371,9 @@ class VPinFECore {
     this._audioCurrentUrl = null;
     this._audioRetries = 0;
     this._lastSelectedIndex = null;
+    this._onSelection = [];
+    this.onSelection(() => this.getVPinPlayRating(this._currentGameIndex).catch(() => {}));
+    this.onSelection(() => this.#notifySelectedGame().catch(() => {}));
     this._vpinplayRatingCache = new Map();
     this._vpinplayRatingRequests = new Map();
 
@@ -727,8 +730,7 @@ class VPinFECore {
           this._initialGameRestored = true;
           await this.#restoreInitialGame();
         }
-        this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
-        this.#notifySelectedGame().catch(() => {});
+        this.#selectionChanged();
       } else {
         this._lastSelectedIndex = null;
       }
@@ -904,25 +906,44 @@ class VPinFECore {
     }
   }
 
+  // Which messages mean "the wheel is now on something else". GameIndexUpdate is an
+  // ordinary step; the other two mean the list or the game underneath may have changed,
+  // so the notify has to fire again even when the index did not move.
+  static SELECTION_MESSAGES = new Set([
+    "GameIndexUpdate", "GameDataChange", "GameLaunchComplete", "RemoteLaunchComplete",
+  ]);
+
   #syncSelectionFromMessage(message) {
     if (!message || typeof message !== "object") return;
     if (this._windowName !== "table") return;
+    if (!VPinFECore.SELECTION_MESSAGES.has(message.type)) return;
+    if (message.type !== "GameIndexUpdate") this._lastSelectedIndex = null;
+    this.#selectionChanged();
+  }
 
-    if (message.type === "GameIndexUpdate") {
-      this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
-      this.#notifySelectedGame().catch(() => {});
-      return;
-    }
-    if (message.type === "GameDataChange") {
-      this._lastSelectedIndex = null;
-      this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
-      this.#notifySelectedGame().catch(() => {});
-      return;
-    }
-    if (message.type === "GameLaunchComplete" || message.type === "RemoteLaunchComplete") {
-      this._lastSelectedIndex = null;
-      this.getVPinPlayRating(this._currentGameIndex).catch(() => {});
-      this.#notifySelectedGame().catch(() => {});
+  /**
+   * Run something whenever the selection changes. This is how anything that follows the
+   * wheel attaches - the rating fetch and the backend notify already do, and preloading
+   * will - rather than being added to a list of message types by hand.
+   */
+  onSelection(listener) {
+    if (typeof listener !== "function") return () => {};
+    this._onSelection.push(listener);
+    return () => {
+      const at = this._onSelection.indexOf(listener);
+      if (at >= 0) this._onSelection.splice(at, 1);
+    };
+  }
+
+  #selectionChanged() {
+    for (const listener of this._onSelection) {
+      // One listener throwing must not stop the others, the same rule the backend's
+      // event bus follows.
+      try {
+        listener(this._currentGameIndex);
+      } catch (err) {
+        console.warn("vpinfe: a selection listener failed", err);
+      }
     }
   }
 

@@ -145,3 +145,48 @@ describe("media is named, and the URL follows from the name", () => {
     assert.doesNotThrow(() => vpin.getManufacturerLogoURL(0));
   });
 });
+
+describe("selection is something you can follow", () => {
+  test("a listener runs when the wheel moves", async () => {
+    const vpin = await coreWithEntries();
+    const seen = [];
+    vpin.onSelection((index) => seen.push(index));
+
+    vpin.sendMessageToAllWindows({ type: "GameIndexUpdate", index: 2 });
+
+    assert.deepEqual(seen, [2], "the listener gets the index it moved to");
+  });
+
+  test("unsubscribing stops it", async () => {
+    const vpin = await coreWithEntries();
+    let calls = 0;
+    const off = vpin.onSelection(() => { calls += 1; });
+
+    vpin.sendMessageToAllWindows({ type: "GameIndexUpdate", index: 1 });
+    off();
+    vpin.sendMessageToAllWindows({ type: "GameIndexUpdate", index: 2 });
+
+    assert.equal(calls, 1);
+  });
+
+  test("one listener throwing does not stop the others", async () => {
+    const vpin = await coreWithEntries();
+    let reached = false;
+    vpin.onSelection(() => { throw new Error("bad listener"); });
+    vpin.onSelection(() => { reached = true; });
+
+    vpin.sendMessageToAllWindows({ type: "GameIndexUpdate", index: 1 });
+
+    assert.ok(reached, "the rating fetch must not be lost to a theme's bad handler");
+  });
+
+  test("a message that is not a selection change does not fire it", async () => {
+    const vpin = await coreWithEntries();
+    let calls = 0;
+    vpin.onSelection(() => { calls += 1; });
+
+    vpin.sendMessageToAllWindows({ type: "SomeThemeMessage", index: 4 });
+
+    assert.equal(calls, 0);
+  });
+});
