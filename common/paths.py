@@ -5,7 +5,7 @@ from pathlib import Path
 
 from platformdirs import user_config_dir
 
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 
 
 def _resolve_config_dir() -> Path:
@@ -49,9 +49,9 @@ def configure_nicegui_storage() -> str:
     return storage_path
 
 
-def get_ini_config() -> IniConfig:
+def get_ini_config() -> ConfigStore:
     ensure_config_dir()
-    return IniConfig(str(VPINFE_INI_PATH))
+    return ConfigStore(str(VPINFE_INI_PATH))
 
 
 def get_games_path(default: str = "~/tables") -> str:

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from nicegui import ui
 
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 from managerui.services import vpx_config_service
 from managerui.services.vpx_config_service import FieldMeta, ParsedIni, SectionMeta

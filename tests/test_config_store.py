@@ -15,7 +15,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common import config_schema
-from common.iniconfig import CURRENT_SCHEMA, SCHEMA_KEY, SETTINGS_KEY, IniConfig
+from common.config_store import CURRENT_SCHEMA, SCHEMA_KEY, SETTINGS_KEY, ConfigStore
 
 
 class ConfigStoreTests(unittest.TestCase):
@@ -34,7 +34,7 @@ class FirstRunTests(ConfigStoreTests):
     """Chris's acceptance criterion: a fresh install never needs the file opened."""
 
     def test_a_fresh_install_writes_a_complete_config(self) -> None:
-        store = IniConfig(str(self.ini))
+        store = ConfigStore(str(self.ini))
 
         self.assertTrue(store.is_new, "first run has to announce itself - main.py "
                                       "uses this to open the Manager UI")
@@ -50,23 +50,23 @@ class FirstRunTests(ConfigStoreTests):
 
     def test_the_three_settings_the_readme_asks_for_are_present(self) -> None:
         """readme.md walks a new user through these in the Manager UI."""
-        store = IniConfig(str(self.ini))
+        store = ConfigStore(str(self.ini))
 
         for key in ("vpxbinpath", "gamerootdir", "vpxinipath"):
             self.assertTrue(store.config.has_option("Settings", key))
 
     def test_a_second_run_is_not_a_first_run(self) -> None:
-        IniConfig(str(self.ini))
-        self.assertFalse(IniConfig(str(self.ini)).is_new)
+        ConfigStore(str(self.ini))
+        self.assertFalse(ConfigStore(str(self.ini)).is_new)
 
     def test_the_file_carries_a_schema_version(self) -> None:
-        IniConfig(str(self.ini))
+        ConfigStore(str(self.ini))
         self.assertEqual(self._payload()[SCHEMA_KEY], CURRENT_SCHEMA)
 
 
 class TypedValueTests(ConfigStoreTests):
     def test_bools_and_ints_are_stored_as_bools_and_ints(self) -> None:
-        IniConfig(str(self.ini))
+        ConfigStore(str(self.ini))
         settings = self._payload()[SETTINGS_KEY]
 
         self.assertIs(settings["Displays"]["cabmode"], False)
@@ -75,16 +75,16 @@ class TypedValueTests(ConfigStoreTests):
 
     def test_a_blank_int_stays_blank_rather_than_becoming_zero(self) -> None:
         """Blank means "no window on this one", which is not the same as screen 0."""
-        IniConfig(str(self.ini))
+        ConfigStore(str(self.ini))
         self.assertEqual(self._payload()[SETTINGS_KEY]["Displays"]["bgscreenid"], "")
 
     def test_values_survive_the_round_trip_as_text(self) -> None:
-        first = IniConfig(str(self.ini))
+        first = ConfigStore(str(self.ini))
         first.config.set("Displays", "cabmode", "true")
         first.config.set("Network", "manageruiport", "9001")
         first.save()
 
-        second = IniConfig(str(self.ini))
+        second = ConfigStore(str(self.ini))
         self.assertTrue(second.config.getboolean("Displays", "cabmode"))
         self.assertEqual(second.config.get("Network", "manageruiport"), "9001")
 
@@ -96,7 +96,7 @@ class IniConversionTests(ConfigStoreTests):
     def test_an_existing_ini_converts_and_is_kept(self) -> None:
         self._write_ini("[Settings]\ngamerootdir = /my/tables\n")
 
-        IniConfig(str(self.ini))
+        ConfigStore(str(self.ini))
 
         self.assertEqual(self._payload()[SETTINGS_KEY]["Settings"]["gamerootdir"],
                          "/my/tables")
@@ -108,7 +108,7 @@ class IniConversionTests(ConfigStoreTests):
         """tablerootdir became gamerootdir; an old ini must not lose the value."""
         self._write_ini("[Settings]\ntablerootdir = /old/tables\n")
 
-        IniConfig(str(self.ini))
+        ConfigStore(str(self.ini))
 
         settings = self._payload()[SETTINGS_KEY]["Settings"]
         self.assertEqual(settings["gamerootdir"], "/old/tables")
@@ -117,7 +117,7 @@ class IniConversionTests(ConfigStoreTests):
     def test_a_user_value_is_typed_on_the_way_in(self) -> None:
         self._write_ini("[Displays]\nplayfieldscreenid = 2\ncabmode = true\n")
 
-        IniConfig(str(self.ini))
+        ConfigStore(str(self.ini))
 
         displays = self._payload()[SETTINGS_KEY]["Displays"]
         self.assertEqual(displays["playfieldscreenid"], 2)
@@ -125,31 +125,31 @@ class IniConversionTests(ConfigStoreTests):
 
     def test_conversion_happens_once(self) -> None:
         self._write_ini("[Settings]\ngamerootdir = /my/tables\n")
-        IniConfig(str(self.ini))
+        ConfigStore(str(self.ini))
         after_first = sorted(os.listdir(self.root))
 
-        IniConfig(str(self.ini))
+        ConfigStore(str(self.ini))
 
         self.assertEqual(sorted(os.listdir(self.root)), after_first,
                          "a second run must not back the ini up again")
 
     def test_json_wins_when_both_exist(self) -> None:
         """The ini is left in place, so it must not overwrite newer settings."""
-        IniConfig(str(self.ini))
+        ConfigStore(str(self.ini))
         self._write_ini("[Settings]\ngamerootdir = /stale\n")
 
-        store = IniConfig(str(self.ini))
+        store = ConfigStore(str(self.ini))
 
         self.assertNotEqual(store.config.get("Settings", "gamerootdir"), "/stale")
 
     def test_a_newer_schema_is_not_stamped_down(self) -> None:
         """A future VPinFE owns that number; claiming it would say we understood it."""
-        IniConfig(str(self.ini))
+        ConfigStore(str(self.ini))
         payload = self._payload()
         payload[SCHEMA_KEY] = CURRENT_SCHEMA + 5
         self.json.write_text(json.dumps(payload), encoding="utf-8")
 
-        store = IniConfig(str(self.ini))
+        store = ConfigStore(str(self.ini))
         store.save()
 
         self.assertEqual(self._payload()[SCHEMA_KEY], CURRENT_SCHEMA + 5)

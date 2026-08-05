@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from frontend import last_game
 
 
@@ -13,8 +13,8 @@ class FakeGame:
     gameDirName: str = ""
 
 
-def _config(tmp: str) -> IniConfig:
-    return IniConfig(str(Path(tmp) / "vpinfe.ini"))
+def _config(tmp: str) -> ConfigStore:
+    return ConfigStore(str(Path(tmp) / "vpinfe.ini"))
 
 
 class TestLastGame(unittest.TestCase):

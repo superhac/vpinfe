@@ -307,7 +307,7 @@ the same pass — that one predates 3.0.
 to be invisible. Both passes run *before* the defaults are filled in: every key here has
 a default, and with one already written "copy only if absent" copies nothing and the
 user's real value is dropped. That was a live bug for the section moves.
-Covered by `tests/test_iniconfig.py`.
+Covered by `tests/test_config_store.py`.
 
 **PAR-24 — Window messages carry both spellings, and inbound is accepted either way.**
 `TableIndexUpdate`, `TableDataChange`, `TableLaunching`, `TableRunning` and

@@ -382,7 +382,7 @@ class ChromiumManager:
         """Launch Chromium windows for all configured displays.
 
         Args:
-            iniconfig: IniConfig instance with display and network settings
+            iniconfig: ConfigStore instance with display and network settings
             base_url: Base URL for the HTTP server
         """
         if sys.platform == "darwin":

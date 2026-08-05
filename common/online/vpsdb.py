@@ -18,21 +18,21 @@ class VPSdb:
 
     rootGameDir = None
     data = None
-    _vpinfeIniConfig = None
+    _vpinfeConfigStore = None
 
     vpsUrlLastUpdate = "https://raw.githubusercontent.com/VirtualPinballSpreadsheet/vps-db/refs/heads/main/lastUpdated.json"
     vpsUrldb = "https://github.com/VirtualPinballSpreadsheet/vps-db/raw/refs/heads/main/db/vpsdb.json"
     vpinmdbUrl = "https://github.com/superhac/vpinmediadb/raw/refs/heads/main/vpinmdb.json"
 
-    def __init__(self, rootGameDir, vpinfeIniConfig):
+    def __init__(self, rootGameDir, vpinfeConfigStore):
         logger.info("Initializing VPSdb")
 
-        self._vpinfeIniConfig = vpinfeIniConfig
+        self._vpinfeConfigStore = vpinfeConfigStore
         self._config_dir = CONFIG_DIR
         self._config_dir.mkdir(parents=True, exist_ok=True)
         self._cache = VPSDatabaseCache(
             self._config_dir,
-            self._vpinfeIniConfig,
+            self._vpinfeConfigStore,
             db_url=VPSdb.vpsUrldb,
             last_update_url=VPSdb.vpsUrlLastUpdate,
         )
@@ -43,7 +43,7 @@ class VPSdb:
         self._write_manufacturer_reference()
 
         # Setup preferences
-        media_config = MediaConfig.from_config(self._vpinfeIniConfig)
+        media_config = MediaConfig.from_config(self._vpinfeConfigStore)
         self.playfieldvariant = media_config.playfield_variant
         self.playfieldresolution = media_config.playfield_resolution
         self.playfieldvideoresolution = media_config.playfield_video_resolution

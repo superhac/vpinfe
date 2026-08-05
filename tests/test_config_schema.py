@@ -15,7 +15,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common import config_schema
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 
 # What a new install wrote before the schema existed, captured once. The store reads its
 # defaults from the schema now, so comparing the two would compare the schema to itself -
@@ -26,7 +26,7 @@ FROZEN = Path(__file__).resolve().parent / "fixtures" / "config_defaults.json"
 
 def _shipped_defaults() -> dict[str, dict[str, str]]:
     with TemporaryDirectory() as tmp:
-        return IniConfig(os.path.join(tmp, "vpinfe.ini")).defaults
+        return ConfigStore(os.path.join(tmp, "vpinfe.ini")).defaults
 
 
 class SchemaMatchesTheStoreTests(unittest.TestCase):

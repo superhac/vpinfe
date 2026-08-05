@@ -14,7 +14,7 @@ from common import config_schema
 from common.games.collection_store import CollectionStore
 from common.host.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
 from common.host.launcher import build_masked_tableini_path, build_vpx_launch_command
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from frontend.chromium_manager import (
     get_builtin_chromium_options,
     parse_additional_chromium_options,
@@ -177,7 +177,7 @@ def _run_ledcontrol_pull(script_path: Path, api_key: str, force: bool) -> tuple[
 
 def render_panel(tab=None):
     # Re-read config from disk each time the page is opened
-    config = IniConfig(str(INI_PATH))
+    config = ConfigStore(str(INI_PATH))
     detected_displays = _get_detected_displays()
 
     # Add custom styles for config page

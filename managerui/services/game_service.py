@@ -16,7 +16,7 @@ from common.games.meta_config import VPINFE_SECTION
 from common.games.tables import default_table, recorded_default, table_entries
 from common.games.collection_store import CollectionStore
 from common.games.vpx_parser import VPXParser
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from common.paths import CONFIG_DIR
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_games_path
 from managerui.services import game_index_service
@@ -27,8 +27,8 @@ VPSDB_JSON_PATH = VPINFE_INI_PATH.parent / "vpsdb.json"
 _vpsdb_cache: Optional[List[Dict]] = None
 
 
-def _fresh_config() -> IniConfig:
-    return IniConfig(str(VPINFE_INI_PATH))
+def _fresh_config() -> ConfigStore:
+    return ConfigStore(str(VPINFE_INI_PATH))
 
 
 def normalize_game_rating(value) -> int:

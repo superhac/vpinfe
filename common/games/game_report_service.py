@@ -4,18 +4,18 @@ import logging
 
 from common.config_access import SettingsConfig
 from common.games.game_parser import GameParser
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from common.online.vpsdb import VPSdb
 from common.paths import get_ini_config
 
 logger = logging.getLogger("vpinfe.common.games.game_report_service")
 
 
-def _config(config: IniConfig | None = None) -> IniConfig:
+def _config(config: ConfigStore | None = None) -> ConfigStore:
     return config or get_ini_config()
 
 
-def list_missing_games(iniconfig: IniConfig | None = None, log=None) -> None:
+def list_missing_games(iniconfig: ConfigStore | None = None, log=None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
     game_root = SettingsConfig.from_config(config).game_root_dir
@@ -55,7 +55,7 @@ def list_missing_games(iniconfig: IniConfig | None = None, log=None) -> None:
             )
 
 
-def list_unknown_games(iniconfig: IniConfig | None = None, log=None) -> None:
+def list_unknown_games(iniconfig: ConfigStore | None = None, log=None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
     game_root = SettingsConfig.from_config(config).game_root_dir

@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 
@@ -188,7 +188,7 @@ def write_updated_ini(
 
 
 def load_vpx_ini_path() -> Path | None:
-    config = IniConfig(str(VPINFE_INI_PATH))
+    config = ConfigStore(str(VPINFE_INI_PATH))
     raw_path = config.config.get("Settings", "vpxinipath", fallback="").strip()
     if not raw_path:
         return None

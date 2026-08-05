@@ -8,7 +8,7 @@ from common.games.game_parser import GameParser
 from common.games.meta_config import MetaConfig
 from common.games.standalone_scripts import StandaloneScripts
 from common.games.vpx_parser import VPXParser
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from common.jobs import JobReporter
 from common.online.vpsdb import VPSdb
 from common.paths import get_ini_config
@@ -16,7 +16,7 @@ from common.paths import get_ini_config
 logger = logging.getLogger("vpinfe.common.games.metadata_service")
 
 
-def _config(config: IniConfig | None = None) -> IniConfig:
+def _config(config: ConfigStore | None = None) -> ConfigStore:
     return config or get_ini_config()
 
 
@@ -27,7 +27,7 @@ def build_metadata(
     userMedia: bool = False,
     progress_cb=None,
     log_cb=None,
-    iniconfig: IniConfig | None = None,
+    iniconfig: ConfigStore | None = None,
 ):
     config = _config(iniconfig)
 
@@ -119,7 +119,7 @@ def build_metadata(
     return {"found": total, "not_found": not_found_games}
 
 
-def apply_vpx_patches(progress_cb=None, iniconfig: IniConfig | None = None):
+def apply_vpx_patches(progress_cb=None, iniconfig: ConfigStore | None = None):
     config = _config(iniconfig)
     settings = SettingsConfig.from_config(config)
     tp = GameParser(settings.game_root_dir, config)

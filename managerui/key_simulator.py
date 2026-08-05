@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import os
 from pathlib import Path
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from managerui.paths import VPINFE_INI_PATH
 import sys
 
@@ -407,7 +407,7 @@ class KeySimulator:
             logger.debug("Looking for vpinfe.ini at: %s", config_path)
             logger.debug("File exists: %s", config_path.exists())
 
-        iniconfig = IniConfig(str(config_path))
+        config_store = ConfigStore(str(config_path))
         vpinball_ini_path = iniconfig.config["Settings"].get("vpxinipath", "").strip()
 
         if self.debug:

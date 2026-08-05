@@ -5,7 +5,7 @@ import platform
 import shutil
 from pathlib import Path
 
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 
 from managerui.paths import VPINFE_INI_PATH
 
@@ -17,7 +17,7 @@ def gpu_monitoring_supported() -> bool:
 def resolve_usage_path() -> Path:
     candidate = Path.home()
     try:
-        config = IniConfig(str(VPINFE_INI_PATH))
+        config = ConfigStore(str(VPINFE_INI_PATH))
         gameroot = config.config.get("Settings", "gamerootdir", fallback="").strip()
         if gameroot:
             candidate = Path(gameroot).expanduser()

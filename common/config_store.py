@@ -22,7 +22,7 @@ from common.deprecations import announce
 from common.games.info_migration import copy_aside, write_atomic
 from common.values import is_truthy
 
-logger = logging.getLogger("vpinfe.common.iniconfig")
+logger = logging.getLogger("vpinfe.common.config_store")
 
 SCHEMA_KEY = "schema"
 SETTINGS_KEY = "settings"
@@ -59,7 +59,7 @@ _RENAMED_KEYS = (
 	('State', 'lasttable', 'lastgame'),
 )
 
-class IniConfig:
+class ConfigStore:
 
 	def _move_option(self, old_section, new_section, key) -> bool:
 		"""Move one option to the section it lives in now, keeping the user's value.

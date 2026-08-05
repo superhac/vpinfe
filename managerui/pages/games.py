@@ -29,9 +29,9 @@ from common.games.game_metadata import (
     vpinfe_section,
 )
 from common.games.meta_config import VPINFE_SECTION
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 
-_INI_CFG = IniConfig(str(VPINFE_INI_PATH))
+_INI_CFG = ConfigStore(str(VPINFE_INI_PATH))
 
 #_vpsdb_cache: List[Dict] | None = None
 _vpsdb_cache: Optional[List[Dict]] = None

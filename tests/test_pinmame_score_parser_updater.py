@@ -12,7 +12,7 @@ from unittest import mock
 updater = importlib.import_module("common.online.pinmame_score_parser_updater")
 
 
-class _FakeIniConfig:
+class _FakeConfigStore:
     def __init__(self, path: Path) -> None:
         self.configfilepath = path
         self.config = configparser.ConfigParser()
@@ -56,7 +56,7 @@ class TestPinmameScoreParserUpdater(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            ini = _FakeIniConfig(temp_path / "vpinfe.ini")
+            ini = _FakeConfigStore(temp_path / "vpinfe.ini")
 
             with mock.patch.object(updater, "CONFIG_DIR", temp_path), \
                 mock.patch.object(updater, "ROMS_JSON_PATH", temp_path / "roms.json"), \
@@ -89,7 +89,7 @@ class TestPinmameScoreParserUpdater(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             (temp_path / "roms.json").write_bytes(roms_bytes)
-            ini = _FakeIniConfig(temp_path / "vpinfe.ini")
+            ini = _FakeConfigStore(temp_path / "vpinfe.ini")
             ini.config.set("pinmame-score-parser", "romsupdatesha", roms_sha)
 
             with mock.patch.object(updater, "CONFIG_DIR", temp_path), \

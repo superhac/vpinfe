@@ -133,7 +133,7 @@ SHIMS: tuple[Shim, ...] = (
         surface="vpinfe.ini",
         summary="Renamed keys are read once under the old name and written back under "
                 "the new one, so an existing vpinfe.ini is corrected in place.",
-        implemented_in="common/iniconfig.py:_RENAMED_KEYS",
+        implemented_in="common/config_store.py:_RENAMED_KEYS",
         par="PAR-25",
         names=(
             ("tablescreenid", "playfieldscreenid"),
@@ -153,7 +153,7 @@ SHIMS: tuple[Shim, ...] = (
         surface="vpinfe.ini",
         summary="Options that changed section rather than name. Predates 3.0; listed "
                 "here because it is the same promise to the same file.",
-        implemented_in="common/iniconfig.py:_MOVED_OPTIONS",
+        implemented_in="common/config_store.py:_MOVED_OPTIONS",
         par="PAR-25",
         names=(
             ("Settings.cabmode", "Displays.cabmode"),

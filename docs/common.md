@@ -19,7 +19,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `paths.py`: canonical user config, themes, collections, and game-root paths. `CONFIG_DIR` is resolved once at import time; set `VPINFE_CONFIG_DIR` before import (main.py maps the `--configdir` flag onto it) to relocate the whole config directory. `APP_ROOT` is where the app itself lives - use it for bundled assets instead of counting directory levels from `__file__`.
 - `config_access.py`: typed, UI-independent accessors for common INI sections.
 - `values.py`: value coercion (`is_truthy`) shared by config, metadata and filters.
-- `iniconfig.py`, `config_bootstrap.py`: ini reading and first-run config creation.
+- `config_store.py`, `config_bootstrap.py`: ini reading and first-run config creation.
 - `events.py`: the in-process event bus. Hooks are part of an operation; subscribers are told about it.
 - `media_specs.py`: canonical media keys, filenames, playfield attributes, and path resolution.
 - `jobs.py`: slow work as a job — one at a time per kind, progress published on the bus, answerable by id after it finishes.
@@ -142,7 +142,7 @@ file than the one that launches. Use `tables.default_table()`.
 
 Use `config_access.py` when reading common INI values from code outside the
 configuration editor itself. This keeps defaults and bool/int coercion in one
-place while preserving `IniConfig.config` for compatibility.
+place while preserving `ConfigStore.config` for compatibility.
 
 Use `media_specs.py` for media keys, filenames, and playfield path attributes.
 Frontend payloads, parser discovery, and VPS media downloads should not each

@@ -9,7 +9,7 @@ from urllib.parse import quote
 
 from nicegui import run, ui
 
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from common.online.vpinplay_service import sync_installed_games
 from managerui.config_fields import is_checkbox_field
 from managerui.pages.vpinfe_config import get_friendly_name
@@ -100,7 +100,7 @@ def _build_qr_filename(user_id: str) -> str:
 
 
 def render_panel():
-    config = IniConfig(str(INI_PATH))
+    config = ConfigStore(str(INI_PATH))
     load_page_style("vpinfe_config.css")
 
     if not config.config.has_section(SECTION):

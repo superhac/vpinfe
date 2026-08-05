@@ -101,14 +101,14 @@ class ShimAnnouncementTests(unittest.TestCase):
     def test_an_old_ini_key_announces_itself(self) -> None:
         from tempfile import TemporaryDirectory
 
-        from common.iniconfig import IniConfig
+        from common.config_store import ConfigStore
 
         with TemporaryDirectory() as tmp:
             ini = Path(tmp) / "vpinfe.ini"
             ini.write_text("[Settings]\ntablerootdir = /tmp/x\ncabmode = true\n",
                            encoding="utf-8")
             with self.assertLogs("vpinfe.deprecations", level="INFO") as caught:
-                IniConfig(str(ini))
+                ConfigStore(str(ini))
 
         joined = "\n".join(caught.output)
         self.assertIn("tablerootdir", joined)

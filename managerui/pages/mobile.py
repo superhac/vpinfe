@@ -9,7 +9,7 @@ from pathlib import Path
 
 from nicegui import run, ui
 
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_games_path
 from managerui.services import game_catalog
 from managerui.ui_helpers import load_page_style
@@ -40,7 +40,7 @@ def _to_bool(value) -> bool:
 def _get_ini_config():
     global _INI_CFG
     if _INI_CFG is None:
-        _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
+        _INI_CFG = ConfigStore(str(VPINFE_INI_PATH))
     return _INI_CFG
 
 

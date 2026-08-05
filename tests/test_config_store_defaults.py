@@ -2,15 +2,15 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 
 
-class TestIniConfig(unittest.TestCase):
+class TestConfigStore(unittest.TestCase):
     def test_adds_libdmdutil_defaults_to_new_config(self) -> None:
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("libdmdutil"))
             self.assertEqual(config.config.get("libdmdutil", "enabled"), "false")
@@ -24,7 +24,7 @@ class TestIniConfig(unittest.TestCase):
             ini_path = Path(tmp) / "vpinfe.ini"
             ini_path.write_text("[Settings]\ntheme = Revolution\n", encoding="utf-8")
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("libdmdutil"))
             self.assertEqual(config.config.get("libdmdutil", "enabled"), "false")
@@ -37,7 +37,7 @@ class TestIniConfig(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Input"))
             self.assertEqual(config.config.get("Input", "joytutorial"), "")
@@ -46,7 +46,7 @@ class TestIniConfig(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Input"))
             self.assertEqual(config.config.get("Input", "keyleft"), "ArrowLeft,ShiftLeft")
@@ -59,7 +59,7 @@ class TestIniConfig(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
             self.assertEqual(config.config.get("Settings", "MMhideQuitButton"), "false")
@@ -68,7 +68,7 @@ class TestIniConfig(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
             self.assertEqual(config.config.get("Settings", "splashscreen"), "false")
@@ -77,7 +77,7 @@ class TestIniConfig(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
             self.assertEqual(config.config.get("Settings", "chromeoptions"), "")
@@ -86,7 +86,7 @@ class TestIniConfig(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
             self.assertEqual(config.config.get("Settings", "disabledefaultchromeoptions"), "false")
@@ -95,7 +95,7 @@ class TestIniConfig(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
             self.assertEqual(config.config.get("Settings", "vpxlogdeleteonstart"), "false")
@@ -104,7 +104,7 @@ class TestIniConfig(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
             self.assertEqual(config.config.get("Settings", "restorelastgame"), "true")
@@ -113,7 +113,7 @@ class TestIniConfig(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("State"))
             self.assertEqual(config.config.get("State", "lastgame"), "")
@@ -123,7 +123,7 @@ class TestIniConfig(unittest.TestCase):
             ini_path = Path(tmp) / "vpinfe.ini"
             ini_path.write_text("[Settings]\nsplashscreen = true\n", encoding="utf-8")
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertEqual(config.config.get("Settings", "splashscreen"), "true")
 
@@ -142,7 +142,7 @@ class TestIniConfig(unittest.TestCase):
                 "[Displays]\ntablerotation = 270\n"
                 "[State]\nlasttable = Foo\n", encoding="utf-8")
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertEqual(config.config.get("Settings", "gamerootdir"), "/old/path")
             self.assertEqual(config.config.get("Settings", "restorelastgame"), "false")
@@ -168,7 +168,7 @@ class TestIniConfig(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertEqual(config.config.get("Displays", "cabmode"), "true")
             self.assertEqual(config.config.get("DOF", "enabledof"), "true")
@@ -187,7 +187,7 @@ class TestIniConfig(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            config = IniConfig(str(ini_path))
+            config = ConfigStore(str(ini_path))
 
             self.assertEqual(config.config.get("Displays", "cabmode"), "false")
             self.assertFalse(config.config.has_option("Settings", "cabmode"))

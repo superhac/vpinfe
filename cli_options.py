@@ -6,7 +6,7 @@ from screeninfo import get_monitors
 
 from common.deprecations import announce
 from common.games import game_report_service, info_maintenance, metadata_service
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from common.logging_config import get_logger
 from common.paths import VPINFE_INI_PATH, ensure_config_dir
 from frontend.custom_http_server import CustomHTTPServer
@@ -16,7 +16,7 @@ logger = get_logger("vpinfe.cli")
 # Initialize config
 ensure_config_dir()
 logger.info("Using config file at: %s", VPINFE_INI_PATH)
-iniconfig = IniConfig(str(VPINFE_INI_PATH))
+config_store = ConfigStore(str(VPINFE_INI_PATH))
 
 
 def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, gameName: str = None, userMedia: bool = False, progress_cb=None, log_cb=None):

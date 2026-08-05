@@ -39,7 +39,7 @@ from common.host.dof_service import start_dof_service_if_enabled, stop_dof_servi
 from common.host.libdmdutil_service import (
     stop_libdmdutil_service,
 )
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from common.logging_config import configure_logging, get_logger
 from common.online.pinmame_score_parser_updater import ensure_latest_roms_json
 from common.online.themes import ThemeRegistry
@@ -49,11 +49,11 @@ from common.paths import VPINFE_INI_PATH, configure_nicegui_storage, ensure_conf
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
 
-# Load config BEFORE importing clioptions/managerui (they create IniConfig at import time)
+# Load config BEFORE importing clioptions/managerui (they create ConfigStore at import time)
 config_dir = ensure_config_dir()
 nicegui_storage_path = configure_nicegui_storage()
 log_path = configure_logging(config_dir, enable_file=False)
-iniconfig = IniConfig(str(VPINFE_INI_PATH))
+config_store = ConfigStore(str(VPINFE_INI_PATH))
 log_path = configure_logging(config_dir, iniconfig)
 logger = get_logger("vpinfe.main")
 logger.info("Logging to %s", log_path)
@@ -74,7 +74,7 @@ except Exception:
 def reconfigure_app_logging() -> None:
     configure_logging(config_dir, iniconfig)
 
-# Now safe to import modules that create their own IniConfig at import time
+# Now safe to import modules that create their own ConfigStore at import time
 from nicegui import app as nicegui_app
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response

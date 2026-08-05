@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from common.iniconfig import IniConfig
+from common.config_store import ConfigStore
 from common.online.themes import ThemeRegistry
 
 from managerui.paths import THEMES_DIR, VPINFE_INI_PATH
@@ -12,7 +12,7 @@ from managerui.paths import THEMES_DIR, VPINFE_INI_PATH
 
 def get_active_theme() -> str:
     try:
-        config = IniConfig(str(VPINFE_INI_PATH))
+        config = ConfigStore(str(VPINFE_INI_PATH))
         theme_name = config.config.get("Settings", "theme", fallback="Revolution").strip()
         return theme_name or "Revolution"
     except Exception:
@@ -20,7 +20,7 @@ def get_active_theme() -> str:
 
 
 def set_active_theme(theme_key: str) -> None:
-    config = IniConfig(str(VPINFE_INI_PATH))
+    config = ConfigStore(str(VPINFE_INI_PATH))
     config.config.set("Settings", "theme", theme_key)
     config.save()
 
@@ -115,7 +115,7 @@ def _dynamic_select_options(source: str) -> list[dict[str, Any]] | None:
 
     names: list[str] = []
     try:
-        config = IniConfig(str(VPINFE_INI_PATH))
+        config = ConfigStore(str(VPINFE_INI_PATH))
         root = SettingsConfig.from_config(config).game_root_dir
         if root:
             names = list_media_sets(root, "wheel")
