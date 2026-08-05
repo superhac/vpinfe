@@ -1079,7 +1079,7 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 | `vpin.playfieldRotation` | `number` | Playfield rotation in degrees from config (default `0`). |
 | `vpin.themeAssetsPort` | `number` | HTTP server port (default `8000`). |
 | `vpin.menuUP` | `boolean` | Whether the main menu overlay is currently visible. |
-| `vpin.capabilities` | `object` | What this build does on your behalf, and whether each is on — `{ core_paging: true, core_audio: false }`. A name that is absent is a behaviour this build does not have, so check before relying on it. Reading it gives you a copy; use `enableCorePaging()` / `enableCoreAudio()` to change anything. |
+| `vpin.capabilities` | `object` | What this build does on your behalf, and whether each is on — `{ core_paging: true, core_audio: false, core_preload: false }`. A name that is absent is a behavior this build does not have, so check before relying on it. Reading it gives you a copy; use `enableCorePaging()` / `enableCoreAudio()` to change anything. |
 | `vpin.contract` | `number` | Which contract you are being served. |
 | `vpin.collectionMenuUP` | `boolean` | Whether the collection menu overlay is currently visible. |
 
@@ -1091,8 +1091,29 @@ name is `false` rather than an error, so a theme can ask about something a build
 have.
 
 Each capability has one stated default: **core paging is on** (opt out if your theme does
-its own), **core audio is off** (opt in). A theme's `theme.json` can set either — core
-audio reads `use_core_audio`, or `audio.use_core_audio`, or `audio.enabled`.
+its own), **core audio is off** (opt in), **core preloading is off** (opt in). A theme's
+`theme.json` can set any of them — core audio reads `use_core_audio`, or
+`audio.use_core_audio`, or `audio.enabled`; core preloading reads `use_core_preload` or
+`preload.enabled`.
+
+#### Core preloading
+
+With `core_preload` on, core fetches the media for the selection and its two neighbors —
+but only once the wheel has stopped, after about 180 ms of quiet. That delay is the point.
+A held key repeats around 30 times a second, so a theme preloading on every step asks for
+hundreds of images that are obsolete before they decode, and the browser is still draining
+that queue long after the key is released. Waiting for the wheel to settle turns a
+two-second hold into one batch.
+
+`preload.kinds` chooses what gets fetched; the default is `["playfield", "bg", "wheel"]`.
+A theme showing a cabinet shot wants `cab` in there, and one with no wheel should drop it.
+
+```json
+{ "preload": { "enabled": true, "kinds": ["playfield", "bg", "wheel"] } }
+```
+
+**If you switch this on, delete your own preloading.** Running both just doubles the
+requests, which is why this is opt-in rather than on by default.
 
 #### init()
 Sets up keyboard event listener and connects to the backend over the WebSocket bridge.

@@ -58,6 +58,13 @@ const CAPABILITIES = {
     legacyConfig: ["useCoreAudio", "audio.useCoreAudio"],
     describe: "Core plays, fades and mutes per-game audio.",
   },
+  // Off by default: every published theme preloads for itself, so turning this on
+  // without deleting the theme's own loop just doubles the requests.
+  core_preload: {
+    default: false,
+    config: ["use_core_preload", "preload.enabled"],
+    describe: "Core fetches the media on either side of the selection once it settles.",
+  },
 };
 
 // Read a possibly-dotted key out of a theme's config.
@@ -403,9 +410,18 @@ class VPinFECore {
     this._audioCurrentUrl = null;
     this._audioRetries = 0;
     this._lastSelectedIndex = null;
+    // Preloading waits for the wheel to stop. Fetching on every step is what made a
+    // two-second hold ask for hundreds of images that were obsolete before they decoded;
+    // the settle delay is the whole mechanism, not a nicety.
+    this._preloadSettleMs = 180;
+    this._preloadKinds = ["playfield", "bg", "wheel"];
+    this._preloadTimer = null;
+    this._preloaded = new Set();
+
     this._onSelection = [];
     this.onSelection(() => this.getVPinPlayRating(this._currentGameIndex).catch(() => {}));
     this.onSelection(() => this.#notifySelectedGame().catch(() => {}));
+    this.onSelection(() => this.#schedulePreload());
     this._vpinplayRatingCache = new Map();
     this._vpinplayRatingRequests = new Map();
 
@@ -572,6 +588,14 @@ class VPinFECore {
       this.#setCapability(name, stated === undefined ? spec.default : !!stated);
     }
     if (!this.enabled("core_audio")) this.stopGameAudio({ immediate: true });
+
+    // A theme that shows a cab shot, or shows no wheel, preloads a different set. The
+    // names go through the same normalization as everywhere else, so a contract 1 theme
+    // can still say `table` and mean the playfield.
+    const kinds = configValue(config, "preload.kinds");
+    if (Array.isArray(kinds) && kinds.length) {
+      this._preloadKinds = kinds.map((kind) => this.#normalizeMediaType(kind));
+    }
   }
 
   // enableCorePaging(false) and receive the actions in handleInput instead.
@@ -1052,6 +1076,10 @@ class VPinFECore {
     "GameIndexUpdate", "GameDataChange", "GameLaunchComplete", "RemoteLaunchComplete",
   ]);
 
+  // How many preloaded URLs to remember. Generous enough to cover a page of the wheel
+  // in both directions; small enough that forgetting all of them costs one page.
+  static PRELOAD_MEMORY = 300;
+
   #syncSelectionFromMessage(message) {
     if (!message || typeof message !== "object") return;
     if (!this.isController()) return;
@@ -1084,6 +1112,32 @@ class VPinFECore {
         console.warn("vpinfe: a selection listener failed", err);
       }
     }
+  }
+
+  // Neighbors only, and only once the wheel has stopped moving.
+  #schedulePreload() {
+    if (!this.enabled("core_preload")) return;
+    clearTimeout(this._preloadTimer);
+    this._preloadTimer = setTimeout(() => this.#preloadNeighbors(), this._preloadSettleMs);
+  }
+
+  #preloadNeighbors() {
+    this._preloadTimer = null;
+    const at = this._currentGameIndex;
+    for (const index of [at - 1, at, at + 1]) {
+      if (index < 0 || index >= this.gameData.length) continue;
+      for (const kind of this._preloadKinds) this.#preload(this.getImageURL(index, kind));
+    }
+  }
+
+  #preload(url) {
+    if (!url || url === MISSING_MEDIA_URL || this._preloaded.has(url)) return;
+    // Emptied wholesale rather than evicted one at a time. It exists to stop a re-fetch
+    // on the way back through the wheel, and a large library would otherwise grow it
+    // without limit.
+    if (this._preloaded.size >= VPinFECore.PRELOAD_MEMORY) this._preloaded.clear();
+    this._preloaded.add(url);
+    Object.assign(new Image(), { decoding: "async", src: url });
   }
 
   async #notifySelectedGame() {

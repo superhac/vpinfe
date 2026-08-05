@@ -38,6 +38,18 @@ FakeWebSocket.OPEN = 1;
 FakeWebSocket.CLOSED = 3;
 FakeWebSocket.instances = [];
 
+// Records every src it was given. Preloading is judged by how many requests it makes,
+// so the count is the assertion.
+class FakeImage {
+  constructor() {
+    this.decoding = "";
+    this._src = "";
+  }
+  set src(value) { this._src = value; FakeImage.requested.push(value); }
+  get src() { return this._src; }
+}
+FakeImage.requested = [];
+
 class FakeAudio {
   constructor() {
     this.loop = false;
@@ -105,6 +117,7 @@ export function makeBrowser({ windowName = "table", search = null } = {}) {
   };
 
   FakeWebSocket.instances = [];
+  FakeImage.requested = [];
 
   return {
     window: windowStub,
@@ -112,6 +125,7 @@ export function makeBrowser({ windowName = "table", search = null } = {}) {
     navigator: { getGamepads: () => [] },
     WebSocket: FakeWebSocket,
     Audio: FakeAudio,
+    Image: FakeImage,
     fetch: unimplemented("fetch"),
     // The remote-launch stream. It only ever has listeners attached.
     EventSource: function EventSource() {
@@ -142,4 +156,4 @@ export function makeBrowser({ windowName = "table", search = null } = {}) {
   };
 }
 
-export { FakeWebSocket, FakeAudio };
+export { FakeWebSocket, FakeAudio, FakeImage };
