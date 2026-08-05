@@ -25,7 +25,7 @@ from common.online.theme_installer import ThemeInstallStore
 from common.online.vpsdb_cache import VPSDatabaseCache
 from common.third_party import find_named_path, import_module_from_path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def _tableparser_target(node) -> str | None:

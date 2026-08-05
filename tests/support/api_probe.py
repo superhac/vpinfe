@@ -1,6 +1,6 @@
 """Drives the app's HTTP surface and prints the result as JSON.
 
-Run as a subprocess by tests/test_api_contract.py, not directly. It needs a
+Run as a subprocess by tests/api/test_api_contract.py, not directly. It needs a
 private VPINFE_CONFIG_DIR set before any common/ import, which only a fresh
 interpreter can guarantee.
 """

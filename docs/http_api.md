@@ -494,4 +494,4 @@ client = TestClient(httpapi.create_api_app())
 assert client.get("/health").json() == {"status": "ok"}
 ```
 
-See `tests/test_http_api.py`.
+See `tests/api/test_http_api.py`.

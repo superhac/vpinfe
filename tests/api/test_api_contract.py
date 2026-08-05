@@ -19,7 +19,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def _run_probe() -> dict:
@@ -88,7 +88,7 @@ def _run_probe() -> dict:
             f"[Settings]\ngamerootdir = {games_dir}\n", encoding="utf-8")
 
         proc = subprocess.run(
-            [sys.executable, "-m", "tests.api_probe"],
+            [sys.executable, "-m", "tests.support.api_probe"],
             cwd=str(REPO_ROOT), env=env, capture_output=True, text=True, timeout=180,
         )
     stdout = proc.stdout.strip().splitlines()
@@ -422,7 +422,8 @@ class HandlerKeysMatchTheModelsTests(unittest.TestCase):
                     if isinstance(k, ast.Constant) and isinstance(k.value, str)}
 
         offenders = []
-        for path in sorted((Path(__file__).resolve().parent.parent / "httpapi").glob("*.py")):
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        for path in sorted((repo_root / "httpapi").glob("*.py")):
             tree = ast.parse(path.read_text(encoding="utf-8"))
             functions = [n for n in ast.walk(tree)
                          if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]

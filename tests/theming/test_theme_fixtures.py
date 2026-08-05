@@ -7,7 +7,7 @@ reach the cabinet broken.
 
 When this fails, regenerate and re-run the JS tests:
 
-    python tests/theme_fixture_capture.py
+    python tests/support/theme_fixture_capture.py
     npm test
 """
 
@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import unittest
 
-from tests.theme_fixture_capture import FIXTURE, STABLE_ROOT, _stabilize, capture
+from tests.support.theme_fixture_capture import FIXTURE, STABLE_ROOT, _stabilize, capture
 
 
 class ThemeFixtureTests(unittest.TestCase):
@@ -42,7 +42,7 @@ class ThemeFixtureTests(unittest.TestCase):
 
     def test_the_committed_fixture_is_what_the_builder_produces(self) -> None:
         self.assertTrue(FIXTURE.exists(),
-                        "run: python tests/theme_fixture_capture.py")
+                        "run: python tests/support/theme_fixture_capture.py")
         committed = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
         self.assertEqual(committed, capture(),

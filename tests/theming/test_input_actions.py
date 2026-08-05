@@ -3,7 +3,7 @@
 Twelve actions were written out in seven places. Four of those are Python and now read
 `common/input_actions.py`; the rest are JavaScript, a diagnostic page and two docs
 tables, which cannot import anything. They are pinned here instead, the same way
-`tests/test_theme_windows.py` pins the window label map.
+`tests/theming/test_theme_windows.py` pins the window label map.
 
 The drift these exist to catch is not hypothetical: the JavaScript said `back` was
 unbound while Python shipped `b`.
@@ -18,7 +18,7 @@ from pathlib import Path
 from common import config_schema, input_actions
 from frontend.input_api import JOY_MAPPING_KEYS, KEY_MAPPING_DEFAULTS
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 CORE_JS = (REPO_ROOT / "web" / "common" / "vpinfe-core.js").read_text(encoding="utf-8")
 GAMEPAD_HTML = (REPO_ROOT / "web" / "diag" / "gamepad.html").read_text(encoding="utf-8")
 

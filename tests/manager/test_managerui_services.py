@@ -398,7 +398,7 @@ class PageStylesheetTests(unittest.TestCase):
     def test_every_requested_stylesheet_exists(self) -> None:
         import ast
 
-        managerui = Path(__file__).resolve().parent.parent / "managerui"
+        managerui = Path(__file__).resolve().parent.parent.parent / "managerui"
         static = managerui / "static"
 
         missing = []

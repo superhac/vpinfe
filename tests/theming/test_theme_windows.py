@@ -190,7 +190,7 @@ class LabelDriftTests(unittest.TestCase):
         import re
         from pathlib import Path
 
-        core = (Path(__file__).resolve().parent.parent
+        core = (Path(__file__).resolve().parent.parent.parent
                 / "web" / "common" / "vpinfe-core.js").read_text(encoding="utf-8")
         block = re.search(r"const known = \{([^}]*)\}", core)
         self.assertIsNotNone(block, "the label map moved; this test needs updating")

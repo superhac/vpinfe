@@ -4,7 +4,7 @@
 nothing. This file is the complete list of deliberate exceptions — every way 3.0 is
 *allowed* to differ from master, each with why it's worth it.
 
-It is enforced, not aspirational: `tests/test_parity.py` compares this tree's
+It is enforced, not aspirational: `tests/invariants/test_parity.py` compares this tree's
 behavior against a captured master baseline (`tests/parity_baseline_master.json`),
 and a difference is either named here by its `PAR-` id or the build fails. There is
 no third option. Entries marked *(machine-checked)* are asserted directly by the
@@ -14,7 +14,7 @@ To refresh the baseline after master moves:
 
 ```
 git worktree add /tmp/parity-master master
-cd /tmp/parity-master && python <this-tree>/tests/parity_capture.py --out <this-tree>/tests/parity_baseline_master.json
+cd /tmp/parity-master && python <this-tree>/tests/support/parity_capture.py --out <this-tree>/tests/parity_baseline_master.json
 git worktree remove /tmp/parity-master
 ```
 
@@ -26,13 +26,13 @@ Every game gets a stable id, minted once and persisted. One-time, versioned via
 `.info` writes on first 3.0 start and nothing after.
 *Why:* an id-addressed API, events and collections need an identity that survives
 renames and table updates, which VPSId cannot provide. Covered by
-`tests/test_game_identity.py`.
+`tests/games/test_game_identity.py`.
 
 **PAR-02 — First run rewrites `collections.ini` membership onto game ids.**
 One-time migration, keyed by a schema version so it runs once; entries that don't
 resolve are kept rather than dropped.
 *Why:* membership keyed on VPSId was orphaned by an ordinary `.vpx` update. Covered
-by `tests/test_collections_rekey.py`.
+by `tests/curation/test_collections_rekey.py`.
 
 **PAR-03 — The pre-`/api/v1` endpoints are removed, not aliased.** *(machine-checked)*
 `/api/remote-launch`, `/api/asset-upload/*`, `/api/download-table-vpxz` are gone;
@@ -53,19 +53,19 @@ Master picked by directory scan order, which is filesystem-dependent; 3.0 picks 
 file the game's own metadata describes, with a deterministic fallback.
 *Why:* three code paths chose three different files, so the metadata a user saw
 could describe a different table than the one that launched. Covered by
-`tests/test_tables.py`.
+`tests/games/test_tables.py`.
 
 **PAR-06 — Launches from the Remote page and the API now record play data.**
 Start count, Last Played, runtime, NVRAM score — previously only wheel launches
 recorded any of it.
 *Why:* this was a bug; a play is a play regardless of who started it. Users will see
-those launches start counting. Covered by `tests/test_launch.py`.
+those launches start counting. Covered by `tests/host/test_launch.py`.
 
 **PAR-07 — The frontend subscribes to launch state instead of polling it.**
 One held SSE connection replaces a request every second. Same overlay behavior;
 different network pattern for anyone watching traffic.
 *Why:* the poll was the only reason `/api/remote-launch` existed; the event stream
-serves every future consumer too. Covered by `tests/test_event_stream.py`.
+serves every future consumer too. Covered by `tests/api/test_event_stream.py`.
 
 **PAR-08 — The log is much quieter at INFO.**
 The logging standard moved routine chatter to DEBUG and gave each level a promise.
@@ -89,14 +89,14 @@ refresh could clobber a user's own file; the tiers make "mine" and "downloaded"
 structurally distinct. The published tokens for those two say the role rather than the
 thing, which reads as a different asset to anyone naming files by hand — and since VPinFE
 only ever *reads* tokens and writes the fixed names, accepting both costs nothing on disk.
-Covered by `tests/test_media_resolution.py`.
+Covered by `tests/media/test_media_resolution.py`.
 
 **PAR-10 — Imported media keeps its real file extension.**
 Importing a `.jpg` wheel used to write JPEG bytes into `medias/wheel.png` — a file that
 lies about itself. It now writes `wheel.jpg`, and removes same-kind siblings that would
 shadow it.
 *Why:* the on-disk name should tell the truth; browsers sniffed past it, other tools
-won't. Covered by `tests/test_media_resolution.py`.
+won't. Covered by `tests/media/test_media_resolution.py`.
 
 **PAR-11 — Six new media kinds: instruction_card, topper, topper_video, loading,
 audio_launch, rule_sheet.**
@@ -114,7 +114,7 @@ hold a still or a video, never both with the video preferred. It now mirrors the
 `(Topper) x.png` resolves to `topper`, `(Topper) x.mp4` to `topper_video`.
 *Why:* the spec names these and tools ship them; adopting the tokens means media that
 circulates for other frontends works here unchanged. Covered by
-`tests/test_media_resolution.py`.
+`tests/media/test_media_resolution.py`.
 
 **PAR-12 — `logo` is its own media kind, and the wheel falls back to it.**
 *(machine-checked)* `logo.png` used to import as a wheel; it now imports as the game's
@@ -124,7 +124,7 @@ fallback lives at the bottom of the wheel's resolution, below every real wheel t
 API marks such a wheel `via: "logo"`. Themes gain `LogoImagePath`.
 *Why:* the logo is usually the source a wheel is derived from, so showing it beats a
 blank slot everywhere at once; making it a kind keeps it addressable instead of buried in
-wheel semantics. Covered by `tests/test_media_resolution.py`.
+wheel semantics. Covered by `tests/media/test_media_resolution.py`.
 
 **PAR-13 — A game export is one table by default, not the whole folder.**
 The `.vpxz` download and the mobile Web Send used to ship everything: every alternate
@@ -135,7 +135,7 @@ default table — the chosen `.vpx`, its stem-matched and folder-named companion
 available to callers through the API (`?full=true`), under its own permission scope.
 *Why:* export a game, not a folder — transfers shrink dramatically, and a multi-`.vpx`
 folder finally exports the game file you meant instead of all of them. Covered by
-`tests/test_export_bundle.py`.
+`tests/media/test_export_bundle.py`.
 
 **PAR-14 — Readme files import, display, and travel with the game.**
 Files named `readme*` (any extension) and `.nfo` used to fall into the import dialog's
@@ -145,7 +145,7 @@ copied to the game folder root under their original names (on by default), and i
 in the standalone export bundle. Detection is deliberately narrow — never a blanket
 `.txt`, which would misfile `alias.txt` and its kin.
 *Why:* whoever made the table wrote those notes for whoever installs it; now they arrive.
-Covered by `tests/test_asset_upload_services.py` and `tests/test_export_bundle.py`.
+Covered by `tests/media/test_asset_upload_services.py` and `tests/media/test_export_bundle.py`.
 
 **PAR-15 — Manufacturer logos, served from a shared assets root.**
 *(machine-checked)* Themes gain one payload field, `ManufacturerLogoPath`: a
@@ -157,7 +157,7 @@ normalizes the VPSdb manufacturer string ("Williams Electronics" finds `williams
 with a `manufacturers.json` alias map for the exceptions.
 *Why:* manufacturer is already a first-class metadata and filter dimension; themes just
 had nothing to render for it. A shared root exists because a manufacturer logo is neither
-per-game nor per-theme. Covered by `tests/test_shared_assets.py`.
+per-game nor per-theme. Covered by `tests/media/test_shared_assets.py`.
 
 **PAR-16 — Game files can be hidden, and several are peers rather than one default.**
 A game folder can hold more than one launchable `.vpx` — a desktop table and a VR build,
@@ -171,7 +171,7 @@ game's metadata was derived from, which is what export and the metadata build ne
 they have to pick one. Consumers listing what to play should filter on `hidden`.
 *Why:* applying a patch leaves the base table on disk — it has to stay, since the patched
 table cannot be rebuilt without it — but nobody wants to be offered it. Deleting it would
-be the wrong fix. Covered by `tests/test_jdiff_patch.py`.
+be the wrong fix. Covered by `tests/games/test_jdiff_patch.py`.
 
 **PAR-17 — Your own media is protected by hash, and claiming it is gone.**
 On master, artwork was protected by marking it `"Source": "user"` — something you had to
@@ -185,7 +185,7 @@ media" toggle is gone, and `--user-media` now only means "fetch nothing". Existi
 *Why:* protection that depends on the user having run a command only protects the people
 who already knew about it. One loss worth naming: a file byte-identical to VPinMediaDB's
 could previously be pinned by claiming it, and can no longer be pinned at all. Covered by
-`tests/test_vpsdb_media.py`.
+`tests/media/test_vpsdb_media.py`.
 
 **PAR-19 — The `.info` is reshaped, and themes declare which shape they read.**
 `VPXFile` becomes `game_files` (one entry per `.vpx`, since a folder can hold several),
@@ -195,8 +195,8 @@ on read, keeping the original alongside it as `<Game>.info.vpinfe-<timestamp>`.
 *Why:* the format described one game file per folder, which stopped being true the first
 time anybody patched a table. Themes are unaffected unless they opt in: the payload is
 served in the shape a theme declares as `contract` in its `manifest.json`, and absent means
-contract 1 — the 2.x shape, synthesised. Covered by `tests/test_info_migration.py` and
-`tests/test_theme_contract.py`.
+contract 1 — the 2.x shape, synthesised. Covered by `tests/games/test_info_migration.py` and
+`tests/theming/test_theme_contract.py`.
 
 **PAR-21 — The WebSocket methods take VPS's vocabulary, and the old names still answer.**
 *(machine-checked)*
@@ -252,7 +252,7 @@ file one level deeper. Naming the kinds instead also takes several hundred kilob
 large library's payload, which crosses the socket on every filter and sort. Responses carry
 an `ETag` and `Cache-Control: no-cache`, so a media change in the Manager UI is visible
 without a version baked into the URL - which would have meant stat-ing every resolved file
-of every game every time the list was built. Covered by `tests/test_media_route.py`.
+of every game every time the list was built. Covered by `tests/media/test_media_route.py`.
 
 **PAR-32 — A theme may declare its windows, and one method reports them.**
 `get_theme_windows()` returns the windows the active theme declared, controller first.
@@ -265,7 +265,7 @@ key, and a theme could not add one. `topper` and `loading` media shipped in 3.0 
 window to show them on. A window's monitor is now read generically from
 `<window>screenid`, so a theme can name a window VPinFE has never heard of. Blank means
 not launched, which is the rule that already applied. Covered by
-`tests/test_theme_windows.py`.
+`tests/theming/test_theme_windows.py`.
 
 **PAR-30 — One WebSocket method is added so the browser can ask which contract it serves.**
 `get_theme_contract()` returns the level the active theme declared. Purely additive: a
@@ -286,7 +286,7 @@ is unaffected, and no existing method changes.
 so a maintainer can see what is still needed before retiring a shim. The `vpin.*` aliases
 could not - a theme runs in Chromium, and a console line on a cabinet is invisible. This
 is the one surface that had no evidence behind it, and it is the surface a theme is most
-likely to be using. Covered by `tests/test_deprecations.py`.
+likely to be using. Covered by `tests/invariants/test_deprecations.py`.
 
 **PAR-26 — `--table` still works on the CLI; the flag is `--game`.**
 `--game` takes the folder name for `--buildmeta`, `--upgrade-info` and `--restore-info`.
@@ -307,7 +307,7 @@ the same pass — that one predates 3.0.
 to be invisible. Both passes run *before* the defaults are filled in: every key here has
 a default, and with one already written "copy only if absent" copies nothing and the
 user's real value is dropped. That was a live bug for the section moves.
-Covered by `tests/test_config_store.py`.
+Covered by `tests/config/test_config_store.py`.
 
 **PAR-24 — Window messages carry both spellings, and inbound is accepted either way.**
 `TableIndexUpdate`, `TableDataChange`, `TableLaunching`, `TableRunning` and
@@ -320,7 +320,7 @@ which covers only the messages a theme originates; the launch lifecycle is broad
 `frontend/play_events.py`, so it kept sending the 2.x names by themselves. Installed themes
 match those and were unaffected, which is exactly why it went unnoticed — but a theme
 written against the names `docs/theme.md` documents received no launch events at all.
-Covered by `tests/test_play_events.py`, which also asserts the Python and JavaScript alias
+Covered by `tests/api/test_play_events.py`, which also asserts the Python and JavaScript alias
 maps are the same map.
 
 **PAR-18 — Addon folders are detected whatever their casing.**
@@ -331,7 +331,7 @@ same game reported a PUP pack there and none in the Manager UI and themes. The s
 folds case too. Games whose folders are not all-lowercase will start reporting addons
 they always had (`pupPackExists`, `altColorExists`, `vniExists`, `altSoundExists`).
 *Why:* one game cannot have two answers, and the scan was already case-insensitive about
-`.directb2s` and `.ini` three lines away. Covered by `tests/test_media_resolution.py`.
+`.directb2s` and `.ini` three lines away. Covered by `tests/media/test_media_resolution.py`.
 
 **PAR-20 — The 2.x restore module is removed; 3.0 restores through its own.**
 `common/info_restore.py`, its Manager UI dialog and its tests shipped in the 2.x line so a
@@ -342,7 +342,7 @@ takes the highest schema this build can read, so one walk serves every future sc
 older build to run it, and two implementations of one operation means fixing each bug twice.
 The backup filename and the read-the-shape-from-the-file rule are unchanged, so a 2.x
 install can still restore what a 3.0 install wrote — that contract lives in the file format,
-not in this module. Covered by `tests/test_info_maintenance.py`.
+not in this module. Covered by `tests/games/test_info_maintenance.py`.
 
 **PAR-33 — One WebSocket method is added so the browser can learn how to turn playfield art.**
 `get_playfield_media_rotation()` returns `[Media] playfieldmediarotation`, which is `auto` by
@@ -368,7 +368,7 @@ so one theme cannot have it be `table` in some of those and `playfield` in other
 matching, and a cabinet compositor places the window wrong with no error - windows pile
 onto one screen. Anyone running a Sway or KWin rule for `VPinFE Table` or `app_table`
 wants a second rule before switching a theme to contract 2. Covered by
-`tests/test_theme_windows.py`.
+`tests/theming/test_theme_windows.py`.
 
 **PAR-35 — Settings move from `vpinfe.ini` to `vpinfe.json`.**
 The first 3.0 run reads an existing `vpinfe.ini`, writes the same settings to
@@ -384,7 +384,7 @@ same shape over HTTP as on disk, which is what lets the API and an extension rea
 without a translation. **Comments in an existing ini are not carried over** - they were
 already destroyed by the first write of any 2.x build, so nothing that survives today is
 lost. The Manager UI is the intended editor and covers 84 of the 86 settings.
-Covered by `tests/test_config_store.py`.
+Covered by `tests/config/test_config_store.py`.
 
 **PAR-36 — Theme options you set move out of the theme, and survive an update.**
 They were written into the installed theme package, and updating a theme deletes that
@@ -396,7 +396,7 @@ installs or updates one; a theme that already has a user file is left alone, so 
 once. The author's schema file is no longer written to at all.
 *Why:* this was data loss on a routine action, and the only reason it was survivable is
 that most themes ship few options. Nothing a theme author does changes — `theme.json` is
-still where options are declared. Covered by `tests/test_theme_options.py`, including the
+still where options are declared. Covered by `tests/theming/test_theme_options.py`, including the
 sequence that used to lose them: install, configure, update, check.
 
 **PAR-37 — Setting names are snake_case, and every old spelling still resolves.**
@@ -412,7 +412,7 @@ vocabulary and rename with that work, not this.
 `gamerootdir` while the code said `game_root_dir` - and a mapping between them that had to
 be maintained by hand. One name now, and it is the one `docs/conventions.md` asks for.
 Canonical-plus-alias is the pattern Visual Pinball uses upstream for the same problem.
-Covered by `tests/test_config_schema.py` and `tests/test_config_store.py`.
+Covered by `tests/config/test_config_schema.py` and `tests/config/test_config_store.py`.
 
 **PAR-38 — Each window's settings live under that window, named as Visual Pinball names it.**
 The fourteen settings that faked a hierarchy with a prefix - `playfieldscreenid`,
@@ -430,7 +430,7 @@ still reads. A window a theme invented is unaffected: it has no schema entry, an
 a key belonged to. VPX models per-window config exactly this way, which is also why the
 names follow its plugin contract - `Backglass` and `ScoreView`, not `bg` and `dmd`.
 **This is the config file only.** The window names a *theme* sees are contract 2's and
-move with that work. Covered by `tests/test_config_schema.py` and `tests/test_config_store.py`.
+move with that work. Covered by `tests/config/test_config_schema.py` and `tests/config/test_config_store.py`.
 
 **PAR-39 — At contract 2 the windows and media kinds are `playfield`, `backglass` and
 `scoreview`.** Visual Pinball's plugin ABI declares `VPXWINDOW_Playfield`, `Backglass`,
@@ -448,8 +448,8 @@ are contract 1.
 
 **No file moves.** `bg.png` and `dmd.png` are what VPinMediaDB ships and what everyone has
 on disk; only the keys moved. Keys renamed, files frozen - the same split every other
-rename on this branch made. Covered by `tests/test_theme_windows.py`,
-`tests/test_media_resolution.py` and `tests/js/media-resolution.test.js`.
+rename on this branch made. Covered by `tests/theming/test_theme_windows.py`,
+`tests/media/test_media_resolution.py` and `tests/js/media-resolution.test.js`.
 
 ## Explicitly *not* exceptions
 
@@ -464,7 +464,7 @@ there in July 2026), not a 3.0 change.
 
 The gate is scaffolding for the transition and it dies with it: once this branch *is*
 master, there is nothing left to compare against. Whoever does that merge should delete
-`tests/test_parity.py`, `tests/parity_capture.py` and `tests/parity_baseline_master.json`,
+`tests/invariants/test_parity.py`, `tests/support/parity_capture.py` and `tests/parity_baseline_master.json`,
 and drop the `!tests/parity_baseline_master.json` line from `.gitignore` — it only exists
 to punch the baseline back through the blanket `*.json` rule, and removing the file
 without it leaves a dangling negation.
@@ -486,7 +486,7 @@ settles as snake_case. The playfield rename also retires a name that collided wi
 `[Media] playfieldvariant` values: `fss` was simultaneously a kind and a variant.
 **Payload attribute names are unchanged** — `TableImagePath` and the rest are contract 1's
 keys and shipped, so only the kind vocabulary moved. Covered by
-`tests/js/media-resolution.test.js` and `tests/test_asset_upload_services.py`.
+`tests/js/media-resolution.test.js` and `tests/media/test_asset_upload_services.py`.
 
 **PAR-28 — the theme payload at contract 2 is an entry list, not a row array.**
 

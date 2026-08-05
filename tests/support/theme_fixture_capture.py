@@ -2,12 +2,12 @@
 
 The JS harness cannot import Python, and hand-written JS fixtures drift from the builder
 silently - which is how a media key lookup shipped broken. So the payload is captured
-here and committed; `tests/test_theme_fixtures.py` fails when the committed copy stops
+here and committed; `tests/theming/test_theme_fixtures.py` fails when the committed copy stops
 matching, and regenerating it makes the JS tests run against the new shape.
 
 Not a test. Regenerate deliberately:
 
-    python tests/theme_fixture_capture.py
+    python tests/support/theme_fixture_capture.py
 
 Absolute paths are rewritten to a fixed root, because a temp directory would change the
 fixture on every run and the URL builder only reads the last few segments anyway.
@@ -21,7 +21,7 @@ from configparser import ConfigParser
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "theme_payload.json"
 
 # What the captured paths pretend to live under. The JS side asserts against this.

@@ -22,7 +22,7 @@ from pathlib import Path
 from common import deprecations
 from common.deprecations import SHIMS
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LEDGER = REPO_ROOT / "docs" / "compatibility-3.0.md"
 THEME_DOC = REPO_ROOT / "docs" / "theme.md"
 

@@ -38,7 +38,7 @@ TWO_TABLES = {
 
 
 class ContractOneTests(unittest.TestCase):
-    """Unchanged, and it has to stay that way - see tests/test_parity.py."""
+    """Unchanged, and it has to stay that way - see tests/invariants/test_parity.py."""
 
     def test_it_is_a_bare_array_of_rows(self) -> None:
         payload = json.loads(games_json(entries_for([_game(tables=TWO_TABLES)]),

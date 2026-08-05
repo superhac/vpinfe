@@ -1,6 +1,6 @@
 """The 3.0 parity gate: this tree behaves like master, except where the ledger says.
 
-Compares a live capture of this tree (tests/parity_capture.py, run in a fresh
+Compares a live capture of this tree (tests/support/parity_capture.py, run in a fresh
 interpreter) against the committed master baseline. Every allowed difference is
 named by a PAR- id in docs/compatibility-3.0.md; an unlisted difference is a
 failure. That file explains how to refresh the baseline when master moves.
@@ -16,7 +16,7 @@ import sys
 import unittest
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 BASELINE = REPO_ROOT / "tests" / "parity_baseline_master.json"
 LEDGER = REPO_ROOT / "docs" / "compatibility-3.0.md"
 
@@ -60,7 +60,7 @@ def _capture_current() -> dict:
     env = dict(os.environ)
     env.pop("VPINFE_CONFIG_DIR", None)
     proc = subprocess.run(
-        [sys.executable, str(REPO_ROOT / "tests" / "parity_capture.py")],
+        [sys.executable, str(REPO_ROOT / "tests" / "support" / "parity_capture.py")],
         capture_output=True, text=True, cwd=str(REPO_ROOT), env=env, timeout=300,
     )
     payload = json.loads(proc.stdout)

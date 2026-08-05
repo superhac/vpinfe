@@ -21,7 +21,7 @@ from common.config_store import ConfigStore
 # defaults from the schema now, so comparing the two would compare the schema to itself -
 # this is the outside witness that keeps the check meaningful. Changing a default here is
 # changing it for every user, so it should be a visible line in a diff.
-FROZEN = Path(__file__).resolve().parent / "fixtures" / "config_defaults.json"
+FROZEN = Path(__file__).resolve().parent.parent / "fixtures" / "config_defaults.json"
 
 
 def _shipped_defaults() -> dict[str, dict[str, str]]:

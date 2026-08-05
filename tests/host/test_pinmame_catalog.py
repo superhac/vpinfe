@@ -163,7 +163,7 @@ class RealLibraryTests(unittest.TestCase):
     elsewhere - CI has no VPX install, and that is the availability story."""
 
     def _run_worker(self, roms_dir: str, *names: str) -> dict:
-        repo = Path(__file__).resolve().parents[1]
+        repo = Path(__file__).resolve().parents[2]
         proc = subprocess.run(
             [sys.executable, "-m", "common.host.pinmame_worker",
              _shipped_library(), roms_dir, *names],

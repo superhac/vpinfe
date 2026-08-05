@@ -17,7 +17,7 @@ select = ["E", "W", "F", "I", "N", "UP", "B"]
 "main.py" = ["E402"]
 "managerui/managerui.py" = ["E402"]
 "managerui/pages/remote.py" = ["E402"]
-"tests/*" = ["E402"]
+"tests/**" = ["E402"]
 # Tab-indented throughout; converting it is a diff of its own.
 "common/config_store.py" = ["W191", "E101"]
 

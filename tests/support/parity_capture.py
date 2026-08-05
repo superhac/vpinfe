@@ -7,9 +7,9 @@ or the gate fails - that is the whole mechanism behind "users notice nothing".
 Works on both the 2.x and 3.0 layouts, importing from the tree it is run in
 (cwd), so the same file can capture either side:
 
-    python tests/parity_capture.py --out baseline.json      # from a checkout's root
+    python tests/support/parity_capture.py --out baseline.json      # from a checkout's root
 
-Not a test; tests/test_parity.py drives it in a subprocess.
+Not a test; tests/invariants/test_parity.py drives it in a subprocess.
 """
 
 from __future__ import annotations
