@@ -480,11 +480,12 @@ def render_panel(tab=None):
                     else:
                         value = '' if inp.value is None else str(inp.value)
                         config.config.set(section, key, value)
-            with open(INI_PATH, 'w') as f:
-                config.config.write(f)
+            # Through the store, never straight to the file - it owns the format, the
+            # schema version and the typing, and writing past it would leave a stale copy.
+            config.save()
             logger.info(
                 "Saved configuration to %s: vpxbinpath=%r gamerootdir=%r vpxinipath=%r",
-                INI_PATH,
+                config.configfilepath,
                 config.config.get('Settings', 'vpxbinpath', fallback=''),
                 config.config.get('Settings', 'gamerootdir', fallback=''),
                 config.config.get('Settings', 'vpxinipath', fallback=''),
@@ -496,7 +497,7 @@ def render_panel(tab=None):
                 logger.exception("Failed to invalidate game index after saving configuration")
             ui.notify('Configuration Saved', type='positive')
         except Exception as e:
-            logger.exception("Failed to save configuration to %s", INI_PATH)
+            logger.exception("Failed to save configuration to %s", config.configfilepath)
             ui.notify(f'Failed to save configuration: {e}', type='negative')
 
     def show_command_output_dialog(title: str, command: list[str], output: str, exit_code: int | None):

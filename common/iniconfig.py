@@ -1,14 +1,35 @@
+"""VPinFE's settings, stored as JSON and read from an ini once.
+
+The file is `vpinfe.json`; a `vpinfe.ini` beside it is read on the first run that finds
+one, converted, and kept. Every other config file VPinFE owns is already JSON, and this
+was the only one that was both hand-edited and machine-written - which is exactly why it
+was the only one whose comments `configparser.write()` destroyed.
+
+In memory it is still a ConfigParser, so nothing above this module changed. What is on
+disk carries real booleans and integers, and a schema version.
+"""
+
 import configparser
+import json
 import logging
 import os
 import secrets
 import string
-
+from pathlib import Path
 
 from common import config_schema
 from common.deprecations import announce
+from common.games.info_migration import copy_aside, write_atomic
+from common.values import is_truthy
 
 logger = logging.getLogger("vpinfe.common.iniconfig")
+
+SCHEMA_KEY = "schema"
+SETTINGS_KEY = "settings"
+
+# 1 is the first JSON version. Schema 0 is the ini, which has no version at all - it is
+# recognized by being an ini rather than by anything written in it.
+CURRENT_SCHEMA = 1
 
 # (from, to, key) for options that changed section. Applied on every read, so an ini
 # written by any earlier build lands in the right place.
@@ -61,18 +82,28 @@ class IniConfig:
 		self.defaults = config_schema.defaults()
 
 		self.config = configparser.ConfigParser()
-		self.configfilepath = configfilepath
+		# Callers pass whichever name they know; both are derived so none had to change.
+		base = Path(configfilepath)
+		self.json_path = base.with_suffix('.json')
+		self.ini_path = base.with_suffix('.ini')
+		self.configfilepath = str(self.json_path)
+		self._schema = CURRENT_SCHEMA
+		self._converted_from_ini = False
 
-		# check if the file exists
 		self.is_new = False
-		if not os.path.exists(configfilepath):
-				logger.info("Generating a default 'vpinfe.ini' at: %s", configfilepath)
-				self.is_new = True
-				self.formatDefaults()
-				self.save()
+		if os.path.exists(self.json_path):
+			self._load_json()
+		elif os.path.exists(self.ini_path):
+			logger.info("Converting %s to %s", self.ini_path, self.json_path)
+			self.config.read(self.ini_path)
+			self._converted_from_ini = True
+		else:
+			logger.info("Generating default settings at: %s", self.json_path)
+			self.is_new = True
+			self.formatDefaults()
+			self.save()
 
-		self.config.read(configfilepath)
-		changed = False
+		changed = self._converted_from_ini
 
 		# Both of these run BEFORE the defaults are filled in. Each copies only when the
 		# target key is absent, and these keys have defaults - so with a default already
@@ -132,9 +163,57 @@ class IniConfig:
 		if changed:
 			self.save()
 
+	def _typed(self, section: str, key: str, raw: str):
+		"""The value as JSON should hold it. Unknown keys stay strings.
+
+		An empty string stays empty rather than becoming 0 or null: several int settings
+		use blank to mean "no window on this one", and that is not the same as zero.
+		"""
+		entry = config_schema.option(section, key)
+		text = '' if raw is None else str(raw)
+		if entry is None or text.strip() == '':
+			return text
+		if entry.type == 'bool':
+			return is_truthy(text)
+		if entry.type == 'int':
+			try:
+				return int(float(text))
+			except (TypeError, ValueError):
+				return text
+		return text
+
+	@staticmethod
+	def _as_text(value) -> str:
+		"""Back to what a ConfigParser holds, so nothing above this module changes."""
+		if isinstance(value, bool):
+			return 'true' if value else 'false'
+		return '' if value is None else str(value)
+
+	def _load_json(self) -> None:
+		with open(self.json_path, encoding='utf-8') as handle:
+			payload = json.load(handle) or {}
+		self._schema = int(payload.get(SCHEMA_KEY, CURRENT_SCHEMA) or CURRENT_SCHEMA)
+		for section, values in (payload.get(SETTINGS_KEY) or {}).items():
+			if not self.config.has_section(section):
+				self.config.add_section(section)
+			for key, value in (values or {}).items():
+				self.config.set(section, key, self._as_text(value))
+
 	def save(self):
-		with open(self.configfilepath, 'w') as configfile:
-			self.config.write(configfile)
+		# The first save after reading an ini keeps a copy and leaves the original alone:
+		# a downgrade needs the file the older build reads.
+		if self._converted_from_ini and os.path.exists(self.ini_path):
+			logger.info("Kept the pre-JSON settings at %s", copy_aside(str(self.ini_path)))
+			self._converted_from_ini = False
+		settings = {section: {key: self._typed(section, key, value)
+		                      for key, value in self.config.items(section)}
+		            for section in self.config.sections()}
+		# Never stamp a newer file down to what this build writes - that number belongs to
+		# whichever VPinFE wrote it, and claiming it would say we understood the file.
+		payload = {SCHEMA_KEY: max(getattr(self, '_schema', CURRENT_SCHEMA), CURRENT_SCHEMA),
+		           SETTINGS_KEY: settings}
+		write_atomic(self.json_path,
+		             lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
 	
 	def formatDefaults(self):
 		for section, defaults in self.defaults.items():

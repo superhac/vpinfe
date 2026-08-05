@@ -22,8 +22,7 @@ def get_active_theme() -> str:
 def set_active_theme(theme_key: str) -> None:
     config = IniConfig(str(VPINFE_INI_PATH))
     config.config.set("Settings", "theme", theme_key)
-    with open(VPINFE_INI_PATH, "w") as handle:
-        config.config.write(handle)
+    config.save()
 
 
 def load_registry() -> ThemeRegistry:

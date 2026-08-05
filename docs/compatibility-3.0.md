@@ -370,6 +370,22 @@ onto one screen. Anyone running a Sway or KWin rule for `VPinFE Table` or `app_t
 wants a second rule before switching a theme to contract 2. Covered by
 `tests/test_theme_windows.py`.
 
+**PAR-35 — Settings move from `vpinfe.ini` to `vpinfe.json`.**
+The first 3.0 run reads an existing `vpinfe.ini`, writes the same settings to
+`vpinfe.json` beside it, and copies the ini aside. **The original is left in place**, so a
+downgrade still finds the file 2.x reads. Every value carries over, including keys that
+were renamed or moved section along the way, and the new file carries a schema version.
+Booleans and integers are stored as booleans and integers rather than as strings; a blank
+integer stays blank, because blank means "no window on this screen" and is not zero.
+*Why:* every other file VPinFE owns is already JSON, and this was the only one that was
+both hand-edited and machine-written - which is exactly why it was the only one whose
+comments `configparser.write()` destroyed on first load. It also makes the settings the
+same shape over HTTP as on disk, which is what lets the API and an extension read them
+without a translation. **Comments in an existing ini are not carried over** - they were
+already destroyed by the first write of any 2.x build, so nothing that survives today is
+lost. The Manager UI is the intended editor and covers 84 of the 86 settings.
+Covered by `tests/test_config_store.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

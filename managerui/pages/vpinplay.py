@@ -222,8 +222,7 @@ def render_panel():
                     value = str(value or "").upper()
                     inp.value = value
                 config.config.set(SECTION, key, value)
-        with open(INI_PATH, "w") as f:
-            config.config.write(f)
+        config.save()
         update_vpinplay_sync_button_state()
         ui.notify("VPinPlay settings saved", type="positive")
 
