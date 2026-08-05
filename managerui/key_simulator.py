@@ -408,7 +408,7 @@ class KeySimulator:
             logger.debug("File exists: %s", config_path.exists())
 
         config_store = ConfigStore(str(config_path))
-        vpinball_ini_path = iniconfig.config["Settings"].get("vpxinipath", "").strip()
+        vpinball_ini_path = config_store.config["Settings"].get("vpxinipath", "").strip()
 
         if self.debug:
             logger.debug("VPinballX.ini path from config: %s", vpinball_ini_path)

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from common.config_store import ConfigStore
+from common import theme_options
 from common.online.themes import ThemeRegistry
 
 from managerui.paths import THEMES_DIR, VPINFE_INI_PATH
@@ -53,6 +54,15 @@ def get_installed_theme_dir(theme_key: str, registry: ThemeRegistry | None = Non
 
     theme_dir = THEMES_DIR / str(theme_key or "").strip()
     return theme_dir if theme_dir.is_dir() else None
+
+
+def _folder_for(theme_key: str, registry: ThemeRegistry | None = None) -> str:
+    """The folder a theme is installed under - what its options file is keyed by.
+
+    Falls back to the key, which is what a registry install renames the folder to.
+    """
+    theme_dir = get_installed_theme_dir(theme_key, registry)
+    return theme_dir.name if theme_dir is not None else str(theme_key or "").strip()
 
 
 def _read_json_object(path: Path) -> dict[str, Any] | None:
@@ -173,9 +183,16 @@ def get_theme_option_values(theme_key: str, registry: ThemeRegistry | None = Non
     if schema is None:
         return {}
 
+    # The author's schema supplies the default; the user's own file supplies what they
+    # chose. A `value` still sitting in the package is a pre-3.0 leftover and is read
+    # only until the migration lifts it out.
+    chosen = theme_options.load(_folder_for(theme_key, registry))
     values: dict[str, Any] = {}
     for option in schema["options"]:
         key = option["key"]
+        if key in chosen:
+            values[key] = chosen[key]
+            continue
         current_value = option.get("value")
         if current_value is None and "default" in option:
             current_value = option.get("default")
@@ -241,21 +258,12 @@ def save_theme_option_values(
     if schema is None or theme_dir is None:
         raise ValueError(f'Theme "{theme_key}" does not expose configurable options.')
 
-    schema_path = theme_dir / "theme.json"
-    existing_schema = _read_json_object(schema_path)
-    if not existing_schema or not isinstance(existing_schema.get("options"), list):
-        raise ValueError(f'Theme "{theme_key}" has an invalid theme.json file.')
-
-    existing_options = existing_schema["options"]
+    # Written outside the theme, because an update deletes the package: values saved
+    # into it were reset by the next update, every time, with no backup and no warning.
     schema_options_by_key = {option["key"]: option for option in schema["options"]}
-    for raw_option in existing_options:
-        if not isinstance(raw_option, dict):
-            continue
-        key = str(raw_option.get("key") or raw_option.get("id") or "").strip()
-        if not key or key not in values or key not in schema_options_by_key:
-            continue
-        coerced_value = _coerce_theme_option_value(schema_options_by_key[key], values[key])
-        raw_option["value"] = coerced_value
+    keep = dict(theme_options.load(_folder_for(theme_key, registry)))
+    for key, raw_value in values.items():
+        if key in schema_options_by_key:
+            keep[key] = _coerce_theme_option_value(schema_options_by_key[key], raw_value)
 
-    schema_path.write_text(json.dumps(existing_schema, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
-    return schema_path
+    return theme_options.save(_folder_for(theme_key, registry), keep)

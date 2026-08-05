@@ -317,10 +317,13 @@ class ManagerUiServiceTests(unittest.TestCase):
         add_collection_membership("afm", "Favorites")
         self.assertEqual(rows[0]["collections"], ["Favorites"])
 
-    def test_theme_service_reads_schema_and_writes_values_into_theme_json(self):
+    def test_theme_service_reads_the_schema_and_saves_values_outside_the_theme(self):
+        """Values used to go into the theme's own file, which an update deletes."""
         import json
         from pathlib import Path
         from tempfile import TemporaryDirectory
+
+        from common import theme_options
 
         with TemporaryDirectory() as temp_dir:
             themes_dir = Path(temp_dir)
@@ -351,7 +354,9 @@ class ManagerUiServiceTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            with mock.patch.object(theme_service, "THEMES_DIR", themes_dir):
+            user_dir = themes_dir / "theme_user_options"
+            with mock.patch.object(theme_service, "THEMES_DIR", themes_dir), \
+                    mock.patch.object(theme_options, "USER_OPTIONS_DIR", user_dir):
                 schema = theme_service.load_theme_option_schema("Example")
                 values = theme_service.get_theme_option_values("Example")
                 saved_path = theme_service.save_theme_option_values(
@@ -361,16 +366,24 @@ class ManagerUiServiceTests(unittest.TestCase):
                         "layout.mode": "compact",
                     },
                 )
+                reread = theme_service.get_theme_option_values("Example")
 
             self.assertEqual(schema["title"], "Example Options")
+            # A value still in the package is a pre-3.0 leftover and is read until the
+            # migration lifts it out.
             self.assertEqual(values["audio.enabled"], True)
             self.assertEqual(values["layout.mode"], "wide")
-            self.assertEqual(saved_path, theme_dir / "theme.json")
 
-            saved = json.loads(saved_path.read_text(encoding="utf-8"))
-            options_by_key = {item["key"]: item for item in saved["options"]}
-            self.assertEqual(options_by_key["audio.enabled"]["value"], False)
-            self.assertEqual(options_by_key["layout.mode"]["value"], "compact")
+            self.assertEqual(saved_path, user_dir / "Example.json")
+            self.assertEqual(json.loads(saved_path.read_text(encoding="utf-8"))["values"],
+                             {"audio.enabled": False, "layout.mode": "compact"})
+            self.assertEqual(reread["audio.enabled"], False)
+            self.assertEqual(reread["layout.mode"], "compact")
+
+            untouched = json.loads((theme_dir / "theme.json").read_text(encoding="utf-8"))
+            self.assertEqual({o["key"]: o["value"] for o in untouched["options"]},
+                             {"audio.enabled": True, "layout.mode": "wide"},
+                             "the author's file must not be written to")
 
 
 class PageStylesheetTests(unittest.TestCase):

@@ -27,14 +27,14 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, gameName: 
         userMedia=userMedia,
         progress_cb=progress_cb,
         log_cb=log_cb,
-        iniconfig=iniconfig,
+        iniconfig=config_store,
     )
 
 
 def _game_root_dir():
     from common.config_access import SettingsConfig
 
-    return SettingsConfig.from_config(iniconfig).game_root_dir
+    return SettingsConfig.from_config(config_store).game_root_dir
 
 
 def upgrade_info_files(game_name: str = None, progress_cb=None, log_cb=None):
@@ -51,15 +51,15 @@ def restore_info_files(game_name: str = None, progress_cb=None, log_cb=None):
 
 
 def listMissingGames():
-    return game_report_service.list_missing_games(iniconfig=iniconfig, log=logger.info)
+    return game_report_service.list_missing_games(iniconfig=config_store, log=logger.info)
 
 
 def listUnknownGames():
-    return game_report_service.list_unknown_games(iniconfig=iniconfig, log=logger.info)
+    return game_report_service.list_unknown_games(iniconfig=config_store, log=logger.info)
 
 
 def vpxPatches(progress_cb=None):
-    return metadata_service.apply_vpx_patches(progress_cb=progress_cb, iniconfig=iniconfig)
+    return metadata_service.apply_vpx_patches(progress_cb=progress_cb, iniconfig=config_store)
 
 
 def gamepadtest():
@@ -69,19 +69,19 @@ def gamepadtest():
     from frontend.ws_bridge import WebSocketBridge
 
     mount_points = {
-        '/tables/': os.path.abspath(iniconfig.config['Settings']['gamerootdir']),
+        '/tables/': os.path.abspath(config_store.config['Settings']['gamerootdir']),
         '/web/': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web'),
     }
     http_server = CustomHTTPServer(mount_points)
-    theme_assets_port = int(iniconfig.config['Network'].get('themeassetsport', '8000'))
-    ws_port = int(iniconfig.config['Network'].get('wsport', '8002'))
+    theme_assets_port = int(config_store.config['Network'].get('themeassetsport', '8000'))
+    ws_port = int(config_store.config['Network'].get('wsport', '8002'))
     http_server.start_file_server(port=theme_assets_port)
 
     monitors = get_monitors()
     ws_bridge = WebSocketBridge(port=ws_port)
     chromium = ChromiumManager()
     api = API(
-        iniConfig=iniconfig,
+        iniConfig=config_store,
         window_name="gamepad",
         ws_bridge=ws_bridge,
         frontend_browser=chromium,

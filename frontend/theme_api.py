@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 from urllib.parse import quote
 
+from common import theme_options
 from common.config_access import NetworkConfig, SettingsConfig
 from common.paths import THEMES_DIR
 
@@ -87,9 +88,10 @@ def _build_theme_config_from_schema(schema: dict) -> dict | None:
 def get_theme_config(config):
     """The theme's config: what the author set, with the user's option values over it.
 
-    The two files hold different things - config.json is the author's, theme.json is
-    what the Manager UI writes when the user edits options - so they merge. Returning
-    theme.json alone dropped every author value the moment a theme had one option.
+    Three sources, narrowing: config.json is the author's fixed settings, theme.json
+    declares the options and their defaults, and the user's own file says what they
+    picked. Returning theme.json alone dropped every author value the moment a theme
+    had one option.
     """
     theme_dir = resolve_theme_dir(get_theme_name(config))
     if not theme_dir:
@@ -98,6 +100,11 @@ def get_theme_config(config):
     authored = _read_json_object(theme_dir / "config.json")
     schema = _read_json_object(theme_dir / "theme.json")
     options = _build_theme_config_from_schema(schema) if schema is not None else None
+    # What the user actually chose lives outside the theme, so an update cannot take it.
+    # It goes over the schema's defaults and under nothing.
+    chosen = theme_options.load(Path(theme_dir).name)
+    if chosen:
+        options = {**(options or {}), **chosen}
 
     if authored is None and options is None:
         logger.debug("Theme config not found: %s/{config,theme}.json", theme_dir)

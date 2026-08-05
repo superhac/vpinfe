@@ -39,12 +39,18 @@ from common.host.dof_service import start_dof_service_if_enabled, stop_dof_servi
 from common.host.libdmdutil_service import (
     stop_libdmdutil_service,
 )
+from common import theme_options
 from common.config_store import ConfigStore
 from common.logging_config import configure_logging, get_logger
 from common.online.pinmame_score_parser_updater import ensure_latest_roms_json
 from common.online.themes import ThemeRegistry
 from common.online.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
-from common.paths import VPINFE_INI_PATH, configure_nicegui_storage, ensure_config_dir
+from common.paths import (
+    THEMES_DIR,
+    VPINFE_INI_PATH,
+    configure_nicegui_storage,
+    ensure_config_dir,
+)
 
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
@@ -54,14 +60,14 @@ config_dir = ensure_config_dir()
 nicegui_storage_path = configure_nicegui_storage()
 log_path = configure_logging(config_dir, enable_file=False)
 config_store = ConfigStore(str(VPINFE_INI_PATH))
-log_path = configure_logging(config_dir, iniconfig)
+log_path = configure_logging(config_dir, config_store)
 logger = get_logger("vpinfe.main")
 logger.info("Logging to %s", log_path)
 logger.info("Using NiceGUI storage path: %s", nicegui_storage_path)
 logger.info("Version: %s", get_version())
 
 try:
-    roms_update_result = ensure_latest_roms_json(iniconfig)
+    roms_update_result = ensure_latest_roms_json(config_store)
     logger.info(
         "pinmame-score-parser roms.json status=%s path=%s",
         roms_update_result.get("status"),
@@ -72,7 +78,7 @@ except Exception:
 
 
 def reconfigure_app_logging() -> None:
-    configure_logging(config_dir, iniconfig)
+    configure_logging(config_dir, config_store)
 
 # Now safe to import modules that create their own ConfigStore at import time
 from nicegui import app as nicegui_app
@@ -137,16 +143,16 @@ _startup_media_sync_started = False
 def create_api_instances():
     """Create API instances for each configured display window."""
     global ws_bridge, frontend_browser
-    ws_bridge, frontend_browser = runtime.create_api_instances(iniconfig, logger)
+    ws_bridge, frontend_browser = runtime.create_api_instances(config_store, logger)
 
 
 def _start_startup_media_sync():
     """Optionally sync media from VPinMediaDB on startup in a background thread."""
     global _startup_media_sync_started
     _startup_media_sync_started = runtime.start_startup_media_sync(
-        iniconfig,
+        config_store,
         logger,
-        lambda **kwargs: build_metadata(iniconfig=iniconfig, **kwargs),
+        lambda **kwargs: build_metadata(iniconfig=config_store, **kwargs),
         started=_startup_media_sync_started,
     )
 
@@ -155,18 +161,27 @@ cli_args = parseArgs() if len(sys.argv) > 0 else None
 headless = cli_args and cli_args.headless
 
 # Register frontend theme assets before NiceGUI can start on the first-run path.
-MOUNT_POINTS, themes_dir = runtime.build_mount_points(base_path, config_dir, iniconfig)
+MOUNT_POINTS, themes_dir = runtime.build_mount_points(base_path, config_dir, config_store)
 nicegui_app.add_static_files('/themes', themes_dir)
 
 # On first run, start the manager UI early so chromium can load it
-if iniconfig.is_new:
+if config_store.is_new:
     set_first_run(True)
-    manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
+    manager_ui_port = int(config_store.config['Network'].get('manageruiport', '8001'))
     start_manager_ui(port=manager_ui_port)
     reconfigure_app_logging()
     # Wait for the NiceGUI server to be ready before chromium tries to load it
     runtime.wait_for_manager_ui_ready(manager_ui_port)
     logger.info("First run: Manager UI ready on port %s", manager_ui_port)
+
+# Before anything installs or updates a theme. An update deletes the theme's folder, and
+# until now that folder is where the user's option values were kept - so this has to run
+# first or the release that fixes that data loss is the release that causes it one last
+# time. Cheap and idempotent: it skips any theme that already has its own options file.
+try:
+    theme_options.migrate_from_packages(THEMES_DIR)
+except Exception:
+    logger.exception("Could not move theme options out of the installed packages")
 
 # Initialize theme registry and auto-install default themes
 try:
@@ -207,21 +222,21 @@ from common.host import peripherals
 
 peripherals.register()
 
-start_dof_service_if_enabled(iniconfig)
+start_dof_service_if_enabled(config_store)
 
 # Point the archive analyzer at a configured RAR tool (blank = auto-detect from PATH)
 from managerui.services.asset_analyzer_service import configure_rar_tool
 
-configure_rar_tool(iniconfig.config.get('Settings', 'rartoolpath', fallback='').strip())
+configure_rar_tool(config_store.config.get('Settings', 'rartoolpath', fallback='').strip())
 
 # Create API instances and register with WebSocket bridge
 create_api_instances()
 
 # Start the HTTP server to serve images from the "games" directory
-http_server = runtime.start_asset_server(MOUNT_POINTS, iniconfig)
+http_server = runtime.start_asset_server(MOUNT_POINTS, config_store)
 
 # Start the NiceGUI HTTP server
-manager_ui_port = int(iniconfig.config['Network'].get('manageruiport', '8001'))
+manager_ui_port = int(config_store.config['Network'].get('manageruiport', '8001'))
 start_manager_ui(port=manager_ui_port)
 reconfigure_app_logging()
 
@@ -230,7 +245,7 @@ ws_bridge.start()
 
 runtime.run_frontend_loop(
     headless,
-    iniconfig,
+    config_store,
     frontend_browser,
     _shutdown_event,
     logger,
@@ -241,7 +256,7 @@ runtime.run_frontend_loop(
 runtime.shutdown_services(
     logger,
     vpinplay_sync=vpinplay_sync_on_shutdown,
-    iniconfig=iniconfig,
+    iniconfig=config_store,
     ws_bridge=ws_bridge,
     stop_dof=stop_dof_service,
     stop_dmd=stop_libdmdutil_service,
