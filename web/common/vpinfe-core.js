@@ -444,7 +444,10 @@ class VPinFECore {
     const queryWindow = new URLSearchParams(window.location.search).get('window');
     if (queryWindow) return queryWindow;
 
-    const match = window.location.pathname.match(/^\/app\/(bg|dmd|table)\/?$/);
+    // Any window name, not a fixed three: a theme declares its own, and the bootstrap is
+    // served at /app/<name> for whatever it declared. Same character class the server
+    // accepts there.
+    const match = window.location.pathname.match(/^\/app\/([A-Za-z0-9_-]+)\/?$/);
     if (match) return match[1];
 
     return 'unknown';
@@ -468,8 +471,13 @@ class VPinFECore {
   // Input goes to the controller window only. The round trip stays because it also
   // sets the global a theme's own example reads; the decision comes from the window
   // list, not from a name.
+  //
+  // `window.windowName`, not a bare assignment: a class body is strict mode, so writing
+  // an undeclared name throws. Every published theme opens with `windowName = ""` and
+  // hid that - a theme reading vpin.windowName instead has no reason to, and crashed
+  // here on the first call.
   async registerInputHandler(handler) {
-    windowName = await this.call("get_my_window_name");
+    window.windowName = await this.call("get_my_window_name");
     if (typeof handler === 'function' && this.isController()) {
       this.call("console_out", "registered gamepad handler");
       this.inputHandlers.push(handler);
@@ -913,9 +921,10 @@ class VPinFECore {
   }
 
   #getWindowLabel(windowName) {
-    // Named windows a theme can declare have no label of their own, so a title-cased
-    // name is the fallback: a `topper` window reads "VPinFE Topper".
-    const known = { bg: "BG", dmd: "DMD", table: "Table", playfield: "Playfield" };
+    // Only the ones a title-cased name gets wrong. Everything else - table, playfield,
+    // a declared topper - reads correctly from the name itself. Kept in step with
+    // theme_windows.TITLES, which does the same job for the bootstrap page.
+    const known = { bg: "BG", dmd: "DMD" };
     if (known[windowName]) return known[windowName];
     if (!windowName || windowName === "unknown") return "Window";
     return windowName.charAt(0).toUpperCase() + windowName.slice(1);

@@ -207,3 +207,18 @@ describe("the overlays behave the same as each other", () => {
     assert.equal(vpin.menuUP, true, "and the menu was not closed on the way to nothing");
   });
 });
+
+describe("registering an input handler does not require a theme global", () => {
+  test("a theme that never declares windowName can still register", async () => {
+    // A class body is strict mode, so the bare `windowName = ...` this used to do threw
+    // a ReferenceError. Every published theme opens with `windowName = ""`, which hid it
+    // - a theme reading vpin.windowName instead has no reason to declare it.
+    const { vpin, browser } = newCore({ windowName: "table" });
+    vpin.call = () => Promise.resolve("table");
+
+    assert.equal("windowName" in browser.window, false, "nothing has declared it here");
+    await assert.doesNotReject(() => vpin.registerInputHandler(() => {}));
+    assert.equal(browser.window.windowName, "table",
+      "and the global themes read still gets set");
+  });
+});

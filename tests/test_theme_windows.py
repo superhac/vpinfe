@@ -176,3 +176,27 @@ class ScreenKeyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LabelDriftTests(unittest.TestCase):
+    """The label map exists twice - server-side and in the browser - and must agree.
+
+    The bootstrap page is titled by Python before core loads and retitled by JavaScript
+    after, so a name spelled differently on the two sides shows one title then another.
+    They cannot share code, so this reads the JS map instead.
+    """
+
+    def test_both_sides_spell_the_irregular_names_the_same(self) -> None:
+        import re
+        from pathlib import Path
+
+        core = (Path(__file__).resolve().parent.parent
+                / "web" / "common" / "vpinfe-core.js").read_text(encoding="utf-8")
+        block = re.search(r"const known = \{([^}]*)\}", core)
+        self.assertIsNotNone(block, "the label map moved; this test needs updating")
+        js_map = dict(re.findall(r"(\w+):\s*\"([^\"]+)\"", block.group(1)))
+
+        self.assertEqual(js_map, theme_windows.TITLES)
+
+    def test_a_name_neither_side_lists_is_title_cased(self) -> None:
+        self.assertEqual(theme_windows.window_title("topper"), "Topper")

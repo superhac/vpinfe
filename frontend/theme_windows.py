@@ -7,6 +7,7 @@ Everything else about a window follows from its name.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from frontend import theme_api
@@ -23,6 +24,23 @@ DEFAULT_WINDOWS = {
 # Contract 1 calls the playfield window `table`. The ini key never moved, so the two
 # spellings have to agree on which monitor setting they mean.
 CANONICAL = {"table": "playfield"}
+
+
+# Windows whose label is not just the capitalized name.
+TITLES = {"bg": "BG", "dmd": "DMD"}
+
+# A window name reaches the bootstrap page from the URL and is written into its HTML, so
+# it is checked rather than trusted. Theme window names are plain words by construction -
+# they have to name a file.
+_NAME = re.compile(r"[A-Za-z0-9_-]+")
+
+
+def window_title(window: str) -> str | None:
+    """The label for a window, or None when the name could not be one."""
+    name = str(window or "").strip()
+    if not _NAME.fullmatch(name):
+        return None
+    return TITLES.get(name.lower(), name.capitalize())
 
 
 def canonical(window: str) -> str:

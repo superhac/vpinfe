@@ -66,7 +66,7 @@ class FakeAudio {
 
 // `search` is what #detectWindowName reads first, so a test picks its window by URL the
 // same way a real window does.
-export function makeBrowser({ windowName = "table", search = null } = {}) {
+export function makeBrowser({ windowName = "table", search = null, pathname = "/" } = {}) {
   const query = search === null ? `?window=${windowName}` : search;
 
   // Just enough DOM for the overlays: an element that can hold a class and children,
@@ -107,7 +107,7 @@ export function makeBrowser({ windowName = "table", search = null } = {}) {
 
   const windowStub = {
     name: "",
-    location: { search: query, pathname: "/", href: `http://127.0.0.1:8000/${query}` },
+    location: { search: query, pathname, href: `http://127.0.0.1:8000${pathname}${query}` },
     addEventListener() {},
     removeEventListener() {},
     postMessage() {},

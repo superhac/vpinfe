@@ -280,3 +280,15 @@ describe("a window knows its own name", () => {
   });
 });
 
+describe("the bootstrap page names any declared window", () => {
+  for (const name of ["playfield", "topper", "bg"]) {
+    test(`/app/${name} is detected as ${name}`, () => {
+      // The regex here listed bg|dmd|table, so a declared `playfield` fell through to
+      // 'unknown': the socket connected under no name, the bridge never saw the window,
+      // and the screen stayed black with nothing in the log.
+      const { vpin } = newCore({ search: "", pathname: `/app/${name}` });
+
+      assert.equal(vpin.windowName, name);
+    });
+  }
+});

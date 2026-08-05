@@ -12,6 +12,8 @@ import re
 
 import requests
 
+from frontend.theme_windows import window_title
+
 
 logger = logging.getLogger("vpinfe.frontend.customhttpserver")
 
@@ -337,12 +339,7 @@ class CustomHTTPServer:
             return True
 
         def _serve_app_bootstrap(self, window_name):
-            window_labels = {
-                "bg": "BG",
-                "dmd": "DMD",
-                "table": "Table",
-            }
-            window_label = window_labels.get(window_name)
+            window_label = window_title(window_name)
             if window_label is None:
                 self.send_error(404, "Unknown app window")
                 return
