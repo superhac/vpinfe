@@ -169,7 +169,7 @@ def _entry_row(entry, logo_cache) -> dict:
             "alt_sound": bool(game.altSoundExists),
         },
         "siblings": entry.siblings,
-        # Which art exists, not where it lives. The URL is /media/<game id>/<kind> and the
+        # Which art exists, not where it lives. The URL is /media/<table id>/<kind> and the
         # bytes are fetched when something is shown - naming the files here would put a
         # filesystem path in a web page and several hundred kilobytes on the wire.
         "media": resolved_kinds(game),

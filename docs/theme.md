@@ -1078,7 +1078,7 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `vpin.gameData` | `array` | The current (possibly filtered) game list. Each element is a game object (see [Game Data Object](#game-data-object)). |
+| `vpin.gameData` | `array` | The current (possibly filtered) game list. At contract 2 each element is an entry (see [Entry Data Object](#entry-data-object)); at contract 1 it is a game row. |
 | `vpin.monitors` | `array` | List of monitor objects with `name`, `x`, `y`, `width`, `height`. Loaded during init. |
 | `vpin.playfieldOrientation` | `string` | Playfield orientation from config: `"landscape"` or `"portrait"`. |
 | `vpin.playfieldRotation` | `number` | Playfield rotation in degrees from config (default `0`). |
@@ -1305,7 +1305,7 @@ Returns `true` when core-handled wheel paging is enabled.
 Asks the backend where a page press should land and returns the target index. Convenience wrapper around the `get_page_index` API method for themes doing their own paging animation.
 
 #### getGameMeta(index)
-Returns the full game object for a given game index. This is the same object as `vpin.gameData[index]`. See [Game Data Object](#game-data-object).
+Returns the full object for a given index - an entry at contract 2, a game row at contract 1. The same object as `vpin.gameData[index]`. See [Entry Data Object](#entry-data-object).
 
 #### getGameCount()
 Returns the number of games in the current (possibly filtered) game list.
@@ -1334,193 +1334,114 @@ Registers a custom event handler for a specific event type. The handler is calle
 
 ---
 
-## Game Data Object
+## Entry Data Object
 
-Each element in `vpin.gameData` (and the return of `vpin.getGameMeta(index)`) is an object with the following structure:
-
-### Top-Level Properties
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `gameDirName` | `string` | The game's directory name. |
-| `PlayfieldImagePath` | `string\|null` | Local path to the table playfield image (`table.png` or `fss.png`). |
-| `BGImagePath` | `string\|null` | Local path to the backglass image (`bg.png`). |
-| `DMDImagePath` | `string\|null` | Local path to the DMD image (`dmd.png`). |
-| `WheelImagePath` | `string\|null` | Local path to the wheel/logo image (`wheel.png`). |
-| `CabImagePath` | `string\|null` | Local path to the cabinet image (`cab.png`). |
-| `PlayfieldVideoPath` | `string\|null` | Local path to the table playfield video (`table.mp4` or `fss.mp4`). |
-| `BGVideoPath` | `string\|null` | Local path to the backglass video (`bg.mp4`). |
-| `DMDVideoPath` | `string\|null` | Local path to the DMD video (`dmd.mp4`). |
-| `AudioPath` | `string\|null` | Local path to the audio file (`audio.mp3`). |
-| `LogoImagePath` | `string\|null` | Local path to the game logo image (`logo.png`). |
-| `InstructionCardImagePath` | `string\|null` | Local path to the apron instruction card image (`instructioncard.png`, or `(InstructionCard) …` / `(RuleCard) …` / `(GameHelp) …`). |
-| `TopperPath` | `string\|null` | Local path to the topper image or video (`topper.png` / `topper.mp4`). |
-| `LoadingVideoPath` | `string\|null` | Local path to the loading-screen video (`loading.mp4`). |
-| `AudioLaunchPath` | `string\|null` | Local path to the launch audio file (`audiolaunch.mp3`). |
-| `RuleSheetPath` | `string\|null` | Local path to the rulesheet document (`rulesheet.pdf`). |
-| `ManufacturerLogoPath` | `string\|null` | Web path to the manufacturer's logo under `/assets/`; use `vpin.getManufacturerLogoURL(index)`. |
-| `meta` | `object` | The game's `.info`, with `Title` adjusted for display (see [meta.Info](#metainfo)). **Contract 1 only** — contract 2 has no `meta`; see [Contract 2 payload](#contract-2-payload). |
-| `vpinplay` | `object\|null` | Cached VPinPlay cumulative rating payload for the game, or `null` until fetched/unavailable. |
-
-> **Note:** You typically don't use the path properties directly. Use `vpin.getImageURL()`, `vpin.getVideoURL()`, and `vpin.getAudioURL()` which convert these paths to HTTP URLs. Direct access to path properties is useful for checking existence (e.g., `if (game.PlayfieldVideoPath)` to decide whether to show video or image).
-
-### meta.Info
-
-VPSdb and user-edited metadata.
-
-`meta` is the game's `.info`, but not a raw copy of it: `Title` is adjusted for display
-before you see it. It also carries any section VPinFE does not own, because the `.info` is
-written back with unknown sections preserved — which is exactly why contract 2 stopped
-serving it. A storage change reached themes whether or not it meant anything to them.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `Title` | `string` | Game display name. **Not the stored title.** A user-set alternate title replaces it, and otherwise a leading "The " is moved to the end so themes sort by the second word — "The Addams Family" arrives as "Addams Family, The". Read `vpin.getGameMeta(index)` for display; do not treat it as the value on disk. |
-| `Manufacturer` | `string` | Game manufacturer (e.g., "Williams", "Bally"). |
-| `Year` | `string` | Year of manufacture. |
-| `Type` | `string` | Game type code: `"SS"` (Solid State), `"EM"` (Electro Mechanical), `"PM"` (Pure Mechanical). |
-| `Authors` | `array` | List of VPX table author names. |
-| `Theme` | `string` | Game theme/category. |
-
-### meta.User
-
-Per-user stats and preferences stored in each game's `.info` file:
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `Rating` | `number` | User rating from `0` to `5`. |
-| `Favorite` | `number` | Favorite flag (`0` or `1`). |
-| `LastRun` | `number\|null` | Unix timestamp (seconds) of the last launch, or `null` if never played. |
-| `StartCount` | `number` | Number of times the game has been launched. |
-| `RunTime` | `number` | Total accumulated play time in minutes. |
-| `Tags` | `array` | User-defined tags (string list). |
-
-### meta.tables *(contract 2)*
-
-Every `.vpx` in the game folder, keyed by filename — a desktop build and a VR build, or a
-table and a patched variant, are peers and each answers for itself. At contract 1 this
-section does not exist; read `meta.VPXFile`, which describes only one.
+Each element of `vpin.entries` is one table with the game it belongs to attached. The
+fields are listed under [Contract 2 payload](#contract-2-payload); this section is about
+reading them.
 
 ```javascript
-const meta = vpin.getGameMeta(currentGameIndex).meta;
-const playable = Object.entries(meta.tables || {})
-    .filter(([, entry]) => !entry.hidden);
+const entry = vpin.getGameMeta(currentGameIndex);
+const { game, table, media, assets, siblings } = entry;
 ```
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `file_hash` | `string` | Hash of the `.vpx`, which is how a replaced file is noticed. |
-| `vbs_hash` | `string` | Hash of the table script. |
-| `version` | `string` | Table version from VPX metadata. |
-| `release_date` | `string` | Release date, ISO 8601 at whatever precision the author gave — `2019-06-22`, `2016-08` and `2017` are all valid. An ambiguous date degrades to the year. Empty when the author wrote nothing usable. |
-| `save_date` | `string` | When the author last saved, ISO 8601 (`2022-12-13T16:03:21`). |
-| `save_rev` | `string` | Author's save revision. |
-| `rom` | `string` | ROM name. At contract 1 this is `Info.Rom`. |
-| `authors` | `array` | Author names. At contract 1 this is `Info.Authors`. |
-| `manufacturer` | `string` | Manufacturer from VPX metadata, which may disagree with `Info`. |
-| `year` | `string` | Year from VPX metadata, which may disagree with `Info`. |
-| `type` | `string` | Table type from VPX metadata. |
-| `hidden` | `boolean` | Absent means visible. A hidden file is still launchable but should not be offered — a patch leaves its base on disk, and the base cannot be deleted because the patched table cannot be rebuilt without it. |
-| `source` | `object` | Present only on a file VPinFE made by patching: `base` (`file`, `hash`) and `patch` (`format`, `applied`). An ordinary `.vpx` has none. |
+> **Contract 1 serves a different shape** — a flat game row with the `.info` passed
+> through as `meta`. None of it is served here. See
+> [theme-contract-1.md](theme-contract-1.md).
 
-Detection flags ride on each entry too, as real booleans: `detect_nfozzy`, `detect_fleep`,
-`detect_ssf`, `detect_lut`, `detect_scorbit`, `detect_fastflips`, `detect_flex`,
-`detect_pinmame`. Note the snake_case — contract 1 spells the same flags `detectnfozzy`
-and so on. The addon flags `altSoundExists` / `altColorExists` / `pupPackExists` describe
-the folder rather than one file, so they stay on the game row at both contracts.
+### Reading game info
 
-**Which one is "the" table.** `meta.vpinfe.default_table` names it when somebody
-chose; absent means resolve from the folder, which is the normal case. It is what the
-places that must pick exactly one use — an export, a game row, contract 1's `VPXFile`.
-It is *not* "the one to launch": every visible table is launchable, so filter on
-`hidden` to decide what to offer.
+Everything a theme displays has a named home, so there is nothing to resolve or fall back
+through:
 
-### meta.VPXFile *(contract 1)*
-
-The game's default table. At contract 2 this section does not exist — read `meta.tables`
-instead, which describes every `.vpx` in the folder rather than only one.
-
-Data extracted from the `.vpx` file itself:
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `filename` | `string` | VPX filename. |
-| `manufacturer` | `string` | Manufacturer from VPX metadata. |
-| `year` | `string` | Year from VPX metadata. |
-| `type` | `string` | Table type from VPX metadata. |
-
-### meta.VPXFile — Detection Flags *(contract 1)*
-
-Boolean flags indicating detected features/addons in the VPX table:
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `detectnfozzy` | `boolean` | Nfozzy physics detected. |
-| `detectfleep` | `boolean` | Fleep sound pack detected. |
-| `detectssf` | `boolean` | SSF (Surround Sound Feedback) detected. |
-| `detectfastflips` | `boolean` | FastFlips detected. |
-| `detectlut` | `boolean` | LUT (color correction) detected. |
-| `detectscorebit` | `boolean` | ScoreBit integration detected. |
-| `detectflex` | `boolean` | FlexDMD detected. |
-| `altSoundExists` | `boolean` | AltSound pack exists for this table. |
-| `altColorExists` | `boolean` | AltColor pack exists for this table. |
-| `pupPackExists` | `boolean` | PuP-Pack exists for this table. |
-
-Example usage (feature detection lights):
 ```javascript
-const meta = vpin.getGameMeta(currentGameIndex);
-const vpx = meta.meta.VPXFile || {};
+const entry = vpin.getGameMeta(currentGameIndex);
 
-const features = [
-    { key: "detectnfozzy", label: "Nfozzy" },
-    { key: "detectfleep", label: "Fleep" },
-    { key: "detectssf", label: "SSF" },
-    { key: "detectfastflips", label: "FastFlips" },
-    { key: "detectlut", label: "LUT" },
-    { key: "detectscorebit", label: "ScoreBit" },
-    { key: "detectflex", label: "FlexDMD" },
-    { key: "altSoundExists", label: "AltSound" },
-    { key: "altColorExists", label: "AltColor" },
-    { key: "pupPackExists", label: "PuP-Pack" },
+const title = entry.game.name;
+const manufacturer = entry.game.manufacturer;
+const year = entry.game.year;
+const authors = entry.table.authors.join(', ');
+const rating = entry.game.user.rating;
+const plays = entry.game.user.play_count;
+```
+
+`game.name` is display-ready — a user-set alternate title has already replaced it, and a
+leading "The " has already moved to the end so themes sort by the second word.
+
+### Play stats
+
+`game.user` counts the machine; `table.user` counts one `.vpx` of it. They accumulate
+independently, so deleting a table does not un-play the game's hours.
+
+```javascript
+const { play_count, play_time_seconds, last_played } = entry.game.user;
+
+const hours = Math.round(play_time_seconds / 360) / 10;
+const lastPlayed = last_played ? new Date(last_played).toLocaleDateString() : 'Never';
+```
+
+Durations name their unit and timestamps are ISO 8601 UTC, whatever the `.info` happens to
+store.
+
+### Feature indicators
+
+```javascript
+const { detects } = vpin.getGameMeta(currentGameIndex).table;
+const { alt_sound, alt_color, pup_pack } = vpin.getGameMeta(currentGameIndex).assets;
+
+const lights = [
+    ['Nfozzy', detects.nfozzy], ['Fleep', detects.fleep], ['SSF', detects.ssf],
+    ['FastFlips', detects.fastflips], ['LUT', detects.lut],
+    ['Scorbit', detects.scorbit], ['FlexDMD', detects.flex],
+    ['PinMAME', detects.pinmame],
+    ['AltSound', alt_sound], ['AltColor', alt_color], ['PuP-Pack', pup_pack],
 ];
 
-features.forEach(({ key, label }) => {
-    const isOn = vpx[key] === true || vpx[key] === "true" || vpx[key] === 1;
-    // Create a green/red indicator light based on isOn
+lights.forEach(([label, on]) => {
+    // Real booleans, so no coercion. `detects` describes the .vpx, `assets` the folder.
 });
 ```
 
-### Reading Game Info
+### Media
 
-Common pattern for getting display-ready game information. This one is written to work at
-either contract — `VPXFile` is what contract 1 receives, `tables` what contract 2 does,
-and only one of them is ever present:
+`entry.media` names the kinds this game has a file for. It does not carry paths — request
+one from the theme assets port, the same server your theme was loaded from:
 
 ```javascript
-const game = vpin.getGameMeta(currentGameIndex);
-const info = game.meta.Info || {};
-const user = game.meta.User || {};
+const entry = vpin.getGameMeta(currentGameIndex);
 
-// Contract 1 serves meta.VPXFile; contract 2 serves meta.tables, so pick the
-// chosen entry. Authors and Rom move onto the table at contract 2.
-const files = game.meta.tables;
-const chosenName = game.meta.vpinfe?.default_table || Object.keys(files || {})[0];
-const vpx = files ? { filename: chosenName, ...(files[chosenName] || {}) }
-                  : (game.meta.VPXFile || {});
+function mediaURL(kind) {
+    if (!entry.media.includes(kind)) return null;
+    return `http://127.0.0.1:${vpin.themeAssetsPort}/media/${entry.table.id}/${kind}`;
+}
 
-const title = info.Title || vpx.filename || game.gameDirName || 'Unknown Game';
-const manufacturer = info.Manufacturer || vpx.manufacturer || 'Unknown';
-const year = info.Year || vpx.year || '';
-const authors = Array.isArray(info.Authors) && info.Authors.length ? info.Authors.join(', ')
-    : Array.isArray(vpx.authors) && vpx.authors.length ? vpx.authors.join(', ')
-    : 'Unknown';
-const rating = Number(user.Rating || 0);
-const plays = Number(user.StartCount || 0);
-
-const vpinplay = await vpin.getVPinPlayRating(currentGameIndex);
-const cumulativeRating = vpinplay?.cumulativeRating ?? null;
-const ratingCount = vpinplay?.ratingCount ?? 0;
+const playfield = mediaURL('playfield_video') || mediaURL('playfield');
+if (playfield) showMedia(playfield);
 ```
+
+Checking `media` first is what tells you whether to show a video, an image, or nothing —
+there is no request to make and no placeholder to detect. Responses carry an `ETag` and
+ask to be revalidated, so replacing art in the Manager UI shows up without a hard refresh.
+
+`vpin.getMedia(index, kind)`, `getImageURL` and `getVideoURL` still work and still honor
+the user's media priority. Use them when you want that behavior; use `media` when you want
+to know what exists.
+
+### A game's other tables
+
+`siblings` is how many tables the entry's game offers. `1` means there is nothing to
+switch to, which is the common case — so a "other versions" affordance can hide itself
+without asking the backend anything:
+
+```javascript
+const entry = vpin.getGameMeta(currentGameIndex);
+if (entry.siblings > 1) {
+    showVersionBadge(`${entry.siblings} versions`);
+}
+```
+
+Whether a game contributes one entry or all of its tables is the user's `expanded` setting,
+read as `vpin.expanded`. A theme does not have to do anything differently either way.
 
 ### VPinPlay Rating
 
@@ -1544,54 +1465,111 @@ const votes = table.vpinplay?.ratingCount ?? 0;
 
 ## Media Files
 
-All media files are stored per-table in either the `medias/` subfolder or the table's root folder. The `medias/` subfolder is checked first.
+Media lives in a game's folder, in `medias/` or at the folder root. `medias/` is canonical
+and the root is the fallback, at every tier below.
+
+### The kinds
+
+Twenty. `entry.media` lists the ones a game has a file for, using exactly these names, and
+`/media/<table id>/<kind>` serves one.
+
+| Kind | Default filename | Spec token | Also accepted |
+|---|---|---|---|
+| `playfield` | `table.png` | `(Playfield)` | |
+| `playfield_fss` | `fss.png` | `(FSS)` | |
+| `bg` | `bg.png` | `(Backglass)` | |
+| `dmd` | `dmd.png` | `(DMD)` | |
+| `wheel` | `wheel.png` | `(Wheel)` | |
+| `logo` | `logo.png` | `(Logo)` | |
+| `cab` | `cab.png` | `(Cabinet)` | |
+| `flyer` | `flyer.png` | `(Flyer)` | `(GameInfo)` |
+| `instruction_card` | `instructioncard.png` | `(InstructionCard)` | `(RuleCard)`, `(GameHelp)` |
+| `topper` | `topper.png` | `(Topper)` | |
+| `real_dmd` | `realdmd.png` | `(RealDMD)` | |
+| `real_dmd_color` | `realdmd-color.png` | `(RealColorDMD)` | |
+| `playfield_video` | `table.mp4` | `(Playfield)` | |
+| `bg_video` | `bg.mp4` | `(Backglass)` | |
+| `dmd_video` | `dmd.mp4` | `(DMD)` | |
+| `topper_video` | `topper.mp4` | `(Topper)` | |
+| `loading` | `loading.mp4` | `(Loading)` | |
+| `audio` | `audio.mp3` | `(Audio)` | |
+| `audio_launch` | `audiolaunch.mp3` | `(AudioLaunch)` | |
+| `rule_sheet` | `rulesheet.pdf` | `(RuleSheet)` | |
+
+`wheel` falls back to `logo` when the game has no wheel of its own. A game set to
+full-single-screen serves `fss.png` as its `playfield` — the filename changes, the kind
+name does not.
+
+### How a file is chosen
+
+Three tiers per kind, most specific first:
+
+1. `(Token) <table stem>.<ext>` — art for one `.vpx`
+2. `(Token) <folder name>.<ext>` — shared by every table in the folder
+3. the default filename — what VPinMediaDB writes
 
 ```
-<Table Folder>
+Attack from Mars (Bally 1995)/
 ├── medias/
-│   ├── table.png (or fss.png)
+│   ├── (Wheel) Attack from Mars VR.png   tier 1 - only the VR table
+│   ├── (Wheel) Attack from Mars.png      tier 2 - the folder's tables
+│   ├── wheel.png                         tier 3 - the default
+│   ├── table.png
 │   ├── bg.png
-│   ├── dmd.png
-│   ├── wheel.png
-│   ├── cab.png
-│   ├── table.mp4 (or fss.mp4)
-│   ├── bg.mp4
-│   ├── dmd.mp4
 │   └── audio.mp3
-└── <tablename>.vpx
+├── Attack from Mars.vpx
+└── Attack from Mars VR.vpx
 ```
 
-### Images
+Within a tier the kind's extension family is tried in order, first hit wins:
 
-| File | API Type | Description |
-|------|----------|-------------|
-| `table.png` / `fss.png` | `"playfield"` | Table playfield image |
-| `bg.png` | `"bg"` | Backglass image |
-| `dmd.png` | `"dmd"` | DMD image |
-| `wheel.png` | `"wheel"` | Wheel/logo image |
-| `cab.png` | `"cab"` | Cabinet image |
+| Family | Extensions |
+|---|---|
+| image | `.png` `.jpg` `.jpeg` `.webp` `.bmp` `.gif` |
+| video | `.mp4` |
+| audio | `.mp3` `.ogg` |
+| document | `.pdf` `.md` `.txt` `.html` |
 
-Use `vpin.getImageURL(index, type)` to get the URL.
+Matching is case-insensitive. A hand-placed `wheel.jpg` resolves; it does not have to be a
+`.png`.
 
-### Videos
+### Wheel sets
 
-| File | API Type | Description |
-|------|----------|-------------|
-| `table.mp4` / `fss.mp4` | `"playfield"` | Table playfield video |
-| `bg.mp4` | `"bg"` | Backglass video |
-| `dmd.mp4` | `"dmd"` | DMD video |
+`wheel` supports named sets — a folder of alternate wheel art under
+`medias/wheels/<set>/`. When a set is active it slots between tiers 1 and 2, so a
+table-specific wheel still wins and a media refresh never beats the set. A theme picks the
+set it wants with `wheelSet` in its `theme.json`.
 
-Use `vpin.getVideoURL(index, type)` to get the URL.
+### Shared assets
 
-### Audio
+Manufacturer logos are art about the manufacturer, not about a game, so they live under
+`/assets/` and are not a media kind. `vpin.getManufacturerLogoURL(index)` returns one, and
+`entry.game.manufacturer_logo` carries the web path.
 
-| File | Description |
-|------|-------------|
-| `audio.mp3` | Per-table audio (music, callouts, etc.) |
+### Reaching media from a theme
 
-Use `vpin.getAudioURL(index)` to get the URL. Returns `null` if no audio file exists.
+Two ways, and they answer different questions.
 
----
+`entry.media` tells you **what exists**, with no request:
+
+```javascript
+const entry = vpin.getGameMeta(currentGameIndex);
+const url = (kind) => entry.media.includes(kind)
+    ? `http://127.0.0.1:${vpin.themeAssetsPort}/media/${entry.table.id}/${kind}`
+    : null;
+
+showMedia(url('playfield_video') || url('playfield'));
+```
+
+`vpin.getMedia(index, kind)` **resolves what to show**, honoring the user's Manager UI
+media priority and falling back on its own:
+
+```javascript
+const media = vpin.getMedia(currentGameIndex, 'playfield');
+// media.kind is "video", "image", or "missing"; media.url is always something to put in src
+```
+
+Use the first when your theme decides; use the second when the user's priority should.
 
 ## Video Support
 
