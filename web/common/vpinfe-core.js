@@ -724,25 +724,26 @@ class VPinFECore {
     return this.#loadVPinPlayRating(index, true);
   }
 
-  // send a message to all windows except "self"
-  sendMessageToAllWindows(message) {
+  // The legacy copy goes out by the SAME delivery as the message it mirrors. Sending it
+  // without _incself once reached bg and dmd but never came back to the playfield
+  // window, so paging updated the backglass and DMD while the wheel sat still. Both
+  // spellings leave from here, so they cannot disagree about how again.
+  #broadcast(method, message) {
     this.#syncLocalIndexFromOutgoingMessage(message);
     this.#syncSelectionFromMessage(message);
-    this.call("send_event_all_windows", message);
+    this.call(method, message);
     const legacy = this.#servesLegacyNames() && MESSAGE_TYPE_ALIASES[message.type];
-    if (legacy) this.call("send_event_all_windows", { ...message, type: legacy });
+    if (legacy) this.call(method, { ...message, type: legacy });
+  }
+
+  // send a message to all windows except "self"
+  sendMessageToAllWindows(message) {
+    this.#broadcast("send_event_all_windows", message);
   }
 
   // send a message to all windows including "self"
   sendMessageToAllWindowsIncSelf(message) {
-    this.#syncLocalIndexFromOutgoingMessage(message);
-    this.#syncSelectionFromMessage(message);
-    this.call("send_event_all_windows_incself", message);
-    // The legacy copy has to use the SAME delivery as the message it mirrors. Sending it
-    // without _incself delivered to bg and dmd but never back to the playfield window,
-    // so paging updated the backglass and DMD while the wheel and playfield sat still.
-    const legacy = this.#servesLegacyNames() && MESSAGE_TYPE_ALIASES[message.type];
-    if (legacy) this.call("send_event_all_windows_incself", { ...message, type: legacy });
+    this.#broadcast("send_event_all_windows_incself", message);
   }
 
   // Toggle collection menu (public method callable from collection menu)

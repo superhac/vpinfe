@@ -241,3 +241,24 @@ describe("the controller window comes from the theme's list", () => {
     assert.equal(vpin.isController(), true);
   });
 });
+
+describe("a legacy message copy uses the same delivery as the original", () => {
+  // The bug this prevents: the _incself copy was once sent without _incself, so it
+  // reached bg and dmd but never came back to the playfield window.
+  for (const [method, wsMethod] of [
+    ["sendMessageToAllWindows", "send_event_all_windows"],
+    ["sendMessageToAllWindowsIncSelf", "send_event_all_windows_incself"],
+  ]) {
+    test(`${method} sends both spellings the same way`, async () => {
+      const { vpin, sent } = await coreAtContract(1);
+      sent.length = 0;
+
+      vpin[method]({ type: "GameIndexUpdate", index: 1 });
+
+      const used = sent.filter(([m]) => m.startsWith("send_event")).map(([m]) => m);
+      assert.equal(used.length, 2, "the current name and the 2.x one");
+      assert.deepEqual([...new Set(used)], [wsMethod],
+        "both by the same delivery, or one window never hears it");
+    });
+  }
+});
