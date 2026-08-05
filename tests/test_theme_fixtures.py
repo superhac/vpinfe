@@ -16,10 +16,30 @@ from __future__ import annotations
 import json
 import unittest
 
-from tests.theme_fixture_capture import FIXTURE, capture
+from tests.theme_fixture_capture import FIXTURE, STABLE_ROOT, _stabilize, capture
 
 
 class ThemeFixtureTests(unittest.TestCase):
+    def test_a_windows_capture_stabilizes_to_the_committed_shape(self) -> None:
+        """The fixture is committed once and checked on every platform.
+
+        Rewriting only the root leaves the separators after it alone, so a Windows
+        run produced /library\\Game\\... against the committed /library/Game/... and
+        failed for a reason that had nothing to do with the payload.
+        """
+        captured = {"WheelImagePath":
+                    r"C:\Users\RUNNER~1\AppData\Local\Temp\tmp1\Congo\medias\wheel.png",
+                    "Missing": None}
+
+        self.assertEqual(
+            _stabilize(captured, r"C:\Users\RUNNER~1\AppData\Local\Temp\tmp1"),
+            {"WheelImagePath": f"{STABLE_ROOT}/Congo/medias/wheel.png",
+             "Missing": None})
+
+    def test_stabilizing_leaves_strings_that_are_not_paths_alone(self) -> None:
+        untouched = {"title": r"Back\Slash (Bally 1980)"}
+        self.assertEqual(_stabilize(untouched, "/tmp/tmp1"), untouched)
+
     def test_the_committed_fixture_is_what_the_builder_produces(self) -> None:
         self.assertTrue(FIXTURE.exists(),
                         "run: python tests/theme_fixture_capture.py")

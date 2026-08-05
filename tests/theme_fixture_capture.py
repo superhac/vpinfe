@@ -98,9 +98,18 @@ def build_library(root: Path) -> None:
 
 
 def _stabilize(value, real_root: str):
-    """Swap the temp directory for a fixed root, everywhere it appears."""
+    """Swap the temp directory for a fixed root, and forward-slash what follows it.
+
+    Separators have to be normalized here or the fixture becomes platform-specific:
+    a Windows capture writes /library\\Game\\medias\\wheel.png against a committed
+    /library/Game/medias/wheel.png, and the check fails on a difference that has
+    nothing to do with the payload's shape. Only strings holding the root are
+    touched, so anything else keeps its backslashes.
+    """
     if isinstance(value, str):
-        return value.replace(real_root, STABLE_ROOT)
+        root = real_root.replace("\\", "/")
+        forward = value.replace("\\", "/")
+        return forward.replace(root, STABLE_ROOT) if root in forward else value
     if isinstance(value, list):
         return [_stabilize(item, real_root) for item in value]
     if isinstance(value, dict):
