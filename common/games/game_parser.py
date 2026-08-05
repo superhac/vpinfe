@@ -11,7 +11,7 @@ from common.games.info_migration import (
     backup_names,
     restorable_backup,
 )
-from common.games.meta_config import InvalidMetaConfigError, MetaConfig
+from common.games.info_file import InvalidMetaConfigError, MetaConfig
 from common.games.tables import (
     default_table,
     recorded_default,

@@ -5,7 +5,7 @@ import os
 
 from common.config_access import SettingsConfig
 from common.games.game_parser import GameParser
-from common.games.meta_config import MetaConfig
+from common.games.info_file import MetaConfig
 from common.games.standalone_scripts import StandaloneScripts
 from common.games.vpx_parser import VPXParser
 from common.config_store import ConfigStore

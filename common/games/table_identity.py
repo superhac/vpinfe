@@ -12,7 +12,7 @@ from typing import Any
 
 from common.games.game_metadata import load_game_meta, persist_game_meta
 from common.games.ids import new_id
-from common.games.meta_config import VPINFE_SECTION
+from common.games.info_file import VPINFE_SECTION
 from common.games.tables import (
     DEFAULT_TABLE_KEY,
     TABLE_ID_KEY,

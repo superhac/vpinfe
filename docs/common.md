@@ -30,7 +30,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 **`common/games/`** - games, their metadata, and the collections built from them.
 
 - `game.py`, `game_parser.py`, `game_repository.py`: game discovery and cached game rows.
-- `game_metadata.py`, `meta_config.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
+- `game_metadata.py`, `info_file.py`: `.info` file schema, defaults, display helpers, and persistence. `metaconfig` also versions the `VPinFE` section and migrates it forward on read.
 - `game_identity.py`: the stable per-install game id that addresses a game everywhere.
 - `tables.py`: which .vpx in a game folder is the default table. Every caller resolves through it.
 - `metadata_service.py`, `game_report_service.py`, `game_play_service.py`: workflows over games and metadata.
@@ -177,7 +177,7 @@ libdmdutil should not each carry their own copy of that reasoning.
 
 ## Adding Metadata Fields
 
-1. Add the default or normalization rule in `meta_config.py` or
+1. Add the default or normalization rule in `info_file.py` or
    `game_metadata.py`.
 2. Add display/read helpers in `game_metadata.py` when multiple callers need the
    value.

@@ -19,7 +19,7 @@ from common.games.info_migration import (
     needs_migration,
     write_backup,
 )
-from common.games.meta_config import MetaConfig
+from common.games.info_file import MetaConfig
 
 LEGACY = {
     "Info": {"Title": "Dr. Dude", "VPSId": "vps-1", "Rom": "dd_l2",

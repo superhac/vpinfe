@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List
 
-from common.games.meta_config import VPINFE_SECTION
+from common.games.info_file import VPINFE_SECTION
 from managerui.services import game_index_service
 
 

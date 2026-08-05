@@ -15,7 +15,7 @@ from unittest import mock
 
 from common.games.game_parser import GameParser
 from common.games.info_migration import write_json_atomic
-from common.games.meta_config import MetaConfig
+from common.games.info_file import MetaConfig
 
 
 class AtomicWriteTests(unittest.TestCase):

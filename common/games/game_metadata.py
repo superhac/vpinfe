@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from common.games.ids import new_id
-from common.games.meta_config import VPINFE_SECTION, MetaConfig
+from common.games.info_file import VPINFE_SECTION, MetaConfig
 from common.games.tables import (
     DETECT_KEYS,
     TABLE_FILENAME_KEY,

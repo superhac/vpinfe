@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from common.games.meta_config import (
+from common.games.info_file import (
     CURRENT_VPINFE_SCHEMA,
     InvalidMetaConfigError,
     MetaConfig,
@@ -253,7 +253,7 @@ class VPinFESchemaTests(unittest.TestCase):
         """Running an older build must not downgrade or strip a newer file."""
         future = {"schema": CURRENT_VPINFE_SCHEMA + 5, "somethingNew": "keep me"}
 
-        with self.assertLogs("vpinfe.common.games.meta_config", level="WARNING"):
+        with self.assertLogs("vpinfe.common.games.info_file", level="WARNING"):
             migrated = migrate_vpinfe_section(dict(future))
 
         self.assertEqual(migrated, future)

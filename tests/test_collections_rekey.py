@@ -13,7 +13,7 @@ from common.games.collection_store import (
     collections_schema,
     restorable_collections_backup,
 )
-from common.games.meta_config import MetaConfig
+from common.games.info_file import MetaConfig
 
 
 def _game(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", game_id: str = ""):

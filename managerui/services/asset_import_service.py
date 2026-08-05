@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 from typing import Callable
 
 from common.games.game_repository import refresh_game
-from common.games.meta_config import VPINFE_SECTION, MetaConfig
+from common.games.info_file import VPINFE_SECTION, MetaConfig
 from common.games.vpx_parser import VPXParser
 from common.media_specs import media_filename_map
 from managerui.paths import get_games_path

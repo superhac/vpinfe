@@ -4,7 +4,7 @@ from pathlib import Path
 
 import requests
 
-from common.games.meta_config import MetaConfig
+from common.games.info_file import MetaConfig
 from common.http_client import download_file, get_json
 
 logger = logging.getLogger("vpinfe.common.games.standalone_scripts")
