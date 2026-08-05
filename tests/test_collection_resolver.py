@@ -23,7 +23,7 @@ def _game(gid, title, tables, manufacturer="", rating=0, last_run=0, default="")
     return SimpleNamespace(
         gameDirName=title,
         creation_time=0,
-        metaConfig={
+        meta_config={
             "Info": {"Title": title, "Manufacturer": manufacturer, "Year": "1995",
                      "Type": "SS", "Themes": []},
             "User": {"Rating": rating, "LastRun": last_run, "StartCount": 0, "RunTime": 0},
@@ -61,7 +61,7 @@ class ResolverTests(unittest.TestCase):
         self.games = [self.mm, self.afm, self.taf]
 
     def _ids(self, entries):
-        return [(e.game.metaConfig["vpinfe"]["game_id"], e.table_id) for e in entries]
+        return [(e.game.meta_config["vpinfe"]["game_id"], e.table_id) for e in entries]
 
     # --- the case the whole design exists for ------------------------------------
 
@@ -128,7 +128,7 @@ class ResolverTests(unittest.TestCase):
 
     def test_hidden_beats_a_pin(self) -> None:
         """`hidden` is library-wide and exists so a patch base can stay on disk."""
-        self.mm.metaConfig["tables"]["jp"]["hidden"] = True
+        self.mm.meta_config["tables"]["jp"]["hidden"] = True
         self.collections.add_collection("Friday Night")
         self.collections.add_member("Friday Night", "mm", table_id="jp")
 
@@ -137,7 +137,7 @@ class ResolverTests(unittest.TestCase):
         self.assertEqual(entries, [])
 
     def test_a_hidden_table_is_not_offered_to_a_follower(self) -> None:
-        self.afm.metaConfig["tables"]["vr"]["hidden"] = True
+        self.afm.meta_config["tables"]["vr"]["hidden"] = True
         self.collections.add_collection("All")
         self.collections.add_member("All", "afm")
 

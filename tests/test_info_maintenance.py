@@ -241,7 +241,7 @@ class WhatThePageSaysTests(LibraryTestCase):
             "pending_upgrade": sum(1 for t in games if t.info_pending_upgrade),
             "restorable": sum(1 for t in games if t.info_restorable),
             "newer_than_us": sum(1 for t in games
-                                 if (schema_of(t.metaConfig) or 0) > CURRENT_SCHEMA),
+                                 if (schema_of(t.meta_config) or 0) > CURRENT_SCHEMA),
         }
 
     def test_a_library_a_newer_build_upgraded_is_reported_as_that(self):

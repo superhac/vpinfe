@@ -31,8 +31,8 @@ DETECTION_KEYS = DETECT_KEYS
 def normalize_meta(meta: Any) -> Dict[str, Any]:
     if isinstance(meta, dict):
         return meta
-    if hasattr(meta, "getConfig"):
-        data = meta.getConfig()
+    if hasattr(meta, "get_config"):
+        data = meta.get_config()
         return data if isinstance(data, dict) else {}
     if hasattr(meta, "config") and isinstance(meta.config, dict):
         return meta.config
@@ -134,7 +134,7 @@ def reorder_leading_article(title: Any) -> str:
 
 
 def game_title(game) -> str:
-    meta = normalize_meta(getattr(game, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "meta_config", {}))
     vpinfe = vpinfe_section(meta)
     info = section(meta, "Info")
     alt_title = str(vpinfe.get("alt_title", "") or "").strip()
@@ -147,7 +147,7 @@ def game_title(game) -> str:
 
 
 def game_themes(game) -> list[str]:
-    meta = normalize_meta(getattr(game, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "meta_config", {}))
     value = get_meta_value(meta, "Info", "Themes", None)
     if value:
         return value if isinstance(value, list) else [value]
@@ -167,34 +167,34 @@ def game_themes(game) -> list[str]:
 
 
 def game_type(game) -> str:
-    meta = normalize_meta(getattr(game, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "meta_config", {}))
     return str(first_meta_value(meta, ("Info", "Type"), ("VPSdb", "type"), default="") or "")
 
 
 def game_manufacturer(game) -> str:
-    meta = normalize_meta(getattr(game, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "meta_config", {}))
     return str(first_meta_value(meta, ("Info", "Manufacturer"), ("VPSdb", "manufacturer"), default="") or "")
 
 
 def game_year(game) -> str:
-    meta = normalize_meta(getattr(game, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "meta_config", {}))
     value = first_meta_value(meta, ("Info", "Year"), ("VPSdb", "year"), default="")
     return str(value) if value else ""
 
 
 def game_rating(game) -> int:
-    meta = normalize_meta(getattr(game, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "meta_config", {}))
     return normalize_rating(get_meta_value(meta, "User", "Rating", 0))
 
 
 def game_frontend_dof_event(game) -> str:
     """The DOF effect a game asks for when selected, or "" to use the default."""
-    meta = normalize_meta(getattr(game, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "meta_config", {}))
     return str(vpinfe_section(meta).get("frontend_dof_event", "") or "").strip()
 
 
 def game_vps_id(game) -> str:
-    meta = normalize_meta(getattr(game, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "meta_config", {}))
     alt_vpsid = str(vpinfe_section(meta).get("alt_vpsid", "") or "").strip()
     if alt_vpsid:
         return alt_vpsid
@@ -202,7 +202,7 @@ def game_vps_id(game) -> str:
 
 
 def base_game_vps_id(game) -> str:
-    return str(section(getattr(game, "metaConfig", {}), "Info").get("VPSId", "") or "").strip()
+    return str(section(getattr(game, "meta_config", {}), "Info").get("VPSId", "") or "").strip()
 
 
 def get_or_create_user_meta(config: Dict[str, Any]) -> Dict[str, Any]:
@@ -244,15 +244,15 @@ def load_game_meta(game) -> Dict[str, Any]:
     meta_path = meta_file_path(game)
     if meta_path.exists():
         return normalize_meta(MetaConfig(str(meta_path)).data)
-    return normalize_meta(getattr(game, "metaConfig", {}))
+    return normalize_meta(getattr(game, "meta_config", {}))
 
 
 def persist_game_meta(game, config: Dict[str, Any]) -> None:
     meta_file = MetaConfig(str(meta_file_path(game)))
     upgraded = meta_file.pending_migration
     meta_file.data = config
-    meta_file.writeConfig()
-    game.metaConfig = config
+    meta_file.write_config()
+    game.meta_config = config
     # Both flags were read during the scan, and this write is what makes them wrong.
     # Nothing is pending once the file is on disk, and an upgrade has just left a
     # restore point behind it. Without this the id backfill upgrades the whole library

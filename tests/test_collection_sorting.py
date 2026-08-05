@@ -9,7 +9,7 @@ from frontend.api import API
 
 def _game(title, vpsid, last_run=None, altvpsid="", alttitle="", runtime=0, start_count=0, creation_time=0):
     return SimpleNamespace(
-        metaConfig={
+        meta_config={
             "Info": {
                 "Title": title,
                 "VPSId": vpsid,
@@ -53,7 +53,7 @@ class TestCollectionSorting(unittest.TestCase):
             result = manager.filter_games(games, "Last Played")
 
             self.assertEqual(
-                [game.metaConfig["Info"]["Title"] for game in result],
+                [game.meta_config["Info"]["Title"] for game in result],
                 ["Alpha", "Bravo", "Charlie"],
             )
 
@@ -80,7 +80,7 @@ class TestCollectionSorting(unittest.TestCase):
             result = manager.filter_games(games, "Favorites")
 
             self.assertEqual(
-                [game.metaConfig["Info"]["Title"] for game in result],
+                [game.meta_config["Info"]["Title"] for game in result],
                 ["Alpha", "Zulu"],
             )
 
@@ -98,7 +98,7 @@ class TestCollectionSorting(unittest.TestCase):
         self.assertEqual(count, 3)
         self.assertEqual(api.current_sort, "LastRun")
         self.assertEqual(
-            [game.metaConfig["Info"]["Title"] for game in api.filteredGames],
+            [game.meta_config["Info"]["Title"] for game in api.filteredGames],
             ["Alpha", "Bravo", "Charlie"],
         )
 
@@ -118,7 +118,7 @@ class TestCollectionSorting(unittest.TestCase):
         self.assertEqual(api.current_sort, "RunTime")
         self.assertEqual(api.current_order, "Descending")
         self.assertEqual(
-            [game.metaConfig["Info"]["Title"] for game in api.filteredGames],
+            [game.meta_config["Info"]["Title"] for game in api.filteredGames],
             ["Long", "Medium", "Short"],
         )
 
@@ -126,7 +126,7 @@ class TestCollectionSorting(unittest.TestCase):
 
         self.assertEqual(api.current_order, "Ascending")
         self.assertEqual(
-            [game.metaConfig["Info"]["Title"] for game in api.filteredGames],
+            [game.meta_config["Info"]["Title"] for game in api.filteredGames],
             ["Short", "Medium", "Long"],
         )
 

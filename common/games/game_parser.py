@@ -152,8 +152,8 @@ class GameParser:
 
         # After the metadata, so a folder with several .vpx launches the one its
         # metadata describes rather than whichever the filesystem listed first.
-        recorded = recorded_default(vpinfe_section(game.metaConfig),
-                                    table_entries(game.metaConfig))
+        recorded = recorded_default(vpinfe_section(game.meta_config),
+                                    table_entries(game.meta_config))
         chosen = default_table(game_contents, game_dir.name, recorded)
         game.fullPathVPXfile = str(game_dir / chosen)
 
@@ -230,7 +230,7 @@ class GameParser:
         except InvalidMetaConfigError as exc:
             logger.error("Invalid metadata for game '%s': %s", Game.gameDirName, exc)
             raise
-        Game.metaConfig = meta.data
+        Game.meta_config = meta.data
         Game.info_pending_upgrade = meta.pending_migration
 
     def getGame(self, index):
@@ -250,4 +250,4 @@ class GameParser:
         return [dict(row) for row in self.missing_games]
 
     def isFavorite(self, Game):
-        return vpinfe_section(Game.metaConfig).get("favorite", "").lower() == "true"
+        return vpinfe_section(Game.meta_config).get("favorite", "").lower() == "true"

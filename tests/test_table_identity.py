@@ -36,7 +36,7 @@ def _game(root: Path, name: str, meta: dict | None = None):
         fullPathGame=str(folder),
         fullPathVPXfile=str(folder / f"{name}.vpx"),
         gameDirName=name,
-        metaConfig=meta or {},
+        meta_config=meta or {},
     )
 
 
@@ -61,7 +61,7 @@ class RebuildTests(unittest.TestCase):
         self.info = self.root / "Example.info"
 
     def _rebuild(self, *files: tuple[str, dict]) -> dict:
-        MetaConfig(str(self.info)).writeConfigMeta(
+        MetaConfig(str(self.info)).write_config_meta(
             {"vpsdata": {}, "gamefiles": dict(files)})
         return json.loads(self.info.read_text(encoding="utf-8"))[TABLES_KEY]
 

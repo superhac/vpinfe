@@ -189,7 +189,7 @@ def ensure_thumb(game_dir: str, media_key: str, source_path: str) -> Optional[st
 
 
 def _game_meta_sections(game):
-    raw = game.metaConfig or {}
+    raw = game.meta_config or {}
     if not isinstance(raw, dict):
         raw = {}
     info = raw.get("Info", {}) if isinstance(raw.get("Info", {}), dict) else {}

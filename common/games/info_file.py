@@ -147,7 +147,7 @@ class MetaConfig:
         """
         return bool(self._pre_migration)
 
-    def writeConfigMeta(self, configdata):
+    def write_config_meta(self, configdata):
         """
         Build the .info JSON structure
         """
@@ -245,7 +245,7 @@ class MetaConfig:
             **preserved
         }
 
-        self.writeConfig()
+        self.write_config()
 
     def _build_tables(self, configdata):
         """One entry per parsed table, keyed by filename.
@@ -299,7 +299,7 @@ class MetaConfig:
         entries[minted] = entry
         return entry
 
-    def writeConfig(self):
+    def write_config(self):
         self._normalize_detection_flags()
         os.makedirs(os.path.dirname(self.configFilePath), exist_ok=True)
         if self._pre_migration:
@@ -312,18 +312,18 @@ class MetaConfig:
             logger.info("Kept the pre-migration metadata at %s", saved)
         write_json_atomic(self.configFilePath, self.data)
 
-    def getConfig(self):
+    def get_config(self):
         return self.data
 
     def strip_all_newlines(self, text):
         return text.replace("\r\n", "").replace("\n", "")
 
-    def gameFileSettings(self):
+    def game_file_settings(self):
         """Per-table entries, keyed by filename. A folder can hold several tables
         of one game - desktop, VR, a patched variant - and they are peers."""
         return table_entries(self.data)
 
-    def setTableHidden(self, filename, hidden):
+    def set_table_hidden(self, filename, hidden):
         """Hide a table from the frontend, or unhide it.
 
         Hiding never deletes. A patch base has to stay on disk - the patched table
@@ -340,18 +340,18 @@ class MetaConfig:
             # never parsed; drop it rather than leave an empty record behind.
             if set(entry) <= {TABLE_ID_KEY, TABLE_FILENAME_KEY}:
                 settings.pop(entry.get(TABLE_ID_KEY), None)
-        self.writeConfig()
+        self.write_config()
 
-    def gameFileValue(self, filename, key, default=""):
+    def game_file_value(self, filename, key, default=""):
         """One key off a specific table's entry."""
         _, value = entry_for_filename(table_entries(self.data), filename)
         return value.get(key, default) if isinstance(value, dict) else default
 
-    def setTableValue(self, filename, key, value):
+    def set_table_value(self, filename, key, value):
         """Record something we did to a table, against that table."""
         entry = self._entry_for(self._entries_by_id(), filename)
         entry[key] = value
-        self.writeConfig()
+        self.write_config()
 
     def refresh_table(self, filename, parsed):
         """Refresh what one table says about itself. Everything else on the entry -
@@ -360,7 +360,7 @@ class MetaConfig:
         """
         entry = self._entry_for(self._entries_by_id(), filename)
         entry.update(entry_from_parsed(parsed))
-        self.writeConfig()
+        self.write_config()
 
     def replace_table(self, removed, filename, parsed):
         """One table replaced another on disk: describe the new one, forget the old.
@@ -390,7 +390,7 @@ class MetaConfig:
                                    recorded_default(vpinfe, entries))
             if _default_table_changed(chosen, previous, entries):
                 vpinfe["alt_vpsid"] = ""
-        self.writeConfig()
+        self.write_config()
 
     def record_patch_source(self, filename, base_file, base_hash, patch_format):
         """Record a table we made ourselves: the base it came from, and the patch that
@@ -404,7 +404,7 @@ class MetaConfig:
             "base": {"file": base_file, "hash": base_hash},
             "patch": {"format": patch_format, "applied": utc_now_iso()},
         }
-        self.writeConfig()
+        self.write_config()
 
     def add_asset(self, path, host, md5=""):
         """Record a file we placed, against the path we wrote it to.
@@ -417,7 +417,7 @@ class MetaConfig:
         if md5:
             source["hash"] = md5
         self.data.setdefault(ASSETS_KEY, {})[self._asset_key(path)] = {"source": source}
-        self.writeConfig()
+        self.write_config()
 
     def _asset_key(self, path):
         """A path relative to the game folder, with forward slashes.

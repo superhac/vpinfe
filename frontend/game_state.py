@@ -66,9 +66,9 @@ def _legacy_row(game, logo_cache) -> dict:
     the parity gate holds it against master, so it does not go behind a transformation.
     """
     # A copy: what follows adds fields the theme contract defines, and writing those
-    # into the shared metaConfig would put a dropped section back on disk at the next
+    # into the shared meta_config would put a dropped section back on disk at the next
     # rebuild.
-    meta = dict(normalize_meta(game.metaConfig))
+    meta = dict(normalize_meta(game.meta_config))
     vpinfe = vpinfe_section(meta)
     info = section(meta, "Info")
 
@@ -133,7 +133,7 @@ def _table_user(table) -> dict:
 def _entry_row(entry, logo_cache) -> dict:
     """One entry in contract 2: the game, the table it is, and what resolved for it."""
     game = entry.game
-    meta = normalize_meta(game.metaConfig)
+    meta = normalize_meta(game.meta_config)
     info = section(meta, "Info")
     maker = str(info.get("Manufacturer", "") or "")
     if maker not in logo_cache:
@@ -328,7 +328,7 @@ def _sort_by_numeric_meta(games, field, reverse):
 
 
 def _numeric_meta_value(game, field):
-    meta = normalize_meta(getattr(game, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "meta_config", {}))
     user = section(meta, "User")
     info = section(meta, "Info")
     try:

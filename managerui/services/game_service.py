@@ -286,7 +286,7 @@ def associate_vps_to_folder(
     vpxdata = parser.singleFileExtract(str(vpx_file))
 
     meta = MetaConfig(str(meta_path))
-    meta.writeConfigMeta({"vpsdata": vps_entry, "vpxdata": vpxdata})
+    meta.write_config_meta({"vpsdata": vps_entry, "vpxdata": vpxdata})
 
     if download_media:
         from common.online.vpsdb import VPSdb
@@ -312,7 +312,7 @@ def associate_vps_to_folder(
                 self.DMDVideoPath = None
                 self.AudioPath = None
 
-        vps.downloadMediaForGame(_LightGame(game_folder, vpx_file), vps_entry.get("id"), metaConfig=meta)
+        vps.downloadMediaForGame(_LightGame(game_folder, vpx_file), vps_entry.get("id"), meta_config=meta)
 
     from managerui.services.media_service import invalidate_media_cache
     invalidate_media_cache()

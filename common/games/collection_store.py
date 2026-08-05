@@ -134,7 +134,7 @@ def _get_display_title(game):
 
 
 def _get_last_run_value(game):
-    user = section(getattr(game, "metaConfig", {}), "User")
+    user = section(getattr(game, "meta_config", {}), "User")
     raw = user.get("LastRun")
     try:
         return int(raw)
@@ -476,7 +476,7 @@ class CollectionStore:
             tid = game_id(game)
             if not tid:
                 continue
-            vpinfe = vpinfe_section(getattr(game, "metaConfig", {}))
+            vpinfe = vpinfe_section(getattr(game, "meta_config", {}))
             for candidate in (base_game_vps_id(game),
                               str(vpinfe.get("alt_vpsid", "") or "").strip()):
                 if candidate:
@@ -539,7 +539,7 @@ class CollectionStore:
         if game_id(game) and game_id(game) in member_ids:
             return True
 
-        vpinfe = vpinfe_section(getattr(game, "metaConfig", {}))
+        vpinfe = vpinfe_section(getattr(game, "meta_config", {}))
         base_vpsid = base_game_vps_id(game)
         alt_vpsid = str(vpinfe.get("alt_vpsid", "") or "").strip()
         return bool(

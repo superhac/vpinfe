@@ -17,7 +17,7 @@ from common.games.info_file import (
 class TestMetaConfig(unittest.TestCase):
     def _write_meta(self, info_path: Path, *, filehash: str = "filehash", tutorial_files=None) -> dict:
         meta = MetaConfig(str(info_path))
-        meta.writeConfigMeta(
+        meta.write_config_meta(
             {
                 "vpsdata": {
                     "ipdbUrl": "https://www.ipdb.org/machine.cgi?id=42",
@@ -393,7 +393,7 @@ class AssetLedgerTests(unittest.TestCase):
         meta = MetaConfig(str(self.info))
         meta.add_asset(str(self.root / "medias" / "bg.png"), "vpinmediadb", "d80f67")
         meta.data["Medias"] = {"bg": {"Source": "vpinmediadb"}}
-        meta.writeConfig()
+        meta.write_config()
 
         TestMetaConfig()._write_meta(self.info)
         saved = json.loads(self.info.read_text(encoding="utf-8"))

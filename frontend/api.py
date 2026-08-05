@@ -182,7 +182,7 @@ class API:
         pass
 
     def _normalize_game_meta(self, game):
-        return normalize_meta(game.metaConfig)
+        return normalize_meta(game.meta_config)
 
     def _theme_contract(self) -> int:
         """Which shape the active theme asked for. Read per payload rather than cached,

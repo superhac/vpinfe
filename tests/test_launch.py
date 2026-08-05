@@ -29,7 +29,7 @@ def _game(name="Example"):
         fullPathVPXfile=f"/games/{name}/{name}.vpx",
         fullPathGame=f"/games/{name}",
         gameDirName=name,
-        metaConfig={},
+        meta_config={},
     )
 
 

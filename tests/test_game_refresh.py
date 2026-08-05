@@ -38,7 +38,7 @@ class SingleGameRefreshTests(unittest.TestCase):
         self.parser.loadGames(reload=True)
 
     def _rating(self, game):
-        return game.metaConfig.get("User", {}).get("Rating")
+        return game.meta_config.get("User", {}).get("Rating")
 
     def _by_name(self, name):
         return next(t for t in self.parser.getAllGames() if t.gameDirName == name)

@@ -152,7 +152,7 @@ class FrontendServiceTests(unittest.TestCase):
             gameDirName="Example",
             realDMDImagePath="/tmp/real_dmd.png",
             realDMDColorImagePath="/tmp/realdmd-color.png",
-            metaConfig={"vpinfe": {"frontend_dof_event": "E901"}},
+            meta_config={"vpinfe": {"frontend_dof_event": "E901"}},
         )
         color_config = configparser.ConfigParser()
         color_config.read_dict({"Media": {"realdmdmediapriority": "color"}})
@@ -214,7 +214,7 @@ class FrontendServiceTests(unittest.TestCase):
             game = types.SimpleNamespace(
                 fullPathGame=str(game_dir),
                 gameDirName="Example",
-                metaConfig=json.loads(info_path.read_text(encoding="utf-8")),
+                meta_config=json.loads(info_path.read_text(encoding="utf-8")),
             )
 
             info_path.write_text(
@@ -256,7 +256,7 @@ class FrontendServiceTests(unittest.TestCase):
             game = types.SimpleNamespace(
                 fullPathGame=str(game_dir),
                 gameDirName="Example",
-                metaConfig=json.loads(info_path.read_text(encoding="utf-8")),
+                meta_config=json.loads(info_path.read_text(encoding="utf-8")),
             )
 
             info_path.write_text(
@@ -293,7 +293,7 @@ class FrontendServiceTests(unittest.TestCase):
             game = types.SimpleNamespace(
                 fullPathGame=str(game_dir),
                 gameDirName="Example",
-                metaConfig={},
+                meta_config={},
             )
 
             with mock.patch("common.games.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
@@ -324,7 +324,7 @@ class FrontendServiceTests(unittest.TestCase):
             game = types.SimpleNamespace(
                 fullPathGame=str(game_dir),
                 gameDirName="Example",
-                metaConfig={},
+                meta_config={},
             )
 
             with mock.patch("common.games.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
@@ -345,7 +345,7 @@ class FrontendServiceTests(unittest.TestCase):
             game = types.SimpleNamespace(
                 fullPathGame=str(game_dir),
                 gameDirName="Example",
-                metaConfig={
+                meta_config={
                     "tables": {"Example.vpx": {"rom": "vpx_rom"}},
                     "vpinfe": {"delete_nvram_on_close": True},
                 },

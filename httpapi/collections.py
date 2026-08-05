@@ -130,7 +130,7 @@ def _entry_resource(entry) -> dict:
     game_ident = game_identity.game_id(entry.game)
     offered = visible_entries(entry.game)
     default_id = offered[0].get("id", "") if offered else ""
-    meta = entry.game.metaConfig or {}
+    meta = entry.game.meta_config or {}
     info = meta.get("Info") or {}
     prefix = f"/api/v1/games/{game_ident}"
     return {

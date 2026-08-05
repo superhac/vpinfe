@@ -199,7 +199,7 @@ class GameListFilters:
     @staticmethod
     def _get_meta_value(game, section, key, fallback=""):
         """Helper to safely extract metadata values."""
-        return get_meta_value(getattr(game, "metaConfig", {}), section, key, fallback)
+        return get_meta_value(getattr(game, "meta_config", {}), section, key, fallback)
 
     def get_available_letters(self):
         """Return sorted list of unique starting letters from game names."""

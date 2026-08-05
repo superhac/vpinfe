@@ -14,8 +14,8 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.games.game_parser import GameParser
-from common.games.info_migration import write_json_atomic
 from common.games.info_file import MetaConfig
+from common.games.info_migration import write_json_atomic
 
 
 class AtomicWriteTests(unittest.TestCase):
@@ -64,7 +64,7 @@ class AtomicWriteTests(unittest.TestCase):
         self.assertNotIn(".vpinfe-", temps[0], "must not look like a restore point")
 
     def test_a_normal_write_still_lands(self):
-        MetaConfig(str(self.info)).writeConfig()
+        MetaConfig(str(self.info)).write_config()
 
         self.assertTrue(self.info.exists())
         self.assertIsInstance(json.loads(self.info.read_text(encoding="utf-8")), dict)

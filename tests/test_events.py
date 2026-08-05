@@ -166,7 +166,7 @@ class GameSelectionTests(unittest.TestCase):
     @staticmethod
     def _game(name="Medieval Madness"):
         return SimpleNamespace(gameDirName=name,
-                               metaConfig={"vpinfe": {"frontend_dof_event": "E901"}})
+                               meta_config={"vpinfe": {"frontend_dof_event": "E901"}})
 
     def test_selection_is_subscribers_only(self) -> None:
         """A hook could abandon a selection. Nothing may stop the wheel moving."""

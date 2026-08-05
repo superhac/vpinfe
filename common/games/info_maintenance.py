@@ -13,13 +13,13 @@ from common.games.collection_store import (
     COLLECTIONS_NAME,
     restorable_collections_backup,
 )
+from common.games.info_file import InvalidMetaConfigError, MetaConfig
 from common.games.info_migration import (
     CURRENT_SCHEMA,
     copy_aside,
     replace_atomic,
     restorable_backup,
 )
-from common.games.info_file import InvalidMetaConfigError, MetaConfig
 from common.jobs import JobReporter
 
 logger = logging.getLogger("vpinfe.common.games.info_maintenance")
@@ -85,7 +85,7 @@ def upgrade_library(
             if not meta.pending_migration:
                 result["already_current"] += 1
                 continue
-            meta.writeConfig()
+            meta.write_config()
         except (InvalidMetaConfigError, OSError) as exc:
             result["failed"] += 1
             result["failures"].append((game_dir.name, str(exc)))

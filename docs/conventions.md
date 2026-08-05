@@ -21,8 +21,13 @@ blocking.
 | Internal helpers | leading underscore | `_catalog()`, `_resource()` |
 
 Python does not use camelCase. PEP 8 permits it "only in contexts where that's already the
-prevailing style, to retain backwards compatibility" — which is why `gameDirName`,
-`metaConfig` and `writeConfigMeta()` still exist. They are legacy, not the standard.
+prevailing style, to retain backwards compatibility" — which is why `gameDirName` still
+exists. It is legacy, not the standard.
+
+The distinction that decides these: a camelCase name **a theme reads** is a contract and
+stays, because renaming it costs every theme a change. A camelCase name that never leaves
+Python is just old, and `MetaConfig`'s was retired in 3.0 — `metaConfig`, `writeConfigMeta`
+and the rest are snake_case now. `gameDirName` is in the contract 1 payload, so it stays.
 
 ### JavaScript
 

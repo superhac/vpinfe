@@ -131,7 +131,7 @@ class TestCommonArchitecture(unittest.TestCase):
     def test_metadata_display_helpers_handle_legacy_fields(self) -> None:
         game = SimpleNamespace(
             gameDirName="Fallback",
-            metaConfig={
+            meta_config={
                 "VPSdb": {
                     "name": "Legacy Name",
                     "theme": "['Music', 'Movies']",

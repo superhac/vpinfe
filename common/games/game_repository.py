@@ -66,7 +66,7 @@ def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
         # upgraded these" from "something newer did, and I cannot fully read them" - and
         # says the first, which is a lie the moment a schema 3 exists.
         "newer_than_us": sum(1 for t in games
-                             if (schema_of(t.metaConfig) or 0) > CURRENT_SCHEMA),
+                             if (schema_of(t.meta_config) or 0) > CURRENT_SCHEMA),
     }
 
 
@@ -157,7 +157,7 @@ def collections_by_game_id() -> Dict[str, List[str]]:
 
 
 def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
-    meta = game.metaConfig or {}
+    meta = game.meta_config or {}
     info = section(meta, "Info")
     user = section(meta, "User")
     vpinfe = vpinfe_section(meta)

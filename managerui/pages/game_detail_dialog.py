@@ -580,7 +580,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                         # The user has likely swapped their .vpx file, so reparse the
                         # VPX-sourced metadata first. We rebuild *before* persisting the
                         # Alt VPS ID because build_metadata clears altvpsid whenever the
-                        # VPX file hash changed (see metaconfig.writeConfigMeta); saving
+                        # VPX file hash changed (see metaconfig.write_config_meta); saving
                         # afterwards ensures the value the user entered survives.
                         if game_dir_name:
                             await on_rebuild_meta()

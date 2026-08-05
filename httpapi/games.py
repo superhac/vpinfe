@@ -146,7 +146,7 @@ def _table_settings(game_dir: Path) -> dict:
         from common.games.info_file import MetaConfig
         info = game_dir / f"{game_dir.name}.info"
         if info.is_file():
-            return MetaConfig(str(info)).gameFileSettings()
+            return MetaConfig(str(info)).game_file_settings()
     except Exception:  # noqa: BLE001 - settings are advisory; never block the listing
         logger.debug("Could not read table settings for %s", game_dir, exc_info=True)
     return {}
@@ -178,7 +178,7 @@ def _tables(game, row: dict) -> list[dict]:
 
     # Same resolver the launcher and the metadata build use, so all three agree.
     default = default_table(files or names, game_dir.name,
-                                recorded_default(vpinfe_section(game.metaConfig),
+                                recorded_default(vpinfe_section(game.meta_config),
                                              described))
     hidden = hidden_tables(described)
 

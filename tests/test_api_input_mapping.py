@@ -98,7 +98,7 @@ class TestApiInputMapping(unittest.TestCase):
 
             game = types.SimpleNamespace(
                 fullPathVPXfile=str(game_path),
-                metaConfig={},
+                meta_config={},
                 gameDirName="Example",
                 fullPathGame=str(Path(tmp)),
             )

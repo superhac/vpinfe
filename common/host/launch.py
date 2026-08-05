@@ -67,7 +67,7 @@ class LaunchBusyError(LaunchUnavailableError):
 
 def _resolve_launcher(game, settings) -> str:
     launcher, source_key, _ = get_effective_launcher(settings.vpx_bin_path,
-                                                     getattr(game, "metaConfig", {}))
+                                                     getattr(game, "meta_config", {}))
     if not launcher:
         raise LaunchUnavailableError(
             "No launcher configured. Set Settings.vpxbinpath, or VPinFE.altlauncher "
@@ -123,7 +123,7 @@ def _command(game, vpx_path: str, launcher: str, settings) -> list[str]:
             settings.global_game_ini_override_mask,
         ),
         plugin_profile_override=resolve_launch_plugin_profile(
-            get_plugin_profile_from_meta(getattr(game, "metaConfig", {}))
+            get_plugin_profile_from_meta(getattr(game, "meta_config", {}))
         ),
     )
 

@@ -98,7 +98,7 @@ class TestVPinPlayService(unittest.TestCase):
         mock_post,
     ) -> None:
         game = MagicMock()
-        game.metaConfig = {
+        game.meta_config = {
             "Info": {"VPSId": "vps-123", "Rom": "agent777"},
             "User": {},
             "VPXFile": {},

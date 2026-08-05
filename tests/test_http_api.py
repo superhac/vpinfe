@@ -31,7 +31,7 @@ class ManufacturerEndpointTests(unittest.TestCase):
             return SimpleNamespace(
                 fullPathGame=f"/games/{folder}",
                 fullPathVPXfile=f"/games/{folder}/{folder}.vpx",
-                metaConfig={"Info": {"Manufacturer": manufacturer}},
+                meta_config={"Info": {"Manufacturer": manufacturer}},
             )
 
         catalog = {

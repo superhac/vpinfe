@@ -18,7 +18,7 @@ def _game(title="Medieval Madness", tables=None, vpx="/g/MM/MM.vpx"):
         gameDirName=title, fullPathGame="/g/MM", fullPathVPXfile=vpx,
         pupPackExists=True, altColorExists=False, altSoundExists=False,
         creation_time=0,
-        metaConfig={
+        meta_config={
             "Info": {"Title": title, "Manufacturer": "Williams", "Year": "1997",
                      "Type": "SS", "VPSId": "vps-mm", "Themes": ["Fantasy"]},
             "User": {"Rating": 5},
@@ -102,9 +102,9 @@ class ContractTwoTests(unittest.TestCase):
         """Texal-Flyer reads meta.User.StartCount and RunTime at contract 1. Contract 2
         served only the rating, so a theme showing play stats could not be ported."""
         game = _game(tables=TWO_TABLES)
-        game.metaConfig["User"] = {"Rating": 4, "Favorite": 1, "Tags": ["night"],
+        game.meta_config["User"] = {"Rating": 4, "Favorite": 1, "Tags": ["night"],
                                    "LastRun": 1754000000, "StartCount": 12, "RunTime": 90}
-        game.metaConfig["tables"]["t1"]["user"] = {
+        game.meta_config["tables"]["t1"]["user"] = {
             "last_run": "2026-08-01T20:14:00Z", "start_count": 5, "run_time_seconds": 3600}
 
         entry = self._payload([game])["entries"][0]

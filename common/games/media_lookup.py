@@ -33,7 +33,7 @@ def game_for_table(games, table_id: str):
     if not wanted:
         return None
     for game in games:
-        if wanted in table_entries(normalize_meta(getattr(game, "metaConfig", {}))):
+        if wanted in table_entries(normalize_meta(getattr(game, "meta_config", {}))):
             return game
     return game_identity.find_by_id(games, wanted)
 

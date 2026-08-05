@@ -83,7 +83,7 @@ class Entry:
 
 def _user_value(game, key, fallback=0):
     try:
-        return int(section(getattr(game, "metaConfig", {}), "User").get(key, fallback) or 0)
+        return int(section(getattr(game, "meta_config", {}), "User").get(key, fallback) or 0)
     except (TypeError, ValueError):
         return fallback
 
@@ -95,12 +95,12 @@ def visible_entries(game) -> list[dict]:
     then yields the default for a followed game, and the curator's pick for a pinned
     one, without either needing a special case.
     """
-    entries = table_entries(getattr(game, "metaConfig", {}))
+    entries = table_entries(getattr(game, "meta_config", {}))
     visible = [e for e in entries.values() if e.get("hidden") is not True]
     if not visible:
         return _unparsed_entry(game)
 
-    meta = getattr(game, "metaConfig", {})
+    meta = getattr(game, "meta_config", {})
     chosen = recorded_default(vpinfe_section(meta), entries) or resolve_default_name(
         table_filenames(entries), getattr(game, "gameDirName", "") or "")
     default_id = entry_for_filename(entries, chosen)[0]
@@ -128,7 +128,7 @@ def _unparsed_entry(game) -> list[dict]:
 def _pinned_entry(game, table_id: str) -> dict | None:
     """The named table, unless it is hidden. `hidden` is library-wide and beats a pin:
     it exists so a patch base can stay on disk without being playable."""
-    entry = table_entries(getattr(game, "metaConfig", {})).get(table_id)
+    entry = table_entries(getattr(game, "meta_config", {})).get(table_id)
     if not isinstance(entry, dict) or entry.get("hidden") is True:
         return None
     return entry

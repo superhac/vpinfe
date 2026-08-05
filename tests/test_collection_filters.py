@@ -15,10 +15,10 @@ from common.games.collection_filters import GameListFilters
 
 def make_game(name="Example", manufacturer="", year="", game_type="",
               themes=None, rating=0):
-    """A game as the metadata accessors read one: everything off metaConfig."""
+    """A game as the metadata accessors read one: everything off meta_config."""
     return SimpleNamespace(
         gameDirName=name,
-        metaConfig={
+        meta_config={
             "Info": {"Title": name, "Manufacturer": manufacturer,
                      "Year": year, "Type": game_type, "Themes": themes or []},
             "User": {"Rating": rating},

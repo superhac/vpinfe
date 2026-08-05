@@ -25,7 +25,7 @@ def _game(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", game_id
     if game_id:
         meta["vpinfe"]["game_id"] = game_id
     (folder / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
-    return SimpleNamespace(fullPathGame=str(folder), gameDirName=name, metaConfig=meta)
+    return SimpleNamespace(fullPathGame=str(folder), gameDirName=name, meta_config=meta)
 
 
 def _collections(path: Path, sections: dict) -> CollectionStore:
@@ -142,7 +142,7 @@ class MembershipTests(unittest.TestCase):
 
         def rebuild(filehash):
             meta = MetaConfig(str(info))
-            meta.writeConfigMeta({
+            meta.write_config_meta({
                 "vpsdata": {"id": "vps-mm", "name": "MM", "manufacturer": "Williams",
                             "year": "1997", "type": "SS", "theme": [], "ipdbUrl": ""},
                 "vpxdata": {"filename": "MM.vpx", "file_hash": filehash, "version": "1",
@@ -167,7 +167,7 @@ class MembershipTests(unittest.TestCase):
         self.assertEqual(after["vpinfe"]["alt_vpsid"], "", "precondition: altvpsid cleared")
 
         game = SimpleNamespace(fullPathGame=str(self.root), gameDirName="MM",
-                                metaConfig=after)
+                                meta_config=after)
         collections = _collections(self.ini, {"Favorites": []})
 
         # Keyed the old way - the alt VPS id the user had set - membership is gone,

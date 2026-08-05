@@ -178,7 +178,7 @@ def sync_installed_games(
     payload_games = []
     skipped = 0
     for game in games:
-        meta = game.metaConfig if isinstance(game.metaConfig, dict) else {}
+        meta = game.meta_config if isinstance(game.meta_config, dict) else {}
         game_payload = _build_game_payload(meta)
         if game_payload is None:
             skipped += 1

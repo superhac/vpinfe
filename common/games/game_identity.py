@@ -23,7 +23,7 @@ from common.games.info_file import GAME_ID_KEY, VPINFE_SECTION
 
 logger = logging.getLogger("vpinfe.common.games.game_identity")
 
-# Also written by MetaConfig.writeConfigMeta, which mints during a metadata rebuild.
+# Also written by MetaConfig.write_config_meta, which mints during a metadata rebuild.
 ID_SECTION = VPINFE_SECTION
 ID_KEY = GAME_ID_KEY
 
@@ -33,7 +33,7 @@ __all__ = ["ID_ALPHABET", "ID_LENGTH", "ID_KEY", "ID_SECTION", "new_id",
 
 def game_id(game) -> str:
     """The table's id, or "" if it hasn't been assigned one. Never writes."""
-    meta = normalize_meta(getattr(game, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "meta_config", {}))
     return str(section(meta, ID_SECTION).get(ID_KEY, "") or "").strip()
 
 
@@ -61,7 +61,7 @@ def ensure_id(game, *, force_new: bool = False) -> str:
     existing = str(vpinfe.get(ID_KEY, "") or "").strip()
     if existing and not force_new:
         # Present on disk but not in the loaded copy; adopt it rather than mint.
-        game.metaConfig = config
+        game.meta_config = config
         return existing
 
     minted = new_id()

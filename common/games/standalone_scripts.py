@@ -53,7 +53,7 @@ class StandaloneScripts:
              try:
                 meta = MetaConfig(basepath+"/"+game.gameDirName+".info")
                 vpxFileName = os.path.basename(game.fullPathVPXfile)
-                vpxFileVBSHash = meta.gameFileValue(vpxFileName, 'vbs_hash')
+                vpxFileVBSHash = meta.game_file_value(vpxFileName, 'vbs_hash')
                 if not vpxFileVBSHash:
                     raise KeyError('vbs_hash')
                 logger.info("Checking %s", game.gameDirName)
@@ -65,14 +65,14 @@ class StandaloneScripts:
                             try:
                                 game_dir = os.path.dirname(game.fullPathVPXfile)
                                 meta = MetaConfig(os.path.join(game_dir, game.gameDirName + '.info'))
-                                meta.setTableValue(vpxFileName, 'patch_applied', True)
+                                meta.set_table_value(vpxFileName, 'patch_applied', True)
                             except Exception:
                                 pass
                         else:
                             self.downloadPatch(os.path.splitext(game.fullPathVPXfile)[0] + ".vbs", patch["patched"]["url"])
                             # mark the .info file with patch_applied = true
                             try:
-                                meta.setTableValue(vpxFileName, 'patch_applied', True)
+                                meta.set_table_value(vpxFileName, 'patch_applied', True)
                             except Exception:
                                 pass
              except KeyError:
@@ -97,7 +97,7 @@ class StandaloneScripts:
                 # The .vbs sits beside the .vpx it patches and shares its stem, so
                 # the flag lands on that table rather than on the whole game.
                 vpx_name = os.path.splitext(os.path.basename(filename))[0] + '.vpx'
-                meta.setTableValue(vpx_name, 'patch_applied', True)
+                meta.set_table_value(vpx_name, 'patch_applied', True)
             except Exception:
                 pass
         except requests.RequestException as exc:

@@ -28,7 +28,7 @@ logger = logging.getLogger("vpinfe.common.games.table_identity")
 
 def table_ids(game) -> dict[str, str]:
     """{filename: id} for a game's tables, skipping entries with no id yet."""
-    entries = getattr(game, "metaConfig", None) or {}
+    entries = getattr(game, "meta_config", None) or {}
     entries = entries.get(TABLES_KEY) if isinstance(entries, dict) else None
     return {entry_filename(e): i for i, e in rekey_by_id(entries).items()
             if entry_filename(e)}
@@ -49,7 +49,7 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
     minted = remixed = rekeyed = defaults = 0
 
     for game in games:
-        stored = (getattr(game, "metaConfig", None) or {}).get(TABLES_KEY)
+        stored = (getattr(game, "meta_config", None) or {}).get(TABLES_KEY)
         if not isinstance(stored, dict):
             continue
 
@@ -91,7 +91,7 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
         # filename 2.x described, so convert it here rather than teaching every reader
         # to accept both. A name matching no table is left alone: `default_table`
         # already falls through to one that exists.
-        vpinfe = (getattr(game, "metaConfig", None) or {}).get(VPINFE_SECTION)
+        vpinfe = (getattr(game, "meta_config", None) or {}).get(VPINFE_SECTION)
         new_default = ""
         if isinstance(vpinfe, dict):
             recorded = str(vpinfe.get(DEFAULT_TABLE_KEY, "") or "").strip()
@@ -105,7 +105,7 @@ def ensure_unique_table_ids(games: Iterable[Any]) -> dict[str, tuple[Any, str]]:
         if not changed:
             continue
 
-        game.metaConfig[TABLES_KEY] = resolved
+        game.meta_config[TABLES_KEY] = resolved
         # Re-read so unrelated sections come from disk, but replace tables outright:
         # re-deriving here would mint different ids than the ones just handed out.
         config = load_game_meta(game)

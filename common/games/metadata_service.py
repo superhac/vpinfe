@@ -95,7 +95,7 @@ def build_metadata(
             not_found_games += 1
             continue
 
-        meta.writeConfigMeta({
+        meta.write_config_meta({
             "vpsdata": vpsData,
             "vpxdata": vpxData,
         })
@@ -108,7 +108,7 @@ def build_metadata(
         # alone (common/online/vpsdb_media.py).
         if downloadMedia and not userMedia:
             try:
-                vps.downloadMediaForGame(game, vpsData["id"], metaConfig=meta)
+                vps.downloadMediaForGame(game, vpsData["id"], meta_config=meta)
                 log("Downloaded media")
             except KeyError:
                 log("No media found")

@@ -25,7 +25,7 @@ def _game(folder: str, game_id: str) -> SimpleNamespace:
     return SimpleNamespace(
         fullPathGame=f"/games/{folder}",
         fullPathVPXfile=f"/games/{folder}/{folder}.vpx",
-        metaConfig={"Info": {"Title": folder, "Manufacturer": "Bally"},
+        meta_config={"Info": {"Title": folder, "Manufacturer": "Bally"},
                     "vpinfe": {"game_id": game_id}},
     )
 
@@ -218,7 +218,7 @@ class CollectionEntriesTests(CollectionsApiTests):
         # nothing has parsed - but it produces no entries by design. Give them one
         # each so there is something for the play lens to answer with.
         for index, game in enumerate(self.catalog.values()):
-            game.metaConfig["tables"] = {
+            game.meta_config["tables"] = {
                 f"tbl{index}": {"id": f"tbl{index}", "filename": f"game{index}.vpx",
                                 "version": "1.0", "rom": ""}}
 
@@ -271,7 +271,7 @@ class CollectionEntriesTests(CollectionsApiTests):
         """`default` is the game's own choice, stored in its vpinfe section. Reading it
         off the table entry - where nothing writes it - answers false for everything."""
         game = next(iter(self.catalog.values()))
-        game.metaConfig["tables"] = {
+        game.meta_config["tables"] = {
             "aa": {"id": "aa", "filename": "z-later.vpx"},
             "bb": {"id": "bb", "filename": "a-earlier.vpx"},
         }

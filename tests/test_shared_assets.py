@@ -242,7 +242,7 @@ class PayloadTests(unittest.TestCase):
             pupPackExists=False,
             altColorExists=False,
             altSoundExists=False,
-            metaConfig={"Info": {"Manufacturer": "Bally Manufacturing"}},
+            meta_config={"Info": {"Manufacturer": "Bally Manufacturing"}},
         )
 
         with TemporaryDirectory() as tmp:

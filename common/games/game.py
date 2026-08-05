@@ -41,7 +41,7 @@ class Game:
     RuleSheetPath: str | None = None
     LogoImagePath: str | None = None
 
-    metaConfig: dict[str, Any] | None = None
+    meta_config: dict[str, Any] | None = None
 
     # Read during the scan, which already has both. info_restorable means a backup this
     # build can read, not merely a backup - after a restore the unusable copies remain.

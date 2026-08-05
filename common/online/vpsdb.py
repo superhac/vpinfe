@@ -149,9 +149,9 @@ class VPSdb:
     def fileExists(self, path):
         return self._media_downloader.file_exists(path)
 
-    def downloadMediaForGame(self, game, id, metaConfig=None):
+    def downloadMediaForGame(self, game, id, meta_config=None):
         """Download all associated media for a given game."""
-        self._media_downloader.download_media_for_game(game, id, metaConfig)
+        self._media_downloader.download_media_for_game(game, id, meta_config)
 
     # ----------------------------------------------------------------------
     def updateGame(self, name, manufacturer, year):

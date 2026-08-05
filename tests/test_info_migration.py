@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from common.games.info_file import MetaConfig
 from common.games.info_migration import (
     backup_path,
     is_versioned,
@@ -19,7 +20,6 @@ from common.games.info_migration import (
     needs_migration,
     write_backup,
 )
-from common.games.info_file import MetaConfig
 
 LEGACY = {
     "Info": {"Title": "Dr. Dude", "VPSId": "vps-1", "Rom": "dd_l2",
@@ -213,7 +213,7 @@ class BackupTests(unittest.TestCase):
         original = self.info.read_text(encoding="utf-8")
 
         meta = MetaConfig(str(self.info))
-        meta.writeConfig()
+        meta.write_config()
 
         backups = self._backups()
         self.assertEqual(len(backups), 1)
@@ -223,9 +223,9 @@ class BackupTests(unittest.TestCase):
     def test_later_writes_do_not_pile_up_restore_points(self):
         """One per schema bump over the app's lifetime, not one per rebuild."""
         meta = MetaConfig(str(self.info))
-        meta.writeConfig()
-        meta.writeConfig()
-        MetaConfig(str(self.info)).writeConfig()
+        meta.write_config()
+        meta.write_config()
+        MetaConfig(str(self.info)).write_config()
 
         self.assertEqual(len(self._backups()), 1)
 

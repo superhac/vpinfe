@@ -24,7 +24,7 @@ logger = logging.getLogger("vpinfe.common.games.game_play_service")
 
 
 def track_game_play(game, collection_name: str = "Last Played", max_items: int = 30) -> None:
-    meta = normalize_meta(getattr(game, "metaConfig", {}))
+    meta = normalize_meta(getattr(game, "meta_config", {}))
     # Membership is the game's own id; VPSId is a fallback for a game that has
     # not been assigned one yet.
     member_id = game_identity.game_id(game) or section(meta, "Info").get("VPSId")
@@ -207,7 +207,7 @@ def update_score_from_nvram(game) -> None:
 
 
 def delete_nvram_if_configured(game) -> None:
-    config = normalize_meta(getattr(game, "metaConfig", {}))
+    config = normalize_meta(getattr(game, "meta_config", {}))
     vpinfe = vpinfe_section(config)
     if not vpinfe.get("delete_nvram_on_close", False):
         return

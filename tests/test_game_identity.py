@@ -19,7 +19,7 @@ def _game(root: Path, name: str = "Example", meta: dict | None = None):
         fullPathGame=str(folder),
         fullPathVPXfile=str(folder / f"{name}.vpx"),
         gameDirName=name,
-        metaConfig=meta or {},
+        meta_config=meta or {},
     )
 
 
@@ -41,7 +41,7 @@ class MintedIdTests(unittest.TestCase):
     def test_a_metadata_rebuild_mints_the_same_shape(self) -> None:
         """Two writers assign ids; only one format may come out of them."""
         info = self.root / "Example.info"
-        MetaConfig(str(info)).writeConfigMeta({"vpsdata": {}, "vpxdata": {"filename": "x.vpx"}})
+        MetaConfig(str(info)).write_config_meta({"vpsdata": {}, "vpxdata": {"filename": "x.vpx"}})
 
         minted = json.loads(info.read_text(encoding="utf-8"))["vpinfe"]["game_id"]
         self.assertEqual(len(minted), game_identity.ID_LENGTH)
@@ -123,7 +123,7 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
     def _rebuild(self, path: Path, filehash: str) -> dict:
         """Run a metadata rebuild the way build_metadata does."""
         meta = MetaConfig(str(path))
-        meta.writeConfigMeta({
+        meta.write_config_meta({
             "vpsdata": {"id": "vps-1", "name": "Example", "manufacturer": "Bally",
                         "year": "1990", "type": "SS", "theme": [], "ipdbUrl": ""},
             "vpxdata": {"filename": "Example.vpx", "file_hash": filehash, "version": "1.0",
