@@ -339,7 +339,7 @@ def extract_vbs(game_path: str, vpx_filename: str, altlauncher: str = "") -> dic
     import subprocess
     import sys as _sys
 
-    from common.host.launcher import get_effective_launcher
+    from common.host.launch import get_effective_launcher
 
     cfg = _fresh_config()
     vpxbin = cfg.config['Settings'].get('vpxbinpath', '')

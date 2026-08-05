@@ -4,7 +4,7 @@ import re
 import shutil
 from pathlib import Path
 
-from common.host.launcher import DEFAULT_PROFILE_NAME
+from common.host.launch import DEFAULT_PROFILE_NAME
 from common.paths import PLUGIN_PROFILES_DIR
 from managerui.services import vpx_config_service
 

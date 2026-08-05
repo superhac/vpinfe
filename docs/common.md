@@ -52,7 +52,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `dof_service.py`, `dof_service_worker.py`, `libdmdutil_service.py`: hardware service facades.
 - `peripherals.py`: DOF and real-DMD, driven by game lifecycle events. Each device is its own handler, so a new one is a new subscriber rather than an edit.
 - `real_dmd.py`: which image a game shows on a real DMD panel, sent on a worker thread.
-- `launcher.py`, `launch_state.py`: starting a game, and whether a launch was requested from outside the frontend.
+- `launch.py`, `launch_state.py`: starting a game - resolving what to launch it with, building the command, running it and recording the play - and whether a launch was requested from outside the frontend.
 - `display_service.py`, `system_actions.py`, `vpx_log.py`.
 
 Three cross-package edges are deliberate: `games` reads VPSdb through `online`

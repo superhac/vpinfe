@@ -13,7 +13,7 @@ from nicegui import run, ui
 from common import config_schema
 from common.games.collection_store import CollectionStore
 from common.host.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
-from common.host.launcher import build_masked_tableini_path, build_vpx_launch_command
+from common.host.launch import build_masked_tableini_path, build_vpx_launch_command
 from common.config_store import ConfigStore
 from frontend.chromium_manager import (
     get_builtin_chromium_options,
