@@ -60,6 +60,13 @@ const CAPABILITIES = {
   },
   // Off by default: every published theme preloads for itself, so turning this on
   // without deleting the theme's own loop just doubles the requests.
+  // Off by default like the rest: a theme that already lays itself out must ask before
+  // core starts setting attributes its CSS may fight.
+  core_layout: {
+    default: false,
+    config: ["layout.enabled"],
+    describe: "Core turns the UI and the playfield art to suit the cabinet.",
+  },
   core_preload: {
     default: false,
     // One spelling. A capability's settings live in a block named after it, and
@@ -395,12 +402,16 @@ class VPinFECore {
     this.wsPort = 8002; // default WebSocket bridge port
     this.vpinplayEndpoint = '';
 
-    // Display config
+    // Display config, as the ini states it. Raw values - `layout` below is what a theme
+    // should read.
     this.playfieldOrientation = 'landscape'; // default, will be updated from config
     this.playfieldRotation = 0; // default, will be updated from config
-    // Whether this is a cabinet. A property like the two above it, because a theme
-    // deciding its layout wants all three at the same moment.
-    this.cabMode = false;
+
+    // The three questions every theme was answering for itself, answered once. Seeded so
+    // a theme laying out before the bridge answers gets the documented types.
+    this.layout = { cabinet: false, uprightRotation: 0, surface: 'landscape' };
+    // How far to turn playfield art. "auto" measures each image instead.
+    this.playfieldMediaRotation = 'auto';
 
     // Remote launch state tracking
     this.remoteLaunchActive = false;
@@ -1473,7 +1484,9 @@ class VPinFECore {
     // Load display config
     this.playfieldOrientation = await this.call("get_playfield_orientation");
     this.playfieldRotation = await this.call("get_playfield_rotation");
-    this.cabMode = !!await this.call("get_cab_mode");
+    this.layout = this.#resolveLayout(await this.call("get_cab_mode"));
+    this.playfieldMediaRotation = await this.call("get_playfield_media_rotation");
+    this.#publishLayout();
     await this.#loadMonitors();
     await this.getGameData();
    //this.#overrideConsole(); //disabled for now...
@@ -1668,6 +1681,93 @@ class VPinFECore {
       : new ContractOneReader(this);
     if (this.contract > OLDEST_CONTRACT) removeLegacyAliases(this);
     console.info(`vpinfe: serving theme contract ${this.contract}`);
+  }
+
+  /**
+   * The three layout answers, from the ini and this window's identity.
+   *
+   * `surface` is the shape you design for, and on the controller it is the *mounting*,
+   * not the window: a portrait playfield reads portrait whether the OS turned the screen
+   * (window already portrait, no rotation) or VPinFE turns the UI itself (window
+   * landscape, rotated a quarter). Collapsing those two cabinet setups into one design
+   * target is the point of this object.
+   *
+   * Other windows have no mounting declared, and nothing rotates them, so they measure.
+   */
+  #resolveLayout(cabMode) {
+    const declared = String(this.playfieldOrientation || "").trim().toLowerCase();
+    const orientation = (declared === "portrait" || declared === "landscape")
+      ? declared
+      : this.#unusable("playfieldorientation", this.playfieldOrientation, "landscape");
+
+    const degrees = Number(this.playfieldRotation);
+    const turned = Number.isFinite(degrees) ? ((degrees % 360) + 360) % 360 : NaN;
+    // A quarter turn or nothing. Anything else would need a theme to guess which way to
+    // round it, and every theme would guess differently.
+    const uprightRotation = [0, 90, 180, 270].includes(turned)
+      ? turned
+      : this.#unusable("playfieldrotation", this.playfieldRotation, 0);
+
+    return {
+      cabinet: !!cabMode,
+      uprightRotation: this.isController() ? uprightRotation : 0,
+      surface: this.isController() ? orientation : this.#measuredSurface(),
+    };
+  }
+
+  /**
+   * Publish the layout to CSS, for themes that asked core to handle it.
+   *
+   * Attributes and custom properties rather than inline styles: the rules live in
+   * vpinfe-style.css, which every theme already links, so a theme opts in with a class
+   * and writes no JavaScript.
+   */
+  #publishLayout() {
+    const root = document.documentElement;
+    if (!root || !this.enabled("core_layout")) return;
+
+    root.dataset.vpinfeSurface = this.layout.surface;
+    root.dataset.vpinfeUpright = String(this.layout.uprightRotation);
+    if (this.layout.cabinet) root.dataset.vpinfeCabinet = "true";
+    root.style.setProperty("--vpinfe-upright-rotation", `${this.layout.uprightRotation}deg`);
+  }
+
+  /**
+   * Turn one playfield media element to fit the surface, once it knows its own size.
+   *
+   * The art is measured rather than assumed. There is no reliable authoring convention -
+   * a library may be landscape desktop captures, portrait FSS renders, or a mix - and the
+   * image itself carries the answer, so nothing has to be declared. `playfieldmediarotation`
+   * overrides it for what measurement cannot see, like art that is upside down.
+   */
+  applyPlayfieldMediaRotation(element) {
+    if (!element || !this.enabled("core_layout")) return;
+
+    const measure = () => {
+      const wide = (element.naturalWidth || element.videoWidth || 0)
+                 > (element.naturalHeight || element.videoHeight || 0);
+      const fits = wide === (this.layout.surface === "landscape");
+      // The setting arrives as a string, so it is coerced before it is compared.
+      const stated = String(this.playfieldMediaRotation ?? "auto").trim().toLowerCase();
+      const turn = stated === "auto" ? (fits ? 0 : 90) : Number(stated) || 0;
+      element.dataset.vpinfeTurned = String(turn === 90 || turn === 270);
+      element.style.setProperty("--vpinfe-playfield-media-rotation", `${turn}deg`);
+    };
+
+    if (element.naturalWidth || element.videoWidth) measure();
+    else element.addEventListener("load", measure, { once: true });
+    element.addEventListener("loadedmetadata", measure, { once: true });
+  }
+
+  /** The window's own shape. Read before any transform, so it is the untouched box. */
+  #measuredSurface() {
+    return window.innerHeight > window.innerWidth ? "portrait" : "landscape";
+  }
+
+  #unusable(key, value, fallback) {
+    console.warn(`vpinfe: [Displays] ${key} is ${JSON.stringify(value)}, `
+      + `which is not a value this build understands - using ${JSON.stringify(fallback)}.`);
+    return fallback;
   }
 
   /**

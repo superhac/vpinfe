@@ -332,3 +332,37 @@ class TestCommonArchitecture(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DisplayGeometryNormalizationTests(unittest.TestCase):
+    """`[Displays]` is free text, and every theme compared it exactly.
+
+    `[Media] playfieldvariant` has always lowercased on read; `[Displays]` never did, so a
+    capitalized `Portrait` silently meant landscape, and a rotation of 45 reached themes
+    that only test for 90 or 270.
+    """
+
+    def _displays(self, orientation, rotation):
+        parser = configparser.ConfigParser()
+        parser.read_dict({"Displays": {
+            "playfieldorientation": str(orientation),
+            "playfieldrotation": str(rotation),
+        }})
+        return DisplayConfig.from_config(parser)
+
+    def test_orientation_is_matched_without_regard_to_case_or_padding(self) -> None:
+        for written in ("Portrait", "PORTRAIT", "  portrait  "):
+            with self.subTest(written=written):
+                self.assertEqual(self._displays(written, 0).playfield_orientation, "portrait")
+
+    def test_an_unrecognized_orientation_falls_back_to_landscape(self) -> None:
+        self.assertEqual(self._displays("portait", 0).playfield_orientation, "landscape")
+
+    def test_rotation_is_one_of_four_turns(self) -> None:
+        for written, expected in ((0, 0), (90, 90), (180, 180), (270, 270),
+                                  (-90, 270), (450, 90), (720, 0)):
+            with self.subTest(written=written):
+                self.assertEqual(self._displays("portrait", written).playfield_rotation, expected)
+
+    def test_a_rotation_that_is_not_a_quarter_turn_falls_back_to_none(self) -> None:
+        self.assertEqual(self._displays("portrait", 45).playfield_rotation, 0)

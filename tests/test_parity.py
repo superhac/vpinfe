@@ -41,6 +41,8 @@ LEDGER_ALLOWS = {
     "PAR-30": {"get_theme_contract"},
     # PAR-32: one method added so the browser can learn the theme's window list.
     "PAR-32": {"get_theme_windows"},
+    # PAR-33: one method added so the browser can learn how far to turn playfield art.
+    "PAR-33": {"get_playfield_media_rotation"},
     # New media kinds add theme-payload keys. Additive only: every key master
     # had must still be present and equal.
     "PAR-11": {"InstructionCardImagePath", "TopperPath", "TopperVideoPath",
@@ -144,7 +146,8 @@ class ParityTests(unittest.TestCase):
         self.assertEqual(
             current - master,
             {rename["added"]} | LEDGER_ALLOWS["PAR-21"] | LEDGER_ALLOWS["PAR-27"]
-                | LEDGER_ALLOWS["PAR-30"] | LEDGER_ALLOWS["PAR-32"],
+                | LEDGER_ALLOWS["PAR-30"] | LEDGER_ALLOWS["PAR-32"]
+                | LEDGER_ALLOWS["PAR-33"],
             "only PAR-04's, PAR-21's and PAR-27's additions are permitted")
 
     def test_legacy_endpoints_served_on_master_and_do_not_serve_here(self) -> None:

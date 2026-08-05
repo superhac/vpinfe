@@ -66,7 +66,8 @@ class FakeAudio {
 
 // `search` is what #detectWindowName reads first, so a test picks its window by URL the
 // same way a real window does.
-export function makeBrowser({ windowName = "table", search = null, pathname = "/" } = {}) {
+export function makeBrowser({ windowName = "table", search = null, pathname = "/",
+                              innerWidth = 1920, innerHeight = 1080 } = {}) {
   const query = search === null ? `?window=${windowName}` : search;
 
   // Just enough DOM for the overlays: an element that can hold a class and children,
@@ -93,7 +94,13 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
     return el;
   }
 
+  const rootStub = {
+    dataset: {},
+    style: { _props: {}, setProperty(name, value) { rootStub.style._props[name] = value; } },
+  };
+
   const documentStub = {
+    documentElement: rootStub,
     title: "",
     addEventListener() {},
     removeEventListener() {},
@@ -107,6 +114,11 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
 
   const windowStub = {
     name: "",
+    // A real window has a size, and #resolveLayout measures it for any window the ini
+    // does not describe. Left undefined, `h > w` is false and every test would read
+    // "landscape" whether or not the code worked.
+    innerWidth,
+    innerHeight,
     location: { search: query, pathname, href: `http://127.0.0.1:8000${pathname}${query}` },
     addEventListener() {},
     removeEventListener() {},

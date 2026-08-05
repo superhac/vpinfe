@@ -128,6 +128,7 @@ class IniConfig:
 					'defaultmissingmediaimg': '',
 					'thumbcachemaxmb': '500',
 					'playfieldmediapriority': 'video',
+					'playfieldmediarotation': 'auto',
 					'bgmediapriority': 'video',
 					'dmdmediapriority': 'video',
 					'realdmdmediapriority': 'color',

@@ -87,6 +87,7 @@ API_ALLOWED_METHODS = {
     'get_audio_muted',
     'set_audio_muted',
     'get_cab_mode',
+    'get_playfield_media_rotation',
     'get_theme_assets_port',
     'get_managerui_remote_link',
     'get_managerui_vpinplay_multi_link',
@@ -560,6 +561,9 @@ class API:
 
     def get_playfield_rotation(self):
         return config_api.get_playfield_rotation(self._iniConfig.config)
+
+    def get_playfield_media_rotation(self):
+        return config_api.get_playfield_media_rotation(self._iniConfig.config)
 
     def get_cab_mode(self):
         return config_api.get_cab_mode(self._iniConfig.config)

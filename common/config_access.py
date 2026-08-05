@@ -110,6 +110,7 @@ class MediaConfig:
     bg_media_priority: str = "video"
     dmd_media_priority: str = "video"
     realdmd_media_priority: str = "color"
+    playfield_media_rotation: str = "auto"
     wheelset: str = ""
 
     @classmethod
@@ -124,6 +125,8 @@ class MediaConfig:
             bg_media_priority=_media_priority(source, "bgmediapriority", ("image", "video"), "video"),
             dmd_media_priority=_media_priority(source, "dmdmediapriority", ("image", "video"), "video"),
             realdmd_media_priority=_media_priority(source, "realdmdmediapriority", ("standard", "color"), "color"),
+            playfield_media_rotation=_media_rotation(
+                cfg_get(source, "Media", "playfieldmediarotation", "auto")),
         )
 
     def priority_payload(self) -> dict[str, str]:
@@ -168,6 +171,44 @@ class NetworkConfig:
         )
 
 
+def _media_rotation(value: Any) -> str:
+    """How far to turn playfield art, or `auto` to measure it.
+
+    Measuring is the default because there is no reliable authoring convention: a library
+    may be landscape desktop captures, portrait FSS renders, or a mix. This states the
+    turn for what measuring cannot see - art that is upside down, or art meant to be
+    letterboxed rather than turned.
+    """
+    name = str(value or "").strip().lower()
+    if name == "auto":
+        return "auto"
+    try:
+        turned = int(name) % 360
+    except ValueError:
+        return "auto"
+    return str(turned) if turned in QUARTER_TURNS else "auto"
+
+
+ORIENTATIONS = ("landscape", "portrait")
+QUARTER_TURNS = (0, 90, 180, 270)
+
+
+def _orientation(value: Any) -> str:
+    """The playfield's mounting, or landscape when the ini says something else.
+
+    `[Media] playfieldvariant` has always normalized this way; `[Displays]` never did, so
+    a capitalized `Portrait` reached themes that compare it exactly and meant landscape.
+    """
+    name = str(value or "").strip().lower()
+    return name if name in ORIENTATIONS else "landscape"
+
+
+def _quarter_turn(degrees: int) -> int:
+    """Rotation as one of four turns. Anything else would leave a theme guessing."""
+    turned = int(degrees) % 360
+    return turned if turned in QUARTER_TURNS else 0
+
+
 def _extra_screen_ids(source: Any) -> dict:
     """Every `<window>screenid` in [Displays] beyond the three that have their own field.
 
@@ -203,8 +244,10 @@ class DisplayConfig:
             playfield_screen_id_raw=playfield_screen_id_raw,
             bg_screen_id=cfg_get(source, "Displays", "bgscreenid", "").strip(),
             dmd_screen_id=cfg_get(source, "Displays", "dmdscreenid", "").strip(),
-            playfield_orientation=cfg_get(source, "Displays", "playfieldorientation", "landscape"),
-            playfield_rotation=cfg_int(source, "Displays", "playfieldrotation", 0),
+            playfield_orientation=_orientation(
+                cfg_get(source, "Displays", "playfieldorientation", "landscape")),
+            playfield_rotation=_quarter_turn(
+                cfg_int(source, "Displays", "playfieldrotation", 0)),
             cab_mode=cfg_bool(source, "Displays", "cabmode", SettingsConfig.from_config(source).cab_mode),
             extra_screen_ids=_extra_screen_ids(source),
         )

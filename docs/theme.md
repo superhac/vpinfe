@@ -336,73 +336,99 @@ Your theme's own `style.css` and `theme.js` can be named whatever you want.
 | `<div id="fadeOverlay">` | Alternative fade pattern: a fixed full-screen black overlay that fades in/out via a CSS class (e.g., `.show { opacity: 1 }`). |
 | `<div id="remote-launch-overlay">` | Overlay shown when the manager UI triggers a remote game launch. Include `<div id="remote-launch-table-name">` inside for the game name. |
 
-### Playfield Rotation, Cab Mode, And Menu Overlays
+### Playfield Geometry: Mounting, Rotation And Cab Mode
 
-If your theme supports cabinets or portrait-style playfield layouts, build that into the `playfield` window deliberately. In practice, the playfield is usually the only screen that needs rotation-aware layout changes. `bg` and `dmd` often stay unrotated.
+Three settings describe one physical fact, and they are easy to confuse. This is what each
+one means and how they combine.
 
-There are two different rotation concepts to keep separate:
+| setting | section | what it turns |
+|---|---|---|
+| `playfieldorientation` | `[Displays]` | nothing — it states how the monitor is **mounted** |
+| `playfieldrotation` | `[Displays]` | the **UI**, so it faces the player |
+| `playfieldmediarotation` | `[Media]` | the **art**, so it fills the surface |
+| `cabmode` | `[Displays]` | nothing — **context** only: type scale, target size, affordances |
 
-- **OS monitor orientation**: If the user sets the playfield monitor to Portrait in the operating system, Chromium receives a portrait-shaped window. For example, CSS `100vw` is the narrow edge and `100vh` is the long edge.
-- **VPinFE playfield rotation**: `[Displays] playfieldrotation` is exposed to themes as `vpin.playfieldRotation` and `get_playfield_rotation`. This tells the theme how to rotate its playfield UI inside that Chromium window.
+#### The three setups
 
-VPinFE does not automatically rotate arbitrary theme markup. The backend launches Chromium on the configured monitor and `vpinfe-core.js` loads display values during `vpin.ready`; the theme decides how to use those values.
+| | monitor mounted | does the OS rotate it? | window arrives | what has to turn |
+|---|---|---|---|---|
+| **A** | portrait | yes | portrait | the art only — the page is already upright |
+| **B** | portrait | no | landscape | the whole page, then the art |
+| **C** | landscape | n/a | landscape | nothing |
 
-These calls are especially useful:
+A is `portrait` + `0`. B is `portrait` + `90` or `270` — which one depends on which way the
+panel was turned in the cabinet. C is `landscape` + `0`.
 
-```javascript
-const cabMode = await vpin.call("get_cab_mode");
-const rotationDegree = await vpin.call("get_playfield_rotation");
-```
+**B is the case people miss.** If the desktop appears sideways on the playfield screen, or
+the taskbar runs up the side of it, the OS is not rotating and VPinFE has to.
 
-After `await vpin.ready` all three are properties — `vpin.cabMode`, `vpin.playfieldOrientation`
-and `vpin.playfieldRotation` — with no call to await.
-
-After `await vpin.ready`, the same values are also available as:
-
-```javascript
-vpin.playfieldOrientation; // "landscape" or "portrait"
-vpin.playfieldRotation;    // degrees, default 0
-```
-
-Do not infer cabinet Portrait mode from `window.innerWidth` and `window.innerHeight`. VPinFE can run through the bundled embedded Chromium build or through a user-installed Chrome, and desktop window bounds can be affected by OS display orientation, monitor placement, DPI behavior, and theme transforms. Treat viewport dimensions as layout measurements only. Use VPinFE's display config as the source of truth:
+#### What your theme reads
 
 ```javascript
-const playfieldOrientation = String(await vpin.call("get_playfield_orientation") || "").toLowerCase();
-const playfieldRotation = Number(await vpin.call("get_playfield_rotation")) || 0;
-const tableDisplayPortrait = playfieldOrientation === "portrait";
-const normalizedRotation = ((playfieldRotation % 360) + 360) % 360;
-```
-
-When adapting an existing landscape theme to OS-level Portrait mode, decide separately how each layer should behave:
-
-- The page/layout surface may need to rotate as a whole, like Basic Cab.
-- A portrait-aware layout may stay upright while only playfield media is corrected.
-- Table media (`table.png` / `table.mp4`) may need its own per-theme correction even when the surrounding page is right. Do this in the table media element only, not in `bg` or `dmd`.
-- Avoid guessing from screenshots alone whether the media needs a mirror. If playfield text is backwards, that is a flip/mirror problem. If the apron/top are on the wrong end but text is still readable, that is a rotation problem.
-
-For themes that correct playfield media separately, keep the media transform isolated and size rotated media from the untransformed layout box, not from `getBoundingClientRect()` after parent transforms:
-
-```javascript
-function sizeRotatedTableMedia(mediaEl) {
-  const frame = mediaEl.closest(".hero-media-frame") || mediaEl.parentElement;
-  const frameWidth = frame?.clientWidth || frame?.offsetWidth || 0;
-  const frameHeight = frame?.clientHeight || frame?.offsetHeight || 0;
-
-  if (frameWidth > 0 && frameHeight > 0) {
-    mediaEl.style.width = `${frameHeight}px`;
-    mediaEl.style.height = `${frameWidth}px`;
-  }
+vpin.layout = {
+  cabinet: false,        // context, never geometry
+  uprightRotation: 0,    // turn the whole UI this far to face the player
+  surface: "portrait",   // the shape to design for, AFTER that turn
 }
 ```
 
-`getBoundingClientRect()` includes CSS transforms from rotated parents. That makes it easy to feed already-rotated visual dimensions back into your media sizing and produce narrow, clipped, or badly scaled playfield images.
+**`surface` is the one you want.** It is identical in setups A and B — a portrait cabinet
+reads `"portrait"` whether the OS turned the screen or VPinFE turns the UI — so one layout
+serves both. Design for `surface` and the difference stops being yours to handle.
+
+`vpin.playfieldOrientation` and `vpin.playfieldRotation` remain as the raw ini values, but a
+theme should not need them.
+
+Do **not** infer any of this from `window.innerWidth` and `window.innerHeight`. Those move
+with OS orientation, DPI, monitor placement and any transform your own theme has applied, so
+a layout that reads them ends up fighting its own output.
+
+#### Letting core do it
+
+Set this in your `config.json` and core turns both the UI and the art for you:
+
+```json
+{ "layout": { "enabled": true } }
+```
+
+Then mark the two elements it should act on. `vpinfe-style.css`, which your theme already
+links, carries the rules:
+
+```html
+<div class="vpinfe-upright">…your whole UI…</div>
+<img class="vpinfe-playfield-media" id="playfield">
+```
+
+```javascript
+vpin.applyPlayfieldMediaRotation(document.getElementById("playfield"));
+```
+
+That is the whole integration — no rotation arithmetic anywhere in your theme.
+
+**The art is measured, not assumed.** There is no reliable convention for how playfield
+captures are authored: a library may be landscape desktop shots, portrait FSS renders, or a
+mix. Core compares each image's own aspect against `surface` and turns it only when they
+disagree, so FSS art on a portrait cabinet is correctly left alone. `[Media]
+playfieldmediarotation` is `auto` for that reason; set it to `0`, `90`, `180` or `270` only
+for what measuring cannot see — art that is upside down, or art you would rather letterbox
+than turn.
+
+#### Doing it yourself
+
+If your theme lays itself out, leave `core_layout` off and read `vpin.layout` directly. Two
+rules matter:
+
+- **Rotate the media, not the page**, unless the page genuinely has to turn — rotating the
+  whole surface stands your text and controls on their side too.
+- **Size a rotated element from the viewport** (`100vh` × `100vw` for a quarter turn), never
+  from `getBoundingClientRect()`. That method reports the box *after* your transform, so
+  feeding it back shrinks the image a little more on every pass.
 
 Good questions to answer up front when starting a new theme:
 
 - Should the theme declare `type: "cab"` or `type: "both"`?
 - Should portrait mode use a different layout, or just rotate the landscape one?
 - Should only the main playfield UI rotate, or should playfield-only overlays rotate too?
-- Is the playfield media orientation tied to the whole page surface, or does it need a theme-specific correction?
 
 #### Basic Cab portrait pattern
 
@@ -1091,7 +1117,7 @@ These properties are available on the `vpin` instance after `vpin.ready` resolve
 | `vpin.monitors` | `array` | List of monitor objects with `name`, `x`, `y`, `width`, `height`. Loaded during init. |
 | `vpin.playfieldOrientation` | `string` | Playfield orientation from config: `"landscape"` or `"portrait"`. |
 | `vpin.playfieldRotation` | `number` | Playfield rotation in degrees from config (default `0`). |
-| `vpin.cabMode` | `boolean` | Whether this is a cabinet, from `[Displays] cabmode`. Read it alongside the two above — a layout usually wants all three at once. |
+| `vpin.layout` | `object` | The resolved layout answers — `{ cabinet, uprightRotation, surface }`. This is what a theme should read; the two properties above it are the raw ini values. See [Playfield geometry](#playfield-geometry-mounting-rotation-and-cab-mode). |
 | `vpin.themeAssetsPort` | `number` | HTTP server port (default `8000`). |
 | `vpin.menuUP` | `boolean` | Whether the main menu overlay is currently visible. |
 | `vpin.capabilities` | `object` | What this build does on your behalf, and whether each is on — `{ core_paging: true, core_audio: false, core_preload: false }`. A name that is absent is a behavior this build does not have, so check before relying on it. Reading it gives you a copy; use `enableCorePaging()` / `enableCoreAudio()` to change anything. |

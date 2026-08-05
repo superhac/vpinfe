@@ -344,6 +344,17 @@ The backup filename and the read-the-shape-from-the-file rule are unchanged, so 
 install can still restore what a 3.0 install wrote — that contract lives in the file format,
 not in this module. Covered by `tests/test_info_maintenance.py`.
 
+**PAR-33 — One WebSocket method is added so the browser can learn how to turn playfield art.**
+`get_playfield_media_rotation()` returns `[Media] playfieldmediarotation`, which is `auto` by
+default. Additive: a theme that never calls it is unaffected, and master has no equivalent.
+*Why:* `[Displays] playfieldrotation` says how far to turn the **UI** so it faces the player;
+this says how far to turn the **art** so it fills the surface. Four published themes each
+derived the second from the first and no two agreed, so the same ini produced different
+geometry depending on which theme was installed. Core resolves it once now, measuring the
+image rather than assuming an authoring convention - there is no reliable one - and this
+setting states the turn for what measuring cannot see, such as art that is upside down.
+*(machine-checked)*
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

@@ -185,6 +185,10 @@ def get_playfield_rotation(config):
     return DisplayConfig.from_config(config).playfield_rotation
 
 
+def get_playfield_media_rotation(config):
+    return MediaConfig.from_config(config).playfield_media_rotation
+
+
 def get_cab_mode(config):
     return DisplayConfig.from_config(config).cab_mode
 
