@@ -367,7 +367,7 @@ class VPinFECore {
       joypagedown: ['pagedown'],
       joyselect: ['enter'],
       joymenu: ['m'],
-      joyback: [],
+      joyback: ['b'],
       joytutorial: ['t'],
       joyexit: ['escape', 'q'],
       joycollectionmenu: ['c'],
@@ -377,7 +377,9 @@ class VPinFECore {
     // every one of those used to become a full wheel move. Deliberate presses are never
     // throttled; only the automatic repeat is.
     this.minRepeatIntervalMs = 150;
-    this._lastRepeatAt = 0;
+    // Keyed by action: one timestamp for everything meant a fast direction change was
+    // read as the same key repeating and got dropped.
+    this._lastRepeatAt = {};
     this.gamepadEnabled = true;
     this.frontendInputEnabled = true;
     this._launchInputSuppressedByLifecycle = false;
@@ -1644,26 +1646,48 @@ class VPinFECore {
     return null;
   }
 
-  // Keybaord input processing to handlers
+  // Which overlay is up, or null. Every overlay is in OVERLAYS, so nothing new has to
+  // be added here when one is.
+  #overlayUp() {
+    for (const [name, spec] of Object.entries(VPinFECore.OVERLAYS)) {
+      if (this[spec.flag]) return name;
+    }
+    return null;
+  }
+
+  // Keyboard input processing to handlers
   async #onKeyDown(e) {
     if (!this.frontendInputEnabled) return;
+    if (!this.isController()) return;
+
+    const action = this.#actionForKeyboardEvent(e);
+    if (!action) return;
+
+    // Per action, not one timestamp for all of them. A repeating ArrowRight straight
+    // after a repeating ArrowLeft is a different intent, and a shared clock ate it.
     if (e.repeat) {
       const now = Date.now();
-      if (now - this._lastRepeatAt < this.minRepeatIntervalMs) return;
-      this._lastRepeatAt = now;
+      if (now - (this._lastRepeatAt[action] || 0) < this.minRepeatIntervalMs) return;
+      this._lastRepeatAt[action] = now;
     }
 
-    if (this.isController()) {
-      const action = this.#actionForKeyboardEvent(e);
-      if (!action) return;
+    // A bound key belongs to us. Without this the arrows also scroll the theme's page
+    // and Space activates whatever the browser thinks is focused.
+    e.preventDefault();
 
-      if (action === "joyexit") this.call("close_app");
-      else if (action === "joymenu") this.#showmenu();
-      else if (action === "joycollectionmenu") this.#showcollectionmenu();
-      else if (action === "joytutorial") this.#showtutorial();
-      else if (this.#shouldHandleCorePaging(action)) this.#handleCorePaging(action);
-      else this.#triggerInputAction(action);
+    const overlay = this.#overlayUp();
+    if (action === "joyexit") {
+      // Escape and q default to exit, and an overlay's own Escape handler never runs -
+      // nothing focuses the iframe - so this used to quit VPinFE from inside a menu.
+      // Closing the overlay is what every overlay's own map already meant by it.
+      if (overlay) this.#toggleOverlay(overlay);
+      else this.call("close_app");
     }
+    else if (action === "joymenu") this.#showmenu();
+    else if (action === "joycollectionmenu") this.#showcollectionmenu();
+    else if (action === "joytutorial") this.#showtutorial();
+    else if (this.#shouldHandleCorePaging(action)) this.#handleCorePaging(action);
+    else this.#triggerInputAction(action);
   }
 
   async #loadMonitors() {

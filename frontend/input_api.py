@@ -38,7 +38,13 @@ PAGING_SIZE_DEFAULT = 10
 
 
 def get_joymapping(config):
-    return {key: config["Input"].get(key, "0") for key in JOY_MAPPING_KEYS}
+    """Gamepad button per action. Missing means unbound, which is not button 0.
+
+    It defaulted to "0", so an ini written before these keys existed - or edited by
+    hand - put every unmapped action on button 0, and the browser collects several
+    actions per button: one press then fired all of them at once.
+    """
+    return {key: config["Input"].get(key, "") for key in JOY_MAPPING_KEYS}
 
 
 def get_paging_config(config):
