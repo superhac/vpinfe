@@ -25,7 +25,7 @@ Themes are installed in the user config directory: `~/.config/vpinfe/themes/<THE
 ├── manifest.json
 ├── theme.json           (optional - schema plus saved Manager UI theme options)
 ├── preview.png          (optional - shown in manager UI, can be .png or .gif)
-├── index_table.html
+├── index_playfield.html  (one per declared window: index_<window>.html)
 ├── index_bg.html
 ├── index_dmd.html
 ├── style.css
@@ -256,15 +256,21 @@ names — those are what the rest of this document uses.
 
 ## HTML Files
 
-Each screen has its own HTML file. These must be named exactly as listed:
+Each window has its own HTML file, named after the window: `index_<window>.html`. So a
+theme's files follow from the windows it declares, and a theme that declares a `topper`
+ships `index_topper.html` without anything else changing.
 
-| File | Description |
-|--------|-----|
-| `index_table.html` | The main screen. Controller for all other screens and input. |
-| `index_bg.html` | Backglass screen. |
-| `index_dmd.html` | DMD screen. |
+Declare nothing and you get three, named for your contract:
 
-### index_table.html
+| Contract | Files |
+|---|---|
+| 2 | `index_playfield.html`, `index_bg.html`, `index_dmd.html` |
+| 1 | `index_table.html`, `index_bg.html`, `index_dmd.html` |
+
+**The main screen is `index_playfield.html` here.** Contract 1 called that window `table`,
+and a contract 2 theme shipping `index_table.html` gets a 404 — nothing looks for it.
+
+### index_playfield.html
 
 This is the main HTML file. It controls input, displays the primary UI, and hosts the in-theme menu overlays. Below is the minimum required structure:
 
@@ -888,7 +894,7 @@ Themes can show a loading image or animation while VPX is starting. Use the buil
 - hide it on `GameRunning`
 - also hide it on `GameLaunchComplete` as a cleanup fallback
 
-Add the overlay markup to every theme page that should show it (`index_table.html`, `index_bg.html`, and/or `index_dmd.html`):
+Add the overlay markup to every theme page that should show it (`index_playfield.html`, `index_bg.html`, and/or `index_dmd.html`):
 
 ```html
 <div id="table-loading-overlay" aria-hidden="true">

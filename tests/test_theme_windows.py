@@ -14,7 +14,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common.config_access import DisplayConfig
-from frontend import theme_windows
+from frontend import theme_api, theme_windows
 
 
 def _theme(root: Path, manifest: dict | None) -> Path:
@@ -53,6 +53,38 @@ class DefaultsTests(unittest.TestCase):
 
         self.assertEqual(theme_windows.declared_windows(theme, 2),
                          ("playfield", "bg", "dmd"))
+
+
+class IndexPageTests(unittest.TestCase):
+    """The window name picks the file, so the contract decides which file a theme ships."""
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def _pages(self, contract: int) -> list[str]:
+        theme = _theme(self.root, {"name": "a-theme", "contract": contract})
+        config = ConfigParser()
+        config.read_dict({"Settings": {"theme": "a-theme"}})
+        return [theme_api.get_theme_index_page(config, window)
+                for window in theme_windows.declared_windows(theme, contract)]
+
+    def test_contract_1_asks_for_index_table(self) -> None:
+        self.assertIn("index_table.html", self._pages(1)[0])
+
+    def test_contract_2_asks_for_index_playfield(self) -> None:
+        """A contract 2 theme shipping index_table.html gets a 404, so docs say playfield."""
+        self.assertIn("index_playfield.html", self._pages(2)[0])
+
+    def test_a_window_vpinfe_never_had_names_its_own_file(self) -> None:
+        theme = _theme(self.root, {"windows": ["playfield", "topper"]})
+        config = ConfigParser()
+        config.read_dict({"Settings": {"theme": "a-theme"}})
+
+        windows = theme_windows.declared_windows(theme, 2)
+
+        self.assertIn("index_topper.html", theme_api.get_theme_index_page(config, windows[1]))
 
 
 class DeclaredTests(unittest.TestCase):
