@@ -32,7 +32,7 @@ def buildMetaData(downloadMedia: bool = True, updateAll: bool = True, gameName: 
 
 
 def _game_root_dir():
-    from common.config_access import SettingsConfig
+    from common.config_access import cfg_get, SettingsConfig
 
     return SettingsConfig.from_config(config_store).game_root_dir
 
@@ -68,12 +68,14 @@ def gamepadtest():
     from frontend.chromium_manager import ChromiumManager
     from frontend.ws_bridge import WebSocketBridge
 
+    from common.config_access import SettingsConfig, cfg_get
+
     mount_points = {
-        '/tables/': os.path.abspath(config_store.config['Settings']['gamerootdir']),
+        '/tables/': os.path.abspath(SettingsConfig.from_config(config_store).game_root_dir),
         '/web/': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web'),
     }
     http_server = CustomHTTPServer(mount_points)
-    theme_assets_port = int(config_store.config['Network'].get('themeassetsport', '8000'))
+    theme_assets_port = int(cfg_get(config_store, 'Network', 'theme_assets_port', '8000'))
     ws_port = int(config_store.config['Network'].get('wsport', '8002'))
     http_server.start_file_server(port=theme_assets_port)
 

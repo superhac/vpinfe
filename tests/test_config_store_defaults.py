@@ -14,10 +14,10 @@ class TestConfigStore(unittest.TestCase):
 
             self.assertTrue(config.config.has_section("libdmdutil"))
             self.assertEqual(config.config.get("libdmdutil", "enabled"), "false")
-            self.assertEqual(config.config.get("libdmdutil", "pin2dmdenabled"), "false")
-            self.assertEqual(config.config.get("libdmdutil", "pixelcadedevice"), "")
-            self.assertEqual(config.config.get("libdmdutil", "zedmddevice"), "")
-            self.assertEqual(config.config.get("libdmdutil", "zedmdwifiaddr"), "")
+            self.assertEqual(config.config.get("libdmdutil", "pin2dmd_enabled"), "false")
+            self.assertEqual(config.config.get("libdmdutil", "pixelcade_device"), "")
+            self.assertEqual(config.config.get("libdmdutil", "zedmd_device"), "")
+            self.assertEqual(config.config.get("libdmdutil", "zedmd_wifi_address"), "")
 
     def test_adds_missing_libdmdutil_defaults_to_existing_config(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -28,10 +28,10 @@ class TestConfigStore(unittest.TestCase):
 
             self.assertTrue(config.config.has_section("libdmdutil"))
             self.assertEqual(config.config.get("libdmdutil", "enabled"), "false")
-            self.assertEqual(config.config.get("libdmdutil", "pin2dmdenabled"), "false")
-            self.assertEqual(config.config.get("libdmdutil", "pixelcadedevice"), "")
-            self.assertEqual(config.config.get("libdmdutil", "zedmddevice"), "")
-            self.assertEqual(config.config.get("libdmdutil", "zedmdwifiaddr"), "")
+            self.assertEqual(config.config.get("libdmdutil", "pin2dmd_enabled"), "false")
+            self.assertEqual(config.config.get("libdmdutil", "pixelcade_device"), "")
+            self.assertEqual(config.config.get("libdmdutil", "zedmd_device"), "")
+            self.assertEqual(config.config.get("libdmdutil", "zedmd_wifi_address"), "")
 
     def test_adds_joytutorial_default_input_mapping(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -62,7 +62,7 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
-            self.assertEqual(config.config.get("Settings", "MMhideQuitButton"), "false")
+            self.assertEqual(config.config.get("Settings", "hide_quit_button"), "false")
 
     def test_splashscreen_defaults_off(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -80,7 +80,7 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
-            self.assertEqual(config.config.get("Settings", "chromeoptions"), "")
+            self.assertEqual(config.config.get("Settings", "chrome_options"), "")
 
     def test_disable_default_chrome_options_defaults_off(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -89,7 +89,7 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
-            self.assertEqual(config.config.get("Settings", "disabledefaultchromeoptions"), "false")
+            self.assertEqual(config.config.get("Settings", "disable_default_chrome_options"), "false")
 
     def test_vpx_log_delete_on_start_defaults_off(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -98,7 +98,7 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
-            self.assertEqual(config.config.get("Settings", "vpxlogdeleteonstart"), "false")
+            self.assertEqual(config.config.get("Settings", "vpx_log_delete_on_start"), "false")
 
     def test_restore_last_game_defaults_on(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -107,7 +107,7 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("Settings"))
-            self.assertEqual(config.config.get("Settings", "restorelastgame"), "true")
+            self.assertEqual(config.config.get("Settings", "restore_last_game"), "true")
 
     def test_state_section_lasttable_defaults_empty(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -116,7 +116,7 @@ class TestConfigStore(unittest.TestCase):
             config = ConfigStore(str(ini_path))
 
             self.assertTrue(config.config.has_section("State"))
-            self.assertEqual(config.config.get("State", "lastgame"), "")
+            self.assertEqual(config.config.get("State", "last_game"), "")
 
     def test_existing_splashscreen_setting_is_preserved(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -144,11 +144,11 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertEqual(config.config.get("Settings", "gamerootdir"), "/old/path")
-            self.assertEqual(config.config.get("Settings", "restorelastgame"), "false")
-            self.assertEqual(config.config.get("Media", "playfieldvariant"), "fss")
-            self.assertEqual(config.config.get("Displays", "playfieldrotation"), "270")
-            self.assertEqual(config.config.get("State", "lastgame"), "Foo")
+            self.assertEqual(config.config.get("Settings", "game_root_dir"), "/old/path")
+            self.assertEqual(config.config.get("Settings", "restore_last_game"), "false")
+            self.assertEqual(config.config.get("Media", "playfield_variant"), "fss")
+            self.assertEqual(config.config.get("Displays", "playfield_rotation"), "270")
+            self.assertEqual(config.config.get("State", "last_game"), "Foo")
             self.assertFalse(config.config.has_option("Settings", "tablerootdir"),
                              "the old key should be gone once it has been read")
 
@@ -170,12 +170,12 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertEqual(config.config.get("Displays", "cabmode"), "true")
-            self.assertEqual(config.config.get("DOF", "enabledof"), "true")
+            self.assertEqual(config.config.get("Displays", "cab_mode"), "true")
+            self.assertEqual(config.config.get("DOF", "enable_dof"), "true")
             self.assertEqual(config.config.get("Settings", "splashscreen"), "true")
             # and the old spellings are gone, so the move is not repeated
-            self.assertFalse(config.config.has_option("Settings", "cabmode"))
-            self.assertFalse(config.config.has_option("Settings", "enabledof"))
+            self.assertFalse(config.config.has_option("Settings", "cab_mode"))
+            self.assertFalse(config.config.has_option("Settings", "enable_dof"))
             self.assertFalse(config.config.has_option("Displays", "splashscreen"))
 
     def test_a_moved_option_does_not_overwrite_a_value_already_there(self) -> None:
@@ -189,8 +189,8 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertEqual(config.config.get("Displays", "cabmode"), "false")
-            self.assertFalse(config.config.has_option("Settings", "cabmode"))
+            self.assertEqual(config.config.get("Displays", "cab_mode"), "false")
+            self.assertFalse(config.config.has_option("Settings", "cab_mode"))
 
 
 if __name__ == "__main__":

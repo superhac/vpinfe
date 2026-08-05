@@ -399,6 +399,21 @@ that most themes ship few options. Nothing a theme author does changes — `them
 still where options are declared. Covered by `tests/test_theme_options.py`, including the
 sequence that used to lose them: install, configure, update, check.
 
+**PAR-37 — Setting names are snake_case, and every old spelling still resolves.**
+`gamerootdir` is `game_root_dir`, `cabmode` is `cab_mode`, `MMhideQuitButton` is
+`hide_quit_button` - 53 of the 87 settings moved. A stored file is rewritten to the new
+names on first read (schema 2), and **every previous spelling stays a permanent alias**,
+so a config written by any earlier build still loads and a caller written against the old
+name still reads. Two settings changed more than their casing: `defaultmissingmediaimg`
+spells out `default_missing_media_image`, matching every other `[Media]` key.
+**`[Input]` is deliberately untouched** - those names are the theme-facing action
+vocabulary and rename with that work, not this.
+*Why:* the ini forced a second spelling of nearly every setting - the file said
+`gamerootdir` while the code said `game_root_dir` - and a mapping between them that had to
+be maintained by hand. One name now, and it is the one `docs/conventions.md` asks for.
+Canonical-plus-alias is the pattern Visual Pinball uses upstream for the same problem.
+Covered by `tests/test_config_schema.py` and `tests/test_config_store.py`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

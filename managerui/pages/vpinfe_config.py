@@ -11,10 +11,11 @@ from pathlib import Path
 from nicegui import run, ui
 
 from common import config_schema
+from common.config_access import cfg_get
+from common.config_store import ConfigStore
 from common.games.collection_store import CollectionStore
 from common.host.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
 from common.host.launch import build_masked_tableini_path, build_vpx_launch_command
-from common.config_store import ConfigStore
 from frontend.chromium_manager import (
     get_builtin_chromium_options,
     parse_additional_chromium_options,
@@ -212,30 +213,30 @@ def render_panel(tab=None):
         settings_inputs = inputs.get('Settings', {})
 
         vpxbin = str(
-            getattr(settings_inputs.get('vpxbinpath'), 'value', config.config.get('Settings', 'vpxbinpath', fallback=''))
+            getattr(settings_inputs.get('vpxbinpath'), 'value', cfg_get(config, 'Settings', 'vpx_bin_path', ''))
             or ''
         ).strip()
         global_ini_override = str(
-            getattr(settings_inputs.get('globalinioverride'), 'value', config.config.get('Settings', 'globalinioverride', fallback=''))
+            getattr(settings_inputs.get('globalinioverride'), 'value', cfg_get(config, 'Settings', 'global_ini_override', ''))
             or ''
         ).strip()
         tableini_enabled = _as_bool(
             getattr(
                 settings_inputs.get('globaltableinioverrideenabled'),
                 'value',
-                config.config.get('Settings', 'globaltableinioverrideenabled', fallback='false'),
+                cfg_get(config, 'Settings', 'global_game_ini_override_enabled', 'false'),
             )
         )
         tableini_mask = str(
             getattr(
                 settings_inputs.get('globaltableinioverridemask'),
                 'value',
-                config.config.get('Settings', 'globaltableinioverridemask', fallback=''),
+                cfg_get(config, 'Settings', 'global_game_ini_override_mask', ''),
             )
             or ''
         ).strip()
         launch_env = str(
-            getattr(settings_inputs.get('vpxlaunchenv'), 'value', config.config.get('Settings', 'vpxlaunchenv', fallback=''))
+            getattr(settings_inputs.get('vpxlaunchenv'), 'value', cfg_get(config, 'Settings', 'vpx_launch_env', ''))
             or ''
         ).strip()
 
@@ -265,14 +266,14 @@ def render_panel(tab=None):
             getattr(
                 settings_inputs.get('disabledefaultchromeoptions'),
                 'value',
-                config.config.get('Settings', 'disabledefaultchromeoptions', fallback='false'),
+                cfg_get(config, 'Settings', 'disable_default_chrome_options', 'false'),
             )
         )
         exclude_raw = str(
             getattr(
                 settings_inputs.get('chromeoptionsexclude'),
                 'value',
-                config.config.get('Settings', 'chromeoptionsexclude', fallback=''),
+                cfg_get(config, 'Settings', 'chrome_options_exclude', ''),
             )
             or ''
         ).strip()
@@ -280,7 +281,7 @@ def render_panel(tab=None):
             getattr(
                 settings_inputs.get('chromeoptions'),
                 'value',
-                config.config.get('Settings', 'chromeoptions', fallback=''),
+                cfg_get(config, 'Settings', 'chrome_options', ''),
             )
             or ''
         ).strip()
@@ -486,9 +487,9 @@ def render_panel(tab=None):
             logger.info(
                 "Saved configuration to %s: vpxbinpath=%r gamerootdir=%r vpxinipath=%r",
                 config.configfilepath,
-                config.config.get('Settings', 'vpxbinpath', fallback=''),
-                config.config.get('Settings', 'gamerootdir', fallback=''),
-                config.config.get('Settings', 'vpxinipath', fallback=''),
+                cfg_get(config, 'Settings', 'vpx_bin_path', ''),
+                cfg_get(config, 'Settings', 'game_root_dir', ''),
+                cfg_get(config, 'Settings', 'vpx_ini_path', ''),
             )
             try:
                 from managerui.services import game_index_service

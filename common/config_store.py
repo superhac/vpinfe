@@ -28,8 +28,9 @@ SCHEMA_KEY = "schema"
 SETTINGS_KEY = "settings"
 
 # 1 is the first JSON version. Schema 0 is the ini, which has no version at all - it is
-# recognized by being an ini rather than by anything written in it.
-CURRENT_SCHEMA = 1
+# recognized by being an ini rather than by anything written in it. 2 renamed the keys to
+# snake_case; every old spelling is an alias in config_schema and still resolves.
+CURRENT_SCHEMA = 2
 
 # (from, to, key) for options that changed section. Applied on every read, so an ini
 # written by any earlier build lands in the right place.
@@ -124,6 +125,17 @@ class ConfigStore:
 		for old_section, new_section, key in _MOVED_OPTIONS:
 			changed |= self._move_option(old_section, new_section, key)
 
+		# Every spelling a key has ever had lands on the one we store. This runs after the
+		# 2.x renames above, so tablerootdir -> gamerootdir -> game_root_dir is one chain,
+		# and before the defaults are filled in, so nothing is added under an old name.
+		for section in self.config.sections():
+			for key in list(self.config.options(section)):
+				canon = config_schema.canonical(section, key)
+				if canon != key:
+					self.config.set(section, canon, self.config.get(section, key))
+					self.config.remove_option(section, key)
+					changed = True
+
 		# Add any missing default options
 		for section, defaults in self.defaults.items():
 			if not self.config.has_section(section):
@@ -155,9 +167,9 @@ class ConfigStore:
 			changed = True
 
 		# Auto-generate vpinplay.machineid when not set.
-		current_machine_id = self.config.get('vpinplay', 'machineid', fallback='').strip()
+		current_machine_id = self.config.get('vpinplay', 'machine_id', fallback='').strip()
 		if not current_machine_id:
-			self.config.set('vpinplay', 'machineid', _generate_machine_id())
+			self.config.set('vpinplay', 'machine_id', _generate_machine_id())
 			changed = True
 
 		if changed:
@@ -197,7 +209,9 @@ class ConfigStore:
 			if not self.config.has_section(section):
 				self.config.add_section(section)
 			for key, value in (values or {}).items():
-				self.config.set(section, key, self._as_text(value))
+				# Any spelling a file has ever used lands under the name we store now.
+				self.config.set(section, config_schema.canonical(section, key),
+				                self._as_text(value))
 
 	def save(self):
 		# The first save after reading an ini keeps a copy and leaves the original alone:

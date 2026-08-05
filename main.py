@@ -7,6 +7,8 @@ import os
 import platform
 import sys
 
+from common.config_access import cfg_get
+
 multiprocessing.freeze_support()
 
 # On Windows, hide the console window when launched via icon (not from terminal).
@@ -33,14 +35,14 @@ from common.config_bootstrap import apply_configdir_override
 
 apply_configdir_override(sys.argv[1:])
 
+from common import theme_options
 from common.app_version import get_version
+from common.config_store import ConfigStore
 from common.games.metadata_service import build_metadata
 from common.host.dof_service import start_dof_service_if_enabled, stop_dof_service
 from common.host.libdmdutil_service import (
     stop_libdmdutil_service,
 )
-from common import theme_options
-from common.config_store import ConfigStore
 from common.logging_config import configure_logging, get_logger
 from common.online.pinmame_score_parser_updater import ensure_latest_roms_json
 from common.online.themes import ThemeRegistry
@@ -81,12 +83,12 @@ def reconfigure_app_logging() -> None:
     configure_logging(config_dir, config_store)
 
 # Now safe to import modules that create their own ConfigStore at import time
+from clioptions import parseArgs
 from nicegui import app as nicegui_app
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 import httpapi
-from clioptions import parseArgs
 from frontend import runtime
 from managerui.managerui import _shutdown_event, set_first_run, start_manager_ui, stop_manager_ui
 
@@ -167,7 +169,7 @@ nicegui_app.add_static_files('/themes', themes_dir)
 # On first run, start the manager UI early so chromium can load it
 if config_store.is_new:
     set_first_run(True)
-    manager_ui_port = int(config_store.config['Network'].get('manageruiport', '8001'))
+    manager_ui_port = int(cfg_get(config_store, 'Network', 'manager_ui_port', '8001'))
     start_manager_ui(port=manager_ui_port)
     reconfigure_app_logging()
     # Wait for the NiceGUI server to be ready before chromium tries to load it
@@ -227,7 +229,7 @@ start_dof_service_if_enabled(config_store)
 # Point the archive analyzer at a configured RAR tool (blank = auto-detect from PATH)
 from managerui.services.asset_analyzer_service import configure_rar_tool
 
-configure_rar_tool(config_store.config.get('Settings', 'rartoolpath', fallback='').strip())
+configure_rar_tool(cfg_get(config_store, 'Settings', 'rar_tool_path', '').strip())
 
 # Create API instances and register with WebSocket bridge
 create_api_instances()
@@ -236,7 +238,7 @@ create_api_instances()
 http_server = runtime.start_asset_server(MOUNT_POINTS, config_store)
 
 # Start the NiceGUI HTTP server
-manager_ui_port = int(config_store.config['Network'].get('manageruiport', '8001'))
+manager_ui_port = int(cfg_get(config_store, 'Network', 'manager_ui_port', '8001'))
 start_manager_ui(port=manager_ui_port)
 reconfigure_app_logging()
 

@@ -72,10 +72,46 @@ class SchemaShapeTests(unittest.TestCase):
         hand, but they are not settings and should never reach a UI or the docs."""
         internal = {(e.section, e.key) for e in config_schema.options() if e.internal}
 
-        self.assertEqual(internal, {("VPSdb", "last"), ("State", "lastgame"),
-                                    ("pinmame-score-parser", "romsupdatesha")})
-        self.assertNotIn(("State", "lastgame"),
+        self.assertEqual(internal, {("VPSdb", "last"), ("State", "last_game"),
+                                    ("pinmame-score-parser", "roms_update_sha")})
+        self.assertNotIn(("State", "last_game"),
                          {(e.section, e.key) for e in config_schema.settable()})
+
+
+class AliasTests(unittest.TestCase):
+    """Keys moved to snake_case at schema 2; every old spelling still has to resolve.
+
+    The frozen fixture was regenerated for that rename, so it can no longer witness it.
+    These do instead: each alias maps to a canonical key that exists and carries the
+    same default, which is what makes an old file and an old call site both safe.
+    """
+
+    def test_every_alias_resolves_to_a_declared_option(self) -> None:
+        for entry in config_schema.options():
+            for alias in entry.aliases:
+                self.assertEqual(config_schema.canonical(entry.section, alias), entry.key,
+                                 f"{entry.section}.{alias} must resolve to {entry.key}")
+
+    def test_no_alias_collides_with_a_real_key(self) -> None:
+        keys = {(e.section, e.key.lower()) for e in config_schema.options()}
+        for entry in config_schema.options():
+            for alias in entry.aliases:
+                self.assertNotIn((entry.section, alias.lower()), keys,
+                                 f"{alias} is both an alias and a key")
+
+    def test_the_renamed_keys_are_the_ones_we_meant(self) -> None:
+        """A spot check in both directions, so a bad regeneration is visible."""
+        self.assertEqual(config_schema.canonical("Settings", "gamerootdir"), "game_root_dir")
+        self.assertEqual(config_schema.canonical("Displays", "cabmode"), "cab_mode")
+        self.assertEqual(config_schema.canonical("Media", "defaultmissingmediaimg"),
+                         "default_missing_media_image")
+        self.assertEqual(config_schema.canonical("Settings", "game_root_dir"), "game_root_dir")
+
+    def test_input_keys_are_untouched(self) -> None:
+        """[Input] renames are the vocabulary work and want decisions first."""
+        for entry in config_schema.options():
+            if entry.section == "Input":
+                self.assertEqual(entry.aliases, (), f"{entry.key} should not have moved yet")
 
 
 class LookupTests(unittest.TestCase):
@@ -111,8 +147,8 @@ class DocumentationCoverageTests(unittest.TestCase):
         missing = sorted(f"{e.section}.{e.key}" for e in config_schema.settable()
                          if not e.label)
 
-        self.assertEqual(missing, ["Media.playfieldmediarotation",
-                                   "Settings.chromeoptionsexclude"],
+        self.assertEqual(missing, ["Media.playfield_media_rotation",
+                                   "Settings.chrome_options_exclude"],
                          "either label the new option or update this list deliberately")
 
 

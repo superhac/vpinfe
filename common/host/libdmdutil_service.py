@@ -2,8 +2,9 @@ import logging
 import threading
 from pathlib import Path
 
-from common.third_party import find_named_path, import_module_from_path, third_party_base_candidates
+from common.config_access import cfg_get
 from common.paths import APP_ROOT
+from common.third_party import find_named_path, import_module_from_path, third_party_base_candidates
 
 _LOCK = threading.Lock()
 _CONTROLLER = None
@@ -80,13 +81,13 @@ def find_libdmdutil_file(*names: str) -> Path | None:
 
 def _build_controller_kwargs(iniconfig) -> dict[str, str]:
     raw_device = str(
-        iniconfig.config.get('libdmdutil', 'zedmddevice', fallback='')
+        cfg_get(iniconfig, 'libdmdutil', 'zedmd_device', '')
     ).strip()
     if raw_device:
         return {'device': raw_device}
 
     raw_host = str(
-        iniconfig.config.get('libdmdutil', 'zedmdwifiaddr', fallback='')
+        cfg_get(iniconfig, 'libdmdutil', 'zedmd_wifi_address', '')
     ).strip()
     if raw_host:
         return {'host': raw_host}

@@ -9,13 +9,13 @@ from urllib.parse import quote
 
 from nicegui import run, ui
 
+from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from common.online.vpinplay_service import sync_installed_games
 from managerui.config_fields import is_checkbox_field
 from managerui.pages.vpinfe_config import get_friendly_name
 from managerui.paths import VPINFE_INI_PATH
-from managerui.ui_helpers import load_page_style, attach_shell_save_bar
-
+from managerui.ui_helpers import attach_shell_save_bar, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.vpinplay")
 
@@ -252,7 +252,7 @@ def render_panel():
         user_id = _input_value("userid")
         initials = _input_value("initials")
         machine_id = _input_value("machineid")
-        games_dir = config.config.get("Settings", "gamerootdir", fallback="").strip()
+        games_dir = cfg_get(config, "Settings", "game_root_dir", "").strip()
 
         if not service_ip:
             ui.notify("API Endpoint is required.", type="warning")

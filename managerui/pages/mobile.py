@@ -9,6 +9,7 @@ from pathlib import Path
 
 from nicegui import run, ui
 
+from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_games_path
 from managerui.services import game_catalog
@@ -493,11 +494,11 @@ def _fetch_device_folders(host, port):
 def _build_web_send_panel():
     # Load saved connection settings from ini
     cfg = _get_ini_config()
-    saved_ip = cfg.config.get('Mobile', 'deviceip', fallback='').strip()
-    saved_port = cfg.config.get('Mobile', 'deviceport', fallback='2112').strip()
-    saved_chunk = cfg.config.get('Mobile', 'chunksize', fallback='1048576').strip()
-    saved_rename_mask = cfg.config.get('Mobile', 'renamemasktodefaultini', fallback='false').strip().lower() == 'true'
-    saved_rename_mask_value = cfg.config.get('Mobile', 'renamemasktodefaultinimask', fallback='').strip()
+    saved_ip = cfg_get(cfg, 'Mobile', 'device_ip', '').strip()
+    saved_port = cfg_get(cfg, 'Mobile', 'device_port', '2112').strip()
+    saved_chunk = cfg_get(cfg, 'Mobile', 'chunk_size', '1048576').strip()
+    saved_rename_mask = cfg_get(cfg, 'Mobile', 'rename_mask_to_default_ini', 'false').strip().lower() == 'true'
+    saved_rename_mask_value = cfg_get(cfg, 'Mobile', 'rename_mask_to_default_ini_mask', '').strip()
 
     def _save_ip(e):
         ip_val = e.value.strip() if e.value else ''

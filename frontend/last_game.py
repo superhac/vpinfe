@@ -9,7 +9,9 @@ logger = logging.getLogger("vpinfe.frontend.last_game")
 # Internal state, not a user-facing setting. Kept in its own section so the
 # Manager UI (which renders every key in a shown section) never surfaces it.
 STATE_SECTION = "State"
-STATE_KEY = "lastgame"
+# The canonical spelling; config_schema keeps "lastgame" resolving for a file
+# written before schema 2.
+STATE_KEY = "last_game"
 
 
 def game_identity(game) -> str:

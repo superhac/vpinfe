@@ -1,17 +1,17 @@
 {
   "DOF": {
-    "dofconfigtoolapikey": "",
-    "enabledof": "false"
+    "dof_config_tool_api_key": "",
+    "enable_dof": "false"
   },
   "Displays": {
-    "bgscreenid": "",
-    "bgwindowoverride": "",
-    "cabmode": "false",
-    "dmdscreenid": "",
-    "dmdwindowoverride": "",
-    "playfieldorientation": "landscape",
-    "playfieldrotation": "0",
-    "playfieldscreenid": "0"
+    "bg_screen_id": "",
+    "bg_window_override": "",
+    "cab_mode": "false",
+    "dmd_screen_id": "",
+    "dmd_window_override": "",
+    "playfield_orientation": "landscape",
+    "playfield_rotation": "0",
+    "playfield_screen_id": "0"
   },
   "Input": {
     "joyback": "",
@@ -46,70 +46,70 @@
     "level": "debug"
   },
   "Media": {
-    "bgmediapriority": "video",
-    "defaultmissingmediaimg": "",
-    "dmdmediapriority": "video",
-    "playfieldmediapriority": "video",
-    "playfieldmediarotation": "auto",
-    "playfieldresolution": "4k",
-    "playfieldvariant": "table",
-    "playfieldvideoresolution": "1k",
-    "realdmdmediapriority": "color",
-    "thumbcachemaxmb": "500"
+    "bg_media_priority": "video",
+    "default_missing_media_image": "",
+    "dmd_media_priority": "video",
+    "playfield_media_priority": "video",
+    "playfield_media_rotation": "auto",
+    "playfield_resolution": "4k",
+    "playfield_variant": "table",
+    "playfield_video_resolution": "1k",
+    "realdmd_media_priority": "color",
+    "thumb_cache_max_mb": "500"
   },
   "Mobile": {
-    "chunksize": "1048576",
-    "deviceip": "",
-    "deviceport": "2112",
-    "renamemasktodefaultini": "false",
-    "renamemasktodefaultinimask": ""
+    "chunk_size": "1048576",
+    "device_ip": "",
+    "device_port": "2112",
+    "rename_mask_to_default_ini": "false",
+    "rename_mask_to_default_ini_mask": ""
   },
   "Network": {
-    "manageruiport": "8001",
-    "themeassetsport": "8000"
+    "manager_ui_port": "8001",
+    "theme_assets_port": "8000"
   },
   "Settings": {
-    "MMhideQuitButton": "false",
-    "autoupdatemediaonstartup": "false",
-    "chromeoptions": "",
-    "chromeoptionsexclude": "",
-    "disabledefaultchromeoptions": "false",
-    "gamerootdir": "",
-    "globalinioverride": "",
-    "globaltableinioverrideenabled": "false",
-    "globaltableinioverridemask": "",
-    "muteaudio": "false",
-    "rartoolpath": "",
-    "restorelastgame": "true",
+    "auto_update_media_on_startup": "false",
+    "chrome_options": "",
+    "chrome_options_exclude": "",
+    "disable_default_chrome_options": "false",
+    "game_root_dir": "",
+    "global_game_ini_override_enabled": "false",
+    "global_game_ini_override_mask": "",
+    "global_ini_override": "",
+    "hide_quit_button": "false",
+    "mute_audio": "false",
+    "rar_tool_path": "",
+    "restore_last_game": "true",
     "splashscreen": "false",
     "startup_collection": "",
     "theme": "Revolution",
-    "vpxbinpath": "",
-    "vpxinipath": "",
-    "vpxlaunchenv": "",
-    "vpxlogdeleteonstart": "false"
+    "vpx_bin_path": "",
+    "vpx_ini_path": "",
+    "vpx_launch_env": "",
+    "vpx_log_delete_on_start": "false"
   },
   "State": {
-    "lastgame": ""
+    "last_game": ""
   },
   "VPSdb": {
     "last": ""
   },
   "libdmdutil": {
     "enabled": "false",
-    "pin2dmdenabled": "false",
-    "pixelcadedevice": "",
-    "zedmddevice": "",
-    "zedmdwifiaddr": ""
+    "pin2dmd_enabled": "false",
+    "pixelcade_device": "",
+    "zedmd_device": "",
+    "zedmd_wifi_address": ""
   },
   "pinmame-score-parser": {
-    "romsupdatesha": ""
+    "roms_update_sha": ""
   },
   "vpinplay": {
-    "apiendpoint": "https://api.vpinplay.com:8888",
+    "api_endpoint": "https://api.vpinplay.com:8888",
     "initials": "",
-    "machineid": "",
-    "synconexit": "false",
-    "userid": ""
+    "machine_id": "",
+    "sync_on_exit": "false",
+    "user_id": ""
   }
 }

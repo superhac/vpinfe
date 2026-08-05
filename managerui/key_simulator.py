@@ -1,3 +1,4 @@
+from common.config_access import cfg_get
 from pynput.keyboard import Key
 import logging
 import time
@@ -408,7 +409,7 @@ class KeySimulator:
             logger.debug("File exists: %s", config_path.exists())
 
         config_store = ConfigStore(str(config_path))
-        vpinball_ini_path = config_store.config["Settings"].get("vpxinipath", "").strip()
+        vpinball_ini_path = cfg_get(config_store, "Settings", "vpx_ini_path", "").strip()
 
         if self.debug:
             logger.debug("VPinballX.ini path from config: %s", vpinball_ini_path)

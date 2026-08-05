@@ -9,8 +9,9 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from common.third_party import find_named_path, import_module_from_path, third_party_base_candidates
+from common.config_access import cfg_get
 from common.paths import APP_ROOT
+from common.third_party import find_named_path, import_module_from_path, third_party_base_candidates
 
 _LOCK = threading.Lock()
 _HELPER = None
@@ -25,7 +26,7 @@ def _is_enabled(iniconfig) -> bool:
         return iniconfig.config.getboolean('DOF', 'enabledof', fallback=False)
     except Exception:
         raw = str(
-            iniconfig.config.get('DOF', 'enabledof', fallback='false')
+            cfg_get(iniconfig, 'DOF', 'enable_dof', 'false')
         ).strip().lower()
         return raw in ('1', 'true', 'yes', 'on')
 

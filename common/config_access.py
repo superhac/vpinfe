@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from common import config_schema
 from common.values import is_truthy
 
 
@@ -10,15 +11,37 @@ def _parser(source):
     return getattr(source, "config", source)
 
 
-def cfg_get(source, section: str, key: str, fallback: str = "") -> str:
-    parser = _parser(source)
+def _has(parser, section: str, key: str) -> bool:
     try:
-        return str(parser.get(section, key, fallback=fallback))
+        return bool(parser.has_option(section, key))
     except Exception:
         try:
-            return str(parser[section].get(key, fallback))
+            return key in parser[section]
         except Exception:
-            return fallback
+            return False
+
+
+def cfg_get(source, section: str, key: str, fallback: str = "") -> str:
+    """Read a setting under any spelling it has ever had.
+
+    Keys moved to snake_case at schema 2 and the old ones stay aliases, so a caller
+    written against `gamerootdir` keeps working against a file that says
+    `game_root_dir`. Nothing had to be renamed at 143 call sites in one commit.
+    """
+    parser = _parser(source)
+    for name in config_schema.spellings(section, key):
+        try:
+            if parser.has_option(section, name):
+                return str(parser.get(section, name, fallback=fallback))
+        except Exception:
+            pass
+        try:
+            values = parser[section]
+            if name in values:
+                return str(values.get(name, fallback))
+        except Exception:
+            pass
+    return fallback
 
 
 def cfg_options(source, section: str) -> list[str]:
@@ -35,6 +58,8 @@ def cfg_options(source, section: str) -> list[str]:
 
 def cfg_bool(source, section: str, key: str, fallback: bool = False) -> bool:
     parser = _parser(source)
+    key = next((n for n in config_schema.spellings(section, key)
+                if _has(parser, section, n)), key)
     try:
         return bool(parser.getboolean(section, key, fallback=fallback))
     except Exception:

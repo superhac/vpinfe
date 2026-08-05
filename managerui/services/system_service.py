@@ -5,8 +5,8 @@ import platform
 import shutil
 from pathlib import Path
 
+from common.config_access import cfg_get
 from common.config_store import ConfigStore
-
 from managerui.paths import VPINFE_INI_PATH
 
 
@@ -18,7 +18,7 @@ def resolve_usage_path() -> Path:
     candidate = Path.home()
     try:
         config = ConfigStore(str(VPINFE_INI_PATH))
-        gameroot = config.config.get("Settings", "gamerootdir", fallback="").strip()
+        gameroot = cfg_get(config, "Settings", "game_root_dir", "").strip()
         if gameroot:
             candidate = Path(gameroot).expanduser()
     except Exception:

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from common import jobs
-from common.config_access import SettingsConfig
+from common.config_access import cfg_get, SettingsConfig
 from common.games import game_repository, info_maintenance, metadata_service
 from common.games.game_metadata import section as meta_section
 from common.games.game_metadata import vpinfe_section
@@ -342,7 +342,7 @@ def extract_vbs(game_path: str, vpx_filename: str, altlauncher: str = "") -> dic
     from common.host.launch import get_effective_launcher
 
     cfg = _fresh_config()
-    vpxbin = cfg.config['Settings'].get('vpxbinpath', '')
+    vpxbin = cfg_get(cfg, 'Settings', 'vpx_bin_path', '')
     meta = {VPINFE_SECTION: {"alt_launcher": (altlauncher or "").strip()}}
     vpxbin_path, source_key, _configured = get_effective_launcher(vpxbin, meta)
     if not vpxbin_path:
