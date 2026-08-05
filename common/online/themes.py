@@ -131,9 +131,6 @@ class ThemeRegistry:
         base_url = theme_data["registry_info"].get("theme_base_url")
         return self.store.installed_version(theme_key, base_url)
 
-    def _remove_existing_install(self, base_url: str):
-        self.store.remove_existing_install(base_url)
-
     def _is_version_newer(self, remote: str, local: str) -> bool:
         return self.store.is_version_newer(remote, local)
 
