@@ -78,6 +78,33 @@ class SchemaShapeTests(unittest.TestCase):
                          {(e.section, e.key) for e in config_schema.settable()})
 
 
+class LookupTests(unittest.TestCase):
+    def test_no_key_is_used_in_two_sections(self) -> None:
+        """by_key() depends on this - the Manager UI holds keys without their section."""
+        keys = [entry.key.lower() for entry in config_schema.options()]
+        self.assertEqual({k for k in keys if keys.count(k) > 1}, set())
+
+    def test_a_key_resolves_whatever_its_casing(self) -> None:
+        """configparser lowercases option names, so a caller rarely has the original."""
+        self.assertIsNotNone(config_schema.by_key("MMhideQuitButton"))
+        self.assertIs(config_schema.by_key("mmhidequitbutton"),
+                      config_schema.by_key("MMhideQuitButton"))
+
+    def test_a_label_falls_back_to_a_readable_key(self) -> None:
+        self.assertEqual(config_schema.label_for("gamerootdir"), "Tables Directory")
+        self.assertEqual(config_schema.label_for("some_unknown_key"), "Some Unknown Key")
+
+    def test_the_manager_ui_takes_its_labels_from_here(self) -> None:
+        from managerui.pages.vpinfe_config import get_friendly_name
+
+        for entry in config_schema.settable():
+            if entry.label:
+                self.assertEqual(get_friendly_name(entry.key), entry.label)
+
+    def test_an_undescribed_setting_says_so_rather_than_guessing(self) -> None:
+        self.assertEqual(config_schema.description_for("no_such_setting"), "")
+
+
 class DocumentationCoverageTests(unittest.TestCase):
     def test_every_settable_option_has_a_label(self) -> None:
         """A label is what a person sees; an option without one cannot be presented."""

@@ -253,6 +253,34 @@ def option(section: str, key: str) -> ConfigOption | None:
     return None
 
 
+def by_key(key: str) -> ConfigOption | None:
+    """Look up without knowing the section.
+
+    Safe because no key is used in two sections, which a test pins - and needed because
+    configparser lowercases option names on read, so a caller holding a key off the file
+    has neither the section nor the original casing.
+    """
+    wanted = str(key or "").strip().lower()
+    for candidate in CONFIG_OPTIONS:
+        if candidate.key.lower() == wanted:
+            return candidate
+    return None
+
+
+def label_for(key: str) -> str:
+    """What to call a setting on screen. Falls back to a readable form of the key."""
+    entry = by_key(key)
+    if entry is not None and entry.label:
+        return entry.label
+    return str(key or "").replace("_", " ").title()
+
+
+def description_for(key: str) -> str:
+    """One line explaining a setting, or "" when nobody has written one yet."""
+    entry = by_key(key)
+    return entry.description if entry is not None else ""
+
+
 def defaults() -> dict[str, dict[str, str]]:
     """The nested section/key/value shape the config store fills a new file from."""
     out: dict[str, dict[str, str]] = {}

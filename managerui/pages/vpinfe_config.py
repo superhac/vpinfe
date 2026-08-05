@@ -10,6 +10,7 @@ from pathlib import Path
 
 from nicegui import run, ui
 
+from common import config_schema
 from common.games.collection_store import CollectionStore
 from common.host.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
 from common.host.launcher import build_masked_tableini_path, build_vpx_launch_command
@@ -58,104 +59,6 @@ SECTION_DESCRIPTIONS = {
     'libdmdutil': 'libdmdutil integration settings for DMD device support.',
 }
 
-# Dictionary for explicit user-friendly name mappings
-FRIENDLY_NAMES = {
-    # [Settings]
-    'vpxbinpath': 'VPX Executable Path',
-    'vpxlaunchenv': 'VPX Launch Environment',
-    'globalinioverride': 'Global ini Override (/home/test/mysuper.ini)',
-    'globaltableinioverrideenabled': 'Global tableini Override Enabled',
-    'globaltableinioverridemask': 'Global tableini Override Mask',
-    'vpxinipath' : 'VPX Ini Path',
-    'rartoolpath': 'RAR Tool Path (unar/unrar, blank = auto-detect)',
-    'vpxlogdeleteonstart': 'Delete VPinball Log On Table Start',
-    'gamerootdir': 'Tables Directory',
-    'startup_collection': 'Startup Collection',
-    'autoupdatemediaonstartup': 'Auto Update Media On Startup',
-    'restorelastgame': 'Restore Last Table',
-    'splashscreen': 'Enable splashscreen',
-    'muteaudio': 'Mute Frontend Audio',
-    'chromeoptions': 'Additional Chrome Options',
-    'disabledefaultchromeoptions': 'Disable Default Chrome Options',
-    'mmhidequitbutton': 'Hide Quit from MainMenu',
-    'enabledof': 'Enable DOF',
-    'dofconfigtoolapikey': 'DOF Config Tool API Key',
-    'enabled': 'Enabled',
-    'pin2dmdenabled': 'Enable',
-    'pixelcadedevice': 'PixelcadeDevice',
-    'zedmddevice': 'ZeDMDDevice',
-    'zedmdwifiaddr': 'ZeDMDWiFiAddr',
-    'theme': 'Active Theme',
-    'level': 'Log Verbosity',
-    'console': 'Console Logging',
-
-    # [Displays]
-    'playfieldscreenid': 'Playfield Monitor ID',
-    'bgscreenid': 'Backglass Monitor ID',
-    'dmdscreenid': 'DMD Monitor ID',
-    'bgwindowoverride': 'Backglass Window Override (x,y,width,height)',
-    'dmdwindowoverride': 'DMD Window Override (x,y,width,height)',
-    'playfieldrotation': 'Rotate VPinFE Display',
-    'playfieldorientation': 'Playfield Monitor Mounting',
-    'cabmode': 'Cabinet Mode',
-
-    # [Network]
-    'http_port': 'Web Server Port',
-    'themeassetsport': 'Theme Server Port',
-    'manageruiport': 'Manager UI Port',
-    'startup_collection': 'Default Startup Collection',
-    # [Mobile]
-    'deviceip': 'Mobile Device IP',
-    'deviceport': 'Mobile Device Port',
-    'chunksize': 'Mobile Chunk Size',
-    'renamemasktodefaultini': 'Enable Rename Mask To Default INI',
-    'renamemasktodefaultinimask': 'Rename Mask To Default INI Mask',
-    # [Input]
-    'keyleft': 'Keyboard Left',
-    'keyright': 'Keyboard Right',
-    'keyup': 'Keyboard Up',
-    'keydown': 'Keyboard Down',
-    'keypageup': 'Keyboard Page Up',
-    'keypagedown': 'Keyboard Page Down',
-    'keyselect': 'Keyboard Select',
-    'keymenu': 'Keyboard Menu',
-    'keyback': 'Keyboard Back',
-    'joyleft': 'Gamepad Left',
-    'joyright': 'Gamepad Right',
-    'joyup': 'Gamepad Up',
-    'joydown': 'Gamepad Down',
-    'joypageup': 'Gamepad Page Up',
-    'joypagedown': 'Gamepad Page Down',
-    'joyselect': 'Gamepad Select',
-    'pagingtype': 'Paging Type',
-    'pagingsize': 'Paging Size',
-    'joymenu': 'Gamepad Menu',
-    'joyback': 'Gamepad Back',
-    'joytutorial': 'Gamepad Tutorial',
-    'keytutorial': 'Keyboard Tutorial',
-    'joyexit': 'Gamepad Exit',
-    'keyexit': 'Keyboard Exit',
-    'joycollectionmenu': 'Gamepad Collection Menu',
-    'keycollectionmenu': 'Keyboard Collection Menu',
-    # [vpinplay]
-    'synconexit': 'Sync on Exit',
-    'apiendpoint': 'API Endpoint',
-    'userid': 'User ID',
-    'initials': 'Initials',
-    'machineid': 'Machine ID',
-    # [Media]
-    'playfieldvariant': 'Table Type',
-    'playfieldresolution': 'Default Table Resolution',
-    'playfieldvideoresolution': 'Default Table Video Resolution',
-    'defaultmissingmediaimg': 'Default Missing Media Image',
-    'thumbcachemaxmb': 'Thumbnail Cache Max (MB)',
-    'playfieldmediapriority': 'Table Media Priority',
-    'bgmediapriority': 'Backglass Media Priority',
-    'dmdmediapriority': 'DMD Media Priority',
-    'realdmdmediapriority': 'Real DMD Priority',
-
-
-}
 
 MEDIA_PRIORITY_KEYS = (
     'playfieldmediapriority',
@@ -165,11 +68,8 @@ MEDIA_PRIORITY_KEYS = (
 )
 
 def get_friendly_name(key: str) -> str:
-    """Return an explicitly mapped friendly name, or cleanly format the raw key."""
-    if key in FRIENDLY_NAMES:
-        return FRIENDLY_NAMES[key]
-    # Fallback: 'my_raw_key' becomes 'My Raw Key'
-    return key.replace('_', ' ').title()
+    """What to call a setting on screen, from the schema that declares it."""
+    return config_schema.label_for(key)
 
 
 def _get_collection_names():
