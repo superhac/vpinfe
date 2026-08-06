@@ -342,21 +342,21 @@
       if (dropdownOpen) {
         const currentOptions = getCurrentDropdownOptions();
         switch (input) {
-          case "joyup":
-          case "joyleft":
+          case "page_up":
+          case "previous":
             dropdownSelected = (dropdownSelected - 1 + currentOptions.length) % currentOptions.length;
             updateDropdownPopup();
             break;
-          case "joydown":
-          case "joyright":
+          case "page_down":
+          case "next":
             dropdownSelected = (dropdownSelected + 1) % currentOptions.length;
             updateDropdownPopup();
             break;
-          case "joyselect":
+          case "select":
             applyDropdownSelection();
             closeDropdown();
             break;
-          case "joyback":
+          case "back":
             closeDropdown();
             break;
         }
@@ -364,15 +364,15 @@
       }
 
       switch (input) {
-        case "joyup":
-        case "joyleft":
+        case "page_up":
+        case "previous":
           selectedIndex = (selectedIndex - 1 + items.length) % items.length;
           break;
-        case "joydown":
-        case "joyright":
+        case "page_down":
+        case "next":
           selectedIndex = (selectedIndex + 1) % items.length;
           break;
-        case "joyselect":
+        case "select":
           const selectedItem = items[selectedIndex];
           if (selectedItem.id === 'collection-item') {
             openDropdown(selectedItem, 'collection');
@@ -400,10 +400,13 @@
             window.parent.vpin.toggleCollectionMenu();
           }
           break;
-        case "joyback":
-        case "joymenu":
-        case "joycollectionmenu":
-          window.parent.vpin.toggleCollectionMenu();
+        case "back":
+        case "menu":
+        case "collection_menu":
+          // While the dialog is up, back dismisses it - that is the one action the
+          // text mode lets through, and this is what it should reach.
+          if (releaseInputMode) closeSaveFilterDialog();
+          else window.parent.vpin.toggleCollectionMenu();
           break;
       }
       updateMenu();
@@ -720,6 +723,9 @@
       updateMenu();
     }
 
+    // Held while the dialog is up, so the mode can be popped exactly once.
+    let releaseInputMode = null;
+
     function openSaveFilterDialog() {
       const dialog = document.getElementById('save-filter-dialog');
       const input = document.getElementById('filter-name-input');
@@ -729,11 +735,17 @@
       message.textContent = '';
       dialog.style.display = 'block';
       input.focus();
+      // Typing owns the keys now. Without this the menu behind the dialog kept
+      // driving on the arrows, and Enter fired select and opened a dropdown instead
+      // of reaching the field - so the dialog could not be completed from a cabinet.
+      releaseInputMode = window.parent.vpin.pushInputMode('text');
     }
 
     function closeSaveFilterDialog() {
       const dialog = document.getElementById('save-filter-dialog');
       dialog.style.display = 'none';
+      if (releaseInputMode) releaseInputMode();
+      releaseInputMode = null;
     }
 
     async function saveCurrentFilter() {

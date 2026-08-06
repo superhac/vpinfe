@@ -24,6 +24,11 @@ function controller() {
 
   // The listener is async, so a handler runs on a microtask - a synchronous assert
   // would look at the list before anything reached it.
+  // Core navigation answers previous/next itself when on, so a test about what reaches
+  // a theme turns it off; the tests for core navigation turn it back on deliberately.
+  vpin.enableCoreNavigation?.(false);
+  vpin._capabilities && (vpin._capabilities.core_navigation = false);
+
   const press = async (key, { code = key, repeat = false, target = null } = {}) => {
     const event = { key, code, repeat, target, prevented: false,
                     preventDefault() { event.prevented = true; } };
@@ -223,5 +228,104 @@ describe("a theme is handed the action names its contract published", () => {
     await press("ArrowUp");
 
     assert.deepEqual(seen, [], "core handles paging; the theme is not asked");
+  });
+});
+
+// A controller with core navigation left on, which is its default.
+function navigating(count = 3) {
+  const { vpin, press, calls } = controller();
+  vpin._capabilities.core_navigation = true;
+  vpin.gameData = Array.from({ length: count }, (_, i) => ({ gameDirName: `G${i}` }));
+  const moves = [];
+  vpin.sendMessageToAllWindowsIncSelf = (m) => moves.push(m);
+  return { vpin, press, calls, moves };
+}
+
+describe("core moves the selection so a theme does not have to", () => {
+  test("next advances and announces where it went", async () => {
+    const { vpin, press, moves } = navigating();
+
+    await press("ArrowRight");
+
+    assert.equal(vpin._currentGameIndex, 1);
+    assert.equal(moves.at(-1).type, "GameIndexUpdate");
+    assert.equal(moves.at(-1).index, 1);
+    assert.equal(moves.at(-1).previous, 0);
+    assert.equal(moves.at(-1).direction, "next");
+  });
+
+  test("it wraps both ways rather than sticking at the ends", async () => {
+    const { vpin } = navigating();
+
+    assert.equal(vpin.moveBy(-1), 2, "previous from the first goes to the last");
+    assert.equal(vpin.moveBy(1), 0, "next from the last goes to the first");
+  });
+
+  test("an empty library does not move or announce", () => {
+    const { vpin, moves } = navigating(0);
+
+    assert.equal(vpin.moveBy(1), 0);
+    assert.deepEqual(moves, [], "this is the undefined index two themes broadcast");
+  });
+
+  test("a theme can still opt out", async () => {
+    const { vpin, press } = navigating();
+    vpin._capabilities.core_navigation = false;
+    const seen = [];
+    vpin.contract = 2;
+    vpin.inputHandlers.push((a) => seen.push(a));
+
+    await press("ArrowRight");
+
+    assert.deepEqual(seen, ["next"], "the raw action reaches the theme");
+    assert.equal(vpin._currentGameIndex, 0, "and core has not moved anything");
+  });
+});
+
+describe("what a keypress means depends on the mode", () => {
+  test("a dialog keeps arrows off the menu behind it", async () => {
+    // B2: the collection menu's save-filter dialog had no such state, so arrows drove
+    // the menu underneath and Enter opened a dropdown instead of saving.
+    const { vpin, press } = navigating();
+    vpin.pushInputMode("modal");
+    const seen = [];
+    vpin.contract = 2;
+    vpin.inputHandlers.push((a) => seen.push(a));
+
+    await press("m");
+    await press("t");
+
+    assert.deepEqual(seen, [], "menu and tutorial must not open over a dialog");
+  });
+
+  test("typing reaches the field, and back still dismisses", async () => {
+    const { vpin, press } = navigating();
+    vpin.pushInputMode("text");
+    const seen = [];
+    vpin.contract = 2;
+    vpin.inputHandlers.push((a) => seen.push(a));
+
+    await press("m");
+    await press("b");
+
+    assert.deepEqual(seen, ["back"], "only back is intercepted while typing");
+  });
+
+  test("the base mode cannot be popped away", () => {
+    const { vpin } = navigating();
+
+    vpin.popInputMode("navigation");
+
+    assert.equal(vpin.inputMode, "navigation");
+  });
+
+  test("pushing returns its own undo", () => {
+    const { vpin } = navigating();
+
+    const done = vpin.pushInputMode("modal");
+    assert.equal(vpin.inputMode, "modal");
+    done();
+
+    assert.equal(vpin.inputMode, "navigation");
   });
 });

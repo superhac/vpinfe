@@ -301,7 +301,7 @@ function handleInput(input) {
   }
 
   if (dialogState === 'progress') {
-    if (input === 'joyback' || input === 'joyselect') {
+    if (input === 'back' || input === 'select') {
       const closeBtn = document.getElementById('buildmeta-close');
       if (closeBtn.style.display !== 'none') {
         hideBuildMetaDialog();
@@ -311,15 +311,15 @@ function handleInput(input) {
   }
 
   switch (input) {
-    case 'joyup':
-    case 'joyleft':
+    case 'page_up':
+    case 'previous':
       selectedIndex = (selectedIndex - 1 + items.length) % items.length;
       break;
-    case 'joydown':
-    case 'joyright':
+    case 'page_down':
+    case 'next':
       selectedIndex = (selectedIndex + 1) % items.length;
       break;
-    case 'joyselect': {
+    case 'select': {
       const selectedItem = items[selectedIndex];
       if (selectedItem.id === 'quit-item') {
         window.parent.vpin.call('close_app');
@@ -334,7 +334,7 @@ function handleInput(input) {
       }
       break;
     }
-    case 'joyback':
+    case 'back':
       window.parent.vpin.toggleMenu();
       break;
   }
@@ -343,17 +343,17 @@ function handleInput(input) {
 
 function handleDialogInput(input) {
   switch (input) {
-    case 'joyup':
-    case 'joyleft':
+    case 'page_up':
+    case 'previous':
       dialogSelectedIndex = (dialogSelectedIndex - 1 + dialogItems.length) % dialogItems.length;
       updateDialogSelection();
       break;
-    case 'joydown':
-    case 'joyright':
+    case 'page_down':
+    case 'next':
       dialogSelectedIndex = (dialogSelectedIndex + 1) % dialogItems.length;
       updateDialogSelection();
       break;
-    case 'joyselect': {
+    case 'select': {
       const selectedElement = dialogItems[dialogSelectedIndex];
       if (selectedElement.type === 'checkbox') {
         selectedElement.checked = !selectedElement.checked;
@@ -362,7 +362,7 @@ function handleDialogInput(input) {
       }
       break;
     }
-    case 'joyback':
+    case 'back':
       closeActiveDialog();
       break;
   }

@@ -50,8 +50,19 @@ const DEFAULT_MEDIA_PRIORITIES = {
 const CAPABILITIES = {
   core_paging: {
     default: true,
-    config: [],
+    // Declarable, so a theme that pages for itself can say so. It had no key at all,
+    // which left carousel-desktop's own page-jump cases losing to core with no way to
+    // opt out short of calling enableCorePaging(false) in JavaScript.
+    config: ["paging.enabled"],
     describe: "Core handles page-up and page-down itself.",
+  },
+  core_navigation: {
+    // On by default: all four themes read reimplement the same wrap-and-broadcast, two
+    // ship the same undefined-index bug in it, and the Reference theme - written to
+    // demonstrate best practice - could not avoid the boilerplate either.
+    default: true,
+    config: ["navigation.enabled"],
+    describe: "Core moves the selection, wraps it, and announces where it went.",
   },
   core_audio: {
     default: false,
@@ -460,6 +471,9 @@ class VPinFECore {
     this._preloaded = new Set();
 
     this._onSelection = [];
+    // The base mode is never popped; overlays and dialogs push on top.
+    this._inputModes = ['navigation'];
+    this._lastMoveAt = 0;
     this.onSelection(() => this.getVPinPlayRating(this._currentGameIndex).catch(() => {}));
     this.onSelection(() => this.#notifySelectedGame().catch(() => {}));
     this.onSelection(() => this.#schedulePreload());
@@ -1692,6 +1706,62 @@ class VPinFECore {
     }
   }
 
+  // ── Input modes ───────────────────────────────────────────────────────────
+  // What a keypress means depends on what is on screen. There was no such notion, so
+  // each overlay hand-rolled its own flag - and the collection menu's save dialog had
+  // none at all, which is why arrows drove the menu behind it and Enter opened a
+  // dropdown instead of saving.
+  //
+  //   navigation  the default; actions reach the theme or the top overlay
+  //   modal       a dialog owns them; select activates, back dismisses
+  //   text        keystrokes belong to the focused field; only back is intercepted
+  pushInputMode(mode) {
+    if (!["navigation", "modal", "text"].includes(mode)) return null;
+    this._inputModes.push(mode);
+    return () => this.popInputMode(mode);
+  }
+
+  popInputMode(mode) {
+    const at = this._inputModes.lastIndexOf(mode);
+    if (at > 0) this._inputModes.splice(at, 1);   // never pop the base mode
+  }
+
+  get inputMode() {
+    return this._inputModes[this._inputModes.length - 1];
+  }
+
+  // Move the selection, wrap it, and tell everyone where it went. Every theme wrote
+  // this, and two of the installed three broadcast an undefined index doing it.
+  moveBy(delta) {
+    const count = this.gameData.length;
+    if (!count) return this._currentGameIndex;
+    const previous = this._currentGameIndex;
+    const next = ((previous + delta) % count + count) % count;   // wraps both ways
+    return this.moveTo(next, { previous, direction: delta < 0 ? "previous" : "next" });
+  }
+
+  moveTo(index, { previous = this._currentGameIndex, direction = "" } = {}) {
+    const count = this.gameData.length;
+    if (!count) return this._currentGameIndex;
+    const at = Math.max(0, Math.min(count - 1, Number(index) || 0));
+    this._currentGameIndex = at;
+    this.sendMessageToAllWindowsIncSelf({
+      type: "GameIndexUpdate", index: at, previous, direction,
+      // True while the wheel is still settling - what a theme needs to decide whether
+      // to load full art or wait. INPUT-PERFORMANCE's fast-scroll signal is this flag.
+      moving: this.#stillMoving(),
+    });
+    this.#selectionChanged();
+    return at;
+  }
+
+  #stillMoving() {
+    const now = Date.now();
+    const moving = (now - (this._lastMoveAt || 0)) < this.minRepeatIntervalMs * 2;
+    this._lastMoveAt = now;
+    return moving;
+  }
+
   // Which overlay is up, or null. Every overlay is in OVERLAYS, so nothing new has to
   // be added here when one is.
   #overlayUp() {
@@ -1743,6 +1813,15 @@ class VPinFECore {
   // the gamepad cannot drift apart again.
   #dispatchAction(action) {
     if (!this.isController() && action !== "select") return this.#triggerInputAction(action);
+
+    // A field owns its keystrokes; only back is intercepted, so a dialog can still be
+    // dismissed from a cabinet button while typing into it.
+    if (this.inputMode === "text" && action !== "back") return;
+    // A dialog owns the actions while it is up: nothing reaches the menu behind it, and
+    // nothing opens an overlay on top of it.
+    if (this.inputMode === "modal" && !["select", "back", "previous", "next"].includes(action)) {
+      return;
+    }
     const overlay = this.#overlayUp();
     if (action === "exit") {
       // Escape and q default to exit, and an overlay's own Escape handler never runs -
@@ -1755,7 +1834,20 @@ class VPinFECore {
     else if (action === "collection_menu") this.#showcollectionmenu();
     else if (action === "tutorial") this.#showtutorial();
     else if (this.#shouldHandleCorePaging(action)) this.#handleCorePaging(action);
+    else if (this.#shouldHandleCoreNavigation(action)) {
+      this.moveBy(action === "previous" ? -1 : 1);
+    }
     else this.#triggerInputAction(action);
+  }
+
+  // True when core should move the selection itself: navigation enabled, the table
+  // window, and nothing on top that owns the actions.
+  #shouldHandleCoreNavigation(action) {
+    if (action !== "previous" && action !== "next") return false;
+    if (!this.enabled("core_navigation")) return false;
+    if (!this.isController()) return false;
+    if (this.inputMode !== "navigation") return false;
+    return !(this.menuUP || this.collectionMenuUP || this.tutorialUP);
   }
 
   async #loadMonitors() {

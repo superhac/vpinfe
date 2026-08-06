@@ -99,15 +99,15 @@
 
     function handleInput(input) {
       switch (input) {
-        case 'joyup':
-        case 'joyleft':
+        case 'page_up':
+        case 'previous':
           scrollTutorial(-140);
           break;
-        case 'joydown':
-        case 'joyright':
+        case 'page_down':
+        case 'next':
           scrollTutorial(140);
           break;
-        case 'joyback':
+        case 'back':
           window.parent.vpin.toggleTutorial();
           break;
       }

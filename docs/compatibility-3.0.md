@@ -475,6 +475,28 @@ than paging loses it, because up is a paging action now and core answers paging 
 default. The design note behind the merge is that no published theme used it for
 anything else. Covered by `tests/theming/test_input_actions.py` and `tests/js/input.test.js`.
 
+**PAR-41 — Core moves the wheel, and a dialog can own the keys.**
+`core_navigation` is a capability, **on by default**, so `previous` and `next` move the
+selection in core: it wraps, sets the index, broadcasts `GameIndexUpdate` and fires the
+selection listeners. Themes already move on that broadcast - it is how paging and
+restore-last-game have always worked - so a theme needs no change, and one that would
+rather do it itself declares `navigation.enabled = false` or calls
+`enableCoreNavigation(false)`. `core_paging` gains a `paging.enabled` key for the same
+reason; it had none, so a theme that pages for itself had no way to say so in
+`theme.json`.
+*Why:* all four themes read reimplemented the same wrap-and-broadcast, two of the
+installed three shipped the same undefined-index bug in it, and the Reference theme -
+written to demonstrate best practice - could not avoid the boilerplate either. When the
+exemplar cannot avoid it, it belongs to core. The broadcast now carries `previous`,
+`direction` and `moving`, which is also the fast-scroll signal a theme needs to decide
+whether to load full art or wait.
+
+Alongside it, an **input mode stack**: `navigation`, `modal` and `text`. A dialog pushes
+one and the actions stop reaching what is behind it. That is what makes the collection
+menu's save-filter dialog completable from a cabinet - it had no such state, so the arrows
+drove the menu underneath and Enter fired select and opened a dropdown instead of reaching
+the field. Covered by `tests/js/input.test.js`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and
