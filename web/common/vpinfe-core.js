@@ -32,10 +32,13 @@ const MEDIA_VIDEO_PATH_FIELDS = {
   loading: "LoadingVideoPath",
 };
 
+// Canonical kind names. Everything that reads this does so after normalization, so
+// contract 1's `bg` and `dmd` arrive here already translated - keyed the old way, the
+// lookup missed and the whole image-or-video preference was dead for those two.
 const DEFAULT_MEDIA_PRIORITIES = {
   playfield: "video",
-  bg: "video",
-  dmd: "video",
+  backglass: "video",
+  scoreview: "video",
   real_dmd: "color",
 };
 
@@ -78,6 +81,15 @@ const CAPABILITIES = {
     default: false,
     config: ["layout.enabled"],
     describe: "Core turns the UI and the playfield art to suit the cabinet.",
+  },
+  core_media_window: {
+    // On by default. A media kind is named after the display it captures, so a window
+    // that is a display has exactly one obvious thing to show, and every theme wrote the
+    // same few lines to show it. A theme that wants something else on a secondary window
+    // sets `media_window.enabled` false, or simply omits the element core renders into.
+    default: true,
+    config: ["media_window.enabled"],
+    describe: "Core shows each display window the media named for it.",
   },
   core_preload: {
     default: false,
@@ -208,6 +220,16 @@ const VPINFE_RENAMED_MEMBERS = {
 // Kind names earlier builds accepted, against the canonical snake_case set.
 // real_dmd_color is the odd one: at contract 1 both frames collapse onto real_dmd, the
 // way 2.x addressed them, while contract 2 keeps it separately addressable.
+// Every media kind VPinFE serves, in common/media_specs.py order. Kept in step by
+// tests/theming/test_media_kinds.py, because a name that drifts here fails silently:
+// a lookup for a kind nobody serves returns nothing rather than complaining.
+const MEDIA_KINDS = [
+  "backglass", "scoreview", "playfield", "playfield_fss", "wheel", "cab",
+  "real_dmd", "real_dmd_color", "flyer", "playfield_video", "backglass_video",
+  "scoreview_video", "audio", "instruction_card", "topper", "topper_video",
+  "loading", "audio_launch", "rule_sheet", "logo",
+];
+
 const MEDIA_KIND_ALIASES = {
   table: "playfield",
   table_video: "playfield_video",
@@ -466,7 +488,9 @@ class VPinFECore {
     // two-second hold ask for hundreds of images that were obsolete before they decoded;
     // the settle delay is the whole mechanism, not a nicety.
     this._preloadSettleMs = 180;
-    this._preloadKinds = ["playfield", "bg", "wheel"];
+    // Canonical names: a contract 1 theme has these translated for it on the way
+    // out, while `bg` here would only ever have worked for contract 1.
+    this._preloadKinds = ["playfield", "backglass", "wheel"];
     this._preloadTimer = null;
     this._preloaded = new Set();
 
@@ -600,7 +624,10 @@ class VPinFECore {
     if (normalizedType === "real_dmd") {
       return this.#resolveRealDmdMedia(item);
     }
-    if (["playfield", "bg", "dmd"].includes(normalizedType)) {
+    // Canonical, because normalizedType is. Written as `bg`/`dmd` this never matched,
+    // so a backglass or scoreview video was never preferred over its still at either
+    // contract - the branch below treated both as a plain image.
+    if (["playfield", "backglass", "scoreview"].includes(normalizedType)) {
       return this.#resolveImageVideoMedia(item, normalizedType);
     }
 
@@ -657,7 +684,14 @@ class VPinFECore {
     // can still say `table` and mean the playfield.
     const kinds = configValue(config, "preload.kinds");
     if (Array.isArray(kinds) && kinds.length) {
-      this._preloadKinds = kinds.map((kind) => this.#normalizeMediaType(kind));
+      const asked = kinds.map((kind) => this.#normalizeMediaType(kind));
+      const unknown = asked.filter((kind) => !MEDIA_KINDS.includes(kind));
+      if (unknown.length) {
+        console.warn(`[vpinfe] preload.kinds names ${unknown.join(", ")}, which `
+          + `${unknown.length === 1 ? "is not a media kind" : "are not media kinds"}. `
+          + `Nothing preloads for ${unknown.length === 1 ? "it" : "them"}.`);
+      }
+      this._preloadKinds = asked.filter((kind) => MEDIA_KINDS.includes(kind));
     }
   }
 
@@ -951,6 +985,7 @@ class VPinFECore {
       await this.#handleGameDataChange(message);
     }
     this.#syncSelectionFromMessage(message);
+    if (VPinFECore.SELECTION_MESSAGES.has(message.type)) this.#renderWindowMedia();
     await this.#handleCoreAudioEvent(message);
 
     // Call any custom handlers registered by the theme
@@ -1168,6 +1203,7 @@ class VPinFECore {
   }
 
   #selectionChanged() {
+    this.#renderWindowMedia();
     for (const listener of this._onSelection) {
       // One listener throwing must not stop the others, the same rule the backend's
       // event bus follows.
@@ -1177,6 +1213,43 @@ class VPinFECore {
         console.warn("vpinfe: a selection listener failed", err);
       }
     }
+  }
+
+  /**
+   * Show this window the media named for it.
+   *
+   * Renders into the first `[data-vpin-media]` element on the page, so a theme opts in
+   * with an attribute and opts out by leaving it off or setting `media_window.enabled`
+   * false. Nothing is guessed: a window that is not a display, or a page with no target,
+   * does nothing at all rather than picking somewhere to draw.
+   */
+  #renderWindowMedia() {
+    if (!this.enabled("core_media_window")) return;
+    const kind = this.windowMediaKind;
+    if (!kind) return;
+    const target = document.querySelector("[data-vpin-media]");
+    if (!target) return;
+
+    // Video first, then the still - the same order a theme would ask in, and the reason
+    // the kinds are named in pairs.
+    const index = this._currentGameIndex;
+    const wanted = [`${kind}_video`, kind].find((name) => {
+      if (!MEDIA_KINDS.includes(name)) return false;
+      const media = this.getMedia(index, name);
+      // `missing` still answers with the placeholder URL, so truthiness is not enough -
+      // it would put the file-missing image on screen inside a <video>.
+      return media.url && media.kind !== "missing";
+    });
+    if (!wanted) return target.replaceChildren();
+
+    const isVideo = wanted.endsWith("_video");
+    const node = document.createElement(isVideo ? "video" : "img");
+    node.src = this.getMediaURL(index, wanted);
+    node.alt = this.gameData[index]?.game?.name || "";
+    if (isVideo) {
+      Object.assign(node, { autoplay: true, loop: true, muted: true, playsInline: true });
+    }
+    target.replaceChildren(node);
   }
 
   // Neighbors only, and only once the wheel has stopped moving.
@@ -1448,9 +1521,14 @@ class VPinFECore {
         }
       } else if (data.type === 'event') {
         this.#handleFrontendInputLifecycleEvent(data.message);
-        // Handle pushed events from Python
+        // Handle pushed events from Python. A theme's receiveEvent is expected to call
+        // vpin.handleEvent itself, so calling both would handle the message twice.
+        // With no theme script on the page there is nobody to call it - and a window
+        // core draws by itself has no reason to carry one - so core pumps its own.
         if (typeof window.receiveEvent === 'function') {
           window.receiveEvent(data.message);
+        } else {
+          this.handleEvent(data.message);
         }
         // Forward to iframes if requested
         if (data.forward_iframe) {
@@ -1526,6 +1604,12 @@ class VPinFECore {
     this.#publishLayout();
     await this.#loadMonitors();
     await this.getGameData();
+
+    // Draw once now the games are here. Waiting for a selection message would leave a
+    // display window blank on a fresh start: the controller only broadcasts a restore
+    // when the remembered index is past the first game, so at index 0 nothing arrives
+    // and nothing ever asked this window to paint.
+    this.#renderWindowMedia();
    //this.#overrideConsole(); //disabled for now...
 
     // only run on the table window.. Its the master controller for all screens/windows
@@ -1960,6 +2044,19 @@ class VPinFECore {
    * Known before the socket opens. Every published theme asks the backend for it instead,
    * because until now there was nothing else to ask.
    */
+  /**
+   * The media kind this window shows, or null when it is not a display we hold art for.
+   *
+   * A media kind is named after the display it captures, so a window that is a display
+   * finds its artwork under its own name. The mapping lives here rather than in every
+   * theme: a contract 1 window is translated the same way its media names are, and a
+   * window a theme invented resolves to null instead of a lookup that finds nothing.
+   */
+  get windowMediaKind() {
+    const kind = this.#normalizeMediaType(this._windowName);
+    return MEDIA_KINDS.includes(kind) ? kind : null;
+  }
+
   get windowName() {
     return this._windowName;
   }
@@ -2158,4 +2255,25 @@ async #onButtonPressed(buttonIndex, gamepadIndex) {
     });
   }
 
+}
+
+
+// A window core draws needs no theme script, and this file only defines the class - a
+// theme is what constructs core and opens its socket. So a page with no script would sit
+// black forever waiting for someone to start it.
+//
+// Scoped to pages that asked: no `[data-vpin-media]`, no bootstrap. A theme builds its
+// own `vpin` while its script runs, which is before this fires, so a page that has one is
+// left alone and can never end up with two.
+if (typeof document !== "undefined" && typeof window !== "undefined") {
+  const bootstrapCoreOnlyWindow = () => {
+    if (window.vpin || !document.querySelector("[data-vpin-media]")) return;
+    window.vpin = new VPinFECore();
+    window.vpin.init();
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootstrapCoreOnlyWindow);
+  } else {
+    bootstrapCoreOnlyWindow();
+  }
 }

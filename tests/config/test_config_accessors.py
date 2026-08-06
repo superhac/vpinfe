@@ -64,7 +64,10 @@ class TypedConfigTests(unittest.TestCase):
         self.assertEqual(media_config.realdmd_media_priority, "standard")
         self.assertEqual(
             media_config.priority_payload(),
-            {"playfield": "image", "bg": "video", "dmd": "video", "real_dmd": "standard"},
+            # Canonical keys, because core looks them up with a normalized kind name.
+            # `bg` and `dmd` stay so a contract 1 theme reading them directly still works.
+            {"playfield": "image", "backglass": "video", "scoreview": "video",
+             "real_dmd": "standard", "bg": "video", "dmd": "video"},
         )
         self.assertEqual(NetworkConfig.from_config(parser).ws_port, 9002)
         self.assertEqual(NetworkConfig.from_config(parser).theme_assets_port, 8000)

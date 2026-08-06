@@ -104,7 +104,11 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
     title: "",
     addEventListener() {},
     removeEventListener() {},
-    querySelector: unimplemented("document.querySelector"),
+    // Core looks for the element it renders a display window's media into. A test that
+    // wants that path puts one in `_query`; everything else has no target and core does
+    // nothing, which is the real behaviour for a page that never opted in.
+    _query: {},
+    querySelector(selector) { return documentStub._query[selector] || null; },
     readyState: "complete",
     _byId: { "overlay-root": element("overlay-root") },
     getElementById(id) { return documentStub._byId[id] || null; },

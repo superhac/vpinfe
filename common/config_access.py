@@ -178,12 +178,15 @@ class MediaConfig:
 
     def priority_payload(self) -> dict[str, str]:
         return {
-            # Media kind keys, so a theme can index this with the same string it passes
-            # to vpin.getMedia(). The ini keys they come from are frozen and do not match.
+            # Canonical media kind keys, because core looks these up with a normalized
+            # name. The ini keys they come from are frozen and do not match either.
             "playfield": self.playfield_media_priority,
+            "backglass": self.bg_media_priority,
+            "scoreview": self.dmd_media_priority,
+            "real_dmd": self.realdmd_media_priority,
+            # A contract 1 theme reading vpin.mediaPriorities.bg directly still finds it.
             "bg": self.bg_media_priority,
             "dmd": self.dmd_media_priority,
-            "real_dmd": self.realdmd_media_priority,
         }
 
 
