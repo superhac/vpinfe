@@ -22,6 +22,17 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SKIP_DIRS = {".venv", "build", "third-party", "chromium", "web", "tests", "__pycache__"}
 VENDORED = {"managerui/maps"}
 
+# Modules that only exist on one platform, imported inside the branch that needs them.
+# `find_spec` answers for the machine running the suite, so without this the check says
+# macOS-only imports "name nothing" on every Linux and Windows runner - which it did, and
+# the point of this test is renames, not portability.
+PLATFORM_ONLY = {
+    "AppKit",     # PyObjC, macOS window geometry
+    "Quartz",     # PyObjC, macOS key codes
+    "objc",
+    "win32api", "win32con", "win32gui", "winreg",
+}
+
 
 def _source_files():
     for path in sorted(REPO_ROOT.rglob("*.py")):
@@ -53,11 +64,29 @@ class ImportsResolveTests(unittest.TestCase):
                 else:
                     continue
                 for name in names:
-                    if _is_ours(name) or importlib.util.find_spec(name) is not None:
+                    if name in PLATFORM_ONLY or _is_ours(name):
+                        continue
+                    if importlib.util.find_spec(name) is not None:
                         continue
                     missing.append(f"{rel}:{node.lineno} imports '{name}'")
 
         self.assertEqual(missing, [], "imports that name nothing:\n" + "\n".join(missing))
+
+    def test_the_platform_allowlist_earns_its_place(self) -> None:
+        """An entry nothing imports is one nobody will remember to remove."""
+        imported = set()
+        for path, _ in _source_files():
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    imported.update(alias.name.split(".")[0] for alias in node.names)
+                elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                    imported.add(node.module.split(".")[0])
+
+        # win32* and winreg are listed ahead of the Windows work rather than in use.
+        unused = sorted(PLATFORM_ONLY - imported - {"win32api", "win32con", "win32gui",
+                                                    "winreg", "objc"})
+        self.assertEqual(unused, [], "drop it, or import it")
 
 
 if __name__ == "__main__":
