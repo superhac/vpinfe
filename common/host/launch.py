@@ -131,7 +131,7 @@ def _command(game, vpx_path: str, launcher: str, settings) -> list[str]:
 def _record_play(game, ini_config, elapsed_seconds: float, profile, table: str = "") -> None:
     """Play data for a finished session. Runs on every path, which it did not use to."""
     if profile is None:
-        game_play_service.add_runtime_minutes(game, elapsed_seconds, table)
+        game_play_service.add_play_time(game, elapsed_seconds, table)
         game_play_service.update_score_from_nvram(game)
         return
 
@@ -256,6 +256,7 @@ def launch_game(game, ini_config, *, source: str, table: str | None = None,
     if started_at is not None:
         _record_play(game, ini_config, max(0.0, time.time() - started_at), profile,
                      os.path.basename(vpx_path))
+        events.emit(events.GAME_PLAY_RECORDED, game=game, ini_config=ini_config)
     game_play_service.delete_nvram_if_configured(game)
 
 

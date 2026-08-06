@@ -170,6 +170,7 @@ def _ensure_game_user_state(profile_key: str, game_key: str) -> dict[str, Any]:
             "LastRun": None,
             "StartCount": 0,
             "RunTime": 0,
+            "run_time_seconds": 0,
             "Tags": [],
         },
     )
@@ -191,17 +192,24 @@ def record_game_start(game_key: str, played_at: int | None = None) -> dict[str, 
 
 
 def add_game_runtime(game_key: str, elapsed_seconds: float, profile_key: str | None = None) -> dict[str, Any]:
-    session_minutes = int((max(0.0, float(elapsed_seconds)) + 59) // 60)
+    """Add one session to a profile's play time, in seconds.
+
+    RunTime is what the API is sent and it carries minutes, so it is derived from the
+    seconds rather than accumulated - rounding each session up to a whole minute first
+    charged a few seconds at a table the same as a few minutes.
+    """
+    seconds = int(round(max(0.0, float(elapsed_seconds))))
     with _LOCK:
         resolved_profile_key = str(profile_key or _ACTIVE_PROFILE_KEY or "").strip()
         if not resolved_profile_key:
             return {}
         state = _ensure_game_user_state(resolved_profile_key, game_key)
         try:
-            prior_runtime = int(state.get("RunTime", 0))
+            prior_seconds = int(state.get("run_time_seconds", 0))
         except (TypeError, ValueError):
-            prior_runtime = 0
-        state["RunTime"] = prior_runtime + session_minutes
+            prior_seconds = 0
+        state["run_time_seconds"] = prior_seconds + seconds
+        state["RunTime"] = state["run_time_seconds"] // 60
         return copy.deepcopy(state)
 
 

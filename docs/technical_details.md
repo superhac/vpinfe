@@ -105,7 +105,8 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
         "plugin_profile": "",
         "alt_title": "",
         "alt_vpsid": "",
-        "frontend_dof_event": ""
+        "frontend_dof_event": "",
+        "run_time_seconds": 0
     },
     "tables": {
         "123(Talleres de Llobregat 1973) v601.vpx": {
@@ -180,7 +181,10 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
   - Favorite: Favorite flag (0/1)
   - LastRun: Timestamp of last play
   - StartCount: How many times played
-  - RunTime: Total playtime in minutes
+  - RunTime: Total playtime in minutes, rounded down. Derived from
+    `vpinfe.run_time_seconds`, which is what actually accumulates — a key fixed by the
+    VPX spec cannot hold the seconds, and adding whole minutes per session charged a
+    few seconds at a table the same as a few minutes.
   - Tags: Array of custom tags
 
 - tables
@@ -213,6 +217,9 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
     state when you quit. Enabling this deletes the NVRAM file on close. Default is false.
   - alt_launcher: Optional executable path override for this game alone. If set, it is used
     instead of `vpinfe.ini` `Settings.vpxbinpath`.
+  - run_time_seconds: total play time. This is the counter that accumulates; `User.RunTime`
+    is it rounded down to whole minutes. Written on the first play after upgrading, seeded
+    from whatever `User.RunTime` already held.
   - plugin_profile, alt_title, alt_vpsid, frontend_dof_event
 
   `alt_vpsid` is cleared when the default table's hash changes during a rebuild, since a

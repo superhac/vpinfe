@@ -29,6 +29,7 @@ from common.games.game_metadata import (
     game_rating,
     game_title,
     game_year,
+    run_time_seconds,
     section,
     vpinfe_section,
 )
@@ -151,9 +152,13 @@ def _sort_key(order_by: str):
     if order_by == "added":
         return lambda e: (-(getattr(e.game, "creation_time", 0) or 0),
                           game_title(e.game).lower(), e.table_id)
-    if order_by in ("last_played", "play_count", "play_time"):
-        stored = {"last_played": "LastRun", "play_count": "StartCount",
-                  "play_time": "RunTime"}[order_by]
+    if order_by == "play_time":
+        # The seconds, not User.RunTime: ordering on the minutes ties every game with
+        # under a minute on it at zero, which is most of a library that gets browsed.
+        return lambda e: (-run_time_seconds(getattr(e.game, "meta_config", {}) or {}),
+                          game_title(e.game).lower(), e.table_id)
+    if order_by in ("last_played", "play_count"):
+        stored = {"last_played": "LastRun", "play_count": "StartCount"}[order_by]
         return lambda e: (-_user_value(e.game, stored), game_title(e.game).lower(),
                           e.table_id)
     return _sort_key(DEFAULT_ORDER)

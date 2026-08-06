@@ -11,9 +11,11 @@ from common.games.game_metadata import (
     default_table_entry,
     get_or_create_table_user,
     get_or_create_user_meta,
+    get_or_create_vpinfe_meta,
     load_game_meta,
     normalize_meta,
     persist_game_meta,
+    run_time_seconds,
     section,
     vpinfe_section,
 )
@@ -59,19 +61,19 @@ def increment_start_count(game, table: str = "") -> None:
     logger.debug("Updated User.StartCount for %s -> %s", game.gameDirName, user["StartCount"])
 
 
-def add_runtime_minutes(game, elapsed_seconds: float, table: str = "") -> None:
+def add_play_time(game, elapsed_seconds: float, table: str = "") -> None:
     config = clone_game_meta(game)
     if not config:
         logger.warning("Could not update RunTime: invalid game metadata for %s", game.gameDirName)
         return
 
-    user = apply_runtime_update(config, elapsed_seconds, table=table)
+    apply_runtime_update(config, elapsed_seconds, table=table)
     persist_game_meta(game, config)
     logger.info(
-        "Updated User.RunTime for %s: +%s min (total=%s)",
+        "Updated play time for %s: +%ss (total=%ss)",
         game.gameDirName,
-        int((elapsed_seconds + 59) // 60),
-        user["RunTime"],
+        max(0, int(round(float(elapsed_seconds)))),
+        run_time_seconds(config),
     )
 
 
@@ -108,14 +110,22 @@ def apply_start_count_update(config: dict, played_at: int | None = None,
 
 
 def apply_runtime_update(config: dict, elapsed_seconds: float, table: str = "") -> dict:
-    session_minutes = int((elapsed_seconds + 59) // 60)
+    """Add one session to the play time. Seconds, at both levels.
+
+    Each session used to be rounded up to a whole minute before it was added, so a
+    three-second look at a table cost a minute and a run of them ran the total away from
+    reality. The seconds are the record; the minutes are a view of it.
+    """
+    seconds = max(0, int(round(float(elapsed_seconds))))
+    total = run_time_seconds(config) + seconds
+    get_or_create_vpinfe_meta(config)["run_time_seconds"] = total
+
+    # Derived, never accumulated: User.RunTime is a specced key carrying minutes, and it
+    # goes to the VPinPlay API verbatim, so it cannot hold the seconds itself.
     user = get_or_create_user_meta(config)
-    _plus(user, "RunTime", session_minutes)
+    user["RunTime"] = total // 60
     if table:
-        # Seconds, and the name says so. User.RunTime is minutes, undocumented as such
-        # and wrong in docs/technical_details.md for as long as it has existed.
-        _plus(get_or_create_table_user(config, table), "run_time_seconds",
-              int(round(elapsed_seconds)))
+        _plus(get_or_create_table_user(config, table), "run_time_seconds", seconds)
     return user
 
 

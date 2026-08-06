@@ -216,6 +216,31 @@ def get_or_create_user_meta(config: Dict[str, Any]) -> Dict[str, Any]:
     return user
 
 
+def run_time_seconds(meta: Any) -> int:
+    """The play time recorded against a game, in seconds.
+
+    Seeded from `User.RunTime` for a game last played before the seconds were kept, so
+    an existing library carries its history forward instead of restarting at nothing.
+    """
+    vpinfe = vpinfe_section(meta)
+    if "run_time_seconds" in vpinfe:
+        return _as_int(vpinfe.get("run_time_seconds"))
+    return _as_int(section(meta, "User").get("RunTime")) * 60
+
+
+def _as_int(value, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def get_or_create_vpinfe_meta(config: Dict[str, Any]) -> Dict[str, Any]:
+    """The section VPinFE owns, to write into. `vpinfe_section` normalizes and may copy,
+    so it reads but does not write."""
+    return config.setdefault(VPINFE_SECTION, {})
+
+
 def get_or_create_table_user(config: dict[str, Any], filename: str) -> dict[str, Any]:
     """One table's play record, created on its first launch.
 
