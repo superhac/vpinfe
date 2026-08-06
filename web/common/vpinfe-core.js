@@ -148,6 +148,9 @@ class ContractTwoReader {
   audioURL(entry)       { return this.url(entry, "audio"); }
   logo(entry)           { return entry.game?.manufacturer_logo || null; }
   vpsId(entry)          { return String(entry.game?.vps_id || "").trim(); }
+  // The table, not the game: an expanded wheel shows a game's builds separately, and the
+  // player is standing on one of them.
+  identity(entry)       { return String(entry.table?.id || entry.game?.id || ""); }
 
   imageVideo(entry, kind, priority) {
     const order = priority === "image" ? ["image", "video"] : ["video", "image"];
@@ -348,6 +351,8 @@ class ContractOneReader {
   audioURL(game)       { return game.AudioPath ? this.pathToURL(game.AudioPath) : null; }
   logo(game)           { return game.ManufacturerLogoPath || null; }
   vpsId(game)          { return String(game?.meta?.Info?.VPSId || "").trim(); }
+  // Contract 1 is one row per game and carries no id, so the folder is the name it has.
+  identity(game)       { return String(game.gameDirName || ""); }
 
   imageVideo(game, kind, priority) {
     const image = this.field(game, MEDIA_PATH_FIELDS[kind]);
@@ -514,6 +519,9 @@ class VPinFECore {
 
     // WebSocket bridge
     this._ws = null;
+    this._reconnectTimer = null;
+    this._reconnectDelayMs = 0;
+    this._shuttingDown = false;
     this._pendingCalls = {}; // {callId: {resolve, reject}}
     this._callIdCounter = 0;
     this._windowName = this.#detectWindowName();
@@ -978,11 +986,19 @@ class VPinFECore {
   async handleEvent(message) {
     // A data change raised by the backend carries no index - the wheel position only
     // exists in the browser, and a theme assigns message.index straight to its wheel.
-    // Filled in before the alias copy is taken, so both spellings carry it.
-    if (message && typeof message === "object" && typeof message.index !== "number"
-        && canonicalMessageType(message.type) === "GameDataChange") {
-      message.index = this._currentGameIndex;
-    }
+    // The game under the wheel is held rather than the number, because the refresh can
+    // reorder: a finished session moves a game up a LastRun wheel, and a Manager UI edit
+    // can filter it out of the list entirely.
+    const raised = message && typeof message === "object"
+      && typeof message.index !== "number"
+      && canonicalMessageType(message.type) === "GameDataChange";
+    const held = raised ? this.#identityAt(this._currentGameIndex) : null;
+    // Set now as well as after the refresh, so the message carries a usable index even
+    // if the held game is gone. `raw` is the object the theme itself will read: the
+    // alias copy below is core's, and writing only to that would leave a theme matching
+    // on the 2.x spelling with the index this had before the refresh.
+    const raw = message;
+    if (raised) message.index = this._currentGameIndex;
     // A theme may post the pre-3.0 spelling; normalize before anything matches on it.
     if (message && MESSAGE_TYPE_CANONICAL[message.type]) {
       message = { ...message, type: canonicalMessageType(message.type) };
@@ -998,6 +1014,11 @@ class VPinFECore {
     if (message.type === "GameDataChange") {
       if (this.isController()) this._lastSelectedIndex = null;
       await this.#handleGameDataChange(message);
+      if (raised) {
+        const index = this.#indexOfIdentity(held);
+        this._currentGameIndex = index;
+        raw.index = message.index = index;
+      }
     }
     this.#syncSelectionFromMessage(message);
     this.#applyLaunchDim(message.type);
@@ -1188,6 +1209,10 @@ class VPinFECore {
   // Which messages mean "the wheel is now on something else". GameIndexUpdate is an
   // ordinary step; the other two mean the list or the game underneath may have changed,
   // so the notify has to fire again even when the index did not move.
+  // The longest we wait between reconnect attempts. A cabinet can sleep for hours, so
+  // there is no point trying every half second for all of it.
+  static RECONNECT_CEILING_MS = 10000;
+
   static SELECTION_MESSAGES = new Set([
     "GameIndexUpdate", "GameDataChange", "GameLaunchComplete", "RemoteLaunchComplete",
   ]);
@@ -1347,6 +1372,26 @@ class VPinFECore {
 
   #vpsIdOf(item) {
     return item && typeof item === "object" ? this._reader.vpsId(item) : "";
+  }
+
+  /** What the wheel is standing on, in terms that survive the list being rebuilt. */
+  #identityAt(index) {
+    const item = this.#itemByIndex(index);
+    return item && typeof item === "object" ? (this._reader.identity(item) || null) : null;
+  }
+
+  /**
+   * Where a held game sits now, or the index we already had.
+   *
+   * A game can leave the list - an edit filters it out, a collection drops it - and
+   * there is no good answer for where the player then is. Staying put is the least
+   * surprising of the bad answers, and the clamp in getGameData keeps it in range.
+   */
+  #indexOfIdentity(held) {
+    if (!held || !Array.isArray(this.gameData)) return this._currentGameIndex;
+    const found = this.gameData.findIndex(item =>
+      item && typeof item === "object" && this._reader.identity(item) === held);
+    return found >= 0 ? found : this._currentGameIndex;
   }
 
   #getVPinPlayUrl(vpsId) {
@@ -1536,7 +1581,11 @@ class VPinFECore {
 
     this._ws.onopen = async () => {
       console.log("[WS] Connected to bridge");
+      this._reconnectDelayMs = 0;
       await this.#onBridgeReady();
+      // ready is a one-shot: a theme awaits it once at startup, and resolving an
+      // already-resolved promise on every reconnect is a no-op rather than a second
+      // startup.
       this._resolveReady();
     };
 
@@ -1577,11 +1626,36 @@ class VPinFECore {
 
     this._ws.onclose = () => {
       console.log("[WS] Disconnected from bridge");
+      this.#scheduleReconnect();
     };
 
     this._ws.onerror = (err) => {
       console.error("[WS] WebSocket error:", err);
     };
+  }
+
+  /**
+   * Come back after the bridge goes away.
+   *
+   * Without this a cabinet that sleeps wakes up dead: the sockets close with 1006, the
+   * three windows stay on screen showing the last game, and nothing reconnects - so no
+   * button reaches the backend and the frontend looks fine while doing nothing. The same
+   * hole swallowed a backend restart under a running frontend.
+   *
+   * Backs off to a ceiling rather than hammering a bridge that may be gone for hours,
+   * and reconnecting re-runs #onBridgeReady, so config, game data and this window's
+   * media are all re-read rather than assumed to have survived.
+   */
+  #scheduleReconnect() {
+    if (this._reconnectTimer || this._shuttingDown) return;
+    this._reconnectDelayMs = Math.min((this._reconnectDelayMs || 500) * 2,
+                                      VPinFECore.RECONNECT_CEILING_MS);
+    const delay = this._reconnectDelayMs;
+    console.log(`[WS] Reconnecting in ${delay}ms`);
+    this._reconnectTimer = setTimeout(() => {
+      this._reconnectTimer = null;
+      this.#connectWebSocket();
+    }, delay);
   }
 
   async #onBridgeReady() {
