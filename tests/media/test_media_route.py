@@ -8,7 +8,6 @@ only exist at the HTTP layer.
 
 from __future__ import annotations
 
-import json
 import unittest
 import urllib.error
 import urllib.request
@@ -19,22 +18,18 @@ from unittest import mock
 from common.games import media_lookup
 from common.games.game_parser import GameParser
 from frontend.custom_http_server import CustomHTTPServer
-from tests.support.library import TempTree
+from tests.support.library import TempTree, write_game
 
 
 def _library(root: Path) -> None:
-    game = root / "Example Game (Bally 1990)"
-    (game / "medias").mkdir(parents=True)
-    (game / "Example Game (Bally 1990).vpx").write_bytes(b"vpx")
-    (game / "medias" / "wheel.png").write_bytes(b"\x89PNG wheel bytes")
-    (game / "medias" / "bg.png").write_bytes(b"\x89PNG backglass bytes")
-    (game / "Example Game (Bally 1990).info").write_text(json.dumps({
+    write_game(root, "Example Game (Bally 1990)", info={
         "Info": {"Title": "Example Game", "Manufacturer": "Bally", "Year": "1990"},
         "vpinfe": {"game_id": "tbl0000001", "schema": 2,
                    "default_table": "tbl0000001"},
         "tables": {"tbl0000001": {"id": "tbl0000001",
                                   "filename": "Example Game (Bally 1990).vpx"}},
-    }), encoding="utf-8")
+    }, medias={"wheel.png": b"\x89PNG wheel bytes",
+               "bg.png": b"\x89PNG backglass bytes"})
 
 
 class LookupTests(TempTree):
@@ -71,20 +66,15 @@ class PerTableResolutionTests(TempTree):
 
     def setUp(self) -> None:
         super().setUp()
-        root = self.root
-        game = root / "Two Tables (Bally 1990)"
-        (game / "medias").mkdir(parents=True)
-        for name in ("Default.vpx", "Other.vpx"):
-            (game / name).write_bytes(b"vpx")
-        # A tier-1 wheel named for the table that is NOT the default.
-        (game / "medias" / "(Wheel) Other.png").write_bytes(b"\x89PNG other wheel")
-        (game / "Two Tables (Bally 1990).info").write_text(json.dumps({
+        write_game(self.root, "Two Tables (Bally 1990)", vpx=False, info={
             "Info": {"Title": "Two Tables"},
             "vpinfe": {"game_id": "two0000001", "schema": 2, "default_table": "t1"},
             "tables": {"t1": {"id": "t1", "filename": "Default.vpx"},
                        "t2": {"id": "t2", "filename": "Other.vpx"}},
-        }), encoding="utf-8")
-        self.games = GameParser(str(root)).getAllGames()
+        }, files={"Default.vpx": b"vpx", "Other.vpx": b"vpx"},
+            # A tier-1 wheel named for the table that is NOT the default.
+            medias={"(Wheel) Other.png": b"\x89PNG other wheel"})
+        self.games = GameParser(str(self.root)).getAllGames()
 
     def test_both_tables_answer_with_the_default_tables_media(self) -> None:
         first = media_lookup.media_path(self.games, "t1", "wheel")
@@ -104,16 +94,11 @@ class UnparsedGameTests(TempTree):
 
     def setUp(self) -> None:
         super().setUp()
-        root = self.root
-        game = root / "Untouched (Bally 1985)"
-        (game / "medias").mkdir(parents=True)
-        (game / "Untouched (Bally 1985).vpx").write_bytes(b"vpx")
-        (game / "medias" / "wheel.png").write_bytes(b"\x89PNG")
-        (game / "Untouched (Bally 1985).info").write_text(json.dumps({
+        write_game(self.root, "Untouched (Bally 1985)", info={
             "Info": {"Title": "Untouched"},
             "vpinfe": {"game_id": "untouched1", "schema": 2},
-        }), encoding="utf-8")
-        self.games = GameParser(str(root)).getAllGames()
+        }, medias={"wheel.png": b"\x89PNG"})
+        self.games = GameParser(str(self.root)).getAllGames()
 
     def test_media_is_reachable_by_the_game_id(self) -> None:
         path = media_lookup.media_path(self.games, "untouched1", "wheel")

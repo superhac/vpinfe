@@ -7,22 +7,17 @@ the library to notice costs the whole library, which on a network share is minut
 from __future__ import annotations
 
 import configparser
-import json
 import unittest
 from pathlib import Path
 
 from common.games.game_parser import GameParser
-from tests.support.library import TempTree
+from tests.support.library import TempTree, write_game
 
 
 def _game_folder(root: Path, name: str, rating: int = 0) -> Path:
-    folder = root / name
-    folder.mkdir(parents=True, exist_ok=True)
-    (folder / f"{name}.vpx").write_bytes(b"vpx")
-    (folder / f"{name}.info").write_text(
-        json.dumps({"Info": {"Title": name}, "User": {"Rating": rating},
-                    "vpinfe": {"schema": 2}}), encoding="utf-8")
-    return folder
+    return write_game(root, name, info={"Info": {"Title": name},
+                                        "User": {"Rating": rating},
+                                        "vpinfe": {"schema": 2}})
 
 
 class SingleGameRefreshTests(TempTree):

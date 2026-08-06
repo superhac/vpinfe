@@ -5,16 +5,12 @@ from pathlib import Path
 from common.games import game_identity
 from common.games.game_repository import game_to_row
 from common.games.info_file import MetaConfig
-from tests.support.library import TempTree, fake_game
+from tests.support.library import TempTree, fake_game, write_game
 
 
 def _game(root: Path, name: str = "Example", meta: dict | None = None):
     """A game folder with a .info file, shaped like GameParser produces."""
-    folder = root / name
-    folder.mkdir(parents=True, exist_ok=True)
-    if meta is not None:
-        (folder / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
-    return fake_game(folder, name, meta=meta or {})
+    return fake_game(write_game(root, name, info=meta, vpx=False), name, meta=meta or {})
 
 
 class MintedIdTests(TempTree):

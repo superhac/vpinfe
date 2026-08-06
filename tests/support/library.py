@@ -37,7 +37,8 @@ def write_game(root: Path | str, name: str = "Example", *,
 
     `info` is written as given, so a test that cares about the metadata says exactly
     what it wants; omit it for a folder with none, which is its own case. `medias` go
-    under `medias/`, `files` at the folder root - the two tiers media resolution reads.
+    under `medias/`, `files` anywhere under the folder - the two tiers media resolution
+    reads, plus whatever else a game carries.
     """
     folder = Path(root) / name
     folder.mkdir(parents=True, exist_ok=True)
@@ -46,7 +47,9 @@ def write_game(root: Path | str, name: str = "Example", *,
     if info is not None:
         (folder / f"{name}.info").write_text(json.dumps(info), encoding="utf-8")
     for rel, data in (files or {}).items():
-        (folder / rel).write_bytes(data)
+        target = folder / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
     for rel, data in (medias or {}).items():
         target = folder / "medias" / rel
         target.parent.mkdir(parents=True, exist_ok=True)

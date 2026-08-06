@@ -12,19 +12,16 @@ from common.games.collection_store import (
     restorable_collections_backup,
 )
 from common.games.info_file import MetaConfig
-from tests.support.library import TempTree, fake_game
+from tests.support.library import TempTree, fake_game, write_game
 
 
 def _game(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", game_id: str = ""):
-    folder = root / name
-    folder.mkdir(parents=True, exist_ok=True)
     meta = {"Info": {"VPSId": vpsid, "Title": name}, "vpinfe": {}}
     if altvpsid:
         meta["vpinfe"]["alt_vpsid"] = altvpsid
     if game_id:
         meta["vpinfe"]["game_id"] = game_id
-    (folder / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
-    return fake_game(folder, name, meta=meta)
+    return fake_game(write_game(root, name, info=meta, vpx=False), name, meta=meta)
 
 
 def _collections(path: Path, sections: dict) -> CollectionStore:

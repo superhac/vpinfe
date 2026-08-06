@@ -14,6 +14,7 @@ from common.games.game_metadata import game_frontend_dof_event
 from common.games.tables import entry_for_filename
 from common.host import real_dmd, system_actions
 from frontend import config_api, game_state, theme_api
+from tests.support.library import write_game
 
 
 class FrontendServiceTests(unittest.TestCase):
@@ -207,8 +208,7 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_frontend_rating_write_preserves_newer_on_disk_stats(self):
         with TemporaryDirectory() as temp_dir:
-            game_dir = Path(temp_dir) / "Example"
-            game_dir.mkdir()
+            game_dir = write_game(temp_dir, "Example", vpx=False)
             info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(
@@ -249,8 +249,7 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_play_tracking_preserves_newer_on_disk_rating(self):
         with TemporaryDirectory() as temp_dir:
-            game_dir = Path(temp_dir) / "Example"
-            game_dir.mkdir()
+            game_dir = write_game(temp_dir, "Example", vpx=False)
             info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(
@@ -289,8 +288,7 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_parse_score_from_nvram_reads_the_tables_rom(self) -> None:
         with TemporaryDirectory() as tmp:
-            game_dir = Path(tmp) / "Example"
-            game_dir.mkdir()
+            game_dir = write_game(tmp, "Example", vpx=False)
             info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(
@@ -323,8 +321,7 @@ class FrontendServiceTests(unittest.TestCase):
         """2.x kept a game-level Info.Rom and the migration drops it. A value carried
         from there could disagree with the file it claims to describe."""
         with TemporaryDirectory() as tmp:
-            game_dir = Path(tmp) / "Example"
-            game_dir.mkdir()
+            game_dir = write_game(tmp, "Example", vpx=False)
             info_path = game_dir / "Example.info"
             info_path.write_text(
                 json.dumps(

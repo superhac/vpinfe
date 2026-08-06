@@ -21,6 +21,8 @@ from configparser import ConfigParser
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from tests.support.library import write_game
+
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "theme_payload.json"
 
@@ -31,16 +33,7 @@ STABLE_ROOT = "/library"
 def _game(root: Path, folder: str, *, info: dict,
           medias: dict[str, bytes] | None = None,
           root_files: dict[str, bytes] | None = None) -> None:
-    game = root / folder
-    game.mkdir(parents=True)
-    (game / f"{folder}.vpx").write_bytes(b"not really a vpx")
-    (game / f"{folder}.info").write_text(json.dumps(info), encoding="utf-8")
-    for name, data in (root_files or {}).items():
-        (game / name).write_bytes(data)
-    for name, data in (medias or {}).items():
-        target = game / "medias" / name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
+    write_game(root, folder, info=info, medias=medias, files=root_files)
 
 
 def build_library(root: Path) -> None:

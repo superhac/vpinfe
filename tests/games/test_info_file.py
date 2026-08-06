@@ -11,7 +11,7 @@ from common.games.info_file import (
     migrate_vpinfe_section,
 )
 from common.games.tables import entry_for_filename
-from tests.support.library import TempTree
+from tests.support.library import TempTree, write_game
 
 
 class TestMetaConfig(unittest.TestCase):
@@ -297,13 +297,8 @@ class PatchSourceTests(TempTree):
 
     def setUp(self) -> None:
         super().setUp()
-        self.root = self.root / "Example Table"
-        self.root.mkdir(parents=True)
+        self.root = write_game(self.root, "Example Table", vpx=False, info={})
         self.info = self.root / "Example Table.info"
-        self.info.write_text("{}", encoding="utf-8")
-
-    def tearDown(self) -> None:
-        self._tmp.cleanup()
 
     def _source(self, filename: str = "Example Table VPW Mod.vpx") -> dict:
         saved = json.loads(self.info.read_text(encoding="utf-8"))
@@ -345,13 +340,9 @@ class AssetLedgerTests(TempTree):
 
     def setUp(self) -> None:
         super().setUp()
-        self.root = self.root / "Cactus Canyon (Bally 1998)"
-        (self.root / "medias").mkdir(parents=True)
+        self.root = write_game(self.root, "Cactus Canyon (Bally 1998)", vpx=False, info={})
+        (self.root / "medias").mkdir()
         self.info = self.root / "Cactus Canyon (Bally 1998).info"
-        self.info.write_text("{}", encoding="utf-8")
-
-    def tearDown(self) -> None:
-        self._tmp.cleanup()
 
     def _saved(self) -> dict:
         return json.loads(self.info.read_text(encoding="utf-8"))["assets"]

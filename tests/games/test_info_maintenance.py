@@ -19,7 +19,7 @@ from common.games.info_maintenance import (
     upgrade_library,
 )
 from common.games.info_migration import CURRENT_SCHEMA, backup_schema, schema_of
-from tests.support.library import TempTree
+from tests.support.library import TempTree, write_game
 
 LEGACY = {
     "Info": {"Title": "Dr. Dude", "Rom": "dd_l2", "Authors": "someone"},
@@ -32,12 +32,7 @@ LEGACY = {
 class LibraryTestCase(TempTree):
 
     def _game(self, name: str, meta=LEGACY) -> Path:
-        game_dir = self.root / name
-        game_dir.mkdir()
-        (game_dir / f"{name}.vpx").write_text("not really a vpx", encoding="utf-8")
-        if meta is not None:
-            (game_dir / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
-        return game_dir
+        return write_game(self.root, name, info=meta)
 
     def _info(self, game_dir: Path) -> dict:
         return json.loads((game_dir / f"{game_dir.name}.info").read_text(encoding="utf-8"))
@@ -219,17 +214,13 @@ class WhatThePageSaysTests(LibraryTestCase):
     """
 
     def _game_at(self, schema, with_backup=True):
-        game_dir = self.root / "Dr. Dude"
-        game_dir.mkdir()
-        (game_dir / "Dr. Dude.vpx").write_text("x", encoding="utf-8")
         live = {"Info": {}, "User": {"Rating": 4}, "vpinfe": {"schema": schema, "game_id": "a"},
                 "tables": {"Dr. Dude.vpx": {"rom": "dd"}}}
-        (game_dir / "Dr. Dude.info").write_text(json.dumps(live), encoding="utf-8")
+        files = {}
         if with_backup:
             older = {**live, "vpinfe": {"schema": CURRENT_SCHEMA, "game_id": "a"}}
-            (game_dir / "Dr. Dude.info.vpinfe-20260901T000000Z").write_text(
-                json.dumps(older), encoding="utf-8")
-        return game_dir
+            files["Dr. Dude.info.vpinfe-20260901T000000Z"] = json.dumps(older).encode()
+        return write_game(self.root, "Dr. Dude", info=live, files=files)
 
     def _counts(self):
         games = GameParser(str(self.root)).getAllGames()
