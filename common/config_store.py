@@ -227,6 +227,15 @@ class ConfigStore:
 			self.config.set('vpinplay', 'machine_id', _generate_machine_id())
 			changed = True
 
+		# A section the migration emptied - [Input] once its keys merge into [input], or
+		# one whose every key moved elsewhere - would sit in the file forever as a husk.
+		# Defaults are filled in above, so anything still empty has no values and none
+		# coming.
+		for section in list(self.config.sections()):
+			if not self.config.options(section):
+				self.config.remove_section(section)
+				changed = True
+
 		if changed:
 			self.save()
 
