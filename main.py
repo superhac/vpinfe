@@ -35,7 +35,7 @@ from common.config_bootstrap import apply_configdir_override
 
 apply_configdir_override(sys.argv[1:])
 
-from common import theme_options
+from common import shutdown, theme_options
 from common.app_version import get_version
 from common.config_store import ConfigStore
 from common.games.metadata_service import build_metadata
@@ -68,6 +68,11 @@ logger.info("Logging to %s", log_path)
 logger.info("Using NiceGUI storage path: %s", nicegui_storage_path)
 logger.info("Version: %s", get_version())
 
+# Startup downloads themes, walks the library and rewrites .info files, and it can take
+# a while on a big one. Start listening for a kill now; the checks below act on it at
+# the step boundaries, so nothing gets killed halfway through writing.
+shutdown.watch_during_startup()
+
 try:
     roms_update_result = ensure_latest_roms_json(config_store)
     logger.info(
@@ -77,6 +82,8 @@ try:
     )
 except Exception:
     logger.exception("Failed to update pinmame-score-parser roms.json at startup")
+
+shutdown.exit_if_requested(logger)
 
 
 def reconfigure_app_logging() -> None:
@@ -194,6 +201,8 @@ try:
 except Exception:
     logger.exception("Theme registry initialization failed")
 
+shutdown.exit_if_requested(logger)
+
 # Give every game and every table a stable id. One-time cost per library; a no-op
 # afterwards, and neither pass writes a .info it did not change.
 try:
@@ -206,6 +215,8 @@ try:
 except Exception:
     logger.exception("Id backfill failed; games or tables without an id are not addressable")
 
+shutdown.exit_if_requested(logger)
+
 # Collection membership moves onto game ids once the ids exist. Resolvable entries
 # are rewritten; anything that does not resolve is left alone rather than dropped.
 try:
@@ -215,6 +226,8 @@ try:
     _collections.migrate_membership_to_game_ids(ensure_games_loaded())
 except Exception:
     logger.exception("Collection membership migration failed; memberships left as they were")
+
+shutdown.exit_if_requested(logger)
 
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()

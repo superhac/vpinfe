@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import signal
 import threading
 import time
 from pathlib import Path
@@ -11,6 +10,7 @@ from frontend.api import API
 from frontend.chromium_manager import ChromiumManager
 from frontend.custom_http_server import CustomHTTPServer
 from frontend.ws_bridge import WebSocketBridge
+from common import shutdown
 from common.host import system_actions
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
 from common.host.display_service import get_display_monitors
@@ -179,15 +179,21 @@ def wait_for_manager_ui_ready(port: int, timeout_seconds: float = 15.0) -> None:
 
 
 def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, logger, is_window_connected=None):
-    if headless:
-        def _request_shutdown(_signum, _frame):
-            shutdown_event.set()
+    # Only headless used to handle a signal, so killing the windowed frontend died where
+    # it stood and skipped shutdown_services - the play data never reached VPinPlay, and
+    # Chromium runs in its own session, so its windows outlived us on screen.
+    shutdown.handle_termination(
+        shutdown_event.set if headless else frontend_browser.request_exit)
 
+    # Asked to quit while starting up. The windows were never opened, so this is the
+    # whole frontend lifetime - return and let the caller stop the services.
+    if shutdown.requested():
+        logger.info("Shutdown was requested during startup; not opening the frontend.")
+        return
+
+    if headless:
         logger.info("Headless mode: servers running without Chromium frontend")
         logger.info("Press Ctrl+C to stop...")
-        signal.signal(signal.SIGTERM, _request_shutdown)
-        if hasattr(signal, "SIGBREAK"):
-            signal.signal(signal.SIGBREAK, _request_shutdown)
 
         try:
             while not shutdown_event.is_set():
@@ -213,6 +219,7 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
             index=0,
         )
         frontend_browser.wait_for_exit()
+        frontend_browser.terminate_all()
         return
 
     # Prime the monitor cache on the main thread before any windows spawn. Each
@@ -223,6 +230,9 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
 
     frontend_browser.launch_all_windows(iniconfig)
     frontend_browser.wait_for_exit(is_window_connected=is_window_connected)
+    # A no-op when a closed window already took the others down with it; the work
+    # is for the signal, which unblocks the wait without touching the windows.
+    frontend_browser.terminate_all()
 
 
 def shutdown_services(logger, *, vpinplay_sync, iniconfig, ws_bridge, stop_dof, stop_dmd, http_server, nicegui_app, stop_manager_ui):

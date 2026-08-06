@@ -560,7 +560,11 @@ class ChromiumManager:
                     logger.exception("kill %s failed", pid)
 
     def terminate_all(self):
-        """Terminate all Chromium processes immediately."""
+        """Terminate all Chromium processes immediately. Safe to call twice."""
+        if not self._processes:
+            self._exit_event.set()
+            return
+
         logger.debug("Terminating all browser windows...")
         for window_name, proc, _temp_dir, _ in self._processes:
             try:
@@ -583,6 +587,10 @@ class ChromiumManager:
         self._processes.clear()
         self._exit_event.set()
         logger.info("All browser windows closed.")
+
+    def request_exit(self):
+        """Unblock wait_for_exit and leave the windows to the caller."""
+        self._exit_event.set()
 
     def wait_for_exit(self, is_window_connected=None):
         """Block until all Chromium processes have exited.

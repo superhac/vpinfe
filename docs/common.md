@@ -25,6 +25,7 @@ import from a domain package. That rule is the point of the layer; breaking it i
 - `jobs.py`: slow work as a job — one at a time per kind, progress published on the bus, answerable by id after it finishes.
 - `http_client.py`: shared request/download helpers.
 - `third_party.py`: finding and loading the third-party libraries the build bundles.
+- `shutdown.py`: what a kill signal does. Startup notes it and stops at the next step boundary; once the frontend is up it takes the same route as a user's own quit.
 - `logging_config.py`, `app_version.py`.
 
 **`common/games/`** - games, their metadata, and the collections built from them.

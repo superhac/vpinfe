@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import types
 import unittest
 from unittest import mock
@@ -161,6 +162,23 @@ class ChromiumManagerTests(unittest.TestCase):
 
         proc.poll.assert_called()
         manager.terminate_all.assert_called_once()
+
+    def test_request_exit_unblocks_a_wait_without_closing_the_windows(self) -> None:
+        manager = ChromiumManager()
+        proc = types.SimpleNamespace(poll=mock.Mock(return_value=None), returncode=None)
+        manager._processes = [("table", proc, None, None)]
+        threading.Timer(0.1, manager.request_exit).start()
+
+        manager.wait_for_exit()
+
+        self.assertEqual(manager._processes, [("table", proc, None, None)])
+
+    def test_terminate_all_is_a_no_op_once_the_windows_are_gone(self) -> None:
+        manager = ChromiumManager()
+
+        manager.terminate_all()
+
+        self.assertTrue(manager._exit_event.is_set())
 
 
 if __name__ == "__main__":
