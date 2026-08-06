@@ -30,8 +30,13 @@ class ThemeInstallStore:
         return parse(remote) > parse(local)
 
     @staticmethod
-    def build_zip_url(base_url: str) -> str:
-        return f"{base_url}/archive/refs/heads/master.zip"
+    def build_zip_url(base_url: str, ref: str = "refs/heads/master") -> str:
+        """The source archive for a ref. A theme serving two contracts serves the older
+        one from a tag, so this cannot assume master any more."""
+        reference = str(ref or "").strip() or "refs/heads/master"
+        if reference == "HEAD":
+            reference = "refs/heads/master"
+        return f"{base_url}/archive/{reference}.zip"
 
     def installed_folder(self, theme_key: str, base_url: str | None = None) -> str | None:
         if os.path.isdir(os.path.join(self.themes_dir, theme_key)):

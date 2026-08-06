@@ -6,15 +6,22 @@ from typing import Dict, Any
 
 from common.paths import CONFIG_DIR
 from common.online.theme_installer import ThemeInstallStore
+from common.online import theme_releases
 from common.online.theme_registry_client import ThemeRegistryClient, ThemeRegistryError
 
 
 logger = logging.getLogger("vpinfe.common.online.themes")
 
+# The highest theme contract this build serves.
+CURRENT_CONTRACT = 2
+
 
 class ThemeRegistry:
-    def __init__(self, timeout: int = 10):
+    def __init__(self, timeout: int = 10, serves_contract: int = CURRENT_CONTRACT):
         self.registry_url = "https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json"
+        # The highest contract this build can run. A theme offering only something newer
+        # is not listed, which is the protection a shipped 2.x client cannot give itself.
+        self.serves_contract = serves_contract
         self.timeout = timeout
         self.client = ThemeRegistryClient(timeout=timeout)
         self.themes_index: Dict[str, Any] = {}
@@ -46,6 +53,41 @@ class ThemeRegistry:
 
         self.themes_index = data["themes"]
 
+    @staticmethod
+    def _base_url(entry: dict) -> str:
+        """Where a theme lives, under either registry shape.
+
+        The new registry holds a name and a url and nothing else, so that registration
+        happens once and every later release is a merge in the author's own repo. The
+        old one is still read unchanged, which is what lets this ship before the
+        registry moves.
+        """
+        return str(entry.get("url") or entry.get("theme_base_url") or "").strip()
+
+    def _resolve_release(self, base_url: str, entry: dict):
+        """The release this build should run, and where its manifest is.
+
+        Asks the author's index first. A theme without one is what every published theme
+        is today: a single contract 1 line on the default branch, whose manifest url the
+        old registry names outright.
+        """
+        index = None
+        try:
+            index = self._fetch_json(theme_releases.index_url(base_url))
+        except Exception:
+            index = None
+
+        declared = theme_releases.releases_in(index)
+        if declared:
+            chosen = theme_releases.pick(declared, self.serves_contract)
+            if chosen is None:
+                return None, None, index
+            return chosen, theme_releases.raw_url(base_url, chosen.ref, "manifest.json"), index
+
+        legacy_url = str(entry.get("theme_manifest_url") or "").strip()
+        chosen = theme_releases.fallback_release()
+        return chosen, legacy_url or theme_releases.raw_url(base_url, "HEAD", "manifest.json"), index
+
     def load_theme_manifests(self, default_only: bool = False):
         if not self.themes_index:
             raise ThemeRegistryError("Registry not loaded.")
@@ -57,16 +99,21 @@ class ThemeRegistry:
         for theme_key, theme_info in self.themes_index.items():
             if default_only and not theme_info.get("default_install", False):
                 continue
-            manifest_url = theme_info.get("theme_manifest_url")
-            if not manifest_url:
+            base_url = self._base_url(theme_info)
+            if not base_url:
                 continue
-            theme_jobs.append((theme_key, theme_info, manifest_url))
+            theme_jobs.append((theme_key, theme_info, base_url))
 
         def _load_one(job):
-            theme_key, theme_info, manifest_url = job
+            theme_key, theme_info, base_url = job
+            release, manifest_url, index = self._resolve_release(base_url, theme_info)
+            if release is None:
+                # Every release this theme offers needs a newer VPinFE than this one.
+                logger.debug("%s offers nothing this build can run", theme_key)
+                return theme_key, theme_info, None, None, None
             manifest = self._fetch_json(manifest_url)
             self._validate_manifest(theme_key, manifest)
-            return theme_key, theme_info, manifest
+            return theme_key, theme_info, manifest, release, index
 
         # Network-bound workload: parallelize manifest fetches.
         max_workers = min(8, max(1, len(theme_jobs)))
@@ -74,10 +121,14 @@ class ThemeRegistry:
             futures = {pool.submit(_load_one, job): job[0] for job in theme_jobs}
             for future in concurrent.futures.as_completed(futures):
                 try:
-                    theme_key, theme_info, manifest = future.result()
+                    theme_key, theme_info, manifest, release, index = future.result()
+                    if manifest is None:
+                        continue
                     self.themes[theme_key] = {
                         "registry_info": theme_info,
                         "manifest": manifest,
+                        "release": release,
+                        "index": index,
                     }
                 except Exception as e:
                     failed_key = futures.get(future, "unknown")
@@ -128,14 +179,13 @@ class ThemeRegistry:
         if not folder_name:
             return None
 
-        base_url = theme_data["registry_info"].get("theme_base_url")
-        return self.store.installed_version(theme_key, base_url)
+        return self.store.installed_version(theme_key, self._base_url(theme_data["registry_info"]))
 
     def _is_version_newer(self, remote: str, local: str) -> bool:
         return self.store.is_version_newer(remote, local)
 
-    def _build_zip_url(self, base_url: str) -> str:
-        return self.store.build_zip_url(base_url)
+    def _build_zip_url(self, base_url: str, ref: str = "refs/heads/master") -> str:
+        return self.store.build_zip_url(base_url, ref)
 
     # =========================================================
     # INSTALLATION
@@ -154,7 +204,8 @@ class ThemeRegistry:
 
         theme_data = self.themes[theme_key]
         manifest = theme_data["manifest"]
-        base_url = theme_data["registry_info"]["theme_base_url"]
+        base_url = self._base_url(theme_data["registry_info"])
+        release = theme_data.get("release") or theme_releases.fallback_release()
 
         remote_version = manifest["version"]
         local_version = self._get_installed_version(theme_key)
@@ -166,7 +217,7 @@ class ThemeRegistry:
 
         logger.info("Installing %s v%s", theme_key, remote_version)
 
-        zip_url = self._build_zip_url(base_url)
+        zip_url = self._build_zip_url(base_url, release.ref)
         zip_data = self._download_zip(zip_url)
 
         self.store.install_zip(theme_key, base_url, zip_data)
@@ -210,7 +261,7 @@ class ThemeRegistry:
         """
         # Check for exact theme_key match first (post-rename)
         theme_data = self.themes.get(theme_key)
-        base_url = theme_data["registry_info"].get("theme_base_url") if theme_data else None
+        base_url = self._base_url(theme_data["registry_info"]) if theme_data else None
         return self.store.installed_folder(theme_key, base_url)
 
     # =========================================================

@@ -267,6 +267,23 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-42 — A theme can publish one release per contract, and the registry stops
+gating that.** A theme repository may carry `vpinfe-theme.json` on its default branch
+listing its release lines - a contract and the ref serving it. VPinFE installs the highest
+contract it can run, taking that line's `manifest.json` and source archive from that ref,
+and does not offer a theme whose only release needs a newer build. A repository without
+the file is read exactly as before: one contract 1 release, `manifest.json` on the default
+branch. All twelve published themes are that case and resolve unchanged.
+*Why:* contract 2 splits the theme population, and the registry entry named a single
+manifest URL - so an author moving to contract 2 broke every installed 2.x client, and the
+only alternatives were registering a second theme or asking the registry owner to
+re-point the entry on every release. Neither scales, and neither is the author's to
+control. Identity belongs in the registry, which is written once; what changes per release
+belongs in the author's own repository. A 2.x build ignores the file and installs
+`master.zip` regardless, so an author keeps those installs working by leaving contract 1
+on the default branch and putting contract 2 on a branch - which is what
+`theme_publishing.md` now recommends. Covered by `tests/theming/test_theme_releases.py`.
+
 **PAR-30 — One WebSocket method is added so the browser can ask which contract it serves.**
 `get_theme_contract()` returns the level the active theme declared. Purely additive: a
 theme never calls it, and no existing method changes.

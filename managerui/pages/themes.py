@@ -158,7 +158,7 @@ def render_panel(tab=None):
                                     ui.label(manifest.get('name', theme_key)).classes('text-xl font-bold').style('color: var(--ink) !important;')
 
                                     # GitHub repo link
-                                    repo_url = registry_info.get('theme_base_url', '')
+                                    repo_url = ThemeRegistry._base_url(registry_info)
                                     if repo_url:
                                         ui.button(
                                             icon='open_in_new',
