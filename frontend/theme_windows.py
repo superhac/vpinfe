@@ -7,12 +7,18 @@ Everything else about a window follows from its name.
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 
 from frontend import theme_api
 
+logger = logging.getLogger("vpinfe.frontend.theme_windows")
+
 MANIFEST_KEY = "windows"
+
+# The contract whose window names CANONICAL translates from.
+OLDEST_CONTRACT = 1
 
 # The three VPinFE opens when a theme says nothing. The controller is first here and
 # launched last, so it takes focus.
@@ -64,6 +70,36 @@ def screen_key(window: str) -> str:
     return f"{canonical(window)}screenid"
 
 
+# Themes already warned about, so a name is reported once rather than per window open.
+_warned_foreign = set()
+
+
+def _warn_on_foreign_names(theme_dir, contract: int, names) -> None:
+    """A theme declaring window names from a contract it does not serve.
+
+    The theme still gets what it asked for - the name decides its page, its monitor and
+    its WebSocket identity, and canonical() keeps the monitor lookup right. What it does
+    not get is anything keyed on the media vocabulary: `bg` is a media kind at contract 1
+    and nothing at contract 2, so a window that asks for its own name finds no artwork and
+    no video, silently. Worth saying out loud, because nothing else will.
+    """
+    if contract <= OLDEST_CONTRACT:
+        return
+    foreign = [name for name in names if name in CANONICAL]
+    if not foreign:
+        return
+    key = (str(theme_dir), tuple(foreign))
+    if key in _warned_foreign:
+        return
+    _warned_foreign.add(key)
+    logger.warning(
+        "Theme declares contract %s but names its windows %s, which belong to contract "
+        "%s. Use %s instead - the windows open either way, but media keyed on the window "
+        "name resolves to nothing under the names it was given.",
+        contract, ", ".join(foreign), OLDEST_CONTRACT,
+        ", ".join(CANONICAL[name] for name in foreign))
+
+
 def declared_windows(theme_dir, contract: int) -> tuple[str, ...]:
     """The windows this theme wants, controller first."""
     default = DEFAULT_WINDOWS.get(contract, DEFAULT_WINDOWS[1])
@@ -74,6 +110,7 @@ def declared_windows(theme_dir, contract: int) -> tuple[str, ...]:
     if isinstance(declared, list):
         names = tuple(str(name).strip() for name in declared if str(name).strip())
         if names:
+            _warn_on_foreign_names(theme_dir, contract, names)
             return names
     return _windows_with_a_page(theme_dir, default)
 

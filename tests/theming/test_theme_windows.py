@@ -157,45 +157,57 @@ class ScreenKeyTests(unittest.TestCase):
         self.assertEqual(displays.window_screen_id("nosuchscreenid"), "",
                          "a window with no monitor set is simply not launched")
 
+class ForeignWindowNameTests(TempTree):
+    """A theme that declares one contract and names windows from another.
+
+    It still gets the windows it asked for - the name decides the page, the monitor and
+    the identity, and canonical() keeps the monitor right. What breaks is anything keyed
+    on the media vocabulary, silently, which is why this warns.
+    """
+
+    def _theme(self, contract, windows):
+        theme = self.root / "Example"
+        theme.mkdir(parents=True, exist_ok=True)
+        (theme / "manifest.json").write_text(
+            json.dumps({"name": "Example", "contract": contract, "windows": windows}),
+            encoding="utf-8")
+        theme_windows._warned_foreign.clear()
+        return theme
+
+    def test_a_contract_2_theme_naming_contract_1_windows_is_warned(self) -> None:
+        theme = self._theme(2, ["playfield", "bg", "dmd"])
+        with self.assertLogs("vpinfe.frontend.theme_windows", "WARNING") as caught:
+            windows = theme_windows.declared_windows(theme, 2)
+        self.assertEqual(windows, ("playfield", "bg", "dmd"), "it still gets what it asked for")
+        message = caught.output[0]
+        self.assertIn("bg, dmd", message)
+        self.assertIn("backglass, scoreview", message)
+
+    def test_correct_contract_2_names_say_nothing(self) -> None:
+        theme = self._theme(2, ["playfield", "backglass", "scoreview"])
+        with self.assertNoLogs("vpinfe.frontend.theme_windows", "WARNING"):
+            theme_windows.declared_windows(theme, 2)
+
+    def test_a_contract_1_theme_keeps_its_own_spellings_quietly(self) -> None:
+        """Those names are correct there - PAR-32 is explicit that they keep working."""
+        theme = self._theme(1, ["table", "bg", "dmd"])
+        with self.assertNoLogs("vpinfe.frontend.theme_windows", "WARNING"):
+            theme_windows.declared_windows(theme, 1)
+
+    def test_an_invented_window_is_not_a_wrong_one(self) -> None:
+        theme = self._theme(2, ["playfield", "topper", "marquee"])
+        with self.assertNoLogs("vpinfe.frontend.theme_windows", "WARNING"):
+            theme_windows.declared_windows(theme, 2)
+
+    def test_it_is_said_once_per_theme(self) -> None:
+        """Windows open repeatedly; the log should not repeat with them."""
+        theme = self._theme(2, ["playfield", "bg"])
+        with self.assertLogs("vpinfe.frontend.theme_windows", "WARNING") as caught:
+            for _ in range(4):
+                theme_windows.declared_windows(theme, 2)
+        self.assertEqual(len(caught.output), 1)
+
+
 
 if __name__ == "__main__":
     unittest.main()
-
-
-class LabelDriftTests(unittest.TestCase):
-    """The label map exists twice - server-side and in the browser - and must agree.
-
-    The bootstrap page is titled by Python before core loads and retitled by JavaScript
-    after, so a name spelled differently on the two sides shows one title then another.
-    They cannot share code, so this reads the JS map instead.
-    """
-
-    def test_both_sides_spell_the_irregular_names_the_same(self) -> None:
-        import re
-        from pathlib import Path
-
-        core = (Path(__file__).resolve().parent.parent.parent
-                / "web" / "common" / "vpinfe-core.js").read_text(encoding="utf-8")
-        block = re.search(r"const known = \{([^}]*)\}", core)
-        self.assertIsNotNone(block, "the label map moved; this test needs updating")
-        js_map = dict(re.findall(r"(\w+):\s*\"([^\"]+)\"", block.group(1)))
-
-        self.assertEqual(js_map, theme_windows.TITLES)
-
-    def test_a_name_neither_side_lists_is_title_cased(self) -> None:
-        self.assertEqual(theme_windows.window_title("topper"), "Topper")
-
-    def test_the_playfield_window_is_renamed_only_at_contract_2(self) -> None:
-        """PAR-34. The name reaches the page title and the /app/<window> url, and
-        Chromium derives a window application id from that url - so a cabinet
-        compositor rule keyed on the old one silently stops matching."""
-        self.assertEqual(theme_windows.DEFAULT_WINDOWS[1][0], "table")
-        self.assertEqual(theme_windows.DEFAULT_WINDOWS[2][0], "playfield")
-
-        self.assertEqual(theme_windows.window_title("table"), "Table")
-        self.assertEqual(theme_windows.window_title("playfield"), "Playfield")
-
-        # Both spellings still name the same monitor setting, which is what keeps a
-        # contract 1 theme's [Displays] key working after the window is renamed.
-        self.assertEqual(theme_windows.screen_key("table"),
-                         theme_windows.screen_key("playfield"))

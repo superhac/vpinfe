@@ -232,7 +232,7 @@ shutdown.exit_if_requested(logger)
 # Optionally sync media updates from VPinMediaDB in background
 _start_startup_media_sync()
 # Feedback hardware follows game lifecycle events from here on, so both launch
-# paths get the same behaviour without either of them knowing about DOF.
+# paths get the same behavior without either of them knowing about DOF.
 from common.host import peripherals
 
 peripherals.register()
