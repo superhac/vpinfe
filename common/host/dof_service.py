@@ -9,7 +9,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from common.config_access import cfg_get
+from common.config_access import cfg_bool
 from common.paths import APP_ROOT
 from common.third_party import find_named_path, import_module_from_path, third_party_base_candidates
 
@@ -22,13 +22,15 @@ logger = logging.getLogger("vpinfe.common.host.dof_service")
 
 
 def _is_enabled(iniconfig) -> bool:
-    try:
-        return iniconfig.config.getboolean('DOF', 'enabledof', fallback=False)
-    except Exception:
-        raw = str(
-            cfg_get(iniconfig, 'DOF', 'enable_dof', 'false')
-        ).strip().lower()
-        return raw in ('1', 'true', 'yes', 'on')
+    """Whether the user asked for DOF.
+
+    Through cfg_bool, which resolves the canonical `enable_dof` and the `enabledof` an
+    older file still carries. Reading the parser directly for the old spelling looked
+    like it had a fallback and did not: getboolean with fallback=False *returns* False
+    for a key that is not there rather than raising, so the branch meant to try the new
+    name never ran and DOF stayed off for anyone whose config had been migrated.
+    """
+    return cfg_bool(iniconfig, 'DOF', 'enable_dof', False)
 
 
 def _find_named_path(base: Path, names: tuple[str, ...]) -> Path | None:
