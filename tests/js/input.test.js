@@ -84,6 +84,9 @@ describe("a bound key belongs to core", () => {
 describe("the auto-repeat throttle is per action", () => {
   test("a repeating right is not swallowed by a repeating left", async () => {
     const { vpin, press } = controller();
+    // Contract 2, so the names below are core's own rather than the translated ones a
+    // contract 1 theme is handed. What is under test is the throttle, not the naming.
+    vpin.contract = 2;
     const seen = [];
     // Pushed directly: registerInputHandler awaits a bridge round-trip before it
     // registers anything, and what is under test here is dispatch.
@@ -92,12 +95,15 @@ describe("the auto-repeat throttle is per action", () => {
     await press("ArrowLeft", { repeat: true });
     await press("ArrowRight", { repeat: true });
 
-    assert.deepEqual(seen, ["joyleft", "joyright"],
+    assert.deepEqual(seen, ["previous", "next"],
       "one shared timestamp read a direction change as the same key repeating");
   });
 
   test("the same action repeating is still throttled", async () => {
     const { vpin, press } = controller();
+    // Contract 2, so the names below are core's own rather than the translated ones a
+    // contract 1 theme is handed. What is under test is the throttle, not the naming.
+    vpin.contract = 2;
     const seen = [];
     // Pushed directly: registerInputHandler awaits a bridge round-trip before it
     // registers anything, and what is under test here is dispatch.
@@ -106,7 +112,7 @@ describe("the auto-repeat throttle is per action", () => {
     await press("ArrowLeft", { repeat: true });
     await press("ArrowLeft", { repeat: true });
 
-    assert.deepEqual(seen, ["joyleft"],
+    assert.deepEqual(seen, ["previous"],
       "the throttle is what keeps a held key from flooding the wheel");
   });
 });
@@ -115,8 +121,8 @@ describe("defaults agree across the boundary", () => {
   test("back is bound in the JavaScript fallback too", () => {
     const { vpin } = controller();
 
-    assert.deepEqual([...vpin.keyActionMap.joyback], ["b"],
-      "Python ships keyback=b; an empty fallback meant back did nothing until the "
+    assert.deepEqual([...vpin.keyActionMap.back], ["b"],
+      "Python ships b for back; an empty fallback meant back did nothing until the "
       + "bridge answered");
   });
 });
@@ -174,11 +180,48 @@ describe("typing is typing, not input actions", () => {
 
   test("a checkbox is not a text field, so bindings still work", async () => {
     const { vpin, press } = controller();
+    vpin.contract = 2;
     const seen = [];
     vpin.inputHandlers.push((action) => { seen.push(action); });
 
     await press("ArrowLeft", { target: field("checkbox") });
 
-    assert.deepEqual(seen, ["joyleft"]);
+    assert.deepEqual(seen, ["previous"]);
+  });
+});
+
+describe("a theme is handed the action names its contract published", () => {
+  // Twelve registry themes switch on `case "joyleft"`. Core dispatches `previous` now,
+  // so contract 1 gets translated at the theme boundary and nothing else does.
+  const themeSees = (contract) => {
+    const { vpin, press } = controller();
+    vpin.contract = contract;
+    const seen = [];
+    vpin.inputHandlers.push((action) => { seen.push(action); });
+    return { seen, press };
+  };
+
+  test("contract 1 still receives joyleft", async () => {
+    const { seen, press } = themeSees(1);
+    await press("ArrowLeft");
+    assert.deepEqual(seen, ["joyleft"], "every published theme switches on this");
+  });
+
+  test("contract 2 receives previous", async () => {
+    const { seen, press } = themeSees(2);
+    await press("ArrowLeft");
+    assert.deepEqual(seen, ["previous"]);
+  });
+
+  test("up merged into paging, which core consumes by default", async () => {
+    // joyup and joypageup were the same intent under two names, so ArrowUp is a paging
+    // action now - and core_paging is on, so core answers it and no theme sees it.
+    // That is the merge working: carousel-desktop's dead page-jump cases were dead
+    // precisely because core already owned the paging actions.
+    const { seen, press } = themeSees(1);
+
+    await press("ArrowUp");
+
+    assert.deepEqual(seen, [], "core handles paging; the theme is not asked");
   });
 });

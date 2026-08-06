@@ -451,6 +451,30 @@ on disk; only the keys moved. Keys renamed, files frozen - the same split every 
 rename on this branch made. Covered by `tests/theming/test_theme_windows.py`,
 `tests/media/test_media_resolution.py` and `tests/js/media-resolution.test.js`.
 
+**PAR-40 — Input actions are named for intent, and a binding names its own device.**
+The twelve `joy*` actions become ten: `previous`, `next`, `page_up`, `page_down`,
+`select`, `back`, `menu`, `collection_menu`, `tutorial`, `exit`. `joyup`/`joydown` and
+`joypageup`/`joypagedown` were one intent under two names - carousel-desktop used up and
+down for a page-sized jump - so they merge, which is also what fixes that theme's dead
+paging cases.
+
+Each action now holds **one ordered list of bindings** rather than a key per device:
+`previous = key:ArrowLeft,key:ShiftLeft,pad:0/button:3`. The two-key shape existed only
+because a stored value could not say which device it came from, and a `key:`/`pad:`
+selector says it. That is the front of the binding grammar, so modifiers, axes,
+`@hold:<ms>` and `chord(a+b)` are later *selectors in this same list* - a parser change,
+not another migration. One WebSocket method is added, `get_bindings`; `get_keymapping`
+and `get_joymaping` still answer, projected out of the lists.
+
+**A contract 1 theme sees none of it.** Core dispatches the current names and translates
+at the theme boundary, so every `case "joyleft"` in the twelve registry themes keeps
+matching. Existing `[Input]` keys migrate into the lists on first read (schema 3) and
+keep resolving afterwards.
+*What it costs someone:* a contract 1 theme that handled `joyup` for something other
+than paging loses it, because up is a paging action now and core answers paging by
+default. The design note behind the merge is that no published theme used it for
+anything else. Covered by `tests/theming/test_input_actions.py` and `tests/js/input.test.js`.
+
 ## Explicitly *not* exceptions
 
 The theme-facing payload (`tables_json` keys, media path fields, stable values) and

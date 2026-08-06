@@ -64,7 +64,10 @@ class TestApiInputMapping(unittest.TestCase):
         result = api.set_button_mapping("joytutorial", 15)
 
         self.assertTrue(result["success"])
-        self.assertEqual(ini.config.get("Input", "joytutorial"), "15")
+        # Written as a binding on the action, not back into the key it came from: the
+        # old [Input] key is what an unmigrated file holds, never what we write.
+        self.assertEqual(ini.config.get("input", "tutorial"), "key:t,pad:0/button:15")
+        self.assertTrue(ini.saved)
         self.assertTrue(ini.saved)
 
     @patch("frontend.api.ensure_games_loaded", return_value=[])

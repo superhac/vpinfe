@@ -17,7 +17,7 @@ import secrets
 import string
 from pathlib import Path
 
-from common import config_schema
+from common import config_schema, input_actions
 from common.deprecations import announce
 from common.games.info_migration import copy_aside, write_atomic
 from common.values import is_truthy
@@ -154,6 +154,29 @@ class ConfigStore:
 		for old_section, new_section, key in _MOVED_OPTIONS:
 			changed |= self._move_option(old_section, new_section, key)
 
+		# [Input] is a merge, not a move: an action had one key per device, and both
+		# become entries in its single binding list, so the generic pass below - which
+		# moves one value at a time - would have the second overwrite the first.
+		if self.config.has_section('Input'):
+			for action in input_actions.actions():
+				found = []
+				for old in action.legacy:
+					if not self.config.has_option('Input', old):
+						continue
+					found += input_actions.binding_for_legacy(
+						old, self.config.get('Input', old))
+					self.config.remove_option('Input', old)
+					changed = True
+				if not found:
+					continue
+				# Keyboard first, then pads, and never the same binding twice.
+				ordered = ([b for b in found if b.startswith(input_actions.KEY_PREFIX)]
+				           + [b for b in found if not b.startswith(input_actions.KEY_PREFIX)])
+				if not self.config.has_section(input_actions.SECTION):
+					self.config.add_section(input_actions.SECTION)
+				self.config.set(input_actions.SECTION, action.name,
+				                ','.join(dict.fromkeys(ordered)))
+
 		# Every spelling a key has ever had lands on the one we store. This runs after the
 		# 2.x renames above, so tablerootdir -> gamerootdir -> game_root_dir is one chain,
 		# and before the defaults are filled in, so nothing is added under an old name.
@@ -219,6 +242,8 @@ class ConfigStore:
 			return text
 		if entry.type == 'bool':
 			return is_truthy(text)
+		if entry.type == 'list':
+			return [part.strip() for part in text.split(',') if part.strip()]
 		if entry.type == 'int':
 			try:
 				return int(float(text))
@@ -231,6 +256,8 @@ class ConfigStore:
 		"""Back to what a ConfigParser holds, so nothing above this module changes."""
 		if isinstance(value, bool):
 			return 'true' if value else 'false'
+		if isinstance(value, (list, tuple)):
+			return ','.join(str(v) for v in value)
 		return '' if value is None else str(value)
 
 	def _load_json(self) -> None:

@@ -165,6 +165,22 @@ const VIDEO_KIND = { playfield: "playfield_video", backglass: "backglass_video",
 // is identical, so a theme written against any earlier build keeps working. The contract
 // projects the payload, never this surface, so aliasing is the only mechanism there is.
 // PAR-23.
+// The action names a contract 1 theme's handleInput switches on. Core dispatches the
+// current names; a theme that declared nothing is handed these instead, so every
+// published `case "joyleft"` keeps matching. PAR-40.
+const LEGACY_ACTION_NAMES = {
+  previous: "joyleft",
+  next: "joyright",
+  page_up: "joypageup",
+  page_down: "joypagedown",
+  select: "joyselect",
+  back: "joyback",
+  menu: "joymenu",
+  collection_menu: "joycollectionmenu",
+  tutorial: "joytutorial",
+  exit: "joyexit",
+};
+
 const VPINFE_RENAMED_MEMBERS = {
   tableData: 'gameData',
   tableRotation: 'playfieldRotation',
@@ -365,18 +381,16 @@ class VPinFECore {
     // Gamepad mapping
     this.joyButtonMap = {}
     this.keyActionMap = {
-      joyleft: ['arrowleft', 'shiftleft'],
-      joyright: ['arrowright', 'shiftright'],
-      joyup: ['arrowup'],
-      joydown: ['arrowdown'],
-      joypageup: ['pageup'],
-      joypagedown: ['pagedown'],
-      joyselect: ['enter'],
-      joymenu: ['m'],
-      joyback: ['b'],
-      joytutorial: ['t'],
-      joyexit: ['escape', 'q'],
-      joycollectionmenu: ['c'],
+      previous: ['arrowleft', 'shiftleft'],
+      next: ['arrowright', 'shiftright'],
+      page_up: ['pageup', 'arrowup'],
+      page_down: ['pagedown', 'arrowdown'],
+      select: ['enter'],
+      back: ['b'],
+      menu: ['m'],
+      collection_menu: ['c'],
+      tutorial: ['t'],
+      exit: ['escape', 'q'],
     };
     this.previousButtonStates = {};
     // A held key repeats at whatever rate the OS is set to - often 30 a second - and
@@ -1564,7 +1578,7 @@ class VPinFECore {
   // True when core should consume a paging action itself: paging enabled, table
   // window, and no overlay up (overlays keep receiving the raw action).
   #shouldHandleCorePaging(action) {
-    if (action !== "joypageup" && action !== "joypagedown") return false;
+    if (action !== "page_up" && action !== "page_down") return false;
     if (!this.enabled("core_paging")) return false;
     if (!this.isController()) return false;
     if (this.menuUP || this.collectionMenuUP || this.tutorialUP) return false;
@@ -1578,7 +1592,7 @@ class VPinFECore {
     this._pagingInFlight = true;
     try {
       // pageup advances (next letter / forward), pagedown goes back.
-      const direction = action === "joypageup" ? "next" : "prev";
+      const direction = action === "page_up" ? "next" : "prev";
       const index = await this.call("get_page_index", this._currentGameIndex, direction);
       if (typeof index === "number" && index >= 0 && index !== this._currentGameIndex) {
         // Same path restorelasttable uses: themes move their wheel on the
@@ -1595,18 +1609,24 @@ class VPinFECore {
   async #triggerInputAction(action) {
     if (!this.frontendInputEnabled) return;
 
-    let handlers;
+    let handlers, named = action;
     if (this.tutorialUP) handlers = this.inputHandlerTutorial;
     else if (this.collectionMenuUP) handlers = this.inputHandlerCollectionMenu;
     else if (this.menuUP) handlers = this.inputHandlerMenu;
-    else handlers = this.inputHandlers;   // no menu is up: the theme's own handler
+    else {
+      handlers = this.inputHandlers;   // no menu is up: the theme's own handler
+      // The theme's handler is the only one outside this repo, so it is the only one
+      // that gets the name its contract published. Every `case "joyleft"` in the twelve
+      // registry themes keeps matching; the overlays above take the current names.
+      if (this.contract < 2) named = LEGACY_ACTION_NAMES[action] || action;
+    }
 
     // Handlers are async and their result was dropped, so a theme that threw did it
     // in silence - and a theme guarding itself with an "is animating" flag never
     // cleared it, which is what left the wheel dead until a restart.
     for (const handler of handlers) {
       try {
-        const result = handler(action);
+        const result = handler(named);
         if (result && typeof result.catch === "function") {
           result.catch(e => this.call("console_out",
             `Theme input handler failed on ${action}: ${e && e.message}`));
@@ -1716,17 +1736,24 @@ class VPinFECore {
     // and Space activates whatever the browser thinks is focused.
     e.preventDefault();
 
+    this.#dispatchAction(action);
+  }
+
+  // What an action does, whichever device produced it. One place, so the keyboard and
+  // the gamepad cannot drift apart again.
+  #dispatchAction(action) {
+    if (!this.isController() && action !== "select") return this.#triggerInputAction(action);
     const overlay = this.#overlayUp();
-    if (action === "joyexit") {
+    if (action === "exit") {
       // Escape and q default to exit, and an overlay's own Escape handler never runs -
       // nothing focuses the iframe - so this used to quit VPinFE from inside a menu.
       // Closing the overlay is what every overlay's own map already meant by it.
       if (overlay) this.#toggleOverlay(overlay);
       else this.call("close_app");
     }
-    else if (action === "joymenu") this.#showmenu();
-    else if (action === "joycollectionmenu") this.#showcollectionmenu();
-    else if (action === "joytutorial") this.#showtutorial();
+    else if (action === "menu") this.#showmenu();
+    else if (action === "collection_menu") this.#showcollectionmenu();
+    else if (action === "tutorial") this.#showtutorial();
     else if (this.#shouldHandleCorePaging(action)) this.#handleCorePaging(action);
     else this.#triggerInputAction(action);
   }
@@ -1890,72 +1917,43 @@ class VPinFECore {
 
   // Gamepad handling
  async #initKeyboardMapping() {
-  const keymap = await this.call("get_keymapping");
-  const actionMap = {
-    keyleft: 'joyleft',
-    keyright: 'joyright',
-    keyup: 'joyup',
-    keydown: 'joydown',
-    keypageup: 'joypageup',
-    keypagedown: 'joypagedown',
-    keyselect: 'joyselect',
-    keymenu: 'joymenu',
-    keyback: 'joyback',
-    keytutorial: 'joytutorial',
-    keyexit: 'joyexit',
-    keycollectionmenu: 'joycollectionmenu',
-  };
-
-  for (const [configKey, action] of Object.entries(actionMap)) {
-    this.keyActionMap[action] = this.#parseKeyboardBinding(keymap[configKey] || '');
+  // One call, one shape: every action and what is bound to it. The keyboard map and the
+  // gamepad map used to arrive separately, with a table translating key* to joy* - which
+  // existed only because a stored value could not name its own device.
+  const bindings = await this.call("get_bindings") || {};
+  const keys = {}, buttons = {};
+  for (const [action, list] of Object.entries(bindings)) {
+    for (const binding of list || []) {
+      if (typeof binding !== "string") continue;
+      if (binding.startsWith("key:")) {
+        (keys[action] ||= []).push(binding.slice(4).trim().toLowerCase());
+      } else if (binding.startsWith("pad:") && binding.includes("/button:")
+                 && !binding.includes("@") && !binding.includes("chord(")) {
+        // Richer selectors - chord, hold, axis - are stored and round-tripped, and
+        // dispatching them is the binding grammar's phase, not this one.
+        (buttons[binding.split("/button:").pop().trim()] ||= []).push(action);
+      }
+    }
   }
+  if (Object.keys(keys).length) this.keyActionMap = keys;
+  this.joyButtonMap = buttons;
 }
 
  async #initGamepadMapping() {
-  const joymap = await this.call("get_joymaping");
-
-  // Collect multiple actions per button. sometimes the same button has two mappings
-  this.joyButtonMap = {};
-  for (const [action, button] of Object.entries(joymap)) {
-    if (!this.joyButtonMap[button]) {
-      this.joyButtonMap[button] = [];
-    }
-    this.joyButtonMap[button].push(action);
-  }
-
-  //this.call("console_out", "Gamepad mapping loaded: " + JSON.stringify(this.joyButtonMap));
+  // Nothing to fetch: gamepad buttons arrive in the same binding list the keyboard
+  // does, so joyButtonMap is already built by the time this runs.
 }
 
 async #onButtonPressed(buttonIndex, gamepadIndex) {
-  if (!this.frontendInputEnabled) return;
+    if (!this.frontendInputEnabled) return;
 
-  const actions = this.joyButtonMap[buttonIndex.toString()];
-  if (!actions) return;
-
-  // Handle all actions mapped to this button
-  for (const action of actions) {
-    //this.call("console_out", `Button action: ${action}, windowName: ${this._windowName}`);
-    if (action === "joyexit" && this.isController()) {
-      this.call("close_app");
-    }
-    else if (action === "joymenu" && this.isController()) {
-      this.#showmenu();
-    }
-    else if (action === "joycollectionmenu" && this.isController()) {
-      this.call("console_out", "Triggering collection menu");
-      this.#showcollectionmenu();
-    }
-    else if (action === "joytutorial" && this.isController()) {
-      this.#showtutorial();
-    }
-    else if (this.#shouldHandleCorePaging(action)) {
-      this.#handleCorePaging(action);
-    }
-    else {
-      this.#triggerInputAction(action);
+    // Every action bound to this button. The branching is #dispatchAction's, shared with
+    // the keyboard - it used to be written out twice, and the two had already drifted:
+    // only the keyboard guarded exit while an overlay was up.
+    for (const action of this.joyButtonMap[buttonIndex.toString()] || []) {
+      this.#dispatchAction(action);
     }
   }
-}
 
   #updateGamepads() {
     const gamepads = navigator.getGamepads();

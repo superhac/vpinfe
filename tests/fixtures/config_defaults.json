@@ -6,34 +6,6 @@
   "Displays": {
     "cab_mode": "false"
   },
-  "Input": {
-    "joyback": "",
-    "joycollectionmenu": "",
-    "joydown": "",
-    "joyexit": "",
-    "joyleft": "",
-    "joymenu": "",
-    "joypagedown": "",
-    "joypageup": "",
-    "joyright": "",
-    "joyselect": "",
-    "joytutorial": "",
-    "joyup": "",
-    "keyback": "b",
-    "keycollectionmenu": "c",
-    "keydown": "ArrowDown",
-    "keyexit": "Escape,q",
-    "keyleft": "ArrowLeft,ShiftLeft",
-    "keymenu": "m",
-    "keypagedown": "PageDown",
-    "keypageup": "PageUp",
-    "keyright": "ArrowRight,ShiftRight",
-    "keyselect": "Enter",
-    "keytutorial": "t",
-    "keyup": "ArrowUp",
-    "pagingsize": "10",
-    "pagingtype": "alpha"
-  },
   "Logger": {
     "console": "true",
     "level": "debug"
@@ -80,6 +52,20 @@
   },
   "VPSdb": {
     "last": ""
+  },
+  "input": {
+    "back": "key:b",
+    "collection_menu": "key:c",
+    "exit": "key:Escape,key:q",
+    "menu": "key:m",
+    "next": "key:ArrowRight,key:ShiftRight",
+    "page_down": "key:PageDown,key:ArrowDown",
+    "page_up": "key:PageUp,key:ArrowUp",
+    "paging_size": "10",
+    "paging_type": "alpha",
+    "previous": "key:ArrowLeft,key:ShiftLeft",
+    "select": "key:Enter",
+    "tutorial": "key:t"
   },
   "libdmdutil": {
     "enabled": "false",

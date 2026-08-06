@@ -47,7 +47,7 @@ class SchemaMatchesTheStoreTests(unittest.TestCase):
 class SchemaShapeTests(unittest.TestCase):
     def test_every_option_states_a_type_we_can_read(self) -> None:
         kinds = {entry.type for entry in config_schema.options()}
-        self.assertEqual(kinds - {"string", "bool", "int", "choice"}, set())
+        self.assertEqual(kinds - {"string", "bool", "int", "choice", "list"}, set())
 
     def test_a_choice_defaults_to_one_of_its_choices(self) -> None:
         for entry in config_schema.options():

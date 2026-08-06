@@ -33,27 +33,21 @@ class TestConfigStore(unittest.TestCase):
             self.assertEqual(config.config.get("libdmdutil", "zedmd_device"), "")
             self.assertEqual(config.config.get("libdmdutil", "zedmd_wifi_address"), "")
 
-    def test_adds_joytutorial_default_input_mapping(self) -> None:
+    def test_adds_the_shipped_input_bindings(self) -> None:
+        """One list per action, each binding naming its own device."""
         with TemporaryDirectory() as tmp:
             ini_path = Path(tmp) / "vpinfe.ini"
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("Input"))
-            self.assertEqual(config.config.get("Input", "joytutorial"), "")
-
-    def test_adds_keyboard_defaults_to_input_mapping(self) -> None:
-        with TemporaryDirectory() as tmp:
-            ini_path = Path(tmp) / "vpinfe.ini"
-
-            config = ConfigStore(str(ini_path))
-
-            self.assertTrue(config.config.has_section("Input"))
-            self.assertEqual(config.config.get("Input", "keyleft"), "ArrowLeft,ShiftLeft")
-            self.assertEqual(config.config.get("Input", "keypageup"), "PageUp")
-            self.assertEqual(config.config.get("Input", "keypagedown"), "PageDown")
-            self.assertEqual(config.config.get("Input", "keyback"), "b")
-            self.assertEqual(config.config.get("Input", "keyexit"), "Escape,q")
+            self.assertTrue(config.config.has_section("input"))
+            self.assertEqual(config.config.get("input", "previous"),
+                             "key:ArrowLeft,key:ShiftLeft")
+            self.assertEqual(config.config.get("input", "page_up"),
+                             "key:PageUp,key:ArrowUp")
+            self.assertEqual(config.config.get("input", "back"), "key:b")
+            self.assertEqual(config.config.get("input", "exit"), "key:Escape,key:q")
+            self.assertEqual(config.config.get("input", "tutorial"), "key:t")
 
     def test_adds_mainmenu_hide_quit_button_setting_default(self) -> None:
         with TemporaryDirectory() as tmp:

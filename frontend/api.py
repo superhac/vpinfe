@@ -65,6 +65,7 @@ API_ALLOWED_METHODS = {
     'get_page_index',
     'reset_filters',
     'console_out',
+    'get_bindings',
     'get_joymaping',
     'get_keymapping',
     'get_mainmenu_config',
@@ -420,6 +421,9 @@ class API:
     def console_out(self, output):
         logger.info("Win: %s - %s", self.window_name, output)
         return output
+
+    def get_bindings(self):
+        return input_api.get_bindings(self._iniConfig.config)
 
     def get_joymaping(self):
         return input_api.get_joymapping(self._iniConfig.config)

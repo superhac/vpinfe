@@ -1,60 +1,75 @@
 """Every input action VPinFE understands, declared once.
 
-The twelve names were written out in seven places - the Python mapping keys, the config
-defaults, the Manager UI's labels, the JavaScript defaults, the JavaScript key-to-action
-table, the gamepad binding page and two docs tables - so adding an action meant editing
-all seven, and they had already drifted: the JavaScript said `back` was unbound while
-Python shipped `b`.
+Ten actions, each with one ordered list of bindings. The names say what the player
+*meant* rather than which way a stick moved: three surfaces - the wheel, a vertical menu
+and a scrolling page - already disagreed about what "left" pointed at, and every overlay
+carried a fall-through case as the evidence.
 
-Two of those copies are gone already, into `config_schema`. This is the rest: the config
-keys, the shipped keyboard binding and the label all come from here, and the copies that
-cannot import Python are checked against it by `tests/test_input_actions.py`.
-
-The names are 2.x's and are deliberately unchanged - `joy*` describes the transport rather
-than the intent, which is a real problem and the vocabulary work's to fix, not this file's.
+A binding names its own device - `key:<name>`, `pad:<index>/button:<n>` - so an action
+needs one list rather than a key per device. Richer selectors (modifiers, axes, hold,
+chord) are `INPUT.local.md` §5.4's, and go in this same list, so adding them is a parser
+change rather than another migration.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-SECTION = "Input"
+SECTION = "input"
+
+# Selector prefixes. A binding that starts with neither is not one we can read.
+KEY_PREFIX = "key:"
+PAD_PREFIX = "pad:"
 
 
 @dataclass(frozen=True)
 class InputAction:
-    """One thing a player can ask for, and the two config keys that bind it.
-
-    There are two keys per action because a stored value cannot say which device it came
-    from: `keyleft` holds keyboard bindings and `joyleft` a gamepad button.
-    """
+    """One thing a player can ask for, and what is bound to it out of the box."""
 
     name: str
-    keyboard: str
+    bindings: tuple[str, ...]
     label: str
+    # What this used to be called, so an existing [Input] section still resolves.
+    legacy: tuple[str, ...] = ()
 
     @property
-    def key_config(self) -> str:
-        return f"key{self.name}"
+    def config_key(self) -> str:
+        return self.name
 
     @property
-    def joy_config(self) -> str:
-        return f"joy{self.name}"
+    def legacy_joy_key(self) -> str:
+        """The `joy*` key this action used to have, for the projections that still answer."""
+        return next((k for k in self.legacy if k.startswith("joy")), "")
+
+    @property
+    def legacy_key_key(self) -> str:
+        """The `key*` key this action used to have."""
+        return next((k for k in self.legacy if k.startswith("key")), "")
 
 
 INPUT_ACTIONS: tuple[InputAction, ...] = (
-    InputAction("left", "ArrowLeft,ShiftLeft", "Keyboard Left"),
-    InputAction("right", "ArrowRight,ShiftRight", "Keyboard Right"),
-    InputAction("up", "ArrowUp", "Keyboard Up"),
-    InputAction("down", "ArrowDown", "Keyboard Down"),
-    InputAction("pageup", "PageUp", "Keyboard Page Up"),
-    InputAction("pagedown", "PageDown", "Keyboard Page Down"),
-    InputAction("select", "Enter", "Keyboard Select"),
-    InputAction("menu", "m", "Keyboard Menu"),
-    InputAction("back", "b", "Keyboard Back"),
-    InputAction("tutorial", "t", "Keyboard Tutorial"),
-    InputAction("exit", "Escape,q", "Keyboard Exit"),
-    InputAction("collectionmenu", "c", "Keyboard Collection Menu"),
+    InputAction("previous", ("key:ArrowLeft", "key:ShiftLeft"), "Previous",
+                legacy=("joyleft", "keyleft")),
+    InputAction("next", ("key:ArrowRight", "key:ShiftRight"), "Next",
+                legacy=("joyright", "keyright")),
+    # up/down and pageup/pagedown were the same intent under two names: carousel-desktop
+    # used up/down for a page-sized jump, which is what paging is.
+    InputAction("page_up", ("key:PageUp", "key:ArrowUp"), "Page up",
+                legacy=("joypageup", "keypageup", "joyup", "keyup")),
+    InputAction("page_down", ("key:PageDown", "key:ArrowDown"), "Page down",
+                legacy=("joypagedown", "keypagedown", "joydown", "keydown")),
+    InputAction("select", ("key:Enter",), "Select",
+                legacy=("joyselect", "keyselect")),
+    InputAction("back", ("key:b",), "Back",
+                legacy=("joyback", "keyback")),
+    InputAction("menu", ("key:m",), "Menu",
+                legacy=("joymenu", "keymenu")),
+    InputAction("collection_menu", ("key:c",), "Collection menu",
+                legacy=("joycollectionmenu", "keycollectionmenu")),
+    InputAction("tutorial", ("key:t",), "Tutorial",
+                legacy=("joytutorial", "keytutorial")),
+    InputAction("exit", ("key:Escape", "key:q"), "Exit",
+                legacy=("joyexit", "keyexit")),
 )
 
 
@@ -62,20 +77,61 @@ def actions() -> tuple[InputAction, ...]:
     return INPUT_ACTIONS
 
 
-def joy_config_keys() -> list[str]:
-    """The `[Input]` keys holding a gamepad button, in declaration order."""
-    return [action.joy_config for action in INPUT_ACTIONS]
+def defaults() -> dict[str, tuple[str, ...]]:
+    """The bindings a fresh install ships, keyed by action."""
+    return {action.name: action.bindings for action in INPUT_ACTIONS}
 
 
-def keyboard_defaults() -> dict[str, str]:
-    """The `[Input]` keyboard bindings a fresh install ships."""
-    return {action.key_config: action.keyboard for action in INPUT_ACTIONS}
-
-
-def action_for_config_key(key: str) -> str:
-    """The action a `key*` or `joy*` config key binds, or "" when it binds none."""
+def action_for_legacy_key(key: str) -> str:
+    """The action an old `[Input]` key bound, or "" when it bound none."""
     wanted = str(key or "").strip().lower()
     for action in INPUT_ACTIONS:
-        if wanted in (action.key_config, action.joy_config):
+        if wanted == action.name or wanted in action.legacy:
             return action.name
     return ""
+
+
+def binding_for_legacy(key: str, value: str) -> list[str]:
+    """The selectors an old `[Input]` value means.
+
+    `keyleft = ArrowLeft,ShiftLeft` was a comma-separated list of key names; `joyleft = 3`
+    was one gamepad button index and nothing said which pad. Both become selectors.
+    """
+    name = str(key or "").strip().lower()
+    raw = str(value or "").strip()
+    if not raw:
+        return []
+    if name.startswith("joy"):
+        index = raw.split(",")[0].strip()
+        return [f"{PAD_PREFIX}0/button:{index}"] if index else []
+    return [f"{KEY_PREFIX}{part.strip()}" for part in raw.split(",") if part.strip()]
+
+
+def keys_in(bindings) -> list[str]:
+    """The keyboard key names in a binding list - what the UI's keyboard field shows."""
+    return [b[len(KEY_PREFIX):] for b in bindings or ()
+            if str(b).startswith(KEY_PREFIX) and "+" not in b and "@" not in b]
+
+
+def pad_buttons_in(bindings) -> list[str]:
+    """The plain gamepad button indexes - what the UI's controller field shows."""
+    out = []
+    for b in bindings or ():
+        text = str(b)
+        if not text.startswith(PAD_PREFIX) or "@" not in text and "/button:" not in text:
+            continue
+        if "chord(" in text or "@" in text or "/axis:" in text:
+            continue
+        out.append(text.rsplit("/button:", 1)[-1])
+    return out
+
+
+def unrenderable(bindings) -> list[str]:
+    """Bindings neither UI field can show - chords, holds, axes, a second pad.
+
+    Kept and written back untouched: dropping them would delete a cabinet's
+    hold-both-flippers binding the first time anyone opened settings and pressed Save.
+    """
+    shown = set(f"{KEY_PREFIX}{k}" for k in keys_in(bindings))
+    shown |= set(f"{PAD_PREFIX}0/button:{b}" for b in pad_buttons_in(bindings))
+    return [str(b) for b in bindings or () if str(b) not in shown]

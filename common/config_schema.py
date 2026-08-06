@@ -18,22 +18,21 @@ from common import input_actions
 
 
 def _input_options() -> tuple[ConfigOption, ...]:
-    """`[Input]` comes from the action registry, so the two cannot disagree.
+    """`[input]` comes from the action registry, so the two cannot disagree.
 
-    Written out by hand here until 2026-08-05, which is one of the seven copies of the
-    action set that had already drifted apart.
+    One option per action holding an ordered list of bindings - not a key per device,
+    because a binding names its own device and a chord names two.
     """
-    out = []
-    for action in input_actions.actions():
-        out.append(ConfigOption(input_actions.SECTION, action.joy_config, "string", "",
-                                label=f"Gamepad {action.label.removeprefix('Keyboard ')}"))
-        out.append(ConfigOption(input_actions.SECTION, action.key_config, "string",
-                                action.keyboard, label=action.label))
+    out = [ConfigOption(input_actions.SECTION, action.name, "list",
+                        ",".join(action.bindings), label=action.label,
+                        legacy=tuple(("Input", old) for old in action.legacy))
+           for action in input_actions.actions()]
     # Not actions: how the paging actions step, which is a setting about them.
-    out.append(ConfigOption(input_actions.SECTION, "pagingtype", "choice", 'alpha',
-                            label='Paging Type', choices=('alpha', 'numeric')))
-    out.append(ConfigOption(input_actions.SECTION, "pagingsize", "int", '10',
-                            label='Paging Size'))
+    out.append(ConfigOption(input_actions.SECTION, "paging_type", "choice", 'alpha',
+                            label='Paging Type', choices=('alpha', 'numeric'),
+                            legacy=(("Input", "pagingtype"),)))
+    out.append(ConfigOption(input_actions.SECTION, "paging_size", "int", '10',
+                            label='Paging Size', legacy=(("Input", "pagingsize"),)))
     return tuple(out)
 
 

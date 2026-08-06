@@ -20,6 +20,12 @@ def _candidates(section: str, key: str) -> list[tuple[str, str]]:
     """
     here, name = config_schema.locate(section, key)
     out = [(here, spelling) for spelling in config_schema.spellings(here, name)]
+    # Then wherever it used to live. A file the store has migrated holds the current
+    # location, but a parser built by hand - or one an older build wrote - does not.
+    entry = config_schema.option(here, name)
+    for pair in (entry.legacy if entry else ()):
+        if pair not in out:
+            out.append(pair)
     for pair in ((section, key), *((s, k) for s, k in
                                    [(section, sp) for sp in config_schema.spellings(section, key)])):
         if pair not in out:
