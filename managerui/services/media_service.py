@@ -29,9 +29,13 @@ THUMB_SIZE = (512, 512)
 THUMB_WARM_ROW_BATCH_SIZE = 25
 THUMB_WARM_CHUNK_SIZE = 8
 
+# Canonical media kind keys. MEDIA_KEY_TO_FILENAME and _SPEC_BY_KEY are both built
+# from MEDIA_SPECS, so `bg` and `dmd` here were a KeyError on upload and an empty
+# filename on lookup - the two kinds people replace most. The labels stay as they are:
+# BG and DMD is what the art is called, whatever the kind is called.
 MEDIA_TYPES = [
-    ("bg", "BG", "bg.png"),
-    ("dmd", "DMD", "dmd.png"),
+    ("backglass", "BG", "bg.png"),
+    ("scoreview", "DMD", "dmd.png"),
     ("playfield", "Table", "table.png"),
     ("playfield_fss", "FSS", "fss.png"),
     ("wheel", "Wheel", "wheel.png"),
@@ -40,8 +44,8 @@ MEDIA_TYPES = [
     ("real_dmd_color", "Real DMD Color", "realdmd-color.png"),
     ("flyer", "Flyer", "flyer.png"),
     ("playfield_video", "Table Video", "table.mp4"),
-    ("bg_video", "BG Video", "bg.mp4"),
-    ("dmd_video", "DMD Video", "dmd.mp4"),
+    ("backglass_video", "BG Video", "bg.mp4"),
+    ("scoreview_video", "DMD Video", "dmd.mp4"),
     ("audio", "Audio", "audio.mp3"),
 ]
 MEDIA_KEY_TO_FILENAME = media_filename_map("table")

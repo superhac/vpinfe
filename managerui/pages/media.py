@@ -79,8 +79,8 @@ def render_panel():
 
         columns = [
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
-            {'name': 'bg', 'label': 'BG', 'field': 'has_bg', 'align': 'center', 'sortable': True},
-            {'name': 'dmd', 'label': 'DMD', 'field': 'has_dmd', 'align': 'center', 'sortable': True},
+            {'name': 'backglass', 'label': 'BG', 'field': 'has_backglass', 'align': 'center', 'sortable': True},
+            {'name': 'scoreview', 'label': 'DMD', 'field': 'has_scoreview', 'align': 'center', 'sortable': True},
             {'name': 'game_img', 'label': 'Table', 'field': 'has_table', 'align': 'center', 'sortable': True},
             {'name': 'fss', 'label': 'FSS', 'field': 'has_fss', 'align': 'center', 'sortable': True},
             {'name': 'wheel', 'label': 'Wheel', 'field': 'has_wheel', 'align': 'center', 'sortable': True},
@@ -89,8 +89,8 @@ def render_panel():
             {'name': 'realdmd', 'label': 'Real DMD', 'field': 'has_realdmd', 'align': 'center', 'sortable': True},
             {'name': 'realdmd_color', 'label': 'Real DMD Color', 'field': 'has_realdmd_color', 'align': 'center', 'sortable': True},
             {'name': 'table_video', 'label': 'Table Video', 'field': 'has_game_video', 'align': 'center', 'sortable': True},
-            {'name': 'bg_video', 'label': 'BG Video', 'field': 'has_bg_video', 'align': 'center', 'sortable': True},
-            {'name': 'dmd_video', 'label': 'DMD Video', 'field': 'has_dmd_video', 'align': 'center', 'sortable': True},
+            {'name': 'backglass_video', 'label': 'BG Video', 'field': 'has_backglass_video', 'align': 'center', 'sortable': True},
+            {'name': 'scoreview_video', 'label': 'DMD Video', 'field': 'has_scoreview_video', 'align': 'center', 'sortable': True},
             {'name': 'audio', 'label': 'Audio', 'field': 'has_audio', 'align': 'center', 'sortable': True},
         ]
 
