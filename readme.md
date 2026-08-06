@@ -82,7 +82,7 @@ The frist is the "display" panel.  Its recommend you just start with one screen 
 
 <img width="1339" height="832" alt="2-settings-panel" src="https://github.com/user-attachments/assets/b659c70d-e103-482c-bafa-539995fcdc2d" />
 
-Next you must configure these three essential settings in the `[Settings]` section:
+Next you must configure these three essential settings in the `general` section:
 
 <img width="1307" height="591" alt="1-settings-panel" src="https://github.com/user-attachments/assets/4c774005-a6a6-4970-b85e-d4f26ea18941" />
 
@@ -769,12 +769,13 @@ Release builds already include the DOF files in `third-party/dof`. If you are ru
 
 You can also point VPinFE at a custom DOF bundle location by setting `VPINFE_DOF_DIR`.
 
-Enable DOF in the ManagerUI under the **DOF** section, or in `vpinfe.ini`:
+Enable DOF in the ManagerUI under the **DOF** section, or in `vpinfe.json`:
 
-```ini
-[DOF]
-enabledof = true
-dofconfigtoolapikey =
+```json
+"dof": {
+  "enable_dof": true,
+  "dof_config_tool_api_key": ""
+}
 ```
 
 Notes:

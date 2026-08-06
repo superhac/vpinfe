@@ -267,6 +267,26 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-44 — Config sections are snake_case, and `[Settings]` is `general`.** The nine
+PascalCase sections and the one kebab-case section are renamed: `Settings` to `general`,
+and `Displays`, `Logger`, `Media`, `Mobile`, `Network`, `State`, `VPSdb`, `DOF` and
+`pinmame-score-parser` to their snake_case spellings. Every key was already snake_case, so
+this is the section line alone. Every former section name resolves permanently, in the
+same way renamed keys have since PAR-37, and an existing file is rewritten in place on
+first read - a `vpinfe.ini` from any 2.x build and a `vpinfe.json` from any 3.0 build both
+convert without losing a value. A new `cfg_set` writes through the same resolution reads
+have used since PAR-37, so a caller naming a section by an old name no longer writes a
+second copy of the setting under it.
+*Why:* `docs/conventions.md` mandates snake_case for JSON and the settings file is JSON,
+but only the keys were ever brought over - leaving a file that disagreed with itself line
+by line, `settings.Settings` reading as a mistake in the envelope, and every new section
+a guess about which convention applied. The names are now asserted rather than
+remembered: `tests/invariants/test_config_conventions.py` fails on a section or key that
+is not snake_case, and checks every legacy spelling against a frozen list rather than
+against the schema - because iterating the schema would delete the assertion along with
+the alias it guards, and pass. Covered by that file and
+`tests/fixtures/config_legacy_names.json`.
+
 **PAR-43 — Themes can come from more than one place, and a repository can be a theme on
 its own.** A new `themes` config section holds two lists: `registries`, catalogs to read
 `themes.json` from, and `repositories`, individual theme repos each treated as one theme.

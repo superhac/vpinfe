@@ -26,6 +26,7 @@ from frontend import (
     theme_api,
     theme_windows,
 )
+from common.config_access import cfg_get
 from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
 
 logger = logging.getLogger("vpinfe.frontend.api")
@@ -168,7 +169,7 @@ class API:
         # order (which ignores the "The"-moved-to-end renaming).
         self._reset_to_default_view()
         # Check for startup collection
-        startup_collection = self._iniConfig.config['Settings'].get('startup_collection', '').strip()
+        startup_collection = cfg_get(self._iniConfig, 'general', 'startup_collection').strip()
         if startup_collection:
             try:
                 self.set_games_by_collection(startup_collection)

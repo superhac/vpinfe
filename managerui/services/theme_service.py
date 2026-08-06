@@ -9,12 +9,13 @@ from common import theme_options
 from common.online.themes import ThemeRegistry
 
 from managerui.paths import THEMES_DIR, VPINFE_INI_PATH
+from common.config_access import cfg_get, cfg_set
 
 
 def get_active_theme() -> str:
     try:
         config = ConfigStore(str(VPINFE_INI_PATH))
-        theme_name = config.config.get("Settings", "theme", fallback="Revolution").strip()
+        theme_name = cfg_get(config, "general", "theme", "Revolution").strip()
         return theme_name or "Revolution"
     except Exception:
         return "Revolution"
@@ -22,7 +23,7 @@ def get_active_theme() -> str:
 
 def set_active_theme(theme_key: str) -> None:
     config = ConfigStore(str(VPINFE_INI_PATH))
-    config.config.set("Settings", "theme", theme_key)
+    cfg_set(config, "general", "theme", theme_key)
     config.save()
 
 

@@ -15,8 +15,8 @@ logger = logging.getLogger("vpinfe.common.online.pinmame_score_parser_updater")
 ROMS_JSON_PATH = USER_ROMS_PATH
 LATEST_RELEASE_URL = "https://api.github.com/repos/superhac/pinmame-score-parser/releases/latest"
 USER_AGENT = "VPinFE-pinmame-score-parser-updater"
-RELEASE_SECTION = "pinmame-score-parser"
-RELEASE_SHA_KEY = "romsupdatesha"
+RELEASE_SECTION = "pinmame_score_parser"
+RELEASE_SHA_KEY = "roms_update_sha"
 
 
 def get_user_roms_path() -> Path:

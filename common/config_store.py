@@ -206,14 +206,14 @@ class ConfigStore:
 					changed = True
 
 		# Remove legacy Logger.file option; logs always go to the standard config dir file.
-		if self.config.has_option('Logger', 'file'):
-			self.config.remove_option('Logger', 'file')
+		if self.config.has_option('logger', 'file'):
+			self.config.remove_option('logger', 'file')
 			changed = True
 
 		# Normalize blank theme values back to the configured default.
-		current_theme = self.config.get('Settings', 'theme', fallback='').strip()
+		current_theme = self.config.get('general', 'theme', fallback='').strip()
 		if not current_theme:
-			self.config.set('Settings', 'theme', self.defaults['Settings']['theme'])
+			self.config.set('general', 'theme', self.defaults['general']['theme'])
 			changed = True
 
 		# Migrate misspelled vpinplay.initals to vpinplay.initials if present.

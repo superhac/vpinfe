@@ -7,6 +7,7 @@ from pathlib import Path
 import requests
 
 from common.http_client import get_bytes, get_json, get_text
+from common.config_access import cfg_get, cfg_set
 
 logger = logging.getLogger("vpinfe.common.online.vpsdb_cache")
 
@@ -42,17 +43,17 @@ class VPSDatabaseCache:
             return None
 
     def _update_if_needed(self, version: str) -> None:
-        if not self.iniconfig.config.has_section("VPSdb"):
+        if not self.iniconfig.config.has_section("vpsdb"):
             self.iniconfig.config.add_section("VPSdb")
             self.download_db()
         else:
-            current = self.iniconfig.config.get("VPSdb", "last", fallback="")
+            current = cfg_get(self.iniconfig, "vpsdb", "last")
             if current < version:
                 self.download_db()
             else:
                 logger.info("VPSdb currently at latest revision.")
 
-        self.iniconfig.config.set("VPSdb", "last", version)
+        cfg_set(self.iniconfig, "vpsdb", "last", version)
         self.iniconfig.save()
 
     def download_db(self) -> None:

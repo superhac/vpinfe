@@ -4,7 +4,14 @@ import ipaddress
 import socket
 from io import BytesIO
 
-from common.config_access import DisplayConfig, MediaConfig, NetworkConfig, SettingsConfig, VPinPlayConfig
+from common.config_access import (
+    DisplayConfig,
+    MediaConfig,
+    NetworkConfig,
+    SettingsConfig,
+    VPinPlayConfig,
+    cfg_set,
+)
 from common.values import is_truthy
 
 
@@ -160,7 +167,7 @@ def get_splashscreen_enabled(config):
 
 def set_audio_muted(api, muted):
     muted_flag = muted if isinstance(muted, bool) else is_truthy(muted)
-    api._iniConfig.config.set("Settings", "muteaudio", "true" if muted_flag else "false")
+    cfg_set(api._iniConfig, "general", "mute_audio", bool(muted_flag))
     api._iniConfig.save()
     api.send_event_all_windows_incself({
         "type": "AudioMuteChanged",

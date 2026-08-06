@@ -5,7 +5,7 @@ from pathlib import Path
 
 from nicegui import ui
 
-from common.config_access import SettingsConfig
+from common.config_access import SettingsConfig, cfg_set
 from common.host.vpx_log import resolve_vpinball_log_path
 from common.config_store import ConfigStore
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
@@ -46,7 +46,7 @@ def _get_delete_on_start_enabled() -> bool:
 
 def _set_delete_on_start_enabled(value: bool) -> None:
     config = ConfigStore(str(VPINFE_INI_PATH))
-    config.config.set("Settings", "vpxlogdeleteonstart", "true" if value else "false")
+    cfg_set(config, "general", "vpx_log_delete_on_start", bool(value))
     config.save()
 
 

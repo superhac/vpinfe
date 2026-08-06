@@ -36,6 +36,29 @@ def _input_options() -> tuple[ConfigOption, ...]:
     return tuple(out)
 
 
+# Sections renamed wholesale, old name to new. A section rename is not the same thing as
+# `legacy` below: that records a setting moving between sections, this records every
+# setting in a section staying put while the section itself is respelled, so one entry
+# here covers keys and aliases alike.
+SECTION_RENAMES = {
+    'Settings': 'general',
+    'Displays': 'displays',
+    'Logger': 'logger',
+    'Media': 'media',
+    'Mobile': 'mobile',
+    'Network': 'network',
+    'State': 'state',
+    'VPSdb': 'vpsdb',
+    'DOF': 'dof',
+    'pinmame-score-parser': 'pinmame_score_parser',
+}
+
+
+def canonical_section(section: str) -> str:
+    """The section this one is called now. Any current name is returned unchanged."""
+    return SECTION_RENAMES.get(str(section or ""), str(section or ""))
+
+
 @dataclass(frozen=True)
 class ConfigOption:
     """One setting. `type` says how to read it, not how to store it."""
@@ -92,44 +115,44 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                              'at 0 if your operating system already rotates this screen.',
                  choices=('0', '90', '180', '270'),
                  legacy=(('Displays', 'playfield_rotation'), ('Displays', 'playfieldrotation'))),
-    ConfigOption("Displays", "cab_mode", "bool", 'false',
+    ConfigOption("displays", "cab_mode", "bool", 'false',
                  label='Cabinet Mode',
                  description='Presents VPinFE for playing standing at a cabinet: larger text and '
                              'targets, and no controls that need a mouse. It does not rotate '
                              'anything.',
                  aliases=('cabmode',)),
-    ConfigOption("Settings", "vpx_bin_path", "string", '',
+    ConfigOption("general", "vpx_bin_path", "string", '',
                  label='VPX Executable Path',
                  description='Full path to the Visual Pinball executable VPinFE launches.',
                  aliases=('vpxbinpath',)),
-    ConfigOption("Settings", "vpx_launch_env", "string", '',
+    ConfigOption("general", "vpx_launch_env", "string", '',
                  label='VPX Launch Environment',
                  aliases=('vpxlaunchenv',)),
-    ConfigOption("Settings", "global_ini_override", "string", '',
+    ConfigOption("general", "global_ini_override", "string", '',
                  label='Global ini Override (/home/test/mysuper.ini)',
                  aliases=('globalinioverride',)),
-    ConfigOption("Settings", "global_game_ini_override_enabled", "bool", 'false',
+    ConfigOption("general", "global_game_ini_override_enabled", "bool", 'false',
                  label='Global tableini Override Enabled',
                  aliases=('globaltableinioverrideenabled',)),
-    ConfigOption("Settings", "global_game_ini_override_mask", "string", '',
+    ConfigOption("general", "global_game_ini_override_mask", "string", '',
                  label='Global tableini Override Mask',
                  aliases=('globaltableinioverridemask',)),
-    ConfigOption("Settings", "game_root_dir", "string", '',
+    ConfigOption("general", "game_root_dir", "string", '',
                  label='Tables Directory',
                  description='The folder holding your table folders, one folder per game.',
                  aliases=('gamerootdir',)),
-    ConfigOption("Settings", "vpx_ini_path", "string", '',
+    ConfigOption("general", "vpx_ini_path", "string", '',
                  label='VPX Ini Path',
                  description='Path to VPinballX.ini, which VPinFE reads for the key mappings the '
                              'Remote page sends.',
                  aliases=('vpxinipath',)),
-    ConfigOption("Settings", "rar_tool_path", "string", '',
+    ConfigOption("general", "rar_tool_path", "string", '',
                  label='RAR Tool Path (unar/unrar, blank = auto-detect)',
                  aliases=('rartoolpath',)),
-    ConfigOption("Settings", "vpx_log_delete_on_start", "bool", 'false',
+    ConfigOption("general", "vpx_log_delete_on_start", "bool", 'false',
                  label='Delete VPinball Log On Table Start',
                  aliases=('vpxlogdeleteonstart',)),
-    ConfigOption("Settings", "theme", "string", 'Revolution',
+    ConfigOption("general", "theme", "string", 'Revolution',
                  label='Active Theme'),
     ConfigOption("themes", "registries", "list",
                  'https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json',
@@ -142,34 +165,34 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                  description='Individual theme repos, each one a theme in its own right. '
                              'Resolved before the registries, and named for the repo with '
                              'any vpinfe-theme- prefix removed.'),
-    ConfigOption("Settings", "startup_collection", "string", '',
+    ConfigOption("general", "startup_collection", "string", '',
                  label='Default Startup Collection'),
-    ConfigOption("Settings", "auto_update_media_on_startup", "bool", 'false',
+    ConfigOption("general", "auto_update_media_on_startup", "bool", 'false',
                  label='Auto Update Media On Startup',
                  aliases=('autoupdatemediaonstartup',)),
-    ConfigOption("Settings", "splashscreen", "bool", 'false',
+    ConfigOption("general", "splashscreen", "bool", 'false',
                  label='Enable splashscreen'),
-    ConfigOption("Settings", "mute_audio", "bool", 'false',
+    ConfigOption("general", "mute_audio", "bool", 'false',
                  label='Mute Frontend Audio',
                  aliases=('muteaudio',)),
-    ConfigOption("Settings", "chrome_options", "string", '',
+    ConfigOption("general", "chrome_options", "string", '',
                  label='Additional Chrome Options',
                  aliases=('chromeoptions',)),
-    ConfigOption("Settings", "chrome_options_exclude", "string", '',
+    ConfigOption("general", "chrome_options_exclude", "string", '',
                  aliases=('chromeoptionsexclude',)),
-    ConfigOption("Settings", "disable_default_chrome_options", "bool", 'false',
+    ConfigOption("general", "disable_default_chrome_options", "bool", 'false',
                  label='Disable Default Chrome Options',
                  aliases=('disabledefaultchromeoptions',)),
-    ConfigOption("Settings", "hide_quit_button", "bool", 'false',
+    ConfigOption("general", "hide_quit_button", "bool", 'false',
                  label='Hide Quit from MainMenu',
                  aliases=('MMhideQuitButton',)),
-    ConfigOption("Settings", "restore_last_game", "bool", 'true',
+    ConfigOption("general", "restore_last_game", "bool", 'true',
                  label='Restore Last Table',
                  aliases=('restorelastgame',)),
-    ConfigOption("Logger", "level", "choice", 'debug',
+    ConfigOption("logger", "level", "choice", 'debug',
                  label='Log Verbosity',
                  choices=('debug', 'info', 'warning', 'error')),
-    ConfigOption("Logger", "console", "bool", 'true',
+    ConfigOption("logger", "console", "bool", 'true',
                  label='Console Logging'),
     ConfigOption("windows.playfield", "variant", "choice", 'table',
                  label='Table Type',
@@ -188,10 +211,10 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                      ('Media', 'playfield_video_resolution'),
                      ('Media', 'playfieldvideoresolution'),
                  )),
-    ConfigOption("Media", "default_missing_media_image", "string", '',
+    ConfigOption("media", "default_missing_media_image", "string", '',
                  label='Default Missing Media Image',
                  aliases=('defaultmissingmediaimg',)),
-    ConfigOption("Media", "thumb_cache_max_mb", "int", '500',
+    ConfigOption("media", "thumb_cache_max_mb", "int", '500',
                  label='Thumbnail Cache Max (MB)',
                  aliases=('thumbcachemaxmb',)),
     ConfigOption("windows.playfield", "media_priority", "choice", 'video',
@@ -218,28 +241,28 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                  label='DMD Media Priority',
                  choices=('video', 'image'),
                  legacy=(('Media', 'dmd_media_priority'), ('Media', 'dmdmediapriority'))),
-    ConfigOption("Media", "realdmd_media_priority", "choice", 'color',
+    ConfigOption("media", "realdmd_media_priority", "choice", 'color',
                  label='Real DMD Priority',
                  choices=('color', 'video', 'image'),
                  aliases=('realdmdmediapriority',)),
-    ConfigOption("VPSdb", "last", "string", '',
+    ConfigOption("vpsdb", "last", "string", '',
                  internal=True),
-    ConfigOption("State", "last_game", "string", '',
+    ConfigOption("state", "last_game", "string", '',
                  aliases=('lastgame',),
                  internal=True),
-    ConfigOption("pinmame-score-parser", "roms_update_sha", "string", '',
+    ConfigOption("pinmame_score_parser", "roms_update_sha", "string", '',
                  aliases=('romsupdatesha',),
                  internal=True),
-    ConfigOption("Network", "theme_assets_port", "int", '8000',
+    ConfigOption("network", "theme_assets_port", "int", '8000',
                  label='Theme Server Port',
                  aliases=('themeassetsport',)),
-    ConfigOption("Network", "manager_ui_port", "int", '8001',
+    ConfigOption("network", "manager_ui_port", "int", '8001',
                  label='Manager UI Port',
                  aliases=('manageruiport',)),
-    ConfigOption("DOF", "enable_dof", "bool", 'false',
+    ConfigOption("dof", "enable_dof", "bool", 'false',
                  label='Enable DOF',
                  aliases=('enabledof',)),
-    ConfigOption("DOF", "dof_config_tool_api_key", "string", '',
+    ConfigOption("dof", "dof_config_tool_api_key", "string", '',
                  label='DOF Config Tool API Key',
                  aliases=('dofconfigtoolapikey',)),
     ConfigOption("libdmdutil", "enabled", "bool", 'false',
@@ -256,19 +279,19 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     ConfigOption("libdmdutil", "zedmd_wifi_address", "string", '',
                  label='ZeDMDWiFiAddr',
                  aliases=('zedmdwifiaddr',)),
-    ConfigOption("Mobile", "device_ip", "string", '',
+    ConfigOption("mobile", "device_ip", "string", '',
                  label='Mobile Device IP',
                  aliases=('deviceip',)),
-    ConfigOption("Mobile", "device_port", "int", '2112',
+    ConfigOption("mobile", "device_port", "int", '2112',
                  label='Mobile Device Port',
                  aliases=('deviceport',)),
-    ConfigOption("Mobile", "chunk_size", "int", '1048576',
+    ConfigOption("mobile", "chunk_size", "int", '1048576',
                  label='Mobile Chunk Size',
                  aliases=('chunksize',)),
-    ConfigOption("Mobile", "rename_mask_to_default_ini", "bool", 'false',
+    ConfigOption("mobile", "rename_mask_to_default_ini", "bool", 'false',
                  label='Enable Rename Mask To Default INI',
                  aliases=('renamemasktodefaultini',)),
-    ConfigOption("Mobile", "rename_mask_to_default_ini_mask", "string", '',
+    ConfigOption("mobile", "rename_mask_to_default_ini_mask", "string", '',
                  label='Rename Mask To Default INI Mask',
                  aliases=('renamemasktodefaultinimask',)),
     ConfigOption("vpinplay", "sync_on_exit", "bool", 'false',
@@ -299,6 +322,7 @@ def settable() -> tuple[ConfigOption, ...]:
 
 
 def option(section: str, key: str) -> ConfigOption | None:
+    section = canonical_section(section)
     for candidate in CONFIG_OPTIONS:
         if candidate.section == section and candidate.key == key:
             return candidate
@@ -308,6 +332,7 @@ def option(section: str, key: str) -> ConfigOption | None:
 def canonical(section: str, key: str) -> str:
     """The name this setting is stored under, given any spelling it has ever had."""
     wanted = str(key or "").strip().lower()
+    section = canonical_section(section)
     for candidate in CONFIG_OPTIONS:
         if candidate.section != section:
             continue
@@ -324,14 +349,17 @@ def locate(section: str, key: str) -> tuple[str, str]:
     Per-window config moved fourteen settings out of `[Displays]` and `[Media]` into a
     section each, so a caller can be wrong about the section as well as the spelling.
     """
-    wanted = (str(section or ""), str(key or "").strip().lower())
+    wanted = (canonical_section(section), str(key or "").strip().lower())
     for candidate in CONFIG_OPTIONS:
         here = [(candidate.section, candidate.key.lower())]
         here += [(candidate.section, a.lower()) for a in candidate.aliases]
-        here += [(s, k.lower()) for s, k in candidate.legacy]
+        # A former location names the section as it was spelled then, and some of those
+        # sections have since been renamed too - so both sides are normalized or a
+        # setting that moved out of a renamed section stops resolving.
+        here += [(canonical_section(s), k.lower()) for s, k in candidate.legacy]
         if wanted in here:
             return candidate.section, candidate.key
-    return section, key
+    return canonical_section(section), key
 
 
 def spellings(section: str, key: str) -> tuple[str, ...]:
@@ -342,6 +370,7 @@ def spellings(section: str, key: str) -> tuple[str, ...]:
     old names in it until the store rewrites them.
     """
     wanted = str(key or "").strip().lower()
+    section = canonical_section(section)
     for candidate in CONFIG_OPTIONS:
         if candidate.section != section:
             continue

@@ -103,6 +103,20 @@ def cfg_list(source, section: str, key: str) -> list[str]:
     return [part.strip() for part in cfg_get(source, section, key).split(",") if part.strip()]
 
 
+def cfg_set(source, section: str, key: str, value) -> None:
+    """Write a setting to wherever it lives now, under whatever name the caller knows.
+
+    Reads have resolved through the schema since the key renames; writes did not, so a
+    caller naming a section that has since been renamed wrote a second copy under the old
+    name - or raised, if the section had gone.
+    """
+    parser = _parser(source)
+    section, key = config_schema.locate(section, key)
+    if not parser.has_section(section):
+        parser.add_section(section)
+    parser.set(section, key, "true" if value is True else "false" if value is False else str(value))
+
+
 @dataclass(frozen=True)
 class SettingsConfig:
     game_root_dir: str = ""

@@ -57,7 +57,7 @@ class FirstRunTests(ConfigStoreTests):
         store = ConfigStore(str(self.ini))
 
         for key in ("vpx_bin_path", "game_root_dir", "vpx_ini_path"):
-            self.assertTrue(store.config.has_option("Settings", key))
+            self.assertTrue(store.config.has_option("general", key))
 
     def test_a_second_run_is_not_a_first_run(self) -> None:
         ConfigStore(str(self.ini))
@@ -73,9 +73,9 @@ class TypedValueTests(ConfigStoreTests):
         ConfigStore(str(self.ini))
         settings = self._payload()[SETTINGS_KEY]
 
-        self.assertIs(settings["Displays"]["cab_mode"], False)
-        self.assertEqual(settings["Network"]["manager_ui_port"], 8001)
-        self.assertIsInstance(settings["Network"]["manager_ui_port"], int)
+        self.assertIs(settings["displays"]["cab_mode"], False)
+        self.assertEqual(settings["network"]["manager_ui_port"], 8001)
+        self.assertIsInstance(settings["network"]["manager_ui_port"], int)
 
     def test_a_blank_int_stays_blank_rather_than_becoming_zero(self) -> None:
         """Blank means "no window on this one", which is not the same as screen 0."""
@@ -102,13 +102,13 @@ class TypedValueTests(ConfigStoreTests):
 
     def test_values_survive_the_round_trip_as_text(self) -> None:
         first = ConfigStore(str(self.ini))
-        first.config.set("Displays", "cab_mode", "true")
-        first.config.set("Network", "manager_ui_port", "9001")
+        first.config.set("displays", "cab_mode", "true")
+        first.config.set("network", "manager_ui_port", "9001")
         first.save()
 
         second = ConfigStore(str(self.ini))
-        self.assertTrue(second.config.getboolean("Displays", "cab_mode"))
-        self.assertEqual(second.config.get("Network", "manager_ui_port"), "9001")
+        self.assertTrue(second.config.getboolean("displays", "cab_mode"))
+        self.assertEqual(second.config.get("network", "manager_ui_port"), "9001")
 
 
 class IniConversionTests(ConfigStoreTests):
@@ -120,7 +120,7 @@ class IniConversionTests(ConfigStoreTests):
 
         ConfigStore(str(self.ini))
 
-        self.assertEqual(self._payload()[SETTINGS_KEY]["Settings"]["game_root_dir"],
+        self.assertEqual(self._payload()[SETTINGS_KEY]["general"]["game_root_dir"],
                          "/my/tables")
         self.assertTrue(self.ini.exists(), "a downgrade needs the file 2.x reads")
         backups = [n for n in os.listdir(self.root) if n.startswith("vpinfe.ini.")]
@@ -132,7 +132,7 @@ class IniConversionTests(ConfigStoreTests):
 
         ConfigStore(str(self.ini))
 
-        settings = self._payload()[SETTINGS_KEY]["Settings"]
+        settings = self._payload()[SETTINGS_KEY]["general"]
         self.assertEqual(settings["game_root_dir"], "/old/tables")
         self.assertNotIn("tablerootdir", settings)
 
@@ -143,7 +143,7 @@ class IniConversionTests(ConfigStoreTests):
 
         settings = self._payload()[SETTINGS_KEY]
         self.assertEqual(settings["windows"]["playfield"]["screen_id"], 2)
-        self.assertIs(settings["Displays"]["cab_mode"], True)
+        self.assertIs(settings["displays"]["cab_mode"], True)
 
     def test_conversion_happens_once(self) -> None:
         self._write_ini("[Settings]\ngamerootdir = /my/tables\n")
@@ -162,7 +162,7 @@ class IniConversionTests(ConfigStoreTests):
 
         store = ConfigStore(str(self.ini))
 
-        self.assertNotEqual(store.config.get("Settings", "game_root_dir"), "/stale")
+        self.assertNotEqual(store.config.get("general", "game_root_dir"), "/stale")
 
     def test_a_newer_schema_is_not_stamped_down(self) -> None:
         """A future VPinFE owns that number; claiming it would say we understood it."""

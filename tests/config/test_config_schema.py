@@ -72,8 +72,8 @@ class SchemaShapeTests(unittest.TestCase):
         hand, but they are not settings and should never reach a UI or the docs."""
         internal = {(e.section, e.key) for e in config_schema.options() if e.internal}
 
-        self.assertEqual(internal, {("VPSdb", "last"), ("State", "last_game"),
-                                    ("pinmame-score-parser", "roms_update_sha")})
+        self.assertEqual(internal, {("vpsdb", "last"), ("state", "last_game"),
+                                    ("pinmame_score_parser", "roms_update_sha")})
         self.assertNotIn(("State", "last_game"),
                          {(e.section, e.key) for e in config_schema.settable()})
 
@@ -145,7 +145,7 @@ class LookupTests(unittest.TestCase):
         self.assertEqual(config_schema.locate("Media", "bgmediapriority"),
                          ("windows.backglass", "media_priority"))
         self.assertEqual(config_schema.locate("Displays", "cabmode"),
-                         ("Displays", "cab_mode"), "cab_mode is context, not a window")
+                         ("displays", "cab_mode"), "cab_mode is context, not a window")
 
     def test_a_key_resolves_whatever_its_casing(self) -> None:
         """configparser lowercases option names, so a caller rarely has the original."""
@@ -174,7 +174,7 @@ class DocumentationCoverageTests(unittest.TestCase):
         missing = sorted(f"{e.section}.{e.key}" for e in config_schema.settable()
                          if not e.label)
 
-        self.assertEqual(missing, ["Settings.chrome_options_exclude",
+        self.assertEqual(missing, ["general.chrome_options_exclude",
                                    "windows.playfield.media_rotation"],
                          "either label the new option or update this list deliberately")
 

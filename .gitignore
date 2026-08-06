@@ -11,6 +11,9 @@
 # The defaults a new install wrote before config_schema existed. The outside witness
 # that keeps the schema honest once the store reads its defaults from it.
 !tests/fixtures/config_defaults.json
+# Every config name we have ever written. Frozen outside the schema on purpose: reading
+# it from the schema would delete the assertion along with the alias it guards.
+!tests/fixtures/config_legacy_names.json
 # Declares the frontend test runner. No dependencies, nothing installed, not bundled.
 !package.json
 !common/resources/roms.json

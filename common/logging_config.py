@@ -131,7 +131,7 @@ def configure_logging(config_dir: Path, ini_config=None, enable_file: bool = Tru
     log_path = config_dir / DEFAULT_LOG_FILE_NAME
 
     if ini_config is not None:
-        logger_cfg = ini_config.config["Logger"]
+        logger_cfg = ini_config.config["logger"]
         log_level = logger_cfg.get("level", DEFAULT_LOG_LEVEL)
         console_enabled = _coerce_bool(logger_cfg.get("console"), True)
 

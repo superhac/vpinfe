@@ -15,7 +15,7 @@ class _FakeConfigStore:
     def __init__(self, path: Path) -> None:
         self.configfilepath = path
         self.config = configparser.ConfigParser()
-        self.config.add_section("pinmame-score-parser")
+        self.config.add_section("pinmame_score_parser")
 
     def save(self) -> None:
         with open(self.configfilepath, "w", encoding="utf-8") as fh:
@@ -68,7 +68,7 @@ class TestPinmameScoreParserUpdater(unittest.TestCase):
             self.assertEqual(result["status"], "downloaded")
             self.assertEqual((temp_path / "roms.json").read_bytes(), roms_bytes)
             self.assertEqual(
-                ini.config.get("pinmame-score-parser", "romsupdatesha"),
+                ini.config.get("pinmame_score_parser", "roms_update_sha"),
                 updater.hashlib.sha256(roms_bytes).hexdigest(),
             )
 
@@ -89,7 +89,7 @@ class TestPinmameScoreParserUpdater(unittest.TestCase):
             temp_path = Path(temp_dir)
             (temp_path / "roms.json").write_bytes(roms_bytes)
             ini = _FakeConfigStore(temp_path / "vpinfe.ini")
-            ini.config.set("pinmame-score-parser", "romsupdatesha", roms_sha)
+            ini.config.set("pinmame_score_parser", "roms_update_sha", roms_sha)
 
             with mock.patch.object(updater, "CONFIG_DIR", temp_path), \
                 mock.patch.object(updater, "ROMS_JSON_PATH", temp_path / "roms.json"), \

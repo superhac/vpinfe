@@ -14,6 +14,7 @@ from common.config_store import ConfigStore
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_games_path
 from managerui.services import game_catalog
 from managerui.ui_helpers import load_page_style
+from common.config_access import cfg_set
 
 logger = logging.getLogger("vpinfe.manager.mobile")
 
@@ -502,27 +503,27 @@ def _build_web_send_panel():
 
     def _save_ip(e):
         ip_val = e.value.strip() if e.value else ''
-        cfg.config.set('Mobile', 'deviceip', ip_val)
+        cfg_set(cfg, 'mobile', 'device_ip', ip_val)
         cfg.save()
 
     def _save_port(e):
         port_val = e.value.strip() if e.value else '2112'
-        cfg.config.set('Mobile', 'deviceport', port_val)
+        cfg_set(cfg, 'mobile', 'device_port', port_val)
         cfg.save()
 
     def _save_chunk(e):
         chunk_val = e.value.strip() if e.value else '1048576'
-        cfg.config.set('Mobile', 'chunksize', chunk_val)
+        cfg_set(cfg, 'mobile', 'chunk_size', chunk_val)
         cfg.save()
 
     def _save_rename_mask_enabled(e):
         enabled_val = bool(e.value)
-        cfg.config.set('Mobile', 'renamemasktodefaultini', str(enabled_val).lower())
+        cfg_set(cfg, 'mobile', 'rename_mask_to_default_ini', bool(enabled_val))
         cfg.save()
 
     def _save_rename_mask_value(e):
         mask_val = e.value.strip() if e.value else ''
-        cfg.config.set('Mobile', 'renamemasktodefaultinimask', mask_val)
+        cfg_set(cfg, 'mobile', 'rename_mask_to_default_ini_mask', mask_val)
         cfg.save()
 
     ui.label("This uses the the built in web server on the mobile version of vpx for Android and iOS. It allows you seamlessly transfer your tables onto your mobile device.  You must turn it on in the settings in VPX on your mobile device.  Also note this same location will show you your IP and PORT.  Thats what you put into the device configuration settings below.  The device must be kept on and VPX running when doing transfers. ").classes('text-sm mb-4').style('color: var(--ink-muted) !important;')

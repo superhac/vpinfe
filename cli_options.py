@@ -68,7 +68,7 @@ def gamepadtest():
     from frontend.chromium_manager import ChromiumManager
     from frontend.ws_bridge import WebSocketBridge
 
-    from common.config_access import SettingsConfig, cfg_get
+    from common.config_access import SettingsConfig, cfg_get, cfg_int
 
     mount_points = {
         '/tables/': os.path.abspath(SettingsConfig.from_config(config_store).game_root_dir),
@@ -76,7 +76,7 @@ def gamepadtest():
     }
     http_server = CustomHTTPServer(mount_points)
     theme_assets_port = int(cfg_get(config_store, 'Network', 'theme_assets_port', '8000'))
-    ws_port = int(config_store.config['Network'].get('wsport', '8002'))
+    ws_port = cfg_int(config_store, 'network', 'wsport', 8002)
     http_server.start_file_server(port=theme_assets_port)
 
     monitors = get_monitors()

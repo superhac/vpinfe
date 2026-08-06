@@ -31,10 +31,10 @@ INI_PATH = VPINFE_INI_PATH
 
 # Sections to ignore
 IGNORED_SECTIONS = {
-    'VPSdb',
-    'pinmame-score-parser',
+    'vpsdb',
+    'pinmame_score_parser',
     'vpinplay',
-    'State',
+    'state',
     # Theme sources are urls VPinFE fetches and installs code from. Editing them stays a
     # deliberate act in the config file rather than a text box beside the log level.
     'themes',
@@ -42,24 +42,24 @@ IGNORED_SECTIONS = {
 
 # Icons for each section (fallback to 'settings' if not defined)
 SECTION_ICONS = {
-    'Settings': 'folder_open',
+    'general': 'folder_open',
     'Input': 'sports_esports',
-    'Logger': 'terminal',
-    'Media': 'perm_media',
-    'Displays': 'monitor',
-    'DOF': 'key',
+    'logger': 'terminal',
+    'media': 'perm_media',
+    'displays': 'monitor',
+    'dof': 'key',
     'libdmdutil': 'developer_board',
 }
 
 SECTION_DESCRIPTIONS = {
-    'Settings': 'Core paths, startup behavior, and theme defaults.',
-    'Displays': 'Monitor assignments and playfield orientation settings.',
+    'general': 'Core paths, startup behavior, and theme defaults.',
+    'displays': 'Monitor assignments and playfield orientation settings.',
     'Input': 'Controller and input-related preferences.',
-    'Logger': 'Verbosity, console logging, and quick log access.',
-    'Media': 'Default media handling and fallback asset preferences.',
-    'Network': 'Ports and services used by the local frontend stack.',
-    'Mobile': 'Connection details for external mobile devices.',
-    'DOF': 'Direct Output Framework integration and sync tools.',
+    'logger': 'Verbosity, console logging, and quick log access.',
+    'media': 'Default media handling and fallback asset preferences.',
+    'network': 'Ports and services used by the local frontend stack.',
+    'mobile': 'Connection details for external mobile devices.',
+    'dof': 'Direct Output Framework integration and sync tools.',
     'libdmdutil': 'libdmdutil integration settings for DMD device support.',
 }
 
@@ -203,11 +203,11 @@ def render_panel(tab=None):
     # Get all sections, filter out ignored ones
     sections = [s for s in config.config.sections() if s not in IGNORED_SECTIONS]
     launch_preview_keys = {
-        ('Settings', 'vpxbinpath'),
-        ('Settings', 'globalinioverride'),
-        ('Settings', 'globaltableinioverrideenabled'),
-        ('Settings', 'globaltableinioverridemask'),
-        ('Settings', 'vpxlaunchenv'),
+        ('general', 'vpxbinpath'),
+        ('general', 'globalinioverride'),
+        ('general', 'globaltableinioverrideenabled'),
+        ('general', 'globaltableinioverridemask'),
+        ('general', 'vpxlaunchenv'),
     }
 
     def _as_bool(value) -> bool:
@@ -217,33 +217,33 @@ def render_panel(tab=None):
 
     def _build_launch_preview_text() -> tuple[str, str]:
         sample_vpx = 'A-Go-Go (Williams 1966).vpx'
-        settings_inputs = inputs.get('Settings', {})
+        settings_inputs = inputs.get('general', {})
 
         vpxbin = str(
-            getattr(settings_inputs.get('vpxbinpath'), 'value', cfg_get(config, 'Settings', 'vpx_bin_path', ''))
+            getattr(settings_inputs.get('vpxbinpath'), 'value', cfg_get(config, 'general', 'vpx_bin_path', ''))
             or ''
         ).strip()
         global_ini_override = str(
-            getattr(settings_inputs.get('globalinioverride'), 'value', cfg_get(config, 'Settings', 'global_ini_override', ''))
+            getattr(settings_inputs.get('globalinioverride'), 'value', cfg_get(config, 'general', 'global_ini_override', ''))
             or ''
         ).strip()
         tableini_enabled = _as_bool(
             getattr(
                 settings_inputs.get('globaltableinioverrideenabled'),
                 'value',
-                cfg_get(config, 'Settings', 'global_game_ini_override_enabled', 'false'),
+                cfg_get(config, 'general', 'global_game_ini_override_enabled', 'false'),
             )
         )
         tableini_mask = str(
             getattr(
                 settings_inputs.get('globaltableinioverridemask'),
                 'value',
-                cfg_get(config, 'Settings', 'global_game_ini_override_mask', ''),
+                cfg_get(config, 'general', 'global_game_ini_override_mask', ''),
             )
             or ''
         ).strip()
         launch_env = str(
-            getattr(settings_inputs.get('vpxlaunchenv'), 'value', cfg_get(config, 'Settings', 'vpx_launch_env', ''))
+            getattr(settings_inputs.get('vpxlaunchenv'), 'value', cfg_get(config, 'general', 'vpx_launch_env', ''))
             or ''
         ).strip()
 
@@ -268,19 +268,19 @@ def render_panel(tab=None):
     def update_chrome_options_preview():
         if chrome_options_preview is None:
             return
-        settings_inputs = inputs.get('Settings', {})
+        settings_inputs = inputs.get('general', {})
         disable_defaults = _as_bool(
             getattr(
                 settings_inputs.get('disabledefaultchromeoptions'),
                 'value',
-                cfg_get(config, 'Settings', 'disable_default_chrome_options', 'false'),
+                cfg_get(config, 'general', 'disable_default_chrome_options', 'false'),
             )
         )
         exclude_raw = str(
             getattr(
                 settings_inputs.get('chromeoptionsexclude'),
                 'value',
-                cfg_get(config, 'Settings', 'chrome_options_exclude', ''),
+                cfg_get(config, 'general', 'chrome_options_exclude', ''),
             )
             or ''
         ).strip()
@@ -288,7 +288,7 @@ def render_panel(tab=None):
             getattr(
                 settings_inputs.get('chromeoptions'),
                 'value',
-                cfg_get(config, 'Settings', 'chrome_options', ''),
+                cfg_get(config, 'general', 'chrome_options', ''),
             )
             or ''
         ).strip()
@@ -323,7 +323,7 @@ def render_panel(tab=None):
                     label_text = 'PIN2DMD'
                 else:
                     label_text = friendly_label
-                if section == 'Settings' and key == 'globaltableinioverridemask':
+                if section == 'general' and key == 'globaltableinioverridemask':
                     mask_value = (value or '').strip()
                     if mask_value:
                         label_text = (
@@ -331,7 +331,7 @@ def render_panel(tab=None):
                         )
                 label_widget = ui.label(label_text).classes('config-field-label')
 
-            if section == 'Settings' and key == 'startup_collection':
+            if section == 'general' and key == 'startup_collection':
                 collection_options = _get_collection_names()
                 if value and value not in collection_options:
                     collection_options.append(value)
@@ -339,17 +339,17 @@ def render_panel(tab=None):
                     options=collection_options,
                     value=value
                 ).props('outlined dense options-dense').classes('config-input')
-            elif section == 'Settings' and key == 'vpxlaunchenv':
+            elif section == 'general' and key == 'vpxlaunchenv':
                 inp = ui.textarea(
                     value=value,
                     placeholder='KEY=value KEY2="value with spaces"'
                 ).props('outlined autogrow').classes('config-input config-input-env')
-            elif section == 'Settings' and key == 'chromeoptions':
+            elif section == 'general' and key == 'chromeoptions':
                 inp = ui.textarea(
                     value=value,
                     placeholder='--disable-accelerated-video-decode\n--ozone-platform=x11'
                 ).props('outlined autogrow').classes('config-input config-input-env')
-            elif section == 'Settings' and key == 'theme':
+            elif section == 'general' and key == 'theme':
                 theme_options = _get_installed_theme_names()
                 if value and value not in theme_options:
                     theme_options.append(value)
@@ -357,7 +357,7 @@ def render_panel(tab=None):
                     options=theme_options,
                     value=value
                 ).props('outlined dense options-dense').classes('config-input')
-            elif section == 'Media' and key in MEDIA_PRIORITY_KEYS:
+            elif section == 'media' and key in MEDIA_PRIORITY_KEYS:
                 normalized_priority = str(value or '').strip().lower()
                 if key == 'realdmdmediapriority':
                     priority_options = {'color': 'Colorized frame', 'standard': 'Standard frame'}
@@ -382,14 +382,14 @@ def render_panel(tab=None):
                     text='Enable' if special_label_above else friendly_label,
                     value=(value == "true")
                 ).classes('config-input')
-                if section == 'Displays' and key == 'cabmode':
+                if section == 'displays' and key == 'cabmode':
                     inp.tooltip(
                         'Presents VPinFE for playing standing at a cabinet: larger text and '
                         'targets, and no controls that need a mouse. It does not rotate '
                         'anything - use Playfield Monitor Mounting and Rotate VPinFE '
                         'Display for that.'
                     )
-            elif section == 'Displays' and key == 'playfieldorientation':
+            elif section == 'displays' and key == 'playfieldorientation':
                 inp = ui.select(
                     options={'landscape': 'Landscape', 'portrait': 'Portrait'},
                     value=(value or 'landscape').strip().lower()
@@ -399,7 +399,7 @@ def render_panel(tab=None):
                     'turned on its side in the cabinet. This does not rotate anything by '
                     'itself - it tells themes what shape to lay out for.'
                 )
-            elif section == 'Displays' and key == 'playfieldrotation':
+            elif section == 'displays' and key == 'playfieldrotation':
                 inp = ui.select(
                     options={
                         '0': '0\u00b0 - the screen is already the right way up',
@@ -416,14 +416,14 @@ def render_panel(tab=None):
                     'appears upright on it. If the desktop appears sideways, or the taskbar '
                     'runs up the side of the screen, set 90 or 270 here instead.'
                 )
-            elif section == 'Displays' and key in (
+            elif section == 'displays' and key in (
                     'playfieldscreenid', 'bgscreenid', 'dmdscreenid'):
                 monitor_options = _get_display_id_options(detected_displays, value)
                 inp = ui.select(
                     options=monitor_options,
                     value=(value or '').strip()
                 ).props('outlined dense options-dense').classes('config-input')
-            elif section == 'Logger' and key == 'level':
+            elif section == 'logger' and key == 'level':
                 level_options = _get_logger_level_options(value)
                 normalized, include_thirdparty, include_windows = _split_logger_level_value(value)
                 inp = ui.select(
@@ -442,12 +442,12 @@ def render_panel(tab=None):
                 inputs[section]['__windows_included'] = windows_inp
             else:
                 inp = ui.input(value=value).props('outlined dense').classes('config-input')
-                if section == 'Displays' and key in ('bgwindowoverride', 'dmdwindowoverride'):
+                if section == 'displays' and key in ('bgwindowoverride', 'dmdwindowoverride'):
                     inp.props('hint="Format: x,y,width,height"')
                     inp.tooltip(
                         'Optional high-DPI override passed to themes instead of the detected window bounds.'
                     )
-                if section == 'Settings' and key == 'globaltableinioverridemask' and label_widget is not None:
+                if section == 'general' and key == 'globaltableinioverridemask' and label_widget is not None:
                     def on_mask_change(e):
                         mask_value = (e.value or '').strip()
                         if mask_value:
@@ -461,7 +461,7 @@ def render_panel(tab=None):
             inputs[section][key] = inp
             if (section, key) in launch_preview_keys:
                 inp.on_value_change(lambda _: update_launch_preview())
-            if section == 'Settings' and key == 'chromeoptions':
+            if section == 'general' and key == 'chromeoptions':
                 inp.on_value_change(lambda _: update_chrome_options_preview())
 
     binding_inputs: dict[str, dict[str, object]] = {}
@@ -503,10 +503,10 @@ def render_panel(tab=None):
                 for key, inp in keys.items():
                     if key == '__thirdparty_included' or key == '__windows_included':
                         continue
-                    if section == 'Logger' and key == 'level':
+                    if section == 'logger' and key == 'level':
                         level_value = str(inp.value or 'info').strip().lower() or 'info'
-                        include_thirdparty = bool(getattr(inputs.get('Logger', {}).get('__thirdparty_included'), 'value', False))
-                        include_windows = bool(getattr(inputs.get('Logger', {}).get('__windows_included'), 'value', False))
+                        include_thirdparty = bool(getattr(inputs.get('logger', {}).get('__thirdparty_included'), 'value', False))
+                        include_windows = bool(getattr(inputs.get('logger', {}).get('__windows_included'), 'value', False))
                         flags = []
                         if include_thirdparty:
                             flags.append('thirdparty')
@@ -527,9 +527,9 @@ def render_panel(tab=None):
             logger.info(
                 "Saved configuration to %s: vpxbinpath=%r gamerootdir=%r vpxinipath=%r",
                 config.configfilepath,
-                cfg_get(config, 'Settings', 'vpx_bin_path', ''),
-                cfg_get(config, 'Settings', 'game_root_dir', ''),
-                cfg_get(config, 'Settings', 'vpx_ini_path', ''),
+                cfg_get(config, 'general', 'vpx_bin_path', ''),
+                cfg_get(config, 'general', 'game_root_dir', ''),
+                cfg_get(config, 'general', 'vpx_ini_path', ''),
             )
             try:
                 from managerui.services import game_index_service
@@ -559,7 +559,7 @@ def render_panel(tab=None):
 
     async def run_dof_online_update():
         api_key = str(
-            getattr(inputs.get('DOF', {}).get('dofconfigtoolapikey'), 'value', '') or ''
+            getattr(inputs.get('dof', {}).get('dof_config_tool_api_key'), 'value', '') or ''
         ).strip()
         force = bool(getattr(dof_force_checkbox, 'value', False))
         script_path = find_dof_file('ledcontrol_pull.py')
@@ -654,7 +654,7 @@ def render_panel(tab=None):
                 with ui.tab_panel(section):
                     inputs[section] = {}
                     options = config.config.options(section)
-                    if section == 'Logger':
+                    if section == 'logger':
                         options = [key for key in options if key != 'file']
 
                     with ui.element('div').classes('config-panel-shell w-full'):
@@ -668,9 +668,9 @@ def render_panel(tab=None):
                                     ).classes('config-section-description')
                             ui.label(f'{len(options)} setting{"s" if len(options) != 1 else ""}').classes('text-xs font-semibold').style('color: var(--ink-muted) !important;')
 
-                        content_classes = 'config-main-grid' if section == 'Displays' else 'w-full'
+                        content_classes = 'config-main-grid' if section == 'displays' else 'w-full'
                         with ui.element('div').classes(content_classes):
-                            if section == 'Settings':
+                            if section == 'general':
                                 path_keys = [
                                     key for key in ('vpxbinpath', 'gamerootdir', 'vpxinipath')
                                     if key in options
@@ -850,8 +850,8 @@ def render_panel(tab=None):
                                                     update_chrome_options_preview()
                             else:
                                 with ui.card().classes('config-card w-full p-4'):
-                                    if section == 'Displays':
-                                        split_key = 'playfieldorientation' if section == 'Displays' else 'theme'
+                                    if section == 'displays':
+                                        split_key = 'playfieldorientation' if section == 'displays' else 'theme'
                                         split_index = options.index(split_key) if split_key in options else len(options)
                                         first_column_keys = options[:split_index]
                                         second_column_keys = options[split_index:]
@@ -925,7 +925,7 @@ def render_panel(tab=None):
                                                     for key in other_input_keys:
                                                         value = config.config.get(section, key, fallback='')
                                                         build_config_input(section, key, value)
-                                    elif section == 'Media':
+                                    elif section == 'media':
                                         priority_keys = [key for key in MEDIA_PRIORITY_KEYS if key in options]
                                         default_keys = [key for key in options if key not in set(priority_keys)]
 
@@ -951,7 +951,7 @@ def render_panel(tab=None):
                                                         for key in priority_keys:
                                                             value = config.config.get(section, key, fallback='')
                                                             build_config_input(section, key, value)
-                                    elif section == 'Mobile':
+                                    elif section == 'mobile':
                                         rename_enabled_key = 'renamemasktodefaultini'
                                         rename_mask_key = 'renamemasktodefaultinimask'
                                         normal_mobile_options = [
@@ -977,7 +977,7 @@ def render_panel(tab=None):
                                                         ui.label(get_friendly_name(rename_mask_key)).classes('config-field-label')
                                                         inp = ui.input(value=value).props('outlined dense').classes('config-input')
                                                         inputs[section][rename_mask_key] = inp
-                                    elif section == 'DOF':
+                                    elif section == 'dof':
                                         with ui.element('div').classes('config-vpinplay-pair'):
                                             with ui.column().classes('w-full gap-3'):
                                                 with ui.card().classes('config-side-card w-full p-4'):
@@ -1062,7 +1062,7 @@ def render_panel(tab=None):
                                                 value = config.config.get(section, key, fallback='')
                                                 build_config_input(section, key, value)
 
-                            if section == 'Displays':
+                            if section == 'displays':
                                 with ui.card().classes('config-side-card w-full p-4 gap-3'):
                                     ui.label('Detected Displays').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                     ui.label(
@@ -1093,7 +1093,7 @@ def render_panel(tab=None):
                                                 f"{s['width']}x{s['height']} at x={s['x']}, y={s['y']}</div>"
                                             )
 
-                        if section == 'DOF':
+                        if section == 'dof':
                             with ui.card().classes('config-side-card w-full mt-4 p-4'):
                                 ui.label('DOF Event Test').classes('text-lg font-semibold').style('color: var(--ink) !important;')
                                 ui.label(

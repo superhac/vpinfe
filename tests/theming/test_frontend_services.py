@@ -46,7 +46,7 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_theme_config_missing_file_is_optional(self):
         parser = configparser.ConfigParser()
-        parser["Settings"] = {"theme": "Example"}
+        parser["general"] = {"theme": "Example"}
         with (TemporaryDirectory() as temp_dir,
               mock.patch("frontend.theme_api.THEMES_DIR", Path(temp_dir))):
             (Path(temp_dir) / "Example").mkdir()
@@ -55,7 +55,7 @@ class FrontendServiceTests(unittest.TestCase):
     def _theme_config(self, **files):
         """get_theme_config for a theme dir holding the given <name>.json files."""
         parser = configparser.ConfigParser()
-        parser["Settings"] = {"theme": "Example"}
+        parser["general"] = {"theme": "Example"}
         with (
             TemporaryDirectory() as temp_dir,
             mock.patch("frontend.theme_api.THEMES_DIR", Path(temp_dir)),
@@ -97,7 +97,7 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_theme_config_flattens_values_from_theme_json(self):
         parser = configparser.ConfigParser()
-        parser["Settings"] = {"theme": "Example"}
+        parser["general"] = {"theme": "Example"}
         with (TemporaryDirectory() as temp_dir,
               mock.patch("frontend.theme_api.THEMES_DIR", Path(temp_dir))):
             theme_dir = Path(temp_dir) / "Example"
@@ -129,7 +129,7 @@ class FrontendServiceTests(unittest.TestCase):
 
     def test_config_api_set_audio_mute_saves_and_broadcasts(self):
         parser = configparser.ConfigParser()
-        parser["Settings"] = {"muteaudio": "false"}
+        parser["general"] = {"muteaudio": "false"}
 
         class DummyIni:
             def __init__(self):
@@ -146,7 +146,7 @@ class FrontendServiceTests(unittest.TestCase):
         )
 
         self.assertTrue(config_api.set_audio_muted(api, "true"))
-        self.assertEqual(parser["Settings"]["muteaudio"], "true")
+        self.assertEqual(parser["general"]["mute_audio"], "true")
         self.assertTrue(api._iniConfig.saved)
         self.assertEqual(events, [{"type": "AudioMuteChanged", "muted": True}])
 

@@ -55,8 +55,8 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("Settings"))
-            self.assertEqual(config.config.get("Settings", "hide_quit_button"), "false")
+            self.assertTrue(config.config.has_section("general"))
+            self.assertEqual(config.config.get("general", "hide_quit_button"), "false")
 
     def test_splashscreen_defaults_off(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -64,8 +64,8 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("Settings"))
-            self.assertEqual(config.config.get("Settings", "splashscreen"), "false")
+            self.assertTrue(config.config.has_section("general"))
+            self.assertEqual(config.config.get("general", "splashscreen"), "false")
 
     def test_chrome_options_default_empty(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -73,8 +73,8 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("Settings"))
-            self.assertEqual(config.config.get("Settings", "chrome_options"), "")
+            self.assertTrue(config.config.has_section("general"))
+            self.assertEqual(config.config.get("general", "chrome_options"), "")
 
     def test_disable_default_chrome_options_defaults_off(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -82,9 +82,9 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("Settings"))
+            self.assertTrue(config.config.has_section("general"))
             self.assertEqual(
-                config.config.get("Settings", "disable_default_chrome_options"), "false")
+                config.config.get("general", "disable_default_chrome_options"), "false")
 
     def test_vpx_log_delete_on_start_defaults_off(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -92,8 +92,8 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("Settings"))
-            self.assertEqual(config.config.get("Settings", "vpx_log_delete_on_start"), "false")
+            self.assertTrue(config.config.has_section("general"))
+            self.assertEqual(config.config.get("general", "vpx_log_delete_on_start"), "false")
 
     def test_restore_last_game_defaults_on(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -101,8 +101,8 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("Settings"))
-            self.assertEqual(config.config.get("Settings", "restore_last_game"), "true")
+            self.assertTrue(config.config.has_section("general"))
+            self.assertEqual(config.config.get("general", "restore_last_game"), "true")
 
     def test_state_section_lasttable_defaults_empty(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -110,8 +110,8 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertTrue(config.config.has_section("State"))
-            self.assertEqual(config.config.get("State", "last_game"), "")
+            self.assertTrue(config.config.has_section("state"))
+            self.assertEqual(config.config.get("state", "last_game"), "")
 
     def test_existing_splashscreen_setting_is_preserved(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -120,7 +120,7 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertEqual(config.config.get("Settings", "splashscreen"), "true")
+            self.assertEqual(config.config.get("general", "splashscreen"), "true")
 
     def test_a_renamed_key_keeps_the_users_value(self) -> None:
         """The rename must run before defaults are filled in.
@@ -139,13 +139,13 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertEqual(config.config.get("Settings", "game_root_dir"), "/old/path")
-            self.assertEqual(config.config.get("Settings", "restore_last_game"), "false")
+            self.assertEqual(config.config.get("general", "game_root_dir"), "/old/path")
+            self.assertEqual(config.config.get("general", "restore_last_game"), "false")
             # Both of these also moved into their window's own section at schema 3.
             self.assertEqual(config.config.get("windows.playfield", "variant"), "fss")
             self.assertEqual(config.config.get("windows.playfield", "rotation"), "270")
-            self.assertEqual(config.config.get("State", "last_game"), "Foo")
-            self.assertFalse(config.config.has_option("Settings", "tablerootdir"),
+            self.assertEqual(config.config.get("state", "last_game"), "Foo")
+            self.assertFalse(config.config.has_option("general", "tablerootdir"),
                              "the old key should be gone once it has been read")
 
 
@@ -166,13 +166,13 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertEqual(config.config.get("Displays", "cab_mode"), "true")
-            self.assertEqual(config.config.get("DOF", "enable_dof"), "true")
-            self.assertEqual(config.config.get("Settings", "splashscreen"), "true")
+            self.assertEqual(config.config.get("displays", "cab_mode"), "true")
+            self.assertEqual(config.config.get("dof", "enable_dof"), "true")
+            self.assertEqual(config.config.get("general", "splashscreen"), "true")
             # and the old spellings are gone, so the move is not repeated
-            self.assertFalse(config.config.has_option("Settings", "cab_mode"))
-            self.assertFalse(config.config.has_option("Settings", "enable_dof"))
-            self.assertFalse(config.config.has_option("Displays", "splashscreen"))
+            self.assertFalse(config.config.has_option("general", "cab_mode"))
+            self.assertFalse(config.config.has_option("general", "enable_dof"))
+            self.assertFalse(config.config.has_option("displays", "splashscreen"))
 
     def test_a_moved_option_does_not_overwrite_a_value_already_there(self) -> None:
         """If both spellings exist, the one in the current section wins."""
@@ -185,8 +185,8 @@ class TestConfigStore(unittest.TestCase):
 
             config = ConfigStore(str(ini_path))
 
-            self.assertEqual(config.config.get("Displays", "cab_mode"), "false")
-            self.assertFalse(config.config.has_option("Settings", "cab_mode"))
+            self.assertEqual(config.config.get("displays", "cab_mode"), "false")
+            self.assertFalse(config.config.has_option("general", "cab_mode"))
 
 
 if __name__ == "__main__":

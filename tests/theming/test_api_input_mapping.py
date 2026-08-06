@@ -34,8 +34,8 @@ class TestApiInputMapping(unittest.TestCase):
         parser.set("Input", "keyexit", "Escape,q")
         parser.set("Input", "joycollectionmenu", "10")
         parser.set("Input", "keycollectionmenu", "c")
-        parser.add_section("Settings")
-        parser.set("Settings", "startup_collection", "")
+        parser.add_section("general")
+        parser.set("general", "startup_collection", "")
 
         class DummyIni:
             def __init__(self, config):
