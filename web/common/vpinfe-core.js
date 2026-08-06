@@ -82,6 +82,14 @@ const CAPABILITIES = {
     config: ["layout.enabled"],
     describe: "Core turns the UI and the playfield art to suit the cabinet.",
   },
+  core_launch_dim: {
+    // On by default. VPX is about to own every screen, so every window should step
+    // aside - and a theme cannot do this for itself on more than one, because its
+    // script only runs in the controller.
+    default: true,
+    config: ["launch_dim.enabled"],
+    describe: "Core dims each window while a game is launching.",
+  },
   core_media_window: {
     // On by default. A media kind is named after the display it captures, so a window
     // that is a display has exactly one obvious thing to show, and every theme wrote the
@@ -968,6 +976,13 @@ class VPinFECore {
   // Handle incoming events from window.receiveEvent
   // This should be called from the theme's receiveEvent function
   async handleEvent(message) {
+    // A data change raised by the backend carries no index - the wheel position only
+    // exists in the browser, and a theme assigns message.index straight to its wheel.
+    // Filled in before the alias copy is taken, so both spellings carry it.
+    if (message && typeof message === "object" && typeof message.index !== "number"
+        && canonicalMessageType(message.type) === "GameDataChange") {
+      message.index = this._currentGameIndex;
+    }
     // A theme may post the pre-3.0 spelling; normalize before anything matches on it.
     if (message && MESSAGE_TYPE_CANONICAL[message.type]) {
       message = { ...message, type: canonicalMessageType(message.type) };
@@ -985,6 +1000,7 @@ class VPinFECore {
       await this.#handleGameDataChange(message);
     }
     this.#syncSelectionFromMessage(message);
+    this.#applyLaunchDim(message.type);
     if (VPinFECore.SELECTION_MESSAGES.has(message.type)) this.#renderWindowMedia();
     await this.#handleCoreAudioEvent(message);
 
@@ -1213,6 +1229,23 @@ class VPinFECore {
         console.warn("vpinfe: a selection listener failed", err);
       }
     }
+  }
+
+  /**
+   * Step this window aside while VPX has the screens.
+   *
+   * Set on the document element rather than the body, so it is there before a theme's
+   * own stylesheet loads and a theme can key off it without guessing a class name.
+   * GameLaunchComplete clears it - the same message that already tells every window the
+   * game came back.
+   */
+  #applyLaunchDim(type) {
+    if (!this.enabled("core_launch_dim")) return;
+    const root = document.documentElement;
+    if (!root) return;
+    // dataset, like every other data-vpinfe-* this file sets.
+    if (type === "GameLaunching") root.dataset.vpinfeLaunching = "true";
+    else if (type === "GameLaunchComplete") delete root.dataset.vpinfeLaunching;
   }
 
   /**

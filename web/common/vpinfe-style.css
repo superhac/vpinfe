@@ -113,3 +113,19 @@
   width: 100%;
   height: 100%;
 }
+
+/* ---------------------------------------------------------------------------
+   Launching - every window steps aside while VPX takes the screens.
+
+   Set on the document by core, not by a theme: the controller is the only window
+   a theme's script runs in, so a theme doing this for itself dims one screen and
+   leaves the others lit. Opacity only, because it composites.
+   --------------------------------------------------------------------------- */
+
+body {
+  transition: opacity 300ms ease;
+}
+
+html[data-vpinfe-launching] body {
+  opacity: 0;
+}

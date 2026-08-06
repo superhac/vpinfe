@@ -131,3 +131,23 @@ describe("core rendering the window's media", () => {
     assert.equal(stage.children.length, 1, "no script on the page, and it still drew");
   });
 });
+
+describe("dimming every window while VPX launches", () => {
+  test("it is set on the document, not left to the theme", async () => {
+    // A theme's script runs in the controller only, so a theme doing this for itself
+    // dims one screen and leaves the others lit - which is what the cabinet showed.
+    const { vpin, browser } = await coreOn("backglass");
+    await vpin.handleEvent({ type: "GameLaunching" });
+    assert.equal(browser.document.documentElement.dataset.vpinfeLaunching, "true");
+
+    await vpin.handleEvent({ type: "GameLaunchComplete" });
+    assert.equal(browser.document.documentElement.dataset.vpinfeLaunching, undefined);
+  });
+
+  test("a theme can turn it off", async () => {
+    const { vpin, browser } = await coreOn("backglass",
+      { themeConfig: { launch_dim: { enabled: false } } });
+    await vpin.handleEvent({ type: "GameLaunching" });
+    assert.equal(browser.document.documentElement.dataset.vpinfeLaunching, undefined);
+  });
+});
