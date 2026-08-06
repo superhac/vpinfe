@@ -70,8 +70,8 @@ declare your release lines in a `vpinfe-theme.json` at the root of your default 
 ```json
 {
   "releases": [
-    { "contract": 1, "ref": "refs/heads/master", "version": "1.6" },
-    { "contract": 2, "ref": "refs/heads/v2", "version": "2.1" }
+    { "contract": 1, "ref": "master", "version": "1.6" },
+    { "contract": 2, "ref": "v2", "version": "2.1" }
   ]
 }
 ```
@@ -80,6 +80,12 @@ Each entry says which contract that line speaks and which ref serves it. VPinFE 
 the highest contract it can run, and reads that line's `manifest.json` and source archive
 from its own ref. A theme whose only release needs a newer VPinFE than the one asking is
 not offered at all, which is how a build avoids installing something it cannot run.
+
+**Write refs bare** - `v2`, not `refs/heads/v2`. GitHub and Forgejo spell fully qualified
+refs differently and each returns 404 for the other's form, so VPinFE strips
+`refs/heads/` and `refs/tags/` before building a URL. A fully qualified ref still works;
+it is just rewritten. The one thing to avoid is a branch and a tag with the same name in
+one repo, because a bare ref cannot then say which you meant.
 
 You own this file, so a release is a merge in your repository. The registry is not
 involved after the theme is registered once.
@@ -111,20 +117,76 @@ Registry keys do not have to match the repo name or the `manifest.json` `name` f
 
 ## Per-Theme Repository
 
-Each published theme lives in its own GitHub repository. VPinFE expects to install directly from the repository root.
+Each published theme lives in its own repository. VPinFE expects to install directly from the repository root.
 
-The current install code assumes:
+The install code assumes:
 
-- The repository is hosted on GitHub
+- The repository is hosted on GitHub or on a Forgejo/Gitea server
 - The theme files live at the repository root
-- The publish branch is `master`
-- The repository can be downloaded as `https://github.com/<owner>/<repo>/archive/refs/heads/master.zip`
+- The repository serves `<base_url>/raw/<ref>/<path>` and `<base_url>/archive/<ref>.zip`
 
-This behavior comes from [`common/online/themes.py`](../common/online/themes.py), which builds ZIP URLs as:
+This behavior comes from [`common/online/theme_releases.py`](../common/online/theme_releases.py)
+and [`common/online/theme_installer.py`](../common/online/theme_installer.py), which build URLs as:
 
 ```text
-<theme_base_url>/archive/refs/heads/master.zip
+<theme_base_url>/raw/<ref>/manifest.json
+<theme_base_url>/archive/<ref>.zip
 ```
+
+With no `vpinfe-theme.json` the ref is `HEAD`, which both hosts resolve to whatever the
+repository's default branch actually is - so a repo defaulting to `main` works without
+saying anything.
+
+### Publishing somewhere other than the stock registry
+
+A theme does not have to be in the registry to be installable. A user can name your
+repository directly in their config file, and VPinFE will treat it as a theme in its own
+right:
+
+```json
+{
+  "settings": {
+    "themes": {
+      "repositories": ["https://git.example.net/you/vpinfe-theme-aurora"]
+    }
+  }
+}
+```
+
+**The theme is called whatever `manifest.json` says its `name` is** - not the repository's
+name. A repository url names nothing, so the author's own choice is the one that counts,
+and it is the name the theme installs under and the value to set for `theme`. Everything
+else works the same way: `vpinfe-theme.json` chooses the release, `manifest.json`
+describes it, and updates are found by version.
+
+This works for any repository, including one already in the registry - so it is also how
+you install a fork, or hold a published theme at a particular version. Because the name
+comes from the manifest, a fork of Revolution is called `Revolution` too, and the registry
+copy and yours are the same theme: yours wins, and VPinFE logs which one it dropped. Where
+a registry key and a manifest name differ only in case - the registry says `cab`, the
+manifest says `Cab` - they are two names and both install, with a warning.
+
+#### Pinning a ref
+
+Add `#<ref>` to hold a repository at one branch or tag:
+
+```json
+"repositories": ["https://git.example.net/you/vpinfe-theme-aurora#v1.4"]
+```
+
+A pin overrides release selection - it is you naming the ref, so `vpinfe-theme.json` does
+not get to choose. Two things follow. If a declared release line serves that ref, its
+contract still applies, so a build that cannot run it still declines rather than
+installing something that will not work. And because the manifest at a fixed ref never
+changes, a pinned theme is never offered an update; move the pin to take one.
+
+The same file takes `registries`, a list of `themes.json` catalogs. The stock registry is
+an ordinary entry in that list, so it can be reordered, replaced with a mirror, or
+removed on an install that should not reach the internet. Repositories are resolved
+before registries, so naming a repo directly wins if a name appears in both.
+
+Neither list is editable in the Manager UI. A source is a URL VPinFE fetches and installs
+code from, so adding one is a deliberate edit to the config file.
 
 ### Required repository contents
 

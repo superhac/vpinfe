@@ -98,6 +98,11 @@ def cfg_int(source, section: str, key: str, fallback: int = 0) -> int:
         return fallback
 
 
+def cfg_list(source, section: str, key: str) -> list[str]:
+    """A list setting. JSON holds a real array; the parser above it holds them joined."""
+    return [part.strip() for part in cfg_get(source, section, key).split(",") if part.strip()]
+
+
 @dataclass(frozen=True)
 class SettingsConfig:
     game_root_dir: str = ""

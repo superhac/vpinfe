@@ -35,6 +35,9 @@ IGNORED_SECTIONS = {
     'pinmame-score-parser',
     'vpinplay',
     'State',
+    # Theme sources are urls VPinFE fetches and installs code from. Editing them stays a
+    # deliberate act in the config file rather than a text box beside the log level.
+    'themes',
 }
 
 # Icons for each section (fallback to 'settings' if not defined)

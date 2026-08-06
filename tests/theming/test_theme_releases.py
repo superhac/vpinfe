@@ -63,12 +63,26 @@ class UrlTests(unittest.TestCase):
         self.assertEqual(theme_releases.index_url(BASE),
                          f"{BASE}/raw/HEAD/vpinfe-theme.json")
 
+    def test_a_ref_is_spelled_the_one_way_both_hosts_serve(self) -> None:
+        """GitHub 404s on Forgejo's raw form and Forgejo 404s on GitHub's, so a fully
+        qualified ref is reduced to a bare one, which both resolve."""
+        self.assertEqual(theme_releases.bare_ref("refs/heads/v2"), "v2")
+        self.assertEqual(theme_releases.bare_ref("refs/tags/v1.4"), "v1.4")
+        self.assertEqual(theme_releases.bare_ref("v2"), "v2")
+        self.assertEqual(theme_releases.bare_ref(""), "HEAD")
+        self.assertEqual(theme_releases.bare_ref("HEAD"), "HEAD")
+
     def test_the_archive_follows_the_chosen_ref(self) -> None:
         """Assuming master would install the contract 2 line on a contract 1 build."""
         self.assertEqual(ThemeInstallStore.build_zip_url(BASE, "refs/tags/v1.4"),
-                         f"{BASE}/archive/refs/tags/v1.4.zip")
+                         f"{BASE}/archive/v1.4.zip")
+
+    def test_head_is_not_rewritten_to_master(self) -> None:
+        """Both hosts resolve HEAD to the repo's real default branch. Assuming master
+        is wrong on every repo that defaults to main."""
         self.assertEqual(ThemeInstallStore.build_zip_url(BASE, "HEAD"),
-                         f"{BASE}/archive/refs/heads/master.zip")
+                         f"{BASE}/archive/HEAD.zip")
+        self.assertEqual(ThemeInstallStore.build_zip_url(BASE), f"{BASE}/archive/HEAD.zip")
 
 
 class RegistryShapeTests(unittest.TestCase):
@@ -98,13 +112,13 @@ class ResolveTests(unittest.TestCase):
         registry = self._registry(1, {theme_releases.index_url(BASE): TWO_LINES})
         release, manifest_url, _ = registry._resolve_release(BASE, {"url": BASE})
         self.assertEqual(release.ref, "refs/tags/v1.4")
-        self.assertEqual(manifest_url, f"{BASE}/raw/refs/tags/v1.4/manifest.json")
+        self.assertEqual(manifest_url, f"{BASE}/raw/v1.4/manifest.json")
 
     def test_the_same_theme_serves_a_newer_build_its_newer_line(self) -> None:
         registry = self._registry(2, {theme_releases.index_url(BASE): TWO_LINES})
         release, manifest_url, _ = registry._resolve_release(BASE, {"url": BASE})
         self.assertEqual(release.contract, 2)
-        self.assertEqual(manifest_url, f"{BASE}/raw/refs/heads/master/manifest.json")
+        self.assertEqual(manifest_url, f"{BASE}/raw/master/manifest.json")
 
     def test_a_theme_with_no_index_keeps_its_registered_manifest_url(self) -> None:
         """Twelve published themes are this case, and none of them change."""
@@ -135,13 +149,13 @@ class ResolveTests(unittest.TestCase):
         release, manifest_url, _ = registry._resolve_release(BASE, {"url": BASE})
 
         self.assertEqual(release.ref, "refs/heads/v2")
-        self.assertEqual(manifest_url, f"{BASE}/raw/refs/heads/v2/manifest.json")
+        self.assertEqual(manifest_url, f"{BASE}/raw/v2/manifest.json")
         self.assertEqual(ThemeInstallStore.build_zip_url(BASE, release.ref),
-                         f"{BASE}/archive/refs/heads/v2.zip")
+                         f"{BASE}/archive/v2.zip")
 
-        # What a 2.x build gets, unchanged and still contract 1.
-        self.assertEqual(ThemeInstallStore.build_zip_url(BASE),
-                         f"{BASE}/archive/refs/heads/master.zip")
+        # What a 2.x build gets is its own hardcoded master.zip, which this cannot change.
+        # What matters here is that we do not follow it onto the contract 2 branch.
+        self.assertEqual(ThemeInstallStore.build_zip_url(BASE), f"{BASE}/archive/HEAD.zip")
 
     def test_a_theme_needing_a_newer_build_resolves_to_nothing(self) -> None:
         index = {"releases": [{"contract": 2, "ref": "HEAD"}]}

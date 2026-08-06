@@ -4,9 +4,9 @@ import concurrent.futures
 from io import BytesIO
 from typing import Dict, Any
 
-from common.paths import CONFIG_DIR
+from common.paths import CONFIG_DIR, get_ini_config
 from common.online.theme_installer import ThemeInstallStore
-from common.online import theme_releases
+from common.online import theme_releases, theme_sources
 from common.online.theme_registry_client import ThemeRegistryClient, ThemeRegistryError
 
 
@@ -17,8 +17,11 @@ CURRENT_CONTRACT = 2
 
 
 class ThemeRegistry:
-    def __init__(self, timeout: int = 10, serves_contract: int = CURRENT_CONTRACT):
-        self.registry_url = "https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json"
+    def __init__(self, timeout: int = 10, serves_contract: int = CURRENT_CONTRACT,
+                 sources: theme_sources.ThemeSources | None = None):
+        # Read at load time, not here: constructing a registry should not touch the disk,
+        # and every test that builds one would otherwise need a config file.
+        self.sources = sources
         # The highest contract this build can run. A theme offering only something newer
         # is not listed, which is the protection a shipped 2.x client cannot give itself.
         self.serves_contract = serves_contract
@@ -45,13 +48,40 @@ class ThemeRegistry:
     # REGISTRY
     # =========================================================
 
+    def _catalog(self, url: str) -> dict:
+        """The themes a registry names, or {} with a reason logged.
+
+        One unreachable or malformed source must not cost the user the others - that is
+        the whole point of there being more than one.
+        """
+        try:
+            data = self._fetch_json(url)
+        except Exception as exc:
+            logger.error("Theme registry %s: %s", url, exc)
+            return {}
+        themes = data.get("themes")
+        if not isinstance(themes, dict):
+            logger.error("Theme registry %s: no themes object, so nothing to read", url)
+            return {}
+        return themes
+
     def load_registry(self):
-        data = self._fetch_json(self.registry_url)
+        sources = self.sources
+        if sources is None:
+            sources = theme_sources.from_config(get_ini_config())
 
-        if "themes" not in data or not isinstance(data["themes"], dict):
-            raise ThemeRegistryError("Invalid registry format.")
+        # Repositories first: naming one repo is a more specific act than subscribing to
+        # a catalog, so a user's own theme wins a name collision with a published one.
+        # Keyed by url until its manifest says what it is really called.
+        parts = [(url, {url: theme_sources.repository_entry(url)})
+                 for url in sources.repositories if url.strip()]
+        parts += [(url, self._catalog(url)) for url in sources.registries if url.strip()]
 
-        self.themes_index = data["themes"]
+        index = theme_sources.merge(parts)
+        if not index and parts:
+            raise ThemeRegistryError("No theme source could be read.")
+
+        self.themes_index = index
 
     @staticmethod
     def _base_url(entry: dict) -> str:
@@ -78,6 +108,17 @@ class ThemeRegistry:
             index = None
 
         declared = theme_releases.releases_in(index)
+
+        pinned = str(entry.get("ref") or "").strip()
+        if pinned:
+            # The user named an exact ref, so release selection is theirs. The gate still
+            # applies where it can: if a declared line serves this ref, its contract is
+            # known and a build that cannot run it still declines.
+            chosen = theme_releases.for_ref(declared, pinned)
+            if chosen.contract > self.serves_contract:
+                return None, None, index
+            return chosen, theme_releases.raw_url(base_url, pinned, "manifest.json"), index
+
         if declared:
             chosen = theme_releases.pick(declared, self.serves_contract)
             if chosen is None:
@@ -113,17 +154,30 @@ class ThemeRegistry:
                 return theme_key, theme_info, None, None, None
             manifest = self._fetch_json(manifest_url)
             self._validate_manifest(theme_key, manifest)
-            return theme_key, theme_info, manifest, release, index
+            # Only now can a repository say what it is called, so the key settles here.
+            return (theme_sources.name_of(theme_key, theme_info, manifest),
+                    theme_info, manifest, release, index)
 
-        # Network-bound workload: parallelize manifest fetches.
+        # Network-bound workload: parallelize manifest fetches. Submitted all at once, then
+        # collected in source order rather than completion order - a repository's name is
+        # only known once its manifest lands, so this is where two sources can turn out to
+        # mean the same theme, and which one wins must not depend on who answered first.
         max_workers = min(8, max(1, len(theme_jobs)))
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
-            futures = {pool.submit(_load_one, job): job[0] for job in theme_jobs}
-            for future in concurrent.futures.as_completed(futures):
+            futures = {job[0]: pool.submit(_load_one, job) for job in theme_jobs}
+            for provisional, future in futures.items():
                 try:
                     theme_key, theme_info, manifest, release, index = future.result()
                     if manifest is None:
                         continue
+                    if theme_key in self.themes:
+                        logger.warning("Two sources both provide '%s' - keeping the first, "
+                                       "ignoring %s", theme_key, self._base_url(theme_info))
+                        continue
+                    twin = next((k for k in self.themes if k.lower() == theme_key.lower()), None)
+                    if twin:
+                        logger.warning("'%s' and '%s' differ only in case, so both install",
+                                       theme_key, twin)
                     self.themes[theme_key] = {
                         "registry_info": theme_info,
                         "manifest": manifest,
@@ -131,8 +185,7 @@ class ThemeRegistry:
                         "index": index,
                     }
                 except Exception as e:
-                    failed_key = futures.get(future, "unknown")
-                    logger.error("%s: %s", failed_key, e)
+                    logger.error("%s: %s", provisional, e)
 
     # =========================================================
     # VALIDATION

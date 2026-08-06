@@ -251,12 +251,16 @@ class ConfigStore:
 		"""
 		entry = config_schema.option(section, key)
 		text = '' if raw is None else str(raw)
-		if entry is None or text.strip() == '':
+		if entry is None:
+			return text
+		# Before the blank rule below: an empty list is [], which a user editing the file
+		# by hand can add to. "" would leave them guessing what shape it wanted.
+		if entry.type == 'list':
+			return [part.strip() for part in text.split(',') if part.strip()]
+		if text.strip() == '':
 			return text
 		if entry.type == 'bool':
 			return is_truthy(text)
-		if entry.type == 'list':
-			return [part.strip() for part in text.split(',') if part.strip()]
 		if entry.type == 'int':
 			try:
 				return int(float(text))

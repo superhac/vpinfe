@@ -77,6 +77,10 @@
   "pinmame-score-parser": {
     "roms_update_sha": ""
   },
+  "themes": {
+    "registries": "https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json",
+    "repositories": ""
+  },
   "vpinplay": {
     "api_endpoint": "https://api.vpinplay.com:8888",
     "initials": "",

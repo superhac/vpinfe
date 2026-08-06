@@ -83,6 +83,23 @@ class TypedValueTests(ConfigStoreTests):
         self.assertEqual(
             self._payload()[SETTINGS_KEY]["windows"]["backglass"]["screen_id"], "")
 
+    def test_an_empty_list_is_an_empty_list_rather_than_a_blank_string(self) -> None:
+        """Unlike a blank int, which means something. A list setting is edited by hand,
+        and "" would leave the user guessing what shape to put there."""
+        ConfigStore(str(self.ini))
+        self.assertEqual(self._payload()[SETTINGS_KEY]["themes"]["repositories"], [])
+
+    def test_a_list_setting_round_trips_through_the_parser(self) -> None:
+        first = ConfigStore(str(self.ini))
+        first.config.set("themes", "repositories", "https://a.net/one,https://b.net/two")
+        first.save()
+
+        self.assertEqual(self._payload()[SETTINGS_KEY]["themes"]["repositories"],
+                         ["https://a.net/one", "https://b.net/two"])
+        second = ConfigStore(str(self.ini))
+        self.assertEqual(second.config.get("themes", "repositories"),
+                         "https://a.net/one,https://b.net/two")
+
     def test_values_survive_the_round_trip_as_text(self) -> None:
         first = ConfigStore(str(self.ini))
         first.config.set("Displays", "cab_mode", "true")

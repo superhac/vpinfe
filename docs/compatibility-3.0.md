@@ -267,6 +267,42 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-43 — Themes can come from more than one place, and a repository can be a theme on
+its own.** A new `themes` config section holds two lists: `registries`, catalogs to read
+`themes.json` from, and `repositories`, individual theme repos each treated as one theme.
+A theme is named by whoever chose the name: the entry's own `name` where the registry
+shape carries one, the registry key in the shape published today, and `manifest.json`'s
+`name` for a bare repository url, which names nothing on its own. Repositories resolve
+before registries and the first mention of a name wins, with the loser logged; because a
+repository's name is not known until its manifest arrives, that contest is settled in
+source order rather than in whichever order the network answered. A repository
+may carry `#<ref>` to pin it to a branch or tag, which overrides release selection but
+still honors the contract of a declared line serving that ref. The stock
+registry is an ordinary entry in `registries` rather than a constant, so it can be
+reordered, mirrored or dropped; an install listing nothing loads no catalog and still runs
+its installed theme, while an install whose every listed source fails is an error. Neither
+list appears in the Manager UI - a source is a URL VPinFE fetches and installs code from,
+so it stays a deliberate edit. Refs are now spelled bare in every URL we build
+(`v2`, not `refs/heads/v2`), and `HEAD` is no longer rewritten to `master` - so the source
+archive for a theme with no declared release line is `archive/HEAD.zip` rather than
+`archive/refs/heads/master.zip`. That is the same commit either way and the extracted
+folder is found by diffing the directory rather than by name, so all twelve published
+themes install exactly as before.
+*Why:* the registry URL was hardcoded to one repository on GitHub, so a theme could only
+be installed by its owner publishing it there - which makes private, in-development and
+site-local themes uninstallable, and leaves an offline or mirrored cab fetching an
+internet URL it cannot reach. The ref spelling is the same problem one layer down: GitHub
+serves `/raw/refs/heads/x/` and 404s on Forgejo's `/raw/branch/x/`, Forgejo does the
+reverse, and bare is the only form both resolve - so before this a non-GitHub theme worked
+only while its release sat on the default branch, and silently vanished from the list the
+moment it declared a branch per contract, which is the layout `theme_publishing.md`
+recommends. The `HEAD`-to-`master` rewrite is the same problem: GitHub quietly falls back
+to the default branch when `master` does not exist, so it cost nothing there, but Forgejo
+returns 404 and it would have broken every repository not defaulting to `master`.
+Where a theme came from does not decide what it may install - a repository resolves
+through the same contract gate a registry entry does. Covered by
+`tests/theming/test_theme_sources.py` and `tests/theming/test_theme_releases.py`.
+
 **PAR-42 — A theme can publish one release per contract, and the registry stops
 gating that.** A theme repository may carry `vpinfe-theme.json` on its default branch
 listing its release lines - a contract and the ref serving it. VPinFE installs the highest

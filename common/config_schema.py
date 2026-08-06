@@ -131,6 +131,17 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                  aliases=('vpxlogdeleteonstart',)),
     ConfigOption("Settings", "theme", "string", 'Revolution',
                  label='Active Theme'),
+    ConfigOption("themes", "registries", "list",
+                 'https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json',
+                 label='Theme Registries',
+                 description='Catalogs to offer themes from, most trusted first. The '
+                             'stock registry is an entry like any other, so a mirrored '
+                             'or offline install can replace or drop it.'),
+    ConfigOption("themes", "repositories", "list", '',
+                 label='Theme Repositories',
+                 description='Individual theme repos, each one a theme in its own right. '
+                             'Resolved before the registries, and named for the repo with '
+                             'any vpinfe-theme- prefix removed.'),
     ConfigOption("Settings", "startup_collection", "string", '',
                  label='Default Startup Collection'),
     ConfigOption("Settings", "auto_update_media_on_startup", "bool", 'false',
