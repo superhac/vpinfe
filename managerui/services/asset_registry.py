@@ -85,8 +85,9 @@ for _spec in MEDIA_SPECS:
                     _bucket(_ext), _spec.key)
 
 # Keyword-in-stem fallbacks when a media file is not named canonically.
-# Ordered; realdmd is handled ahead of this table so "dmd" never claims a realdmd file.
-# The keyword stays "dmd" - it is what people name files - while the slot is scoreview.
+# Ordered; realdmd is handled ahead of this table so the scoreview keyword never claims a
+# realdmd file. The keyword people actually type stays as it is - it is what they name
+# files - while the slot it fills is scoreview.
 _MEDIA_KEYWORDS: tuple[tuple[tuple[str, ...], str, str | None], ...] = (
     (("wheel",), "wheel", None),
     (("logo",), "logo", None),

@@ -153,7 +153,7 @@ class API:
         announce(str(key), str(name))
     def __init__(self, iniConfig, window_name=None, ws_bridge=None, frontend_browser=None):
         self._iniConfig = iniConfig
-        self.window_name = window_name          # 'bg', 'dmd', or 'table'
+        self.window_name = window_name          # whatever the theme declared
         self.ws_bridge = ws_bridge              # WebSocketBridge instance
         self.frontend_browser = frontend_browser  # ChromiumManager instance
         self.allGames = ensure_games_loaded()
@@ -281,6 +281,10 @@ class API:
     def get_games(self, reset=False):
         if reset:
             self._reset_to_default_view()
+        else:
+            # Recording a play replaces the game's meta wholesale, so an entry built
+            # from the old one still reports the old counters.
+            self._rebuild_entries()
         self.jsGameDictData = game_state.games_json(
             self.entries, self._theme_contract(),
             collection=self.current_collection or "", expanded=self._expanded)

@@ -206,7 +206,7 @@ def resolve_media_files(game_dir: str | Path, game_contents: set[str],
     keeps tier 3 exactly as it always behaved.
 
     Keyed by MEDIA_SPECS keys, stable across variants - under playfield_variant "fss"
-    the playfield's *filename* changes but its key stays "table".
+    the playfield's *filename* changes but its key stays "playfield".
 
     `medias_contents` may carry relative paths (wheels/tarcisio/wheel.png) for
     set folders. For a set-supporting kind with an active set, the order is:

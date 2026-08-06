@@ -299,8 +299,9 @@ class ChromiumManager:
         """Launch one Chromium instance for a given monitor.
 
         Args:
-            window_name: 'bg', 'dmd', or 'table'
-            url: The URL to load (e.g. http://127.0.0.1:8000/web/splash.html?window=bg)
+            window_name: whatever the theme declared - 'playfield', 'backglass' and
+                'scoreview' by default, and anything else a theme asks for
+            url: The URL to load (e.g. http://127.0.0.1:8000/app/backglass)
             monitor: screeninfo Monitor object with x, y, width, height
             index: Unique index for temp profile directory
         """
