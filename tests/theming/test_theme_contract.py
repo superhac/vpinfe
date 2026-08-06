@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import json
 import unittest
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from frontend.theme_contract import (
     CURRENT_CONTRACT,
@@ -17,6 +15,7 @@ from frontend.theme_contract import (
     declared_contract,
     project,
 )
+from tests.support.library import TempTree
 
 ROW = {
     "gameDirName": "Example",
@@ -34,11 +33,10 @@ ROW = {
 }
 
 
-class DeclarationTests(unittest.TestCase):
+class DeclarationTests(TempTree):
     def setUp(self):
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.theme = Path(self._tmp.name) / "MyTheme"
+        super().setUp()
+        self.theme = self.root / "MyTheme"
         self.theme.mkdir()
 
     def _manifest(self, body):

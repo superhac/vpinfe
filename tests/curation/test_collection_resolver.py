@@ -6,8 +6,6 @@ outranks both, and `hidden` outranking everything.
 """
 
 import unittest
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from common.games.collection_resolver import (
@@ -16,6 +14,7 @@ from common.games.collection_resolver import (
     visible_entries,
 )
 from common.games.collection_store import CollectionStore
+from tests.support.library import TempTree
 
 
 def _game(gid, title, tables, manufacturer="", rating=0, last_run=0, default=""):
@@ -40,11 +39,10 @@ def _table(tid, filename, hidden=False):
     return entry
 
 
-class ResolverTests(unittest.TestCase):
+class ResolverTests(TempTree):
     def setUp(self) -> None:
-        tmp = TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        self.path = Path(tmp.name) / "collections.json"
+        super().setUp()
+        self.path = self.root / "collections.json"
         self.collections = CollectionStore(str(self.path))
 
         self.mm = _game("mm", "Medieval Madness",
@@ -213,15 +211,14 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class OrderDefaultTests(unittest.TestCase):
+class OrderDefaultTests(TempTree):
     """A collection curated before curated order existed was shown alphabetically.
     Honouring its insertion order would reshuffle a list the user is used to, so
     `manual` is opt-in and everything else falls back to title."""
 
     def setUp(self) -> None:
-        tmp = TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        self.collections = CollectionStore(str(Path(tmp.name) / "collections.json"))
+        super().setUp()
+        self.collections = CollectionStore(str(self.root / "collections.json"))
         self.games = [
             _game("zz", "Zaccaria", {"a": _table("a", "z.vpx")}),
             _game("aa", "Apollo 13", {"b": _table("b", "a.vpx")}),

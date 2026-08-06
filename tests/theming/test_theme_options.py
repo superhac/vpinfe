@@ -13,11 +13,11 @@ import json
 import unittest
 import zipfile
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common import theme_options
 from common.online.theme_installer import ThemeInstallStore
+from tests.support.library import TempTree
 
 SCHEMA = {"title": "Reference", "options": [
     {"key": "showFlags", "name": "Show flags", "type": "boolean", "default": False},
@@ -38,11 +38,9 @@ def _installed(root: Path, folder: str = "Reference", *, values: dict | None = N
     return theme_dir
 
 
-class _Base(unittest.TestCase):
+class _Base(TempTree):
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
         patcher = mock.patch.object(theme_options, "USER_OPTIONS_DIR",
                                     self.root / "theme_user_options")
         patcher.start()

@@ -8,7 +8,6 @@ creating one is refused rather than guessed at when the request says both things
 from __future__ import annotations
 
 import unittest
-from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -16,7 +15,7 @@ from starlette.testclient import TestClient
 
 import httpapi
 from common.games.collection_store import CollectionStore
-from tests.support.library import fake_game
+from tests.support.library import TempTree, fake_game
 
 GAME_ID = "aaaa1111"
 OTHER_ID = "bbbb2222"
@@ -28,11 +27,10 @@ def _game(folder: str, game_id: str) -> SimpleNamespace:
                            "vpinfe": {"game_id": game_id}})
 
 
-class CollectionsApiTests(unittest.TestCase):
+class CollectionsApiTests(TempTree):
     def setUp(self) -> None:
-        tmp = TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        self.path = f"{tmp.name}/collections.ini"
+        super().setUp()
+        self.path = f"{self.root}/collections.ini"
         open(self.path, "w").close()
 
         self.catalog = {GAME_ID: _game("Cactus Canyon (Bally 1998)", GAME_ID),

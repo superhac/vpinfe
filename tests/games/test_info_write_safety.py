@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import json
 import unittest
-from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.games.game_parser import GameParser
@@ -19,11 +17,9 @@ from common.games.info_migration import write_json_atomic
 from tests.support.library import TempTree
 
 
-class AtomicWriteTests(unittest.TestCase):
+class AtomicWriteTests(TempTree):
     def setUp(self):
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
         self.info = self.root / "Example.info"
 
     def test_an_interrupted_write_leaves_the_previous_file_intact(self):
@@ -124,7 +120,7 @@ class UnreadableGameTests(TempTree):
 
 
 
-class StaleCountTests(unittest.TestCase):
+class StaleCountTests(TempTree):
     """What the Tables page reports after the startup id backfill has run.
 
     The backfill upgrades the whole library, and it does it to tables the scan has
@@ -133,9 +129,7 @@ class StaleCountTests(unittest.TestCase):
     """
 
     def setUp(self):
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
         legacy = {
             "Info": {"Title": "Dr. Dude"},
             "User": {"Rating": 4},

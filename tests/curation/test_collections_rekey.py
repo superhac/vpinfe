@@ -2,7 +2,6 @@ import json
 import textwrap
 import unittest
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.games import game_repository
@@ -13,7 +12,7 @@ from common.games.collection_store import (
     restorable_collections_backup,
 )
 from common.games.info_file import MetaConfig
-from tests.support.library import fake_game
+from tests.support.library import TempTree, fake_game
 
 
 def _game(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", game_id: str = ""):
@@ -39,11 +38,9 @@ def _collections(path: Path, sections: dict) -> CollectionStore:
     return CollectionStore(str(path))
 
 
-class MigrationTests(unittest.TestCase):
+class MigrationTests(TempTree):
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
         self.ini = self.root / "collections.ini"
 
     def test_membership_moves_onto_game_ids(self) -> None:
@@ -109,13 +106,11 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(collections.get_members("Favorites"), ["id-mm"])
 
 
-class MembershipTests(unittest.TestCase):
+class MembershipTests(TempTree):
     """The four defects that made VPS-keyed membership unusable."""
 
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
         self.ini = self.root / "collections.ini"
 
     def test_a_game_vpsdb_never_matched_can_join_a_collection(self) -> None:
@@ -178,7 +173,7 @@ class MembershipTests(unittest.TestCase):
         self.assertTrue(collections.is_member(game, {game_id_value}))
 
 
-class DisplayPathTests(unittest.TestCase):
+class DisplayPathTests(TempTree):
     """The Manager UI resolves collections by map lookup, not is_member().
 
     Both paths have to agree. When they did not, migrating simply emptied the
@@ -187,9 +182,7 @@ class DisplayPathTests(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
         self.ini = self.root / "collections.ini"
 
     def _row_for(self, game):
@@ -251,7 +244,7 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class BackupTests(unittest.TestCase):
+class BackupTests(TempTree):
     """Collections are the other file this branch rewrites.
 
     The .info migration has kept a copy since the start; this one did not, and it moves
@@ -260,9 +253,7 @@ class BackupTests(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
         self.ini = self.root / "collections.ini"
 
     def _backups(self):
@@ -315,14 +306,12 @@ class BackupTests(unittest.TestCase):
         self.assertNotIn("Later", collections.path.read_text(encoding="utf-8"))
 
 
-class JsonConversionTests(unittest.TestCase):
+class JsonConversionTests(TempTree):
     """The move off collections.ini. A user's curation is in that file, so the only
     thing that matters is that all of it survives and the ini stays where 2.x reads it."""
 
     def setUp(self) -> None:
-        tmp = TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        self.root = Path(tmp.name)
+        super().setUp()
         self.ini = self.root / "collections.ini"
         self.json = self.root / "collections.json"
 
@@ -436,7 +425,7 @@ class JsonConversionTests(unittest.TestCase):
         self.assertEqual(CollectionStore(str(self.ini)).get_members("Favorites"), ["x"])
 
 
-class MemberRefTests(unittest.TestCase):
+class MemberRefTests(TempTree):
     """A member names a game, and optionally one of its tables.
 
     This is what lets the same game sit in two collections with a different table in
@@ -444,9 +433,8 @@ class MemberRefTests(unittest.TestCase):
     """
 
     def setUp(self) -> None:
-        tmp = TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        self.path = Path(tmp.name) / "collections.json"
+        super().setUp()
+        self.path = self.root / "collections.json"
 
     def _saved(self, collections) -> list:
         collections.save()
@@ -566,14 +554,13 @@ class MemberRefTests(unittest.TestCase):
             collections.set_members("Fav", ["mm", "afm"])
 
 
-class ExclusionTests(unittest.TestCase):
+class ExclusionTests(TempTree):
     """Exclusions are the other half of membership: filters and members say what is in,
     exclusions overrule both. Excluding a table is not the inverse of pinning one."""
 
     def setUp(self) -> None:
-        tmp = TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        self.path = Path(tmp.name) / "collections.json"
+        super().setUp()
+        self.path = self.root / "collections.json"
         self.collections = CollectionStore(str(self.path))
         self.collections.add_collection("90s Bally")
 

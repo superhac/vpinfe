@@ -11,8 +11,6 @@ from __future__ import annotations
 import json
 import os
 import unittest
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from common import config_schema
 from common.config_store import (
@@ -22,13 +20,12 @@ from common.config_store import (
     ConfigStore,
     _flatten,
 )
+from tests.support.library import TempTree
 
 
-class ConfigStoreTests(unittest.TestCase):
+class ConfigStoreTests(TempTree):
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
         self.ini = self.root / "vpinfe.ini"
         self.json = self.root / "vpinfe.json"
 

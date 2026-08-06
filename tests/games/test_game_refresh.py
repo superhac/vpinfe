@@ -10,9 +10,9 @@ import configparser
 import json
 import unittest
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from common.games.game_parser import GameParser
+from tests.support.library import TempTree
 
 
 def _game_folder(root: Path, name: str, rating: int = 0) -> Path:
@@ -25,11 +25,9 @@ def _game_folder(root: Path, name: str, rating: int = 0) -> Path:
     return folder
 
 
-class SingleGameRefreshTests(unittest.TestCase):
+class SingleGameRefreshTests(TempTree):
     def setUp(self):
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
         for name in ("Alpha", "Bravo", "Charlie"):
             _game_folder(self.root, name)
         config = configparser.ConfigParser()

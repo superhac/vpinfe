@@ -11,6 +11,7 @@ from common.games.info_file import (
     migrate_vpinfe_section,
 )
 from common.games.tables import entry_for_filename
+from tests.support.library import TempTree
 
 
 class TestMetaConfig(unittest.TestCase):
@@ -227,13 +228,11 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class VPinFESchemaTests(unittest.TestCase):
+class VPinFESchemaTests(TempTree):
     """The VPinFE section carries a schema version; the rest of the file does not."""
 
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
 
     def test_an_unversioned_section_migrates_to_current(self) -> None:
         migrated = migrate_vpinfe_section({"alt_title": "Example"})
@@ -292,13 +291,13 @@ class VPinFESchemaTests(unittest.TestCase):
                              f"{name} is not ours alone; it stays shape-driven")
 
 
-class PatchSourceTests(unittest.TestCase):
+class PatchSourceTests(TempTree):
     """A build we constructed records what it was made from. Nothing else does -
     an ordinary .vpx came from wherever the user got it, which we never saw."""
 
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.root = Path(self._tmp.name) / "Example Table"
+        super().setUp()
+        self.root = self.root / "Example Table"
         self.root.mkdir(parents=True)
         self.info = self.root / "Example Table.info"
         self.info.write_text("{}", encoding="utf-8")
@@ -341,12 +340,12 @@ class PatchSourceTests(unittest.TestCase):
         self.assertEqual(self._source("Example Table.vpx")["base"]["file"], "Base.vpx")
 
 
-class AssetLedgerTests(unittest.TestCase):
+class AssetLedgerTests(TempTree):
     """assets records one entry per file VPinFE placed, keyed by where it went."""
 
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.root = Path(self._tmp.name) / "Cactus Canyon (Bally 1998)"
+        super().setUp()
+        self.root = self.root / "Cactus Canyon (Bally 1998)"
         (self.root / "medias").mkdir(parents=True)
         self.info = self.root / "Cactus Canyon (Bally 1998).info"
         self.info.write_text("{}", encoding="utf-8")

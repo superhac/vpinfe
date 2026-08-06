@@ -19,6 +19,7 @@ from unittest import mock
 from common.games import media_lookup
 from common.games.game_parser import GameParser
 from frontend.custom_http_server import CustomHTTPServer
+from tests.support.library import TempTree
 
 
 def _library(root: Path) -> None:
@@ -36,13 +37,11 @@ def _library(root: Path) -> None:
     }), encoding="utf-8")
 
 
-class LookupTests(unittest.TestCase):
+class LookupTests(TempTree):
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.root = Path(self._tmp.name)
+        super().setUp()
         _library(self.root)
         self.games = GameParser(str(self.root)).getAllGames()
-        self.addCleanup(self._tmp.cleanup)
 
     def test_it_finds_the_file_behind_a_kind(self) -> None:
         path = media_lookup.media_path(self.games, "tbl0000001", "wheel")
@@ -65,14 +64,14 @@ class LookupTests(unittest.TestCase):
         self.assertNotIn("topper", kinds)
 
 
-class PerTableResolutionTests(unittest.TestCase):
+class PerTableResolutionTests(TempTree):
     """Tier 1 keys off the table that launches, but the scan only ever runs it for the
     default table. Pinned so the gap is visible rather than folklore - the URL is already
     addressed by table, so closing this does not move anything a theme built."""
 
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        root = Path(self._tmp.name)
+        super().setUp()
+        root = self.root
         game = root / "Two Tables (Bally 1990)"
         (game / "medias").mkdir(parents=True)
         for name in ("Default.vpx", "Other.vpx"):
@@ -86,7 +85,6 @@ class PerTableResolutionTests(unittest.TestCase):
                        "t2": {"id": "t2", "filename": "Other.vpx"}},
         }), encoding="utf-8")
         self.games = GameParser(str(root)).getAllGames()
-        self.addCleanup(self._tmp.cleanup)
 
     def test_both_tables_answer_with_the_default_tables_media(self) -> None:
         first = media_lookup.media_path(self.games, "t1", "wheel")
@@ -101,12 +99,12 @@ class PerTableResolutionTests(unittest.TestCase):
         self.assertIsNone(media_lookup.media_path(self.games, "t2", "wheel"))
 
 
-class UnparsedGameTests(unittest.TestCase):
+class UnparsedGameTests(TempTree):
     """A folder no metadata build has touched has no table ids, but it still has art."""
 
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        root = Path(self._tmp.name)
+        super().setUp()
+        root = self.root
         game = root / "Untouched (Bally 1985)"
         (game / "medias").mkdir(parents=True)
         (game / "Untouched (Bally 1985).vpx").write_bytes(b"vpx")
@@ -116,7 +114,6 @@ class UnparsedGameTests(unittest.TestCase):
             "vpinfe": {"game_id": "untouched1", "schema": 2},
         }), encoding="utf-8")
         self.games = GameParser(str(root)).getAllGames()
-        self.addCleanup(self._tmp.cleanup)
 
     def test_media_is_reachable_by_the_game_id(self) -> None:
         path = media_lookup.media_path(self.games, "untouched1", "wheel")

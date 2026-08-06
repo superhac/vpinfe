@@ -10,7 +10,6 @@ import json
 import unittest
 from datetime import UTC, datetime
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from common.games.info_file import MetaConfig
 from common.games.info_migration import (
@@ -20,6 +19,7 @@ from common.games.info_migration import (
     needs_migration,
     write_backup,
 )
+from tests.support.library import TempTree
 
 LEGACY = {
     "Info": {"Title": "Dr. Dude", "VPSId": "vps-1", "Rom": "dd_l2",
@@ -184,11 +184,9 @@ class WhatSurvivesTests(unittest.TestCase):
         self.assertTrue(is_versioned(after))
 
 
-class BackupTests(unittest.TestCase):
+class BackupTests(TempTree):
     def setUp(self):
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
         self.info = self.root / "Example.info"
         self.info.write_text(json.dumps(LEGACY), encoding="utf-8")
 
@@ -248,7 +246,7 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class CollisionOrderingTests(unittest.TestCase):
+class CollisionOrderingTests(TempTree):
     """Two backups in the same second still sort in the order they were made.
 
     The names are the only ordering a restore has: it takes the newest readable one. A
@@ -257,9 +255,8 @@ class CollisionOrderingTests(unittest.TestCase):
     """
 
     def setUp(self):
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.info = Path(self._tmp.name) / "Example.info"
+        super().setUp()
+        self.info = self.root / "Example.info"
         self.info.write_text(json.dumps(LEGACY), encoding="utf-8")
 
     def _two_at(self, when):
