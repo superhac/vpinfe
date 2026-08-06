@@ -1,6 +1,7 @@
 import unittest
+from types import SimpleNamespace
 
-from common.games.game_metadata import as_string_list
+from common.games.game_metadata import as_string_list, game_themes, game_title, game_type
 
 
 class AsStringListTests(unittest.TestCase):
@@ -22,6 +23,24 @@ class AsStringListTests(unittest.TestCase):
         odd value stays visible rather than being guessed at."""
         self.assertEqual(as_string_list("['Fantasy', 'Magic']"), ["['Fantasy', 'Magic']"])
 
+
+
+class LegacyMetadataFieldTests(unittest.TestCase):
+    def test_metadata_display_helpers_handle_legacy_fields(self) -> None:
+        game = SimpleNamespace(
+            gameDirName="Fallback",
+            meta_config={
+                "VPSdb": {
+                    "name": "Legacy Name",
+                    "theme": "['Music', 'Movies']",
+                    "type": "SS",
+                }
+            },
+        )
+
+        self.assertEqual(game_title(game), "Legacy Name")
+        self.assertEqual(game_themes(game), ["Music", "Movies"])
+        self.assertEqual(game_type(game), "SS")
 
 if __name__ == "__main__":
     unittest.main()

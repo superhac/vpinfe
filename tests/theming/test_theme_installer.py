@@ -117,5 +117,23 @@ class ThemeInstallStoreTests(unittest.TestCase):
             self.assertTrue((root / f"Reference{ASIDE_SUFFIX}").is_symlink())
 
 
+
+class ThemeStoreDetectionTests(unittest.TestCase):
+    def test_theme_install_store_detects_folders_and_versions(self) -> None:
+        with TemporaryDirectory() as tmp:
+            themes_dir = Path(tmp)
+            installed = themes_dir / "ExampleTheme"
+            installed.mkdir()
+            (installed / "manifest.json").write_text(
+                json.dumps({"version": "1.2.3"}),
+                encoding="utf-8",
+            )
+
+            store = ThemeInstallStore(str(themes_dir))
+
+            self.assertEqual(store.installed_folder("ExampleTheme"), "ExampleTheme")
+            self.assertEqual(store.installed_version("ExampleTheme"), "1.2.3")
+            self.assertTrue(store.is_version_newer("1.2.4", "1.2.3"))
+
 if __name__ == "__main__":
     unittest.main()

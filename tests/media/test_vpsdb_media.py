@@ -1,11 +1,14 @@
+import configparser
 import hashlib
+import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from types import SimpleNamespace
 from unittest import mock
 
+from common.online.vpsdb_cache import VPSDatabaseCache
 from common.online.vpsdb_media import VPSMediaDownloader
+from tests.support.library import fake_game
 
 
 def _md5(data: bytes) -> str:
@@ -94,7 +97,7 @@ class RecordingTests(unittest.TestCase):
                  "FlyerImagePath": "flyer.png", "PlayfieldImagePath": "table.png",
                  "DMDVideoPath": "dmd.mp4", "PlayfieldVideoPath": "table.mp4",
                  "AudioPath": "audio.mp3"}
-        game = SimpleNamespace(fullPathGame=str(root), gameDirName=root.name)
+        game = fake_game(root, root.name)
         for attr, name in paths.items():
             setattr(game, attr, str(root / "medias" / name))
         return game
@@ -134,6 +137,33 @@ class RecordingTests(unittest.TestCase):
             meta.add_asset.assert_called_once_with(
                 str(root / "medias" / "wheel.png"), "vpinmediadb", _md5(OURS))
 
+
+class _FakeIni:
+    def __init__(self) -> None:
+        self.config = configparser.ConfigParser()
+        self.saved = False
+
+    def save(self) -> None:
+        self.saved = True
+
+
+class VpsCacheTests(unittest.TestCase):
+    def test_vps_cache_loads_local_list_without_network_version(self) -> None:
+        with TemporaryDirectory() as tmp:
+            config_dir = Path(tmp)
+            (config_dir / "vpsdb.json").write_text(
+                json.dumps([{"id": "vps-1", "name": "Example"}]),
+                encoding="utf-8",
+            )
+            cache = VPSDatabaseCache(
+                config_dir,
+                _FakeIni(),
+                db_url="https://example.invalid/db.json",
+                last_update_url="https://example.invalid/last.json",
+            )
+
+            with mock.patch.object(cache, "fetch_last_update", return_value=None):
+                self.assertEqual(cache.ensure_current(), [{"id": "vps-1", "name": "Example"}])
 
 if __name__ == "__main__":
     unittest.main()
