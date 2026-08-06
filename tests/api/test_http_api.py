@@ -6,6 +6,7 @@ from starlette.testclient import TestClient
 import httpapi
 from httpapi import capabilities
 from httpapi.errors import ApiError, FeatureUnavailableError, NotFoundError
+from tests.support.library import fake_game
 
 
 def _client() -> TestClient:
@@ -28,11 +29,8 @@ class ManufacturerEndpointTests(unittest.TestCase):
         from common.shared_assets import configure_shared_assets
 
         def _game(folder: str, manufacturer: str) -> SimpleNamespace:
-            return SimpleNamespace(
-                fullPathGame=f"/games/{folder}",
-                fullPathVPXfile=f"/games/{folder}/{folder}.vpx",
-                meta_config={"Info": {"Manufacturer": manufacturer}},
-            )
+            return fake_game(f"/games/{folder}", folder,
+                             meta={"Info": {"Manufacturer": manufacturer}})
 
         catalog = {
             "id-1": _game("Eight Ball (Bally 1977)", "Bally Manufacturing"),

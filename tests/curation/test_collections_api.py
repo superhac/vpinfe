@@ -16,18 +16,16 @@ from starlette.testclient import TestClient
 
 import httpapi
 from common.games.collection_store import CollectionStore
+from tests.support.library import fake_game
 
 GAME_ID = "aaaa1111"
 OTHER_ID = "bbbb2222"
 
 
 def _game(folder: str, game_id: str) -> SimpleNamespace:
-    return SimpleNamespace(
-        fullPathGame=f"/games/{folder}",
-        fullPathVPXfile=f"/games/{folder}/{folder}.vpx",
-        meta_config={"Info": {"Title": folder, "Manufacturer": "Bally"},
-                    "vpinfe": {"game_id": game_id}},
-    )
+    return fake_game(f"/games/{folder}", folder,
+                     meta={"Info": {"Title": folder, "Manufacturer": "Bally"},
+                           "vpinfe": {"game_id": game_id}})
 
 
 class CollectionsApiTests(unittest.TestCase):

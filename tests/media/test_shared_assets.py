@@ -18,6 +18,7 @@ from common.shared_assets import (
     manufacturer_slug,
     resolve_assets_dir,
 )
+from tests.support.library import fake_game
 
 
 class SlugTests(unittest.TestCase):
@@ -230,20 +231,16 @@ class ConfigTests(unittest.TestCase):
 class PayloadTests(unittest.TestCase):
     def test_every_game_row_carries_the_logo_path_or_null(self) -> None:
         import json as _json
-        from types import SimpleNamespace
 
         from common.games.collection_resolver import entries_for
         from frontend.game_state import games_json
 
-        game = SimpleNamespace(
-            gameDirName="Cactus Canyon (Bally 1998)",
-            fullPathGame="/games/Cactus Canyon (Bally 1998)",
-            fullPathVPXfile="/games/Cactus Canyon (Bally 1998)/Cactus Canyon.vpx",
-            pupPackExists=False,
-            altColorExists=False,
-            altSoundExists=False,
-            meta_config={"Info": {"Manufacturer": "Bally Manufacturing"}},
-        )
+        game = fake_game(
+                   "/games/Cactus Canyon (Bally 1998)", "Cactus Canyon (Bally 1998)",
+                   meta={"Info": {"Manufacturer": "Bally Manufacturing"}},
+                   fullPathVPXfile="/games/Cactus Canyon (Bally 1998)/Cactus Canyon.vpx",
+                   pupPackExists=False, altColorExists=False, altSoundExists=False,
+               )
 
         with TemporaryDirectory() as tmp:
             root = Path(tmp) / "assets"

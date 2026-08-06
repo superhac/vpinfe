@@ -3,7 +3,6 @@ import textwrap
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from types import SimpleNamespace
 from unittest import mock
 
 from common.games import game_repository
@@ -14,6 +13,7 @@ from common.games.collection_store import (
     restorable_collections_backup,
 )
 from common.games.info_file import MetaConfig
+from tests.support.library import fake_game
 
 
 def _game(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", game_id: str = ""):
@@ -25,7 +25,7 @@ def _game(root: Path, name: str, *, vpsid: str = "", altvpsid: str = "", game_id
     if game_id:
         meta["vpinfe"]["game_id"] = game_id
     (folder / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
-    return SimpleNamespace(fullPathGame=str(folder), gameDirName=name, meta_config=meta)
+    return fake_game(folder, name, meta=meta)
 
 
 def _collections(path: Path, sections: dict) -> CollectionStore:
@@ -166,8 +166,7 @@ class MembershipTests(unittest.TestCase):
 
         self.assertEqual(after["vpinfe"]["alt_vpsid"], "", "precondition: altvpsid cleared")
 
-        game = SimpleNamespace(fullPathGame=str(self.root), gameDirName="MM",
-                                meta_config=after)
+        game = fake_game(self.root, "MM", meta=after)
         collections = _collections(self.ini, {"Favorites": []})
 
         # Keyed the old way - the alt VPS id the user had set - membership is gone,

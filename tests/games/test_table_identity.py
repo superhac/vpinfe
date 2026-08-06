@@ -8,7 +8,6 @@ are the ones about what happens when a file is renamed, copied, or rebuilt.
 import json
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 
 from common.games import ids, table_identity
 from common.games.info_file import MetaConfig
@@ -19,7 +18,7 @@ from common.games.tables import (
     entry_for_filename,
     table_id,
 )
-from tests.support.library import TempTree
+from tests.support.library import TempTree, fake_game
 
 
 def _by_name(entries: dict, filename: str) -> dict:
@@ -32,12 +31,7 @@ def _game(root: Path, name: str, meta: dict | None = None):
     folder.mkdir(parents=True, exist_ok=True)
     if meta is not None:
         (folder / f"{name}.info").write_text(json.dumps(meta), encoding="utf-8")
-    return SimpleNamespace(
-        fullPathGame=str(folder),
-        fullPathVPXfile=str(folder / f"{name}.vpx"),
-        gameDirName=name,
-        meta_config=meta or {},
-    )
+    return fake_game(folder, name, meta=meta or {})
 
 
 def _meta(*tables: tuple[str, dict]) -> dict:

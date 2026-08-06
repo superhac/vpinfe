@@ -7,18 +7,18 @@ a game the same way.
 
 import json
 import unittest
-from types import SimpleNamespace
 
 from common.games.collection_resolver import entries_for, visible_entries
 from frontend.game_state import games_json
+from tests.support.library import fake_game
 
 
 def _game(title="Medieval Madness", tables=None, vpx="/g/MM/MM.vpx"):
-    return SimpleNamespace(
-        gameDirName=title, fullPathGame="/g/MM", fullPathVPXfile=vpx,
-        pupPackExists=True, altColorExists=False, altSoundExists=False,
-        creation_time=0,
-        meta_config={
+    return fake_game(
+               "/g/MM", title, fullPathVPXfile=vpx,
+               pupPackExists=True, altColorExists=False, altSoundExists=False,
+               creation_time=0,
+               meta={
             "Info": {"Title": title, "Manufacturer": "Williams", "Year": "1997",
                      "Type": "SS", "VPSId": "vps-mm", "Themes": ["Fantasy"]},
             "User": {"Rating": 5},
@@ -27,7 +27,7 @@ def _game(title="Medieval Madness", tables=None, vpx="/g/MM/MM.vpx"):
             "vpinfe": {"game_id": "mm00000001", "default_table": "t1"},
             **({"tables": tables} if tables is not None else {}),
         },
-    )
+           )
 
 
 TWO_TABLES = {
