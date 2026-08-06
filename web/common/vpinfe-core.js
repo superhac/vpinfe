@@ -467,7 +467,10 @@ class VPinFECore {
     // Network config
     this.themeAssetsPort = 8000; // default, will be updated from config
     this.managerUiPort = 8001; // default manager UI port
-    this.wsPort = 8002; // default WebSocket bridge port
+    // The bridge port arrives in the url, because it is the one value that cannot come
+    // over the bridge. Absent - an older launcher, a page opened by hand - it is 8002.
+    this.wsPort = Number(new URLSearchParams(window.location.search).get('wsPort'))
+                  || 8002;
     this.vpinplayEndpoint = '';
 
     // Display config, as the ini states it. Raw values - `layout` below is what a theme
@@ -1693,6 +1696,11 @@ class VPinFECore {
 
     // Load network config
     this.themeAssetsPort = await this.call("get_theme_assets_port");
+    try {
+      this.managerUiPort = await this.call("get_manager_ui_port");
+    } catch (_e) {
+      /* an older build cannot answer; the 8001 default already covers it */
+    }
     try {
       this.mediaPriorities = this.#normalizeMediaPriorities(await this.call("get_media_priorities"));
     } catch (_e) {

@@ -267,6 +267,19 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-45 — The browser is told which ports to use instead of assuming them.**
+*(machine-checked)* One WebSocket method is added, `get_manager_ui_port`, and the bridge's
+own port now travels in the window URL as `?wsPort=`. Purely additive: a theme never calls
+either, and both fall back to the values they assumed before.
+*Why:* `network.ws_port` and `network.manager_ui_port` are settings the browser ignored.
+`vpinfe-core.js` hardcoded 8002 for the bridge and 8001 for the Manager UI event stream, so
+changing either port left the frontend dialling the old one - a blank frontend in the first
+case and remote-launch overlays that silently never appear in the second. The bridge port
+cannot be fetched over the bridge, so it is the one value that has to arrive in the URL;
+the `/app/` bootstrap and the splash page already forward the query string, so it survives
+every path a window opens by. Covered by `tests/theming/test_render_smoke.py`, which runs
+against ports chosen at random precisely so an assumed one fails.
+
 **PAR-44 — Config sections are snake_case, and `[Settings]` is `general`.** The nine
 PascalCase sections and the one kebab-case section are renamed: `Settings` to `general`,
 and `Displays`, `Logger`, `Media`, `Mobile`, `Network`, `State`, `VPSdb`, `DOF` and

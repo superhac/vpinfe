@@ -204,6 +204,10 @@ def get_theme_assets_port(config):
     return NetworkConfig.from_config(config).theme_assets_port
 
 
+def get_manager_ui_port(config):
+    return NetworkConfig.from_config(config).manager_ui_port
+
+
 def get_managerui_remote_link(config):
     urls = _managerui_remote_urls(config)
     preferred_url = _preferred_managerui_url(urls)

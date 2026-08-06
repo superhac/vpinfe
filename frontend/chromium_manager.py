@@ -107,17 +107,27 @@ def _build_window_url(
     theme_name: str,
     window_name: str,
     splash_enabled: bool,
+    ws_port: int = 8002,
 ) -> str:
+    """Where a window opens, and how it finds the bridge.
+
+    The bridge port travels in the url because it is the one thing the page cannot ask
+    for: everything else comes over the bridge, and asking needs the port. Without it
+    `ws_port` was a setting the browser ignored, so moving the bridge left the frontend
+    dialling 8002 forever.
+    """
     if platform.system() == "Linux":
-        return f"{base_url}:{theme_assets_port}/app/{window_name}"
+        return f"{base_url}:{theme_assets_port}/app/{window_name}?wsPort={ws_port}"
 
     if splash_enabled:
-        return f"{base_url}:{theme_assets_port}/web/splash.html?window={window_name}"
+        return (f"{base_url}:{theme_assets_port}/web/splash.html"
+                f"?window={window_name}&wsPort={ws_port}")
 
     encoded_theme = quote(theme_name, safe="")
     return (
         f"{base_url}:{theme_assets_port}/themes/"
         f"{encoded_theme}/index_{window_name}.html?window={window_name}"
+        f"&wsPort={ws_port}"
     )
 
 
@@ -430,6 +440,7 @@ class ChromiumManager:
                 theme_name=theme_name,
                 window_name=window_name,
                 splash_enabled=splash_enabled,
+                ws_port=network.ws_port,
             )
 
             override_key = f"{window_name}windowoverride"
