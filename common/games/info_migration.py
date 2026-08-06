@@ -1,7 +1,13 @@
 """Bring an unversioned 2.x `.info` up to schema 2.
 
-The only migration there is: 2.x wrote no version, so a file either carries a schema
-stamp or predates the idea. See INFO-SCHEMA.local.md for why each section moved.
+Generations of the file, counting from the first one that shipped:
+
+  1  what 2.x wrote. Implied - 2.x recorded no version, so a file either carries a
+     stamp or is this one.
+  2  the current shape. See INFO-SCHEMA.local.md for why each section moved.
+
+`schema_of` still answers None rather than 1 for an unstamped file, because callers
+need to tell "declares nothing" from "declares 1"; the migration treats them alike.
 """
 
 from __future__ import annotations

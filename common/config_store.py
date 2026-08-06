@@ -27,11 +27,15 @@ logger = logging.getLogger("vpinfe.common.config_store")
 SCHEMA_KEY = "schema"
 SETTINGS_KEY = "settings"
 
-# 1 is the first JSON version. Schema 0 is the ini, which has no version at all - it is
-# recognized by being an ini rather than by anything written in it. 2 renamed the keys to
-# snake_case; every old spelling is an alias in config_schema and still resolves. 3 gave
-# each window a section of its own, so a setting can have moved as well as been renamed.
-CONFIG_SCHEMA = 3
+# Generations of the settings file, counting from the first one that shipped.
+#   1  the ini. Implied - it is recognized by being an ini, not by anything written in
+#      it, so a schema key never appears in one.
+#   2  JSON. Keys are snake_case and each window has a section of its own.
+#
+# The JSON side counted 1, 2, 3 during 3.0 development, one bump per shape change while
+# the format was being designed. None of those shipped, so they collapse into the single
+# generation users will actually receive.
+CONFIG_SCHEMA = 2
 
 # (from, to, key) for options that changed section. Applied on every read, so an ini
 # written by any earlier build lands in the right place.

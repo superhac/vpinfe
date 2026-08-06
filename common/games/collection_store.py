@@ -22,10 +22,14 @@ from common.games.info_file import VPINFE_SECTION
 
 logger = logging.getLogger("vpinfe.common.games.collection_store")
 
-# The collections file is entirely ours, so it carries a version.
-#   0  ini, membership keyed by VPS id. Implied when no version is recorded.
-#   1  ini, membership keyed by the game's own id (common/games/game_identity.py).
-#   2  JSON. Members and filters are nested and ordered, which an ini can only encode.
+# Generations of the collections file, counting from the first one that shipped.
+#   1  ini, membership keyed by VPS id. Implied when no version is recorded.
+#   2  JSON, membership keyed by the game's own id (common/games/game_identity.py).
+#      Members and filters are nested and ordered, which an ini cannot encode.
+#
+# 3.0 development also numbered an ini keyed by game id, between the two. It never
+# shipped, and anything below the current version migrates the same way, so it collapses
+# into the JSON generation rather than leaving a gap.
 COLLECTIONS_SCHEMA = 2
 
 # Schema 0/1 only: in an ini the sections are collection names, so the version lived
@@ -116,7 +120,11 @@ _FILTER_DEFAULTS = {
 
 
 def _ini_schema(parser) -> int:
-    """The highest version either reserved section declares."""
+    """The highest version either reserved section declares, or 0 if none does.
+
+    0 means "declares nothing", which `collections_schema` turns into None for a caller
+    choosing a backup to restore. The store reads an unstamped ini as generation 1.
+    """
     found = []
     for name in SCHEMA_SECTIONS:
         if name in parser:
@@ -200,7 +208,8 @@ class CollectionStore:
         free for the callers that only ever look."""
         parser = configparser.ConfigParser()
         parser.read(self.ini_path, encoding="utf-8")
-        self._schema = _ini_schema(parser)
+        # No stamp means the shape 2.x shipped, which is generation 1.
+        self._schema = _ini_schema(parser) or 1
         for name in parser.sections():
             if name in SCHEMA_SECTIONS:
                 continue
