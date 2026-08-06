@@ -410,7 +410,45 @@ class PerTablePlayStatsTests(unittest.TestCase):
         del config["tables"][entry_for_filename(config["tables"], "Gone.vpx")[0]]
 
         self.assertEqual(config["User"]["StartCount"], 2)
-        self.assertEqual(config["User"]["RunTime"], 4, "minutes, as the spec key always was")
+        self.assertEqual(config["vpinfe"]["run_time_seconds"], 180)
+        self.assertEqual(config["User"]["RunTime"], 3, "minutes, as the spec key always was")
+
+    def test_a_short_session_is_not_charged_a_whole_minute(self):
+        """Start a table and quit straight back out and the play count goes up, which is
+        right. The play time used to go up by a minute too, every time."""
+        config = self._launch({}, "Example.vpx", seconds=3)
+
+        self.assertEqual(config["vpinfe"]["run_time_seconds"], 3)
+        self.assertEqual(config["User"]["RunTime"], 0)
+
+    def test_short_sessions_add_up_instead_of_being_lost(self):
+        """The other way of getting the minutes right is to floor each session, which
+        throws away everything under a minute. Twenty of these is a real ten minutes."""
+        config = {}
+        for _ in range(20):
+            self._launch(config, "Example.vpx", seconds=30)
+
+        self.assertEqual(config["vpinfe"]["run_time_seconds"], 600)
+        self.assertEqual(config["User"]["RunTime"], 10)
+
+    def test_a_library_played_before_this_carries_its_history_forward(self):
+        """The seconds counter is new. A game with only the old minutes must not read
+        as never played."""
+        config = {"User": {"RunTime": 7}}
+
+        self._launch(config, "Example.vpx", seconds=30)
+
+        self.assertEqual(config["vpinfe"]["run_time_seconds"], 7 * 60 + 30)
+        self.assertEqual(config["User"]["RunTime"], 7)
+
+    def test_the_minutes_are_a_view_and_never_drift(self):
+        config = {}
+        for seconds in (45, 20, 130, 5):
+            self._launch(config, "Example.vpx", seconds=seconds)
+
+        total = config["vpinfe"]["run_time_seconds"]
+        self.assertEqual(total, 200)
+        self.assertEqual(config["User"]["RunTime"], total // 60)
 
     def test_a_hidden_table_still_accrues_and_stays_hidden(self):
         """Hiding is presentation: the API can still launch it, and it is still played."""

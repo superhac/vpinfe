@@ -145,7 +145,7 @@ class PlayDataTests(LaunchTests):
     def test_runtime_and_score_are_recorded_when_the_game_exits(self) -> None:
         play = self._run()
 
-        play.add_runtime_minutes.assert_called_once()
+        play.add_play_time.assert_called_once()
         play.update_score_from_nvram.assert_called_once()
         play.delete_nvram_if_configured.assert_called_once()
 
@@ -157,7 +157,31 @@ class PlayDataTests(LaunchTests):
         play = self._run(game=game)
 
         self.assertEqual(play.increment_start_count.call_args.args[1], "Example (VR).vpx")
-        self.assertEqual(play.add_runtime_minutes.call_args.args[2], "Example (VR).vpx")
+        self.assertEqual(play.add_play_time.call_args.args[2], "Example (VR).vpx")
+
+    def test_the_record_is_announced_after_it_is_written(self) -> None:
+        """Anything that shows play data reads it on this, not on `exited` - the
+        runtime and the score are written after the exit goes out."""
+        seen = []
+        events.subscribe(events.GAME_EXITED, lambda **_: seen.append("exited"))
+        events.subscribe(events.GAME_PLAY_RECORDED,
+                         lambda **_: seen.append("recorded"))
+
+        self._run()
+
+        self.assertEqual(seen, ["exited", "recorded"])
+
+    def test_a_game_that_never_started_records_nothing_to_announce(self) -> None:
+        seen = []
+        events.subscribe(events.GAME_PLAY_RECORDED, lambda **_: seen.append("recorded"))
+
+        def boom(cmd, **kwargs):
+            raise RuntimeError("popen failed")
+
+        with self.assertRaises(RuntimeError):
+            self._run(popen=boom)
+
+        self.assertEqual(seen, [])
 
 
 class RefusalTests(LaunchTests):

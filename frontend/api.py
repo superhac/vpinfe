@@ -26,8 +26,8 @@ from frontend import (
     theme_api,
     theme_windows,
 )
-from common.config_access import cfg_get
 from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
+from common.config_access import cfg_get
 
 logger = logging.getLogger("vpinfe.frontend.api")
 
@@ -283,9 +283,9 @@ class API:
         if reset:
             self._reset_to_default_view()
         else:
-            # Recording a play replaces the game's meta wholesale, so an entry built
-            # from the old one still reports the old counters.
-            self._rebuild_entries()
+            # This is the only place a refresh lands, so it re-derives the view rather
+            # than assuming only the payload went stale.
+            game_state.refresh_view(self)
         self.jsGameDictData = game_state.games_json(
             self.entries, self._theme_contract(),
             collection=self.current_collection or "", expanded=self._expanded)

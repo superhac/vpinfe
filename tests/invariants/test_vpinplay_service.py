@@ -1,6 +1,9 @@
+import types
 import unittest
 from unittest.mock import MagicMock, patch
 
+from common.games import game_play_service
+from common.online import vpinplay_runtime
 from common.online.vpinplay_service import _build_game_payload, sync_installed_games
 
 
@@ -129,6 +132,43 @@ class TestVPinPlayService(unittest.TestCase):
         self.assertEqual(payload["client"]["userId"], "user-123")
         self.assertEqual(payload["client"]["initials"], "ABC")
         self.assertEqual(payload["client"]["machineId"], "machine-123")
+
+
+class ProfilePlayTimeTests(unittest.TestCase):
+    """The alternate-profile path keeps its own counters, and had the same bug as the
+    .info one: every session was rounded up to a whole minute before being added."""
+
+    def setUp(self) -> None:
+        vpinplay_runtime._GAME_USER_STATE_BY_PROFILE.clear()
+        self.addCleanup(vpinplay_runtime._GAME_USER_STATE_BY_PROFILE.clear)
+
+    def test_a_short_session_is_not_charged_a_whole_minute(self) -> None:
+        state = vpinplay_runtime.add_game_runtime("/games/Example", 3, profile_key="p1")
+
+        self.assertEqual(state["run_time_seconds"], 3)
+        self.assertEqual(state["RunTime"], 0)
+
+    def test_short_sessions_add_up(self) -> None:
+        for _ in range(20):
+            state = vpinplay_runtime.add_game_runtime("/games/Example", 30, profile_key="p1")
+
+        self.assertEqual(state["run_time_seconds"], 600)
+        self.assertEqual(state["RunTime"], 10)
+
+    def test_what_is_submitted_is_still_the_minutes(self) -> None:
+        """RunTime is the service's field and its unit. Ours rides alongside, not into
+        the payload."""
+        vpinplay_runtime.add_game_runtime("/games/Example", 200, profile_key="p1")
+        state = vpinplay_runtime.get_game_user_state("/games/Example", "p1")
+
+        game = types.SimpleNamespace(gameDirName="Example", fullPathGame="/games/Example",
+                                     meta_config={})
+        with patch.object(game_play_service, "load_game_meta",
+                          return_value={"Info": {"Title": "Example"}}):
+            submitted = game_play_service.build_runtime_submission_meta(game, state)
+
+        self.assertEqual(submitted["User"]["RunTime"], 3)
+        self.assertNotIn("run_time_seconds", submitted["User"])
 
 
 if __name__ == "__main__":

@@ -37,13 +37,21 @@ class PlayEventTests(unittest.TestCase):
         with mock.patch.object(play_events, "save_last_game"):
             play_events.register(self.bridge, None, ini_config)
 
+    def _settle(self):
+        """Wait out the coalescing window that answers a run of game changes."""
+        timer = play_events._change_timer
+        if timer is not None:
+            timer.join(timeout=5)
+
     def test_registering_twice_leaves_one_of_each(self) -> None:
         """Three windows share one bridge; registering per window would treble
         every message."""
         self._register()
         self._register()
 
-        for name in (events.GAME_LAUNCHING, events.GAME_LAUNCHED, events.GAME_EXITED):
+        for name in (events.GAME_LAUNCHING, events.GAME_LAUNCHED, events.GAME_EXITED,
+                     events.GAME_PLAY_RECORDED, events.GAME_CHANGED,
+                     events.COLLECTIONS_CHANGED):
             with self.subTest(event=name):
                 self.assertEqual(events.registered(name), (0, 1))
 
@@ -80,6 +88,60 @@ class PlayEventTests(unittest.TestCase):
             events.emit(events.GAME_LAUNCHING, game=game, ini_config=None)
 
         save.assert_called_once_with(ini, game)
+
+    def test_a_finished_session_sends_the_windows_back_for_the_payload(self) -> None:
+        """Without this the play counts a theme shows are whatever they were at boot."""
+        self._register()
+
+        events.emit(events.GAME_PLAY_RECORDED, game=None, ini_config=None)
+
+        self.assertEqual(self.bridge.messages, ["GameDataChange", "TableDataChange"])
+
+    def test_the_exit_is_not_what_refreshes_the_payload(self) -> None:
+        """The runtime and the score are written after the exit goes out, so a refresh
+        there would show the session that just ended as one short."""
+        self._register()
+
+        events.emit(events.GAME_EXITED, game=None, ini_config=None)
+
+        self.assertNotIn("GameDataChange", self.bridge.messages)
+
+    def test_a_game_changed_outside_the_frontend_reaches_the_windows(self) -> None:
+        """A Manager UI edit is the case: same process, but nothing told the wheel."""
+        self._register()
+
+        events.emit(events.GAME_CHANGED, game=None, path="/games/Example")
+        self._settle()
+
+        self.assertEqual(self.bridge.messages, ["GameDataChange", "TableDataChange"])
+
+    def test_a_run_of_changes_is_answered_once(self) -> None:
+        """An import re-reads one game at a time, and each refresh costs every window a
+        rebuild of the whole list."""
+        self._register()
+
+        for index in range(20):
+            events.emit(events.GAME_CHANGED, game=None, path=f"/games/{index}")
+        self._settle()
+
+        self.assertEqual(self.bridge.messages, ["GameDataChange", "TableDataChange"])
+
+    def test_a_collections_write_reaches_the_windows_too(self) -> None:
+        """Membership is not derivable from any game, so a wheel showing a collection
+        has nothing else to go on."""
+        self._register()
+
+        events.emit(events.COLLECTIONS_CHANGED, path="/config/collections.json")
+        self._settle()
+
+        self.assertEqual(self.bridge.messages, ["GameDataChange", "TableDataChange"])
+
+    def test_a_change_is_not_broadcast_before_the_run_goes_quiet(self) -> None:
+        self._register()
+
+        events.emit(events.GAME_CHANGED, game=None, path="/games/Example")
+
+        self.assertEqual(self.bridge.messages, [])
 
     def test_a_broken_window_message_cannot_stop_a_launch(self) -> None:
         """These are subscribers, so the bus contains them. As hooks they could

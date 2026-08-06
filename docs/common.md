@@ -137,6 +137,14 @@ projects each streamed event into its own shape, so adding an argument here does
 change what an outside subscriber sees. Adding an event means deciding whether it is
 streamed at all.
 
+Say when the library changed. `game_repository.refresh_game` announces `game.changed`
+and `CollectionStore.save` announces `collections.changed`, so anything holding a view
+of the library can re-derive it. Announced at those two chokepoints rather than at each
+caller, because every path that edits a game already comes through the first to be
+re-read and every path that edits a collection comes through the second to be written.
+Re-reading a game *replaces* the object rather than mutating it, so a holder of the old
+one is stale with no way to notice - which is why the announcement has to exist at all.
+
 Never pick a game's `.vpx` yourself. A folder can hold several, and picking
 differently from everyone else means the metadata a user sees describes a different
 file than the one that launches. Use `tables.default_table()`.

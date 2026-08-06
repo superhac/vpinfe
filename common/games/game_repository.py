@@ -6,6 +6,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, List, Optional
 
+from common import events
 from common.games.game_identity import ensure_unique_ids
 from common.games.game_identity import game_id as vpinfe_id
 from common.games.game_metadata import (
@@ -123,7 +124,12 @@ def refresh_game(game_path: str) -> List[Any]:
         games = ensure_games_loaded(reload=True)
 
     logger.debug("refresh_game %s elapsed=%.3fs", normalized, perf_counter() - started_at)
-    return [game for game in games if str(Path(game.fullPathGame).resolve()) == normalized]
+    found = [game for game in games if str(Path(game.fullPathGame).resolve()) == normalized]
+
+    # Announced here rather than at each caller: every path that changes one game already
+    # comes through this to be re-read, so a new one cannot forget to say so.
+    events.emit(events.GAME_CHANGED, game=found[0] if found else None, path=normalized)
+    return found
 
 
 def get_missing_games(reload: bool = False) -> List[Dict[str, str]]:

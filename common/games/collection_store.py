@@ -5,6 +5,7 @@ import logging
 import os
 from pathlib import Path
 
+from common import events
 from common.games import collection_filters
 from common.games.game_identity import game_id
 from common.games.game_metadata import (
@@ -532,6 +533,9 @@ class CollectionStore:
                    COLLECTIONS_KEY: self.records}
         write_atomic(self.path,
                      lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
+        # Same reason game_repository announces a refreshed game: a wheel showing a
+        # collection is showing this file, and nothing else would tell it.
+        events.emit(events.COLLECTIONS_CHANGED, path=str(self.path))
 
     # ------------------------------------------------------------------
     # NEW JSON METADATA AWARE FILTERING

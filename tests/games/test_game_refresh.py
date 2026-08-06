@@ -10,6 +10,8 @@ import configparser
 import unittest
 from pathlib import Path
 
+from common import events
+from common.games import game_repository
 from common.games.game_parser import GameParser
 from tests.support.library import TempTree, write_game
 
@@ -102,6 +104,47 @@ class SingleGameRefreshTests(TempTree):
         self.parser.reload_game(str(self.root / "Bravo"))
 
         self.assertEqual(self.parser.getMissingGames(), [])
+
+
+class ChangeAnnouncementTests(TempTree):
+    """Re-reading a game replaces the object, so whoever is holding the old one is
+    stale and has no way to find out. The announcement is that way."""
+
+    def setUp(self):
+        super().setUp()
+        for name in ("Alpha", "Bravo"):
+            _game_folder(self.root, name)
+        config = configparser.ConfigParser()
+        config.read_dict({"Settings": {"gamerootdir": str(self.root)}, "Media": {}})
+        parser = GameParser(str(self.root), config)   # constructing loads
+
+        events.clear()
+        self.addCleanup(events.clear)
+        self.seen = []
+        events.subscribe(events.GAME_CHANGED, lambda **payload: self.seen.append(payload))
+
+        previous = game_repository._PARSER
+        game_repository._PARSER = parser
+        self.addCleanup(setattr, game_repository, "_PARSER", previous)
+
+    def test_a_refreshed_game_is_announced_with_the_new_object(self):
+        _game_folder(self.root, "Bravo", rating=5)
+
+        refreshed = game_repository.refresh_game(str(self.root / "Bravo"))
+
+        self.assertEqual(len(self.seen), 1)
+        self.assertIs(self.seen[0]["game"], refreshed[0])
+
+    def test_a_game_that_went_away_is_still_announced(self):
+        """The wheel has to drop it, which it cannot do if this stays quiet."""
+        for path in (self.root / "Alpha").iterdir():
+            path.unlink()
+        (self.root / "Alpha").rmdir()
+
+        game_repository.refresh_game(str(self.root / "Alpha"))
+
+        self.assertEqual(len(self.seen), 1)
+        self.assertIsNone(self.seen[0]["game"])
 
 
 if __name__ == "__main__":

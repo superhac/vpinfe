@@ -13,16 +13,24 @@ from __future__ import annotations
 
 import logging
 import sys
+import threading
 
 from common import events
 from frontend.last_game import save_last_game
 
 logger = logging.getLogger("vpinfe.frontend.play_events")
 
+# How long a run of game changes has to go quiet before the windows are sent back for the
+# payload. An import touches one game at a time, and each refresh costs every window a
+# rebuild of the whole list, so the burst is answered once.
+CHANGE_COALESCE_SECONDS = 0.5
+
 _registered = False
 _bridge = None
 _browser = None
 _ini_config = None
+_change_timer = None
+_change_lock = threading.Lock()
 
 
 # The same map vpinfe-core.js keeps as MESSAGE_TYPE_ALIASES, and it has to stay the same:
@@ -74,6 +82,32 @@ def on_exited(**_payload) -> None:
             logger.exception("Could not bring the frontend windows back to the front")
 
 
+def on_play_recorded(**_payload) -> None:
+    """Send the windows back for the payload, now that the session is in it.
+
+    Not on_exited: the exit is announced before the runtime and the score are written.
+    """
+    _broadcast({"type": "GameDataChange"})
+
+
+def on_game_changed(**_payload) -> None:
+    """A game or the collections file changed. Coalesced, never immediate."""
+    global _change_timer
+    with _change_lock:
+        if _change_timer is not None:
+            _change_timer.cancel()
+        _change_timer = threading.Timer(CHANGE_COALESCE_SECONDS, _flush_game_changes)
+        _change_timer.daemon = True
+        _change_timer.start()
+
+
+def _flush_game_changes() -> None:
+    global _change_timer
+    with _change_lock:
+        _change_timer = None
+    _broadcast({"type": "GameDataChange"})
+
+
 def register(ws_bridge, frontend_browser=None, ini_config=None) -> None:
     """Attach the frontend's reaction to the game lifecycle. Idempotent."""
     global _registered, _bridge, _browser, _ini_config
@@ -86,10 +120,17 @@ def register(ws_bridge, frontend_browser=None, ini_config=None) -> None:
     events.subscribe(events.GAME_LAUNCHING, on_launching)
     events.subscribe(events.GAME_LAUNCHED, on_launched)
     events.subscribe(events.GAME_EXITED, on_exited)
+    events.subscribe(events.GAME_PLAY_RECORDED, on_play_recorded)
+    events.subscribe(events.GAME_CHANGED, on_game_changed)
+    events.subscribe(events.COLLECTIONS_CHANGED, on_game_changed)
     _registered = True
 
 
 def reset_for_tests() -> None:
-    global _registered, _bridge, _browser, _ini_config
+    global _registered, _bridge, _browser, _ini_config, _change_timer
     _registered = False
     _bridge = _browser = _ini_config = None
+    with _change_lock:
+        if _change_timer is not None:
+            _change_timer.cancel()
+        _change_timer = None

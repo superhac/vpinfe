@@ -142,4 +142,7 @@ class TestApiInputMapping(unittest.TestCase):
             # Current spelling first, the 2.x copy behind it. PAR-24.
             self.assertEqual(window_messages[0]["type"], "GameLaunching")
             self.assertEqual(window_messages[1]["type"], "TableLaunching")
-            self.assertEqual(window_messages[-1]["type"], "TableLaunchComplete")
+            # The refresh that carries the finished session's play data comes after.
+            self.assertEqual([message["type"] for message in window_messages[-4:]],
+                             ["GameLaunchComplete", "TableLaunchComplete",
+                              "GameDataChange", "TableDataChange"])

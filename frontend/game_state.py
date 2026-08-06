@@ -9,6 +9,7 @@ from common.games.collections_service import (
     save_filter_collection,
 )
 from common.games import game_identity
+from common.games.game_repository import ensure_games_loaded
 from common.games.media_lookup import resolved_kinds
 from common.games.game_metadata import (
     DETECTION_KEYS,
@@ -19,6 +20,7 @@ from common.games.game_metadata import (
     normalize_rating,
     persist_game_meta,
     reorder_leading_article,
+    run_time_seconds,
     section,
     vpinfe_section,
 )
@@ -116,7 +118,9 @@ def _game_user(meta) -> dict:
         "tags": user.get("Tags") or [],
         "last_played": epoch_to_iso(user.get("LastRun")) or None,
         "play_count": int(user.get("StartCount", 0) or 0),
-        "play_time_seconds": int(user.get("RunTime", 0) or 0) * 60,
+        # The seconds we keep, not the minutes multiplied back up - that only ever
+        # returned whole minutes, and inflated ones at that.
+        "play_time_seconds": run_time_seconds(meta),
     }
 
 
@@ -219,6 +223,37 @@ def apply_collection(api, collection):
     api._rebuild_entries()
 
 
+def _current_membership(api):
+    """The games the current view holds, off the library as it now stands."""
+    if api.current_collection:
+        return filter_games_by_collection(api.allGames, api.current_collection)[0]
+    return GameListFilters(api.allGames).apply_filters(
+        letter=api.current_filters["letter"],
+        theme=api.current_filters["theme"],
+        game_type=api.current_filters["type"],
+        manufacturer=api.current_filters["manufacturer"],
+        year=api.current_filters["year"],
+        rating=api.current_filters["rating"],
+        rating_or_higher=api.current_filters["rating_or_higher"],
+    )
+
+
+def refresh_view(api):
+    """Re-derive the current view from the library, without changing what it is.
+
+    Membership, order and the game objects themselves all go stale: a finished session
+    moves a game up a LastRun wheel and into Last Played, and a Manager UI edit replaces
+    the object outright rather than mutating the one this view is holding.
+
+    A collection's own stored sort is not reapplied. Choosing a collection applies it
+    once; a player who sorted differently afterwards keeps that.
+    """
+    api.allGames = ensure_games_loaded()
+    api.filteredGames = _current_membership(api)
+    apply_sort(api.filteredGames, api.current_sort, api.current_order)
+    api._rebuild_entries()
+
+
 def save_current_filter_collection(api, name, letter, theme, game_type, manufacturer, year, sort_by, rating, rating_or_higher, order_by="Descending"):
     save_filter_collection(name, letter, theme, game_type, manufacturer, year, rating, rating_or_higher, sort_by, order_by)
     return {"success": True, "message": f"Filter collection '{name}' saved successfully"}
@@ -276,7 +311,12 @@ def apply_sort(games, sort_type, order_by=None):
     elif sort_type == "Highest StartCount":
         _sort_by_numeric_meta(games, "StartCount", reverse)
     elif sort_type == "RunTime":
-        _sort_by_numeric_meta(games, "RunTime", reverse)
+        # The seconds behind User.RunTime, so games with under a minute on them order
+        # against each other instead of all tying at zero. Same value the `play_time`
+        # collection axis sorts on, so the two lenses agree.
+        games.sort(key=lambda game: game_title(game).lower())
+        games.sort(key=lambda game: run_time_seconds(getattr(game, "meta_config", {})),
+                   reverse=reverse)
     return len(games)
 
 

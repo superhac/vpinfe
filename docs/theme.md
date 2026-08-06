@@ -916,7 +916,14 @@ Events are sent between windows via `receiveEvent()`. These are the built-in eve
 | `GameLaunchComplete` | — | The launched game has exited and frontend input routing is restored. Use this to fade back in, resume audio. |
 | `RemoteLaunching` | `table_name` | The manager UI triggered a remote game launch. Frontend keyboard/gamepad routing is suspended until `RemoteLaunchComplete`; show an overlay. |
 | `RemoteLaunchComplete` | — | The remote-launched game has exited and frontend input routing is restored. Hide the overlay. |
-| `GameDataChange` | `index`, `collection?`, `filters?`, `sort?` | Game data changed (collection switch, filter/sort update). Handled automatically by `vpin.handleEvent()`. |
+| `GameDataChange` | `index`, `collection?`, `filters?`, `sort?` | Game data changed (collection switch, filter/sort update, a finished game's play data, a Manager UI edit). Handled automatically by `vpin.handleEvent()`. |
+
+`GameDataChange` also arrives unprompted: when a game exits, and when the Manager UI
+changes a game or a collection. Those are raised by the backend, which has no wheel
+index to send, so `vpin.handleEvent()` fills `index` in before your handler sees it —
+and it fills in where the game you were on has *moved to*, not the slot it used to
+occupy. Assigning `message.index` to your wheel is therefore still correct after a
+refresh reorders the list, which is what a `LastRun` sort does when a game is played.
 
 You can also define custom event types and send them with `vpin.sendMessageToAllWindows()`.
 

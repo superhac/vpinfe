@@ -18,6 +18,15 @@ GAME_LAUNCHING = "game.launching"
 GAME_LAUNCHED = "game.launched"
 GAME_EXITED = "game.exited"
 
+# The session's play data is on disk. Its own event because `exited` fires first on
+# purpose, before the runtime and the score are written.
+GAME_PLAY_RECORDED = "game.play_recorded"
+
+# The library changed under whoever is holding it. Re-reading a game replaces the object
+# rather than mutating it, so a holder of the old one is stale and cannot tell.
+GAME_CHANGED = "game.changed"
+COLLECTIONS_CHANGED = "collections.changed"
+
 # The player moved to a game in the wheel. Fires once per wheel stop and nothing may
 # block on it, so subscribers only.
 GAME_SELECTED = "game.selected"
