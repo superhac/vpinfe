@@ -27,14 +27,10 @@ logger = logging.getLogger("vpinfe.common.config_store")
 SCHEMA_KEY = "schema"
 SETTINGS_KEY = "settings"
 
-# 1 is the first JSON version, and the only one. Schema 0 is the ini, which has no
-# version at all - it is recognized by being an ini rather than by anything written in
-# it, so it does not consume a number here.
-#
-# This counted to 3 during 3.0 development, one bump per shape change while the format
-# was being designed. None of those ever shipped: JSON settings arrive with 3.0, so the
-# first file any user owns is the first version of the format. Renumbered before the
-# beta rather than carrying two dead versions forever.
+# 1 is the first JSON version. Schema 0 is the ini, which has no version at all - it is
+# recognized by being an ini rather than by anything written in it. 2 renamed the keys to
+# snake_case; every old spelling is an alias in config_schema and still resolves. 3 gave
+# each window a section of its own, so a setting can have moved as well as been renamed.
 CONFIG_SCHEMA = 3
 
 # (from, to, key) for options that changed section. Applied on every read, so an ini
