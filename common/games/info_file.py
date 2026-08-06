@@ -32,7 +32,7 @@ logger = logging.getLogger("vpinfe.common.games.info_file")
 #   1  original shape (deletedNVRamOnClose, altlauncher, pluginprofile, alttitle,
 #      altvpsid). Implied when no version is recorded.
 #   2  adds `game_id`, the stable local game id (see common/games/game_identity.py).
-CURRENT_VPINFE_SCHEMA = 2
+INFO_SCHEMA = 2
 VPINFE_SCHEMA_KEY = "schema"
 
 # Named for what it identifies, because this section holds ids at more than one scope:
@@ -62,27 +62,27 @@ def migrate_vpinfe_section(vpinfe):
     build is left as-is rather than downgraded.
     """
     if not isinstance(vpinfe, dict):
-        return {VPINFE_SCHEMA_KEY: CURRENT_VPINFE_SCHEMA}
+        return {VPINFE_SCHEMA_KEY: INFO_SCHEMA}
 
     try:
         version = int(vpinfe.get(VPINFE_SCHEMA_KEY, 1) or 1)
     except (TypeError, ValueError):
         version = 1
 
-    if version > CURRENT_VPINFE_SCHEMA:
+    if version > INFO_SCHEMA:
         if version not in _warned_newer_schema:
             _warned_newer_schema.add(version)
             logger.warning(
                 "Game metadata uses VPinFE schema %s, newer than this build's %s. "
                 "Leaving it untouched; unknown settings are preserved.",
-                version, CURRENT_VPINFE_SCHEMA,
+                version, INFO_SCHEMA,
             )
         return vpinfe
 
     if version < 2:
         vpinfe.setdefault(GAME_ID_KEY, "")  # declare only; minting is a writer's job
 
-    vpinfe[VPINFE_SCHEMA_KEY] = CURRENT_VPINFE_SCHEMA
+    vpinfe[VPINFE_SCHEMA_KEY] = INFO_SCHEMA
     return vpinfe
 
 
@@ -132,7 +132,7 @@ class MetaConfig:
                 self._pre_migration = original
                 self.data = migrate(self.data)
                 logger.info("Migrated %s to schema %s in memory", configfilepath,
-                            CURRENT_VPINFE_SCHEMA)
+                            INFO_SCHEMA)
         else:
             self.data = {}
         self._normalize_detection_flags()

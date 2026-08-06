@@ -18,7 +18,7 @@ from common.games.info_maintenance import (
     restore_library,
     upgrade_library,
 )
-from common.games.info_migration import CURRENT_SCHEMA, backup_schema, schema_of
+from common.games.info_migration import INFO_SCHEMA, backup_schema, schema_of
 from tests.support.library import TempTree, write_game
 
 LEGACY = {
@@ -218,7 +218,7 @@ class WhatThePageSaysTests(LibraryTestCase):
                 "tables": {"Dr. Dude.vpx": {"rom": "dd"}}}
         files = {}
         if with_backup:
-            older = {**live, "vpinfe": {"schema": CURRENT_SCHEMA, "game_id": "a"}}
+            older = {**live, "vpinfe": {"schema": INFO_SCHEMA, "game_id": "a"}}
             files["Dr. Dude.info.vpinfe-20260901T000000Z"] = json.dumps(older).encode()
         return write_game(self.root, "Dr. Dude", info=live, files=files)
 
@@ -228,11 +228,11 @@ class WhatThePageSaysTests(LibraryTestCase):
             "pending_upgrade": sum(1 for t in games if t.info_pending_upgrade),
             "restorable": sum(1 for t in games if t.info_restorable),
             "newer_than_us": sum(1 for t in games
-                                 if (schema_of(t.meta_config) or 0) > CURRENT_SCHEMA),
+                                 if (schema_of(t.meta_config) or 0) > INFO_SCHEMA),
         }
 
     def test_a_library_a_newer_build_upgraded_is_reported_as_that(self):
-        self._game_at(CURRENT_SCHEMA + 1)
+        self._game_at(INFO_SCHEMA + 1)
 
         counts = self._counts()
 
@@ -240,7 +240,7 @@ class WhatThePageSaysTests(LibraryTestCase):
         self.assertEqual(counts["pending_upgrade"], 0)
 
     def test_a_library_this_build_upgraded_is_not(self):
-        self._game_at(CURRENT_SCHEMA)
+        self._game_at(INFO_SCHEMA)
 
         counts = self._counts()
 
@@ -248,7 +248,7 @@ class WhatThePageSaysTests(LibraryTestCase):
         self.assertEqual(counts["restorable"], 1)
 
     def test_a_library_nobody_has_upgraded_says_nothing(self):
-        self._game_at(CURRENT_SCHEMA, with_backup=False)
+        self._game_at(INFO_SCHEMA, with_backup=False)
 
         counts = self._counts()
 

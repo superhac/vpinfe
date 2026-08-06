@@ -6,7 +6,7 @@ from unittest import mock
 
 from common.games import game_repository
 from common.games.collection_store import (
-    CURRENT_SCHEMA,
+    COLLECTIONS_SCHEMA,
     CollectionStore,
     collections_schema,
     restorable_collections_backup,
@@ -56,7 +56,7 @@ class MigrationTests(TempTree):
 
         again = CollectionStore(str(self.ini))
 
-        self.assertEqual(again.schema_version(), CURRENT_SCHEMA)
+        self.assertEqual(again.schema_version(), COLLECTIONS_SCHEMA)
         self.assertEqual(again.migrate_membership_to_game_ids([game]), 0)
         self.assertEqual(again.get_members("Favorites"), ["id-mm"])
 
@@ -64,7 +64,7 @@ class MigrationTests(TempTree):
         """An older build must not rewrite membership it does not understand."""
         game = _game(self.root, "MM", vpsid="vps-mm", game_id="id-mm")
         collections = _collections(self.ini, {"Favorites": ["something-new"]})
-        collections._stamp_schema(CURRENT_SCHEMA + 5)
+        collections._stamp_schema(COLLECTIONS_SCHEMA + 5)
         collections.save()
 
         reopened = CollectionStore(str(self.ini))
@@ -91,7 +91,7 @@ class MigrationTests(TempTree):
         reopened = CollectionStore(str(self.ini))
 
         self.assertEqual(reopened.get_collections_name(), ["Favorites"])
-        self.assertEqual(reopened.schema_version(), CURRENT_SCHEMA,
+        self.assertEqual(reopened.schema_version(), COLLECTIONS_SCHEMA,
                          "the version is a field, not a collection")
 
     def test_membership_recorded_under_an_alt_vpsid_still_migrates(self) -> None:
@@ -341,7 +341,7 @@ class JsonConversionTests(TempTree):
         CollectionStore(str(self.json)).save()
 
         stored = json.loads(self.json.read_text(encoding="utf-8"))
-        self.assertEqual(stored["schema"], CURRENT_SCHEMA)
+        self.assertEqual(stored["schema"], COLLECTIONS_SCHEMA)
         self.assertEqual(stored["collections"][0]["members"], [{"game": "id-one"}])
         self.assertEqual(stored["collections"][0]["image"], "fav.png")
         self.assertTrue(self.ini.exists(), "2.x still reads the ini; do not delete it")
@@ -384,7 +384,7 @@ class JsonConversionTests(TempTree):
         """After the conversion the ini is stale; it must never be read again."""
         self._write_ini("[Stale]\nvpsids = old\n")
         self.json.write_text(json.dumps(
-            {"schema": CURRENT_SCHEMA,
+            {"schema": COLLECTIONS_SCHEMA,
              "collections": [{"name": "Current", "type": "manual", "members": ["new"]}]}),
             encoding="utf-8")
 
@@ -415,7 +415,7 @@ class JsonConversionTests(TempTree):
     def test_the_ini_path_still_finds_the_collections(self) -> None:
         """A script or an old config may still name collections.ini."""
         self.json.write_text(json.dumps(
-            {"schema": CURRENT_SCHEMA,
+            {"schema": COLLECTIONS_SCHEMA,
              "collections": [{"name": "Favorites", "type": "manual", "members": ["x"]}]}),
             encoding="utf-8")
 
@@ -440,7 +440,7 @@ class MemberRefTests(TempTree):
     def test_a_bare_id_is_read_as_following_the_game(self) -> None:
         """Everything written before refs existed is a game id and no more."""
         self.path.write_text(json.dumps(
-            {"schema": CURRENT_SCHEMA,
+            {"schema": COLLECTIONS_SCHEMA,
              "collections": [{"name": "Favorites", "type": "manual",
                               "members": ["id-one", "id-two"]}]}), encoding="utf-8")
 
@@ -521,7 +521,7 @@ class MemberRefTests(TempTree):
 
     def test_a_member_with_no_game_is_dropped(self) -> None:
         self.path.write_text(json.dumps(
-            {"schema": CURRENT_SCHEMA,
+            {"schema": COLLECTIONS_SCHEMA,
              "collections": [{"name": "Odd", "type": "manual",
                               "members": ["", {"table": "orphan"}, {"game": "ok"}, 7]}]}),
             encoding="utf-8")

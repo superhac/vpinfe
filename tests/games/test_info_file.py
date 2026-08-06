@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from common.games.info_file import (
-    CURRENT_VPINFE_SCHEMA,
+    INFO_SCHEMA,
     InvalidMetaConfigError,
     MetaConfig,
     migrate_vpinfe_section,
@@ -237,7 +237,7 @@ class VPinFESchemaTests(TempTree):
     def test_an_unversioned_section_migrates_to_current(self) -> None:
         migrated = migrate_vpinfe_section({"alt_title": "Example"})
 
-        self.assertEqual(migrated["schema"], CURRENT_VPINFE_SCHEMA)
+        self.assertEqual(migrated["schema"], INFO_SCHEMA)
         self.assertEqual(migrated["alt_title"], "Example", "existing settings survive")
         self.assertIn("game_id", migrated, "v2 declares the local game id key")
         self.assertEqual(migrated["game_id"], "", "declaring is not minting")
@@ -250,7 +250,7 @@ class VPinFESchemaTests(TempTree):
 
     def test_a_newer_schema_is_left_untouched(self) -> None:
         """Running an older build must not downgrade or strip a newer file."""
-        future = {"schema": CURRENT_VPINFE_SCHEMA + 5, "somethingNew": "keep me"}
+        future = {"schema": INFO_SCHEMA + 5, "somethingNew": "keep me"}
 
         with self.assertLogs("vpinfe.common.games.info_file", level="WARNING"):
             migrated = migrate_vpinfe_section(dict(future))
@@ -260,7 +260,7 @@ class VPinFESchemaTests(TempTree):
     def test_a_corrupt_schema_value_is_treated_as_oldest(self) -> None:
         migrated = migrate_vpinfe_section({"schema": "not-a-number"})
 
-        self.assertEqual(migrated["schema"], CURRENT_VPINFE_SCHEMA)
+        self.assertEqual(migrated["schema"], INFO_SCHEMA)
 
     def test_reading_migrates_in_memory_without_writing(self) -> None:
         info = self.root / "Example.info"
@@ -270,7 +270,7 @@ class VPinFESchemaTests(TempTree):
 
         meta = MetaConfig(str(info))
 
-        self.assertEqual(meta.data["vpinfe"]["schema"], CURRENT_VPINFE_SCHEMA)
+        self.assertEqual(meta.data["vpinfe"]["schema"], INFO_SCHEMA)
         self.assertEqual(info.read_text(encoding="utf-8"), before, "reading must not write")
 
     def test_writing_persists_the_stamp_and_mints_an_id(self) -> None:
@@ -278,7 +278,7 @@ class VPinFESchemaTests(TempTree):
         TestMetaConfig()._write_meta(info)
         saved = json.loads(info.read_text(encoding="utf-8"))
 
-        self.assertEqual(saved["vpinfe"]["schema"], CURRENT_VPINFE_SCHEMA)
+        self.assertEqual(saved["vpinfe"]["schema"], INFO_SCHEMA)
         self.assertTrue(saved["vpinfe"]["game_id"])
 
     def test_other_sections_are_not_versioned(self) -> None:

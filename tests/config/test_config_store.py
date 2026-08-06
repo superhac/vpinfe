@@ -14,7 +14,7 @@ import unittest
 
 from common import config_schema
 from common.config_store import (
-    CURRENT_SCHEMA,
+    CONFIG_SCHEMA,
     SCHEMA_KEY,
     SETTINGS_KEY,
     ConfigStore,
@@ -65,7 +65,7 @@ class FirstRunTests(ConfigStoreTests):
 
     def test_the_file_carries_a_schema_version(self) -> None:
         ConfigStore(str(self.ini))
-        self.assertEqual(self._payload()[SCHEMA_KEY], CURRENT_SCHEMA)
+        self.assertEqual(self._payload()[SCHEMA_KEY], CONFIG_SCHEMA)
 
 
 class TypedValueTests(ConfigStoreTests):
@@ -151,13 +151,13 @@ class IniConversionTests(ConfigStoreTests):
         """A future VPinFE owns that number; claiming it would say we understood it."""
         ConfigStore(str(self.ini))
         payload = self._payload()
-        payload[SCHEMA_KEY] = CURRENT_SCHEMA + 5
+        payload[SCHEMA_KEY] = CONFIG_SCHEMA + 5
         self.json.write_text(json.dumps(payload), encoding="utf-8")
 
         store = ConfigStore(str(self.ini))
         store.save()
 
-        self.assertEqual(self._payload()[SCHEMA_KEY], CURRENT_SCHEMA + 5)
+        self.assertEqual(self._payload()[SCHEMA_KEY], CONFIG_SCHEMA + 5)
 
 
 if __name__ == "__main__":

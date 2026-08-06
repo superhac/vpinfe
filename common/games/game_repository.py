@@ -18,7 +18,7 @@ from common.games.game_metadata import (
     vpinfe_section,
 )
 from common.games.game_parser import GameParser
-from common.games.info_migration import CURRENT_SCHEMA, schema_of
+from common.games.info_migration import INFO_SCHEMA, schema_of
 from common.games.collection_store import CollectionStore
 from common.paths import COLLECTIONS_PATH, get_games_path, get_ini_config
 
@@ -66,7 +66,7 @@ def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
         # upgraded these" from "something newer did, and I cannot fully read them" - and
         # says the first, which is a lie the moment a schema 3 exists.
         "newer_than_us": sum(1 for t in games
-                             if (schema_of(t.meta_config) or 0) > CURRENT_SCHEMA),
+                             if (schema_of(t.meta_config) or 0) > INFO_SCHEMA),
     }
 
 

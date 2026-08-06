@@ -27,11 +27,15 @@ logger = logging.getLogger("vpinfe.common.config_store")
 SCHEMA_KEY = "schema"
 SETTINGS_KEY = "settings"
 
-# 1 is the first JSON version. Schema 0 is the ini, which has no version at all - it is
-# recognized by being an ini rather than by anything written in it. 2 renamed the keys to
-# snake_case; every old spelling is an alias in config_schema and still resolves. 3 gave
-# each window a section of its own, so a setting can have moved as well as been renamed.
-CURRENT_SCHEMA = 3
+# 1 is the first JSON version, and the only one. Schema 0 is the ini, which has no
+# version at all - it is recognized by being an ini rather than by anything written in
+# it, so it does not consume a number here.
+#
+# This counted to 3 during 3.0 development, one bump per shape change while the format
+# was being designed. None of those ever shipped: JSON settings arrive with 3.0, so the
+# first file any user owns is the first version of the format. Renumbered before the
+# beta rather than carrying two dead versions forever.
+CONFIG_SCHEMA = 3
 
 # (from, to, key) for options that changed section. Applied on every read, so an ini
 # written by any earlier build lands in the right place.
@@ -117,7 +121,7 @@ class ConfigStore:
 		self.json_path = base.with_suffix('.json')
 		self.ini_path = base.with_suffix('.ini')
 		self.configfilepath = str(self.json_path)
-		self._schema = CURRENT_SCHEMA
+		self._schema = CONFIG_SCHEMA
 		self._converted_from_ini = False
 
 		self.is_new = False
@@ -272,7 +276,7 @@ class ConfigStore:
 	def _load_json(self) -> None:
 		with open(self.json_path, encoding='utf-8') as handle:
 			payload = json.load(handle) or {}
-		self._schema = int(payload.get(SCHEMA_KEY, CURRENT_SCHEMA) or CURRENT_SCHEMA)
+		self._schema = int(payload.get(SCHEMA_KEY, CONFIG_SCHEMA) or CONFIG_SCHEMA)
 		for section, values in _flatten(payload.get(SETTINGS_KEY) or {}).items():
 			if not self.config.has_section(section):
 				self.config.add_section(section)
@@ -292,7 +296,7 @@ class ConfigStore:
 		                  for section in self.config.sections()})
 		# Never stamp a newer file down to what this build writes - that number belongs to
 		# whichever VPinFE wrote it, and claiming it would say we understood the file.
-		payload = {SCHEMA_KEY: max(getattr(self, '_schema', CURRENT_SCHEMA), CURRENT_SCHEMA),
+		payload = {SCHEMA_KEY: max(getattr(self, '_schema', CONFIG_SCHEMA), CONFIG_SCHEMA),
 		           SETTINGS_KEY: settings}
 		write_atomic(self.json_path,
 		             lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))

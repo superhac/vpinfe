@@ -21,7 +21,7 @@ from common.timestamps import iso_from_asctime, iso_from_authored_date
 logger = logging.getLogger("vpinfe.common.games.info_migration")
 
 SCHEMA_KEY = "schema"
-CURRENT_SCHEMA = 2
+INFO_SCHEMA = 2
 BACKUP_MARKER = ".vpinfe-"
 
 # What 2.x called each VPXFile field, against what it is called now. Matched
@@ -141,7 +141,7 @@ def migrate(data: dict) -> dict:
     already = data.get("vpinfe")
     if isinstance(already, dict):
         vpinfe.update(already)
-    vpinfe[SCHEMA_KEY] = CURRENT_SCHEMA
+    vpinfe[SCHEMA_KEY] = INFO_SCHEMA
 
     # The DOF override is configuration, and User is the interop contract for play
     # history. It moves, and the old key goes with it.
@@ -187,7 +187,7 @@ def backup_names(names, info_name: str) -> list[str]:
     return sorted((n for n in names if n.startswith(prefix)), reverse=True)
 
 
-def restorable_backup(game_dir, max_schema: int = CURRENT_SCHEMA, names=None) -> str | None:
+def restorable_backup(game_dir, max_schema: int = INFO_SCHEMA, names=None) -> str | None:
     """The backup this build would restore here, or None.
 
     Newest readable wins; a newer one is stepped over rather than ending the search.

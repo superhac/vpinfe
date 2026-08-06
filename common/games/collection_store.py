@@ -26,7 +26,7 @@ logger = logging.getLogger("vpinfe.common.games.collection_store")
 #   0  ini, membership keyed by VPS id. Implied when no version is recorded.
 #   1  ini, membership keyed by the game's own id (common/games/game_identity.py).
 #   2  JSON. Members and filters are nested and ordered, which an ini can only encode.
-CURRENT_SCHEMA = 2
+COLLECTIONS_SCHEMA = 2
 
 # Schema 0/1 only: in an ini the sections are collection names, so the version lived
 # in a reserved section filtered out of the collection list. Both spellings are
@@ -165,7 +165,7 @@ class CollectionStore:
     def reload(self):
         """Load from disk, discarding unsaved changes."""
         self.records: list[dict] = []
-        self._schema = CURRENT_SCHEMA
+        self._schema = COLLECTIONS_SCHEMA
         self._converted_from_ini = False
 
         if self.path.exists():
@@ -182,7 +182,7 @@ class CollectionStore:
             return
         if not isinstance(data, dict):
             return
-        self._schema = int(data.get(SCHEMA_KEY, CURRENT_SCHEMA) or CURRENT_SCHEMA)
+        self._schema = int(data.get(SCHEMA_KEY, COLLECTIONS_SCHEMA) or COLLECTIONS_SCHEMA)
         records = data.get(COLLECTIONS_KEY)
         if not isinstance(records, list):
             return
@@ -233,7 +233,7 @@ class CollectionStore:
     def schema_version(self) -> int:
         return self._schema
 
-    def _stamp_schema(self, version: int = CURRENT_SCHEMA) -> None:
+    def _stamp_schema(self, version: int = COLLECTIONS_SCHEMA) -> None:
         self._schema = version
 
     def is_filter_based(self, section: str):
@@ -459,12 +459,12 @@ class CollectionStore:
         tables are seen.
         """
         version = self.schema_version()
-        if version >= CURRENT_SCHEMA:
-            if version > CURRENT_SCHEMA and version not in _warned_newer_schema:
+        if version >= COLLECTIONS_SCHEMA:
+            if version > COLLECTIONS_SCHEMA and version not in _warned_newer_schema:
                 _warned_newer_schema.add(version)
                 logger.warning(
                     "collections.ini uses schema %s, newer than this build's %s. "
-                    "Leaving membership untouched.", version, CURRENT_SCHEMA)
+                    "Leaving membership untouched.", version, COLLECTIONS_SCHEMA)
             return 0
 
         names = self.get_collections_name()
@@ -519,7 +519,7 @@ class CollectionStore:
             self._converted_from_ini = False
         # Never stamp a newer file down to what this build writes. A newer VPinFE owns
         # that number, and claiming it would tell the next reader we understood the file.
-        payload = {SCHEMA_KEY: max(self._schema, CURRENT_SCHEMA),
+        payload = {SCHEMA_KEY: max(self._schema, COLLECTIONS_SCHEMA),
                    COLLECTIONS_KEY: self.records}
         write_atomic(self.path,
                      lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
@@ -585,7 +585,7 @@ def collections_schema(path) -> int | None:
     return int(data.get(SCHEMA_KEY, 0) or 0) or None if isinstance(data, dict) else None
 
 
-def restorable_collections_backup(config_dir, max_schema: int = CURRENT_SCHEMA) -> str | None:
+def restorable_collections_backup(config_dir, max_schema: int = COLLECTIONS_SCHEMA) -> str | None:
     """The saved collections file this build would put back, or None.
 
     Newest readable wins, same as a .info. A copy written by a newer build is stepped over.

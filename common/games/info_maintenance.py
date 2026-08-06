@@ -15,7 +15,7 @@ from common.games.collection_store import (
 )
 from common.games.info_file import InvalidMetaConfigError, MetaConfig
 from common.games.info_migration import (
-    CURRENT_SCHEMA,
+    INFO_SCHEMA,
     copy_aside,
     replace_atomic,
     restorable_backup,
@@ -101,7 +101,7 @@ def upgrade_library(
 def restore_library(
     game_root,
     game_name: str | None = None,
-    max_schema: int = CURRENT_SCHEMA,
+    max_schema: int = INFO_SCHEMA,
     config_dir=None,
     progress_cb=None,
     log_cb=None,
