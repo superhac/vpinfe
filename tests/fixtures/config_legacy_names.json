@@ -408,6 +408,12 @@
   "thumb_cache_max_mb"
  ],
  [
+  "Media",
+  "wheelset",
+  "media",
+  "wheelset"
+ ],
+ [
   "Mobile",
   "chunk_size",
   "mobile",
@@ -492,10 +498,34 @@
   "theme_assets_port"
  ],
  [
+  "Network",
+  "ws_port",
+  "network",
+  "ws_port"
+ ],
+ [
+  "Network",
+  "wsport",
+  "network",
+  "ws_port"
+ ],
+ [
   "Settings",
   "MMhideQuitButton",
   "general",
   "hide_quit_button"
+ ],
+ [
+  "Settings",
+  "assets_dir",
+  "general",
+  "assets_dir"
+ ],
+ [
+  "Settings",
+  "assetsdir",
+  "general",
+  "assets_dir"
  ],
  [
   "Settings",
@@ -508,6 +538,18 @@
   "autoupdatemediaonstartup",
   "general",
   "auto_update_media_on_startup"
+ ],
+ [
+  "Settings",
+  "cab_mode",
+  "displays",
+  "cab_mode"
+ ],
+ [
+  "Settings",
+  "cabmode",
+  "displays",
+  "cab_mode"
  ],
  [
   "Settings",
@@ -745,6 +787,12 @@
  ],
  [
   "general",
+  "assetsdir",
+  "general",
+  "assets_dir"
+ ],
+ [
+  "general",
   "autoupdatemediaonstartup",
   "general",
   "auto_update_media_on_startup"
@@ -916,6 +964,12 @@
   "themeassetsport",
   "network",
   "theme_assets_port"
+ ],
+ [
+  "network",
+  "wsport",
+  "network",
+  "ws_port"
  ],
  [
   "pinmame-score-parser",

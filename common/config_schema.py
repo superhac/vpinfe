@@ -120,7 +120,11 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                  description='Presents VPinFE for playing standing at a cabinet: larger text and '
                              'targets, and no controls that need a mouse. It does not rotate '
                              'anything.',
-                 aliases=('cabmode',)),
+                 aliases=('cabmode',),
+                 # It lived in [Settings] before it was display context. Declared here
+                 # rather than chained through SettingsConfig, which is how a parser that
+                 # had not been migrated used to resolve it.
+                 legacy=(('Settings', 'cabmode'), ('Settings', 'cab_mode'))),
     ConfigOption("general", "vpx_bin_path", "string", '',
                  label='VPX Executable Path',
                  description='Full path to the Visual Pinball executable VPinFE launches.',
@@ -146,6 +150,12 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                  description='Path to VPinballX.ini, which VPinFE reads for the key mappings the '
                              'Remote page sends.',
                  aliases=('vpxinipath',)),
+    ConfigOption("general", "assets_dir", "string", '',
+                 label='Shared Assets Directory',
+                 description='Root folder for assets shared across games rather than owned '
+                             'by one, such as manufacturer logos. Served at /assets/ and '
+                             'defaults to assets/ under the VPinFE config dir.',
+                 aliases=('assetsdir',)),
     ConfigOption("general", "rar_tool_path", "string", '',
                  label='RAR Tool Path (unar/unrar, blank = auto-detect)',
                  aliases=('rartoolpath',)),
@@ -241,6 +251,12 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                  label='DMD Media Priority',
                  choices=('video', 'image'),
                  legacy=(('Media', 'dmd_media_priority'), ('Media', 'dmdmediapriority'))),
+    ConfigOption("media", "wheelset", "string", '',
+                 label='Wheel Set',
+                 description='Name of the wheel art set to use library-wide, a folder under '
+                             'a game\'s medias/wheels/. The reserved name logo shows each '
+                             "game's logo instead. Blank means plain wheels, and the active "
+                             'theme can override this with its own wheelSet option.'),
     ConfigOption("media", "realdmd_media_priority", "choice", 'color',
                  label='Real DMD Priority',
                  choices=('color', 'video', 'image'),
@@ -256,6 +272,11 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
     ConfigOption("network", "theme_assets_port", "int", '8000',
                  label='Theme Server Port',
                  aliases=('themeassetsport',)),
+    ConfigOption("network", "ws_port", "int", '8002',
+                 label='WebSocket Bridge Port',
+                 description='Port the frontend windows and the theme talk to VPinFE over. '
+                             'Loopback only.',
+                 aliases=('wsport',)),
     ConfigOption("network", "manager_ui_port", "int", '8001',
                  label='Manager UI Port',
                  aliases=('manageruiport',)),

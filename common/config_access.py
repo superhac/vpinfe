@@ -136,7 +136,6 @@ class SettingsConfig:
     splashscreen: bool = False
     chrome_options: str = ""
     disable_default_chrome_options: bool = False
-    cab_mode: bool = False
     hide_quit_button: bool = False
     restore_last_game: bool = True
 
@@ -161,7 +160,6 @@ class SettingsConfig:
             splashscreen=cfg_bool(source, "Settings", "splashscreen", False),
             chrome_options=cfg_get(source, "Settings", "chromeoptions", ""),
             disable_default_chrome_options=cfg_bool(source, "Settings", "disabledefaultchromeoptions", False),
-            cab_mode=cfg_bool(source, "Settings", "cabmode", False),
             hide_quit_button=cfg_bool(source, "Settings", "MMhideQuitButton", False),
             restore_last_game=cfg_bool(source, "Settings", "restorelastgame", True),
         )
@@ -331,7 +329,7 @@ class DisplayConfig:
                 cfg_get(source, "Displays", "playfieldorientation", "landscape")),
             playfield_rotation=_quarter_turn(
                 cfg_int(source, "Displays", "playfieldrotation", 0)),
-            cab_mode=cfg_bool(source, "Displays", "cabmode", SettingsConfig.from_config(source).cab_mode),
+            cab_mode=cfg_bool(source, "displays", "cab_mode", False),
             extra_screen_ids=_extra_screen_ids(source),
         )
 

@@ -7,6 +7,7 @@
     "enable_dof": "false"
   },
   "general": {
+    "assets_dir": "",
     "auto_update_media_on_startup": "false",
     "chrome_options": "",
     "chrome_options_exclude": "",
@@ -55,7 +56,8 @@
   "media": {
     "default_missing_media_image": "",
     "realdmd_media_priority": "color",
-    "thumb_cache_max_mb": "500"
+    "thumb_cache_max_mb": "500",
+    "wheelset": ""
   },
   "mobile": {
     "chunk_size": "1048576",
@@ -66,7 +68,8 @@
   },
   "network": {
     "manager_ui_port": "8001",
-    "theme_assets_port": "8000"
+    "theme_assets_port": "8000",
+    "ws_port": "8002"
   },
   "pinmame_score_parser": {
     "roms_update_sha": ""
