@@ -17,6 +17,11 @@ from frontend.theme_windows import window_title
 
 logger = logging.getLogger("vpinfe.frontend.custom_http_server")
 
+LOOPBACK = "127.0.0.1"
+
+# Where a request that matched no mount is sent. It does not exist, and must not.
+NOTHING_HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__unmounted__")
+
 class CustomHTTPServer:
     class MultiDirHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Set debug True to print verbose logs
@@ -44,6 +49,15 @@ class CustomHTTPServer:
         def log_debug(self, *args):
             if self.debug:
                 logger.debug("[HTTP] %s", " ".join(str(arg) for arg in args))
+
+        def _refuse(self):
+            """A path that cannot exist, so the base class 404s.
+
+            Anything not inside a declared mount is not ours to serve. This used to fall
+            through to SimpleHTTPRequestHandler, which resolves against the working
+            directory - so the whole install, .git included, was readable over HTTP.
+            """
+            return os.path.join(NOTHING_HERE, "denied")
 
         def translate_path(self, path):
             # 1) Strip query and fragment
@@ -82,11 +96,11 @@ class CustomHTTPServer:
                     except ValueError:
                         # On differing drives (windows) commonpath can raise; treat as not allowed
                         self.log_debug("Drive mismatch or invalid path:", full_path)
-                        return super().translate_path(path)
+                        return self._refuse()
 
                     if common != root:
                         self.log_debug("Path traversal attempt blocked:", full_path, "not inside", root)
-                        return super().translate_path(path)
+                        return self._refuse()
 
                     # If the file or directory exists, return that path
                     if os.path.exists(full_path):
@@ -94,12 +108,10 @@ class CustomHTTPServer:
                         return full_path
                     else:
                         self.log_debug("Not found at:", full_path)
-                        # Let base class produce a normal 404 (with our headers)
-                        return super().translate_path(path)
+                        return self._refuse()
 
-            # No mount matched — fall back to default translate_path (cwd)
             self.log_debug("No matching mount point for", path)
-            return super().translate_path(path)
+            return self._refuse()
 
         def end_headers(self):
             # cache busting
@@ -481,9 +493,11 @@ class CustomHTTPServer:
     def start_file_server(self, port=8000):
         handler_class = partial(self.MultiDirHTTPRequestHandler, mount_points=self.mount_points)
         ThreadingTCPServer.allow_reuse_address = True
-        self.file_server = ThreadingTCPServer(("", port), handler_class)
+        # Loopback, not every interface. Every caller of this port already builds a
+        # 127.0.0.1 url, and it serves the table library and the theme packages.
+        self.file_server = ThreadingTCPServer((LOOPBACK, port), handler_class)
         threading.Thread(target=self.file_server.serve_forever, daemon=True).start()
-        logger.info("Serving on http://127.0.0.1:%s/", port)
+        logger.info("Serving on http://%s:%s/", LOOPBACK, port)
 
     def stop_file_server(self):
         if self.file_server:
