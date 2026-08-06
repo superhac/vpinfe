@@ -128,5 +128,45 @@ class TestIniConfig(unittest.TestCase):
             self.assertEqual(config.config.get("Settings", "splashscreen"), "true")
 
 
+    def test_a_moved_option_keeps_the_users_value(self) -> None:
+        """The move has to happen before the defaults are written.
+
+        Every moved key has a default. Once one is in place, "copy only if absent"
+        copies nothing and remove_option drops the real value - so an upgrade turned
+        cab mode and DOF off and left nothing to explain why.
+        """
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+            ini_path.write_text(
+                "[Settings]\ncabmode = true\nenabledof = true\n"
+                "[Displays]\nsplashscreen = true\n",
+                encoding="utf-8",
+            )
+
+            config = IniConfig(str(ini_path))
+
+            self.assertEqual(config.config.get("Displays", "cabmode"), "true")
+            self.assertEqual(config.config.get("DOF", "enabledof"), "true")
+            self.assertEqual(config.config.get("Settings", "splashscreen"), "true")
+            # and the old spellings are gone, so the move is not repeated
+            self.assertFalse(config.config.has_option("Settings", "cabmode"))
+            self.assertFalse(config.config.has_option("Settings", "enabledof"))
+            self.assertFalse(config.config.has_option("Displays", "splashscreen"))
+
+    def test_a_moved_option_does_not_overwrite_a_value_already_there(self) -> None:
+        """If both spellings exist, the one in the current section wins."""
+        with TemporaryDirectory() as tmp:
+            ini_path = Path(tmp) / "vpinfe.ini"
+            ini_path.write_text(
+                "[Settings]\ncabmode = true\n[Displays]\ncabmode = false\n",
+                encoding="utf-8",
+            )
+
+            config = IniConfig(str(ini_path))
+
+            self.assertEqual(config.config.get("Displays", "cabmode"), "false")
+            self.assertFalse(config.config.has_option("Settings", "cabmode"))
+
+
 if __name__ == "__main__":
     unittest.main()
