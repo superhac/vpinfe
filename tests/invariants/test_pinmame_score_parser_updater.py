@@ -8,7 +8,6 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-
 updater = importlib.import_module("common.online.pinmame_score_parser_updater")
 
 

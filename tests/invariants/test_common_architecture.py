@@ -16,8 +16,8 @@ from common.config_access import (
     VPinPlayConfig,
 )
 from common.games.game_metadata import game_themes, game_title, game_type
-from common.games.game_repository import game_to_row
 from common.games.game_parser import GameParser
+from common.games.game_repository import game_to_row
 from common.games.standalone_scripts import StandaloneScripts
 from common.jobs import JobReporter
 from common.media_specs import apply_media_specs, game_media_payload, media_filename_map

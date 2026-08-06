@@ -1,7 +1,5 @@
 import json
 import unittest
-
-from common.games.tables import entry_for_filename
 from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -12,6 +10,7 @@ from common.games.info_file import (
     MetaConfig,
     migrate_vpinfe_section,
 )
+from common.games.tables import entry_for_filename
 
 
 class TestMetaConfig(unittest.TestCase):

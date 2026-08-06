@@ -11,10 +11,10 @@ import json
 import unittest
 from configparser import ConfigParser
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from common.config_access import DisplayConfig
 from frontend import theme_api, theme_windows
+from tests.support.library import TempTree
 
 
 def _theme(root: Path, manifest: dict | None) -> Path:
@@ -25,11 +25,7 @@ def _theme(root: Path, manifest: dict | None) -> Path:
     return theme
 
 
-class DefaultsTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.root = Path(self._tmp.name)
-        self.addCleanup(self._tmp.cleanup)
+class DefaultsTests(TempTree):
 
     def test_contract_1_keeps_the_names_published_themes_use(self) -> None:
         """index_table.html and ?window=table have to go on working untouched."""
@@ -55,13 +51,9 @@ class DefaultsTests(unittest.TestCase):
                          ("playfield", "backglass", "scoreview"))
 
 
-class PagesDecideTheDefaultTests(unittest.TestCase):
+class PagesDecideTheDefaultTests(TempTree):
     """A theme that declares nothing gets a window per page it ships, not three."""
 
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.root = Path(self._tmp.name)
-        self.addCleanup(self._tmp.cleanup)
 
     def _theme_with(self, pages, manifest=None) -> Path:
         theme = _theme(self.root, manifest if manifest is not None else {"name": "a-theme"})
@@ -99,13 +91,9 @@ class PagesDecideTheDefaultTests(unittest.TestCase):
         self.assertEqual(theme_windows.declared_windows(theme, 1), ("table",))
 
 
-class IndexPageTests(unittest.TestCase):
+class IndexPageTests(TempTree):
     """The window name picks the file, so the contract decides which file a theme ships."""
 
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.root = Path(self._tmp.name)
-        self.addCleanup(self._tmp.cleanup)
 
     def _pages(self, contract: int) -> list[str]:
         theme = _theme(self.root, {"name": "a-theme", "contract": contract})
@@ -131,11 +119,7 @@ class IndexPageTests(unittest.TestCase):
         self.assertIn("index_topper.html", theme_api.get_theme_index_page(config, windows[1]))
 
 
-class DeclaredTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.root = Path(self._tmp.name)
-        self.addCleanup(self._tmp.cleanup)
+class DeclaredTests(TempTree):
 
     def test_a_theme_can_ask_for_a_window_vpinfe_never_had(self) -> None:
         theme = _theme(self.root, {"windows": ["playfield", "bg", "dmd", "topper"]})

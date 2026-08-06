@@ -8,7 +8,6 @@ are the ones about what happens when a file is renamed, copied, or rebuilt.
 import json
 import unittest
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from common.games import ids, table_identity
@@ -20,6 +19,7 @@ from common.games.tables import (
     entry_for_filename,
     table_id,
 )
+from tests.support.library import TempTree
 
 
 def _by_name(entries: dict, filename: str) -> dict:
@@ -53,11 +53,9 @@ def _legacy_meta(*tables: tuple[str, dict]) -> dict:
     return {"vpinfe": {"schema": 2}, TABLES_KEY: dict(tables)}
 
 
-class RebuildTests(unittest.TestCase):
+class RebuildTests(TempTree):
     def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+        super().setUp()
         self.info = self.root / "Example.info"
 
     def _rebuild(self, *files: tuple[str, dict]) -> dict:
@@ -115,11 +113,7 @@ class RebuildTests(unittest.TestCase):
         self.assertEqual(first, edited)
 
 
-class BackfillTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+class BackfillTests(TempTree):
 
     def test_entries_written_before_ids_existed_get_one(self) -> None:
         game = _game(self.root, "Old", _legacy_meta(("a.vpx", {"file_hash": "aaa"})))

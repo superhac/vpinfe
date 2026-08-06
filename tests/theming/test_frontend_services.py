@@ -5,14 +5,13 @@ import json
 import os
 import types
 import unittest
-
-from common.games.tables import entry_for_filename
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.games import game_play_service, game_report_service
 from common.games.game_metadata import game_frontend_dof_event
+from common.games.tables import entry_for_filename
 from common.host import real_dmd, system_actions
 from frontend import config_api, game_state, theme_api
 

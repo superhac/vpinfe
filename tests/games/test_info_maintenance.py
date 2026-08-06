@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from common.games.game_parser import GameParser
 from common.games.info_maintenance import (
@@ -20,6 +19,7 @@ from common.games.info_maintenance import (
     upgrade_library,
 )
 from common.games.info_migration import CURRENT_SCHEMA, backup_schema, schema_of
+from tests.support.library import TempTree
 
 LEGACY = {
     "Info": {"Title": "Dr. Dude", "Rom": "dd_l2", "Authors": "someone"},
@@ -29,11 +29,7 @@ LEGACY = {
 }
 
 
-class LibraryTestCase(unittest.TestCase):
-    def setUp(self):
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+class LibraryTestCase(TempTree):
 
     def _game(self, name: str, meta=LEGACY) -> Path:
         game_dir = self.root / name

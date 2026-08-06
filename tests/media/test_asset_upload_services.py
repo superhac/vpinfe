@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import os
 import unittest
-
-from common.games.tables import entry_for_filename, table_filenames
 from unittest import mock
 
-from common.games.tables import is_parsed
+from common.games.tables import entry_for_filename, is_parsed, table_filenames
 from managerui.services import asset_analyzer_service, asset_import_service, upload_session_service
 from managerui.services.asset_analyzer_service import analyze_path, analyze_upload_session
 from managerui.services.asset_import_service import (

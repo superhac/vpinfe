@@ -16,6 +16,7 @@ from unittest import mock
 from common.games.game_parser import GameParser
 from common.games.info_file import MetaConfig
 from common.games.info_migration import write_json_atomic
+from tests.support.library import TempTree
 
 
 class AtomicWriteTests(unittest.TestCase):
@@ -70,11 +71,7 @@ class AtomicWriteTests(unittest.TestCase):
         self.assertIsInstance(json.loads(self.info.read_text(encoding="utf-8")), dict)
 
 
-class UnreadableGameTests(unittest.TestCase):
-    def setUp(self):
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+class UnreadableGameTests(TempTree):
 
     def _game(self, name, info_text):
         d = self.root / name

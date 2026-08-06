@@ -7,7 +7,6 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-
 try:
     # Prefer the real framework when it's installed. Installing an incomplete
     # stub via setdefault would leak into sys.modules and break later tests that

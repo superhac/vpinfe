@@ -1,12 +1,12 @@
 import json
 import unittest
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 
 from common.games import game_identity
 from common.games.game_repository import game_to_row
 from common.games.info_file import MetaConfig
+from tests.support.library import TempTree
 
 
 def _game(root: Path, name: str = "Example", meta: dict | None = None):
@@ -23,7 +23,7 @@ def _game(root: Path, name: str = "Example", meta: dict | None = None):
     )
 
 
-class MintedIdTests(unittest.TestCase):
+class MintedIdTests(TempTree):
     """Short enough to read down a phone, long enough not to collide."""
 
     def test_an_id_is_short_and_unambiguous(self) -> None:
@@ -47,17 +47,9 @@ class MintedIdTests(unittest.TestCase):
         self.assertEqual(len(minted), game_identity.ID_LENGTH)
         self.assertTrue(set(minted) <= set(game_identity.ID_ALPHABET))
 
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
 
 
-class GameIdTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+class GameIdTests(TempTree):
 
     def test_reading_an_unassigned_game_returns_empty_and_writes_nothing(self) -> None:
         game = _game(self.root, meta={"Info": {"VPSId": "vps-1"}})
@@ -112,13 +104,9 @@ class GameIdTests(unittest.TestCase):
         self.assertEqual(on_disk["Info"]["Title"], "Example")
 
 
-class IdentityOutlivesVpsIdTests(unittest.TestCase):
+class IdentityOutlivesVpsIdTests(TempTree):
     """The cases that make the VPS-derived id unusable as a primary key."""
 
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
 
     def _rebuild(self, path: Path, filehash: str) -> dict:
         """Run a metadata rebuild the way build_metadata does."""
@@ -178,11 +166,7 @@ class IdentityOutlivesVpsIdTests(unittest.TestCase):
         self.assertEqual(row["vpinfe_id"], minted)
 
 
-class UniquenessTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+class UniquenessTests(TempTree):
 
     def test_ensure_unique_ids_assigns_every_game(self) -> None:
         games = [_game(self.root, n, meta={"Info": {}}) for n in ("A", "B", "C")]
@@ -206,11 +190,7 @@ class UniquenessTests(unittest.TestCase):
         self.assertEqual(len(by_id), 2)
 
 
-class LookupTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+class LookupTests(TempTree):
 
     def test_find_by_id_returns_the_matching_game(self) -> None:
         wanted = _game(self.root, "Wanted", meta={"Info": {}})
@@ -227,11 +207,7 @@ class LookupTests(unittest.TestCase):
         self.assertIsNone(game_identity.find_by_id([unassigned], ""))
 
 
-class RowFieldTests(unittest.TestCase):
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
+class RowFieldTests(TempTree):
 
     def test_a_row_carries_correlation_ids_and_identity_separately(self) -> None:
         """VPS ids correlate with other services; vpinfe_id is what identifies the game."""

@@ -1,5 +1,5 @@
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 from common.online.app_updater import _build_posix_update_script
 
