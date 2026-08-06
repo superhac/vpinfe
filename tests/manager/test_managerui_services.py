@@ -147,14 +147,16 @@ class ManagerUiServiceTests(unittest.TestCase):
                 good_game = games_root / "Good Table"
                 good_game.mkdir(parents=True)
 
-                self.assertEqual(resolve_game_dir("Good Table", str(games_root)), good_game.resolve())
+                self.assertEqual(resolve_game_dir("Good Table", str(games_root)),
+                                 good_game.resolve())
 
                 with self.assertRaises(ValueError):
                     resolve_game_dir("../outside", str(games_root))
 
     def test_mobile_game_rows_format_display_names(self):
         rows = build_mobile_game_rows([
-            {"name": "Centaur", "manufacturer": "Bally", "year": "1981", "game_dir_name": "Centaur"},
+            {"name": "Centaur", "manufacturer": "Bally", "year": "1981",
+             "game_dir_name": "Centaur"},
             {"name": "No Frills", "manufacturer": "", "year": "", "game_dir_name": "No Frills"},
         ])
 
@@ -174,8 +176,10 @@ class ManagerUiServiceTests(unittest.TestCase):
 
     def test_collections_service_filter_options_and_search(self):
         rows = [
-            {"vpinfe_id": "a", "name": "Attack From Mars", "manufacturer": "Bally", "year": "1995", "type": "SS", "themes": ["Sci-Fi"]},
-            {"vpinfe_id": "m", "name": "Medieval Madness", "manufacturer": "Williams", "year": "1997", "type": "SS", "themes": ["Fantasy"]},
+            {"vpinfe_id": "a", "name": "Attack From Mars", "manufacturer": "Bally",
+             "year": "1995", "type": "SS", "themes": ["Sci-Fi"]},
+            {"vpinfe_id": "m", "name": "Medieval Madness", "manufacturer": "Williams",
+             "year": "1997", "type": "SS", "themes": ["Fantasy"]},
         ]
         options = get_filter_options(rows)
         self.assertEqual(options["letters"], ["All", "A", "M"])
@@ -184,12 +188,15 @@ class ManagerUiServiceTests(unittest.TestCase):
 
     def test_collections_filter_options_default_to_vpsdb(self):
         vpsdb_rows = [
-            {"id": "a", "name": "Attack From Mars", "manufacturer": "Bally", "year": 1995, "type": "SS", "theme": ["Sci-Fi"]},
-            {"id": "m", "name": "Medieval Madness", "manufacturer": "Williams", "year": 1997, "type": "SS", "theme": ["Fantasy"]},
+            {"id": "a", "name": "Attack From Mars", "manufacturer": "Bally",
+             "year": 1995, "type": "SS", "theme": ["Sci-Fi"]},
+            {"id": "m", "name": "Medieval Madness", "manufacturer": "Williams",
+             "year": 1997, "type": "SS", "theme": ["Fantasy"]},
         ]
 
         with mock.patch("managerui.services.game_service.load_vpsdb", return_value=vpsdb_rows), \
-                mock.patch("managerui.services.game_service.ensure_vpsdb_downloaded") as ensure_vpsdb, \
+                mock.patch("managerui.services.game_service.ensure_vpsdb_downloaded") \
+                        as ensure_vpsdb, \
                 mock.patch("managerui.services.game_index_service.scan_rows") as scan_rows:
             options = get_filter_options()
 
@@ -231,9 +238,12 @@ class ManagerUiServiceTests(unittest.TestCase):
 
     def test_media_service_url_and_cache_update(self):
         invalidate_media_cache()
-        self.assertEqual(media_url("media_games", "A B", "medias", "bg.png"), "/media_games/A%20B/medias/bg.png")
-        set_media_cache([{"game_dir": "A B", "media": {}, "thumbs": {}, "thumb_errors": {"bg": True}}])
-        update_cache_entry("A B", "bg", "/media_games/A%20B/medias/bg.png", "/media_thumbs/A%20B/bg.png")
+        self.assertEqual(media_url("media_games", "A B", "medias", "bg.png"),
+                         "/media_games/A%20B/medias/bg.png")
+        set_media_cache([{"game_dir": "A B", "media": {}, "thumbs": {},
+                          "thumb_errors": {"bg": True}}])
+        update_cache_entry("A B", "bg", "/media_games/A%20B/medias/bg.png",
+                           "/media_thumbs/A%20B/bg.png")
         row = get_media_cache()[0]
         self.assertEqual(row["media"]["bg"], "/media_games/A%20B/medias/bg.png")
         self.assertTrue(row["has_bg"])
@@ -292,21 +302,25 @@ class ManagerUiServiceTests(unittest.TestCase):
         fake_pynput = types.SimpleNamespace(keyboard=fake_keyboard)
         original = sys.modules.pop("managerui.key_simulator", None)
         try:
-            with mock.patch.dict(sys.modules, {"pynput": fake_pynput, "pynput.keyboard": fake_keyboard}):
+            with mock.patch.dict(sys.modules, {"pynput": fake_pynput,
+                                           "pynput.keyboard": fake_keyboard}):
                 from managerui.key_simulator import KeySimulator
         finally:
             sys.modules.pop("managerui.key_simulator", None)
             if original is not None:
                 sys.modules["managerui.key_simulator"] = original
 
-        for key_id in ("0", "1", "5", "9", "a", "z", "-", "=", "[", "]", "\\", ";", "'", "`", ",", ".", "/"):
+        for key_id in ("0", "1", "5", "9", "a", "z", "-", "=", "[", "]", "\\",
+                       ";", "'", "`", ",", ".", "/"):
             with self.subTest(key_id=key_id):
                 self.assertEqual(KeySimulator.KEY_ID_TO_PYNPUT[key_id], key_id)
 
     def test_game_index_lookup_update_and_search(self):
         rows = set_rows([
-            {"vpinfe_id": "afm", "name": "Attack From Mars", "filename": "afm.vpx", "table_path": "/tmp/tables/Attack", "collections": []},
-            {"vpinfe_id": "mm", "name": "Medieval Madness", "filename": "mm.vpx", "table_path": "/tmp/tables/MM", "collections": []},
+            {"vpinfe_id": "afm", "name": "Attack From Mars", "filename": "afm.vpx",
+             "table_path": "/tmp/tables/Attack", "collections": []},
+            {"vpinfe_id": "mm", "name": "Medieval Madness", "filename": "mm.vpx",
+             "table_path": "/tmp/tables/MM", "collections": []},
         ])
         set_missing_rows([{"folder": "Loose"}])
 

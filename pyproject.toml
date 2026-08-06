@@ -17,7 +17,9 @@ select = ["E", "W", "F", "I", "N", "UP", "B"]
 "main.py" = ["E402"]
 "managerui/managerui.py" = ["E402"]
 "managerui/pages/remote.py" = ["E402"]
-"tests/**" = ["E402"]
+# score_parser reads roms.json and the config paths at import, so the test has to seed
+# them first. It is the only test that does; the rest of tests/ imports normally.
+"tests/games/test_score_parser.py" = ["E402"]
 # Tab-indented throughout; converting it is a diff of its own.
 "common/config_store.py" = ["W191", "E101"]
 

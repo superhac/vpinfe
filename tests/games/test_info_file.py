@@ -14,7 +14,8 @@ from common.games.tables import entry_for_filename
 
 
 class TestMetaConfig(unittest.TestCase):
-    def _write_meta(self, info_path: Path, *, filehash: str = "filehash", tutorial_files=None) -> dict:
+    def _write_meta(self, info_path: Path, *, filehash: str = "filehash",
+                    tutorial_files=None) -> dict:
         meta = MetaConfig(str(info_path))
         meta.write_config_meta(
             {

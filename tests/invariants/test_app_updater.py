@@ -14,7 +14,8 @@ class TestAppUpdaterScripts(unittest.TestCase):
             "last_update_log": "/tmp/last_update.log",
         }
 
-        script = _build_posix_update_script(prepared, current_pid=1234, log_path=Path("/tmp/apply_update.log"))
+        script = _build_posix_update_script(prepared, current_pid=1234,
+                                           log_path=Path("/tmp/apply_update.log"))
 
         self.assertIn("DISPLAY=${DISPLAY:-<unset>}", script)
         self.assertIn("WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-<unset>}", script)
@@ -29,7 +30,8 @@ class TestAppUpdaterScripts(unittest.TestCase):
             "last_update_log": "/tmp/last_update.log",
         }
 
-        script = _build_posix_update_script(prepared, current_pid=1234, log_path=Path("/tmp/apply_update.log"))
+        script = _build_posix_update_script(prepared, current_pid=1234,
+                                           log_path=Path("/tmp/apply_update.log"))
 
         self.assertIn('CHROMIUM_ROOT="$INSTALL_ROOT/_internal/chromium/linux/chrome"', script)
         self.assertIn('find "$CHROMIUM_ROOT" -type d -exec chmod a+rx {} +', script)

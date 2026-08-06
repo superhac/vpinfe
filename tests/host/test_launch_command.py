@@ -80,7 +80,8 @@ class TestLauncherGameIniOverride(unittest.TestCase):
 
 class TestLauncherPluginProfile(unittest.TestCase):
     def test_get_plugin_profile_from_meta_handles_missing_and_malformed_meta(self) -> None:
-        self.assertEqual(get_plugin_profile_from_meta({"vpinfe": {"plugin_profile": " no-dmd "}}), "no-dmd")
+        self.assertEqual(
+            get_plugin_profile_from_meta({"vpinfe": {"plugin_profile": " no-dmd "}}), "no-dmd")
         self.assertEqual(get_plugin_profile_from_meta({"vpinfe": {}}), "")
         self.assertEqual(get_plugin_profile_from_meta({"vpinfe": None}), "")
         self.assertEqual(get_plugin_profile_from_meta({}), "")

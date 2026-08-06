@@ -167,7 +167,8 @@ class TestScoreParser(unittest.TestCase):
             with mock.patch.object(score_parser, "USER_CONFIG_PATH", config_path):
                 result = result_to_jsonable(
                     "aar_101",
-                    [ParsedEntry(section="HIGH SCORES", rank=1, initials="", extra_lines=["SPECIAL"])],
+                    [ParsedEntry(section="HIGH SCORES", rank=1, initials="",
+                                 extra_lines=["SPECIAL"])],
                 )
 
         self.assertEqual(result["entries"][0]["initials"], "")
@@ -218,8 +219,10 @@ class TestScoreParser(unittest.TestCase):
             text_path.parent.mkdir(parents=True)
             text_path.write_text("123456\n", encoding="utf-8")
 
-            with mock.patch.object(score_parser, "decode_special_text_score_file", return_value=123456) as decoder:
-                result, resolved = score_parser.read_rom_with_source("OKIES_TornadoRally", str(game_dir))
+            with mock.patch.object(score_parser, "decode_special_text_score_file",
+                                   return_value=123456) as decoder:
+                result, resolved = score_parser.read_rom_with_source(
+                    "OKIES_TornadoRally", str(game_dir))
 
         decoder.assert_called_once_with("OKIES_TornadoRally", str(text_path))
         self.assertEqual(result, 123456)

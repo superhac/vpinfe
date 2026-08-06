@@ -24,7 +24,8 @@ class FrontendServiceTests(unittest.TestCase):
             logger = types.SimpleNamespace(info=mock.Mock())
             calls = []
 
-            with mock.patch("common.host.system_actions.os.execvp", side_effect=lambda *args: calls.append(args)):
+            with mock.patch("common.host.system_actions.os.execvp",
+                            side_effect=lambda *args: calls.append(args)):
                 system_actions.restart_if_requested(
                     config_dir,
                     logger,
@@ -45,7 +46,8 @@ class FrontendServiceTests(unittest.TestCase):
     def test_theme_config_missing_file_is_optional(self):
         parser = configparser.ConfigParser()
         parser["Settings"] = {"theme": "Example"}
-        with TemporaryDirectory() as temp_dir, mock.patch("frontend.theme_api.THEMES_DIR", Path(temp_dir)):
+        with (TemporaryDirectory() as temp_dir,
+              mock.patch("frontend.theme_api.THEMES_DIR", Path(temp_dir))):
             (Path(temp_dir) / "Example").mkdir()
             self.assertIsNone(theme_api.get_theme_config(parser))
 
@@ -95,7 +97,8 @@ class FrontendServiceTests(unittest.TestCase):
     def test_theme_config_flattens_values_from_theme_json(self):
         parser = configparser.ConfigParser()
         parser["Settings"] = {"theme": "Example"}
-        with TemporaryDirectory() as temp_dir, mock.patch("frontend.theme_api.THEMES_DIR", Path(temp_dir)):
+        with (TemporaryDirectory() as temp_dir,
+              mock.patch("frontend.theme_api.THEMES_DIR", Path(temp_dir))):
             theme_dir = Path(temp_dir) / "Example"
             theme_dir.mkdir()
             (theme_dir / "theme.json").write_text(
@@ -165,13 +168,15 @@ class FrontendServiceTests(unittest.TestCase):
         self.assertEqual(game_frontend_dof_event(game), "E901")
         self.assertEqual(real_dmd.get_realdmd_image_for_game(game), color_expected)
         self.assertEqual(real_dmd.get_realdmd_image_for_game(game, color_config), color_expected)
-        self.assertEqual(real_dmd.get_realdmd_image_for_game(game, standard_config), standard_expected)
+        self.assertEqual(real_dmd.get_realdmd_image_for_game(game, standard_config),
+                         standard_expected)
 
         game.realDMDColorImagePath = ""
         self.assertEqual(real_dmd.get_realdmd_image_for_game(game, color_config), standard_expected)
 
         calls = []
-        updater = real_dmd.RealDmdUpdater("ini", "table", lambda ini, image: calls.append((ini, image)) or True)
+        updater = real_dmd.RealDmdUpdater(
+            "ini", "table", lambda ini, image: calls.append((ini, image)) or True)
         updater._game_name = "Example"
         updater._image_path = Path("/tmp/real_dmd.png")
         updater._process_pending()
@@ -183,14 +188,20 @@ class FrontendServiceTests(unittest.TestCase):
         parser_instance.getAllGames.return_value = [game]
         vps_instance = mock.Mock()
         vps_instance.__len__ = mock.Mock(return_value=0)
-        vps_instance.parseGameNameFromDir.return_value = {"name": "Unknown", "manufacturer": "", "year": ""}
+        vps_instance.parseGameNameFromDir.return_value = {
+            "name": "Unknown", "manufacturer": "", "year": ""}
         vps_instance.lookupName.return_value = None
         logs = []
         ini = types.SimpleNamespace(config={"Settings": {"gamerootdir": "/games"}})
 
-        with mock.patch("common.games.game_report_service.GameParser", return_value=parser_instance), \
-            mock.patch("common.games.game_report_service.VPSdb", return_value=vps_instance):
-            game_report_service.list_unknown_games(iniconfig=ini, log=lambda msg, *args: logs.append(msg % args if args else msg))
+        def log(msg, *args):
+            logs.append(msg % args if args else msg)
+
+        with (
+            mock.patch("common.games.game_report_service.GameParser", return_value=parser_instance),
+            mock.patch("common.games.game_report_service.VPSdb", return_value=vps_instance),
+        ):
+            game_report_service.list_unknown_games(iniconfig=ini, log=log)
 
         self.assertTrue(any("Unknown table 1: Unknown" in line for line in logs))
 
@@ -295,8 +306,12 @@ class FrontendServiceTests(unittest.TestCase):
                 meta_config={},
             )
 
-            with mock.patch("common.games.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
-                    mock.patch("common.games.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}) as to_json:
+            with (
+                mock.patch("common.games.score_parser.read_rom_with_source",
+                           return_value=(123, "/scores/vpx_rom.nv")) as read_rom,
+                mock.patch("common.games.score_parser.result_to_jsonable",
+                           return_value={"rom": "vpx_rom"}) as to_json,
+            ):
                 score_data, score_path = game_play_service.parse_score_from_nvram(game)
 
             read_rom.assert_called_once_with("vpx_rom", str(game_dir))
@@ -326,8 +341,12 @@ class FrontendServiceTests(unittest.TestCase):
                 meta_config={},
             )
 
-            with mock.patch("common.games.score_parser.read_rom_with_source", return_value=(123, "/scores/vpx_rom.nv")) as read_rom, \
-                    mock.patch("common.games.score_parser.result_to_jsonable", return_value={"rom": "vpx_rom"}):
+            with (
+                mock.patch("common.games.score_parser.read_rom_with_source",
+                           return_value=(123, "/scores/vpx_rom.nv")) as read_rom,
+                mock.patch("common.games.score_parser.result_to_jsonable",
+                           return_value={"rom": "vpx_rom"}),
+            ):
                 game_play_service.parse_score_from_nvram(game)
 
             read_rom.assert_called_once_with("vpx_rom", str(game_dir))

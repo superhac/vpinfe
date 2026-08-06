@@ -29,10 +29,16 @@ class ChromiumManagerTests(unittest.TestCase):
         def exists(path: str) -> bool:
             return path == chrome
 
-        with mock.patch("frontend.chromium_manager.platform.system", return_value="Windows"), \
-            mock.patch("frontend.chromium_manager.resource_path", return_value=bundled), \
-            mock.patch("frontend.chromium_manager.os.path.expandvars", side_effect=lambda value: chrome if "Google\\Chrome" in value else value), \
-            mock.patch("frontend.chromium_manager.os.path.isfile", side_effect=exists):
+        def expandvars(value: str) -> str:
+            return chrome if "Google\\Chrome" in value else value
+
+        with (
+            mock.patch("frontend.chromium_manager.platform.system", return_value="Windows"),
+            mock.patch("frontend.chromium_manager.resource_path", return_value=bundled),
+            mock.patch("frontend.chromium_manager.os.path.expandvars",
+                       side_effect=expandvars),
+            mock.patch("frontend.chromium_manager.os.path.isfile", side_effect=exists),
+        ):
             self.assertEqual(
                 chromium_manager.get_chromium_path(),
                 chromium_manager.ChromiumPath(chrome, True),
@@ -45,10 +51,16 @@ class ChromiumManagerTests(unittest.TestCase):
         def exists(path: str) -> bool:
             return path == edge
 
-        with mock.patch("frontend.chromium_manager.platform.system", return_value="Windows"), \
-            mock.patch("frontend.chromium_manager.resource_path", return_value=bundled), \
-            mock.patch("frontend.chromium_manager.os.path.expandvars", side_effect=lambda value: edge if "Microsoft\\Edge" in value else value), \
-            mock.patch("frontend.chromium_manager.os.path.isfile", side_effect=exists):
+        def expandvars(value: str) -> str:
+            return edge if "Microsoft\\Edge" in value else value
+
+        with (
+            mock.patch("frontend.chromium_manager.platform.system", return_value="Windows"),
+            mock.patch("frontend.chromium_manager.resource_path", return_value=bundled),
+            mock.patch("frontend.chromium_manager.os.path.expandvars",
+                       side_effect=expandvars),
+            mock.patch("frontend.chromium_manager.os.path.isfile", side_effect=exists),
+        ):
             self.assertEqual(
                 chromium_manager.get_chromium_path(),
                 chromium_manager.ChromiumPath(bundled, False),
@@ -89,10 +101,14 @@ class ChromiumManagerTests(unittest.TestCase):
         proc = types.SimpleNamespace()
         monitor = types.SimpleNamespace(x=10, y=20, width=800, height=600)
 
-        with mock.patch("frontend.chromium_manager.get_chromium_path", return_value=chromium_manager.ChromiumPath("/usr/bin/chromium", True)), \
-            mock.patch("frontend.chromium_manager.os.path.exists", return_value=True), \
-            mock.patch("frontend.chromium_manager.tempfile.mkdtemp", return_value="/tmp/vpinfe-profile"), \
-            mock.patch("frontend.chromium_manager.subprocess.Popen", return_value=proc) as popen:
+        chromium = chromium_manager.ChromiumPath("/usr/bin/chromium", True)
+        with (
+            mock.patch("frontend.chromium_manager.get_chromium_path", return_value=chromium),
+            mock.patch("frontend.chromium_manager.os.path.exists", return_value=True),
+            mock.patch("frontend.chromium_manager.tempfile.mkdtemp",
+                       return_value="/tmp/vpinfe-profile"),
+            mock.patch("frontend.chromium_manager.subprocess.Popen", return_value=proc) as popen,
+        ):
             manager.launch_window(
                 "table",
                 "http://127.0.0.1:8000/app/table",
@@ -110,10 +126,14 @@ class ChromiumManagerTests(unittest.TestCase):
         proc = types.SimpleNamespace()
         monitor = types.SimpleNamespace(x=10, y=20, width=800, height=600)
 
-        with mock.patch("frontend.chromium_manager.get_chromium_path", return_value=chromium_manager.ChromiumPath("/usr/bin/chromium", True)), \
-            mock.patch("frontend.chromium_manager.os.path.exists", return_value=True), \
-            mock.patch("frontend.chromium_manager.tempfile.mkdtemp", return_value="/tmp/vpinfe-profile"), \
-            mock.patch("frontend.chromium_manager.subprocess.Popen", return_value=proc) as popen:
+        chromium = chromium_manager.ChromiumPath("/usr/bin/chromium", True)
+        with (
+            mock.patch("frontend.chromium_manager.get_chromium_path", return_value=chromium),
+            mock.patch("frontend.chromium_manager.os.path.exists", return_value=True),
+            mock.patch("frontend.chromium_manager.tempfile.mkdtemp",
+                       return_value="/tmp/vpinfe-profile"),
+            mock.patch("frontend.chromium_manager.subprocess.Popen", return_value=proc) as popen,
+        ):
             manager.launch_window(
                 "table",
                 "http://127.0.0.1:8000/app/table",

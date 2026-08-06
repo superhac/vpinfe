@@ -98,7 +98,8 @@ class SaveTests(unittest.TestCase):
 class ProfileTests(unittest.TestCase):
     def test_sanitize_profile_name_strips_path_separators(self):
         self.assertEqual(plugin_profile_service.sanitize_profile_name("no dmd"), "no dmd")
-        self.assertEqual(plugin_profile_service.sanitize_profile_name("../../etc/passwd"), "etc-passwd")
+        self.assertEqual(plugin_profile_service.sanitize_profile_name("../../etc/passwd"),
+                         "etc-passwd")
         self.assertEqual(plugin_profile_service.sanitize_profile_name("  "), "")
 
     def test_default_profile_resolves_to_live_vpx_ini(self):
@@ -106,7 +107,8 @@ class ProfileTests(unittest.TestCase):
             ini_path = Path(temp_dir) / "VPinballX.ini"
             ini_path.write_text(SAMPLE_INI, encoding="utf-8")
             with mock.patch.object(
-                plugin_profile_service.vpx_config_service, "load_vpx_ini_path", return_value=ini_path
+                plugin_profile_service.vpx_config_service, "load_vpx_ini_path",
+                return_value=ini_path
             ):
                 resolved = plugin_profile_service.profile_path("Default")
 
@@ -120,7 +122,8 @@ class ProfileTests(unittest.TestCase):
             profiles_dir = temp_path / "plugin_profiles"
 
             with mock.patch.object(
-                plugin_profile_service.vpx_config_service, "load_vpx_ini_path", return_value=ini_path
+                plugin_profile_service.vpx_config_service, "load_vpx_ini_path",
+                return_value=ini_path
             ), mock.patch.object(plugin_profile_service, "PLUGIN_PROFILES_DIR", profiles_dir):
                 created = plugin_profile_service.create_profile("No DMD")
 
@@ -147,7 +150,8 @@ class ProfileTests(unittest.TestCase):
             profiles_dir = temp_path / "plugin_profiles"
 
             with mock.patch.object(
-                plugin_profile_service.vpx_config_service, "load_vpx_ini_path", return_value=ini_path
+                plugin_profile_service.vpx_config_service, "load_vpx_ini_path",
+                return_value=ini_path
             ), mock.patch.object(plugin_profile_service, "PLUGIN_PROFILES_DIR", profiles_dir):
                 created = plugin_profile_service.create_profile("no-dmd")
 

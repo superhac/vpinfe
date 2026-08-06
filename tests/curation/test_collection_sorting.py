@@ -7,7 +7,8 @@ from common.games.collection_store import CollectionStore
 from frontend.api import API
 
 
-def _game(title, vpsid, last_run=None, altvpsid="", alttitle="", runtime=0, start_count=0, creation_time=0):
+def _game(title, vpsid, last_run=None, altvpsid="", alttitle="", runtime=0,
+          start_count=0, creation_time=0):
     return SimpleNamespace(
         meta_config={
             "Info": {

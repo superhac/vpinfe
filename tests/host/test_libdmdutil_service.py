@@ -27,7 +27,8 @@ class LibDmdUtilServiceTests(unittest.TestCase):
         with libdmdutil_service._LOCK:
             libdmdutil_service._CONTROLLER = controller
 
-        self.assertTrue(libdmdutil_service.show_image(self.iniconfig, "/tmp/does-not-exist-realdmd.png"))
+        self.assertTrue(
+            libdmdutil_service.show_image(self.iniconfig, "/tmp/does-not-exist-realdmd.png"))
 
         fallback = str(libdmdutil_service._DEFAULT_REALDMD_IMAGE)
         controller.hold_image.assert_called_once_with(fallback)
