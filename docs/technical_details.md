@@ -1,75 +1,191 @@
-## Vpinfe.ini Definition
-VPinFE uses a platform-specific configuration directory to store its settings. On first run, VPinFE will automatically create a default `vpinfe.ini` file in the following location:
+## vpinfe.json Definition
 
-- **Linux**: `~/.config/vpinfe/vpinfe.ini`
-- **macOS**: `~/Library/Application Support/vpinfe/vpinfe.ini`
-- **Windows**: `C:\Users\<username>\AppData\Local\vpinfe\vpinfe\vpinfe.ini`
+VPinFE stores its settings as JSON in a platform-specific configuration directory. On
+first run it writes a complete `vpinfe.json` there, so a new install never needs the file
+opened by hand:
 
-### [Displays]
-| Key               | Description                                                                                         |
-| ----------------- | -------------------------------------------------------------------------                           |
-| bgscreenid        | Blackglass screen number.  use `--listres` to get your mointor ids. Leave blank if no display       |
-| dmdscreenid       | dmdscreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display      |
-| playfieldscreenid     | playfieldscreenid screen number.  use `--listres` to get your mointor ids. Leave blank if no display    |
+- **Linux**: `~/.config/vpinfe/vpinfe.json`
+- **macOS**: `~/Library/Application Support/vpinfe/vpinfe.json`
+- **Windows**: `C:\Users\<username>\AppData\Local\vpinfe\vpinfe\vpinfe.json`
 
-### [Settings]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| vpxbinpath        | Full path to you vpx binary.  e.g. /apps/vpinball/build/VPinballX_BGFX    |
-| gamerootdir      | The root folder where all your games are located.  e.g /vpx/tables/      |
-| assetsdir         | Root folder for shared assets such as manufacturer logos, served at `/assets/`. Defaults to `assets/` under the VPinFE config dir. Put your own logos in `manufacturers/user/` (e.g. `bally.png`); files there win over a downloaded pack in `manufacturers/default/`. The generated `manufacturers/manufacturers-reference.json` lists every known manufacturer with the filename it looks for. |
-| startup_collection| Set the collection VPinFE starts up with.  Case sensitive, match collection name. |
-| splashscreen      | Enable or disable the splash screen at startup. Default is `false`. |
-| restorelastgame  | Open the wheel on the last game you launched instead of the first. Default is `true`. |
+A `vpinfe.ini` from an earlier build is read once, converted, and kept, so downgrading
+still works. Settings live under a `settings` object beside a `schema` version, and each
+heading below is a key in it - `windows.playfield` is a `playfield` object inside a
+`windows` object.
 
-### [Input]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| joyleft           | Move left. Button mapping ids from `--gamepadtest`.                      |
-| joyright          | Move right. Button mapping ids from `--gamepadtest`.                     |
-| joyup             | Move up. Button mapping ids from `--gamepadtest`.                        |
-| joydown           | Move down. Button mapping ids from `--gamepadtest`.                      |
-| joypageup         | Page the wheel forward. Button mapping ids from `--gamepadtest`.         |
-| joypagedown       | Page the wheel backward. Button mapping ids from `--gamepadtest`.        |
-| pagingtype        | `alpha` (default) pages by letter; `numeric` pages by `pagingsize` games. Alpha falls back to numeric on non-Alpha sorts. |
-| pagingsize        | Games per numeric page jump. Default is `10`.                           |
-| joyselect         | Select button / Launch. Button mapping ids from `--gamepadtest`.        |
-| joymenu           | Pop Menu. Button mapping ids from `--gamepadtest`.                       |
-| joyback           | Go Back. Button mapping ids from `--gamepadtest`.                        |
-| joytutorial       | Open the Pinball Primer tutorial overlay. Button mapping ids from `--gamepadtest`. |
-| joyexit           | Exit VpinFE. Button mapping ids from `--gamepadtest`.                   |
-| joycollectionmenu | Open collection menu in the Theme UI. Button mapping ids from `--gamepadtest`. |
+Every name a setting has ever had keeps resolving, so an older file and a hand-edit that
+uses an old spelling both still load.
 
-### [VPSdb]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| last              | Rev of VPSDB that was last pulled.                                        |
+<!-- generated from common/config_schema.py by tests/support/config_reference.py -->
 
-### [State]
-Internal state written by VPinFE, not shown in the Manager UI.
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| lastgame         | Path of the last game you launched. Used by `restorelastgame` to reopen on that game. |
+### `windows.backglass`
 
-### [Media]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| playfieldvariant         | If you're using a Full Single Screen or FSS set this to `fss`. Leaving it blank or any other valid will use the portrait playfield images. |
-| playfieldresolution   | You can choose `1k` or `4k` to let the system know which resolution images you want to download when building the metadata. Leaving it blank will  default to 4K images. |
-| wheelset          | Name of the wheel set to use library-wide. A set is a folder of alternate wheel art at `medias/wheels/<set>/` inside a game folder. The reserved name `logo` shows each game's logo in the wheel slot. Blank means plain wheels. The active theme can override this with its own `wheelSet` option. |
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `screen_id` | int |  | Backglass Monitor ID |
+| `window_override` | string |  | Backglass Window Override (x,y,width,height) |
+| `media_priority` | choice (video, image) | `video` | Backglass Media Priority |
 
-### [Network]
-| Key               | Description |
-| ----------------- | ------------------------------------------------------------------------- |
-| themeassetsport   | Port for the theme assets HTTP server. Default is `8000`.                 |
-| manageruiport     | Port for the Manager UI (NiceGUI) server. Default is `8001`.              |
+### `windows.scoreview`
 
-### [Mobile]
-| Key        | Description                                              |
-| ---------- | -------------------------------------------------------- |
-| deviceip   | IP address of the mobile device running VPinball         |
-| deviceport | Port of the mobile device's web server. Default is `2112` |
-| chunksize  | Upload chunk size in bytes. Default is `1048576` (1MB)    |
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `screen_id` | int |  | DMD Monitor ID |
+| `window_override` | string |  | DMD Window Override (x,y,width,height) |
+| `media_priority` | choice (video, image) | `video` | DMD Media Priority |
+
+### `windows.playfield`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `screen_id` | int | `0` | Playfield Monitor ID |
+| `orientation` | choice (landscape, portrait) | `landscape` | How the playfield screen is physically mounted. Portrait means it is turned on its side in the cabinet. This does not rotate anything by itself - it tells themes what shape to lay out for. |
+| `rotation` | choice (0, 90, 180, 270) | `0` | How far VPinFE turns its own display so it faces the player. Leave at 0 if your operating system already rotates this screen. |
+| `variant` | choice (table, fss) | `table` | Which playfield artwork this library holds: table.png, or fss.png for art captured in Visual Pinball's Full Single Screen mode. |
+| `resolution` | choice (4k, 1k) | `4k` | Default Table Resolution |
+| `video_resolution` | choice (4k, 1k) | `1k` | Default Table Video Resolution |
+| `media_priority` | choice (video, image) | `video` | Table Media Priority |
+| `media_rotation` | choice (auto, 0, 90, 180, 270) | `auto` | How far to turn playfield artwork so it fills the screen. auto measures each image and turns only when it disagrees with the surface. |
+
+### `displays`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `cab_mode` | bool | `false` | Presents VPinFE for playing standing at a cabinet: larger text and targets, and no controls that need a mouse. It does not rotate anything. |
+
+### `general`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `vpx_bin_path` | string |  | Full path to the Visual Pinball executable VPinFE launches. |
+| `vpx_launch_env` | string |  | VPX Launch Environment |
+| `global_ini_override` | string |  | Global ini Override (/home/test/mysuper.ini) |
+| `global_game_ini_override_enabled` | bool | `false` | Global tableini Override Enabled |
+| `global_game_ini_override_mask` | string |  | Global tableini Override Mask |
+| `game_root_dir` | string |  | The folder holding your table folders, one folder per game. |
+| `vpx_ini_path` | string |  | Path to VPinballX.ini, which VPinFE reads for the key mappings the Remote page sends. |
+| `assets_dir` | string |  | Root folder for assets shared across games rather than owned by one, such as manufacturer logos. Served at /assets/ and defaults to assets/ under the VPinFE config dir. |
+| `rar_tool_path` | string |  | RAR Tool Path (unar/unrar, blank = auto-detect) |
+| `vpx_log_delete_on_start` | bool | `false` | Delete VPinball Log On Table Start |
+| `theme` | string | `Revolution` | Active Theme |
+| `startup_collection` | string |  | Default Startup Collection |
+| `auto_update_media_on_startup` | bool | `false` | Auto Update Media On Startup |
+| `splashscreen` | bool | `false` | Enable splashscreen |
+| `mute_audio` | bool | `false` | Mute Frontend Audio |
+| `chrome_options` | string |  | Additional Chrome Options |
+| `chrome_options_exclude` | string |  |  |
+| `disable_default_chrome_options` | bool | `false` | Disable Default Chrome Options |
+| `hide_quit_button` | bool | `false` | Hide Quit from MainMenu |
+| `restore_last_game` | bool | `true` | Restore Last Table |
+
+### `themes`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `registries` | list | `https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json` | Catalogs to offer themes from, most trusted first. The stock registry is an entry like any other, so a mirrored or offline install can replace or drop it. |
+| `repositories` | list |  | Individual theme repos, each one a theme in its own right. Resolved before the registries, and named for the repo with any vpinfe-theme- prefix removed. |
+
+### `logger`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `level` | choice (debug, info, warning, error) | `debug` | Log Verbosity |
+| `console` | bool | `true` | Console Logging |
+
+### `media`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `default_missing_media_image` | string |  | Default Missing Media Image |
+| `thumb_cache_max_mb` | int | `500` | Thumbnail Cache Max (MB) |
+| `wheelset` | string |  | Name of the wheel art set to use library-wide, a folder under a game's medias/wheels/. The reserved name logo shows each game's logo instead. Blank means plain wheels, and the active theme can override this with its own wheelSet option. |
+| `realdmd_media_priority` | choice (color, video, image) | `color` | Real DMD Priority |
+
+### `vpsdb`
+
+Runtime state written by VPinFE, not shown in the Manager UI.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `last` | string |  |  |
+
+### `state`
+
+Runtime state written by VPinFE, not shown in the Manager UI.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `last_game` | string |  |  |
+
+### `pinmame_score_parser`
+
+Runtime state written by VPinFE, not shown in the Manager UI.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `roms_update_sha` | string |  |  |
+
+### `network`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `theme_assets_port` | int | `8000` | Theme Server Port |
+| `ws_port` | int | `8002` | Port the frontend windows and the theme talk to VPinFE over. Loopback only. |
+| `manager_ui_port` | int | `8001` | Manager UI Port |
+
+### `dof`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `enable_dof` | bool | `false` | Enable DOF |
+| `dof_config_tool_api_key` | string |  | DOF Config Tool API Key |
+
+### `libdmdutil`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `enabled` | bool | `false` | Enabled |
+| `pin2dmd_enabled` | bool | `false` | Enable |
+| `pixelcade_device` | string |  | PixelcadeDevice |
+| `zedmd_device` | string |  | ZeDMDDevice |
+| `zedmd_wifi_address` | string |  | ZeDMDWiFiAddr |
+
+### `mobile`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `device_ip` | string |  | Mobile Device IP |
+| `device_port` | int | `2112` | Mobile Device Port |
+| `chunk_size` | int | `1048576` | Mobile Chunk Size |
+| `rename_mask_to_default_ini` | bool | `false` | Enable Rename Mask To Default INI |
+| `rename_mask_to_default_ini_mask` | string |  | Rename Mask To Default INI Mask |
+
+### `vpinplay`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `sync_on_exit` | bool | `false` | Sync on Exit |
+| `api_endpoint` | string | `https://api.vpinplay.com:8888` | API Endpoint |
+| `user_id` | string |  | User ID |
+| `initials` | string |  | Initials |
+| `machine_id` | string |  | Machine ID |
+
+### `input`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `previous` | list | `key:ArrowLeft,key:ShiftLeft` | Previous |
+| `next` | list | `key:ArrowRight,key:ShiftRight` | Next |
+| `page_up` | list | `key:PageUp,key:ArrowUp` | Page up |
+| `page_down` | list | `key:PageDown,key:ArrowDown` | Page down |
+| `select` | list | `key:Enter` | Select |
+| `back` | list | `key:b` | Back |
+| `menu` | list | `key:m` | Menu |
+| `collection_menu` | list | `key:c` | Collection menu |
+| `tutorial` | list | `key:t` | Tutorial |
+| `exit` | list | `key:Escape,key:q` | Exit |
+| `paging_type` | choice (alpha, numeric) | `alpha` | Paging Type |
+| `paging_size` | int | `10` | Paging Size |
 
 ## Game Metadata File (based on the Zero install table format)
 When you run VPinFE with the `--buildmeta` option it recursively goes through your game directory attempts to match your games to their VPSDB id.  When matched, it will then parse the VPX for the game for more meta information and produce a `GAME FOLDER NAME(manufactuer year).info` in that game's directory.  Heres an example for the game 1-2-3:
