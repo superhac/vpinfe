@@ -28,6 +28,11 @@ jobs:
         continue-on-error: true
         run: ruff check . --output-format=github --statistics
 
+      # tests/ was taken to zero on 2026-08-06. Unlike the new-file rule below this
+      # covers every file in the package, so the foundation cannot drift back.
+      - name: Lint the test packages (blocking)
+        run: ruff check tests/ --output-format=github
+
       # New files must be clean, so new code is born compliant while older code
       # is cleaned up when it is touched rather than in one enormous diff.
       #

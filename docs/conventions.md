@@ -303,17 +303,22 @@ ruff check .          # what the CI advisory run reports
 ruff check . --fix    # apply the safe fixes
 ```
 
-CI runs it two ways:
+CI runs it three ways:
 
 - **Advisory over the whole tree.** Reports and does not fail. ~1,600 findings today, mostly
   line length and legacy naming. It is a visible debt register, not a gate.
+- **Blocking on `tests/`.** The test packages were taken to zero findings and every file in
+  them is checked, new or not. The tests are the foundation the rest of the cleanup is done
+  against, so they are the one tree that is not allowed to drift.
 - **Blocking on newly added files.** Any `.py` file added in a PR must be clean. This is what
   "get it right going forward" means in practice: new code is born compliant, and existing
   code is cleaned up when it is touched rather than in one enormous diff.
 
 Some rules are ignored per-file for good reasons — `main.py` and `managerui/managerui.py`
 import after executing statements because config has to be resolved before anything under
-`common/` is imported. Those exemptions are listed in `pyproject.toml` with their reasons.
+`common/` is imported. `tests/games/test_score_parser.py` does the same, because the module
+it tests reads `roms.json` and the config paths at import. Those exemptions are listed in
+`pyproject.toml` with their reasons.
 
 ### Auto-fix is not always safe
 
