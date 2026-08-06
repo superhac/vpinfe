@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import signal
 import sys
 from typing import Any
 
@@ -118,22 +119,43 @@ class _Worker:
             return True
 
 
-def main() -> int:
-    worker = _Worker()
+def _install_termination_handlers() -> None:
+    """Turn a kill signal into a normal exit so the runner still gets stopped."""
+    def _terminate(_signum, _frame):
+        raise SystemExit(0)
 
-    for raw_line in sys.stdin:
-        line = raw_line.strip()
-        if not line:
+    for name in ("SIGTERM", "SIGINT", "SIGBREAK"):
+        sig = getattr(signal, name, None)
+        if sig is None:
             continue
         try:
-            payload = json.loads(line)
-        except json.JSONDecodeError as exc:
-            worker._reply(None, False, error=f"invalid_json:{exc}")
-            continue
-        if not worker.handle(payload):
-            return 0
+            signal.signal(sig, _terminate)
+        except (OSError, ValueError):
+            pass
 
-    worker._stop()
+
+def main() -> int:
+    worker = _Worker()
+    _install_termination_handlers()
+
+    try:
+        for raw_line in sys.stdin:
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError as exc:
+                worker._reply(None, False, error=f"invalid_json:{exc}")
+                continue
+            if not worker.handle(payload):
+                break
+    finally:
+        # DOF leaves a solenoid or lamp on until something turns it off, and the
+        # runner does that from a daemon thread that dies unrun if this process is
+        # killed. We share the parent's process group, so Ctrl+C and systemctl stop
+        # both land here directly - stop the runner on every way out, not just EOF.
+        worker._stop()
     return 0
 
 
