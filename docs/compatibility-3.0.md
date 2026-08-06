@@ -145,7 +145,7 @@ copied to the game folder root under their original names (on by default), and i
 in the standalone export bundle. Detection is deliberately narrow — never a blanket
 `.txt`, which would misfile `alias.txt` and its kin.
 *Why:* whoever made the table wrote those notes for whoever installs it; now they arrive.
-Covered by `tests/media/test_asset_upload_services.py` and `tests/media/test_export_bundle.py`.
+Covered by `tests/media/test_asset_analyzer.py` and `tests/media/test_export_bundle.py`.
 
 **PAR-15 — Manufacturer logos, served from a shared assets root.**
 *(machine-checked)* Themes gain one payload field, `ManufacturerLogoPath`: a
@@ -549,7 +549,7 @@ settles as snake_case. The playfield rename also retires a name that collided wi
 `[Media] playfieldvariant` values: `fss` was simultaneously a kind and a variant.
 **Payload attribute names are unchanged** — `TableImagePath` and the rest are contract 1's
 keys and shipped, so only the kind vocabulary moved. Covered by
-`tests/js/media-resolution.test.js` and `tests/media/test_asset_upload_services.py`.
+`tests/js/media-resolution.test.js` and `tests/media/test_asset_registry.py`.
 
 **PAR-28 — the theme payload at contract 2 is an entry list, not a row array.**
 
