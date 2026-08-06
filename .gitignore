@@ -14,6 +14,9 @@
 # Every config name we have ever written. Frozen outside the schema on purpose: reading
 # it from the schema would delete the assertion along with the alias it guards.
 !tests/fixtures/config_legacy_names.json
+# The theme the render smoke test drives. Its manifest declares the contract and the
+# windows, so without this the harness is a contract 1 theme and the test asserts nothing.
+!tests/fixtures/theme-harness/*.json
 # Declares the frontend test runner. No dependencies, nothing installed, not bundled.
 !package.json
 !common/resources/roms.json
