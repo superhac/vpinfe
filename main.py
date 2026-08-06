@@ -57,7 +57,7 @@ from common.paths import (
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
 
-# Load config BEFORE importing clioptions/managerui (they create ConfigStore at import time)
+# Load config BEFORE importing cli_options/managerui (they create ConfigStore at import time)
 config_dir = ensure_config_dir()
 nicegui_storage_path = configure_nicegui_storage()
 log_path = configure_logging(config_dir, enable_file=False)
@@ -83,12 +83,12 @@ def reconfigure_app_logging() -> None:
     configure_logging(config_dir, config_store)
 
 # Now safe to import modules that create their own ConfigStore at import time
-from clioptions import parseArgs
 from nicegui import app as nicegui_app
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 import httpapi
+from cli_options import parseArgs
 from frontend import runtime
 from managerui.managerui import _shutdown_event, set_first_run, start_manager_ui, stop_manager_ui
 
