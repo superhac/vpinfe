@@ -61,7 +61,7 @@ A game can carry alternate wheel art in named folders under `medias/wheels/<set 
 
 Relevant code:
 
-- [common/games/game_parser.py](/home/superhac/repos/testing/vpinfe/common/games/game_parser.py#L67)
+- [common/games/game_parser.py](../common/games/game_parser.py)
 
 ## Backend To Browser Payload
 
@@ -77,7 +77,7 @@ When the browser requests game data, `frontend/api.py` serializes the discovered
 
 Relevant code:
 
-- [frontend/api.py](/home/superhac/repos/testing/vpinfe/frontend/api.py#L254)
+- [frontend/api.py](../frontend/api.py)
 
 ## Theme Access In vpinfe-core.js
 
@@ -90,9 +90,9 @@ After loading the game JSON, `vpinfe-core.js` exposes helper methods for themes:
 
 Relevant code:
 
-- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L123)
-- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L262)
-- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L325)
+- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
+- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
+- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
 
 ## URL Conversion
 
@@ -109,20 +109,20 @@ If the file lives directly in the game folder instead of `medias/`, the URL beco
 
 Relevant code:
 
-- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L794)
+- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
 
 The HTTP server mount that makes this work is configured here:
 
-- [main.py](/home/superhac/repos/testing/vpinfe/main.py#L202)
+- [main.py](../main.py)
 
 ## DMD Video Flow
 
 For `dmd.mp4` support specifically, the key flow is:
 
-- [common/games/game_parser.py](/home/superhac/repos/testing/vpinfe/common/games/game_parser.py#L85)
-- [frontend/api.py](/home/superhac/repos/testing/vpinfe/frontend/api.py#L269)
-- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L271)
-- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L808)
+- [common/games/game_parser.py](../common/games/game_parser.py)
+- [frontend/api.py](../frontend/api.py)
+- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
+- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
 
 That means:
 
@@ -135,10 +135,10 @@ That means:
 
 For playfield video support, the key flow is:
 
-- [common/games/game_parser.py](/home/superhac/repos/testing/vpinfe/common/games/game_parser.py#L83)
-- [frontend/api.py](/home/superhac/repos/testing/vpinfe/frontend/api.py#L267)
-- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L265)
-- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L808)
+- [common/games/game_parser.py](../common/games/game_parser.py)
+- [frontend/api.py](../frontend/api.py)
+- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
+- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
 
 That means:
 
@@ -151,10 +151,10 @@ That means:
 
 For `bg.mp4` support specifically, the key flow is:
 
-- [common/games/game_parser.py](/home/superhac/repos/testing/vpinfe/common/games/game_parser.py#L84)
-- [frontend/api.py](/home/superhac/repos/testing/vpinfe/frontend/api.py#L268)
-- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L268)
-- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L808)
+- [common/games/game_parser.py](../common/games/game_parser.py)
+- [frontend/api.py](../frontend/api.py)
+- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
+- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
 
 That means:
 
@@ -325,7 +325,7 @@ Common cases:
 
 Relevant code:
 
-- [web/common/vpinfe-core.js](/home/superhac/repos/testing/vpinfe/web/common/vpinfe-core.js#L351)
+- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
 
 In practice, when a new game becomes active, theme code should:
 
