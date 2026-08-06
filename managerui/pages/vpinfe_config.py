@@ -2,7 +2,6 @@ import contextlib
 import io
 import logging
 import os
-import re
 import runpy
 import shlex
 import sys
@@ -10,7 +9,8 @@ from pathlib import Path
 
 from nicegui import run, ui
 
-from common import config_schema
+from common import config_schema, input_actions
+from frontend import input_api
 from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from common.games.collection_store import CollectionStore
@@ -21,8 +21,8 @@ from frontend.chromium_manager import (
     parse_additional_chromium_options,
 )
 from managerui import config_support
-from managerui.config_fields import is_checkbox_field, sort_input_mapping_keys
-from managerui.paths import COLLECTIONS_PATH, CONFIG_DIR, THEMES_DIR, VPINFE_INI_PATH
+from managerui.config_fields import is_checkbox_field
+from managerui.paths import COLLECTIONS_PATH, THEMES_DIR, VPINFE_INI_PATH
 from managerui.ui_helpers import attach_shell_save_bar, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.vpinfe_config")
@@ -461,8 +461,41 @@ def render_panel(tab=None):
             if section == 'Settings' and key == 'chromeoptions':
                 inp.on_value_change(lambda _: update_chrome_options_preview())
 
+    binding_inputs: dict[str, dict[str, object]] = {}
+
+    def build_binding_input(action, device: str, value: str):
+        """One field of the two an action is shown through.
+
+        The pair is a view over the action's single binding list - `device` says which
+        half this field owns, and save_config recombines them.
+        """
+        with ui.element('div').classes('config-field'):
+            ui.label(action.label).classes('config-field-label')
+            widget = ui.input(value=value).props('outlined dense').classes('config-input')
+        binding_inputs.setdefault(action.name, {})[device] = widget
+        return widget
+
     def save_config():
         try:
+            for action in input_actions.actions():
+                fields = binding_inputs.get(action.name)
+                if not fields:
+                    continue
+                keys = [k.strip() for k in
+                        str(getattr(fields.get('key'), 'value', '') or '').split(',') if k.strip()]
+                pads = [b.strip() for b in
+                        str(getattr(fields.get('pad'), 'value', '') or '').split(',') if b.strip()]
+                rebuilt = [f'{input_actions.KEY_PREFIX}{k}' for k in keys]
+                rebuilt += [f'{input_actions.PAD_PREFIX}0/button:{b}' for b in pads]
+                # Anything neither field can show - a chord, a hold, an axis, a second
+                # pad - is carried through untouched. Rebuilding from the two fields
+                # alone would delete it the first time anyone pressed Save.
+                current = input_api.get_bindings(config)[action.name]
+                rebuilt += input_actions.unrenderable(current)
+                if not config.config.has_section(input_actions.SECTION):
+                    config.config.add_section(input_actions.SECTION)
+                config.config.set(input_actions.SECTION, action.name, ','.join(rebuilt))
+
             for section, keys in inputs.items():
                 for key, inp in keys.items():
                     if key == '__thirdparty_included' or key == '__windows_included':
@@ -846,18 +879,15 @@ def render_panel(tab=None):
                                                 for key in second_column_keys:
                                                     value = config.config.get(section, key, fallback='')
                                                     build_config_input(section, key, value)
-                                    elif section == 'Input':
-                                        controller_keys = sort_input_mapping_keys(
-                                            [key for key in options if key.startswith('joy')],
-                                            'joy',
-                                        )
-                                        keyboard_keys = sort_input_mapping_keys(
-                                            [key for key in options if key.startswith('key')],
-                                            'key',
-                                        )
+                                    elif section == input_actions.SECTION:
+                                        # Two cards over one list. Each action stores its
+                                        # bindings together; the page shows the keyboard
+                                        # ones and the gamepad one in the places they have
+                                        # always been, and save_config puts them back.
+                                        bindings = input_api.get_bindings(config)
                                         other_input_keys = [
                                             key for key in options
-                                            if key not in set(controller_keys + keyboard_keys)
+                                            if not input_actions.action_for_legacy_key(key)
                                         ]
 
                                         with ui.column().classes('w-full gap-4'):
@@ -867,9 +897,11 @@ def render_panel(tab=None):
                                                     'Assign gamepad button indexes for each frontend action.'
                                                 ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                                 with ui.element('div').classes('config-input-panel-grid mt-3'):
-                                                    for key in controller_keys:
-                                                        value = config.config.get(section, key, fallback='')
-                                                        build_config_input(section, key, value)
+                                                    for action in input_actions.actions():
+                                                        build_binding_input(
+                                                            action, 'pad',
+                                                            ','.join(input_actions.pad_buttons_in(
+                                                                bindings[action.name])))
 
                                             with ui.card().classes('config-side-card w-full p-4'):
                                                 ui.label('Keyboard Mappings').classes('text-lg font-semibold').style('color: var(--ink) !important;')
@@ -877,9 +909,11 @@ def render_panel(tab=None):
                                                     'Set comma-separated keyboard bindings used only by the VPinFE frontend.'
                                                 ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                                 with ui.element('div').classes('config-input-panel-grid mt-3'):
-                                                    for key in keyboard_keys:
-                                                        value = config.config.get(section, key, fallback='')
-                                                        build_config_input(section, key, value)
+                                                    for action in input_actions.actions():
+                                                        build_binding_input(
+                                                            action, 'key',
+                                                            ','.join(input_actions.keys_in(
+                                                                bindings[action.name])))
 
                                         if other_input_keys:
                                             with ui.card().classes('config-side-card w-full mt-4 p-4'):
