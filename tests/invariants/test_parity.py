@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-BASELINE = REPO_ROOT / "tests" / "parity_baseline_master.json"
+BASELINE = REPO_ROOT / "tests" / "fixtures" / "parity_baseline_master.json"
 LEDGER = REPO_ROOT / "docs" / "compatibility-3.0.md"
 
 # The differences the ledger permits, keyed by the entries that permit them.

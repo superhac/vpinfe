@@ -5,7 +5,7 @@ nothing. This file is the complete list of deliberate exceptions — every way 3
 *allowed* to differ from master, each with why it's worth it.
 
 It is enforced, not aspirational: `tests/invariants/test_parity.py` compares this tree's
-behavior against a captured master baseline (`tests/parity_baseline_master.json`),
+behavior against a captured master baseline (`tests/fixtures/parity_baseline_master.json`),
 and a difference is either named here by its `PAR-` id or the build fails. There is
 no third option. Entries marked *(machine-checked)* are asserted directly by the
 parity test; the others are covered by the tests referenced in their entry.
@@ -14,7 +14,7 @@ To refresh the baseline after master moves:
 
 ```
 git worktree add /tmp/parity-master master
-cd /tmp/parity-master && python <this-tree>/tests/support/parity_capture.py --out <this-tree>/tests/parity_baseline_master.json
+cd /tmp/parity-master && python <this-tree>/tests/support/parity_capture.py --out <this-tree>/tests/fixtures/parity_baseline_master.json
 git worktree remove /tmp/parity-master
 ```
 
@@ -527,8 +527,8 @@ there in July 2026), not a 3.0 change.
 
 The gate is scaffolding for the transition and it dies with it: once this branch *is*
 master, there is nothing left to compare against. Whoever does that merge should delete
-`tests/invariants/test_parity.py`, `tests/support/parity_capture.py` and `tests/parity_baseline_master.json`,
-and drop the `!tests/parity_baseline_master.json` line from `.gitignore` — it only exists
+`tests/invariants/test_parity.py`, `tests/support/parity_capture.py` and `tests/fixtures/parity_baseline_master.json`,
+and drop the `!tests/fixtures/parity_baseline_master.json` line from `.gitignore` — it only exists
 to punch the baseline back through the blanket `*.json` rule, and removing the file
 without it leaves a dangling negation.
 
