@@ -19,6 +19,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from contextlib import suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -46,11 +47,16 @@ class LiveInstance:
     def __enter__(self) -> LiveInstance:
         self._write_config()
         self._install_harness_theme()
+        # To a file, not a pipe. Nothing drains a pipe until the process is stopped, so
+        # a chatty startup fills the buffer and the child blocks on its own logging -
+        # which looks exactly like an instance that never finished booting.
+        self._log_path = self.config_dir / "instance.log"
+        self._log = open(self._log_path, "w", encoding="utf-8")
         self.proc = subprocess.Popen(
             [sys.executable, "main.py", "--headless"],
             cwd=str(REPO_ROOT),
             env={**os.environ, "VPINFE_CONFIG_DIR": str(self.config_dir)},
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            stdout=self._log, stderr=subprocess.STDOUT, text=True)
         self._wait_until_serving()
         return self
 
@@ -58,9 +64,12 @@ class LiveInstance:
         if self.proc is not None:
             self.proc.terminate()
             try:
-                self.proc.wait(timeout=20)
+                self.proc.wait(timeout=30)
             except subprocess.TimeoutExpired:
                 self.proc.kill()
+                self.proc.wait(timeout=30)
+        if getattr(self, "_log", None) is not None:
+            self._log.close()
         self._tmp.cleanup()
 
     # -- setup -------------------------------------------------------------
@@ -92,7 +101,7 @@ class LiveInstance:
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(HARNESS_THEME, target)
 
-    def _wait_until_serving(self, timeout: float = 90.0) -> None:
+    def _wait_until_serving(self, timeout: float = 180.0) -> None:
         deadline = time.time() + timeout
         while time.time() < deadline:
             if self.proc.poll() is not None:
@@ -121,10 +130,13 @@ class LiveInstance:
                 f"http://127.0.0.1:{self.ports['manager']}{path}", timeout=10) as handle:
             return json.load(handle)
 
-    def output(self) -> str:
-        """Whatever the process has written. Only safe once it has been stopped."""
-        if self.proc is None or self.proc.stdout is None:
+    def output(self, tail: int = 4000) -> str:
+        """Whatever the instance has logged so far. Readable while it is still running,
+        which is the moment a test needs it."""
+        path = getattr(self, "_log_path", None)
+        if path is None or not path.exists():
             return ""
-        if self.proc.poll() is None:
-            return "(still running)"
-        return self.proc.stdout.read() or ""
+        with suppress(Exception):
+            if self._log is not None:
+                self._log.flush()
+        return path.read_text(encoding="utf-8", errors="replace")[-tail:]

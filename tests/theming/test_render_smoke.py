@@ -46,12 +46,36 @@ class RenderSmokeTests(TempTree):
             write_game(self.root, name, info=_info(name),
                        medias={"wheel.png": PNG, "table.png": PNG})
 
+    # CI runs several times slower than a laptop, and this waits on a real app booting
+    # and a real browser rendering. Generous rather than tuned: a flaky timeout would
+    # teach everyone to ignore this test, which is worse than it being slow.
+    READY_TIMEOUT = 90.0
+
+    async def _open(self, browser: BrowserSession, instance: LiveInstance, window: str):
+        """Open a window and wait for the theme to say it finished starting."""
+        await browser.navigate(instance.theme_url(window))
+        try:
+            await browser.wait_for("document.body.dataset.ready === 'true'",
+                                   timeout=self.READY_TIMEOUT)
+        except TimeoutError as exc:
+            raise AssertionError(self._diagnose(exc, browser, instance, window)) from exc
+
+    def _diagnose(self, exc, browser, instance, window) -> str:
+        """Say what the page and the instance were doing. A bare timeout sent the last
+        CI failure back to guesswork, and guessing costs a push per attempt."""
+        lines = [f"{window} never finished starting: {exc}",
+                 f"  failed requests: {browser.failed_requests[:6] or 'none'}",
+                 "  console:"]
+        lines += [f"    {line[:160]}" for line in browser.console[:15]] or ["    (silent)"]
+        lines += ["  instance log:"]
+        lines += [f"    {line[:160]}" for line in instance.output().splitlines()[-15:]]
+        return "\n".join(lines)
+
     def _drive(self, window: str = "playfield"):
         """Boot, open the window, and hand back what the page and the browser saw."""
         async def run(instance: LiveInstance):
             async with BrowserSession(chromium_path()) as browser:
-                await browser.navigate(instance.theme_url(window))
-                await browser.wait_for("document.body.dataset.ready === 'true'")
+                await self._open(browser, instance, window)
                 data = await browser.body_data()
                 return data, browser, list(browser.failed_requests)
 
@@ -92,8 +116,7 @@ class RenderSmokeTests(TempTree):
     def test_moving_the_wheel_moves_it(self) -> None:
         async def run(instance: LiveInstance):
             async with BrowserSession(chromium_path()) as browser:
-                await browser.navigate(instance.theme_url("playfield"))
-                await browser.wait_for("document.body.dataset.ready === 'true'")
+                await self._open(browser, instance, "playfield")
                 before = (await browser.body_data()).get("selected")
                 await browser.press("ArrowRight", "ArrowRight")
                 after = await browser.wait_for(
