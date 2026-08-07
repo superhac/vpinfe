@@ -57,9 +57,9 @@ class LibraryIsReadOnceTests(unittest.TestCase):
             real_build = GameParser._build_game
             calls = []
 
-            def counting_build(self, game_dir):
+            def counting_build(self, game_dir, **kwargs):
                 calls.append(game_dir)
-                return real_build(self, game_dir)
+                return real_build(self, game_dir, **kwargs)
 
             with mock.patch.object(GameParser, "_build_game", counting_build):
                 parser = GameParser(root)
