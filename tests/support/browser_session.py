@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shutil
 import socket
 import subprocess
@@ -32,13 +33,18 @@ def free_port() -> int:
 
 
 def chromium_path() -> str | None:
-    """The browser VPinFE would use, or None when this machine has none."""
+    """The browser VPinFE would use, or None when this machine has none.
+
+    Checked for real rather than trusted: a path that does not exist would launch
+    nothing and time out later as "never opened a page", which says nothing useful.
+    """
     with suppress(Exception):
         from frontend.chromium_manager import get_chromium_path
 
         found = get_chromium_path()
-        if found and found.path and shutil.which(found.path) or (found and found.path):
-            return found.path
+        path = getattr(found, "path", None)
+        if path and os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
     return None
 
 
@@ -71,8 +77,12 @@ class BrowserSession:
             [self.binary, "--headless=new", f"--remote-debugging-port={port}",
              f"--user-data-dir={self._profile}", "--no-first-run",
              "--no-default-browser-check", "--disable-gpu", "--disable-dev-shm-usage",
+             # A CI runner has no user namespaces to build a sandbox in, so Chrome exits
+             # immediately without this. Safe here: the only pages it opens are ours, on
+             # loopback, in a profile thrown away afterwards.
+             "--no-sandbox", "--disable-setuid-sandbox",
              "--window-size=1280,720", "about:blank"],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
 
         endpoint = await self._page_endpoint(port)
         self._ws = await websockets.connect(endpoint, max_size=None)
@@ -109,8 +119,20 @@ class BrowserSession:
                         return target["webSocketDebuggerUrl"]
             except Exception:
                 pass
+            if self._proc.poll() is not None:
+                break
             await asyncio.sleep(0.1)
-        raise RuntimeError("Chromium never opened a page to attach to")
+        raise RuntimeError(
+            "Chromium never opened a page to attach to. It exited "
+            f"{self._proc.returncode}; stderr:\n{self._stderr()}")
+
+    def _stderr(self) -> str:
+        """Why the browser gave up, which a timeout on its own never says."""
+        if self._proc is None or self._proc.stderr is None:
+            return "(none)"
+        with suppress(Exception):
+            return (self._proc.stderr.read() or "(silent)")[-2000:]
+        return "(unreadable)"
 
     async def _pump(self) -> None:
         """Read every frame once, so replies and events cannot consume each other."""
