@@ -481,6 +481,11 @@ class CollectionStore:
         if not names:
             return 0
 
+        # Which collection, and which ids. The count alone said 19 members had not
+        # resolved and gave no way to find them - and the UI renders an unresolved
+        # member as raw hex, so the file is the only place to look.
+        unresolved_by_collection: dict[str, list[str]] = {}
+
         by_vps: dict[str, str] = {}
         for game in games:
             tid = game_id(game)
@@ -508,6 +513,7 @@ class CollectionStore:
                 else:
                     rewritten.append(member)
                     unresolved += 1
+                    unresolved_by_collection.setdefault(name, []).append(member)
             if rewritten != members:
                 self._require(name)["members"] = rewritten
 
@@ -515,6 +521,13 @@ class CollectionStore:
         self.save()
         logger.info("Collection membership moved onto game ids: %s moved, %s left "
                     "as VPS ids because no game matched", moved, unresolved)
+        for name, ids in sorted(unresolved_by_collection.items()):
+            # Not an error: the game may simply not be present right now, and the file
+            # converges as tables are seen. But a member nothing matches shows in the UI
+            # as raw hex, so say where it is rather than leaving it to be found.
+            logger.warning("Collection %r keeps %s member(s) no game matched: %s",
+                           name, len(ids), ", ".join(sorted(ids)[:10])
+                           + (", ..." if len(ids) > 10 else ""))
         return moved
 
     def save(self):

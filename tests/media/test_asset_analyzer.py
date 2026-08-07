@@ -1,4 +1,4 @@
-"""What the analyzer recognises in an upload, before anything is planned or written."""
+"""What the analyzer recognizes in an upload, before anything is planned or written."""
 
 from __future__ import annotations
 

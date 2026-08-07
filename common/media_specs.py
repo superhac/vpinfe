@@ -30,6 +30,14 @@ class MediaSpec:
     key: str
     attr: str
     filename_template: str
+    # Which VPinMediaDB resolution bucket this kind is published under - "1k" for the
+    # backglass and scoreview, the configured playfield resolution for the playfield.
+    #
+    # Declared and never read. `vpsdb_media.py` hardcodes the same answers at its own
+    # call sites, so the two say the same thing in two places and only one of them is
+    # consulted. Left rather than deleted because the value is correct and the download
+    # side is where it belongs; folding those call sites onto this is the fix, and it is
+    # a media-download change rather than a spec one.
     asset_group: str | None = None
     # The token for tiers 1 and 2 - "(Wheel) Name.png". Video kinds share their
     # image counterpart's token; the extension family tells them apart.

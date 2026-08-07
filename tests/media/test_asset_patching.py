@@ -1,4 +1,4 @@
-"""Patch files: recognised as their own kind, and imported without losing the base.
+"""Patch files: recognized as their own kind, and imported without losing the base.
 
 A patched table is derived from a file that has to stay on disk, which is the one rule
 that makes patches different from every other asset the upload path handles.

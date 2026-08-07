@@ -1,4 +1,4 @@
-"""The typed views over `vpinfe.ini`, and the normalising they do on the way through."""
+"""The typed views over `vpinfe.ini`, and the normalizing they do on the way through."""
 
 from __future__ import annotations
 

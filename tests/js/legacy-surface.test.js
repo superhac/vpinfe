@@ -105,7 +105,7 @@ describe("window identity", () => {
   });
 });
 
-describe("core behaviours have one stated default each", () => {
+describe("core behaviors have one stated default each", () => {
   // These used to disagree with themselves: core audio read true at construction and
   // false after init(), because the constructor and init() each decided separately.
   // CAPABILITIES states each default once and both paths read it.

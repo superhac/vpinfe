@@ -621,3 +621,37 @@ class ExclusionTests(TempTree):
         reopened = CollectionStore(str(self.path))
         self.assertEqual(reopened.get_member_refs("90s Bally"), [{"game": "addams"}])
         self.assertEqual(reopened.get_excluded_refs("90s Bally"), [{"game": "popeye"}])
+
+
+class UnresolvedMemberReportingTests(TempTree):
+    """A member nothing matched is named, not just counted.
+
+    The count alone said 19 members had not resolved on a real library and gave no way
+    to find them - and an unresolved member renders in the UI as raw hex, so the file is
+    the only place to look. Not an error: the game may simply not be present yet, and
+    the file converges as tables are seen.
+    """
+
+    def _store(self, members):
+        from common.games.collection_store import CollectionStore
+        path = self.root / "collections.json"
+        store = CollectionStore(str(path))
+        store.add_collection("Favourites")
+        store._require("Favourites")["members"] = list(members)
+        store._schema = 0
+        return store
+
+    def test_it_says_which_collection_and_which_ids(self) -> None:
+        store = self._store(["vps-gone-1", "vps-gone-2"])
+        with self.assertLogs("vpinfe.common.games.collection_store", "WARNING") as logged:
+            store.migrate_membership_to_game_ids([])
+        joined = "\n".join(logged.output)
+        self.assertIn("Favourites", joined)
+        self.assertIn("vps-gone-1", joined)
+        self.assertIn("vps-gone-2", joined)
+
+    def test_a_collection_that_resolves_says_nothing(self) -> None:
+        store = self._store([])
+        with self.assertNoLogs("vpinfe.common.games.collection_store", "WARNING"):
+            store.migrate_membership_to_game_ids([])
+

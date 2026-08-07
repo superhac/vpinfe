@@ -1,6 +1,6 @@
 """The one launch path, which the wheel, the Remote page and the API all take.
 
-The behaviour pinned here used to be split across two implementations that
+The behavior pinned here used to be split across two implementations that
 disagreed - most visibly, only one of them recorded that a table had been played.
 """
 

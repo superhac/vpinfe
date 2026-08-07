@@ -1,6 +1,6 @@
 """Helpers the asset upload tests share.
 
-The upload path is tested from four angles - what the analyzer recognises, what a plan
+The upload path is tested from four angles - what the analyzer recognizes, what a plan
 proposes, what an import writes, and what a session holds - and each of them builds an
 archive and reads the same three things back off a result. Those live here so splitting
 the tests by angle did not copy them four times.

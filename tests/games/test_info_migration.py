@@ -39,7 +39,7 @@ LEGACY = {
 
 
 class DetectionTests(unittest.TestCase):
-    def test_a_2x_file_is_recognised(self):
+    def test_a_2x_file_is_recognized(self):
         self.assertTrue(needs_migration(LEGACY))
 
     def test_a_stamped_file_is_left_alone(self):
@@ -141,7 +141,7 @@ class WhatSurvivesTests(unittest.TestCase):
         self.assertEqual(entry["rom"], "dd_l2")
         self.assertEqual(entry["save_rev"], "4")
 
-    def test_dates_are_normalised_on_the_way_through(self):
+    def test_dates_are_normalized_on_the_way_through(self):
         entry = self.after["tables"]["Dr. Dude.vpx"]
         self.assertEqual(entry["release_date"], "2019-06-22")
         self.assertEqual(entry["save_date"], "2022-12-13T16:03:21")

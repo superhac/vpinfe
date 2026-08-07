@@ -318,7 +318,7 @@ class RegistrationTests(unittest.TestCase):
         self.assertEqual(allowed.status_code, 200)
         self.assertEqual(allowed.headers["access-control-allow-origin"], "*")
 
-        # The host app keeps whatever CORS behaviour it had, which is none.
+        # The host app keeps whatever CORS behavior it had, which is none.
         untouched = self.client.options("/api/host-owned", headers=preflight)
         self.assertNotIn("access-control-allow-origin", untouched.headers)
 
