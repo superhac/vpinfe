@@ -46,7 +46,10 @@ const payload = JSON.parse(readFileSync(PAYLOAD, "utf8"));
 /** Every fenced JavaScript block, with the file and line so a failure is findable. */
 function jsBlocks(text = doc, name = "docs/theme.md") {
   const blocks = [];
-  const pattern = /^```(js|javascript)\n([\s\S]*?)^```/gm;
+  // \r? because git checks these files out with CRLF on Windows, where a pattern
+  // anchored on a bare \n matches nothing at all - and every check below would then
+  // pass over an empty list. That is what the count assertion above is guarding.
+  const pattern = /^```(js|javascript)\r?\n([\s\S]*?)^```/gm;
   let match;
   while ((match = pattern.exec(text)) !== null) {
     const line = text.slice(0, match.index).split("\n").length;
