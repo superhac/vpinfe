@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import MutableMapping, Sequence
+from collections.abc import MutableMapping, Sequence
 
 
 def apply_configdir_override(

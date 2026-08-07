@@ -6,8 +6,8 @@ import json
 import logging
 import os
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 
 from nicegui import context, events, run, ui
 
@@ -39,7 +39,7 @@ def add_game_to_collection(game_id: str, collection_name: str) -> bool:
 
 def open_game_dialog(
     row_data: dict,
-    on_close: Optional[Callable[[], None]] = None,
+    on_close: Callable[[], None] | None = None,
     context: GameDialogContext | None = None,
 ):
     context = context or default_context()
@@ -47,7 +47,7 @@ def open_game_dialog(
     return _render_game_dialog(row_data, on_close=on_close)
 
 
-def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] = None):
+def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = None):
     # Add dialog styles
     load_page_style("table_dialog.css")
 
@@ -540,7 +540,7 @@ def _render_game_dialog(row_data: dict, on_close: Optional[Callable[[], None]] =
                             fallback_name = (row_data.get('filename') or 'Table').strip()
                             try:
                                 info_path = Path(game_path_str) / f"{Path(game_path_str).name}.info"
-                                with open(info_path, 'r', encoding='utf-8') as f:
+                                with open(info_path, encoding='utf-8') as f:
                                     raw = json.load(f)
                                 info = raw.get("Info", {})
                                 fallback_name = (info.get("Title") or raw.get("name") or fallback_name).strip()

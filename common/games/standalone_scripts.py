@@ -12,7 +12,7 @@ logger = logging.getLogger("vpinfe.common.games.standalone_scripts")
 class StandaloneScripts:
 
     hashsUrl = "https://raw.githubusercontent.com/jsm174/vpx-standalone-scripts/refs/heads/master/hashes.json"
-    
+
     def __init__(self, games, progress_cb=None, auto_run: bool = True):
         self.hashes = None
         self.games = games
@@ -20,7 +20,7 @@ class StandaloneScripts:
         logger.info("VPX-Standalone-Scripts Patching System initialized.")
         if auto_run:
             self.apply_patches()
-        
+
     def downloadHashes(self):
         try:
             self.hashes = get_json(StandaloneScripts.hashsUrl)
@@ -36,7 +36,7 @@ class StandaloneScripts:
     def apply_patches(self):
         self.downloadHashes()
         self.checkForPatches()
-            
+
     def checkForPatches(self):
          if not self.hashes:
              return
@@ -77,13 +77,13 @@ class StandaloneScripts:
                                 pass
              except KeyError:
                  pass
-    
+
     def checkIfVBSFileExists(self, file):
         if file.is_file():
             return True
         else:
             return False
-            
+
     def downloadPatch(self, filename, url):
         #logger.debug(f"Patched file installed: {filename}")
         try:

@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Dict, List
 
 from common.games import game_repository
+
 # Imported and re-exported: the collections page reaches both halves through this
 # module, and these four were duplicated here until 2026-08-05.
 from common.games.collections_service import (  # noqa: F401  (import and export)
@@ -105,7 +105,7 @@ def get_vpsdb_rows_for_filter_options(cached_vpsdb_rows: list[dict] | None = Non
     return rows
 
 
-def get_game_name_map(cached_games: list[dict] | None = None) -> Dict[str, str]:
+def get_game_name_map(cached_games: list[dict] | None = None) -> dict[str, str]:
     games = get_game_rows_for_collections(cached_games)
     return {
         game["vpinfe_id"]: game.get("name") or game["vpinfe_id"]
@@ -114,11 +114,11 @@ def get_game_name_map(cached_games: list[dict] | None = None) -> Dict[str, str]:
     }
 
 
-def get_game_collections_map() -> Dict[str, List[str]]:
+def get_game_collections_map() -> dict[str, list[str]]:
     return game_repository.collections_by_game_id()
 
 
-def member_to_name(member_id: str, game_map: Dict[str, str] | None = None) -> str:
+def member_to_name(member_id: str, game_map: dict[str, str] | None = None) -> str:
     """Display name for a collection member, falling back to the raw id.
 
     An entry that has not been migrated yet, or points at a game that is not
@@ -139,7 +139,7 @@ def _as_values(value) -> list[str]:
     return [part.strip() for part in str(value).split(",") if part.strip()]
 
 
-def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> Dict[str, List[str]]:
+def get_filter_options(cached_vpsdb_rows: list[dict] | None = None) -> dict[str, list[str]]:
     games = get_vpsdb_rows_for_filter_options(cached_vpsdb_rows)
 
     if not games:

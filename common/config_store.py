@@ -112,7 +112,7 @@ class ConfigStore:
 		return True
 
 	def __init__(self, configfilepath):
-		
+
 		self.defaults = config_schema.defaults()
 
 		self.config = configparser.ConfigParser()
@@ -304,7 +304,7 @@ class ConfigStore:
 		           SETTINGS_KEY: settings}
 		write_atomic(self.json_path,
 		             lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
-	
+
 	def formatDefaults(self):
 		for section, defaults in self.defaults.items():
 			self.config.add_section(section)

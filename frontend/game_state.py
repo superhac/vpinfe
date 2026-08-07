@@ -3,14 +3,12 @@ from __future__ import annotations
 import json
 import logging
 
+from common.games import game_identity
+from common.games.collection_filters import GameListFilters
 from common.games.collections_service import (
     filter_games_by_collection,
-    get_collection_names,
     save_filter_collection,
 )
-from common.games import game_identity
-from common.games.game_repository import ensure_games_loaded
-from common.games.media_lookup import resolved_kinds
 from common.games.game_metadata import (
     DETECTION_KEYS,
     game_title,
@@ -24,7 +22,8 @@ from common.games.game_metadata import (
     section,
     vpinfe_section,
 )
-from common.games.collection_filters import GameListFilters
+from common.games.game_repository import ensure_games_loaded
+from common.games.media_lookup import resolved_kinds
 from common.media_specs import game_media_payload
 from common.shared_assets import manufacturer_logo_web_path
 from common.timestamps import epoch_to_iso

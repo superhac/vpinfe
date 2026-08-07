@@ -2,19 +2,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from common.games.game_repository import get_game_rows, get_missing_games
 
 
 @dataclass
 class GameIndex:
-    rows: List[Dict] = field(default_factory=list)
-    missing_rows: List[Dict] = field(default_factory=list)
-    by_path: Dict[str, Dict] = field(default_factory=dict)
-    by_dir: Dict[str, Dict] = field(default_factory=dict)
-    by_game_id: Dict[str, Dict] = field(default_factory=dict)
-    searchable: List[tuple[str, Dict]] = field(default_factory=list)
+    rows: list[dict] = field(default_factory=list)
+    missing_rows: list[dict] = field(default_factory=list)
+    by_path: dict[str, dict] = field(default_factory=dict)
+    by_dir: dict[str, dict] = field(default_factory=dict)
+    by_game_id: dict[str, dict] = field(default_factory=dict)
+    searchable: list[tuple[str, dict]] = field(default_factory=list)
 
 
 _index = GameIndex()
@@ -31,7 +30,7 @@ def _normalize_path(path: str) -> str:
         return str(path)
 
 
-def _build_index(rows: List[Dict], missing_rows: Optional[List[Dict]] = None) -> GameIndex:
+def _build_index(rows: list[dict], missing_rows: list[dict] | None = None) -> GameIndex:
     by_path = {}
     by_dir = {}
     by_game_id = {}
@@ -64,21 +63,21 @@ def _build_index(rows: List[Dict], missing_rows: Optional[List[Dict]] = None) ->
     )
 
 
-def set_rows(rows: List[Dict]) -> List[Dict]:
+def set_rows(rows: list[dict]) -> list[dict]:
     global _index, _loaded
     _index = _build_index(list(rows))
     _loaded = True
     return _index.rows
 
 
-def set_missing_rows(rows: List[Dict]) -> List[Dict]:
+def set_missing_rows(rows: list[dict]) -> list[dict]:
     global _index, _missing_loaded
     _index.missing_rows = list(rows)
     _missing_loaded = True
     return _index.missing_rows
 
 
-def set_game_data(rows: List[Dict], missing_rows: List[Dict]) -> tuple[List[Dict], List[Dict]]:
+def set_game_data(rows: list[dict], missing_rows: list[dict]) -> tuple[list[dict], list[dict]]:
     global _index, _loaded, _missing_loaded
     _index = _build_index(list(rows), list(missing_rows))
     _loaded = True
@@ -93,45 +92,45 @@ def invalidate() -> None:
     _missing_loaded = False
 
 
-def get_rows() -> Optional[List[Dict]]:
+def get_rows() -> list[dict] | None:
     return _index.rows if _loaded else None
 
 
-def get_missing_rows() -> Optional[List[Dict]]:
+def get_missing_rows() -> list[dict] | None:
     return _index.missing_rows if _missing_loaded else None
 
 
-def scan_rows(reload: bool = False) -> List[Dict]:
+def scan_rows(reload: bool = False) -> list[dict]:
     if reload or not _loaded:
         return set_rows(get_game_rows(reload=reload))
     return _index.rows
 
 
-def scan_missing_rows(reload: bool = False) -> List[Dict]:
+def scan_missing_rows(reload: bool = False) -> list[dict]:
     if reload or not _missing_loaded:
         return set_missing_rows(get_missing_games(reload=reload))
     return _index.missing_rows
 
 
-def scan_game_data(reload: bool = False) -> tuple[List[Dict], List[Dict]]:
+def scan_game_data(reload: bool = False) -> tuple[list[dict], list[dict]]:
     rows = get_game_rows(reload=reload)
     missing_rows = get_missing_games(reload=False)
     return set_game_data(rows, missing_rows)
 
 
-def find_by_path(game_path: str) -> Optional[Dict]:
+def find_by_path(game_path: str) -> dict | None:
     return _index.by_path.get(_normalize_path(game_path))
 
 
-def find_by_dir(game_dir: str) -> Optional[Dict]:
+def find_by_dir(game_dir: str) -> dict | None:
     return _index.by_dir.get(game_dir)
 
 
-def find_by_game_id(game_id: str) -> Optional[Dict]:
+def find_by_game_id(game_id: str) -> dict | None:
     return _index.by_game_id.get(str(game_id))
 
 
-def search_rows(term: str, *, limit: int = 20, rows: Optional[List[Dict]] = None) -> List[Dict]:
+def search_rows(term: str, *, limit: int = 20, rows: list[dict] | None = None) -> list[dict]:
     term = (term or "").strip().lower()
     if not term:
         return []
@@ -146,7 +145,7 @@ def search_rows(term: str, *, limit: int = 20, rows: Optional[List[Dict]] = None
     return [row for blob, row in searchable if term in blob][:limit]
 
 
-def update_row_by_path(game_path: str, updates: Dict) -> Optional[Dict]:
+def update_row_by_path(game_path: str, updates: dict) -> dict | None:
     row = find_by_path(game_path)
     if row is None:
         return None
@@ -155,7 +154,7 @@ def update_row_by_path(game_path: str, updates: Dict) -> Optional[Dict]:
     return row
 
 
-def sync_collection_memberships(collections_map: Dict[str, List[str]]) -> None:
+def sync_collection_memberships(collections_map: dict[str, list[str]]) -> None:
     if not _loaded:
         return
     for row in _index.rows:

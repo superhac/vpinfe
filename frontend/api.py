@@ -1,6 +1,7 @@
 import logging
 
 from common import events, lifecycle
+from common.config_access import cfg_get
 from common.deprecations import announce
 from common.games import collection_resolver
 from common.games.collections_service import (
@@ -28,7 +29,6 @@ from frontend import (
     theme_windows,
 )
 from frontend.theme_contract import CURRENT_CONTRACT, declared_contract
-from common.config_access import cfg_get
 
 logger = logging.getLogger("vpinfe.frontend.api")
 

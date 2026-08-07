@@ -1,14 +1,13 @@
+import concurrent.futures
 import logging
 import os
-import concurrent.futures
 from io import BytesIO
-from typing import Dict, Any
+from typing import Any
 
-from common.paths import CONFIG_DIR, get_ini_config
-from common.online.theme_installer import ThemeInstallStore
 from common.online import theme_releases, theme_sources
+from common.online.theme_installer import ThemeInstallStore
 from common.online.theme_registry_client import ThemeRegistryClient, ThemeRegistryError
-
+from common.paths import CONFIG_DIR, get_ini_config
 
 logger = logging.getLogger("vpinfe.common.online.themes")
 
@@ -27,8 +26,8 @@ class ThemeRegistry:
         self.serves_contract = serves_contract
         self.timeout = timeout
         self.client = ThemeRegistryClient(timeout=timeout)
-        self.themes_index: Dict[str, Any] = {}
-        self.themes: Dict[str, Any] = {}
+        self.themes_index: dict[str, Any] = {}
+        self.themes: dict[str, Any] = {}
 
         self.base_dir = str(CONFIG_DIR)
         self.themes_dir = os.path.join(self.base_dir, "themes")
@@ -282,7 +281,7 @@ class ThemeRegistry:
     # UPDATE & STATUS
     # =========================================================
 
-    def check_for_updates(self, theme_keys: list[str] | None = None) -> Dict[str, dict]:
+    def check_for_updates(self, theme_keys: list[str] | None = None) -> dict[str, dict]:
         if theme_keys is None:
             theme_keys = list(self.themes.keys())
 
@@ -337,7 +336,7 @@ class ThemeRegistry:
     # GETTERS
     # =========================================================
 
-    def get_themes(self) -> Dict[str, Any]:
+    def get_themes(self) -> dict[str, Any]:
         return self.themes
 
 
@@ -381,7 +380,7 @@ def main():
         installed_status = "Installed" if registry.is_installed(key) else "Not installed"
         folder_name = registry.get_installed_folder(key)
         logger.debug(" - %s (%s) -> folder: %s", key, installed_status, folder_name)
-             
+
     logger.info("Done.")
 
 

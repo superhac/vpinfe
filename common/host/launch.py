@@ -15,13 +15,17 @@ from __future__ import annotations
 import logging
 import os
 import platform
+import re
+import shlex
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 from common import events
 from common.config_access import SettingsConfig, VPinPlayConfig
 from common.games import game_play_service
+from common.games.game_metadata import vpinfe_section
 from common.games.tables import default_table, table_names
 from common.host import launch_state
 from common.host.vpx_log import delete_vpinball_log_on_start_if_configured
@@ -33,11 +37,8 @@ from common.online.vpinplay_runtime import (
     set_game_score,
 )
 from common.online.vpinplay_service import sync_single_game_meta
-import re
-import shlex
-from pathlib import Path
-from common.games.game_metadata import vpinfe_section
 from common.paths import PLUGIN_PROFILES_DIR
+
 logger = logging.getLogger("vpinfe.common.host.launch")
 
 # VPX writes this once the table is actually up. Before it, the process exists but

@@ -5,16 +5,16 @@ import threading
 import time
 from pathlib import Path
 
+from common import shutdown
+from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
+from common.host import system_actions
+from common.host.display_service import get_display_monitors
+from common.online.vpinplay_runtime import clear_alternate_profile
 from frontend import play_events
 from frontend.api import API
 from frontend.chromium_manager import ChromiumManager
 from frontend.custom_http_server import CustomHTTPServer
 from frontend.ws_bridge import WebSocketBridge
-from common import shutdown
-from common.host import system_actions
-from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
-from common.host.display_service import get_display_monitors
-from common.online.vpinplay_runtime import clear_alternate_profile
 
 
 def window_configs(iniconfig=None):

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
 
 from nicegui import events, run, ui
 
@@ -11,7 +11,7 @@ from managerui.services import game_service
 from managerui.ui_helpers import debounced_input
 
 logger = logging.getLogger("vpinfe.manager.games")
-_missing_games_dialog: Optional[ui.dialog] = None
+_missing_games_dialog: ui.dialog | None = None
 
 associate_vps_to_folder = game_service.associate_vps_to_folder
 search_vpsdb = game_service.search_vpsdb
@@ -23,7 +23,7 @@ def scan_missing_games():
 
 def open_missing_games_dialog(
     missing_rows: list[dict],
-    on_close: Optional[Callable[[], None]] = None,
+    on_close: Callable[[], None] | None = None,
     context: GameDialogContext | None = None,
 ):
     context = context or default_context()
@@ -33,8 +33,8 @@ def open_missing_games_dialog(
 
 def open_match_vps_dialog(
     missing_row: dict,
-    refresh_missing: Optional[Callable[[], None]] = None,
-    refresh_installed: Optional[Callable[[], None]] = None,
+    refresh_missing: Callable[[], None] | None = None,
+    refresh_installed: Callable[[], None] | None = None,
     context: GameDialogContext | None = None,
 ):
     context = context or default_context()
@@ -47,7 +47,7 @@ def open_match_vps_dialog(
     )
 
 
-def _render_missing_games_dialog(missing_rows: list[dict], on_close: Optional[Callable[[], None]] = None):
+def _render_missing_games_dialog(missing_rows: list[dict], on_close: Callable[[], None] | None = None):
     global _missing_games_dialog
     # Close any previous dialog to avoid stacking
     try:
@@ -98,8 +98,8 @@ def _render_missing_games_dialog(missing_rows: list[dict], on_close: Optional[Ca
 
 def _render_match_vps_dialog(
     missing_row: dict,
-    refresh_missing: Optional[Callable[[], None]] = None,
-    refresh_installed: Optional[Callable[[], None]] = None,
+    refresh_missing: Callable[[], None] | None = None,
+    refresh_installed: Callable[[], None] | None = None,
 ):
     """
     missing_row: {'folder': '<name>', 'path': '<abs path>'}
@@ -137,7 +137,7 @@ def _render_match_vps_dialog(
                 ui.spinner('dots', size='xl', color='blue')
                 loading_label = ui.label('Downloading media...').classes('text-white text-lg text-center')
 
-        def render_results(items: List[Dict]):
+        def render_results(items: list[dict]):
             results_container.clear()
             if not items:
                 with results_container:

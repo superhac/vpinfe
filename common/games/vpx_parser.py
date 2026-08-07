@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
-import argparse
 import csv
 import hashlib
-import json
 import logging
 import os
 import pathlib
 import re
-import struct
 import sys
 
 import olefile
@@ -263,7 +260,7 @@ class VPXParser:
         csvFile.close()
 
     def loadCSV(self, csvInFile):
-        with open(csvInFile, 'r', newline='') as f:
+        with open(csvInFile, newline='') as f:
             return list(csv.DictReader(f))
 
     # -------------------------------

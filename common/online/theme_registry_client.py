@@ -8,7 +8,6 @@ import requests
 
 from common.http_client import get_json
 
-
 logger = logging.getLogger("vpinfe.common.online.theme_registry_client")
 
 

@@ -4,7 +4,6 @@ import logging
 import threading
 from queue import Queue
 
-
 logger = logging.getLogger("vpinfe.frontend.metadata_build_service")
 
 

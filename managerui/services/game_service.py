@@ -4,19 +4,17 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from common import jobs
-from common.config_access import cfg_get, SettingsConfig
+from common.config_access import SettingsConfig, cfg_get
+from common.config_store import ConfigStore
 from common.games import game_repository, info_maintenance, metadata_service
-from common.games.game_metadata import section as meta_section
+from common.games.collection_store import CollectionStore
 from common.games.game_metadata import vpinfe_section
-from common.games.game_repository import get_game_rows, get_missing_games, refresh_game
+from common.games.game_repository import refresh_game
 from common.games.info_file import VPINFE_SECTION
 from common.games.tables import default_table, recorded_default, table_entries
-from common.games.collection_store import CollectionStore
 from common.games.vpx_parser import VPXParser
-from common.config_store import ConfigStore
 from common.paths import CONFIG_DIR
 from managerui.paths import COLLECTIONS_PATH, VPINFE_INI_PATH, get_games_path
 from managerui.services import game_index_service
@@ -24,7 +22,7 @@ from managerui.services import game_index_service
 logger = logging.getLogger("vpinfe.manager.game_service")
 
 VPSDB_JSON_PATH = VPINFE_INI_PATH.parent / "vpsdb.json"
-_vpsdb_cache: Optional[List[Dict]] = None
+_vpsdb_cache: list[dict] | None = None
 
 
 def _fresh_config() -> ConfigStore:
@@ -52,11 +50,11 @@ def ensure_vpsdb_downloaded() -> bool:
         return VPSDB_JSON_PATH.exists()
 
 
-def get_game_collections_map() -> Dict[str, List[str]]:
+def get_game_collections_map() -> dict[str, list[str]]:
     return game_repository.collections_by_game_id()
 
 
-def get_game_collections() -> List[str]:
+def get_game_collections() -> list[str]:
     result = []
     try:
         collections = CollectionStore(str(COLLECTIONS_PATH))
@@ -105,7 +103,7 @@ def update_user_setting(game_path: str, key: str, value) -> bool:
     return update_info_section(game_path, "User", key, value)
 
 
-def load_vpsdb() -> List[Dict]:
+def load_vpsdb() -> list[dict]:
     global _vpsdb_cache
     if _vpsdb_cache is not None:
         return _vpsdb_cache
@@ -121,7 +119,7 @@ def load_vpsdb() -> List[Dict]:
     return _vpsdb_cache
 
 
-def search_vpsdb(term: str, limit: int = 50) -> List[Dict]:
+def search_vpsdb(term: str, limit: int = 50) -> list[dict]:
     term = (term or "").strip().lower()
     if not term:
         return []
@@ -158,7 +156,7 @@ def _find_vpx_file(game_dir: Path, preferred_filename: str = "") -> Path:
     return game_dir / chosen
 
 
-def _find_directb2s_file(game_dir: Path, preferred_stem: str = "") -> Optional[Path]:
+def _find_directb2s_file(game_dir: Path, preferred_stem: str = "") -> Path | None:
     b2s_files = sorted(path for path in game_dir.iterdir() if path.is_file() and path.suffix.lower() == ".directb2s")
     if not b2s_files:
         return None
@@ -171,7 +169,7 @@ def _find_directb2s_file(game_dir: Path, preferred_stem: str = "") -> Optional[P
     return b2s_files[0]
 
 
-def _find_ini_file(game_dir: Path, preferred_stem: str = "") -> Optional[Path]:
+def _find_ini_file(game_dir: Path, preferred_stem: str = "") -> Path | None:
     ini_files = sorted(path for path in game_dir.iterdir() if path.is_file() and path.suffix.lower() == ".ini")
     if not ini_files:
         return None
@@ -191,7 +189,7 @@ def _write_replace(dest_file: Path, content: bytes) -> None:
     os.replace(tmp_file, dest_file)
 
 
-def replace_table(game_path: str, filename: str, content: bytes, file_type: str, current_vpx_filename: str = "") -> Dict[str, str]:
+def replace_table(game_path: str, filename: str, content: bytes, file_type: str, current_vpx_filename: str = "") -> dict[str, str]:
     game_dir = Path(game_path).expanduser()
     if not game_dir.exists() or not game_dir.is_dir():
         raise FileNotFoundError(f"Table folder not found: {game_dir}")
@@ -264,7 +262,7 @@ def replace_table(game_path: str, filename: str, content: bytes, file_type: str,
 
 def associate_vps_to_folder(
     game_folder: Path,
-    vps_entry: Dict,
+    vps_entry: dict,
     download_media: bool = False,
 ) -> None:
     from common.games.info_file import MetaConfig
@@ -319,11 +317,11 @@ def associate_vps_to_folder(
     refresh_game(str(game_folder))
 
 
-def scan_game_rows(reload: bool = False) -> List[Dict]:
+def scan_game_rows(reload: bool = False) -> list[dict]:
     return game_index_service.scan_rows(reload=reload)
 
 
-def scan_missing_game_rows(reload: bool = False) -> List[Dict]:
+def scan_missing_game_rows(reload: bool = False) -> list[dict]:
     return game_index_service.scan_missing_rows(reload=reload)
 
 

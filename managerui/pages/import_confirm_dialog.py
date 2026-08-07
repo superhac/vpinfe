@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from pathlib import Path
-from typing import Callable
-
+from collections.abc import Callable
 from functools import partial
+from pathlib import Path
 
 from nicegui import context, run, ui
 

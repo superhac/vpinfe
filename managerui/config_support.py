@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
-import re
 from pathlib import Path
 
 from screeninfo import get_monitors

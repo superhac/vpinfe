@@ -61,7 +61,7 @@ class ThemeInstallStore:
 
         manifest_path = os.path.join(self.themes_dir, folder_name, "manifest.json")
         if os.path.exists(manifest_path):
-            with open(manifest_path, "r", encoding="utf-8") as handle:
+            with open(manifest_path, encoding="utf-8") as handle:
                 data = json.load(handle)
                 return data.get("version")
         return None

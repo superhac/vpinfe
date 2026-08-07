@@ -28,7 +28,11 @@ from managerui.services.asset_import_service import (
     vps_folder_name,
 )
 from managerui.services.asset_registry import spec_for
-from managerui.services.upload_session_service import UnknownSession, UnsafePath, UploadTooLarge
+from managerui.services.upload_session_service import (
+    UnknownSessionError,
+    UnsafePathError,
+    UploadTooLargeError,
+)
 
 from . import models, scopes
 from .auth import requires
@@ -91,7 +95,7 @@ def _plan_to_dict(plan: ImportPlan) -> dict:
 def _session_dir(upload_id: str):
     try:
         return upload_session_service.get_session_dir(upload_id)
-    except UnknownSession as exc:
+    except UnknownSessionError as exc:
         raise NotFoundError(str(exc)) from exc
 
 
@@ -122,7 +126,7 @@ def begin_upload() -> models.UploadBegun:
 def get_upload(upload_id: str) -> models.UploadSummary:
     try:
         return upload_session_service.finish_session(upload_id)
-    except UnknownSession as exc:
+    except UnknownSessionError as exc:
         raise NotFoundError(str(exc)) from exc
 
 
@@ -140,11 +144,11 @@ async def add_upload_file(upload_id: str, relpath: str = Form(...),
     try:
         written = await run_in_threadpool(
             upload_session_service.store_file, upload_id, relpath, file.file)
-    except UploadTooLarge as exc:
+    except UploadTooLargeError as exc:
         raise ApiError("payload_too_large", str(exc), status_code=413) from exc
-    except UnknownSession as exc:
+    except UnknownSessionError as exc:
         raise NotFoundError(str(exc)) from exc
-    except UnsafePath as exc:
+    except UnsafePathError as exc:
         raise InvalidRequestError(str(exc)) from exc
     return {"bytes": written}
 

@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import shutil
-from typing import Dict, List, Optional
 
 from nicegui import app, context, events, run, ui
 
@@ -128,7 +127,7 @@ def render_panel():
             ]
             return apply_game_filters(_media_cache() or [], filter_state, extra_predicates=missing_predicates)
 
-        def _visible_rows(rows: List[Dict]) -> List[Dict]:
+        def _visible_rows(rows: list[dict]) -> list[dict]:
             try:
                 page = int(pagination_state.get('page', 1) or 1)
                 rows_per_page = int(pagination_state.get('rowsPerPage', 25) or 25)
@@ -140,7 +139,7 @@ def render_panel():
             start = max(0, (page - 1) * rows_per_page)
             return rows[start:start + rows_per_page]
 
-        def _store_pagination(pagination: Optional[Dict]) -> None:
+        def _store_pagination(pagination: dict | None) -> None:
             if not isinstance(pagination, dict):
                 return
             try:
@@ -158,7 +157,7 @@ def render_panel():
             if 'descending' in pagination:
                 pagination_state['descending'] = bool(pagination.get('descending'))
 
-        async def warm_visible_thumbnails(rows: List[Dict]) -> None:
+        async def warm_visible_thumbnails(rows: list[dict]) -> None:
             try:
                 if not is_page_active():
                     return
@@ -202,7 +201,7 @@ def render_panel():
                 sem = asyncio.Semaphore(4)
                 current_pagination = dict(media_table._props.get('pagination', {}))
 
-                async def _build_one(row: Dict, media_key: str, source_path: str):
+                async def _build_one(row: dict, media_key: str, source_path: str):
                     changed = False
                     try:
                         async with sem:
@@ -543,7 +542,7 @@ def render_panel():
             MEDIA_KEY_TO_LABEL = {key: label for key, label, _ in MEDIA_TYPES}
 
             # Custom slot for each media type column to show thumbnail or missing indicator
-            for media_key, media_label, media_filename in MEDIA_TYPES:
+            for media_key, _media_label, media_filename in MEDIA_TYPES:
                 col_name = media_key
                 if media_key == 'table':
                     col_name = 'game_img'

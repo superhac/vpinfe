@@ -1,3 +1,10 @@
+"""Where the Manager UI's files live.
+
+Most of these are `common.paths` re-exported, so a page imports one path module rather
+than choosing between two. `__all__` is what says so: without it the re-exports read as
+unused imports, and deleting them takes twenty importers down with them.
+"""
+
 from __future__ import annotations
 
 import os
@@ -5,6 +12,15 @@ from pathlib import Path
 
 from common.paths import COLLECTIONS_PATH, CONFIG_DIR, THEMES_DIR, VPINFE_INI_PATH, get_ini_config
 
+__all__ = [
+    "COLLECTIONS_PATH",
+    "CONFIG_DIR",
+    "MANAGER_STATIC_DIR",
+    "THEMES_DIR",
+    "VPINFE_INI_PATH",
+    "get_games_path",
+    "get_ini_config",
+]
 
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 

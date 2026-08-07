@@ -4,9 +4,10 @@ import logging
 import threading
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from common import events
+from common.games.collection_store import CollectionStore
 from common.games.game_identity import ensure_unique_ids
 from common.games.game_identity import game_id as vpinfe_id
 from common.games.game_metadata import (
@@ -20,15 +21,14 @@ from common.games.game_metadata import (
 )
 from common.games.game_parser import GameParser
 from common.games.info_migration import INFO_SCHEMA, schema_of
-from common.games.collection_store import CollectionStore
 from common.paths import COLLECTIONS_PATH, get_games_path, get_ini_config
 
 _LOCK = threading.Lock()
-_PARSER: Optional[GameParser] = None
+_PARSER: GameParser | None = None
 logger = logging.getLogger("vpinfe.common.games.game_repository")
 
 
-def ensure_games_loaded(reload: bool = False) -> List[Any]:
+def ensure_games_loaded(reload: bool = False) -> list[Any]:
     global _PARSER
     started_at = perf_counter()
     with _LOCK:
@@ -67,11 +67,11 @@ def games_under(games_root: str, config=None) -> list[Any]:
     return list(GameParser(wanted, config or get_ini_config()).getAllGames())
 
 
-def refresh_games() -> List[Any]:
+def refresh_games() -> list[Any]:
     return ensure_games_loaded(reload=True)
 
 
-def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
+def info_maintenance_counts(reload: bool = False) -> dict[str, int]:
     """How many games could be upgraded, and how many have something to restore.
 
     Off the loaded library, which already read every .info and listed every folder.
@@ -88,7 +88,7 @@ def info_maintenance_counts(reload: bool = False) -> Dict[str, int]:
     }
 
 
-def unreadable_games() -> List[Dict[str, str]]:
+def unreadable_games() -> list[dict[str, str]]:
     """Folders whose .info could not be read, so the game was left out of the library."""
     ensure_games_loaded()
     with _LOCK:
@@ -97,7 +97,7 @@ def unreadable_games() -> List[Dict[str, str]]:
         return [dict(row) for row in _PARSER.getUnreadableGames()]
 
 
-def pending_upgrade_game_names() -> List[str]:
+def pending_upgrade_game_names() -> list[str]:
     """Folders whose .info the upgrade did not reach, for the list its dialog shows."""
     return sorted(
         (t.gameDirName for t in ensure_games_loaded()
@@ -113,7 +113,7 @@ def newest_backup_stamp() -> str:
     return max(stamps) if stamps else ""
 
 
-def restorable_game_names() -> List[str]:
+def restorable_game_names() -> list[str]:
     """Folders holding a saved copy of their .info, for the list a restore dialog shows."""
     return sorted(
         (t.gameDirName for t in ensure_games_loaded() if getattr(t, "info_restorable", False)),
@@ -121,7 +121,7 @@ def restorable_game_names() -> List[str]:
     )
 
 
-def refresh_game(game_path: str) -> List[Any]:
+def refresh_game(game_path: str) -> list[Any]:
     """Re-read one game folder, not the library.
 
     The whole-library reload this used to do is why setting a star rating on a big
@@ -149,7 +149,7 @@ def refresh_game(game_path: str) -> List[Any]:
     return found
 
 
-def get_missing_games(reload: bool = False) -> List[Dict[str, str]]:
+def get_missing_games(reload: bool = False) -> list[dict[str, str]]:
     ensure_games_loaded(reload=reload)
     with _LOCK:
         if _PARSER is None:
@@ -157,13 +157,13 @@ def get_missing_games(reload: bool = False) -> List[Dict[str, str]]:
         return [dict(row) for row in _PARSER.getMissingGames()]
 
 
-def collections_by_game_id() -> Dict[str, List[str]]:
+def collections_by_game_id() -> dict[str, list[str]]:
     """Collection names keyed by the game id membership is recorded under.
 
     Only explicit-membership collections. A filter collection has no member list to
     key on - what belongs to it is decided per game when it is displayed.
     """
-    mapping: Dict[str, List[str]] = {}
+    mapping: dict[str, list[str]] = {}
     try:
         collections = CollectionStore(str(COLLECTIONS_PATH))
         for collection_name in collections.get_collections_name():
@@ -179,9 +179,8 @@ def collections_by_game_id() -> Dict[str, List[str]]:
     return mapping
 
 
-def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) -> Dict[str, Any]:
+def game_to_row(game, collections_map: dict[str, list[str]] | None = None) -> dict[str, Any]:
     meta = game.meta_config or {}
-    info = section(meta, "Info")
     user = section(meta, "User")
     vpinfe = vpinfe_section(meta)
     game_name = Path(game.fullPathGame).name
@@ -250,7 +249,7 @@ def game_to_row(game, collections_map: Optional[Dict[str, List[str]]] = None) ->
     return row
 
 
-def _collections_for(row: Dict[str, Any], collections_map: Dict[str, List[str]]) -> List[str]:
+def _collections_for(row: dict[str, Any], collections_map: dict[str, list[str]]) -> list[str]:
     """Which collections a row belongs to, tolerating entries not yet migrated.
 
     Matches CollectionStore.is_member. The migration leaves an entry alone when no
@@ -264,7 +263,7 @@ def _collections_for(row: Dict[str, Any], collections_map: Dict[str, List[str]])
     return []
 
 
-def get_game_rows(reload: bool = False) -> List[Dict[str, Any]]:
+def get_game_rows(reload: bool = False) -> list[dict[str, Any]]:
     # A row is addressed by its game id, so every row has to have one - a game
     # imported since startup would otherwise carry an empty id and collide with
     # every other game that has none. Already-assigned libraries pay nothing:
@@ -276,7 +275,7 @@ def get_game_rows(reload: bool = False) -> List[Dict[str, Any]]:
     return rows
 
 
-def get_game_name_map(reload: bool = False) -> Dict[str, str]:
+def get_game_name_map(reload: bool = False) -> dict[str, str]:
     """Display names keyed by game id, for showing what is in a collection."""
     return {
         row["vpinfe_id"]: row.get("name") or row["vpinfe_id"]

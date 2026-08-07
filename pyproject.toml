@@ -16,12 +16,21 @@ select = ["E", "W", "F", "I", "N", "UP", "B"]
 # files import after executing statements on purpose.
 "main.py" = ["E402"]
 "managerui/managerui.py" = ["E402"]
-"managerui/pages/remote.py" = ["E402"]
+# handle_button is a nested match over button names, every arm a single call. All 42 of
+# the tree's E701s are those arms, and splitting them doubles the block's length to say
+# the same thing - the one-line form is what makes it read as the dispatch table it is.
+"managerui/pages/remote.py" = ["E402", "E701"]
 # score_parser reads roms.json and the config paths at import, so the test has to seed
 # them first. It is the only test that does; the rest of tests/ imports normally.
 "tests/games/test_score_parser.py" = ["E402"]
 # Tab-indented throughout; converting it is a diff of its own.
 "common/config_store.py" = ["W191", "E101"]
+# NiceGUI builds a widget by chaining .classes()/.props() with Tailwind strings, and a
+# page is hundreds of them. 866 of the tree's 1047 long lines are here, and wrapping
+# them splits one widget across four lines without making it read better. Three of the
+# 21 page modules have any test coverage, so a reflow is also unverifiable. Deliberately
+# scoped to the pages rather than tree-wide: the limit still applies everywhere else.
+"managerui/pages/*.py" = ["E501"]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI's whole DI design is calls in argument defaults - Depends(), Query(),

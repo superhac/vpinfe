@@ -6,7 +6,6 @@ from pathlib import Path
 
 from common.config_access import SettingsConfig
 
-
 logger = logging.getLogger("vpinfe.common.host.vpx_log")
 
 VPINBALL_LOG_FILENAME = "vpinball.log"

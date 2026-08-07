@@ -1,18 +1,23 @@
 import asyncio
-import json
 import logging
 import os
 from pathlib import Path
 from queue import Queue
-from typing import Callable, Dict, List, Optional
 
 from nicegui import context, events, run, ui
 
+from common.config_store import ConfigStore
+from common.games.game_metadata import (
+    default_table,
+    reorder_leading_article,
+    vpinfe_section,
+)
+from common.games.info_file import VPINFE_SECTION
 from managerui.filters import apply_game_filters, build_game_filter_options
 from managerui.pages.dnd_drop_zone import DropContext, create_drop_zone, enable_row_drops
 from managerui.pages.game_detail_dialog import open_game_dialog
 from managerui.pages.game_import_dialog import open_import_game_dialog
-from managerui.pages.game_match_dialog import open_match_vps_dialog, open_missing_games_dialog
+from managerui.pages.game_match_dialog import open_missing_games_dialog
 from managerui.pages.info_maintenance_dialogs import maintenance_menu, render_info_banners
 from managerui.paths import VPINFE_INI_PATH
 from managerui.paths import get_games_path as resolve_games_path
@@ -22,19 +27,12 @@ from managerui.ui_helpers import debounced_input, dialog_card, load_page_style
 
 VPSDB_JSON_PATH = game_service.VPSDB_JSON_PATH
 
-# Load vpinfe.ini once to avoid repeated parsing
-from common.games.game_metadata import (
-    default_table,
-    reorder_leading_article,
-    vpinfe_section,
-)
-from common.games.info_file import VPINFE_SECTION
-from common.config_store import ConfigStore
-
+# Read once at import rather than per page build: parsing it on every render showed up
+# as a stall on a big library.
 _INI_CFG = ConfigStore(str(VPINFE_INI_PATH))
 
 #_vpsdb_cache: List[Dict] | None = None
-_vpsdb_cache: Optional[List[Dict]] = None
+_vpsdb_cache: list[dict] | None = None
 
 def ensure_vpsdb_downloaded() -> bool:
     """
@@ -47,13 +45,13 @@ def ensure_vpsdb_downloaded() -> bool:
     _vpsdb_cache = None
     return ok
 # Ensure only one missing-games dialog at a time
-_missing_games_dialog: Optional[ui.dialog] = None
+_missing_games_dialog: ui.dialog | None = None
 # Cache compatibility helpers. Ownership lives in game_index_service.
-def _games_cache() -> Optional[List[Dict]]:
+def _games_cache() -> list[dict] | None:
     return game_index_service.get_rows()
 
 
-def _missing_cache() -> Optional[List[Dict]]:
+def _missing_cache() -> list[dict] | None:
     return game_index_service.get_missing_rows()
 
 
@@ -62,12 +60,12 @@ def normalize_game_rating(value) -> int:
     return game_service.normalize_game_rating(value)
 
 
-def get_game_collections_map() -> Dict[str, List[str]]:
+def get_game_collections_map() -> dict[str, list[str]]:
     """Collection names keyed by game id, for collections with explicit members."""
     return game_service.get_game_collections_map()
 
 
-def get_game_collections() -> List[str]:
+def get_game_collections() -> list[str]:
     """Names of the collections a game can be added to by hand."""
     return game_service.get_game_collections()
 
@@ -112,12 +110,12 @@ def update_user_setting(game_path: str, key: str, value) -> bool:
     return game_service.update_user_setting(game_path, key, value)
 
 
-def load_vpsdb() -> List[Dict]:
+def load_vpsdb() -> list[dict]:
     global _vpsdb_cache
     _vpsdb_cache = game_service.load_vpsdb()
     return _vpsdb_cache
 
-def search_vpsdb(term: str, limit: int = 50) -> List[Dict]:
+def search_vpsdb(term: str, limit: int = 50) -> list[dict]:
     return game_service.search_vpsdb(term, limit)
 
 ACCEPT_CRZ = ['.crz', '.cRZ', '.CRZ']  # altcolor accepted extensions (case-insensitive)
@@ -132,7 +130,7 @@ def save_upload_bytes(dest_file: Path, content: bytes) -> None:
 
 # --- helper to create a .info file with a chosen VPS record for one folder ---
 
-def associate_vps_to_folder(game_folder: Path, vps_entry: Dict, download_media: bool = False) -> None:
+def associate_vps_to_folder(game_folder: Path, vps_entry: dict, download_media: bool = False) -> None:
     """
     Creates a `.info` file inside `game_folder` using the selected vps_entry and the VPX metadata.
     """
@@ -150,7 +148,7 @@ def parse_game_info(info_path):
     import os
 
     try:
-        with open(info_path, "r", encoding="utf-8") as f:
+        with open(info_path, encoding="utf-8") as f:
             raw = json.load(f)
 
         game_dir = os.path.dirname(info_path)
@@ -644,7 +642,6 @@ def render_panel(tab=None):
 
         # Use cached data if available, otherwise start with empty
         initial_rows = _games_cache() if _games_cache() is not None else []
-        initial_missing = _missing_cache() if _missing_cache() is not None else []
 
         # --- Filter state and functions ---
         filter_state = {

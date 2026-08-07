@@ -268,7 +268,7 @@ def build_app(page_param: str = '', dialog_param: str = ''):
             nav_panel.classes(add='nav-panel-collapsed')
             nav_state['nav_content'].classes(add='nav-collapsed')
             nav_state['remote_container'].classes(add='nav-collapsed')
-            ui.query('body').classes(add='nav-is-collapsed') 
+            ui.query('body').classes(add='nav-is-collapsed')
             nav_state['nav_label'].set_visibility(False)
             content_container.classes(add='nav-collapsed-content', remove='nav-expanded')
 

@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, List
 
 from common.games.info_file import VPINFE_SECTION
 from managerui.services import game_index_service
 
 
-def scan_mobile_games(reload: bool = False) -> List[Dict]:
+def scan_mobile_games(reload: bool = False) -> list[dict]:
     """Return the compact game shape used by the mobile transfer page."""
     games = []
     for row in game_index_service.scan_rows(reload=reload):
@@ -23,7 +22,7 @@ def scan_mobile_games(reload: bool = False) -> List[Dict]:
     return games
 
 
-def build_mobile_game_rows(games: List[Dict]) -> List[Dict]:
+def build_mobile_game_rows(games: list[dict]) -> list[dict]:
     """Build mobile page display rows from scanned games."""
     rows = []
     for game in games:
@@ -38,7 +37,7 @@ def build_mobile_game_rows(games: List[Dict]) -> List[Dict]:
     return rows
 
 
-def scan_launchable_games(games_path: str | None = None) -> List[Dict]:
+def scan_launchable_games(games_path: str | None = None) -> list[dict]:
     """Return launchable game rows from the shared game index."""
     games = []
     for row in game_index_service.scan_rows(reload=False):

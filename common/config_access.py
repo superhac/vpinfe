@@ -51,16 +51,20 @@ def cfg_get(source, section: str, key: str, fallback: str = "") -> str:
     `game_root_dir`. Nothing had to be renamed at 143 call sites in one commit.
     """
     parser = _parser(source)
-    for section, name in _candidates(section, key):
+    # Each candidate is its own (section, key) pair - a key that moved sections has both
+    # spellings in the list. Named apart from the arguments because reusing `section`
+    # for the loop meant the parameter was gone after the first pass, and only the fact
+    # that _candidates had already read it kept that working.
+    for candidate_section, candidate_key in _candidates(section, key):
         try:
-            if parser.has_option(section, name):
-                return str(parser.get(section, name, fallback=fallback))
+            if parser.has_option(candidate_section, candidate_key):
+                return str(parser.get(candidate_section, candidate_key, fallback=fallback))
         except Exception:
             pass
         try:
-            values = parser[section]
-            if name in values:
-                return str(values.get(name, fallback))
+            values = parser[candidate_section]
+            if candidate_key in values:
+                return str(values.get(candidate_key, fallback))
         except Exception:
             pass
     return fallback
@@ -140,7 +144,7 @@ class SettingsConfig:
     restore_last_game: bool = True
 
     @classmethod
-    def from_config(cls, source: Any) -> "SettingsConfig":
+    def from_config(cls, source: Any) -> SettingsConfig:
         theme = cfg_get(source, "Settings", "theme", "Revolution").strip() or "Revolution"
         return cls(
             game_root_dir=cfg_get(source, "Settings", "gamerootdir", "").strip(),
@@ -178,7 +182,7 @@ class MediaConfig:
     wheelset: str = ""
 
     @classmethod
-    def from_config(cls, source: Any) -> "MediaConfig":
+    def from_config(cls, source: Any) -> MediaConfig:
         return cls(
             wheelset=cfg_get(source, "Media", "wheelset", "").strip(),
             playfield_variant=(cfg_get(source, "Media", "playfieldvariant", "table").strip().lower()
@@ -230,7 +234,7 @@ class NetworkConfig:
     theme_assets_port: int = 8000
 
     @classmethod
-    def from_config(cls, source: Any) -> "NetworkConfig":
+    def from_config(cls, source: Any) -> NetworkConfig:
         return cls(
             ws_port=cfg_int(source, "Network", "wsport", 8002),
             manager_ui_port=cfg_int(source, "Network", "manageruiport", 8001),
@@ -318,7 +322,7 @@ class DisplayConfig:
     extra_screen_ids: dict = field(default_factory=dict)
 
     @classmethod
-    def from_config(cls, source: Any) -> "DisplayConfig":
+    def from_config(cls, source: Any) -> DisplayConfig:
         playfield_screen_id_raw = cfg_get(source, "Displays", "playfieldscreenid", "0").strip()
         return cls(
             playfield_screen_id=cfg_int(source, "Displays", "playfieldscreenid", 0),
@@ -365,7 +369,7 @@ class VPinPlayConfig:
     sync_on_exit: bool = False
 
     @classmethod
-    def from_config(cls, source: Any) -> "VPinPlayConfig":
+    def from_config(cls, source: Any) -> VPinPlayConfig:
         return cls(
             api_endpoint=cfg_get(source, "vpinplay", "apiendpoint", "").strip(),
             user_id=cfg_get(source, "vpinplay", "userid", "").strip(),

@@ -13,10 +13,10 @@ category_select = None
 
 # Config for launching games
 # Import config
+from common.config_store import ConfigStore
 from common.games import game_identity
 from common.games.game_repository import ensure_games_loaded
 from common.host import launch, launch_state
-from common.config_store import ConfigStore
 from managerui.ui_helpers import debounced_input, load_page_style
 
 _INI_CFG = None

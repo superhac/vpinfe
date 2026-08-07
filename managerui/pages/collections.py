@@ -1,5 +1,4 @@
 import logging
-from typing import Dict, List
 
 from nicegui import app, events, run, ui
 
@@ -15,17 +14,17 @@ def get_collections_manager():
     return collection_admin.get_collections_manager()
 
 
-def get_game_name_map() -> Dict[str, str]:
+def get_game_name_map() -> dict[str, str]:
     """Game names keyed by game id, for showing what is in a collection."""
     return collection_admin.get_game_name_map()
 
 
-def member_to_name(member_id: str, game_map: Dict[str, str] = None) -> str:
+def member_to_name(member_id: str, game_map: dict[str, str] = None) -> str:
     """Name of a collection member, or the raw id when no game matches."""
     return collection_admin.member_to_name(member_id, game_map)
 
 
-def get_filter_options() -> Dict[str, List[str]]:
+def get_filter_options() -> dict[str, list[str]]:
     """Get filter options (letters, themes, types, manufacturers, years, ratings) from VPSDB."""
     return collection_admin.get_filter_options()
 
@@ -234,7 +233,7 @@ def render_panel(tab=None):
             """Show dialog to rename a collection."""
             dlg = ui.dialog()
             with dlg, ui.card().classes('p-4 w-[400px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
-                ui.label(f'Rename Collection').classes('text-lg font-bold text-white')
+                ui.label('Rename Collection').classes('text-lg font-bold text-white')
                 ui.label(f'Current name: {name}').classes('text-sm text-gray-400 mt-2')
 
                 new_name_input = ui.input('New Name', value=name).classes('w-full mt-4')

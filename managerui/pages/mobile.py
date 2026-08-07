@@ -9,12 +9,11 @@ from pathlib import Path
 
 from nicegui import run, ui
 
-from common.config_access import cfg_get
+from common.config_access import cfg_get, cfg_set
 from common.config_store import ConfigStore
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH, get_games_path
+from managerui.paths import VPINFE_INI_PATH, get_games_path
 from managerui.services import game_catalog
 from managerui.ui_helpers import load_page_style
-from common.config_access import cfg_set
 
 logger = logging.getLogger("vpinfe.manager.mobile")
 
@@ -82,7 +81,9 @@ def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=Non
                 'Content-Length': str(len(data)),
             })
             resp = conn.getresponse()
-            body = resp.read()
+            # Drained, not read for content: the body has to come off the socket before
+            # the connection can be handed back for the next request.
+            resp.read()
             if own_conn:
                 conn.close()
             if resp.status >= 400:
@@ -137,7 +138,6 @@ def _send_game_to_device(
     masked_ini_name_for_copy = ''
     default_ini_name_for_copy = ''
     masked_ini_exists_for_copy = False
-    primary_vpx_base_name = ''
     if copy_masked_tableini_as_default:
         mask = str(masked_tableini_mask or '').strip()
         if mask.lower().endswith('.ini'):
@@ -151,7 +151,6 @@ def _send_game_to_device(
             root_vpx_files = sorted([f for f in root_entries if f.lower().endswith('.vpx')])
             if root_vpx_files:
                 base_name = os.path.splitext(root_vpx_files[0])[0]
-                primary_vpx_base_name = base_name
                 expected_masked_ini_name = f'{base_name}.{mask}.ini'
                 default_ini_name_for_copy = f'{base_name}.ini'
                 entries_by_lower = {entry.lower(): entry for entry in root_entries}
@@ -162,16 +161,6 @@ def _send_game_to_device(
                 masked_ini_exists_for_copy = os.path.isfile(
                     os.path.join(game_path, masked_ini_name_for_copy)
                 )
-    else:
-        # When the mobile rename-mask option is disabled, prefer the default
-        # table ini and avoid sending masked table ini variants.
-        try:
-            root_entries = os.listdir(game_path)
-        except Exception:
-            root_entries = []
-        root_vpx_files = sorted([f for f in root_entries if f.lower().endswith('.vpx')])
-        if root_vpx_files:
-            primary_vpx_base_name = os.path.splitext(root_vpx_files[0])[0]
 
     # The standalone bundle for the game's default table - the same answer the VPXZ
     # download gives. Whole-folder export is API-only, under its own scope.
@@ -202,7 +191,7 @@ def _send_game_to_device(
 
     # Collect all files first to calculate total count
     all_files = []
-    for dirpath, dirnames, filenames in os.walk(game_path):
+    for dirpath, _dirnames, filenames in os.walk(game_path):
         filenames = [f for f in filenames if _in_bundle(dirpath, f)]
         rel_dir = os.path.relpath(dirpath, games_path)
 
@@ -346,7 +335,6 @@ def _send_game_to_device(
                 with open(full_path, 'rb') as f:
                     offset = 0
                     chunk_num = 0
-                    total_chunks = (file_size + CHUNK_SIZE - 1) // CHUNK_SIZE
                     while offset < file_size:
                         chunk = f.read(CHUNK_SIZE)
                         if not chunk:
@@ -535,7 +523,7 @@ def _build_web_send_panel():
             ip_input = ui.input('IP Address', value=saved_ip, on_change=_save_ip).props('dark outlined dense').classes('flex-grow')
             port_input = ui.input('Port', value=saved_port, on_change=_save_port).props('dark outlined dense').style('max-width: 100px;')
             chunk_input = ui.input('Chunk Size (bytes)', value=saved_chunk, on_change=_save_chunk).props('dark outlined dense').style('max-width: 160px;')
-            check_btn = ui.button('Check Device', icon='sync', on_click=lambda: check_device()) \
+            ui.button('Check Device', icon='sync', on_click=lambda: check_device()) \
                 .props('dense outline').style('color: var(--ink) !important;')
 
     # Send Options
@@ -563,7 +551,7 @@ def _build_web_send_panel():
         filter_toggle = ui.button('Show Installed Only', icon='filter_list',
                                   on_click=lambda: toggle_filter()) \
             .props('dense outline').style('color: var(--ink) !important;')
-        send_selected_btn = ui.button('Send Selected', icon='send',
+        ui.button('Send Selected', icon='send',
                                       on_click=lambda: batch_send()) \
             .props('dense').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
 

@@ -8,7 +8,6 @@ from typing import Any
 
 from common.host import dof_service as dof_parent
 
-
 logger = logging.getLogger("vpinfe.common.host.dof_service_worker")
 
 

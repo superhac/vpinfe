@@ -1,18 +1,18 @@
 import logging
 import os
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from time import perf_counter
 
 from common.config_access import MediaConfig
 from common.games.game import Game
-from common.games.game_metadata import section, vpinfe_section
+from common.games.game_metadata import vpinfe_section
+from common.games.info_file import InvalidMetaConfigError, MetaConfig
 from common.games.info_migration import (
     BACKUP_MARKER,
     backup_names,
     restorable_backup,
 )
-from common.games.info_file import InvalidMetaConfigError, MetaConfig
 from common.games.tables import (
     default_table,
     recorded_default,

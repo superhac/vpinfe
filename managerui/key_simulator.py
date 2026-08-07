@@ -1,16 +1,17 @@
-from common.config_access import cfg_get
-from pynput.keyboard import Key
 import logging
-import time
+import os
 import re
 import shutil
 import subprocess
-import os
+import sys
+import time
 from pathlib import Path
+
+from pynput.keyboard import Key
+
+from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from managerui.paths import VPINFE_INI_PATH
-import sys
-
 
 logger = logging.getLogger("vpinfe.manager.keysimulator")
 
@@ -214,7 +215,7 @@ class KeySimulator:
         68: "f11",
         69: "f12",
 
-        # Navigation        
+        # Navigation
         74: "home",
         75: "page_up",
         76: "delete",

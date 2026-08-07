@@ -4,11 +4,11 @@ import logging
 import os
 
 from common.config_access import SettingsConfig
+from common.config_store import ConfigStore
 from common.games.game_repository import games_under
 from common.games.info_file import MetaConfig
 from common.games.standalone_scripts import StandaloneScripts
 from common.games.vpx_parser import VPXParser
-from common.config_store import ConfigStore
 from common.jobs import JobReporter
 from common.online.vpsdb import VPSdb
 from common.paths import get_ini_config

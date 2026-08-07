@@ -1632,9 +1632,9 @@ def read_rom_with_source(
 ) -> tuple[int | list[ParsedEntry], str]:
     resolved_filename = resolve_score_input_path(rom_name, source_path)
     return read_rom(rom_name, resolved_filename, settings), resolved_filename
-    
+
 if __name__ == "__main__":
-    rom_files = {       
+    rom_files = {
         "twenty4_150": "/home/superhac/tables/24 (Stern 2009)",
         "ww_lh6": "/home/superhac/tables/White Water (Williams 1993)",
         "dvlsdre": "/home/superhac/tables/Devils Dare (Gottlieb 1982)",
@@ -1697,4 +1697,4 @@ if __name__ == "__main__":
         print()
         print(json.dumps(result_to_jsonable(rom_name, result, resolved_path), indent=2))
         print()
-        
+

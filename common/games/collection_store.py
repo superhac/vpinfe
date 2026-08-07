@@ -14,12 +14,12 @@ from common.games.game_metadata import (
     section,
     vpinfe_section,
 )
+from common.games.info_file import VPINFE_SECTION
 from common.games.info_migration import (
     backup_names,
     copy_aside,
     write_atomic,
 )
-from common.games.info_file import VPINFE_SECTION
 
 logger = logging.getLogger("vpinfe.common.games.collection_store")
 

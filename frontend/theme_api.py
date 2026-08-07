@@ -9,7 +9,6 @@ from common import theme_options
 from common.config_access import NetworkConfig, SettingsConfig
 from common.paths import THEMES_DIR
 
-
 logger = logging.getLogger("vpinfe.frontend.theme_api")
 
 

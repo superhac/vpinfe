@@ -97,8 +97,8 @@ from starlette.responses import Response
 import httpapi
 from cli_options import parseArgs
 from frontend import lifecycle_wiring, runtime
-from managerui.services import app_control
 from managerui.managerui import _shutdown_event, set_first_run, start_manager_ui, stop_manager_ui
+from managerui.services import app_control
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
 

@@ -14,7 +14,6 @@ from common.online.vpinplay_runtime import (
     validate_profile_payload,
 )
 
-
 _PAYLOAD_COMMENT_RE = re.compile(r"<!--\s*VPINPLAY_PAYLOAD:(.*?)-->", re.DOTALL)
 
 

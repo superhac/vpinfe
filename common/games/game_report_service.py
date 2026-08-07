@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 
 from common.config_access import SettingsConfig
-from common.games.game_repository import games_under
 from common.config_store import ConfigStore
+from common.games.game_repository import games_under
 from common.online.vpsdb import VPSdb
 from common.paths import get_ini_config
 

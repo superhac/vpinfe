@@ -5,7 +5,6 @@ import io
 import logging
 import zipfile
 from pathlib import Path
-from typing import Dict, List
 
 from nicegui import context, events, run, ui
 
@@ -64,7 +63,7 @@ def open_import_game_dialog(perform_scan_cb=None):
 
                     results_container = ui.column().classes('gap-1 w-full q-mt-sm').style('max-height: 55vh; overflow: auto;')
 
-                    def render_results(items: List[Dict]):
+                    def render_results(items: list[dict]):
                         results_container.clear()
                         if not items:
                             with results_container:

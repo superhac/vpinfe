@@ -4,12 +4,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from common.config_store import ConfigStore
 from common import theme_options
-from common.online.themes import ThemeRegistry
-
-from managerui.paths import THEMES_DIR, VPINFE_INI_PATH
 from common.config_access import cfg_get, cfg_set
+from common.config_store import ConfigStore
+from common.online.themes import ThemeRegistry
+from managerui.paths import THEMES_DIR, VPINFE_INI_PATH
 
 
 def get_active_theme() -> str:

@@ -23,7 +23,7 @@ class UploadSessionServiceTests(unittest.TestCase):
             upload_session_service.cleanup_session(session.upload_id)
 
     def test_unknown_session_raises(self):
-        with self.assertRaises(upload_session_service.UnknownSession):
+        with self.assertRaises(upload_session_service.UnknownSessionError):
             upload_session_service.get_session_dir("does-not-exist")
 
     def test_unsafe_relpath_rejected(self):
@@ -32,7 +32,7 @@ class UploadSessionServiceTests(unittest.TestCase):
         try:
             for bad in ["../escape.txt", "/abs.txt", "a/../../b.txt"]:
                 with self.subTest(path=bad):
-                    with self.assertRaises(upload_session_service.UnsafePath):
+                    with self.assertRaises(upload_session_service.UnsafePathError):
                         upload_session_service.store_file(session.upload_id, bad, io.BytesIO(b"x"))
         finally:
             upload_session_service.cleanup_session(session.upload_id)
@@ -42,7 +42,7 @@ class UploadSessionServiceTests(unittest.TestCase):
         session = upload_session_service.begin_session()
         self.addCleanup(upload_session_service.cleanup_session, session.upload_id)
         with mock.patch.object(upload_session_service, "MAX_TOTAL_BYTES", 4):
-            with self.assertRaises(upload_session_service.UploadTooLarge):
+            with self.assertRaises(upload_session_service.UploadTooLargeError):
                 upload_session_service.store_file(session.upload_id, "big.bin",
                                                  io.BytesIO(b"toolong"))
 
@@ -63,7 +63,7 @@ class UploadSessionServiceTests(unittest.TestCase):
             other = upload_session_service.begin_session()
         self.addCleanup(upload_session_service.cleanup_session, other.upload_id)
         self.assertFalse(directory.exists())
-        with self.assertRaises(upload_session_service.UnknownSession):
+        with self.assertRaises(upload_session_service.UnknownSessionError):
             upload_session_service.get_session_dir(session.upload_id)
 
 

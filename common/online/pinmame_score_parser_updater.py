@@ -6,8 +6,8 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import requests
-from common.paths import CONFIG_DIR, USER_ROMS_PATH
 
+from common.paths import CONFIG_DIR, USER_ROMS_PATH
 
 logger = logging.getLogger("vpinfe.common.online.pinmame_score_parser_updater")
 

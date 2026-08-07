@@ -1,19 +1,15 @@
 from __future__ import annotations
 
 import logging
-import os
 import shutil
 from datetime import datetime
 from pathlib import Path
 
 from nicegui import ui
 
-from common.config_store import ConfigStore
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 from managerui.services import vpx_config_service
-from managerui.services.vpx_config_service import FieldMeta, ParsedIni, SectionMeta
-from managerui.ui_helpers import load_page_style, attach_shell_save_bar
-
+from managerui.services.vpx_config_service import FieldMeta, ParsedIni
+from managerui.ui_helpers import attach_shell_save_bar, load_page_style
 
 logger = logging.getLogger("vpinfe.manager.vpx_config")
 

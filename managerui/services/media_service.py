@@ -4,7 +4,6 @@ import logging
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional
 from urllib.parse import quote
 
 from common.games.game_metadata import reorder_leading_article, vpinfe_section
@@ -20,7 +19,7 @@ from managerui.paths import CONFIG_DIR, get_games_path
 
 logger = logging.getLogger("vpinfe.manager.media_service")
 
-_media_cache: Optional[List[Dict]] = None
+_media_cache: list[dict] | None = None
 _thumb_request_state: set[tuple[str, str, str]] = set()
 
 CACHE_DIR = CONFIG_DIR / "cache"
@@ -58,11 +57,11 @@ IMAGE_MEDIA_KEYS = [
 GAME_ATTR_TO_MEDIA_KEY = media_attr_key_map("table")
 
 
-def get_media_cache() -> Optional[List[Dict]]:
+def get_media_cache() -> list[dict] | None:
     return _media_cache
 
 
-def set_media_cache(rows: List[Dict]) -> None:
+def set_media_cache(rows: list[dict]) -> None:
     global _media_cache
     _media_cache = rows
 
@@ -121,7 +120,7 @@ def thumb_url(path: Path) -> str:
     return f"/media_thumbs/{rel}"
 
 
-def get_cached_thumb_url(game_dir: str, media_key: str, source_path: str) -> Optional[str]:
+def get_cached_thumb_url(game_dir: str, media_key: str, source_path: str) -> str | None:
     if not is_image_media_key(media_key) or not os.path.exists(source_path):
         return None
     try:
@@ -155,7 +154,7 @@ def clear_thumb_request(game_dir: str, media_key: str, source_path: str) -> None
     _thumb_request_state.discard(thumb_request_key(game_dir, media_key, source_path))
 
 
-def ensure_thumb(game_dir: str, media_key: str, source_path: str) -> Optional[str]:
+def ensure_thumb(game_dir: str, media_key: str, source_path: str) -> str | None:
     if not is_image_media_key(media_key) or not os.path.exists(source_path):
         return None
     try:
@@ -201,7 +200,7 @@ def _game_meta_sections(game):
     return info, vpinfe
 
 
-def media_url_from_path(game_dir: str, source_path: str) -> Optional[str]:
+def media_url_from_path(game_dir: str, source_path: str) -> str | None:
     if not source_path:
         return None
     source = Path(source_path)
@@ -210,7 +209,7 @@ def media_url_from_path(game_dir: str, source_path: str) -> Optional[str]:
     return media_url("media_games", game_dir, source.name)
 
 
-def scan_media_games(reload: bool = False) -> List[Dict]:
+def scan_media_games(reload: bool = False) -> list[dict]:
     games_path = get_games_path()
     rows = []
     if not os.path.exists(games_path):
@@ -296,7 +295,7 @@ def replace_media_file(game_path: str, game_dir: str, media_key: str, uploaded_p
     return target_path
 
 
-def update_cache_entry(game_dir: str, media_key: str, url_path: str, thumb: Optional[str] = None) -> None:
+def update_cache_entry(game_dir: str, media_key: str, url_path: str, thumb: str | None = None) -> None:
     if _media_cache is None:
         return
     for row in _media_cache:

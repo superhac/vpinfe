@@ -8,7 +8,6 @@ from common.host.launch import DEFAULT_PROFILE_NAME
 from common.paths import PLUGIN_PROFILES_DIR
 from managerui.services import vpx_config_service
 
-
 PLUGIN_SECTION_PREFIX = "Plugin."
 
 

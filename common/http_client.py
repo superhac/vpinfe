@@ -6,7 +6,6 @@ from typing import Any
 
 import requests
 
-
 DEFAULT_TIMEOUT = 15
 DOWNLOAD_TIMEOUT = 60
 

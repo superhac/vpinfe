@@ -10,12 +10,12 @@ from pathlib import Path
 from nicegui import run, ui
 
 from common import config_schema, input_actions
-from frontend import input_api
 from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from common.games.collection_store import CollectionStore
 from common.host.dof_service import clear_active_dof_event, find_dof_file, send_dof_event_token
 from common.host.launch import build_masked_tableini_path, build_vpx_launch_command
+from frontend import input_api
 from frontend.chromium_manager import (
     get_builtin_chromium_options,
     parse_additional_chromium_options,
@@ -834,7 +834,13 @@ def render_panel(tab=None):
                                                             inputs.setdefault(section, {})['disabledefaultchromeoptions'] = disable_all_inp
                                                             inputs[section]['chromeoptionsexclude'] = exclude_inp
 
-                                                            def _sync_exclude_enabled():
+                                                            # Bound as defaults, not captured: this sits inside the
+                                                            # per-section loop, so a closure over the names would
+                                                            # follow whichever widgets the last section built. Only
+                                                            # `general` carries these keys today, which is the sole
+                                                            # reason it works either way.
+                                                            def _sync_exclude_enabled(exclude_inp=exclude_inp,
+                                                                                      disable_all_inp=disable_all_inp):
                                                                 (exclude_inp.disable if bool(disable_all_inp.value) else exclude_inp.enable)()
 
                                                             _sync_exclude_enabled()
@@ -1151,8 +1157,9 @@ def render_panel(tab=None):
             count=changed_count, on_save=on_save, on_discard=on_discard
         )
 
-        for section, keys in inputs.items():
-            for key, inp in keys.items():
+        # Every input on the page, whatever section or key it belongs to.
+        for _section, keys in inputs.items():
+            for _key, inp in keys.items():
                 inp.on_value_change(lambda _: update_save_bar())
 
         update_save_bar()

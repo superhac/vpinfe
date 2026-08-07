@@ -13,12 +13,11 @@ import json
 import logging
 import socket
 import threading
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 import websockets
 
 from frontend.api import API_ALLOWED_METHODS
-
 
 logger = logging.getLogger("vpinfe.frontend.ws_bridge")
 

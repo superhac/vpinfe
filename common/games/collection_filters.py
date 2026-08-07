@@ -19,18 +19,17 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from common.values import is_truthy
 from common.games.game_metadata import (
-    get_meta_value,
-
     game_manufacturer,
     game_rating,
     game_themes,
     game_title,
     game_type,
     game_year,
+    get_meta_value,
     normalize_rating,
 )
+from common.values import is_truthy
 
 # What a criterion says when it constrains nothing. The vocabulary the filter engine
 # and the Manager UI already share, kept rather than translated.

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from common.games.ids import new_id
 from common.games.info_file import VPINFE_SECTION, MetaConfig
@@ -28,7 +28,7 @@ from common.games.tables import (
 DETECTION_KEYS = DETECT_KEYS
 
 
-def normalize_meta(meta: Any) -> Dict[str, Any]:
+def normalize_meta(meta: Any) -> dict[str, Any]:
     if isinstance(meta, dict):
         return meta
     if hasattr(meta, "get_config"):
@@ -39,13 +39,13 @@ def normalize_meta(meta: Any) -> Dict[str, Any]:
     return {}
 
 
-def section(meta: Any, name: str) -> Dict[str, Any]:
+def section(meta: Any, name: str) -> dict[str, Any]:
     normalized = normalize_meta(meta)
     value = normalized.get(name, {})
     return value if isinstance(value, dict) else {}
 
 
-def vpinfe_section(meta: Any) -> Dict[str, Any]:
+def vpinfe_section(meta: Any) -> dict[str, Any]:
     """The section VPinFE owns. Read through here rather than by name, so the name
     lives in one place."""
     return section(meta, VPINFE_SECTION)
@@ -66,7 +66,7 @@ def first_meta_value(meta: Any, *paths: tuple[str, str], default: Any = "") -> A
 
 
 def default_table(meta: Any, names: Any = None,
-                      folder_name: str = "") -> tuple[str, Dict[str, Any]]:
+                      folder_name: str = "") -> tuple[str, dict[str, Any]]:
     """(filename, entry) for the table this game defaults to; ("", {}) when it has none.
 
     Returns both because the callers that need one usually need the other - a row on the
@@ -84,7 +84,7 @@ def default_table(meta: Any, names: Any = None,
     return name, entry_for_filename(entries, name)[1]
 
 
-def default_table_entry(meta: Any, names: Any = None, folder_name: str = "") -> Dict[str, Any]:
+def default_table_entry(meta: Any, names: Any = None, folder_name: str = "") -> dict[str, Any]:
     """What the game's default table says about itself, or {}."""
     return default_table(meta, names, folder_name)[1]
 
@@ -205,7 +205,7 @@ def base_game_vps_id(game) -> str:
     return str(section(getattr(game, "meta_config", {}), "Info").get("VPSId", "") or "").strip()
 
 
-def get_or_create_user_meta(config: Dict[str, Any]) -> Dict[str, Any]:
+def get_or_create_user_meta(config: dict[str, Any]) -> dict[str, Any]:
     user = config.setdefault("User", {})
     user.setdefault("Rating", 0)
     user.setdefault("Favorite", 0)
@@ -235,7 +235,7 @@ def _as_int(value, default: int = 0) -> int:
         return default
 
 
-def get_or_create_vpinfe_meta(config: Dict[str, Any]) -> Dict[str, Any]:
+def get_or_create_vpinfe_meta(config: dict[str, Any]) -> dict[str, Any]:
     """The section VPinFE owns, to write into. `vpinfe_section` normalizes and may copy,
     so it reads but does not write."""
     return config.setdefault(VPINFE_SECTION, {})
@@ -265,14 +265,14 @@ def meta_file_path(game) -> Path:
     return Path(game.fullPathGame) / f"{game.gameDirName}.info"
 
 
-def load_game_meta(game) -> Dict[str, Any]:
+def load_game_meta(game) -> dict[str, Any]:
     meta_path = meta_file_path(game)
     if meta_path.exists():
         return normalize_meta(MetaConfig(str(meta_path)).data)
     return normalize_meta(getattr(game, "meta_config", {}))
 
 
-def persist_game_meta(game, config: Dict[str, Any]) -> None:
+def persist_game_meta(game, config: dict[str, Any]) -> None:
     meta_file = MetaConfig(str(meta_file_path(game)))
     upgraded = meta_file.pending_migration
     meta_file.data = config

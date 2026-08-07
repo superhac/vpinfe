@@ -19,7 +19,6 @@ from common.games.game_metadata import (
     section,
     vpinfe_section,
 )
-from common.games.collection_store import MEMBERS_KEY
 from common.timestamps import epoch_to_iso
 
 logger = logging.getLogger("vpinfe.common.games.game_play_service")

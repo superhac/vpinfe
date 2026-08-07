@@ -5,9 +5,9 @@ import os
 import shutil
 import tempfile
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
-from typing import Callable
 
 from common.games.game_repository import refresh_game
 from common.games.info_file import VPINFE_SECTION, MetaConfig

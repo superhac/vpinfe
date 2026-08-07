@@ -323,16 +323,16 @@ def open_source(path: Path) -> AssetSource:
         return ZipSource(path)
     if ext == ".rar":
         if rarfile is None:
-            raise _MissingBackend("RAR support requires the 'rarfile' package")
+            raise _MissingBackendError("RAR support requires the 'rarfile' package")
         return RarSource(path)
     if ext == ".7z":
         if py7zr is None:
-            raise _MissingBackend("7z support requires the 'py7zr' package")
+            raise _MissingBackendError("7z support requires the 'py7zr' package")
         return SevenZipSource(path)
     return SingleFileSource(path)
 
 
-class _MissingBackend(RuntimeError):
+class _MissingBackendError(RuntimeError):
     pass
 
 
@@ -638,7 +638,7 @@ def analyze_path(path: Path) -> AnalysisResult:
     path = Path(path)
     try:
         source = open_source(path)
-    except _MissingBackend as exc:
+    except _MissingBackendError as exc:
         return AnalysisResult(_source_kind(path), path.name, (), False, error=str(exc))
     except Exception:
         logger.exception("Failed to open source: %s", path)

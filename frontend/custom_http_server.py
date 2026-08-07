@@ -1,19 +1,18 @@
 # custom_http_server.py
 import http.server
 import logging
-from socketserver import ThreadingTCPServer
-import threading
-import os
 import mimetypes
-from urllib.parse import unquote, urlsplit
-from functools import partial
+import os
 import posixpath
 import re
+import threading
+from functools import partial
+from socketserver import ThreadingTCPServer
+from urllib.parse import unquote, urlsplit
 
 import requests
 
 from frontend.theme_windows import window_title
-
 
 logger = logging.getLogger("vpinfe.frontend.custom_http_server")
 

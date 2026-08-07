@@ -1,11 +1,10 @@
 import json
 
-from nicegui import ui, run, context
+from nicegui import run, ui
+
 from common.online.themes import ThemeRegistry, ThemeRegistryError
-from pathlib import Path
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
-from managerui.services import app_control
-from managerui.services import theme_service
+from managerui.paths import VPINFE_INI_PATH
+from managerui.services import app_control, theme_service
 from managerui.ui_helpers import load_page_style
 
 INI_PATH = VPINFE_INI_PATH
@@ -390,7 +389,7 @@ def render_panel(tab=None):
                 save_button.disable()
                 try:
                     values_to_save = {}
-                    for option_key, (option, control) in controls.items():
+                    for option_key, (_option, control) in controls.items():
                         raw_value = getattr(control, 'value', None)
                         values_to_save[option_key] = raw_value
                     await run.io_bound(theme_service.save_theme_option_values, theme_key, values_to_save, _registry)

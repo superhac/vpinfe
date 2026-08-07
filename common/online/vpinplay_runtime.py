@@ -6,7 +6,6 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-
 PROFILE_TYPE = "vpinplay_identity"
 PROFILE_VERSION = 1
 

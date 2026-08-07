@@ -1,20 +1,18 @@
 from __future__ import annotations
 
+import json
+import platform
 import shutil
 import socket
-import platform
 import subprocess
-import json
-import os
 from datetime import datetime
 from pathlib import Path
 
 from nicegui import context, run, ui
 
-from common.config_store import ConfigStore
 from common.online.app_updater import get_install_context
 from frontend.chromium_manager import get_chromium_path
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
+from managerui.paths import VPINFE_INI_PATH
 from managerui.services import system_service
 from managerui.ui_helpers import load_page_style
 
