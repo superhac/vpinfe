@@ -167,7 +167,7 @@ def header():
                     with page_client:
                         ui.notify('Update staged. Restarting VPinFE...', type='positive')
                         _force_exit_after_update()
-                        app_control.quit_app()
+                        await app_control.quit_app()
                 except Exception as e:
                     with page_client:
                         ui.notify(f'Update failed: {e}', type='negative')

@@ -403,6 +403,13 @@ class ContractOneReader {
 
 
 class VPinFECore {
+  // Resolves the confirm dialog when one is up, and is null when one is not - which is
+  // also how the input handler knows whether it owns the next select or back.
+  #pendingConfirm = null;
+
+  // The notice currently on screen, so a second one replaces it rather than stacking.
+  #lifecycleNotice = null;
+
   constructor() {
     this.gameData = {};
     // What the running theme declared. Contract 1 until the bridge says otherwise.
@@ -1011,6 +1018,11 @@ class VPinFECore {
       this.setAudioMuted(!!message.muted);
       return;
     }
+    if (message.type === "LifecycleActing") {
+      this.#showLifecycleNotice(message);
+      // Still offered to the theme below: a theme may want to say it in its own voice,
+      // and core's notice is what happens when none does.
+    }
     this.#handleFrontendInputLifecycleEvent(message);
 
     // Default handling for GameDataChange
@@ -1129,6 +1141,81 @@ class VPinFECore {
     iframe.style.display = "block";
     const message = spec.opened && spec.opened(this, context);
     if (message && iframe.contentWindow) iframe.contentWindow.postMessage(message, "*");
+  }
+
+  /**
+   * Start, stop or restart the frontend, VPinFE or the machine.
+   *
+   * Scope is "frontend", "app" or "system"; action is "start", "stop" or "restart".
+   * Confirms first when the user asked to be asked, and resolves false when they say no
+   * or the build cannot do it, so a caller can leave its menu open.
+   */
+  async requestLifecycle(scope, action, reason = "") {
+    if (!await this.#confirmLifecycle(scope, action)) return false;
+    return await this.call("lifecycle_request", scope, action, reason, true);
+  }
+
+  /**
+   * Ask before starting, stopping or restarting something, if the user asked to be asked.
+   *
+   * A theme that draws its own is welcome to: it calls lifecycle_request with
+   * confirmed:true and never reaches this. This is the fallback, so turning the setting
+   * on works on every theme, including the ones written before it existed.
+   *
+   * Built from the input actions rather than window.confirm, because a cabinet has no
+   * keyboard and no mouse - select confirms and back cancels, on the buttons already
+   * bound to them.
+   */
+  async #confirmLifecycle(scope, action) {
+    const asking = await this.call("lifecycle_needs_confirmation", scope, action);
+    if (!asking || !asking.confirm) return true;
+
+    // Built node by node rather than from innerHTML: the description is wording from
+    // the bridge, and textContent cannot become markup.
+    const root = document.createElement("div");
+    root.className = "vpinfe-confirm";
+    const card = document.createElement("div");
+    card.className = "vpinfe-confirm-card";
+    const question = document.createElement("p");
+    question.className = "vpinfe-confirm-question";
+    question.textContent = `${asking.description}?`;
+    const hint = document.createElement("p");
+    hint.className = "vpinfe-confirm-hint";
+    hint.textContent = "Select to confirm, Back to cancel";
+    card.appendChild(question);
+    card.appendChild(hint);
+    root.appendChild(card);
+    document.body.appendChild(root);
+
+    const releaseMode = this.pushInputMode("modal");
+    try {
+      return await new Promise(resolve => { this.#pendingConfirm = resolve; });
+    } finally {
+      this.#pendingConfirm = null;
+      releaseMode?.();
+      root.remove();
+    }
+  }
+
+  /**
+   * Say what is about to happen, on a window that did not ask for it.
+   *
+   * A notice, never a question: this window has no say, and the surface that asked has
+   * already had one. It is not dismissible and does not take the input, because there
+   * is nothing to answer and the app is usually about to go away underneath it.
+   */
+  #showLifecycleNotice(message) {
+    const existing = this.#lifecycleNotice;
+    if (existing) existing.remove();
+
+    const root = document.createElement("div");
+    root.className = "vpinfe-notice";
+    const text = document.createElement("p");
+    text.className = "vpinfe-notice-text";
+    text.textContent = message.description || "";
+    root.appendChild(text);
+    document.body.appendChild(root);
+    this.#lifecycleNotice = root;
   }
 
   #showmenu()           { return this.#toggleOverlay("menu"); }
@@ -2016,6 +2103,13 @@ class VPinFECore {
     // A field owns its keystrokes; only back is intercepted, so a dialog can still be
     // dismissed from a cabinet button while typing into it.
     if (this.inputMode === "text" && action !== "back") return;
+    // A confirm owns every action while it is up. Answering it is the only thing the
+    // buttons can do, so an unmapped press cannot dismiss it and cannot act behind it.
+    if (this.#pendingConfirm) {
+      if (action === "select") this.#pendingConfirm(true);
+      else if (action === "back" || action === "exit") this.#pendingConfirm(false);
+      return;
+    }
     // A dialog owns the actions while it is up: nothing reaches the menu behind it, and
     // nothing opens an overlay on top of it.
     if (this.inputMode === "modal" && !["select", "back", "previous", "next"].includes(action)) {
@@ -2027,7 +2121,7 @@ class VPinFECore {
       // nothing focuses the iframe - so this used to quit VPinFE from inside a menu.
       // Closing the overlay is what every overlay's own map already meant by it.
       if (overlay) this.#toggleOverlay(overlay);
-      else this.call("close_app");
+      else this.requestLifecycle("app", "stop");
     }
     else if (action === "menu") this.#showmenu();
     else if (action === "collection_menu") this.#showcollectionmenu();

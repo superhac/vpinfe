@@ -1205,8 +1205,41 @@ The following methods are available via `vpin.call()`:
 |--------|------|---------|-------------|
 | `get_my_window_name` | — | `string` | Returns the window name for this instance (`"playfield"`, `"bg"`, or `"dmd"` by default). |
 | `close_app` | — | — | Shuts down all browser windows and exits the application. |
+| `shutdown_system` | — | — | Powers off the machine. |
+| `lifecycle_request` | `scope`, `action`, `reason`, `confirmed` | `bool` | Starts, stops or restarts something. Returns whether it is going ahead. |
+| `lifecycle_needs_confirmation` | `scope`, `action` | `object` | `{confirm, description}` — whether to ask the user first, and the wording to ask with. |
 | `get_monitors` | — | `array` | Returns list of monitor objects with `name`, `x`, `y`, `width`, `height`. |
 | `console_out` | `output` | `string` | Prints a message to the Python CLI console. Useful for debugging. Returns the same string. |
+
+###### Starting, stopping and restarting
+
+`scope` is what the action applies to and `action` is what happens to it:
+
+| | `frontend` | `app` | `system` |
+|---|---|---|---|
+| `start` | yes | — | — |
+| `stop` | yes | yes | powers off |
+| `restart` | yes | yes | yes |
+
+`close_app` and `shutdown_system` still work and are unchanged — they are `app`/`stop`
+and `system`/`stop` under the old names.
+
+Use `vpin.requestLifecycle(scope, action)` rather than calling the two methods directly.
+It confirms first when the user has turned that on for the scope, and resolves `false`
+when they say no, so a menu can stay open:
+
+```js
+if (await vpin.requestLifecycle("system", "restart")) {
+  // going ahead - the machine is restarting
+}
+```
+
+Core draws the confirmation, so a theme gets it for free. A theme that wants its own
+asks the user itself, then calls `lifecycle_request` with `confirmed` set to `true`.
+
+The user chooses which scopes get confirmed with the `lifecycle.confirm` setting, which
+is empty by default. The question is always put on the surface that asked; every other
+window is told through the `lifecycle.acting` event and cannot block it.
 
 ##### Game Data
 

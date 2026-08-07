@@ -267,6 +267,25 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-48 — Quitting, restarting and powering off go through one place, and can ask
+first.** `close_app` and `shutdown_system` keep their names and their behavior on a
+default install; both now route through `common/lifecycle.py`, which addresses a request
+by scope (`frontend`, `app`, `system`) and action (`start`, `stop`, `restart`). Themes get
+`lifecycle_request` and `lifecycle_needs_confirmation`, and `vpin.requestLifecycle(scope,
+action)` wraps both. The new `lifecycle.confirm` setting lists the scopes to ask about and
+is empty by default, so nothing prompts unless it is turned on.
+*Why:* there were four ways out of VPinFE and no path in common. Only a signal ran
+`shutdown_services`, so quitting from a theme or the Manager UI lost the session's play
+data before it reached VPinPlay; the frontend could power the machine off but not reboot
+it; and the Manager UI's Remote page carried its own confirmation dialogs that no other
+surface had. Two axes rather than four verbs makes reboot an ordinary member and makes
+"open the windows on a headless instance" expressible at all. The question is put to
+whichever surface asked - a dialog raised on the cabinet because somebody pressed
+something on their phone is a hang on a screen nobody is watching - and every other
+surface is told through `lifecycle.acting` without being able to block. A request that
+cannot be asked, like a `SIGTERM`, proceeds; a surface that should answer and has gone
+away denies. Covered by `tests/host/test_lifecycle.py`.
+
 **PAR-47 — A superseded VPS override is set aside instead of deleted.** A manual
 `alt_vpsid` match stops applying when the default table's hash changes, exactly as it did
 before - matching falls back to `Info.VPSId` and every consumer resolves identically. What

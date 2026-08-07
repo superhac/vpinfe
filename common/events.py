@@ -35,6 +35,11 @@ GAME_SELECTED = "game.selected"
 # is still correct after the next.
 PLAY_STATE_CHANGED = "play.state_changed"
 
+# Something is starting, stopping or restarting. Announced after it is confirmed, so a
+# surface that did not ask can say what is about to happen. Subscribers only - a
+# confirmation is asked for on the surface that asked, not on this.
+LIFECYCLE_ACTING = "lifecycle.acting"
+
 # Slow work, one shape everywhere:
 #   job.progress  {job_id, pct, message}
 #   job.done      {job_id}

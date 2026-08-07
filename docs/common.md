@@ -145,6 +145,21 @@ re-read and every path that edits a collection comes through the second to be wr
 Re-reading a game *replaces* the object rather than mutating it, so a holder of the old
 one is stale with no way to notice - which is why the announcement has to exist at all.
 
+Start, stop and restart things through `common/lifecycle.py`. A request names a scope
+(`frontend`, `app`, `system`) and an action (`start`, `stop`, `restart`), so rebooting
+the machine is `restart` at system scope rather than a verb of its own, and the
+frontend, the Manager UI, an extension and a signal all arrive at one place. Reaching
+for the browser directly is what used to skip `shutdown_services` and lose a session's
+play data on the way out.
+
+A request also carries **where it came from**, not just what kind of surface it was.
+A confirmation is put to the surface that asked and nowhere else - a dialog raised on
+the cabinet because somebody pressed something on their phone is a hang on a screen
+nobody is watching. Every other surface is told through `lifecycle.acting`, which is
+subscribers-only for the usual reason: being told is not being asked. A request nothing
+can ask, like a `SIGTERM`, proceeds rather than waiting for an answer that will never
+come.
+
 Never pick a game's `.vpx` yourself. A folder can hold several, and picking
 differently from everyone else means the metadata a user sees describes a different
 file than the one that launches. Use `tables.default_table()`.

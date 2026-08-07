@@ -277,7 +277,7 @@ def render_panel(tab=None):
             try:
                 await run.io_bound(_set_active_theme, theme_key)
                 ui.notify(f'Theme "{theme_key}" set as active — restarting...', type='positive')
-                app_control.restart_app()
+                await app_control.restart_app()
             except Exception as e:
                 ui.notify(f'Failed to set theme: {e}', type='negative')
                 btn.enable()

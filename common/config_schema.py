@@ -175,6 +175,11 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
                  description='Individual theme repos, each one a theme in its own right. '
                              'Resolved before the registries, and named for the repo with '
                              'any vpinfe-theme- prefix removed.'),
+    ConfigOption("lifecycle", "confirm", "list", '',
+                 label='Confirm Before',
+                 description='Scopes to ask about before acting: frontend, app, system. '
+                             'Empty asks about nothing, which is how VPinFE has always '
+                             'behaved. The question is put to whichever surface asked.'),
     ConfigOption("general", "startup_collection", "string", '',
                  label='Default Startup Collection'),
     ConfigOption("general", "auto_update_media_on_startup", "bool", 'false',

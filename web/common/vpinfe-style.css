@@ -129,3 +129,71 @@ body {
 html[data-vpinfe-launching] body {
   opacity: 0;
 }
+
+/* ---------------------------------------------------------------------------
+   Confirm before quitting, restarting or powering off.
+
+   Core draws it rather than the theme, so turning the setting on works on a theme
+   written before it existed. A theme that wants its own passes confirmed and never
+   reaches this. Deliberately plain - it sits over whatever the theme is showing.
+   --------------------------------------------------------------------------- */
+
+.vpinfe-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;      /* over any overlay, including a theme's own */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.vpinfe-confirm-card {
+  padding: 2.5rem 3rem;
+  border-radius: 0.75rem;
+  background: #1b1b1f;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  text-align: center;
+  font-family: sans-serif;
+  color: #fff;
+  max-width: 80vw;
+}
+
+.vpinfe-confirm-question {
+  margin: 0;
+  font-size: clamp(1.25rem, 3vw, 2rem);
+}
+
+.vpinfe-confirm-hint {
+  margin: 1rem 0 0;
+  font-size: clamp(0.85rem, 1.6vw, 1.1rem);
+  opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------------
+   The notice a window gets when somebody else started something.
+
+   Deliberately not the confirm dialog: this window has no say, so it does not dim
+   the screen or take the input. It sits out of the way and says what is happening.
+   --------------------------------------------------------------------------- */
+
+.vpinfe-notice {
+  position: fixed;
+  left: 50%;
+  bottom: 2rem;
+  transform: translateX(-50%);
+  z-index: 2147483646;      /* under a confirm, over everything else */
+  padding: 0.9rem 1.5rem;
+  border-radius: 0.5rem;
+  background: rgba(20, 20, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-family: sans-serif;
+  color: #fff;
+  max-width: 80vw;
+}
+
+.vpinfe-notice-text {
+  margin: 0;
+  font-size: clamp(0.9rem, 2vw, 1.35rem);
+  text-align: center;
+}

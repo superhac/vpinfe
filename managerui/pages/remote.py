@@ -1,6 +1,6 @@
 import logging
 
-from nicegui import run, ui
+from nicegui import background_tasks, run, ui
 
 from managerui import remote_launch
 from managerui.paths import VPINFE_INI_PATH
@@ -145,20 +145,27 @@ def _launch_game(game: dict):
     return True
 
 
+# app_control asks the user before acting when that is turned on, so its calls are
+# coroutines. handle_button is sync and reached from every button on the page, so the
+# coroutine is scheduled here rather than making the whole dispatch async.
+def _run(coroutine) -> None:
+    background_tasks.create(coroutine)
+
+
 def _restart_app():
-    app_control.restart_app()
+    _run(app_control.restart_app())
 
 
 def _quit_app():
-    app_control.quit_app()
+    _run(app_control.quit_app())
 
 
 def _shutdown_system():
-    app_control.shutdown_system()
+    _run(app_control.shutdown_system())
 
 
 def _reboot_system():
-    app_control.reboot_system()
+    _run(app_control.reboot_system())
 
 
 def _show_reboot_confirmation():

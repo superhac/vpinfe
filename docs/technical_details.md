@@ -85,6 +85,12 @@ uses an old spelling both still load.
 | `registries` | list | `https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json` | Catalogs to offer themes from, most trusted first. The stock registry is an entry like any other, so a mirrored or offline install can replace or drop it. |
 | `repositories` | list |  | Individual theme repos, each one a theme in its own right. Resolved before the registries, and named for the repo with any vpinfe-theme- prefix removed. |
 
+### `lifecycle`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `confirm` | list |  | Scopes to ask about before acting: frontend, app, system. Empty asks about nothing, which is how VPinFE has always behaved. The question is put to whichever surface asked. |
+
 ### `logger`
 
 | Key | Type | Default | Description |

@@ -85,6 +85,16 @@ def _as_published(**payload) -> dict:
     return payload
 
 
+def _lifecycle_event(**payload) -> dict:
+    """What is happening, and which kind of surface asked for it.
+
+    The origin's address is dropped: it means nothing outside this process, and would
+    name one user's browser tab to every other subscriber.
+    """
+    return {name: payload[name] for name in ("scope", "action", "description", "reason")
+            if name in payload} | {"origin": payload.get("surface", "")}
+
+
 # Which bus events reach the network, and the shape each one takes when it does.
 # An explicit list rather than "whatever was emitted": an extension will one day
 # publish onto the same bus, and what it may broadcast is a scope question that
@@ -95,6 +105,7 @@ STREAMED_EVENTS: dict[str, Callable[..., dict]] = {
     events.GAME_EXITED: _game_event,
     events.GAME_SELECTED: _game_event,
     events.PLAY_STATE_CHANGED: _as_published,
+    events.LIFECYCLE_ACTING: _lifecycle_event,
     events.JOB_PROGRESS: _job_event,
     events.JOB_DONE: _job_event,
     events.JOB_FAILED: _job_event,

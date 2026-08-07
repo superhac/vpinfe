@@ -96,7 +96,8 @@ from starlette.responses import Response
 
 import httpapi
 from cli_options import parseArgs
-from frontend import runtime
+from frontend import lifecycle_wiring, runtime
+from managerui.services import app_control
 from managerui.managerui import _shutdown_event, set_first_run, start_manager_ui, stop_manager_ui
 
 nicegui_app.add_static_files('/static', os.path.join(base_path, 'managerui/static'))
@@ -153,6 +154,17 @@ def create_api_instances():
     """Create API instances for each configured display window."""
     global ws_bridge, frontend_browser
     ws_bridge, frontend_browser = runtime.create_api_instances(config_store, logger)
+    # Now that there is a browser to stop, this process can say what it can do. Windows
+    # are opened by run_frontend_loop below, so nothing here can open them: starting the
+    # frontend on a headless instance is left unperformable until that moves.
+    lifecycle_wiring.install(
+        config_store=config_store,
+        config_dir=config_dir,
+        frontend_browser=frontend_browser,
+        shutdown_event=_shutdown_event,
+        ws_bridge=ws_bridge,
+    )
+    app_control.install_notices()
 
 
 def _start_startup_media_sync():

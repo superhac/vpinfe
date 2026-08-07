@@ -49,6 +49,9 @@
     "zedmd_device": "",
     "zedmd_wifi_address": ""
   },
+  "lifecycle": {
+    "confirm": ""
+  },
   "logger": {
     "console": "true",
     "level": "debug"

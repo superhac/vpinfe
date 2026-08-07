@@ -1,6 +1,6 @@
 import logging
 
-from common import events
+from common import events, lifecycle
 from common.deprecations import announce
 from common.games import collection_resolver
 from common.games.collections_service import (
@@ -10,7 +10,7 @@ from common.games.collections_service import (
 )
 from common.games.game_metadata import normalize_meta
 from common.games.game_repository import ensure_games_loaded
-from common.host import launch, launch_state, system_actions
+from common.host import launch, launch_state
 from common.host.display_service import monitors_as_dicts
 from common.online.vpinplay_runtime import (
     activate_alternate_profile,
@@ -22,6 +22,7 @@ from frontend import (
     game_state,
     input_api,
     last_game,
+    lifecycle_wiring,
     metadata_build_service,
     theme_api,
     theme_windows,
@@ -44,6 +45,8 @@ API_ALLOWED_METHODS = {
     'get_my_window_name',
     'close_app',
     'shutdown_system',
+    'lifecycle_request',
+    'lifecycle_needs_confirmation',
     'get_monitors',
     'get_games',
     'get_initial_game_index',
@@ -253,17 +256,49 @@ class API:
     def get_my_window_name(self):
         return self.window_name or "unknown"
 
+    def _origin(self):
+        """This window is the address a confirmation goes back to."""
+        return lifecycle.Origin(lifecycle.SURFACE_FRONTEND, self.window_name or "")
+
     def close_app(self):
-        logger.info("close_app called from window '%s'", self.window_name)
-        if self.frontend_browser:
-            self.frontend_browser.terminate_all()
+        """Quit VPinFE. The 2.x spelling of `lifecycle_request('app', 'stop')`."""
+        return self.lifecycle_request(lifecycle.APP, lifecycle.STOP)
 
     def shutdown_system(self):
-        """Shutdown the host system (cross-platform) and close frontend windows."""
-        logger.info("shutdown_system called from window '%s'", self.window_name)
-        system_actions.shutdown_system()
-        if self.frontend_browser:
-            self.frontend_browser.terminate_all()
+        """Power off the host. The 2.x spelling of `lifecycle_request('system', 'stop')`."""
+        return self.lifecycle_request(lifecycle.SYSTEM, lifecycle.STOP)
+
+    def lifecycle_needs_confirmation(self, scope, action):
+        """Whether to ask the user first, and what to ask - the browser draws the dialog.
+
+        The question is put where the request came from, and the bridge to a window only
+        goes one way, so the confirmation happens in the browser and calls back with the
+        answer. The wording comes from here so every surface asks the same thing.
+        """
+        return {
+            "confirm": lifecycle_wiring.wants_confirmation(str(scope)),
+            "description": lifecycle.Request(
+                str(scope), str(action), self._origin()).describe().capitalize(),
+        }
+
+    def lifecycle_request(self, scope, action, reason="", confirmed=False):
+        """Start, stop or restart the frontend, VPinFE or the machine.
+
+        `confirmed` is the theme reporting that it already asked. A theme that never
+        asks - every 2.x theme - is answered by the core's own fallback, so turning the
+        setting on is never defeated by an old theme.
+
+        Returns whether it is going ahead, so a theme can leave its own menu open when
+        the user says no.
+        """
+        try:
+            return lifecycle_wiring.request(
+                scope, action, origin=self._origin(), reason=reason,
+                already_confirmed=bool(confirmed))
+        except ValueError:
+            logger.warning("Window '%s' asked to %s the %s, which is not a thing",
+                           self.window_name, action, scope)
+            return False
 
     def get_monitors(self):
         return monitors_as_dicts()

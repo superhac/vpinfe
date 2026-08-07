@@ -36,7 +36,17 @@ function controller() {
     return event;
   };
   const calls = () => socket.sent.filter(m => m.type === "api_call").map(m => m.method);
-  return { vpin, press, calls };
+  // Exit quits through the lifecycle request now, which asks whether to confirm before
+  // it asks to quit. Either call means the quit path was entered, which is what these
+  // tests are about - not the name of the method that carries it.
+  const quits = async () => {
+    // The request is its own async chain, so the send lands a microtask after the
+    // keydown listener resolves. Without this, every one of these passes vacuously.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return calls().some(m => m === "close_app" || m === "lifecycle_request"
+                             || m === "lifecycle_needs_confirmation");
+  };
+  return { vpin, press, calls, quits };
 }
 
 describe("exit never quits VPinFE from inside an overlay", () => {
@@ -48,24 +58,24 @@ describe("exit never quits VPinFE from inside an overlay", () => {
                               ["tutorial", "tutorialUP"]]) {
     for (const key of ["Escape", "q"]) {
       test(`${key} with the ${name} up closes it instead of the app`, async () => {
-        const { vpin, press, calls } = controller();
+        const { vpin, press, quits } = controller();
         vpin[flag] = true;
 
         await press(key);
 
-        assert.equal(calls().includes("close_app"), false,
-          "close_app must not be reachable while an overlay is up");
+        assert.equal(await quits(), false,
+          "quitting must not be reachable while an overlay is up");
         assert.equal(vpin[flag], false, "the overlay should have closed");
       });
     }
   }
 
   test("exit still quits when no overlay is up", async () => {
-    const { press, calls } = controller();
+    const { press, quits } = controller();
 
     await press("Escape");
 
-    assert.equal(calls().includes("close_app"), true,
+    assert.equal(await quits(), true,
       "exit has to keep working where it was always meant to");
   });
 });
@@ -171,7 +181,7 @@ describe("typing is typing, not input actions", () => {
 
   for (const key of ["b", "c", "m", "q", "t", "Enter", "Escape"]) {
     test(`${key} typed into a text field is left to the field`, async () => {
-      const { vpin, press, calls } = controller();
+      const { vpin, press, quits } = controller();
       const seen = [];
       vpin.inputHandlers.push((action) => { seen.push(action); });
 
@@ -179,7 +189,7 @@ describe("typing is typing, not input actions", () => {
 
       assert.deepEqual(seen, [], `${key} must reach the field, not the wheel`);
       assert.equal(event.prevented, false, "the field needs the browser default");
-      assert.equal(calls().includes("close_app"), false);
+      assert.equal(await quits(), false, "typing must never quit the app");
     });
   }
 

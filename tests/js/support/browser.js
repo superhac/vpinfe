@@ -87,8 +87,15 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
         remove: (name) => el.classes.delete(name),
         contains: (name) => el.classes.has(name),
       },
+      className: "",
+      textContent: "",
       setAttribute(name, value) { el.attributes[name] = value; },
       appendChild(child) { el.children.push(child); documentStub._byId[child.id] = child; },
+      remove() {
+        const parent = documentStub.body.children.includes(el)
+          ? documentStub.body : null;
+        if (parent) parent.children.splice(parent.children.indexOf(el), 1);
+      },
       contentWindow: { postMessage: (message) => el.posted.push(message) },
     };
     return el;
@@ -113,7 +120,10 @@ export function makeBrowser({ windowName = "table", search = null, pathname = "/
     _byId: { "overlay-root": element("overlay-root") },
     getElementById(id) { return documentStub._byId[id] || null; },
     createElement() { return element(); },
-    body: { appendChild: unimplemented("document.body.appendChild") },
+    // Real enough to see what core put on the page. Core's confirm dialog is not
+    // reachable any other way - it is built and removed inside one call - so a stub
+    // that threw would leave it untestable.
+    body: { children: [], appendChild(child) { documentStub.body.children.push(child); } },
   };
 
   const windowStub = {
