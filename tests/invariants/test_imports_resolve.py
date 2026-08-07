@@ -89,5 +89,27 @@ class ImportsResolveTests(unittest.TestCase):
         self.assertEqual(unused, [], "drop it, or import it")
 
 
+class SelfSignallingTests(unittest.TestCase):
+    """A test that signals its own process says so on the platforms that cannot.
+
+    Windows defines SIGTERM but does not deliver it - `os.kill` falls through to
+    TerminateProcess, so the run dies with no failure, no summary and exit 1 halfway
+    through. Two test files did this and Tests was red on Windows for both, one after
+    the other, each found only by bisecting dots in a CI log.
+    """
+
+    def test_every_self_signalling_test_is_guarded(self) -> None:
+        unguarded = []
+        for path in sorted((REPO_ROOT / "tests").rglob("test_*.py")):
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            if "os.kill(os.getpid()" not in text:
+                continue
+            if 'sys.platform.startswith("win")' not in text:
+                unguarded.append(path.relative_to(REPO_ROOT).as_posix())
+        self.assertEqual(unguarded, [],
+                         "signalling your own process kills the run on Windows - guard "
+                         "the class with skipIf(sys.platform.startswith('win'), ...)")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import signal
+import sys
 import threading
 import time
 import unittest
@@ -13,6 +14,11 @@ from common import shutdown
 from frontend import runtime
 
 
+# Windows defines SIGTERM but does not deliver it: os.kill falls through to
+# TerminateProcess and the whole run dies, with no failure and no summary. Same guard,
+# same reason, as tests/host/test_shutdown.py.
+@unittest.skipIf(sys.platform.startswith("win"),
+                 "Windows terminates the process instead of delivering SIGTERM")
 @unittest.skipIf(not hasattr(signal, "SIGTERM"), "no SIGTERM on this platform")
 class TerminationSignalTests(unittest.TestCase):
     def setUp(self):
