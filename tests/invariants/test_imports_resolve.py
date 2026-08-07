@@ -39,7 +39,9 @@ def _source_files():
         rel = path.relative_to(REPO_ROOT)
         if any(part in SKIP_DIRS for part in rel.parts):
             continue
-        if any(str(rel).startswith(v) for v in VENDORED):
+        # Posix: VENDORED is written with forward slashes, and str() on a Windows path
+        # gives backslashes - so the vendored drop was scanned there and nowhere else.
+        if any(rel.as_posix().startswith(v) for v in VENDORED):
             continue
         yield path, rel
 

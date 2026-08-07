@@ -66,12 +66,15 @@ SKIP_PREFIXES = ("managerui/maps/", "web/themes/")
 def _source_files():
     for pattern in ("*.py", "*.js"):
         for path in sorted(REPO_ROOT.rglob(pattern)):
-            rel = path.relative_to(REPO_ROOT)
-            if any(part in SKIP_PARTS for part in rel.parts):
+            # Posix, always: the allowlists below are written with forward slashes, and
+            # str() on a Windows path gives backslashes - so every translator missed its
+            # entry there and each legitimate alias was reported as an offender.
+            rel = path.relative_to(REPO_ROOT).as_posix()
+            if any(part in SKIP_PARTS for part in rel.split("/")):
                 continue
-            if any(str(rel).startswith(p) for p in SKIP_PREFIXES):
+            if any(rel.startswith(p) for p in SKIP_PREFIXES):
                 continue
-            if str(rel) in TRANSLATORS:
+            if rel in TRANSLATORS:
                 continue
             yield path, rel
 
