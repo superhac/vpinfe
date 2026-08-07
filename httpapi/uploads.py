@@ -12,6 +12,7 @@ from pathlib import Path
 from fastapi import APIRouter, Body, File, Form, UploadFile
 from starlette.concurrency import run_in_threadpool
 
+from common.games import identity_claims
 from managerui.services import upload_session_service
 from managerui.services.asset_analyzer_service import (
     AnalysisResult,
@@ -173,11 +174,37 @@ def plan_upload(upload_id: str,
     return _plan_to_dict(plan)
 
 
+def _declared_identities(declared) -> dict:
+    """Turn the request's declared identities into the vocabulary the writer speaks.
+
+    Rejected here rather than recorded and regretted: a claim that names an upstream
+    record without saying how it is known, or that sends a basis outside the closed set,
+    is a client asserting a confidence it has not earned - which is the failure the
+    matcher measurements ruled out for good.
+    """
+    if not declared:
+        return {}
+    out, problems = {}, []
+    for name, sent in declared.items():
+        identity = identity_claims.DeclaredIdentity(
+            vps_file_id=sent.vps_file_id, host_item_id=sent.host_item_id,
+            host=sent.host, game_id=sent.game_id, table_id=sent.table_id,
+            confirmed_by=sent.confirmed_by)
+        problems += [f"{name}: {why}" for why in identity.problems()]
+        out[name] = identity
+    if problems:
+        raise InvalidRequestError("; ".join(problems))
+    return out
+
+
 @router.post("/{upload_id}/import", summary="Execute an import plan",
              dependencies=[requires(scopes.UPLOADS_WRITE)])
 def import_upload(upload_id: str,
                   payload: models.ImportRequest = Body(default_factory=models.ImportRequest),
                   ) -> models.ImportReport:
+    # Before the session is even looked up: a claim we cannot trust is a bad request
+    # whichever upload it names, and saying so early keeps the reason readable.
+    declared = _declared_identities(payload.declared)
     analysis, source_path = _analysis_for(upload_id)
     vps_entry = _vps_entry(payload.vps_id)
     plan = build_import_plan(
@@ -203,7 +230,7 @@ def import_upload(upload_id: str,
         raise ApiError("no_importable_assets", "No importable assets",
                        status_code=422, details={"blocked": blocked})
     try:
-        report = execute_import_plan(plan, source_path)
+        report = execute_import_plan(plan, source_path, declared=declared)
     except (ValueError, FileNotFoundError) as exc:
         raise InvalidRequestError(str(exc)) from exc
     upload_session_service.cleanup_session(upload_id)

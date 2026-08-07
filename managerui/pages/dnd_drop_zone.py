@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from nicegui import context, run, ui
 
+from common.games import identity_claims
 from managerui.pages.import_confirm_dialog import open_import_confirm_dialog
 from managerui.services import upload_session_service
 from managerui.services.asset_analyzer_service import AnalysisResult, analyze_upload_session
@@ -46,6 +47,42 @@ def _ensure_assets() -> None:
         ui.add_head_html(
             f'<script src="/static/dnd_upload.js?v={_asset_version("dnd_upload.js")}"></script>')
         _script_clients.add(client_id)
+
+
+def _declared_for(game_path: str, filenames) -> dict:
+    """What a drop says about the files it carried.
+
+    The gesture is the declaration: letting go on a game row names that game, and on a
+    media slot the kind as well. A person chose the target, so the basis is `user` - not
+    `declared`, which is reserved for something that fetched the file from a named record
+    and therefore witnessed the identity rather than deciding it.
+
+    No upstream record is named here, so nothing enters the `.info` claiming to be a VPS
+    file. That binding only arrives from a client that actually fetched one.
+    """
+    game_id = _game_id_for(game_path)
+    if not game_id:
+        return {}
+    identity = identity_claims.DeclaredIdentity(
+        game_id=game_id, host="user", confirmed_by=identity_claims.USER)
+    return {name: identity for name in filenames}
+
+
+def _game_id_for(game_path: str) -> str:
+    """The game's own id, read off the folder it was dropped on."""
+    if not game_path:
+        return ""
+    try:
+        from common.games.game_metadata import vpinfe_section
+        from common.games.info_file import GAME_ID_KEY, MetaConfig
+        folder = Path(game_path)
+        info = folder / f"{folder.name}.info"
+        if not info.exists():
+            return ""
+        return str(vpinfe_section(MetaConfig(str(info)).data).get(GAME_ID_KEY, "") or "")
+    except Exception:
+        logger.debug("Could not read a game id for %s", game_path, exc_info=True)
+        return ""
 
 
 def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
@@ -100,8 +137,10 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                         upload_session_service.cleanup_session(upload_id)
                         return
                     cell_analysis = AnalysisResult("file", files[0].name, (), False)
-                    open_import_confirm_dialog(cell_analysis, plan, files[0], upload_id,
-                                               on_imported, refresh_media_cache=False)
+                    open_import_confirm_dialog(
+                        cell_analysis, plan, files[0], upload_id, on_imported,
+                        refresh_media_cache=False,
+                        declared=_declared_for(game_path, {files[0].name}))
                 return
 
             analysis, source_path = await run.io_bound(analyze_upload_session, session_dir)
@@ -134,8 +173,15 @@ def create_drop_zone(*, label: str, get_context: Callable[[], DropContext],
                     ui.notify(reasons, type="warning")
                     upload_session_service.cleanup_session(upload_id)
                     return
-                open_import_confirm_dialog(analysis, plan, source_path, upload_id, on_imported,
-                                           display_name=display_name)
+                # A drop on a row names that game; a drop on the page names nothing, and
+                # nothing is what gets declared - an unclaimed file joins the manual queue
+                # rather than entering the record on a guess.
+                names = {entry.path.rsplit("/", 1)[-1]
+                         for asset in analysis.assets for entry in asset.entries}
+                open_import_confirm_dialog(
+                    analysis, plan, source_path, upload_id, on_imported,
+                    display_name=display_name,
+                    declared=_declared_for(ctx.game_path if row_key else "", names))
         except Exception:
             logger.exception("Drag/drop analysis failed")
             with client:

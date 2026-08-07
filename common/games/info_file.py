@@ -3,6 +3,7 @@ import logging
 import os
 from urllib.parse import parse_qs, urlparse
 
+from common.games import identity_claims
 from common.games.ids import new_id
 from common.games.info_migration import (
     migrate,
@@ -406,17 +407,31 @@ class MetaConfig:
         }
         self.write_config()
 
-    def add_asset(self, path, host, md5=""):
+    def add_asset(self, path, host, md5="", identity=None):
         """Record a file we placed, against the path we wrote it to.
 
         Origin only. What kind of media it is and which table it belongs to are read
         off the filename by resolve_media_files on every run, so a stored copy could
         only ever agree with it or be wrong - and resolution wins either way.
+
+        `identity` is what the sender said this file is, when something witnessed it
+        arriving from a named upstream record. A weaker claim never overwrites a stronger
+        one already recorded, and an equal one does not either - the first witness keeps
+        the record, so re-importing the same file does not churn the file.
         """
-        source = {"host": host}
-        if md5:
-            source["hash"] = md5
-        self.data.setdefault(ASSETS_KEY, {})[self._asset_key(path)] = {"source": source}
+        key = self._asset_key(path)
+        if identity is not None and not identity.is_empty:
+            source = identity_claims.source_block(identity, md5=md5)
+            source.setdefault("host", host)
+            existing = (self.data.get(ASSETS_KEY, {}).get(key) or {}).get("source") or {}
+            if existing and not identity_claims.outranks(
+                    source.get("confirmed_by", ""), existing.get("confirmed_by", "")):
+                return
+        else:
+            source = {"host": host}
+            if md5:
+                source["hash"] = md5
+        self.data.setdefault(ASSETS_KEY, {})[key] = {"source": source}
         self.write_config()
 
     def _asset_key(self, path):

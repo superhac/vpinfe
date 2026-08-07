@@ -5,6 +5,8 @@ import logging
 from pathlib import Path
 from typing import Callable
 
+from functools import partial
+
 from nicegui import context, run, ui
 
 from managerui.services import game_service, upload_session_service
@@ -56,8 +58,14 @@ def _human_size(num_bytes: int) -> str:
 
 def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, source_path: Path,
                                upload_id: str, on_imported: Callable[[dict], None] | None,
-                               display_name: str = "", refresh_media_cache: bool = True) -> None:
-    """Confirm and execute an import plan, showing detected assets and their destinations."""
+                               display_name: str = "", refresh_media_cache: bool = True,
+                               declared: dict | None = None) -> None:
+    """Confirm and execute an import plan, showing detected assets and their destinations.
+
+    `declared` is what the drop itself said the files are. Where the user let go already
+    names the game - and on a media slot, the kind as well - so the identity travels with
+    the import rather than being asked for again in a dialog the gesture already answered.
+    """
     state = {"busy": False, "client": context.client}
     checks: dict[int, ui.checkbox] = {}
     name_input = None
@@ -321,7 +329,8 @@ def open_import_confirm_dialog(analysis: AnalysisResult, plan: ImportPlan, sourc
             import_btn.disable()
         try:
             resolved = _resolved_plan()
-            report = await run.io_bound(execute_import_plan, resolved, source_path)
+            report = await run.io_bound(
+                partial(execute_import_plan, resolved, source_path, declared=declared))
             vps_entry = vps_state["entry"]
             if vps_entry is not None and report.get("new_table"):
                 with client:

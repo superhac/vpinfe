@@ -267,6 +267,24 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-46 — An upload can say what its files are, instead of being guessed at.** The import
+endpoint accepts a `declared` map, keyed by the name each file arrived under, carrying
+`vps_file_id` + `host_item_id`, `game_id`, `table_id` and `confirmed_by`. What is declared is
+written into that file's `source` block in the `.info`. Purely additive: an empty body imports
+exactly as before, and a caller that says nothing records nothing. In the Manager UI the drop
+target is the declaration - letting go on a game row names that game - so no dialog asks again
+for what the gesture already said.
+*Why:* whatever delivered the bytes knows what it asked for, and VPinFE was throwing that away
+and re-deriving it afterwards. That inference was measured at 32% top-1 against 32% random and
+57% confidently wrong, which is why identification is observation-only. `confirmed_by` is the
+caller's *basis*, never a policy flag: the accepted set is `declared` (it fetched the file from
+that record) and `user` (a person picked it), with **no value meaning "I guessed"** - a
+`confirm: false` parameter would have let a client skip the human by asserting confidence it
+had not earned. A weaker claim never overwrites a stronger one, and an equal one does not
+either, so re-importing the same file does not churn the file. Written client-neutral: the API
+takes a declared identity and does not know what produced it. Covered by
+`tests/curation/test_declared_identity.py`.
+
 **PAR-45 — The browser is told which ports to use instead of assuming them.**
 *(machine-checked)* One WebSocket method is added, `get_manager_ui_port`, and the bridge's
 own port now travels in the window URL as `?wsPort=`. Purely additive: a theme never calls

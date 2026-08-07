@@ -499,6 +499,27 @@ class ImportReport(ApiModel):
     vps_error: str | None = None
 
 
+class DeclaredIdentity(ApiModel):
+    """What the sender says one uploaded file is.
+
+    Whatever delivered the bytes knows what it asked for, and re-deriving that from the
+    bytes afterwards is the guess this exists to replace. Every field is optional: a
+    caller that inferred an identity says nothing and the file joins the manual queue.
+
+    `confirmed_by` is how the caller knows, not what it wants done about it. The accepted
+    values are `declared` - it fetched the file from that record - and `user`, a person in
+    that client picked it. There is no value meaning "I guessed", which is what stops a
+    client asserting a confidence it did not earn.
+    """
+
+    vps_file_id: str = ""
+    host_item_id: str = ""
+    host: str = ""
+    game_id: str = ""
+    table_id: str = ""
+    confirmed_by: str = ""
+
+
 class PlanRequest(ApiModel):
     """Every field optional: an empty body plans the upload as it stands."""
 
@@ -510,10 +531,16 @@ class PlanRequest(ApiModel):
 
 class ImportRequest(PlanRequest):
     """`selected` picks plan items by index; omitted means the plan's own defaults.
-    `new_game_dir_name` omitted falls back to the VPS-derived name, then the vpx stem."""
+    `new_game_dir_name` omitted falls back to the VPS-derived name, then the vpx stem.
+
+    `declared` is keyed by the uploaded file's name, because a bundle carrying a .vpx, a
+    backglass and a ROM is one VPS game and three VPS file records - the binding cannot
+    live on the session the way `vps_id` does.
+    """
 
     new_game_dir_name: str | None = None
     selected: list[int] | None = None
+    declared: dict[str, DeclaredIdentity] | None = None
 
 
 # --- VPS -------------------------------------------------------------------

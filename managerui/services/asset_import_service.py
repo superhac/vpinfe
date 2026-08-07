@@ -583,8 +583,13 @@ def _sha256(path: Path) -> str:
 
 
 def execute_import_plan(plan: ImportPlan, source_path: Path,
-                        *, progress_cb: Callable[[str], None] | None = None) -> dict:
-    """Execute an import plan, streaming each asset from source_path to its destination."""
+                        *, progress_cb: Callable[[str], None] | None = None,
+                        declared: dict | None = None) -> dict:
+    """Execute an import plan, streaming each asset from source_path to its destination.
+
+    `declared` is what the sender said each uploaded file is, keyed by the name it arrived
+    under. Recorded after the files are on disk, so a failed import writes no claim.
+    """
     base = Path(plan.game_path)
     if plan.new_game_dir_name:
         if base.exists():
@@ -626,10 +631,46 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
     finally:
         source.close()
 
+    declared_written = record_declared_identities(plan, base, declared)
+
     return {
         "imported": imported,
         "skipped": [b.asset.kind for b in plan.blocked],
         "table_path": str(base),
         "new_table": bool(plan.new_game_dir_name),
         "media_keys": media_keys,
+        "declared": declared_written,
     }
+
+
+def record_declared_identities(plan: ImportPlan, base: Path, declared) -> list[str]:
+    """Write what the sender said each file is into the game's `.info`.
+
+    Keyed by the name the file arrived under, because that is the only name the sender
+    knows - it cannot predict where the plan will put it. Anything it names that the plan
+    did not import is ignored rather than rejected: a bundle may legitimately carry more
+    than the user selected.
+
+    Returns the destination paths actually recorded, so the caller can say what it did.
+    """
+    if not declared:
+        return []
+
+    by_name = {}
+    for item in plan.items:
+        for entry in item.asset.entries:
+            by_name.setdefault(_basename(entry.path), item)
+
+    written = []
+    meta = None
+    for name, identity in declared.items():
+        item = by_name.get(_basename(str(name)))
+        if item is None or identity is None or identity.is_empty:
+            continue
+        if meta is None:
+            # The .info is named for its folder, and MetaConfig wants the file.
+            meta = MetaConfig(str(base / f"{base.name}.info"))
+        meta.add_asset(item.destination, identity.host or "declared",
+                       identity=identity)
+        written.append(item.destination)
+    return written

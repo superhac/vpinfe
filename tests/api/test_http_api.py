@@ -331,3 +331,41 @@ class RegistrationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DeclaredIdentityEndpointTests(unittest.TestCase):
+    """The import endpoint refuses a claim it cannot trust, before anything is written.
+
+    Validated at the boundary rather than recorded and regretted: a client asserting a
+    confidence it has not earned is the failure the matcher measurements ruled out.
+    """
+
+    def _import(self, declared: dict):
+        return _client().post("/uploads/nope/import", json={"declared": declared})
+
+    def test_a_basis_outside_the_closed_set_is_rejected(self) -> None:
+        response = self._import({"t.vpx": {"game_id": "g", "confirmed_by": "auto"}})
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertIn("confirmed_by", response.text)
+
+    def test_naming_a_record_without_saying_how_is_rejected(self) -> None:
+        response = self._import({"t.vpx": {"vps_file_id": "f", "host_item_id": "h"}})
+        self.assertEqual(response.status_code, 400, response.text)
+
+    def test_a_vps_file_id_without_its_item_is_rejected(self) -> None:
+        """One VPS record can front many artifacts, so the record id alone is ambiguous."""
+        response = self._import(
+            {"t.vpx": {"vps_file_id": "f", "confirmed_by": "declared"}})
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertIn("host_item_id", response.text)
+
+    def test_the_error_names_the_file_it_is_about(self) -> None:
+        """A bundle declares several files; "invalid" alone would not say which."""
+        response = self._import({"backglass.png": {"confirmed_by": "auto", "game_id": "g"}})
+        self.assertIn("backglass.png", response.text)
+
+    def test_a_well_formed_claim_gets_past_validation(self) -> None:
+        """It fails on the unknown upload session, not on the declaration."""
+        response = self._import(
+            {"t.vpx": {"vps_file_id": "f", "host_item_id": "h", "confirmed_by": "declared"}})
+        self.assertNotIn("confirmed_by", response.text)
