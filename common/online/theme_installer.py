@@ -1,3 +1,9 @@
+"""Installing a theme, and remembering enough to update or remove it later.
+
+A theme the user edited is not silently overwritten: what was installed is recorded
+so an update can tell its own files from theirs.
+"""
+
 from __future__ import annotations
 
 import json
@@ -14,6 +20,8 @@ ASIDE_SUFFIX = ".previous"
 
 
 class ThemeInstallStore:
+    """What was installed and from where, so an update can tell our files from the user's."""
+
     def __init__(self, themes_dir: str) -> None:
         self.themes_dir = themes_dir
         os.makedirs(self.themes_dir, exist_ok=True)

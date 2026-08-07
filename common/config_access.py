@@ -1,3 +1,11 @@
+"""Reading and writing a setting, under any spelling it has ever had.
+
+Everything goes through `cfg_get` and friends rather than the parser: keys and
+sections were renamed at schema 2, and this is the one place that knows the old
+names still resolve. The typed views at the bottom group the settings a subsystem
+reads together, so a caller asks for what it needs instead of a section name.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

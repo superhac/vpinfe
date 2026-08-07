@@ -1,3 +1,5 @@
+"""One logger tree, configured once, written to a file that cannot grow forever."""
+
 from __future__ import annotations
 
 import logging

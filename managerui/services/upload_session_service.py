@@ -1,3 +1,10 @@
+"""An upload in progress.
+
+Files arrive in chunks and land in a session directory, never straight into the
+library. Every path is checked against that directory: an upload naming `../` is
+refused rather than resolved.
+"""
+
 from __future__ import annotations
 
 import logging

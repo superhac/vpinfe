@@ -94,6 +94,7 @@ def _flatten(tree: dict, prefix: str = '') -> dict:
 
 
 class ConfigStore:
+	"""The settings file, read once and written atomically."""
 
 	def _move_option(self, old_section, new_section, key) -> bool:
 		"""Move one option to the section it lives in now, keeping the user's value.

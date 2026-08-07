@@ -1,3 +1,5 @@
+"""How a single setting should be presented: which control, and in what order."""
+
 from __future__ import annotations
 
 INPUT_MAPPING_ACTION_ORDER = [

@@ -1,3 +1,5 @@
+"""The Media page: which media each game has, and which it is missing."""
+
 import asyncio
 import logging
 import os

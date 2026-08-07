@@ -1,3 +1,5 @@
+"""Finding VPX's own log file, and optionally clearing it before a session."""
+
 from __future__ import annotations
 
 import logging

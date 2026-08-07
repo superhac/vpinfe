@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""Reading a `.vpx` file directly.
+
+A VPX table is an OLE compound file, so this opens the container and pulls out the
+script and the fields VPinFE records. Nothing else in the tree parses the format.
+"""
+
 import csv
 import hashlib
 import logging
@@ -13,6 +19,8 @@ logger = logging.getLogger("vpinfe.common.games.vpx_parser")
 
 
 class VPXParser:
+    """Opens a `.vpx` as the OLE compound file it is, and reads what is inside."""
+
     sys.setrecursionlimit(10000)  # increase recursion limit for large OLE files
 
     logger = None

@@ -1,3 +1,5 @@
+"""The settings page - every VPinFE setting, grouped the way the schema declares."""
+
 import contextlib
 import io
 import logging

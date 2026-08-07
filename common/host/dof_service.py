@@ -1,3 +1,10 @@
+"""Talking to DOF, the cabinet's lights and solenoids.
+
+DOF runs in a child process (`--dof-helper`) rather than in ours: it loads native
+libraries that can take the whole app down with them, and a cabinet losing its lights
+should not lose its frontend.
+"""
+
 import json
 import logging
 import os
@@ -77,6 +84,8 @@ def _load_runner_class():
 
 
 class _DofHelperProcess:
+    """The child process holding DOF, kept alive and restarted if it dies."""
+
     def __init__(self) -> None:
         self._proc: subprocess.Popen[str] | None = None
         self._reader_thread: threading.Thread | None = None

@@ -1,3 +1,9 @@
+"""Pressing a key on the machine's behalf, so the Remote page can drive VPX.
+
+Two backends because Wayland will not let one process type into another: pynput works
+under X11, ydotool is the way in under Wayland.
+"""
+
 import logging
 import os
 import re
@@ -57,6 +63,8 @@ else:
 
 
 class PynputKeyboardBackend:
+    """Types via pynput. Works under X11; Wayland will not let it reach another window."""
+
     def __init__(self, key_map):
         self.key_map = key_map
         self._keyboard = None
@@ -99,6 +107,8 @@ class PynputKeyboardBackend:
 
 
 class YdotoolKeyboardBackend:
+    """Types via ydotool, which is the way into a Wayland session."""
+
     def __init__(self, key_map, debug=False):
         self.key_map = key_map
         self.debug = debug
@@ -172,6 +182,8 @@ class KeySimulator:
     # ------------------------------------------------------------------
     # SDL scancode -> internal key id mapping
     # ------------------------------------------------------------------
+
+    """Presses keys on this machine, through whichever backend the session allows."""
 
     SDL_TO_KEY_ID = {
         # Letters A–Z

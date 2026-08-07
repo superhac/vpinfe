@@ -1,3 +1,5 @@
+"""Packing a game into a `.vpxz` so it can be handed to another machine."""
+
 from __future__ import annotations
 
 import os

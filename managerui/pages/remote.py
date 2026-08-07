@@ -1,3 +1,5 @@
+"""The Remote page - a cabinet's controls on a phone, for when you are not at it."""
+
 import logging
 
 from nicegui import background_tasks, run, ui

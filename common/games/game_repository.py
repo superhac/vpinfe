@@ -1,3 +1,10 @@
+"""The library, held once and shared.
+
+Every page and endpoint reads games from here rather than re-scanning, which is what
+five callers each used to do. Re-reading a game replaces the object, so anything
+holding the old one is stale - `game.changed` is announced for that reason.
+"""
+
 from __future__ import annotations
 
 import logging

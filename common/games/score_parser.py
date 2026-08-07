@@ -1,3 +1,10 @@
+"""Reading high scores out of a table's NVRAM.
+
+PinMAME writes a `.nv` file per ROM and every machine lays it out differently, so the
+field offsets come from the community `roms.json` map rather than from us. What comes
+back is initials and a score; making sense of a specific machine is that file's job.
+"""
+
 import configparser
 import json
 import logging

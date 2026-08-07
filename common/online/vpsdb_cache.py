@@ -1,3 +1,5 @@
+"""Keeping the VPS and media databases on disk so startup does not wait on the network."""
+
 from __future__ import annotations
 
 import json
@@ -13,6 +15,8 @@ logger = logging.getLogger("vpinfe.common.online.vpsdb_cache")
 
 
 class VPSDatabaseCache:
+    """The VPS database on disk, refreshed when it is stale rather than on every read."""
+
     def __init__(
         self,
         config_dir: Path,

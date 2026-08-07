@@ -1,3 +1,5 @@
+"""The Collections page: making a collection, and choosing what is in it."""
+
 import logging
 
 from nicegui import app, events, run, ui

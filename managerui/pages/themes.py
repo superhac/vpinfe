@@ -1,3 +1,5 @@
+"""The Themes page: installing a theme, choosing one, and configuring it."""
+
 import json
 
 from nicegui import run, ui

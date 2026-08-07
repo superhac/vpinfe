@@ -1,3 +1,5 @@
+"""Kicking off a metadata build from the frontend without blocking the wheel."""
+
 from __future__ import annotations
 
 import logging

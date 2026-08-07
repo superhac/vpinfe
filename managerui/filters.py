@@ -1,3 +1,5 @@
+"""Filtering the games list, and the options each filter offers."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable

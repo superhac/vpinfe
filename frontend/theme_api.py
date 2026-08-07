@@ -1,3 +1,5 @@
+"""Which theme is active, where it lives, and what its manifest says."""
+
 from __future__ import annotations
 
 import json

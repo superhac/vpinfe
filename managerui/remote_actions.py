@@ -1,3 +1,5 @@
+"""The buttons the Remote page offers, and what each one presses."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

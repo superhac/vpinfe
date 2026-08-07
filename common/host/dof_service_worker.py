@@ -1,3 +1,5 @@
+"""The child process that actually holds DOF open. Started by `dof_service`."""
+
 from __future__ import annotations
 
 import json
@@ -12,6 +14,8 @@ logger = logging.getLogger("vpinfe.common.host.dof_service_worker")
 
 
 class _Worker:
+    """Runs inside the helper process: takes events on stdin and hands them to DOF."""
+
     def __init__(self) -> None:
         self._runner = None
         self._current_event: str | None = None

@@ -1,3 +1,5 @@
+"""Adding a game to the library from something the user dropped."""
+
 from __future__ import annotations
 
 import asyncio

@@ -1,3 +1,5 @@
+"""The System page: what this machine is, and what VPinFE is doing on it."""
+
 from __future__ import annotations
 
 import json

@@ -1,3 +1,5 @@
+"""Downloading a game's media from VPinMediaDB, at the resolution the display wants."""
+
 from __future__ import annotations
 
 import hashlib
@@ -14,6 +16,8 @@ logger = logging.getLogger("vpinfe.common.online.vpsdb_media")
 
 
 class VPSMediaDownloader:
+    """Downloads a game's media from VPinMediaDB."""
+
     def __init__(self, media_index: dict | None, *, playfieldvariant: str, playfieldresolution: str, playfieldvideoresolution: str) -> None:
         self.media_index = media_index or {}
         self.playfieldvariant = playfieldvariant

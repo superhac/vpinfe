@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Fetching the DOF binaries a build needs. Run by CI, not by the app."""
+
 import argparse
 import hashlib
 import json

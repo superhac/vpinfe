@@ -1,3 +1,5 @@
+"""What a file is, judged by its name: which media kind, or none of them."""
+
 from __future__ import annotations
 
 import logging

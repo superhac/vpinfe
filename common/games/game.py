@@ -1,3 +1,9 @@
+"""One game folder, as the rest of the app sees it.
+
+The attribute names are camelCase because a contract 1 theme reads them straight off
+the payload. They are frozen by the parity gate, not by preference.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

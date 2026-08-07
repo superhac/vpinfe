@@ -1,3 +1,5 @@
+"""Building a game's metadata from everything that knows something about it."""
+
 from __future__ import annotations
 
 import logging

@@ -1,3 +1,5 @@
+"""Keeping the community `roms.json` NVRAM map current, so new machines parse."""
+
 from __future__ import annotations
 
 import hashlib

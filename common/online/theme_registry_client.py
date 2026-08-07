@@ -1,3 +1,5 @@
+"""Fetching a theme catalog and checking it is one before trusting it."""
+
 from __future__ import annotations
 
 import logging
@@ -16,6 +18,8 @@ class ThemeRegistryError(Exception):
 
 
 class ThemeRegistryClient:
+    """Fetches one theme catalog and validates its shape before returning it."""
+
     def __init__(self, timeout: int = 10) -> None:
         self.timeout = timeout
 

@@ -1,3 +1,10 @@
+"""Reading and writing a game's `.info` file.
+
+The one place that knows the on-disk shape, so a schema change lands here rather than
+at every caller. A file is upgraded when it is read, and the old copy is set aside
+rather than overwritten.
+"""
+
 import json
 import logging
 import os
@@ -133,6 +140,8 @@ class InvalidMetaConfigError(ValueError):
 
 
 class MetaConfig:
+    """One game's `.info`, upgraded to the current schema as it is read."""
+
     PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
 
     def __init__(self, configfilepath):

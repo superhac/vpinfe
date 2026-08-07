@@ -1,3 +1,9 @@
+"""Playing as somebody else for one session.
+
+A guest profile is deliberately temporary: it is cleared on shutdown, so a cabinet
+never comes back up still submitting scores under a visitor's name.
+"""
+
 from __future__ import annotations
 
 import copy

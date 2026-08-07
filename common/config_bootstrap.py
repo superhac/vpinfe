@@ -1,3 +1,5 @@
+"""Reading `--configdir` before anything is imported. See below for why it is alone."""
+
 from __future__ import annotations
 
 import os

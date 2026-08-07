@@ -1,3 +1,5 @@
+"""VPX plugins: which are enabled, and under which profile."""
+
 from __future__ import annotations
 
 import logging

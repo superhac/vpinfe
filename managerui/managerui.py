@@ -1,3 +1,5 @@
+"""The Manager UI itself: the shell, the header, and the pages hung off it."""
+
 from __future__ import annotations
 
 import logging

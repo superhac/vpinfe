@@ -1,3 +1,5 @@
+"""Finding a game's media for the pages, and forgetting it when the files change."""
+
 from __future__ import annotations
 
 import logging

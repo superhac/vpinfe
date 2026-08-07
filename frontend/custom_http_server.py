@@ -1,3 +1,9 @@
+"""Serving a theme's assets to its own browser windows.
+
+Bound to loopback and confined to the mounted directories: it exists to hand local
+files to a local Chromium, and anything outside that is refused rather than resolved.
+"""
+
 # custom_http_server.py
 import http.server
 import logging
@@ -22,8 +28,12 @@ LOOPBACK = "127.0.0.1"
 NOTHING_HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "__unmounted__")
 
 class CustomHTTPServer:
+    """The loopback server that hands theme assets to the frontend windows."""
+
     class MultiDirHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Set debug True to print verbose logs
+        """Serves from several mounted directories, and refuses any path that leaves them."""
+
         debug = False
         PINBALL_PRIMER_PREFIX = "https://pinballprimer.github.io/"
 

@@ -1,3 +1,5 @@
+"""The settings a theme is allowed to read, answered one question at a time."""
+
 from __future__ import annotations
 
 import ipaddress

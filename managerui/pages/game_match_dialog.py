@@ -1,3 +1,5 @@
+"""Matching a game against VPS by hand, when the automatic match was wrong or absent."""
+
 from __future__ import annotations
 
 import logging

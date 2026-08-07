@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""Starting VPinFE.
+
+Reads mostly top to bottom, and the order is the point: config before anything
+under common/ is imported, servers before windows, and the shutdown at the end is
+the one path every exit goes through.
+"""
 
 from __future__ import annotations
 

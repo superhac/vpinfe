@@ -1,3 +1,9 @@
+"""Asking the operating system to restart or power off, and re-launching ourselves.
+
+The three platforms want three different commands for the same thing. Nothing here
+decides whether to do it - that is `common.lifecycle`, which confirms first.
+"""
+
 from __future__ import annotations
 
 import os

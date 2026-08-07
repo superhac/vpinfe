@@ -1,3 +1,5 @@
+"""The command-line interface: the flags, and what each one runs."""
+
 import argparse
 import os
 import sys

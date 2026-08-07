@@ -1,3 +1,5 @@
+"""The last look before an import writes anything - what will land, and what will not."""
+
 from __future__ import annotations
 
 import asyncio

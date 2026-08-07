@@ -1,3 +1,9 @@
+"""Where VPinFE keeps its own files.
+
+Resolved once at import, because a frozen build and a `--configdir` run have to agree
+on the answer before anything else reads it.
+"""
+
 from __future__ import annotations
 
 import os

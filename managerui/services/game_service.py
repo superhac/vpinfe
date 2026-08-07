@@ -1,3 +1,5 @@
+"""What the Manager UI does to a game: rate it, re-match it, put it in a collection."""
+
 from __future__ import annotations
 
 import json

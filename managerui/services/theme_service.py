@@ -1,3 +1,5 @@
+"""Installing, removing and switching themes on behalf of the Themes page."""
+
 from __future__ import annotations
 
 import json

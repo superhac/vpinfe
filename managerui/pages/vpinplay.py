@@ -1,3 +1,5 @@
+"""The VPinPlay page: the account scores are submitted under."""
+
 from __future__ import annotations
 
 import json

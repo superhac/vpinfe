@@ -1,3 +1,9 @@
+"""Fetching over HTTP, with a timeout every time.
+
+A thin wrapper over requests rather than a client: the point is that no call site can
+forget the timeout and hang the app on a server that never answers.
+"""
+
 from __future__ import annotations
 
 import json

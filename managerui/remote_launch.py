@@ -1,3 +1,5 @@
+"""Launching a game from the Remote page, including from a collection."""
+
 from __future__ import annotations
 
 import logging

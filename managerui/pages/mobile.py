@@ -1,3 +1,5 @@
+"""Sending games to a phone or tablet running VPX."""
+
 import json
 import logging
 import os

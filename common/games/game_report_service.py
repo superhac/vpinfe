@@ -1,3 +1,5 @@
+"""The two library reports the CLI prints: what is missing, and what we cannot place."""
+
 from __future__ import annotations
 
 import logging

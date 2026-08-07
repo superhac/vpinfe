@@ -1,3 +1,9 @@
+"""Starting the frontend and stopping it again.
+
+The order matters more than it looks: servers before windows, and every exit path
+through `shutdown_services`, which is what writes the session's play data.
+"""
+
 from __future__ import annotations
 
 import os

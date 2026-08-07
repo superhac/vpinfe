@@ -1,3 +1,5 @@
+"""Driving a real DMD panel, in a child process for the same reason DOF is."""
+
 import logging
 import threading
 from pathlib import Path

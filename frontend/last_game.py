@@ -1,3 +1,5 @@
+"""Remembering which game the player was on, by identity rather than by position."""
+
 from __future__ import annotations
 
 import logging

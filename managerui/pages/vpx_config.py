@@ -1,3 +1,5 @@
+"""VPX's own settings, edited through VPinFE rather than through its ini."""
+
 from __future__ import annotations
 
 import logging

@@ -1,3 +1,5 @@
+"""Checking for a new VPinFE release, and staging one to install on restart."""
+
 from __future__ import annotations
 
 import hashlib

@@ -1,3 +1,5 @@
+"""The rows the Games page is showing, cached so a redraw is not a rescan."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

@@ -1,3 +1,5 @@
+"""Finding themes to install, from every source the user has configured."""
+
 import concurrent.futures
 import logging
 import os
@@ -16,6 +18,8 @@ CURRENT_CONTRACT = 2
 
 
 class ThemeRegistry:
+    """Every theme available to install, gathered from all configured sources."""
+
     def __init__(self, timeout: int = 10, serves_contract: int = CURRENT_CONTRACT,
                  sources: theme_sources.ThemeSources | None = None):
         # Read at load time, not here: constructing a registry should not touch the disk,

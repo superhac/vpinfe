@@ -1,3 +1,9 @@
+"""Reading VPX's own ini so the Manager UI can present it as fields.
+
+The comments in that file are the only documentation each setting has, so they are
+parsed out and shown rather than discarded.
+"""
+
 from __future__ import annotations
 
 import os

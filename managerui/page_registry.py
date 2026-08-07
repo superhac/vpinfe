@@ -1,3 +1,5 @@
+"""The list of pages the shell builds its navigation from."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

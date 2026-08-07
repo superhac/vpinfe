@@ -1,3 +1,5 @@
+"""Switching the active VPinPlay profile for the session."""
+
 from __future__ import annotations
 
 import json

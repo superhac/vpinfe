@@ -1,3 +1,5 @@
+"""Listing games for the pages that need a list rather than the whole library."""
+
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,3 +1,5 @@
+"""Everything about one game, in a dialog: its metadata, media, files and stats."""
+
 from __future__ import annotations
 
 import asyncio

@@ -1,3 +1,5 @@
+"""The community script patches that make a table run under VPX Standalone."""
+
 import logging
 import os
 from pathlib import Path
@@ -10,6 +12,8 @@ from common.http_client import download_file, get_json
 logger = logging.getLogger("vpinfe.common.games.standalone_scripts")
 
 class StandaloneScripts:
+
+    """The community script patches, fetched and applied to a table that needs one."""
 
     hashsUrl = "https://raw.githubusercontent.com/jsm174/vpx-standalone-scripts/refs/heads/master/hashes.json"
 

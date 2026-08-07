@@ -1,3 +1,5 @@
+"""The options behind the config page's dropdowns - displays, log levels, and widths."""
+
 from __future__ import annotations
 
 import re

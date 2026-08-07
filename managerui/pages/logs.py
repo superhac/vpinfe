@@ -1,3 +1,5 @@
+"""The Logs page, for reading the log without leaving the cabinet."""
+
 from __future__ import annotations
 
 import html

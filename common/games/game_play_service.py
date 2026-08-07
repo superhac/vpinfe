@@ -1,3 +1,9 @@
+"""What happened when a game was played: how long, how often, and the score it left.
+
+The counters live in the `.info` under the keys the VPX spec fixes, so a stat written
+here is the same one every other frontend reads.
+"""
+
 from __future__ import annotations
 
 import logging

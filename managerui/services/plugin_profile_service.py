@@ -1,3 +1,5 @@
+"""VPX plugin profiles: the named sets of plugin settings a user can switch between."""
+
 from __future__ import annotations
 
 import re

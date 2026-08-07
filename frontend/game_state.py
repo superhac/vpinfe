@@ -1,3 +1,5 @@
+"""What the wheel is currently showing - the filter, the sort, and the games left."""
+
 from __future__ import annotations
 
 import json

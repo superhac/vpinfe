@@ -1,3 +1,5 @@
+"""The Virtual Pinball Spreadsheet: the community database VPinFE matches games against."""
+
 import logging
 import re
 from difflib import SequenceMatcher

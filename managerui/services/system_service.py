@@ -1,3 +1,5 @@
+"""What the machine underneath looks like - disks, GPU, and which windowing system."""
+
 from __future__ import annotations
 
 import os

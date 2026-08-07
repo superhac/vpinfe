@@ -1,3 +1,5 @@
+"""The drop target itself - what the browser hands us when a file is dragged in."""
+
 from __future__ import annotations
 
 import asyncio

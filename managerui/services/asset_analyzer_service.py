@@ -1,3 +1,9 @@
+"""Working out what is inside something the user dropped on us.
+
+A zip, a folder or a loose file all become the same answer: which of these are media,
+which is the table, and which we do not recognise. Nothing is moved at this stage.
+"""
+
 from __future__ import annotations
 
 import fnmatch
@@ -99,6 +105,8 @@ def _clean_name(raw: str) -> str:
 
 
 class ZipSource:
+    """An AssetSource backed by a zip archive."""
+
     def __init__(self, path: Path) -> None:
         self.name = path.name
         self.kind = "zip"
@@ -135,6 +143,8 @@ class ZipSource:
 
 
 class RarSource:
+    """An AssetSource backed by a rar archive."""
+
     def __init__(self, path: Path) -> None:
         self.name = path.name
         self.kind = "rar"
@@ -171,6 +181,8 @@ class RarSource:
 
 
 class SevenZipSource:
+    """An AssetSource backed by a 7z archive."""
+
     def __init__(self, path: Path) -> None:
         self.name = path.name
         self.kind = "7z"
@@ -208,6 +220,8 @@ class SevenZipSource:
 
 
 class DirSource:
+    """An AssetSource backed by a plain directory."""
+
     def __init__(self, path: Path) -> None:
         self.name = path.name
         self.kind = "dir"

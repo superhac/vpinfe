@@ -1,3 +1,9 @@
+"""Turning an analysed drop into a plan, and only then into files on disk.
+
+The plan is built and shown before anything is written, so an import that would
+overwrite a file is something the user declines rather than undoes.
+"""
+
 from __future__ import annotations
 
 import logging

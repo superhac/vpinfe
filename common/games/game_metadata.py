@@ -1,3 +1,9 @@
+"""Reading a game's `.info`, whichever schema wrote it.
+
+Callers ask for a value, not for a schema version: a file written by 2.x and one
+written today answer the same questions here.
+"""
+
 from __future__ import annotations
 
 import ast

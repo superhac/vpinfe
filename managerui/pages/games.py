@@ -1,3 +1,5 @@
+"""The Games page: the whole library as a table, and what can be done to a row."""
+
 import asyncio
 import logging
 import os

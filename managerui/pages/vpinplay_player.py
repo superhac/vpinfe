@@ -1,3 +1,5 @@
+"""Switching to a guest player for a session, without touching the real account."""
+
 from __future__ import annotations
 
 from datetime import datetime

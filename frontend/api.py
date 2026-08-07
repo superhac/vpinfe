@@ -1,3 +1,11 @@
+"""Everything a theme is allowed to ask for.
+
+The WebSocket bridge dispatches to these methods by name, and only the names in
+`API_ALLOWED_METHODS` are reachable - so adding a method here is adding to the theme
+contract, and the parity gate holds it to that. Renamed methods keep their old
+spelling as an alias rather than breaking a published theme.
+"""
+
 import logging
 
 from common import events, lifecycle
@@ -132,6 +140,8 @@ API_ALLOWED_METHODS |= set(_RENAMED_METHODS)
 
 
 class API:
+
+    """One instance per frontend window. Only methods in API_ALLOWED_METHODS are reachable."""
 
     def __getattr__(self, name):
         """Forward a pre-rename method name to its replacement.

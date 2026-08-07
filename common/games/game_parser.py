@@ -1,3 +1,9 @@
+"""Walking the library folder and turning what is there into games.
+
+Scanning is almost entirely waiting on the filesystem - a real library often sits on
+a network share - so folders are read in parallel above a threshold.
+"""
+
 import logging
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -32,6 +38,8 @@ logger = logging.getLogger("vpinfe.common.games.game_parser")
 
 class GameParser:
     # static console colors
+    """One pass over the library folder, turning each subfolder into a Game."""
+
     RED_CONSOLE_TEXT = '\033[31m'
     RESET_CONSOLE_TEXT = '\033[0m'
 

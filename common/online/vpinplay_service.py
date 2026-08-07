@@ -1,3 +1,5 @@
+"""Sending play data to VPinPlay - what was played, for how long, and what it scored."""
+
 import json
 import logging
 from pathlib import Path
