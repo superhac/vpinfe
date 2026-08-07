@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import os
 import signal
+import sys
 import unittest
 from unittest import mock
 
 from common import shutdown
 
 
+# Windows defines SIGTERM but does not deliver it: os.kill falls through to
+# TerminateProcess, so the test run is killed outright - no failure, no summary, exit 1.
+# The guard tested that the name exists, which it does. What matters is whether raising
+# it runs a handler, and only a POSIX platform does.
+@unittest.skipIf(sys.platform.startswith("win"),
+                 "Windows terminates the process instead of delivering SIGTERM")
 @unittest.skipIf(not hasattr(signal, "SIGTERM"), "no SIGTERM on this platform")
 class StartupShutdownTests(unittest.TestCase):
     def setUp(self):
