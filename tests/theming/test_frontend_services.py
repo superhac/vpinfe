@@ -199,7 +199,8 @@ class FrontendServiceTests(unittest.TestCase):
             logs.append(msg % args if args else msg)
 
         with (
-            mock.patch("common.games.game_report_service.GameParser", return_value=parser_instance),
+            mock.patch("common.games.game_report_service.games_under",
+                       return_value=parser_instance.getAllGames.return_value),
             mock.patch("common.games.game_report_service.VPSdb", return_value=vps_instance),
         ):
             game_report_service.list_unknown_games(iniconfig=ini, log=log)

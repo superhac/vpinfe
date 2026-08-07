@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from common.config_access import SettingsConfig
-from common.games.game_parser import GameParser
+from common.games.game_repository import games_under
 from common.config_store import ConfigStore
 from common.online.vpsdb import VPSdb
 from common.paths import get_ini_config
@@ -19,8 +19,7 @@ def list_missing_games(iniconfig: ConfigStore | None = None, log=None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
     game_root = SettingsConfig.from_config(config).game_root_dir
-    tp = GameParser(game_root, config)
-    games = tp.getAllGames()
+    games = games_under(game_root, config)
     log("Listing tables missing from %s", game_root)
     log("Found %s tables in %s", len(games), game_root)
 
@@ -59,8 +58,7 @@ def list_unknown_games(iniconfig: ConfigStore | None = None, log=None) -> None:
     config = _config(iniconfig)
     log = log or logger.info
     game_root = SettingsConfig.from_config(config).game_root_dir
-    tp = GameParser(game_root, config)
-    games = tp.getAllGames()
+    games = games_under(game_root, config)
     log("Listing unknown tables from %s", game_root)
     log("Found %s tables in %s", len(games), game_root)
 

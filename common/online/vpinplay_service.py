@@ -8,7 +8,7 @@ import requests
 from common.app_version import get_version
 from common.config_access import SettingsConfig, VPinPlayConfig
 from common.games.game_metadata import default_table, normalize_rating, vpinfe_section
-from common.games.game_parser import GameParser
+from common.games.game_repository import games_under
 from common.timestamps import utc_now_iso
 
 logger = logging.getLogger("vpinfe.common.online.vpinplay_service")
@@ -172,8 +172,7 @@ def sync_installed_games(
     if not game_root.exists() or not game_root.is_dir():
         raise ValueError(f"Tables Directory does not exist: {game_root_dir}")
 
-    parser = GameParser(game_root_dir)
-    games = parser.getAllGames()
+    games = games_under(game_root_dir)
 
     payload_games = []
     skipped = 0

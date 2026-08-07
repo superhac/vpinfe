@@ -4,7 +4,7 @@ import logging
 import os
 
 from common.config_access import SettingsConfig
-from common.games.game_parser import GameParser
+from common.games.game_repository import games_under
 from common.games.info_file import MetaConfig
 from common.games.standalone_scripts import StandaloneScripts
 from common.games.vpx_parser import VPXParser
@@ -39,8 +39,7 @@ def build_metadata(
 
     settings = SettingsConfig.from_config(config)
 
-    tp = GameParser(settings.game_root_dir, config)
-    games = tp.getAllGames()
+    games = games_under(settings.game_root_dir, config)
 
     if gameName:
         games = [game for game in games if game.gameDirName == gameName]
@@ -122,6 +121,5 @@ def build_metadata(
 def apply_vpx_patches(progress_cb=None, iniconfig: ConfigStore | None = None):
     config = _config(iniconfig)
     settings = SettingsConfig.from_config(config)
-    tp = GameParser(settings.game_root_dir, config)
-    games = tp.getAllGames()
+    games = games_under(settings.game_root_dir, config)
     StandaloneScripts(games, progress_cb=progress_cb)

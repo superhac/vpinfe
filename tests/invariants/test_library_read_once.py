@@ -14,6 +14,7 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from common.games.game_parser import GameParser
+from tests.support.library import TempTree, write_game
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
@@ -94,3 +95,52 @@ class LibraryIsReadOnceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GamesUnderTests(TempTree):
+    """Five callers used to build a parser of their own and rescan everything.
+
+    On the network share a real library lives on that was the whole cold scan again, each
+    time, for a library the app already had loaded. `games_under` hands back the cache
+    when the root is the configured one - and does not when it is not, because a report
+    run against another folder is a different library and must not be answered with the
+    wrong games.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        from common.games import game_repository
+        self.repo = game_repository
+        game_repository._PARSER = None
+        self.addCleanup(setattr, game_repository, "_PARSER", None)
+
+    def test_the_configured_root_is_answered_from_the_cache(self) -> None:
+        write_game(self.root, "Example", info={"Info": {"Name": "Example"}})
+        with mock.patch.object(self.repo, "get_games_path", return_value=str(self.root)):
+            first = self.repo.games_under(str(self.root))
+            with mock.patch.object(self.repo, "GameParser") as parser:
+                again = self.repo.games_under(str(self.root))
+                parser.assert_not_called()
+        self.assertEqual(len(first), 1)
+        self.assertEqual([g.gameDirName for g in again], ["Example"])
+
+    def test_no_root_at_all_means_the_configured_one(self) -> None:
+        write_game(self.root, "Example", info={"Info": {"Name": "Example"}})
+        with mock.patch.object(self.repo, "get_games_path", return_value=str(self.root)):
+            self.repo.games_under("")
+            with mock.patch.object(self.repo, "GameParser") as parser:
+                self.repo.games_under("")
+                parser.assert_not_called()
+
+    def test_another_root_is_parsed_rather_than_guessed_at(self) -> None:
+        """The bug this shape avoids: answering a different folder with the cache."""
+        other = self.root / "elsewhere"
+        other.mkdir()
+        write_game(self.root, "Configured", info={"Info": {"Name": "Configured"}})
+        write_game(other, "Elsewhere", info={"Info": {"Name": "Elsewhere"}})
+
+        with mock.patch.object(self.repo, "get_games_path", return_value=str(self.root)):
+            self.repo.games_under(str(self.root))
+            names = [g.gameDirName for g in self.repo.games_under(str(other))]
+
+        self.assertEqual(names, ["Elsewhere"])

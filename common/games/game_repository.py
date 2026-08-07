@@ -50,6 +50,23 @@ def ensure_games_loaded(reload: bool = False) -> List[Any]:
     return games
 
 
+def games_under(games_root: str, config=None) -> list[Any]:
+    """The library at `games_root`, from the cache when that is the configured one.
+
+    Five callers built a parser of their own and rescanned everything, which on a network
+    share was the whole cold scan again each time. Most of them want the library the app
+    already has; they just could not say so without assuming the root.
+
+    A root that is not the configured one is genuinely a different library - a report run
+    against another folder, a test - so it gets its own parse rather than quietly being
+    answered with the wrong games.
+    """
+    wanted = str(games_root or "").strip()
+    if not wanted or wanted == get_games_path():
+        return ensure_games_loaded()
+    return list(GameParser(wanted, config or get_ini_config()).getAllGames())
+
+
 def refresh_games() -> List[Any]:
     return ensure_games_loaded(reload=True)
 

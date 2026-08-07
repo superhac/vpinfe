@@ -93,10 +93,10 @@ class TestVPinPlayService(unittest.TestCase):
 
     @patch("common.online.vpinplay_service.requests.post")
     @patch("common.online.vpinplay_service.get_version", return_value="test-version")
-    @patch("common.online.vpinplay_service.GameParser")
+    @patch("common.online.vpinplay_service.games_under")
     def test_sync_installed_games_includes_initials_in_client_payload(
         self,
-        mock_game_parser,
+        mock_games_under,
         _mock_get_version,
         mock_post,
     ) -> None:
@@ -107,8 +107,9 @@ class TestVPinPlayService(unittest.TestCase):
             "VPXFile": {},
             "vpinfe": {},
         }
-        parser_instance = mock_game_parser.return_value
-        parser_instance.getAllGames.return_value = [game]
+        # games_under hands back the library directly - the cache when the root is the
+        # configured one, a fresh parse when it is not.
+        mock_games_under.return_value = [game]
 
         response = MagicMock()
         response.status_code = 200
