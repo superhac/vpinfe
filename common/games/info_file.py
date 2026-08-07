@@ -87,6 +87,28 @@ def migrate_vpinfe_section(vpinfe):
     return vpinfe
 
 
+ALT_VPSID_KEY = "alt_vpsid"
+# Nothing resolves through this, and an invariant says so - see INFO-SCHEMA §3.11a.
+ALT_VPSID_PREVIOUS_KEY = "alt_vpsid_previous"
+
+
+def _park_alt_vpsid(vpinfe, table_filename):
+    """Set a manual VPS match aside when the table it was claimed against is replaced.
+
+    It stops applying either way; what changes is that the user's typed value survives to
+    be offered back. Only the most recent is kept (INFO-SCHEMA §3.11a).
+    """
+    previous = str(vpinfe.get(ALT_VPSID_KEY, "") or "").strip()
+    vpinfe[ALT_VPSID_KEY] = ""
+    if not previous:
+        return
+    vpinfe[ALT_VPSID_PREVIOUS_KEY] = {
+        "value": previous,
+        "table": table_filename or "",
+        "set_aside": utc_now_iso(),
+    }
+
+
 def _default_table_changed(chosen, previous_files, tables):
     """Whether the game's default table is a different file than it was.
 
@@ -221,9 +243,9 @@ class MetaConfig:
                                recorded_default(vpinfe, tables))
 
         if _default_table_changed(chosen, previous_files, tables):
-            vpinfe["alt_vpsid"] = ""
+            _park_alt_vpsid(vpinfe, chosen)
         else:
-            vpinfe.setdefault("alt_vpsid", "")
+            vpinfe.setdefault(ALT_VPSID_KEY, "")
 
         # Preserve any top-level sections we don't manage (e.g. metadata written by
         # other tools sharing the .info file) instead of dropping them on rebuild.
@@ -390,7 +412,7 @@ class MetaConfig:
             chosen = default_table(table_filenames(entries), "",
                                    recorded_default(vpinfe, entries))
             if _default_table_changed(chosen, previous, entries):
-                vpinfe["alt_vpsid"] = ""
+                _park_alt_vpsid(vpinfe, chosen)
         self.write_config()
 
     def record_patch_source(self, filename, base_file, base_hash, patch_format):

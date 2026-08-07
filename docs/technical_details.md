@@ -338,8 +338,21 @@ When you run VPinFE with the `--buildmeta` option it recursively goes through yo
     from whatever `User.RunTime` already held.
   - plugin_profile, alt_title, alt_vpsid, frontend_dof_event
 
-  `alt_vpsid` is cleared when the default table's hash changes during a rebuild, since a
-  manual VPS match was chosen against the file that was there.
+  `alt_vpsid` is a manual VPS match: automatic matching got the game wrong, and somebody
+  looked up the right record and said so. It overrides `Info.VPSId` everywhere an id is
+  used - collections, media matching, the VPinPlay payload.
+
+  It **stops applying** when the default table's hash changes during a rebuild, because
+  the claim was made about the file that was there and that file has been replaced.
+  Matching falls back to `Info.VPSId`.
+
+  - alt_vpsid_previous
+
+  The superseded override, set aside rather than deleted: `{"value", "table",
+  "set_aside"}`. **Nothing resolves through it** - it is what the user typed, kept so it
+  can be offered back rather than retyped from memory. Only the most recent is kept; a
+  claim made two tables ago is history nobody will restore. Absent when there was no
+  override to set aside.
 
 - assets
 
