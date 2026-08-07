@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 import sys
 import threading
+
+logger = logging.getLogger("vpinfe.common.host.display_service")
 
 
 # Xlib / libxcb / libXau are NOT thread-safe. screeninfo.get_monitors() opens an
@@ -26,10 +29,23 @@ def _query_monitors():
 
 
 def get_display_monitors(refresh: bool = False):
+    """Every display this machine has, or none when it cannot say.
+
+    Enumeration fails on a machine with no session attached - a headless server, a
+    container, a session that has gone away - and it used to raise from here. The theme
+    asks for this list while it is starting up, so the throw left the frontend connected,
+    serving contract 2, and never finishing: a blank screen with everything reporting
+    healthy. No monitors is a thing callers already handle; not answering is not.
+    """
     global _monitors_cache
     with _monitors_lock:
         if refresh or _monitors_cache is None:
-            _monitors_cache = _query_monitors()
+            try:
+                _monitors_cache = _query_monitors()
+            except Exception:
+                logger.warning("Could not enumerate displays; continuing with none",
+                               exc_info=True)
+                _monitors_cache = []
         return _monitors_cache
 
 
