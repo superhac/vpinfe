@@ -48,28 +48,68 @@ class InputAction:
 
 
 INPUT_ACTIONS: tuple[InputAction, ...] = (
-    InputAction("previous", ("key:ArrowLeft", "key:ShiftLeft"), "Previous",
-                legacy=("joyleft", "keyleft")),
-    InputAction("next", ("key:ArrowRight", "key:ShiftRight"), "Next",
-                legacy=("joyright", "keyright")),
+    InputAction(
+        "previous",
+        bindings=("key:ArrowLeft", "key:ShiftLeft"),
+        label="Previous",
+        legacy=("joyleft", "keyleft"),
+    ),
+    InputAction(
+        "next",
+        bindings=("key:ArrowRight", "key:ShiftRight"),
+        label="Next",
+        legacy=("joyright", "keyright"),
+    ),
     # up/down and pageup/pagedown were the same intent under two names: carousel-desktop
     # used up/down for a page-sized jump, which is what paging is.
-    InputAction("page_up", ("key:PageUp", "key:ArrowUp"), "Page up",
-                legacy=("joypageup", "keypageup", "joyup", "keyup")),
-    InputAction("page_down", ("key:PageDown", "key:ArrowDown"), "Page down",
-                legacy=("joypagedown", "keypagedown", "joydown", "keydown")),
-    InputAction("select", ("key:Enter",), "Select",
-                legacy=("joyselect", "keyselect")),
-    InputAction("back", ("key:b",), "Back",
-                legacy=("joyback", "keyback")),
-    InputAction("menu", ("key:m",), "Menu",
-                legacy=("joymenu", "keymenu")),
-    InputAction("collection_menu", ("key:c",), "Collection menu",
-                legacy=("joycollectionmenu", "keycollectionmenu")),
-    InputAction("tutorial", ("key:t",), "Tutorial",
-                legacy=("joytutorial", "keytutorial")),
-    InputAction("exit", ("key:Escape", "key:q"), "Exit",
-                legacy=("joyexit", "keyexit")),
+    InputAction(
+        "page_up",
+        bindings=("key:PageUp", "key:ArrowUp"),
+        label="Page up",
+        legacy=("joypageup", "keypageup", "joyup", "keyup"),
+    ),
+    InputAction(
+        "page_down",
+        bindings=("key:PageDown", "key:ArrowDown"),
+        label="Page down",
+        legacy=("joypagedown", "keypagedown", "joydown", "keydown"),
+    ),
+    InputAction(
+        "select",
+        bindings=("key:Enter",),
+        label="Select",
+        legacy=("joyselect", "keyselect"),
+    ),
+    InputAction(
+        "back",
+        bindings=("key:b",),
+        label="Back",
+        legacy=("joyback", "keyback"),
+    ),
+    InputAction(
+        "menu",
+        bindings=("key:m",),
+        label="Menu",
+        legacy=("joymenu", "keymenu"),
+    ),
+    InputAction(
+        "collection_menu",
+        bindings=("key:c",),
+        label="Collection menu",
+        legacy=("joycollectionmenu", "keycollectionmenu"),
+    ),
+    InputAction(
+        "tutorial",
+        bindings=("key:t",),
+        label="Tutorial",
+        legacy=("joytutorial", "keytutorial"),
+    ),
+    InputAction(
+        "exit",
+        bindings=("key:Escape", "key:q"),
+        label="Exit",
+        legacy=("joyexit", "keyexit"),
+    ),
 )
 
 

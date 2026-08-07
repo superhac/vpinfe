@@ -12,7 +12,7 @@ store it replaces rather than trusted.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from common import input_actions
 
@@ -23,17 +23,33 @@ def _input_options() -> tuple[ConfigOption, ...]:
     One option per action holding an ordered list of bindings - not a key per device,
     because a binding names its own device and a chord names two.
     """
-    out = [ConfigOption(input_actions.SECTION, action.name, "list",
-                        ",".join(action.bindings), label=action.label,
-                        legacy=tuple(("Input", old) for old in action.legacy))
-           for action in input_actions.actions()]
+    out = [
+        ConfigOption(
+            action.name,
+            type="list",
+            default=",".join(action.bindings),
+            label=action.label,
+            legacy=tuple(("Input", old) for old in action.legacy),
+        )
+        for action in input_actions.actions()
+    ]
     # Not actions: how the paging actions step, which is a setting about them.
-    out.append(ConfigOption(input_actions.SECTION, "paging_type", "choice", 'alpha',
-                            label='Paging Type', choices=('alpha', 'numeric'),
-                            legacy=(("Input", "pagingtype"),)))
-    out.append(ConfigOption(input_actions.SECTION, "paging_size", "int", '10',
-                            label='Paging Size', legacy=(("Input", "pagingsize"),)))
-    return tuple(out)
+    out.append(ConfigOption(
+        "paging_type",
+        type="choice",
+        default="alpha",
+        label="Paging Type",
+        choices=("alpha", "numeric"),
+        legacy=(("Input", "pagingtype"),),
+    ))
+    out.append(ConfigOption(
+        "paging_size",
+        type="int",
+        default="10",
+        label="Paging Size",
+        legacy=(("Input", "pagingsize"),),
+    ))
+    return in_section(input_actions.SECTION, *out)
 
 
 # Sections renamed wholesale, old name to new. A section rename is not the same thing as
@@ -61,12 +77,17 @@ def canonical_section(section: str) -> str:
 
 @dataclass(frozen=True)
 class ConfigOption:
-    """One setting. `type` says how to read it, not how to store it."""
+    """One setting. `type` says how to read it, not how to store it.
 
-    section: str
+    Declared inside `in_section(...)`, which fills the section in - so an entry names
+    its key and nothing else, and the section is stated once for the whole block.
+    """
+
     key: str
     type: str
     default: str
+    # Filled in by `in_section`, so an entry never states it.
+    section: str = ""
     label: str = ""
     description: str = ""
     choices: tuple[str, ...] = ()
@@ -83,257 +104,571 @@ class ConfigOption:
     internal: bool = False
 
 
+def in_section(section: str, *options: ConfigOption) -> tuple[ConfigOption, ...]:
+    """Stamp a section onto the options declared under it.
+
+    The section is written once, at the head of its block, rather than repeated on every
+    entry - so what you scan down the left is the key, and a block cannot half-belong to
+    two sections the way a comment header can drift.
+    """
+    return tuple(replace(option, section=section) for option in options)
+
+
 CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
-    ConfigOption("windows.backglass", "screen_id", "int", '',
-                 label='Backglass Monitor ID',
-                 legacy=(('Displays', 'bg_screen_id'), ('Displays', 'bgscreenid'))),
-    ConfigOption("windows.scoreview", "screen_id", "int", '',
-                 label='DMD Monitor ID',
-                 legacy=(('Displays', 'dmd_screen_id'), ('Displays', 'dmdscreenid'))),
-    ConfigOption("windows.backglass", "window_override", "string", '',
-                 label='Backglass Window Override (x,y,width,height)',
-                 legacy=(('Displays', 'bg_window_override'), ('Displays', 'bgwindowoverride'))),
-    ConfigOption("windows.scoreview", "window_override", "string", '',
-                 label='DMD Window Override (x,y,width,height)',
-                 legacy=(('Displays', 'dmd_window_override'), ('Displays', 'dmdwindowoverride'))),
-    ConfigOption("windows.playfield", "screen_id", "int", '0',
-                 label='Playfield Monitor ID',
-                 legacy=(('Displays', 'playfield_screen_id'), ('Displays', 'playfieldscreenid'))),
-    ConfigOption("windows.playfield", "orientation", "choice", 'landscape',
-                 label='Playfield Monitor Mounting',
-                 description='How the playfield screen is physically mounted. Portrait means it is '
-                             'turned on its side in the cabinet. This does not rotate anything by '
-                             'itself - it tells themes what shape to lay out for.',
-                 choices=('landscape', 'portrait'),
-                 legacy=(
-                     ('Displays', 'playfield_orientation'),
-                     ('Displays', 'playfieldorientation'),
-                 )),
-    ConfigOption("windows.playfield", "rotation", "choice", '0',
-                 label='Rotate VPinFE Display',
-                 description='How far VPinFE turns its own display so it faces the player. Leave '
-                             'at 0 if your operating system already rotates this screen.',
-                 choices=('0', '90', '180', '270'),
-                 legacy=(('Displays', 'playfield_rotation'), ('Displays', 'playfieldrotation'))),
-    ConfigOption("displays", "cab_mode", "bool", 'false',
-                 label='Cabinet Mode',
-                 description='Presents VPinFE for playing standing at a cabinet: larger text and '
-                             'targets, and no controls that need a mouse. It does not rotate '
-                             'anything.',
-                 aliases=('cabmode',),
-                 # It lived in [Settings] before it was display context. Declared here
-                 # rather than chained through SettingsConfig, which is how a parser that
-                 # had not been migrated used to resolve it.
-                 legacy=(('Settings', 'cabmode'), ('Settings', 'cab_mode'))),
-    ConfigOption("general", "vpx_bin_path", "string", '',
-                 label='VPX Executable Path',
-                 description='Full path to the Visual Pinball executable VPinFE launches.',
-                 aliases=('vpxbinpath',)),
-    ConfigOption("general", "vpx_launch_env", "string", '',
-                 label='VPX Launch Environment',
-                 aliases=('vpxlaunchenv',)),
-    ConfigOption("general", "global_ini_override", "string", '',
-                 label='Global ini Override (/home/test/mysuper.ini)',
-                 aliases=('globalinioverride',)),
-    ConfigOption("general", "global_game_ini_override_enabled", "bool", 'false',
-                 label='Global tableini Override Enabled',
-                 aliases=('globaltableinioverrideenabled',)),
-    ConfigOption("general", "global_game_ini_override_mask", "string", '',
-                 label='Global tableini Override Mask',
-                 aliases=('globaltableinioverridemask',)),
-    ConfigOption("general", "game_root_dir", "string", '',
-                 label='Tables Directory',
-                 description='The folder holding your table folders, one folder per game.',
-                 aliases=('gamerootdir',)),
-    ConfigOption("general", "vpx_ini_path", "string", '',
-                 label='VPX Ini Path',
-                 description='Path to VPinballX.ini, which VPinFE reads for the key mappings the '
-                             'Remote page sends.',
-                 aliases=('vpxinipath',)),
-    ConfigOption("general", "assets_dir", "string", '',
-                 label='Shared Assets Directory',
-                 description='Root folder for assets shared across games rather than owned '
-                             'by one, such as manufacturer logos. Served at /assets/ and '
-                             'defaults to assets/ under the VPinFE config dir.',
-                 aliases=('assetsdir',)),
-    ConfigOption("general", "rar_tool_path", "string", '',
-                 label='RAR Tool Path (unar/unrar, blank = auto-detect)',
-                 aliases=('rartoolpath',)),
-    ConfigOption("general", "vpx_log_delete_on_start", "bool", 'false',
-                 label='Delete VPinball Log On Table Start',
-                 aliases=('vpxlogdeleteonstart',)),
-    ConfigOption("general", "theme", "string", 'Revolution',
-                 label='Active Theme'),
-    ConfigOption("themes", "registries", "list",
-                 'https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json',
-                 label='Theme Registries',
-                 description='Catalogs to offer themes from, most trusted first. The '
-                             'stock registry is an entry like any other, so a mirrored '
-                             'or offline install can replace or drop it.'),
-    ConfigOption("themes", "repositories", "list", '',
-                 label='Theme Repositories',
-                 description='Individual theme repos, each one a theme in its own right. '
-                             'Resolved before the registries, and named for the repo with '
-                             'any vpinfe-theme- prefix removed.'),
-    ConfigOption("lifecycle", "confirm", "list", '',
-                 label='Confirm Before',
-                 description='Scopes to ask about before acting: frontend, app, system. '
-                             'Empty asks about nothing, which is how VPinFE has always '
-                             'behaved. The question is put to whichever surface asked.'),
-    ConfigOption("general", "startup_collection", "string", '',
-                 label='Default Startup Collection'),
-    ConfigOption("general", "auto_update_media_on_startup", "bool", 'false',
-                 label='Auto Update Media On Startup',
-                 aliases=('autoupdatemediaonstartup',)),
-    ConfigOption("general", "splashscreen", "bool", 'false',
-                 label='Enable splashscreen'),
-    ConfigOption("general", "mute_audio", "bool", 'false',
-                 label='Mute Frontend Audio',
-                 aliases=('muteaudio',)),
-    ConfigOption("general", "chrome_options", "string", '',
-                 label='Additional Chrome Options',
-                 aliases=('chromeoptions',)),
-    ConfigOption("general", "chrome_options_exclude", "string", '',
-                 aliases=('chromeoptionsexclude',)),
-    ConfigOption("general", "disable_default_chrome_options", "bool", 'false',
-                 label='Disable Default Chrome Options',
-                 aliases=('disabledefaultchromeoptions',)),
-    ConfigOption("general", "hide_quit_button", "bool", 'false',
-                 label='Hide Quit from MainMenu',
-                 aliases=('MMhideQuitButton',)),
-    ConfigOption("general", "restore_last_game", "bool", 'true',
-                 label='Restore Last Table',
-                 aliases=('restorelastgame',)),
-    ConfigOption("logger", "level", "choice", 'debug',
-                 label='Log Verbosity',
-                 choices=('debug', 'info', 'warning', 'error')),
-    ConfigOption("logger", "console", "bool", 'true',
-                 label='Console Logging'),
-    ConfigOption("windows.playfield", "variant", "choice", 'table',
-                 label='Table Type',
-                 description='Which playfield artwork this library holds: table.png, or fss.png '
-                             "for art captured in Visual Pinball's Full Single Screen mode.",
-                 choices=('table', 'fss'),
-                 legacy=(('Media', 'playfield_variant'), ('Media', 'playfieldvariant'))),
-    ConfigOption("windows.playfield", "resolution", "choice", '4k',
-                 label='Default Table Resolution',
-                 choices=('4k', '1k'),
-                 legacy=(('Media', 'playfield_resolution'), ('Media', 'playfieldresolution'))),
-    ConfigOption("windows.playfield", "video_resolution", "choice", '1k',
-                 label='Default Table Video Resolution',
-                 choices=('4k', '1k'),
-                 legacy=(
-                     ('Media', 'playfield_video_resolution'),
-                     ('Media', 'playfieldvideoresolution'),
-                 )),
-    ConfigOption("media", "default_missing_media_image", "string", '',
-                 label='Default Missing Media Image',
-                 aliases=('defaultmissingmediaimg',)),
-    ConfigOption("media", "thumb_cache_max_mb", "int", '500',
-                 label='Thumbnail Cache Max (MB)',
-                 aliases=('thumbcachemaxmb',)),
-    ConfigOption("windows.playfield", "media_priority", "choice", 'video',
-                 label='Table Media Priority',
-                 choices=('video', 'image'),
-                 legacy=(
-                     ('Media', 'playfield_media_priority'),
-                     ('Media', 'playfieldmediapriority'),
-                 )),
-    ConfigOption("windows.playfield", "media_rotation", "choice", 'auto',
-                 description='How far to turn playfield artwork so it fills the screen. auto '
-                             'measures each image and turns only when it disagrees with the '
-                             'surface.',
-                 choices=('auto', '0', '90', '180', '270'),
-                 legacy=(
-                     ('Media', 'playfield_media_rotation'),
-                     ('Media', 'playfieldmediarotation'),
-                 )),
-    ConfigOption("windows.backglass", "media_priority", "choice", 'video',
-                 label='Backglass Media Priority',
-                 choices=('video', 'image'),
-                 legacy=(('Media', 'bg_media_priority'), ('Media', 'bgmediapriority'))),
-    ConfigOption("windows.scoreview", "media_priority", "choice", 'video',
-                 label='DMD Media Priority',
-                 choices=('video', 'image'),
-                 legacy=(('Media', 'dmd_media_priority'), ('Media', 'dmdmediapriority'))),
-    ConfigOption("media", "wheelset", "string", '',
-                 label='Wheel Set',
-                 description='Name of the wheel art set to use library-wide, a folder under '
-                             'a game\'s medias/wheels/. The reserved name logo shows each '
-                             "game's logo instead. Blank means plain wheels, and the active "
-                             'theme can override this with its own wheelSet option.'),
-    ConfigOption("media", "realdmd_media_priority", "choice", 'color',
-                 label='Real DMD Priority',
-                 choices=('color', 'video', 'image'),
-                 aliases=('realdmdmediapriority',)),
-    ConfigOption("vpsdb", "last", "string", '',
-                 internal=True),
-    ConfigOption("state", "last_game", "string", '',
-                 aliases=('lastgame',),
-                 internal=True),
-    ConfigOption("pinmame_score_parser", "roms_update_sha", "string", '',
-                 aliases=('romsupdatesha',),
-                 internal=True),
-    ConfigOption("network", "theme_assets_port", "int", '8000',
-                 label='Theme Server Port',
-                 aliases=('themeassetsport',)),
-    ConfigOption("network", "ws_port", "int", '8002',
-                 label='WebSocket Bridge Port',
-                 description='Port the frontend windows and the theme talk to VPinFE over. '
-                             'Loopback only.',
-                 aliases=('wsport',)),
-    ConfigOption("network", "manager_ui_port", "int", '8001',
-                 label='Manager UI Port',
-                 aliases=('manageruiport',)),
-    ConfigOption("dof", "enable_dof", "bool", 'false',
-                 label='Enable DOF',
-                 aliases=('enabledof',)),
-    ConfigOption("dof", "dof_config_tool_api_key", "string", '',
-                 label='DOF Config Tool API Key',
-                 aliases=('dofconfigtoolapikey',)),
-    ConfigOption("libdmdutil", "enabled", "bool", 'false',
-                 label='Enabled'),
-    ConfigOption("libdmdutil", "pin2dmd_enabled", "bool", 'false',
-                 label='Enable',
-                 aliases=('pin2dmdenabled',)),
-    ConfigOption("libdmdutil", "pixelcade_device", "string", '',
-                 label='PixelcadeDevice',
-                 aliases=('pixelcadedevice',)),
-    ConfigOption("libdmdutil", "zedmd_device", "string", '',
-                 label='ZeDMDDevice',
-                 aliases=('zedmddevice',)),
-    ConfigOption("libdmdutil", "zedmd_wifi_address", "string", '',
-                 label='ZeDMDWiFiAddr',
-                 aliases=('zedmdwifiaddr',)),
-    ConfigOption("mobile", "device_ip", "string", '',
-                 label='Mobile Device IP',
-                 aliases=('deviceip',)),
-    ConfigOption("mobile", "device_port", "int", '2112',
-                 label='Mobile Device Port',
-                 aliases=('deviceport',)),
-    ConfigOption("mobile", "chunk_size", "int", '1048576',
-                 label='Mobile Chunk Size',
-                 aliases=('chunksize',)),
-    ConfigOption("mobile", "rename_mask_to_default_ini", "bool", 'false',
-                 label='Enable Rename Mask To Default INI',
-                 aliases=('renamemasktodefaultini',)),
-    ConfigOption("mobile", "rename_mask_to_default_ini_mask", "string", '',
-                 label='Rename Mask To Default INI Mask',
-                 aliases=('renamemasktodefaultinimask',)),
-    ConfigOption("vpinplay", "sync_on_exit", "bool", 'false',
-                 label='Sync on Exit',
-                 aliases=('synconexit',)),
-    ConfigOption("vpinplay", "api_endpoint", "string", 'https://api.vpinplay.com:8888',
-                 label='API Endpoint',
-                 aliases=('apiendpoint',)),
-    ConfigOption("vpinplay", "user_id", "string", '',
-                 label='User ID',
-                 aliases=('userid',)),
-    ConfigOption("vpinplay", "initials", "string", '',
-                 label='Initials'),
-    ConfigOption("vpinplay", "machine_id", "string", '',
-                 label='Machine ID',
-                 aliases=('machineid',)),
+    *in_section(
+        "windows.backglass",
+        ConfigOption(
+            "screen_id",
+            type="int",
+            default="",
+            label="Backglass Monitor ID",
+            legacy=(("Displays", "bg_screen_id"), ("Displays", "bgscreenid")),
+        ),
+        ConfigOption(
+            "window_override",
+            type="string",
+            default="",
+            label="Backglass Window Override (x,y,width,height)",
+            legacy=(("Displays", "bg_window_override"), ("Displays", "bgwindowoverride")),
+        ),
+        ConfigOption(
+            "media_priority",
+            type="choice",
+            default="video",
+            label="Backglass Media Priority",
+            choices=("video", "image"),
+            legacy=(("Media", "bg_media_priority"), ("Media", "bgmediapriority")),
+        ),
+    ),
+    *in_section(
+        "windows.scoreview",
+        ConfigOption(
+            "screen_id",
+            type="int",
+            default="",
+            label="DMD Monitor ID",
+            legacy=(("Displays", "dmd_screen_id"), ("Displays", "dmdscreenid")),
+        ),
+        ConfigOption(
+            "window_override",
+            type="string",
+            default="",
+            label="DMD Window Override (x,y,width,height)",
+            legacy=(("Displays", "dmd_window_override"), ("Displays", "dmdwindowoverride")),
+        ),
+        ConfigOption(
+            "media_priority",
+            type="choice",
+            default="video",
+            label="DMD Media Priority",
+            choices=("video", "image"),
+            legacy=(("Media", "dmd_media_priority"), ("Media", "dmdmediapriority")),
+        ),
+    ),
+    *in_section(
+        "windows.playfield",
+        ConfigOption(
+            "screen_id",
+            type="int",
+            default="0",
+            label="Playfield Monitor ID",
+            legacy=(("Displays", "playfield_screen_id"), ("Displays", "playfieldscreenid")),
+        ),
+        ConfigOption(
+            "orientation",
+            type="choice",
+            default="landscape",
+            label="Playfield Monitor Mounting",
+            description="How the playfield screen is physically mounted. Portrait means it is"
+                        " turned on its side in the cabinet. This does not rotate anything by"
+                        " itself - it tells themes what shape to lay out for.",
+            choices=("landscape", "portrait"),
+            legacy=(("Displays", "playfield_orientation"), ("Displays", "playfieldorientation")),
+        ),
+        ConfigOption(
+            "rotation",
+            type="choice",
+            default="0",
+            label="Rotate VPinFE Display",
+            description="How far VPinFE turns its own display so it faces the player. Leave at 0"
+                        " if your operating system already rotates this screen.",
+            choices=("0", "90", "180", "270"),
+            legacy=(("Displays", "playfield_rotation"), ("Displays", "playfieldrotation")),
+        ),
+        ConfigOption(
+            "variant",
+            type="choice",
+            default="table",
+            label="Table Type",
+            description="Which playfield artwork this library holds: table.png, or fss.png for art"
+                        " captured in Visual Pinball's Full Single Screen mode.",
+            choices=("table", "fss"),
+            legacy=(("Media", "playfield_variant"), ("Media", "playfieldvariant")),
+        ),
+        ConfigOption(
+            "resolution",
+            type="choice",
+            default="4k",
+            label="Default Table Resolution",
+            choices=("4k", "1k"),
+            legacy=(("Media", "playfield_resolution"), ("Media", "playfieldresolution")),
+        ),
+        ConfigOption(
+            "video_resolution",
+            type="choice",
+            default="1k",
+            label="Default Table Video Resolution",
+            choices=("4k", "1k"),
+            legacy=(("Media", "playfield_video_resolution"), ("Media", "playfieldvideoresolution")),
+        ),
+        ConfigOption(
+            "media_priority",
+            type="choice",
+            default="video",
+            label="Table Media Priority",
+            choices=("video", "image"),
+            legacy=(("Media", "playfield_media_priority"), ("Media", "playfieldmediapriority")),
+        ),
+        ConfigOption(
+            "media_rotation",
+            type="choice",
+            default="auto",
+            description="How far to turn playfield artwork so it fills the screen. auto measures"
+                        " each image and turns only when it disagrees with the surface.",
+            choices=("auto", "0", "90", "180", "270"),
+            legacy=(("Media", "playfield_media_rotation"), ("Media", "playfieldmediarotation")),
+        ),
+    ),
+    *in_section(
+        "displays",
+            # It lived in [Settings] before it was display context. Declared here
+            # rather than chained through SettingsConfig, which is how a parser
+            # that had not been migrated used to resolve it.
+        ConfigOption(
+            "cab_mode",
+            type="bool",
+            default="false",
+            label="Cabinet Mode",
+            description="Presents VPinFE for playing standing at a cabinet: larger text and"
+                        " targets, and no controls that need a mouse. It does not rotate anything.",
+            aliases=("cabmode",),
+            legacy=(("Settings", "cabmode"), ("Settings", "cab_mode")),
+        ),
+    ),
+    *in_section(
+        "general",
+        ConfigOption(
+            "vpx_bin_path",
+            type="string",
+            default="",
+            label="VPX Executable Path",
+            description="Full path to the Visual Pinball executable VPinFE launches.",
+            aliases=("vpxbinpath",),
+        ),
+        ConfigOption(
+            "vpx_launch_env",
+            type="string",
+            default="",
+            label="VPX Launch Environment",
+            aliases=("vpxlaunchenv",),
+        ),
+        ConfigOption(
+            "global_ini_override",
+            type="string",
+            default="",
+            label="Global ini Override (/home/test/mysuper.ini)",
+            aliases=("globalinioverride",),
+        ),
+        ConfigOption(
+            "global_game_ini_override_enabled",
+            type="bool",
+            default="false",
+            label="Global tableini Override Enabled",
+            aliases=("globaltableinioverrideenabled",),
+        ),
+        ConfigOption(
+            "global_game_ini_override_mask",
+            type="string",
+            default="",
+            label="Global tableini Override Mask",
+            aliases=("globaltableinioverridemask",),
+        ),
+        ConfigOption(
+            "game_root_dir",
+            type="string",
+            default="",
+            label="Tables Directory",
+            description="The folder holding your table folders, one folder per game.",
+            aliases=("gamerootdir",),
+        ),
+        ConfigOption(
+            "vpx_ini_path",
+            type="string",
+            default="",
+            label="VPX Ini Path",
+            description="Path to VPinballX.ini, which VPinFE reads for the key mappings the Remote"
+                        " page sends.",
+            aliases=("vpxinipath",),
+        ),
+        ConfigOption(
+            "assets_dir",
+            type="string",
+            default="",
+            label="Shared Assets Directory",
+            description="Root folder for assets shared across games rather than owned by one, such"
+                        " as manufacturer logos. Served at /assets/ and defaults to assets/ under"
+                        " the VPinFE config dir.",
+            aliases=("assetsdir",),
+        ),
+        ConfigOption(
+            "rar_tool_path",
+            type="string",
+            default="",
+            label="RAR Tool Path (unar/unrar, blank = auto-detect)",
+            aliases=("rartoolpath",),
+        ),
+        ConfigOption(
+            "vpx_log_delete_on_start",
+            type="bool",
+            default="false",
+            label="Delete VPinball Log On Table Start",
+            aliases=("vpxlogdeleteonstart",),
+        ),
+        ConfigOption(
+            "theme",
+            type="string",
+            default="Revolution",
+            label="Active Theme",
+        ),
+        ConfigOption(
+            "startup_collection",
+            type="string",
+            default="",
+            label="Default Startup Collection",
+        ),
+        ConfigOption(
+            "auto_update_media_on_startup",
+            type="bool",
+            default="false",
+            label="Auto Update Media On Startup",
+            aliases=("autoupdatemediaonstartup",),
+        ),
+        ConfigOption(
+            "splashscreen",
+            type="bool",
+            default="false",
+            label="Enable splashscreen",
+        ),
+        ConfigOption(
+            "mute_audio",
+            type="bool",
+            default="false",
+            label="Mute Frontend Audio",
+            aliases=("muteaudio",),
+        ),
+        ConfigOption(
+            "chrome_options",
+            type="string",
+            default="",
+            label="Additional Chrome Options",
+            aliases=("chromeoptions",),
+        ),
+        ConfigOption(
+            "chrome_options_exclude",
+            type="string",
+            default="",
+            aliases=("chromeoptionsexclude",),
+        ),
+        ConfigOption(
+            "disable_default_chrome_options",
+            type="bool",
+            default="false",
+            label="Disable Default Chrome Options",
+            aliases=("disabledefaultchromeoptions",),
+        ),
+        ConfigOption(
+            "hide_quit_button",
+            type="bool",
+            default="false",
+            label="Hide Quit from MainMenu",
+            aliases=("MMhideQuitButton",),
+        ),
+        ConfigOption(
+            "restore_last_game",
+            type="bool",
+            default="true",
+            label="Restore Last Table",
+            aliases=("restorelastgame",),
+        ),
+    ),
+    *in_section(
+        "themes",
+        ConfigOption(
+            "registries",
+            type="list",
+            default="https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json",
+            label="Theme Registries",
+            description="Catalogs to offer themes from, most trusted first. The stock registry is"
+                        " an entry like any other, so a mirrored or offline install can replace or"
+                        " drop it.",
+        ),
+        ConfigOption(
+            "repositories",
+            type="list",
+            default="",
+            label="Theme Repositories",
+            description="Individual theme repos, each one a theme in its own right. Resolved"
+                        " before the registries, and named for the repo with any vpinfe-theme-"
+                        " prefix removed.",
+        ),
+    ),
+    *in_section(
+        "lifecycle",
+        ConfigOption(
+            "confirm",
+            type="list",
+            default="",
+            label="Confirm Before",
+            description="Scopes to ask about before acting: frontend, app, system. Empty asks"
+                        " about nothing, which is how VPinFE has always behaved. The question is"
+                        " put to whichever surface asked.",
+        ),
+    ),
+    *in_section(
+        "logger",
+        ConfigOption(
+            "level",
+            type="choice",
+            default="debug",
+            label="Log Verbosity",
+            choices=("debug", "info", "warning", "error"),
+        ),
+        ConfigOption(
+            "console",
+            type="bool",
+            default="true",
+            label="Console Logging",
+        ),
+    ),
+    *in_section(
+        "media",
+        ConfigOption(
+            "default_missing_media_image",
+            type="string",
+            default="",
+            label="Default Missing Media Image",
+            aliases=("defaultmissingmediaimg",),
+        ),
+        ConfigOption(
+            "thumb_cache_max_mb",
+            type="int",
+            default="500",
+            label="Thumbnail Cache Max (MB)",
+            aliases=("thumbcachemaxmb",),
+        ),
+        ConfigOption(
+            "wheelset",
+            type="string",
+            default="",
+            label="Wheel Set",
+            description="Name of the wheel art set to use library-wide, a folder under a game's"
+                        " medias/wheels/. The reserved name logo shows each game's logo instead."
+                        " Blank means plain wheels, and the active theme can override this with its"
+                        " own wheelSet option.",
+        ),
+        ConfigOption(
+            "realdmd_media_priority",
+            type="choice",
+            default="color",
+            label="Real DMD Priority",
+            choices=("color", "video", "image"),
+            aliases=("realdmdmediapriority",),
+        ),
+    ),
+    *in_section(
+        "vpsdb",
+        ConfigOption(
+            "last",
+            type="string",
+            default="",
+            internal=True,
+        ),
+    ),
+    *in_section(
+        "state",
+        ConfigOption(
+            "last_game",
+            type="string",
+            default="",
+            aliases=("lastgame",),
+            internal=True,
+        ),
+    ),
+    *in_section(
+        "pinmame_score_parser",
+        ConfigOption(
+            "roms_update_sha",
+            type="string",
+            default="",
+            aliases=("romsupdatesha",),
+            internal=True,
+        ),
+    ),
+    *in_section(
+        "network",
+        ConfigOption(
+            "theme_assets_port",
+            type="int",
+            default="8000",
+            label="Theme Server Port",
+            aliases=("themeassetsport",),
+        ),
+        ConfigOption(
+            "ws_port",
+            type="int",
+            default="8002",
+            label="WebSocket Bridge Port",
+            description="Port the frontend windows and the theme talk to VPinFE over. Loopback"
+                        " only.",
+            aliases=("wsport",),
+        ),
+        ConfigOption(
+            "manager_ui_port",
+            type="int",
+            default="8001",
+            label="Manager UI Port",
+            aliases=("manageruiport",),
+        ),
+    ),
+    *in_section(
+        "dof",
+        ConfigOption(
+            "enable_dof",
+            type="bool",
+            default="false",
+            label="Enable DOF",
+            aliases=("enabledof",),
+        ),
+        ConfigOption(
+            "dof_config_tool_api_key",
+            type="string",
+            default="",
+            label="DOF Config Tool API Key",
+            aliases=("dofconfigtoolapikey",),
+        ),
+    ),
+    *in_section(
+        "libdmdutil",
+        ConfigOption(
+            "enabled",
+            type="bool",
+            default="false",
+            label="Enabled",
+        ),
+        ConfigOption(
+            "pin2dmd_enabled",
+            type="bool",
+            default="false",
+            label="Enable",
+            aliases=("pin2dmdenabled",),
+        ),
+        ConfigOption(
+            "pixelcade_device",
+            type="string",
+            default="",
+            label="PixelcadeDevice",
+            aliases=("pixelcadedevice",),
+        ),
+        ConfigOption(
+            "zedmd_device",
+            type="string",
+            default="",
+            label="ZeDMDDevice",
+            aliases=("zedmddevice",),
+        ),
+        ConfigOption(
+            "zedmd_wifi_address",
+            type="string",
+            default="",
+            label="ZeDMDWiFiAddr",
+            aliases=("zedmdwifiaddr",),
+        ),
+    ),
+    *in_section(
+        "mobile",
+        ConfigOption(
+            "device_ip",
+            type="string",
+            default="",
+            label="Mobile Device IP",
+            aliases=("deviceip",),
+        ),
+        ConfigOption(
+            "device_port",
+            type="int",
+            default="2112",
+            label="Mobile Device Port",
+            aliases=("deviceport",),
+        ),
+        ConfigOption(
+            "chunk_size",
+            type="int",
+            default="1048576",
+            label="Mobile Chunk Size",
+            aliases=("chunksize",),
+        ),
+        ConfigOption(
+            "rename_mask_to_default_ini",
+            type="bool",
+            default="false",
+            label="Enable Rename Mask To Default INI",
+            aliases=("renamemasktodefaultini",),
+        ),
+        ConfigOption(
+            "rename_mask_to_default_ini_mask",
+            type="string",
+            default="",
+            label="Rename Mask To Default INI Mask",
+            aliases=("renamemasktodefaultinimask",),
+        ),
+    ),
+    *in_section(
+        "vpinplay",
+        ConfigOption(
+            "sync_on_exit",
+            type="bool",
+            default="false",
+            label="Sync on Exit",
+            aliases=("synconexit",),
+        ),
+        ConfigOption(
+            "api_endpoint",
+            type="string",
+            default="https://api.vpinplay.com:8888",
+            label="API Endpoint",
+            aliases=("apiendpoint",),
+        ),
+        ConfigOption(
+            "user_id",
+            type="string",
+            default="",
+            label="User ID",
+            aliases=("userid",),
+        ),
+        ConfigOption(
+            "initials",
+            type="string",
+            default="",
+            label="Initials",
+        ),
+        ConfigOption(
+            "machine_id",
+            type="string",
+            default="",
+            label="Machine ID",
+            aliases=("machineid",),
+        ),
+    ),
 ) + _input_options()
 
 

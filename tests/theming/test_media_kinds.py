@@ -20,7 +20,9 @@ SPECS_PY = (REPO_ROOT / "common" / "media_specs.py").read_text(encoding="utf-8")
 
 
 def _python_kinds() -> list[str]:
-    return re.findall(r'MediaSpec\("([a-z_]+)"', SPECS_PY)
+    # The key is on the line after `MediaSpec(`, one field per line, so this spans the
+    # newline. The count guard below is what catches it if that layout changes again.
+    return re.findall(r'MediaSpec\(\s*"([a-z_]+)"', SPECS_PY)
 
 
 def _js_kinds() -> list[str]:
