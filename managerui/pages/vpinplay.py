@@ -15,7 +15,7 @@ from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from common.online.vpinplay_service import sync_installed_games
 from managerui.config_fields import is_checkbox_field
-from managerui.config_support import get_friendly_name
+from managerui.config_options import get_friendly_name
 from managerui.paths import VPINFE_INI_PATH
 from managerui.ui_helpers import attach_shell_save_bar, load_page_style
 

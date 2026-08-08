@@ -9,7 +9,7 @@ from screeninfo import get_monitors
 from common.config_store import ConfigStore
 from common.deprecations import announce
 from common.games import game_report_service, info_maintenance, metadata_service
-from common.logging_config import get_logger
+from common.log_setup import get_logger
 from common.paths import VPINFE_INI_PATH, ensure_config_dir
 from frontend.custom_http_server import CustomHTTPServer
 

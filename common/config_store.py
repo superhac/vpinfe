@@ -17,7 +17,7 @@ import secrets
 import string
 from pathlib import Path
 
-from common import config_schema, input_actions
+from common import config_schema, input_registry
 from common.deprecations import announce
 from common.games.info_migration import copy_aside, write_atomic
 from common.values import is_truthy
@@ -163,23 +163,23 @@ class ConfigStore:
 		# become entries in its single binding list, so the generic pass below - which
 		# moves one value at a time - would have the second overwrite the first.
 		if self.config.has_section('Input'):
-			for action in input_actions.actions():
+			for action in input_registry.actions():
 				found = []
 				for old in action.legacy:
 					if not self.config.has_option('Input', old):
 						continue
-					found += input_actions.binding_for_legacy(
+					found += input_registry.binding_for_legacy(
 						old, self.config.get('Input', old))
 					self.config.remove_option('Input', old)
 					changed = True
 				if not found:
 					continue
 				# Keyboard first, then pads, and never the same binding twice.
-				ordered = ([b for b in found if b.startswith(input_actions.KEY_PREFIX)]
-				           + [b for b in found if not b.startswith(input_actions.KEY_PREFIX)])
-				if not self.config.has_section(input_actions.SECTION):
-					self.config.add_section(input_actions.SECTION)
-				self.config.set(input_actions.SECTION, action.name,
+				ordered = ([b for b in found if b.startswith(input_registry.KEY_PREFIX)]
+				           + [b for b in found if not b.startswith(input_registry.KEY_PREFIX)])
+				if not self.config.has_section(input_registry.SECTION):
+					self.config.add_section(input_registry.SECTION)
+				self.config.set(input_registry.SECTION, action.name,
 				                ','.join(dict.fromkeys(ordered)))
 
 		# Every spelling a key has ever had lands on the one we store. This runs after the

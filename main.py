@@ -49,7 +49,7 @@ from common.host.dof_service import start_dof_service_if_enabled, stop_dof_servi
 from common.host.libdmdutil_service import (
     stop_libdmdutil_service,
 )
-from common.logging_config import configure_logging, get_logger
+from common.log_setup import configure_logging, get_logger
 from common.online.pinmame_score_parser_updater import ensure_latest_roms_json
 from common.online.themes import ThemeRegistry
 from common.online.vpinplay_service import sync_on_shutdown as vpinplay_sync_on_shutdown
@@ -63,7 +63,7 @@ from common.paths import (
 # Get the base path
 base_path = os.path.dirname(os.path.abspath(__file__))
 
-# Load config BEFORE importing cli_options/managerui (they create ConfigStore at import time)
+# Load config BEFORE importing cli/managerui (they create ConfigStore at import time)
 config_dir = ensure_config_dir()
 nicegui_storage_path = configure_nicegui_storage()
 log_path = configure_logging(config_dir, enable_file=False)
@@ -101,8 +101,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 import httpapi
-from cli_options import parseArgs
-from frontend import lifecycle_wiring, runtime
+from cli import parseArgs
+from frontend import lifecycle_host, runtime
 from managerui.managerui import _shutdown_event, set_first_run, start_manager_ui, stop_manager_ui
 from managerui.services import app_control
 
@@ -163,7 +163,7 @@ def create_api_instances():
     # Now that there is a browser to stop, this process can say what it can do. Windows
     # are opened by run_frontend_loop below, so nothing here can open them: starting the
     # frontend on a headless instance is left unperformable until that moves.
-    lifecycle_wiring.install(
+    lifecycle_host.install(
         config_store=config_store,
         config_dir=config_dir,
         frontend_browser=frontend_browser,

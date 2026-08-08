@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from common import input_actions
+from common import input_registry
 
 
 def _input_options() -> tuple[ConfigOption, ...]:
@@ -31,7 +31,7 @@ def _input_options() -> tuple[ConfigOption, ...]:
             label=action.label,
             legacy=tuple(("Input", old) for old in action.legacy),
         )
-        for action in input_actions.actions()
+        for action in input_registry.actions()
     ]
     # Not actions: how the paging actions step, which is a setting about them.
     out.append(ConfigOption(
@@ -49,7 +49,7 @@ def _input_options() -> tuple[ConfigOption, ...]:
         label="Paging Size",
         legacy=(("Input", "pagingsize"),),
     ))
-    return in_section(input_actions.SECTION, *out)
+    return in_section(input_registry.SECTION, *out)
 
 
 # Sections renamed wholesale, old name to new. A section rename is not the same thing as

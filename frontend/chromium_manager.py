@@ -22,7 +22,7 @@ from shutil import which
 from urllib.parse import quote
 
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, cfg_get
-from common.logging_config import include_thirdparty_logs
+from common.log_setup import include_thirdparty_logs
 
 logger = logging.getLogger("vpinfe.frontend.chromium_manager")
 

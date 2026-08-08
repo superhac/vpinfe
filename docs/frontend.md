@@ -43,4 +43,4 @@ The frontend starts at `main.py`, but most runtime responsibilities now live in 
 - Use `common/paths.py` instead of calling `user_config_dir("vpinfe", "vpinfe")` directly in new code.
 - Use `common/games/game_metadata.py` for metadata reads/writes instead of repeating `Info`/`VPinFE`/`User` normalization.
 - Use service modules for behavior shared by Manager UI and the frontend.
-- Keep `cli_options.py` as CLI dispatch and compatibility wrappers; put reusable app behavior in `common/`.
+- Keep `cli.py` as CLI dispatch and compatibility wrappers; put reusable app behavior in `common/`.

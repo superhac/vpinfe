@@ -2,7 +2,7 @@
 
 Renaming a module and missing one of its importers is not a test failure - the suite
 never imports `main.py`, so the entry point can be broken while 992 tests pass. That is
-exactly what happened when `clioptions.py` became `cli_options.py`: the app could not
+exactly what happened when `clioptions.py` became `cli.py`: the app could not
 start at all, and the first thing to notice was the cabinet.
 
 This reads the import statements rather than executing them, so it covers `main.py` and

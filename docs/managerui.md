@@ -11,7 +11,7 @@ The Manager UI is a NiceGUI application under `managerui/`. Its current refactor
 - `managerui/ui_helpers.py`: reusable UI helpers such as shared style loading and standard nav/action buttons.
 - `managerui/filters.py`: shared filter option building and filtering for game-shaped rows.
 - `managerui/config_fields.py`: declarative config field metadata such as checkbox fields and input ordering.
-- `managerui/config_support.py`: non-UI support helpers for config pages such as display detection and field option shaping.
+- `managerui/config_options.py`: non-UI support helpers for config pages such as display detection and field option shaping.
 - `managerui/remote_actions.py`: declarative remote control button definitions.
 - `managerui/remote_launch.py`: remote launch game scanning and collection filter matching.
 - `managerui/services/`: non-UI behavior shared by routes and pages.

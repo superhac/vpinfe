@@ -31,7 +31,7 @@ from frontend import (
     game_state,
     input_api,
     last_game,
-    lifecycle_wiring,
+    lifecycle_host,
     metadata_build_service,
     theme_api,
     theme_windows,
@@ -286,7 +286,7 @@ class API:
         answer. The wording comes from here so every surface asks the same thing.
         """
         return {
-            "confirm": lifecycle_wiring.wants_confirmation(str(scope)),
+            "confirm": lifecycle_host.wants_confirmation(str(scope)),
             "description": lifecycle.Request(
                 str(scope), str(action), self._origin()).describe().capitalize(),
         }
@@ -302,7 +302,7 @@ class API:
         the user says no.
         """
         try:
-            return lifecycle_wiring.request(
+            return lifecycle_host.request(
                 scope, action, origin=self._origin(), reason=reason,
                 already_confirmed=bool(confirmed))
         except ValueError:

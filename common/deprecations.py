@@ -166,7 +166,7 @@ SHIMS: tuple[Shim, ...] = (
         surface="CLI",
         summary="--table is accepted as a hidden alias for --game and kept out of "
                 "--help, so a script written against 2.x keeps running.",
-        implemented_in="cli_options.py",
+        implemented_in="cli.py",
         par="PAR-26",
         names=(("--table", "--game"),),
     ),

@@ -11,7 +11,7 @@ from pathlib import Path
 
 from nicegui import run, ui
 
-from common import input_actions
+from common import input_registry
 from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from common.games.collection_store import CollectionStore
@@ -22,9 +22,9 @@ from frontend.chromium_manager import (
     get_builtin_chromium_options,
     parse_additional_chromium_options,
 )
-from managerui import config_support
+from managerui import config_options
 from managerui.config_fields import is_checkbox_field
-from managerui.config_support import get_friendly_name
+from managerui.config_options import get_friendly_name
 from managerui.paths import COLLECTIONS_PATH, THEMES_DIR, VPINFE_INI_PATH
 from managerui.ui_helpers import attach_shell_save_bar, load_page_style
 
@@ -159,7 +159,7 @@ def _run_ledcontrol_pull(script_path: Path, api_key: str, force: bool) -> tuple[
 def render_panel(tab=None):
     # Re-read config from disk each time the page is opened
     config = ConfigStore(str(INI_PATH))
-    detected_displays = config_support.get_detected_displays()
+    detected_displays = config_options.get_detected_displays()
 
     # Add custom styles for config page
     load_page_style("vpinfe_config.css")
@@ -391,14 +391,14 @@ def render_panel(tab=None):
                 )
             elif section == 'displays' and key in (
                     'playfieldscreenid', 'bgscreenid', 'dmdscreenid'):
-                monitor_options = config_support.get_display_id_options(detected_displays, value)
+                monitor_options = config_options.get_display_id_options(detected_displays, value)
                 inp = ui.select(
                     options=monitor_options,
                     value=(value or '').strip()
                 ).props('outlined dense options-dense').classes('config-input')
             elif section == 'logger' and key == 'level':
-                level_options = config_support.get_logger_level_options(value)
-                normalized, include_thirdparty, include_windows = config_support.split_logger_level_value(value)
+                level_options = config_options.get_logger_level_options(value)
+                normalized, include_thirdparty, include_windows = config_options.split_logger_level_value(value)
                 inp = ui.select(
                     options=level_options,
                     value=normalized
@@ -453,7 +453,7 @@ def render_panel(tab=None):
 
     def save_config():
         try:
-            for action in input_actions.actions():
+            for action in input_registry.actions():
                 fields = binding_inputs.get(action.name)
                 if not fields:
                     continue
@@ -461,16 +461,16 @@ def render_panel(tab=None):
                         str(getattr(fields.get('key'), 'value', '') or '').split(',') if k.strip()]
                 pads = [b.strip() for b in
                         str(getattr(fields.get('pad'), 'value', '') or '').split(',') if b.strip()]
-                rebuilt = [f'{input_actions.KEY_PREFIX}{k}' for k in keys]
-                rebuilt += [f'{input_actions.PAD_PREFIX}0/button:{b}' for b in pads]
+                rebuilt = [f'{input_registry.KEY_PREFIX}{k}' for k in keys]
+                rebuilt += [f'{input_registry.PAD_PREFIX}0/button:{b}' for b in pads]
                 # Anything neither field can show - a chord, a hold, an axis, a second
                 # pad - is carried through untouched. Rebuilding from the two fields
                 # alone would delete it the first time anyone pressed Save.
                 current = input_api.get_bindings(config)[action.name]
-                rebuilt += input_actions.unrenderable(current)
-                if not config.config.has_section(input_actions.SECTION):
-                    config.config.add_section(input_actions.SECTION)
-                config.config.set(input_actions.SECTION, action.name, ','.join(rebuilt))
+                rebuilt += input_registry.unrenderable(current)
+                if not config.config.has_section(input_registry.SECTION):
+                    config.config.add_section(input_registry.SECTION)
+                config.config.set(input_registry.SECTION, action.name, ','.join(rebuilt))
 
             for section, keys in inputs.items():
                 for key, inp in keys.items():
@@ -673,7 +673,7 @@ def render_panel(tab=None):
                                     key for key in general_keys
                                     if key not in frontend_toggle_keys
                                 ]
-                                path_field_width_ch = config_support.get_uniform_field_width_ch([
+                                path_field_width_ch = config_options.get_uniform_field_width_ch([
                                     config.config.get(section, key, fallback='')
                                     for key in path_keys
                                 ])
@@ -861,7 +861,7 @@ def render_panel(tab=None):
                                                 for key in second_column_keys:
                                                     value = config.config.get(section, key, fallback='')
                                                     build_config_input(section, key, value)
-                                    elif section == input_actions.SECTION:
+                                    elif section == input_registry.SECTION:
                                         # Two cards over one list. Each action stores its
                                         # bindings together; the page shows the keyboard
                                         # ones and the gamepad one in the places they have
@@ -869,7 +869,7 @@ def render_panel(tab=None):
                                         bindings = input_api.get_bindings(config)
                                         other_input_keys = [
                                             key for key in options
-                                            if not input_actions.action_for_legacy_key(key)
+                                            if not input_registry.action_for_legacy_key(key)
                                         ]
 
                                         with ui.column().classes('w-full gap-4'):
@@ -879,10 +879,10 @@ def render_panel(tab=None):
                                                     'Assign gamepad button indexes for each frontend action.'
                                                 ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                                 with ui.element('div').classes('config-input-panel-grid mt-3'):
-                                                    for action in input_actions.actions():
+                                                    for action in input_registry.actions():
                                                         build_binding_input(
                                                             action, 'pad',
-                                                            ','.join(input_actions.pad_buttons_in(
+                                                            ','.join(input_registry.pad_buttons_in(
                                                                 bindings[action.name])))
 
                                             with ui.card().classes('config-side-card w-full p-4'):
@@ -891,10 +891,10 @@ def render_panel(tab=None):
                                                     'Set comma-separated keyboard bindings used only by the VPinFE frontend.'
                                                 ).classes('text-sm').style('color: var(--ink-muted) !important;')
                                                 with ui.element('div').classes('config-input-panel-grid mt-3'):
-                                                    for action in input_actions.actions():
+                                                    for action in input_registry.actions():
                                                         build_binding_input(
                                                             action, 'key',
-                                                            ','.join(input_actions.keys_in(
+                                                            ','.join(input_registry.keys_in(
                                                                 bindings[action.name])))
 
                                         if other_input_keys:

@@ -14,7 +14,7 @@ import re
 import unittest
 from pathlib import Path
 
-from common import config_schema, input_actions
+from common import config_schema, input_registry
 from frontend import input_api
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -24,25 +24,25 @@ CORE_JS = (REPO_ROOT / "web" / "common" / "vpinfe-core.js").read_text(encoding="
 class RegistryTests(unittest.TestCase):
     def test_there_are_ten_actions(self) -> None:
         """Twelve became ten: up/down and pageup/pagedown were one intent twice."""
-        self.assertEqual([a.name for a in input_actions.actions()],
+        self.assertEqual([a.name for a in input_registry.actions()],
                          ["previous", "next", "page_up", "page_down", "select",
                           "back", "menu", "collection_menu", "tutorial", "exit"])
 
     def test_every_action_is_a_config_option(self) -> None:
         declared = {(o.section, o.key) for o in config_schema.options()}
-        for action in input_actions.actions():
-            self.assertIn((input_actions.SECTION, action.name), declared)
+        for action in input_registry.actions():
+            self.assertIn((input_registry.SECTION, action.name), declared)
 
     def test_the_shipped_bindings_are_the_config_default(self) -> None:
-        for action in input_actions.actions():
-            option = config_schema.option(input_actions.SECTION, action.name)
+        for action in input_registry.actions():
+            option = config_schema.option(input_registry.SECTION, action.name)
             self.assertEqual(option.default, ",".join(action.bindings))
 
     def test_an_old_key_still_names_its_action(self) -> None:
         for old, expect in (("keyleft", "previous"), ("joyleft", "previous"),
                             ("joyup", "page_up"), ("keypagedown", "page_down"),
                             ("joycollectionmenu", "collection_menu")):
-            self.assertEqual(input_actions.action_for_legacy_key(old), expect)
+            self.assertEqual(input_registry.action_for_legacy_key(old), expect)
 
 
 class BindingProjectionTests(unittest.TestCase):
@@ -52,18 +52,18 @@ class BindingProjectionTests(unittest.TestCase):
                 "chord(pad:0/button:4+pad:0/button:5)@hold:1000"]
 
     def test_each_field_shows_its_own_device(self) -> None:
-        self.assertEqual(input_actions.keys_in(self.BINDINGS), ["ArrowLeft", "ShiftLeft"])
-        self.assertEqual(input_actions.pad_buttons_in(self.BINDINGS), ["4"])
+        self.assertEqual(input_registry.keys_in(self.BINDINGS), ["ArrowLeft", "ShiftLeft"])
+        self.assertEqual(input_registry.pad_buttons_in(self.BINDINGS), ["4"])
 
     def test_what_neither_field_can_show_is_kept(self) -> None:
         """Dropping it would delete a cabinet's hold-both-flippers binding on Save."""
-        self.assertEqual(input_actions.unrenderable(self.BINDINGS),
+        self.assertEqual(input_registry.unrenderable(self.BINDINGS),
                          ["chord(pad:0/button:4+pad:0/button:5)@hold:1000"])
 
     def test_an_old_value_becomes_selectors(self) -> None:
-        self.assertEqual(input_actions.binding_for_legacy("keyleft", "ArrowLeft,ShiftLeft"),
+        self.assertEqual(input_registry.binding_for_legacy("keyleft", "ArrowLeft,ShiftLeft"),
                          ["key:ArrowLeft", "key:ShiftLeft"])
-        self.assertEqual(input_actions.binding_for_legacy("joyleft", "3"),
+        self.assertEqual(input_registry.binding_for_legacy("joyleft", "3"),
                          ["pad:0/button:3"])
 
 
@@ -74,8 +74,8 @@ class JavaScriptCopiesTests(unittest.TestCase):
         js = {name: [v.strip().strip("'\"").lower() for v in vals.split(",") if v.strip()]
               for name, vals in re.findall(r"(\w+):\s*\[([^\]]*)\]", block.group(1))}
 
-        expected = {a.name: [k.lower() for k in input_actions.keys_in(a.bindings)]
-                    for a in input_actions.actions()}
+        expected = {a.name: [k.lower() for k in input_registry.keys_in(a.bindings)]
+                    for a in input_registry.actions()}
         self.assertEqual(js, expected)
 
     def test_contract_1_gets_a_name_for_every_action(self) -> None:
@@ -84,7 +84,7 @@ class JavaScriptCopiesTests(unittest.TestCase):
         self.assertIsNotNone(block, "the legacy name map moved")
         js = dict(re.findall(r"(\w+):\s*\"(\w+)\"", block.group(1)))
 
-        self.assertEqual(js, {a.name: a.legacy_joy_key for a in input_actions.actions()})
+        self.assertEqual(js, {a.name: a.legacy_joy_key for a in input_registry.actions()})
 
 
 class BridgeTests(unittest.TestCase):

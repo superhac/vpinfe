@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from common import events, lifecycle
-from frontend import lifecycle_wiring
+from frontend import lifecycle_host
 
 
 class LifecycleTests(unittest.TestCase):
@@ -159,7 +159,7 @@ class LifecycleTests(unittest.TestCase):
         lifecycle.reset_for_tests()
         self.addCleanup(lifecycle.reset_for_tests)
         with mock.patch("common.host.system_actions.shutdown_system") as power_off:
-            lifecycle_wiring.install(
+            lifecycle_host.install(
                 config_store=None,
                 config_dir=Path("."),
                 frontend_browser=SimpleNamespace(terminate_all=lambda: None),
@@ -178,8 +178,8 @@ class NoticeTests(unittest.TestCase):
         events.clear()
         self.addCleanup(events.clear)
         self.addCleanup(lifecycle.reset_for_tests)
-        lifecycle_wiring._config_store = None
-        lifecycle_wiring._bridge = None
+        lifecycle_host._config_store = None
+        lifecycle_host._bridge = None
 
     def _install(self, bridge):
         """Wire the real notice path, with the power performers stubbed out.
@@ -197,7 +197,7 @@ class NoticeTests(unittest.TestCase):
             self.addCleanup(patcher.stop)
             setattr(self, f"fake_{name}", patcher.start())
 
-        lifecycle_wiring.install(
+        lifecycle_host.install(
             config_store=None,
             config_dir=Path("."),
             frontend_browser=SimpleNamespace(terminate_all=lambda: None),

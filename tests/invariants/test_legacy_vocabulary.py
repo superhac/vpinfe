@@ -27,7 +27,7 @@ TRANSLATORS = {
     "web/common/vpinfe-core.js",      # MEDIA_KIND_ALIASES, LEGACY_ACTION_NAMES, readers
     "frontend/theme_windows.py",      # CANONICAL, TITLES
     "frontend/input_api.py",          # projects the old per-device bridge methods
-    "common/input_actions.py",        # each action's legacy spellings
+    "common/input_registry.py",        # each action's legacy spellings
     "common/media_specs.py",          # MEDIA_KIND_ALIASES, the spec filenames
     "common/config_schema.py",        # every option's aliases and former locations
     "common/config_store.py",         # the migration that rewrites them
