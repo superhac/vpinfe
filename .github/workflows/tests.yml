@@ -49,5 +49,8 @@ jobs:
         with:
           node-version: '22'
 
+      # The manifest lives beside the tests, not at the repo root - node resolves
+      # "type": "module" from the nearest package.json walking up from a test file.
       - name: Run frontend tests
         run: npm test
+        working-directory: tests/js

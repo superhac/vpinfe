@@ -8,7 +8,7 @@ reach the cabinet broken.
 When this fails, regenerate and re-run the JS tests:
 
     python tests/support/theme_fixture_capture.py
-    npm test
+    npm test --prefix tests/js
 """
 
 from __future__ import annotations
