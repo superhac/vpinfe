@@ -53,7 +53,7 @@ class FirstRunTests(ConfigStoreTests):
             {s: {k.lower() for k in v} for s, v in config_schema.defaults().items()})
 
     def test_the_three_settings_the_readme_asks_for_are_present(self) -> None:
-        """readme.md walks a new user through these in the Manager UI."""
+        """README.md walks a new user through these in the Manager UI."""
         store = ConfigStore(str(self.ini))
 
         for key in ("vpx_bin_path", "game_root_dir", "vpx_ini_path"):

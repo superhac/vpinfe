@@ -63,7 +63,7 @@ KNOWN_ABSENT_FILES = {
 
 
 def _doc_files() -> list[Path]:
-    return sorted(REPO_ROOT.joinpath("docs").glob("*.md")) + [REPO_ROOT / "readme.md"]
+    return sorted(REPO_ROOT.joinpath("docs").glob("*.md")) + [REPO_ROOT / "README.md"]
 
 
 class DocPathReferenceTests(unittest.TestCase):
