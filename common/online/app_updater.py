@@ -17,7 +17,7 @@ import requests
 
 from common.app_version import get_version
 from common.http_client import download_file, get_json
-from common.paths import CONFIG_DIR
+from common.paths import CONFIG_DIR, bundled
 
 logger = logging.getLogger("vpinfe.common.online.app_updater")
 
@@ -139,10 +139,12 @@ def _find_release_asset(release_payload: dict, asset_name: str) -> dict | None:
 
 
 def _bundled_chromium_exists() -> bool:
-    roots: list[Path] = []
-    meipass = getattr(sys, "_MEIPASS", None)
-    if meipass:
-        roots.append(Path(meipass))
+    # `bundled()` is where the build puts data, and it is the first root checked. The
+    # other two stay: this decides whether an update may proceed, and a wrong "no" here
+    # is a user stuck on an old version. macOS is the case that earns the caution -
+    # Chromium.app is copied into the bundle after PyInstaller runs, by the workflow
+    # rather than by the spec.
+    roots: list[Path] = [bundled()]
 
     exe_dir = Path(sys.executable).resolve().parent
     roots.append(exe_dir)

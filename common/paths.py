@@ -31,6 +31,18 @@ def _resolve_config_dir() -> Path:
 # subpackages, and it broke silently everywhere a test did not happen to look.
 APP_ROOT = Path(__file__).resolve().parent.parent
 
+
+def bundled(*parts: str) -> Path:
+    """A file the build ships, wherever this copy of VPinFE is running from.
+
+    Measured rather than assumed, on a real frozen build of each kind: `APP_ROOT` and
+    `sys._MEIPASS` are the same directory - `_internal/` for a onedir build,
+    `Contents/Frameworks/` inside a macOS .app - and in a source checkout it is the
+    repo. So one expression covers every case, and the callers that each grew their own
+    chain of guesses do not need one.
+    """
+    return APP_ROOT.joinpath(*parts)
+
 CONFIG_DIR = _resolve_config_dir()
 VPINFE_INI_PATH = CONFIG_DIR / "vpinfe.ini"
 COLLECTIONS_PATH = CONFIG_DIR / "collections.json"

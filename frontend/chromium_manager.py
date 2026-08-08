@@ -23,6 +23,7 @@ from urllib.parse import quote
 
 from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig, cfg_get
 from common.log_setup import include_thirdparty_logs
+from common.paths import bundled
 
 logger = logging.getLogger("vpinfe.frontend.chromium_manager")
 
@@ -132,14 +133,8 @@ def _build_window_url(
 
 
 def resource_path(relative_path):
-    """Get absolute path to resource, works for both dev and PyInstaller bundle."""
-    if getattr(sys, "frozen", False):
-        # Running as PyInstaller bundle
-        base_path = sys._MEIPASS
-    else:
-        # Running from source - project root
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base_path, relative_path)
+    """Kept as the name three call sites below use; `common.paths.bundled` is the answer."""
+    return str(bundled(*relative_path.split("/")))
 
 
 ChromiumPath = namedtuple("ChromiumPath", ["path", "using_local_install"])

@@ -5,14 +5,14 @@ import threading
 from pathlib import Path
 
 from common.config_access import cfg_get
-from common.paths import APP_ROOT
+from common.paths import bundled
 from common.third_party import find_named_path, import_module_from_path, third_party_base_candidates
 
 _LOCK = threading.Lock()
 _CONTROLLER = None
 _CURRENT_IMAGE = None
 _WRAPPER_NAMES = ('libdmdutil_wrapper.py',)
-_DEFAULT_REALDMD_IMAGE = APP_ROOT / "common" / "host" / "static" / "vpinfe_realdmd.png"
+_DEFAULT_REALDMD_IMAGE = bundled("common", "host", "static", "vpinfe_realdmd.png")
 logger = logging.getLogger("vpinfe.common.host.libdmdutil_service")
 
 

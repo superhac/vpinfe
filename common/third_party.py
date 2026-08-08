@@ -1,9 +1,10 @@
 """Finding and loading the third_party libraries the app ships with.
 
 DOF and libdmdutil are not packaged as Python dependencies - they are dropped into
-`third_party/` by the build and imported from a path at runtime, so where they live
-depends on whether this is a source checkout or a frozen build. Nothing here is
-specific to them; the extension host will want the same primitives.
+`third_party/` by the build and imported from a path at runtime. `common.paths.bundled`
+knows where that is; an environment variable overrides it for a developer working
+against a local checkout of one. Nothing here is specific to DOF or libdmdutil; the
+extension host will want the same primitives.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
-from common.paths import APP_ROOT
+from common.paths import bundled
 
 
 def find_named_path(base: Path, names: tuple[str, ...]) -> Path | None:
@@ -36,21 +37,20 @@ def find_named_path(base: Path, names: tuple[str, ...]) -> Path | None:
 
 
 def third_party_base_candidates(env_var: str, package_dir: str) -> list[Path]:
-    env_override = os.environ.get(env_var, "").strip()
+    """Where to look for a bundled library: an override, then where the build put it.
+
+    This was five candidates. Measured on real frozen builds of both kinds, three of
+    them were the same directory reached three ways - `sys._MEIPASS` equals `APP_ROOT`,
+    and inside a .app both are `Contents/Frameworks`, which `Contents/Resources` mirrors
+    - and a fourth, the executable's own directory, is never where anything ships.
+    """
     candidates: list[Path] = []
+
+    env_override = os.environ.get(env_var, "").strip()
     if env_override:
         candidates.append(Path(env_override).expanduser())
 
-    candidates.append(APP_ROOT / "third_party" / package_dir)
-
-    meipass = getattr(sys, "_MEIPASS", None)
-    if meipass:
-        candidates.append(Path(meipass) / "third_party" / package_dir)
-
-    exe_dir = Path(sys.executable).resolve().parent
-    candidates.append(exe_dir / "third_party" / package_dir)
-    candidates.append(exe_dir.parent / "Resources" / "third_party" / package_dir)
-
+    candidates.append(bundled("third_party", package_dir))
     return candidates
 
 
