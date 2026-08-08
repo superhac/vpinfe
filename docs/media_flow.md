@@ -10,7 +10,7 @@ High-level flow:
 
 1. `common/games/game_parser.py` scans each game folder for standard media filenames.
 2. `frontend/api.py` includes the discovered file paths in the game JSON returned to the browser.
-3. `web/common/vpinfe-core.js` stores that game data in `this.gameData`.
+3. `frontend/static/common/vpinfe-core.js` stores that game data in `this.gameData`.
 4. Theme code calls helper methods such as `vpin.getImageURL(index, type)` or `vpin.getVideoURL(index, type)`.
 5. `vpinfe-core.js` converts the local path into a URL under `/games/...`.
 6. The local HTTP server serves the file to the theme.
@@ -90,9 +90,9 @@ After loading the game JSON, `vpinfe-core.js` exposes helper methods for themes:
 
 Relevant code:
 
-- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
-- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
-- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
+- [frontend/static/common/vpinfe-core.js](../frontend/static/common/vpinfe-core.js)
+- [frontend/static/common/vpinfe-core.js](../frontend/static/common/vpinfe-core.js)
+- [frontend/static/common/vpinfe-core.js](../frontend/static/common/vpinfe-core.js)
 
 ## URL Conversion
 
@@ -109,7 +109,7 @@ If the file lives directly in the game folder instead of `medias/`, the URL beco
 
 Relevant code:
 
-- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
+- [frontend/static/common/vpinfe-core.js](../frontend/static/common/vpinfe-core.js)
 
 The HTTP server mount that makes this work is configured here:
 
@@ -121,8 +121,8 @@ For `dmd.mp4` support specifically, the key flow is:
 
 - [common/games/game_parser.py](../common/games/game_parser.py)
 - [frontend/api.py](../frontend/api.py)
-- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
-- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
+- [frontend/static/common/vpinfe-core.js](../frontend/static/common/vpinfe-core.js)
+- [frontend/static/common/vpinfe-core.js](../frontend/static/common/vpinfe-core.js)
 
 That means:
 
@@ -137,8 +137,8 @@ For playfield video support, the key flow is:
 
 - [common/games/game_parser.py](../common/games/game_parser.py)
 - [frontend/api.py](../frontend/api.py)
-- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
-- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
+- [frontend/static/common/vpinfe-core.js](../frontend/static/common/vpinfe-core.js)
+- [frontend/static/common/vpinfe-core.js](../frontend/static/common/vpinfe-core.js)
 
 That means:
 
@@ -153,8 +153,8 @@ For `bg.mp4` support specifically, the key flow is:
 
 - [common/games/game_parser.py](../common/games/game_parser.py)
 - [frontend/api.py](../frontend/api.py)
-- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
-- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
+- [frontend/static/common/vpinfe-core.js](../frontend/static/common/vpinfe-core.js)
+- [frontend/static/common/vpinfe-core.js](../frontend/static/common/vpinfe-core.js)
 
 That means:
 
@@ -325,7 +325,7 @@ Common cases:
 
 Relevant code:
 
-- [web/common/vpinfe-core.js](../web/common/vpinfe-core.js)
+- [frontend/static/common/vpinfe-core.js](../frontend/static/common/vpinfe-core.js)
 
 In practice, when a new game becomes active, theme code should:
 

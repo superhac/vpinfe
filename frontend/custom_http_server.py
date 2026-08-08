@@ -370,7 +370,7 @@ class CustomHTTPServer:
   <head>
     <meta charset="UTF-8" />
     <title>VPinFE {window_label}</title>
-    <script src="/web/common/vpinfe-core.js"></script>
+    <script src="/core/common/vpinfe-core.js"></script>
     <script>
       const vpin = new VPinFECore();
       vpin.init();
@@ -383,7 +383,7 @@ class CustomHTTPServer:
 
         let location = await vpin.call("get_theme_index_page");
         if (!splashDisabled) {{
-          location = `/web/splash.html?window={window_name}`;
+          location = `/core/splash.html?window={window_name}`;
         }}
 
         if (params) {{

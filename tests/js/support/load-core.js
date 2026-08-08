@@ -1,4 +1,4 @@
-// Loads web/common/vpinfe-core.js into a fresh context and hands back the class.
+// Loads frontend/static/common/vpinfe-core.js into a fresh context and hands back the class.
 //
 // The file is a plain script that declares VPinFECore and instantiates nothing - the
 // theme does `new VPinFECore()`. That is what makes it loadable here at all, so it is
@@ -17,7 +17,7 @@ import { makeBrowser } from "./browser.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(HERE, "..", "..", "..");
-const CORE_PATH = path.join(REPO_ROOT, "web", "common", "vpinfe-core.js");
+const CORE_PATH = path.join(REPO_ROOT, "frontend", "static", "common", "vpinfe-core.js");
 
 // Module-private declarations are lexical bindings, not properties of the global, so the
 // source gets an appended line handing out the ones the tests need. Kept to a short list

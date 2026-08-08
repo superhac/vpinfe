@@ -18,7 +18,7 @@ from common import config_schema, input_registry
 from frontend import input_api
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-CORE_JS = (REPO_ROOT / "web" / "common" / "vpinfe-core.js").read_text(encoding="utf-8")
+CORE_JS = (REPO_ROOT / "frontend" / "static" / "common" / "vpinfe-core.js").read_text(encoding="utf-8")
 
 
 class RegistryTests(unittest.TestCase):

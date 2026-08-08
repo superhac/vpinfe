@@ -104,7 +104,7 @@ describe("a theme declaring contract 2 gets the current surface only", () => {
       "the canonical kind resolves");
     // An unknown kind answers with the missing-media placeholder rather than null, which
     // is the same thing a theme sees for art it does not have.
-    assert.equal(vpin.getImageURL(0, "table"), "/web/images/file_missing.png",
+    assert.equal(vpin.getImageURL(0, "table"), "/core/images/file_missing.png",
       "`table` is contract 1's spelling and is not honoured at 2");
   });
 
@@ -115,7 +115,7 @@ describe("a theme declaring contract 2 gets the current surface only", () => {
     const { vpin } = await coreAtContract(2, { get_theme_assets_port: 8000 });
     vpin.gameData = [{ PlayfieldImagePath: "/lib/G (M 1990)/medias/table.png" }];
 
-    assert.equal(vpin.getImageURL(0, "playfield"), "/web/images/file_missing.png");
+    assert.equal(vpin.getImageURL(0, "playfield"), "/core/images/file_missing.png");
   });
 
   test("window messages go out once, under the current name only", async () => {

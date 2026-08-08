@@ -158,7 +158,7 @@ jobs:
         run: |
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             pyinstaller --onedir --noconfirm --name vpinfe \
-              --add-data "web:web" \
+              --add-data "frontend/static:frontend/static" \
               --add-data "managerui/static:managerui/static" \
               --add-data "common/host/static:common/host/static" \
               --add-data "third-party/dof:third-party/dof" \
@@ -169,7 +169,7 @@ jobs:
               main.py
           elif [[ "$RUNNER_OS" == "Windows" ]]; then
             pyinstaller --onedir --noconfirm --name vpinfe \
-              --add-data "web;web" \
+              --add-data "frontend/static;frontend/static" \
               --add-data "managerui/static;managerui/static" \
               --add-data "common/host/static;common/host/static" \
               --add-data "third-party/dof;third-party/dof" \
@@ -177,8 +177,8 @@ jobs:
               --add-data "chromium/windows;chromium/windows" \
               main.py
           elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
-              --add-data "web:web" \
+            pyinstaller --windowed -i packaging/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
+              --add-data "frontend/static:frontend/static" \
               --add-data "managerui/static:managerui/static" \
               --add-data "common/host/static:common/host/static" \
               --add-data "third-party/dof:third-party/dof" \
@@ -216,8 +216,8 @@ jobs:
         run: |
           create-dmg \
             --volname "VPinFE" \
-            --volicon "icon/VPinFE.icns" \
-            --background "icon/DMG_background.png" \
+            --volicon "packaging/VPinFE.icns" \
+            --background "packaging/DMG_background.png" \
             --window-pos 200 120 \
             --window-size 610 475 \
             --icon-size 100 \
@@ -230,7 +230,7 @@ jobs:
 
       - name: Copy Windows launcher
         if: runner.os == 'Windows'
-        run: cp vpinfe.bat dist/vpinfe/
+        run: cp packaging/vpinfe.bat dist/vpinfe/
         shell: bash
 
       - name: Upload full build artifact (macOS)
@@ -259,7 +259,7 @@ jobs:
         run: |
           rm -rf build dist
           pyinstaller --onedir --noconfirm --name vpinfe \
-            --add-data "web:web" \
+            --add-data "frontend/static:frontend/static" \
             --add-data "managerui/static:managerui/static" \
             --add-data "common/host/static:common/host/static" \
             --add-data "third-party/dof:third-party/dof" \
@@ -281,7 +281,7 @@ jobs:
         run: |
           Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
           pyinstaller --onedir --noconfirm --name vpinfe `
-            --add-data "web;web" `
+            --add-data "frontend/static;frontend/static" `
             --add-data "managerui/static;managerui/static" `
             --add-data "common/host/static;common/host/static" `
             --add-data "third-party/dof;third-party/dof" `
@@ -290,7 +290,7 @@ jobs:
 
       - name: Copy Windows launcher (slim)
         if: runner.os == 'Windows'
-        run: cp vpinfe.bat dist/vpinfe/
+        run: cp packaging/vpinfe.bat dist/vpinfe/
         shell: bash
 
       - name: Upload slim build artifact (Windows)
@@ -304,8 +304,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           rm -rf build dist
-          pyinstaller --windowed -i icon/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
-            --add-data "web:web" \
+          pyinstaller --windowed -i packaging/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
+            --add-data "frontend/static:frontend/static" \
             --add-data "managerui/static:managerui/static" \
             --add-data "common/host/static:common/host/static" \
             --add-data "third-party/dof:third-party/dof" \
@@ -332,8 +332,8 @@ jobs:
         run: |
           create-dmg \
             --volname "VPinFE" \
-            --volicon "icon/VPinFE.icns" \
-            --background "icon/DMG_background.png" \
+            --volicon "packaging/VPinFE.icns" \
+            --background "packaging/DMG_background.png" \
             --window-pos 200 120 \
             --window-size 610 475 \
             --icon-size 100 \

@@ -73,7 +73,7 @@ def gamepadtest():
 
     mount_points = {
         '/tables/': os.path.abspath(SettingsConfig.from_config(config_store).game_root_dir),
-        '/web/': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web'),
+        '/core/': os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend', 'static'),
     }
     http_server = CustomHTTPServer(mount_points)
     theme_assets_port = int(cfg_get(config_store, 'Network', 'theme_assets_port', '8000'))
@@ -94,7 +94,7 @@ def gamepadtest():
 
     ws_bridge.start()
     try:
-        url = f"http://127.0.0.1:{theme_assets_port}/web/diag/gamepad.html?window=gamepad"
+        url = f"http://127.0.0.1:{theme_assets_port}/core/diag/gamepad.html?window=gamepad"
         chromium.launch_window("gamepad", url, monitors[0], 0)
         chromium.wait_for_exit()
     finally:

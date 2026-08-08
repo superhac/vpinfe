@@ -51,7 +51,7 @@ class ShimRegistryTests(unittest.TestCase):
 
     def test_the_registry_matches_the_maps_it_describes(self) -> None:
         """Parsed from the source, so the registry cannot drift away from the code."""
-        js = REPO_ROOT / "web" / "common" / "vpinfe-core.js"
+        js = REPO_ROOT / "frontend" / "static" / "common" / "vpinfe-core.js"
         actual = {
             "vpin-members": dict(re.findall(
                 r"(\w+): '(\w+)'", _block(js, "VPINFE_RENAMED_MEMBERS = {", "}"))),

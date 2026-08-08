@@ -120,7 +120,7 @@ def _build_window_url(
         return f"{base_url}:{theme_assets_port}/app/{window_name}?wsPort={ws_port}"
 
     if splash_enabled:
-        return (f"{base_url}:{theme_assets_port}/web/splash.html"
+        return (f"{base_url}:{theme_assets_port}/core/splash.html"
                 f"?window={window_name}&wsPort={ws_port}")
 
     encoded_theme = quote(theme_name, safe="")

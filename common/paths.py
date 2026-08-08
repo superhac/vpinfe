@@ -26,7 +26,7 @@ def _resolve_config_dir() -> Path:
 
 
 # Where the app itself lives, as opposed to the user's config. Bundled assets sit
-# under it: web/, third-party/, main.py. Resolved here so no module has to count
+# under it: frontend/static/, third-party/, main.py. Resolved here so no module has to count
 # its own directory levels - doing that is what broke when common/ gained
 # subpackages, and it broke silently everywhere a test did not happen to look.
 APP_ROOT = Path(__file__).resolve().parent.parent

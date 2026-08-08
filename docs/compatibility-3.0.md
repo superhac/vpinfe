@@ -44,7 +44,7 @@ the major.
 
 **PAR-04 — WS bridge method `update_frontend_dof_for_table` is now
 `notify_table_selected`.** *(machine-checked)*
-Called only from `web/common/vpinfe-core.js`, which we serve, so no theme changes.
+Called only from `frontend/static/common/vpinfe-core.js`, which we serve, so no theme changes.
 *Why:* the old name said DOF while the method drove DOF and the real DMD both;
 selection is now an event with independent subscribers.
 
@@ -266,6 +266,20 @@ window to show them on. A window's monitor is now read generically from
 `<window>screenid`, so a theme can name a window VPinFE has never heard of. Blank means
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
+
+**PAR-49 — Core's own files are served at `/core/`, and `/web/` still works.** `web/` is
+now `frontend/static/`, mounted at `/core/` - what core provides, against `/themes/` for what
+a theme provides. Every published theme asks for `vpinfe-core.js` and `vpinfe-style.css` by
+the `/web/` URL, so `/web/` stays mounted on the same directory: not a redirect, an alias, so
+an un-updated theme keeps working and there is one copy of the files.
+*Why:* `web/` was named for a technology rather than an owner, so it became the default home
+for anything non-Python and collected files no browser ever asked for. The name said where the
+files were, not whose they are. Nothing about the URL had to change for that, but leaving core
+served from `/web/` while it lives in `frontend/static/` would mean the path and the URL
+disagree forever. Verified against a real PyInstaller build rather than the suite - no test
+exercises `--add-data`, and a wrong path here is a missing splash in a release artifact, not a
+red test. Both URLs return the same 99,500-byte file from the frozen binary, and the theme
+harness deliberately keeps one window on the old URL so the alias stays covered.
 
 **PAR-48 — Quitting, restarting and powering off go through one place, and can ask
 first.** `close_app` and `shutdown_system` keep their names and their behavior on a

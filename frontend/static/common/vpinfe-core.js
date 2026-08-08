@@ -114,7 +114,7 @@ function configValue(config, key) {
     (at && typeof at === "object") ? at[part] : undefined, config);
 }
 
-const MISSING_MEDIA_URL = "/web/images/file_missing.png";
+const MISSING_MEDIA_URL = "/core/images/file_missing.png";
 
 // The contract a theme declares in its manifest. 1 is what declaring nothing gets, and
 // what this file assumes until the bridge answers: the compatibility layer below is
@@ -1076,19 +1076,19 @@ class VPinFECore {
     menu: {
       flag: "menuUP",
       frameId: "menu-frame",
-      src: "/web/mainmenu/mainmenu.html",
+      src: "/core/mainmenu/mainmenu.html",
       // table_index is mainmenu.js's own key, not ours to rename.
       opened: (core) => ({ event: "menu_open", table_index: core._currentGameIndex }),
     },
     collectionMenu: {
       flag: "collectionMenuUP",
       frameId: "collection-menu-frame",
-      src: "/web/collectionmenu/collectionmenu.html",
+      src: "/core/collectionmenu/collectionmenu.html",
     },
     tutorial: {
       flag: "tutorialUP",
       frameId: "tutorial-frame",
-      src: "/web/tutorial/tutorial.html",
+      src: "/core/tutorial/tutorial.html",
       // There is nothing to show without a URL, and this runs before anything is
       // closed - a missing tutorial must leave whatever is open alone.
       prepare: (core) => core.getCurrentTutorialUrl() || null,

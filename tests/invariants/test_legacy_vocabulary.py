@@ -24,7 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # Modules whose job is translating between vocabularies, or which declare the old names
 # so that something else can. A hit in one of these is the point, not a defect.
 TRANSLATORS = {
-    "web/common/vpinfe-core.js",      # MEDIA_KIND_ALIASES, LEGACY_ACTION_NAMES, readers
+    "frontend/static/common/vpinfe-core.js",      # MEDIA_KIND_ALIASES, LEGACY_ACTION_NAMES, readers
     "frontend/theme_windows.py",      # CANONICAL, TITLES
     "frontend/input_api.py",          # projects the old per-device bridge methods
     "common/input_registry.py",        # each action's legacy spellings
@@ -60,7 +60,7 @@ RENAMED = {
 }
 
 SKIP_PARTS = {".venv", "build", "third-party", "chromium", "__pycache__", "tests"}
-SKIP_PREFIXES = ("managerui/maps/", "web/themes/")
+SKIP_PREFIXES = ("managerui/maps/", "frontend/static/themes/")
 
 
 def _source_files():

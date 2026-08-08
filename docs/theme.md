@@ -285,9 +285,9 @@ This is the main HTML file. It controls input, displays the primary UI, and host
 <head>
   <meta charset="UTF-8" />
   <title>VPinFE - My Theme</title>
-  <link rel="stylesheet" href="/web/common/vpinfe-style.css">
+  <link rel="stylesheet" href="/core/common/vpinfe-style.css">
   <link rel="stylesheet" href="style.css">
-  <script src="/web/common/vpinfe-core.js"></script>
+  <script src="/core/common/vpinfe-core.js"></script>
   <script src="theme.js"></script>
 </head>
 <body>
@@ -314,8 +314,8 @@ This is the main HTML file. It controls input, displays the primary UI, and host
 #### Required Includes
 
 ```html
-<link rel="stylesheet" href="/web/common/vpinfe-style.css">
-<script src="/web/common/vpinfe-core.js"></script>
+<link rel="stylesheet" href="/core/common/vpinfe-style.css">
+<script src="/core/common/vpinfe-core.js"></script>
 ```
 
 These are served by VPinFE's HTTP server on port 8000. `vpinfe-core.js` provides all API calls, media URL helpers, gamepad/keyboard input, and event handling. `vpinfe-style.css` is required for the in-theme menu system styling.
@@ -598,9 +598,9 @@ Do not hardcode these windows to image-only rendering with `getImageURL()` alone
 <head>
   <meta charset="UTF-8" />
   <title>VPinFE - BG</title>
-  <link rel="stylesheet" href="/web/common/vpinfe-style.css">
+  <link rel="stylesheet" href="/core/common/vpinfe-style.css">
   <link rel="stylesheet" href="style.css">
-  <script src="/web/common/vpinfe-core.js"></script>
+  <script src="/core/common/vpinfe-core.js"></script>
   <script src="theme.js"></script>
 </head>
 <body>
@@ -1111,7 +1111,7 @@ handler regardless.
 
 The JavaScript interface to the VPinFE API. Must be loaded in your theme:
 ```html
-<script src="/web/common/vpinfe-core.js"></script>
+<script src="/core/common/vpinfe-core.js"></script>
 ```
 
 ### Public Properties
@@ -1350,10 +1350,10 @@ If `override` is present, themes that position or scale BG/DMD content based on 
 | `setAudioOptions` | `options` | — | Sets runtime audio options. Supported keys: `maxVolume`/`max_volume`/`volume`, `fadeDuration`/`fade_duration_ms`/`fadeMs`, `loop`. |
 
 #### getImageURL(index, type)
-Returns an HTTP URL for a table's image. `type` can be `"playfield"`, `"bg"`, `"dmd"`, `"wheel"`, or `"cab"`. Returns a fallback `/web/images/file_missing.png` URL if the file doesn't exist.
+Returns an HTTP URL for a table's image. `type` can be `"playfield"`, `"bg"`, `"dmd"`, `"wheel"`, or `"cab"`. Returns a fallback `/core/images/file_missing.png` URL if the file doesn't exist.
 
 #### getVideoURL(index, type)
-Returns an HTTP URL for a table's video. `type` can be `"playfield"`, `"bg"`, or `"dmd"`. Returns a fallback `/web/images/file_missing.png` URL if no video exists. See [Video Support](#video-support).
+Returns an HTTP URL for a table's video. `type` can be `"playfield"`, `"bg"`, or `"dmd"`. Returns a fallback `/core/images/file_missing.png` URL if no video exists. See [Video Support](#video-support).
 
 #### getMediaURL(index, type)
 Returns an HTTP URL using the user's configured media priority from Manager UI > Configuration > Media > Media Priorities. For `"playfield"`, `"bg"`, and `"dmd"`, VPinFE chooses image or video first based on the setting and falls back to the alternate when the preferred file is missing. For `"real_dmd"`, VPinFE chooses `realdmd-color.png` or `realdmd.png` first based on the setting and falls back to the other frame.

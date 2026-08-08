@@ -132,8 +132,14 @@ def build_mount_points(base_path: str, config_dir: Path, iniconfig):
     collection_icons_dir = str(config_dir / "collection_icons")
     os.makedirs(themes_dir, exist_ok=True)
     os.makedirs(collection_icons_dir, exist_ok=True)
+    core_dir = os.path.join(base_path, "frontend", "static")
     mount_points = {
-        "/web/": os.path.join(base_path, "web"),
+        "/core/": core_dir,
+        # What core provided was served at /web/ until 3.0, and installed themes ask for
+        # vpinfe-core.js and vpinfe-style.css by that URL. Kept as an alias on the same
+        # directory rather than a redirect: a theme that has not been updated keeps
+        # working, and there is one copy of the files.
+        "/web/": core_dir,
         "/themes/": themes_dir,
         "/collection_icons/": collection_icons_dir,
     }

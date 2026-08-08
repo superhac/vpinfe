@@ -78,7 +78,7 @@ SHIMS: tuple[Shim, ...] = (
         summary="Renamed vpin.* members stay as accessors forwarding to their "
                 "replacements. There is no projection for a JS API, so aliasing is the "
                 "only mechanism available - these work at every contract.",
-        implemented_in="web/common/vpinfe-core.js:VPINFE_RENAMED_MEMBERS",
+        implemented_in="frontend/static/common/vpinfe-core.js:VPINFE_RENAMED_MEMBERS",
         par="PAR-23",
         names=(
             ("tableData", "gameData"),
@@ -99,7 +99,7 @@ SHIMS: tuple[Shim, ...] = (
         summary="Every renamed window message is broadcast under both spellings, and an "
                 "inbound legacy name is normalized before anything matches on it.",
         implemented_in="frontend/play_events.py:_LEGACY_MESSAGE_TYPES "
-                       "+ web/common/vpinfe-core.js:MESSAGE_TYPE_ALIASES",
+                       "+ frontend/static/common/vpinfe-core.js:MESSAGE_TYPE_ALIASES",
         par="PAR-24",
         names=(
             ("TableIndexUpdate", "GameIndexUpdate"),
