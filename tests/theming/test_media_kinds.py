@@ -15,7 +15,8 @@ from pathlib import Path
 from common import media_specs
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-CORE_JS = (REPO_ROOT / "frontend" / "static" / "common" / "vpinfe-core.js").read_text(encoding="utf-8")
+_CORE_JS_PATH = REPO_ROOT / "frontend" / "static" / "common" / "vpinfe-core.js"
+CORE_JS = _CORE_JS_PATH.read_text(encoding="utf-8")
 SPECS_PY = (REPO_ROOT / "common" / "media_specs.py").read_text(encoding="utf-8")
 
 

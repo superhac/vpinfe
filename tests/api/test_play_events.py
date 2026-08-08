@@ -162,7 +162,8 @@ class LifecycleMessageSpellingTests(unittest.TestCase):
     3.0's documented names got no launch events at all. PAR-24.
     """
 
-    JS = Path(__file__).resolve().parent.parent.parent / "frontend" / "static" / "common" / "vpinfe-core.js"
+    REPO = Path(__file__).resolve().parent.parent.parent
+    JS = REPO / "frontend" / "static" / "common" / "vpinfe-core.js"
 
     def test_python_and_javascript_agree_on_the_aliases(self) -> None:
         """One contract, written down twice - so assert the two copies match."""
