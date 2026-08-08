@@ -267,7 +267,7 @@ until then the chain reports `required: null`.
 - **Extension** — a feature extending VPinFE under a manifest. Never "plugin", which is
   reserved for VPX standalone plugins.
 - **Third-party** — a library VPinFE bundles and loads at runtime, written by someone else
-  and not installed by the user: DOF and libdmdutil today. They ship in `third-party/` and
+  and not installed by the user: DOF and libdmdutil today. They ship in `third_party/` and
   are loaded through `common/third_party.py`. They are neither extensions (no manifest,
   nothing declared) nor plugins (that word belongs to VPX standalone), so say "third-party"
   and not "integration" or "external service".

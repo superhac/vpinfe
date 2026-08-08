@@ -29,7 +29,7 @@ def _call_sites():
     """(file, line, section, key) for every reader called with both names literal."""
     for path in sorted(REPO.rglob("*.py")):
         rel = path.relative_to(REPO).as_posix()
-        if rel.startswith((".venv/", "tests/", "third-party/", "managerui/maps/")):
+        if rel.startswith((".venv/", "tests/", "third_party/", "managerui/maps/")):
             continue
         try:
             tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"))

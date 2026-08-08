@@ -37,7 +37,7 @@ MAY_SURFACE_IT: set[str] = set()
 def _sources():
     for path in sorted(REPO_ROOT.rglob("*.py")):
         rel = path.relative_to(REPO_ROOT).as_posix()
-        if rel.startswith((".venv/", "tests/", "build/", "third-party/", "managerui/maps/")):
+        if rel.startswith((".venv/", "tests/", "build/", "third_party/", "managerui/maps/")):
             continue
         yield rel, path
 

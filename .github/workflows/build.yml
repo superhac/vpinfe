@@ -35,13 +35,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Ensure fetch scripts are executable
-        if: runner.os != 'Windows'
-        run: |
-          chmod +x scripts/fetch_dof_bundle.sh
-          chmod +x scripts/fetch_libdmdutil_bundle.sh
-        shell: bash
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -97,7 +90,7 @@ jobs:
             --repo "${DOF_REPO}" \
             --version "${DOF_VERSION}" \
             --triplet "${DOF_TRIPLET}" \
-            --outdir third-party/dof
+            --outdir third_party/dof
         shell: bash
 
       - name: Fetch libdmdutil bundle
@@ -108,7 +101,7 @@ jobs:
             --repo "${DMDUTIL_REPO}" \
             --version "${DMDUTIL_VERSION}" \
             --triplet "${DOF_TRIPLET}" \
-            --outdir third-party/libdmdutil
+            --outdir third_party/libdmdutil
         shell: bash
 
       - name: Install Python dependencies
@@ -160,41 +153,20 @@ jobs:
           mv chrome-mac/Chromium.app chromium/Chromium.app
           rm -rf chrome-mac chrome-mac.zip
 
+      # What ships is packaging/vpinfe.spec, not flags here. See its docstring.
       - name: Build app with PyInstaller
+        run: pyinstaller packaging/vpinfe.spec
+        shell: bash
+
+      - name: Bundle Chromium into the .app (macOS)
+        if: runner.os == 'macOS'
         run: |
-          if [[ "$RUNNER_OS" == "Linux" ]]; then
-            pyinstaller --onedir --noconfirm --name vpinfe \
-              --add-data "frontend/static:frontend/static" \
-              --add-data "managerui/static:managerui/static" \
-              --add-data "common/host/static:common/host/static" \
-              --add-data "third-party/dof:third-party/dof" \
-              --add-data "third-party/libdmdutil:third-party/libdmdutil" \
-              --add-data "chromium/linux/chrome:chromium/linux/chrome" \
-              --hidden-import pynput.keyboard._xorg \
-              --hidden-import pynput.mouse._xorg \
-              main.py
-          elif [[ "$RUNNER_OS" == "Windows" ]]; then
-            pyinstaller --onedir --noconfirm --name vpinfe \
-              --add-data "frontend/static;frontend/static" \
-              --add-data "managerui/static;managerui/static" \
-              --add-data "common/host/static;common/host/static" \
-              --add-data "third-party/dof;third-party/dof" \
-              --add-data "third-party/libdmdutil;third-party/libdmdutil" \
-              --add-data "chromium/windows;chromium/windows" \
-              main.py
-          elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            pyinstaller --windowed -i packaging/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
-              --add-data "frontend/static:frontend/static" \
-              --add-data "managerui/static:managerui/static" \
-              --add-data "common/host/static:common/host/static" \
-              --add-data "third-party/dof:third-party/dof" \
-              --add-data "third-party/libdmdutil:third-party/libdmdutil" \
-              main.py
-            mkdir -p dist/VPinFE.app/Contents/Frameworks/chromium
-            cp -R chromium/Chromium.app dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app
-            chmod +x dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app/Contents/MacOS/Chromium
-            rm -rf dist/vpinfe
-          fi
+          # Not --add-data: an .app copied that way loses its executable bit and the
+          # symlinks inside it, and will not launch.
+          mkdir -p dist/VPinFE.app/Contents/Frameworks/chromium
+          cp -R chromium/Chromium.app dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app
+          chmod +x dist/VPinFE.app/Contents/Frameworks/chromium/Chromium.app/Contents/MacOS/Chromium
+          rm -rf dist/VPinFE
         shell: bash
 
       - name: Ad-hoc sign the app (macOS)
@@ -260,19 +232,18 @@ jobs:
           name: build-win-x64
           path: dist/
 
-      - name: Build slim app with PyInstaller (Linux)
-        if: runner.os == 'Linux'
+      # The same spec, minus Chromium. One step for all three platforms.
+      - name: Build slim app with PyInstaller
+        env:
+          VPINFE_SLIM: "1"
         run: |
           rm -rf build dist
-          pyinstaller --onedir --noconfirm --name vpinfe \
-            --add-data "frontend/static:frontend/static" \
-            --add-data "managerui/static:managerui/static" \
-            --add-data "common/host/static:common/host/static" \
-            --add-data "third-party/dof:third-party/dof" \
-            --add-data "third-party/libdmdutil:third-party/libdmdutil" \
-            --hidden-import pynput.keyboard._xorg \
-            --hidden-import pynput.mouse._xorg \
-            main.py
+          pyinstaller packaging/vpinfe.spec
+          # On macOS the spec produces both the COLLECT directory and the .app that
+          # wraps it. Only the .app is shipped; leaving the directory doubles the DMG.
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            rm -rf dist/VPinFE
+          fi
         shell: bash
 
       - name: Upload slim build artifact (Linux)
@@ -281,18 +252,6 @@ jobs:
         with:
           name: build-linux-${{ runner.arch == 'X64' && 'x64' || 'arm64' }}-slim
           path: dist/
-
-      - name: Build slim app with PyInstaller (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
-          pyinstaller --onedir --noconfirm --name vpinfe `
-            --add-data "frontend/static;frontend/static" `
-            --add-data "managerui/static;managerui/static" `
-            --add-data "common/host/static;common/host/static" `
-            --add-data "third-party/dof;third-party/dof" `
-            --add-data "third-party/libdmdutil;third-party/libdmdutil" `
-            main.py
 
       - name: Copy Windows launcher (slim)
         if: runner.os == 'Windows'
@@ -306,19 +265,6 @@ jobs:
           name: build-win-x64-slim
           path: dist/
 
-      - name: Build slim app with PyInstaller (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          rm -rf build dist
-          pyinstaller --windowed -i packaging/VPinFE.icns --osx-bundle-identifier com.vpinfe.main --noconfirm --name VPinFE \
-            --add-data "frontend/static:frontend/static" \
-            --add-data "managerui/static:managerui/static" \
-            --add-data "common/host/static:common/host/static" \
-            --add-data "third-party/dof:third-party/dof" \
-            --add-data "third-party/libdmdutil:third-party/libdmdutil" \
-            main.py
-          rm -rf dist/vpinfe
-        shell: bash
 
       - name: Ad-hoc sign the app (macOS Slim)
         if: runner.os == 'macOS'

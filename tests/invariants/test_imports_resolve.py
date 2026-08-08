@@ -19,7 +19,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Our own packages, plus the vendored drop we do not lint or own.
-SKIP_DIRS = {".venv", "build", "third-party", "chromium", "web", "tests", "__pycache__"}
+SKIP_DIRS = {".venv", "build", "third_party", "chromium", "web", "tests", "__pycache__"}
 VENDORED = {"managerui/maps"}
 
 # Modules that only exist on one platform, imported inside the branch that needs them.

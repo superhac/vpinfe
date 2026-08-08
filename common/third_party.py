@@ -1,7 +1,7 @@
-"""Finding and loading the third-party libraries the app ships with.
+"""Finding and loading the third_party libraries the app ships with.
 
 DOF and libdmdutil are not packaged as Python dependencies - they are dropped into
-`third-party/` by the build and imported from a path at runtime, so where they live
+`third_party/` by the build and imported from a path at runtime, so where they live
 depends on whether this is a source checkout or a frozen build. Nothing here is
 specific to them; the extension host will want the same primitives.
 """
@@ -41,15 +41,15 @@ def third_party_base_candidates(env_var: str, package_dir: str) -> list[Path]:
     if env_override:
         candidates.append(Path(env_override).expanduser())
 
-    candidates.append(APP_ROOT / "third-party" / package_dir)
+    candidates.append(APP_ROOT / "third_party" / package_dir)
 
     meipass = getattr(sys, "_MEIPASS", None)
     if meipass:
-        candidates.append(Path(meipass) / "third-party" / package_dir)
+        candidates.append(Path(meipass) / "third_party" / package_dir)
 
     exe_dir = Path(sys.executable).resolve().parent
-    candidates.append(exe_dir / "third-party" / package_dir)
-    candidates.append(exe_dir.parent / "Resources" / "third-party" / package_dir)
+    candidates.append(exe_dir / "third_party" / package_dir)
+    candidates.append(exe_dir.parent / "Resources" / "third_party" / package_dir)
 
     return candidates
 

@@ -20,7 +20,7 @@
 # Declares the frontend test runner. No dependencies, nothing installed, not bundled.
 !package.json
 !common/resources/roms.json
-third-party/
+third_party/
 
 # PyInstaller build directories
 build/

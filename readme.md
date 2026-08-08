@@ -757,11 +757,11 @@ VPinFE includes two bundled integrations in its release distributions:
 - **DOF** for cabinet output events such as feedback devices and toys
 - **libdmdutil** for sending the table's real DMD image to supported external DMD hardware
 
-They are fetched during the GitHub build workflow and packaged into the distributed app under `third-party/dof` and `third-party/libdmdutil`. You can leave either integration disabled in `vpinfe.ini`, but the supporting files are included with the release builds.
+They are fetched during the GitHub build workflow and packaged into the distributed app under `third_party/dof` and `third_party/libdmdutil`. You can leave either integration disabled in `vpinfe.ini`, but the supporting files are included with the release builds.
 
 ### DOF setup
 
-Release builds already include the DOF files in `third-party/dof`. If you are running from source or want to refresh the bundled files locally, use:
+Release builds already include the DOF files in `third_party/dof`. If you are running from source or want to refresh the bundled files locally, use:
 
 ```bash
 ./scripts/fetch_dof_bundle.sh
@@ -786,7 +786,7 @@ Notes:
 
 ### libdmdutil setup
 
-Release builds already include the libdmdutil files in `third-party/libdmdutil`. If you are running from source or want to refresh the bundled files locally, use:
+Release builds already include the libdmdutil files in `third_party/libdmdutil`. If you are running from source or want to refresh the bundled files locally, use:
 
 ```bash
 ./scripts/fetch_libdmdutil_bundle.sh

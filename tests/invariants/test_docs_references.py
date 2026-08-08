@@ -57,7 +57,7 @@ KNOWN_ABSENT = {
 # Bare names that are real files, just not ours to hold.
 KNOWN_ABSENT_FILES = {
     "theme.js",                 # a theme author writes this one; we only document it
-    "ledcontrol_pull.py",       # ships inside the third-party DOF package
+    "ledcontrol_pull.py",       # ships inside the third_party DOF package
     "libdmdutil_wrapper.py",    # ships inside the bundled libdmdutil package
 }
 

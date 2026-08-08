@@ -59,7 +59,7 @@ RENAMED = {
     "enabledof": "enable_dof",
 }
 
-SKIP_PARTS = {".venv", "build", "third-party", "chromium", "__pycache__", "tests"}
+SKIP_PARTS = {".venv", "build", "third_party", "chromium", "__pycache__", "tests"}
 SKIP_PREFIXES = ("managerui/maps/", "frontend/static/themes/")
 
 
