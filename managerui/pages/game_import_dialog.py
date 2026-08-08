@@ -16,10 +16,6 @@ from managerui.services.media_service import invalidate_media_cache
 from managerui.ui_helpers import debounced_input
 
 logger = logging.getLogger("vpinfe.manager.games")
-associate_vps_to_folder = game_service.associate_vps_to_folder
-ensure_dir = game_service.ensure_dir
-save_upload_bytes = game_service.save_upload_bytes
-search_vpsdb = game_service.search_vpsdb
 
 
 def open_import_game_dialog(perform_scan_cb=None):
@@ -100,7 +96,7 @@ def open_import_game_dialog(perform_scan_cb=None):
 
                     def on_search_change(e: events.ValueChangeEventArguments):
                         term = e.value or ''
-                        render_results(search_vpsdb(term, limit=80))
+                        render_results(game_service.search_vpsdb(term, limit=80))
 
                     search_input.on_value_change(on_search_change)
                     render_results([])
@@ -276,27 +272,27 @@ def open_import_game_dialog(perform_scan_cb=None):
                     return
 
                 # Create folder
-                ensure_dir(game_dir)
+                game_service.ensure_dir(game_dir)
 
                 # Write VPX file
                 with client:
                     import_loading_label.set_text('Copying table file...')
                 vpx_name, vpx_bytes = import_state['vpx_file']
-                await run.io_bound(save_upload_bytes, game_dir / vpx_name, vpx_bytes)
+                await run.io_bound(game_service.save_upload_bytes, game_dir / vpx_name, vpx_bytes)
 
                 # Write directb2s if provided
                 if import_state['directb2s_file']:
                     with client:
                         import_loading_label.set_text('Copying backglass file...')
                     b2s_name, b2s_bytes = import_state['directb2s_file']
-                    await run.io_bound(save_upload_bytes, game_dir / b2s_name, b2s_bytes)
+                    await run.io_bound(game_service.save_upload_bytes, game_dir / b2s_name, b2s_bytes)
 
                 # Write ROM if provided
                 if import_state['rom_file']:
                     with client:
                         import_loading_label.set_text('Copying PinMAME ROM...')
                     rom_name, rom_bytes = import_state['rom_file']
-                    await run.io_bound(save_upload_bytes, game_dir / 'pinmame' / 'roms' / rom_name, rom_bytes)
+                    await run.io_bound(game_service.save_upload_bytes, game_dir / 'pinmame' / 'roms' / rom_name, rom_bytes)
 
                 # Extract PUP Pack zip if provided
                 if import_state['puppack_zip']:
@@ -304,7 +300,7 @@ def open_import_game_dialog(perform_scan_cb=None):
                         import_loading_label.set_text('Extracting PUP Pack...')
                     pup_name, pup_bytes = import_state['puppack_zip']
                     dest = game_dir / 'pupvideos'
-                    ensure_dir(dest)
+                    game_service.ensure_dir(dest)
                     await run.io_bound(lambda: zipfile.ZipFile(io.BytesIO(pup_bytes)).extractall(dest))
 
                 # Extract music zip if provided
@@ -313,13 +309,13 @@ def open_import_game_dialog(perform_scan_cb=None):
                         import_loading_label.set_text('Extracting music...')
                     mus_name, mus_bytes = import_state['music_zip']
                     dest = game_dir / 'music'
-                    ensure_dir(dest)
+                    game_service.ensure_dir(dest)
                     await run.io_bound(lambda: zipfile.ZipFile(io.BytesIO(mus_bytes)).extractall(dest))
 
                 # Create metadata and download media
                 with client:
                     import_loading_label.set_text('Creating metadata and downloading media...')
-                await run.io_bound(associate_vps_to_folder, game_dir, vps_entry, True)
+                await run.io_bound(game_service.associate_vps_to_folder, game_dir, vps_entry, True)
 
                 # Rebuild metadata (same as "Rebuild Meta" button in game detail)
                 game_dir_name = game_dir.name

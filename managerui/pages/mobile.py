@@ -55,11 +55,6 @@ def _scan_games():
     return game_catalog.scan_mobile_games(reload=False)
 
 
-def _build_game_rows(games):
-    """Build display rows from scanned games."""
-    return game_catalog.build_mobile_game_rows(games)
-
-
 def _http_request(url, data=b'', method='POST', timeout=300, retries=3, conn=None):
     """Make an HTTP request matching VPinball's JS client behavior.
     Uses http.client directly to avoid urllib URL re-encoding issues.
@@ -402,7 +397,7 @@ def _build_vpxz_download_panel():
     async def load_games():
         games = await run.io_bound(_scan_games)
         loading.set_visibility(False)
-        rows = _build_game_rows(games)
+        rows = game_catalog.build_mobile_game_rows(games)
         for row in rows:
             row['download_token'] = uuid.uuid4().hex
 
@@ -704,7 +699,7 @@ def _build_web_send_panel():
     async def load_games():
         games = await run.io_bound(_scan_games)
         loading.set_visibility(False)
-        rows = _build_game_rows(games)
+        rows = game_catalog.build_mobile_game_rows(games)
         # Add installed field
         for row in rows:
             row['installed'] = False

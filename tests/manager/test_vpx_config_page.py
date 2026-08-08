@@ -7,6 +7,8 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from managerui.services import vpx_config_service
+
 try:
     # Prefer the real framework when it's installed. Installing an incomplete
     # stub via setdefault would leak into sys.modules and break later tests that
@@ -43,7 +45,7 @@ class VpxConfigPageTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            parsed = vpx_config._parse_ini(ini_path)
+            parsed = vpx_config_service.parse_ini(ini_path)
             sections = vpx_config._build_display_sections(parsed)
 
         by_section = {
@@ -71,7 +73,7 @@ class VpxConfigPageTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            parsed = vpx_config._parse_ini(ini_path)
+            parsed = vpx_config_service.parse_ini(ini_path)
             sections = vpx_config._build_display_sections(parsed)
 
         names = [section["name"] for section in sections]

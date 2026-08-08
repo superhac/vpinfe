@@ -72,31 +72,6 @@ def _labeled_icon_action(category: str, action: RemoteAction):
         )
 
 
-def _get_collections():
-    """Get list of collection names."""
-    return remote_launch.get_collections()
-
-
-def _get_collection_members(collection_name):
-    """Game ids in a collection with an explicit member list."""
-    return remote_launch.get_collection_members(collection_name)
-
-
-def _is_filter_collection(collection_name):
-    """Check if a collection is filter-based."""
-    return remote_launch.is_filter_collection(collection_name)
-
-
-def _get_collection_filters(collection_name):
-    """Get filters for a filter-based collection."""
-    return remote_launch.get_collection_filters(collection_name)
-
-
-def _game_matches_filters(game, filters):
-    """Check if a game matches the given filter criteria."""
-    return remote_launch.game_matches_filters(game, filters)
-
-
 def _get_ini_config():
     """Lazy load the INI config."""
     global _INI_CFG
@@ -109,11 +84,6 @@ def _get_games_path() -> str:
     """Get the games root directory from config."""
     from managerui.paths import get_games_path
     return get_games_path()
-
-
-def _scan_games_for_launch():
-    """Scan for games that can be launched (have .info and .vpx files)."""
-    return remote_launch.scan_games_for_launch()
 
 
 def _launch_game(game: dict):
@@ -496,17 +466,17 @@ def show_vpx_game_controls():
                 launch_state['filtered_options'] = {
                     t['vpx_path']: t['display_name'] for t in launch_state['games']
                 }
-            elif _is_filter_collection(collection):
+            elif remote_launch.is_filter_collection(collection):
                 # Filter-based collection
-                filters = _get_collection_filters(collection)
+                filters = remote_launch.get_collection_filters(collection)
                 launch_state['filtered_options'] = {
                     t['vpx_path']: t['display_name']
                     for t in launch_state['games']
-                    if _game_matches_filters(t, filters)
+                    if remote_launch.game_matches_filters(t, filters)
                 }
             else:
                 # Collection with an explicit member list
-                members = _get_collection_members(collection)
+                members = remote_launch.get_collection_members(collection)
                 launch_state['filtered_options'] = {
                     t['vpx_path']: t['display_name']
                     for t in launch_state['games']
@@ -600,14 +570,14 @@ def show_vpx_game_controls():
         # Load games and collections on first render
         async def load_games():
             # Load collections
-            collections = await run.io_bound(_get_collections)
+            collections = await run.io_bound(remote_launch.get_collections)
             collection_options = ['All'] + list(collections)
             logger.debug("Setting collection options: %s", collection_options)
             collection_select.options = collection_options
             collection_select.update()
 
             # Load games
-            games = await run.io_bound(_scan_games_for_launch)
+            games = await run.io_bound(remote_launch.scan_games_for_launch)
             launch_state['games'] = games
             # Build options as dict: {vpx_path: display_name}
             options = {t['vpx_path']: t['display_name'] for t in games}

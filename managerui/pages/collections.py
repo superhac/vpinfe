@@ -11,26 +11,6 @@ from managerui.ui_helpers import debounced_input, load_page_style
 logger = logging.getLogger("vpinfe.manager.collections")
 _collection_icons_route_registered = False
 
-def get_collections_manager():
-    """Get a fresh CollectionStore instance."""
-    return collection_admin.get_collections_manager()
-
-
-def get_game_name_map() -> dict[str, str]:
-    """Game names keyed by game id, for showing what is in a collection."""
-    return collection_admin.get_game_name_map()
-
-
-def member_to_name(member_id: str, game_map: dict[str, str] = None) -> str:
-    """Name of a collection member, or the raw id when no game matches."""
-    return collection_admin.member_to_name(member_id, game_map)
-
-
-def get_filter_options() -> dict[str, list[str]]:
-    """Get filter options (letters, themes, types, manufacturers, years, ratings) from VPSDB."""
-    return collection_admin.get_filter_options()
-
-
 def render_panel(tab=None):
     global _collection_icons_route_registered
     load_page_style("collections.css")
@@ -98,9 +78,9 @@ def render_panel(tab=None):
         def refresh_collections():
             """Refresh the collections list display."""
             collections_container.clear()
-            manager = get_collections_manager()
+            manager = collection_admin.get_collections_manager()
             collection_names = manager.get_collections_name()
-            game_map = get_game_name_map()
+            game_map = collection_admin.get_game_name_map()
 
             if not collection_names:
                 with collections_container:
@@ -192,7 +172,7 @@ def render_panel(tab=None):
                     with ui.row().classes('gap-2 flex-wrap'):
                         display_ids = vps_ids if state['expanded'] else vps_ids[:5]
                         for vid in display_ids:
-                            tbl_name = member_to_name(vid, tbl_map)
+                            tbl_name = collection_admin.member_to_name(vid, tbl_map)
                             ui.chip(tbl_name, icon='sports_esports').props('outline color=cyan dense')
 
                         if len(vps_ids) > 5:
@@ -361,7 +341,7 @@ def render_panel(tab=None):
         def open_new_filter_dialog():
             """Dialog to create a new filter-based collection."""
             # Get filter options from VPSDB
-            filter_opts = get_filter_options()
+            filter_opts = collection_admin.get_filter_options()
 
             dlg = ui.dialog().props('persistent max-width=600px')
             with dlg, ui.card().classes('w-[550px]').style('background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);'):
@@ -456,12 +436,12 @@ def render_panel(tab=None):
 
         def open_edit_filter_dialog(name: str):
             """Dialog to edit a filter-based collection."""
-            manager = get_collections_manager()
+            manager = collection_admin.get_collections_manager()
             filters = manager.get_filters(name)
             image_state_value = collection_admin.get_collection_image(name)
 
             # Get filter options from VPSDB
-            filter_opts = get_filter_options()
+            filter_opts = collection_admin.get_filter_options()
 
             def _parse_csv_to_list(value):
                 """Parse a comma-separated filter value into a list, or empty list for 'All'."""
@@ -581,7 +561,7 @@ def render_panel(tab=None):
 
         def open_edit_game_collection_dialog(name: str):
             """Dialog to edit a VPS ID-based collection."""
-            manager = get_collections_manager()
+            manager = collection_admin.get_collections_manager()
             current_members = manager.get_members(name)
             image_state_value = collection_admin.get_collection_image(name)
 
@@ -595,7 +575,7 @@ def render_panel(tab=None):
                 selected_games = {'items': []}
 
                 # Try to resolve VPS IDs to names from cache
-                game_map = get_game_name_map()
+                game_map = collection_admin.get_game_name_map()
 
                 for vid in current_members:
                     selected_games['items'].append({

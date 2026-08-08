@@ -9,6 +9,8 @@ from pathlib import Path
 
 from screeninfo import get_monitors
 
+from common import config_schema
+
 
 def get_detected_displays() -> dict:
     detected = {
@@ -94,3 +96,12 @@ def run_ledcontrol_pull(script_path: Path, api_key: str, force: bool) -> tuple[i
     proc = subprocess.run(command, capture_output=True, text=True, check=False)
     output = "\n".join(part for part in [proc.stdout, proc.stderr] if part)
     return proc.returncode, output, command
+
+
+def get_friendly_name(key: str, section: str = "") -> str:
+    """What to call a setting on screen, from the schema that declares it.
+
+    Section is optional only because two callers do not have one; pass it where you do,
+    since `screen_id` means a different monitor in each window's section.
+    """
+    return config_schema.label_for(key, section)

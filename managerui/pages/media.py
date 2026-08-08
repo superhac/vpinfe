@@ -27,10 +27,6 @@ def invalidate_media_cache():
     media_service.invalidate_media_cache()
 
 
-def _media_cache():
-    return media_service.get_media_cache()
-
-
 # Track whether we've registered the media files route
 _media_route_registered = False
 _thumb_route_registered = False
@@ -119,7 +115,7 @@ def render_panel():
         }
 
         def get_filter_options_from_cache():
-            return build_game_filter_options(_media_cache() or [])
+            return build_game_filter_options(media_service.get_media_cache() or [])
 
         def apply_filters():
             missing_predicates = [
@@ -127,7 +123,7 @@ def render_panel():
                 for media_key, _, _ in MEDIA_TYPES
                 if filter_state.get(f'missing_{media_key}')
             ]
-            return apply_game_filters(_media_cache() or [], filter_state, extra_predicates=missing_predicates)
+            return apply_game_filters(media_service.get_media_cache() or [], filter_state, extra_predicates=missing_predicates)
 
         def _visible_rows(rows: list[dict]) -> list[dict]:
             try:
@@ -246,7 +242,7 @@ def render_panel():
             media_table._props['rows'] = filtered
             media_table.update()
             media_table.run_method('setPagination', dict(pagination_state))
-            total = len(_media_cache() or [])
+            total = len(media_service.get_media_cache() or [])
             shown = len(filtered)
             if shown == total:
                 count_label.set_text(f"Tables ({total})")
@@ -385,8 +381,8 @@ def render_panel():
             accept_type = '.mp3,audio/*' if is_audio else ('.mp4' if is_video else 'image/*')
             current_url = None
             # Find current media URL from cache
-            if _media_cache():
-                for row in _media_cache():
+            if media_service.get_media_cache():
+                for row in media_service.get_media_cache():
                     if row['game_dir'] == game_dir:
                         current_url = row['media'].get(media_key)
                         break
@@ -470,7 +466,7 @@ def render_panel():
                     scan_btn = ui.button("Scan Media", icon="refresh", on_click=lambda: asyncio.create_task(perform_scan())).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
 
         # Use cached data if available
-        initial_rows = _media_cache() if _media_cache() is not None else []
+        initial_rows = media_service.get_media_cache() if media_service.get_media_cache() is not None else []
 
         # Filter UI
         with ui.card().classes('w-full mb-4').style('border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line);'):
@@ -636,7 +632,7 @@ def render_panel():
             media_table.on('media_click', on_media_click)
 
             def _cell_game_path(game_dir: str):
-                return next((r.get('table_path') for r in (_media_cache() or [])
+                return next((r.get('table_path') for r in (media_service.get_media_cache() or [])
                              if r.get('game_dir') == game_dir), None)
 
             def _on_cell_imported(report):
@@ -707,7 +703,7 @@ def render_panel():
         async def refresh_on_startup():
             if not is_page_active():
                 return
-            if _media_cache() is not None:
+            if media_service.get_media_cache() is not None:
                 if can_update_ui():
                     refresh_filter_options()
                     update_game_display()

@@ -24,12 +24,6 @@ logger = logging.getLogger("vpinfe.manager.games")
 ACCEPT_CRZ = ['.crz', '.cRZ', '.CRZ']
 ACCEPT_VNI = ['.vni', '.VNI', '.pal', '.PAL']
 
-normalize_game_rating = game_service.normalize_game_rating
-update_vpinfe_setting = game_service.update_vpinfe_setting
-update_user_setting = game_service.update_user_setting
-get_game_collections = game_service.get_game_collections
-ensure_dir = game_service.ensure_dir
-save_upload_bytes = game_service.save_upload_bytes
 
 
 def add_game_to_collection(game_id: str, collection_name: str) -> bool:
@@ -57,7 +51,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
     with dlg, ui.card().classes('table-dialog-card').style('width: 1000px; max-width: 85vw;'):
         game_name = row_data.get('name') or row_data.get('filename') or 'Table'
         game_path_str = row_data.get('table_path', '')
-        row_data['rating'] = normalize_game_rating(row_data.get('rating', 0))
+        row_data['rating'] = game_service.normalize_game_rating(row_data.get('rating', 0))
         # Holds the VBS-indicator refresh callback (assigned when the panel below
         # is built) so the Extract VBS handler in the header can refresh it live.
         vbs_refresh_holder = {'fn': None}
@@ -221,7 +215,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                                 update_status.set_text(f'Uploading ROM {upload_name}...')
                             try:
                                 dest = Path(game_path_str) / 'pinmame' / 'roms' / Path(upload_name).name
-                                await run.io_bound(save_upload_bytes, dest, data)
+                                await run.io_bound(game_service.save_upload_bytes, dest, data)
                                 with client:
                                     update_status.set_text(f'ROM uploaded: {upload_name}')
                                     ui.notify('ROM uploaded', type='positive')
@@ -417,7 +411,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                                 ui.badge(label, color='grey').props('rounded outline')
 
                 # User rating row
-                rating_state = {'value': normalize_game_rating(row_data.get('rating', 0))}
+                rating_state = {'value': game_service.normalize_game_rating(row_data.get('rating', 0))}
                 rating_buttons = []
 
                 with ui.row().classes('detail-row items-center gap-2 w-full mt-2'):
@@ -427,7 +421,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                         rating_text = ui.label('').style('color: var(--neon-cyan); font-size: 0.85rem; min-width: 48px;')
 
                         def refresh_rating_ui() -> None:
-                            value = normalize_game_rating(rating_state['value'])
+                            value = game_service.normalize_game_rating(rating_state['value'])
                             rating_text.set_text(f'({value}/5)')
                             for idx, button in enumerate(rating_buttons, start=1):
                                 is_set = idx <= value
@@ -441,11 +435,11 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                                 )
 
                         def save_rating(new_rating: int) -> None:
-                            clamped = normalize_game_rating(new_rating)
+                            clamped = game_service.normalize_game_rating(new_rating)
                             if not game_path_str:
                                 ui.notify('Unable to save rating: missing table path', type='negative')
                                 return
-                            if update_user_setting(game_path_str, 'Rating', clamped):
+                            if game_service.update_user_setting(game_path_str, 'Rating', clamped):
                                 rating_state['value'] = clamped
                                 row_data['rating'] = clamped
                                 game_index_service.update_row_by_path(game_path_str, {'rating': clamped})
@@ -472,7 +466,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
             # Collections section - add game to collection
             game_id = row_data.get('vpinfe_id', '')
             current_collections = row_data.get('collections', [])
-            available_collections = get_game_collections()
+            available_collections = game_service.get_game_collections()
 
             if game_id and available_collections:
                 with ui.card().classes('w-full p-4').style('background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);'):
@@ -537,7 +531,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
 
                     def on_alttitle_save():
                         new_value = (alttitle_input.value or '').strip()
-                        if update_vpinfe_setting(game_path_str, 'alt_title', new_value):
+                        if game_service.update_vpinfe_setting(game_path_str, 'alt_title', new_value):
                             row_data['alt_title'] = new_value
                             fallback_name = (row_data.get('filename') or 'Table').strip()
                             try:
@@ -587,7 +581,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                         if game_dir_name:
                             await on_rebuild_meta()
                         with save_client:
-                            if update_vpinfe_setting(game_path_str, 'alt_vpsid', new_value):
+                            if game_service.update_vpinfe_setting(game_path_str, 'alt_vpsid', new_value):
                                 # Collections do not move with this any more - membership
                                 # is the table's own id, which a VPS id change cannot touch.
                                 row_data['alt_vpsid'] = new_value
@@ -612,7 +606,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
 
                     def on_altlauncher_save():
                         new_value = (altlauncher_input.value or '').strip()
-                        if update_vpinfe_setting(game_path_str, 'alt_launcher', new_value):
+                        if game_service.update_vpinfe_setting(game_path_str, 'alt_launcher', new_value):
                             row_data['alt_launcher'] = new_value
                             game_index_service.update_row_by_path(game_path_str, {'alt_launcher': new_value})
                             ui.notify('Alt launcher saved', type='positive')
@@ -640,7 +634,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                         # Default means "use the live VPinballX.ini", which is the
                         # same as having no override, so store it as empty.
                         new_value = '' if plugin_profile_service.is_default_profile(selected) else selected
-                        if update_vpinfe_setting(game_path_str, 'plugin_profile', new_value):
+                        if game_service.update_vpinfe_setting(game_path_str, 'plugin_profile', new_value):
                             row_data['plugin_profile'] = new_value
                             game_index_service.update_row_by_path(game_path_str, {'plugin_profile': new_value})
                             ui.notify('Plugin profile saved', type='positive')
@@ -659,7 +653,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
 
                     def on_frontend_dof_event_save():
                         new_value = (frontend_dof_event_input.value or '').strip()
-                        if update_vpinfe_setting(game_path_str, 'frontend_dof_event', new_value):
+                        if game_service.update_vpinfe_setting(game_path_str, 'frontend_dof_event', new_value):
                             row_data['frontend_dof_event'] = new_value
                             game_index_service.update_row_by_path(game_path_str, {'frontend_dof_event': new_value})
                             ui.notify('Frontend DOF event saved', type='positive')
@@ -672,7 +666,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                 with ui.row().classes('items-center gap-3 mt-3'):
                     def on_delete_nvram_change(e):
                         new_value = e.value
-                        if update_vpinfe_setting(game_path_str, 'delete_nvram_on_close', new_value):
+                        if game_service.update_vpinfe_setting(game_path_str, 'delete_nvram_on_close', new_value):
                             row_data['delete_nvram_on_close'] = new_value
                             # Also update the cache so the value persists across dialog opens
                             game_index_service.update_row_by_path(game_path_str, {'delete_nvram_on_close': new_value})
@@ -715,7 +709,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                             content = e.content.read() if hasattr(e.content, 'read') else e.content
                             try:
                                 dest_dir = game_path / 'pupvideos'
-                                ensure_dir(dest_dir)
+                                game_service.ensure_dir(dest_dir)
                                 with zipfile.ZipFile(io.BytesIO(content), 'r') as zf:
                                     zf.extractall(dest_dir)
                                 ui.notify(f'Extracted {e.name} to pupvideos/', type='positive')
@@ -743,7 +737,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                             dest = game_path / 'serum' / rom_name / e.name
                             # Read content from SpooledTemporaryFile if needed
                             content = e.content.read() if hasattr(e.content, 'read') else e.content
-                            save_upload_bytes(dest, content)
+                            game_service.save_upload_bytes(dest, content)
                             ui.notify(f'Saved: {e.name}', type='positive')
                         ui.upload(on_upload=on_altcolor_upload, multiple=False).props('flat label="Upload .cRZ"').style('color: var(--neon-purple); background: var(--surface); border: 1px solid var(--neon-purple); border-radius: var(--radius);')
 
@@ -765,7 +759,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                             dest = game_path / 'vni' / rom_name / e.name
                             # Read content from SpooledTemporaryFile when multiple=True
                             content = e.content.read() if hasattr(e.content, 'read') else e.content
-                            save_upload_bytes(dest, content)
+                            game_service.save_upload_bytes(dest, content)
                             ui.notify(f'Saved: {e.name}', type='positive')
                         ui.upload(on_upload=on_vni_upload, multiple=True).props('flat label="Upload .vni/.pal"').style('color: var(--neon-purple); background: var(--surface); border: 1px solid var(--neon-purple); border-radius: var(--radius);')
 
@@ -783,7 +777,7 @@ def _render_game_dialog(row_data: dict, on_close: Callable[[], None] | None = No
                             dest = game_path / 'pinmame' / 'altsound' / rom_name / e.name
                             # Read content from SpooledTemporaryFile if needed
                             content = e.content.read() if hasattr(e.content, 'read') else e.content
-                            save_upload_bytes(dest, content)
+                            game_service.save_upload_bytes(dest, content)
                             ui.notify(f'Saved: {e.name}', type='positive')
                         ui.upload(on_upload=on_altsound_upload, multiple=True).props('flat label="Upload"').style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple) !important;')
 

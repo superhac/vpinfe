@@ -15,8 +15,6 @@ from managerui.ui_helpers import debounced_input
 logger = logging.getLogger("vpinfe.manager.games")
 _missing_games_dialog: ui.dialog | None = None
 
-associate_vps_to_folder = game_service.associate_vps_to_folder
-search_vpsdb = game_service.search_vpsdb
 
 
 def scan_missing_games():
@@ -197,7 +195,7 @@ def _render_match_vps_dialog(
 
                                 # Update loading message and run association in background
                                 loading_label.set_text('Creating metadata and downloading media...')
-                                await run.io_bound(associate_vps_to_folder, folder_path, it, True)
+                                await run.io_bound(game_service.associate_vps_to_folder, folder_path, it, True)
 
                                 ui.notify(f"Associated with VPS ID '{vid}' and downloaded media", type='positive')
                                 dlg.close()
@@ -219,12 +217,12 @@ def _render_match_vps_dialog(
 
         def on_search_change(e: events.ValueChangeEventArguments):
             term = e.value or ''
-            render_results(search_vpsdb(term, limit=80))
+            render_results(game_service.search_vpsdb(term, limit=80))
 
         search_input.on_value_change(on_search_change)
 
         # Render initial results:
-        render_results(search_vpsdb(initial_term, limit=80))
+        render_results(game_service.search_vpsdb(initial_term, limit=80))
 
         with ui.row().classes('justify-end q-mt-md'):
             ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple) !important; border-radius: 18px; padding: 4px 10px;')

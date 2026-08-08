@@ -11,7 +11,7 @@ from pathlib import Path
 
 from nicegui import run, ui
 
-from common import config_schema, input_actions
+from common import input_actions
 from common.config_access import cfg_get
 from common.config_store import ConfigStore
 from common.games.collection_store import CollectionStore
@@ -24,6 +24,7 @@ from frontend.chromium_manager import (
 )
 from managerui import config_support
 from managerui.config_fields import is_checkbox_field
+from managerui.config_support import get_friendly_name
 from managerui.paths import COLLECTIONS_PATH, THEMES_DIR, VPINFE_INI_PATH
 from managerui.ui_helpers import attach_shell_save_bar, load_page_style
 
@@ -73,15 +74,6 @@ MEDIA_PRIORITY_KEYS = (
     'realdmdmediapriority',
 )
 
-def get_friendly_name(key: str, section: str = "") -> str:
-    """What to call a setting on screen, from the schema that declares it.
-
-    Section is optional only because two callers do not have one; pass it where you do,
-    since `screen_id` means a different monitor in each window's section.
-    """
-    return config_schema.label_for(key, section)
-
-
 def _get_collection_names():
     """Get list of collection names for the dropdown."""
     try:
@@ -99,27 +91,6 @@ def _get_installed_theme_names():
             if entry.is_dir():
                 themes.append(entry.name)
     return sorted(themes)
-
-def _get_detected_displays():
-    """Return monitor info in the same shape/IDs as the --listres CLI output."""
-    return config_support.get_detected_displays()
-
-def _get_display_id_options(detected_displays, current_value: str = ''):
-    """Build dropdown options for monitor ID fields: empty + 0..(max detected-1)."""
-    return config_support.get_display_id_options(detected_displays, current_value)
-
-
-def _get_logger_level_options(current_value: str = ''):
-    return config_support.get_logger_level_options(current_value)
-
-
-def _get_uniform_field_width_ch(values: list[str], minimum: int = 30, padding: int = 2) -> int:
-    return config_support.get_uniform_field_width_ch(values, minimum, padding)
-
-
-def _split_logger_level_value(raw_value: str | None) -> tuple[str, bool, bool]:
-    return config_support.split_logger_level_value(raw_value)
-
 
 def _get_ledcontrol_command(script_path: Path, api_key: str, force: bool) -> list[str]:
     """Build the displayed ledcontrol_pull command."""
@@ -188,7 +159,7 @@ def _run_ledcontrol_pull(script_path: Path, api_key: str, force: bool) -> tuple[
 def render_panel(tab=None):
     # Re-read config from disk each time the page is opened
     config = ConfigStore(str(INI_PATH))
-    detected_displays = _get_detected_displays()
+    detected_displays = config_support.get_detected_displays()
 
     # Add custom styles for config page
     load_page_style("vpinfe_config.css")
@@ -420,14 +391,14 @@ def render_panel(tab=None):
                 )
             elif section == 'displays' and key in (
                     'playfieldscreenid', 'bgscreenid', 'dmdscreenid'):
-                monitor_options = _get_display_id_options(detected_displays, value)
+                monitor_options = config_support.get_display_id_options(detected_displays, value)
                 inp = ui.select(
                     options=monitor_options,
                     value=(value or '').strip()
                 ).props('outlined dense options-dense').classes('config-input')
             elif section == 'logger' and key == 'level':
-                level_options = _get_logger_level_options(value)
-                normalized, include_thirdparty, include_windows = _split_logger_level_value(value)
+                level_options = config_support.get_logger_level_options(value)
+                normalized, include_thirdparty, include_windows = config_support.split_logger_level_value(value)
                 inp = ui.select(
                     options=level_options,
                     value=normalized
@@ -702,7 +673,7 @@ def render_panel(tab=None):
                                     key for key in general_keys
                                     if key not in frontend_toggle_keys
                                 ]
-                                path_field_width_ch = _get_uniform_field_width_ch([
+                                path_field_width_ch = config_support.get_uniform_field_width_ch([
                                     config.config.get(section, key, fallback='')
                                     for key in path_keys
                                 ])

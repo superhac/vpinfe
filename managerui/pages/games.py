@@ -49,29 +49,6 @@ def ensure_vpsdb_downloaded() -> bool:
 # Ensure only one missing-games dialog at a time
 _missing_games_dialog: ui.dialog | None = None
 # Cache compatibility helpers. Ownership lives in game_index_service.
-def _games_cache() -> list[dict] | None:
-    return game_index_service.get_rows()
-
-
-def _missing_cache() -> list[dict] | None:
-    return game_index_service.get_missing_rows()
-
-
-def normalize_game_rating(value) -> int:
-    """Normalize rating values to an integer in the range 0..5."""
-    return game_service.normalize_game_rating(value)
-
-
-def get_game_collections_map() -> dict[str, list[str]]:
-    """Collection names keyed by game id, for collections with explicit members."""
-    return game_service.get_game_collections_map()
-
-
-def get_game_collections() -> list[str]:
-    """Names of the collections a game can be added to by hand."""
-    return game_service.get_game_collections()
-
-
 def add_game_to_collection(game_id: str, collection_name: str) -> bool:
     """Add a game to a collection. Returns True on success."""
     try:
@@ -90,35 +67,13 @@ def sync_collections_to_cache():
     Call this after modifying collections outside of add_game_to_collection(),
     such as when removing games from collections or deleting/renaming collections.
     """
-    game_index_service.sync_collection_memberships(get_game_collections_map())
-
-
-def update_vpinfe_setting(game_path: str, key: str, value) -> bool:
-    """Update a VPinFE setting in the game's .info file.
-
-    Args:
-        game_path: Path to the game directory
-        key: The setting key (e.g., 'delete_nvram_on_close')
-        value: The value to set
-
-    Returns:
-        True on success, False on failure
-    """
-    return game_service.update_vpinfe_setting(game_path, key, value)
-
-
-def update_user_setting(game_path: str, key: str, value) -> bool:
-    """Update a User setting in the table's .info file."""
-    return game_service.update_user_setting(game_path, key, value)
+    game_index_service.sync_collection_memberships(game_service.get_game_collections_map())
 
 
 def load_vpsdb() -> list[dict]:
     global _vpsdb_cache
     _vpsdb_cache = game_service.load_vpsdb()
     return _vpsdb_cache
-
-def search_vpsdb(term: str, limit: int = 50) -> list[dict]:
-    return game_service.search_vpsdb(term, limit)
 
 ACCEPT_CRZ = ['.crz', '.cRZ', '.CRZ']  # altcolor accepted extensions (case-insensitive)
 ACCEPT_VNI = ['.vni', '.VNI', '.pal', '.PAL']  # vni accepted extensions (case-insensitive)
@@ -223,7 +178,7 @@ def parse_game_info(info_path):
             "alt_title": (vpinfe.get("alt_title", "") or "").strip(),
             "alt_vpsid": (vpinfe.get("alt_vpsid", "") or "").strip(),
             "frontend_dof_event": (vpinfe.get("frontend_dof_event", "") or "").strip(),
-            "rating": normalize_game_rating(user.get("Rating", 0)),
+            "rating": game_service.normalize_game_rating(user.get("Rating", 0)),
         }
 
         return data
@@ -500,7 +455,7 @@ def render_panel(tab=None):
                     scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).style('color: var(--ink) !important; background: var(--neon-purple) !important; border-radius: 0;')
                     patch_btn = ui.button("Apply Patches", icon="construction").props("color=secondary").style('border-radius: 0;')
                     # Start with green if no cached missing, will update after scan
-                    cached_missing = _missing_cache()
+                    cached_missing = game_index_service.get_missing_rows()
                     initial_missing_count = len(cached_missing) if cached_missing else 0
                     initial_color = "positive" if initial_missing_count == 0 else "negative"
                     missing_button = ui.button("Unmatched", icon="warning").props(f"color={initial_color}").style('border-radius: 0;')
@@ -630,7 +585,7 @@ def render_panel(tab=None):
             return DropContext(allow_new_game=True)
 
         def _dnd_row_context(row_key: str) -> DropContext | None:
-            row = next((r for r in (_games_cache() or []) if r.get('vpinfe_id') == row_key), None)
+            row = next((r for r in (game_index_service.get_rows() or []) if r.get('vpinfe_id') == row_key), None)
             if not row:
                 return None
             return DropContext(game_path=row.get('table_path', ''), game_row=row,
@@ -643,7 +598,7 @@ def render_panel(tab=None):
         )
 
         # Use cached data if available, otherwise start with empty
-        initial_rows = _games_cache() if _games_cache() is not None else []
+        initial_rows = game_index_service.get_rows() if game_index_service.get_rows() is not None else []
 
         # --- Filter state and functions ---
         filter_state = {
@@ -658,7 +613,7 @@ def render_panel(tab=None):
 
         def get_filter_options_from_cache():
             """Extract unique filter values from cached games."""
-            return build_game_filter_options(_games_cache() or [])
+            return build_game_filter_options(game_index_service.get_rows() or [])
 
         def apply_filters():
             """Filter the cached games based on current filter state."""
@@ -668,7 +623,7 @@ def render_panel(tab=None):
             if filter_state['has_b2s']:
                 extra_predicates.append(lambda row: row.get('b2s_exists', False))
             return apply_game_filters(
-                _games_cache() or [],
+                game_index_service.get_rows() or [],
                 filter_state,
                 search_fields=('name', 'filename'),
                 extra_predicates=extra_predicates,
@@ -680,7 +635,7 @@ def render_panel(tab=None):
             games_table._props['rows'] = filtered
             games_table.update()
             # Update title with filtered count
-            total = len(_games_cache() or [])
+            total = len(game_index_service.get_rows() or [])
             shown = len(filtered)
             if shown == total:
                 title_label.set_text(f"Tables ({total})")
@@ -808,7 +763,7 @@ def render_panel(tab=None):
                 batch_label = ui.label('0 tables selected').classes('font-medium').style('color: var(--ink);')
                 batch_collection_select = ui.select(
                     label='Add to Collection',
-                    options=get_game_collections(),
+                    options=game_service.get_game_collections(),
                     value=None
                 ).props('dense').classes('w-48').style('color: var(--ink); border: 1px solid var(--line);')
                 batch_add_btn = ui.button('Add to Collection', icon='playlist_add').style('background: var(--neon-purple) !important; color: var(--ink) !important;')
@@ -1040,7 +995,7 @@ def render_panel(tab=None):
         games_table.on('toggle_select_all', on_toggle_select_all)
 
         # Update missing button if we have cached data
-        cached_missing = _missing_cache()
+        cached_missing = game_index_service.get_missing_rows()
         if cached_missing is not None:
             missing_button.text = f"Unmatched Tables ({len(cached_missing)})"
             # Update button color: green if 0, red if > 0
@@ -1053,7 +1008,7 @@ def render_panel(tab=None):
 
         # Function to refresh the table display
         async def refresh_game_on_startup():
-            if _games_cache() is not None:
+            if game_index_service.get_rows() is not None:
                 # Refresh filter options and apply filters from cache
                 refresh_filter_options()
                 update_game_display()

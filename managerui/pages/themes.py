@@ -15,19 +15,9 @@ INI_PATH = VPINFE_INI_PATH
 _registry: ThemeRegistry | None = None
 
 
-def _get_active_theme() -> str:
-    """Get the currently active theme name from config."""
-    return theme_service.get_active_theme()
-
-
 def _set_active_theme(theme_key: str):
     """Set the active theme in config (blocking)."""
     theme_service.set_active_theme(theme_key)
-
-
-def _load_registry() -> ThemeRegistry:
-    """Load or reload the theme registry (blocking)."""
-    return theme_service.load_registry()
 
 
 def _install_theme(registry: ThemeRegistry, theme_key: str):
@@ -48,7 +38,7 @@ def render_panel(tab=None):
     # Container references
     cards_container = None
     loading_container = None
-    active_theme = _get_active_theme()
+    active_theme = theme_service.get_active_theme()
 
     with ui.column().classes('w-full'):
         # Header card
@@ -78,7 +68,7 @@ def render_panel(tab=None):
     def _build_theme_cards():
         """Rebuild the theme cards from current registry data."""
         nonlocal active_theme
-        active_theme = _get_active_theme()
+        active_theme = theme_service.get_active_theme()
 
         with cards_container:
             cards_container.clear()
@@ -449,7 +439,7 @@ def render_panel(tab=None):
         cards_container.visible = False
 
         try:
-            _registry = await run.io_bound(_load_registry)
+            _registry = await run.io_bound(theme_service.load_registry)
             _build_theme_cards()
             ui.notify('Theme registry refreshed', type='positive')
         except Exception as e:

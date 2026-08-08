@@ -37,21 +37,8 @@ _GPU_FIELD_LABELS = {
 }
 
 
-def _gpu_monitoring_supported() -> bool:
-    return system_service.gpu_monitoring_supported()
-
-
-def _resolve_usage_path() -> Path:
-    """Choose an existing path on the filesystem whose volume we want to monitor."""
-    return system_service.resolve_usage_path()
-
-
-def _format_bytes(value: int) -> str:
-    return system_service.format_bytes(value)
-
-
 def _get_system_metrics(include_gpu: bool = False) -> dict:
-    usage_path = _resolve_usage_path()
+    usage_path = system_service.resolve_usage_path()
     total, used, free = system_service.disk_usage(usage_path)
     disk_percent = (used / total * 100) if total else 0.0
     static_details = _get_static_system_details()
@@ -75,7 +62,7 @@ def _get_system_metrics(include_gpu: bool = False) -> dict:
         "memory_total": None,
         "memory_available": None,
         "memory_percent": None,
-        "gpu_supported": _gpu_monitoring_supported(),
+        "gpu_supported": system_service.gpu_monitoring_supported(),
         "gpu_available": False,
         "gpu_error": None,
         "gpu_name": None,
@@ -190,14 +177,6 @@ def _parse_percent_value(value: str | None) -> float | None:
         return None
 
 
-def _metric_color(value: float, warn: float, critical: float) -> str:
-    return system_service.metric_color(value, warn, critical)
-
-
-def _metric_tone(value: float, warn: float, critical: float) -> str:
-    return system_service.metric_tone(value, warn, critical)
-
-
 def _get_static_system_details() -> dict:
     global _STATIC_DETAILS_CACHE
 
@@ -212,13 +191,9 @@ def _get_static_system_details() -> dict:
         "browser_name": _get_frontend_browser_name(browser_path),
         "browser_path": browser_path or "Unavailable",
         "browser_version": _get_frontend_browser_version(browser_path) or "Unknown",
-        "windowing_system": _get_windowing_system(),
+        "windowing_system": system_service.windowing_system(),
     }
     return _STATIC_DETAILS_CACHE
-
-
-def _get_windowing_system() -> str:
-    return system_service.windowing_system()
 
 
 def _get_build_flavor(install_context: dict) -> str:
@@ -315,7 +290,7 @@ def render_panel(tab=None):
 
         gpu_toggle_card = None
         gpu_toggle = None
-        if _gpu_monitoring_supported():
+        if system_service.gpu_monitoring_supported():
             with ui.card().classes("system-card w-full p-5"):
                 gpu_toggle_card = ui.card_section().classes("w-full")
                 with gpu_toggle_card:
@@ -352,7 +327,7 @@ def render_panel(tab=None):
             gpu_value = None
             gpu_detail = None
             gpu_summary_card = None
-            if _gpu_monitoring_supported():
+            if system_service.gpu_monitoring_supported():
                 with ui.card().classes("system-card p-5").style("flex: 1 1 320px; min-width: 280px;") as gpu_summary_card:
                     with ui.column().classes("gap-2"):
                         ui.label("GPU Utilization").classes("text-sm uppercase tracking-wide").style("color: var(--ink-muted) !important;")
@@ -363,7 +338,7 @@ def render_panel(tab=None):
         gpu_blocks_label = None
         gpu_blocks_container = None
         gpu_details_card = None
-        if _gpu_monitoring_supported():
+        if system_service.gpu_monitoring_supported():
             with ui.card().classes("system-card w-full p-5") as gpu_details_card:
                 with ui.column().classes("gap-2"):
                     ui.label("GPU Details").classes("text-lg font-semibold").style("color: var(--ink) !important;")
@@ -398,9 +373,9 @@ def render_panel(tab=None):
             disk_percent = metrics["disk_percent"]
             memory_total = metrics["memory_total"]
             memory_available = metrics["memory_available"]
-            disk_used = _format_bytes(metrics["disk_used"])
-            disk_total = _format_bytes(metrics["disk_total"])
-            disk_free = _format_bytes(metrics["disk_free"])
+            disk_used = system_service.format_bytes(metrics["disk_used"])
+            disk_total = system_service.format_bytes(metrics["disk_total"])
+            disk_free = system_service.format_bytes(metrics["disk_free"])
             gpu_percent = metrics["gpu_percent"]
 
             with page_client:
@@ -412,7 +387,7 @@ def render_panel(tab=None):
                     cpu_value.set_text(f"{cpu_percent:.0f}%")
                     cpu_value.classes(
                         remove="text-slate-200 text-emerald-400 text-amber-400 text-red-400",
-                        add=_metric_color(cpu_percent, warn=70.0, critical=90.0),
+                        add=system_service.metric_color(cpu_percent, warn=70.0, critical=90.0),
                     )
                     cpu_detail.set_text("Updated every 2 seconds")
 
@@ -427,16 +402,16 @@ def render_panel(tab=None):
                     memory_value.set_text(f"{memory_percent:.0f}%")
                     memory_value.classes(
                         remove="text-slate-200 text-emerald-400 text-amber-400 text-red-400",
-                        add=_metric_color(memory_percent, warn=75.0, critical=90.0),
+                        add=system_service.metric_color(memory_percent, warn=75.0, critical=90.0),
                     )
                     memory_detail.set_text(
-                        f"{_format_bytes(memory_available)} available of {_format_bytes(memory_total)} total"
+                        f"{system_service.format_bytes(memory_available)} available of {system_service.format_bytes(memory_total)} total"
                     )
 
                 disk_value.set_text(disk_free)
                 disk_value.classes(
                     remove="text-slate-200 text-emerald-400 text-amber-400 text-red-400",
-                    add=_metric_color(disk_percent, warn=80.0, critical=90.0),
+                    add=system_service.metric_color(disk_percent, warn=80.0, critical=90.0),
                 )
                 disk_detail.set_text(f"{disk_used} used of {disk_total} total ({disk_percent:.0f}% full)")
 
@@ -467,7 +442,7 @@ def render_panel(tab=None):
                             gpu_value.set_text(f"{gpu_percent:.0f}%")
                             gpu_value.classes(
                                 remove="text-slate-200 text-emerald-400 text-amber-400 text-red-400",
-                                add=_metric_color(gpu_percent, warn=70.0, critical=90.0),
+                                add=system_service.metric_color(gpu_percent, warn=70.0, critical=90.0),
                             )
                         gpu_parts = []
                         if metrics["gpu_name"]:
@@ -501,10 +476,10 @@ def render_panel(tab=None):
                                             if not value:
                                                 continue
                                             percent_value = _parse_percent_value(value) if field in {"gpu_util", "mem_util", "fan_speed"} else None
-                                            tone = _metric_tone(percent_value, warn=70.0, critical=90.0) if percent_value is not None else "ok"
+                                            tone = system_service.metric_tone(percent_value, warn=70.0, critical=90.0) if percent_value is not None else "ok"
                                             value_classes = "gpu-pill-value"
                                             if percent_value is not None:
-                                                value_classes += f" {_metric_color(percent_value, warn=70.0, critical=90.0)}"
+                                                value_classes += f" {system_service.metric_color(percent_value, warn=70.0, critical=90.0)}"
                                             with ui.column().classes(f"gpu-pill gpu-pill-{tone}").style("flex: 1 1 220px;"):
                                                 ui.label(_GPU_FIELD_LABELS[field]).classes(f"gpu-pill-label gpu-pill-label-{tone}")
                                                 ui.label(value).classes(value_classes)
