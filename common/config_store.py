@@ -40,275 +40,275 @@ CONFIG_SCHEMA = 2
 # (from, to, key) for options that changed section. Applied on every read, so an ini
 # written by any earlier build lands in the right place.
 _MOVED_OPTIONS = (
-	('Settings', 'Displays', 'cabmode'),
-	('Settings', 'DOF', 'enabledof'),
-	('Displays', 'Settings', 'splashscreen'),
+    ('Settings', 'Displays', 'cabmode'),
+    ('Settings', 'DOF', 'enabledof'),
+    ('Displays', 'Settings', 'splashscreen'),
 )
 
 
 def _generate_machine_id(length: int = 64) -> str:
-	alphabet = string.ascii_letters + string.digits
-	return ''.join(secrets.choice(alphabet) for _ in range(length))
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
 # (section, old key, new key) - see the migration in _migrate below.
 _RENAMED_KEYS = (
-	('Displays', 'tablescreenid', 'playfieldscreenid'),
-	('Displays', 'tableorientation', 'playfieldorientation'),
-	('Displays', 'tablerotation', 'playfieldrotation'),
-	('Settings', 'tablerootdir', 'gamerootdir'),
-	('Settings', 'restorelasttable', 'restorelastgame'),
-	('Media', 'tabletype', 'playfieldvariant'),
-	('Media', 'tableresolution', 'playfieldresolution'),
-	('Media', 'tablevideoresolution', 'playfieldvideoresolution'),
-	('Media', 'tablemediapriority', 'playfieldmediapriority'),
-	('State', 'lasttable', 'lastgame'),
+    ('Displays', 'tablescreenid', 'playfieldscreenid'),
+    ('Displays', 'tableorientation', 'playfieldorientation'),
+    ('Displays', 'tablerotation', 'playfieldrotation'),
+    ('Settings', 'tablerootdir', 'gamerootdir'),
+    ('Settings', 'restorelasttable', 'restorelastgame'),
+    ('Media', 'tabletype', 'playfieldvariant'),
+    ('Media', 'tableresolution', 'playfieldresolution'),
+    ('Media', 'tablevideoresolution', 'playfieldvideoresolution'),
+    ('Media', 'tablemediapriority', 'playfieldmediapriority'),
+    ('State', 'lasttable', 'lastgame'),
 )
 
 def _nest(sections: dict) -> dict:
-	"""`windows.playfield` becomes a playfield object inside a windows object.
+    """`windows.playfield` becomes a playfield object inside a windows object.
 
-	A ConfigParser section is a flat string, so the hierarchy is spelled with dots in
-	memory and is real on disk - which is the point of giving each window a section.
-	"""
-	out: dict = {}
-	for name, values in sections.items():
-		node = out
-		parts = name.split('.')
-		for part in parts[:-1]:
-			node = node.setdefault(part, {})
-		node[parts[-1]] = values
-	return out
+    A ConfigParser section is a flat string, so the hierarchy is spelled with dots in
+    memory and is real on disk - which is the point of giving each window a section.
+    """
+    out: dict = {}
+    for name, values in sections.items():
+        node = out
+        parts = name.split('.')
+        for part in parts[:-1]:
+            node = node.setdefault(part, {})
+        node[parts[-1]] = values
+    return out
 
 
 def _flatten(tree: dict, prefix: str = '') -> dict:
-	"""The inverse of _nest: nested objects back to dotted section names."""
-	out: dict = {}
-	for name, value in (tree or {}).items():
-		path = f"{prefix}.{name}" if prefix else name
-		if isinstance(value, dict) and any(isinstance(v, dict) for v in value.values()):
-			out.update(_flatten(value, path))
-		else:
-			out[path] = value
-	return out
+    """The inverse of _nest: nested objects back to dotted section names."""
+    out: dict = {}
+    for name, value in (tree or {}).items():
+        path = f"{prefix}.{name}" if prefix else name
+        if isinstance(value, dict) and any(isinstance(v, dict) for v in value.values()):
+            out.update(_flatten(value, path))
+        else:
+            out[path] = value
+    return out
 
 
 class ConfigStore:
-	"""The settings file, read once and written atomically."""
+    """The settings file, read once and written atomically."""
 
-	def _move_option(self, old_section, new_section, key) -> bool:
-		"""Move one option to the section it lives in now, keeping the user's value.
+    def _move_option(self, old_section, new_section, key) -> bool:
+        """Move one option to the section it lives in now, keeping the user's value.
 
-		The destination section may not exist yet: this runs before the defaults are
-		filled in, and filling them in is what creates sections.
-		"""
-		if not self.config.has_option(old_section, key):
-			return False
-		announce('ini-moved-options', f'{old_section}.{key}')
-		if not self.config.has_section(new_section):
-			self.config.add_section(new_section)
-		if not self.config.has_option(new_section, key):
-			self.config.set(new_section, key, self.config.get(old_section, key))
-		self.config.remove_option(old_section, key)
-		return True
+        The destination section may not exist yet: this runs before the defaults are
+        filled in, and filling them in is what creates sections.
+        """
+        if not self.config.has_option(old_section, key):
+            return False
+        announce('ini-moved-options', f'{old_section}.{key}')
+        if not self.config.has_section(new_section):
+            self.config.add_section(new_section)
+        if not self.config.has_option(new_section, key):
+            self.config.set(new_section, key, self.config.get(old_section, key))
+        self.config.remove_option(old_section, key)
+        return True
 
-	def __init__(self, configfilepath):
+    def __init__(self, configfilepath):
 
-		self.defaults = config_schema.defaults()
+        self.defaults = config_schema.defaults()
 
-		self.config = configparser.ConfigParser()
-		# Callers pass whichever name they know; both are derived so none had to change.
-		base = Path(configfilepath)
-		self.json_path = base.with_suffix('.json')
-		self.ini_path = base.with_suffix('.ini')
-		self.configfilepath = str(self.json_path)
-		self._schema = CONFIG_SCHEMA
-		self._converted_from_ini = False
+        self.config = configparser.ConfigParser()
+        # Callers pass whichever name they know; both are derived so none had to change.
+        base = Path(configfilepath)
+        self.json_path = base.with_suffix('.json')
+        self.ini_path = base.with_suffix('.ini')
+        self.configfilepath = str(self.json_path)
+        self._schema = CONFIG_SCHEMA
+        self._converted_from_ini = False
 
-		self.is_new = False
-		if os.path.exists(self.json_path):
-			self._load_json()
-		elif os.path.exists(self.ini_path):
-			logger.info("Converting %s to %s", self.ini_path, self.json_path)
-			self.config.read(self.ini_path)
-			self._converted_from_ini = True
-		else:
-			logger.info("Generating default settings at: %s", self.json_path)
-			self.is_new = True
-			self.formatDefaults()
-			self.save()
+        self.is_new = False
+        if os.path.exists(self.json_path):
+            self._load_json()
+        elif os.path.exists(self.ini_path):
+            logger.info("Converting %s to %s", self.ini_path, self.json_path)
+            self.config.read(self.ini_path)
+            self._converted_from_ini = True
+        else:
+            logger.info("Generating default settings at: %s", self.json_path)
+            self.is_new = True
+            self.formatDefaults()
+            self.save()
 
-		changed = self._converted_from_ini
+        changed = self._converted_from_ini
 
-		# Both of these run BEFORE the defaults are filled in. Each copies only when the
-		# target key is absent, and these keys have defaults - so with a default already
-		# written the guard finds one, copies nothing, and remove_option then drops what
-		# the user actually set. cabmode and enabledof shipped doing exactly that.
+        # Both of these run BEFORE the defaults are filled in. Each copies only when the
+        # target key is absent, and these keys have defaults - so with a default already
+        # written the guard finds one, copies nothing, and remove_option then drops what
+        # the user actually set. cabmode and enabledof shipped doing exactly that.
 
-		# A table folder is a game, and the table screen is the playfield. Read the old
-		# key once and write the new one, so an existing vpinfe.ini is corrected in place.
-		for section, old, new in _RENAMED_KEYS:
-			if self.config.has_option(section, old):
-				announce('ini-renamed-keys', old)
-				if not self.config.has_option(section, new):
-					self.config.set(section, new, self.config.get(section, old))
-				self.config.remove_option(section, old)
-				changed = True
+        # A table folder is a game, and the table screen is the playfield. Read the old
+        # key once and write the new one, so an existing vpinfe.ini is corrected in place.
+        for section, old, new in _RENAMED_KEYS:
+            if self.config.has_option(section, old):
+                announce('ini-renamed-keys', old)
+                if not self.config.has_option(section, new):
+                    self.config.set(section, new, self.config.get(section, old))
+                self.config.remove_option(section, old)
+                changed = True
 
-		# Options that changed section rather than name.
-		for old_section, new_section, key in _MOVED_OPTIONS:
-			changed |= self._move_option(old_section, new_section, key)
+        # Options that changed section rather than name.
+        for old_section, new_section, key in _MOVED_OPTIONS:
+            changed |= self._move_option(old_section, new_section, key)
 
-		# [Input] is a merge, not a move: an action had one key per device, and both
-		# become entries in its single binding list, so the generic pass below - which
-		# moves one value at a time - would have the second overwrite the first.
-		if self.config.has_section('Input'):
-			for action in input_registry.actions():
-				found = []
-				for old in action.legacy:
-					if not self.config.has_option('Input', old):
-						continue
-					found += input_registry.binding_for_legacy(
-						old, self.config.get('Input', old))
-					self.config.remove_option('Input', old)
-					changed = True
-				if not found:
-					continue
-				# Keyboard first, then pads, and never the same binding twice.
-				ordered = ([b for b in found if b.startswith(input_registry.KEY_PREFIX)]
-				           + [b for b in found if not b.startswith(input_registry.KEY_PREFIX)])
-				if not self.config.has_section(input_registry.SECTION):
-					self.config.add_section(input_registry.SECTION)
-				self.config.set(input_registry.SECTION, action.name,
-				                ','.join(dict.fromkeys(ordered)))
+        # [Input] is a merge, not a move: an action had one key per device, and both
+        # become entries in its single binding list, so the generic pass below - which
+        # moves one value at a time - would have the second overwrite the first.
+        if self.config.has_section('Input'):
+            for action in input_registry.actions():
+                found = []
+                for old in action.legacy:
+                    if not self.config.has_option('Input', old):
+                        continue
+                    found += input_registry.binding_for_legacy(
+                        old, self.config.get('Input', old))
+                    self.config.remove_option('Input', old)
+                    changed = True
+                if not found:
+                    continue
+                # Keyboard first, then pads, and never the same binding twice.
+                ordered = ([b for b in found if b.startswith(input_registry.KEY_PREFIX)]
+                           + [b for b in found if not b.startswith(input_registry.KEY_PREFIX)])
+                if not self.config.has_section(input_registry.SECTION):
+                    self.config.add_section(input_registry.SECTION)
+                self.config.set(input_registry.SECTION, action.name,
+                                ','.join(dict.fromkeys(ordered)))
 
-		# Every spelling a key has ever had lands on the one we store. This runs after the
-		# 2.x renames above, so tablerootdir -> gamerootdir -> game_root_dir is one chain,
-		# and before the defaults are filled in, so nothing is added under an old name.
-		for section in list(self.config.sections()):
-			for key in list(self.config.options(section)):
-				new_section, new_key = config_schema.locate(section, key)
-				if (new_section, new_key) == (section, key):
-					continue
-				if not self.config.has_section(new_section):
-					self.config.add_section(new_section)
-				self.config.set(new_section, new_key, self.config.get(section, key))
-				self.config.remove_option(section, key)
-				changed = True
+        # Every spelling a key has ever had lands on the one we store. This runs after the
+        # 2.x renames above, so tablerootdir -> gamerootdir -> game_root_dir is one chain,
+        # and before the defaults are filled in, so nothing is added under an old name.
+        for section in list(self.config.sections()):
+            for key in list(self.config.options(section)):
+                new_section, new_key = config_schema.locate(section, key)
+                if (new_section, new_key) == (section, key):
+                    continue
+                if not self.config.has_section(new_section):
+                    self.config.add_section(new_section)
+                self.config.set(new_section, new_key, self.config.get(section, key))
+                self.config.remove_option(section, key)
+                changed = True
 
-		# Add any missing default options
-		for section, defaults in self.defaults.items():
-			if not self.config.has_section(section):
-				self.config.add_section(section)
-				changed = True
-			for key, value in defaults.items():
-				if not self.config.has_option(section, key):
-					self.config.set(section, key, value)
-					changed = True
+        # Add any missing default options
+        for section, defaults in self.defaults.items():
+            if not self.config.has_section(section):
+                self.config.add_section(section)
+                changed = True
+            for key, value in defaults.items():
+                if not self.config.has_option(section, key):
+                    self.config.set(section, key, value)
+                    changed = True
 
-		# Remove legacy Logger.file option; logs always go to the standard config dir file.
-		if self.config.has_option('logger', 'file'):
-			self.config.remove_option('logger', 'file')
-			changed = True
+        # Remove legacy Logger.file option; logs always go to the standard config dir file.
+        if self.config.has_option('logger', 'file'):
+            self.config.remove_option('logger', 'file')
+            changed = True
 
-		# Normalize blank theme values back to the configured default.
-		current_theme = self.config.get('general', 'theme', fallback='').strip()
-		if not current_theme:
-			self.config.set('general', 'theme', self.defaults['general']['theme'])
-			changed = True
+        # Normalize blank theme values back to the configured default.
+        current_theme = self.config.get('general', 'theme', fallback='').strip()
+        if not current_theme:
+            self.config.set('general', 'theme', self.defaults['general']['theme'])
+            changed = True
 
-		# Migrate misspelled vpinplay.initals to vpinplay.initials if present.
-		if self.config.has_option('vpinplay', 'initals'):
-			legacy_initials = self.config.get('vpinplay', 'initals', fallback='').strip()
-			current_initials = self.config.get('vpinplay', 'initials', fallback='').strip()
-			if legacy_initials and not current_initials:
-				self.config.set('vpinplay', 'initials', legacy_initials)
-			self.config.remove_option('vpinplay', 'initals')
-			changed = True
+        # Migrate misspelled vpinplay.initals to vpinplay.initials if present.
+        if self.config.has_option('vpinplay', 'initals'):
+            legacy_initials = self.config.get('vpinplay', 'initals', fallback='').strip()
+            current_initials = self.config.get('vpinplay', 'initials', fallback='').strip()
+            if legacy_initials and not current_initials:
+                self.config.set('vpinplay', 'initials', legacy_initials)
+            self.config.remove_option('vpinplay', 'initals')
+            changed = True
 
-		# Auto-generate vpinplay.machineid when not set.
-		current_machine_id = self.config.get('vpinplay', 'machine_id', fallback='').strip()
-		if not current_machine_id:
-			self.config.set('vpinplay', 'machine_id', _generate_machine_id())
-			changed = True
+        # Auto-generate vpinplay.machineid when not set.
+        current_machine_id = self.config.get('vpinplay', 'machine_id', fallback='').strip()
+        if not current_machine_id:
+            self.config.set('vpinplay', 'machine_id', _generate_machine_id())
+            changed = True
 
-		# A section the migration emptied - [Input] once its keys merge into [input], or
-		# one whose every key moved elsewhere - would sit in the file forever as a husk.
-		# Defaults are filled in above, so anything still empty has no values and none
-		# coming.
-		for section in list(self.config.sections()):
-			if not self.config.options(section):
-				self.config.remove_section(section)
-				changed = True
+        # A section the migration emptied - [Input] once its keys merge into [input], or
+        # one whose every key moved elsewhere - would sit in the file forever as a husk.
+        # Defaults are filled in above, so anything still empty has no values and none
+        # coming.
+        for section in list(self.config.sections()):
+            if not self.config.options(section):
+                self.config.remove_section(section)
+                changed = True
 
-		if changed:
-			self.save()
+        if changed:
+            self.save()
 
-	def _typed(self, section: str, key: str, raw: str):
-		"""The value as JSON should hold it. Unknown keys stay strings.
+    def _typed(self, section: str, key: str, raw: str):
+        """The value as JSON should hold it. Unknown keys stay strings.
 
-		An empty string stays empty rather than becoming 0 or null: several int settings
-		use blank to mean "no window on this one", and that is not the same as zero.
-		"""
-		entry = config_schema.option(section, key)
-		text = '' if raw is None else str(raw)
-		if entry is None:
-			return text
-		# Before the blank rule below: an empty list is [], which a user editing the file
-		# by hand can add to. "" would leave them guessing what shape it wanted.
-		if entry.type == 'list':
-			return [part.strip() for part in text.split(',') if part.strip()]
-		if text.strip() == '':
-			return text
-		if entry.type == 'bool':
-			return is_truthy(text)
-		if entry.type == 'int':
-			try:
-				return int(float(text))
-			except (TypeError, ValueError):
-				return text
-		return text
+        An empty string stays empty rather than becoming 0 or null: several int settings
+        use blank to mean "no window on this one", and that is not the same as zero.
+        """
+        entry = config_schema.option(section, key)
+        text = '' if raw is None else str(raw)
+        if entry is None:
+            return text
+        # Before the blank rule below: an empty list is [], which a user editing the file
+        # by hand can add to. "" would leave them guessing what shape it wanted.
+        if entry.type == 'list':
+            return [part.strip() for part in text.split(',') if part.strip()]
+        if text.strip() == '':
+            return text
+        if entry.type == 'bool':
+            return is_truthy(text)
+        if entry.type == 'int':
+            try:
+                return int(float(text))
+            except (TypeError, ValueError):
+                return text
+        return text
 
-	@staticmethod
-	def _as_text(value) -> str:
-		"""Back to what a ConfigParser holds, so nothing above this module changes."""
-		if isinstance(value, bool):
-			return 'true' if value else 'false'
-		if isinstance(value, (list, tuple)):
-			return ','.join(str(v) for v in value)
-		return '' if value is None else str(value)
+    @staticmethod
+    def _as_text(value) -> str:
+        """Back to what a ConfigParser holds, so nothing above this module changes."""
+        if isinstance(value, bool):
+            return 'true' if value else 'false'
+        if isinstance(value, (list, tuple)):
+            return ','.join(str(v) for v in value)
+        return '' if value is None else str(value)
 
-	def _load_json(self) -> None:
-		with open(self.json_path, encoding='utf-8') as handle:
-			payload = json.load(handle) or {}
-		self._schema = int(payload.get(SCHEMA_KEY, CONFIG_SCHEMA) or CONFIG_SCHEMA)
-		for section, values in _flatten(payload.get(SETTINGS_KEY) or {}).items():
-			if not self.config.has_section(section):
-				self.config.add_section(section)
-			for key, value in (values or {}).items():
-				# Any spelling a file has ever used lands under the name we store now.
-				self.config.set(section, config_schema.canonical(section, key),
-				                self._as_text(value))
+    def _load_json(self) -> None:
+        with open(self.json_path, encoding='utf-8') as handle:
+            payload = json.load(handle) or {}
+        self._schema = int(payload.get(SCHEMA_KEY, CONFIG_SCHEMA) or CONFIG_SCHEMA)
+        for section, values in _flatten(payload.get(SETTINGS_KEY) or {}).items():
+            if not self.config.has_section(section):
+                self.config.add_section(section)
+            for key, value in (values or {}).items():
+                # Any spelling a file has ever used lands under the name we store now.
+                self.config.set(section, config_schema.canonical(section, key),
+                                self._as_text(value))
 
-	def save(self):
-		# The first save after reading an ini keeps a copy and leaves the original alone:
-		# a downgrade needs the file the older build reads.
-		if self._converted_from_ini and os.path.exists(self.ini_path):
-			logger.info("Kept the pre-JSON settings at %s", copy_aside(str(self.ini_path)))
-			self._converted_from_ini = False
-		settings = _nest({section: {key: self._typed(section, key, value)
-		                            for key, value in self.config.items(section)}
-		                  for section in self.config.sections()})
-		# Never stamp a newer file down to what this build writes - that number belongs to
-		# whichever VPinFE wrote it, and claiming it would say we understood the file.
-		payload = {SCHEMA_KEY: max(getattr(self, '_schema', CONFIG_SCHEMA), CONFIG_SCHEMA),
-		           SETTINGS_KEY: settings}
-		write_atomic(self.json_path,
-		             lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
+    def save(self):
+        # The first save after reading an ini keeps a copy and leaves the original alone:
+        # a downgrade needs the file the older build reads.
+        if self._converted_from_ini and os.path.exists(self.ini_path):
+            logger.info("Kept the pre-JSON settings at %s", copy_aside(str(self.ini_path)))
+            self._converted_from_ini = False
+        settings = _nest({section: {key: self._typed(section, key, value)
+                                    for key, value in self.config.items(section)}
+                          for section in self.config.sections()})
+        # Never stamp a newer file down to what this build writes - that number belongs to
+        # whichever VPinFE wrote it, and claiming it would say we understood the file.
+        payload = {SCHEMA_KEY: max(getattr(self, '_schema', CONFIG_SCHEMA), CONFIG_SCHEMA),
+                   SETTINGS_KEY: settings}
+        write_atomic(self.json_path,
+                     lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
 
-	def formatDefaults(self):
-		for section, defaults in self.defaults.items():
-			self.config.add_section(section)
-			for key, value in defaults.items():
-				if not self.config.has_option(section, key):  # Only set if not present
-					self.config.set(section, key, value)
+    def formatDefaults(self):
+        for section, defaults in self.defaults.items():
+            self.config.add_section(section)
+            for key, value in defaults.items():
+                if not self.config.has_option(section, key):  # Only set if not present
+                    self.config.set(section, key, value)
