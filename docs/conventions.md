@@ -97,6 +97,17 @@ feature-detect them. That is what keeps bumps rare enough to be worth doing prop
   or `common/host/`; `common/` itself holds only what knows nothing about any of them, and may
   never import from those packages. See `docs/common.md`.
 - Route handlers stay thin. Logic belongs in a service where the other callers can reach it.
+- Files we ship that are not Python live in `<owner>/static/` — `frontend/static/` for what a
+  browser fetches, `managerui/static/` for the Manager UI's, `common/host/static/` for what
+  goes to hardware. Named for who owns them, so a directory does not become the home for
+  anything that has no other one.
+- `scripts/` is what the build *runs*; `packaging/` is what it *ships*. The fetch scripts are
+  the first, the icon and the PyInstaller spec are the second.
+- Reach a shipped file through `common.paths.bundled()`. It answers for a source checkout and
+  for both kinds of frozen build, so nothing needs its own chain of guesses.
+- A directory added to `<owner>/static/` must also be listed in `packaging/vpinfe.spec`, or it
+  is simply absent from the build. No test covers that — the failure is a missing image in a
+  release artifact, not a red suite.
 
 ## Comments and docstrings
 

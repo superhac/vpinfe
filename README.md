@@ -104,6 +104,8 @@ By default VPinFE keeps `vpinfe.ini`, `themes/`, caches, and logs in the OS conf
 
 If you plan on using the **Shutdown** or **Reboot** option in the frontend or the remote page, some Linux systems need an explicit polkit rule so the VPinFE user can power off or reboot the machine without an interactive prompt.
 
+VPinFE asks nothing before it quits or powers off, which is how it has always behaved. If you would rather be asked, set `lifecycle.confirm` to the scopes you want checked — `system` covers powering off and restarting the machine, `app` covers quitting VPinFE, `frontend` covers the windows. The question appears on whatever you used to ask, so pressing quit on the cabinet asks on the cabinet and the remote page asks on your phone.
+
 #### Linux
 
 Create `/etc/polkit-1/rules.d/49-allow-poweroff.rules`:

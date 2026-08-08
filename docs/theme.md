@@ -279,6 +279,10 @@ and a contract 2 theme shipping `index_table.html` gets a 404 — nothing looks 
 
 This is the main HTML file. It controls input, displays the primary UI, and hosts the in-theme menu overlays. Below is the minimum required structure:
 
+> Core's own files are served at `/core/`, against `/themes/` for what a theme provides.
+> Themes written before 3.0 ask for them at `/web/`, which still serves the same files —
+> nothing needs updating, and both spellings reach the same place.
+
 ```html
 <!DOCTYPE html>
 <html>

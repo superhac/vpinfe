@@ -16,6 +16,11 @@ build and it changes how your library is stored — read the next section first.
   `--restore-info`.
 
 ### What's New
+- **Core** — VPinFE can ask before it quits, restarts or powers off the machine. Off by
+  default, which is how it has always behaved; set `lifecycle.confirm` to the scopes you
+  want checked. The question appears on whatever you used to ask — the cabinet asks on the
+  cabinet, the remote page asks on your phone — and every other screen is told what is about
+  to happen rather than left to go dark without explanation.
 - **Core** — Every table gets a stable id, minted once and kept in its `.info`. It survives
   renaming a folder and updating a `.vpx`, which VPSId does not. Collection membership is
   keyed by it now, so an ordinary table update no longer orphans a table out of its
@@ -83,6 +88,10 @@ These are deliberate. `docs/compatibility-3.0.md` has the full list with the rea
 - **Core** — The log is much quieter at INFO. Routine chatter moved to DEBUG.
 
 ### Fixes
+- **Frontend** — Tables no longer start paused on Windows. VPX pauses whenever its window
+  loses focus, and Windows will not let one program hand the foreground to another it
+  started, so a table came up paused until you alt-tabbed. The frontend windows now get out
+  of the way and come back when you are done.
 - **Frontend** — Holding a direction no longer freezes the wheel.
 - **Frontend** — Chromium no longer leaves a profile directory behind for every window on
   every launch. On a cabinet where `/tmp` is a tmpfs, that was RAM.
@@ -94,6 +103,9 @@ These are deliberate. `docs/compatibility-3.0.md` has the full list with the rea
   remote launch no longer raises on Linux.
 
 ### For theme and API authors
+- **Themes** — Core's files are served at `/core/` now, against `/themes/` for what a theme
+  provides. Your existing theme keeps working: `/web/` still serves the same files, so there
+  is nothing to change unless you want to.
 - **Themes** — Nothing changes unless you opt in. The payload is served in the shape your
   `manifest.json` declares as `contract`, and no declaration means the 2.x shape.
 - **Core** — Breaking: the endpoints that predate `/api/v1` are removed, not aliased.

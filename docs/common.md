@@ -16,12 +16,14 @@ hardware or any outside service, so anything may depend on it - and nothing in i
 import from a domain package. That rule is the point of the layer; breaking it is how
 `config_access` ended up importing `game_metadata` to read a boolean.
 
-- `paths.py`: canonical user config, themes, collections, and game-root paths. `CONFIG_DIR` is resolved once at import time; set `VPINFE_CONFIG_DIR` before import (main.py maps the `--configdir` flag onto it) to relocate the whole config directory. `APP_ROOT` is where the app itself lives - use it for bundled assets instead of counting directory levels from `__file__`.
+- `paths.py`: canonical user config, themes, collections, and game-root paths. `CONFIG_DIR` is resolved once at import time; set `VPINFE_CONFIG_DIR` before import (main.py maps the `--configdir` flag onto it) to relocate the whole config directory. `APP_ROOT` is where the app itself lives; reach a file the build ships through `bundled()`, which answers for a source checkout and for both kinds of frozen build.
 - `config_access.py`: typed, UI-independent accessors for common INI sections.
 - `values.py`: value coercion (`is_truthy`) shared by config, metadata and filters.
 - `config_store.py`, `config_bootstrap.py`: ini reading and first-run config creation.
 - `events.py`: the in-process event bus. Hooks are part of an operation; subscribers are told about it.
 - `media_specs.py`: canonical media keys, filenames, playfield attributes, and path resolution.
+- `input_registry.py`: every input action, its default bindings and the names it used to have. `[input]` in the config is generated from it, so the two cannot disagree.
+- `lifecycle.py`: starting, stopping and restarting the frontend, VPinFE or the machine, whichever surface asked.
 - `jobs.py`: slow work as a job — one at a time per kind, progress published on the bus, answerable by id after it finishes.
 - `http_client.py`: shared request/download helpers.
 - `third_party.py`: finding and loading the third_party libraries the build bundles.
