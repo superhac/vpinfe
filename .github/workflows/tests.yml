@@ -6,8 +6,15 @@ on:
   pull_request:
     branches: [ master, vpinfe-3.0 ]
 
+# One run per branch. A second push supersedes the first rather than queueing behind
+# it - a tag run is exempt, because cancelling one halfway leaves a partial release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
 jobs:
   test:
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

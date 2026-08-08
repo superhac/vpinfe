@@ -16,11 +16,18 @@ on:
 permissions:
   contents: write
 
+# One run per branch. A second push supersedes the first rather than queueing behind
+# it - a tag run is exempt, because cancelling one halfway leaves a partial release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build:
+    timeout-minutes: 30
     env:
       DOF_VERSION: latest
       DOF_REPO: superhac/libdof-python
@@ -169,19 +176,6 @@ jobs:
           rm -rf dist/VPinFE
         shell: bash
 
-      - name: Ad-hoc sign the app (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          codesign --force --deep --sign - dist/VPinFE.app
-          codesign --verify --verbose dist/VPinFE.app
-        shell: bash
-
-      - name: Remove extended attributes (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          sudo xattr -rc dist
-        shell: bash
-
       - name: Install create-dmg
         if: runner.os == 'macOS'
         run: brew install create-dmg
@@ -189,9 +183,15 @@ jobs:
         env:
           HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
 
-      - name: Package as DMG (macOS)
+      # Sign, strip the quarantine attributes a runner leaves behind, and wrap the .app
+      # in the DMG a user actually downloads. Identical for the full and slim builds,
+      # so it is written once and run twice.
+      - name: Package the .app as a signed DMG (macOS)
         if: runner.os == 'macOS'
         run: |
+          codesign --force --deep --sign - dist/VPinFE.app
+          codesign --verify --verbose dist/VPinFE.app
+          sudo xattr -rc dist
           create-dmg \
             --volname "VPinFE" \
             --volicon "packaging/VPinFE.icns" \
@@ -266,22 +266,15 @@ jobs:
           path: dist/
 
 
-      - name: Ad-hoc sign the app (macOS Slim)
+      # Sign, strip the quarantine attributes a runner leaves behind, and wrap the .app
+      # in the DMG a user actually downloads. Identical for the full and slim builds,
+      # so it is written once and run twice.
+      - name: Package the .app as a signed DMG (macOS Slim)
         if: runner.os == 'macOS'
         run: |
           codesign --force --deep --sign - dist/VPinFE.app
           codesign --verify --verbose dist/VPinFE.app
-        shell: bash
-
-      - name: Remove extended attributes (macOS Slim)
-        if: runner.os == 'macOS'
-        run: |
           sudo xattr -rc dist
-        shell: bash
-
-      - name: Package as DMG (macOS Slim)
-        if: runner.os == 'macOS'
-        run: |
           create-dmg \
             --volname "VPinFE" \
             --volicon "packaging/VPinFE.icns" \
@@ -304,6 +297,7 @@ jobs:
           path: dist/VPinFE.dmg
 
   release_bundle:
+    timeout-minutes: 15
     # A hand-started run never releases, whatever it was started against - a tag can be
     # dispatched as readily as a branch, and "it only publishes on a tag push" should be
     # true by construction rather than by reading the ref.
@@ -362,6 +356,7 @@ jobs:
           path: release/vpinfe-${{ github.ref_name }}-${{ matrix.triplet }}.zip
 
   publish_release:
+    timeout-minutes: 15
     if: startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch'
     needs: release_bundle
     runs-on: ubuntu-latest
