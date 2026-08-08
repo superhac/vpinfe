@@ -63,3 +63,6 @@ d41831b93acdfed5ff0cf8c4f931d15c09f58037  # config: the store is named for what 
 
 # The four naming judgement calls, settled 2026-08-05
 7abbfa10f5fa09af7d3ab140e32e4cec10b2b41e  # info: MetaConfig's camelCase API is snake_case
+
+# Whitespace only - no line changed except its indentation
+b007dbc431994c0d68e9ef6e1e63bee4860b7766  # config: the last tab-indented file uses spaces
