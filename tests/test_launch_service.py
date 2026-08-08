@@ -19,7 +19,7 @@ class _FakePopen:
         return 0
 
 
-def _make_api(events):
+def _make_api(events, frontend_browser=None):
     table = types.SimpleNamespace(
         fullPathVPXfile="/tables/example.vpx",
         fullPathTable="/tables/example",
@@ -29,9 +29,24 @@ def _make_api(events):
     return types.SimpleNamespace(
         _iniConfig=types.SimpleNamespace(config={}),
         filteredTables=[table],
-        frontend_browser=None,
+        frontend_browser=frontend_browser,
         send_event_all_windows_incself=lambda event: events.append(event["type"]),
     )
+
+
+class _FakeBrowser:
+    """Records the minimize/restore calls launch_table makes on Windows."""
+
+    def __init__(self, calls):
+        self._calls = calls
+
+    def minimize_all_windows(self):
+        self._calls.append("minimize")
+        return 3
+
+    def restore_all_windows(self):
+        self._calls.append("restore")
+        return 3
 
 
 def _launch_kwargs(popen):
@@ -53,27 +68,30 @@ def _launch_kwargs(popen):
     )
 
 
+def _run_launch(api, popen):
+    with mock.patch.object(launch_service, "SettingsConfig") as settings_cls, \
+            mock.patch.object(launch_service, "delete_vpinball_log_on_start_if_configured"), \
+            mock.patch.object(launch_service.table_play_service, "track_table_play"), \
+            mock.patch.object(launch_service.table_play_service, "increment_start_count"), \
+            mock.patch.object(launch_service.table_play_service, "add_runtime_minutes"), \
+            mock.patch.object(launch_service.table_play_service, "update_score_from_nvram"), \
+            mock.patch.object(launch_service.table_play_service, "delete_nvram_if_configured"), \
+            mock.patch.object(launch_service, "save_last_table"), \
+            mock.patch.object(launch_service, "get_active_profile", return_value=None):
+        settings_cls.from_config.return_value = types.SimpleNamespace(
+            vpx_bin_path="/opt/vpx",
+            global_ini_override="",
+            global_table_ini_override_enabled=False,
+            global_table_ini_override_mask="",
+            vpx_launch_env="",
+        )
+        launch_service.launch_table(api, 0, **_launch_kwargs(popen))
+
+
 class LaunchServiceLifecycleTests(unittest.TestCase):
     def _run_launch(self, popen):
         events = []
-        api = _make_api(events)
-        with mock.patch.object(launch_service, "SettingsConfig") as settings_cls, \
-                mock.patch.object(launch_service, "delete_vpinball_log_on_start_if_configured"), \
-                mock.patch.object(launch_service.table_play_service, "track_table_play"), \
-                mock.patch.object(launch_service.table_play_service, "increment_start_count"), \
-                mock.patch.object(launch_service.table_play_service, "add_runtime_minutes"), \
-                mock.patch.object(launch_service.table_play_service, "update_score_from_nvram"), \
-                mock.patch.object(launch_service.table_play_service, "delete_nvram_if_configured"), \
-                mock.patch.object(launch_service, "save_last_table"), \
-                mock.patch.object(launch_service, "get_active_profile", return_value=None):
-            settings_cls.from_config.return_value = types.SimpleNamespace(
-                vpx_bin_path="/opt/vpx",
-                global_ini_override="",
-                global_table_ini_override_enabled=False,
-                global_table_ini_override_mask="",
-                vpx_launch_env="",
-            )
-            launch_service.launch_table(api, 0, **_launch_kwargs(popen))
+        _run_launch(_make_api(events), popen)
         return events
 
     def test_complete_fires_on_normal_launch(self):
@@ -107,6 +125,45 @@ class LaunchServiceLifecycleTests(unittest.TestCase):
 
         self.assertIn("TableLaunching", events)
         self.assertEqual(events[-1], "TableLaunchComplete")
+
+    def test_windows_minimizes_before_launch_and_restores_after(self):
+        # VPX pauses when its window lacks focus, so our kiosk windows have to be
+        # off the desktop *before* VPX starts, not after.
+        calls = []
+        api = _make_api([], _FakeBrowser(calls))
+
+        def popen(cmd, **kwargs):
+            calls.append("popen")
+            return _FakePopen(["Startup done\n"])
+
+        with mock.patch.object(launch_service.sys, "platform", "win32"):
+            _run_launch(api, popen)
+
+        self.assertEqual(calls, ["minimize", "popen", "restore"])
+
+    def test_windows_restores_even_when_launch_raises(self):
+        # A cab driven by a gamepad has no way back from minimized windows, so the
+        # restore must survive a failed launch.
+        calls = []
+        api = _make_api([], _FakeBrowser(calls))
+
+        def boom(cmd, **kwargs):
+            raise RuntimeError("popen failed")
+
+        with mock.patch.object(launch_service.sys, "platform", "win32"), \
+                self.assertRaises(RuntimeError):
+            _run_launch(api, boom)
+
+        self.assertEqual(calls, ["minimize", "restore"])
+
+    def test_non_windows_never_touches_frontend_windows(self):
+        calls = []
+        api = _make_api([], _FakeBrowser(calls))
+
+        with mock.patch.object(launch_service.sys, "platform", "linux"):
+            _run_launch(api, lambda cmd, **kwargs: _FakePopen(["Startup done\n"]))
+
+        self.assertEqual(calls, [])
 
     def test_complete_not_emitted_when_launcher_missing(self):
         # Early return before TableLaunching -> no lifecycle events at all.

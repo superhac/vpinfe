@@ -126,6 +126,12 @@ def _scan_tables_for_launch():
     return remote_launch.scan_tables_for_launch()
 
 
+def _frontend_browser():
+    """The ChromiumManager owning the kiosk windows, or None when running standalone."""
+    main_module = sys.modules.get("__main__")
+    return getattr(main_module, "frontend_browser", None) if main_module else None
+
+
 def _launch_table(table: dict):
     """Launch a table using the VPX binary."""
     import threading
@@ -188,8 +194,17 @@ def _launch_table(table: dict):
             if lp_orig is not None:
                 launch_env[lp_key] = lp_orig  # restore the original, unmodified value
 
+        # Windows only: VPX pauses whenever its player window lacks focus, and the
+        # foreground lock stops us handing focus to a process we spawn. Minimizing
+        # the kiosk windows first lets VPX take the foreground on its own. Same fix
+        # as frontend/launch_service.py; a remote launch leaves the cab screens
+        # showing the frontend, so it needs it too.
+        frontend_browser = _frontend_browser() if sys.platform == "win32" else None
+
         def run_and_wait():
             try:
+                if frontend_browser:
+                    frontend_browser.minimize_all_windows()
                 process = subprocess.Popen(
                     cmd,
                     stdout=subprocess.DEVNULL,
@@ -199,6 +214,8 @@ def _launch_table(table: dict):
                 )
                 process.wait()
             finally:
+                if frontend_browser:
+                    frontend_browser.restore_all_windows()
                 # Clear the launch state when done
                 set_remote_launch_state(False, None)
                 start_dof_service_if_enabled(cfg)

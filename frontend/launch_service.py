@@ -145,6 +145,14 @@ def launch_table(
                 if lp_orig is not None:
                     launch_env[lp_key] = lp_orig  # restore the original, unmodified value
 
+            # Windows only: get our kiosk windows off the desktop before VPX starts.
+            # VPX pauses whenever its player window lacks focus, and the Windows
+            # foreground lock stops us from handing focus to a process we spawn, so
+            # a table launched from the frontend comes up paused until the user
+            # alt-tabs. With our windows minimized VPX takes the foreground itself.
+            if sys.platform == "win32" and api.frontend_browser:
+                api.frontend_browser.minimize_all_windows()
+
             process = popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -169,6 +177,13 @@ def launch_table(
 
             process.wait()
         finally:
+            # Restore before the VPinPlay/nvram bookkeeping below, which can spend
+            # seconds on the network -- the cab should not sit on minimized windows
+            # while that runs. A no-op when nothing was minimized, and reached on
+            # every path out, so a failed launch can't strand a gamepad-only cab
+            # with no windows up.
+            if sys.platform == "win32" and api.frontend_browser:
+                api.frontend_browser.restore_all_windows()
             start_dof_service_if_enabled(api._iniConfig)
 
         if launch_started_at is not None:
