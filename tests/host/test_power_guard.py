@@ -83,7 +83,7 @@ class PowerGuardTests(unittest.TestCase):
         """Popen is not the only door: os.system takes a string and never reaches it,
         and os.exec* replaces this process outright - which would end the run mid-suite
         looking like a crash. restart_if_requested uses execvp for exactly that."""
-        self.assertIs(subprocess.Popen, tests._guarded_popen)
+        self.assertIs(subprocess.Popen, tests._GuardedPopen)
         self.assertIs(os.system, tests._guarded_system)
         for name in ("execv", "execvp", "execve"):
             with self.subTest(name):

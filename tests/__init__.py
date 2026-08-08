@@ -109,11 +109,20 @@ def _refuse(printable: str, how: str) -> None:
     )
 
 
-def _guarded_popen(args, *rest, **kwargs):
-    offending = _is_power_command(args)
-    if offending:
-        _refuse(offending, "run")
-    return _real_popen(args, *rest, **kwargs)
+class _GuardedPopen(_real_popen):
+    """Refuses a power command, and stays a Popen in every other respect.
+
+    A subclass rather than a wrapper function: subprocess.Popen is a class, and the
+    stdlib subclasses it and reads its attributes. Replacing it with a function made
+    `class X(subprocess.Popen)` raise "function() argument 'code' must be code, not str",
+    which took the API contract probe down on Windows and nowhere else.
+    """
+
+    def __init__(self, args, *rest, **kwargs):
+        offending = _is_power_command(args)
+        if offending:
+            _refuse(offending, "run")
+        super().__init__(args, *rest, **kwargs)
 
 
 def _guarded_system(command):
@@ -135,7 +144,7 @@ def _guarded_exec(real, name):
     return guard
 
 
-subprocess.Popen = _guarded_popen
+subprocess.Popen = _GuardedPopen
 os.system = _guarded_system
 os.execv = _guarded_exec(_real_execv, "exec")
 os.execvp = _guarded_exec(_real_execvp, "exec")
