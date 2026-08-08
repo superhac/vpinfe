@@ -288,6 +288,7 @@ class ChromiumManager:
     def __init__(self):
         self._processes = []  # [(window_name, process, temp_dir, monitor)]
         self._exit_event = threading.Event()
+        self._minimized_hwnds = []  # Windows only: [(window_name, hwnd)] awaiting restore
         sweep_stale_profiles()
 
     def launch_window(
@@ -522,6 +523,105 @@ class ChromiumManager:
             )
         except Exception:
             logger.exception("macOS re-activation failed")
+
+    def _win_find_our_hwnds(self):
+        """Windows: top-level HWNDs belonging to our Chromium browser processes.
+
+        Chromium's browser process owns the visible kiosk window, so matching on
+        the PIDs we spawned is enough. Invisible helper windows (message pumps,
+        IME) share those PIDs, hence the visible + unowned filter.
+        """
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+        user32.EnumWindows.argtypes = [WNDENUMPROC, wintypes.LPARAM]
+        user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+        user32.IsWindowVisible.argtypes = [wintypes.HWND]
+        user32.GetWindow.argtypes = [wintypes.HWND, wintypes.UINT]
+
+        GW_OWNER = 4
+        pids = {
+            proc.pid: window_name
+            for window_name, proc, _, _ in self._processes
+            if proc.poll() is None
+        }
+        found = []
+
+        def _on_window(hwnd, _lparam):
+            if not user32.IsWindowVisible(hwnd):
+                return True
+            if user32.GetWindow(hwnd, GW_OWNER):
+                return True
+            pid = wintypes.DWORD()
+            user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+            window_name = pids.get(pid.value)
+            if window_name:
+                found.append((window_name, hwnd))
+            return True
+
+        user32.EnumWindows(WNDENUMPROC(_on_window), 0)
+        return found
+
+    def minimize_all_windows(self):
+        """Windows: minimize our kiosk windows so VPX comes up as the foreground app.
+
+        VPX pauses itself whenever its player window lacks focus, and Windows'
+        foreground lock stops a background launcher from handing focus over. Taking
+        our windows off the desktop before VPX starts sidesteps that entirely: VPX
+        becomes the natural foreground window and never pauses. Restored by
+        restore_all_windows() once the table exits.
+        """
+        if sys.platform != "win32":
+            return 0
+
+        self._minimized_hwnds = []
+        try:
+            import ctypes
+
+            user32 = ctypes.WinDLL("user32", use_last_error=True)
+            SW_MINIMIZE = 6
+            for window_name, hwnd in self._win_find_our_hwnds():
+                user32.ShowWindow(hwnd, SW_MINIMIZE)
+                self._minimized_hwnds.append((window_name, hwnd))
+            logger.info("Windows: minimized %s frontend windows for launch", len(self._minimized_hwnds))
+        except Exception:
+            logger.exception("Windows minimize failed")
+
+        return len(self._minimized_hwnds)
+
+    def restore_all_windows(self):
+        """Windows: restore the kiosk windows minimized by minimize_all_windows().
+
+        Safe to call more than once, and a no-op if nothing was minimized. The table
+        window is restored last so it ends up on top and holding focus.
+        """
+        if sys.platform != "win32":
+            return 0
+
+        minimized, self._minimized_hwnds = getattr(self, "_minimized_hwnds", []), []
+        if not minimized:
+            return 0
+
+        restored = 0
+        try:
+            import ctypes
+
+            user32 = ctypes.WinDLL("user32", use_last_error=True)
+            SW_RESTORE = 9
+            # Table last: whichever window is restored last wins the foreground.
+            ordered = sorted(minimized, key=lambda item: item[0] == "table")
+            for window_name, hwnd in ordered:
+                user32.ShowWindow(hwnd, SW_RESTORE)
+                restored += 1
+                if window_name == "table":
+                    user32.SetForegroundWindow(hwnd)
+            logger.info("Windows: restored %s frontend windows after launch", restored)
+        except Exception:
+            logger.exception("Windows restore failed")
+
+        return restored
 
     @staticmethod
     def _get_descendant_pids(pid):

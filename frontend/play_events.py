@@ -65,6 +65,14 @@ def on_launching(*, game=None, **_payload) -> None:
     if game is not None and _ini_config is not None:
         save_last_game(_ini_config, game)
     _broadcast({"type": "GameLaunching"})
+    if sys.platform == "win32" and _browser is not None:
+        # VPX pauses whenever its player window loses focus, and Windows will not let a
+        # process hand the foreground to one it spawned - so a table came up paused until
+        # the user alt-tabbed. Out of the way, and VPX takes the foreground itself.
+        try:
+            _browser.minimize_all_windows()
+        except Exception:
+            logger.exception("Could not get the frontend windows out of VPX's way")
 
 
 def on_launched(**_payload) -> None:
@@ -80,6 +88,13 @@ def on_exited(**_payload) -> None:
             _browser.activate_all_mac()
         except Exception:
             logger.exception("Could not bring the frontend windows back to the front")
+    if sys.platform == "win32" and _browser is not None:
+        # Reached on every path out, including a launch that failed, so a cabinet with
+        # no keyboard is never left staring at minimized windows.
+        try:
+            _browser.restore_all_windows()
+        except Exception:
+            logger.exception("Could not bring the frontend windows back")
 
 
 def on_play_recorded(**_payload) -> None:

@@ -43,6 +43,52 @@ class PlayEventTests(unittest.TestCase):
         if timer is not None:
             timer.join(timeout=5)
 
+    def test_windows_gets_out_of_vpx_s_way_on_launch_and_comes_back(self) -> None:
+        """VPX pauses when its window loses focus, and Windows will not let us hand the
+        foreground to a process we spawned - so the windows move, not the focus."""
+        browser = mock.Mock()
+        with mock.patch.object(play_events, "save_last_game"), \
+                mock.patch.object(play_events.sys, "platform", "win32"):
+            play_events.register(self.bridge, browser, None)
+            events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
+            browser.minimize_all_windows.assert_called_once_with()
+            browser.restore_all_windows.assert_not_called()
+
+            events.emit(events.GAME_EXITED)
+            browser.restore_all_windows.assert_called_once_with()
+
+    def test_the_windows_come_back_even_when_the_launch_failed(self) -> None:
+        """game.exited is announced on every path out, so a cabinet with no keyboard is
+        never left looking at minimized windows."""
+        browser = mock.Mock()
+        with mock.patch.object(play_events, "save_last_game"), \
+                mock.patch.object(play_events.sys, "platform", "win32"):
+            play_events.register(self.bridge, browser, None)
+            events.emit(events.GAME_EXITED)
+
+        browser.restore_all_windows.assert_called_once_with()
+
+    def test_only_windows_moves_its_windows(self) -> None:
+        browser = mock.Mock()
+        with mock.patch.object(play_events, "save_last_game"), \
+                mock.patch.object(play_events.sys, "platform", "linux"):
+            play_events.register(self.bridge, browser, None)
+            events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
+            events.emit(events.GAME_EXITED)
+
+        browser.minimize_all_windows.assert_not_called()
+        browser.restore_all_windows.assert_not_called()
+
+    def test_a_browser_that_cannot_minimize_does_not_stop_the_launch(self) -> None:
+        browser = mock.Mock()
+        browser.minimize_all_windows.side_effect = OSError("no window manager")
+        with mock.patch.object(play_events, "save_last_game"), \
+                mock.patch.object(play_events.sys, "platform", "win32"):
+            play_events.register(self.bridge, browser, None)
+            events.emit(events.GAME_LAUNCHING, game=None, ini_config=None)
+
+        self.assertIn("GameLaunching", self.bridge.messages)
+
     def test_registering_twice_leaves_one_of_each(self) -> None:
         """Three windows share one bridge; registering per window would treble
         every message."""
