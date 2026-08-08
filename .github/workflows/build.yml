@@ -6,6 +6,12 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ master, vpinfe-2.0, vpinfe-3.0 ]
+  # Run the build by hand, on any branch, from the Actions tab. Nothing about the
+  # packaging is exercised by the test suite - a wrong --add-data path is a missing
+  # splash in a release artifact, not a red test - so being able to produce real
+  # artifacts on all three runners without pushing a tag is how that gets checked.
+  # The release jobs refuse to run this way; see their conditions.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -352,7 +358,10 @@ jobs:
           path: dist/VPinFE.dmg
 
   release_bundle:
-    if: startsWith(github.ref, 'refs/tags/v')
+    # A hand-started run never releases, whatever it was started against - a tag can be
+    # dispatched as readily as a branch, and "it only publishes on a tag push" should be
+    # true by construction rather than by reading the ref.
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
     strategy:
@@ -407,7 +416,7 @@ jobs:
           path: release/vpinfe-${{ github.ref_name }}-${{ matrix.triplet }}.zip
 
   publish_release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch'
     needs: release_bundle
     runs-on: ubuntu-latest
 
