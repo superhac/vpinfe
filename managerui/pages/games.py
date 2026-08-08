@@ -1,0 +1,1029 @@
+"""The Games page: the whole library as a table, and what can be done to a row."""
+
+import asyncio
+import logging
+import os
+from pathlib import Path
+from queue import Queue
+
+from nicegui import context, events, run, ui
+
+from common.config_store import ConfigStore
+from common.games.game_metadata import (
+    default_table,
+    reorder_leading_article,
+    vpinfe_section,
+)
+from common.games.info_file import VPINFE_SECTION
+from managerui.filters import apply_game_filters, build_game_filter_options
+from managerui.pages.dnd_drop_zone import DropContext, create_drop_zone, enable_row_drops
+from managerui.pages.game_detail_dialog import open_game_dialog
+from managerui.pages.game_import_dialog import open_import_game_dialog
+from managerui.pages.game_match_dialog import open_missing_games_dialog
+from managerui.pages.info_maintenance_dialogs import maintenance_menu, render_info_banners
+from managerui.paths import VPINFE_INI_PATH
+from managerui.paths import get_games_path as resolve_games_path
+from managerui.services import game_index_service, game_service
+from managerui.services.media_service import invalidate_media_cache
+from managerui.ui_helpers import debounced_input, dialog_card, load_page_style
+
+VPSDB_JSON_PATH = game_service.VPSDB_JSON_PATH
+
+# Read once at import rather than per page build: parsing it on every render showed up
+# as a stall on a big library.
+_INI_CFG = ConfigStore(str(VPINFE_INI_PATH))
+
+#_vpsdb_cache: List[Dict] | None = None
+_vpsdb_cache: list[dict] | None = None
+
+def ensure_vpsdb_downloaded() -> bool:
+    """
+    Ensures vpsdb.json exists and is up-to-date.
+    Downloads it if missing or outdated.
+    Returns True if vpsdb is available, False otherwise.
+    """
+    global _vpsdb_cache
+    ok = game_service.ensure_vpsdb_downloaded()
+    _vpsdb_cache = None
+    return ok
+# Ensure only one missing-games dialog at a time
+_missing_games_dialog: ui.dialog | None = None
+# Cache compatibility helpers. Ownership lives in game_index_service.
+def add_game_to_collection(game_id: str, collection_name: str) -> bool:
+    """Add a game to a collection. Returns True on success."""
+    try:
+        if not game_service.add_game_to_collection(game_id, collection_name):
+            return False
+        game_index_service.add_collection_membership(game_id, collection_name)
+        return True
+    except Exception as e:
+        logger.error(f"Failed to add game to collection: {e}")
+        return False
+
+
+def sync_collections_to_cache():
+    """Sync the games cache with current collection memberships from disk.
+
+    Call this after modifying collections outside of add_game_to_collection(),
+    such as when removing games from collections or deleting/renaming collections.
+    """
+    game_index_service.sync_collection_memberships(game_service.get_game_collections_map())
+
+
+def load_vpsdb() -> list[dict]:
+    global _vpsdb_cache
+    _vpsdb_cache = game_service.load_vpsdb()
+    return _vpsdb_cache
+
+ACCEPT_CRZ = ['.crz', '.cRZ', '.CRZ']  # altcolor accepted extensions (case-insensitive)
+ACCEPT_VNI = ['.vni', '.VNI', '.pal', '.PAL']  # vni accepted extensions (case-insensitive)
+
+def ensure_dir(p: Path) -> None:
+    game_service.ensure_dir(p)
+
+def save_upload_bytes(dest_file: Path, content: bytes) -> None:
+    game_service.save_upload_bytes(dest_file, content)
+
+
+# --- helper to create a .info file with a chosen VPS record for one folder ---
+
+def associate_vps_to_folder(game_folder: Path, vps_entry: dict, download_media: bool = False) -> None:
+    """
+    Creates a `.info` file inside `game_folder` using the selected vps_entry and the VPX metadata.
+    """
+    game_service.associate_vps_to_folder(game_folder, vps_entry, download_media)
+
+
+logger = logging.getLogger("vpinfe.manager.games")
+
+def get_games_path() -> str:
+    """Resolve the games path from vpinfe.ini [Settings] gamerootdir, fallback to ~/tables."""
+    return resolve_games_path()
+
+def parse_game_info(info_path):
+    import json
+    import os
+
+    try:
+        with open(info_path, encoding="utf-8") as f:
+            raw = json.load(f)
+
+        game_dir = os.path.dirname(info_path)
+        game_name = os.path.basename(game_dir)
+
+        info = raw.get("Info", {})
+        user = raw.get("User", {})
+        vpinfe = vpinfe_section(raw)
+        # This row describes the game's default table. A folder can hold several;
+        # the API lists them all, the games list shows one.
+        gf_name, vpx = default_table(raw, folder_name=game_name)
+
+        def get(*paths, default=""):
+            """
+            paths = [("table","rom"), ("Info","Title"), ...]
+            """
+            for section, key in paths:
+                src = {"Info": info, "table": vpx, "User": user,
+                       VPINFE_SECTION: vpinfe, "root": raw}.get(section)
+                if src and key in src and src[key] not in ("", None):
+                    return src[key]
+            return default
+
+        data = {
+            # Display / identity (strip whitespace from name)
+            "name": ((vpinfe.get("alt_title", "") or "").strip()
+                     or reorder_leading_article(get(("Info", "Title"), ("root", "name"), default=game_name) or "")),
+            "filename": gf_name or f"{game_name}.vpx",
+            "vpsid": get(("Info", "VPSId"), ("root", "id")),
+            "id": get((VPINFE_SECTION, "alt_vpsid"), ("Info", "VPSId"), ("root", "id")),
+            "ipdb_id": get(("Info", "IPDBId")),
+            "pinball_primer_tut": get(("Info", "PinballPrimerTut")),
+
+            # Metadata
+            "manufacturer": get(("Info", "Manufacturer"), ("table", "manufacturer")),
+            "year": get(("Info", "Year"), ("table", "year")),
+            "type": get(("Info", "Type"), ("table", "type")),
+            "themes": get(("Info", "Themes"), default=[]),
+            "authors": get(("table", "authors"), default=[]),
+            "rom": get(("table", "rom")),
+            "version": get(("table", "version")),
+            "filehash": get(("table", "file_hash")),
+            "vbshash": get(("table", "vbs_hash")),
+
+            # Detection flags (canonical lowercase keys)
+            "detectnfozzy": get(("table", "detect_nfozzy")),
+            "detectfleep": get(("table", "detect_fleep")),
+            "detectssf": get(("table", "detect_ssf")),
+            "detectlut": get(("table", "detect_lut")),
+            "detectscorebit": get(("table", "detect_scorbit")),
+            "detectfastflips": get(("table", "detect_fastflips")),
+            "detectflex": get(("table", "detect_flex")),
+
+            # Patching
+            "patch_applied": get(("table", "patch_applied"), default=False),
+
+            # Internal
+            "table_path": game_dir,
+
+            # Addon detection (check for directories)
+            "pup_pack_exists": (Path(game_dir) / "pupvideos").is_dir(),
+            "serum_exists": (Path(game_dir) / "serum").is_dir(),
+            "vni_exists": (Path(game_dir) / "vni").is_dir(),
+            "alt_sound_exists": (Path(game_dir) / "pinmame" / "altsound").is_dir(),
+
+            # VPinFE settings
+            "delete_nvram_on_close": vpinfe.get("delete_nvram_on_close", False),
+            "alt_launcher": (vpinfe.get("alt_launcher", "") or "").strip(),
+            "plugin_profile": (vpinfe.get("plugin_profile", "") or "").strip(),
+            "alt_title": (vpinfe.get("alt_title", "") or "").strip(),
+            "alt_vpsid": (vpinfe.get("alt_vpsid", "") or "").strip(),
+            "frontend_dof_event": (vpinfe.get("frontend_dof_event", "") or "").strip(),
+            "rating": game_service.normalize_game_rating(user.get("Rating", 0)),
+        }
+
+        return data
+
+    except Exception as e:
+        logger.error(f"Error reading {info_path}: {e}")
+        return {}
+
+def scan_games(silent: bool = False):
+    games_path = get_games_path()
+    if not os.path.exists(games_path):
+        logger.warning(f"Games path does not exist: {games_path}. Skipping scan.")
+        if not silent:
+            ui.notify("Tables path does not exist. Please, verify your vpinfe.ini settings", type="negative")
+        return []
+    return game_service.scan_game_rows(reload=False)
+
+def scan_missing_games():
+    return game_service.scan_missing_game_rows(reload=False)
+
+
+def load_metadata_from_ini():
+    return scan_games()
+
+def render_panel(tab=None):
+    with ui.column().classes('w-full'):
+        load_page_style("games.css")
+        # Define columns for the games table
+        columns = [
+            {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
+            {'name': 'manufacturer', 'label': 'Manufacturer', 'field': 'manufacturer', 'align': 'left', 'sortable': True},
+            {'name': 'year', 'label': 'Year', 'field': 'year', 'align': 'left', 'sortable': True},
+            {'name': 'rom', 'label': 'ROM', 'field': 'rom', 'align': 'left', 'sortable': True},
+            {'name': 'version', 'label': 'Version', 'field': 'version', 'align': 'left', 'sortable': True},
+            {'name': 'filename', 'label': 'Filename', 'field': 'filename', 'align': 'left', 'sortable': True},
+        ]
+
+        def on_row_click(e: events.GenericEventArguments):
+            if len(e.args) > 1:
+                clicked_row = e.args[1]
+                # Look up the actual row from the cache to get the latest data
+                # (the clicked row from Quasar is a copy that may be stale)
+                game_path = clicked_row.get('table_path', '')
+                row_data = clicked_row
+                cached_row = game_index_service.find_by_path(game_path) if game_path else None
+                if cached_row is not None:
+                    row_data = cached_row
+                # Pass update_game_display as callback to refresh the grid when the dialog closes
+                open_game_dialog(row_data, on_close=lambda: update_game_display())
+            else:
+                ui.notify("Error: Unexpected row click event format.", type="negative")
+
+        async def perform_scan(*_, silent: bool = False):
+            """Scans for games asynchronously and updates the UI.
+            If silent=True, suppress user notifications.
+            """
+            logger.info("Scanning games...")
+            # Keep UX simple: disable the Scan button during work, no pre-notify
+            try:
+                scan_btn.disable()
+            except Exception:
+                pass
+            try:
+                # Ensure vpsdb.json is downloaded and up-to-date
+                if not VPSDB_JSON_PATH.exists():
+                    if not silent:
+                        ui.notify('Downloading VPSdb...', type='info')
+                    await run.io_bound(ensure_vpsdb_downloaded)
+
+                # Pull rows from the shared startup-backed repository
+                game_rows, missing_rows = await run.io_bound(game_index_service.scan_game_data, True)
+
+                # Update UI components (default sort by Name; force refresh by reassigning rows)
+                try:
+                    game_rows.sort(key=lambda r: (r.get('name') or '').lower())
+                except Exception:
+                    pass
+
+                # Refresh filter options and apply current filters
+                try:
+                    refresh_filter_options()
+                    update_game_display()
+                except NameError:
+                    # Filters not yet created, just show all rows
+                    games_table._props['rows'] = game_rows
+                    games_table.update()
+                    title_label.set_text(f"Tables ({len(game_rows)})")
+
+                # Force browser layout recalculation to ensure table rows display properly
+                await asyncio.sleep(0.05)
+                # Trigger a window resize event to force the table to recalculate its layout
+                try:
+                    ui.run_javascript('window.dispatchEvent(new Event("resize"));')
+                except RuntimeError:
+                    pass  # Ignore if not in a valid UI context
+                missing_button.text = f"Unmatched Tables ({len(missing_rows)})"
+                # Update button color: green if 0, red if > 0
+                btn_color = "positive" if len(missing_rows) == 0 else "negative"
+                missing_button._props['color'] = btn_color
+                missing_button.update()
+
+                # Update the click handler for the missing-games button with the new data
+                missing_button.on('click', None) # Remove old handler
+                missing_button.on('click', lambda: open_missing_games_dialog(
+                    missing_rows,
+                    on_close=lambda: asyncio.create_task(perform_scan(silent=True))
+                ))
+
+                if not silent:
+                    ui.notify('Scan complete!', type='positive')
+            except Exception as e:
+                logger.exception("Failed to scan games")
+                if not silent:
+                    ui.notify(f"Error during scan: {e}", type='negative')
+            finally:
+                try:
+                    scan_btn.enable()
+                except Exception:
+                    pass
+
+        # --- Metadata build logic ---
+        RUNNING = False
+
+        def open_build_metadata_dialog():
+            """Show dialog with buildmeta options and progress display."""
+            nonlocal RUNNING
+            if RUNNING:
+                return
+
+            dlg = ui.dialog().props('persistent max-width=700px')
+
+            # State for this dialog instance
+            dialog_state = {
+                'running': False,
+                'log_messages': [],
+                'progress_q': Queue(),
+                'log_q': Queue(),
+            }
+
+            with dlg, dialog_card("650px"):
+                ui.label('Build Metadata').classes('text-xl font-bold').style('color: var(--ink);')
+                ui.separator()
+
+                # Options section (hidden during build)
+                options_container = ui.column().classes('gap-4 q-my-md w-full')
+                with options_container:
+                    update_all_switch = ui.switch('Update All Tables', value=False).classes('text-sm')
+                    ui.label('Reparse all tables, even if .info already exists').classes('text-xs q-ml-lg').style('color: var(--ink-muted);')
+
+                    download_media_switch = ui.switch('Download Media', value=True).classes('text-sm')
+                    ui.label('Automatically download table images and media from VPinMediaDB').classes('text-xs q-ml-lg').style('color: var(--ink-muted);')
+
+                # Progress section (shown during build)
+                progress_container = ui.column().classes('w-full gap-2')
+                progress_container.visible = False
+
+                with progress_container:
+                    progressbar = ui.linear_progress(value=0.0, show_value=False).classes('w-full')
+                    status_label = ui.label("Preparing...").classes("text-sm").style('color: var(--ink);')
+
+                    # Log output
+                    log_container = ui.column().classes("w-full p-3 overflow-auto").style("max-height: 250px; font-family: monospace; font-size: 11px; color: var(--ink); background: var(--surface); border: 1px solid var(--neon-purple); border-radius: var(--radius);")
+
+                # Buttons
+                buttons_container = ui.row().classes('justify-end gap-2 q-mt-md w-full')
+                with buttons_container:
+                    cancel_btn = ui.button('Cancel', on_click=dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                    start_btn = ui.button('Start Build', icon='build').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border: 1px solid var(--neon-cyan); border-radius: 18px; padding: 4px 10px;')
+                    close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px; padding: 4px 10px;')
+                    close_btn.visible = False
+
+                def pump_progress():
+                    updated = False
+                    while not dialog_state['progress_q'].empty():
+                        updated = True
+                        current, total, message = dialog_state['progress_q'].get_nowait()
+                        if total and total > 0:
+                            frac = max(0.0, min(1.0, current / total))
+                            percent = int(round(frac * 100))
+                            progressbar.value = frac
+                            status_label.text = f'{message} — {percent}%'
+                        else:
+                            progressbar.value = 0
+                            status_label.text = message or ''
+
+                    while not dialog_state['log_q'].empty():
+                        log_msg = dialog_state['log_q'].get_nowait()
+                        dialog_state['log_messages'].append(log_msg)
+                        if len(dialog_state['log_messages']) > 100:
+                            dialog_state['log_messages'].pop(0)
+                        updated = True
+
+                    if updated:
+                        log_container.clear()
+                        with log_container:
+                            for msg in dialog_state['log_messages']:
+                                ui.label(msg).classes("text-xs whitespace-pre-wrap").style('color: var(--ink);')
+
+                progress_timer = ui.timer(0.1, pump_progress, active=False)
+
+                def progress_cb(current: int, total: int, message: str):
+                    dialog_state['progress_q'].put((current, total, message))
+
+                def log_cb(message: str):
+                    dialog_state['log_q'].put(message)
+
+                async def do_build():
+                    nonlocal RUNNING
+                    if dialog_state['running']:
+                        return
+                    dialog_state['running'] = True
+                    RUNNING = True
+
+                    # Switch UI to progress mode
+                    options_container.visible = False
+                    progress_container.visible = True
+                    start_btn.visible = False
+                    cancel_btn.visible = False
+
+                    dialog_state['log_messages'].clear()
+                    log_container.clear()
+                    progressbar.value = 0
+                    status_label.text = "Preparing..."
+                    progress_timer.active = True
+
+                    try:
+                        result = await run.io_bound(
+                            game_service.build_metadata,
+                            downloadMedia=bool(download_media_switch.value),
+                            updateAll=bool(update_all_switch.value),
+                            progress_cb=progress_cb,
+                            log_cb=log_cb,
+                        )
+                        status_label.text = "Completed!"
+                        progressbar.value = 1.0
+
+                        # Show completion message in log
+                        msg = f'Build complete. {result["found"]} scanned, {result.get("not_found", 0)} not found in VPSdb'
+                        dialog_state['log_messages'].append(f"✓ {msg}")
+                        log_container.clear()
+                        with log_container:
+                            for m in dialog_state['log_messages']:
+                                ui.label(m).classes("text-white text-xs whitespace-pre-wrap")
+
+                        # Invalidate media cache so media page shows fresh data
+                        invalidate_media_cache()
+
+                        # Refresh the games list after completion
+                        await perform_scan(silent=True)
+                    except Exception as e:
+                        logger.exception('buildMetaData failed')
+                        status_label.text = f"Error: {e}"
+                        dialog_state['log_messages'].append(f"✗ Error: {e}")
+                        log_container.clear()
+                        with log_container:
+                            for m in dialog_state['log_messages']:
+                                ui.label(m).classes("text-white text-xs whitespace-pre-wrap")
+                    finally:
+                        progress_timer.active = False
+                        close_btn.visible = True
+                        dialog_state['running'] = False
+                        RUNNING = False
+
+                start_btn.on_click(lambda: asyncio.create_task(do_build()))
+
+            dlg.open()
+
+        # --- UI Layout ---
+        # Header section with page title and action buttons
+        with ui.card().classes('w-full mb-4 manager-page-header'):
+            with ui.row().classes('w-full justify-between items-center p-4 gap-4'):
+                ui.label('Tables Management').classes('text-2xl font-bold').style('color: var(--ink);').style('flex-shrink: 0;')
+                with ui.row().classes('gap-3 items-center flex-wrap'):
+                    scan_btn = ui.button("Scan Tables", icon="refresh", on_click=open_build_metadata_dialog).style('color: var(--ink) !important; background: var(--neon-purple) !important; border-radius: 0;')
+                    patch_btn = ui.button("Apply Patches", icon="construction").props("color=secondary").style('border-radius: 0;')
+                    # Start with green if no cached missing, will update after scan
+                    cached_missing = game_index_service.get_missing_rows()
+                    initial_missing_count = len(cached_missing) if cached_missing else 0
+                    initial_color = "positive" if initial_missing_count == 0 else "negative"
+                    missing_button = ui.button("Unmatched", icon="warning").props(f"color={initial_color}").style('border-radius: 0;')
+
+                    def open_patch_dialog():
+                        """Show dialog for applying VPX patches with progress display."""
+                        nonlocal RUNNING
+                        if RUNNING:
+                            return
+
+                        dlg = ui.dialog().props('persistent max-width=600px')
+
+                        dialog_state = {
+                            'running': False,
+                            'progress_q': Queue(),
+                            'client': context.client,  # Capture client while in UI context
+                        }
+
+                        with dlg, dialog_card("550px"):
+                            ui.label('Apply VPX Patches').classes('text-xl font-bold').style('color: var(--ink);')
+                            ui.separator()
+
+                            # Info section
+                            info_container = ui.column().classes('gap-2 q-my-md w-full')
+                            with info_container:
+                                ui.label('This will apply standalone patches to all tables that support them.').classes('text-sm').style('color: var(--ink-muted);')
+
+                            # Progress section (shown during patching)
+                            progress_container = ui.column().classes('w-full gap-2')
+                            progress_container.visible = False
+
+                            with progress_container:
+                                patch_progressbar = ui.linear_progress(value=0.0, show_value=False).classes('w-full')
+                                patch_status_label = ui.label("Preparing...").classes("text-sm text-white")
+
+                            # Buttons
+                            buttons_container = ui.row().classes('justify-end gap-2 q-mt-md w-full')
+                            with buttons_container:
+                                cancel_btn = ui.button('Cancel', on_click=dlg.close).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
+                                start_btn = ui.button('Start Build', icon='build').style('color: var(--neon-cyan) !important; background: var(--surface) !important; border-radius: 18px; padding: 4px 10px;')
+                                close_btn = ui.button('Close', on_click=dlg.close).style('color: var(--neon-purple) !important; background: var(--surface) !important; border-radius: 18px; padding: 4px 10px;')
+                                close_btn.visible = False
+
+                            def pump_patch_progress():
+                                while not dialog_state['progress_q'].empty():
+                                    current, total, message = dialog_state['progress_q'].get_nowait()
+                                    if total and total > 0:
+                                        frac = max(0.0, min(1.0, current / total))
+                                        percent = int(round(frac * 100))
+                                        patch_progressbar.value = frac
+                                        patch_status_label.text = f'{message} — {percent}%'
+                                    else:
+                                        patch_progressbar.value = 0
+                                        patch_status_label.text = message or ''
+
+                            patch_progress_timer = ui.timer(0.1, pump_patch_progress, active=False)
+
+                            def patch_progress_cb(current: int, total: int, message: str):
+                                dialog_state['progress_q'].put((current, total, message))
+
+                            async def do_patch():
+                                nonlocal RUNNING
+                                if dialog_state['running']:
+                                    return
+                                dialog_state['running'] = True
+                                RUNNING = True
+
+                                # Use client captured when dialog was created
+                                client = dialog_state['client']
+
+                                # Switch UI to progress mode
+                                with client:
+                                    info_container.visible = False
+                                    progress_container.visible = True
+                                    start_btn.visible = False
+                                    cancel_btn.visible = False
+
+                                    patch_progressbar.value = 0
+                                    patch_status_label.text = "Preparing..."
+                                    patch_progress_timer.active = True
+
+                                try:
+                                    await run.io_bound(game_service.apply_vpx_patches, progress_cb=patch_progress_cb)
+                                    with client:
+                                        patch_status_label.text = "Completed!"
+                                        patch_progressbar.value = 1.0
+                                        ui.notify('VPX patches applied', type='positive')
+
+                                    # Refresh games silently to reflect patch_applied flag
+                                    await perform_scan(silent=True)
+                                except Exception as e:
+                                    logger.exception('vpxPatches failed')
+                                    with client:
+                                        patch_status_label.text = f"Error: {e}"
+                                        ui.notify(f'Error: {e}', type='negative')
+                                finally:
+                                    with client:
+                                        patch_progress_timer.active = False
+                                        close_btn.visible = True
+                                    dialog_state['running'] = False
+                                    RUNNING = False
+
+                            start_btn.on_click(lambda: asyncio.create_task(do_patch()))
+
+                        dlg.open()
+
+                    patch_btn.on_click(open_patch_dialog)
+
+                    import_btn = ui.button("Import Table", icon="upload").props("color=accent").style('border-radius: 0;')
+
+                    import_btn.on_click(lambda: open_import_game_dialog(perform_scan))
+
+                    # Both info operations live behind one control, in the same place in
+                    # every release: whoever needs the restore has just downgraded.
+                    maintenance_menu(on_done=lambda: asyncio.create_task(perform_scan(silent=True)))
+
+        # What the page has to say about the .info files themselves: a game it could
+        # not read, news that the library was converted, or an offer to finish one.
+        render_info_banners(on_done=lambda: asyncio.create_task(perform_scan(silent=True)))
+
+        def _dnd_context() -> DropContext:
+            selected = games_table.selected or []
+            if len(selected) == 1:
+                row = selected[0]
+                return DropContext(game_path=row.get('table_path', ''), game_row=row,
+                                   rom_name=(row.get('rom') or '').strip(), allow_new_game=True)
+            return DropContext(allow_new_game=True)
+
+        def _dnd_row_context(row_key: str) -> DropContext | None:
+            row = next((r for r in (game_index_service.get_rows() or []) if r.get('vpinfe_id') == row_key), None)
+            if not row:
+                return None
+            return DropContext(game_path=row.get('table_path', ''), game_row=row,
+                               rom_name=(row.get('rom') or '').strip())
+
+        drop_zone = create_drop_zone(
+            label='Drop a table archive, folder, or asset file here to import',
+            get_context=_dnd_context,
+            on_imported=lambda _report: asyncio.create_task(perform_scan(silent=True)),
+        )
+
+        # Use cached data if available, otherwise start with empty
+        initial_rows = game_index_service.get_rows() if game_index_service.get_rows() is not None else []
+
+        # --- Filter state and functions ---
+        filter_state = {
+            'search': '',
+            'manufacturer': 'All',
+            'year': 'All',
+            'theme': 'All',
+            'table_type': 'All',
+            'has_pup_pack': False,
+            'has_b2s': False,
+        }
+
+        def get_filter_options_from_cache():
+            """Extract unique filter values from cached games."""
+            return build_game_filter_options(game_index_service.get_rows() or [])
+
+        def apply_filters():
+            """Filter the cached games based on current filter state."""
+            extra_predicates = []
+            if filter_state['has_pup_pack']:
+                extra_predicates.append(lambda row: row.get('pup_pack_exists', False))
+            if filter_state['has_b2s']:
+                extra_predicates.append(lambda row: row.get('b2s_exists', False))
+            return apply_game_filters(
+                game_index_service.get_rows() or [],
+                filter_state,
+                search_fields=('name', 'filename'),
+                extra_predicates=extra_predicates,
+            )
+
+        def update_game_display():
+            """Update the games table with filtered results."""
+            filtered = apply_filters()
+            games_table._props['rows'] = filtered
+            games_table.update()
+            # Update title with filtered count
+            total = len(game_index_service.get_rows() or [])
+            shown = len(filtered)
+            if shown == total:
+                title_label.set_text(f"Tables ({total})")
+            else:
+                title_label.set_text(f"Tables ({shown} of {total})")
+
+        def on_search_change(e: events.ValueChangeEventArguments):
+            filter_state['search'] = e.value or ''
+            update_game_display()
+
+        def on_manufacturer_change(e: events.ValueChangeEventArguments):
+            filter_state['manufacturer'] = e.value or 'All'
+            update_game_display()
+
+        def on_year_change(e: events.ValueChangeEventArguments):
+            filter_state['year'] = e.value or 'All'
+            update_game_display()
+
+        def on_theme_change(e: events.ValueChangeEventArguments):
+            filter_state['theme'] = e.value or 'All'
+            update_game_display()
+
+        def on_game_type_change(e: events.ValueChangeEventArguments):
+            filter_state['table_type'] = e.value or 'All'
+            update_game_display()
+
+        def on_pup_pack_change(e: events.ValueChangeEventArguments):
+            filter_state['has_pup_pack'] = e.value or False
+            update_game_display()
+
+        def on_b2s_change(e: events.ValueChangeEventArguments):
+            filter_state['has_b2s'] = e.value or False
+            update_game_display()
+
+        def clear_filters():
+            filter_state['search'] = ''
+            filter_state['manufacturer'] = 'All'
+            filter_state['year'] = 'All'
+            filter_state['theme'] = 'All'
+            filter_state['table_type'] = 'All'
+            filter_state['has_pup_pack'] = False
+            filter_state['has_b2s'] = False
+            search_input.value = ''
+            manufacturer_select.value = 'All'
+            year_select.value = 'All'
+            theme_select.value = 'All'
+            game_type_select.value = 'All'
+            pup_pack_checkbox.value = False
+            b2s_checkbox.value = False
+            games_table._props['pagination']['page'] = 1
+            update_game_display()
+
+        def refresh_filter_options():
+            """Update filter dropdowns with current cache values."""
+            opts = get_filter_options_from_cache()
+            manufacturer_select.options = opts['manufacturers']
+            year_select.options = opts['years']
+            theme_select.options = opts['themes']
+            game_type_select.options = opts['game_types']
+            manufacturer_select.update()
+            year_select.update()
+            theme_select.update()
+            game_type_select.update()
+
+        # --- Search and Filter UI ---
+        with ui.card().classes('w-full mb-4').style('border-radius: 8px; background: var(--surface); border: 1px solid var(--line);'):
+            ui.label('Filtering').classes('text-lg font-semibold px-4 pt-4').style('color: var(--ink);')
+            with ui.row().classes('w-full items-center gap-4 p-4 flex-wrap'):
+                # Search input
+                search_input = debounced_input(ui.input(placeholder='Search tables...')).props('outlined dense clearable').classes('flex-grow').style('min-width: 200px;')
+                search_input.on_value_change(on_search_change)
+
+                # Filter dropdowns
+                filter_opts = get_filter_options_from_cache()
+
+                manufacturer_select = ui.select(
+                    label='Manufacturer',
+                    options=filter_opts['manufacturers'],
+                    value='All'
+                ).props('outlined dense').classes('w-40')
+                manufacturer_select.on_value_change(on_manufacturer_change)
+
+                year_select = ui.select(
+                    label='Year',
+                    options=filter_opts['years'],
+                    value='All'
+                ).props('outlined dense').classes('w-32')
+                year_select.on_value_change(on_year_change)
+
+                theme_select = ui.select(
+                    label='Theme',
+                    options=filter_opts['themes'],
+                    value='All'
+                ).props('outlined dense').classes('w-40')
+                theme_select.on_value_change(on_theme_change)
+
+                game_type_select = ui.select(
+                    label='Type',
+                    options=filter_opts['game_types'],
+                    value='All'
+                ).props('outlined dense').classes('w-28')
+                game_type_select.on_value_change(on_game_type_change)
+
+                # PUP Pack checkbox
+                pup_pack_checkbox = ui.checkbox('PUP Pack', value=False).style('color: var(--ink);')
+                pup_pack_checkbox.on_value_change(on_pup_pack_change)
+
+                # Backglass (B2S) checkbox
+                b2s_checkbox = ui.checkbox('Backglass (B2S)', value=False).style('color: var(--ink);')
+                b2s_checkbox.on_value_change(on_b2s_change)
+
+                # Clear filters button
+                ui.button(icon='clear_all', on_click=clear_filters).props('flat round').tooltip('Clear all filters')
+
+        # Table title - centered below the filters
+        title_label = ui.label("Tables").classes('text-xl font-semibold text-center w-full py-2')
+
+        # Batch action bar for adding multiple tables to a collection at once
+        batch_bar = ui.card().classes('w-full mb-2').style(
+            'border-radius: var(--radius) !important; background: var(--surface) !important; border: 1px solid var(--line) !important;'
+        )
+        batch_bar.visible = False
+        with batch_bar:
+            with ui.row().classes('w-full items-center gap-4 p-3'):
+                batch_label = ui.label('0 tables selected').classes('font-medium').style('color: var(--ink);')
+                batch_collection_select = ui.select(
+                    label='Add to Collection',
+                    options=game_service.get_game_collections(),
+                    value=None
+                ).props('dense').classes('w-48').style('color: var(--ink); border: 1px solid var(--line);')
+                batch_add_btn = ui.button('Add to Collection', icon='playlist_add').style('background: var(--neon-purple) !important; color: var(--ink) !important;')
+
+        def on_selection_change(e):
+            selected = e.selection
+            if selected:
+                batch_bar.visible = True
+                count = len(selected)
+                batch_label.set_text(f'{count} table{"s" if count != 1 else ""} selected')
+            else:
+                batch_bar.visible = False
+
+        # Create a scrollable container for the table with proper height constraint
+        table_container = ui.column().classes("w-full").style("flex: 1; overflow: hidden; display: flex;")
+
+        with table_container:
+            games_table = (
+                ui.table(columns=columns, rows=initial_rows, row_key='vpinfe_id', selection='multiple',
+                         on_select=on_selection_change, pagination={'rowsPerPage': 25})
+                  .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
+                  .on('row-click', on_row_click)
+                  .classes("w-full cursor-pointer")
+                  .style("flex: 1; overflow: auto;")
+            )
+            # Add custom slot for name column to include status badges, links, and collections
+            games_table.add_slot('body-cell-name', '''
+                <q-td :props="props" :data-drop-table-id="props.row.vpinfe_id">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 1.08rem; font-weight: 600; line-height: 1.25; color: var(--ink);">{{ props.value }}</span>
+                            <span v-if="Number(props.row.rating || 0) > 0" style="font-size: 0.9em; white-space: nowrap;">
+                                <span style="color: #facc15;">{{ '★'.repeat(Math.max(0, Math.min(5, Number(props.row.rating || 0)))) }}</span><span style="color: #64748b;">{{ '☆'.repeat(5 - Math.max(0, Math.min(5, Number(props.row.rating || 0)))) }}</span>
+                            </span>
+                            <q-badge
+                                v-if="props.row.alt_launcher"
+                                color="orange-8"
+                                text-color="white"
+                                label="ALT-L"
+                                style="font-size: 10px; padding: 2px 6px;"
+                            />
+                            <q-badge
+                                v-if="props.row.alt_title"
+                                color="cyan-8"
+                                text-color="white"
+                                label="ALT-T"
+                                style="font-size: 10px; padding: 2px 6px;"
+                            />
+                            <q-badge
+                                v-if="props.row.alt_vpsid"
+                                color="indigo-8"
+                                text-color="white"
+                                label="ALT-VPS"
+                                style="font-size: 10px; padding: 2px 6px;"
+                            />
+                        </div>
+                        <div
+                            v-if="props.row.ipdb_id || props.row.vpsid || props.row.pinball_primer_tut"
+                            style="display: flex; flex-wrap: wrap; gap: 4px;"
+                        >
+                            <a v-if="props.row.ipdb_id"
+                               :href="'https://www.ipdb.org/machine.cgi?id=' + props.row.ipdb_id"
+                               target="_blank"
+                               @click.stop
+                               style="text-decoration: none;">
+                                <q-badge color="yellow-8" text-color="black" label="IPDB" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
+                            </a>
+                            <a v-if="props.row.vpsid"
+                               :href="'https://virtualpinballspreadsheet.github.io/?game=' + props.row.vpsid"
+                               target="_blank"
+                               @click.stop
+                               style="text-decoration: none;">
+                                <q-badge color="blue-8" text-color="white" label="VPS" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
+                            </a>
+                            <a v-if="props.row.vpsid"
+                               :href="'https://www.vpinplay.com/tables?vpsid=' + encodeURIComponent(props.row.vpsid)"
+                               target="_blank"
+                               @click.stop
+                               style="text-decoration: none;">
+                                <q-badge color="purple-8" text-color="white" label="VPinPlay" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
+                            </a>
+                            <a v-if="props.row.pinball_primer_tut"
+                               :href="props.row.pinball_primer_tut"
+                               target="_blank"
+                               @click.stop
+                               style="text-decoration: none;">
+                                <q-badge color="green-8" text-color="white" label="PP" style="font-size: 10px; padding: 2px 6px; cursor: pointer;" />
+                            </a>
+                        </div>
+                        <div
+                            v-if="props.row.collections && props.row.collections.length > 0"
+                            style="display: flex; flex-wrap: wrap; gap: 4px;"
+                        >
+                            <q-badge v-for="col in props.row.collections" :key="col"
+                                     text-color="white" :label="col"
+                                     style="background: rgba(148, 163, 184, 0.16); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.45); border-radius: 999px; font-size: 9px; font-weight: 500; padding: 2px 7px;" />
+                        </div>
+                    </div>
+                </q-td>
+            ''')
+            # Add top pagination controls (styled to match bottom)
+            games_table.add_slot('top', '''
+                <div class="row full-width items-center justify-end q-pa-sm"
+                     style="background-color: var(--surface); color: var(--ink); border-bottom: 1px solid var(--line); border-radius: var(--radius);">
+                    <q-btn flat round dense icon="first_page" :disable="props.isFirstPage" @click="props.firstPage" size="sm" style="color: var(--ink-muted);" />
+                    <q-btn flat round dense icon="chevron_left" :disable="props.isFirstPage" @click="props.prevPage" size="sm" style="color: var(--ink-muted);" />
+                    <span class="q-mx-sm" style="font-size: 0.85rem; color: #94a3b8;">
+                        Page {{ props.pagination.page }} of {{ props.pagesNumber }}
+                    </span>
+                    <q-btn flat round dense icon="chevron_right" :disable="props.isLastPage" @click="props.nextPage" size="sm" style="color: var(--ink-muted);" />
+                    <q-btn flat round dense icon="last_page" :disable="props.isLastPage" @click="props.lastPage" size="sm" style="color: var(--ink-muted);" />
+                </div>
+            ''')
+            # Add bottom with Select All checkbox alongside pagination
+            games_table.add_slot('bottom', '''
+                <div class="row full-width items-center q-pa-sm"
+                     style="background-color: var(--surface); color: var(--ink); border-top: 1px solid var(--line);">
+                    <q-checkbox
+                        :model-value="(() => {
+                            const sel = $parent.selected || [];
+                            const rows = $parent.rows || [];
+                            const p = props.pagination;
+                            const start = (p.page - 1) * p.rowsPerPage;
+                            const pageRows = rows.slice(start, start + p.rowsPerPage);
+                            if (!pageRows.length) return false;
+                            const selKeys = new Set(sel.map(r => r.vpinfe_id));
+                            return pageRows.every(r => selKeys.has(r.vpinfe_id));
+                        })()"
+                        @update:model-value="() => $parent.$emit('toggle_select_all')"
+                        label="Select Page"
+                        dark
+                        dense
+                        color="primary"
+                        style="color: var(--ink);"
+                    />
+                    <q-space />
+                    <span class="q-mr-sm" style="font-size: 0.85rem;">Rows per page:</span>
+                    <q-select
+                        :model-value="props.pagination.rowsPerPage"
+                        :options="[25, 50, 100]"
+                        @update:model-value="val => $parent.$emit('update:pagination', Object.assign({}, props.pagination, {rowsPerPage: val, page: 1}))"
+                        dense
+                        borderless
+                        dark
+                        emit-value
+                        map-options
+                        options-dense
+                        style="min-width: 50px; color: #e2e8f0;"
+                    />
+                    <q-space />
+                    <q-btn flat round dense icon="first_page" :disable="props.isFirstPage" @click="props.firstPage" size="sm" style="color: var(--ink-muted);" />
+                    <q-btn flat round dense icon="chevron_left" :disable="props.isFirstPage" @click="props.prevPage" size="sm" style="color: var(--ink-muted);" />
+                    <span class="q-mx-sm" style="font-size: 0.85rem;">
+                        Page {{ props.pagination.page }} of {{ props.pagesNumber }}
+                    </span>
+                    <q-btn flat round dense icon="chevron_right" :disable="props.isLastPage" @click="props.nextPage" size="sm" style="color: var(--ink-muted);" />
+                    <q-btn flat round dense icon="last_page" :disable="props.isLastPage" @click="props.lastPage" size="sm" style="color: var(--ink-muted);" />
+                </div>
+            ''')
+
+            enable_row_drops(drop_zone, games_table, _dnd_row_context)
+
+        # Wire up batch add-to-collection button
+        def on_batch_add():
+            collection = batch_collection_select.value
+            if not collection:
+                ui.notify('Please select a collection', type='warning')
+                return
+            selected = games_table.selected
+            if not selected:
+                ui.notify('No tables selected', type='warning')
+                return
+            added = 0
+            skipped = 0
+            for row in selected:
+                game_id = row.get('vpinfe_id', '')
+                if game_id:
+                    if add_game_to_collection(game_id, collection):
+                        added += 1
+                else:
+                    skipped += 1
+            if added > 0:
+                msg = f'Added {added} table{"s" if added != 1 else ""} to {collection}'
+                if skipped > 0:
+                    msg += f' ({skipped} skipped - no table id)'
+                ui.notify(msg, type='positive')
+                games_table.selected.clear()
+                games_table.update()
+                batch_bar.visible = False
+                batch_collection_select.value = None
+                update_game_display()
+            else:
+                ui.notify('No tables could be added (missing VPS IDs)', type='warning')
+
+        batch_add_btn.on_click(on_batch_add)
+
+        # Handle Select All toggle from the bottom slot checkbox (current page only)
+        def on_toggle_select_all(e):
+            rows = games_table._props.get('rows', [])
+            pagination = games_table._props.get('pagination', {})
+            page = pagination.get('page', 1)
+            per_page = pagination.get('rowsPerPage', 25)
+            start = (page - 1) * per_page
+            end = start + per_page
+            page_rows = rows[start:end]
+
+            # If all current page rows are already selected, deselect them; otherwise select them
+            selected_keys = {r.get('vpinfe_id') for r in games_table.selected}
+            page_keys = {r.get('vpinfe_id') for r in page_rows}
+            all_page_selected = page_keys.issubset(selected_keys) and len(page_keys) > 0
+
+            if all_page_selected:
+                # Deselect current page rows (keep others)
+                games_table.selected = [r for r in games_table.selected if r.get('vpinfe_id') not in page_keys]
+            else:
+                # Add current page rows to selection (avoid duplicates)
+                for r in page_rows:
+                    if r.get('vpinfe_id') not in selected_keys:
+                        games_table.selected.append(r)
+            games_table.update()
+            # Update batch bar
+            if games_table.selected:
+                batch_bar.visible = True
+                count = len(games_table.selected)
+                batch_label.set_text(f'{count} table{"s" if count != 1 else ""} selected')
+            else:
+                batch_bar.visible = False
+
+        games_table.on('toggle_select_all', on_toggle_select_all)
+
+        # Update missing button if we have cached data
+        cached_missing = game_index_service.get_missing_rows()
+        if cached_missing is not None:
+            missing_button.text = f"Unmatched Tables ({len(cached_missing)})"
+            # Update button color: green if 0, red if > 0
+            btn_color = "positive" if len(cached_missing) == 0 else "negative"
+            missing_button._props['color'] = btn_color
+            missing_button.on('click', lambda: open_missing_games_dialog(
+                cached_missing,
+                on_close=lambda: asyncio.create_task(perform_scan(silent=True))
+            ))
+
+        # Function to refresh the table display
+        async def refresh_game_on_startup():
+            if game_index_service.get_rows() is not None:
+                # Refresh filter options and apply filters from cache
+                refresh_filter_options()
+                update_game_display()
+            else:
+                # No cache, run the scan
+                await perform_scan(silent=True)
+            # Trigger resize to ensure proper rendering
+            try:
+                ui.run_javascript('window.dispatchEvent(new Event("resize"));')
+            except RuntimeError:
+                pass
+
+        # Use a one-shot timer to ensure table loads after UI is ready
+        async def startup_refresh():
+            await asyncio.sleep(0.2)  # Wait for UI to be ready
+            await refresh_game_on_startup()
+
+        ui.timer(0.1, lambda: asyncio.create_task(startup_refresh()), once=True)

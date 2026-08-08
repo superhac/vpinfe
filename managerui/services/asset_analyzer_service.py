@@ -1,3 +1,9 @@
+"""Working out what is inside something the user dropped on us.
+
+A zip, a folder or a loose file all become the same answer: which of these are media,
+which is the table, and which we do not recognise. Nothing is moved at this stage.
+"""
+
 from __future__ import annotations
 
 import fnmatch
@@ -7,12 +13,13 @@ import shutil
 import sys
 import tempfile
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 
 from managerui.services.asset_registry import (
     ARCHIVE_EXTENSIONS,
+    is_readme,
     match_media_key,
     spec_for,
 )
@@ -34,6 +41,9 @@ _CHUNK = 1024 * 1024
 
 _JUNK_COMPONENTS = {"__macosx", ".ds_store", "thumbs.db", "desktop.ini"}
 _ROM_SUFFIXES = {".bin", ".rom", ".cpu", ".snd", ".dat"}
+# Serum ships in two formats; .cROMc is as common as .cRZ. Read from the registry so the
+# archive path and the bare-file path cannot drift - they had already drifted once.
+_SERUM_SUFFIXES = frozenset(spec_for("altcolor_serum").extensions)
 _VIDEO_SUFFIXES = {".mp4", ".avi", ".mkv", ".webm"}
 _AUDIO_SUFFIXES = {".mp3", ".ogg", ".wav"}
 _ALTSOUND_MARKERS = {"altsound.csv", "g-sound.csv"}
@@ -60,6 +70,7 @@ class DetectedAsset:
     media_key: str = ""
     size: int = 0
     detail: str = ""
+    preview: str = ""       # inline text for readme kinds, shown in the confirm dialog
 
 
 @dataclass(frozen=True)
@@ -67,7 +78,7 @@ class AnalysisResult:
     source_kind: str
     source_name: str
     assets: tuple[DetectedAsset, ...]
-    has_table: bool
+    has_game: bool
     notes: tuple[str, ...] = ()
     error: str = ""
     unrecognized: tuple[str, ...] = ()   # source-relative paths that no rule claimed
@@ -94,6 +105,8 @@ def _clean_name(raw: str) -> str:
 
 
 class ZipSource:
+    """An AssetSource backed by a zip archive."""
+
     def __init__(self, path: Path) -> None:
         self.name = path.name
         self.kind = "zip"
@@ -130,6 +143,8 @@ class ZipSource:
 
 
 class RarSource:
+    """An AssetSource backed by a rar archive."""
+
     def __init__(self, path: Path) -> None:
         self.name = path.name
         self.kind = "rar"
@@ -166,6 +181,8 @@ class RarSource:
 
 
 class SevenZipSource:
+    """An AssetSource backed by a 7z archive."""
+
     def __init__(self, path: Path) -> None:
         self.name = path.name
         self.kind = "7z"
@@ -203,6 +220,8 @@ class SevenZipSource:
 
 
 class DirSource:
+    """An AssetSource backed by a plain directory."""
+
     def __init__(self, path: Path) -> None:
         self.name = path.name
         self.kind = "dir"
@@ -318,16 +337,16 @@ def open_source(path: Path) -> AssetSource:
         return ZipSource(path)
     if ext == ".rar":
         if rarfile is None:
-            raise _MissingBackend("RAR support requires the 'rarfile' package")
+            raise _MissingBackendError("RAR support requires the 'rarfile' package")
         return RarSource(path)
     if ext == ".7z":
         if py7zr is None:
-            raise _MissingBackend("7z support requires the 'py7zr' package")
+            raise _MissingBackendError("7z support requires the 'py7zr' package")
         return SevenZipSource(path)
     return SingleFileSource(path)
 
 
-class _MissingBackend(RuntimeError):
+class _MissingBackendError(RuntimeError):
     pass
 
 
@@ -388,21 +407,21 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
         return picked
 
     # 1. Table
-    has_table = False
+    has_game = False
     vpx_dirs: set[str] = set()
     for e in list(unclaimed()):
         if _suffix(e.arcname) == ".vpx":
             claimed.add(e.path)
-            has_table = True
+            has_game = True
             vpx_dirs.add(_parent(e.arcname))
             assets.append(DetectedAsset("table", "Table", (e,), size=e.size, detail=_basename(e.arcname)))
 
-    # 1b. Table metadata — bundle-scoped only: a .info beside a claimed .vpx. A lone
+    # 1b. Game metadata — bundle-scoped only: a .info beside a claimed .vpx. A lone
     # .info stays unrecognized (wholesale metadata replacement is never inferred).
     for e in list(unclaimed()):
         if _suffix(e.arcname) == ".info" and _parent(e.arcname) in vpx_dirs:
             claimed.add(e.path)
-            assets.append(DetectedAsset("table_info", "Metadata", (e,), size=e.size,
+            assets.append(DetectedAsset("game_info", "Metadata", (e,), size=e.size,
                                         detail=_basename(e.arcname)))
 
     # 2. Backglass
@@ -443,7 +462,7 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
 
     # 6. AltColor
     for e in list(unclaimed()):
-        if _suffix(e.arcname) == ".crz":
+        if _suffix(e.arcname) in _SERUM_SUFFIXES:
             claimed.add(e.path)
             assets.append(DetectedAsset("altcolor_serum", "Serum Color", (e,), size=e.size, detail=_basename(e.arcname)))
     vni_by_dir: dict[str, list[SourceEntry]] = {}
@@ -472,11 +491,29 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
                 claimed.add(e.path)
                 assets.append(DetectedAsset("rom", "ROM", (e,), size=e.size, detail=_basename(e.arcname)))
 
+    # 7b. Patch. A .dif is a delta against one exact base table, not an installable
+    # artifact - it is
+    # claimed so the user is told what it is, never so it can be installed alone.
+    for e in list(unclaimed()):
+        if _suffix(e.arcname) == ".dif":
+            claimed.add(e.path)
+            assets.append(DetectedAsset("patch", "Table Patch", (e,), size=e.size,
+                                        detail=_basename(e.arcname)))
+
     # 8. INI
     for e in list(unclaimed()):
         if _suffix(e.arcname) == ".ini":
             claimed.add(e.path)
             assets.append(DetectedAsset("ini", "Table INI", (e,), size=e.size, detail=_basename(e.arcname)))
+
+    # 8b. The author's own notes - readme* any extension, and .nfo. Before media,
+    # so a readme.png is the notes image, not wheel art. Narrow by design: a
+    # blanket .txt would misfile alias.txt and its kin.
+    for e in list(unclaimed()):
+        if is_readme(_basename(e.arcname)):
+            claimed.add(e.path)
+            assets.append(DetectedAsset("readme", spec_for("readme").label, (e,),
+                                        size=e.size, detail=_basename(e.arcname)))
 
     # 9. Media
     for e in list(unclaimed()):
@@ -488,7 +525,7 @@ def _analyze_entries(entries: list[SourceEntry]) -> tuple[list[DetectedAsset], l
                 size=e.size, detail=f"{_basename(e.arcname)} → {media_key}"))
 
     unrecognized = tuple(e.arcname for e in files if e.path not in claimed)
-    return assets, notes, has_table, unrecognized
+    return assets, notes, has_game, unrecognized
 
 
 def _dedupe_roots(roots: list[str]) -> list[str]:
@@ -552,11 +589,42 @@ def _is_rom_suffix(arcname: str) -> bool:
     suffix = _suffix(arcname)
     if suffix in _ROM_SUFFIXES:
         return True
+    # Media first: .mp3 and .mp4 would otherwise read as chip names below, and a flat
+    # archive of audio would be claimed as a ROM.
+    if suffix in _AUDIO_SUFFIXES or suffix in _VIDEO_SUFFIXES:
+        return False
+    # PinMAME chip names run to three characters - lahsnd.u21, lahdispa.106, lahcpua.112.
+    # A two-character cap accepted .u7 and rejected its siblings, and since the caller
+    # requires every member to match, one rejection sank the whole archive.
     ext = suffix.lstrip(".")
-    return 1 <= len(ext) <= 2 and ext[-1:].isdigit()
+    return 1 <= len(ext) <= 3 and ext[-1:].isdigit()
 
 
 _INFO_MAX_BYTES = 2 * 1024 * 1024
+
+
+_README_PREVIEW_BYTES = 64 * 1024
+_README_PREVIEW_CHARS = 4000
+
+
+def _readme_preview(source: AssetSource, asset: DetectedAsset) -> str:
+    """The text shown inline in the confirm dialog. Best-effort: an unreadable or
+    binary readme just shows no preview, never blocks the import."""
+    entry = asset.entries[0]
+    if entry.size > _README_PREVIEW_BYTES or entry.arcname.lower().endswith(
+            (".png", ".jpg", ".jpeg", ".webp", ".gif", ".pdf")):
+        return ""
+    with tempfile.TemporaryDirectory() as scratch:
+        dest = Path(scratch) / "readme"
+        try:
+            source.extract_member(entry.path, dest)
+            text = dest.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            return ""
+    text = text.strip()
+    if len(text) > _README_PREVIEW_CHARS:
+        text = text[:_README_PREVIEW_CHARS] + "\n..."
+    return text
 
 
 def _read_bundle_info(source: AssetSource, asset: DetectedAsset) -> dict | None:
@@ -584,7 +652,7 @@ def analyze_path(path: Path) -> AnalysisResult:
     path = Path(path)
     try:
         source = open_source(path)
-    except _MissingBackend as exc:
+    except _MissingBackendError as exc:
         return AnalysisResult(_source_kind(path), path.name, (), False, error=str(exc))
     except Exception:
         logger.exception("Failed to open source: %s", path)
@@ -607,16 +675,19 @@ def analyze_path(path: Path) -> AnalysisResult:
             logger.exception("Failed to list source: %s", path)
             return AnalysisResult(source.kind, source.name, (), False, error="Could not read the dropped item")
 
-        assets, notes, has_table, unrecognized = _analyze_entries(entries)
+        assets, notes, has_game, unrecognized = _analyze_entries(entries)
 
         # A bundle .info is read up front (it is tiny) so its content can seed the
         # import dialog and be validated before anything is written.
+        assets = [replace(a, preview=_readme_preview(source, a)) if a.kind == "readme" else a
+                  for a in assets]
+
         bundle_info = None
-        info_assets = [a for a in assets if a.kind == "table_info"]
+        info_assets = [a for a in assets if a.kind == "game_info"]
         if info_assets:
             bundle_info = _read_bundle_info(source, info_assets[0])
             if bundle_info is None:
-                assets = [a for a in assets if a.kind != "table_info"]
+                assets = [a for a in assets if a.kind != "game_info"]
                 unrecognized = unrecognized + tuple(e.arcname for e in info_assets[0].entries)
                 notes = list(notes) + ["bundle .info is not valid metadata and was skipped"]
     finally:
@@ -625,7 +696,7 @@ def analyze_path(path: Path) -> AnalysisResult:
     if not assets:
         return AnalysisResult(source.kind, source.name, (), False, tuple(notes),
                               error="No recognized assets found", unrecognized=unrecognized)
-    return AnalysisResult(source.kind, source.name, tuple(assets), has_table, tuple(notes),
+    return AnalysisResult(source.kind, source.name, tuple(assets), has_game, tuple(notes),
                           unrecognized=unrecognized, bundle_info=bundle_info)
 
 

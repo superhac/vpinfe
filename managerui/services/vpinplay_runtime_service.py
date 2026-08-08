@@ -1,3 +1,5 @@
+"""Switching the active VPinPlay profile for the session."""
+
 from __future__ import annotations
 
 import json
@@ -6,14 +8,13 @@ from html import unescape
 from typing import Any
 from xml.etree import ElementTree
 
-from common.vpinplay_runtime import (
+from common.online.vpinplay_runtime import (
     activate_alternate_profile,
     clear_alternate_profile,
     get_alternate_profile_state,
     set_active_profile,
     validate_profile_payload,
 )
-
 
 _PAYLOAD_COMMENT_RE = re.compile(r"<!--\s*VPINPLAY_PAYLOAD:(.*?)-->", re.DOTALL)
 

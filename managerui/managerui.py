@@ -1,46 +1,51 @@
+"""The Manager UI itself: the shell, the header, and the pages hung off it."""
+
 from __future__ import annotations
+
 import logging
 
 from common.paths import configure_nicegui_storage
 
-
 _NICEGUI_STORAGE_PATH = configure_nicegui_storage()
 
-from nicegui import ui, app, context
-from fastapi.responses import JSONResponse
-from .pages import tables as tab_tables
-from .pages import vpinfe_config as tab_vpinfe
-from .pages import vpx_config as tab_vpx_config
-from .pages import vpx_plugins as tab_vpx_plugins
-from .pages import collections as tab_collections
-from .pages import media as tab_media
-from .pages import themes as tab_themes
-from .pages import system as tab_system
-from .pages import mobile as tab_mobile
-from .pages import vpinplay as tab_vpinplay
-from .pages import vpinplay_player as tab_vpinplay_player
-from .pages import logs as tab_logs
-from .page_registry import NAV_PAGES, PAGE_ALIASES
-from .services import app_control
-from .services.archive_service import cleanup_archive, create_vpxz_archive
-from .ui_helpers import load_manager_styles, nav_button, run_page_teardowns, set_shell_save_bar
-from . import upload_api
 import asyncio
-import threading
 import os
 import socket
+import threading
 import time
+
+from nicegui import app, context, ui
+
 from common.app_version import get_version
-from common.app_updater import (
+from common.online.app_updater import (
     check_for_updates as check_for_app_updates,
+)
+from common.online.app_updater import (
     launch_prepared_update,
     prepare_update,
 )
+
+from .page_registry import NAV_PAGES, PAGE_ALIASES
+from .pages import collections as tab_collections
+from .pages import games as tab_games
+from .pages import logs as tab_logs
+from .pages import media as tab_media
+from .pages import mobile as tab_mobile
+from .pages import system as tab_system
+from .pages import themes as tab_themes
+from .pages import vpinfe_config as tab_vpinfe
+from .pages import vpinplay as tab_vpinplay
+from .pages import vpinplay_player as tab_vpinplay_player
+from .pages import vpx_config as tab_vpx_config
+from .pages import vpx_plugins as tab_vpx_plugins
+from .services import app_control
+from .ui_helpers import load_manager_styles, nav_button, run_page_teardowns, set_shell_save_bar
 
 logger = logging.getLogger("vpinfe.manager.ui")
 
 # Shutdown event — set by _quit_app() to unblock headless mode
 import threading as _threading
+
 _shutdown_event = _threading.Event()
 
 # First-run flag — set by main.py when no vpinfe.ini existed
@@ -49,12 +54,6 @@ _first_run = False
 def set_first_run(value: bool = True):
     global _first_run
     _first_run = value
-
-# Shared state for remote launch notifications
-_remote_launch_state = {
-    'launching': False,
-    'table_name': None,
-}
 
 # Cache for release check result (check once per session)
 _update_check_cache = {
@@ -114,7 +113,7 @@ def check_for_updates() -> dict:
 
 
 _PAGE_RENDERERS = {
-    'tables': tab_tables.render_panel,
+    'games': tab_games.render_panel,
     'collections': tab_collections.render_panel,
     'media': tab_media.render_panel,
     'themes': tab_themes.render_panel,
@@ -170,7 +169,7 @@ def header():
                     with page_client:
                         ui.notify('Update staged. Restarting VPinFE...', type='positive')
                         _force_exit_after_update()
-                        app_control.quit_app()
+                        await app_control.quit_app()
                 except Exception as e:
                     with page_client:
                         ui.notify(f'Update failed: {e}', type='negative')
@@ -271,7 +270,7 @@ def build_app(page_param: str = '', dialog_param: str = ''):
             nav_panel.classes(add='nav-panel-collapsed')
             nav_state['nav_content'].classes(add='nav-collapsed')
             nav_state['remote_container'].classes(add='nav-collapsed')
-            ui.query('body').classes(add='nav-is-collapsed') 
+            ui.query('body').classes(add='nav-is-collapsed')
             nav_state['nav_label'].set_visibility(False)
             content_container.classes(add='nav-collapsed-content', remove='nav-expanded')
 
@@ -333,7 +332,7 @@ def build_app(page_param: str = '', dialog_param: str = ''):
     elif page_param:
         initial_page = page_param
     else:
-        initial_page = 'tables'
+        initial_page = 'games'
     show_page(initial_page)
 
     # Show dialog if requested via URL param, or first-run dialog
@@ -396,62 +395,6 @@ def mobile_page():
     load_manager_styles()
     tab_mobile.build()
 
-
-# Asset upload/import API — routes defined in their own module.
-upload_api.register_routes(app)
-
-
-# API endpoint for remote launch state (polled by frontend themes)
-@app.get('/api/remote-launch')
-def get_remote_launch_state():
-    """Returns current remote launch state for frontend to poll."""
-    return JSONResponse(
-        content=_remote_launch_state,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
-
-
-@app.get('/api/download-table-vpxz')
-def download_table_vpxz(name: str, download_token: str | None = None):
-    """Zip a table folder and serve it as a .vpxz download, then clean up."""
-    from starlette.responses import FileResponse
-    from starlette.background import BackgroundTask
-
-    try:
-        archive = create_vpxz_archive(name)
-    except ValueError:
-        return JSONResponse(content={"error": "Invalid table path"}, status_code=400)
-    except FileNotFoundError:
-        return JSONResponse(content={"error": "Table not found"}, status_code=404)
-
-    logger.info("Created download archive: %s", archive.path)
-
-    def cleanup():
-        cleanup_archive(archive)
-        logger.info("Cleaned up temp archive: %s", archive.temp_dir)
-
-    headers = {}
-    if download_token and download_token.isalnum():
-        headers["Set-Cookie"] = f"vpinfe_vpxz_download_{download_token}=1; Max-Age=60; Path=/; SameSite=Lax"
-
-    return FileResponse(
-        archive.path,
-        media_type='application/octet-stream',
-        filename=archive.filename,
-        headers=headers,
-        background=BackgroundTask(cleanup),
-    )
-
-
-def set_remote_launch_state(launching: bool, table_name: str = None):
-    """Set the remote launch state (called by remote.py)."""
-    global _remote_launch_state
-    _remote_launch_state['launching'] = launching
-    _remote_launch_state['table_name'] = table_name
 
 # keep a reference to the running thread
 _ui_thread = None

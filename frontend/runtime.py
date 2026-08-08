@@ -1,35 +1,53 @@
+"""Starting the frontend and stopping it again.
+
+The order matters more than it looks: servers before windows, and every exit path
+through `shutdown_services`, which is what writes the session's play data.
+"""
+
 from __future__ import annotations
 
 import os
-import signal
 import threading
 import time
 from pathlib import Path
 
+from common import shutdown
+from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
+from common.host import system_actions
+from common.host.display_service import get_display_monitors
+from common.online.vpinplay_runtime import clear_alternate_profile
+from frontend import play_events
 from frontend.api import API
 from frontend.chromium_manager import ChromiumManager
-from frontend.customhttpserver import CustomHTTPServer
+from frontend.custom_http_server import CustomHTTPServer
 from frontend.ws_bridge import WebSocketBridge
-from common import system_actions
-from common.config_access import DisplayConfig, NetworkConfig, SettingsConfig
-from common.display_service import get_display_monitors
-from common.vpinplay_runtime import clear_alternate_profile
 
 
-WINDOW_CONFIGS = (
-    ("bg", "bgscreenid"),
-    ("dmd", "dmdscreenid"),
-    ("table", "tablescreenid"),
-)
+def window_configs(iniconfig=None):
+    """(window name, monitor key) for each window the active theme declares.
+
+    Derived rather than fixed: a theme names its own windows, and the default depends on
+    which contract it was written against - which is what keeps index_table.html working
+    without a fallback lookup.
+    """
+    from frontend import theme_api, theme_contract, theme_windows
+
+    theme_dir = None
+    if iniconfig is not None:
+        theme_dir = theme_api.resolve_theme_dir(theme_api.get_theme_name(iniconfig))
+    contract = theme_contract.declared_contract(theme_dir) if theme_dir else 1
+    windows = theme_windows.declared_windows(theme_dir, contract)
+    return [(name, theme_windows.screen_key(name)) for name in windows]
 
 
 def create_api_instances(iniconfig, logger):
+    _apply_theme_media_sets(iniconfig, logger)
     network = NetworkConfig.from_config(iniconfig)
     displays = DisplayConfig.from_config(iniconfig)
     ws_bridge = WebSocketBridge(port=network.ws_port)
     frontend_browser = ChromiumManager()
 
-    for window_name, config_key in WINDOW_CONFIGS:
+    for window_name, config_key in window_configs(iniconfig):
         screen_id_str = displays.window_screen_id(config_key).strip()
         if not screen_id_str:
             continue
@@ -42,9 +60,33 @@ def create_api_instances(iniconfig, logger):
         )
         api._finish_setup()
         ws_bridge.register_api(window_name, api)
-        logger.info("Registered API for window '%s'", window_name)
+        logger.debug("Registered API for window '%s'", window_name)
+
+    # Once, against the shared bridge - not once per window, which would send
+    # every launch message three times.
+    play_events.register(ws_bridge, frontend_browser, iniconfig)
 
     return ws_bridge, frontend_browser
+
+
+def _apply_theme_media_sets(iniconfig, logger) -> None:
+    """Push the active theme's set choices down to media resolution.
+
+    common/ cannot read theme.json (layering), so the frontend does it once at
+    boot, before the first scan. The ini's [Media] wheelset stays the default
+    for anything the theme does not override.
+    """
+    try:
+        from common.media_specs import set_media_set_override
+        from frontend.theme_api import get_theme_config
+
+        theme_config = get_theme_config(iniconfig) or {}
+        wheelset = str(theme_config.get("wheelSet") or "").strip()
+        if wheelset:
+            set_media_set_override("wheel", wheelset)
+            logger.info("Theme wheel set: %s", wheelset)
+    except Exception:
+        logger.exception("Could not apply the theme's media set choices")
 
 
 def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bool = False) -> bool:
@@ -52,7 +94,7 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
         return True
 
     if iniconfig.is_new:
-        logger.info("Skipping startup media sync on first run.")
+        logger.debug("Skipping startup media sync on first run.")
         return False
 
     settings = SettingsConfig.from_config(iniconfig)
@@ -61,9 +103,9 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
     if not enabled:
         return False
 
-    table_root = settings.table_root_dir
-    if not table_root:
-        logger.info("Startup media sync enabled, but tablerootdir is empty. Skipping.")
+    game_root = settings.game_root_dir
+    if not game_root:
+        logger.warning("Startup media sync enabled, but gamerootdir is empty. Skipping.")
         return False
 
     def _worker():
@@ -72,7 +114,7 @@ def start_startup_media_sync(iniconfig, logger, build_metadata_func, started: bo
             result = build_metadata_func(downloadMedia=True, updateAll=True, userMedia=False)
             if isinstance(result, dict):
                 logger.info(
-                    "Startup media sync complete. Scanned %s table(s); %s not found in VPSdb.",
+                    "Startup media sync complete. Scanned %s game(s); %s not found in VPSdb.",
                     result.get("found", 0),
                     result.get("not_found", 0),
                 )
@@ -90,14 +132,42 @@ def build_mount_points(base_path: str, config_dir: Path, iniconfig):
     collection_icons_dir = str(config_dir / "collection_icons")
     os.makedirs(themes_dir, exist_ok=True)
     os.makedirs(collection_icons_dir, exist_ok=True)
+    core_dir = os.path.join(base_path, "frontend", "static")
     mount_points = {
-        "/web/": os.path.join(base_path, "web"),
+        "/core/": core_dir,
+        # What core provided was served at /web/ until 3.0, and installed themes ask for
+        # vpinfe-core.js and vpinfe-style.css by that URL. Kept as an alias on the same
+        # directory rather than a redirect: a theme that has not been updated keeps
+        # working, and there is one copy of the files.
+        "/web/": core_dir,
         "/themes/": themes_dir,
         "/collection_icons/": collection_icons_dir,
     }
-    table_root = SettingsConfig.from_config(iniconfig).table_root_dir
-    if table_root:
-        mount_points["/tables/"] = os.path.abspath(table_root)
+    settings = SettingsConfig.from_config(iniconfig)
+    if settings.game_root_dir:
+        mount_points["/tables/"] = os.path.abspath(settings.game_root_dir)
+
+    from common.shared_assets import configure_shared_assets, resolve_assets_dir
+
+    assets_dir = resolve_assets_dir(settings.assets_dir, config_dir)
+    for layer in ("default", "user"):
+        os.makedirs(assets_dir / "manufacturers" / layer, exist_ok=True)
+    configure_shared_assets(assets_dir)
+    mount_points["/assets/"] = os.path.abspath(assets_dir)
+
+    # Refresh the manufacturer reference from the cached VPSdb, off the boot
+    # path - it exists for people reading it between runs, so boot is the one
+    # guaranteed refresh even when no sync happens this session.
+    def _refresh_reference():
+        from common.paths import CONFIG_DIR
+        from common.shared_assets import vps_manufacturer_names, write_manufacturer_reference
+
+        names = vps_manufacturer_names(CONFIG_DIR / "vpsdb.json")
+        if names:
+            write_manufacturer_reference(names)
+
+    threading.Thread(target=_refresh_reference, daemon=True,
+                     name="manufacturer-reference").start()
     return mount_points, themes_dir
 
 
@@ -114,22 +184,28 @@ def wait_for_manager_ui_ready(port: int, timeout_seconds: float = 15.0) -> None:
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         try:
-            _ur.urlopen(f"http://localhost:{port}/api/remote-launch", timeout=1)
+            _ur.urlopen(f"http://localhost:{port}/api/v1/health", timeout=1)
             return
         except Exception:
             time.sleep(0.5)
 
 
 def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, logger, is_window_connected=None):
-    if headless:
-        def _request_shutdown(_signum, _frame):
-            shutdown_event.set()
+    # Only headless used to handle a signal, so killing the windowed frontend died where
+    # it stood and skipped shutdown_services - the play data never reached VPinPlay, and
+    # Chromium runs in its own session, so its windows outlived us on screen.
+    shutdown.handle_termination(
+        shutdown_event.set if headless else frontend_browser.request_exit)
 
+    # Asked to quit while starting up. The windows were never opened, so this is the
+    # whole frontend lifetime - return and let the caller stop the services.
+    if shutdown.requested():
+        logger.info("Shutdown was requested during startup; not opening the frontend.")
+        return
+
+    if headless:
         logger.info("Headless mode: servers running without Chromium frontend")
         logger.info("Press Ctrl+C to stop...")
-        signal.signal(signal.SIGTERM, _request_shutdown)
-        if hasattr(signal, "SIGBREAK"):
-            signal.signal(signal.SIGBREAK, _request_shutdown)
 
         try:
             while not shutdown_event.is_set():
@@ -144,7 +220,7 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
         displays = DisplayConfig.from_config(iniconfig)
         manager_ui_port = network.manager_ui_port
         setup_url = f"http://localhost:{manager_ui_port}/"
-        screen_id = displays.table_screen_id
+        screen_id = displays.playfield_screen_id
         monitors = get_display_monitors()
         monitor = monitors[screen_id] if screen_id < len(monitors) else monitors[0]
         logger.info("First run: loading Manager UI in chromium window for initial configuration.")
@@ -155,6 +231,7 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
             index=0,
         )
         frontend_browser.wait_for_exit()
+        frontend_browser.terminate_all()
         return
 
     # Prime the monitor cache on the main thread before any windows spawn. Each
@@ -165,6 +242,9 @@ def run_frontend_loop(headless, iniconfig, frontend_browser, shutdown_event, log
 
     frontend_browser.launch_all_windows(iniconfig)
     frontend_browser.wait_for_exit(is_window_connected=is_window_connected)
+    # A no-op when a closed window already took the others down with it; the work
+    # is for the signal, which unblocks the wait without touching the windows.
+    frontend_browser.terminate_all()
 
 
 def shutdown_services(logger, *, vpinplay_sync, iniconfig, ws_bridge, stop_dof, stop_dmd, http_server, nicegui_app, stop_manager_ui):

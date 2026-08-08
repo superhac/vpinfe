@@ -1,0 +1,117 @@
+{
+  "displays": {
+    "cab_mode": "false"
+  },
+  "dof": {
+    "dof_config_tool_api_key": "",
+    "enable_dof": "false"
+  },
+  "general": {
+    "assets_dir": "",
+    "auto_update_media_on_startup": "false",
+    "chrome_options": "",
+    "chrome_options_exclude": "",
+    "disable_default_chrome_options": "false",
+    "game_root_dir": "",
+    "global_game_ini_override_enabled": "false",
+    "global_game_ini_override_mask": "",
+    "global_ini_override": "",
+    "hide_quit_button": "false",
+    "mute_audio": "false",
+    "rar_tool_path": "",
+    "restore_last_game": "true",
+    "splashscreen": "false",
+    "startup_collection": "",
+    "theme": "Revolution",
+    "vpx_bin_path": "",
+    "vpx_ini_path": "",
+    "vpx_launch_env": "",
+    "vpx_log_delete_on_start": "false"
+  },
+  "input": {
+    "back": "key:b",
+    "collection_menu": "key:c",
+    "exit": "key:Escape,key:q",
+    "menu": "key:m",
+    "next": "key:ArrowRight,key:ShiftRight",
+    "page_down": "key:PageDown,key:ArrowDown",
+    "page_up": "key:PageUp,key:ArrowUp",
+    "paging_size": "10",
+    "paging_type": "alpha",
+    "previous": "key:ArrowLeft,key:ShiftLeft",
+    "select": "key:Enter",
+    "tutorial": "key:t"
+  },
+  "libdmdutil": {
+    "enabled": "false",
+    "pin2dmd_enabled": "false",
+    "pixelcade_device": "",
+    "zedmd_device": "",
+    "zedmd_wifi_address": ""
+  },
+  "lifecycle": {
+    "confirm": ""
+  },
+  "logger": {
+    "console": "true",
+    "level": "debug"
+  },
+  "media": {
+    "default_missing_media_image": "",
+    "realdmd_media_priority": "color",
+    "thumb_cache_max_mb": "500",
+    "wheelset": ""
+  },
+  "mobile": {
+    "chunk_size": "1048576",
+    "device_ip": "",
+    "device_port": "2112",
+    "rename_mask_to_default_ini": "false",
+    "rename_mask_to_default_ini_mask": ""
+  },
+  "network": {
+    "manager_ui_port": "8001",
+    "theme_assets_port": "8000",
+    "ws_port": "8002"
+  },
+  "pinmame_score_parser": {
+    "roms_update_sha": ""
+  },
+  "state": {
+    "last_game": ""
+  },
+  "themes": {
+    "registries": "https://raw.githubusercontent.com/superhac/vpinfe-themes/master/themes.json",
+    "repositories": ""
+  },
+  "vpinplay": {
+    "api_endpoint": "https://api.vpinplay.com:8888",
+    "initials": "",
+    "machine_id": "",
+    "sync_on_exit": "false",
+    "user_id": ""
+  },
+  "vpsdb": {
+    "last": ""
+  },
+  "windows.backglass": {
+    "media_priority": "video",
+    "screen_id": "",
+    "window_override": ""
+  },
+  "windows.playfield": {
+    "media_priority": "video",
+    "media_rotation": "auto",
+    "orientation": "landscape",
+    "resolution": "4k",
+    "rotation": "0",
+    "screen_id": "0",
+    "variant": "table",
+    "video_resolution": "1k"
+  },
+  "windows.scoreview": {
+    "media_priority": "video",
+    "screen_id": "",
+    "window_override": ""
+  }
+}

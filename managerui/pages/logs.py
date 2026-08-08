@@ -1,3 +1,5 @@
+"""The Logs page, for reading the log without leaving the cabinet."""
+
 from __future__ import annotations
 
 import html
@@ -5,9 +7,9 @@ from pathlib import Path
 
 from nicegui import ui
 
-from common.config_access import SettingsConfig
-from common.iniconfig import IniConfig
-from common.vpx_log import resolve_vpinball_log_path
+from common.config_access import SettingsConfig, cfg_set
+from common.config_store import ConfigStore
+from common.host.vpx_log import resolve_vpinball_log_path
 from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
 from managerui.ui_helpers import load_page_style
 
@@ -28,7 +30,7 @@ def _get_vpinfe_log_path() -> Path:
 
 def _get_vpinball_log_path() -> Path | None:
     try:
-        config = IniConfig(str(VPINFE_INI_PATH))
+        config = ConfigStore(str(VPINFE_INI_PATH))
         settings = SettingsConfig.from_config(config)
     except Exception:
         return None
@@ -38,15 +40,15 @@ def _get_vpinball_log_path() -> Path | None:
 
 def _get_delete_on_start_enabled() -> bool:
     try:
-        config = IniConfig(str(VPINFE_INI_PATH))
+        config = ConfigStore(str(VPINFE_INI_PATH))
         return SettingsConfig.from_config(config).vpx_log_delete_on_start
     except Exception:
         return False
 
 
 def _set_delete_on_start_enabled(value: bool) -> None:
-    config = IniConfig(str(VPINFE_INI_PATH))
-    config.config.set("Settings", "vpxlogdeleteonstart", "true" if value else "false")
+    config = ConfigStore(str(VPINFE_INI_PATH))
+    cfg_set(config, "general", "vpx_log_delete_on_start", bool(value))
     config.save()
 
 

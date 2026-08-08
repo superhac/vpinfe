@@ -1,23 +1,27 @@
+"""Finding a game's media for the pages, and forgetting it when the files change."""
+
 from __future__ import annotations
 
 import logging
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, List, Optional
 from urllib.parse import quote
 
-from common.media_paths import media_attr_key_map, media_filename_map
-from common.metaconfig import MetaConfig
-from common.table_metadata import reorder_leading_article
-from common.table_repository import ensure_tables_loaded
-
-from managerui.paths import CONFIG_DIR, get_tables_path
-
+from common.games.game_metadata import reorder_leading_article, vpinfe_section
+from common.games.game_repository import ensure_games_loaded
+from common.games.info_file import MetaConfig
+from common.media_specs import (
+    MEDIA_SPECS,
+    media_attr_key_map,
+    media_filename_map,
+    resolve_media_files,
+)
+from managerui.paths import CONFIG_DIR, get_games_path
 
 logger = logging.getLogger("vpinfe.manager.media_service")
 
-_media_cache: Optional[List[Dict]] = None
+_media_cache: list[dict] | None = None
 _thumb_request_state: set[tuple[str, str, str]] = set()
 
 CACHE_DIR = CONFIG_DIR / "cache"
@@ -26,19 +30,23 @@ THUMB_SIZE = (512, 512)
 THUMB_WARM_ROW_BATCH_SIZE = 25
 THUMB_WARM_CHUNK_SIZE = 8
 
+# Canonical media kind keys. MEDIA_KEY_TO_FILENAME and _SPEC_BY_KEY are both built
+# from MEDIA_SPECS, so `bg` and `dmd` here were a KeyError on upload and an empty
+# filename on lookup - the two kinds people replace most. The labels stay as they are:
+# BG and DMD is what the art is called, whatever the kind is called.
 MEDIA_TYPES = [
-    ("bg", "BG", "bg.png"),
-    ("dmd", "DMD", "dmd.png"),
-    ("table", "Table", "table.png"),
-    ("fss", "FSS", "fss.png"),
+    ("backglass", "BG", "bg.png"),
+    ("scoreview", "DMD", "dmd.png"),
+    ("playfield", "Table", "table.png"),
+    ("playfield_fss", "FSS", "fss.png"),
     ("wheel", "Wheel", "wheel.png"),
     ("cab", "Cab", "cab.png"),
-    ("realdmd", "Real DMD", "realdmd.png"),
-    ("realdmd_color", "Real DMD Color", "realdmd-color.png"),
+    ("real_dmd", "Real DMD", "realdmd.png"),
+    ("real_dmd_color", "Real DMD Color", "realdmd-color.png"),
     ("flyer", "Flyer", "flyer.png"),
-    ("table_video", "Table Video", "table.mp4"),
-    ("bg_video", "BG Video", "bg.mp4"),
-    ("dmd_video", "DMD Video", "dmd.mp4"),
+    ("playfield_video", "Table Video", "table.mp4"),
+    ("backglass_video", "BG Video", "bg.mp4"),
+    ("scoreview_video", "DMD Video", "dmd.mp4"),
     ("audio", "Audio", "audio.mp3"),
 ]
 MEDIA_KEY_TO_FILENAME = media_filename_map("table")
@@ -48,14 +56,14 @@ IMAGE_MEDIA_KEYS = [
     if Path(filename).suffix.lower() in IMAGE_EXTENSIONS
 ]
 
-TABLE_ATTR_TO_MEDIA_KEY = media_attr_key_map("table")
+GAME_ATTR_TO_MEDIA_KEY = media_attr_key_map("table")
 
 
-def get_media_cache() -> Optional[List[Dict]]:
+def get_media_cache() -> list[dict] | None:
     return _media_cache
 
 
-def set_media_cache(rows: List[Dict]) -> None:
+def set_media_cache(rows: list[dict]) -> None:
     global _media_cache
     _media_cache = rows
 
@@ -75,17 +83,29 @@ def is_image_media_key(media_key: str) -> bool:
     return Path(filename).suffix.lower() in IMAGE_EXTENSIONS
 
 
-def source_media_path(table_path: str, media_key: str) -> Optional[str]:
-    filename = MEDIA_KEY_TO_FILENAME.get(media_key)
-    if not filename:
+_SPEC_BY_KEY = {spec.key: spec for spec in MEDIA_SPECS}
+
+
+def source_media_path(game_path: str, media_key: str,
+                      table_stem: str | None = None) -> str | None:
+    """The file serving a media kind, through the one resolution chain - so the
+    Manager UI and the scan can never disagree about which file that is."""
+    if media_key not in _SPEC_BY_KEY:
         return None
-    medias_path = os.path.join(table_path, "medias", filename)
-    if os.path.exists(medias_path):
-        return medias_path
-    root_path = os.path.join(table_path, filename)
-    if os.path.exists(root_path):
-        return root_path
-    return None
+    root = Path(game_path)
+    try:
+        game_contents = {e.name for e in os.scandir(root) if e.is_file()}
+    except OSError:
+        return None
+    medias_dir = root / "medias"
+    try:
+        medias_contents = {e.name for e in os.scandir(medias_dir) if e.is_file()}
+    except OSError:
+        medias_contents = set()
+    resolved = resolve_media_files(root, game_contents, medias_contents,
+                                   "table", table_stem)
+    path = resolved.get(media_key)
+    return str(path) if path is not None else None
 
 
 def _build_thumb_sig(source_path: str) -> str:
@@ -93,8 +113,8 @@ def _build_thumb_sig(source_path: str) -> str:
     return f"{st.st_mtime_ns}_{st.st_size}"
 
 
-def thumb_file_path(table_dir: str, media_key: str, source_path: str) -> Path:
-    return THUMB_CACHE_ROOT / table_dir / f"{media_key}_{_build_thumb_sig(source_path)}.png"
+def thumb_file_path(game_dir: str, media_key: str, source_path: str) -> Path:
+    return THUMB_CACHE_ROOT / game_dir / f"{media_key}_{_build_thumb_sig(source_path)}.png"
 
 
 def thumb_url(path: Path) -> str:
@@ -102,11 +122,11 @@ def thumb_url(path: Path) -> str:
     return f"/media_thumbs/{rel}"
 
 
-def get_cached_thumb_url(table_dir: str, media_key: str, source_path: str) -> Optional[str]:
+def get_cached_thumb_url(game_dir: str, media_key: str, source_path: str) -> str | None:
     if not is_image_media_key(media_key) or not os.path.exists(source_path):
         return None
     try:
-        path = thumb_file_path(table_dir, media_key, source_path)
+        path = thumb_file_path(game_dir, media_key, source_path)
         if path.exists():
             os.utime(path, None)
             return thumb_url(path)
@@ -115,28 +135,28 @@ def get_cached_thumb_url(table_dir: str, media_key: str, source_path: str) -> Op
     return None
 
 
-def thumb_request_key(table_dir: str, media_key: str, source_path: str) -> tuple[str, str, str]:
+def thumb_request_key(game_dir: str, media_key: str, source_path: str) -> tuple[str, str, str]:
     try:
         signature = _build_thumb_sig(source_path)
     except Exception:
         signature = ""
-    return table_dir, media_key, signature
+    return game_dir, media_key, signature
 
 
-def mark_thumb_requested(table_dir: str, media_key: str, source_path: str) -> bool:
+def mark_thumb_requested(game_dir: str, media_key: str, source_path: str) -> bool:
     """Return True if this thumbnail request is new."""
-    key = thumb_request_key(table_dir, media_key, source_path)
+    key = thumb_request_key(game_dir, media_key, source_path)
     if key in _thumb_request_state:
         return False
     _thumb_request_state.add(key)
     return True
 
 
-def clear_thumb_request(table_dir: str, media_key: str, source_path: str) -> None:
-    _thumb_request_state.discard(thumb_request_key(table_dir, media_key, source_path))
+def clear_thumb_request(game_dir: str, media_key: str, source_path: str) -> None:
+    _thumb_request_state.discard(thumb_request_key(game_dir, media_key, source_path))
 
 
-def ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[str]:
+def ensure_thumb(game_dir: str, media_key: str, source_path: str) -> str | None:
     if not is_image_media_key(media_key) or not os.path.exists(source_path):
         return None
     try:
@@ -145,7 +165,7 @@ def ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[s
         return None
 
     try:
-        path = thumb_file_path(table_dir, media_key, source_path)
+        path = thumb_file_path(game_dir, media_key, source_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
             os.utime(path, None)
@@ -173,44 +193,44 @@ def ensure_thumb(table_dir: str, media_key: str, source_path: str) -> Optional[s
         return None
 
 
-def _table_meta_sections(table):
-    raw = table.metaConfig or {}
+def _game_meta_sections(game):
+    raw = game.meta_config or {}
     if not isinstance(raw, dict):
         raw = {}
     info = raw.get("Info", {}) if isinstance(raw.get("Info", {}), dict) else {}
-    vpinfe = raw.get("VPinFE", {}) if isinstance(raw.get("VPinFE", {}), dict) else {}
+    vpinfe = vpinfe_section(raw)
     return info, vpinfe
 
 
-def media_url_from_path(table_dir: str, source_path: str) -> Optional[str]:
+def media_url_from_path(game_dir: str, source_path: str) -> str | None:
     if not source_path:
         return None
     source = Path(source_path)
     if source.parent.name == "medias":
-        return media_url("media_tables", table_dir, "medias", source.name)
-    return media_url("media_tables", table_dir, source.name)
+        return media_url("media_games", game_dir, "medias", source.name)
+    return media_url("media_games", game_dir, source.name)
 
 
-def scan_media_tables(reload: bool = False) -> List[Dict]:
-    tables_path = get_tables_path()
+def scan_media_games(reload: bool = False) -> list[dict]:
+    games_path = get_games_path()
     rows = []
-    if not os.path.exists(tables_path):
-        logger.warning("Tables path does not exist: %s. Skipping media scan.", tables_path)
+    if not os.path.exists(games_path):
+        logger.warning("Games path does not exist: %s. Skipping media scan.", games_path)
         return []
 
-    for table in ensure_tables_loaded(reload=reload):
-        root = getattr(table, "fullPathTable", "") or ""
+    for game in ensure_games_loaded(reload=reload):
+        root = getattr(game, "fullPathGame", "") or ""
         if not root:
             continue
         current_dir = Path(root).name
-        info, vpinfe = _table_meta_sections(table)
-        name = ((vpinfe.get("alttitle") or "").strip()
+        info, vpinfe = _game_meta_sections(game)
+        name = ((vpinfe.get("alt_title") or "").strip()
                 or reorder_leading_article(info.get("Title") or current_dir))
 
         media_info = {}
         thumb_info = {}
-        for attr_name, media_key in TABLE_ATTR_TO_MEDIA_KEY.items():
-            source_path = getattr(table, attr_name, None)
+        for attr_name, media_key in GAME_ATTR_TO_MEDIA_KEY.items():
+            source_path = getattr(game, attr_name, None)
             if source_path:
                 media_info[media_key] = media_url_from_path(current_dir, source_path)
                 thumb_info[media_key] = get_cached_thumb_url(current_dir, media_key, source_path)
@@ -220,7 +240,7 @@ def scan_media_tables(reload: bool = False) -> List[Dict]:
 
         row = {
             "name": name,
-            "table_dir": current_dir,
+            "game_dir": current_dir,
             "table_path": root,
             "manufacturer": info.get("Manufacturer", ""),
             "year": info.get("Year", ""),
@@ -238,27 +258,50 @@ def scan_media_tables(reload: bool = False) -> List[Dict]:
     return rows
 
 
-def replace_media_file(table_path: str, table_dir: str, media_key: str, uploaded_path: str) -> str:
-    target_filename = MEDIA_KEY_TO_FILENAME[media_key]
-    medias_dir = os.path.join(table_path, "medias")
+def replace_media_file(game_path: str, game_dir: str, media_key: str, uploaded_path: str) -> str:
+    """Install an uploaded file as a game's media, keeping its real extension.
+
+    The old behavior copied bytes to the canonical name unchanged, so a .jpg
+    became JPEG bytes inside wheel.png - a file that lies. The name now keeps the
+    source extension when the kind's family accepts it, and any family sibling
+    with the same stem is removed from medias/ and the folder root, since an
+    earlier-family leftover would shadow the new file in resolution order.
+    """
+    spec = _SPEC_BY_KEY[media_key]
+    canonical = MEDIA_KEY_TO_FILENAME[media_key]
+    stem, canonical_ext = os.path.splitext(canonical)
+    ext = os.path.splitext(uploaded_path)[1].lower()
+    if ext not in spec.family:
+        ext = canonical_ext
+    target_filename = stem + ext
+
+    medias_dir = os.path.join(game_path, "medias")
     os.makedirs(medias_dir, exist_ok=True)
     target_path = os.path.join(medias_dir, target_filename)
 
+    for sibling_ext in spec.family:
+        for base in (medias_dir, game_path):
+            sibling = os.path.join(base, stem + sibling_ext)
+            if sibling != target_path and os.path.exists(sibling):
+                os.remove(sibling)
+
     shutil.copy2(uploaded_path, target_path)
 
-    info_file = os.path.join(table_path, f"{table_dir}.info")
+    info_file = os.path.join(game_path, f"{game_dir}.info")
     if os.path.exists(info_file):
         mc = MetaConfig(info_file)
-        mc.addMedia(media_key, "user", target_path, "")
+        # No hash: one is only meaningful as a comparison against a remote, and there
+        # is no remote here - the user handed us the bytes.
+        mc.add_asset(target_path, "user")
 
     return target_path
 
 
-def update_cache_entry(table_dir: str, media_key: str, url_path: str, thumb: Optional[str] = None) -> None:
+def update_cache_entry(game_dir: str, media_key: str, url_path: str, thumb: str | None = None) -> None:
     if _media_cache is None:
         return
     for row in _media_cache:
-        if row["table_dir"] == table_dir:
+        if row["game_dir"] == game_dir:
             row["media"][media_key] = url_path
             row.setdefault("thumbs", {})[media_key] = thumb
             row.setdefault("thumb_errors", {}).pop(media_key, None)

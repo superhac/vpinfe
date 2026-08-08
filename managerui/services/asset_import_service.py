@@ -1,3 +1,9 @@
+"""Turning an analysed drop into a plan, and only then into files on disk.
+
+The plan is built and shown before anything is written, so an import that would
+overwrite a file is something the user declines rather than undoes.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -5,13 +11,15 @@ import os
 import shutil
 import tempfile
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
-from typing import Callable
 
-from common.media_paths import media_filename_map
-from common.table_repository import refresh_table
-from managerui.paths import get_tables_path
+from common.games.game_repository import refresh_game
+from common.games.info_file import VPINFE_SECTION, MetaConfig
+from common.games.vpx_parser import VPXParser
+from common.media_specs import media_filename_map
+from managerui.paths import get_games_path
 from managerui.services.asset_analyzer_service import (
     AnalysisResult,
     DetectedAsset,
@@ -19,15 +27,14 @@ from managerui.services.asset_analyzer_service import (
     open_source,
 )
 from managerui.services.asset_registry import ARCHIVE_EXTENSIONS, spec_for
-from managerui.services.media_service import IMAGE_EXTENSIONS, replace_media_file
-from managerui.services.table_service import (
+from managerui.services.game_service import (
     _find_directb2s_file,
     _find_ini_file,
     _find_vpx_file,
     _safe_upload_name,
     ensure_dir,
 )
-
+from managerui.services.media_service import IMAGE_EXTENSIONS, replace_media_file
 
 logger = logging.getLogger("vpinfe.manager.asset_import")
 
@@ -38,7 +45,8 @@ _MEDIA_FILENAMES = media_filename_map("table")
 class PlannedItem:
     asset: DetectedAsset
     destination: str        # absolute path (file target, or base dir for tree kinds)
-    action: str             # replace_vpx | replace_b2s | copy | zip_rom | extract_tree | replace_media
+    action: str             # replace_vpx | replace_b2s | copy | zip_rom | extract_tree
+                            # | replace_media | apply_patch | write_info
     default_enabled: bool = True
 
 
@@ -50,8 +58,8 @@ class BlockedItem:
 
 @dataclass(frozen=True)
 class ImportPlan:
-    table_path: str          # target table dir (existing, or the resolved new-table dir)
-    new_table_dir_name: str  # non-empty only for new-table bundle imports
+    game_path: str          # target game dir (existing, or the resolved new-game dir)
+    new_game_dir_name: str  # non-empty only for new-game bundle imports
     rom_name: str
     items: tuple[PlannedItem, ...]
     blocked: tuple[BlockedItem, ...]
@@ -101,8 +109,35 @@ def _rom_dest_name(asset: DetectedAsset, source_name: str) -> tuple[str, str]:
     return f"{_safe_upload_name(stem)}.zip", "zip_rom"
 
 
+def _patched_vpx_name(asset: DetectedAsset, base: Path, vpx_stem: str) -> str:
+    """The filename applying this patch will produce.
+
+    The patch's own name, so a mod's sidecars and artwork still match it by stem. Tagged
+    only where that would land on a .vpx already here: never overwrite the base, which is
+    the one file the result cannot be rebuilt without.
+    """
+    name = _safe_upload_name(Path(_basename(asset.entries[0].arcname)).stem)
+    # Case-insensitively: on macOS and Windows "table.vpx" IS "Table.vpx".
+    if name.lower() == vpx_stem.lower() or (base / f"{name}.vpx").exists():
+        name = f"{name} [patched]"
+    return f"{name}.vpx"
+
+
+def _sidecar_stem(assets, base: Path, vpx_stem: str) -> str:
+    """Which table a bundle's .directb2s and .ini belong to: the patched table when the
+    bundle carries a patch, since they describe what the patch produces, not the base.
+
+    Deselecting the patch afterwards leaves them named for a .vpx that never gets built.
+    """
+    for asset in assets:
+        if asset.kind == "patch" and vpx_stem:
+            return Path(_patched_vpx_name(asset, base, vpx_stem)).stem
+    return vpx_stem
+
+
 def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
-                source_name: str, table_kind_action: str) -> tuple[PlannedItem | None, BlockedItem | None]:
+                source_name: str, game_kind_action: str,
+                sidecar_stem: str = "") -> tuple[PlannedItem | None, BlockedItem | None]:
     kind = asset.kind
     spec = spec_for(kind)
     if spec.requires_rom and not rom_name:
@@ -110,15 +145,15 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
 
     if kind == "table":
         dest = base / _safe_upload_name(_basename(asset.entries[0].arcname))
-        return PlannedItem(asset, str(dest), table_kind_action), None
-    if kind == "table_info":
+        return PlannedItem(asset, str(dest), game_kind_action), None
+    if kind == "game_info":
         # Always written as <folder>.info — the parser matches it by folder name.
         return PlannedItem(asset, str(base / f"{base.name}.info"), "write_info"), None
     if kind == "backglass":
-        stem = vpx_stem or Path(_basename(asset.entries[0].arcname)).stem
+        stem = sidecar_stem or vpx_stem or Path(_basename(asset.entries[0].arcname)).stem
         return PlannedItem(asset, str(base / f"{stem}.directb2s"), "replace_b2s"), None
     if kind == "ini":
-        stem = vpx_stem or Path(_basename(asset.entries[0].arcname)).stem
+        stem = sidecar_stem or vpx_stem or Path(_basename(asset.entries[0].arcname)).stem
         return PlannedItem(asset, str(base / f"{stem}.ini"), "copy"), None
     if kind == "rom":
         name, action = _rom_dest_name(asset, source_name)
@@ -135,54 +170,64 @@ def _plan_asset(asset: DetectedAsset, base: Path, vpx_stem: str, rom_name: str,
         return PlannedItem(asset, str(base / "pupvideos"), "extract_tree"), None
     if kind == "music":
         return PlannedItem(asset, str(base / "music"), "extract_tree"), None
+    if kind == "readme":
+        name = _safe_upload_name(_basename(asset.entries[0].arcname))
+        return PlannedItem(asset, str(base / name), "copy"), None
+    if kind == "patch":
+        if not vpx_stem:
+            return None, BlockedItem(asset, "No table to patch; import the base table first")
+        return PlannedItem(asset, str(base / _patched_vpx_name(asset, base, vpx_stem)),
+                           "apply_patch"), None
     if kind == "media":
         filename = _MEDIA_FILENAMES.get(asset.media_key, asset.media_key)
         return PlannedItem(asset, str(base / "medias" / filename), "replace_media"), None
     return None, BlockedItem(asset, f"Unsupported asset type: {kind}")
 
 
-def build_import_plan(analysis: AnalysisResult, *, table_path: str = "", table_row: dict | None = None,
-                      rom_name: str = "", allow_new_table: bool = False,
-                      tables_path: str | None = None) -> ImportPlan:
-    """Route detected assets to destinations for an existing table or a new table bundle."""
+def build_import_plan(analysis: AnalysisResult, *, game_path: str = "", game_row: dict | None = None,
+                      rom_name: str = "", allow_new_game: bool = False,
+                      games_path: str | None = None) -> ImportPlan:
+    """Route detected assets to destinations for an existing game or a new game bundle."""
     items: list[PlannedItem] = []
     blocked: list[BlockedItem] = []
-    new_bundle = analysis.has_table and allow_new_table
+    new_bundle = analysis.has_game and allow_new_game
 
     if new_bundle:
-        table_asset = next(a for a in analysis.assets if a.kind == "table")
-        vpx_stem = Path(_basename(table_asset.entries[0].arcname)).stem
+        game_asset = next(a for a in analysis.assets if a.kind == "table")
+        vpx_stem = Path(_basename(game_asset.entries[0].arcname)).stem
         new_dir_name = _safe_upload_name(vpx_stem)
-        base = Path(tables_path or get_tables_path()).expanduser() / new_dir_name
+        base = Path(games_path or get_games_path()).expanduser() / new_dir_name
+        sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
             item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,
-                                      table_kind_action="copy")
+                                      game_kind_action="copy", sidecar_stem=sidecar_stem)
             (items if item else blocked).append(item or block)
         return ImportPlan(str(base), new_dir_name, "", tuple(items), tuple(blocked))
 
-    if table_path:
-        base = Path(table_path).expanduser()
+    if game_path:
+        base = Path(game_path).expanduser()
         try:
             vpx_stem = _find_vpx_file(base).stem
         except (FileNotFoundError, OSError):
             vpx_stem = ""
-        # A table dropped onto an existing table replaces its .vpx (the "update table" case).
-        # New-table creation is handled by the new_bundle branch above.
+        # A table dropped onto an existing game replaces its .vpx (the "update table" case).
+        # New-game creation is handled by the new_bundle branch above.
+        sidecar_stem = _sidecar_stem(analysis.assets, base, vpx_stem)
         for asset in analysis.assets:
             item, block = _plan_asset(asset, base, vpx_stem, rom_name, analysis.source_name,
-                                      table_kind_action="replace_vpx")
+                                      game_kind_action="replace_vpx", sidecar_stem=sidecar_stem)
             (items if item else blocked).append(item or block)
         return ImportPlan(str(base), "", rom_name, tuple(items), tuple(blocked))
 
     for asset in analysis.assets:
-        if spec_for(asset.kind).requires_table:
+        if spec_for(asset.kind).requires_game:
             blocked.append(BlockedItem(asset, "Select a table row, or drop onto a table's detail dialog"))
         else:
             blocked.append(BlockedItem(asset, "Drop onto the Tables page to import as a new table"))
     return ImportPlan("", "", rom_name, (), tuple(blocked))
 
 
-def build_media_slot_plan(source_path: Path, *, table_path: str, media_key: str) -> ImportPlan:
+def build_media_slot_plan(source_path: Path, *, game_path: str, media_key: str) -> ImportPlan:
     """Plan a targeted media-slot import from a single dropped file.
 
     The slot dictates the media key (no filename inference); the file only has to
@@ -203,7 +248,7 @@ def build_media_slot_plan(source_path: Path, *, table_path: str, media_key: str)
 
     if src.is_dir() or src.suffix.lower() in ARCHIVE_EXTENSIONS:
         blocked = BlockedItem(asset, "Drop a single media file on a slot")
-        return ImportPlan(table_path, "", "", (), (blocked,))
+        return ImportPlan(game_path, "", "", (), (blocked,))
 
     slot_suffix = Path(canonical).suffix.lower()
     suffix = src.suffix.lower()
@@ -215,20 +260,20 @@ def build_media_slot_plan(source_path: Path, *, table_path: str, media_key: str)
         expected = "an image file"
     if not suitable:
         blocked = BlockedItem(asset, f"This slot expects {expected}, not {suffix or 'a file without extension'}")
-        return ImportPlan(table_path, "", "", (), (blocked,))
+        return ImportPlan(game_path, "", "", (), (blocked,))
 
-    destination = str(Path(table_path) / "medias" / canonical)
+    destination = str(Path(game_path) / "medias" / canonical)
     item = PlannedItem(asset, destination, "replace_media")
-    return ImportPlan(table_path, "", "", (item,), ())
+    return ImportPlan(game_path, "", "", (item,), ())
 
 
 def sanitize_dir_name(name: str) -> str:
-    """Strip filesystem-reserved characters from a proposed table folder name."""
+    """Strip filesystem-reserved characters from a proposed game folder name."""
     return "".join(c for c in (name or "") if c not in '<>:"/\\|?*').strip()
 
 
 def vps_folder_name(vps_entry: dict) -> str:
-    """Derive the canonical table folder name from a VPS entry (same shape the
+    """Derive the canonical game folder name from a VPS entry (same shape the
     Import Table dialog builds: "Name (Manufacturer Year)")."""
     name = vps_entry.get("name", "")
     mfg = vps_entry.get("manufacturer") or vps_entry.get("mfg") or ""
@@ -246,7 +291,7 @@ def vps_folder_name(vps_entry: dict) -> str:
 
 def find_vps_entry(vps_id: str) -> dict | None:
     """Look up a VPS entry by its id."""
-    from managerui.services.table_service import load_vpsdb
+    from managerui.services.game_service import load_vpsdb
 
     wanted = (vps_id or "").strip()
     if not wanted:
@@ -258,10 +303,10 @@ def find_vps_entry(vps_id: str) -> dict | None:
 
 
 def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
-                      new_table_dir_name: str | None = None) -> ImportPlan:
-    """Narrow a plan to the chosen item indices and optionally rename a new-table target.
+                      new_game_dir_name: str | None = None) -> ImportPlan:
+    """Narrow a plan to the chosen item indices and optionally rename a new-game target.
 
-    indices=None keeps every item. For new-table bundles, passing a new name rebases all
+    indices=None keeps every item. For new-game bundles, passing a new name rebases all
     item destinations under the renamed folder. Shared by the confirm dialog and the HTTP
     import endpoint so both honor selection and rename identically.
     """
@@ -271,23 +316,26 @@ def select_plan_items(plan: ImportPlan, indices: list[int] | None = None,
         wanted = set(indices)
         chosen = tuple(item for index, item in enumerate(plan.items) if index in wanted)
 
-    if not plan.new_table_dir_name:
+    if not plan.new_game_dir_name:
         return replace(plan, items=chosen)
 
-    new_name = sanitize_dir_name(new_table_dir_name) if new_table_dir_name is not None else plan.new_table_dir_name
+    new_name = sanitize_dir_name(new_game_dir_name) if new_game_dir_name is not None else plan.new_game_dir_name
     if not new_name:
         raise ValueError("Table folder name required")
-    if new_name == plan.new_table_dir_name:
+    if new_name == plan.new_game_dir_name:
         return replace(plan, items=chosen)
 
-    old_base = plan.table_path
+    old_base = plan.game_path
     new_base = str(Path(old_base).parent / new_name)
     rebased = tuple(replace(item, destination=item.destination.replace(old_base, new_base, 1)) for item in chosen)
-    return replace(plan, table_path=new_base, new_table_dir_name=new_name, items=rebased)
+    return replace(plan, game_path=new_base, new_game_dir_name=new_name, items=rebased)
 
 
-_MANAGED_INFO_SECTIONS = {"Info", "User", "VPinFE", "VPXFile", "Medias"}
-_MACHINE_LOCAL_INFO_KEYS = {"altlauncher", "pluginprofile"}
+# Medias stays listed although nothing writes it any more: an imported .info written by
+# a 2.x build still carries one, and dropping it from here would let it back in as an
+# unmanaged section and be preserved forever.
+_MANAGED_INFO_SECTIONS = {"Info", "User", VPINFE_SECTION, "tables", "assets", "Medias"}
+_MACHINE_LOCAL_INFO_KEYS = {"alt_launcher", "plugin_profile"}
 
 
 def _is_empty_value(value) -> bool:
@@ -299,9 +347,9 @@ def _resolves_locally(key: str, value) -> bool:
     text = str(value or "")
     if not text:
         return False
-    if key == "altlauncher":
+    if key == "alt_launcher":
         return Path(text).expanduser().exists()
-    if key == "pluginprofile":
+    if key == "plugin_profile":
         from managerui.paths import PLUGIN_PROFILES_DIR
 
         try:
@@ -314,11 +362,13 @@ def _resolves_locally(key: str, value) -> bool:
 def merge_info(incoming: dict, existing: dict) -> dict:
     """Merge an imported .info into an existing one: fill gaps, never replace.
 
-    Info is adopted wholesale only when the existing table has no VPS association.
+    Info is adopted wholesale only when the existing game has no VPS association.
     User and VPinFE fill empty fields (machine-specific overrides only if they resolve
-    locally). VPXFile and Medias always keep the local version — the first describes
-    whichever vpx is now on disk and is regenerated by a rebuild; the second describes
-    local media state. Unknown sections are added when absent, never replaced.
+    locally). tables and assets always keep the local version: tables describes
+    the builds on THIS disk and carries decisions made here — what is hidden, what has
+    been patched, and later play stats — none of which an imported file can speak for.
+    assets records what we placed in THIS folder, so an imported list describes files
+    that are not here. Unknown sections are added when absent, never replaced.
     """
     merged = dict(existing)
 
@@ -336,20 +386,20 @@ def merge_info(incoming: dict, existing: dict) -> dict:
     if local_user:
         merged["User"] = local_user
 
-    local_vpinfe = dict(existing.get("VPinFE") or {})
-    for key, value in (incoming.get("VPinFE") or {}).items():
+    local_vpinfe = dict(existing.get(VPINFE_SECTION) or {})
+    for key, value in (incoming.get(VPINFE_SECTION) or {}).items():
         if not _is_empty_value(local_vpinfe.get(key)) or _is_empty_value(value):
             continue
         if key in _MACHINE_LOCAL_INFO_KEYS and not _resolves_locally(key, value):
             continue
         local_vpinfe[key] = value
     if local_vpinfe:
-        merged["VPinFE"] = local_vpinfe
+        merged[VPINFE_SECTION] = local_vpinfe
 
     return merged
 
 
-def _import_table_info(source, asset: DetectedAsset, base: Path) -> None:
+def _import_game_info(source, asset: DetectedAsset, base: Path) -> None:
     import json
 
     entry = asset.entries[0]
@@ -413,13 +463,16 @@ def _replace_vpx_from_file(source, asset: DetectedAsset, base: Path) -> None:
             if new_b2s.exists():
                 new_b2s.unlink()
             os.replace(old_b2s, new_b2s)
+    _record_replaced_table(base, new_vpx,
+                           old_vpx.name if old_vpx and old_vpx.name != new_vpx.name else None)
+
     if old_ini and old_ini.exists():
         new_ini = base / f"{new_vpx.stem}.ini"
         if old_ini.resolve() != new_ini.resolve():
             if new_ini.exists():
                 new_ini.unlink()
             os.replace(old_ini, new_ini)
-    refresh_table(str(base))
+    refresh_game(str(base))
 
 
 def _build_rom_zip(source, asset: DetectedAsset, dest: Path) -> None:
@@ -448,23 +501,103 @@ def _extract_tree(source, asset: DetectedAsset, base_dir: Path) -> None:
         source.extract_member(entry.path, dest)
 
 
-def _import_media(source, asset: DetectedAsset, table_path: Path) -> None:
+def _import_media(source, asset: DetectedAsset, game_path: Path) -> None:
     entry = asset.entries[0]
     suffix = PurePosixPath(entry.arcname).suffix
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as handle:
         scratch = Path(handle.name)
     try:
         source.extract_member(entry.path, scratch)
-        replace_media_file(str(table_path), table_path.name, asset.media_key, str(scratch))
+        replace_media_file(str(game_path), game_path.name, asset.media_key, str(scratch))
     finally:
         scratch.unlink(missing_ok=True)
 
 
+def _record_replaced_table(game_dir: Path, vpx: Path, removed: str | None) -> None:
+    """Describe the new .vpx in the game's .info, and drop the entry for the one it
+    replaced. Best effort - the table is on disk either way.
+    """
+    try:
+        meta = MetaConfig(str(game_dir / f"{game_dir.name}.info"))
+        parsed = VPXParser().singleFileExtract(str(vpx))
+        if parsed or removed:
+            meta.replace_table(removed, vpx.name, parsed)
+    except Exception:
+        logger.warning("Replaced the table with %s, but could not record it in the .info",
+                       vpx.name, exc_info=True)
+
+
+def _record_patched_table(game_dir: Path, vpx: Path, base_file: str, base_hash: str) -> None:
+    """Write the new table into the game's .info: what it says about itself, and where
+    it came from. Best effort - the table is on disk and playable either way.
+    """
+    try:
+        meta = MetaConfig(str(game_dir / f"{game_dir.name}.info"))
+        parsed = VPXParser().singleFileExtract(str(vpx))
+        if parsed:
+            # A failed parse leaves the entry unparsed rather than filled with empties.
+            meta.refresh_table(vpx.name, parsed)
+        meta.record_patch_source(vpx.name, base_file, base_hash, "jojodiff")
+    except Exception:
+        logger.warning("Patched %s, but could not record it in the .info", vpx.name,
+                       exc_info=True)
+
+
+def _apply_patch(source, asset: DetectedAsset, base: Path, dest: Path) -> None:
+    """Apply a .dif to the table already in this folder, writing a new .vpx beside it.
+
+    The base is chosen by size: a patch is built against the real table, and a folder can
+    hold small helper .vpx files. Getting this wrong produces a corrupt result rather than
+    an error, so the base is recorded by name and hash - in the log for whoever has to work
+    out what happened, and in the .info because the result cannot be rebuilt without it.
+    """
+    from common.jdiff_patch import PatchError, apply_patch
+
+    candidates = sorted(base.glob("*.vpx"), key=lambda p: p.stat().st_size, reverse=True)
+    candidates = [c for c in candidates if c != dest]
+    if not candidates:
+        raise ValueError("No table in this folder to patch")
+    original = candidates[0]
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".dif") as tmp:
+        patch_tmp = Path(tmp.name)
+    try:
+        _extract_replace(source, asset.entries[0], patch_tmp)
+        with open(original, "rb") as src, open(patch_tmp, "rb") as pat, open(dest, "wb") as out:
+            try:
+                apply_patch(src, pat, out)
+            except PatchError as exc:
+                dest.unlink(missing_ok=True)
+                raise ValueError(
+                    f"Patch does not apply to \"{original.name}\". A .dif is built against "
+                    f"one exact table; this is probably not that table. ({exc})") from exc
+        base_hash = _sha256(original)
+        logger.info("Patched %s -> %s (base sha256 %s)", original.name, dest.name,
+                    base_hash[:16])
+        _record_patched_table(base, dest, original.name, base_hash)
+    finally:
+        patch_tmp.unlink(missing_ok=True)
+
+
+def _sha256(path: Path) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def execute_import_plan(plan: ImportPlan, source_path: Path,
-                        *, progress_cb: Callable[[str], None] | None = None) -> dict:
-    """Execute an import plan, streaming each asset from source_path to its destination."""
-    base = Path(plan.table_path)
-    if plan.new_table_dir_name:
+                        *, progress_cb: Callable[[str], None] | None = None,
+                        declared: dict | None = None) -> dict:
+    """Execute an import plan, streaming each asset from source_path to its destination.
+
+    `declared` is what the sender said each uploaded file is, keyed by the name it arrived
+    under. Recorded after the files are on disk, so a failed import writes no claim.
+    """
+    base = Path(plan.game_path)
+    if plan.new_game_dir_name:
         if base.exists():
             raise ValueError(f"Table folder already exists: {base.name}")
         base.mkdir(parents=True)
@@ -483,12 +616,14 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
                 _extract_replace(source, item.asset.entries[0], dest)
             elif item.action == "copy":
                 _extract_replace(source, item.asset.entries[0], dest)
+            elif item.action == "apply_patch":
+                _apply_patch(source, item.asset, base, dest)
             elif item.action == "zip_rom":
                 _build_rom_zip(source, item.asset, dest)
             elif item.action == "extract_tree":
                 _extract_tree(source, item.asset, dest)
             elif item.action == "write_info":
-                _import_table_info(source, item.asset, base)
+                _import_game_info(source, item.asset, base)
             elif item.action == "replace_media":
                 _import_media(source, item.asset, base)
                 media_keys.append(item.asset.media_key)
@@ -502,10 +637,46 @@ def execute_import_plan(plan: ImportPlan, source_path: Path,
     finally:
         source.close()
 
+    declared_written = record_declared_identities(plan, base, declared)
+
     return {
         "imported": imported,
         "skipped": [b.asset.kind for b in plan.blocked],
         "table_path": str(base),
-        "new_table": bool(plan.new_table_dir_name),
+        "new_table": bool(plan.new_game_dir_name),
         "media_keys": media_keys,
+        "declared": declared_written,
     }
+
+
+def record_declared_identities(plan: ImportPlan, base: Path, declared) -> list[str]:
+    """Write what the sender said each file is into the game's `.info`.
+
+    Keyed by the name the file arrived under, because that is the only name the sender
+    knows - it cannot predict where the plan will put it. Anything it names that the plan
+    did not import is ignored rather than rejected: a bundle may legitimately carry more
+    than the user selected.
+
+    Returns the destination paths actually recorded, so the caller can say what it did.
+    """
+    if not declared:
+        return []
+
+    by_name = {}
+    for item in plan.items:
+        for entry in item.asset.entries:
+            by_name.setdefault(_basename(entry.path), item)
+
+    written = []
+    meta = None
+    for name, identity in declared.items():
+        item = by_name.get(_basename(str(name)))
+        if item is None or identity is None or identity.is_empty:
+            continue
+        if meta is None:
+            # The .info is named for its folder, and MetaConfig wants the file.
+            meta = MetaConfig(str(base / f"{base.name}.info"))
+        meta.add_asset(item.destination, identity.host or "declared",
+                       identity=identity)
+        written.append(item.destination)
+    return written

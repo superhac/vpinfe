@@ -1,3 +1,10 @@
+"""An upload in progress.
+
+Files arrive in chunks and land in a session directory, never straight into the
+library. Every path is checked against that directory: an upload naming `../` is
+refused rather than resolved.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -9,7 +16,6 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-
 logger = logging.getLogger("vpinfe.manager.upload_session")
 
 MAX_TOTAL_BYTES = 20 * 1024 ** 3      # 20 GiB per session (PUP packs are large)
@@ -17,15 +23,15 @@ SESSION_TTL_SECONDS = 3600
 _CHUNK = 1024 * 1024
 
 
-class UnknownSession(ValueError):
+class UnknownSessionError(ValueError):
     pass
 
 
-class UnsafePath(ValueError):
+class UnsafePathError(ValueError):
     pass
 
 
-class UploadTooLarge(ValueError):
+class UploadTooLargeError(ValueError):
     pass
 
 
@@ -44,12 +50,12 @@ def _safe_join(base: Path, relative: str) -> Path:
     rel = PurePosixPath(relative.replace("\\", "/"))
     drive_letter = len(relative) >= 2 and relative[1] == ":"
     if not relative or rel.is_absolute() or ".." in rel.parts or drive_letter:
-        raise UnsafePath(f"Unsafe upload path: {relative}")
+        raise UnsafePathError(f"Unsafe upload path: {relative}")
     dest = (base / Path(*rel.parts)).resolve()
     try:
         dest.relative_to(base.resolve())
     except ValueError as exc:
-        raise UnsafePath(f"Unsafe upload path: {relative}") from exc
+        raise UnsafePathError(f"Unsafe upload path: {relative}") from exc
     return dest
 
 
@@ -77,7 +83,7 @@ def _record(upload_id: str) -> dict:
     with _lock:
         rec = _sessions.get(upload_id)
     if rec is None:
-        raise UnknownSession("Unknown upload session")
+        raise UnknownSessionError("Unknown upload session")
     return rec
 
 
@@ -97,7 +103,7 @@ def store_file(upload_id: str, relpath: str, stream) -> int:
                 rec["bytes"] += len(chunk)
                 total = rec["bytes"]
             if total > MAX_TOTAL_BYTES:
-                raise UploadTooLarge("Upload exceeds the maximum allowed size")
+                raise UploadTooLargeError("Upload exceeds the maximum allowed size")
             out.write(chunk)
     return written
 

@@ -1,11 +1,12 @@
+"""The Themes page: installing a theme, choosing one, and configuring it."""
+
 import json
 
-from nicegui import ui, run, context
-from common.themes import ThemeRegistry, ThemeRegistryError
-from pathlib import Path
-from managerui.paths import CONFIG_DIR, VPINFE_INI_PATH
-from managerui.services import app_control
-from managerui.services import theme_service
+from nicegui import run, ui
+
+from common.online.themes import ThemeRegistry, ThemeRegistryError
+from managerui.paths import VPINFE_INI_PATH
+from managerui.services import app_control, theme_service
 from managerui.ui_helpers import load_page_style
 
 INI_PATH = VPINFE_INI_PATH
@@ -14,19 +15,9 @@ INI_PATH = VPINFE_INI_PATH
 _registry: ThemeRegistry | None = None
 
 
-def _get_active_theme() -> str:
-    """Get the currently active theme name from config."""
-    return theme_service.get_active_theme()
-
-
 def _set_active_theme(theme_key: str):
     """Set the active theme in config (blocking)."""
     theme_service.set_active_theme(theme_key)
-
-
-def _load_registry() -> ThemeRegistry:
-    """Load or reload the theme registry (blocking)."""
-    return theme_service.load_registry()
 
 
 def _install_theme(registry: ThemeRegistry, theme_key: str):
@@ -47,7 +38,7 @@ def render_panel(tab=None):
     # Container references
     cards_container = None
     loading_container = None
-    active_theme = _get_active_theme()
+    active_theme = theme_service.get_active_theme()
 
     with ui.column().classes('w-full'):
         # Header card
@@ -77,7 +68,7 @@ def render_panel(tab=None):
     def _build_theme_cards():
         """Rebuild the theme cards from current registry data."""
         nonlocal active_theme
-        active_theme = _get_active_theme()
+        active_theme = theme_service.get_active_theme()
 
         with cards_container:
             cards_container.clear()
@@ -158,7 +149,7 @@ def render_panel(tab=None):
                                     ui.label(manifest.get('name', theme_key)).classes('text-xl font-bold').style('color: var(--ink) !important;')
 
                                     # GitHub repo link
-                                    repo_url = registry_info.get('theme_base_url', '')
+                                    repo_url = ThemeRegistry._base_url(registry_info)
                                     if repo_url:
                                         ui.button(
                                             icon='open_in_new',
@@ -212,8 +203,10 @@ def render_panel(tab=None):
                                     else:
                                         ui.label(f'v{remote_version}').classes('text-sm').style('color: var(--ink-muted) !important;')
 
-                                # Supported screens
-                                screens = manifest.get('supported_screens')
+                                # Screens. `windows` names them, so prefer it - a theme
+                                # declaring both is telling us the same thing twice.
+                                screens = (manifest.get('windows')
+                                           or manifest.get('supported_screens'))
                                 if screens is not None:
                                     with ui.row().classes('items-center gap-2'):
                                         ui.icon('monitor', size='16px').style('color: var(--ink-muted) !important;')
@@ -275,7 +268,7 @@ def render_panel(tab=None):
             try:
                 await run.io_bound(_set_active_theme, theme_key)
                 ui.notify(f'Theme "{theme_key}" set as active — restarting...', type='positive')
-                app_control.restart_app()
+                await app_control.restart_app()
             except Exception as e:
                 ui.notify(f'Failed to set theme: {e}', type='negative')
                 btn.enable()
@@ -388,7 +381,7 @@ def render_panel(tab=None):
                 save_button.disable()
                 try:
                     values_to_save = {}
-                    for option_key, (option, control) in controls.items():
+                    for option_key, (_option, control) in controls.items():
                         raw_value = getattr(control, 'value', None)
                         values_to_save[option_key] = raw_value
                     await run.io_bound(theme_service.save_theme_option_values, theme_key, values_to_save, _registry)
@@ -446,7 +439,7 @@ def render_panel(tab=None):
         cards_container.visible = False
 
         try:
-            _registry = await run.io_bound(_load_registry)
+            _registry = await run.io_bound(theme_service.load_registry)
             _build_theme_cards()
             ui.notify('Theme registry refreshed', type='positive')
         except Exception as e:

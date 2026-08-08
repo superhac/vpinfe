@@ -13,12 +13,11 @@ import json
 import logging
 import socket
 import threading
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 import websockets
 
 from frontend.api import API_ALLOWED_METHODS
-
 
 logger = logging.getLogger("vpinfe.frontend.ws_bridge")
 
@@ -76,7 +75,7 @@ class WebSocketBridge:
         self._server = await websockets.serve(
             self._handle_connection,
             sock=sock,
-            max_size=10 * 1024 * 1024,  # 10MB max message size for large table data
+            max_size=10 * 1024 * 1024,  # 10MB max message size for large game data
         )
         # Wait until stop is signaled
         while not self._stop_event.is_set():

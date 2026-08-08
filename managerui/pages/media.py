@@ -1,15 +1,16 @@
-import os
-import logging
-import asyncio
-import shutil
-from nicegui import ui, events, run, app, context
-from typing import List, Dict, Optional
+"""The Media page: which media each game has, and which it is missing."""
 
-from managerui.filters import apply_table_filters, build_table_filter_options
-from managerui.pages.dnd_drop_zone import create_drop_zone, enable_cell_drops, DropContext
+import asyncio
+import logging
+import os
+import shutil
+
+from nicegui import app, context, events, run, ui
+
+from managerui.filters import apply_game_filters, build_game_filter_options
+from managerui.pages.dnd_drop_zone import DropContext, create_drop_zone, enable_cell_drops
 from managerui.services import media_service
 from managerui.ui_helpers import debounced_input, load_page_style
-
 
 logger = logging.getLogger("vpinfe.manager.media")
 
@@ -24,10 +25,6 @@ IMAGE_MEDIA_KEYS = media_service.IMAGE_MEDIA_KEYS
 def invalidate_media_cache():
     """Reset the media cache so the next page visit triggers a fresh scan."""
     media_service.invalidate_media_cache()
-
-
-def _media_cache():
-    return media_service.get_media_cache()
 
 
 # Track whether we've registered the media files route
@@ -65,9 +62,9 @@ def render_panel():
 
     # Register media files route once
     if not _media_route_registered:
-        tables_path = media_service.get_tables_path()
-        if os.path.exists(tables_path):
-            app.add_media_files('/media_tables', tables_path)
+        games_path = media_service.get_games_path()
+        if os.path.exists(games_path):
+            app.add_media_files('/media_games', games_path)
             _media_route_registered = True
     if not _thumb_route_registered:
         THUMB_CACHE_ROOT.mkdir(parents=True, exist_ok=True)
@@ -79,18 +76,18 @@ def render_panel():
 
         columns = [
             {'name': 'name', 'label': 'Name', 'field': 'name', 'align': 'left', 'sortable': True},
-            {'name': 'bg', 'label': 'BG', 'field': 'has_bg', 'align': 'center', 'sortable': True},
-            {'name': 'dmd', 'label': 'DMD', 'field': 'has_dmd', 'align': 'center', 'sortable': True},
-            {'name': 'table_img', 'label': 'Table', 'field': 'has_table', 'align': 'center', 'sortable': True},
+            {'name': 'backglass', 'label': 'BG', 'field': 'has_backglass', 'align': 'center', 'sortable': True},
+            {'name': 'scoreview', 'label': 'DMD', 'field': 'has_scoreview', 'align': 'center', 'sortable': True},
+            {'name': 'game_img', 'label': 'Table', 'field': 'has_table', 'align': 'center', 'sortable': True},
             {'name': 'fss', 'label': 'FSS', 'field': 'has_fss', 'align': 'center', 'sortable': True},
             {'name': 'wheel', 'label': 'Wheel', 'field': 'has_wheel', 'align': 'center', 'sortable': True},
             {'name': 'cab', 'label': 'Cab', 'field': 'has_cab', 'align': 'center', 'sortable': True},
             {'name': 'flyer', 'label': 'Flyer', 'field': 'has_flyer', 'align': 'center', 'sortable': True},
             {'name': 'realdmd', 'label': 'Real DMD', 'field': 'has_realdmd', 'align': 'center', 'sortable': True},
             {'name': 'realdmd_color', 'label': 'Real DMD Color', 'field': 'has_realdmd_color', 'align': 'center', 'sortable': True},
-            {'name': 'table_video', 'label': 'Table Video', 'field': 'has_table_video', 'align': 'center', 'sortable': True},
-            {'name': 'bg_video', 'label': 'BG Video', 'field': 'has_bg_video', 'align': 'center', 'sortable': True},
-            {'name': 'dmd_video', 'label': 'DMD Video', 'field': 'has_dmd_video', 'align': 'center', 'sortable': True},
+            {'name': 'table_video', 'label': 'Table Video', 'field': 'has_game_video', 'align': 'center', 'sortable': True},
+            {'name': 'backglass_video', 'label': 'BG Video', 'field': 'has_backglass_video', 'align': 'center', 'sortable': True},
+            {'name': 'scoreview_video', 'label': 'DMD Video', 'field': 'has_scoreview_video', 'align': 'center', 'sortable': True},
             {'name': 'audio', 'label': 'Audio', 'field': 'has_audio', 'align': 'center', 'sortable': True},
         ]
 
@@ -103,7 +100,7 @@ def render_panel():
             'table_type': 'All',
             'missing_bg': False,
             'missing_dmd': False,
-            'missing_table': False,
+            'missing_game': False,
             'missing_fss': False,
             'missing_wheel': False,
             'missing_cab': False,
@@ -118,7 +115,7 @@ def render_panel():
         }
 
         def get_filter_options_from_cache():
-            return build_table_filter_options(_media_cache() or [])
+            return build_game_filter_options(media_service.get_media_cache() or [])
 
         def apply_filters():
             missing_predicates = [
@@ -126,9 +123,9 @@ def render_panel():
                 for media_key, _, _ in MEDIA_TYPES
                 if filter_state.get(f'missing_{media_key}')
             ]
-            return apply_table_filters(_media_cache() or [], filter_state, extra_predicates=missing_predicates)
+            return apply_game_filters(media_service.get_media_cache() or [], filter_state, extra_predicates=missing_predicates)
 
-        def _visible_rows(rows: List[Dict]) -> List[Dict]:
+        def _visible_rows(rows: list[dict]) -> list[dict]:
             try:
                 page = int(pagination_state.get('page', 1) or 1)
                 rows_per_page = int(pagination_state.get('rowsPerPage', 25) or 25)
@@ -140,7 +137,7 @@ def render_panel():
             start = max(0, (page - 1) * rows_per_page)
             return rows[start:start + rows_per_page]
 
-        def _store_pagination(pagination: Optional[Dict]) -> None:
+        def _store_pagination(pagination: dict | None) -> None:
             if not isinstance(pagination, dict):
                 return
             try:
@@ -158,7 +155,7 @@ def render_panel():
             if 'descending' in pagination:
                 pagination_state['descending'] = bool(pagination.get('descending'))
 
-        async def warm_visible_thumbnails(rows: List[Dict]) -> None:
+        async def warm_visible_thumbnails(rows: list[dict]) -> None:
             try:
                 if not is_page_active():
                     return
@@ -192,7 +189,7 @@ def render_panel():
                         if thumbs.get(media_key) or errors.get(media_key):
                             continue
                         source_path = media_service.source_media_path(row.get('table_path', ''), media_key)
-                        if source_path and media_service.mark_thumb_requested(row.get('table_dir', ''), media_key, source_path):
+                        if source_path and media_service.mark_thumb_requested(row.get('game_dir', ''), media_key, source_path):
                             pending.append((row, media_key, source_path))
 
                 if not pending:
@@ -202,11 +199,11 @@ def render_panel():
                 sem = asyncio.Semaphore(4)
                 current_pagination = dict(media_table._props.get('pagination', {}))
 
-                async def _build_one(row: Dict, media_key: str, source_path: str):
+                async def _build_one(row: dict, media_key: str, source_path: str):
                     changed = False
                     try:
                         async with sem:
-                            thumb = await run.io_bound(media_service.ensure_thumb, row.get('table_dir', ''), media_key, source_path)
+                            thumb = await run.io_bound(media_service.ensure_thumb, row.get('game_dir', ''), media_key, source_path)
                         if thumb:
                             if row['thumbs'].get(media_key) != thumb:
                                 row['thumbs'][media_key] = thumb
@@ -217,7 +214,7 @@ def render_panel():
                     except Exception:
                         row.setdefault('thumb_errors', {})[media_key] = True
                     finally:
-                        media_service.clear_thumb_request(row.get('table_dir', ''), media_key, source_path)
+                        media_service.clear_thumb_request(row.get('game_dir', ''), media_key, source_path)
                     return changed
 
                 for i in range(0, len(pending), THUMB_WARM_CHUNK_SIZE):
@@ -226,7 +223,7 @@ def render_panel():
                     if any(results) and can_update_ui():
                         with page_client:
                             # Rebuild rows from cache (same path as revisit), but keep current pagination.
-                            update_table_display(schedule_warm=False)
+                            update_game_display(schedule_warm=False)
                             if current_pagination:
                                 media_table.run_method('setPagination', current_pagination)
             finally:
@@ -236,7 +233,7 @@ def render_panel():
                     page_state['pending_warm_rows'] = None
                     asyncio.create_task(warm_visible_thumbnails(pending_rows))
 
-        def update_table_display(schedule_warm: bool = True):
+        def update_game_display(schedule_warm: bool = True):
             filtered = apply_filters()
             rows_per_page = max(1, int(pagination_state.get('rowsPerPage', 25) or 25))
             max_page = max(1, (len(filtered) + rows_per_page - 1) // rows_per_page)
@@ -245,7 +242,7 @@ def render_panel():
             media_table._props['rows'] = filtered
             media_table.update()
             media_table.run_method('setPagination', dict(pagination_state))
-            total = len(_media_cache() or [])
+            total = len(media_service.get_media_cache() or [])
             shown = len(filtered)
             if shown == total:
                 count_label.set_text(f"Tables ({total})")
@@ -270,23 +267,23 @@ def render_panel():
 
         def on_search_change(e: events.ValueChangeEventArguments):
             filter_state['search'] = e.value or ''
-            update_table_display()
+            update_game_display()
 
         def on_manufacturer_change(e: events.ValueChangeEventArguments):
             filter_state['manufacturer'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
         def on_year_change(e: events.ValueChangeEventArguments):
             filter_state['year'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
         def on_theme_change(e: events.ValueChangeEventArguments):
             filter_state['theme'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
-        def on_table_type_change(e: events.ValueChangeEventArguments):
+        def on_game_type_change(e: events.ValueChangeEventArguments):
             filter_state['table_type'] = e.value or 'All'
-            update_table_display()
+            update_game_display()
 
         def clear_filters():
             filter_state['search'] = ''
@@ -298,7 +295,7 @@ def render_panel():
             manufacturer_select.value = 'All'
             year_select.value = 'All'
             theme_select.value = 'All'
-            table_type_select.value = 'All'
+            game_type_select.value = 'All'
             # Reset missing media checkboxes
             for media_key, _, _ in MEDIA_TYPES:
                 filter_state[f'missing_{media_key}'] = False
@@ -306,18 +303,18 @@ def render_panel():
                 cb.value = False
             pagination_state['page'] = 1
             media_table._props['pagination'] = dict(pagination_state)
-            update_table_display()
+            update_game_display()
 
         def refresh_filter_options():
             opts = get_filter_options_from_cache()
             manufacturer_select.options = opts['manufacturers']
             year_select.options = opts['years']
             theme_select.options = opts['themes']
-            table_type_select.options = opts['table_types']
+            game_type_select.options = opts['game_types']
             manufacturer_select.update()
             year_select.update()
             theme_select.update()
-            table_type_select.update()
+            game_type_select.update()
 
         async def perform_scan(*_, silent: bool = False):
             if page_state['scan_in_progress']:
@@ -334,7 +331,7 @@ def render_panel():
                     with page_client:
                         scan_btn.disable()
 
-                media_rows = await run.io_bound(media_service.scan_media_tables, True)
+                media_rows = await run.io_bound(media_service.scan_media_games, True)
                 try:
                     media_rows.sort(key=lambda r: (r.get('name') or '').lower())
                 except Exception:
@@ -344,7 +341,7 @@ def render_panel():
                     with page_client:
                         try:
                             refresh_filter_options()
-                            update_table_display()
+                            update_game_display()
                         except NameError:
                             media_table._props['rows'] = media_rows
                             media_table.update()
@@ -375,8 +372,8 @@ def render_panel():
 
         # --- Media replacement logic ---
 
-        def open_replace_dialog(table_dir: str, table_path: str, table_name: str, media_key: str, media_label: str):
-            """Open a dialog to replace a media file for a table."""
+        def open_replace_dialog(game_dir: str, game_path: str, game_name: str, media_key: str, media_label: str):
+            """Open a dialog to replace a media file for a game."""
             target_filename = MEDIA_KEY_TO_FILENAME[media_key]
             is_video = target_filename.endswith('.mp4')
             is_audio = target_filename.endswith('.mp3')
@@ -384,15 +381,15 @@ def render_panel():
             accept_type = '.mp3,audio/*' if is_audio else ('.mp4' if is_video else 'image/*')
             current_url = None
             # Find current media URL from cache
-            if _media_cache():
-                for row in _media_cache():
-                    if row['table_dir'] == table_dir:
+            if media_service.get_media_cache():
+                for row in media_service.get_media_cache():
+                    if row['game_dir'] == game_dir:
                         current_url = row['media'].get(media_key)
                         break
 
             with ui.dialog() as dlg, ui.card().style('min-width: 500px; background: var(--surface) !important; border: 1px solid var(--line) !important;'):
                 ui.label(f'Replace {media_label}').classes('text-xl font-bold mb-2').style('color: var(--ink)')
-                ui.label(f'Table: {table_name}').classes('mb-1').style('color: var(--ink-muted)')
+                ui.label(f'Table: {game_name}').classes('mb-1').style('color: var(--ink-muted)')
                 ui.label(f'Target: {target_filename}').classes('text-sm mb-4').style('color: var(--ink-muted)')
 
                 # Show current media if exists
@@ -413,7 +410,7 @@ def render_panel():
 
                 async def handle_upload(e: events.UploadEventArguments):
                     # Save to a temp location first
-                    tmp_dir = os.path.join(table_path, '.tmp_upload')
+                    tmp_dir = os.path.join(game_path, '.tmp_upload')
                     os.makedirs(tmp_dir, exist_ok=True)
                     tmp_path = os.path.join(tmp_dir, e.file.name)
                     with open(tmp_path, 'wb') as f:
@@ -436,16 +433,16 @@ def render_panel():
                             return
                         try:
                             src = upload_state['path']
-                            target_path = await run.io_bound(media_service.replace_media_file, table_path, table_dir, media_key, src)
+                            target_path = await run.io_bound(media_service.replace_media_file, game_path, game_dir, media_key, src)
 
                             # Build the URL for the new media (now in medias/ subfolder)
-                            new_url = media_service.media_url('media_tables', table_dir, 'medias', target_filename)
-                            new_thumb = await run.io_bound(media_service.ensure_thumb, table_dir, media_key, target_path)
-                            media_service.update_cache_entry(table_dir, media_key, new_url, new_thumb)
-                            update_table_display()
+                            new_url = media_service.media_url('media_games', game_dir, 'medias', target_filename)
+                            new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir, media_key, target_path)
+                            media_service.update_cache_entry(game_dir, media_key, new_url, new_thumb)
+                            update_game_display()
 
                             # Cleanup temp
-                            tmp_dir = os.path.join(table_path, '.tmp_upload')
+                            tmp_dir = os.path.join(game_path, '.tmp_upload')
                             if os.path.exists(tmp_dir):
                                 shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -469,7 +466,7 @@ def render_panel():
                     scan_btn = ui.button("Scan Media", icon="refresh", on_click=lambda: asyncio.create_task(perform_scan())).style('color: var(--neon-pink) !important; background: var(--surface) !important; border: 1px solid var(--neon-pink); border-radius: 18px; padding: 4px 10px;')
 
         # Use cached data if available
-        initial_rows = _media_cache() if _media_cache() is not None else []
+        initial_rows = media_service.get_media_cache() if media_service.get_media_cache() is not None else []
 
         # Filter UI
         with ui.card().classes('w-full mb-4').style('border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line);'):
@@ -500,12 +497,12 @@ def render_panel():
                 ).props('outlined dense').classes('w-40')
                 theme_select.on_value_change(on_theme_change)
 
-                table_type_select = ui.select(
+                game_type_select = ui.select(
                     label='Type',
-                    options=filter_opts['table_types'],
+                    options=filter_opts['game_types'],
                     value='All'
                 ).props('outlined dense').classes('w-28')
-                table_type_select.on_value_change(on_table_type_change)
+                game_type_select.on_value_change(on_game_type_change)
 
                 ui.button(icon='clear_all', on_click=clear_filters).props('flat round').tooltip('Clear all filters')
 
@@ -519,21 +516,21 @@ def render_panel():
                         def handler(e: events.ValueChangeEventArguments):
                             filter_state[f'missing_{key}'] = e.value
                             media_table._props['pagination']['page'] = 1
-                            update_table_display()
+                            update_game_display()
                         return handler
                     cb = ui.checkbox(media_label, value=False, on_change=make_handler(media_key)).style('color: var(--ink) !important;')
                     missing_checkboxes[media_key] = cb
 
-        # Table count label
+        # Game count label
         total = len(initial_rows)
         count_label = ui.label(f"Tables ({total})").classes('text-lg font-semibold py-1 text-center w-full').style('color: var(--ink-muted) !important;')
 
-        # Table with image thumbnails
+        # Media table with image thumbnails
         table_container = ui.column().classes("w-full media-table").style("flex: 1; overflow: hidden; display: flex;")
 
         with table_container:
             media_table = (
-                ui.table(columns=columns, rows=initial_rows, row_key='table_dir', pagination=dict(pagination_state))
+                ui.table(columns=columns, rows=initial_rows, row_key='game_dir', pagination=dict(pagination_state))
                   .props('rows-per-page-options="[25,50,100]" sort-by="name" sort-order="asc"')
                   .classes("w-full")
                   .style("flex: 1; overflow: auto;")
@@ -543,16 +540,16 @@ def render_panel():
             MEDIA_KEY_TO_LABEL = {key: label for key, label, _ in MEDIA_TYPES}
 
             # Custom slot for each media type column to show thumbnail or missing indicator
-            for media_key, media_label, media_filename in MEDIA_TYPES:
+            for media_key, _media_label, media_filename in MEDIA_TYPES:
                 col_name = media_key
                 if media_key == 'table':
-                    col_name = 'table_img'
-                emit_expr = "$parent.$emit('media_click', [props.row.table_dir, props.row.table_path, props.row.name, '" + media_key + "'])"
+                    col_name = 'game_img'
+                emit_expr = "$parent.$emit('media_click', [props.row.game_dir, props.row.table_path, props.row.name, '" + media_key + "'])"
                 is_video = media_filename.endswith('.mp4')
                 is_audio = media_filename.endswith('.mp3')
 
                 cell_td = ('<q-td :props="props" data-drop-media-key="' + media_key
-                           + '" :data-drop-media-row="props.row.table_dir">')
+                           + '" :data-drop-media-row="props.row.game_dir">')
 
                 if is_audio:
                     media_table.add_slot(f'body-cell-{col_name}', cell_td + '''
@@ -620,35 +617,35 @@ def render_panel():
             # Handle media click events from slot templates
             def on_media_click(e):
                 args = e.args
-                table_dir = args[0]
-                table_path = args[1]
-                table_name = args[2]
+                game_dir = args[0]
+                game_path = args[1]
+                game_name = args[2]
                 media_key = args[3]
                 media_label = MEDIA_KEY_TO_LABEL.get(media_key, media_key)
                 open_replace_dialog(
-                    table_dir=table_dir,
-                    table_path=table_path,
-                    table_name=table_name,
+                    game_dir=game_dir,
+                    game_path=game_path,
+                    game_name=game_name,
                     media_key=media_key,
                     media_label=media_label,
                 )
             media_table.on('media_click', on_media_click)
 
-            def _cell_table_path(table_dir: str):
-                return next((r.get('table_path') for r in (_media_cache() or [])
-                             if r.get('table_dir') == table_dir), None)
+            def _cell_game_path(game_dir: str):
+                return next((r.get('table_path') for r in (media_service.get_media_cache() or [])
+                             if r.get('game_dir') == game_dir), None)
 
             def _on_cell_imported(report):
                 async def _refresh():
-                    table_path = report.get('table_path', '')
-                    table_dir = os.path.basename(table_path.rstrip('/'))
+                    game_path = report.get('table_path', '')
+                    game_dir = os.path.basename(game_path.rstrip('/'))
                     for media_key in report.get('media_keys', []):
                         target_filename = MEDIA_KEY_TO_FILENAME[media_key]
-                        target_path = os.path.join(table_path, 'medias', target_filename)
-                        new_url = media_service.media_url('media_tables', table_dir, 'medias', target_filename)
-                        new_thumb = await run.io_bound(media_service.ensure_thumb, table_dir, media_key, target_path)
-                        media_service.update_cache_entry(table_dir, media_key, new_url, new_thumb)
-                    update_table_display()
+                        target_path = os.path.join(game_path, 'medias', target_filename)
+                        new_url = media_service.media_url('media_games', game_dir, 'medias', target_filename)
+                        new_thumb = await run.io_bound(media_service.ensure_thumb, game_dir, media_key, target_path)
+                        media_service.update_cache_entry(game_dir, media_key, new_url, new_thumb)
+                    update_game_display()
                 asyncio.create_task(_refresh())
 
             media_drop_zone = create_drop_zone(
@@ -657,7 +654,7 @@ def render_panel():
                 on_imported=_on_cell_imported,
                 visible=False,
             )
-            enable_cell_drops(media_drop_zone, media_table, _cell_table_path)
+            enable_cell_drops(media_drop_zone, media_table, _cell_game_path)
 
             media_table.add_slot('bottom', '''
                 <div class="row full-width items-center q-pa-sm"
@@ -706,10 +703,10 @@ def render_panel():
         async def refresh_on_startup():
             if not is_page_active():
                 return
-            if _media_cache() is not None:
+            if media_service.get_media_cache() is not None:
                 if can_update_ui():
                     refresh_filter_options()
-                    update_table_display()
+                    update_game_display()
             else:
                 await perform_scan(silent=True)
             if can_update_ui():

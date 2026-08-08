@@ -1,0 +1,72 @@
+"""What this play host is doing, and who asked for it.
+
+Every change is announced as `play.state_changed`, so a consumer can be told rather
+than having to ask.
+
+`source` is who asked. The frontend needs to tell its own launches apart; everyone else
+needs the state to be true regardless of who started it.
+"""
+
+from __future__ import annotations
+
+import threading
+from dataclasses import dataclass
+
+from common import events
+
+# Who asked. The frontend ignores its own; nothing else needs to care.
+SOURCE_FRONTEND = "frontend"
+SOURCE_REMOTE = "remote"
+SOURCE_API = "api"
+
+_lock = threading.Lock()
+
+
+@dataclass(frozen=True)
+class LaunchState:
+    launching: bool = False
+    game_name: str | None = None
+    source: str | None = None
+
+    def as_dict(self) -> dict:
+        return {"launching": self.launching, "game_name": self.game_name,
+                "source": self.source}
+
+
+_state = LaunchState()
+
+
+def current() -> LaunchState:
+    with _lock:
+        return _state
+
+
+def _replace(new_state: LaunchState) -> LaunchState:
+    """Swap the state and announce it, if it actually changed.
+
+    The event goes out after the lock is released. Handlers are arbitrary code and
+    may well read the state back; publishing while holding the lock would deadlock
+    the first one that did.
+    """
+    global _state
+    with _lock:
+        if new_state == _state:
+            return _state
+        _state = new_state
+
+    events.emit(events.PLAY_STATE_CHANGED, state=new_state.as_dict())
+    return new_state
+
+
+def set_launching(game_name: str | None, *, source: str) -> LaunchState:
+    """Record that a launch is starting, for which game, and who asked.
+
+    `source` is required rather than defaulted: a caller that does not say is a
+    caller the frontend cannot tell apart from itself.
+    """
+    return _replace(LaunchState(launching=True, game_name=game_name, source=source))
+
+
+def clear() -> LaunchState:
+    """Record that nothing is launching. Safe to call when nothing was."""
+    return _replace(LaunchState())

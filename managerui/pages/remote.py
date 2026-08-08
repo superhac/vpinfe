@@ -1,42 +1,32 @@
-import platform
-import subprocess
-import os
+"""The Remote page - a cabinet's controls on a phone, for when you are not at it."""
+
 import logging
-import sys
-from nicegui import ui, run
+
+from nicegui import background_tasks, run, ui
+
+from managerui import remote_launch
 from managerui.paths import VPINFE_INI_PATH
 from managerui.remote_actions import PINMAME_SERVICE_CONTROLS, SYSTEM_CONTROLS, RemoteAction
-from managerui import remote_launch
 from managerui.services import app_control
 
 ks = None
 content_area = None
 category_select = None
 
-# Config for launching tables
+# Config for launching games
 # Import config
-from common.iniconfig import IniConfig
-from common.config_access import SettingsConfig
-from common.dof_service import start_dof_service_if_enabled, stop_dof_service
-from common.vpx_log import delete_vpinball_log_on_start_if_configured
-from common.libdmdutil_service import (
-    stop_libdmdutil_service,
-)
+from common.config_store import ConfigStore
+from common.games import game_identity
+from common.games.game_repository import ensure_games_loaded
+from common.host import launch, launch_state
 from managerui.ui_helpers import debounced_input, load_page_style
-from common.launcher import (
-    build_vpx_launch_command,
-    get_effective_launcher,
-    get_plugin_profile_from_meta,
-    parse_launch_env_overrides,
-    resolve_launch_plugin_profile,
-    resolve_launch_tableini_override,
-)
+
 _INI_CFG = None
 logger = logging.getLogger("vpinfe.manager.remote")
 
 
 def _get_keysimulator_class():
-    from managerui.keysimulator import KeySimulator
+    from managerui.key_simulator import KeySimulator
     return KeySimulator
 
 
@@ -82,173 +72,72 @@ def _labeled_icon_action(category: str, action: RemoteAction):
         )
 
 
-def _get_collections():
-    """Get list of collection names."""
-    return remote_launch.get_collections()
-
-
-def _get_collection_vpsids(collection_name):
-    """Get VPSIds for a specific collection (vpsid-based only)."""
-    return remote_launch.get_collection_vpsids(collection_name)
-
-
-def _is_filter_collection(collection_name):
-    """Check if a collection is filter-based."""
-    return remote_launch.is_filter_collection(collection_name)
-
-
-def _get_collection_filters(collection_name):
-    """Get filters for a filter-based collection."""
-    return remote_launch.get_collection_filters(collection_name)
-
-
-def _table_matches_filters(table, filters):
-    """Check if a table matches the given filter criteria."""
-    return remote_launch.table_matches_filters(table, filters)
-
-
 def _get_ini_config():
     """Lazy load the INI config."""
     global _INI_CFG
     if _INI_CFG is None:
-        _INI_CFG = IniConfig(str(VPINFE_INI_PATH))
+        _INI_CFG = ConfigStore(str(VPINFE_INI_PATH))
     return _INI_CFG
 
 
-def _get_tables_path() -> str:
-    """Get the tables root directory from config."""
-    from managerui.paths import get_tables_path
-    return get_tables_path()
+def _get_games_path() -> str:
+    """Get the games root directory from config."""
+    from managerui.paths import get_games_path
+    return get_games_path()
 
 
-def _scan_tables_for_launch():
-    """Scan for tables that can be launched (have .info and .vpx files)."""
-    return remote_launch.scan_tables_for_launch()
-
-
-def _frontend_browser():
-    """The ChromiumManager owning the kiosk windows, or None when running standalone."""
-    main_module = sys.modules.get("__main__")
-    return getattr(main_module, "frontend_browser", None) if main_module else None
-
-
-def _launch_table(table: dict):
-    """Launch a table using the VPX binary."""
+def _launch_game(game: dict):
+    """Hand a game to the launch service and let the bus tell everyone else."""
     import threading
-    from managerui.managerui import set_remote_launch_state
 
-    try:
-        vpx_path = table.get('vpx_path', '')
-        table_name = table.get('name', 'table')
-        table_meta = table.get('meta', {})
-
-        cfg = _get_ini_config()
-        vpxbin = cfg.config['Settings'].get('vpxbinpath', '')
-        vpxbin_path, source_key, _ = get_effective_launcher(vpxbin, table_meta)
-        if not vpxbin_path:
-            ui.notify('No launcher configured (set Settings.vpxbinpath or VPinFE.altlauncher)', type='negative')
-            return False
-
-        if not vpxbin_path.exists():
-            ui.notify(f'Launcher not found ({source_key}): {vpxbin_path}', type='negative')
-            return False
-
-        logger.info("Remote launching table: %s", vpx_path)
-        ui.notify(f'Remote Launching {table_name}...', type='info')
-
-        delete_vpinball_log_on_start_if_configured(SettingsConfig.from_config(cfg))
-        stop_dof_service()
-        stop_libdmdutil_service(clear=False)
-
-        # Signal to frontend that we're launching
-        set_remote_launch_state(True, table_name)
-
-        # Run the launch in a background thread so UI stays responsive
-        global_ini_override = cfg.config['Settings'].get('globalinioverride', '').strip()
-        tableini_override = resolve_launch_tableini_override(
-            vpx_path,
-            cfg.config['Settings'].get('globaltableinioverrideenabled', 'false'),
-            cfg.config['Settings'].get('globaltableinioverridemask', ''),
-        )
-        plugin_profile_override = resolve_launch_plugin_profile(
-            get_plugin_profile_from_meta(table_meta)
-        )
-        cmd = build_vpx_launch_command(
-            launcher_path=str(vpxbin_path),
-            vpx_table_path=vpx_path,
-            global_ini_override=global_ini_override,
-            tableini_override=tableini_override,
-            plugin_profile_override=plugin_profile_override,
-        )
-        launch_env = os.environ.copy()
-        launch_env.update(
-            parse_launch_env_overrides(cfg.config['Settings'].get('vpxlaunchenv', ''))
-        )
-
-        # Prevent usage of bundled libaries on Linux
-        # PyInstaller bundles libaries which might be incompatible with the local files.
-        system = platform.system()
-        if system == "Linux" and getattr(sys, "frozen", False): 
-            lp_key = 'LD_LIBRARY_PATH'
-            lp_orig = launch_env.get(lp_key + '_ORIG')
-            if lp_orig is not None:
-                launch_env[lp_key] = lp_orig  # restore the original, unmodified value
-
-        # Windows only: VPX pauses whenever its player window lacks focus, and the
-        # foreground lock stops us handing focus to a process we spawn. Minimizing
-        # the kiosk windows first lets VPX take the foreground on its own. Same fix
-        # as frontend/launch_service.py; a remote launch leaves the cab screens
-        # showing the frontend, so it needs it too.
-        frontend_browser = _frontend_browser() if sys.platform == "win32" else None
-
-        def run_and_wait():
-            try:
-                if frontend_browser:
-                    frontend_browser.minimize_all_windows()
-                process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    stdin=subprocess.DEVNULL,
-                    env=launch_env,
-                )
-                process.wait()
-            finally:
-                if frontend_browser:
-                    frontend_browser.restore_all_windows()
-                # Clear the launch state when done
-                set_remote_launch_state(False, None)
-                start_dof_service_if_enabled(cfg)
-
-        # Run in background thread
-        thread = threading.Thread(target=run_and_wait, daemon=True)
-        thread.start()
-        return True
-    except Exception as e:
-        logger.exception("Remote launch failed")
-        set_remote_launch_state(False, None)
-        try:
-            start_dof_service_if_enabled(_get_ini_config())
-        except Exception:
-            logger.exception("Could not restart DOF after a failed remote launch")
-        ui.notify(f'Failed to launch: {e}', type='negative')
+    game_name = game.get('name', 'table')
+    resolved = game_identity.find_by_id(ensure_games_loaded(), game.get('vpinfe_id', ''))
+    if resolved is None:
+        # Every launchable game has an id, so this means the library moved under us.
+        ui.notify(f'Could not find {game_name} in the library', type='negative')
         return False
+
+    cfg = _get_ini_config()
+    try:
+        launch.check_launchable(resolved, cfg)
+    except launch.LaunchUnavailableError as exc:
+        ui.notify(str(exc), type='negative')
+        return False
+
+    logger.info("Remote launching game: %s", resolved.gameDirName)
+    ui.notify(f'Remote Launching {game_name}...', type='info')
+
+    def run_and_wait():
+        try:
+            launch.launch_game(resolved, cfg, source=launch_state.SOURCE_REMOTE)
+        except Exception:
+            logger.exception("Remote launch failed")
+
+    threading.Thread(target=run_and_wait, daemon=True).start()
+    return True
+
+
+# app_control asks the user before acting when that is turned on, so its calls are
+# coroutines. handle_button is sync and reached from every button on the page, so the
+# coroutine is scheduled here rather than making the whole dispatch async.
+def _run(coroutine) -> None:
+    background_tasks.create(coroutine)
 
 
 def _restart_app():
-    app_control.restart_app()
+    _run(app_control.restart_app())
 
 
 def _quit_app():
-    app_control.quit_app()
+    _run(app_control.quit_app())
 
 
 def _shutdown_system():
-    app_control.shutdown_system()
+    _run(app_control.shutdown_system())
 
 
 def _reboot_system():
-    app_control.reboot_system()
+    _run(app_control.reboot_system())
 
 
 def _show_reboot_confirmation():
@@ -530,18 +419,18 @@ def show_vpx_game_controls():
                     ui.icon("paid", size="xs").style("color: var(--neon-yellow) !important;")
                     ui.label(f"Credit {i}").classes("text-xs md:text-sm")
 
-    # Launch Table Section
+    # Launch Game Section
     with ui.card().classes("w-full p-3 md:p-4").style("background-color: var(--surface) !important; border: 1px solid var(--neon-purple); border-radius: 18px;"):
         ui.label("Launch Table").classes("text-center text-xs md:text-sm font-semibold mb-2 md:mb-3").style("color: var(--ink-muted) !important;")
 
         # State for the selection - also store UI element references
-        launch_state = {'tables': [], 'all_options': {}, 'filtered_options': {}, 'collection': 'All', 'last_term': ''}
+        launch_state = {'games': [], 'all_options': {}, 'filtered_options': {}, 'collection': 'All', 'last_term': ''}
         ui_refs = {}
 
         # Dropdown and launch button row (first)
         with ui.row().classes("w-full items-center gap-2 mb-2"):
-            # Dropdown select for tables
-            table_select = ui.select(
+            # Dropdown select for games
+            game_select = ui.select(
                 options=[],
                 on_change=lambda e: None
             ).props(
@@ -549,16 +438,16 @@ def show_vpx_game_controls():
             ).classes("flex-grow").style(
                 "min-width: 0; background: var(--surface) !important; border-radius: 8px;"
             )
-            ui_refs['table_select'] = table_select
+            ui_refs['game_select'] = game_select
 
             # Launch button
             def do_launch():
-                selected = ui_refs['table_select'].value
+                selected = ui_refs['game_select'].value
                 if selected:
-                    # Find the table by vpx_path (which is the value)
-                    table = next((t for t in launch_state['tables'] if t['vpx_path'] == selected), None)
-                    if table:
-                        _launch_table(table)
+                    # Find the game by vpx_path (which is the value)
+                    game = next((t for t in launch_state['games'] if t['vpx_path'] == selected), None)
+                    if game:
+                        _launch_game(game)
                     else:
                         ui.notify('Please select a table first', type='warning')
                 else:
@@ -573,40 +462,40 @@ def show_vpx_game_controls():
             """Apply collection filter to get base options."""
             collection = launch_state.get('collection', 'All')
             if collection == 'All':
-                # Use all tables
+                # Use all games
                 launch_state['filtered_options'] = {
-                    t['vpx_path']: t['display_name'] for t in launch_state['tables']
+                    t['vpx_path']: t['display_name'] for t in launch_state['games']
                 }
-            elif _is_filter_collection(collection):
+            elif remote_launch.is_filter_collection(collection):
                 # Filter-based collection
-                filters = _get_collection_filters(collection)
+                filters = remote_launch.get_collection_filters(collection)
                 launch_state['filtered_options'] = {
                     t['vpx_path']: t['display_name']
-                    for t in launch_state['tables']
-                    if _table_matches_filters(t, filters)
+                    for t in launch_state['games']
+                    if remote_launch.game_matches_filters(t, filters)
                 }
             else:
-                # VPSId-based collection
-                vpsids = _get_collection_vpsids(collection)
+                # Collection with an explicit member list
+                members = remote_launch.get_collection_members(collection)
                 launch_state['filtered_options'] = {
                     t['vpx_path']: t['display_name']
-                    for t in launch_state['tables']
-                    if t.get('vpsid') in vpsids
+                    for t in launch_state['games']
+                    if t.get('vpinfe_id') and t['vpinfe_id'] in members
                 }
 
         def on_collection_change(e):
             launch_state['collection'] = e.value
             apply_collection_filter()
-            # Clear search and update table list
+            # Clear search and update the games list
             ui_refs['filter_input'].value = ''
             launch_state['last_term'] = ''
-            ui_refs['table_select'].options = launch_state['filtered_options']
+            ui_refs['game_select'].options = launch_state['filtered_options']
             if launch_state['filtered_options']:
                 first_key = next(iter(launch_state['filtered_options']))
-                ui_refs['table_select'].value = first_key
+                ui_refs['game_select'].value = first_key
             else:
-                ui_refs['table_select'].value = None
-            ui_refs['table_select'].update()
+                ui_refs['game_select'].value = None
+            ui_refs['game_select'].update()
 
         # Collections dropdown (with label above)
         ui.label("Collection").classes("text-xs mb-1").style("color: var(--ink-muted) !important;")
@@ -639,70 +528,70 @@ def show_vpx_game_controls():
 
             if not term:
                 # Show all options from collection and select first
-                table_select.options = base_options
+                game_select.options = base_options
                 if base_options:
                     first_key = next(iter(base_options))
-                    table_select.value = first_key
+                    game_select.value = first_key
                 else:
-                    table_select.value = None
+                    game_select.value = None
             else:
                 # Filter options by search term - limit to first 10 matches
                 filtered = {k: v for k, v in base_options.items()
                            if term in v.lower()}
                 filtered_limited = dict(list(filtered.items())[:10])
-                table_select.options = filtered_limited
+                game_select.options = filtered_limited
                 # Auto-select first match
                 if filtered_limited:
                     first_key = next(iter(filtered_limited))
-                    table_select.value = first_key
+                    game_select.value = first_key
                     # Only open dropdown when adding characters (not deleting)
                     if len(term) > len(last_term):
-                        table_select.run_method('showPopup')
+                        game_select.run_method('showPopup')
                         await ui.run_javascript('''
                             setTimeout(() => {
                                 document.querySelector('[placeholder="Search/Filter..."]').focus();
                             }, 100);
                         ''')
                 else:
-                    table_select.value = None
-            table_select.update()
+                    game_select.value = None
+            game_select.update()
 
         filter_input.on_value_change(on_filter)
 
         # Launch on Enter key
         def on_enter():
-            if table_select.value:
-                table = next((t for t in launch_state['tables'] if t['vpx_path'] == table_select.value), None)
-                if table:
-                    _launch_table(table)
+            if game_select.value:
+                game = next((t for t in launch_state['games'] if t['vpx_path'] == game_select.value), None)
+                if game:
+                    _launch_game(game)
 
         filter_input.on('keydown.enter', on_enter)
 
-        # Load tables and collections on first render
-        async def load_tables():
+        # Load games and collections on first render
+        async def load_games():
             # Load collections
-            collections = await run.io_bound(_get_collections)
+            collections = await run.io_bound(remote_launch.get_collections)
             collection_options = ['All'] + list(collections)
             logger.debug("Setting collection options: %s", collection_options)
             collection_select.options = collection_options
             collection_select.update()
 
-            # Load tables
-            tables = await run.io_bound(_scan_tables_for_launch)
-            launch_state['tables'] = tables
+            # Load games
+            games = await run.io_bound(remote_launch.scan_games_for_launch)
+            launch_state['games'] = games
             # Build options as dict: {vpx_path: display_name}
-            options = {t['vpx_path']: t['display_name'] for t in tables}
+            options = {t['vpx_path']: t['display_name'] for t in games}
             launch_state['all_options'] = options
             launch_state['filtered_options'] = options
-            table_select.options = options
-            # Select first table by default
+            game_select.options = options
+            # Select first game by default
             if options:
                 first_key = next(iter(options))
-                table_select.value = first_key
-            table_select.update()
+                game_select.value = first_key
+            game_select.update()
 
         # Trigger initial load
-        ui.timer(0.1, load_tables, once=True)
+        ui.timer(0.1, load_games, once=True)
 
 
 def show_pinmame_controls():

@@ -9,11 +9,11 @@ The Manager UI is a NiceGUI application under `managerui/`. Its current refactor
 - `common/paths.py`: shared config paths and path helpers used across Manager UI, frontend, and common services.
 - `managerui/paths.py`: Manager UI-specific path exports such as static asset paths, backed by `common.paths`.
 - `managerui/ui_helpers.py`: reusable UI helpers such as shared style loading and standard nav/action buttons.
-- `managerui/filters.py`: shared filter option building and filtering for table-shaped rows.
+- `managerui/filters.py`: shared filter option building and filtering for game-shaped rows.
 - `managerui/config_fields.py`: declarative config field metadata such as checkbox fields and input ordering.
-- `managerui/config_support.py`: non-UI support helpers for config pages such as display detection and field option shaping.
+- `managerui/config_options.py`: non-UI support helpers for config pages such as display detection and field option shaping.
 - `managerui/remote_actions.py`: declarative remote control button definitions.
-- `managerui/remote_launch.py`: remote launch table scanning and collection filter matching.
+- `managerui/remote_launch.py`: remote launch game scanning and collection filter matching.
 - `managerui/services/`: non-UI behavior shared by routes and pages.
 - `managerui/static/manager.css`: shared Manager UI theme variables, shell layout, and nav styling.
 - `managerui/static/<page>.css`: page-specific CSS that has been moved out of Python modules.
@@ -40,13 +40,13 @@ Page-specific styles should move into `managerui/static/<page>.css` and be loade
 ```python
 from managerui.ui_helpers import load_page_style
 
-load_page_style("tables.css")
+load_page_style("games.css")
 ```
 
 Some older page-specific styles can remain in page modules during the transition, but the target architecture is:
 
 - shared tokens and common components in `manager.css`
-- page-specific classes grouped by feature, for example `tables.css`
+- page-specific classes grouped by feature, for example `games.css`
 - minimal inline styles in page rendering code
 
 ## Shared Paths
@@ -54,7 +54,7 @@ Some older page-specific styles can remain in page modules during the transition
 Use `common.paths` for shared app config paths, or `managerui.paths` when Manager UI-specific exports are needed:
 
 ```python
-from common.paths import CONFIG_DIR, VPINFE_INI_PATH, COLLECTIONS_PATH, get_tables_path
+from common.paths import CONFIG_DIR, VPINFE_INI_PATH, COLLECTIONS_PATH, get_games_path
 ```
 
 Avoid redefining `Path(user_config_dir("vpinfe", "vpinfe"))` in new Manager UI code.
@@ -65,14 +65,14 @@ Service modules live under `managerui/services/` and should not depend on page l
 
 Current services:
 
-- `archive_service.py`: validates table folders and creates temporary `.vpxz` archives.
+- `archive_service.py`: validates game folders and creates temporary `.vpxz` archives.
 - `app_control.py`: restart, quit, reboot, and shutdown actions that can be used without importing the remote page.
-- `collections_service.py`: collection manager access, table search, filter option building, and collection mutations.
+- `collections_service.py`: collection manager access, game search, filter option building, and collection mutations.
 - `media_service.py`: media scanning, thumbnail cache paths, media replacement, and media cache invalidation.
 - `system_service.py`: reusable system-page formatters, disk target resolution, and platform helpers.
-- `table_catalog.py`: shared table scanning and row shaping for mobile transfers and remote launching.
-- `table_index_service.py`: shared Manager UI table cache and lookup indexes (`table_path`, folder, VPS ID, search blobs, missing rows).
-- `table_service.py`: shared table metadata, VPSdb, collection, upload, and table-association operations.
+- `game_catalog.py`: shared game scanning and row shaping for mobile transfers and remote launching.
+- `game_index_service.py`: shared Manager UI game cache and lookup indexes (`table_path`, folder, VPS ID, search blobs, missing rows).
+- `game_service.py`: shared game metadata, VPSdb, collection, upload, and game-association operations.
 - `theme_service.py`: active theme, theme registry, install, and delete operations.
 - `vpx_config_service.py`: VPX config path lookup and backup management.
 
@@ -80,10 +80,10 @@ Use services from page event handlers instead of reaching into another page modu
 
 ## Shared Filtering
 
-Use `managerui.filters` when a page filters table-shaped rows by name, manufacturer, year, theme, or type:
+Use `managerui.filters` when a page filters game-shaped rows by name, manufacturer, year, theme, or type:
 
 ```python
-from managerui.filters import apply_table_filters, build_table_filter_options
+from managerui.filters import apply_game_filters, build_game_filter_options
 ```
 
 Pages can pass extra predicates for page-specific filters such as "has PUP pack" or "missing DMD media".
@@ -163,24 +163,24 @@ Use `managerui/config_fields.py` for field behavior that is metadata rather than
 
 For a new special field renderer, keep the NiceGUI component creation in `pages/vpinfe_config.py`, but put reusable classification rules in `config_fields.py`.
 
-## Adding Table Dialogs
+## Adding Game Dialogs
 
-Large table dialogs live outside the table-list page:
+Large game dialogs live outside the games page:
 
-- `pages/table_detail_dialog.py`
-- `pages/table_import_dialog.py`
-- `pages/table_match_dialog.py`
+- `pages/game_detail_dialog.py`
+- `pages/game_import_dialog.py`
+- `pages/game_match_dialog.py`
 
-These modules are the public import points for dialog entry functions and own the dialog bodies. `pages/tables.py` owns table scanning/list rendering and keeps only compatibility wrappers for older private dialog names.
+These modules are the public import points for dialog entry functions and own the dialog bodies. `pages/games.py` owns game scanning/list rendering and keeps only compatibility wrappers for older private dialog names.
 
-`pages/table_dialog_context.py` provides a small context object for refresh callbacks. New table dialog code should accept callbacks through this context or explicit function parameters instead of importing another page to trigger refreshes.
+`pages/game_dialog_context.py` provides a small context object for refresh callbacks. New game dialog code should accept callbacks through this context or explicit function parameters instead of importing another page to trigger refreshes.
 
-When changing table dialogs:
+When changing game dialogs:
 
 - keep NiceGUI layout and event wiring in the dialog module
-- put filesystem, metadata, VPSdb, and cache behavior in `services/table_service.py` or `services/table_index_service.py`
+- put filesystem, metadata, VPSdb, and cache behavior in `services/game_service.py` or `services/game_index_service.py`
 - use `services/media_service.invalidate_media_cache()` after changes that affect media listings
-- avoid adding more dialog body code to `pages/tables.py`
+- avoid adding more dialog body code to `pages/games.py`
 
 ## Remote Imports
 
@@ -188,7 +188,7 @@ Do not import `pages/remote.py` from the shell or unrelated pages just to restar
 
 ## Cache Ownership
 
-Cache ownership should live with services, not page modules. For example, media cache invalidation is exposed by `managerui.services.media_service.invalidate_media_cache()`, so table services and dialogs do not need to import `pages/media.py`.
+Cache ownership should live with services, not page modules. For example, media cache invalidation is exposed by `managerui.services.media_service.invalidate_media_cache()`, so game services and dialogs do not need to import `pages/media.py`.
 
 When adding a new cache:
 
@@ -196,19 +196,19 @@ When adding a new cache:
 - have pages read/update through that service
 - avoid page-to-page imports for cache refreshes
 
-## Table Index
+## Game Index
 
-Use `managerui.services.table_index_service` for table rows that need to be reused across pages. It owns the Manager UI table cache and derived lookup maps, so pages should avoid keeping their own long-lived table lists.
+Use `managerui.services.game_index_service` for game rows that need to be reused across pages. It owns the Manager UI game cache and derived lookup maps, so pages should avoid keeping their own long-lived game lists.
 
 Good uses:
 
-- table list rows and missing rows after a scan
-- table lookups by path, folder name, or VPS ID
+- game list rows and missing rows after a scan
+- game lookups by path, folder name, or VPS ID
 - collection membership updates
-- lightweight search against already-loaded table rows
+- lightweight search against already-loaded game rows
 - remote-launch dropdown rows
 
-When a page performs a full table scan, call `scan_table_data(reload=True)` so rows and missing rows are refreshed together.
+When a page performs a full game scan, call `scan_game_data(reload=True)` so rows and missing rows are refreshed together.
 
 ## Adding Service Logic
 
@@ -219,27 +219,27 @@ Suggested pattern:
 - `managerui/services/<feature>.py`: data and side-effect functions
 - `managerui/pages/<feature>.py`: NiceGUI layout and event wiring
 
-For example, table import and VPS matching logic should live in table-focused service/dialog modules instead of growing `pages/tables.py`.
+For example, game import and VPS matching logic should live in game-focused service/dialog modules instead of growing `pages/games.py`.
 
 ## Drag And Drop Imports
 
-Dropping a file, archive, or folder onto the Tables page, a table row, the table detail dialog, or a Media cell imports assets without the per-asset upload buttons. The pipeline is transport-neutral and layered so the UI, the HTTP API, and any non-browser caller share one engine.
+Dropping a file, archive, or folder onto the Tables page, a game row, the game detail dialog, or a Media cell imports assets without the per-asset upload buttons. The pipeline is transport-neutral and layered so the UI, the HTTP API, and any non-browser caller share one engine.
 
 Layers, bottom up:
 
-- `services/asset_registry.py` owns the asset-kind registry (`AssetSpec`): extensions, whether a kind needs a target table or ROM name, and media-slot matching. Add a new asset kind here first.
+- `services/asset_registry.py` owns the asset-kind registry (`AssetSpec`): extensions, whether a kind needs a target game or ROM name, and media-slot matching. Add a new asset kind here first.
 - `services/asset_analyzer_service.py` opens a source (zip/rar/7z/directory/single file) behind one listing API and detects what it holds without extracting. It returns an `AnalysisResult` (detected assets, unrecognized paths, and a parsed bundle `.info`). It also owns the RAR-tool helpers (`configure_rar_tool`, `rar_tool_available`, `rar_tool_hint`).
 - `services/asset_import_service.py` turns an `AnalysisResult` plus a target context into an `ImportPlan` (`build_import_plan`), then runs it (`execute_import_plan`) by delegating to the existing `table_service`/`media_service` write primitives. It owns the `.info` merge (`merge_info`) and the media-slot plan (`build_media_slot_plan`).
 - `services/upload_session_service.py` provides streaming, sanitized temp-file sessions with a size cap and TTL sweep. It is transport-agnostic: anything that can stage files can drive an import.
-- `upload_api.py` is an `APIRouter` mounted from `managerui.py` via `register_routes(app)`, exposing `/api/asset-upload/*` (begin/file/finish/abort, analyze/plan/import, vps-search). The UI and any non-browser caller use the same routes.
+- Upload and import routes live in `httpapi/uploads.py` under `/api/v1/uploads/*`, not in the Manager UI. `managerui/static/dnd_upload.js` is one client of them; any non-browser caller uses the same routes. See `docs/http_api.md`.
 
 UI pieces:
 
 - `static/dnd_upload.js` and `dnd_upload.css` are the browser drop target. The script auto-attaches via a MutationObserver so it survives re-renders and reconnects, walks dropped folders, uploads files with their relative paths, and reports back through the `vpinfe_dnd` global event. It is loaded with an mtime cache-buster.
-- `pages/dnd_drop_zone.py` exposes `create_drop_zone(...)` plus `enable_row_drops` and `enable_cell_drops` to make table rows and media cells targets. Pages pass a context resolver so a drop knows its target table.
-- `pages/import_confirm_dialog.py` is the confirm dialog: detected assets and destinations, VPS association for new tables, and the selection/rename that produces the final plan.
+- `pages/dnd_drop_zone.py` exposes `create_drop_zone(...)` plus `enable_row_drops` and `enable_cell_drops` to make game rows and media cells targets. Pages pass a context resolver so a drop knows its target game.
+- `pages/import_confirm_dialog.py` is the confirm dialog: detected assets and destinations, VPS association for new games, and the selection/rename that produces the final plan.
 
-To add a new asset kind: register it in `asset_registry.py`, add a detection rule in `asset_analyzer_service.py`, and a destination plus import action in `asset_import_service.py`. The UI and API pick it up with no changes. Drop targets are opt-in per page — only the Tables page, `table_detail_dialog.py`, and the Media view call the drop-zone helpers.
+To add a new asset kind: register it in `asset_registry.py`, add a detection rule in `asset_analyzer_service.py`, and a destination plus import action in `asset_import_service.py`. The UI and API pick it up with no changes. Drop targets are opt-in per page — only the Tables page, `game_detail_dialog.py`, and the Media view call the drop-zone helpers.
 
 ## Guidelines
 
@@ -247,7 +247,7 @@ To add a new asset kind: register it in `asset_registry.py`, add a detection rul
 - Add pages through `page_registry.py` instead of hard-coding new nav buttons.
 - Use `paths.py` for shared Manager UI paths.
 - Use `services/` for behavior that is reused by multiple pages or routes.
-- Use `filters.py` for common table-shaped filtering.
+- Use `filters.py` for common game-shaped filtering.
 - Use `config_fields.py` for reusable config field rules.
 - Prefer classes in `manager.css` over repeated inline style strings.
 - Keep standalone routes like `/remote` and `/mobile` explicit in `managerui.py`.
