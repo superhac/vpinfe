@@ -12,7 +12,7 @@ _LOCK = threading.Lock()
 _CONTROLLER = None
 _CURRENT_IMAGE = None
 _WRAPPER_NAMES = ('libdmdutil_wrapper.py',)
-_DEFAULT_REALDMD_IMAGE = APP_ROOT / "web" / "images" / "vpinfe_realdmd.png"
+_DEFAULT_REALDMD_IMAGE = APP_ROOT / "common" / "host" / "static" / "vpinfe_realdmd.png"
 logger = logging.getLogger("vpinfe.common.host.libdmdutil_service")
 
 
