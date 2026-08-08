@@ -135,7 +135,7 @@ class ConfigStore:
         else:
             logger.info("Generating default settings at: %s", self.json_path)
             self.is_new = True
-            self.formatDefaults()
+            self.format_defaults()
             self.save()
 
         changed = self._converted_from_ini
@@ -306,7 +306,7 @@ class ConfigStore:
         write_atomic(self.json_path,
                      lambda handle: json.dump(payload, handle, indent=2, ensure_ascii=False))
 
-    def formatDefaults(self):
+    def format_defaults(self):
         for section, defaults in self.defaults.items():
             self.config.add_section(section)
             for key, value in defaults.items():
