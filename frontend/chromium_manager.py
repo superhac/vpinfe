@@ -109,26 +109,33 @@ def _build_window_url(
     window_name: str,
     splash_enabled: bool,
     ws_port: int = 8002,
+    manager_ui_port: int = 8001,
 ) -> str:
-    """Where a window opens, and how it finds the bridge.
+    """Where a window opens, and how it finds the services.
 
-    The bridge port travels in the url because it is the one thing the page cannot ask
-    for: everything else comes over the bridge, and asking needs the port. Without it
-    `ws_port` was a setting the browser ignored, so moving the bridge left the frontend
-    dialling 8002 forever.
+    The ports travel in the url because they are what the page cannot ask for:
+    everything else comes over the bridge, and asking needs the bridge port. Without
+    this they were settings the browser ignored, so moving a service left the frontend
+    dialling the old port forever.
+
+    Built once and appended to all three url forms - stating them per form is how the
+    frontend ended up asserting one machine in six places.
     """
+    endpoints = (f"wsPort={ws_port}&themeAssetsPort={theme_assets_port}"
+                 f"&managerUiPort={manager_ui_port}")
+
     if platform.system() == "Linux":
-        return f"{base_url}:{theme_assets_port}/app/{window_name}?wsPort={ws_port}"
+        return f"{base_url}:{theme_assets_port}/app/{window_name}?{endpoints}"
 
     if splash_enabled:
         return (f"{base_url}:{theme_assets_port}/core/splash.html"
-                f"?window={window_name}&wsPort={ws_port}")
+                f"?window={window_name}&{endpoints}")
 
     encoded_theme = quote(theme_name, safe="")
     return (
         f"{base_url}:{theme_assets_port}/themes/"
         f"{encoded_theme}/index_{window_name}.html?window={window_name}"
-        f"&wsPort={ws_port}"
+        f"&{endpoints}"
     )
 
 
@@ -437,6 +444,7 @@ class ChromiumManager:
                 window_name=window_name,
                 splash_enabled=splash_enabled,
                 ws_port=network.ws_port,
+                manager_ui_port=network.manager_ui_port,
             )
 
             override_key = f"{window_name}windowoverride"

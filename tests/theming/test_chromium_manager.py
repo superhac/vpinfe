@@ -181,5 +181,40 @@ class ChromiumManagerTests(unittest.TestCase):
         self.assertTrue(manager._exit_event.is_set())
 
 
+class WindowUrlTests(unittest.TestCase):
+    """A window has to be told where the services are: it cannot ask, because asking
+    needs the bridge and finding the bridge needs a port. A port missing here is a
+    frontend dialling the wrong one forever, which is why every form is checked."""
+
+    def _url(self, system: str, *, splash: bool = False) -> str:
+        with mock.patch("frontend.chromium_manager.platform.system", return_value=system):
+            return chromium_manager._build_window_url(
+                base_url="http://127.0.0.1",
+                theme_assets_port=9000,
+                theme_name="Some Theme",
+                window_name="playfield",
+                splash_enabled=splash,
+                ws_port=9002,
+                manager_ui_port=9001,
+            )
+
+    def test_every_window_url_carries_every_port(self) -> None:
+        for system, splash, label in (("Linux", False, "the /app/ bootstrap"),
+                                      ("Darwin", True, "the splash page"),
+                                      ("Darwin", False, "a theme page")):
+            with self.subTest(label):
+                url = self._url(system, splash=splash)
+
+                self.assertIn("wsPort=9002", url)
+                self.assertIn("themeAssetsPort=9000", url)
+                self.assertIn("managerUiPort=9001", url)
+
+    def test_the_ports_are_query_parameters_of_the_page(self) -> None:
+        """Appended to whatever the form already asks for, not replacing it."""
+        url = self._url("Darwin")
+
+        self.assertIn("index_playfield.html?window=playfield&", url)
+
+
 if __name__ == "__main__":
     unittest.main()

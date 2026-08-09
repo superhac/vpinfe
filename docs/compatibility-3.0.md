@@ -267,6 +267,28 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-53 — The page is told where the services are, instead of asserting one machine.**
+*(machine-checked)* `vpin.endpoints` gives a theme complete base URLs keyed by role -
+`hub`, `player`, `bridge` - and the window URL now carries `themeAssetsPort` and
+`managerUiPort` alongside the `wsPort` it already carried. Same values as before and the
+same defaults when nothing says otherwise, so a single-machine install is unchanged.
+`vpin.themeAssetsPort` keeps working and keeps its meaning; the block derives from it.
+*Why:* `vpinfe-core.js` hardcoded `127.0.0.1` in six places - theme media, table media by
+two path shapes, the manufacturer logo, the window channel and the Manager UI event
+stream. PR #66 reported four; two more were added by 3.0's own media and logo work while
+the report was open, which is the cost of the pattern rather than an accident. Six
+assertions of one fact make a seventh easy to add and nothing notices. `window.location`
+is not the fix: it replaces one one-machine assumption with another, and it fails only for
+remote viewers, so it looks right on the machine it was written on. The block is keyed by
+role rather than by transport because the window channel is one transport serving two
+roles, so `assets`/`bridge`/`api` could not express "hub calls go there, player calls go
+here" - it would encode the assumption it exists to undo. It is derived on read, so the
+port correction the bridge sends during init reaches every URL built from it; resolving
+once at construction made that correction land on the port and stop, which fails silently
+whenever the default is also the right answer. Covered by `tests/js/endpoints.test.js`,
+`tests/theming/test_chromium_manager.py`, and `tests/theming/test_render_smoke.py`, which
+runs against ports chosen at random precisely so an assumed one fails.
+
 **PAR-52 — An install has an identity of its own.** A new `[install]` section holds `id`,
 `display_name` and `roles`. `id` is minted once on first start and written to the config;
 `display_name` defaults to this machine's hostname and is not written down by reading it;
