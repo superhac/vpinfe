@@ -113,6 +113,7 @@ class GameLinks(ApiModel):
     media: str
     archive: str
     launch: str
+    rating: str
 
 
 class GameResource(ApiModel):
@@ -400,6 +401,17 @@ class ManufacturerList(ApiModel):
 
 
 # --- Launch ----------------------------------------------------------------
+
+class RatingRequest(ApiModel):
+    """0-5, where 0 means unrated. A value outside that is refused rather than
+    clamped: silently storing 5 for a caller that sent 9 hides its bug."""
+
+    rating: int = Field(ge=0, le=5)
+
+
+class Rating(ApiModel):
+    rating: int
+
 
 class LaunchRequest(ApiModel):
     """`file` picks one of the game's tables; absent means the default."""

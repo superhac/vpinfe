@@ -267,6 +267,23 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-57 — A game can be rated over the API.** New: `PUT /api/v1/games/{id}/rating`,
+taking `{"rating": 0-5}` and carrying the `games:write` scope. `GET /games/{id}` reported
+a rating already, so this is the write half of a field that was read-only; a rating set
+from the frontend and one set here land in the same `User.Rating`, and nothing about the
+frontend's own path changes.
+*Why:* the only way to rate a game was the window channel, which addresses games by their
+position in one window's filtered list - so no other caller could reach it, and the
+asymmetry was the last real gap between the channel's hub half and the HTTP API. A rating
+outside 0-5 is refused with a 422 rather than clamped, which is a deliberate difference
+from `normalize_rating`: clamping is right when reading whatever a hand-edited `.info`
+holds, and wrong for a caller that just sent 9, because storing 5 hides its bug. A whole
+value PUT rather than a PATCH - the rating is the resource, so sending it twice says the
+same thing rather than incrementing. The write itself moved to
+`common/games/game_metadata.py` beside `game_rating`, and re-reads the `.info` first so a
+rating set from one surface does not overwrite what another wrote while the copy was held.
+Covered by `tests/api/test_game_rating.py`.
+
 **PAR-56 — Shared services move out from under the Manager UI.** Nine modules move:
 `game_service`, `game_index_service`, `media_service`, `asset_registry`,
 `archive_service` and `export_bundle` to `common/games/`, and `upload_session_service`,

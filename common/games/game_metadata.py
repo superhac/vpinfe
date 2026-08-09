@@ -193,6 +193,19 @@ def game_rating(game) -> int:
     return normalize_rating(get_meta_value(meta, "User", "Rating", 0))
 
 
+def set_game_rating(game, rating: Any) -> int:
+    """Write `User.Rating`, returning what was stored.
+
+    Re-reads from disk first, so a rating set from one surface does not overwrite
+    whatever another wrote to the same `.info` while this copy was held.
+    """
+    config = load_game_meta(game)
+    get_or_create_user_meta(config)["Rating"] = normalize_rating(rating)
+    persist_game_meta(game, config)
+    game.meta_config = config
+    return normalize_rating(rating)
+
+
 def game_frontend_dof_event(game) -> str:
     """The DOF effect a game asks for when selected, or "" to use the default."""
     meta = normalize_meta(getattr(game, "meta_config", {}))

@@ -61,6 +61,7 @@ the documented entry point is a plain 200. Both spellings work.
 | GET | `/api/v1/games/{id}/media/{kind}` | Stream one media file |
 | GET | `/api/v1/games/{id}/archive` | Download a game as `.vpxz` — one table by default; `?file=` picks which table. `?full=true` (whole folder) carries its own scope, `games:export_full` |
 | POST | `/api/v1/games/{id}/launch` | Launch a game here. Optional `{"file": "..."}` picks which table |
+| PUT | `/api/v1/games/{id}/rating` | Rate a game, `{"rating": 0-5}`. `0` is unrated |
 | POST | `/api/v1/uploads` | Begin an upload session → `{"id": ...}` |
 | POST | `/api/v1/uploads/{id}/files` | Add a file (multipart: `relpath`, `file`) |
 | GET | `/api/v1/uploads/{id}` | Session summary → `{"file_count", "total_bytes"}` |

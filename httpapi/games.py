@@ -17,7 +17,7 @@ from starlette.responses import FileResponse
 
 from common.config_access import MediaConfig
 from common.games import asset_resolver, game_identity
-from common.games.game_metadata import vpinfe_section
+from common.games.game_metadata import set_game_rating, vpinfe_section
 from common.games.game_repository import (
     collections_by_game_id,
     ensure_games_loaded,
@@ -88,6 +88,7 @@ def _resource(row: dict, game_id: str) -> dict:
             "media": f"{prefix}/media",
             "archive": f"{prefix}/archive",
             "launch": f"{prefix}/launch",
+            "rating": f"{prefix}/rating",
         },
     }
 
@@ -390,6 +391,18 @@ def launch_game(game_id: str,
     return {"launching": True, "game_id": game_id,
             "file": Path(resolved).name,
             "links": {"state": "/api/v1/play/state", "events": "/api/v1/events"}}
+
+
+@router.put("/{game_id}/rating", summary="Rate a game",
+            dependencies=[requires(scopes.GAMES_WRITE)])
+def put_game_rating(game_id: str, payload: models.RatingRequest) -> models.Rating:
+    """Set `User.Rating` on a game, 0-5.
+
+    A whole-value PUT rather than a PATCH: the rating is the resource, and sending
+    it again is the same request twice rather than a second increment.
+    """
+    game = _game_or_404(game_id)
+    return {"rating": set_game_rating(game, payload.rating)}
 
 
 @router.get("/{game_id}/archive", summary="Download the game folder as an archive",
