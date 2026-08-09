@@ -42,6 +42,11 @@
     "select": "key:Enter",
     "tutorial": "key:t"
   },
+  "install": {
+    "display_name": "",
+    "id": "",
+    "roles": "hub,player"
+  },
   "libdmdutil": {
     "enabled": "false",
     "pin2dmd_enabled": "false",

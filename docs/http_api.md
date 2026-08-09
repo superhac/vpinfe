@@ -76,6 +76,9 @@ rather than matching a version number against a document.
 ```json
 {
   "name": "VPinFE",
+  "install_id": "7Kq2mVx9Ab",
+  "display_name": "basement cab",
+  "roles": ["hub", "player"],
   "api_version": "v1",
   "app_version": "2.5.0",
   "capabilities": [],
@@ -93,6 +96,15 @@ rather than matching a version number against a document.
 Links are relative so they stay correct behind a reverse proxy. A link that is present but
 `null` is a known part of the contract that this instance doesn't offer — clients should
 branch on that rather than on its absence.
+
+`name` is the product and reads the same on every install, so it can't tell two apart.
+`install_id` can: it's minted once on first start, opaque, and stable for the life of the
+install. Address an install by it and nothing else — `display_name` is for showing a
+person, defaults to the machine's hostname, and is meant to be renamed, so anything
+resolving through it breaks the first time somebody does.
+
+`roles` says which halves this install serves. It defaults to both, which is what a
+desktop install and a standalone cabinet are.
 
 ## Conventions
 

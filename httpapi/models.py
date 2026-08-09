@@ -57,7 +57,13 @@ class DiscoveryLinks(ApiModel):
 
 
 class Discovery(ApiModel):
+    """`name` is the product and is the same on every install; `install_id` is which
+    install this is, which is what a hub holding several of them addresses."""
+
     name: str
+    install_id: str
+    display_name: str
+    roles: list[str]
     api_version: str
     app_version: str
     capabilities: list[CapabilityInfo]

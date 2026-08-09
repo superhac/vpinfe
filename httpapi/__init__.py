@@ -93,6 +93,7 @@ def create_api_app() -> FastAPI:
     api.include_router(uploads.router)
     api.include_router(uploads.vps_router)
 
+    instance.mint_identity()
     core_capabilities.declare_core()
     play.declare_snapshots()
     events.attach()

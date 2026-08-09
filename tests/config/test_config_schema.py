@@ -73,7 +73,8 @@ class SchemaShapeTests(unittest.TestCase):
         internal = {(e.section, e.key) for e in config_schema.options() if e.internal}
 
         self.assertEqual(internal, {("vpsdb", "last"), ("state", "last_game"),
-                                    ("pinmame_score_parser", "roms_update_sha")})
+                                    ("pinmame_score_parser", "roms_update_sha"),
+                                    ("install", "id")})
         self.assertNotIn(("State", "last_game"),
                          {(e.section, e.key) for e in config_schema.settable()})
 

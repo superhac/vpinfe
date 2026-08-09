@@ -99,6 +99,27 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok"})
 
+    def test_discovery_says_which_install_is_answering(self) -> None:
+        """`name` is the product and reads the same everywhere, so it cannot tell two
+        installs apart. `install_id` is the field that can."""
+        payload = self.client.get("/").json()
+
+        self.assertEqual(payload["name"], "VPinFE")
+        self.assertIn("install_id", payload)
+        self.assertIn("display_name", payload)
+        self.assertEqual(payload["roles"], ["hub", "player"],
+                         "an unconfigured install serves both, as 2.x did")
+
+    def test_asking_who_this_is_does_not_write_to_the_config(self) -> None:
+        """Minting happens once at startup. A GET that wrote would make every reader a
+        writer, and read-only installs a bug report."""
+        from unittest.mock import patch
+
+        with patch("common.install_identity.ensure_id") as mint:
+            self.client.get("/")
+
+        mint.assert_not_called()
+
     def test_declared_capabilities_appear_in_discovery(self) -> None:
         self._isolated()
         capabilities.declare(capabilities.Capability(

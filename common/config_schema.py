@@ -486,6 +486,36 @@ CONFIG_OPTIONS: tuple[ConfigOption, ...] = (
         ),
     ),
     *in_section(
+        "install",
+        ConfigOption(
+            "id",
+            type="string",
+            default="",
+            description="Written by VPinFE on first start, and not meant to be edited."
+                        " A hub tells its installs apart by this, so changing it makes"
+                        " this a different install.",
+            # Minted on first read, never by a person, and never edited afterwards.
+            internal=True,
+        ),
+        ConfigOption(
+            "display_name",
+            type="string",
+            default="",
+            label="Install Name",
+            description="What to call this install where one is listed. Defaults to this"
+                        " machine's hostname. Nothing is addressed by it, so renaming is"
+                        " safe.",
+        ),
+        ConfigOption(
+            "roles",
+            type="list",
+            default="hub,player",
+            label="Roles",
+            description="What this install serves: the shared library half (hub), the"
+                        " machine games launch on (player), or both.",
+        ),
+    ),
+    *in_section(
         "vpsdb",
         ConfigOption(
             "last",

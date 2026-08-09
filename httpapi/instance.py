@@ -7,19 +7,54 @@ different thing entirely and lives under common/.
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter
 
+from common import install_identity
 from common.app_version import get_version
+from common.paths import get_ini_config
 
 from . import capabilities, models, scopes
 from .auth import requires
+
+logger = logging.getLogger("vpinfe.httpapi.instance")
+
+
+def mint_identity() -> None:
+    """Give this install an id if it has none, at startup rather than on a request.
+
+    Discovery only reads, so a GET never writes to the config file - and the id is on
+    disk before anything can ask for it.
+    """
+    try:
+        install_identity.ensure_id(get_ini_config())
+    except Exception as exc:
+        logger.warning("Could not mint this install's identity: %s", exc)
+
+
+def _identity() -> dict:
+    """Who is answering. A broken config must not take discovery down with it, so this
+    degrades to the unidentified answer 2.x gave rather than raising."""
+    try:
+        config = get_ini_config()
+        return {
+            "install_id": install_identity.install_id(config),
+            "display_name": install_identity.display_name(config),
+            "roles": install_identity.roles(config),
+        }
+    except Exception as exc:
+        logger.warning("Could not read this install's identity: %s", exc)
+        return {"install_id": "", "display_name": "", "roles": []}
 
 
 def discovery_payload(prefix: str, api_version: str) -> dict:
     """The discovery document. Links are relative so they survive a reverse proxy;
     present-but-null means a known link this instance does not offer."""
     return {
+        # `name` is the product, byte-identical everywhere; `install_id` is who this is.
         "name": "VPinFE",
+        **_identity(),
         "api_version": api_version,
         "app_version": get_version(),
         "capabilities": capabilities.declared(),

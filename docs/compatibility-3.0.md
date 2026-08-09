@@ -267,6 +267,25 @@ window to show them on. A window's monitor is now read generically from
 not launched, which is the rule that already applied. Covered by
 `tests/theming/test_theme_windows.py`.
 
+**PAR-52 — An install has an identity of its own.** A new `[install]` section holds `id`,
+`display_name` and `roles`. `id` is minted once on first start and written to the config;
+`display_name` defaults to this machine's hostname and is not written down by reading it;
+`roles` defaults to `hub,player`, which is what every existing install already is. All
+three are additive to `GET /api/v1`, so no client breaks and nothing looks different to
+anyone running one machine.
+*Why:* `GET /api/v1` returned `"name": "VPinFE"` and nothing else, byte-identical on every
+install, so two installs answering one hub were indistinguishable at every layer - no
+field to address one, none to attribute anything to one. That is correct for the
+one-to-one design 2.x had, and it is what has to change before a hub can hold more than
+one player. The id follows `common/games/game_identity.py`, which already solved this
+shape: opaque, minted explicitly, and reading never writes. Minting happens once at
+startup rather than on a request, so discovery only reads and a read-only install is not
+a bug report. `display_name` deliberately addresses nothing - renaming an install must not
+break a roster, which is only true while nothing resolves through the name - and an
+unreadable or misspelled `roles` falls back to both rather than to none, so a typo cannot
+decide that a machine has stopped launching games. Covered by
+`tests/config/test_install_identity.py`.
+
 **PAR-51 — The window channel refuses connections from other pages.** A WebSocket
 handshake carrying an `Origin` from anywhere but this machine is closed with 1008 instead
 of being served. A real window is served from loopback and passes; a client that sends no
